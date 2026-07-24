@@ -215,19 +215,20 @@ def _process_dataclass__07984f4058a40dd1ae7a4ad479a49991bc8948f8():
         "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', "
         "std_params=('text',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validat"
         "e_fns=()), ReprPlan(fields=(ReprPlan.Field(name='text', kw_only=False, fn=None),), id=False, terse=True, defau"
-        "lt_fn=None)))"
+        "lt_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='2a492b3cc5746e3dba06e0f58873bda78f8c73a7',
+    plan_repr_sha1='8a069a32ecf8d043f5e633a88fa444a6560c1ae4',
     cls_names=(
         ('omllm.llm.types.content', 'TextContent'),
         ('omllm.llm.types.content', 'ThinkingContent'),
     ),
 )
-def _process_dataclass__2a492b3cc5746e3dba06e0f58873bda78f8c73a7():
+def _process_dataclass__8a069a32ecf8d043f5e633a88fa444a6560c1ae4():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
+        __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -305,7 +306,8 @@ def _process_dataclass__2a492b3cc5746e3dba06e0f58873bda78f8c73a7():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"{self.text!r}")
+            if (s := __dataclass__repr__default_fn(self.text)) is not None:
+                parts.append(f"{s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -319,31 +321,38 @@ def _process_dataclass__2a492b3cc5746e3dba06e0f58873bda78f8c73a7():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('id', 'name', 'args')), EqPlan(fields=('id', 'name', 'args')), FrozenPlan(fields=("
-        "'id', 'name', 'args'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('id', 'name', 'args')"
-        ", cache=True), InitPlan(fields=(InitPlan.Field(name='id', annotation=OpRef(name='init.fields.0.annotation'), d"
-        "efault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
-        "date=None, check_type=None), InitPlan.Field(name='name', annotation=OpRef(name='init.fields.1.annotation'), de"
-        "fault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
-        "ate=None, check_type=None), InitPlan.Field(name='args', annotation=OpRef(name='init.fields.2.annotation'), def"
-        "ault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
-        "te=None, check_type=None)), self_param='self', std_params=('id', 'name', 'args'), kw_only_params=(), frozen=Tr"
-        "ue, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='i"
-        "d', kw_only=False, fn=None), ReprPlan.Field(name='name', kw_only=False, fn=None), ReprPlan.Field(name='args', "
-        "kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('id', 'name', 'args', 'backend_signature')), EqPlan(fields=('id', 'name', 'args', "
+        "'backend_signature')), FrozenPlan(fields=('id', 'name', 'args', 'backend_signature'), allow_dynamic_dunder_att"
+        "rs=False), HashPlan(action='add', fields=('id', 'name', 'args', 'backend_signature'), cache=True), InitPlan(fi"
+        "elds=(InitPlan.Field(name='id', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_facto"
+        "ry=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None"
+        "), InitPlan.Field(name='name', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factor"
+        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
+        ", InitPlan.Field(name='args', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory"
+        "=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),"
+        " InitPlan.Field(name='backend_signature', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(nam"
+        "e='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, co"
+        "erce=None, validate=None, check_type=None)), self_param='self', std_params=('id', 'name', 'args'), kw_only_par"
+        "ams=('backend_signature',), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), Re"
+        "prPlan(fields=(ReprPlan.Field(name='id', kw_only=False, fn=None), ReprPlan.Field(name='name', kw_only=False, f"
+        "n=None), ReprPlan.Field(name='args', kw_only=False, fn=None), ReprPlan.Field(name='backend_signature', kw_only"
+        "=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='3b8e700ef0ad8d5c34fff0473bc4c2ba565310cd',
+    plan_repr_sha1='e6d183fbcbea3434f6346c3c22c12e38c1980ac1',
     cls_names=(
         ('omllm.llm.types.content', 'ToolCall'),
     ),
 )
-def _process_dataclass__3b8e700ef0ad8d5c34fff0473bc4c2ba565310cd():
+def _process_dataclass__e6d183fbcbea3434f6346c3c22c12e38c1980ac1():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -357,6 +366,7 @@ def _process_dataclass__3b8e700ef0ad8d5c34fff0473bc4c2ba565310cd():
                 id=self.id,
                 name=self.name,
                 args=self.args,
+                backend_signature=self.backend_signature,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -369,7 +379,8 @@ def _process_dataclass__3b8e700ef0ad8d5c34fff0473bc4c2ba565310cd():
             return (
                 self.id == other.id and
                 self.name == other.name and
-                self.args == other.args
+                self.args == other.args and
+                self.backend_signature == other.backend_signature
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -378,6 +389,7 @@ def _process_dataclass__3b8e700ef0ad8d5c34fff0473bc4c2ba565310cd():
             'id',
             'name',
             'args',
+            'backend_signature',
         }
 
         def __setattr__(self, name, value):
@@ -412,6 +424,7 @@ def _process_dataclass__3b8e700ef0ad8d5c34fff0473bc4c2ba565310cd():
                     self.id,
                     self.name,
                     self.args,
+                    self.backend_signature,
                 ))
             )
             return h
@@ -423,19 +436,27 @@ def _process_dataclass__3b8e700ef0ad8d5c34fff0473bc4c2ba565310cd():
             id: __dataclass__init__fields__0__annotation,
             name: __dataclass__init__fields__1__annotation,
             args: __dataclass__init__fields__2__annotation,
+            *,
+            backend_signature: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'id', id)
             __dataclass__object_setattr(self, 'name', name)
             __dataclass__object_setattr(self, 'args', args)
+            __dataclass__object_setattr(self, 'backend_signature', backend_signature)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"id={self.id!r}")
-            parts.append(f"name={self.name!r}")
-            parts.append(f"args={self.args!r}")
+            if (s := __dataclass__repr__default_fn(self.id)) is not None:
+                parts.append(f"id={s}")
+            if (s := __dataclass__repr__default_fn(self.name)) is not None:
+                parts.append(f"name={s}")
+            if (s := __dataclass__repr__default_fn(self.args)) is not None:
+                parts.append(f"args={s}")
+            if (s := __dataclass__repr__default_fn(self.backend_signature)) is not None:
+                parts.append(f"backend_signature={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

@@ -30,7 +30,7 @@ class ContentBuilder(lang.Abstract, ta.Generic[ContentT]):
 
 @ta.final
 @dc.dataclass(frozen=True)
-@dc.extra_class_params(cache_hash=True, terse_repr=True)
+@dc.extra_class_params(cache_hash=True, terse_repr=True, default_repr_fn=lang.opt_repr)
 class TextContent(Content):
     text: str
 
@@ -53,7 +53,7 @@ class TextContentBuilder(ContentBuilder[TextContent]):
 
 @ta.final
 @dc.dataclass(frozen=True)
-@dc.extra_class_params(cache_hash=True, terse_repr=True)
+@dc.extra_class_params(cache_hash=True, terse_repr=True, default_repr_fn=lang.opt_repr)
 class ThinkingContent(Content):
     text: str
 
@@ -76,11 +76,15 @@ class ThinkingContentBuilder(ContentBuilder[ThinkingContent]):
 
 @ta.final
 @dc.dataclass(frozen=True)
-@dc.extra_class_params(cache_hash=True)
+@dc.extra_class_params(cache_hash=True, default_repr_fn=lang.opt_repr)
 class ToolCall(Content):
     id: str
     name: str
     args: ta.Mapping[str, ta.Any]
+
+    _: dc.KW_ONLY
+
+    backend_signature: str | None = None
 
 
 class ToolCallBuilder(ContentBuilder[ToolCall]):
