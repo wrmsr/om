@@ -114,7 +114,7 @@ class Loop:
 
         self._add_new_message(message)
 
-        if message.stop_reason is not None:
+        if message.stop_reason is not None and message.stop_reason != 'tool_use':
             await self._emit(TurnEndEvent(
                 message=message,
             ))

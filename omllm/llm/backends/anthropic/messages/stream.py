@@ -15,6 +15,7 @@ from ....types.streams import ToolCallDeltaAiStreamEvent
 from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
 from .requests import RequestPreparer
+from .responses import translate_stop_reason
 
 
 ##
@@ -126,9 +127,15 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
         elif raw_event_type == 'content_block_delta':
             self._feed_content_block_delta(raw_event)
 
+        elif raw_event_type == 'message_delta':
+            raw_delta = check.isinstance(raw_event['delta'], ta.Mapping)
+
+            if raw_sr := raw_delta.get('stop_reason'):
+                self._message.stop_reason = translate_stop_reason(check.isinstance(raw_sr, str))
+
         else:
-            # The remaining known event types - ping, content_block_stop, message_delta, and message_stop - carry
-            # nothing currently tracked, and unrecognized event types must be skipped for forward compatibility.
+            # The remaining known event types - ping, content_block_stop, and message_stop - carry nothing currently
+            # tracked, and unrecognized event types must be skipped for forward compatibility.
             pass
 
 

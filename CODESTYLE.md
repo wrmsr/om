@@ -448,6 +448,7 @@ def make_it_a_tuple(t: T) -> tuple[T]:
 - In general, with very rare exception, 'everything (that does IO) needs a timeout', but the default may be large enough
   to never be realistically hit in practice (think 5m for interactive work, 1h for background work).
   - By default all pytests already run with a standard timeout.
+- In non-lite code use `uuid.uuid7()` by default for uuid generation. In lite code use `uuid.uuid4()`.
 
 
 ### C Extensions

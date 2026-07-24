@@ -10,9 +10,11 @@ from ....types.content import TextContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
+from ....types.messages import StopReason
 from ....types.options import Options
 from ...base.http import BaseHttpBackend
 from .requests import RequestPreparer
+from .responses import translate_stop_reason
 
 
 ##
@@ -77,6 +79,11 @@ class AnthropicMessagesImmediateBackend(BaseHttpBackend, ImmediateBackend):
             else:
                 raise ValueError(raw_c['type'])
 
+        stop_reason: StopReason | None = None
+        if raw_sr := raw_response.get('stop_reason'):
+            stop_reason = translate_stop_reason(check.isinstance(raw_sr, str))
+
         return AiMessage(
             ta.cast(ta.Any, response_content),
+            stop_reason=stop_reason,
         )

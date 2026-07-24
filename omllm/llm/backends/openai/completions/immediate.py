@@ -10,9 +10,11 @@ from ....types.content import TextContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
+from ....types.messages import StopReason
 from ....types.options import Options
 from ...base.http import BaseHttpBackend
 from .requests import RequestPreparer
+from .responses import translate_stop_reason
 
 
 ##
@@ -76,6 +78,11 @@ class OpenaiCompletionsImmediateBackend(BaseHttpBackend, ImmediateBackend):
                     args=check.isinstance(args, ta.Mapping),
                 ))
 
+        stop_reason: StopReason | None = None
+        if raw_fr := raw_choice.get('finish_reason'):
+            stop_reason = translate_stop_reason(check.isinstance(raw_fr, str))
+
         return AiMessage(
             ta.cast(ta.Any, content),
+            stop_reason=stop_reason,
         )

@@ -11,9 +11,11 @@ from ....types.content import TextContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
+from ....types.messages import StopReason
 from ....types.options import Options
 from ...base.http import BaseHttpBackend
 from .requests import RequestPreparer
+from .responses import translate_stop_reason
 
 
 ##
@@ -61,7 +63,10 @@ class GoogleGenerativeImmediateBackend(BaseHttpBackend, ImmediateBackend):
         # A candidate may lack content entirely, such as when truncated by MAX_TOKENS before emitting anything.
         if (raw_content := raw_candidate.get('content')) is not None:
             raw_content = check.isinstance(raw_content, ta.Mapping)
-            check.equal(raw_content['role'], 'model')
+
+            # Truncated candidates may carry a bare content object with no role.
+            if (raw_role := raw_content.get('role')) is not None:
+                check.equal(raw_role, 'model')
 
             for raw_part in raw_content.get('parts') or []:
                 raw_part = check.isinstance(raw_part, ta.Mapping)
@@ -87,6 +92,15 @@ class GoogleGenerativeImmediateBackend(BaseHttpBackend, ImmediateBackend):
                 else:
                     raise ValueError(raw_part)
 
+        stop_reason: StopReason | None = None
+        if raw_fr := raw_candidate.get('finishReason'):
+            stop_reason = translate_stop_reason(check.isinstance(raw_fr, str))
+
+            # Google reports STOP even on tool-calling turns.
+            if stop_reason == 'stop' and any(isinstance(c, ToolCall) for c in content):
+                stop_reason = 'tool_use'
+
         return AiMessage(
             ta.cast(ta.Any, content),
+            stop_reason=stop_reason,
         )

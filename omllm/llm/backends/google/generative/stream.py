@@ -16,6 +16,7 @@ from ....types.streams import ToolCallDeltaAiStreamEvent
 from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
 from .requests import RequestPreparer
+from .responses import translate_stop_reason
 
 
 ##
@@ -50,51 +51,59 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             return
         raw_candidate = check.isinstance(check.single(raw_candidates), ta.Mapping)
 
-        if (raw_content := raw_candidate.get('content')) is None:
-            return
-        raw_content = check.isinstance(raw_content, ta.Mapping)
+        if (raw_content := raw_candidate.get('content')) is not None:
+            raw_content = check.isinstance(raw_content, ta.Mapping)
 
-        for raw_part in raw_content.get('parts') or []:
-            raw_part = check.isinstance(raw_part, ta.Mapping)
+            for raw_part in raw_content.get('parts') or []:
+                raw_part = check.isinstance(raw_part, ta.Mapping)
 
-            if raw_part.get('thought'):
-                continue
+                if raw_part.get('thought'):
+                    continue
 
-            if 'text' in raw_part:
-                if raw_text := check.isinstance(raw_part['text'], str):
-                    text = self._text()
-                    self._emit(TextDeltaAiStreamEvent(
-                        raw_text,
-                        content_index=self._content_index(text),
+                if 'text' in raw_part:
+                    if raw_text := check.isinstance(raw_part['text'], str):
+                        text = self._text()
+                        self._emit(TextDeltaAiStreamEvent(
+                            raw_text,
+                            content_index=self._content_index(text),
+                        ))
+                        text.text.write(raw_text)
+
+                elif 'functionCall' in raw_part:
+                    raw_fc = check.isinstance(raw_part['functionCall'], ta.Mapping)
+
+                    # Function calls arrive whole - args are a complete mapping, never streamed as partial json - so
+                    # each such part is a fully-formed new tool call, indexed only by arrival order. Google does not
+                    # reliably issue ids for them, so they are fabricated as needed.
+                    tool_call = self._tool_call(
+                        id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid4())),
+                        index=self._next_tool_call_index_,
+                    )
+                    self._next_tool_call_index_ += 1
+
+                    tool_call.name = check.non_empty_str(raw_fc['name'])
+                    tool_call.backend_signature = check.isinstance(raw_part.get('thoughtSignature'), (str, None))
+
+                    args_delta = json.dumps(check.isinstance(raw_fc.get('args') or {}, ta.Mapping))
+                    tool_call.partial_args.write(args_delta)
+                    tool_call.parse_args()
+
+                    self._emit(ToolCallDeltaAiStreamEvent(
+                        args_delta,
+                        content_index=self._content_index(tool_call),
                     ))
-                    text.text.write(raw_text)
 
-            elif 'functionCall' in raw_part:
-                raw_fc = check.isinstance(raw_part['functionCall'], ta.Mapping)
+                else:
+                    raise ValueError(raw_part)
 
-                # Function calls arrive whole - args are a complete mapping, never streamed as partial json - so each
-                # such part is a fully-formed new tool call, indexed only by arrival order. Google does not reliably
-                # issue ids for them, so they are fabricated as needed.
-                tool_call = self._tool_call(
-                    id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid4())),
-                    index=self._next_tool_call_index_,
-                )
-                self._next_tool_call_index_ += 1
+        if raw_fr := raw_candidate.get('finishReason'):
+            stop_reason = translate_stop_reason(check.isinstance(raw_fr, str))
 
-                tool_call.name = check.non_empty_str(raw_fc['name'])
-                tool_call.backend_signature = check.isinstance(raw_part.get('thoughtSignature'), (str, None))
+            # Google reports STOP even on tool-calling turns.
+            if stop_reason == 'stop' and self._next_tool_call_index_ > 0:
+                stop_reason = 'tool_use'
 
-                args_delta = json.dumps(check.isinstance(raw_fc.get('args') or {}, ta.Mapping))
-                tool_call.partial_args.write(args_delta)
-                tool_call.parse_args()
-
-                self._emit(ToolCallDeltaAiStreamEvent(
-                    args_delta,
-                    content_index=self._content_index(tool_call),
-                ))
-
-            else:
-                raise ValueError(raw_part)
+            self._message.stop_reason = stop_reason
 
 
 ##

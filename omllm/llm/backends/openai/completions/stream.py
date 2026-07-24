@@ -15,6 +15,7 @@ from ....types.streams import ToolCallDeltaAiStreamEvent
 from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
 from .requests import RequestPreparer
+from .responses import translate_stop_reason
 
 
 ##
@@ -44,6 +45,9 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             raise RuntimeError(_stringify_error(raw_chunk['error']))
 
         raw_choice = check.single(raw_chunk['choices'])
+
+        if raw_fr := raw_choice.get('finish_reason'):
+            self._message.stop_reason = translate_stop_reason(check.isinstance(raw_fr, str))
 
         if (raw_delta := raw_choice.get('delta')) is None:
             return
