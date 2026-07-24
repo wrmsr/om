@@ -742,30 +742,31 @@ def _process_dataclass__061935bc1a01224c96eb8768cf808ad905d79747():
         "Plans(tup=(CopyPlan(fields=('input', 'output', 'cache_read', 'cache_write', 'total')), EqPlan(fields=('input',"
         " 'output', 'cache_read', 'cache_write', 'total')), FrozenPlan(fields=('input', 'output', 'cache_read', 'cache_"
         "write', 'total'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('input', 'output', 'cache_"
-        "read', 'cache_write', 'total'), cache=False), InitPlan(fields=(InitPlan.Field(name='input', annotation=OpRef(n"
-        "ame='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True,"
-        " override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(n"
-        "ame='output', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), "
-        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
-        "eck_type=None), InitPlan.Field(name='cache_read', annotation=OpRef(name='init.fields.2.annotation'), default=O"
-        "pRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
-        "ANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cache_write', annotation=OpRef(name='"
-        "init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, over"
-        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='"
-        "total', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), defaul"
-        "t_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_ty"
-        "pe=None)), self_param='self', std_params=(), kw_only_params=('input', 'output', 'cache_read', 'cache_write', '"
-        "total'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Repr"
-        "Plan.Field(name='input', kw_only=True, fn=None), ReprPlan.Field(name='output', kw_only=True, fn=None), ReprPla"
-        "n.Field(name='cache_read', kw_only=True, fn=None), ReprPlan.Field(name='cache_write', kw_only=True, fn=None), "
-        "ReprPlan.Field(name='total', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+        "read', 'cache_write', 'total'), cache=True), InitPlan(fields=(InitPlan.Field(name='input', annotation=OpRef(na"
+        "me='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, "
+        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(na"
+        "me='output', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), d"
+        "efault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, che"
+        "ck_type=None), InitPlan.Field(name='cache_read', annotation=OpRef(name='init.fields.2.annotation'), default=Op"
+        "Ref(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
+        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cache_write', annotation=OpRef(name='i"
+        "nit.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, overr"
+        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='t"
+        "otal', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default"
+        "_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_typ"
+        "e=None)), self_param='self', std_params=(), kw_only_params=('input', 'output', 'cache_read', 'cache_write', 't"
+        "otal'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprP"
+        "lan.Field(name='input', kw_only=True, fn=None), ReprPlan.Field(name='output', kw_only=True, fn=None), ReprPlan"
+        ".Field(name='cache_read', kw_only=True, fn=None), ReprPlan.Field(name='cache_write', kw_only=True, fn=None), R"
+        "eprPlan.Field(name='total', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.defaul"
+        "t_fn'))))"
     ),
-    plan_repr_sha1='336ec60177fba82896e4c1968dbdce0c2ae6be59',
+    plan_repr_sha1='bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c',
     cls_names=(
         ('omllm.llm.types.messages', 'TokenUsage'),
     ),
 )
-def _process_dataclass__336ec60177fba82896e4c1968dbdce0c2ae6be59():
+def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
     def _process_dataclass(
         *,
         __class__,
@@ -779,6 +780,7 @@ def _process_dataclass__336ec60177fba82896e4c1968dbdce0c2ae6be59():
         __dataclass__init__fields__3__default,
         __dataclass__init__fields__4__annotation,
         __dataclass__init__fields__4__default,
+        __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -842,13 +844,22 @@ def _process_dataclass__336ec60177fba82896e4c1968dbdce0c2ae6be59():
         __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
 
         def __hash__(self):
-            return hash((
-                self.input,
-                self.output,
-                self.cache_read,
-                self.cache_write,
-                self.total,
-            ))
+            try:
+                return self.__dataclass_hash__
+            except AttributeError:
+                pass
+            object.__setattr__(
+                self,
+                '__dataclass_hash__',
+                h := hash((
+                    self.input,
+                    self.output,
+                    self.cache_read,
+                    self.cache_write,
+                    self.total,
+                ))
+            )
+            return h
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
 
@@ -872,11 +883,16 @@ def _process_dataclass__336ec60177fba82896e4c1968dbdce0c2ae6be59():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"input={self.input!r}")
-            parts.append(f"output={self.output!r}")
-            parts.append(f"cache_read={self.cache_read!r}")
-            parts.append(f"cache_write={self.cache_write!r}")
-            parts.append(f"total={self.total!r}")
+            if (s := __dataclass__repr__default_fn(self.input)) is not None:
+                parts.append(f"input={s}")
+            if (s := __dataclass__repr__default_fn(self.output)) is not None:
+                parts.append(f"output={s}")
+            if (s := __dataclass__repr__default_fn(self.cache_read)) is not None:
+                parts.append(f"cache_read={s}")
+            if (s := __dataclass__repr__default_fn(self.cache_write)) is not None:
+                parts.append(f"cache_write={s}")
+            if (s := __dataclass__repr__default_fn(self.total)) is not None:
+                parts.append(f"total={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

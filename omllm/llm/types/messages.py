@@ -64,7 +64,9 @@ type StopReason = ta.Literal[
 ]
 
 
+@ta.final
 @dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(cache_hash=True, default_repr_fn=lang.opt_repr)
 class TokenUsage:
     input: int | None = None
     output: int | None = None
