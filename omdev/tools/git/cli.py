@@ -315,6 +315,7 @@ class Cli(ap.Cli):
 
     @ap.cmd(
         ap.arg('-g', '--message-generator', nargs='?'),
+        ap.arg('-C', '--commit', action='store_true'),
         ap.arg('dir', nargs='*'),
         aliases=['gcm'],
     )
@@ -334,7 +335,19 @@ class Cli(ap.Cli):
                 cwd=cwd,
                 time_fmt=self._time_fmt,
             ))
-            print(mgr.msg)
+            msg = mgr.msg
+
+            if self.args.commit:
+                subprocesses.check_call(
+                    'git',
+                    'commit',
+                    '-m',
+                    msg,
+                    *self.unknown_args,
+                )
+
+            else:
+                print(msg)
 
         if not self.args.dir:
             run(None)

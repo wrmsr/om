@@ -19,6 +19,7 @@ MessageT = ta.TypeVar('MessageT', bound='Message')
 StopReason: ta.TypeAlias = ta.Literal[
     'stop',
     'length',
+    'tool_use',
     'error',
 ]
 
