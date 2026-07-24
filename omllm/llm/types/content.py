@@ -34,6 +34,10 @@ class ContentBuilder(lang.Abstract, ta.Generic[ContentT]):
 class TextContent(Content):
     text: str
 
+    _: dc.KW_ONLY
+
+    backend_signature: str | None = None
+
 
 @ta.final
 class TextContentBuilder(ContentBuilder[TextContent]):
@@ -41,10 +45,12 @@ class TextContentBuilder(ContentBuilder[TextContent]):
         super().__init__()
 
         self.text = io.StringIO()
+        self.backend_signature: str | None = None
 
     def build(self) -> TextContent:
         return TextContent(
             text=self.text.getvalue(),
+            backend_signature=self.backend_signature,
         )
 
 
@@ -57,6 +63,10 @@ class TextContentBuilder(ContentBuilder[TextContent]):
 class ThinkingContent(Content):
     text: str
 
+    _: dc.KW_ONLY
+
+    backend_signature: str | None = None
+
 
 @ta.final
 class ThinkingContentBuilder(ContentBuilder[ThinkingContent]):
@@ -64,10 +74,12 @@ class ThinkingContentBuilder(ContentBuilder[ThinkingContent]):
         super().__init__()
 
         self.text = io.StringIO()
+        self.backend_signature: str | None = None
 
     def build(self) -> ThinkingContent:
         return ThinkingContent(
             text=self.text.getvalue(),
+            backend_signature=self.backend_signature,
         )
 
 

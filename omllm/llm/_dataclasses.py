@@ -209,25 +209,31 @@ def _process_dataclass__07984f4058a40dd1ae7a4ad479a49991bc8948f8():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('text',)), EqPlan(fields=('text',)), FrozenPlan(fields=('text',), allow_dynamic_du"
-        "nder_attrs=False), HashPlan(action='add', fields=('text',), cache=True), InitPlan(fields=(InitPlan.Field(name="
-        "'text', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, over"
-        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', "
-        "std_params=('text',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validat"
-        "e_fns=()), ReprPlan(fields=(ReprPlan.Field(name='text', kw_only=False, fn=None),), id=False, terse=True, defau"
-        "lt_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('text', 'backend_signature')), EqPlan(fields=('text', 'backend_signature')), Froze"
+        "nPlan(fields=('text', 'backend_signature'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=("
+        "'text', 'backend_signature'), cache=True), InitPlan(fields=(InitPlan.Field(name='text', annotation=OpRef(name="
+        "'init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTy"
+        "pe.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='backend_signature', annotation"
+        "=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, in"
+        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_pa"
+        "ram='self', std_params=('text',), kw_only_params=('backend_signature',), frozen=True, slots=False, post_init_p"
+        "arams=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='text', kw_only=False, fn=None"
+        "), ReprPlan.Field(name='backend_signature', kw_only=True, fn=None)), id=False, terse=True, default_fn=OpRef(na"
+        "me='repr.default_fn'))))"
     ),
-    plan_repr_sha1='8a069a32ecf8d043f5e633a88fa444a6560c1ae4',
+    plan_repr_sha1='a65a2e4a2f335305689f0fb4917863975614542a',
     cls_names=(
         ('omllm.llm.types.content', 'TextContent'),
         ('omllm.llm.types.content', 'ThinkingContent'),
     ),
 )
-def _process_dataclass__8a069a32ecf8d043f5e633a88fa444a6560c1ae4():
+def _process_dataclass__a65a2e4a2f335305689f0fb4917863975614542a():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
         __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
@@ -240,6 +246,7 @@ def _process_dataclass__8a069a32ecf8d043f5e633a88fa444a6560c1ae4():
                 raise TypeError(self)
             return __class__(  # noqa
                 text=self.text,
+                backend_signature=self.backend_signature,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -250,13 +257,15 @@ def _process_dataclass__8a069a32ecf8d043f5e633a88fa444a6560c1ae4():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.text == other.text
+                self.text == other.text and
+                self.backend_signature == other.backend_signature
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'text',
+            'backend_signature',
         }
 
         def __setattr__(self, name, value):
@@ -289,6 +298,7 @@ def _process_dataclass__8a069a32ecf8d043f5e633a88fa444a6560c1ae4():
                 '__dataclass_hash__',
                 h := hash((
                     self.text,
+                    self.backend_signature,
                 ))
             )
             return h
@@ -298,8 +308,11 @@ def _process_dataclass__8a069a32ecf8d043f5e633a88fa444a6560c1ae4():
         def __init__(
             self,
             text: __dataclass__init__fields__0__annotation,
+            *,
+            backend_signature: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'text', text)
+            __dataclass__object_setattr(self, 'backend_signature', backend_signature)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -308,6 +321,8 @@ def _process_dataclass__8a069a32ecf8d043f5e633a88fa444a6560c1ae4():
             parts = []
             if (s := __dataclass__repr__default_fn(self.text)) is not None:
                 parts.append(f"{s}")
+            if (s := __dataclass__repr__default_fn(self.backend_signature)) is not None:
+                parts.append(f"backend_signature={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
