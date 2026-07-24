@@ -12,6 +12,7 @@ from ....types.context import Context
 from ....types.options import Options
 from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
+from ....types.streams import ThinkingDeltaAiStreamEvent
 from ....types.streams import ToolCallDeltaAiStreamEvent
 from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
@@ -63,16 +64,36 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
                 raw_part = check.isinstance(raw_part, ta.Mapping)
 
                 if raw_part.get('thought'):
+                    thinking = self._thinking()
+
+                    if raw_text := check.isinstance(raw_part.get('text') or '', str):
+                        self._emit(ThinkingDeltaAiStreamEvent(
+                            raw_text,
+                            content_index=self._content_index(thinking),
+                        ))
+                        thinking.text.write(raw_text)
+
+                    if raw_sig := raw_part.get('thoughtSignature'):
+                        thinking.backend_signature = check.isinstance(raw_sig, str)
+
                     continue
 
                 if 'text' in raw_part:
-                    if raw_text := check.isinstance(raw_part['text'], str):
+                    raw_text = check.isinstance(raw_part['text'], str)
+
+                    # A signature may ride a text part - even an empty one - and must be captured for echoing.
+                    if raw_text or raw_part.get('thoughtSignature'):
                         text = self._text()
-                        self._emit(TextDeltaAiStreamEvent(
-                            raw_text,
-                            content_index=self._content_index(text),
-                        ))
-                        text.text.write(raw_text)
+
+                        if raw_text:
+                            self._emit(TextDeltaAiStreamEvent(
+                                raw_text,
+                                content_index=self._content_index(text),
+                            ))
+                            text.text.write(raw_text)
+
+                        if raw_sig := raw_part.get('thoughtSignature'):
+                            text.backend_signature = check.isinstance(raw_sig, str)
 
                 elif 'functionCall' in raw_part:
                     raw_fc = check.isinstance(raw_part['functionCall'], ta.Mapping)

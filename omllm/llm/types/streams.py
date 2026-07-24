@@ -70,6 +70,29 @@ class TextEndAiStreamEvent(ContentAiStreamEvent):
 
 @ta.final
 @dc.dataclass(frozen=True)
+class ThinkingStartAiStreamEvent(ContentAiStreamEvent):
+    pass
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(cache_hash=True, terse_repr=True)
+class ThinkingDeltaAiStreamEvent(ContentAiStreamEvent):
+    text: str
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(cache_hash=True, terse_repr=True)
+class ThinkingEndAiStreamEvent(ContentAiStreamEvent):
+    text: str
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
 @dc.extra_class_params(cache_hash=True)
 class ToolCallStartAiStreamEvent(ContentAiStreamEvent):
     pass

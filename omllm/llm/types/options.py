@@ -16,6 +16,8 @@ class Options:
 
     max_tokens: int | None = None
 
+    thinking: bool | None = None
+
     #
 
     @ta.final

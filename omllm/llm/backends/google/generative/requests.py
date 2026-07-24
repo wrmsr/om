@@ -3,6 +3,7 @@ import typing as ta
 from omcore import lang
 
 from ....types.content import TextContent
+from ....types.content import ThinkingContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
@@ -37,10 +38,18 @@ class RequestPreparer:
     def raw_request(self) -> dict[str, ta.Any]:
         raw_request: dict = {}
 
+        raw_generation_config: dict = {}
+
         if self._options.max_tokens is not None:
-            raw_request['generationConfig'] = {
-                'maxOutputTokens': self._options.max_tokens,
+            raw_generation_config['maxOutputTokens'] = self._options.max_tokens
+
+        if self._options.thinking:
+            raw_generation_config['thinkingConfig'] = {
+                'includeThoughts': True,
             }
+
+        if raw_generation_config:
+            raw_request['generationConfig'] = raw_generation_config
 
         #
 
@@ -79,9 +88,16 @@ class RequestPreparer:
 
                 for c in msg.content:
                     if isinstance(c, TextContent):
+                        # Any thought signature issued on a text part is echoed back with it.
                         raw_parts.append({
                             'text': c.text,
+                            **({'thoughtSignature': c.backend_signature} if c.backend_signature else {}),
                         })
+
+                    elif isinstance(c, ThinkingContent):
+                        # Thought summaries are display-only and are not sent back - required signatures ride the text
+                        # and functionCall parts.
+                        pass
 
                     elif isinstance(c, ToolCall):
                         # Tool call ids are not sent - google does not reliably issue them, so they may be locally

@@ -8,6 +8,7 @@ from omcore.http import all as http
 from ....types.backends import ImmediateBackend
 from ....types.content import Content
 from ....types.content import TextContent
+from ....types.content import ThinkingContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
@@ -74,11 +75,18 @@ class GoogleGenerativeImmediateBackend(BaseHttpBackend, ImmediateBackend):
                 raw_part = check.isinstance(raw_part, ta.Mapping)
 
                 if raw_part.get('thought'):
+                    content.append(ThinkingContent(
+                        check.isinstance(raw_part.get('text') or '', str),
+                        backend_signature=check.isinstance(raw_part.get('thoughtSignature'), (str, None)),
+                    ))
                     continue
 
                 if 'text' in raw_part:
                     if raw_text := raw_part['text']:
-                        content.append(TextContent(check.isinstance(raw_text, str)))
+                        content.append(TextContent(
+                            check.isinstance(raw_text, str),
+                            backend_signature=check.isinstance(raw_part.get('thoughtSignature'), (str, None)),
+                        ))
 
                 elif 'functionCall' in raw_part:
                     raw_fc = check.isinstance(raw_part['functionCall'], ta.Mapping)

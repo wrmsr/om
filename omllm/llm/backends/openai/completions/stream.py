@@ -11,6 +11,7 @@ from ....types.context import Context
 from ....types.options import Options
 from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
+from ....types.streams import ThinkingDeltaAiStreamEvent
 from ....types.streams import ToolCallDeltaAiStreamEvent
 from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
@@ -59,6 +60,16 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
         if (raw_delta := raw_choice.get('delta')) is None:
             return
         raw_delta = check.isinstance(raw_delta, ta.Mapping)
+
+        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via this field.
+        if raw_reasoning := raw_delta.get('reasoning_content'):
+            raw_reasoning = check.isinstance(raw_reasoning, str)
+            thinking = self._thinking()
+            self._emit(ThinkingDeltaAiStreamEvent(
+                raw_reasoning,
+                content_index=self._content_index(thinking),
+            ))
+            thinking.text.write(raw_reasoning)
 
         if raw_content := raw_delta.get('content'):
             text = self._text()

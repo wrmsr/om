@@ -224,7 +224,6 @@ def _process_dataclass__07984f4058a40dd1ae7a4ad479a49991bc8948f8():
     plan_repr_sha1='a65a2e4a2f335305689f0fb4917863975614542a',
     cls_names=(
         ('omllm.llm.types.content', 'TextContent'),
-        ('omllm.llm.types.content', 'ThinkingContent'),
     ),
 )
 def _process_dataclass__a65a2e4a2f335305689f0fb4917863975614542a():
@@ -323,6 +322,145 @@ def _process_dataclass__a65a2e4a2f335305689f0fb4917863975614542a():
                 parts.append(f"{s}")
             if (s := __dataclass__repr__default_fn(self.backend_signature)) is not None:
                 parts.append(f"backend_signature={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('text', 'backend_signature', 'redacted')), EqPlan(fields=('text', 'backend_signatu"
+        "re', 'redacted')), FrozenPlan(fields=('text', 'backend_signature', 'redacted'), allow_dynamic_dunder_attrs=Fal"
+        "se), HashPlan(action='add', fields=('text', 'backend_signature', 'redacted'), cache=True), InitPlan(fields=(In"
+        "itPlan.Field(name='text', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=Non"
+        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Ini"
+        "tPlan.Field(name='backend_signature', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='i"
+        "nit.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
+        "=None, validate=None, check_type=None), InitPlan.Field(name='redacted', annotation=OpRef(name='init.fields.2.a"
+        "nnotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, fie"
+        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('tex"
+        "t',), kw_only_params=('backend_signature', 'redacted'), frozen=True, slots=False, post_init_params=None, init_"
+        "fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='text', kw_only=False, fn=None), ReprPlan.Field"
+        "(name='backend_signature', kw_only=True, fn=None), ReprPlan.Field(name='redacted', kw_only=True, fn=None)), id"
+        "=False, terse=True, default_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='142f52fd3fd83101d3bdbde37c68a98ac4bf17d9',
+    cls_names=(
+        ('omllm.llm.types.content', 'ThinkingContent'),
+    ),
+)
+def _process_dataclass__142f52fd3fd83101d3bdbde37c68a98ac4bf17d9():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                text=self.text,
+                backend_signature=self.backend_signature,
+                redacted=self.redacted,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.text == other.text and
+                self.backend_signature == other.backend_signature and
+                self.redacted == other.redacted
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'text',
+            'backend_signature',
+            'redacted',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            try:
+                return self.__dataclass_hash__
+            except AttributeError:
+                pass
+            object.__setattr__(
+                self,
+                '__dataclass_hash__',
+                h := hash((
+                    self.text,
+                    self.backend_signature,
+                    self.redacted,
+                ))
+            )
+            return h
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            text: __dataclass__init__fields__0__annotation,
+            *,
+            backend_signature: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            redacted: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'text', text)
+            __dataclass__object_setattr(self, 'backend_signature', backend_signature)
+            __dataclass__object_setattr(self, 'redacted', redacted)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.text)) is not None:
+                parts.append(f"{s}")
+            if (s := __dataclass__repr__default_fn(self.backend_signature)) is not None:
+                parts.append(f"backend_signature={s}")
+            if (s := __dataclass__repr__default_fn(self.redacted)) is not None:
+                parts.append(f"redacted={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -1582,25 +1720,31 @@ def _process_dataclass__a7b5c57ce0097a16cde0613f080138d253ed649c():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('max_tokens',)), EqPlan(fields=('max_tokens',)), FrozenPlan(fields=('max_tokens',)"
-        ", allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('max_tokens',), cache=False), InitPlan(fie"
-        "lds=(InitPlan.Field(name='max_tokens', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='"
-        "init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
-        "e=None, validate=None, check_type=None),), self_param='self', std_params=(), kw_only_params=('max_tokens',), f"
-        "rozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field"
-        "(name='max_tokens', kw_only=True, fn=None),), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('max_tokens', 'thinking')), EqPlan(fields=('max_tokens', 'thinking')), FrozenPlan("
+        "fields=('max_tokens', 'thinking'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('max_toke"
+        "ns', 'thinking'), cache=False), InitPlan(fields=(InitPlan.Field(name='max_tokens', annotation=OpRef(name='init"
+        ".fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override"
+        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='thin"
+        "king', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default"
+        "_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_typ"
+        "e=None)), self_param='self', std_params=(), kw_only_params=('max_tokens', 'thinking'), frozen=True, slots=Fals"
+        "e, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='max_tokens', kw"
+        "_only=True, fn=None), ReprPlan.Field(name='thinking', kw_only=True, fn=None)), id=False, terse=False, default_"
+        "fn=None)))"
     ),
-    plan_repr_sha1='23ed12131a94a17096003f4c9205c00a29aee61c',
+    plan_repr_sha1='e5da02cdad3351f303e7ba69bbe167045eec25f8',
     cls_names=(
         ('omllm.llm.types.options', 'Options'),
     ),
 )
-def _process_dataclass__23ed12131a94a17096003f4c9205c00a29aee61c():
+def _process_dataclass__e5da02cdad3351f303e7ba69bbe167045eec25f8():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -1612,6 +1756,7 @@ def _process_dataclass__23ed12131a94a17096003f4c9205c00a29aee61c():
                 raise TypeError(self)
             return __class__(  # noqa
                 max_tokens=self.max_tokens,
+                thinking=self.thinking,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1622,13 +1767,15 @@ def _process_dataclass__23ed12131a94a17096003f4c9205c00a29aee61c():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.max_tokens == other.max_tokens
+                self.max_tokens == other.max_tokens and
+                self.thinking == other.thinking
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'max_tokens',
+            'thinking',
         }
 
         def __setattr__(self, name, value):
@@ -1654,6 +1801,7 @@ def _process_dataclass__23ed12131a94a17096003f4c9205c00a29aee61c():
         def __hash__(self):
             return hash((
                 self.max_tokens,
+                self.thinking,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -1662,8 +1810,10 @@ def _process_dataclass__23ed12131a94a17096003f4c9205c00a29aee61c():
             self,
             *,
             max_tokens: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            thinking: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'max_tokens', max_tokens)
+            __dataclass__object_setattr(self, 'thinking', thinking)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1671,6 +1821,7 @@ def _process_dataclass__23ed12131a94a17096003f4c9205c00a29aee61c():
         def __repr__(self):
             parts = []
             parts.append(f"max_tokens={self.max_tokens!r}")
+            parts.append(f"thinking={self.thinking!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -1696,6 +1847,7 @@ def _process_dataclass__23ed12131a94a17096003f4c9205c00a29aee61c():
     cls_names=(
         ('omllm.llm.types.streams', 'ContentAiStreamEvent'),
         ('omllm.llm.types.streams', 'TextStartAiStreamEvent'),
+        ('omllm.llm.types.streams', 'ThinkingStartAiStreamEvent'),
     ),
 )
 def _process_dataclass__8b93f579e9d14927b8f9e080e28cd444d77c7026():
@@ -1801,6 +1953,8 @@ def _process_dataclass__8b93f579e9d14927b8f9e080e28cd444d77c7026():
     cls_names=(
         ('omllm.llm.types.streams', 'TextDeltaAiStreamEvent'),
         ('omllm.llm.types.streams', 'TextEndAiStreamEvent'),
+        ('omllm.llm.types.streams', 'ThinkingDeltaAiStreamEvent'),
+        ('omllm.llm.types.streams', 'ThinkingEndAiStreamEvent'),
         ('omllm.llm.types.streams', 'ToolCallDeltaAiStreamEvent'),
     ),
 )

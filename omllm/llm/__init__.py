@@ -125,6 +125,10 @@ with _lang.auto_proxy_init(globals()):
         TextDeltaAiStreamEvent,
         TextEndAiStreamEvent,
 
+        ThinkingStartAiStreamEvent,
+        ThinkingDeltaAiStreamEvent,
+        ThinkingEndAiStreamEvent,
+
         ToolCallStartAiStreamEvent,
         ToolCallDeltaAiStreamEvent,
         ToolCallEndAiStreamEvent,

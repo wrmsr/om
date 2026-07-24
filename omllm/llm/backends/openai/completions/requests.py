@@ -6,6 +6,7 @@ from omcore.formats.json import all as json
 
 from ....types.compat import OpenaiCompat
 from ....types.content import TextContent
+from ....types.content import ThinkingContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
@@ -84,6 +85,10 @@ class RequestPreparer:
                 for c in msg.content:
                     if isinstance(c, TextContent):
                         text_parts.append(c.text)
+
+                    elif isinstance(c, ThinkingContent):
+                        # The api has no representation for replayed thinking.
+                        pass
 
                     elif isinstance(c, ToolCall):
                         raw_tool_calls.append({

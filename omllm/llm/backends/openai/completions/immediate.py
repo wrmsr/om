@@ -7,6 +7,7 @@ from omcore.http import all as http
 from ....types.backends import ImmediateBackend
 from ....types.content import Content
 from ....types.content import TextContent
+from ....types.content import ThinkingContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
@@ -65,6 +66,10 @@ class OpenaiCompletionsImmediateBackend(BaseHttpBackend, ImmediateBackend):
         check.equal(raw_msg['role'], 'assistant')
 
         content: list[Content] = []
+
+        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via this field.
+        if raw_reasoning := raw_msg.get('reasoning_content'):
+            content.append(ThinkingContent(check.isinstance(raw_reasoning, str)))
 
         if raw_content := raw_msg.get('content'):
             content.append(TextContent(check.non_empty_str(raw_content)))

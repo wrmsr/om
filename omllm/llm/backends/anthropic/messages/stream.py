@@ -11,6 +11,7 @@ from ....types.context import Context
 from ....types.options import Options
 from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
+from ....types.streams import ThinkingDeltaAiStreamEvent
 from ....types.streams import ToolCallDeltaAiStreamEvent
 from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
@@ -73,10 +74,36 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             if (raw_input := raw_block.get('input')) is not None:
                 tool_call.args = check.isinstance(raw_input, ta.Mapping)
 
-        elif raw_block_type in ('thinking', 'redacted_thinking'):
-            # Thinking blocks may appear unrequested. They cannot be represented (or correctly replayed, lacking their
-            # signatures), so they are dropped.
-            pass
+        elif raw_block_type == 'thinking':
+            # Note thinking blocks may appear even when not requested, and may carry no text at all - some models
+            # stream only a signature_delta, which must still be preserved for replay.
+            thinking = self._thinking()
+
+            if raw_thinking := raw_block.get('thinking'):
+                raw_thinking = check.isinstance(raw_thinking, str)
+                self._emit(ThinkingDeltaAiStreamEvent(
+                    raw_thinking,
+                    content_index=self._content_index(thinking),
+                ))
+                thinking.text.write(raw_thinking)
+
+            if raw_sig := raw_block.get('signature'):
+                thinking.backend_signature = check.isinstance(raw_sig, str)
+
+        elif raw_block_type == 'redacted_thinking':
+            # Opaque and unreadable, but still preserved for replay - the data blob rides backend_signature. Arrives
+            # whole, with no subsequent deltas.
+            thinking = self._thinking()
+
+            self._emit(ThinkingDeltaAiStreamEvent(
+                '<redacted>',
+                content_index=self._content_index(thinking),
+            ))
+            thinking.text.write('<redacted>')
+            thinking.redacted = True
+
+            if raw_data := raw_block.get('data'):
+                thinking.backend_signature = check.isinstance(raw_data, str)
 
         else:
             raise ValueError(raw_block_type)
@@ -109,9 +136,19 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
                 content_index=self._content_index(tool_call),
             ))
 
-        elif raw_delta_type in ('thinking_delta', 'signature_delta'):
-            # Deltas for dropped thinking blocks.
-            pass
+        elif raw_delta_type == 'thinking_delta':
+            if raw_thinking := check.isinstance(raw_delta['thinking'], str):
+                thinking = self._thinking()
+                self._emit(ThinkingDeltaAiStreamEvent(
+                    raw_thinking,
+                    content_index=self._content_index(thinking),
+                ))
+                thinking.text.write(raw_thinking)
+
+        elif raw_delta_type == 'signature_delta':
+            if raw_sig := check.isinstance(raw_delta['signature'], str):
+                thinking = self._thinking()
+                thinking.backend_signature = (thinking.backend_signature or '') + raw_sig
 
         else:
             raise ValueError(raw_delta_type)
@@ -142,6 +179,12 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
         elif raw_event_type == 'content_block_delta':
             self._feed_content_block_delta(raw_event)
 
+        elif raw_event_type == 'content_block_stop':
+            # Block boundaries are explicit - closing here keeps adjacent blocks of the same type (and their
+            # individual signatures) distinct rather than merged.
+            self._close_text()
+            self._close_thinking()
+
         elif raw_event_type == 'message_delta':
             raw_delta = check.isinstance(raw_event['delta'], ta.Mapping)
 
@@ -152,8 +195,8 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
                 self._feed_usage(check.isinstance(raw_usage, ta.Mapping))
 
         else:
-            # The remaining known event types - ping, content_block_stop, and message_stop - carry nothing currently
-            # tracked, and unrecognized event types must be skipped for forward compatibility.
+            # The remaining known event types - ping and message_stop - carry nothing currently tracked, and
+            # unrecognized event types must be skipped for forward compatibility.
             pass
 
 

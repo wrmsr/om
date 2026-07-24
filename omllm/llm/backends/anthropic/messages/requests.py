@@ -5,6 +5,7 @@ from omcore import lang
 
 from ....types.compat import OpenaiCompat
 from ....types.content import TextContent
+from ....types.content import ThinkingContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
@@ -49,6 +50,9 @@ class RequestPreparer:
         if self._options.max_tokens is not None:
             raw_request['max_tokens'] = self._options.max_tokens
 
+        if self._options.thinking:
+            raw_request['thinking'] = {'type': 'adaptive'}
+
         #
 
         raw_messages: list[dict] = []
@@ -86,6 +90,25 @@ class RequestPreparer:
                             raw_content.append({
                                 'type': 'text',
                                 'text': c.text,
+                            })
+
+                    elif isinstance(c, ThinkingContent):
+                        # Signed thinking blocks must be replayed verbatim for validity in subsequent tool use.
+                        # Unsigned ones (such as from a different backend) cannot be replayed, and are dropped. For
+                        # redacted blocks the opaque data blob rides backend_signature, and the placeholder text is
+                        # not sent.
+                        if c.redacted:
+                            if c.backend_signature:
+                                raw_content.append({
+                                    'type': 'redacted_thinking',
+                                    'data': c.backend_signature,
+                                })
+
+                        elif c.backend_signature:
+                            raw_content.append({
+                                'type': 'thinking',
+                                'thinking': c.text,
+                                'signature': c.backend_signature,
                             })
 
                     elif isinstance(c, ToolCall):

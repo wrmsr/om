@@ -67,6 +67,8 @@ class ThinkingContent(Content):
 
     backend_signature: str | None = None
 
+    redacted: bool = False
+
 
 @ta.final
 class ThinkingContentBuilder(ContentBuilder[ThinkingContent]):
@@ -75,11 +77,13 @@ class ThinkingContentBuilder(ContentBuilder[ThinkingContent]):
 
         self.text = io.StringIO()
         self.backend_signature: str | None = None
+        self.redacted: bool = False
 
     def build(self) -> ThinkingContent:
         return ThinkingContent(
             text=self.text.getvalue(),
             backend_signature=self.backend_signature,
+            redacted=self.redacted,
         )
 
 

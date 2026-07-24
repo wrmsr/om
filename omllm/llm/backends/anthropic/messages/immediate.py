@@ -7,6 +7,7 @@ from omcore.http import all as http
 from ....types.backends import ImmediateBackend
 from ....types.content import Content
 from ....types.content import TextContent
+from ....types.content import ThinkingContent
 from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
@@ -73,10 +74,21 @@ class AnthropicMessagesImmediateBackend(BaseHttpBackend, ImmediateBackend):
                     args=check.isinstance(raw_c.get('input') or {}, ta.Mapping),
                 ))
 
-            elif raw_c['type'] in ('thinking', 'redacted_thinking'):
-                # Thinking blocks may appear unrequested. They cannot be represented (or correctly replayed, lacking
-                # their signatures), so they are dropped.
-                pass
+            elif raw_c['type'] == 'thinking':
+                # Note thinking blocks may appear even when not requested, and their text may be empty - some models
+                # return only a signature, which must still be preserved for replay.
+                response_content.append(ThinkingContent(
+                    check.isinstance(raw_c.get('thinking') or '', str),
+                    backend_signature=check.isinstance(raw_c.get('signature'), (str, None)),
+                ))
+
+            elif raw_c['type'] == 'redacted_thinking':
+                # Opaque and unreadable, but still preserved for replay - the data blob rides backend_signature.
+                response_content.append(ThinkingContent(
+                    '<redacted>',
+                    backend_signature=check.isinstance(raw_c.get('data'), (str, None)),
+                    redacted=True,
+                ))
 
             else:
                 raise ValueError(raw_c['type'])

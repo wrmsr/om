@@ -11,6 +11,7 @@ from ....core.streams import StreamSink
 from ....core.streams import new_stream
 from ...types.content import ContentBuilder
 from ...types.content import TextContentBuilder
+from ...types.content import ThinkingContentBuilder
 from ...types.content import ToolCallBuilder
 from ...types.messages import AiMessage
 from ...types.messages import AiMessageBuilder
@@ -20,6 +21,8 @@ from ...types.streams import StreamEndAiStreamEvent
 from ...types.streams import StreamStartAiStreamEvent
 from ...types.streams import TextEndAiStreamEvent
 from ...types.streams import TextStartAiStreamEvent
+from ...types.streams import ThinkingEndAiStreamEvent
+from ...types.streams import ThinkingStartAiStreamEvent
 from ...types.streams import ToolCallEndAiStreamEvent
 from ...types.streams import ToolCallStartAiStreamEvent
 
@@ -38,6 +41,8 @@ class BaseBackendSseEventProcessor:
         self._content_indexes_: dict[ContentBuilder, int] = {}
 
         self._text_: TextContentBuilder | None = None
+
+        self._thinking_: ThinkingContentBuilder | None = None
 
         self._tool_calls_by_id_: dict[str, ToolCallBuilder] = {}
         self._tool_calls_by_index_: col.MutableBiMap[int, ToolCallBuilder] = col.make_mutable_bi_map()
@@ -70,11 +75,46 @@ class BaseBackendSseEventProcessor:
 
     #
 
+    # Content is an interleaving-significant sequence: at most one non-tool content block is 'open' at a time, and
+    # opening one type closes any other. Only contiguous runs of the same type merge into a single content - a new
+    # block of a closed type starts a fresh content. End events are emitted at close time, in stream order.
+
+    def _close_text(self) -> None:
+        if (b := self._text_) is not None:
+            self._text_ = None
+            self._emit(TextEndAiStreamEvent(
+                b.build().text,
+                content_index=self._content_index(b),
+            ))
+
     def _text(self) -> TextContentBuilder:
+        self._close_thinking()
+
         if (b := self._text_) is None:
             b = self._text_ = TextContentBuilder()
             i = self._add_content(b)
             self._emit(TextStartAiStreamEvent(
+                content_index=i,
+            ))
+        return b
+
+    #
+
+    def _close_thinking(self) -> None:
+        if (b := self._thinking_) is not None:
+            self._thinking_ = None
+            self._emit(ThinkingEndAiStreamEvent(
+                b.build().text,
+                content_index=self._content_index(b),
+            ))
+
+    def _thinking(self) -> ThinkingContentBuilder:
+        self._close_text()
+
+        if (b := self._thinking_) is None:
+            b = self._thinking_ = ThinkingContentBuilder()
+            i = self._add_content(b)
+            self._emit(ThinkingStartAiStreamEvent(
                 content_index=i,
             ))
         return b
@@ -134,12 +174,13 @@ class BaseBackendSseEventProcessor:
         return self._flush()
 
     def _finish(self) -> None:
+        self._close_text()
+        self._close_thinking()
+
         for content in self._message.content:
-            if isinstance(content, TextContentBuilder):
-                self._emit(TextEndAiStreamEvent(
-                    content.build().text,
-                    content_index=self._content_index(content),
-                ))
+            if isinstance(content, (TextContentBuilder, ThinkingContentBuilder)):
+                # Already ended when closed.
+                pass
 
             elif isinstance(content, ToolCallBuilder):
                 self._emit(ToolCallEndAiStreamEvent(
