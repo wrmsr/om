@@ -2,7 +2,7 @@
 # @om-lite
 import unittest
 
-from ..requires import parse_requirement
+from ..requirements import parse_requirement
 
 
 class TestSpecifiers(unittest.TestCase):

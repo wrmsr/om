@@ -22,6 +22,10 @@
 # details.
 # https://github.com/pypa/packaging/blob/cf2cbe2aec28f87c6228a6fb136c27931c9af407/src/packaging/utils.py
 import re
+import typing as ta
+
+
+NormalizedName = ta.NewType('NormalizedName', str)
 
 
 ##
@@ -36,12 +40,12 @@ _CANONICAL_NAME_NORMALIZED_PATTERN = re.compile(r'^([a-z0-9]|[a-z0-9]([a-z0-9-](
 _CANONICAL_NAME_BUILD_TAG_PATTERN = re.compile(r'(\d+)(.*)')
 
 
-def canonicalize_name(name: str, *, validate: bool = False) -> str:
+def canonicalize_name(name: str, *, validate: bool = False) -> NormalizedName:
     if validate and not _CANONICAL_NAME_VALIDATE_PATTERN.match(name):
         raise NameError(f'name is invalid: {name!r}')
     # This is taken from PEP 503.
     value = _CANONICAL_NAME_CANONICALIZE_PATTERN.sub('-', name).lower()
-    return value
+    return NormalizedName(value)
 
 
 def is_normalized_name(name: str) -> bool:

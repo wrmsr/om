@@ -6,7 +6,7 @@ import subprocess  # noqa: S404
 import sys
 import typing as ta
 
-from packaging.utils import canonicalize_name
+from omdev.packaging.names import canonicalize_name
 
 from ._warning import get_warning_printer
 

@@ -5,14 +5,14 @@ import inspect
 import typing as ta
 from importlib import import_module
 
-from packaging.requirements import InvalidRequirement
-from packaging.requirements import Requirement
-from packaging.utils import canonicalize_name
+from omdev.packaging.names import canonicalize_name
+from omdev.packaging.requirements import InvalidRequirementError as _InvalidRequirementError
+from omdev.packaging.requirements import Requirement
 
 from .._parser import distribution_to_specifier
 
 
-RenderMode = ta.Literal['default', 'resolved']
+RenderMode: ta.TypeAlias = ta.Literal['default', 'resolved']
 
 
 ##
@@ -368,5 +368,5 @@ class ReqPackage(Package):
 def _try_parse_requirement(raw_req: str) -> Requirement | str:
     try:
         return Requirement(raw_req)
-    except InvalidRequirement:
+    except _InvalidRequirementError:
         return raw_req

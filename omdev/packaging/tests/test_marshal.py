@@ -1,7 +1,7 @@
 from omcore import marshal as msh
 
 from .. import marshal as _  # noqa
-from ..requires import parse_requirement
+from ..requirements import parse_requirement
 
 
 def test_marshal():

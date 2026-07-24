@@ -11,8 +11,8 @@ import typing as ta
 from omcore.lite.cached import cached_nullary
 from omcore.logs.modules import get_module_logger
 
-from ..packaging.requires import RequiresParserSyntaxError
-from ..packaging.requires import parse_requirement
+from ..packaging.requirements import RequirementParserSyntaxError
+from ..packaging.requirements import parse_requirement
 
 
 log = get_module_logger(globals())  # noqa
@@ -69,7 +69,7 @@ class RequirementsRewriter:
                 ):
                     try:
                         pr = parse_requirement(l.split('#')[0].strip())
-                    except RequiresParserSyntaxError:
+                    except RequirementParserSyntaxError:
                         pass
                     else:
                         if not any(op.fullmatch(pr.name) for op in ops):

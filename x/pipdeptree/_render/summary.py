@@ -17,10 +17,10 @@ import json
 import sys
 import typing as ta
 
-from packaging.specifiers import InvalidSpecifier
-from packaging.specifiers import SpecifierSet
-from packaging.version import InvalidVersion
-from packaging.version import Version
+from omdev.packaging.specifiers import InvalidSpecifier
+from omdev.packaging.specifiers import SpecifierSet
+from omdev.packaging.versions import InvalidVersion
+from omdev.packaging.versions import Version
 
 from .._computed import ComputedValues
 from .._models.package import Package

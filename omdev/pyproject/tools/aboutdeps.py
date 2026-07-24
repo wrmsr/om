@@ -9,7 +9,7 @@ import sys
 from omcore.formats.toml.parser import toml_loads
 
 from ...packaging.names import canonicalize_name
-from ...packaging.requires import parse_requirement
+from ...packaging.requirements import parse_requirement
 from ...packaging.specifiers import Specifier
 
 

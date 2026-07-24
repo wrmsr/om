@@ -13,8 +13,8 @@ from omcore.formats.json import all as json
 
 from ..cli import CliModule
 from ..packaging import marshal as _  # noqa
-from ..packaging.requires import ParsedRequirement
-from ..packaging.requires import parse_requirement
+from ..packaging.requirements import ParsedRequirement
+from ..packaging.requirements import parse_requirement
 from ..pip import get_root_dists
 from ..pip import lookup_latest_package_version
 

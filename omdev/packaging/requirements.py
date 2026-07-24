@@ -1,3 +1,4 @@
+# ruff: noqa: UP037
 # @om-lite
 # Copyright (c) Donald Stufft and individual contributors.
 # All rights reserved.
@@ -31,26 +32,28 @@ import typing as ta
 from omcore.lite.check import check
 from omcore.lite.dataclasses import install_dataclass_cache_hash
 
+from .names import canonicalize_name
 from .specifiers import Specifier
+from .specifiers import SpecifierSet
 
 
-RequiresMarkerVar = ta.Union['RequiresVariable', 'RequiresValue']  # ta.TypeAlias
+RequirementMarkerVar = ta.Union['RequirementVariable', 'RequirementValue']  # ta.TypeAlias
 
-RequiresMarkerAtom = ta.Union['RequiresMarkerItem', ta.Sequence['RequiresMarkerAtom']]  # ta.TypeAlias
-RequiresMarkerList = ta.Sequence[ta.Union['RequiresMarkerList', 'RequiresMarkerAtom', str]]  # ta.TypeAlias
+RequirementMarkerAtom = ta.Union['RequirementMarkerItem', ta.Sequence['RequirementMarkerAtom']]  # ta.TypeAlias
+RequirementMarkerList = ta.Sequence[ta.Union['RequirementMarkerList', 'RequirementMarkerAtom', str]]  # ta.TypeAlias
 
 
 ##
 
 
 @dc.dataclass()
-class RequiresToken:
+class RequirementToken:
     name: str
     text: str
     position: int
 
 
-class RequiresParserSyntaxError(Exception):
+class RequirementParserSyntaxError(Exception):
     def __init__(
         self,
         message: str,
@@ -120,7 +123,7 @@ REQUIRES_DEFAULT_RULES: ta.Dict[str, ta.Union[str, ta.Pattern[str]]] = {
 }
 
 
-class RequiresTokenizer:
+class RequirementTokenizer:
     def __init__(
         self,
         source: str,
@@ -131,7 +134,7 @@ class RequiresTokenizer:
 
         self.source = source
         self.rules: ta.Dict[str, ta.Pattern[str]] = {name: re.compile(pattern) for name, pattern in rules.items()}
-        self.next_token: ta.Optional[RequiresToken] = None
+        self.next_token: ta.Optional[RequirementToken] = None
         self.position = 0
 
     def consume(self, name: str) -> None:
@@ -148,15 +151,15 @@ class RequiresTokenizer:
         if match is None:
             return False
         if not peek:
-            self.next_token = RequiresToken(name, match[0], self.position)
+            self.next_token = RequirementToken(name, match[0], self.position)
         return True
 
-    def expect(self, name: str, *, expected: str) -> RequiresToken:
+    def expect(self, name: str, *, expected: str) -> RequirementToken:
         if not self.check(name):
             raise self.raise_syntax_error(f'Expected {expected}')
         return self.read()
 
-    def read(self) -> RequiresToken:
+    def read(self) -> RequirementToken:
         token = self.next_token
         check.state(token is not None)
 
@@ -176,7 +179,7 @@ class RequiresTokenizer:
             self.position if span_start is None else span_start,
             self.position if span_end is None else span_end,
         )
-        raise RequiresParserSyntaxError(
+        raise RequirementParserSyntaxError(
             message,
             source=self.source,
             span=span,
@@ -205,7 +208,7 @@ class RequiresTokenizer:
 
 
 @dc.dataclass(frozen=True)
-class RequiresNode:
+class RequirementNode:
     value: str
 
     def __str__(self) -> str:
@@ -219,27 +222,27 @@ class RequiresNode:
 
 
 @dc.dataclass(frozen=True)
-class RequiresVariable(RequiresNode):
+class RequirementVariable(RequirementNode):
     def serialize(self) -> str:
         return str(self)
 
 
 @dc.dataclass(frozen=True)
-class RequiresValue(RequiresNode):
+class RequirementValue(RequirementNode):
     def serialize(self) -> str:
         return f'"{self}"'
 
 
 @dc.dataclass(frozen=True)
-class RequiresOp(RequiresNode):
+class RequirementOp(RequirementNode):
     def serialize(self) -> str:
         return str(self)
 
 
-class RequiresMarkerItem(ta.NamedTuple):
-    l: ta.Union[RequiresVariable, RequiresValue]
-    op: RequiresOp
-    r: ta.Union[RequiresVariable, RequiresValue]
+class RequirementMarkerItem(ta.NamedTuple):
+    l: ta.Union[RequirementVariable, RequirementValue]
+    op: RequirementOp
+    r: ta.Union[RequirementVariable, RequirementValue]
 
 
 @install_dataclass_cache_hash()
@@ -249,21 +252,21 @@ class ParsedRequirement:
     url: str
     extras: ta.List[str]
     specifier: str
-    marker: ta.Optional[RequiresMarkerList]
+    marker: ta.Optional[RequirementMarkerList]
 
 
 def parse_requirement(source: str) -> ParsedRequirement:
-    return _parse_requirement(RequiresTokenizer(source, rules=REQUIRES_DEFAULT_RULES))
+    return _parse_requirement(RequirementTokenizer(source, rules=REQUIRES_DEFAULT_RULES))
 
 
-def _parse_requirement(tokenizer: RequiresTokenizer) -> ParsedRequirement:
+def _parse_requirement(tokenizer: RequirementTokenizer) -> ParsedRequirement:
     tokenizer.consume('WS')
 
     name_token = tokenizer.expect('IDENTIFIER', expected='package name at the start of dependency specifier')
     name = name_token.text
     tokenizer.consume('WS')
 
-    extras = _parse_requires_extras(tokenizer)
+    extras = _parse_requirement_extras(tokenizer)
     tokenizer.consume('WS')
 
     url, specifier, marker = _parse_requirement_details(tokenizer)
@@ -272,7 +275,9 @@ def _parse_requirement(tokenizer: RequiresTokenizer) -> ParsedRequirement:
     return ParsedRequirement(name, url, extras, specifier, marker)
 
 
-def _parse_requirement_details(tokenizer: RequiresTokenizer) -> ta.Tuple[str, str, ta.Optional[RequiresMarkerList]]:
+def _parse_requirement_details(
+        tokenizer: RequirementTokenizer,
+) -> ta.Tuple[str, str, ta.Optional[RequirementMarkerList]]:
     specifier = ''
     url = ''
     marker = None
@@ -297,7 +302,7 @@ def _parse_requirement_details(tokenizer: RequiresTokenizer) -> ta.Tuple[str, st
         )
     else:
         specifier_start = tokenizer.position
-        specifier = _parse_requires_specifier(tokenizer)
+        specifier = _parse_requirement_specifier(tokenizer)
         tokenizer.consume('WS')
 
         if tokenizer.check('END', peek=True):
@@ -317,8 +322,8 @@ def _parse_requirement_details(tokenizer: RequiresTokenizer) -> ta.Tuple[str, st
 
 
 def _parse_requirement_marker(
-    tokenizer: RequiresTokenizer, *, span_start: int, after: str,
-) -> RequiresMarkerList:
+    tokenizer: RequirementTokenizer, *, span_start: int, after: str,
+) -> RequirementMarkerList:
     if not tokenizer.check('SEMICOLON'):
         tokenizer.raise_syntax_error(
             f'Expected end or semicolon (after {after})',
@@ -326,13 +331,13 @@ def _parse_requirement_marker(
         )
     tokenizer.read()
 
-    marker = _parse_requires_marker(tokenizer)
+    marker = _parse_requirement_marker_(tokenizer)
     tokenizer.consume('WS')
 
     return marker
 
 
-def _parse_requires_extras(tokenizer: RequiresTokenizer) -> ta.List[str]:
+def _parse_requirement_extras(tokenizer: RequirementTokenizer) -> ta.List[str]:
     if not tokenizer.check('LEFT_BRACKET', peek=True):
         return []
 
@@ -342,13 +347,13 @@ def _parse_requires_extras(tokenizer: RequiresTokenizer) -> ta.List[str]:
         around='extras',
     ):
         tokenizer.consume('WS')
-        extras = _parse_requires_extras_list(tokenizer)
+        extras = _parse_requirement_extras_list(tokenizer)
         tokenizer.consume('WS')
 
     return extras
 
 
-def _parse_requires_extras_list(tokenizer: RequiresTokenizer) -> ta.List[str]:
+def _parse_requirement_extras_list(tokenizer: RequirementTokenizer) -> ta.List[str]:
     extras: ta.List[str] = []
 
     if not tokenizer.check('IDENTIFIER'):
@@ -372,20 +377,20 @@ def _parse_requires_extras_list(tokenizer: RequiresTokenizer) -> ta.List[str]:
     return extras
 
 
-def _parse_requires_specifier(tokenizer: RequiresTokenizer) -> str:
+def _parse_requirement_specifier(tokenizer: RequirementTokenizer) -> str:
     with tokenizer.enclosing_tokens(
         'LEFT_PARENTHESIS',
         'RIGHT_PARENTHESIS',
         around='version specifier',
     ):
         tokenizer.consume('WS')
-        parsed_specifiers = _parse_requires_version_many(tokenizer)
+        parsed_specifiers = _parse_requirement_version_many(tokenizer)
         tokenizer.consume('WS')
 
     return parsed_specifiers
 
 
-def _parse_requires_version_many(tokenizer: RequiresTokenizer) -> str:
+def _parse_requirement_version_many(tokenizer: RequirementTokenizer) -> str:
     parsed_specifiers = ''
     while tokenizer.check('SPECIFIER'):
         span_start = tokenizer.position
@@ -411,26 +416,26 @@ def _parse_requires_version_many(tokenizer: RequiresTokenizer) -> str:
     return parsed_specifiers
 
 
-def parse_requires_marker(source: str) -> RequiresMarkerList:
-    return _parse_requires_full_marker(RequiresTokenizer(source, rules=REQUIRES_DEFAULT_RULES))
+def parse_requirement_marker(source: str) -> RequirementMarkerList:
+    return _parse_requirement_full_marker(RequirementTokenizer(source, rules=REQUIRES_DEFAULT_RULES))
 
 
-def _parse_requires_full_marker(tokenizer: RequiresTokenizer) -> RequiresMarkerList:
-    retval = _parse_requires_marker(tokenizer)
+def _parse_requirement_full_marker(tokenizer: RequirementTokenizer) -> RequirementMarkerList:
+    retval = _parse_requirement_marker_(tokenizer)
     tokenizer.expect('END', expected='end of marker expression')
     return retval
 
 
-def _parse_requires_marker(tokenizer: RequiresTokenizer) -> RequiresMarkerList:
-    expression = [_parse_requires_marker_atom(tokenizer)]
+def _parse_requirement_marker_(tokenizer: RequirementTokenizer) -> RequirementMarkerList:
+    expression = [_parse_requirement_marker_atom(tokenizer)]
     while tokenizer.check('BOOLOP'):
         token = tokenizer.read()
-        expr_right = _parse_requires_marker_atom(tokenizer)
+        expr_right = _parse_requirement_marker_atom(tokenizer)
         expression.extend((token.text, expr_right))
     return expression
 
 
-def _parse_requires_marker_atom(tokenizer: RequiresTokenizer) -> RequiresMarkerAtom:
+def _parse_requirement_marker_atom(tokenizer: RequirementTokenizer) -> RequirementMarkerAtom:
     tokenizer.consume('WS')
     if tokenizer.check('LEFT_PARENTHESIS', peek=True):
         with tokenizer.enclosing_tokens(
@@ -439,60 +444,262 @@ def _parse_requires_marker_atom(tokenizer: RequiresTokenizer) -> RequiresMarkerA
             around='marker expression',
         ):
             tokenizer.consume('WS')
-            marker: RequiresMarkerAtom = _parse_requires_marker(tokenizer)
+            marker: RequirementMarkerAtom = _parse_requirement_marker_(tokenizer)
             tokenizer.consume('WS')
     else:
-        marker = _parse_requires_marker_item(tokenizer)
+        marker = _parse_requirement_marker_item(tokenizer)
     tokenizer.consume('WS')
     return marker
 
 
-def _parse_requires_marker_item(tokenizer: RequiresTokenizer) -> RequiresMarkerItem:
+def _parse_requirement_marker_item(tokenizer: RequirementTokenizer) -> RequirementMarkerItem:
     tokenizer.consume('WS')
-    marker_var_left = _parse_requires_marker_var(tokenizer)
+    marker_var_left = _parse_requirement_marker_var(tokenizer)
     tokenizer.consume('WS')
-    marker_op = _parse_requires_marker_op(tokenizer)
+    marker_op = _parse_requirement_marker_op(tokenizer)
     tokenizer.consume('WS')
-    marker_var_right = _parse_requires_marker_var(tokenizer)
+    marker_var_right = _parse_requirement_marker_var(tokenizer)
     tokenizer.consume('WS')
-    return RequiresMarkerItem(marker_var_left, marker_op, marker_var_right)
+    return RequirementMarkerItem(marker_var_left, marker_op, marker_var_right)
 
 
-def _parse_requires_marker_var(tokenizer: RequiresTokenizer) -> RequiresMarkerVar:
+def _parse_requirement_marker_var(tokenizer: RequirementTokenizer) -> RequirementMarkerVar:
     if tokenizer.check('VARIABLE'):
-        return process_requires_env_var(tokenizer.read().text.replace('.', '_'))
+        return process_requirement_env_var(tokenizer.read().text.replace('.', '_'))
     elif tokenizer.check('QUOTED_STRING'):
-        return process_requires_python_str(tokenizer.read().text)
+        return process_requirement_python_str(tokenizer.read().text)
     else:
         tokenizer.raise_syntax_error(message='Expected a marker variable or quoted string')
         raise RuntimeError  # noqa
 
 
-def process_requires_env_var(env_var: str) -> RequiresVariable:
+def process_requirement_env_var(env_var: str) -> RequirementVariable:
     if env_var in ('platform_python_implementation', 'python_implementation'):
-        return RequiresVariable('platform_python_implementation')
+        return RequirementVariable('platform_python_implementation')
     else:
-        return RequiresVariable(env_var)
+        return RequirementVariable(env_var)
 
 
-def process_requires_python_str(python_str: str) -> RequiresValue:
+def process_requirement_python_str(python_str: str) -> RequirementValue:
     value = ast.literal_eval(python_str)
-    return RequiresValue(str(value))
+    return RequirementValue(str(value))
 
 
-def _parse_requires_marker_op(tokenizer: RequiresTokenizer) -> RequiresOp:
+def _parse_requirement_marker_op(tokenizer: RequirementTokenizer) -> RequirementOp:
     if tokenizer.check('IN'):
         tokenizer.read()
-        return RequiresOp('in')
+        return RequirementOp('in')
     elif tokenizer.check('NOT'):
         tokenizer.read()
         tokenizer.expect('WS', expected="whitespace after 'not'")
         tokenizer.expect('IN', expected="'in' after 'not'")
-        return RequiresOp('not in')
+        return RequirementOp('not in')
     elif tokenizer.check('OP'):
-        return RequiresOp(tokenizer.read().text)
+        return RequirementOp(tokenizer.read().text)
     else:
         return tokenizer.raise_syntax_error(
             'Expected marker operator, one of '
             '<=, <, !=, ==, >=, >, ~=, ===, in, not in',
+        )
+
+
+##
+
+
+def _normalize_requirement_marker_extras(
+        result: ta.Union[RequirementMarkerList, RequirementMarkerAtom, str],
+) -> ta.Union[RequirementMarkerList, RequirementMarkerAtom, str]:
+    if not isinstance(result, tuple):
+        return result
+
+    lhs, op, rhs = result
+    if isinstance(lhs, RequirementVariable) and lhs.value == 'extra':
+        normalized_extra = canonicalize_name(rhs.value)
+        rhs = RequirementValue(normalized_extra)
+    elif isinstance(rhs, RequirementVariable) and rhs.value == 'extra':
+        normalized_extra = canonicalize_name(lhs.value)
+        lhs = RequirementValue(normalized_extra)
+    return lhs, op, rhs
+
+
+def _normalize_requirement_marker_extra_values(results: RequirementMarkerList) -> RequirementMarkerList:
+    return [_normalize_requirement_marker_extras(r) for r in results]
+
+
+def _format_requirement_marker(
+        marker: ta.Union[ta.List[str], RequirementMarkerAtom, str],
+        first: ta.Optional[bool] = True,
+) -> str:
+    check.isinstance(marker, (list, tuple, str))
+
+    if (
+            isinstance(marker, list) and
+            len(marker) == 1 and
+            isinstance(marker[0], (list, tuple))
+    ):
+        return _format_requirement_marker(marker[0])
+
+    if isinstance(marker, list):
+        inner = (_format_requirement_marker(m, first=False) for m in marker)
+        if first:
+            return ' '.join(inner)
+        else:
+            return '(' + ' '.join(inner) + ')'
+    elif isinstance(marker, tuple):
+        return ' '.join([m.serialize() for m in marker])
+    else:
+        return marker  # type: ignore[return-value]
+
+
+class InvalidRequirementMarkerError(ValueError):
+    """An invalid requirement was found, users should refer to PEP 508."""
+
+
+class RequirementMarker:
+    def __init__(self, marker: str) -> None:
+        self._markers: RequirementMarkerList = []
+
+        try:
+            self._markers = _normalize_requirement_marker_extra_values(parse_requirement_marker(marker))
+        except RequirementParserSyntaxError as e:
+            raise InvalidRequirementMarkerError(str(e)) from e
+
+    @classmethod
+    def _from_markers(cls, markers: RequirementMarkerList) -> 'RequirementMarker':
+        new = cls.__new__(cls)
+        new._markers = markers  # noqa
+        return new
+
+    def __str__(self) -> str:
+        return _format_requirement_marker(self._markers)
+
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}({str(self)!r})>'
+
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RequirementMarker):
+            return NotImplemented
+
+        return str(self) == str(other)
+
+    def __getstate__(self) -> str:
+        return str(self)
+
+    def __setstate__(self, state: object) -> None:
+        s = check.isinstance(state, str)
+        try:
+            self._markers = _normalize_requirement_marker_extra_values(parse_requirement_marker(s))
+        except RequirementParserSyntaxError as exc:
+            raise TypeError(f'Cannot restore Marker from {state!r}') from exc
+
+    def __and__(self, other: 'RequirementMarker') -> 'RequirementMarker':
+        if not isinstance(other, RequirementMarker):
+            return NotImplemented
+        return self._from_markers([self._markers, 'and', other._markers])
+
+    def __or__(self, other: 'RequirementMarker') -> 'RequirementMarker':
+        if not isinstance(other, RequirementMarker):
+            return NotImplemented
+        return self._from_markers([self._markers, 'or', other._markers])
+
+    # def evaluate(
+    #         self,
+    #         environment: ta.Optional[ta.Mapping[str, ta.Union[str, ta.AbstractSet[str]]]] = None,
+    #         context: EvaluateContext = "metadata",
+    # ) -> bool:
+    #     current_environment = ta.cast(
+    #         "ta.Dict[str, ta.Optional[ta.AbstractSet[str]]]", default_environment()
+    #     )
+    #     if context == "lock_file":
+    #         current_environment.update(
+    #             extras=frozenset(), dependency_groups=frozenset()
+    #         )
+    #     elif context == "metadata":
+    #         current_environment["extra"] = ""
+    #
+    #     if environment is not None:
+    #         current_environment.update(environment)
+    #         if "extra" in current_environment:
+    #             # The API used to allow setting extra to None. We need to handle this case for backwards
+    #             # compatibility. Also skip running normalize name if extra is empty.
+    #             extra = ta.cast("ta.Optional[str]", current_environment["extra"])
+    #             current_environment["extra"] = canonicalize_name(extra) if extra else ""
+    #
+    #     return _evaluate_markers(self._markers, _repair_python_full_version(current_environment))
+
+
+class InvalidRequirementError(ValueError):
+    """An invalid requirement was found, users should refer to PEP 508."""
+
+
+class Requirement:
+    def __init__(self, requirement_string: str) -> None:
+        try:
+            parsed = parse_requirement(requirement_string)
+        except RequirementParserSyntaxError as e:
+            raise InvalidRequirementError(str(e)) from e
+
+        self.name: str = parsed.name
+        self.url: ta.Optional[str] = parsed.url or None
+        self.extras: ta.Set[str] = set(parsed.extras or [])
+        self.specifier: SpecifierSet = SpecifierSet(parsed.specifier)
+        self.marker: ta.Optional[RequirementMarker] = None
+        if parsed.marker is not None:
+            self.marker = RequirementMarker.__new__(RequirementMarker)
+            self.marker._markers = _normalize_requirement_marker_extra_values(parsed.marker)  # noqa
+
+    def _iter_parts(self, name: str) -> ta.Iterator[str]:
+        yield name
+
+        if self.extras:
+            formatted_extras = ','.join(sorted(self.extras))
+            yield f'[{formatted_extras}]'
+
+        if self.specifier:
+            yield str(self.specifier)
+
+        if self.url:
+            yield f' @ {self.url}'
+            if self.marker:
+                yield ' '
+
+        if self.marker:
+            yield f'; {self.marker}'
+
+    def __getstate__(self) -> str:
+        return str(self)
+
+    def __setstate__(self, state: object) -> None:
+        try:
+            tmp = Requirement(check.isinstance(state, str))
+        except InvalidRequirementError as exc:
+            raise TypeError(f'Cannot restore Requirement from {state!r}') from exc
+        self.name = tmp.name
+        self.url = tmp.url
+        self.extras = tmp.extras
+        self.specifier = tmp.specifier
+        self.marker = tmp.marker
+
+    def __str__(self) -> str:
+        return ''.join(self._iter_parts(self.name))
+
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}({str(self)!r})>'
+
+    def __hash__(self) -> int:
+        return hash(tuple(self._iter_parts(canonicalize_name(self.name))))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Requirement):
+            return NotImplemented
+
+        return (
+            canonicalize_name(self.name) == canonicalize_name(other.name) and
+            self.extras == other.extras and
+            self.specifier == other.specifier and
+            self.url == other.url and
+            self.marker == other.marker
         )

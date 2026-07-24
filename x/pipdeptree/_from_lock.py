@@ -11,17 +11,15 @@ adapter the ``from-index`` path uses), so the existing DAG and every renderer wo
 ``dependencies`` array lists only child *names*; the child's version is looked up in the ``packages`` array by PEP 503
 canonical name so an edge ``Foo_Bar`` matches a package ``foo-bar``.
 """
+import importlib.metadata
 import pathlib
 import tomllib
 import typing as ta
 
-from packaging.utils import canonicalize_name
+from omdev.packaging.names import NormalizedName
+from omdev.packaging.names import canonicalize_name
 
 from ._synthetic_dist import SyntheticDistribution
-
-
-if ta.TYPE_CHECKING:
-    from packaging.utils import NormalizedName
 
 
 ##

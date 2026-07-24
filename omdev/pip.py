@@ -7,8 +7,8 @@ import urllib.request
 from omcore import check
 
 from .packaging.names import canonicalize_name
-from .packaging.requires import RequiresVariable
-from .packaging.requires import parse_requirement
+from .packaging.requirements import RequirementVariable
+from .packaging.requirements import parse_requirement
 
 
 ##
@@ -55,7 +55,7 @@ def get_root_dists(
         for req_str in dist.requires or []:
             req = parse_requirement(req_str)
 
-            if any(v.value == 'extra' for m in req.marker or [] if isinstance(v := m[0], RequiresVariable)):
+            if any(v.value == 'extra' for m in req.marker or [] if isinstance(v := m[0], RequirementVariable)):
                 continue
 
             req_cn = canonicalize_name(req.name)

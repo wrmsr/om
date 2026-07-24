@@ -2,11 +2,13 @@ import collections
 import enum
 import fnmatch
 import functools
+import importlib.metadata
 import itertools
 import sys
 import typing as ta
 
-from packaging.utils import canonicalize_name
+from omdev.packaging.names import canonicalize_name
+from omdev.packaging.requirements import Requirement
 
 from .._warning import get_warning_printer
 from .package import DistPackage
@@ -14,13 +16,7 @@ from .package import InvalidRequirementError
 from .package import ReqPackage
 
 
-if ta.TYPE_CHECKING:
-    from importlib.metadata import Distribution
-
-    from packaging.requirements import Requirement
-
-
-ExtrasMode = ta.Literal['none', 'explicit', 'active']
+ExtrasMode: ta.TypeAlias = ta.Literal['none', 'explicit', 'active']
 
 
 ##
@@ -47,7 +43,7 @@ class PackageDAG(ta.Mapping[DistPackage, list[ReqPackage]]):
      e: [],
      f: [b],
      g: [e, f]}
-
+0j
     Here, node `a` has 2 children nodes `b` and `c`. Consider edge direction from `a` -> `b` and `a` -> `c`
     respectively.
 
@@ -59,7 +55,7 @@ class PackageDAG(ta.Mapping[DistPackage, list[ReqPackage]]):
     @classmethod
     def from_pkgs(
         cls,
-        pkgs: list[Distribution],
+        pkgs: list[importlib.metadata.Distribution],
         *,
         extras: ExtrasMode = 'none',
         requested_extras: ta.Mapping[str, set[str]] | None = None,
