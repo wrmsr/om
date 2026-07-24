@@ -2,12 +2,12 @@
 # @om-lite
 """
 TODO:
- - can implement sched w/ settimeout
  - sanity / upper bound read/write timeouts
 """
 import collections
 import dataclasses as dc
 import heapq
+import select
 import time
 import typing as ta
 
@@ -140,11 +140,6 @@ class SyncSocketIoPipelineDriver:
     def _do_read(self) -> ta.List[ta.Any]:
         out: ta.List[ta.Any] = []
 
-        # if (dl := self._sched.next_delay()) is not None:
-        #     self._sock.settimeout(dl)
-        # else:
-        #     self._sock.settimeout(None)
-
         b = self._sock.recv(self._config.read_chunk_size)
 
         if not b:
@@ -178,7 +173,30 @@ class SyncSocketIoPipelineDriver:
             self._clear_cancelled()
             if not self._pending:
                 return None
-            return time.time() - self._pending[0][0]
+            return max(0., self._pending[0][0] - time.monotonic())
+
+        def _run_due(self) -> int:
+            self._clear_cancelled()
+
+            now = time.monotonic()
+            due: ta.List[SyncSocketIoPipelineDriver._SchedulingService._Handle] = []
+
+            while self._pending and self._pending[0][0] <= now:
+                _, _, h = heapq.heappop(self._pending)
+                if not h._cancelled:  # noqa
+                    due.append(h)
+                self._clear_cancelled()
+
+            ran = 0
+            for h in due:
+                if h._cancelled:  # noqa
+                    continue
+
+                with self._d.pipeline.enter():
+                    h._fn()  # noqa
+                ran += 1
+
+            return ran
 
         @ta.final
         class _Handle(IoPipelineScheduling.Handle):
@@ -208,7 +226,7 @@ class SyncSocketIoPipelineDriver:
             h = self._Handle(
                 handler_ref,
                 fn,
-                time.time() + delay_s,
+                time.monotonic() + max(0., delay_s),
                 self._seq,
             )
             self._seq += 1
@@ -222,10 +240,59 @@ class SyncSocketIoPipelineDriver:
 
     #
 
+    def _wait_for_read_or_timer(
+            self,
+            *,
+            want_read: bool,
+    ) -> ta.Literal['read', 'timer']:
+        while True:
+            timer_delay = self._sched.next_delay()
+
+            socket_timeout: ta.Optional[float] = None
+            if want_read:
+                try:
+                    socket_timeout = self._sock.gettimeout()
+                except AttributeError:
+                    pass
+
+                if socket_timeout == 0.:
+                    return 'read'
+            else:
+                check.not_none(timer_delay)
+
+            if timer_delay is None:
+                if socket_timeout is None:
+                    check.state(want_read)
+                    return 'read'
+                timeout = socket_timeout
+            elif socket_timeout is None:
+                timeout = timer_delay
+            else:
+                timeout = min(timer_delay, socket_timeout)
+
+            readable, _, _ = select.select(
+                [self._sock] if want_read else [],
+                [],
+                [],
+                timeout,
+            )
+            if readable:
+                return 'read'
+
+            if self._sched._run_due():  # noqa
+                return 'timer'
+
+            if (
+                    socket_timeout is not None and
+                    (timer_delay is None or socket_timeout <= timer_delay)
+            ):
+                raise TimeoutError('timed out')
+
+    #
+
     def _handle_output(self, msg: ta.Any) -> ta.Literal['handled', 'unhandled', 'stop']:
         if ByteStreamBuffers.can_bytes(msg):
             for mv in ByteStreamBuffers.iter_segments(msg):
-                # self._sock.settimeout(None)
                 self._sock.sendall(mv)
             return 'handled'
 
@@ -297,6 +364,8 @@ class SyncSocketIoPipelineDriver:
         pipeline = self._ensure_pipeline()  # noqa
         check.state(pipeline.is_ready)
 
+        ran_timer = bool(self._sched._run_due())  # noqa
+
         while True:
             out = self._poll()
 
@@ -310,7 +379,13 @@ class SyncSocketIoPipelineDriver:
 
             elif out == 'read':
                 if read:
-                    self._input_q.extend(self._do_read())
+                    if ran_timer:
+                        return None
+
+                    if self._wait_for_read_or_timer(want_read=True) == 'read':
+                        self._input_q.extend(self._do_read())
+                    else:
+                        ran_timer = True
 
                 else:
                     return None
@@ -321,7 +396,14 @@ class SyncSocketIoPipelineDriver:
                 return None
 
             elif out is None:
-                if raise_on_stall:
+                if ran_timer:
+                    return None
+
+                if read and self._sched.next_delay() is not None:
+                    check.equal(self._wait_for_read_or_timer(want_read=False), 'timer')
+                    ran_timer = True
+
+                elif raise_on_stall:
                     raise RuntimeError('Pipeline stalled')
 
                 else:

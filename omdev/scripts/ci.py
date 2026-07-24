@@ -57,6 +57,7 @@ import operator
 import os
 import os.path
 import re
+import select
 import selectors
 import shlex
 import shutil
@@ -220,7 +221,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='26ad861596fd85d8bc68b3d9612217fb9a098b7e'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='e0ab886dbe7d62834e3f7a0eb01acd983bc66894'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='7dcdb05e773fd1211950e0e88cf77212ee884315'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -31123,7 +31124,6 @@ class IoPipelineHttpObjectDecoder(
 # ../../../omcore/io/pipelines/drivers/sync.py
 """
 TODO:
- - can implement sched w/ settimeout
  - sanity / upper bound read/write timeouts
 """
 
@@ -31244,11 +31244,6 @@ class SyncSocketIoPipelineDriver:
     def _do_read(self) -> ta.List[ta.Any]:
         out: ta.List[ta.Any] = []
 
-        # if (dl := self._sched.next_delay()) is not None:
-        #     self._sock.settimeout(dl)
-        # else:
-        #     self._sock.settimeout(None)
-
         b = self._sock.recv(self._config.read_chunk_size)
 
         if not b:
@@ -31282,7 +31277,30 @@ class SyncSocketIoPipelineDriver:
             self._clear_cancelled()
             if not self._pending:
                 return None
-            return time.time() - self._pending[0][0]
+            return max(0., self._pending[0][0] - time.monotonic())
+
+        def _run_due(self) -> int:
+            self._clear_cancelled()
+
+            now = time.monotonic()
+            due: ta.List[SyncSocketIoPipelineDriver._SchedulingService._Handle] = []
+
+            while self._pending and self._pending[0][0] <= now:
+                _, _, h = heapq.heappop(self._pending)
+                if not h._cancelled:  # noqa
+                    due.append(h)
+                self._clear_cancelled()
+
+            ran = 0
+            for h in due:
+                if h._cancelled:  # noqa
+                    continue
+
+                with self._d.pipeline.enter():
+                    h._fn()  # noqa
+                ran += 1
+
+            return ran
 
         @ta.final
         class _Handle(IoPipelineScheduling.Handle):
@@ -31312,7 +31330,7 @@ class SyncSocketIoPipelineDriver:
             h = self._Handle(
                 handler_ref,
                 fn,
-                time.time() + delay_s,
+                time.monotonic() + max(0., delay_s),
                 self._seq,
             )
             self._seq += 1
@@ -31326,10 +31344,59 @@ class SyncSocketIoPipelineDriver:
 
     #
 
+    def _wait_for_read_or_timer(
+            self,
+            *,
+            want_read: bool,
+    ) -> ta.Literal['read', 'timer']:
+        while True:
+            timer_delay = self._sched.next_delay()
+
+            socket_timeout: ta.Optional[float] = None
+            if want_read:
+                try:
+                    socket_timeout = self._sock.gettimeout()
+                except AttributeError:
+                    pass
+
+                if socket_timeout == 0.:
+                    return 'read'
+            else:
+                check.not_none(timer_delay)
+
+            if timer_delay is None:
+                if socket_timeout is None:
+                    check.state(want_read)
+                    return 'read'
+                timeout = socket_timeout
+            elif socket_timeout is None:
+                timeout = timer_delay
+            else:
+                timeout = min(timer_delay, socket_timeout)
+
+            readable, _, _ = select.select(
+                [self._sock] if want_read else [],
+                [],
+                [],
+                timeout,
+            )
+            if readable:
+                return 'read'
+
+            if self._sched._run_due():  # noqa
+                return 'timer'
+
+            if (
+                    socket_timeout is not None and
+                    (timer_delay is None or socket_timeout <= timer_delay)
+            ):
+                raise TimeoutError('timed out')
+
+    #
+
     def _handle_output(self, msg: ta.Any) -> ta.Literal['handled', 'unhandled', 'stop']:
         if ByteStreamBuffers.can_bytes(msg):
             for mv in ByteStreamBuffers.iter_segments(msg):
-                # self._sock.settimeout(None)
                 self._sock.sendall(mv)
             return 'handled'
 
@@ -31401,6 +31468,8 @@ class SyncSocketIoPipelineDriver:
         pipeline = self._ensure_pipeline()  # noqa
         check.state(pipeline.is_ready)
 
+        ran_timer = bool(self._sched._run_due())  # noqa
+
         while True:
             out = self._poll()
 
@@ -31414,7 +31483,13 @@ class SyncSocketIoPipelineDriver:
 
             elif out == 'read':
                 if read:
-                    self._input_q.extend(self._do_read())
+                    if ran_timer:
+                        return None
+
+                    if self._wait_for_read_or_timer(want_read=True) == 'read':
+                        self._input_q.extend(self._do_read())
+                    else:
+                        ran_timer = True
 
                 else:
                     return None
@@ -31425,7 +31500,14 @@ class SyncSocketIoPipelineDriver:
                 return None
 
             elif out is None:
-                if raise_on_stall:
+                if ran_timer:
+                    return None
+
+                if read and self._sched.next_delay() is not None:
+                    check.equal(self._wait_for_read_or_timer(want_read=False), 'timer')
+                    ran_timer = True
+
+                elif raise_on_stall:
                     raise RuntimeError('Pipeline stalled')
 
                 else:
