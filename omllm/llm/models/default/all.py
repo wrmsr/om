@@ -9,6 +9,7 @@ from ..catalog import ModelCatalog
 with lang.auto_proxy_import(globals()):
     from . import anthropic
     from . import cerebras
+    from . import google
     from . import groq
     from . import openai
 
@@ -21,6 +22,7 @@ def default_models() -> ta.Sequence[Model]:
     return [
         *anthropic.MODELS,
         *cerebras.MODELS,
+        *google.MODELS,
         *groq.MODELS,
         *openai.MODELS,
     ]
