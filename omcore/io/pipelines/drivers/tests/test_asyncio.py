@@ -10,6 +10,7 @@ from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineHandlerRef
 from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
+from ...flow.types import IoPipelineFlowMessages
 from ...sched.types import IoPipelineScheduling
 from ..asyncio import PollAsyncioStreamIoPipelineDriver
 
@@ -34,6 +35,47 @@ class TimerOutputIoPipelineHandler(IoPipelineHandler):
 
 class NopIoPipelineHandler(IoPipelineHandler):
     pass
+
+
+class CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
+    def __init__(self):
+        super().__init__()
+
+        self.events = []
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, (IoPipelineFlowMessages.PauseOutput, IoPipelineFlowMessages.ReadyForOutput)):
+            self.events.append(msg)
+        ctx.feed_in(msg)
+
+
+class BufferedStreamWriter:
+    class Transport:
+        def __init__(self):
+            self.size = 0
+            self.limits = None
+
+        def set_write_buffer_limits(self, *, high, low):
+            self.limits = (low, high)
+
+        def get_write_buffer_size(self):
+            return self.size
+
+    def __init__(self):
+        self.transport = self.Transport()
+        self.closed = False
+
+    def write(self, data):
+        self.transport.size += len(data)
+
+    async def drain(self):
+        self.transport.size = 0
+
+    def close(self):
+        self.closed = True
+
+    async def wait_closed(self):
+        pass
 
 
 class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCase):
@@ -150,5 +192,68 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
         drv = await self.make_driver(TimerOutputIoPipelineHandler(60., 'timer'))
         try:
             self.assertIsNone(await drv.next(read=False))
+        finally:
+            await drv.close()
+
+
+class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyncTestCase):
+    def test_invalid_watermarks(self):
+        with self.assertRaises(ValueError):
+            PollAsyncioStreamIoPipelineDriver.Config(
+                write_high_watermark=1,
+                write_low_watermark=2,
+            )
+
+    async def test_no_flow_preserves_transport_limits(self):
+        writer = BufferedStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            self.assertIsNone(writer.transport.limits)
+        finally:
+            await drv.close()
+
+    async def test_watermark_transitions(self):
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        writer = BufferedStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [capture],
+                services=[
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+            config=PollAsyncioStreamIoPipelineDriver.Config(
+                write_high_watermark=4,
+                write_low_watermark=2,
+            ),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            self.assertEqual(writer.transport.limits, (2, 4))
+
+            self.assertEqual(await drv._handle_output(b'abcde'), 'handled')
+            self.assertEqual(
+                [type(event) for event in capture.events],
+                [IoPipelineFlowMessages.PauseOutput],
+            )
+
+            self.assertEqual(
+                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                'handled',
+            )
+            self.assertEqual(
+                [type(event) for event in capture.events],
+                [
+                    IoPipelineFlowMessages.PauseOutput,
+                    IoPipelineFlowMessages.ReadyForOutput,
+                ],
+            )
         finally:
             await drv.close()

@@ -42,6 +42,15 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         strict_input_flow: bool = False
 
+        write_high_watermark: int = 64 * 1024
+        write_low_watermark: int = 16 * 1024
+
+        def __post_init__(self) -> None:
+            """Validate output writability watermarks."""
+
+            if not 0 <= self.write_low_watermark <= self.write_high_watermark:
+                raise ValueError((self.write_low_watermark, self.write_high_watermark))
+
     Config.DEFAULT = Config()
 
     #
@@ -64,6 +73,8 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         self._input_q.append(IoPipelineMessages.InitialInput())
 
         self._write_q: collections.deque[BytesLike] = collections.deque()
+        self._write_q_bytes = 0
+        self._output_writable = True
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}<{self._state.name}>'
@@ -218,14 +229,18 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                     self._write_q.appendleft(pb)
                     return
                 p += sr
+                self._write_q_bytes -= sr
                 if p >= len(b):
                     break
 
     def _do_write_or_q(self, bls: ta.Iterable[BytesLike]) -> None:
         queuing = bool(self._write_q)
         for bl in bls:
+            if not bl:
+                continue
             if queuing:
                 self._write_q.append(bl)
+                self._write_q_bytes += len(bl)
                 continue
             p = 0
             while True:
@@ -235,16 +250,31 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 except BlockingIOError:
                     queuing = True
                     self._write_q.append(pbl)
+                    self._write_q_bytes += len(pbl)
                     break
                 p += sr
                 if p >= len(bl):
                     break
+
+    def _update_output_writability(self) -> None:
+        if self._flow is None:
+            return
+
+        if self._output_writable:
+            if self._write_q_bytes > self._config.write_high_watermark:
+                self._output_writable = False
+                self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
+
+        elif self._write_q_bytes <= self._config.write_low_watermark:
+            self._output_writable = True
+            self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
     #
 
     def _handle_output(self, msg: ta.Any) -> ta.Literal['handled', 'unhandled', 'stop']:
         if ByteStreamBuffers.can_bytes(msg):
             self._do_write_or_q(ByteStreamBuffers.iter_segments(msg))
+            self._update_output_writability()
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
@@ -399,3 +429,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         if self._state is self.State.DRAINING and not self._write_q:
             self.close()
+
+        elif self._state is self.State.RUNNING:
+            self._update_output_writability()
+            check.none(self.next(read=False))

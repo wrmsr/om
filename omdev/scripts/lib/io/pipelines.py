@@ -72,7 +72,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='b9a30eb8d2b1c7d84e58657fbf530e40d7e714a5'),
+            dict(path='drivers/asyncio.py', sha1='44f29072886e8e74b3ff92ba2dcb0304971cad84'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -8240,6 +8240,15 @@ class PollAsyncioStreamIoPipelineDriver:
 
         strict_input_flow: bool = False
 
+        write_high_watermark: int = 64 * 1024
+        write_low_watermark: int = 16 * 1024
+
+        def __post_init__(self) -> None:
+            """Validate output writability watermarks."""
+
+            if not 0 <= self.write_low_watermark <= self.write_high_watermark:
+                raise ValueError((self.write_low_watermark, self.write_high_watermark))
+
     Config.DEFAULT = Config()
 
     #
@@ -8270,6 +8279,8 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._want_read = False
         self._want_read_event = asyncio.Event()
+
+        self._output_writable = True
 
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._FeedInCommand([
             IoPipelineMessages.InitialInput(),
@@ -8333,6 +8344,12 @@ class PollAsyncioStreamIoPipelineDriver:
             ),
             **(self._pipeline_kwargs or {}),
         )
+
+        if self._flow is not None and self._writer is not None:
+            self._writer.transport.set_write_buffer_limits(
+                high=self._config.write_high_watermark,
+                low=self._config.write_low_watermark,
+            )
 
         #
 
@@ -8809,9 +8826,12 @@ class PollAsyncioStreamIoPipelineDriver:
             if self._writer is not None and mv:
                 self._writer.write(mv)
 
+        self._update_output_writability()
+
     async def _handle_output_flush_output(self, msg: IoPipelineFlowMessages.FlushOutput) -> ta.Optional[str]:
         if self._writer is not None:
             await self._writer.drain()
+            self._update_output_writability()
         return None
 
     async def _handle_output_ready_for_input(self, msg: IoPipelineFlowMessages.ReadyForInput) -> ta.Optional[str]:
@@ -8821,6 +8841,20 @@ class PollAsyncioStreamIoPipelineDriver:
         self._want_read = True
         self._want_read_event.set()
         return None
+
+    def _update_output_writability(self) -> None:
+        if self._flow is None or self._writer is None:
+            return
+
+        size = self._writer.transport.get_write_buffer_size()
+        if self._output_writable:
+            if size > self._config.write_high_watermark:
+                self._output_writable = False
+                self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
+
+        elif size <= self._config.write_low_watermark:
+            self._output_writable = True
+            self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
     def _build_output_handlers(self) -> ta.Mapping[type, ta.Callable[[ta.Any], ta.Awaitable[ta.Optional[str]]]]:
         return {
