@@ -16,8 +16,10 @@ from ....logs.modules import get_module_logger
 from ...streambufs.utils import ByteStreamBuffers
 from ..core import IoPipeline
 from ..core import IoPipelineHandlerRef
+from ..core import IoPipelineHandlerUpdate
 from ..core import IoPipelineMessages
 from ..core import IoPipelineService
+from ..core import IoPipelineUpdate
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..sched.types import IoPipelineScheduling
@@ -162,8 +164,28 @@ class SyncSocketIoPipelineDriver:
 
             self._d = d
 
+            self._pipeline: ta.Optional[IoPipeline] = None
+
             self._seq = 0
             self._pending: ta.List[ta.Tuple[float, int, SyncSocketIoPipelineDriver._SchedulingService._Handle]] = []
+            self._live: ta.Set[SyncSocketIoPipelineDriver._SchedulingService._Handle] = set()
+
+        def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
+            if kind == 'added':
+                check.none(self._pipeline)
+                self._pipeline = pipeline
+
+            elif kind == 'removed':
+                if self._pipeline is None:
+                    return
+
+                check.is_(pipeline, self._pipeline)
+                self.cancel_all()
+                self._pipeline = None
+
+        def handler_update(self, handler_ref: IoPipelineHandlerRef, kind: IoPipelineHandlerUpdate) -> None:
+            if kind == 'removing':
+                self.cancel_all(handler_ref)
 
         def _clear_cancelled(self) -> None:
             while self._pending and self._pending[0][2]._cancelled:  # noqa
@@ -188,12 +210,23 @@ class SyncSocketIoPipelineDriver:
                 self._clear_cancelled()
 
             ran = 0
-            for h in due:
+            for i, h in enumerate(due):
                 if h._cancelled:  # noqa
                     continue
 
-                with self._d.pipeline.enter():
-                    h._fn()  # noqa
+                h._done = True  # noqa
+                self._live.remove(h)
+
+                try:
+                    with self._d.pipeline.enter():
+                        h._fn()  # noqa
+
+                except BaseException:
+                    for rh in due[i + 1:]:
+                        if not rh._cancelled:  # noqa
+                            heapq.heappush(self._pending, (rh._deadline, rh._seq, rh))  # noqa
+                    raise
+
                 ran += 1
 
             return ran
@@ -202,20 +235,27 @@ class SyncSocketIoPipelineDriver:
         class _Handle(IoPipelineScheduling.Handle):
             def __init__(
                     self,
+                    sched: 'SyncSocketIoPipelineDriver._SchedulingService',
                     handler_ref: IoPipelineHandlerRef,
                     fn: ta.Callable[[], None],
                     deadline: float,
                     seq: int,
             ) -> None:
+                self._sched = sched
                 self._deadline = deadline
                 self._seq = seq
                 self._handler_ref = handler_ref
                 self._fn = fn
 
                 self._cancelled = False
+                self._done = False
 
             def cancel(self) -> None:
+                if self._cancelled or self._done:
+                    return
+
                 self._cancelled = True
+                self._sched._live.remove(self)  # noqa
 
         def schedule(
                 self,
@@ -223,7 +263,13 @@ class SyncSocketIoPipelineDriver:
                 delay_s: float,
                 fn: ta.Callable[[], None],
         ) -> IoPipelineScheduling.Handle:
+            pipeline = check.not_none(self._pipeline)
+            check.is_(handler_ref.pipeline, pipeline)
+            check.state(pipeline.is_ready)
+            check.state(not handler_ref.invalidated)
+
             h = self._Handle(
+                self,
                 handler_ref,
                 fn,
                 time.monotonic() + max(0., delay_s),
@@ -231,10 +277,16 @@ class SyncSocketIoPipelineDriver:
             )
             self._seq += 1
             heapq.heappush(self._pending, (h._deadline, h._seq, h))  # noqa
+            self._live.add(h)
             return h
 
         def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
-            raise NotImplementedError
+            for h in tuple(self._live):
+                if handler_ref is None or h._handler_ref is handler_ref:  # noqa
+                    h.cancel()
+
+            self._pending = [e for e in self._pending if not e[2]._cancelled]  # noqa
+            heapq.heapify(self._pending)
 
     _sched: _SchedulingService
 

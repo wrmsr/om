@@ -55,7 +55,7 @@ def __om_amalg__():  # noqa
             dict(path='flow/types.py', sha1='81ead96b6a9487fbda313e858d75701ebe2d5518'),
             dict(path='handlers/fns.py', sha1='d3e3c43b3359572122b8cb9018c770441c598d48'),
             dict(path='handlers/queues.py', sha1='0672c722e377d67369da3cb4a082b4816eb84875'),
-            dict(path='sched/types.py', sha1='ff77ef20dd7750c25af4ab4826de06afe3b53bac'),
+            dict(path='sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
             dict(path='../streambufs/base.py', sha1='0f0cea0fe05f9d7b4669a7b3871bc78e12af98f6'),
             dict(path='../streambufs/framing.py', sha1='de1f818064576e855f20b005ea7855a1fd5f3f56'),
             dict(path='../streambufs/utils.py', sha1='62d7fce79bae738c199627668bdee8bb389efa1e'),
@@ -72,7 +72,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='7c62aa82f0b3f8125c44b11f6424ca81d7ada46d'),
+            dict(path='drivers/asyncio.py', sha1='9197e1ad562417ed132df68251bb1ee55b242d53'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -4521,6 +4521,8 @@ class IoPipelineScheduling(Abstract):
     class Handle(Abstract):
         @abc.abstractmethod
         def cancel(self) -> None:
+            """Idempotently cancel the callback if it has not begun running."""
+
             raise NotImplementedError
 
     @abc.abstractmethod
@@ -4530,10 +4532,18 @@ class IoPipelineScheduling(Abstract):
             delay_s: float,
             fn: ta.Callable[[], None],
     ) -> Handle:
+        """
+        Schedule a callback owned by an active handler ref.
+
+        The callback must not run after its owning handler ref is invalidated.
+        """
+
         raise NotImplementedError
 
     @abc.abstractmethod
     def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
+        """Cancel callbacks owned by an exact handler ref, or all callbacks when omitted."""
+
         raise NotImplementedError
 
 
@@ -8522,12 +8532,56 @@ class PollAsyncioStreamIoPipelineDriver:
 
             self._d = d
 
-            self._pending: ta.List[ta.Tuple[float, ta.Callable[[], None]]] = []
+            self._pipeline: ta.Optional[IoPipeline] = None
+
+            self._pending: ta.List[PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle] = []
+            self._live: ta.Set[PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle] = set()
             self._tasks: ta.Set[asyncio.Task] = set()
 
+        def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
+            if kind == 'added':
+                check.none(self._pipeline)
+                self._pipeline = pipeline
+
+            elif kind == 'removed':
+                if self._pipeline is None:
+                    return
+
+                check.is_(pipeline, self._pipeline)
+                self.cancel_all()
+                self._pipeline = None
+
+        def handler_update(self, handler_ref: IoPipelineHandlerRef, kind: IoPipelineHandlerUpdate) -> None:
+            if kind == 'removing':
+                self.cancel_all(handler_ref)
+
+        @ta.final
         class _Handle(IoPipelineScheduling.Handle):
+            def __init__(
+                    self,
+                    sched: 'PollAsyncioStreamIoPipelineDriver._SchedulingService',
+                    handler_ref: IoPipelineHandlerRef,
+                    delay_s: float,
+                    fn: ta.Callable[[], None],
+            ) -> None:
+                self._sched = sched
+                self._handler_ref = handler_ref
+                self._delay_s = delay_s
+                self._fn = fn
+
+                self._task: ta.Optional[asyncio.Task] = None
+                self._cancelled = False
+                self._done = False
+
             def cancel(self) -> None:
-                raise NotImplementedError
+                if self._cancelled or self._done:
+                    return
+
+                self._cancelled = True
+                self._sched._live.remove(self)  # noqa
+
+                if self._task is not None:
+                    self._task.cancel()
 
         def schedule(
                 self,
@@ -8535,35 +8589,68 @@ class PollAsyncioStreamIoPipelineDriver:
                 delay_s: float,
                 fn: ta.Callable[[], None],
         ) -> IoPipelineScheduling.Handle:
-            self._pending.append((delay_s, fn))
-            return self._Handle()
+            pipeline = check.not_none(self._pipeline)
+            check.is_(handler_ref.pipeline, pipeline)
+            check.state(pipeline.is_ready)
+            check.state(not handler_ref.invalidated)
+
+            h = self._Handle(
+                self,
+                handler_ref,
+                max(0., delay_s),
+                fn,
+            )
+            self._pending.append(h)
+            self._live.add(h)
+            return h
 
         def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
-            raise NotImplementedError
+            for h in tuple(self._live):
+                if handler_ref is None or h._handler_ref is handler_ref:  # noqa
+                    h.cancel()
 
-        async def _task_body(self, delay: float, fn: ta.Callable[[], None]) -> None:
-            await asyncio.sleep(delay)
+            self._pending = [h for h in self._pending if not h._cancelled]  # noqa
 
-            self._d._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ScheduledCommand(fn))  # noqa
+        async def _task_body(self, h: _Handle) -> None:
+            await asyncio.sleep(h._delay_s)  # noqa
+
+            if not h._cancelled:  # noqa
+                self._d._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ScheduledCommand(h))  # noqa
 
         async def _flush_pending(self) -> None:
             if not (lst := self._pending):
                 return
 
-            for delay, fn in lst:
-                task = asyncio.create_task(functools.partial(self._task_body, delay, fn)())
+            self._pending = []
+
+            for h in lst:
+                if h._cancelled:  # noqa
+                    continue
+
+                task = asyncio.create_task(self._task_body(h))
+                h._task = task  # noqa
                 self._tasks.add(task)
                 task.add_done_callback(self._tasks.discard)
 
-            self._pending = []
+        def _take(self, h: _Handle) -> ta.Optional[ta.Callable[[], None]]:
+            if h._cancelled or h._done:  # noqa
+                return None
+
+            check.in_(h, self._live)
+            h._done = True  # noqa
+            self._live.remove(h)
+            return h._fn  # noqa
 
     @dc.dataclass(frozen=True)
     class _ScheduledCommand(_Command):
-        fn: ta.Callable[[], None]
+        handle: 'PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle'
 
     async def _handle_command_scheduled(self, cmd: _ScheduledCommand) -> None:
+        if (fn := self._sched._take(cmd.handle)) is None:  # noqa
+            return
+
         with self._pipeline.enter():
-            cmd.fn()
+            fn()
 
     ##
     # shutdown
@@ -8739,7 +8826,7 @@ class PollAsyncioStreamIoPipelineDriver:
         if self._read_task is not None and not self._read_task.done():
             return True
 
-        if hasattr(self, '_sched') and self._sched._tasks:  # noqa
+        if hasattr(self, '_sched') and self._sched._live:  # noqa
             return True
 
         return False
@@ -8821,9 +8908,7 @@ class PollAsyncioStreamIoPipelineDriver:
         await self._close_writer()
 
         if hasattr(self, '_sched'):
-            for t in list(self._sched._tasks):  # noqa
-                if not t.done():
-                    t.cancel()
+            self._sched.cancel_all()
             if self._sched._tasks:  # noqa
                 await asyncio.gather(*self._sched._tasks, return_exceptions=True)  # noqa
 

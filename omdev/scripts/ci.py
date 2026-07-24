@@ -163,7 +163,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='fa174d01438db50305953e0f500d303c6a80faac'),  # noqa
             dict(path='../../omcore/io/pipelines/flow/types.py', sha1='81ead96b6a9487fbda313e858d75701ebe2d5518'),
-            dict(path='../../omcore/io/pipelines/sched/types.py', sha1='ff77ef20dd7750c25af4ab4826de06afe3b53bac'),
+            dict(path='../../omcore/io/pipelines/sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
             dict(path='../../omcore/io/streambufs/base.py', sha1='0f0cea0fe05f9d7b4669a7b3871bc78e12af98f6'),
             dict(path='../../omcore/io/streambufs/framing.py', sha1='de1f818064576e855f20b005ea7855a1fd5f3f56'),
             dict(path='../../omcore/io/streambufs/utils.py', sha1='62d7fce79bae738c199627668bdee8bb389efa1e'),
@@ -221,7 +221,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='26ad861596fd85d8bc68b3d9612217fb9a098b7e'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='7dcdb05e773fd1211950e0e88cf77212ee884315'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='f124f6aa01a4804f74a7c4515a2f3ac6269086af'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -13616,6 +13616,8 @@ class IoPipelineScheduling(Abstract):
     class Handle(Abstract):
         @abc.abstractmethod
         def cancel(self) -> None:
+            """Idempotently cancel the callback if it has not begun running."""
+
             raise NotImplementedError
 
     @abc.abstractmethod
@@ -13625,10 +13627,18 @@ class IoPipelineScheduling(Abstract):
             delay_s: float,
             fn: ta.Callable[[], None],
     ) -> Handle:
+        """
+        Schedule a callback owned by an active handler ref.
+
+        The callback must not run after its owning handler ref is invalidated.
+        """
+
         raise NotImplementedError
 
     @abc.abstractmethod
     def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
+        """Cancel callbacks owned by an exact handler ref, or all callbacks when omitted."""
+
         raise NotImplementedError
 
 
@@ -31266,8 +31276,28 @@ class SyncSocketIoPipelineDriver:
 
             self._d = d
 
+            self._pipeline: ta.Optional[IoPipeline] = None
+
             self._seq = 0
             self._pending: ta.List[ta.Tuple[float, int, SyncSocketIoPipelineDriver._SchedulingService._Handle]] = []
+            self._live: ta.Set[SyncSocketIoPipelineDriver._SchedulingService._Handle] = set()
+
+        def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
+            if kind == 'added':
+                check.none(self._pipeline)
+                self._pipeline = pipeline
+
+            elif kind == 'removed':
+                if self._pipeline is None:
+                    return
+
+                check.is_(pipeline, self._pipeline)
+                self.cancel_all()
+                self._pipeline = None
+
+        def handler_update(self, handler_ref: IoPipelineHandlerRef, kind: IoPipelineHandlerUpdate) -> None:
+            if kind == 'removing':
+                self.cancel_all(handler_ref)
 
         def _clear_cancelled(self) -> None:
             while self._pending and self._pending[0][2]._cancelled:  # noqa
@@ -31292,12 +31322,23 @@ class SyncSocketIoPipelineDriver:
                 self._clear_cancelled()
 
             ran = 0
-            for h in due:
+            for i, h in enumerate(due):
                 if h._cancelled:  # noqa
                     continue
 
-                with self._d.pipeline.enter():
-                    h._fn()  # noqa
+                h._done = True  # noqa
+                self._live.remove(h)
+
+                try:
+                    with self._d.pipeline.enter():
+                        h._fn()  # noqa
+
+                except BaseException:
+                    for rh in due[i + 1:]:
+                        if not rh._cancelled:  # noqa
+                            heapq.heappush(self._pending, (rh._deadline, rh._seq, rh))  # noqa
+                    raise
+
                 ran += 1
 
             return ran
@@ -31306,20 +31347,27 @@ class SyncSocketIoPipelineDriver:
         class _Handle(IoPipelineScheduling.Handle):
             def __init__(
                     self,
+                    sched: 'SyncSocketIoPipelineDriver._SchedulingService',
                     handler_ref: IoPipelineHandlerRef,
                     fn: ta.Callable[[], None],
                     deadline: float,
                     seq: int,
             ) -> None:
+                self._sched = sched
                 self._deadline = deadline
                 self._seq = seq
                 self._handler_ref = handler_ref
                 self._fn = fn
 
                 self._cancelled = False
+                self._done = False
 
             def cancel(self) -> None:
+                if self._cancelled or self._done:
+                    return
+
                 self._cancelled = True
+                self._sched._live.remove(self)  # noqa
 
         def schedule(
                 self,
@@ -31327,7 +31375,13 @@ class SyncSocketIoPipelineDriver:
                 delay_s: float,
                 fn: ta.Callable[[], None],
         ) -> IoPipelineScheduling.Handle:
+            pipeline = check.not_none(self._pipeline)
+            check.is_(handler_ref.pipeline, pipeline)
+            check.state(pipeline.is_ready)
+            check.state(not handler_ref.invalidated)
+
             h = self._Handle(
+                self,
                 handler_ref,
                 fn,
                 time.monotonic() + max(0., delay_s),
@@ -31335,10 +31389,16 @@ class SyncSocketIoPipelineDriver:
             )
             self._seq += 1
             heapq.heappush(self._pending, (h._deadline, h._seq, h))  # noqa
+            self._live.add(h)
             return h
 
         def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
-            raise NotImplementedError
+            for h in tuple(self._live):
+                if handler_ref is None or h._handler_ref is handler_ref:  # noqa
+                    h.cancel()
+
+            self._pending = [e for e in self._pending if not e[2]._cancelled]  # noqa
+            heapq.heapify(self._pending)
 
     _sched: _SchedulingService
 

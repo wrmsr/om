@@ -7,6 +7,7 @@ import unittest
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
+from ...core import IoPipelineHandlerRef
 from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...sched.types import IoPipelineScheduling
@@ -46,7 +47,34 @@ class ReschedulingTimerIoPipelineHandler(IoPipelineHandler):
         ctx.feed_in(msg)
 
 
+class NopIoPipelineHandler(IoPipelineHandler):
+    pass
+
+
 class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
+    def make_driver(self, *handlers: IoPipelineHandler) -> SyncSocketIoPipelineDriver:
+        drv = SyncSocketIoPipelineDriver(
+            IoPipeline.Spec(
+                handlers,
+                services=[
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+            object(),
+        )
+        self.assertIsNone(drv.next(read=False, raise_on_stall=False))
+        return drv
+
+    def find_handler_ref(
+            self,
+            drv: SyncSocketIoPipelineDriver,
+            handler: IoPipelineHandler,
+    ) -> IoPipelineHandlerRef:
+        ref = drv.pipeline.find_handler(handler)
+        if ref is None:
+            self.fail('Expected handler in pipeline')
+        return ref
+
     def test_timer_wakes_read_select(self):
         sock, peer = socket.socketpair()
         with sock, peer:
@@ -62,6 +90,73 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
                 self.assertEqual(sock.gettimeout(), 10.)
             finally:
                 drv.close()
+
+    def test_handle_and_owner_cancellation(self):
+        ah = NopIoPipelineHandler()
+        bh = NopIoPipelineHandler()
+        drv = self.make_driver(ah, bh)
+        try:
+            ar = self.find_handler_ref(drv, ah)
+            br = self.find_handler_ref(drv, bh)
+
+            events = []
+
+            cancelled_handle = drv._sched.schedule(ar, 0., lambda: events.append('handle'))
+            cancelled_handle.cancel()
+            cancelled_handle.cancel()
+
+            drv._sched.schedule(ar, 0., lambda: events.append('owner'))
+            drv._sched.cancel_all(ar)
+
+            drv._sched.schedule(br, 0., lambda: events.append('live'))
+
+            self.assertEqual(drv._sched._run_due(), 1)
+            self.assertEqual(events, ['live'])
+        finally:
+            drv.close()
+
+    def test_removal_cancels_timer_in_current_due_batch(self):
+        removing_handler = NopIoPipelineHandler()
+        removed_handler = NopIoPipelineHandler()
+        drv = self.make_driver(removing_handler, removed_handler)
+        try:
+            removing_ref = self.find_handler_ref(drv, removing_handler)
+            removed_ref = self.find_handler_ref(drv, removed_handler)
+
+            events = []
+            drv._sched.schedule(
+                removing_ref,
+                0.,
+                lambda: drv.pipeline.remove(removed_ref),
+            )
+            drv._sched.schedule(
+                removed_ref,
+                0.,
+                lambda: events.append('removed'),
+            )
+
+            self.assertEqual(drv._sched._run_due(), 1)
+            self.assertEqual(events, [])
+            self.assertTrue(removed_ref.invalidated)
+            self.assertIsNone(drv._sched.next_delay())
+            with self.assertRaises(RuntimeError):
+                drv._sched.schedule(removed_ref, 0., lambda: events.append('orphan'))
+        finally:
+            drv.close()
+
+    def test_destroy_cancels_all_timers(self):
+        handler = NopIoPipelineHandler()
+        drv = self.make_driver(handler)
+        ref = self.find_handler_ref(drv, handler)
+
+        events = []
+        drv._sched.schedule(ref, 60., lambda: events.append('timer'))
+
+        drv.close()
+
+        self.assertIsNone(drv._sched.next_delay())
+        self.assertEqual(drv._sched._run_due(), 0)
+        self.assertEqual(events, [])
 
     def test_timer_without_read_interest(self):
         drv = SyncSocketIoPipelineDriver(
