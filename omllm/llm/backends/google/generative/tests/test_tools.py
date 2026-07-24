@@ -14,21 +14,21 @@ from .....types.messages import UserMessage
 from .....types.models import ModelKey
 from .....types.tools import Tool
 from .....types.tools import ToolParam
-from ..immediate import OpenaiCompletionsImmediateBackend
-from ..stream import OpenaiCompletionsStreamBackend
+from ..immediate import GoogleGenerativeImmediateBackend
+from ..stream import GoogleGenerativeStreamBackend
 
 
 @pytest.mark.online
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.parametrize('svc_cls', [
-    OpenaiCompletionsImmediateBackend,
-    OpenaiCompletionsStreamBackend,
+    GoogleGenerativeImmediateBackend,
+    GoogleGenerativeStreamBackend,
 ])
 async def test_openai_tools(
         harness,
         svc_cls,
 ):
-    model_key, api_key_name = (ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key')
+    model_key, api_key_name = (ModelKey('google', 'gemini-3-flash-preview'), 'gemini_api_key')
 
     svc: ImmediateBackend = svc_cls(
         default_model_catalog()[model_key],  # noqa

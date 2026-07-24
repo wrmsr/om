@@ -1,10 +1,10 @@
-from . import harness  # noqa
+from .harnesses import (  # noqa
+    Harness,
 
-from .harness import (  # noqa
-    PytestScope,
-    Scopes,
     bind,
     register,
+
+    harness,
 )
 
 from .metadata import (  # noqa
@@ -15,4 +15,9 @@ from .metadata import (  # noqa
     ModuleRunMetadata,
     ClassRunMetadata,
     FunctionRunMetadata,
+)
+
+from .scopes import (  # noqa
+    PytestScope,
+    Scopes,
 )

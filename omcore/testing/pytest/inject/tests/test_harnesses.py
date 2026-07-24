@@ -1,4 +1,4 @@
-from ..harness import Harness
+from ..harnesses import Harness
 
 
 def test_pytest(harness):

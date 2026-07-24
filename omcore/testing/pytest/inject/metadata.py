@@ -7,8 +7,8 @@ import pytest
 
 from .... import inject as inj
 from .... import lang
-from .harness import PytestScope
-from .harness import bind
+from .harnesses import PytestScope
+from .harnesses import bind
 
 
 ##

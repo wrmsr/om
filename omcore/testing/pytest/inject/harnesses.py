@@ -1,43 +1,17 @@
 # ruff: noqa: SLF001
 import contextlib
-import enum
 import typing as ta
 
 import pytest
 
 from .... import check
 from .... import inject as inj
-from .... import lang
 from .. import plugins
+from .scopes import SCOPES_BY_PYTEST_SCOPE
+from .scopes import PytestScope
 
 
 T = ta.TypeVar('T')
-
-
-##
-
-
-class PytestScope(enum.StrEnum):
-    SESSION = 'session'
-    PACKAGE = 'package'
-    MODULE = 'module'
-    CLASS = 'class'
-    FUNCTION = 'function'
-
-
-class Scopes(lang.Namespace, lang.Final):
-    Session = inj.SeededScope(PytestScope.SESSION)
-    Package = inj.SeededScope(PytestScope.PACKAGE)
-    Module = inj.SeededScope(PytestScope.MODULE)
-    Class = inj.SeededScope(PytestScope.CLASS)
-    Function = inj.SeededScope(PytestScope.FUNCTION)
-
-
-_SCOPES_BY_PYTEST_SCOPE: ta.Mapping[PytestScope, inj.SeededScope] = {
-    check.isinstance(a.tag, PytestScope): a
-    for n, a in Scopes.__dict__.items()
-    if isinstance(a, inj.SeededScope)
-}
 
 
 ##
@@ -58,7 +32,7 @@ class Harness:
                     inj.bind_scope(ss),
                     inj.bind_scope_seed(inj.as_key(pytest.FixtureRequest, tag=pts), ss),
                 )
-                for pts, ss in _SCOPES_BY_PYTEST_SCOPE.items()
+                for pts, ss in SCOPES_BY_PYTEST_SCOPE.items()
             ],
             es,
         )
@@ -110,7 +84,7 @@ class Harness:
             pytest_scope: PytestScope,
             request: pytest.FixtureRequest,
     ) -> ta.Generator[None]:
-        ss = _SCOPES_BY_PYTEST_SCOPE[pytest_scope]
+        ss = SCOPES_BY_PYTEST_SCOPE[pytest_scope]
         with inj.enter_seeded_scope(check.not_none(self._inj), ss, {
             inj.as_key(pytest.FixtureRequest, tag=pytest_scope): request,
         }):
@@ -219,10 +193,13 @@ def bind(
     def inner(obj):
         pts = scope if isinstance(scope, PytestScope) else PytestScope[check.isinstance(scope, str).upper()]
         register(inj.as_elements(
-            inj.bind(obj, in_=_SCOPES_BY_PYTEST_SCOPE[pts], eager=eager),
+            inj.bind(obj, in_=SCOPES_BY_PYTEST_SCOPE[pts], eager=eager),
         ))
         return obj
     return inner
+
+
+##
 
 
 @pytest.fixture
