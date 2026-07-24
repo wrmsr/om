@@ -26,13 +26,18 @@
 import ast
 import contextlib
 import dataclasses as dc
+import operator
+import os
+import platform
 import re
+import sys
 import typing as ta
 
 from omcore.lite.check import check
 from omcore.lite.dataclasses import install_dataclass_cache_hash
 
 from .names import canonicalize_name
+from .specifiers import InvalidSpecifierError
 from .specifiers import Specifier
 from .specifiers import SpecifierSet
 
@@ -41,6 +46,9 @@ RequirementMarkerVar = ta.Union['RequirementVariable', 'RequirementValue']  # ta
 
 RequirementMarkerAtom = ta.Union['RequirementMarkerItem', ta.Sequence['RequirementMarkerAtom']]  # ta.TypeAlias
 RequirementMarkerList = ta.Sequence[ta.Union['RequirementMarkerList', 'RequirementMarkerAtom', str]]  # ta.TypeAlias
+
+RequirementEvaluationContext = ta.Literal['metadata', 'lock_file', 'requirement']  # ta.TypeAlias
+RequirementEvaluationOperator = ta.Callable[[str, ta.Union[str, ta.AbstractSet[str]]], bool]  # ta.TypeAlias
 
 
 ##
@@ -605,30 +613,31 @@ class RequirementMarker:
             return NotImplemented
         return self._from_markers([self._markers, 'or', other._markers])
 
-    # def evaluate(
-    #         self,
-    #         environment: ta.Optional[ta.Mapping[str, ta.Union[str, ta.AbstractSet[str]]]] = None,
-    #         context: EvaluateContext = "metadata",
-    # ) -> bool:
-    #     current_environment = ta.cast(
-    #         "ta.Dict[str, ta.Optional[ta.AbstractSet[str]]]", default_environment()
-    #     )
-    #     if context == "lock_file":
-    #         current_environment.update(
-    #             extras=frozenset(), dependency_groups=frozenset()
-    #         )
-    #     elif context == "metadata":
-    #         current_environment["extra"] = ""
-    #
-    #     if environment is not None:
-    #         current_environment.update(environment)
-    #         if "extra" in current_environment:
-    #             # The API used to allow setting extra to None. We need to handle this case for backwards
-    #             # compatibility. Also skip running normalize name if extra is empty.
-    #             extra = ta.cast("ta.Optional[str]", current_environment["extra"])
-    #             current_environment["extra"] = canonicalize_name(extra) if extra else ""
-    #
-    #     return _evaluate_markers(self._markers, _repair_python_full_version(current_environment))
+    def evaluate(
+            self,
+            environment: ta.Optional[ta.Mapping[str, ta.Union[str, ta.AbstractSet[str]]]] = None,
+            context: RequirementEvaluationContext = 'metadata',
+    ) -> bool:
+        current_environment = ta.cast(dict, RequirementEvaluation.default_environment())  # noqa
+        if context == 'lock_file':
+            current_environment.update(
+                extras=frozenset(), dependency_groups=frozenset(),
+            )
+        elif context == 'metadata':
+            current_environment['extra'] = ''
+
+        if environment is not None:
+            current_environment.update(environment)
+            if 'extra' in current_environment:
+                # The API used to allow setting extra to None. We need to handle this case for backwards compatibility.
+                # Also skip running normalize name if extra is empty.
+                extra = ta.cast('ta.Optional[str]', current_environment['extra'])
+                current_environment['extra'] = canonicalize_name(extra) if extra else ''
+
+        return RequirementEvaluation.evaluate_markers(
+            self._markers,
+            RequirementEvaluation.repair_python_full_version(current_environment),
+        )
 
 
 class InvalidRequirementError(ValueError):
@@ -703,3 +712,160 @@ class Requirement:
             self.url == other.url and
             self.marker == other.marker
         )
+
+
+##
+
+
+class UndefinedRequirementComparisonError(Exception):
+    pass
+
+
+class RequirementEvaluationEnvironment(ta.TypedDict):
+    implementation_name: str
+    implementation_version: str
+    os_name: str
+    platform_machine: str
+    platform_release: str
+    platform_system: str
+    platform_version: str
+    python_full_version: str
+    platform_python_implementation: str
+    python_version: str
+    sys_platform: str
+
+
+class RequirementEvaluation:
+    def __new__(cls, *args, **kwargs):  # noqa
+        raise TypeError
+
+    #
+
+    @classmethod
+    def repair_python_full_version(
+            cls,
+            env: ta.Dict[str, ta.Union[str, ta.AbstractSet[str]]],
+    ) -> ta.Dict[str, ta.Union[str, ta.AbstractSet[str]]]:
+        python_full_version = ta.cast(str, env['python_full_version'])
+        if python_full_version.endswith('+'):
+            env['python_full_version'] = f'{python_full_version}local'
+        return env
+
+    @classmethod
+    def _format_full_version(cls, info: ta.Any) -> str:
+        version = f'{info.major}.{info.minor}.{info.micro}'
+        kind = info.releaselevel
+        if kind != 'final':
+            version += kind[0] + str(info.serial)
+        return version
+
+    @classmethod
+    def default_environment(cls) -> RequirementEvaluationEnvironment:
+        iver = cls._format_full_version(sys.implementation.version)
+        implementation_name = sys.implementation.name
+        return {
+            'implementation_name': implementation_name,
+            'implementation_version': iver,
+            'os_name': os.name,
+            'platform_machine': platform.machine(),
+            'platform_release': platform.release(),
+            'platform_system': platform.system(),
+            'platform_version': platform.version(),
+            'python_full_version': platform.python_version(),
+            'platform_python_implementation': platform.python_implementation(),
+            'python_version': '.'.join(platform.python_version_tuple()[:2]),
+            'sys_platform': sys.platform,
+        }
+
+    #
+
+    _OPERATORS: ta.ClassVar[ta.Mapping[str, RequirementEvaluationOperator]] = {
+        'in': lambda lhs, rhs: lhs in rhs,
+        'not in': lambda lhs, rhs: lhs not in rhs,
+        '<': lambda _lhs, _rhs: False,
+        '<=': operator.eq,
+        '==': operator.eq,
+        '!=': operator.ne,
+        '>=': operator.eq,
+        '>': lambda _lhs, _rhs: False,
+    }
+
+    MARKERS_REQUIRING_VERSION: ta.ClassVar = frozenset([
+        'implementation_version',
+        'platform_release',
+        'python_full_version',
+        'python_version',
+    ])
+
+    @classmethod
+    def _eval_op(cls, lhs: str, op: RequirementOp, rhs: ta.Union[str, ta.AbstractSet[str]], *, key: str) -> bool:
+        op_str = op.serialize()
+        if key in cls.MARKERS_REQUIRING_VERSION:
+            try:
+                spec = Specifier(f'{op_str}{rhs}')
+            except InvalidSpecifierError:
+                pass
+            else:
+                return spec.contains(lhs, prereleases=True)
+
+        oper: RequirementEvaluationOperator | None = cls._OPERATORS.get(op_str)
+        if oper is None:
+            raise UndefinedRequirementComparisonError(f'Undefined {op!r} on {lhs!r} and {rhs!r}.')
+
+        return oper(lhs, rhs)
+
+    #
+
+    MARKERS_ALLOWING_SET: ta.ClassVar = frozenset([
+        'extras',
+        'dependency_groups',
+    ])
+
+    @classmethod
+    def _normalize(
+            cls,
+            lhs: str, rhs: ta.Union[str, ta.AbstractSet[str]], key: str,
+    ) -> ta.Tuple[str, ta.Union[str, ta.AbstractSet[str]]]:
+        if key == 'extra':
+            return (lhs, check.isinstance(rhs, str))
+        if key in cls.MARKERS_ALLOWING_SET:
+            if isinstance(rhs, str):  # pragma: no cover
+                return (canonicalize_name(lhs), canonicalize_name(rhs))
+            else:
+                return (canonicalize_name(lhs), {canonicalize_name(v) for v in rhs})
+        # other environment markers don't have such standards
+        return lhs, rhs
+
+    @classmethod
+    def evaluate_markers(
+            cls,
+            markers: RequirementMarkerList, environment: ta.Dict[str, ta.Union[str, ta.AbstractSet[str]]],
+    ) -> bool:
+        groups: ta.List[ta.List[bool]] = [[]]
+
+        for marker in markers:
+            if isinstance(marker, list):
+                groups[-1].append(cls.evaluate_markers(marker, environment))
+            elif isinstance(marker, tuple):
+                lhs, op, rhs = marker
+
+                if isinstance(lhs, RequirementVariable):
+                    environment_key = lhs.value
+                    lhs_value = environment[environment_key]
+                    rhs_value = rhs.value
+                else:
+                    lhs_value = lhs.value
+                    environment_key = rhs.value
+                    rhs_value = environment[environment_key]
+
+                lhs_value = check.isinstance(lhs_value, str)
+                lhs_value, rhs_value = cls._normalize(lhs_value, rhs_value, key=environment_key)
+                groups[-1].append(cls._eval_op(lhs_value, op, rhs_value, key=environment_key))
+            elif marker == 'or':
+                groups.append([])
+            elif marker == 'and':
+                pass
+            else:  # pragma: nocover
+                raise TypeError(f'Unexpected marker {marker!r}')
+
+        return any(all(item) for item in groups)

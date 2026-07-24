@@ -45,7 +45,7 @@ def _coerce_version(version: UnparsedVersion) -> Version:
     return version
 
 
-class InvalidSpecifier(ValueError):  # noqa
+class InvalidSpecifierError(ValueError):  # noqa
     pass
 
 
@@ -181,7 +181,7 @@ class Specifier(BaseSpecifier):
     ) -> None:
         match = self._regex.search(spec)
         if not match:
-            raise InvalidSpecifier(f'Invalid specifier: {spec!r}')
+            raise InvalidSpecifierError(f'Invalid specifier: {spec!r}')
 
         self._spec: ta.Tuple[str, str] = (
             match.group('operator').strip(),
@@ -244,7 +244,7 @@ class Specifier(BaseSpecifier):
         if isinstance(other, str):
             try:
                 other = self.__class__(str(other))
-            except InvalidSpecifier:
+            except InvalidSpecifierError:
                 return NotImplemented
         elif not isinstance(other, self.__class__):
             return NotImplemented

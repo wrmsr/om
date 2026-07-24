@@ -118,7 +118,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/atomics.py', sha1='2e8bdffc2d762a7fccd4fc8630e3e3dbbea7ea0c'),
             dict(path='../../omcore/text/indent.py', sha1='c5629b68ef0d0825c59e8ea1f4d2a16cb7f2435b'),
             dict(path='../../omdev/home/paths.py', sha1='5092354b186f79d8abd54d74dc08d850e645f09e'),
-            dict(path='../../omdev/packaging/specifiers.py', sha1='d1a6a73c198a9266a605234efeb8bef2b940eeb5'),
+            dict(path='../../omdev/packaging/specifiers.py', sha1='baec4e53b7187f99e8d8b36bdf48bf61af82c252'),
             dict(path='deploy/paths/specs.py', sha1='10e10dce4dc9dd95ac4fae4e503df0d875159b2b'),
             dict(path='remote/config.py', sha1='aae286c7cf7b73708c0a1f7b69cd2cc6f17540f7'),
             dict(path='remote/payload.py', sha1='cb836f50b98579d5d2b5ec13f36b86825f877019'),
@@ -8474,7 +8474,7 @@ def _coerce_version(version: UnparsedVersion) -> Version:
     return version
 
 
-class InvalidSpecifier(ValueError):  # noqa
+class InvalidSpecifierError(ValueError):  # noqa
     pass
 
 
@@ -8610,7 +8610,7 @@ class Specifier(BaseSpecifier):
     ) -> None:
         match = self._regex.search(spec)
         if not match:
-            raise InvalidSpecifier(f'Invalid specifier: {spec!r}')
+            raise InvalidSpecifierError(f'Invalid specifier: {spec!r}')
 
         self._spec: ta.Tuple[str, str] = (
             match.group('operator').strip(),
@@ -8673,7 +8673,7 @@ class Specifier(BaseSpecifier):
         if isinstance(other, str):
             try:
                 other = self.__class__(str(other))
-            except InvalidSpecifier:
+            except InvalidSpecifierError:
                 return NotImplemented
         elif not isinstance(other, self.__class__):
             return NotImplemented

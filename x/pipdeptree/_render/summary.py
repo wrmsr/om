@@ -17,7 +17,7 @@ import json
 import sys
 import typing as ta
 
-from omdev.packaging.specifiers import InvalidSpecifier
+from omdev.packaging.specifiers import InvalidSpecifierError
 from omdev.packaging.specifiers import SpecifierSet
 from omdev.packaging.versions import InvalidVersion
 from omdev.packaging.versions import Version
@@ -145,7 +145,7 @@ def _min_requires_python(tree: PackageDAG) -> str:
             continue
         try:
             specifier = SpecifierSet(raw)
-        except InvalidSpecifier:
+        except InvalidSpecifierError:
             continue
         for spec in specifier:
             if spec.operator in {'>=', '>', '=='}:
