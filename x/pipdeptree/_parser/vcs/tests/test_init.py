@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
-from pipdeptree._parser.vcs import VcsError
-from pipdeptree._parser.vcs import VcsResult
-from pipdeptree._parser.vcs import get_vcs_requirement
+from ...._parser.vcs import VcsError
+from ...._parser.vcs import VcsResult
+from ...._parser.vcs import get_vcs_requirement
 
 
 if TYPE_CHECKING:

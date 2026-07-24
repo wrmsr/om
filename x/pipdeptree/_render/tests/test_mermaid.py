@@ -2,10 +2,12 @@ from textwrap import dedent
 from textwrap import indent
 from typing import TYPE_CHECKING
 
-from pipdeptree._cli import RenderContext
-from pipdeptree._models import PackageDAG
-from pipdeptree._models.package import Package
-from pipdeptree._render.mermaid import render_mermaid
+from ..._cli import RenderContext
+from ..._models import PackageDAG
+from ..._models.package import Package
+from ..._render.mermaid import render_mermaid
+from ...tests.conftest import example_dag  # noqa
+from ...tests.conftest import mock_pkgs  # noqa
 
 
 if TYPE_CHECKING:

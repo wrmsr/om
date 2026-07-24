@@ -6,11 +6,12 @@ from unittest.mock import MagicMock
 from unittest.mock import Mock
 
 import pytest
-from pipdeptree._models import DistPackage
-from pipdeptree._models import ReqPackage
-from pipdeptree._models.package import Package
 
 from omdev.packaging.specifiers import SpecifierSet
+
+from ..._models import DistPackage
+from ..._models import ReqPackage
+from ..._models.package import Package
 
 
 if TYPE_CHECKING:

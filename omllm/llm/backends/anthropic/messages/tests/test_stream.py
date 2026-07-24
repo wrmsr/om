@@ -11,7 +11,6 @@ from .....types.options import Options
 from ..stream import AnthropicMessagesStreamBackend
 
 
-@pytest.mark.xfail
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.online
 async def test_anthropic_chat_stream_model_async(harness):

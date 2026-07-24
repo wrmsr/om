@@ -2,13 +2,15 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
-from pipdeptree._cli import Options
-from pipdeptree._cli import RenderContext
-from pipdeptree._render import render
+
+from ..._cli import Options
+from ..._cli import RenderContext
+from ..._render import render
+from ...tests.conftest import example_dag  # noqa
 
 
 if TYPE_CHECKING:
-    from pipdeptree._models import PackageDAG
+    from ..._models import PackageDAG
 
 
 def _options(*, command: str | None, output_format: str) -> Options:

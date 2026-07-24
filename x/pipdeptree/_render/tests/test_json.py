@@ -1,11 +1,12 @@
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from pipdeptree._cli import RenderContext
-from pipdeptree._computed import ComputedValues
-from pipdeptree._models.dag import PackageDAG
-from pipdeptree._models.package import Package
-from pipdeptree._render.json import render_json
+from ..._cli import RenderContext
+from ..._computed import ComputedValues
+from ..._models.dag import PackageDAG
+from ..._models.package import Package
+from ..._render.json import render_json
+from ...tests.conftest import mock_pkgs  # noqa
 
 
 if TYPE_CHECKING:

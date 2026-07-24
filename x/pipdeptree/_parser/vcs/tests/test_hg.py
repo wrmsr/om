@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from pipdeptree._parser.vcs import VcsError
-from pipdeptree._parser.vcs import get_vcs_requirement
 
+from ...._parser.vcs import VcsError
+from ...._parser.vcs import get_vcs_requirement
 from .conftest import raise_file_not_found
 
 

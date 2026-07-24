@@ -1,11 +1,11 @@
 import json
 from typing import TYPE_CHECKING
 
-import pipdeptree
 import pytest
-from pipdeptree import _RenderResult
-from pipdeptree import _SummaryResult
 
+from ... import pipdeptree
+from .. import _RenderResult
+from .. import _SummaryResult
 from .._computed import ComputedValues
 
 

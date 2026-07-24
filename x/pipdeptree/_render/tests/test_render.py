@@ -3,8 +3,9 @@ from typing import TYPE_CHECKING
 from unittest.mock import ANY
 
 import pytest
-from pipdeptree.__main__ import main
-from pipdeptree._cli import RenderContext
+
+from ...__main__ import main
+from ..._cli import RenderContext
 
 
 if TYPE_CHECKING:

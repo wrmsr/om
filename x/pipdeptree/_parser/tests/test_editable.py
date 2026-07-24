@@ -4,9 +4,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
-from pipdeptree._parser.editable import find_egg_link
-from pipdeptree._parser.editable import get_editable_location
-from pipdeptree._parser.editable import url_to_path
+
+from ..._parser.editable import find_egg_link
+from ..._parser.editable import get_editable_location
+from ..._parser.editable import url_to_path
 
 
 if TYPE_CHECKING:

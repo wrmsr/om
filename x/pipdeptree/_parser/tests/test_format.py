@@ -3,9 +3,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
-from pipdeptree._parser import distribution_to_specifier
-from pipdeptree._parser.vcs import VcsError
-from pipdeptree._parser.vcs import VcsResult
+
+from ..._parser import distribution_to_specifier
+from ..._parser.vcs import VcsError
+from ..._parser.vcs import VcsResult
 
 
 if TYPE_CHECKING:

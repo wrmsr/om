@@ -30,54 +30,97 @@ def _stringify_error(error: ta.Any) -> str:
 
 
 class SseEventProcessor(BaseBackendSseEventProcessor):
-    def _feed(self, sse: SseEvent) -> None:
-        if sse.data == '[DONE]':
-            return
+    def _feed_content_block_start(self, raw_event: ta.Mapping[str, ta.Any]) -> None:
+        raw_index = check.isinstance(raw_event['index'], int)
+        raw_block = check.isinstance(raw_event['content_block'], ta.Mapping)
 
+        raw_block_type = raw_block['type']
+
+        if raw_block_type == 'text':
+            text = self._text()
+
+            if raw_text := raw_block.get('text'):
+                raw_text = check.isinstance(raw_text, str)
+                self._emit(TextDeltaAiStreamEvent(
+                    raw_text,
+                    content_index=self._content_index(text),
+                ))
+                text.text.write(raw_text)
+
+        elif raw_block_type == 'tool_use':
+            tool_call = self._tool_call(
+                id=check.non_empty_str(raw_block['id']),
+                index=raw_index,
+            )
+
+            tool_call.name = check.non_empty_str(raw_block['name'])
+
+            # A tool call with empty input may receive no input_json_delta events at all - the initial input given
+            # here, usually an empty mapping, must be taken as potentially final.
+            if (raw_input := raw_block.get('input')) is not None:
+                tool_call.args = check.isinstance(raw_input, ta.Mapping)
+
+        else:
+            raise ValueError(raw_block_type)
+
+    def _feed_content_block_delta(self, raw_event: ta.Mapping[str, ta.Any]) -> None:
+        raw_index = check.isinstance(raw_event['index'], int)
+        raw_delta = check.isinstance(raw_event['delta'], ta.Mapping)
+
+        raw_delta_type = raw_delta['type']
+
+        if raw_delta_type == 'text_delta':
+            if raw_text := check.isinstance(raw_delta['text'], str):
+                text = self._text()
+                self._emit(TextDeltaAiStreamEvent(
+                    raw_text,
+                    content_index=self._content_index(text),
+                ))
+                text.text.write(raw_text)
+
+        elif raw_delta_type == 'input_json_delta':
+            tool_call = self._tool_call(index=raw_index)
+
+            args_delta = check.isinstance(raw_delta['partial_json'], str)
+            if args_delta:
+                tool_call.partial_args.write(args_delta)
+                tool_call.parse_args()
+
+            self._emit(ToolCallDeltaAiStreamEvent(
+                args_delta,
+                content_index=self._content_index(tool_call),
+            ))
+
+        else:
+            raise ValueError(raw_delta_type)
+
+    def _feed(self, sse: SseEvent) -> None:
         try:
-            raw_chunk = json.loads(sse.data)
+            raw_event = json.loads(sse.data)
         except (json.DecodeError, ValueError):
             return
-        raw_chunk = check.isinstance(raw_chunk, ta.Mapping)
+        raw_event = check.isinstance(raw_event, ta.Mapping)
 
-        if 'error' in raw_chunk and raw_chunk.get('error'):
-            raise RuntimeError(_stringify_error(raw_chunk['error']))
+        raw_event_type = raw_event.get('type')
 
-        raw_choice = check.single(raw_chunk['choices'])
+        if raw_event_type == 'error':
+            raise RuntimeError(_stringify_error(raw_event.get('error')))
 
-        if (raw_delta := raw_choice.get('delta')) is None:
-            return
-        raw_delta = check.isinstance(raw_delta, ta.Mapping)
+        elif raw_event_type == 'message_start':
+            raw_message = check.isinstance(raw_event['message'], ta.Mapping)
+            check.equal(raw_message['type'], 'message')
+            check.equal(raw_message['role'], 'assistant')
 
-        if raw_content := raw_delta.get('content'):
-            text = self._text()
-            self._emit(TextDeltaAiStreamEvent(
-                raw_content,
-                content_index=self._content_index(text),
-            ))
-            text.text.write(raw_content)
+        elif raw_event_type == 'content_block_start':
+            self._feed_content_block_start(raw_event)
 
-        if raw_tool_calls := raw_delta.get('tool_calls'):
-            for raw_tool_call in raw_tool_calls:  # noqa
-                tool_call = self._tool_call(  # noqa
-                    id=check.isinstance(raw_tool_call.get('id'), (str, None)),
-                    index=check.isinstance(raw_tool_call.get('index'), (int, None)),
-                )
+        elif raw_event_type == 'content_block_delta':
+            self._feed_content_block_delta(raw_event)
 
-                raw_fn = raw_tool_call.get('function') or {}
-                if not tool_call.name and (raw_fn_name := raw_fn.get('name')):
-                    tool_call.name = raw_fn_name
-
-                args_delta = ''
-                if raw_args := raw_fn.get('arguments'):
-                    args_delta = check.isinstance(raw_args, str)
-                    tool_call.partial_args.write(args_delta)
-                    tool_call.parse_args()
-
-                self._emit(ToolCallDeltaAiStreamEvent(
-                    args_delta,
-                    content_index=self._content_index(tool_call),
-                ))
+        else:
+            # The remaining known event types - ping, content_block_stop, message_delta, and message_stop - carry
+            # nothing currently tracked, and unrecognized event types must be skipped for forward compatibility.
+            pass
 
 
 ##

@@ -3,13 +3,14 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
-from pipdeptree._models import DistPackage
-from pipdeptree._models import PackageDAG
-from pipdeptree._models import ReqPackage
-from pipdeptree._models import ReversedPackageDAG
-from pipdeptree._models.dag import IncludeExcludeOverlapError
-from pipdeptree._models.dag import IncludePatternNotFoundError
-from pipdeptree._models.dag import _extra_is_satisfied
+
+from ..._models import DistPackage
+from ..._models import PackageDAG
+from ..._models import ReqPackage
+from ..._models import ReversedPackageDAG
+from ..._models.dag import IncludeExcludeOverlapError
+from ..._models.dag import IncludePatternNotFoundError
+from ..._models.dag import _extra_is_satisfied
 
 
 if TYPE_CHECKING:
@@ -18,8 +19,7 @@ if TYPE_CHECKING:
     from importlib.metadata import Distribution
     from unittest.mock import Mock
 
-    from pipdeptree._models.dag import ExtrasMode
-
+    from ..._models.dag import ExtrasMode
     from ...tests.conftest import MockDistMaker
     from ...tests.our_types import MockGraph
 

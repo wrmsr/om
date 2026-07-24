@@ -3,13 +3,14 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
-from pipdeptree._parser.direct_url import ArchiveInfo
-from pipdeptree._parser.direct_url import DirectUrl
-from pipdeptree._parser.direct_url import DirectUrlValidationError
-from pipdeptree._parser.direct_url import DirInfo
-from pipdeptree._parser.direct_url import VcsInfo
-from pipdeptree._parser.direct_url import get_direct_url
-from pipdeptree._parser.direct_url import parse_direct_url_json
+
+from ..._parser.direct_url import ArchiveInfo
+from ..._parser.direct_url import DirectUrl
+from ..._parser.direct_url import DirectUrlValidationError
+from ..._parser.direct_url import DirInfo
+from ..._parser.direct_url import VcsInfo
+from ..._parser.direct_url import get_direct_url
+from ..._parser.direct_url import parse_direct_url_json
 
 
 if TYPE_CHECKING:

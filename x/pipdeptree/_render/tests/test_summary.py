@@ -4,11 +4,13 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
-from pipdeptree._computed import ComputedValues
-from pipdeptree._models.dag import PackageDAG
-from pipdeptree._render.summary import render_summary
-from pipdeptree._render.summary import summary_html
-from pipdeptree._synthetic_dist import SyntheticDistribution
+
+from ..._computed import ComputedValues
+from ..._models.dag import PackageDAG
+from ..._render.summary import render_summary
+from ..._render.summary import summary_html
+from ..._synthetic_dist import SyntheticDistribution
+from ...tests.conftest import mock_pkgs  # noqa
 
 
 if TYPE_CHECKING:
@@ -17,9 +19,9 @@ if TYPE_CHECKING:
     from importlib.metadata import Distribution
     from unittest.mock import Mock
 
-    from pipdeptree._models.package import RenderMode
     from pytest_mock import MockerFixture
 
+    from ..._models.package import RenderMode
     from ...tests.conftest import MockDistMaker
     from ...tests.our_types import MockGraph
 

@@ -4,11 +4,14 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from pipdeptree._cli import RenderContext
-from pipdeptree._models import PackageDAG
-from pipdeptree._models.package import DistPackage
-from pipdeptree._models.package import Package
-from pipdeptree._render.rich_text import render_rich_text
+
+from ..._cli import RenderContext
+from ..._models import PackageDAG
+from ..._models.package import DistPackage
+from ..._models.package import Package
+from ..._render.rich_text import render_rich_text
+from ...tests.conftest import example_dag  # noqa
+from ...tests.conftest import mock_pkgs  # noqa
 
 
 if TYPE_CHECKING:

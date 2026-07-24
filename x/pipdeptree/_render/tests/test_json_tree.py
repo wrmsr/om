@@ -2,10 +2,12 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from pipdeptree._cli import RenderContext
-from pipdeptree._models.dag import PackageDAG
-from pipdeptree._models.package import Package
-from pipdeptree._render.json_tree import render_json_tree
+
+from ..._cli import RenderContext
+from ..._models.dag import PackageDAG
+from ..._models.package import Package
+from ..._render.json_tree import render_json_tree
+from ...tests.conftest import mock_pkgs  # noqa
 
 
 if TYPE_CHECKING:

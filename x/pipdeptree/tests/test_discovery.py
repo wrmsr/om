@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
-import virtualenv
 
 from ..__main__ import main
 from .._discovery import get_installed_distributions

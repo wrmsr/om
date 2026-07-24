@@ -3,12 +3,15 @@ from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pytest
-from pipdeptree._cli import RenderContext
-from pipdeptree._models import PackageDAG
-from pipdeptree._models.package import Package
-from pipdeptree._render.graphviz import dump_graphviz
-from pipdeptree._render.graphviz import print_graphviz
-from pipdeptree._render.graphviz import render_graphviz
+
+from ..._cli import RenderContext
+from ..._models import PackageDAG
+from ..._models.package import Package
+from ..._render.graphviz import dump_graphviz
+from ..._render.graphviz import print_graphviz
+from ..._render.graphviz import render_graphviz
+from ...tests.conftest import example_dag  # noqa
+from ...tests.conftest import mock_pkgs  # noqa
 
 
 if TYPE_CHECKING:

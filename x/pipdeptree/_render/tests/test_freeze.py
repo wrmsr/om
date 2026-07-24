@@ -2,11 +2,13 @@ from math import inf
 from typing import TYPE_CHECKING
 
 import pytest
-from pipdeptree._render.freeze import render_freeze
+
+from ...tests.conftest import example_dag  # noqa
+from ..freeze import render_freeze
 
 
 if TYPE_CHECKING:
-    from pipdeptree._models.dag import PackageDAG
+    from ..._models.dag import PackageDAG
 
 
 @pytest.fixture
