@@ -35,7 +35,7 @@ if sys.version_info < (3, 8):
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(path='errors.py', sha1='42c3991496edf534c7a09d30cff8c6b919f80c50'),
+            dict(path='errors.py', sha1='5b21a04b81ebec31ad81ecb4f811820cea5a0036'),
             dict(path='../streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
             dict(path='../../lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../lite/asyncs.py', sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5'),
@@ -128,6 +128,10 @@ LoggingContextInfoT = ta.TypeVar('LoggingContextInfoT', bound=LoggingContextInfo
 
 
 class IoPipelineError(Exception):
+    pass
+
+
+class TimeoutIoPipelineError(IoPipelineError, TimeoutError):
     pass
 
 

@@ -99,7 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/statuses.py', sha1='675eff6e1638e48aebb7aeae422e426c21a612d2'),
             dict(path='../../omcore/http/urllib.py', sha1='fc273565255546f42152ab2dfc264feb8c8b8dc6'),
             dict(path='../../omcore/http/versions.py', sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890'),
-            dict(path='../../omcore/io/pipelines/errors.py', sha1='42c3991496edf534c7a09d30cff8c6b919f80c50'),
+            dict(path='../../omcore/io/pipelines/errors.py', sha1='5b21a04b81ebec31ad81ecb4f811820cea5a0036'),
             dict(path='../../omcore/io/streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
             dict(path='../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../omcore/lite/asyncs.py', sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5'),
@@ -1085,6 +1085,10 @@ class HttpVersions:
 
 
 class IoPipelineError(Exception):
+    pass
+
+
+class TimeoutIoPipelineError(IoPipelineError, TimeoutError):
     pass
 
 

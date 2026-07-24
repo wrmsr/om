@@ -11,6 +11,10 @@ class IoPipelineError(Exception):
     pass
 
 
+class TimeoutIoPipelineError(IoPipelineError, TimeoutError):
+    pass
+
+
 ##
 
 
