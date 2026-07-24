@@ -1,16 +1,18 @@
-from itertools import chain
-from typing import TYPE_CHECKING
-from typing import Any
+import itertools
+import typing as ta
 
 from .._computed import ComputedValues
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from .._cli import RenderContext
     from .._models import DistPackage
     from .._models import PackageDAG
     from .._models import ReqPackage
     from .._models.package import RenderMode
+
+
+##
 
 
 def render_text(  # noqa: PLR0913
@@ -52,7 +54,7 @@ def get_top_level_nodes(tree: PackageDAG, *, list_all: bool) -> list[DistPackage
 
     tree = tree.sort(in_place=True)
     nodes = list(tree.keys())
-    branch_keys = {r.key for r in chain.from_iterable(tree.values())}
+    branch_keys = {r.key for r in itertools.chain.from_iterable(tree.values())}
 
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
@@ -78,7 +80,7 @@ def _render_text_with_unicode(
         has_grand_parent: bool = False,  # noqa: FBT001, FBT002
         is_last_child: bool = False,  # noqa: FBT001, FBT002
         parent_is_last_child: bool = False,  # noqa: FBT001, FBT002
-    ) -> list[Any]:
+    ) -> list[ta.Any]:
         cur_chain = cur_chain or []
         node_str = node.render(parent, frozen=False, mode=mode)
         if context and context.active:
@@ -121,10 +123,10 @@ def _render_text_with_unicode(
             if c.project_name not in cur_chain and depth + 1 <= max_depth
         ]
 
-        result += list(chain.from_iterable(children_strings))
+        result += list(itertools.chain.from_iterable(children_strings))
         return result
 
-    lines = chain.from_iterable([aux(p) for p in nodes])
+    lines = itertools.chain.from_iterable([aux(p) for p in nodes])
     print('\n'.join(lines))  # noqa: T201
 
 
@@ -144,7 +146,7 @@ def _render_text_simple(  # noqa: PLR0913
         indent: int = 0,
         cur_chain: list[str] | None = None,
         depth: int = 0,
-    ) -> list[Any]:
+    ) -> list[ta.Any]:
         cur_chain = cur_chain or []
         node_str = node.render(parent, frozen=frozen, mode=mode)
         if context and context.active:
@@ -157,10 +159,10 @@ def _render_text_simple(  # noqa: PLR0913
             for c in tree.get_children(node.key, node)
             if c.project_name not in cur_chain and depth + 1 <= max_depth
         ]
-        result += list(chain.from_iterable(children))
+        result += list(itertools.chain.from_iterable(children))
         return result
 
-    lines = chain.from_iterable([aux(p) for p in nodes])
+    lines = itertools.chain.from_iterable([aux(p) for p in nodes])
     print('\n'.join(lines))  # noqa: T201
 
 

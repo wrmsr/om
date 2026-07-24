@@ -1,17 +1,20 @@
-import itertools as it
-from typing import TYPE_CHECKING
-from typing import Final
+import itertools
+import typing as ta
 
 from .._models import DistPackage
 from .._models import ReqPackage
 from .._models import ReversedPackageDAG
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from .._cli import RenderContext
     from .._models import PackageDAG
 
-_RESERVED_IDS: Final[frozenset[str]] = frozenset(
+
+##
+
+
+_RESERVED_IDS: ta.Final[frozenset[str]] = frozenset(
     [
         'C4Component',
         'C4Container',
@@ -121,7 +124,7 @@ def _mermaid_id(key: str, node_ids_map: dict[str, str]) -> str:
     if key not in _RESERVED_IDS:
         node_ids_map[key] = key
         return key
-    for number in it.count():
+    for number in itertools.count():
         new_id = f'{key}_{number}'
         if new_id not in node_ids_map:
             node_ids_map[key] = new_id

@@ -1,15 +1,14 @@
+import collections
 import sys
-from collections import defaultdict
-from typing import TYPE_CHECKING
 
+from ._models import DistPackage
+from ._models import PackageDAG
+from ._models.package import Package
 from ._models.package import ReqPackage
 from ._warning import get_warning_printer
 
 
-if TYPE_CHECKING:
-    from ._models import DistPackage
-    from ._models import PackageDAG
-    from ._models.package import Package
+##
 
 
 def validate(tree: PackageDAG) -> None:
@@ -39,7 +38,7 @@ def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
     :rtype: dict
     """
 
-    conflicting = defaultdict(list)
+    conflicting = collections.defaultdict(list)
     for package, requires in tree.items():
         for req in requires:
             if req.is_conflicting():

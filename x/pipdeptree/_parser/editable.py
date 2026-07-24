@@ -1,22 +1,21 @@
+import importlib.metadata
 import locale
 import os
+import pathlib
 import re
 import site
 import string
 import sys
-from pathlib import Path
-from typing import TYPE_CHECKING
-from urllib.parse import urlsplit
-from urllib.request import url2pathname
+import urllib.parse
+import urllib.request
 
 from .direct_url import get_direct_url
 
 
-if TYPE_CHECKING:
-    from importlib.metadata import Distribution
+##
 
 
-def get_editable_location(distribution: Distribution) -> str | None:
+def get_editable_location(distribution: importlib.metadata.Distribution) -> str | None:
     """
     Get source location for an editable installation.
 
@@ -49,7 +48,7 @@ def url_to_path(url: str) -> str:
     if not url.startswith('file:'):
         msg = f'You can only turn file: urls into filenames (not {url!r})'
         raise ValueError(msg)
-    _, netloc, path, _, _ = urlsplit(url)
+    _, netloc, path, _, _ = urllib.parse.urlsplit(url)
     if not netloc or netloc == 'localhost':
         netloc = ''
     elif os.name == 'nt':
@@ -57,7 +56,7 @@ def url_to_path(url: str) -> str:
     else:
         msg = f'non-local file URIs are not supported on this platform: {url!r}'
         raise ValueError(msg)
-    path = url2pathname(netloc + path)
+    path = urllib.request.url2pathname(netloc + path)
     if (
         os.name == 'nt'  # noqa: PLR0916
         and not netloc
@@ -70,7 +69,7 @@ def url_to_path(url: str) -> str:
     return path
 
 
-def find_egg_link(package_name: str) -> Path | None:
+def find_egg_link(package_name: str) -> pathlib.Path | None:
     """
     Find .egg-link file for legacy editable installations.
 
@@ -84,14 +83,14 @@ def find_egg_link(package_name: str) -> Path | None:
     candidates = _egg_link_names(package_name)
     for search_dir in sys.path:
         for name in candidates:
-            if (egg_link := Path(search_dir) / name).is_file():
+            if (egg_link := pathlib.Path(search_dir) / name).is_file():
                 return egg_link
     site_dirs = site.getsitepackages() if hasattr(site, 'getsitepackages') else []
     if user_site := site.getusersitepackages():
         site_dirs.append(user_site)
     for site_dir in site_dirs:
         for name in candidates:
-            if (egg_link := Path(site_dir) / name).is_file():
+            if (egg_link := pathlib.Path(site_dir) / name).is_file():
                 return egg_link
     return None
 
@@ -106,7 +105,7 @@ def _egg_link_names(package_name: str) -> list[str]:
     return candidates
 
 
-def read_egg_link_location(egg_link_path: Path) -> str:
+def read_egg_link_location(egg_link_path: pathlib.Path) -> str:
     """
     Read source directory path from .egg-link file.
 

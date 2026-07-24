@@ -1,5 +1,5 @@
-from pathlib import Path
-from typing import TYPE_CHECKING
+import pathlib
+import typing as ta
 
 from .bzr import get_bzr_requirement
 from .git import get_git_repo_root
@@ -10,8 +10,7 @@ from .shared import VcsResult
 from .svn import get_svn_requirement
 
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+##
 
 
 def get_vcs_requirement(location: str, package_name: str) -> VcsResult:
@@ -26,7 +25,7 @@ def get_vcs_requirement(location: str, package_name: str) -> VcsResult:
     :returns: VcsResult with requirement string and diagnostic info
     """
 
-    roots: dict[str, Callable[[str, str, str], VcsResult]] = {}
+    roots: dict[str, ta.Callable[[str, str, str], VcsResult]] = {}
     if git_root := get_git_repo_root(location):
         roots[git_root] = get_git_requirement
     if hg_root := _find_marker_root(location, '.hg', dir_only=False):
@@ -47,8 +46,8 @@ def get_vcs_requirement(location: str, package_name: str) -> VcsResult:
 def _find_marker_root(location: str, marker: str, *, dir_only: bool = True) -> str | None:
     """Walk up from location looking for a directory containing marker (e.g. .hg, .svn, .bzr)."""
 
-    current = Path(location).resolve()
-    check = Path.is_dir if dir_only else Path.exists
+    current = pathlib.Path(location).resolve()
+    check = pathlib.Path.is_dir if dir_only else pathlib.Path.exists
     while True:
         if check(current / marker):
             return str(current)

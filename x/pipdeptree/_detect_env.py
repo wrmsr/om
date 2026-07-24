@@ -1,13 +1,16 @@
 import os
+import pathlib
 import platform
 import subprocess  # noqa: S404
 import sys
-from pathlib import Path
-from typing import TYPE_CHECKING
+import typing as ta
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from collections.abc import Callable
+
+
+##
 
 
 def detect_active_interpreter() -> str:
@@ -27,7 +30,7 @@ def detect_active_interpreter() -> str:
 def find_active_interpreter() -> str | None:
     """Attempt to detect a venv, virtualenv, poetry, or conda environment, returning ``None`` if none is found."""
 
-    detection_funcs: list[Callable[[], Path | None]] = [
+    detection_funcs: list[Callable[[], pathlib.Path | None]] = [
         detect_venv_or_virtualenv_interpreter,
         detect_conda_env_interpreter,
         detect_poetry_env_interpreter,
@@ -43,13 +46,13 @@ def find_active_interpreter() -> str | None:
     return None
 
 
-def detect_venv_or_virtualenv_interpreter() -> Path | None:
+def detect_venv_or_virtualenv_interpreter() -> pathlib.Path | None:
     # Both virtualenv and venv set this environment variable.
     env_var = os.environ.get('VIRTUAL_ENV')
     if not env_var:
         return None
 
-    path = Path(env_var)
+    path = pathlib.Path(env_var)
     path /= determine_bin_dir()
 
     file_name = determine_interpreter_file_name()
@@ -60,13 +63,13 @@ def determine_bin_dir() -> str:
     return 'Scripts' if os.name == 'nt' else 'bin'
 
 
-def detect_conda_env_interpreter() -> Path | None:
+def detect_conda_env_interpreter() -> pathlib.Path | None:
     # Env var mentioned in https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables.
     env_var = os.environ.get('CONDA_PREFIX')
     if not env_var:
         return None
 
-    path = Path(env_var)
+    path = pathlib.Path(env_var)
 
     # On POSIX systems, conda adds the python executable to the /bin directory. On Windows, it resides in the parent
     # directory of /bin (i.e. the root directory).
@@ -79,7 +82,7 @@ def detect_conda_env_interpreter() -> Path | None:
     return path / file_name if file_name else None
 
 
-def detect_poetry_env_interpreter() -> Path | None:
+def detect_poetry_env_interpreter() -> pathlib.Path | None:
     # poetry doesn't expose an environment variable like other implementations, so we instead use its CLI to snatch the
     # active interpreter.
     # See https://python-poetry.org/docs/managing-environments/#displaying-the-environment-information.
@@ -94,7 +97,7 @@ def detect_poetry_env_interpreter() -> Path | None:
     except Exception:  # noqa: BLE001
         return None
 
-    return Path(result.stdout.strip())
+    return pathlib.Path(result.stdout.strip())
 
 
 def determine_interpreter_file_name() -> str | None:

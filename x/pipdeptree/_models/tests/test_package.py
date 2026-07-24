@@ -14,6 +14,7 @@ from pipdeptree._models.package import Package
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
     from ...tests.conftest import MockDistMaker
 
 

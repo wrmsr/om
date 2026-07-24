@@ -1,7 +1,7 @@
 """The main entry point used for CLI."""
+import pathlib
 import sys
-from pathlib import Path
-from typing import TYPE_CHECKING
+import typing as ta
 
 from ._cli import Options
 from ._cli import get_options
@@ -25,10 +25,6 @@ from ._warning import WarningType
 from ._warning import get_warning_printer
 
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-
 ##
 
 
@@ -43,7 +39,7 @@ class _FilterError(Exception):
         self.is_fatal = is_fatal
 
 
-def main(args: Sequence[str] | None = None) -> int | None:
+def main(args: ta.Sequence[str] | None = None) -> int | None:
     """CLI - The main function called as entry point."""
 
     options = get_options(args)
@@ -100,7 +96,7 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
         )
     elif options.command == 'from-lock':
         # A PEP 751 lock is already resolved, so it is read straight off disk -- no interpreter, network, or index.
-        pkgs = load_lock(Path(options.lock))  # ty: ignore[invalid-argument-type]
+        pkgs = load_lock(pathlib.Path(options.lock))  # ty: ignore[invalid-argument-type]
     else:
         options.python = _resolve_python(options.python, log_resolved=log_resolved)
         pkgs = get_installed_distributions(

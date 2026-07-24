@@ -1,20 +1,22 @@
+import dataclasses as dc
+import enum
 import os
+import pathlib
 import urllib.parse
-from dataclasses import dataclass
-from enum import Enum
-from enum import auto
-from pathlib import Path
 
 
-class VcsError(Enum):
-    NONE = auto()
-    NO_VCS = auto()
-    NO_REMOTE = auto()
-    INVALID_REMOTE = auto()
-    COMMAND_NOT_FOUND = auto()
+##
 
 
-@dataclass
+class VcsError(enum.Enum):
+    NONE = enum.auto()
+    NO_VCS = enum.auto()
+    NO_REMOTE = enum.auto()
+    INVALID_REMOTE = enum.auto()
+    COMMAND_NOT_FOUND = enum.auto()
+
+
+@dc.dataclass()
 class VcsResult:
     requirement: str | None
     vcs_name: str | None = None
@@ -58,23 +60,23 @@ def _find_project_root(location: str, repo_root: str) -> str | None:
     walks UP from location looking for pyproject.toml or setup.py.
     """
 
-    current = Path(location).resolve()
-    abs_root = Path(repo_root).resolve()
+    current = pathlib.Path(location).resolve()
+    abs_root = pathlib.Path(repo_root).resolve()
     while not _is_installable_dir(current):
-        parent = Path(current).parent
+        parent = pathlib.Path(current).parent
         if parent == current:
             return None
         current = parent
     try:
-        if Path(abs_root).samefile(current):
+        if pathlib.Path(abs_root).samefile(current):
             return None
     except (ValueError, OSError):
         return None
     return os.path.relpath(current, abs_root)
 
 
-def _is_installable_dir(path: str | Path) -> bool:
-    resolved = Path(path)
+def _is_installable_dir(path: str | pathlib.Path) -> bool:
+    resolved = pathlib.Path(path)
     return resolved.is_dir() and ((resolved / 'pyproject.toml').is_file() or (resolved / 'setup.py').is_file())
 
 

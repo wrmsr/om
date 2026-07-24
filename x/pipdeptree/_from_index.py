@@ -25,28 +25,25 @@ it only invokes a build backend when that metadata is dynamic. Bare wheel/sdist 
 nab mapping and are still rejected.
 """
 import dataclasses
+import dataclasses as dc
+import importlib.metadata
+import itertools
 import os
+import pathlib
 import string
 import tempfile
-from dataclasses import dataclass
-from dataclasses import field
-from itertools import starmap
-from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Final
+import typing as ta
 
 from ._synthetic_dist import SyntheticDistribution
 
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-    from importlib.metadata import Distribution
+##
+
 
 # nab's recognized git VCS schemes (see nab_python._vcs_admission._VCS_SCHEMES); only these map to a vcs-source.
-_GIT_SCHEMES: Final[tuple[str, ...]] = ('git+https', 'git+ssh', 'git+http', 'git+file', 'git+git')
+_GIT_SCHEMES: ta.Final[tuple[str, ...]] = ('git+https', 'git+ssh', 'git+http', 'git+file', 'git+git')
 # A pinned git ref is a full 40-char hex commit sha; nab's require-pin (default true) refuses anything looser.
-_SHA_LENGTH: Final[int] = 40
+_SHA_LENGTH: ta.Final[int] = 40
 
 
 class FromIndexUnavailableError(Exception):
@@ -57,12 +54,12 @@ class FromIndexInputError(ValueError):
     """Raised when a from-index source cannot be read (missing file, unsupported requirements directive)."""
 
 
-_INSTALL_HINT: Final[str] = (
+_INSTALL_HINT: ta.Final[str] = (
     'The from-index subcommand requires the optional index resolver. Install it with: pip install pipdeptree[index]'
 )
 
 
-@dataclass
+@dc.dataclass()
 class _LocalSource:
     """A directory translated into a ``[[tool.nab.local-sources]]`` override."""
 
@@ -71,7 +68,7 @@ class _LocalSource:
     editable: bool
 
 
-@dataclass
+@dc.dataclass()
 class _VcsSource:
     """A pinned git URL translated into a ``[[tool.nab.vcs-sources]]`` override."""
 
@@ -79,14 +76,14 @@ class _VcsSource:
     url: str
 
 
-@dataclass
+@dc.dataclass()
 class _ParsedInputs:
     """Accumulated roots plus the source-overrides translated out of editable/local/VCS requirements."""
 
-    requirements: list[str] = field(default_factory=list)
-    constraints: list[str] = field(default_factory=list)
-    local_sources: list[_LocalSource] = field(default_factory=list)
-    vcs_sources: list[_VcsSource] = field(default_factory=list)
+    requirements: list[str] = dc.field(default_factory=list)
+    constraints: list[str] = dc.field(default_factory=list)
+    local_sources: list[_LocalSource] = dc.field(default_factory=list)
+    vcs_sources: list[_VcsSource] = dc.field(default_factory=list)
     indexes: list[tuple[str, str]] | None = None
 
 
@@ -97,7 +94,7 @@ def resolve_from_index(
     pyproject_files: list[str],
     index_url: str | None = None,
     extra_index_url: list[str] | None = None,
-) -> list[Distribution]:
+) -> list[importlib.metadata.Distribution]:
     """
     Resolve the explicit inputs into Distribution-like objects by querying the package index.
 
@@ -116,20 +113,20 @@ def resolve_from_index(
     if not requirements and not requirement_files and len(pyproject_files) == 1:
         # A lone pyproject.toml is resolved natively so nab can honor [tool.nab] and the full [project] table; any
         # local/VCS deps there are the user's own [tool.nab] concern, so this path is left untranslated.
-        result = _resolve_pyproject_path(_require_existing(Path(pyproject_files[0])), indexes)
+        result = _resolve_pyproject_path(_require_existing(pathlib.Path(pyproject_files[0])), indexes)
     else:
         # Mixed/multiple sources lose native fidelity: fold every pyproject's [project].dependencies into the
         # merged requirement list and resolve them all through one temporary pyproject.
         inputs = _ParsedInputs(
             requirements=[
-                dep for path in pyproject_files for dep in _read_pyproject_dependencies(_require_existing(Path(path)))
+                dep for path in pyproject_files for dep in _read_pyproject_dependencies(_require_existing(pathlib.Path(path)))
             ],
             indexes=indexes,
         )
         # A merged --pyproject keeps its [project].dependencies but NOT its own [tool.nab].constraints; only
         # constraints declared via --requirements (-c) files flow into the resolve. Acceptable known gap.
         for path in requirement_files:
-            _parse_requirements_file(_require_existing(Path(path)), inputs)
+            _parse_requirements_file(_require_existing(pathlib.Path(path)), inputs)
         # Inline positional requirements are scanned for the same editable/local/VCS forms a file would carry.
         _parse_inline_requirements(requirements, inputs)
         result = _resolve_requirements(inputs)
@@ -167,14 +164,14 @@ def _resolve_indexes(index_url: str | None, extra_index_url: list[str] | None) -
     return resolved
 
 
-def _require_existing(path: Path) -> Path:
+def _require_existing(path: pathlib.Path) -> pathlib.Path:
     if not path.is_file():
         msg = f'source file does not exist: {path}'
         raise FromIndexInputError(msg)
     return path
 
 
-def _parse_requirements_file(path: Path, inputs: _ParsedInputs) -> None:
+def _parse_requirements_file(path: pathlib.Path, inputs: _ParsedInputs) -> None:
     """
     Parse a requirements file into ``inputs``, following nested ``-r``/``-c`` files.
 
@@ -225,11 +222,11 @@ def _parse_inline_requirements(requirements: list[str], inputs: _ParsedInputs) -
     # The parser has no working per-line API (its from_string is broken), so route the lines through a temp file;
     # relative paths in a positional argument resolve against the current working directory.
     with tempfile.TemporaryDirectory() as tmp:
-        listing = Path(tmp) / 'inline.txt'
+        listing = pathlib.Path(tmp) / 'inline.txt'
         listing.write_text('\n'.join(translatable) + '\n', encoding='utf-8')
         parsed = RequirementsFile.from_file(str(listing), include_nested=True)
     for entry in parsed.requirements:
-        _translate_source(entry, base_dir=Path.cwd(), location=str(entry.line), inputs=inputs)
+        _translate_source(entry, base_dir=pathlib.Path.cwd(), location=str(entry.line), inputs=inputs)
 
 
 def _looks_like_source(requirement: str) -> bool:
@@ -238,11 +235,11 @@ def _looks_like_source(requirement: str) -> bool:
     return (
         '://' in stripped
         or stripped.startswith(('./', '../', '/', 'file:'))
-        or (Path(stripped).exists() and (Path(stripped) / 'pyproject.toml').exists())
+        or (pathlib.Path(stripped).exists() and (pathlib.Path(stripped) / 'pyproject.toml').exists())
     )
 
 
-def _translate_source(entry: Any, *, base_dir: Path, location: str, inputs: _ParsedInputs) -> None:
+def _translate_source(entry: ta.Any, *, base_dir: pathlib.Path, location: str, inputs: _ParsedInputs) -> None:
     """Translate one editable/local/git-VCS entry into a nab source-override, or reject an unmappable URL."""
 
     link = entry.link
@@ -262,7 +259,7 @@ def _translate_source(entry: Any, *, base_dir: Path, location: str, inputs: _Par
         raise FromIndexInputError(msg)
 
 
-def _to_vcs_source(entry: Any, location: str) -> _VcsSource:
+def _to_vcs_source(entry: ta.Any, location: str) -> _VcsSource:
     # pip's ``name @ git+...`` and ``git+...#egg=name`` both populate ``req.name``; without a name nab cannot map it.
     if entry.req is None or entry.req.name is None:
         msg = f"VCS requirement needs an explicit name (use 'name @ git+...'): {location}"
@@ -276,11 +273,11 @@ def _to_vcs_source(entry: Any, location: str) -> _VcsSource:
     return _VcsSource(name=entry.req.name, url=url)
 
 
-def _to_local_source(entry: Any, base_dir: Path, location: str) -> _LocalSource:
+def _to_local_source(entry: ta.Any, base_dir: pathlib.Path, location: str) -> _LocalSource:
     link = entry.link
     # A file:// URL exposes file_path; a bare/editable path is a (possibly relative) filesystem path in link.url.
     raw_path = link.file_path if link.scheme == 'file' else link.url
-    directory = Path(raw_path)
+    directory = pathlib.Path(raw_path)
     if not directory.is_absolute():
         directory = (base_dir / directory).resolve()
     if not (directory / 'pyproject.toml').is_file():
@@ -292,7 +289,7 @@ def _to_local_source(entry: Any, base_dir: Path, location: str) -> _LocalSource:
     return _LocalSource(name=name, path=str(directory), editable=bool(entry.is_editable))
 
 
-def _read_pyproject_name(directory: Path) -> str | None:
+def _read_pyproject_name(directory: pathlib.Path) -> str | None:
     # read_pyproject_name lives in nab_python, guarded like the resolver imports below.
     try:
         from nab_python.requirements_file import read_pyproject_name  # noqa: PLC0415
@@ -301,9 +298,9 @@ def _read_pyproject_name(directory: Path) -> str | None:
     return read_pyproject_name(directory / 'pyproject.toml')
 
 
-def _adapt(result: Any) -> list[Distribution]:
-    pins: Mapping[str, object] = result.pins
-    dependencies: Mapping[str, tuple[str, ...]] = result.lock_input.dependencies
+def _adapt(result: ta.Any) -> list[importlib.metadata.Distribution]:
+    pins: ta.Mapping[str, object] = result.pins
+    dependencies: ta.Mapping[str, tuple[str, ...]] = result.lock_input.dependencies
     return [
         SyntheticDistribution(
             name,
@@ -314,7 +311,7 @@ def _adapt(result: Any) -> list[Distribution]:
     ]
 
 
-def _read_pyproject_dependencies(path: Path) -> list[str]:
+def _read_pyproject_dependencies(path: pathlib.Path) -> list[str]:
     # Reading TOML only happens on the mixed-sources path, which already requires nab installed; nab-python
     # depends on tomli, so it is available on 3.10 where stdlib tomllib does not yet exist.
     import sys  # noqa: PLC0415
@@ -329,16 +326,16 @@ def _read_pyproject_dependencies(path: Path) -> list[str]:
     return [str(dep) for dep in dependencies]
 
 
-def _resolve_requirements(inputs: _ParsedInputs) -> Any:
+def _resolve_requirements(inputs: _ParsedInputs) -> ta.Any:
     with tempfile.TemporaryDirectory() as tmp:
-        pyproject = Path(tmp) / 'pyproject.toml'
+        pyproject = pathlib.Path(tmp) / 'pyproject.toml'
         # The temp pyproject already carries the [[tool.nab.indexes]] tables, so the resolve path reads them from the
         # file rather than overriding the config; pass None to leave the read config untouched.
         pyproject.write_text(_render_pyproject(inputs), encoding='utf-8')
         return _resolve_pyproject_path(pyproject, None)
 
 
-def _resolve_pyproject_path(pyproject: Path, indexes: list[tuple[str, str]] | None) -> Any:
+def _resolve_pyproject_path(pyproject: pathlib.Path, indexes: list[tuple[str, str]] | None) -> ta.Any:
     # Imports are deferred and guarded so the optional nab dependency stays out of the core import path; this
     # mirrors how the graphviz renderer guards its import (see _render/graphviz.py).
     try:
@@ -354,7 +351,7 @@ def _resolve_pyproject_path(pyproject: Path, indexes: list[tuple[str, str]] | No
     if indexes is not None:
         # An explicit --index-url/--extra-index-url (or its env fallback) overrides a --pyproject's own
         # [tool.nab].indexes; with no override (indexes is None) the pyproject's own indexes apply.
-        config = dataclasses.replace(config, indexes=tuple(starmap(IndexConfig, indexes)))
+        config = dataclasses.replace(config, indexes=tuple(itertools.starmap(IndexConfig, indexes)))
     return resolve_pyproject(pyproject, Urllib3AsyncTransport(), config=config)
 
 

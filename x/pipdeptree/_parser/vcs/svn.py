@@ -1,10 +1,13 @@
+import pathlib
 import subprocess  # noqa: S404
 import xml.etree.ElementTree as ET  # noqa: S405
-from pathlib import Path
 
 from .shared import VcsError
 from .shared import VcsResult
 from .shared import build_vcs_result
+
+
+##
 
 
 def get_svn_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
@@ -62,7 +65,7 @@ def _get_svn_info(location: str) -> tuple[str, str] | None:
 def _get_svn_entries_fallback(location: str) -> tuple[str, str] | None:
     """Parse legacy .svn/entries file (pre-1.7 SVN) for URL and revision."""
 
-    entries_path = Path(location) / '.svn' / 'entries'
+    entries_path = pathlib.Path(location) / '.svn' / 'entries'
     if not entries_path.is_file():
         return None
     try:

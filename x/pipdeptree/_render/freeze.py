@@ -1,11 +1,14 @@
-from typing import TYPE_CHECKING
+import typing as ta
 
 from .text import _render_text_simple
 from .text import get_top_level_nodes
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from .._models.dag import PackageDAG
+
+
+##
 
 
 def render_freeze(tree: PackageDAG, *, max_depth: float, list_all: bool = True) -> None:

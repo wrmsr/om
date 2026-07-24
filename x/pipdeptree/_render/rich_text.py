@@ -1,6 +1,6 @@
 import re
 import sys
-from typing import TYPE_CHECKING
+import typing as ta
 
 from .._computed import ComputedValues
 from .._models.package import DistPackage
@@ -9,12 +9,15 @@ from .._render.text import _build_suffix
 from .._render.text import get_top_level_nodes
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from rich.tree import Tree
 
     from .._cli import RenderContext
     from .._models import PackageDAG
     from .._models.package import RenderMode
+
+
+##
 
 
 def render_rich_text(

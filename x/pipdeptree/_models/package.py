@@ -1,15 +1,9 @@
-from abc import ABC
-from abc import abstractmethod
-from functools import cached_property
+import abc
+import functools
+import importlib.metadata
+import inspect
+import typing as ta
 from importlib import import_module
-from importlib.metadata import Distribution
-from importlib.metadata import PackageMetadata
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import metadata
-from importlib.metadata import version
-from inspect import ismodule
-from typing import TYPE_CHECKING
-from typing import Literal
 
 from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
@@ -18,10 +12,10 @@ from packaging.utils import canonicalize_name
 from .._parser import distribution_to_specifier
 
 
-if TYPE_CHECKING:
-    from collections.abc import Iterator
+RenderMode = ta.Literal['default', 'resolved']
 
-RenderMode = Literal['default', 'resolved']
+
+##
 
 
 class InvalidRequirementError(ValueError):
@@ -32,7 +26,7 @@ class InvalidRequirementError(ValueError):
     """
 
 
-class Package(ABC):
+class Package(abc.ABC):
     """Abstract class for wrappers around objects that pip returns."""
 
     NA = 'N/A'
@@ -42,10 +36,10 @@ class Package(ABC):
         self.project_name = project_name
         self.key = canonicalize_name(project_name)
 
-    def _get_dist_metadata(self) -> PackageMetadata | None:
+    def _get_dist_metadata(self) -> importlib.metadata.PackageMetadata | None:
         try:
-            return metadata(self.key)
-        except PackageNotFoundError:
+            return importlib.metadata.metadata(self.key)
+        except importlib.metadata.PackageNotFoundError:
             return None
 
     def licenses(self) -> str:
@@ -89,15 +83,15 @@ class Package(ABC):
     def get_metadata_dict(self, fields: list[str]) -> dict[str, str | list[str]]:
         return {field: self.get_metadata(field) for field in fields}
 
-    @abstractmethod
+    @abc.abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
         raise NotImplementedError
 
-    @abstractmethod
+    @abc.abstractmethod
     def render_as_branch(self, *, frozen: bool, mode: RenderMode = 'default') -> str:
         raise NotImplementedError
 
-    @abstractmethod
+    @abc.abstractmethod
     def as_dict(self, *, mode: RenderMode = 'default') -> dict[str, str]:
         raise NotImplementedError
 
@@ -113,7 +107,7 @@ class Package(ABC):
         return self.render_as_root(frozen=frozen)
 
     @staticmethod
-    def as_frozen_repr(distribution: Distribution) -> str:
+    def as_frozen_repr(distribution: importlib.metadata.Distribution) -> str:
         return distribution_to_specifier(distribution)
 
     def __repr__(self) -> str:
@@ -132,22 +126,22 @@ class DistPackage(Package):
         reverse
     """
 
-    def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
+    def __init__(self, obj: importlib.metadata.Distribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj.metadata['Name'])
         self._obj = obj
         self.req = req
 
-    def _get_dist_metadata(self) -> PackageMetadata:
+    def _get_dist_metadata(self) -> importlib.metadata.PackageMetadata:
         return self._obj.metadata
 
-    @cached_property
+    @functools.cached_property
     def _parsed_requires(self) -> list[Requirement | str]:
         # Shared between requires() and _extras_index so PEP 508 parsing happens at most once per
         # raw entry. str entries preserve the raw text of invalid requirements so requires() can
         # still surface them via InvalidRequirementError, matching the original semantics.
         return [_try_parse_requirement(raw_req) for raw_req in self._obj.requires or []]
 
-    def requires(self) -> Iterator[Requirement]:
+    def requires(self) -> ta.Iterator[Requirement]:
         """
         Return an iterator of the distribution's required dependencies.
 
@@ -162,11 +156,11 @@ class DistPackage(Package):
                 # reqs from this mandatory-only iterator.
                 yield entry
 
-    @cached_property
+    @functools.cached_property
     def provides_extras(self) -> frozenset[str]:
         return frozenset(self._obj.metadata.get_all('Provides-Extra') or ())
 
-    @cached_property
+    @functools.cached_property
     def _extras_index(self) -> list[tuple[Requirement, list[str], str]]:
         # Cached because requires_for_extras is called many times per package across the
         # satisfaction and resolution passes; without this, PEP 508 parsing and marker evaluation
@@ -185,7 +179,7 @@ class DistPackage(Package):
                 result.append((entry, matching, canonicalize_name(entry.name)))
         return result
 
-    def requires_for_extras(self, extras: frozenset[str]) -> Iterator[tuple[Requirement, str, str]]:
+    def requires_for_extras(self, extras: frozenset[str]) -> ta.Iterator[tuple[Requirement, str, str]]:
         """Yield (requirement, extra_name, dep_key) for requirements gated behind the given extras."""
 
         for req, matching, dep_key in self._extras_index:
@@ -194,14 +188,14 @@ class DistPackage(Package):
                     yield req, extra, dep_key
                     break
 
-    @cached_property
+    @functools.cached_property
     def version(self) -> str:
         # Cached because each access reparses the METADATA file on the underlying Distribution and
         # the renderer reads it once per occurrence in the tree (tens of thousands of times for
         # large environments under --extras).
         return self._obj.version
 
-    def unwrap(self) -> Distribution:
+    def unwrap(self) -> importlib.metadata.Distribution:
         """Exposes the internal `importlib.metadata.Distribution` object."""
 
         return self._obj
@@ -323,8 +317,8 @@ class ReqPackage(Package):
     def installed_version(self) -> str:
         if not self.dist:
             try:
-                return version(self.key)
-            except PackageNotFoundError:
+                return importlib.metadata.version(self.key)
+            except importlib.metadata.PackageNotFoundError:
                 pass
             try:
                 m = import_module(self.key)
@@ -332,7 +326,7 @@ class ReqPackage(Package):
                 return self.UNKNOWN_VERSION
             else:
                 v = getattr(m, '__version__', self.UNKNOWN_VERSION)
-                if ismodule(v):
+                if inspect.ismodule(v):
                     return getattr(v, '__version__', self.UNKNOWN_VERSION)
                 return v
         return self.dist.version

@@ -1,8 +1,10 @@
 import locale
-from importlib.metadata import Distribution, PackageMetadata
+from importlib.metadata import Distribution
+from importlib.metadata import PackageMetadata
 from pathlib import Path
 from random import shuffle
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
+from typing import Protocol
 from unittest.mock import Mock
 
 import pytest

@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
     from pipdeptree._models.package import RenderMode
     from pytest_mock import MockerFixture
+
     from ...tests.conftest import MockDistMaker
     from ...tests.our_types import MockGraph
 

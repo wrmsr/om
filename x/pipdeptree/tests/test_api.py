@@ -11,6 +11,7 @@ from .._computed import ComputedValues
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
     from .conftest import MockDistMaker
 
 

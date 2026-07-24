@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING
+import importlib.metadata
+import typing as ta
 
 from packaging.version import InvalidVersion
 from packaging.version import Version
@@ -14,13 +15,14 @@ from .vcs import VcsResult
 from .vcs import get_vcs_requirement
 
 
-if TYPE_CHECKING:
-    from importlib.metadata import Distribution
-
+if ta.TYPE_CHECKING:
     from .direct_url import DirectUrl
 
 
-def distribution_to_specifier(distribution: Distribution) -> str:
+##
+
+
+def distribution_to_specifier(distribution: importlib.metadata.Distribution) -> str:
     """
     Convert distribution to requirement specifier string.
 

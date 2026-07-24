@@ -13,11 +13,11 @@ In a Jupyter or JupyterLite notebook cell, the default (``text``) render also di
 (with an HTML/text fallback) via the rich-display protocol, while its string value stays the plain text tree.
 """
 # https://github.com/tox-dev/pipdeptree/tree/c0a7570ebcef4d0c818533c6382c10c8a4f16510 / @3.1.1
+import contextlib
+import html as html_
 import io
-from contextlib import redirect_stdout
-from html import escape
-from math import inf
-from typing import TYPE_CHECKING
+import math
+import typing as ta
 
 from . import _render
 from .__main__ import _FilterError
@@ -29,9 +29,7 @@ from ._warning import WarningType
 from ._warning import get_warning_printer
 
 
-if TYPE_CHECKING:
-    from collections.abc import Container
-
+if ta.TYPE_CHECKING:
     from ._cli import Options
     from ._models import PackageDAG
 
@@ -66,7 +64,7 @@ def render(  # noqa: PLR0913
     output_format: str = 'text',
     summary: bool = False,
     reverse: bool = False,
-    depth: float = inf,
+    depth: float = math.inf,
     extras: bool | str = False,
     local_only: bool = False,
     user_only: bool = False,
@@ -114,7 +112,7 @@ def render(  # noqa: PLR0913
     for flag, value in (('--packages', packages), ('--exclude', exclude), ('--python', python)):
         if value is not None:
             argv += [flag, value]
-    if depth != inf:
+    if depth != math.inf:
         argv += ['--depth', str(int(depth))]
     if extras:
         # Bare --extras means the "explicit" mode; the boolean keeps the historical call signature working.
@@ -158,7 +156,7 @@ def _finalize(text: str, *, argv: list[str], tree: PackageDAG, output_format: st
 
 def _render_to_str(options: Options, tree: PackageDAG) -> str:
     buffer = io.StringIO()
-    with redirect_stdout(buffer):
+    with contextlib.redirect_stdout(buffer):
         _render.render(options, tree)
     return buffer.getvalue()
 
@@ -177,12 +175,12 @@ class _RenderResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinst
 
     def _repr_mimebundle_(  # noqa: PLW3201  # Jupyter rich-display protocol method, not a Python dunder.
         self,
-        include: Container[str] | None = None,
-        exclude: Container[str] | None = None,  # noqa: ARG002
+        include: ta.Container[str] | None = None,
+        exclude: ta.Container[str] | None = None,  # noqa: ARG002
     ) -> dict[str, str]:
         bundle = {
             'text/vnd.mermaid': self._mermaid,
-            'text/html': f'<pre>{escape(str(self))}</pre>',
+            'text/html': f'<pre>{html_.escape(str(self))}</pre>',
             'text/plain': str(self),
         }
         if include is not None:
@@ -204,8 +202,8 @@ class _SummaryResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isins
 
     def _repr_mimebundle_(  # noqa: PLW3201  # Jupyter rich-display protocol method, not a Python dunder.
         self,
-        include: Container[str] | None = None,
-        exclude: Container[str] | None = None,  # noqa: ARG002
+        include: ta.Container[str] | None = None,
+        exclude: ta.Container[str] | None = None,  # noqa: ARG002
     ) -> dict[str, str]:
         bundle = {'text/html': self._html, 'text/plain': str(self)}
         if include is not None:

@@ -1,31 +1,31 @@
+import dataclasses as dc
+import functools
+import importlib.metadata
 import pathlib
-from dataclasses import dataclass
-from functools import cached_property
-from importlib.metadata import distribution
-from typing import TYPE_CHECKING
-from typing import Any
+import typing as ta
 
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
+if ta.TYPE_CHECKING:
     from ._models import PackageDAG
 
 
-@dataclass
+##
+
+
+@dc.dataclass()
 class ComputedValues:
     key: str
     tree: PackageDAG
     full_tree: PackageDAG | None = None
 
-    def as_dict(self, fields: Sequence[str]) -> dict[str, Any]:
+    def as_dict(self, fields: ta.Sequence[str]) -> dict[str, ta.Any]:
         return {
             (attr := field.replace('-', '_')): getattr(self, attr)
             for field in fields
             if hasattr(self, field.replace('-', '_'))
         }
 
-    def format_display(self, fields: Sequence[str], exclude: frozenset[str] = frozenset()) -> list[str]:
+    def format_display(self, fields: ta.Sequence[str], exclude: frozenset[str] = frozenset()) -> list[str]:
         result: list[str] = []
         for field in fields:
             if field in exclude:
@@ -42,17 +42,17 @@ class ComputedValues:
                 result.append(f'unique size: {self.unique_deps_size}')
         return result
 
-    @cached_property
+    @functools.cached_property
     def size(self) -> str:
         return self.format_size(self.size_bytes) if self.size_bytes is not None else '0 B'
 
-    @cached_property
+    @functools.cached_property
     def size_raw(self) -> int:
         return self.size_bytes or 0
 
-    @cached_property
+    @functools.cached_property
     def size_bytes(self) -> int | None:
-        dist = distribution(self.key)
+        dist = importlib.metadata.distribution(self.key)
         if not (files := dist.files):
             return None
         return sum(self._file_size(str(dist.locate_file(f))) for f in files)
@@ -72,20 +72,20 @@ class ComputedValues:
             size_bytes /= 1024  # ty: ignore[invalid-assignment]
         return f'{size_bytes:.1f} GB'  # pragma: no cover
 
-    @cached_property
+    @functools.cached_property
     def unique_deps_count(self) -> int:
         return len(self.unique_deps)
 
-    @cached_property
+    @functools.cached_property
     def unique_deps_names(self) -> list[str]:
         return sorted(self.unique_deps)
 
-    @cached_property
+    @functools.cached_property
     def unique_deps_size(self) -> str:
         total = sum(ComputedValues(dep, self.tree, self.full_tree).size_raw for dep in self.unique_deps)
         return self.format_size(total)
 
-    @cached_property
+    @functools.cached_property
     def unique_deps(self) -> set[str]:
         tree = self.full_tree or self.tree
         own_deps = self._transitive_deps(self.key, tree)

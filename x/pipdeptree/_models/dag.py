@@ -1,24 +1,12 @@
+import collections
+import enum
+import fnmatch
+import functools
+import itertools
 import sys
-from collections import defaultdict
-from collections import deque
-from collections.abc import Iterator
-from collections.abc import Mapping
-from enum import Enum
-from enum import auto
-from fnmatch import fnmatch
-from functools import cached_property
-from itertools import chain
-from typing import TYPE_CHECKING
-from typing import Literal
+import typing as ta
 
 from packaging.utils import canonicalize_name
-
-
-if TYPE_CHECKING:
-    from importlib.metadata import Distribution
-
-    from packaging.requirements import Requirement
-
 
 from .._warning import get_warning_printer
 from .package import DistPackage
@@ -26,7 +14,16 @@ from .package import InvalidRequirementError
 from .package import ReqPackage
 
 
-ExtrasMode = Literal['none', 'explicit', 'active']
+if ta.TYPE_CHECKING:
+    from importlib.metadata import Distribution
+
+    from packaging.requirements import Requirement
+
+
+ExtrasMode = ta.Literal['none', 'explicit', 'active']
+
+
+##
 
 
 class IncludeExcludeOverlapError(Exception):
@@ -37,7 +34,7 @@ class IncludePatternNotFoundError(Exception):
     """Include patterns weren't found when filtering a `PackageDAG`."""
 
 
-class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
+class PackageDAG(ta.Mapping[DistPackage, list[ReqPackage]]):
     """
     Representation of Package dependencies as directed acyclic graph using a dict as the underlying datastructure.
 
@@ -65,7 +62,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         pkgs: list[Distribution],
         *,
         extras: ExtrasMode = 'none',
-        requested_extras: Mapping[str, set[str]] | None = None,
+        requested_extras: ta.Mapping[str, set[str]] | None = None,
     ) -> PackageDAG:
         warning_printer = get_warning_printer()
         dist_pkgs = [DistPackage(p) for p in pkgs]
@@ -158,7 +155,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
             return _gate_dependents(children, scoped)
         return children
 
-    @cached_property
+    @functools.cached_property
     def _scoped_parent_keys(self) -> frozenset[str]:
         # Node keys whose children include an edge-scoped extra; only these pay the forward-gating cost. Rendering
         # revisits a node once per path, so skipping the per-call allocation for the common ungated node matters.
@@ -205,19 +202,19 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
             exclude = self._build_exclusion_set_with_dependencies(exclude)
 
         # Filter nodes that are explicitly included/excluded
-        stack: deque[DistPackage] = deque()
+        stack: collections.deque[DistPackage] = collections.deque()
         m: dict[DistPackage, list[ReqPackage]] = {}
         seen = set()
         matched_includes: set[str] = set()
         for node in self._obj:
-            if any(fnmatch(node.key, e) for e in exclude):
+            if any(fnmatch.fnmatch(node.key, e) for e in exclude):
                 continue
             if include is None:
                 stack.append(node)
             else:
                 should_append = False
                 for i in include:
-                    if fnmatch(node.key, i):
+                    if fnmatch.fnmatch(node.key, i):
                         # Add all patterns that match with the node key. Otherwise if we break, patterns like py* or
                         # pytest* (which both should match "pytest") may cause one pattern to be missed and will
                         # raise an error
@@ -229,7 +226,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
             # Perform DFS on the explicitly included nodes so that we can also include their dependencies, if applicable
             while stack:
                 n = stack.pop()
-                cldn = [c for c in self._obj[n] if not any(fnmatch(c.key, e) for e in exclude)]
+                cldn = [c for c in self._obj[n] if not any(fnmatch.fnmatch(c.key, e) for e in exclude)]
                 m[n] = cldn
                 seen.add(n.key)
                 for c in cldn:
@@ -264,7 +261,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         # used by fnmatch (or the exclusion may not even exist in the graph)
         resolved_exclude: set[str] = set()
 
-        resolved_exclude.update(node.key for node in self._obj if any(fnmatch(node.key, e) for e in old_exclude))
+        resolved_exclude.update(node.key for node in self._obj if any(fnmatch.fnmatch(node.key, e) for e in old_exclude))
 
         # Find all possible candidate nodes for exclusion using DFS
         candidates: set[str] = set()
@@ -279,7 +276,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
         reverse_graph = self.reverse()
 
         # Precompute number of dependents for each candidate
-        dependents_count: defaultdict[str, int] = defaultdict(int)
+        dependents_count: collections.defaultdict[str, int] = collections.defaultdict(int)
         for node in candidates:
             dependents_count[node] += len(reverse_graph.get_children(node))
 
@@ -287,7 +284,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
 
         # Determine what nodes should actually be excluded
         # Use the resolved exclude set as a starting point as these nodes are explicitly excluded
-        queue = deque(resolved_exclude)
+        queue = collections.deque(resolved_exclude)
         while queue:
             node = queue.popleft()
             new_exclude.add(node)
@@ -327,7 +324,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
 
         reversed_dag: dict[ReqPackage, list[DistPackage]] = {}
         key_index: dict[str, ReqPackage] = {}
-        child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
+        child_keys = {r.key for r in itertools.chain.from_iterable(self._obj.values())}
         for parent, deps in self._obj.items():
             for dep in deps:
                 node = key_index.setdefault(dep.key, dep)
@@ -353,7 +350,7 @@ class PackageDAG(Mapping[DistPackage, list[ReqPackage]]):
     def __getitem__(self, arg: DistPackage) -> list[ReqPackage]:
         return self._obj[arg]
 
-    def __iter__(self) -> Iterator[DistPackage]:
+    def __iter__(self) -> ta.Iterator[DistPackage]:
         return self._obj.__iter__()
 
     def __len__(self) -> int:
@@ -387,7 +384,7 @@ class ReversedPackageDAG(PackageDAG):
 
         forward_dag: dict[DistPackage, list[ReqPackage]] = {}
         key_index: dict[str, DistPackage] = {}
-        child_keys = {r.key for r in chain.from_iterable(self._obj.values())}
+        child_keys = {r.key for r in itertools.chain.from_iterable(self._obj.values())}
         for req_node, parents in self._obj.items():
             for parent in parents:
                 assert isinstance(parent, DistPackage)
@@ -425,7 +422,7 @@ def _gate_dependents(children: list[ReqPackage], extra: str) -> list[ReqPackage]
 
 
 def _expand_requested_extras(
-    idx: dict[str, DistPackage], requested_extras: Mapping[str, set[str]] | None,
+    idx: dict[str, DistPackage], requested_extras: ta.Mapping[str, set[str]] | None,
 ) -> dict[str, set[str]]:
     """Map ``--packages`` name patterns to the extras requested for the matching installed packages."""
 
@@ -436,7 +433,7 @@ def _expand_requested_extras(
         if normalized := {canonicalize_name(extra) for extra in extras}:
             canonical_pattern = canonicalize_name(pattern)
             for key in idx:
-                if fnmatch(key, canonical_pattern):
+                if fnmatch.fnmatch(key, canonical_pattern):
                     expanded.setdefault(key, set()).update(normalized)
     return expanded
 
@@ -555,9 +552,9 @@ def _collect_satisfied_extras(
     return extras_needed
 
 
-class _Action(Enum):
-    SUCCESS = auto()
-    FAIL = auto()
+class _Action(enum.Enum):
+    SUCCESS = enum.auto()
+    FAIL = enum.auto()
 
 
 class _Frame:

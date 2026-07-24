@@ -1,16 +1,14 @@
+import dataclasses as dc
+import importlib.metadata
 import json
 import re
-from dataclasses import dataclass
-from dataclasses import field
-from typing import TYPE_CHECKING
-from typing import Final
+import typing as ta
 
 
-if TYPE_CHECKING:
-    from importlib.metadata import Distribution
+##
 
 
-def get_direct_url(distribution: Distribution) -> DirectUrl | None:
+def get_direct_url(distribution: importlib.metadata.Distribution) -> DirectUrl | None:
     """
     Read and parse direct_url.json from a distribution's metadata.
 
@@ -157,7 +155,7 @@ class DirectUrlValidationError(ValueError):
     """Raised when direct_url.json has invalid structure or missing required fields."""
 
 
-@dataclass
+@dc.dataclass()
 class DirectUrl:
     """
     PEP 610 direct_url.json metadata representation.
@@ -181,7 +179,7 @@ class DirectUrl:
         return _redact_url(self.url, self.info)
 
 
-@dataclass
+@dc.dataclass()
 class VcsInfo:
     """
     Version control system information from direct_url.json.
@@ -194,7 +192,7 @@ class VcsInfo:
     requested_revision: str | None = None
 
 
-@dataclass
+@dc.dataclass()
 class ArchiveInfo:
     """
     Archive information from direct_url.json.
@@ -203,10 +201,10 @@ class ArchiveInfo:
     """
 
     hash: str | None = None
-    hashes: dict[str, str] = field(default_factory=dict)
+    hashes: dict[str, str] = dc.field(default_factory=dict)
 
 
-@dataclass
+@dc.dataclass()
 class DirInfo:
     """
     Directory information from direct_url.json.
@@ -217,7 +215,7 @@ class DirInfo:
     editable: bool = False
 
 
-_CREDENTIAL_RE: Final[re.Pattern[str]] = re.compile(
+_CREDENTIAL_RE: ta.Final[re.Pattern[str]] = re.compile(
     r"""
     (?P<scheme>[a-z+]+://)  # URL scheme, e.g. 'https://'
     (?P<userinfo>[^@]+)     # userinfo before @
@@ -225,7 +223,7 @@ _CREDENTIAL_RE: Final[re.Pattern[str]] = re.compile(
     """,
     re.IGNORECASE | re.VERBOSE,
 )
-_ENV_VAR_RE: Final[re.Pattern[str]] = re.compile(
+_ENV_VAR_RE: ta.Final[re.Pattern[str]] = re.compile(
     r"""
     ^
     \$\{[A-Za-z0-9_-]+\}             # ${VAR}

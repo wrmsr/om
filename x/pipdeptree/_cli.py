@@ -1,29 +1,21 @@
+import argparse
+import dataclasses as dc
 import sys
+import typing as ta
 import warnings
-from argparse import ArgumentDefaultsHelpFormatter
-from argparse import ArgumentParser
-from argparse import ArgumentTypeError
-from argparse import Namespace
-from dataclasses import dataclass
-from dataclasses import field
-from typing import TYPE_CHECKING
-from typing import cast
-from typing import get_args
 
 from ._computed import ComputedValues
 from ._models.dag import ExtrasMode
 
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
+if ta.TYPE_CHECKING:
     from ._models import PackageDAG
 
 
 ##
 
 
-class Options(Namespace):
+class Options(argparse.Namespace):
     freeze: bool
     python: str | None
     path: list[str]
@@ -57,13 +49,13 @@ class Options(Namespace):
     context: RenderContext
 
 
-@dataclass
+@dc.dataclass()
 class RenderContext:
     """Bundles metadata and computed fields that augment package display."""
 
-    metadata: list[str] = field(default_factory=list)
-    computed: list[str] = field(default_factory=list)
-    full_tree: PackageDAG | None = field(default=None, repr=False, compare=False)
+    metadata: list[str] = dc.field(default_factory=list)
+    computed: list[str] = dc.field(default_factory=list)
+    full_tree: PackageDAG | None = dc.field(default=None, repr=False, compare=False)
 
     @property
     def active(self) -> bool:
@@ -102,18 +94,18 @@ SUMMARY_RENDER_FORMATS = frozenset({'text', 'rich', 'json'})
 ALLOWED_COMPUTED_FIELDS = frozenset({'size', 'size-raw', 'unique-deps-count', 'unique-deps-names', 'unique-deps-size'})
 
 
-class _Formatter(ArgumentDefaultsHelpFormatter):
+class _Formatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self, prog: str) -> None:
         super().__init__(prog, max_help_position=22, width=240)
 
 
-def build_parser() -> ArgumentParser:
+def build_parser() -> argparse.ArgumentParser:
     # The render/select flags shared by the default command and the from-index subcommand are defined once on a
     # parent parser; both the top-level parser and the from-index subparser inherit them via parents=[...], so the
     # flags stay single-sourced and the top-level CLI keeps its existing behavior.
     render_parent = _build_render_parent()
 
-    parser = ArgumentParser(
+    parser = argparse.ArgumentParser(
         prog='pipdeptree',
         description='Dependency tree of the installed python packages',
         formatter_class=_Formatter,
@@ -233,8 +225,8 @@ def build_parser() -> ArgumentParser:
     return parser
 
 
-def _build_render_parent() -> ArgumentParser:
-    parent = ArgumentParser(add_help=False)
+def _build_render_parent() -> argparse.ArgumentParser:
+    parent = argparse.ArgumentParser(add_help=False)
     parent.add_argument(
         '-w',
         '--warn',
@@ -251,7 +243,7 @@ def _build_render_parent() -> ArgumentParser:
     return parent
 
 
-def _add_render_arguments(parser: ArgumentParser) -> None:
+def _add_render_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '-p',
         '--packages',
@@ -278,7 +270,7 @@ def _add_render_arguments(parser: ArgumentParser) -> None:
         '--extras',
         nargs='?',
         const='explicit',
-        choices=get_args(ExtrasMode),
+        choices=ta.get_args(ExtrasMode),
         default='explicit',
         help=(
             "which optional (extras) dependencies to include: 'explicit' (default) shows extras requested via "
@@ -363,7 +355,7 @@ def _add_render_arguments(parser: ArgumentParser) -> None:
     )
 
 
-def _add_installed_metadata_arguments(parser: ArgumentParser) -> None:
+def _add_installed_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     # These read state of already-installed packages (METADATA file contents, on-disk file sizes), so they only make
     # sense for the default command that inspects an environment. The from-index subcommand renders resolver output for
     # packages that are never installed, so it intentionally omits them.
@@ -393,17 +385,17 @@ def _positive_int(value: str) -> int:
     if value.isdigit() and int(value) >= 0:
         return int(value)
     msg = 'Depth must be a number that is >= 0'
-    raise ArgumentTypeError(msg)
+    raise argparse.ArgumentTypeError(msg)
 
 
-def get_options(args: Sequence[str] | None) -> Options:
+def get_options(args: ta.Sequence[str] | None) -> Options:
     parser = build_parser()
     parsed_args = parser.parse_args(args)
-    options = cast('Options', parsed_args)
+    options = ta.cast('Options', parsed_args)
 
     options.output_format = _handle_legacy_render_options(options)
-    raw_metadata: str = cast('str', options.metadata)
-    raw_computed: str = cast('str', options.computed)
+    raw_metadata: str = ta.cast('str', options.metadata)
+    raw_computed: str = ta.cast('str', options.computed)
     options.metadata = (
         list(dict.fromkeys(f.strip() for f in raw_metadata.split(',') if f.strip())) if raw_metadata else []
     )
@@ -457,7 +449,7 @@ def _validate_output_format(value: str) -> str:
     if value.startswith('graphviz-'):
         return value
     msg = f'"{value}" is not a known output format. Must be one of {", ".join(ALLOWED_RENDER_FORMATS)}, or graphviz-*'
-    raise ArgumentTypeError(msg)
+    raise argparse.ArgumentTypeError(msg)
 
 
 def parse_packages(value: str | None) -> tuple[list[str], dict[str, set[str]]]:

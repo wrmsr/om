@@ -1,20 +1,23 @@
+import collections
 import math
 import os
 import sys
 import tempfile
+import typing as ta
 import webbrowser
-from collections import deque
-from typing import TYPE_CHECKING
 
 from .._models import DistPackage
 from .._models import ReqPackage
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from graphviz import Digraph
 
     from .._cli import RenderContext
     from .._models import PackageDAG
+
+
+##
 
 
 def render_graphviz(
@@ -181,7 +184,7 @@ def _compute_reachable_depths(tree: PackageDAG, root_keys: set[str], max_depth: 
     if max_depth >= math.inf:
         return None
     visited: dict[str, int] = {}
-    queue: deque[tuple[str, int]] = deque((k, 0) for k in root_keys)
+    queue: collections.deque[tuple[str, int]] = collections.deque((k, 0) for k in root_keys)
     while queue:
         key, depth = queue.popleft()
         if key in visited:

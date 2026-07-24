@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
     import pytest
     from pytest_mock import MockerFixture
+
     from ...tests.conftest import MockDistMaker
     from ...tests.our_types import MockGraph
 

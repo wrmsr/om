@@ -1,13 +1,12 @@
+import enum
 import sys
-from enum import Enum
-from typing import TYPE_CHECKING
+import typing as ta
 
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+##
 
 
-class WarningType(Enum):
+class WarningType(enum.Enum):
     FAIL = 'fail'
     SILENCE = 'silence'
     SUPPRESS = 'suppress'
@@ -46,7 +45,7 @@ class WarningPrinter:
         self._has_warned = True
         print(line, file=sys.stderr)  # noqa: T201
 
-    def print_multi_line(self, summary: str, print_func: Callable[[], None], ignore_fail: bool = False) -> None:  # noqa: FBT001, FBT002
+    def print_multi_line(self, summary: str, print_func: ta.Callable[[], None], ignore_fail: bool = False) -> None:  # noqa: FBT001, FBT002
         """
         Print a multi-line warning, delegating most of the printing logic to the caller.
 

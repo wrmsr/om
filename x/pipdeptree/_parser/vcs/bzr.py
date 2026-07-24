@@ -1,10 +1,13 @@
+import pathlib
 import subprocess  # noqa: S404
-from pathlib import Path
 
 from .shared import VcsError
 from .shared import VcsResult
 from .shared import build_vcs_result
 from .shared import is_local_path
+
+
+##
 
 
 def get_bzr_requirement(location: str, package_name: str, repo_root: str) -> VcsResult:
@@ -13,7 +16,7 @@ def get_bzr_requirement(location: str, package_name: str, repo_root: str) -> Vcs
         if remote_url is None:
             return VcsResult(None, vcs_name='bzr', error=VcsError.NO_REMOTE)
         if is_local_path(remote_url):
-            remote_url = Path(remote_url).as_uri()
+            remote_url = pathlib.Path(remote_url).as_uri()
         if not (revision := _get_bzr_revision(repo_root)):
             return VcsResult(None, vcs_name='bzr', error=VcsError.NO_REMOTE)
     except FileNotFoundError:

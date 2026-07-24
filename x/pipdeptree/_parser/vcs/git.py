@@ -1,8 +1,8 @@
 import os
+import pathlib
 import re
 import subprocess  # noqa: S404
-from pathlib import Path
-from typing import Final
+import typing as ta
 
 from .shared import VcsError
 from .shared import VcsResult
@@ -10,9 +10,12 @@ from .shared import build_vcs_result
 from .shared import is_local_path
 
 
-_SANITIZED_GIT_VARS: Final[frozenset[str]] = frozenset({'GIT_DIR', 'GIT_WORK_TREE'})
-_SCHEME_RE: Final[re.Pattern[str]] = re.compile(r'\w+://')
-_SCP_RE: Final[re.Pattern[str]] = re.compile(
+##
+
+
+_SANITIZED_GIT_VARS: ta.Final[frozenset[str]] = frozenset({'GIT_DIR', 'GIT_WORK_TREE'})
+_SCHEME_RE: ta.Final[re.Pattern[str]] = re.compile(r'\w+://')
+_SCP_RE: ta.Final[re.Pattern[str]] = re.compile(
     r"""
     ^
     (?P<user>\w+@)?    # Optional user, e.g. 'git@'
@@ -119,7 +122,7 @@ def _normalize_git_url(url: str, repo_root: str) -> str | None:
 
     if _SCHEME_RE.match(url):
         return url
-    path = Path(url) if is_local_path(url) else Path(repo_root) / url
+    path = pathlib.Path(url) if is_local_path(url) else pathlib.Path(repo_root) / url
     if path.exists():
         return path.resolve().as_uri()
     if match := _SCP_RE.match(url):

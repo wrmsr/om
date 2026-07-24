@@ -1,19 +1,17 @@
 import ast
+import importlib.metadata
+import pathlib
 import site
 import subprocess  # noqa: S404
 import sys
-from importlib.metadata import Distribution
-from importlib.metadata import distributions
-from pathlib import Path
-from typing import TYPE_CHECKING
+import typing as ta
 
 from packaging.utils import canonicalize_name
 
 from ._warning import get_warning_printer
 
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable
+##
 
 
 class InterpreterQueryError(Exception):
@@ -25,7 +23,7 @@ def get_installed_distributions(
     supplied_paths: list[str] | None = None,
     local_only: bool = False,  # noqa: FBT001, FBT002
     user_only: bool = False,  # noqa: FBT001, FBT002
-) -> list[Distribution]:
+) -> list[importlib.metadata.Distribution]:
     """
     Return the distributions installed in the interpreter's environment.
 
@@ -38,7 +36,7 @@ def get_installed_distributions(
     # See https://docs.python.org/3/library/venv.html#how-venvs-work for more details.
     in_venv = sys.prefix != sys.base_prefix
 
-    should_query_interpreter = not supplied_paths and (Path(interpreter).absolute() != Path(sys.executable).absolute())
+    should_query_interpreter = not supplied_paths and (pathlib.Path(interpreter).absolute() != pathlib.Path(sys.executable).absolute())
     if should_query_interpreter:
         computed_paths = query_interpreter_for_paths(interpreter, local_only=local_only)
     elif local_only and in_venv:
@@ -47,7 +45,7 @@ def get_installed_distributions(
     if user_only:
         computed_paths = [p for p in computed_paths if p.startswith(site.getusersitepackages())]
 
-    return filter_valid_distributions(distributions(path=computed_paths))
+    return filter_valid_distributions(importlib.metadata.distributions(path=computed_paths))
 
 
 def query_interpreter_for_paths(interpreter: str, *, local_only: bool = False) -> list[str]:
@@ -72,15 +70,15 @@ def query_interpreter_for_paths(interpreter: str, *, local_only: bool = False) -
         raise InterpreterQueryError(str(e)) from e
 
 
-def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[Distribution]:
+def filter_valid_distributions(iterable_dists: ta.Iterable[importlib.metadata.Distribution]) -> list[importlib.metadata.Distribution]:
     warning_printer = get_warning_printer()
 
     # Since importlib.metadata.distributions() can return duplicate packages, we need to handle this. pip's approach is
     # to keep track of each package metadata it finds, and if it encounters one again it will simply just ignore it. We
     # take it one step further and warn the user that there are duplicate packages in their environment.
     # See https://github.com/pypa/pip/blob/7c49d06ea4be4635561f16a524e3842817d1169a/src/pip/_internal/metadata/importlib/_envs.py#L34
-    seen_dists: dict[str, Distribution] = {}
-    first_seen_to_already_seen_dists_dict: dict[Distribution, list[Distribution]] = {}
+    seen_dists: dict[str, importlib.metadata.Distribution] = {}
+    first_seen_to_already_seen_dists_dict: dict[importlib.metadata.Distribution, list[importlib.metadata.Distribution]] = {}
 
     # We also need to handle invalid metadata, though we can't get paths to invalid distribution metadata directly since
     # importlib doesn't expose an API for it. We do have the directory they reside in, so let's use that.
@@ -117,7 +115,7 @@ def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[D
     return dists
 
 
-def has_valid_metadata(dist: Distribution) -> bool:
+def has_valid_metadata(dist: importlib.metadata.Distribution) -> bool:
     try:
         return 'Name' in dist.metadata
     except (TypeError, FileNotFoundError):
@@ -129,11 +127,11 @@ def render_invalid_metadata_text(site_dirs_with_invalid_metadata: set[str]) -> N
         print(site_dir, file=sys.stderr)  # noqa: T201
 
 
-FirstSeenWithDistsPair = tuple[Distribution, Distribution]
+FirstSeenWithDistsPair = tuple[importlib.metadata.Distribution, importlib.metadata.Distribution]
 
 
 def render_duplicated_dist_metadata_text(
-    first_seen_to_already_seen_dists_dict: dict[Distribution, list[Distribution]],
+    first_seen_to_already_seen_dists_dict: dict[importlib.metadata.Distribution, list[importlib.metadata.Distribution]],
 ) -> None:
     entries_to_pairs_dict: dict[str, list[FirstSeenWithDistsPair]] = {}
     for first_seen, dists in first_seen_to_already_seen_dists_dict.items():

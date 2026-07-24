@@ -1,17 +1,19 @@
 import json
+import typing as ta
 from itertools import chain
-from typing import TYPE_CHECKING
-from typing import Any
 
 from .._computed import ComputedValues
 from .._models import ReqPackage
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from .._cli import RenderContext
     from .._models import DistPackage
     from .._models import PackageDAG
     from .._models.package import RenderMode
+
+
+##
 
 
 def render_json_tree(
@@ -45,15 +47,15 @@ def render_json_tree(
         node: DistPackage | ReqPackage,
         parent: DistPackage | ReqPackage | None = None,
         cur_chain: list[str] | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, ta.Any]:
         if cur_chain is None:
             cur_chain = [node.project_name]
 
-        d: dict[str, str | list[Any] | None] = node.as_dict(mode=mode)  # ty: ignore[invalid-assignment]
+        d: dict[str, str | list[ta.Any] | None] = node.as_dict(mode=mode)  # ty: ignore[invalid-assignment]
         if mode == 'default':
             if parent:
                 d['required_version'] = (
-                    node.version_spec if isinstance(node, ReqPackage) and node.version_spec else 'Any'
+                    node.version_spec if isinstance(node, ReqPackage) and node.version_spec else 'ta.Any'
                 )
             else:
                 d['required_version'] = d['installed_version']

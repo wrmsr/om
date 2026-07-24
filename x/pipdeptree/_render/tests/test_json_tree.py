@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from unittest.mock import Mock
 
     from pytest_mock import MockerFixture
+
     from ...tests.our_types import MockGraph
 
 

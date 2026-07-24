@@ -1,14 +1,16 @@
 import json
-from typing import TYPE_CHECKING
-from typing import Any
+import typing as ta
 
 from .._computed import ComputedValues
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from .._cli import RenderContext
     from .._models import PackageDAG
     from .._models.package import RenderMode
+
+
+##
 
 
 def render_json(
@@ -32,8 +34,8 @@ def render_json(
 
     tree = tree.sort()
 
-    def _package_dict(k: Any) -> dict[str, Any]:
-        d: dict[str, Any] = k.as_dict(mode=mode)
+    def _package_dict(k: ta.Any) -> dict[str, ta.Any]:
+        d: dict[str, ta.Any] = k.as_dict(mode=mode)
         if context and context.metadata:
             d['metadata'] = k.get_metadata_dict(list(context.metadata))
         if context and context.computed:

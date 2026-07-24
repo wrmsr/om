@@ -9,13 +9,13 @@ not carry; in that ``resolved`` mode those metrics are reported as unavailable r
 The same computed metrics drive three presentation styles -- aligned ``text``, a ``rich`` table, and ``json`` -- plus
 an HTML table for notebook display, all built from the one shared row list.
 """
+import collections
+import dataclasses as dc
+import html
+import itertools
 import json
 import sys
-from collections import Counter
-from dataclasses import dataclass
-from html import escape
-from itertools import chain
-from typing import TYPE_CHECKING
+import typing as ta
 
 from packaging.specifiers import InvalidSpecifier
 from packaging.specifiers import SpecifierSet
@@ -28,16 +28,20 @@ from .._validate import conflicting_deps
 from .._validate import cyclic_deps
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from .._models import PackageDAG
     from .._models.package import RenderMode
+
+
+##
+
 
 # Weak and strong copyleft families worth flagging for compliance review; matched case-insensitively as substrings.
 _COPYLEFT_MARKERS = ('AGPL', 'LGPL', 'GPL', 'MPL', 'EUPL', 'CDDL')
 _RESOLVED_NOTE = 'n/a (resolved from index/lock - package metadata unavailable)'
 
 
-@dataclass
+@dc.dataclass()
 class _Summary:
     total_packages: int
     direct_dependencies: int
@@ -82,7 +86,7 @@ def summary_html(tree: PackageDAG, *, mode: RenderMode = 'default') -> str:
 
 
 def _collect(tree: PackageDAG, *, resolved: bool) -> _Summary:
-    child_keys = {str(r.key) for r in chain.from_iterable(tree.values())}
+    child_keys = {str(r.key) for r in itertools.chain.from_iterable(tree.values())}
     total = len(tree)
     direct = sum(1 for p in tree if p.key not in child_keys)
     summary = _Summary(
@@ -126,7 +130,7 @@ def _max_depth(tree: PackageDAG, child_keys: set[str]) -> int:
 
 
 def _license_breakdown(tree: PackageDAG) -> dict[str, int]:
-    return dict(sorted(Counter(pkg.licenses() for pkg in tree).items()))
+    return dict(sorted(collections.Counter(pkg.licenses() for pkg in tree).items()))
 
 
 def _has_copyleft(licenses: dict[str, int]) -> bool:
@@ -206,7 +210,7 @@ def _as_rich(summary: _Summary) -> None:
 
 
 def _as_html(summary: _Summary) -> str:
-    body = ''.join(f'<tr><td>{escape(label)}</td><td>{escape(value)}</td></tr>' for label, value in _rows(summary))
+    body = ''.join(f'<tr><td>{html.escape(label)}</td><td>{html.escape(value)}</td></tr>' for label, value in _rows(summary))
     return f'<table>\n<tr><th>metric</th><th>value</th></tr>\n{body}\n</table>'
 
 

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+import typing as ta
 
 from .freeze import render_freeze
 from .graphviz import render_graphviz
@@ -10,10 +10,13 @@ from .summary import render_summary
 from .text import render_text
 
 
-if TYPE_CHECKING:
+if ta.TYPE_CHECKING:
     from .._cli import Options
     from .._models import PackageDAG
     from .._models.package import RenderMode
+
+
+##
 
 
 def render(options: Options, tree: PackageDAG) -> None:

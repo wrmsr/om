@@ -11,32 +11,27 @@ adapter the ``from-index`` path uses), so the existing DAG and every renderer wo
 ``dependencies`` array lists only child *names*; the child's version is looked up in the ``packages`` array by PEP 503
 canonical name so an edge ``Foo_Bar`` matches a package ``foo-bar``.
 """
-import sys
-from typing import TYPE_CHECKING
-from typing import Any
+import pathlib
+import tomllib
+import typing as ta
 
 from packaging.utils import canonicalize_name
 
 from ._synthetic_dist import SyntheticDistribution
 
 
-if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
-    import tomllib
-else:  # pragma: <3.11 cover
-    import tomli as tomllib
-
-if TYPE_CHECKING:
-    from importlib.metadata import Distribution
-    from pathlib import Path
-
+if ta.TYPE_CHECKING:
     from packaging.utils import NormalizedName
+
+
+##
 
 
 class FromLockError(ValueError):
     """Raised when a PEP 751 lock file is missing or cannot be parsed into a dependency tree."""
 
 
-def load_lock(path: Path) -> list[Distribution]:
+def load_lock(path: pathlib.Path) -> list[importlib.metadata.Distribution]:
     """
     Parse a PEP 751 ``pylock.toml`` into Distribution-like objects ready for the existing DAG pipeline.
 
@@ -71,8 +66,8 @@ def load_lock(path: Path) -> list[Distribution]:
     ]
 
 
-def _named(packages: list[Any], path: Path) -> list[tuple[str, dict[str, Any]]]:
-    named: list[tuple[str, dict[str, Any]]] = []
+def _named(packages: list[ta.Any], path: pathlib.Path) -> list[tuple[str, dict[str, ta.Any]]]:
+    named: list[tuple[str, dict[str, ta.Any]]] = []
     for pkg in packages:
         if not isinstance(pkg, dict) or 'name' not in pkg:
             msg = f"not a valid PEP 751 lock file: {path} (a package entry is missing 'name')"
@@ -81,7 +76,7 @@ def _named(packages: list[Any], path: Path) -> list[tuple[str, dict[str, Any]]]:
     return named
 
 
-def _children(dependencies: Any, versions: dict[NormalizedName, str]) -> tuple[str, ...]:
+def _children(dependencies: ta.Any, versions: dict[NormalizedName, str]) -> tuple[str, ...]:
     # A leaf omits the ``dependencies`` key entirely, so the default () yields no edges. Each edge carries only the
     # child name; pin it from the looked-up version when known, else emit a bare requirement.
     children: list[str] = []
