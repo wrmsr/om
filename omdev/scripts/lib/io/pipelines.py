@@ -44,7 +44,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='core.py', sha1='629ab14961ca7b35893b7e5f1e781dcafb0beacb'),
+            dict(path='core.py', sha1='3bb2aad1972ff9e42bafbc5d21a6137d4657960e'),
             dict(path='../streambufs/types.py', sha1='3edeaaa038f975595ba3eeea10f7e313d84723bb'),
             dict(path='../../logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
@@ -2082,13 +2082,13 @@ class IoPipelineServices:
         for svc in lst:
             sty = type(svc)
             if sty.pipeline_update is not IoPipelineService.pipeline_update:
-                handles_pipeline_update.append(sty)
+                handles_pipeline_update.append(svc)
             if sty.handler_update is not IoPipelineService.handler_update:
-                handles_handler_update.append(sty)
+                handles_handler_update.append(svc)
             if sty.pipeline_enter is not IoPipelineService.pipeline_enter:
-                handles_pipeline_enter.append(sty)
+                handles_pipeline_enter.append(svc)
             if sty.pipeline_exit is not IoPipelineService.pipeline_exit:
-                handles_pipeline_exit.append(sty)
+                handles_pipeline_exit.append(svc)
 
     _handles_pipeline_update: ta.Sequence[IoPipelineService]
     _handles_handler_update: ta.Sequence[IoPipelineService]

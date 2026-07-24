@@ -133,7 +133,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/headers.py', sha1='0486a9e31f4ed77163e6b388bb15fc864b1a01ef'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='629ab14961ca7b35893b7e5f1e781dcafb0beacb'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='3bb2aad1972ff9e42bafbc5d21a6137d4657960e'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='3edeaaa038f975595ba3eeea10f7e313d84723bb'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -7394,13 +7394,13 @@ class IoPipelineServices:
         for svc in lst:
             sty = type(svc)
             if sty.pipeline_update is not IoPipelineService.pipeline_update:
-                handles_pipeline_update.append(sty)
+                handles_pipeline_update.append(svc)
             if sty.handler_update is not IoPipelineService.handler_update:
-                handles_handler_update.append(sty)
+                handles_handler_update.append(svc)
             if sty.pipeline_enter is not IoPipelineService.pipeline_enter:
-                handles_pipeline_enter.append(sty)
+                handles_pipeline_enter.append(svc)
             if sty.pipeline_exit is not IoPipelineService.pipeline_exit:
-                handles_pipeline_exit.append(sty)
+                handles_pipeline_exit.append(svc)
 
     _handles_pipeline_update: ta.Sequence[IoPipelineService]
     _handles_handler_update: ta.Sequence[IoPipelineService]

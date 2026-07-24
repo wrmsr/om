@@ -737,13 +737,13 @@ class IoPipelineServices:
         for svc in lst:
             sty = type(svc)
             if sty.pipeline_update is not IoPipelineService.pipeline_update:
-                handles_pipeline_update.append(sty)
+                handles_pipeline_update.append(svc)
             if sty.handler_update is not IoPipelineService.handler_update:
-                handles_handler_update.append(sty)
+                handles_handler_update.append(svc)
             if sty.pipeline_enter is not IoPipelineService.pipeline_enter:
-                handles_pipeline_enter.append(sty)
+                handles_pipeline_enter.append(svc)
             if sty.pipeline_exit is not IoPipelineService.pipeline_exit:
-                handles_pipeline_exit.append(sty)
+                handles_pipeline_exit.append(svc)
 
     _handles_pipeline_update: ta.Sequence[IoPipelineService]
     _handles_handler_update: ta.Sequence[IoPipelineService]

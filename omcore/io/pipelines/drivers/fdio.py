@@ -222,7 +222,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                     break
 
     def _do_write_or_q(self, bls: ta.Iterable[BytesLike]) -> None:
-        queuing = False
+        queuing = bool(self._write_q)
         for bl in bls:
             if queuing:
                 self._write_q.append(bl)
