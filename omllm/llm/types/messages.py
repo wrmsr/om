@@ -16,14 +16,6 @@ from .content import ToolCallBuilder
 MessageT = ta.TypeVar('MessageT', bound='Message')
 
 
-StopReason: ta.TypeAlias = ta.Literal[
-    'stop',
-    'length',
-    'tool_use',
-    'error',
-]
-
-
 ##
 
 
@@ -64,6 +56,28 @@ class UserMessageBuilder(MessageBuilder[UserMessage]):
 ##
 
 
+type StopReason = ta.Literal[
+    'stop',
+    'length',
+    'tool_use',
+    'error',
+]
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class TokenUsage:
+    input: int | None = None
+    output: int | None = None
+
+    cache_read: int | None = None
+    cache_write: int | None = None
+
+    total: int | None = None
+
+
+#
+
+
 @ta.final
 @dc.dataclass(frozen=True)
 @dc.extra_class_params(cache_hash=True, terse_repr=True, default_repr_fn=lang.opt_repr)
@@ -75,6 +89,8 @@ class AiMessage(Message):
     ]]
 
     stop_reason: StopReason | None = None
+
+    token_usage: TokenUsage | None = None
 
 
 @ta.final
@@ -88,11 +104,13 @@ class AiMessageBuilder(MessageBuilder[AiMessage]):
             ToolCallBuilder,
         ]] = []
         self.stop_reason: StopReason | None = None
+        self.token_usage: TokenUsage | None = None
 
     def build(self) -> AiMessage:
         return AiMessage(
             content=[cb.build() for cb in self.content],
             stop_reason=self.stop_reason,
+            token_usage=self.token_usage,
         )
 
 

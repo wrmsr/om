@@ -601,30 +601,35 @@ def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('content', 'stop_reason')), EqPlan(fields=('content', 'stop_reason')), FrozenPlan("
-        "fields=('content', 'stop_reason'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('content'"
-        ", 'stop_reason'), cache=True), InitPlan(fields=(InitPlan.Field(name='content', annotation=OpRef(name='init.fie"
-        "lds.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTAN"
-        "CE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='stop_reason', annotation=OpRef(name='in"
-        "it.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, overri"
-        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std"
-        "_params=('content', 'stop_reason'), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_f"
-        "ns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='content', kw_only=False, fn=None), ReprPlan.Fie"
-        "ld(name='stop_reason', kw_only=False, fn=None)), id=False, terse=True, default_fn=OpRef(name='repr.default_fn'"
-        "))))"
+        "Plans(tup=(CopyPlan(fields=('content', 'stop_reason', 'token_usage')), EqPlan(fields=('content', 'stop_reason'"
+        ", 'token_usage')), FrozenPlan(fields=('content', 'stop_reason', 'token_usage'), allow_dynamic_dunder_attrs=Fal"
+        "se), HashPlan(action='add', fields=('content', 'stop_reason', 'token_usage'), cache=True), InitPlan(fields=(In"
+        "itPlan.Field(name='content', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory="
+        "None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), "
+        "InitPlan.Field(name='stop_reason', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init"
+        ".fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
+        "ne, validate=None, check_type=None), InitPlan.Field(name='token_usage', annotation=OpRef(name='init.fields.2.a"
+        "nnotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, fie"
+        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('con"
+        "tent', 'stop_reason', 'token_usage'), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init"
+        "_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='content', kw_only=False, fn=None), ReprPlan.F"
+        "ield(name='stop_reason', kw_only=False, fn=None), ReprPlan.Field(name='token_usage', kw_only=False, fn=None)),"
+        " id=False, terse=True, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='c486c7d911631dbca9a4d1b51a01a7bb52fa47dc',
+    plan_repr_sha1='061935bc1a01224c96eb8768cf808ad905d79747',
     cls_names=(
         ('omllm.llm.types.messages', 'AiMessage'),
     ),
 )
-def _process_dataclass__c486c7d911631dbca9a4d1b51a01a7bb52fa47dc():
+def _process_dataclass__061935bc1a01224c96eb8768cf808ad905d79747():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
         __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
@@ -638,6 +643,7 @@ def _process_dataclass__c486c7d911631dbca9a4d1b51a01a7bb52fa47dc():
             return __class__(  # noqa
                 content=self.content,
                 stop_reason=self.stop_reason,
+                token_usage=self.token_usage,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -649,7 +655,8 @@ def _process_dataclass__c486c7d911631dbca9a4d1b51a01a7bb52fa47dc():
                 return NotImplemented
             return (
                 self.content == other.content and
-                self.stop_reason == other.stop_reason
+                self.stop_reason == other.stop_reason and
+                self.token_usage == other.token_usage
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -657,6 +664,7 @@ def _process_dataclass__c486c7d911631dbca9a4d1b51a01a7bb52fa47dc():
         __dataclass___frozen_fields = {
             'content',
             'stop_reason',
+            'token_usage',
         }
 
         def __setattr__(self, name, value):
@@ -690,6 +698,7 @@ def _process_dataclass__c486c7d911631dbca9a4d1b51a01a7bb52fa47dc():
                 h := hash((
                     self.content,
                     self.stop_reason,
+                    self.token_usage,
                 ))
             )
             return h
@@ -700,9 +709,11 @@ def _process_dataclass__c486c7d911631dbca9a4d1b51a01a7bb52fa47dc():
             self,
             content: __dataclass__init__fields__0__annotation,
             stop_reason: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            token_usage: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'content', content)
             __dataclass__object_setattr(self, 'stop_reason', stop_reason)
+            __dataclass__object_setattr(self, 'token_usage', token_usage)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -713,6 +724,159 @@ def _process_dataclass__c486c7d911631dbca9a4d1b51a01a7bb52fa47dc():
                 parts.append(f"{s}")
             if (s := __dataclass__repr__default_fn(self.stop_reason)) is not None:
                 parts.append(f"{s}")
+            if (s := __dataclass__repr__default_fn(self.token_usage)) is not None:
+                parts.append(f"{s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('input', 'output', 'cache_read', 'cache_write', 'total')), EqPlan(fields=('input',"
+        " 'output', 'cache_read', 'cache_write', 'total')), FrozenPlan(fields=('input', 'output', 'cache_read', 'cache_"
+        "write', 'total'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('input', 'output', 'cache_"
+        "read', 'cache_write', 'total'), cache=False), InitPlan(fields=(InitPlan.Field(name='input', annotation=OpRef(n"
+        "ame='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True,"
+        " override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(n"
+        "ame='output', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), "
+        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
+        "eck_type=None), InitPlan.Field(name='cache_read', annotation=OpRef(name='init.fields.2.annotation'), default=O"
+        "pRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
+        "ANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cache_write', annotation=OpRef(name='"
+        "init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, over"
+        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='"
+        "total', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), defaul"
+        "t_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_ty"
+        "pe=None)), self_param='self', std_params=(), kw_only_params=('input', 'output', 'cache_read', 'cache_write', '"
+        "total'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Repr"
+        "Plan.Field(name='input', kw_only=True, fn=None), ReprPlan.Field(name='output', kw_only=True, fn=None), ReprPla"
+        "n.Field(name='cache_read', kw_only=True, fn=None), ReprPlan.Field(name='cache_write', kw_only=True, fn=None), "
+        "ReprPlan.Field(name='total', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='336ec60177fba82896e4c1968dbdce0c2ae6be59',
+    cls_names=(
+        ('omllm.llm.types.messages', 'TokenUsage'),
+    ),
+)
+def _process_dataclass__336ec60177fba82896e4c1968dbdce0c2ae6be59():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                input=self.input,
+                output=self.output,
+                cache_read=self.cache_read,
+                cache_write=self.cache_write,
+                total=self.total,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.input == other.input and
+                self.output == other.output and
+                self.cache_read == other.cache_read and
+                self.cache_write == other.cache_write and
+                self.total == other.total
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'input',
+            'output',
+            'cache_read',
+            'cache_write',
+            'total',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.input,
+                self.output,
+                self.cache_read,
+                self.cache_write,
+                self.total,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            input: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            output: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            cache_read: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            cache_write: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            total: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'input', input)
+            __dataclass__object_setattr(self, 'output', output)
+            __dataclass__object_setattr(self, 'cache_read', cache_read)
+            __dataclass__object_setattr(self, 'cache_write', cache_write)
+            __dataclass__object_setattr(self, 'total', total)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"input={self.input!r}")
+            parts.append(f"output={self.output!r}")
+            parts.append(f"cache_read={self.cache_read!r}")
+            parts.append(f"cache_write={self.cache_write!r}")
+            parts.append(f"total={self.total!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
