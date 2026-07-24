@@ -3,16 +3,22 @@
 import collections
 import dataclasses as dc
 import enum
+import math
 import ssl
 import typing as ta
 
+from ....lite.check import check
 from ...streambufs.utils import ByteStreamBuffers
 from ..bytes.buffering import InboundBytesBufferingIoPipelineHandler
 from ..bytes.buffering import OutboundBytesBufferingIoPipelineHandler
 from ..core import IoPipelineHandlerContext
+from ..core import IoPipelineHandlerNotification
+from ..core import IoPipelineHandlerNotifications
 from ..core import IoPipelineMessages
+from ..errors import TimeoutIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
+from ..sched.types import IoPipelineScheduling
 
 
 ##
@@ -76,9 +82,10 @@ class SslIoPipelineHandler(
      - `suppress_ragged_eofs=False` turns an abrupt transport EOF (no close_notify - i.e. possible truncation) into a
        raised SSLError instead of a normal EOF.
 
+    Optional handshake and shutdown timeouts are absolute deadlines for their respective TLS states. Unlike a generic
+    read-idle handler, receiving records that fail to complete the operation does not reset them.
+
     TODO:
-     - shutdown timeout: a peer that never answers our close_notify parks us in SHUTTING_DOWN until
-       transport EOF; bounding that wait needs a timer facility.
      - context.set_alpn_protocols(['http/1.1'])
      - context.post_handshake_auth = True ?
     """
@@ -103,6 +110,16 @@ class SslIoPipelineHandler(
         # announced inbound as ReadyForOutput / PauseOutput.
         write_high_watermark: int = 64 * 1024
         write_low_watermark: int = 16 * 1024
+
+        handshake_timeout_s: ta.Optional[float] = None
+        shutdown_timeout_s: ta.Optional[float] = None
+
+        def __post_init__(self) -> None:
+            """Validate optional TLS state deadlines."""
+
+            for timeout_s in (self.handshake_timeout_s, self.shutdown_timeout_s):
+                if timeout_s is not None and (not math.isfinite(timeout_s) or timeout_s <= 0.):
+                    raise ValueError(timeout_s)
 
     Config.DEFAULT = Config()
 
@@ -181,6 +198,9 @@ class SslIoPipelineHandler(
     _in_turn = False
     _dirty = False
 
+    _handshake_timeout_handle: ta.Optional[IoPipelineScheduling.Handle] = None
+    _shutdown_timeout_handle: ta.Optional[IoPipelineScheduling.Handle] = None
+
     def _ensure_state(self) -> State:
         try:
             return self._state
@@ -230,6 +250,96 @@ class SslIoPipelineHandler(
         if (flow := ctx.services.find(IoPipelineFlow)) is None:
             return True
         return flow.is_auto_read()
+
+    ##
+    # Lifecycle and state deadlines.
+
+    @staticmethod
+    def _cancel_timeout(handle: ta.Optional[IoPipelineScheduling.Handle]) -> None:
+        if handle is not None:
+            handle.cancel()
+
+    def _cancel_timeouts(self) -> None:
+        self._cancel_timeout(self._handshake_timeout_handle)
+        self._handshake_timeout_handle = None
+
+        self._cancel_timeout(self._shutdown_timeout_handle)
+        self._shutdown_timeout_handle = None
+
+    def notify(self, ctx: IoPipelineHandlerContext, no: IoPipelineHandlerNotification) -> None:
+        if isinstance(no, IoPipelineHandlerNotifications.Added):
+            if (
+                    self._config.handshake_timeout_s is not None or
+                    self._config.shutdown_timeout_s is not None
+            ):
+                check.not_none(ctx.services.find(IoPipelineScheduling))
+
+        elif isinstance(no, IoPipelineHandlerNotifications.Removed):
+            self._cancel_timeouts()
+
+    def _sync_state_timeouts(self, ctx: IoPipelineHandlerContext) -> None:
+        if self._state == self.State.HANDSHAKE and self._config.handshake_timeout_s is not None:
+            if self._handshake_timeout_handle is None:
+                self._handshake_timeout_handle = ctx.services[IoPipelineScheduling].schedule(
+                    ctx.ref,
+                    self._config.handshake_timeout_s,
+                    lambda: self._on_state_timeout(ctx, self.State.HANDSHAKE),
+                )
+        else:
+            self._cancel_timeout(self._handshake_timeout_handle)
+            self._handshake_timeout_handle = None
+
+        if self._state == self.State.SHUTTING_DOWN and self._config.shutdown_timeout_s is not None:
+            if self._shutdown_timeout_handle is None:
+                self._shutdown_timeout_handle = ctx.services[IoPipelineScheduling].schedule(
+                    ctx.ref,
+                    self._config.shutdown_timeout_s,
+                    lambda: self._on_state_timeout(ctx, self.State.SHUTTING_DOWN),
+                )
+        else:
+            self._cancel_timeout(self._shutdown_timeout_handle)
+            self._shutdown_timeout_handle = None
+
+    def _on_state_timeout(self, ctx: IoPipelineHandlerContext, state: State) -> None:
+        if state == self.State.HANDSHAKE:
+            self._handshake_timeout_handle = None
+            operation = 'handshake'
+            timeout_s = check.not_none(self._config.handshake_timeout_s)
+
+        elif state == self.State.SHUTTING_DOWN:
+            self._shutdown_timeout_handle = None
+            operation = 'shutdown'
+            timeout_s = check.not_none(self._config.shutdown_timeout_s)
+
+        else:  # pragma: no cover
+            raise ValueError(state)
+
+        if self._state != state:
+            return
+
+        self._state = self.State.CLOSED
+        self._write_q.clear()
+        self._write_q_bytes = 0
+        self._sync_state_timeouts(ctx)
+
+        try:
+            ctx.feed_in(IoPipelineMessages.Error(
+                TimeoutIoPipelineError(f'TLS {operation} timed out after {timeout_s:g} seconds'),
+                handler=ctx.ref,
+            ))
+
+        finally:
+            # An inbound error handler may synchronously close the pipeline. Prefer that FinalOutput when it did;
+            # otherwise release the one already owned by shutdown, or synthesize a close for a failed handshake.
+            if not self._final_output_sent:
+                if self._pending_final_output is not None:
+                    fo = self._pending_final_output
+                    self._pending_final_output = None
+                else:
+                    fo = IoPipelineMessages.FinalOutput()
+                self._close_requested = True
+                self._final_output_sent = True
+                ctx.feed_out(fo)
 
     ##
     # Phase 1: APPLY - entry points classify, mutate, and call _turn(). Nothing else.
@@ -371,7 +481,9 @@ class SslIoPipelineHandler(
                     self._state = self.State.CLOSED
                     self._write_q.clear()
                     self._write_q_bytes = 0
+                    self._sync_state_timeouts(ctx)
                     raise
+                self._sync_state_timeouts(ctx)
                 self._emit(ctx, in_chunks, out_chunks, auto_read)
                 if not self._dirty:
                     break
