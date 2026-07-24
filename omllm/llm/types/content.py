@@ -95,6 +95,7 @@ class ToolCallBuilder(ContentBuilder[ToolCall]):
         self.name: str | None = None
         self.args: ta.Mapping[str, ta.Any] | None = None
         self.partial_args: io.StringIO = io.StringIO()
+        self.backend_signature: str | None = None
 
     def parse_args(self) -> None:
         try:
@@ -107,4 +108,5 @@ class ToolCallBuilder(ContentBuilder[ToolCall]):
             id=check.non_empty_str(self.id),
             name=check.non_empty_str(self.name),
             args=check.not_none(self.args),
+            backend_signature=self.backend_signature,
         )

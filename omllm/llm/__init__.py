@@ -22,6 +22,18 @@ with _lang.auto_proxy_init(globals()):
         AnthropicMessagesImmediateBackend,
     )
 
+    from .backends.anthropic.messages.stream import (  # noqa
+        AnthropicMessagesStreamBackend,
+    )
+
+    from .backends.google.generative.immediate import (  # noqa
+        GoogleGenerativeImmediateBackend,
+    )
+
+    from .backends.google.generative.stream import (  # noqa
+        GoogleGenerativeStreamBackend,
+    )
+
     from .backends.openai.completions.immediate import (  # noqa
         OpenaiCompletionsImmediateBackend,
     )

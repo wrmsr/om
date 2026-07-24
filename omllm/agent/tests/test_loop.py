@@ -17,14 +17,29 @@ from ..tools import ToolResult
 ##
 
 
-class ModelKeyAndSecret(ta.NamedTuple):
+class ModelForTest(ta.NamedTuple):
     model_key: llm.ModelKey
     api_key_name: str
+    stream_backend_cls: ta.Callable[..., llm.StreamBackend]
 
 
-OPENAI = ModelKeyAndSecret(llm.ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key')
-ANTHROPIC = ModelKeyAndSecret(llm.ModelKey('anthropic', 'claude-sonnet-5'), 'anthropic_api_key')
-GOOGLE = ModelKeyAndSecret(llm.ModelKey('google', 'gemini-3-flash-preview'), 'gemini_api_key')
+OPENAI = ModelForTest(
+    llm.ModelKey('openai', 'gpt-5.4-mini'),
+    'openai_api_key',
+    llm.OpenaiCompletionsStreamBackend,
+)
+
+ANTHROPIC = ModelForTest(
+    llm.ModelKey('anthropic', 'claude-sonnet-5'),
+    'anthropic_api_key',
+    llm.AnthropicMessagesStreamBackend,
+)
+
+GOOGLE = ModelForTest(
+    llm.ModelKey('google', 'gemini-3-flash-preview'),
+    'gemini_api_key',
+    llm.GoogleGenerativeStreamBackend,
+)
 
 
 ##
@@ -32,9 +47,9 @@ GOOGLE = ModelKeyAndSecret(llm.ModelKey('google', 'gemini-3-flash-preview'), 'ge
 
 async def _test_loop(
         harness: Harness,
-        model: ModelKeyAndSecret,
+        model: ModelForTest,
 ) -> None:
-    svc = llm.OpenaiCompletionsStreamBackend(
+    svc = model.stream_backend_cls(
         llm.default_model_catalog()[model.model_key],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
     )
@@ -100,8 +115,8 @@ WEATHER_TOOL = Tool(
 )
 
 
-async def _test_loop_with_tool(harness: Harness, model: ModelKeyAndSecret) -> None:
-    svc = llm.OpenaiCompletionsStreamBackend(
+async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
+    svc = model.stream_backend_cls(
         llm.default_model_catalog()[model.model_key],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
     )

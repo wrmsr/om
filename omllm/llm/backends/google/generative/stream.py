@@ -1,4 +1,5 @@
 import typing as ta
+import uuid
 
 from omcore import check
 from omcore import resources as rs
@@ -14,7 +15,6 @@ from ....types.streams import TextDeltaAiStreamEvent
 from ....types.streams import ToolCallDeltaAiStreamEvent
 from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
-from .ids import join_tool_call_id
 from .requests import RequestPreparer
 
 
@@ -73,14 +73,16 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
                 raw_fc = check.isinstance(raw_part['functionCall'], ta.Mapping)
 
                 # Function calls arrive whole - args are a complete mapping, never streamed as partial json - so each
-                # such part is a fully-formed new tool call, indexed only by arrival order.
+                # such part is a fully-formed new tool call, indexed only by arrival order. Google does not reliably
+                # issue ids for them, so they are fabricated as needed.
                 tool_call = self._tool_call(
-                    id=join_tool_call_id(raw_fc.get('id'), raw_part.get('thoughtSignature')),
+                    id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid4())),
                     index=self._next_tool_call_index_,
                 )
                 self._next_tool_call_index_ += 1
 
                 tool_call.name = check.non_empty_str(raw_fc['name'])
+                tool_call.backend_signature = check.isinstance(raw_part.get('thoughtSignature'), (str, None))
 
                 args_delta = json.dumps(check.isinstance(raw_fc.get('args') or {}, ta.Mapping))
                 tool_call.partial_args.write(args_delta)

@@ -1,4 +1,5 @@
 import typing as ta
+import uuid
 
 from omcore import check
 from omcore.formats.json import all as json
@@ -12,7 +13,6 @@ from ....types.context import Context
 from ....types.messages import AiMessage
 from ....types.options import Options
 from ...base.http import BaseHttpBackend
-from .ids import join_tool_call_id
 from .requests import RequestPreparer
 
 
@@ -77,9 +77,11 @@ class GoogleGenerativeImmediateBackend(BaseHttpBackend, ImmediateBackend):
                     raw_fc = check.isinstance(raw_part['functionCall'], ta.Mapping)
 
                     content.append(ToolCall(
-                        id=join_tool_call_id(raw_fc.get('id'), raw_part.get('thoughtSignature')),
+                        # Google does not reliably issue tool call ids - fabricate as needed.
+                        id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid4())),
                         name=check.non_empty_str(raw_fc['name']),
                         args=check.isinstance(raw_fc.get('args') or {}, ta.Mapping),
+                        backend_signature=check.isinstance(raw_part.get('thoughtSignature'), (str, None)),
                     ))
 
                 else:

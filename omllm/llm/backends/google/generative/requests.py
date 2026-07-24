@@ -10,7 +10,6 @@ from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
 from ....types.options import Options
-from .ids import split_tool_call_id
 
 
 ##
@@ -87,15 +86,14 @@ class RequestPreparer:
                     elif isinstance(c, ToolCall):
                         # Tool call ids are not sent - google does not reliably issue them, so they may be locally
                         # fabricated, and those must not be echoed back. Function responses are matched by name. Thought
-                        # signatures however must be echoed back, and are recovered from the smuggling ids.
-                        _, thought_signature = split_tool_call_id(c.id)
-
+                        # signatures however must be echoed back with their function calls - gemini rejects
+                        # tool-calling requests whose replayed function calls lack them.
                         raw_parts.append({
                             'functionCall': {
                                 'name': c.name,
                                 'args': c.args,
                             },
-                            **({'thoughtSignature': thought_signature} if thought_signature else {}),
+                            **({'thoughtSignature': c.backend_signature} if c.backend_signature else {}),
                         })
 
                     else:

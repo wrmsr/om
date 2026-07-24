@@ -86,10 +86,12 @@ class AiMessageBuilder(MessageBuilder[AiMessage]):
             ThinkingContentBuilder,
             ToolCallBuilder,
         ]] = []
+        self.stop_reason: StopReason | None = None
 
     def build(self) -> AiMessage:
         return AiMessage(
             content=[cb.build() for cb in self.content],
+            stop_reason=self.stop_reason,
         )
 
 
