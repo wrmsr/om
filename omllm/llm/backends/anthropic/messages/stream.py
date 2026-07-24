@@ -60,6 +60,11 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             if (raw_input := raw_block.get('input')) is not None:
                 tool_call.args = check.isinstance(raw_input, ta.Mapping)
 
+        elif raw_block_type in ('thinking', 'redacted_thinking'):
+            # Thinking blocks may appear unrequested. They cannot be represented (or correctly replayed, lacking their
+            # signatures), so they are dropped.
+            pass
+
         else:
             raise ValueError(raw_block_type)
 
@@ -90,6 +95,10 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
                 args_delta,
                 content_index=self._content_index(tool_call),
             ))
+
+        elif raw_delta_type in ('thinking_delta', 'signature_delta'):
+            # Deltas for dropped thinking blocks.
+            pass
 
         else:
             raise ValueError(raw_delta_type)

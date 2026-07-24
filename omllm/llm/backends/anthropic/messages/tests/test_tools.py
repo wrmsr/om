@@ -24,7 +24,7 @@ from ..stream import AnthropicMessagesStreamBackend
     AnthropicMessagesImmediateBackend,
     AnthropicMessagesStreamBackend,
 ])
-async def test_openai_tools(
+async def test_anthropic_tools(
         harness,
         svc_cls,
 ):
@@ -57,7 +57,8 @@ async def test_openai_tools(
 
     out = await svc.immediate(ctx)
 
-    tc = check.isinstance(check.single(out.content), ToolCall)
+    # The model may or may not emit preamble text alongside the tool call.
+    tc = check.single([c for c in out.content if isinstance(c, ToolCall)])
     assert tc.name == 'get_weather'
     assert tc.args == {'location': 'Edinburgh, Scotland'}
 

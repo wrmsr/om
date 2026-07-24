@@ -87,7 +87,7 @@ class BaseBackendSseEventProcessor:
             id: str | None = None,  # noqa
             index: int | None = None,
     ) -> ToolCallBuilder:
-        if id is not None and index is None:
+        if id is None and index is None:
             raise ValueError('id or index must be specified')
 
         if id is not None:

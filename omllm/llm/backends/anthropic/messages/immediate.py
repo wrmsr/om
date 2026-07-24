@@ -1,9 +1,13 @@
+import typing as ta
+
 from omcore import check
 from omcore.formats.json import all as json
 from omcore.http import all as http
 
 from ....types.backends import ImmediateBackend
+from ....types.content import Content
 from ....types.content import TextContent
+from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
 from ....types.options import Options
@@ -52,15 +56,27 @@ class AnthropicMessagesImmediateBackend(BaseHttpBackend, ImmediateBackend):
         check.equal(raw_response['type'], 'message')
         check.equal(raw_response['role'], 'assistant')
 
-        response_content: list[TextContent] = []
+        response_content: list[Content] = []
 
         for raw_c in raw_response['content']:
             if raw_c['type'] == 'text':
                 response_content.append(TextContent(raw_c['text']))
 
+            elif raw_c['type'] == 'tool_use':
+                response_content.append(ToolCall(
+                    id=check.non_empty_str(raw_c['id']),
+                    name=check.non_empty_str(raw_c['name']),
+                    args=check.isinstance(raw_c.get('input') or {}, ta.Mapping),
+                ))
+
+            elif raw_c['type'] in ('thinking', 'redacted_thinking'):
+                # Thinking blocks may appear unrequested. They cannot be represented (or correctly replayed, lacking
+                # their signatures), so they are dropped.
+                pass
+
             else:
                 raise ValueError(raw_c['type'])
 
         return AiMessage(
-            response_content,
+            ta.cast(ta.Any, response_content),
         )

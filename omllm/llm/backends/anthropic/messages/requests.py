@@ -5,8 +5,10 @@ from omcore import lang
 
 from ....types.compat import OpenaiCompat
 from ....types.content import TextContent
+from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
+from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
 from ....types.options import Options
@@ -75,24 +77,75 @@ class RequestPreparer:
                     raise TypeError(msg)
 
             elif isinstance(msg, AiMessage):
-                text_parts: list[str] = []
+                raw_content: list[dict] = []
 
                 for c in msg.content:
                     if isinstance(c, TextContent):
-                        text_parts.append(c.text)
+                        # Empty text blocks are rejected.
+                        if c.text:
+                            raw_content.append({
+                                'type': 'text',
+                                'text': c.text,
+                            })
+
+                    elif isinstance(c, ToolCall):
+                        raw_content.append({
+                            'type': 'tool_use',
+                            'id': c.id,
+                            'name': c.name,
+                            'input': c.args,
+                        })
 
                     else:
                         raise TypeError(c)
 
                 raw_messages.append({
                     'role': 'assistant',
-                    'content': ''.join(text_parts),
+                    'content': raw_content,
+                })
+
+            elif isinstance(msg, ToolResultMessage):
+                raw_messages.append({
+                    'role': 'user',
+                    'content': [{
+                        'type': 'tool_result',
+                        'tool_use_id': msg.tool_call_id,
+                        'content': '\n'.join([c.text for c in msg.content]),
+                    }],
                 })
 
             else:
                 raise TypeError(msg)
 
         raw_request['messages'] = raw_messages
+
+        #
+
+        if self._context.tools:
+            raw_tools: list[dict] = []
+
+            for tool in self._context.tools:
+                raw_properties: dict = {}
+                raw_required: list[str] = []
+                for param in tool.params or []:
+                    raw_properties[param.name] = {
+                        **({'type': param.type} if param.type else {}),
+                        **({'description': param.description} if param.description else {}),
+                    }
+                    if not param.optional:
+                        raw_required.append(param.name)
+
+                raw_tools.append({
+                    'name': tool.name,
+                    **({'description': tool.description} if tool.description else {}),
+                    'input_schema': {
+                        'type': 'object',
+                        **({'properties': raw_properties} if raw_properties else {}),
+                        **({'required': raw_required} if raw_required else {}),
+                    },
+                })
+
+            raw_request['tools'] = raw_tools
 
         #
 
