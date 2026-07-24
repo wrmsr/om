@@ -47,7 +47,7 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
             ),
             asyncio.StreamReader(),
         )
-        self.assertIsNone(await drv.next(read=False, raise_on_stall=False))
+        self.assertIsNone(await drv.next(read=False))
         return drv
 
     def find_handler_ref(
@@ -88,7 +88,7 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
             await drv._sched._flush_pending()
             await asyncio.gather(*tuple(drv._sched._tasks))
 
-            self.assertIsNone(await drv.next(read=False, raise_on_stall=False))
+            self.assertIsNone(await drv.next(read=False))
             self.assertEqual(events, ['live'])
         finally:
             await drv.close()
@@ -115,7 +115,7 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
             await drv._sched._flush_pending()
             await asyncio.gather(*tuple(drv._sched._tasks))
 
-            self.assertIsNone(await drv.next(read=False, raise_on_stall=False))
+            self.assertIsNone(await drv.next(read=False))
             self.assertEqual(events, [])
             self.assertTrue(removed_ref.invalidated)
             with self.assertRaises(RuntimeError):
@@ -138,3 +138,17 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
         self.assertEqual(drv._sched._live, set())
         self.assertTrue(all(t.done() for t in tasks))
         self.assertEqual(events, [])
+
+    async def test_due_timer_runs_with_read_false(self):
+        drv = await self.make_driver(TimerOutputIoPipelineHandler(0., 'timer'))
+        try:
+            self.assertEqual(await drv.next(read=False), 'timer')
+        finally:
+            await drv.close()
+
+    async def test_future_timer_does_not_block_read_false(self):
+        drv = await self.make_driver(TimerOutputIoPipelineHandler(60., 'timer'))
+        try:
+            self.assertIsNone(await drv.next(read=False))
+        finally:
+            await drv.close()

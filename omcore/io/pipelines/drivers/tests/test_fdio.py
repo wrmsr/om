@@ -1,9 +1,11 @@
 # ruff: noqa: SLF001
 # @om-lite
+import socket
 import typing as ta
 import unittest
 
 from ...core import IoPipeline
+from ...flow.stub import StubIoPipelineFlowService
 from ..fdio import IoPipelineDriverSocketFdioHandler
 
 
@@ -27,6 +29,23 @@ class ScriptedSendSocket:
 
 
 class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
+    def test_read_false_does_not_raise_on_stall(self):
+        sock, peer = socket.socketpair()
+        with peer:
+            drv = IoPipelineDriverSocketFdioHandler(
+                sock,
+                ('127.0.0.1', 0),
+                IoPipeline.Spec(
+                    services=[
+                        StubIoPipelineFlowService(auto_read=False),
+                    ],
+                ),
+            )
+            try:
+                self.assertIsNone(drv.next(read=False))
+            finally:
+                drv.close()
+
     def test_queues_new_output_behind_existing_backlog(self):
         sock: ta.Any = ScriptedSendSocket(
             2,

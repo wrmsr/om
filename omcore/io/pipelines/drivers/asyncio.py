@@ -344,6 +344,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
             self._pipeline: ta.Optional[IoPipeline] = None
 
+            self._seq = 0
             self._pending: ta.List[PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle] = []
             self._live: ta.Set[PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle] = set()
             self._tasks: ta.Set[asyncio.Task] = set()
@@ -371,15 +372,18 @@ class PollAsyncioStreamIoPipelineDriver:
                     self,
                     sched: 'PollAsyncioStreamIoPipelineDriver._SchedulingService',
                     handler_ref: IoPipelineHandlerRef,
-                    delay_s: float,
+                    deadline: float,
+                    seq: int,
                     fn: ta.Callable[[], None],
             ) -> None:
                 self._sched = sched
                 self._handler_ref = handler_ref
-                self._delay_s = delay_s
+                self._deadline = deadline
+                self._seq = seq
                 self._fn = fn
 
                 self._task: ta.Optional[asyncio.Task] = None
+                self._queued = False
                 self._cancelled = False
                 self._done = False
 
@@ -404,12 +408,15 @@ class PollAsyncioStreamIoPipelineDriver:
             check.state(pipeline.is_ready)
             check.state(not handler_ref.invalidated)
 
+            loop = asyncio.get_running_loop()
             h = self._Handle(
                 self,
                 handler_ref,
-                max(0., delay_s),
+                loop.time() + max(0., delay_s),
+                self._seq,
                 fn,
             )
+            self._seq += 1
             self._pending.append(h)
             self._live.add(h)
             return h
@@ -422,9 +429,28 @@ class PollAsyncioStreamIoPipelineDriver:
             self._pending = [h for h in self._pending if not h._cancelled]  # noqa
 
         async def _task_body(self, h: _Handle) -> None:
-            await asyncio.sleep(h._delay_s)  # noqa
+            delay = max(0., h._deadline - asyncio.get_running_loop().time())  # noqa
+            await asyncio.sleep(delay)
 
             if not h._cancelled:  # noqa
+                h._queued = True  # noqa
+                self._d._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ScheduledCommand(h))  # noqa
+
+        def _enqueue_due(self, now: float) -> None:
+            due = sorted(
+                (
+                    h._deadline,  # noqa
+                    h._seq,  # noqa
+                    h,
+                )
+                for h in self._live
+                if not h._queued and h._deadline <= now  # noqa
+            )
+
+            for _, _, h in due:
+                if h._task is not None:  # noqa
+                    h._task.cancel()  # noqa
+                h._queued = True  # noqa
                 self._d._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ScheduledCommand(h))  # noqa
 
         async def _flush_pending(self) -> None:
@@ -434,7 +460,7 @@ class PollAsyncioStreamIoPipelineDriver:
             self._pending = []
 
             for h in lst:
-                if h._cancelled:  # noqa
+                if h._cancelled or h._queued:  # noqa
                     continue
 
                 task = asyncio.create_task(self._task_body(h))
@@ -647,8 +673,17 @@ class PollAsyncioStreamIoPipelineDriver:
             read: bool = True,
             raise_on_stall: bool = True,
     ) -> ta.Optional[ta.Any]:
+        """
+        Advance until an unhandled output or no work remains.
+
+        When read is false, process only immediately available work without waiting for transport input or future
+        timers. In this mode, raise_on_stall is ignored.
+        """
+
         pipeline = await self._ensure_init()
         check.state(pipeline.is_ready)
+
+        self._sched._enqueue_due(asyncio.get_running_loop().time())  # noqa
 
         while True:
             if (out_msg := pipeline.output.poll()) is not None:

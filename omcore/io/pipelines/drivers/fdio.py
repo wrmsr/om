@@ -313,6 +313,13 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             read: bool = True,
             raise_on_stall: bool = True,
     ) -> ta.Optional[ta.Any]:
+        """
+        Advance until an unhandled output or no work remains.
+
+        When read is false, process only immediately available work without reading from the transport. In this mode,
+        raise_on_stall is ignored.
+        """
+
         pipeline = self._ensure_pipeline()  # noqa
         check.state(pipeline.is_ready)
 
@@ -346,6 +353,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 return None
 
             elif out is None:
+                if not read:
+                    return None
+
                 if raise_on_stall:
                     raise RuntimeError('Pipeline stalled')
 

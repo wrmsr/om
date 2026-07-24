@@ -413,6 +413,13 @@ class SyncSocketIoPipelineDriver:
             read: bool = True,
             raise_on_stall: bool = True,
     ) -> ta.Optional[ta.Any]:
+        """
+        Advance until an unhandled output or no work remains.
+
+        When read is false, process only immediately available work without waiting for transport input or future
+        timers. In this mode, raise_on_stall is ignored.
+        """
+
         pipeline = self._ensure_pipeline()  # noqa
         check.state(pipeline.is_ready)
 
@@ -451,7 +458,10 @@ class SyncSocketIoPipelineDriver:
                 if ran_timer:
                     return None
 
-                if read and self._sched.next_delay() is not None:
+                if not read:
+                    return None
+
+                if self._sched.next_delay() is not None:
                     check.equal(self._wait_for_read_or_timer(want_read=False), 'timer')
                     ran_timer = True
 

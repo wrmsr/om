@@ -221,7 +221,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='26ad861596fd85d8bc68b3d9612217fb9a098b7e'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='f124f6aa01a4804f74a7c4515a2f3ac6269086af'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='b121a9b5534de208b4f86b2644c2fab8236162e0'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -31525,6 +31525,13 @@ class SyncSocketIoPipelineDriver:
             read: bool = True,
             raise_on_stall: bool = True,
     ) -> ta.Optional[ta.Any]:
+        """
+        Advance until an unhandled output or no work remains.
+
+        When read is false, process only immediately available work without waiting for transport input or future
+        timers. In this mode, raise_on_stall is ignored.
+        """
+
         pipeline = self._ensure_pipeline()  # noqa
         check.state(pipeline.is_ready)
 
@@ -31563,7 +31570,10 @@ class SyncSocketIoPipelineDriver:
                 if ran_timer:
                     return None
 
-                if read and self._sched.next_delay() is not None:
+                if not read:
+                    return None
+
+                if self._sched.next_delay() is not None:
                     check.equal(self._wait_for_read_or_timer(want_read=False), 'timer')
                     ran_timer = True
 

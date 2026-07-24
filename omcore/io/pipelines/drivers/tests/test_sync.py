@@ -62,7 +62,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
             ),
             object(),
         )
-        self.assertIsNone(drv.next(read=False, raise_on_stall=False))
+        self.assertIsNone(drv.next(read=False))
         return drv
 
     def find_handler_ref(
@@ -172,6 +172,24 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
         )
         try:
             self.assertEqual(drv.next(), 'timer')
+        finally:
+            drv.close()
+
+    def test_due_timer_runs_with_read_false(self):
+        drv = SyncSocketIoPipelineDriver(
+            IoPipeline.Spec(
+                [
+                    TimerOutputIoPipelineHandler(0., 'timer'),
+                ],
+                services=[
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+            object(),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            self.assertEqual(drv.next(read=False), 'timer')
         finally:
             drv.close()
 
