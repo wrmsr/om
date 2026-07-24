@@ -16,6 +16,7 @@ from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
+from .responses import translate_token_usage
 
 
 ##
@@ -44,7 +45,13 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
         if 'error' in raw_chunk and raw_chunk.get('error'):
             raise RuntimeError(_stringify_error(raw_chunk['error']))
 
-        raw_choice = check.single(raw_chunk['choices'])
+        if (raw_usage := raw_chunk.get('usage')) is not None:
+            self._message.token_usage = translate_token_usage(check.isinstance(raw_usage, ta.Mapping))
+
+        # The final usage chunk (requested via stream_options.include_usage) has an empty choices list.
+        if not (raw_choices := raw_chunk.get('choices')):
+            return
+        raw_choice = check.single(raw_choices)
 
         if raw_fr := raw_choice.get('finish_reason'):
             self._message.stop_reason = translate_stop_reason(check.isinstance(raw_fr, str))
@@ -96,6 +103,7 @@ class OpenaiCompletionsStreamBackend(BaseHttpBackend, StreamBackend):
         ).raw_request()
 
         raw_request['stream'] = True
+        raw_request['stream_options'] = {'include_usage': True}
 
         #
 

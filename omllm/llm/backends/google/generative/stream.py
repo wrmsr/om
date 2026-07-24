@@ -17,6 +17,7 @@ from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
+from .responses import translate_token_usage
 
 
 ##
@@ -46,6 +47,10 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
         if 'error' in raw_chunk and raw_chunk.get('error'):
             raise RuntimeError(_stringify_error(raw_chunk['error']))
+
+        # Chunks carry cumulative usage - each overwrites the last, leaving the final chunk's totals.
+        if (raw_usage := raw_chunk.get('usageMetadata')) is not None:
+            self._message.token_usage = translate_token_usage(check.isinstance(raw_usage, ta.Mapping))
 
         if not (raw_candidates := raw_chunk.get('candidates')):
             return

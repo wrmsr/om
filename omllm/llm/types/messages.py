@@ -70,6 +70,7 @@ type StopReason = ta.Literal[
 class TokenUsage:
     input: int | None = None
     output: int | None = None
+    reasoning: int | None = None
 
     cache_read: int | None = None
     cache_write: int | None = None

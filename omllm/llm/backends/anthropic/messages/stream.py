@@ -16,6 +16,7 @@ from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
+from .responses import translate_token_usage
 
 
 ##
@@ -31,6 +32,17 @@ def _stringify_error(error: ta.Any) -> str:
 
 
 class SseEventProcessor(BaseBackendSseEventProcessor):
+    def __init__(self) -> None:
+        super().__init__()
+
+        # Usage arrives split across events - input tokens on message_start, final output tokens on message_delta - so
+        # the raw fields are accumulated and retranslated as they appear.
+        self._raw_usage_: dict[str, ta.Any] = {}
+
+    def _feed_usage(self, raw_usage: ta.Mapping[str, ta.Any]) -> None:
+        self._raw_usage_.update(raw_usage)
+        self._message.token_usage = translate_token_usage(self._raw_usage_)
+
     def _feed_content_block_start(self, raw_event: ta.Mapping[str, ta.Any]) -> None:
         raw_index = check.isinstance(raw_event['index'], int)
         raw_block = check.isinstance(raw_event['content_block'], ta.Mapping)
@@ -121,6 +133,9 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             check.equal(raw_message['type'], 'message')
             check.equal(raw_message['role'], 'assistant')
 
+            if (raw_usage := raw_message.get('usage')) is not None:
+                self._feed_usage(check.isinstance(raw_usage, ta.Mapping))
+
         elif raw_event_type == 'content_block_start':
             self._feed_content_block_start(raw_event)
 
@@ -132,6 +147,9 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
             if raw_sr := raw_delta.get('stop_reason'):
                 self._message.stop_reason = translate_stop_reason(check.isinstance(raw_sr, str))
+
+            if (raw_usage := raw_event.get('usage')) is not None:
+                self._feed_usage(check.isinstance(raw_usage, ta.Mapping))
 
         else:
             # The remaining known event types - ping, content_block_stop, and message_stop - carry nothing currently

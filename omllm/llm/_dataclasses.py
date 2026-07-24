@@ -739,34 +739,37 @@ def _process_dataclass__061935bc1a01224c96eb8768cf808ad905d79747():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('input', 'output', 'cache_read', 'cache_write', 'total')), EqPlan(fields=('input',"
-        " 'output', 'cache_read', 'cache_write', 'total')), FrozenPlan(fields=('input', 'output', 'cache_read', 'cache_"
-        "write', 'total'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('input', 'output', 'cache_"
-        "read', 'cache_write', 'total'), cache=True), InitPlan(fields=(InitPlan.Field(name='input', annotation=OpRef(na"
-        "me='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, "
-        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(na"
-        "me='output', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), d"
-        "efault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, che"
-        "ck_type=None), InitPlan.Field(name='cache_read', annotation=OpRef(name='init.fields.2.annotation'), default=Op"
-        "Ref(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
-        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cache_write', annotation=OpRef(name='i"
-        "nit.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, overr"
-        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='t"
-        "otal', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default"
-        "_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_typ"
-        "e=None)), self_param='self', std_params=(), kw_only_params=('input', 'output', 'cache_read', 'cache_write', 't"
-        "otal'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprP"
-        "lan.Field(name='input', kw_only=True, fn=None), ReprPlan.Field(name='output', kw_only=True, fn=None), ReprPlan"
-        ".Field(name='cache_read', kw_only=True, fn=None), ReprPlan.Field(name='cache_write', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='total', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.defaul"
-        "t_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('input', 'output', 'reasoning', 'cache_read', 'cache_write', 'total')), EqPlan(fie"
+        "lds=('input', 'output', 'reasoning', 'cache_read', 'cache_write', 'total')), FrozenPlan(fields=('input', 'outp"
+        "ut', 'reasoning', 'cache_read', 'cache_write', 'total'), allow_dynamic_dunder_attrs=False), HashPlan(action='a"
+        "dd', fields=('input', 'output', 'reasoning', 'cache_read', 'cache_write', 'total'), cache=True), InitPlan(fiel"
+        "ds=(InitPlan.Field(name='input', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.f"
+        "ields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
+        ", validate=None, check_type=None), InitPlan.Field(name='output', annotation=OpRef(name='init.fields.1.annotati"
+        "on'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type"
+        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='reasoning', annotation"
+        "=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, in"
+        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan"
+        ".Field(name='cache_read', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3"
+        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
+        "ate=None, check_type=None), InitPlan.Field(name='cache_write', annotation=OpRef(name='init.fields.4.annotation"
+        "'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_type=F"
+        "ieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='total', annotation=OpRef"
+        "(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factory=None, init=Tru"
+        "e, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='s"
+        "elf', std_params=(), kw_only_params=('input', 'output', 'reasoning', 'cache_read', 'cache_write', 'total'), fr"
+        "ozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field("
+        "name='input', kw_only=True, fn=None), ReprPlan.Field(name='output', kw_only=True, fn=None), ReprPlan.Field(nam"
+        "e='reasoning', kw_only=True, fn=None), ReprPlan.Field(name='cache_read', kw_only=True, fn=None), ReprPlan.Fiel"
+        "d(name='cache_write', kw_only=True, fn=None), ReprPlan.Field(name='total', kw_only=True, fn=None)), id=False, "
+        "terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c',
+    plan_repr_sha1='f731b6bc16969f0c134515e4dc19d93e3935d0e6',
     cls_names=(
         ('omllm.llm.types.messages', 'TokenUsage'),
     ),
 )
-def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
+def _process_dataclass__f731b6bc16969f0c134515e4dc19d93e3935d0e6():
     def _process_dataclass(
         *,
         __class__,
@@ -780,6 +783,8 @@ def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
         __dataclass__init__fields__3__default,
         __dataclass__init__fields__4__annotation,
         __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
         __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
@@ -793,6 +798,7 @@ def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
             return __class__(  # noqa
                 input=self.input,
                 output=self.output,
+                reasoning=self.reasoning,
                 cache_read=self.cache_read,
                 cache_write=self.cache_write,
                 total=self.total,
@@ -808,6 +814,7 @@ def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
             return (
                 self.input == other.input and
                 self.output == other.output and
+                self.reasoning == other.reasoning and
                 self.cache_read == other.cache_read and
                 self.cache_write == other.cache_write and
                 self.total == other.total
@@ -818,6 +825,7 @@ def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
         __dataclass___frozen_fields = {
             'input',
             'output',
+            'reasoning',
             'cache_read',
             'cache_write',
             'total',
@@ -854,6 +862,7 @@ def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
                 h := hash((
                     self.input,
                     self.output,
+                    self.reasoning,
                     self.cache_read,
                     self.cache_write,
                     self.total,
@@ -868,12 +877,14 @@ def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
             *,
             input: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             output: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            cache_read: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            cache_write: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            total: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            reasoning: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            cache_read: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            cache_write: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            total: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'input', input)
             __dataclass__object_setattr(self, 'output', output)
+            __dataclass__object_setattr(self, 'reasoning', reasoning)
             __dataclass__object_setattr(self, 'cache_read', cache_read)
             __dataclass__object_setattr(self, 'cache_write', cache_write)
             __dataclass__object_setattr(self, 'total', total)
@@ -887,6 +898,8 @@ def _process_dataclass__bbb69c69e4fac2aa56e6e636a7b65ffed8f68b8c():
                 parts.append(f"input={s}")
             if (s := __dataclass__repr__default_fn(self.output)) is not None:
                 parts.append(f"output={s}")
+            if (s := __dataclass__repr__default_fn(self.reasoning)) is not None:
+                parts.append(f"reasoning={s}")
             if (s := __dataclass__repr__default_fn(self.cache_read)) is not None:
                 parts.append(f"cache_read={s}")
             if (s := __dataclass__repr__default_fn(self.cache_write)) is not None:

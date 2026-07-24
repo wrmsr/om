@@ -11,10 +11,12 @@ from ....types.content import ToolCall
 from ....types.context import Context
 from ....types.messages import AiMessage
 from ....types.messages import StopReason
+from ....types.messages import TokenUsage
 from ....types.options import Options
 from ...base.http import BaseHttpBackend
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
+from .responses import translate_token_usage
 
 
 ##
@@ -82,7 +84,12 @@ class OpenaiCompletionsImmediateBackend(BaseHttpBackend, ImmediateBackend):
         if raw_fr := raw_choice.get('finish_reason'):
             stop_reason = translate_stop_reason(check.isinstance(raw_fr, str))
 
+        token_usage: TokenUsage | None = None
+        if (raw_usage := raw_response.get('usage')) is not None:
+            token_usage = translate_token_usage(check.isinstance(raw_usage, ta.Mapping))
+
         return AiMessage(
             ta.cast(ta.Any, content),
             stop_reason=stop_reason,
+            token_usage=token_usage,
         )

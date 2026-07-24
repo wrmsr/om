@@ -1,4 +1,23 @@
+import typing as ta
+
+from omcore import check
+
 from ....types.messages import StopReason
+from ....types.messages import TokenUsage
+
+
+##
+
+
+def translate_token_usage(m: ta.Mapping[str, ta.Any]) -> TokenUsage:
+    return TokenUsage(
+        input=check.isinstance(m.get('promptTokenCount'), (int, None)),
+        output=check.isinstance(m.get('candidatesTokenCount'), (int, None)),
+        reasoning=check.isinstance(m.get('thoughtsTokenCount'), (int, None)),
+        cache_read=check.isinstance(m.get('cachedContentTokenCount'), (int, None)),
+        # Note: the reported total includes thoughts tokens, so it may exceed input + output.
+        total=check.isinstance(m.get('totalTokenCount'), (int, None)),
+    )
 
 
 ##
