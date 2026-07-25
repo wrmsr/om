@@ -242,6 +242,8 @@ select = ['ALL']
 
 ignore = [
 
+    'RUF036',  # none-not-at-end-of-union
+
     'A005',      # stdlib-module-shadowing
     'ANN001',    # missing-type-function-argument
     'ANN002',    # missing-type-args
@@ -297,6 +299,7 @@ ignore = [
     'PLR0912',   # too-many-branches
     'PLR0913',   # too-many-arguments
     'PLR0915',   # too-many-statements
+    'PLR0917',   # too-many-positional-arguments
     'PLR1714',   # repeated-equality-comparison
     'PLR1730',   # if-stmt-min-max
     'PLR2004',   # magic-value-comparison

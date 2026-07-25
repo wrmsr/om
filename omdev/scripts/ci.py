@@ -171,7 +171,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='../../omcore/logs/utils.py', sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c'),
-            dict(path='../../omcore/sockets/handlers/server.py', sha1='5ccd9132148bef04ef74c1d32f404cb49365253c'),
+            dict(path='../../omcore/sockets/handlers/server.py', sha1='f95f80367c2122ab617162b062ab5387e57add7b'),
             dict(path='../../omcore/sockets/handlers/simple.py', sha1='8d9fb9f4a91f5080f1f6c9bf50d8d4cf4bf9b677'),
             dict(path='../../omcore/sockets/handlers/ssl.py', sha1='0db09b2095b8ee3b4eb401750f88ea75d3071ab9'),
             dict(path='../../omcore/sockets/handlers/threading.py', sha1='511b07f34fb198371c3fcc86c428198816d3044b'),
@@ -246,7 +246,7 @@ def __om_amalg__():  # noqa
             dict(path='github/cli.py', sha1='52666bdc16a552357f21052e8a025c1dc938bb02'),
             dict(path='docker/dataserver.py', sha1='9968525f13c9cb4847655b64da1ead7bca311280'),
             dict(path='github/inject.py', sha1='0e4f9daff224f2fc2ceecf3a0be81d87e6837ebc'),
-            dict(path='docker/cacheserved/cache.py', sha1='0ae76cfd4a0c88ca1087d4fc304e80ca59d42c62'),
+            dict(path='docker/cacheserved/cache.py', sha1='a1e3481bd93412a2c572fc306786d52e06406eee'),
             dict(path='docker/inject.py', sha1='4755881c4f90bfa7508c4e8aa03d9f030a9123d8'),
             dict(path='inject.py', sha1='277c5529fd72cc023f136da599e10f9547ef9d60'),
             dict(path='cli.py', sha1='457b154c601f8cfe7387fefc0be85c2a03b300d3'),
@@ -15539,7 +15539,7 @@ class SocketHandlerServer:
 
     def _handle_error(self, exc: BaseException, conn: ta.Optional[SocketAndAddress] = None) -> None:
         if (error_logger := self._error_logger) is not None:
-            error_logger.exception('Error in socket server: %r', conn)
+            error_logger.exception('Error in socket server: %r', conn)  # noqa
 
         if (on_error := self._on_error) is not None:
             on_error(exc, conn)
@@ -34683,7 +34683,7 @@ class CacheServedDockerCache(DockerCache):
                     'localhost',
                     self._config.port,
                     timeout=timeout,
-                    on_fail=lambda _: log.exception('Failed to connect to cache server - will try again'),
+                    on_fail=lambda _: log.exception('Failed to connect to cache server - will try again'),  # noqa
                     sleep_s=self._config.server_start_sleep,
                 )
 

@@ -512,7 +512,7 @@ def get_crt(
 
         _cmd(
             [
-                'sudo'
+                'sudo',
                 'sh', '-c', rm_wellknown_sh,
             ],
         )

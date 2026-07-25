@@ -149,7 +149,7 @@ SUPERVISOR_SPEC = DeployAppSpec(
                         'ExecStart': (
                             '{app_dir}/venv/bin/python '
                             'ominfra/scripts/supervisor.py '
-                            '{current_deploy_link}/conf/supervisor/supervisor.json',
+                            '{current_deploy_link}/conf/supervisor/supervisor.json'
                         ),
                         'WorkingDirectory': '{app_dir}',
                         'Restart': 'always',

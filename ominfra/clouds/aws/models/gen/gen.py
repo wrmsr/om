@@ -272,7 +272,7 @@ class ModelGen:
                 break
 
             if len(ms) > 1:
-                m = sorted(ms, key=lambda t: (t[1], -len(t[0])))[0]
+                m = min(ms, key=lambda t: (t[1], -len(t[0])))
             else:
                 m = ms[0]
 

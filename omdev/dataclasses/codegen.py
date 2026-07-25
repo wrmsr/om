@@ -292,7 +292,7 @@ class DataclassCodeGen:
         # Sorted by first cls name for more stable diffs than say sha1
         for grp in sorted(
                 dumped_by_plan_repr.values(),
-                key=lambda grp: sorted([(y.cls_module, y.cls_qualname) for y in grp])[0],
+                key=lambda grp: min([(y.cls_module, y.cls_qualname) for y in grp]),
         ):
             x = grp[0]
             pr = x.plan_repr

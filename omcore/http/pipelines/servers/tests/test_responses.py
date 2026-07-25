@@ -44,10 +44,12 @@ class TestPipelineHttpResponseEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'HTTP/1.1 200 OK\r\n'
-            b'Content-Type: text/plain\r\n'
-            b'Content-Length: 5\r\n'
-            b'\r\n',
+            (
+                b'HTTP/1.1 200 OK\r\n'
+                b'Content-Type: text/plain\r\n'
+                b'Content-Length: 5\r\n'
+                b'\r\n'
+            ),
             b'hello',
         ])
 
@@ -77,10 +79,12 @@ class TestPipelineHttpResponseEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'HTTP/1.1 404 Not Found\r\n'
-            b'Content-Type: text/plain\r\n'
-            b'Content-Length: 9\r\n'
-            b'\r\n',
+            (
+                b'HTTP/1.1 404 Not Found\r\n'
+                b'Content-Type: text/plain\r\n'
+                b'Content-Length: 9\r\n'
+                b'\r\n'
+            ),
             b'not found',
         ])
 
@@ -148,13 +152,15 @@ class TestPipelineHttpResponseEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'HTTP/1.1 200 OK\r\n'
-            b'Content-Type: text/html; charset=utf-8\r\n'
-            b'Content-Length: 4\r\n'
-            b'Connection: close\r\n'
-            b'Cache-Control: no-cache\r\n'
-            b'X-Custom-Header: custom-value\r\n'
-            b'\r\n',
+            (
+                b'HTTP/1.1 200 OK\r\n'
+                b'Content-Type: text/html; charset=utf-8\r\n'
+                b'Content-Length: 4\r\n'
+                b'Connection: close\r\n'
+                b'Cache-Control: no-cache\r\n'
+                b'X-Custom-Header: custom-value\r\n'
+                b'\r\n'
+            ),
             b'test',
         ])
 
@@ -183,9 +189,11 @@ class TestPipelineHttpResponseEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'HTTP/1.0 200 OK\r\n'
-            b'Content-Length: 2\r\n'
-            b'\r\n',
+            (
+                b'HTTP/1.0 200 OK\r\n'
+                b'Content-Length: 2\r\n'
+                b'\r\n'
+            ),
             b'ok',
         ])
 
@@ -217,10 +225,12 @@ class TestPipelineHttpResponseEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'HTTP/1.1 200 OK\r\n'
-            b'Content-Type: application/octet-stream\r\n'
-            b'Content-Length: 10000\r\n'
-            b'\r\n',
+            (
+                b'HTTP/1.1 200 OK\r\n'
+                b'Content-Type: application/octet-stream\r\n'
+                b'Content-Length: 10000\r\n'
+                b'\r\n'
+            ),
             body,
         ])
 
@@ -310,9 +320,11 @@ class TestPipelineHttpResponseEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'HTTP/1.1 200 OK\r\n'
-            b'Content-Length: 2\r\n'
-            b'\r\n',
+            (
+                b'HTTP/1.1 200 OK\r\n'
+                b'Content-Length: 2\r\n'
+                b'\r\n'
+            ),
             b'ok',
             b'other data',
         ])
@@ -380,10 +392,12 @@ class TestPipelineHttpResponseEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'HTTP/1.1 500 Internal Server Error\r\n'
-            b'Content-Type: text/plain\r\n'
-            b'Content-Length: 13\r\n'
-            b'\r\n',
+            (
+                b'HTTP/1.1 500 Internal Server Error\r\n'
+                b'Content-Type: text/plain\r\n'
+                b'Content-Length: 13\r\n'
+                b'\r\n'
+            ),
             b'server error!',
         ])
 

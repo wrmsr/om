@@ -137,10 +137,10 @@ class OpCompiler:
             if isinstance(op, SetAttrOp):
                 if isinstance(v := op.value, OpRef):
                     vs = v.ident()
-                    body_lines.extend([
+                    body_lines.extend([(
                         f'if isinstance({vs}, {add_ref(FUNCTION_TYPE_GLOBAL, refs).ident}):'
-                        f'    {vs}.__qualname__ = f"{{{CLS_IDENT}.__qualname__}}.{{{vs}.__name__}}"',
-                    ])
+                        f'    {vs}.__qualname__ = f"{{{CLS_IDENT}.__qualname__}}.{{{vs}.__name__}}"'
+                    )])
                 else:
                     vs = repr(repr_round_trip_value(v))
 

@@ -512,8 +512,10 @@ def test_type_key_parameterized_variadic_alias_includes_packed_tuple_arg() -> No
     )
 
     assert type_key(alias_type) == (
-        "A['Alias',$0,Tuple[I['builtins.int'],I['builtins.str'],I['builtins.tuple']],"
-        "Tuple[I['builtins.int'],I['builtins.str'],I['builtins.tuple']]]",
+        (
+            "A['Alias',$0,Tuple[I['builtins.int'],I['builtins.str'],I['builtins.tuple']],"
+            "Tuple[I['builtins.int'],I['builtins.str'],I['builtins.tuple']]]"
+        ),
         alias.runtime_object,
     )
     assert tuple_type_key(alias_type) == (

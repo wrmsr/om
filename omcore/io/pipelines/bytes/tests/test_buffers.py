@@ -1,8 +1,11 @@
 # ruff: noqa: UP006
 # @om-lite
+import typing as ta
 import unittest
 
 from ...core import IoPipeline
+from ...core import IoPipelineHandler
+from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
@@ -10,7 +13,39 @@ from ...handlers.feedback import FeedbackInboundIoPipelineHandler
 from ..buffers import OutboundBytesBufferIoPipelineHandler
 
 
+class CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
+    def __init__(self):
+        super().__init__()
+
+        self.events = []
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, (IoPipelineFlowMessages.PauseOutput, IoPipelineFlowMessages.ReadyForOutput)):
+            self.events.append(msg)
+        ctx.feed_in(msg)
+
+
+class PauseOutputOnBytesIoPipelineHandler(IoPipelineHandler):
+    def __init__(self):
+        super().__init__()
+
+        self._paused = False
+
+    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, (bytes, bytearray, memoryview)) and not self._paused:
+            self._paused = True
+            ctx.feed_in(IoPipelineFlowMessages.PauseOutput())
+        ctx.feed_out(msg)
+
+
 class TestOutboundBytesBuffer(unittest.TestCase):
+    def test_invalid_watermarks(self):
+        with self.assertRaises(ValueError):
+            OutboundBytesBufferIoPipelineHandler.Config(
+                write_high_watermark=1,
+                write_low_watermark=2,
+            )
+
     def test_basic_buffering(self):
         """Test that bytes are buffered until flush."""
 
@@ -156,3 +191,88 @@ class TestOutboundBytesBuffer(unittest.TestCase):
         # Flush
         ch.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
         assert handler.outbound_buffered_bytes() == 0
+
+    def test_downstream_writability_edges_are_combined(self):
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        ch = IoPipeline.new(
+            [
+                OutboundBytesBufferIoPipelineHandler(),
+                capture,
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+
+        ch.feed_in(IoPipelineFlowMessages.PauseOutput())
+        ch.feed_in(IoPipelineFlowMessages.PauseOutput())
+        ch.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+        ch.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+            IoPipelineFlowMessages.ReadyForOutput,
+        ]
+
+    def test_local_and_downstream_writability_are_combined(self):
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        ch = IoPipeline.new(
+            [
+                OutboundBytesBufferIoPipelineHandler(
+                    OutboundBytesBufferIoPipelineHandler.Config(
+                        flush_threshold=None,
+                        write_high_watermark=4,
+                        write_low_watermark=2,
+                    ),
+                ),
+                capture,
+                fbi := FeedbackInboundIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+
+        ch.feed_in(fbi.wrap(b'abcde'))
+        ch.feed_in(fbi.wrap(b'f'))
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+        ]
+
+        ch.feed_in(IoPipelineFlowMessages.PauseOutput())
+        ch.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+        ]
+
+        ch.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+            IoPipelineFlowMessages.ReadyForOutput,
+        ]
+
+    def test_reentrant_downstream_pause_during_flush(self):
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        ch = IoPipeline.new(
+            [
+                PauseOutputOnBytesIoPipelineHandler(),
+                OutboundBytesBufferIoPipelineHandler(
+                    OutboundBytesBufferIoPipelineHandler.Config(
+                        flush_threshold=None,
+                        write_high_watermark=4,
+                        write_low_watermark=2,
+                    ),
+                ),
+                capture,
+                fbi := FeedbackInboundIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+
+        ch.feed_in(fbi.wrap(b'abcde'))
+        ch.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+        ]
+
+        ch.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+            IoPipelineFlowMessages.ReadyForOutput,
+        ]

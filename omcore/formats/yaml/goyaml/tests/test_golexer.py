@@ -303,8 +303,10 @@ class TokenizeTest(unittest.TestCase):
             (YamlTokenType.STRING, 'gIGC', 'gIGC'),
         ]),
         (
-            '\na: !!binary |\n'
-            ' kJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJ\n CQ\n',
+            (
+                '\na: !!binary |\n'
+                ' kJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJ\n CQ\n'
+            ),
             [
                 (YamlTokenType.STRING, 'a', '\na'),
                 (YamlTokenType.MAPPING_VALUE, ':', ':'),

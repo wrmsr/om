@@ -135,7 +135,7 @@ class CacheServedDockerCache(DockerCache):
                     'localhost',
                     self._config.port,
                     timeout=timeout,
-                    on_fail=lambda _: log.exception('Failed to connect to cache server - will try again'),
+                    on_fail=lambda _: log.exception('Failed to connect to cache server - will try again'),  # noqa
                     sleep_s=self._config.server_start_sleep,
                 )
 

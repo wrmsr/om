@@ -28,7 +28,16 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
         max_buffer_size: ta.Optional[int] = None
         buffer_chunk_size: int = 64 * 1024
 
+        write_high_watermark: int = 64 * 1024
+        write_low_watermark: int = 16 * 1024
+
         DEFAULT: ta.ClassVar['OutboundBytesBufferIoPipelineHandler.Config']
+
+        def __post_init__(self) -> None:
+            """Validate output writability watermarks."""
+
+            if not 0 <= self.write_low_watermark <= self.write_high_watermark:
+                raise ValueError((self.write_low_watermark, self.write_high_watermark))
 
     Config.DEFAULT = Config()
 
@@ -38,6 +47,10 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
         if config is None:
             config = self.Config.DEFAULT
         self._config = config
+
+        self._downstream_writable = True
+        self._self_writable = True
+        self._announced_writable = True
 
     #
 
@@ -63,16 +76,50 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
 
     #
 
+    def _update_writability(self, ctx: IoPipelineHandlerContext) -> None:
+        size = check.not_none(self.outbound_buffered_bytes())
+        if self._self_writable:
+            if size > self._config.write_high_watermark:
+                self._self_writable = False
+
+        elif size <= self._config.write_low_watermark:
+            self._self_writable = True
+
+        effective = self._downstream_writable and self._self_writable
+        if effective != self._announced_writable:
+            self._announced_writable = effective
+            ctx.feed_in(
+                IoPipelineFlowMessages.ReadyForOutput() if effective
+                else IoPipelineFlowMessages.PauseOutput(),
+            )
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineFlowMessages.ReadyForOutput):
+            self._downstream_writable = True
+            self._update_writability(ctx)
+
+        elif isinstance(msg, IoPipelineFlowMessages.PauseOutput):
+            self._downstream_writable = False
+            self._update_writability(ctx)
+
+        else:
+            ctx.feed_in(msg)
+
+    #
+
     def _flush(self, ctx: IoPipelineHandlerContext) -> None:
         if (buf := self._buf) is None or len(buf) == 0:
             return
+
+        # The bytes no longer belong to this handler before any downstream call. This matters when an outer handler
+        # synchronously re-announces writability while receiving a segment.
+        self._buf = None
 
         # Collect all buffered segments and feed them out
         for seg in buf.segments():
             ctx.feed_out(seg)
 
-        # Reset buffer
-        self._buf = None
+        self._update_writability(ctx)
 
     _FLUSH_AND_FEED_OUT_TYPES: ta.ClassVar[ta.Tuple[type, ...]] = (
         IoPipelineFlowMessages.FlushOutput,
@@ -99,6 +146,8 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
                 len(buf) >= threshold
             ):
                 self._flush(ctx)
+            else:
+                self._update_writability(ctx)
 
         else:
             ctx.feed_out(msg)

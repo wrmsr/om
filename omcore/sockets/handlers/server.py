@@ -59,7 +59,7 @@ class SocketHandlerServer:
 
     def _handle_error(self, exc: BaseException, conn: ta.Optional[SocketAndAddress] = None) -> None:
         if (error_logger := self._error_logger) is not None:
-            error_logger.exception('Error in socket server: %r', conn)
+            error_logger.exception('Error in socket server: %r', conn)  # noqa
 
         if (on_error := self._on_error) is not None:
             on_error(exc, conn)

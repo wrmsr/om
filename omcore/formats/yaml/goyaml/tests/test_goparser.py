@@ -134,11 +134,13 @@ class ParserTest(unittest.TestCase):
             'v: |-\n  0\nx: 0',
             '"a\\n1\\nb"',
             '{"a":"b"}',
-            '!!map {\n'
-            '  ? !!str "explicit":!!str "entry",\n'
-            '  ? !!str "implicit" : !!str "entry",\n'
-            '  ? !!null "" : !!null "",\n'
-            '}',
+            (
+                '!!map {\n'
+                '  ? !!str "explicit":!!str "entry",\n'
+                '  ? !!str "implicit" : !!str "entry",\n'
+                '  ? !!null "" : !!null "",\n'
+                '}'
+            ),
             '"a": a\n"b": b',
             "'a': a\n'b': b",
             'a: \r\n  b: 1\r\n',
@@ -1013,37 +1015,41 @@ baz: 1
             ),
             (
                 # go source indents this flow map with tab characters
-                '\n'
-                '{\n'
-                '\t"apiVersion": "apps/v1",\n'
-                '\t"kind": "Deployment",\n'
-                '\t"metadata": {\n'
-                '\t\t"name": "foo",\n'
-                '\t\t"labels": {\n'
-                '\t\t\t"app": "bar"\n'
-                '\t\t}\n'
-                '\t},\n'
-                '\t"spec": {\n'
-                '\t\t"replicas": 3,\n'
-                '\t\t"selector": {\n'
-                '\t\t\t"matchLabels": {\n'
-                '\t\t\t\t"app": "bar"\n'
-                '\t\t\t}\n'
-                '\t\t},\n'
-                '\t\t"template": {\n'
-                '\t\t\t"metadata": {\n'
-                '\t\t\t\t"labels": {\n'
-                '\t\t\t\t\t"app": "bar"\n'
-                '\t\t\t\t}\n'
-                '\t\t\t}\n'
-                '\t\t}\n'
-                '\t}\n'
-                '}\n',
-                '\n'
-                '{"apiVersion": "apps/v1", "kind": "Deployment", '
-                '"metadata": {"name": "foo", "labels": {"app": "bar"}}, '
-                '"spec": {"replicas": 3, "selector": {"matchLabels": {"app": "bar"}}, '
-                '"template": {"metadata": {"labels": {"app": "bar"}}}}}\n',
+                (
+                    '\n'
+                    '{\n'
+                    '\t"apiVersion": "apps/v1",\n'
+                    '\t"kind": "Deployment",\n'
+                    '\t"metadata": {\n'
+                    '\t\t"name": "foo",\n'
+                    '\t\t"labels": {\n'
+                    '\t\t\t"app": "bar"\n'
+                    '\t\t}\n'
+                    '\t},\n'
+                    '\t"spec": {\n'
+                    '\t\t"replicas": 3,\n'
+                    '\t\t"selector": {\n'
+                    '\t\t\t"matchLabels": {\n'
+                    '\t\t\t\t"app": "bar"\n'
+                    '\t\t\t}\n'
+                    '\t\t},\n'
+                    '\t\t"template": {\n'
+                    '\t\t\t"metadata": {\n'
+                    '\t\t\t\t"labels": {\n'
+                    '\t\t\t\t\t"app": "bar"\n'
+                    '\t\t\t\t}\n'
+                    '\t\t\t}\n'
+                    '\t\t}\n'
+                    '\t}\n'
+                    '}\n'
+                ),
+                (
+                    '\n'
+                    '{"apiVersion": "apps/v1", "kind": "Deployment", '
+                    '"metadata": {"name": "foo", "labels": {"app": "bar"}}, '
+                    '"spec": {"replicas": 3, "selector": {"matchLabels": {"app": "bar"}}, '
+                    '"template": {"metadata": {"labels": {"app": "bar"}}}}}\n'
+                ),
             ),
         ]
         for idx, (source, expect) in enumerate(tests):

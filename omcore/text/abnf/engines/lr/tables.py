@@ -318,8 +318,10 @@ class LrTableBuilder:
             for t, aa in acts.items():
                 if len(aa) > 1:
                     conflicts.append('\n'.join([
-                        f'State {si}, lookahead {term_name(t)}: '
-                        f'{" vs ".join(self._render_action(a) for a in aa)}',
+                        (
+                            f'State {si}, lookahead {term_name(t)}: '
+                            f'{" vs ".join(self._render_action(a) for a in aa)}'
+                        ),
                         *[
                             '  ' + _render_item(it)
                             for it in sorted(clo, key=lambda it: (it[0].index, it[1]))

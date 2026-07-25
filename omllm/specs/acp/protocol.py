@@ -1526,7 +1526,7 @@ EmbeddedResourceResource: ta.TypeAlias = ta.Any
 McpServer: ta.TypeAlias = ta.Any
 
 
-RequestId: ta.TypeAlias = ta.Union[None, int, str]
+RequestId: ta.TypeAlias = ta.Union[int, str, None]
 
 
 SessionConfigSelectOptions: ta.TypeAlias = ta.Any

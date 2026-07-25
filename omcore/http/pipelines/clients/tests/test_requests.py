@@ -84,11 +84,13 @@ class TestPipelineHttpRequestEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'POST /submit HTTP/1.1\r\n'
-            b'Host: example.com\r\n'
-            b'Content-Type: application/x-www-form-urlencoded\r\n'
-            b'Content-Length: 18\r\n'
-            b'\r\n',
+            (
+                b'POST /submit HTTP/1.1\r\n'
+                b'Host: example.com\r\n'
+                b'Content-Type: application/x-www-form-urlencoded\r\n'
+                b'Content-Length: 18\r\n'
+                b'\r\n'
+            ),
             b'name=value&foo=bar',
         ])
 
@@ -121,11 +123,13 @@ class TestPipelineHttpRequestEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'PUT /api/resource/123 HTTP/1.1\r\n'
-            b'Host: api.example.com\r\n'
-            b'Content-Type: application/json\r\n'
-            b'Content-Length: 16\r\n'
-            b'\r\n',
+            (
+                b'PUT /api/resource/123 HTTP/1.1\r\n'
+                b'Host: api.example.com\r\n'
+                b'Content-Type: application/json\r\n'
+                b'Content-Length: 16\r\n'
+                b'\r\n'
+            ),
             b'{"key": "value"}',
         ])
 
@@ -459,15 +463,17 @@ class TestPipelineHttpRequestEncoder(unittest.TestCase):
         out = channel.output.drain()
 
         self.assertEqual(out, [
-            b'GET /first HTTP/1.1\r\n'
-            b'Host: example.com\r\n'
-            b'\r\n',
-
-            b'POST /second HTTP/1.1\r\n'
-            b'Host: example.com\r\n'
-            b'Content-Length: 4\r\n'
-            b'\r\n',
-
+            (
+                b'GET /first HTTP/1.1\r\n'
+                b'Host: example.com\r\n'
+                b'\r\n'
+            ),
+            (
+                b'POST /second HTTP/1.1\r\n'
+                b'Host: example.com\r\n'
+                b'Content-Length: 4\r\n'
+                b'\r\n'
+            ),
             b'data',
         ])
 
