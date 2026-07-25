@@ -4,7 +4,10 @@ import unittest
 import zlib
 
 from .....io.pipelines.core import IoPipeline
+from .....io.pipelines.flow.stub import StubIoPipelineFlowService
+from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
+from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
 from .....lite.check import check
 from ....headers import HttpHeaders
 from ...requests import IoPipelineHttpRequestBodyData
@@ -129,3 +132,18 @@ class TestGzipCompressorSimple(unittest.TestCase):
         self.assertEqual(decompressed, raw_data)
 
         self.assertIsInstance(results[-1], IoPipelineHttpRequestEnd)
+
+    def test_output_writability_passthrough(self):
+        channel = IoPipeline.new(
+            [
+                IoPipelineHttpRequestCompressor(),
+                ibq := InboundQueueIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+        pause = IoPipelineFlowMessages.PauseOutput()
+        ready = IoPipelineFlowMessages.ReadyForOutput()
+
+        channel.feed_in(pause, ready)
+
+        self.assertEqual(ibq.drain(), [pause, ready])

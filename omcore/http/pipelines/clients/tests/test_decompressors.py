@@ -1,11 +1,16 @@
-# ruff: noqa: UP006 UP007 UP045
+# ruff: noqa: SLF001 UP006 UP007 UP045
 # @om-lite
 import dataclasses as dc
+import typing as ta
 import unittest
 import zlib
 
 from .....io.pipelines.core import IoPipeline
+from .....io.pipelines.core import IoPipelineHandler
+from .....io.pipelines.core import IoPipelineHandlerContext
 from .....io.pipelines.core import IoPipelineMessages
+from .....io.pipelines.flow.stub import StubIoPipelineFlowService
+from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
 from .....lite.check import check
 from ....headers import HttpHeaders
@@ -14,6 +19,27 @@ from ...responses import IoPipelineHttpResponseBodyData
 from ...responses import IoPipelineHttpResponseEnd
 from ...responses import IoPipelineHttpResponseHead
 from ..responses import IoPipelineHttpResponseDecompressor
+
+
+class CaptureReadsIoPipelineHandler(IoPipelineHandler):
+    def __init__(self):
+        super().__init__()
+
+        self.messages = []
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        self.messages.append(msg)
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            ctx.feed_in(msg)
+
+
+def request_read(channel: IoPipeline, capture: CaptureReadsIoPipelineHandler) -> None:
+    ref = channel.find_handler(capture)
+    if ref is None:
+        raise AssertionError('Capture handler not in pipeline')
+
+    with channel.enter():
+        ref._context.feed_out(IoPipelineFlowMessages.ReadyForInput())  # noqa
 
 
 class TestGzipDecompressorSimple(unittest.TestCase):
@@ -127,6 +153,36 @@ class TestGzipDecompressorSimple(unittest.TestCase):
         self.assertEqual(decompressed, raw_data)
         self.assertIsInstance(results[-1], IoPipelineHttpResponseEnd)
 
+    def test_consecutive_gzip_messages(self):
+        handler = IoPipelineHttpResponseDecompressor()
+        channel = IoPipeline.new([
+            handler,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        expected = []
+        for raw_data in (b'first', b'second'):
+            compressor = zlib.compressobj(wbits=16 + zlib.MAX_WBITS)
+            compressed_data = compressor.compress(raw_data) + compressor.flush()
+            head = IoPipelineHttpResponseHead(
+                status=200,
+                reason='OK',
+                headers=HttpHeaders({'content-encoding': 'gzip'}),
+            )
+            end = IoPipelineHttpResponseEnd()
+
+            channel.feed_in(head)
+            channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data))
+            channel.feed_in(end)
+            expected.append((head, raw_data, end))
+
+        messages = ibq.drain()
+        for head, raw_data, end in expected:
+            self.assertIs(messages.pop(0), head)
+            self.assertEqual(check.isinstance(messages.pop(0), IoPipelineHttpResponseBodyData).data, raw_data)
+            self.assertIs(messages.pop(0), end)
+        self.assertEqual(messages, [])
+
 
 class TestGzipDecompressorFlow(unittest.TestCase):
     config = IoPipelineHttpDecompressionConfig(
@@ -189,6 +245,110 @@ class TestGzipDecompressorFlow(unittest.TestCase):
         full_output = b''.join(check.isinstance(m, IoPipelineHttpResponseBodyData).data for m in out_data)
         self.assertEqual(full_output, raw_data)
         self.assertIs(fi, out_fi)
+
+    def test_manual_read_backpressure(self):
+        raw_data = b'This response expands into several deliberately tiny output chunks.'
+        compressor = zlib.compressobj(wbits=16 + zlib.MAX_WBITS)
+        compressed_data = compressor.compress(raw_data) + compressor.flush()
+        handler = IoPipelineHttpResponseDecompressor(
+            config=dc.replace(self.config, max_steps_per_call=None),
+        )
+        capture = CaptureReadsIoPipelineHandler()
+        channel = IoPipeline.new(
+            [
+                handler,
+                capture,
+            ],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data))
+        channel.feed_in(end)
+        self.assertEqual(capture.messages, [self.head])
+
+        body_parts = []
+        for _ in range(100):
+            start = len(capture.messages)
+            request_read(channel, capture)
+            delivered = capture.messages[start:]
+            self.assertEqual(len(delivered), 2)
+            self.assertIsInstance(delivered[1], IoPipelineFlowMessages.FlushInput)
+
+            if isinstance(delivered[0], IoPipelineHttpResponseBodyData):
+                body_parts.append(delivered[0].data)
+            else:
+                self.assertIs(delivered[0], end)
+                break
+        else:
+            self.fail('Decompressor did not deliver End')
+
+        self.assertEqual(b''.join(body_parts), raw_data)
+        self.assertEqual(channel.output.drain(), [])
+
+        request_read(channel, capture)
+        output = channel.output.drain()
+        self.assertEqual(len(output), 1)
+        self.assertIsInstance(output[0], IoPipelineFlowMessages.ReadyForInput)
+
+    def test_manual_read_preserves_final_input_order(self):
+        raw_data = b'Decompressed output remains readable after the transport reaches EOF.'
+        compressor = zlib.compressobj(wbits=16 + zlib.MAX_WBITS)
+        compressed_data = compressor.compress(raw_data) + compressor.flush()
+        handler = IoPipelineHttpResponseDecompressor(
+            config=dc.replace(self.config, max_steps_per_call=None),
+        )
+        capture = CaptureReadsIoPipelineHandler()
+        channel = IoPipeline.new(
+            [
+                handler,
+                capture,
+            ],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+        end = IoPipelineHttpResponseEnd()
+        final_input = IoPipelineMessages.FinalInput()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data))
+        channel.feed_in(end)
+        channel.feed_in(final_input)
+        self.assertEqual(capture.messages, [self.head])
+
+        body_parts = []
+        for _ in range(100):
+            start = len(capture.messages)
+            request_read(channel, capture)
+            delivered = capture.messages[start:]
+
+            if isinstance(delivered[0], IoPipelineHttpResponseBodyData):
+                self.assertEqual(len(delivered), 2)
+                self.assertIsInstance(delivered[1], IoPipelineFlowMessages.FlushInput)
+                body_parts.append(delivered[0].data)
+            else:
+                self.assertEqual(delivered, [end, IoPipelineFlowMessages.FlushInput(), final_input])
+                break
+        else:
+            self.fail('Decompressor did not deliver End and FinalInput')
+
+        self.assertEqual(b''.join(body_parts), raw_data)
+
+    def test_output_writability_passthrough(self):
+        capture = CaptureReadsIoPipelineHandler()
+        channel = IoPipeline.new(
+            [
+                IoPipelineHttpResponseDecompressor(),
+                capture,
+            ],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+        pause = IoPipelineFlowMessages.PauseOutput()
+        ready = IoPipelineFlowMessages.ReadyForOutput()
+
+        channel.feed_in(pause, ready)
+
+        self.assertEqual(capture.messages, [pause, ready])
 
     def test_zip_bomb_prevention(self):
         """Test that budget checks trigger even during deferred steps."""
