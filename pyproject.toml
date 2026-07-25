@@ -268,6 +268,7 @@ ignore = [
     'C408',      # unnecessary-collection-call
     'C420',      # unnecessary-dict-comprehension-for-iterable
     'C901',      # complex-structure
+    'CPY001',    # missing-copyright-notice-cpy001
     'D',         # docstrings
     'E731',      # lambda-assignment
     'E741',      # ambiguous-variable-name
@@ -350,7 +351,7 @@ ignore = [
     'TID252',    # relative-imports
     'TRY002',    # raise-vanilla-class
     'TRY003',    # raise-vanilla-args
-    'TRY203',  # useless-try-except
+    'TRY203',    # useless-try-except
     'TRY300',    # try-consider-else
     'TRY301',    # raise-within-try
 
