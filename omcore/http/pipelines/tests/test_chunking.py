@@ -1,8 +1,13 @@
 # ruff: noqa: UP006 UP007 UP045
 # @om-lite
+import typing as ta
 import unittest
 
 from ....io.pipelines.core import IoPipeline
+from ....io.pipelines.core import IoPipelineHandler
+from ....io.pipelines.core import IoPipelineHandlerContext
+from ....io.pipelines.flow.stub import StubIoPipelineFlowService
+from ....io.pipelines.flow.types import IoPipelineFlowMessages
 from ....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
 from ....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
 from ....io.streambufs.utils import ByteStreamBuffers
@@ -30,6 +35,38 @@ from ..responses import IoPipelineHttpResponseLastChunk
 from ..servers.requests import IoPipelineHttpRequestDechunker
 from ..servers.responses import IoPipelineHttpResponseChunker
 from ..servers.responses import IoPipelineHttpResponseEncoder
+
+
+##
+
+
+class CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, events: ta.Optional[ta.List[ta.Any]] = None) -> None:
+        super().__init__()
+
+        if events is None:
+            events = []
+        self.events = events
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, (IoPipelineFlowMessages.ReadyForOutput, IoPipelineFlowMessages.PauseOutput)):
+            self.events.append(msg)
+        ctx.feed_in(msg)
+
+
+class ReadyForOutputOnChunkIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, events: ta.List[ta.Any]) -> None:
+        super().__init__()
+
+        self._events = events
+        self._sent = False
+
+    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        self._events.append(msg)
+        if isinstance(msg, IoPipelineHttpResponseChunk) and not self._sent:
+            self._sent = True
+            ctx.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+        ctx.feed_out(msg)
 
 
 ##
@@ -187,6 +224,91 @@ class TestChunker(unittest.TestCase):
             headers=HttpHeaders([
                 ('Content-Length', '5'),
             ]),
+        )
+
+    def test_invalid_watermarks(self) -> None:
+        with self.assertRaises(ValueError):
+            IoPipelineHttpResponseChunker(
+                write_high_watermark=1,
+                write_low_watermark=2,
+            )
+
+    def test_combines_local_and_downstream_writability(self) -> None:
+        chunker = IoPipelineHttpResponseChunker(
+            write_high_watermark=4,
+            write_low_watermark=2,
+        )
+        channel = IoPipeline.new(
+            [
+                chunker,
+                capture := CaptureOutputWritabilityIoPipelineHandler(),
+                fbi := FeedbackInboundIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+
+        channel.feed_in(fbi.wrap(self._make_chunked_head()))
+        channel.output.drain()
+
+        channel.feed_in(fbi.wrap(IoPipelineHttpResponseBodyData(b'hello')))
+        self.assertEqual(chunker.outbound_buffered_bytes(), 5)
+        self.assertEqual(
+            [type(event) for event in capture.events],
+            [IoPipelineFlowMessages.PauseOutput],
+        )
+
+        channel.feed_in(IoPipelineFlowMessages.PauseOutput())
+        channel.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+        self.assertEqual(
+            [type(event) for event in capture.events],
+            [IoPipelineFlowMessages.PauseOutput],
+        )
+
+        channel.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
+        self.assertEqual(chunker.outbound_buffered_bytes(), 0)
+        self.assertEqual(
+            [type(event) for event in capture.events],
+            [
+                IoPipelineFlowMessages.PauseOutput,
+                IoPipelineFlowMessages.ReadyForOutput,
+            ],
+        )
+
+    def test_reentrant_ready_does_not_cross_flush_boundary(self) -> None:
+        events: ta.List[ta.Any] = []
+        chunker = IoPipelineHttpResponseChunker(
+            write_high_watermark=4,
+            write_low_watermark=2,
+        )
+        channel = IoPipeline.new(
+            [
+                ReadyForOutputOnChunkIoPipelineHandler(events),
+                chunker,
+                CaptureOutputWritabilityIoPipelineHandler(events),
+                fbi := FeedbackInboundIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+
+        channel.feed_in(fbi.wrap(self._make_chunked_head()))
+        channel.output.drain()
+        events.clear()
+
+        channel.feed_in(fbi.wrap(IoPipelineHttpResponseBodyData(b'hello')))
+        channel.feed_in(IoPipelineFlowMessages.PauseOutput())
+        events.clear()
+
+        channel.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
+
+        self.assertEqual(
+            [type(event) for event in events],
+            [
+                IoPipelineHttpResponseChunk,
+                IoPipelineHttpResponseBodyData,
+                IoPipelineHttpResponseEndChunk,
+                IoPipelineFlowMessages.FlushOutput,
+                IoPipelineFlowMessages.ReadyForOutput,
+            ],
         )
 
     def test_basic_chunking(self) -> None:
