@@ -927,6 +927,19 @@ class TestSegmentedByteStreamBufferCrossBoundarySearch(unittest.TestCase):
         b.write(b'ab')    # into a fresh, partially filled active chunk
         self._check_against_reference(b, b'abbaabab')
 
+    def test_find_rfind_single_segment_with_head_offset(self) -> None:
+        data = b'aabbaaba'
+
+        b = SegmentedByteStreamBuffer()
+        b.write(data)
+        b.advance(3)
+        self._check_against_reference(b, data[3:])
+
+        b2 = SegmentedByteStreamBuffer(chunk_size=16)
+        b2.write(data)  # into active chunk
+        b2.advance(3)   # head offset within the active chunk
+        self._check_against_reference(b2, data[3:])
+
 
 class TestSegmentedByteStreamBufferReserveRegressions(unittest.TestCase):
     def test_in_active_reserve_keeps_readable_visible(self) -> None:

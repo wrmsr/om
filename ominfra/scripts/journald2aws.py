@@ -89,7 +89,7 @@ def __om_amalg__():  # noqa
             dict(path='../auth.py', sha1='3c36e85d7848a2b75841224d792358019734243b'),
             dict(path='../dataclasses.py', sha1='fbfac5bf101339124567fda0baf23c233c576aaf'),
             dict(path='../../../../omcore/configs/formats.py', sha1='9263da888199b408e902490244e9d5caddc69821'),
-            dict(path='../../../../omcore/io/streambufs/base.py', sha1='0f0cea0fe05f9d7b4669a7b3871bc78e12af98f6'),
+            dict(path='../../../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
             dict(path='../../../../omcore/io/streambufs/utils.py', sha1='4b91a6eee8b5a8cc3444bed9df3a6b3e4e10e9b0'),
             dict(path='../../../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
@@ -101,7 +101,7 @@ def __om_amalg__():  # noqa
             dict(path='../../../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='caf24577e336514ba74d941c45556b1cf17cfa67'),  # noqa
+            dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='c4f0809d61172e2f1d035127582a08a1cfcbff77'),  # noqa
             dict(path='../../../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='../../../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
@@ -5915,6 +5915,9 @@ DEFAULT_CONFIG_RENDERER = SwitchedConfigRenderer(DEFAULT_CONFIG_RENDERERS)
 
 class BaseByteStreamBufferLike(ByteStreamBufferLike, Abstract):
     def _norm_slice(self, start: int, end: ta.Optional[int]) -> ta.Tuple[int, int]:
+        if start == 0 and end is None:
+            # The overwhelmingly common case - skip slice.indices().
+            return 0, len(self)
         s, e, _ = slice(start, end, 1).indices(len(self))
         return (s, s) if e < s else (s, e)
 
@@ -8307,6 +8310,18 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         if not n:
             return _EMPTY_DIRECT_BYTE_STREAM_BUFFER_VIEW
 
+        # Fast path: the split lies strictly within the first segment - no segment list manipulation needed.
+        s0 = self._segs[0]
+        if s0 is self._active:
+            avail0 = self._active_readable_len() - self._head_off
+        else:
+            avail0 = len(s0) - self._head_off
+        if n < avail0:
+            mv = memoryview(s0)[self._head_off:self._head_off + n]
+            self._head_off += n
+            self._len -= n
+            return DirectByteStreamBufferView(mv)
+
         out: ta.List[memoryview] = []
         rem = n
 
@@ -8486,6 +8501,21 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
         limit = end - m
 
+        # Fast path: with zero or one segment there is no cross-boundary logic to run. This is the common case in
+        # chunked mode, where trickle writes accumulate into a single active chunk.
+        if not self._segs:
+            return -1
+        if len(self._segs) == 1:
+            s = self._segs[0]
+            off, seg_len = self._seg_readable_slice(0, s, 0)
+            if seg_len <= 0:
+                return -1
+            end_search = min(limit + m, seg_len)
+            if start >= end_search:
+                return -1
+            idx = s.find(sub, off + start, off + end_search)
+            return (idx - off) if idx >= 0 else -1
+
         tail: Bytes = b''
         tail_gstart = 0
 
@@ -8555,6 +8585,18 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
         if not self._segs:
             return -1
+
+        # Fast path: with one segment there is no cross-boundary logic to run.
+        if len(self._segs) == 1:
+            s = self._segs[0]
+            off, seg_len = self._seg_readable_slice(0, s, 0)
+            if seg_len <= 0:
+                return -1
+            end_search = min(limit + m, seg_len)
+            if start >= end_search:
+                return -1
+            idx = s.rfind(sub, off + start, off + end_search)
+            return (idx - off) if idx >= 0 else -1
 
         best = -1
 

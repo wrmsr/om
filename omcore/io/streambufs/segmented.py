@@ -441,6 +441,18 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         if not n:
             return _EMPTY_DIRECT_BYTE_STREAM_BUFFER_VIEW
 
+        # Fast path: the split lies strictly within the first segment - no segment list manipulation needed.
+        s0 = self._segs[0]
+        if s0 is self._active:
+            avail0 = self._active_readable_len() - self._head_off
+        else:
+            avail0 = len(s0) - self._head_off
+        if n < avail0:
+            mv = memoryview(s0)[self._head_off:self._head_off + n]
+            self._head_off += n
+            self._len -= n
+            return DirectByteStreamBufferView(mv)
+
         out: ta.List[memoryview] = []
         rem = n
 
@@ -620,6 +632,21 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
         limit = end - m
 
+        # Fast path: with zero or one segment there is no cross-boundary logic to run. This is the common case in
+        # chunked mode, where trickle writes accumulate into a single active chunk.
+        if not self._segs:
+            return -1
+        if len(self._segs) == 1:
+            s = self._segs[0]
+            off, seg_len = self._seg_readable_slice(0, s, 0)
+            if seg_len <= 0:
+                return -1
+            end_search = min(limit + m, seg_len)
+            if start >= end_search:
+                return -1
+            idx = s.find(sub, off + start, off + end_search)
+            return (idx - off) if idx >= 0 else -1
+
         tail: Bytes = b''
         tail_gstart = 0
 
@@ -689,6 +716,18 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
         if not self._segs:
             return -1
+
+        # Fast path: with one segment there is no cross-boundary logic to run.
+        if len(self._segs) == 1:
+            s = self._segs[0]
+            off, seg_len = self._seg_readable_slice(0, s, 0)
+            if seg_len <= 0:
+                return -1
+            end_search = min(limit + m, seg_len)
+            if start >= end_search:
+                return -1
+            idx = s.rfind(sub, off + start, off + end_search)
+            return (idx - off) if idx >= 0 else -1
 
         best = -1
 

@@ -164,8 +164,8 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='fa174d01438db50305953e0f500d303c6a80faac'),  # noqa
             dict(path='../../omcore/io/pipelines/flow/types.py', sha1='81ead96b6a9487fbda313e858d75701ebe2d5518'),
             dict(path='../../omcore/io/pipelines/sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
-            dict(path='../../omcore/io/streambufs/base.py', sha1='0f0cea0fe05f9d7b4669a7b3871bc78e12af98f6'),
-            dict(path='../../omcore/io/streambufs/framing.py', sha1='46fda15aaedc362280834b30da3cc362ebad368b'),
+            dict(path='../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
+            dict(path='../../omcore/io/streambufs/framing.py', sha1='27e2ae2a24b557b6ae696f8982eac517b4617e99'),
             dict(path='../../omcore/io/streambufs/utils.py', sha1='4b91a6eee8b5a8cc3444bed9df3a6b3e4e10e9b0'),
             dict(path='../../omcore/lite/inject.py', sha1='7dd6067b626c4c6a371b7a0e50eac54e320fcf3a'),
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
@@ -203,7 +203,7 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/pack/packing.py', sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad'),
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='f2ee8d546682c585eeb588c57da3e7967cbcae14'),
-            dict(path='../../omcore/io/streambufs/segmented.py', sha1='caf24577e336514ba74d941c45556b1cf17cfa67'),
+            dict(path='../../omcore/io/streambufs/segmented.py', sha1='c4f0809d61172e2f1d035127582a08a1cfcbff77'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='../../omcore/subprocesses/asyncs.py', sha1='8d428af73220f793d2c0e93f5c9966fac9474246'),
@@ -13655,6 +13655,9 @@ class IoPipelineScheduling(Abstract):
 
 class BaseByteStreamBufferLike(ByteStreamBufferLike, Abstract):
     def _norm_slice(self, start: int, end: ta.Optional[int]) -> ta.Tuple[int, int]:
+        if start == 0 and end is None:
+            # The overwhelmingly common case - skip slice.indices().
+            return 0, len(self)
         s, e, _ = slice(start, end, 1).indices(len(self))
         return (s, s) if e < s else (s, e)
 
@@ -13812,6 +13815,13 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
         if not ln:
             return None
 
+        # Single delimiter: no same-position ambiguity is possible.
+        if len(self._delims) == 1:
+            d = self._delims[0]
+            if (i := buf.find(d, 0, None)) == -1:
+                return None
+            return i, d
+
         best_pos = None  # type: ta.Optional[int]
         best_delim = None  # type: ta.Optional[bytes]
 
@@ -13831,6 +13841,12 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
 
         if best_pos is None or best_delim is None:
             return None
+
+        # Any two delimiters matching at the same position necessarily match the same bytes there, so one must be a
+        # prefix of the other - and the first pass already tie-breaks same-position matches by length. So when no
+        # prefix relationships exist among the delimiters at all, the first-pass winner is exact.
+        if not self._prefix_longer:
+            return best_pos, best_delim
 
         # Second pass: at that position, choose the longest delimiter that actually matches there. (We can't just rely
         # on "which delimiter found it first" when overlaps exist.)
@@ -27319,6 +27335,18 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         if not n:
             return _EMPTY_DIRECT_BYTE_STREAM_BUFFER_VIEW
 
+        # Fast path: the split lies strictly within the first segment - no segment list manipulation needed.
+        s0 = self._segs[0]
+        if s0 is self._active:
+            avail0 = self._active_readable_len() - self._head_off
+        else:
+            avail0 = len(s0) - self._head_off
+        if n < avail0:
+            mv = memoryview(s0)[self._head_off:self._head_off + n]
+            self._head_off += n
+            self._len -= n
+            return DirectByteStreamBufferView(mv)
+
         out: ta.List[memoryview] = []
         rem = n
 
@@ -27498,6 +27526,21 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
         limit = end - m
 
+        # Fast path: with zero or one segment there is no cross-boundary logic to run. This is the common case in
+        # chunked mode, where trickle writes accumulate into a single active chunk.
+        if not self._segs:
+            return -1
+        if len(self._segs) == 1:
+            s = self._segs[0]
+            off, seg_len = self._seg_readable_slice(0, s, 0)
+            if seg_len <= 0:
+                return -1
+            end_search = min(limit + m, seg_len)
+            if start >= end_search:
+                return -1
+            idx = s.find(sub, off + start, off + end_search)
+            return (idx - off) if idx >= 0 else -1
+
         tail: Bytes = b''
         tail_gstart = 0
 
@@ -27567,6 +27610,18 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
         if not self._segs:
             return -1
+
+        # Fast path: with one segment there is no cross-boundary logic to run.
+        if len(self._segs) == 1:
+            s = self._segs[0]
+            off, seg_len = self._seg_readable_slice(0, s, 0)
+            if seg_len <= 0:
+                return -1
+            end_search = min(limit + m, seg_len)
+            if start >= end_search:
+                return -1
+            idx = s.rfind(sub, off + start, off + end_search)
+            return (idx - off) if idx >= 0 else -1
 
         best = -1
 

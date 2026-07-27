@@ -157,6 +157,13 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
         if not ln:
             return None
 
+        # Single delimiter: no same-position ambiguity is possible.
+        if len(self._delims) == 1:
+            d = self._delims[0]
+            if (i := buf.find(d, 0, None)) == -1:
+                return None
+            return i, d
+
         best_pos = None  # type: ta.Optional[int]
         best_delim = None  # type: ta.Optional[bytes]
 
@@ -176,6 +183,12 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
 
         if best_pos is None or best_delim is None:
             return None
+
+        # Any two delimiters matching at the same position necessarily match the same bytes there, so one must be a
+        # prefix of the other - and the first pass already tie-breaks same-position matches by length. So when no
+        # prefix relationships exist among the delimiters at all, the first-pass winner is exact.
+        if not self._prefix_longer:
+            return best_pos, best_delim
 
         # Second pass: at that position, choose the longest delimiter that actually matches there. (We can't just rely
         # on "which delimiter found it first" when overlaps exist.)
