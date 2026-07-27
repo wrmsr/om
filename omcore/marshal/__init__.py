@@ -126,6 +126,8 @@ with _lang.auto_proxy_init(globals()):
 
         DEFAULT_MAPPING_CONCRETE_TYPES,
         DefaultMappingConstructors,
+
+        DefaultPersistentConstructors,
     )
 
     from .composite.iterables import (  # noqa
@@ -136,6 +138,14 @@ with _lang.auto_proxy_init(globals()):
     from .composite.optionals import (  # noqa
         OptionalMarshaler,
         OptionalUnmarshaler,
+    )
+
+    from .composite.persistent import (  # noqa
+        PersistentSequenceMarshaler,
+        PersistentSequenceUnmarshaler,
+
+        PersistentMappingMarshaler,
+        PersistentMappingUnmarshaler,
     )
 
     from .composite.unions.api import (  # noqa

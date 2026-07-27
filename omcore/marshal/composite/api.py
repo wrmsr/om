@@ -41,3 +41,12 @@ DEFAULT_MAPPING_CONCRETE_TYPES: ta.Final[ta.Mapping[type[collections.abc.Mapping
 class DefaultMappingConstructors(Option, tv.UniqueTypedValue, lang.Final):
     mapping: ta.Callable[[ta.Iterable], ta.Any] | ta.Any | None = None
     mutable_mapping: ta.Callable[[ta.Iterable], ta.Any] | ta.Any | None = None
+
+
+##
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class DefaultPersistentConstructors(Option, tv.UniqueTypedValue, lang.Final):
+    sequence: ta.Callable[[ta.Iterable], ta.Any] | ta.Any | None = None
+    mapping: ta.Callable[[ta.Iterable], ta.Any] | ta.Any | None = None

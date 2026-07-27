@@ -17,6 +17,10 @@ from ..composite.newtypes import NewtypeMarshalerFactory
 from ..composite.newtypes import NewtypeUnmarshalerFactory
 from ..composite.optionals import OptionalMarshalerFactory
 from ..composite.optionals import OptionalUnmarshalerFactory
+from ..composite.persistent import PersistentMappingMarshalerFactory
+from ..composite.persistent import PersistentMappingUnmarshalerFactory
+from ..composite.persistent import PersistentSequenceMarshalerFactory
+from ..composite.persistent import PersistentSequenceUnmarshalerFactory
 from ..composite.special import SequenceNotStrMarshalerFactory
 from ..composite.special import SequenceNotStrUnmarshalerFactory
 from ..composite.unions.literals import LiteralUnionMarshalerFactory
@@ -103,6 +107,8 @@ DEFAULT_STANDARD_FACTORIES: ta.Final = DefaultStandardFactories.of_pairs([
     (DATETIME_MARSHALER_FACTORY,             DATETIME_UNMARSHALER_FACTORY),
     (IPADDRESS_MARSHALER_FACTORY,            IPADDRESS_UNMARSHALER_FACTORY),
     (MaybeMarshalerFactory(),                MaybeUnmarshalerFactory()),
+    (PersistentSequenceMarshalerFactory(),   PersistentSequenceUnmarshalerFactory()),
+    (PersistentMappingMarshalerFactory(),    PersistentMappingUnmarshalerFactory()),
     (MappingMarshalerFactory(),              MappingUnmarshalerFactory()),
     (SequenceNotStrMarshalerFactory(),       SequenceNotStrUnmarshalerFactory()),
     (IterableMarshalerFactory(),             IterableUnmarshalerFactory()),

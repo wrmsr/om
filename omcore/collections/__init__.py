@@ -153,6 +153,8 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .persistent import (  # noqa
+        PersistentSequence,
+
         PersistentMap,
         PersistentMapping,
     )

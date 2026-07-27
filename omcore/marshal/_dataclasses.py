@@ -39,6 +39,7 @@ def _register(**kwargs):
         ('omcore.marshal.composite.maybes', 'MaybeUnmarshaler'),
         ('omcore.marshal.composite.optionals', 'OptionalMarshaler'),
         ('omcore.marshal.composite.optionals', 'OptionalUnmarshaler'),
+        ('omcore.marshal.composite.persistent', 'PersistentSequenceMarshaler'),
     ),
 )
 def _process_dataclass__09d620230085f2ec30d46bc47d392ca3f53879f5():
@@ -144,6 +145,7 @@ def _process_dataclass__09d620230085f2ec30d46bc47d392ca3f53879f5():
     plan_repr_sha1='213c17bea15f5fc2ebb3ba450b08965983b8bbd4',
     cls_names=(
         ('omcore.marshal.composite.iterables', 'IterableUnmarshaler'),
+        ('omcore.marshal.composite.persistent', 'PersistentSequenceUnmarshaler'),
     ),
 )
 def _process_dataclass__213c17bea15f5fc2ebb3ba450b08965983b8bbd4():
@@ -374,6 +376,7 @@ def _process_dataclass__db516f58871ac378fdcad03183f2473027e52577():
     plan_repr_sha1='31b96e0288616218d19316ded67355ee33bc271d',
     cls_names=(
         ('omcore.marshal.composite.mappings', 'MappingMarshaler'),
+        ('omcore.marshal.composite.persistent', 'PersistentMappingMarshaler'),
     ),
 )
 def _process_dataclass__31b96e0288616218d19316ded67355ee33bc271d():
@@ -490,6 +493,7 @@ def _process_dataclass__31b96e0288616218d19316ded67355ee33bc271d():
     plan_repr_sha1='92ad32c297e78f61b93d63b65d0e3da74a345a47',
     cls_names=(
         ('omcore.marshal.composite.mappings', 'MappingUnmarshaler'),
+        ('omcore.marshal.composite.persistent', 'PersistentMappingUnmarshaler'),
     ),
 )
 def _process_dataclass__92ad32c297e78f61b93d63b65d0e3da74a345a47():
