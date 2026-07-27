@@ -18,4 +18,6 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
-    pass
+    from .session import (  # noqa
+        Session,
+    )
