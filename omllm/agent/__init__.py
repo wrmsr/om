@@ -23,6 +23,12 @@ with _lang.auto_proxy_init(globals()):
         Agent,
     )
 
+    from .backends import (  # noqa
+        BackendManager,
+
+        DictBackendManager,
+    )
+
     from .contexts import (  # noqa
         Context,
     )

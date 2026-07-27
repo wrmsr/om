@@ -25,23 +25,27 @@ def _register(**kwargs):
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('context', 'model')), EqPlan(fields=('context', 'model')), FrozenPlan(fields=('con"
-        "text', 'model'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('context', 'model'), cache="
-        "False), InitPlan(fields=(InitPlan.Field(name='context', annotation=OpRef(name='init.fields.0.annotation'), def"
-        "ault=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldTyp"
-        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='model', annotation=OpRef(name='"
-        "init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, over"
-        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', s"
-        "td_params=(), kw_only_params=('context', 'model'), frozen=True, slots=False, post_init_params=None, init_fns=("
-        "), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='context', kw_only=True, fn=None), ReprPlan.Field(na"
-        "me='model', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('context', 'model', 'loop_config')), EqPlan(fields=('context', 'model', 'loop_conf"
+        "ig')), FrozenPlan(fields=('context', 'model', 'loop_config'), allow_dynamic_dunder_attrs=False), HashPlan(acti"
+        "on='add', fields=('context', 'model', 'loop_config'), cache=False), InitPlan(fields=(InitPlan.Field(name='cont"
+        "ext', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_"
+        "factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type"
+        "=None), InitPlan.Field(name='model', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='in"
+        "it.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce="
+        "None, validate=None, check_type=None), InitPlan.Field(name='loop_config', annotation=OpRef(name='init.fields.2"
+        ".annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, f"
+        "ield_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(),"
+        " kw_only_params=('context', 'model', 'loop_config'), frozen=True, slots=False, post_init_params=None, init_fns"
+        "=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='context', kw_only=True, fn=None), ReprPlan.Field("
+        "name='model', kw_only=True, fn=None), ReprPlan.Field(name='loop_config', kw_only=True, fn=None)), id=False, te"
+        "rse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='4e04ef45416ec784ea453335f6e6b6d489a8d27d',
+    plan_repr_sha1='a44b6160f1c84c103183c8fe660559b3966d8490',
     cls_names=(
         ('omllm.agent.agent', 'State'),
     ),
 )
-def _process_dataclass__4e04ef45416ec784ea453335f6e6b6d489a8d27d():
+def _process_dataclass__a44b6160f1c84c103183c8fe660559b3966d8490():
     def _process_dataclass(
         *,
         __class__,
@@ -49,6 +53,8 @@ def _process_dataclass__4e04ef45416ec784ea453335f6e6b6d489a8d27d():
         __dataclass__init__fields__0__default,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
         __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
@@ -62,6 +68,7 @@ def _process_dataclass__4e04ef45416ec784ea453335f6e6b6d489a8d27d():
             return __class__(  # noqa
                 context=self.context,
                 model=self.model,
+                loop_config=self.loop_config,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -73,7 +80,8 @@ def _process_dataclass__4e04ef45416ec784ea453335f6e6b6d489a8d27d():
                 return NotImplemented
             return (
                 self.context == other.context and
-                self.model == other.model
+                self.model == other.model and
+                self.loop_config == other.loop_config
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -81,6 +89,7 @@ def _process_dataclass__4e04ef45416ec784ea453335f6e6b6d489a8d27d():
         __dataclass___frozen_fields = {
             'context',
             'model',
+            'loop_config',
         }
 
         def __setattr__(self, name, value):
@@ -107,6 +116,7 @@ def _process_dataclass__4e04ef45416ec784ea453335f6e6b6d489a8d27d():
             return hash((
                 self.context,
                 self.model,
+                self.loop_config,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -116,9 +126,11 @@ def _process_dataclass__4e04ef45416ec784ea453335f6e6b6d489a8d27d():
             *,
             context: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             model: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            loop_config: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'context', context)
             __dataclass__object_setattr(self, 'model', model)
+            __dataclass__object_setattr(self, 'loop_config', loop_config)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -129,6 +141,8 @@ def _process_dataclass__4e04ef45416ec784ea453335f6e6b6d489a8d27d():
                 parts.append(f"context={s}")
             if (s := __dataclass__repr__default_fn(self.model)) is not None:
                 parts.append(f"model={s}")
+            if (s := __dataclass__repr__default_fn(self.loop_config)) is not None:
+                parts.append(f"loop_config={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

@@ -1,0 +1,101 @@
+import pytest
+
+from omcore import dataclasses as dc
+from omcore.secrets.tests.harness import HarnessSecrets
+from omcore.testing.pytest.inject import Harness
+
+from ... import llm
+from ..agent import Agent
+from ..backends import DictBackendManager
+from .models import ANTHROPIC
+from .models import GOOGLE
+from .models import OPENAI
+from .models import ModelForTest
+from .weather import WEATHER_TOOL
+
+
+##
+
+
+async def _test_agent(
+        harness: Harness,
+        model: ModelForTest,
+) -> None:
+    svc = model.stream_backend_cls(
+        llm.default_model_catalog()[model.model_key],  # noqa
+        api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
+    )
+
+    agent = Agent(
+        backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+    )
+
+    await agent.prompt(
+        llm.UserMessage('Hi there!'),
+    )
+
+
+@pytest.mark.asyncs('asyncio')
+@pytest.mark.online
+async def test_agent_openai(harness):
+    await _test_agent(harness, OPENAI)
+
+
+@pytest.mark.asyncs('asyncio')
+@pytest.mark.online
+async def test_agent_anthropic(harness):
+    await _test_agent(harness, ANTHROPIC)
+
+
+@pytest.mark.asyncs('asyncio')
+@pytest.mark.online
+async def test_agent_google(harness):
+    await _test_agent(harness, GOOGLE)
+
+
+##
+
+
+async def _test_agent_with_tool(harness: Harness, model: ModelForTest) -> None:
+    svc = model.stream_backend_cls(
+        llm.default_model_catalog()[model.model_key],  # noqa
+        api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
+    )
+
+    agent = Agent(
+        backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+    )
+
+    await agent.modify_state(
+        lambda state: dc.replace(
+            state,
+            context=dc.replace(
+                state.context,
+                tools=[
+                    WEATHER_TOOL,
+                ],
+            ),
+        ),
+    )
+
+    await agent.prompt(
+        llm.UserMessage('Hi there!'),
+    )
+
+
+@pytest.mark.asyncs('asyncio')
+@pytest.mark.online
+async def test_agent_with_tool_openai(harness):
+    await _test_agent_with_tool(harness, OPENAI)
+
+
+@pytest.mark.asyncs('asyncio')
+@pytest.mark.online
+async def test_agent_with_tool_anthropic(harness):
+    await _test_agent_with_tool(harness, ANTHROPIC)
+
+
+@pytest.mark.asyncs('asyncio')
+@pytest.mark.online
+async def test_agent_with_tool_google(harness):
+    await _test_agent_with_tool(harness, GOOGLE)

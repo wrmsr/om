@@ -1,45 +1,16 @@
-import typing as ta
-
 import pytest
 
-from omcore import check
 from omcore.secrets.tests.harness import HarnessSecrets
 from omcore.testing.pytest.inject import Harness
 
 from ... import llm
 from ..contexts import Context
 from ..loop import Loop
-from ..tools import Tool
-from ..tools import ToolContext
-from ..tools import ToolResult
-
-
-##
-
-
-class ModelForTest(ta.NamedTuple):
-    model_key: llm.ModelKey
-    api_key_name: str
-    stream_backend_cls: ta.Callable[..., llm.StreamBackend]
-
-
-OPENAI = ModelForTest(
-    llm.ModelKey('openai', 'gpt-5.4-mini'),
-    'openai_api_key',
-    llm.OpenaiCompletionsStreamBackend,
-)
-
-ANTHROPIC = ModelForTest(
-    llm.ModelKey('anthropic', 'claude-sonnet-5'),
-    'anthropic_api_key',
-    llm.AnthropicMessagesStreamBackend,
-)
-
-GOOGLE = ModelForTest(
-    llm.ModelKey('google', 'gemini-3-flash-preview'),
-    'gemini_api_key',
-    llm.GoogleGenerativeStreamBackend,
-)
+from .models import ANTHROPIC
+from .models import GOOGLE
+from .models import OPENAI
+from .models import ModelForTest
+from .weather import WEATHER_TOOL
 
 
 ##
@@ -87,32 +58,6 @@ async def test_loop_google(harness):
 
 
 ##
-
-
-async def execute_weather_tool(ctx: ToolContext) -> ToolResult:
-    location = check.non_empty_str(ctx.args['location'])
-
-    if 'edinburgh' in location.lower():
-        return ToolResult(content=llm.TextContent('The weather in Edinburgh, Scotland is sunny.'))
-
-    else:
-        return ToolResult(content=llm.TextContent('Invalid location'))
-
-
-WEATHER_TOOL = Tool(
-    llm_tool=llm.Tool(
-        name='get_weather',
-        description='Get the weather in a given location',
-        params=[
-            llm.ToolParam(
-                name='location',
-                description='The city and state, e.g. San Francisco, CA',
-                type='string',
-            ),
-        ],
-    ),
-    executor=execute_weather_tool,
-)
 
 
 async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
