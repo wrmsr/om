@@ -69,7 +69,7 @@ class Kwargs(ta.Sequence[Kwarg], lang.Final):
 
     @lang.cached_property
     def by_key(self) -> ta.Mapping[Key, ta.Sequence[Kwarg]]:
-        raise NotImplementedError
+        return col.multi_map((kw.key, kw) for kw in self.seq)
 
     #
 
