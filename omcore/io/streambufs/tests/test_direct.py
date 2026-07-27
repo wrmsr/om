@@ -313,3 +313,16 @@ class TestDirectByteStreamBuffer(unittest.TestCase):
 
         self.assertEqual(len(buf), 11)
         self.assertEqual(bytes(buf.peek()), b'ACTUAL_DATA')
+
+
+class TestDirectByteStreamBufferFindAllInPrefix(unittest.TestCase):
+    def test_find_all_in_prefix(self) -> None:
+        b = DirectByteStreamBuffer(b'XXaXbX')
+        b.advance(2)
+        self.assertEqual(list(b.find_all_in_prefix(b'X')), [1, 3])
+        self.assertEqual(list(b.find_all_in_prefix(b'X', 2)), [3])
+        self.assertEqual(list(b.find_all_in_prefix(b'Z')), [])
+        with self.assertRaises(ValueError):
+            b.find_all_in_prefix(b'')
+        with self.assertRaises(ValueError):
+            b.find_all_in_prefix(b'X', -1)

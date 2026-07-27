@@ -75,6 +75,39 @@ def _bench_lines(num_lines: int, line_len: int) -> None:
 ##
 
 
+def _trickle_framer(chunks: ta.Sequence[bytes], *, scanning: bool) -> int:
+    inner = SegmentedByteStreamBuffer(chunk_size=64 * 1024)
+    buf = ScanningByteStreamBuffer(inner) if scanning else inner
+    fr = LongestMatchDelimiterByteStreamFrameDecoder([b'\r\n'])
+    n = 0
+    for c in chunks:
+        buf.write(c)
+        n += len(fr.decode(buf))
+    return n
+
+
+def _bench_trickle_framing(total: int, chunk_size: int) -> None:
+    data = b'x' * (total - 2) + b'\r\n'
+    chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+
+    for scanning in (False, True):
+        if _trickle_framer(chunks, scanning=scanning) != 1:
+            raise RuntimeError('bad trickle frame count')
+
+    results = [
+        bench('framer_plain', lambda: _trickle_framer(chunks, scanning=False), bytes_per_op=total),
+        bench('framer_scanning', lambda: _trickle_framer(chunks, scanning=True), bytes_per_op=total),
+    ]
+    report(
+        f'trickle framing: {chunk_size}B writes + decode() to {total // 1024} KB, delim at end',
+        results,
+        baseline='framer_plain',
+    )
+
+
+##
+
+
 def _naive_flat_lengths(data: bytes) -> int:
     mv = memoryview(data)
     n = 0
@@ -132,6 +165,7 @@ def _bench_lengths(num_frames: int, payload_len: int) -> None:
 
 def _main() -> None:
     _bench_lines(4096, 62)
+    _bench_trickle_framing(64 * 1024, 64)
     _bench_lengths(1024, 252)
     _bench_lengths(64, 16 * 1024 - 4)
 

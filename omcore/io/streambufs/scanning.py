@@ -89,6 +89,29 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
         # rfind isn't the typical trickle hot-path; delegate.
         return self._buf.rfind(sub, start, end)
 
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if start != 0 or not (m := len(sub)):
+            return self._buf.find_all_in_prefix(sub, start)
+
+        scan_from = self._scan_from_by_sub.get(sub, 0)
+
+        # Allow overlap so a match spanning old/new boundary is discoverable.
+        eff_start = scan_from - (m - 1)
+        if eff_start < 0:
+            eff_start = 0
+
+        hits = self._buf.find_all_in_prefix(sub, eff_start)
+        if not hits:
+            # A miss only proves no match *starts* early enough to lie entirely within the contiguous prefix - one
+            # starting in its last m-1 bytes may still complete across the segment boundary or after future writes.
+            # The stored value's read-side overlap rewind accounts for exactly that, so the prefix length itself is
+            # the correct cache value (mirroring find()'s use of the full buffer length).
+            pl = len(self._buf.peek())
+            if pl > scan_from:
+                self._scan_from_by_sub[sub] = pl
+
+        return hits
+
     #
 
     def write(self, data: BytesLike, /) -> None:

@@ -222,3 +222,14 @@ class TestIoAdapters(unittest.TestCase):
         # Now test find/coalesce work correctly after reserve/commit
         self.assertEqual(b.find(b'yz'), 1)
         self.assertEqual(b.coalesce(2).tobytes(), b'xy')
+
+
+class TestBytesIoFindAllInPrefix(unittest.TestCase):
+    def test_find_all_in_prefix(self) -> None:
+        b = BytesIoByteStreamBuffer()
+        b.write(b'XXaXbX')
+        b.advance(2)
+        self.assertEqual(list(b.find_all_in_prefix(b'X')), [1, 3])
+        self.assertEqual(list(b.find_all_in_prefix(b'X', 2)), [3])
+        with self.assertRaises(ValueError):
+            b.find_all_in_prefix(b'')

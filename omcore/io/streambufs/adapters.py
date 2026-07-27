@@ -504,3 +504,22 @@ class BytesIoByteStreamBuffer(MutableByteStreamBuffer):
         b = bytes(self._bio.getbuffer())
         idx = b.rfind(sub, self._rpos + s, self._rpos + e)
         return (idx - self._rpos) if idx >= 0 else -1
+
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if not sub:
+            raise ValueError('empty sub')
+        if start < 0:
+            raise ValueError(start)
+
+        # Same copying tradeoff as find/rfind: memoryview has no find, so materialize.
+        b = bytes(self._bio.getbuffer())
+        rp = self._rpos
+
+        out: ta.List[int] = []
+        m = len(sub)
+        end = len(b)
+        pos = rp + start
+        while (i := b.find(sub, pos, end)) >= 0:
+            out.append(i - rp)
+            pos = i + m
+        return out

@@ -207,6 +207,24 @@ class ByteStreamBuffer(ByteStreamBufferLike, Abstract):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        """
+        Return the offsets of all non-overlapping occurrences of `sub` lying entirely within the *contiguous readable
+        prefix* (the region exposed by `peek()`), scanning left to right from `start` and stepping past each match.
+
+        This is the bulk-scanning primitive: implementations run the whole scan as a tight loop over their underlying
+        storage using C-accelerated search, amortizing per-call overhead across many hits - the per-call cost of
+        `find()` dominates codecs decoding many small frames otherwise. It is intentionally *not* stream-correct:
+        occurrences extending beyond the contiguous prefix are not found. Callers batch over the prefix and fall back to
+        `find()` to resolve possible cross-segment matches.
+
+        `sub` must be non-empty. `start` must be non-negative, and is an offset into the readable region as with
+        `find()`. Returned offsets are likewise readable-region offsets, in ascending order.
+        """
+
+        raise NotImplementedError
+
 
 class MutableByteStreamBuffer(ByteStreamBuffer, Abstract):
     """

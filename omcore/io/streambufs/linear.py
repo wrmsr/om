@@ -208,6 +208,24 @@ class LinearByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer):
         i = self._ba.rfind(sub, self._rpos + start, self._rpos + end)
         return -1 if i < 0 else (i - self._rpos)
 
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if not sub:
+            raise ValueError('empty sub')
+        if start < 0:
+            raise ValueError(start)
+
+        out: ta.List[int] = []
+        append = out.append
+        find = self._ba.find
+        rp = self._rpos
+        wp = self._wpos
+        m = len(sub)
+        pos = rp + start
+        while (i := find(sub, pos, wp)) >= 0:
+            append(i - rp)
+            pos = i + m
+        return out
+
     def coalesce(self, n: int, /) -> memoryview:
         self._check_no_reserve()
         if n < 0:

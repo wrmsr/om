@@ -150,6 +150,18 @@ class TestLinearByteStreamBuffer(unittest.TestCase):
         self.assertEqual(b.peek().tobytes(), b'')
         del mv
 
+    def test_find_all_in_prefix(self) -> None:
+        b = LinearByteStreamBuffer()
+        b.write(b'XXaXbX')
+        b.advance(2)
+        self.assertEqual(list(b.find_all_in_prefix(b'X')), [1, 3])
+        self.assertEqual(list(b.find_all_in_prefix(b'X', 2)), [3])
+        self.assertEqual(list(b.find_all_in_prefix(b'Z')), [])
+        with self.assertRaises(ValueError):
+            b.find_all_in_prefix(b'')
+        with self.assertRaises(ValueError):
+            b.find_all_in_prefix(b'X', -1)
+
     def test_split_to_whole_buffer_is_stable_copy(self) -> None:
         # Regression: split_to covering the entire backing store must copy - a view aliasing the backing bytearray
         # would pin it against the resize in the next write (BufferError).

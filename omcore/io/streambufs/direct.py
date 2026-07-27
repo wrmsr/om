@@ -153,6 +153,24 @@ class DirectByteStreamBuffer(BaseDirectByteStreamBufferLike, ByteStreamBuffer):
         idx = b.rfind(sub, self._rpos + start, self._rpos + end)
         return (idx - self._rpos) if idx >= 0 else -1
 
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if not sub:
+            raise ValueError('empty sub')
+        if start < 0:
+            raise ValueError(start)
+
+        out: ta.List[int] = []
+        append = out.append
+        find = self._b().find
+        rp = self._rpos
+        end = len(self._data)
+        m = len(sub)
+        pos = rp + start
+        while (i := find(sub, pos, end)) >= 0:
+            append(i - rp)
+            pos = i + m
+        return out
+
     def coalesce(self, n: int, /) -> memoryview:
         if n < 0 or n > len(self):
             raise ValueError(n)

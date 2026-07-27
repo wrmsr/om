@@ -941,6 +941,50 @@ class TestSegmentedByteStreamBufferCrossBoundarySearch(unittest.TestCase):
         self._check_against_reference(b2, data[3:])
 
 
+class TestSegmentedByteStreamBufferFindAllInPrefix(unittest.TestCase):
+    def test_basic(self) -> None:
+        b = SegmentedByteStreamBuffer()
+        b.write(b'aXbXcX')
+        self.assertEqual(list(b.find_all_in_prefix(b'X')), [1, 3, 5])
+        self.assertEqual(list(b.find_all_in_prefix(b'X', 2)), [3, 5])
+        self.assertEqual(list(b.find_all_in_prefix(b'Z')), [])
+        self.assertEqual(list(SegmentedByteStreamBuffer().find_all_in_prefix(b'X')), [])
+
+    def test_non_overlapping_stepping(self) -> None:
+        b = SegmentedByteStreamBuffer()
+        b.write(b'aaaa')
+        self.assertEqual(list(b.find_all_in_prefix(b'aa')), [0, 2])
+
+    def test_head_offset(self) -> None:
+        b = SegmentedByteStreamBuffer()
+        b.write(b'XXaXbX')
+        b.advance(2)
+        self.assertEqual(list(b.find_all_in_prefix(b'X')), [1, 3])
+
+    def test_prefix_only(self) -> None:
+        b = SegmentedByteStreamBuffer()
+        b.write(b'aXb')
+        b.write(b'XcX')
+        # Only the contiguous prefix (first segment) is scanned; find() remains the stream-correct fallback.
+        self.assertEqual(list(b.find_all_in_prefix(b'X')), [1])
+        self.assertEqual(b.find(b'bX'), 2)
+
+    def test_active_chunk_bounds(self) -> None:
+        b = SegmentedByteStreamBuffer(chunk_size=8)
+        b.write(b'X\x00X')
+        # Unused active-chunk capacity (zeros) must not be scanned.
+        self.assertEqual(list(b.find_all_in_prefix(b'\x00')), [1])
+        self.assertEqual(list(b.find_all_in_prefix(b'X')), [0, 2])
+
+    def test_validation(self) -> None:
+        b = SegmentedByteStreamBuffer()
+        b.write(b'a')
+        with self.assertRaises(ValueError):
+            b.find_all_in_prefix(b'')
+        with self.assertRaises(ValueError):
+            b.find_all_in_prefix(b'a', -1)
+
+
 class TestSegmentedByteStreamBufferReserveRegressions(unittest.TestCase):
     def test_in_active_reserve_keeps_readable_visible(self) -> None:
         b = SegmentedByteStreamBuffer(chunk_size=8)

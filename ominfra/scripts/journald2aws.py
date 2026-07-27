@@ -80,7 +80,7 @@ def __om_amalg__():  # noqa
             dict(path='../../../../omcore/os/pidfiles/pidfile.py', sha1='1082f109ec1272d7c281707b9620ae6a9a241a9f'),
             dict(path='../../../../omcore/subprocesses/utils.py', sha1='54f0e245f69ed3d4e64f3b6bdac7bdc6e28cf9a4'),
             dict(path='../../../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
-            dict(path='../../../../omcore/io/streambufs/types.py', sha1='3edeaaa038f975595ba3eeea10f7e313d84723bb'),
+            dict(path='../../../../omcore/io/streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../../../omcore/lite/runtime.py', sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70'),
@@ -95,13 +95,13 @@ def __om_amalg__():  # noqa
             dict(path='../../../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='../../../../omcore/subprocesses/wrap.py', sha1='12d94dc2357951cd0fed1c50a46817d30d628927'),
             dict(path='../logs.py', sha1='d6773b6e7b0b84e14d49dbe8c0ebc29a3ddab4a6'),
-            dict(path='../../../../omcore/io/streambufs/direct.py', sha1='5a629d79aa7f618dce40e11c2609bc0dcd008599'),
-            dict(path='../../../../omcore/io/streambufs/scanning.py', sha1='47049a4c6c3e7ea1df49fda1746662e25e7847f8'),
+            dict(path='../../../../omcore/io/streambufs/direct.py', sha1='c7a8d43feb8453fbe1e33dd4519c4c5afd6d7769'),
+            dict(path='../../../../omcore/io/streambufs/scanning.py', sha1='465553a41c9361e40cbfa5aaf5b9d2231db78085'),
             dict(path='../../../../omcore/lite/configs.py', sha1='c8602e0e197ef1133e7e8e248935ac745bfd46cb'),
             dict(path='../../../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='c4f0809d61172e2f1d035127582a08a1cfcbff77'),  # noqa
+            dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='e92e735904bebd7551287bb416eae4fab8fe317f'),  # noqa
             dict(path='../../../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='../../../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
@@ -3654,6 +3654,24 @@ class ByteStreamBuffer(ByteStreamBufferLike, Abstract):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        """
+        Return the offsets of all non-overlapping occurrences of `sub` lying entirely within the *contiguous readable
+        prefix* (the region exposed by `peek()`), scanning left to right from `start` and stepping past each match.
+
+        This is the bulk-scanning primitive: implementations run the whole scan as a tight loop over their underlying
+        storage using C-accelerated search, amortizing per-call overhead across many hits - the per-call cost of
+        `find()` dominates codecs decoding many small frames otherwise. It is intentionally *not* stream-correct:
+        occurrences extending beyond the contiguous prefix are not found. Callers batch over the prefix and fall back to
+        `find()` to resolve possible cross-segment matches.
+
+        `sub` must be non-empty. `start` must be non-negative, and is an offset into the readable region as with
+        `find()`. Returned offsets are likewise readable-region offsets, in ascending order.
+        """
+
+        raise NotImplementedError
+
 
 class MutableByteStreamBuffer(ByteStreamBuffer, Abstract):
     """
@@ -6645,6 +6663,24 @@ class DirectByteStreamBuffer(BaseDirectByteStreamBufferLike, ByteStreamBuffer):
         idx = b.rfind(sub, self._rpos + start, self._rpos + end)
         return (idx - self._rpos) if idx >= 0 else -1
 
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if not sub:
+            raise ValueError('empty sub')
+        if start < 0:
+            raise ValueError(start)
+
+        out: ta.List[int] = []
+        append = out.append
+        find = self._b().find
+        rp = self._rpos
+        end = len(self._data)
+        m = len(sub)
+        pos = rp + start
+        while (i := find(sub, pos, end)) >= 0:
+            append(i - rp)
+            pos = i + m
+        return out
+
     def coalesce(self, n: int, /) -> memoryview:
         if n < 0 or n > len(self):
             raise ValueError(n)
@@ -6750,6 +6786,29 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
     def rfind(self, sub: bytes, start: int = 0, end: ta.Optional[int] = None) -> int:
         # rfind isn't the typical trickle hot-path; delegate.
         return self._buf.rfind(sub, start, end)
+
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if start != 0 or not (m := len(sub)):
+            return self._buf.find_all_in_prefix(sub, start)
+
+        scan_from = self._scan_from_by_sub.get(sub, 0)
+
+        # Allow overlap so a match spanning old/new boundary is discoverable.
+        eff_start = scan_from - (m - 1)
+        if eff_start < 0:
+            eff_start = 0
+
+        hits = self._buf.find_all_in_prefix(sub, eff_start)
+        if not hits:
+            # A miss only proves no match *starts* early enough to lie entirely within the contiguous prefix - one
+            # starting in its last m-1 bytes may still complete across the segment boundary or after future writes.
+            # The stored value's read-side overlap rewind accounts for exactly that, so the prefix length itself is
+            # the correct cache value (mirroring find()'s use of the full buffer length).
+            pl = len(self._buf.peek())
+            if pl > scan_from:
+                self._scan_from_by_sub[sub] = pl
+
+        return hits
 
     #
 
@@ -8489,6 +8548,32 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             return None
 
         return ls, end_search
+
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if not sub:
+            raise ValueError('empty sub')
+        if start < 0:
+            raise ValueError(start)
+
+        if not self._segs:
+            return ()
+
+        s0 = self._segs[0]
+        off = self._head_off
+        if s0 is self._active:
+            rl = self._active_readable_len()
+        else:
+            rl = len(s0)
+
+        out: ta.List[int] = []
+        append = out.append
+        find = s0.find
+        m = len(sub)
+        pos = off + start
+        while (i := find(sub, pos, rl)) >= 0:
+            append(i - off)
+            pos = i + m
+        return out
 
     def find(self, sub: bytes, start: int = 0, end: ta.Optional[int] = None) -> int:
         start, end = self._norm_slice(start, end)

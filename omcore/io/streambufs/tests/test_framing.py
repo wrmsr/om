@@ -1,4 +1,4 @@
-# ruff: noqa: PT009 PT027
+# ruff: noqa: PT009 PT027 UP006
 # @om-lite
 import typing as ta
 import unittest
@@ -8,6 +8,7 @@ from ..errors import FrameTooLargeByteStreamBufferError
 from ..framing import LengthFieldByteStreamFrameDecoder
 from ..framing import LongestMatchDelimiterByteStreamFrameDecoder
 from ..linear import LinearByteStreamBuffer
+from ..scanning import ScanningByteStreamBuffer
 from ..segmented import SegmentedByteStreamBuffer
 
 
@@ -266,6 +267,56 @@ class TestLongestMatchDelimiterFramerRegressions(unittest.TestCase):
         out = f.decode(b, final=True, include_delims=True)
         self.assertEqual([(_view_bytes(v), d) for v, d in out], [(b'x', b'\r')])
         self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'\n')
+
+
+class TestLongestMatchDelimiterFramerBatchDecoding(unittest.TestCase):
+    """The single-delimiter batch fast path must be indistinguishable from the general per-frame path."""
+
+    def test_single_delim_matches_reference_across_chunkings(self) -> None:
+        delim = b'\r\n'
+        payloads = [b'', b'a', b'bb', b'', b'x' * 100, b'q', b'']
+        data = b''.join(p + delim for p in payloads) + b'tail'
+
+        buf_ctors = [
+            SegmentedByteStreamBuffer,
+            lambda: SegmentedByteStreamBuffer(chunk_size=16),
+            lambda: ScanningByteStreamBuffer(SegmentedByteStreamBuffer(chunk_size=16)),
+            lambda: ScanningByteStreamBuffer(SegmentedByteStreamBuffer()),
+            LinearByteStreamBuffer,
+        ]
+
+        for chunk_size in (1, 2, 3, 7, 64, len(data)):
+            for keep_ends in (False, True):
+                for mk in buf_ctors:
+                    f = LongestMatchDelimiterByteStreamFrameDecoder([delim], keep_ends=keep_ends)
+                    buf = mk()
+                    got: ta.List[ta.Any] = []
+                    for i in range(0, len(data), chunk_size):
+                        buf.write(data[i:i + chunk_size])
+                        got.extend(v.tobytes() for v in f.decode(buf))
+
+                    exp = [p + (delim if keep_ends else b'') for p in payloads]
+                    self.assertEqual(got, exp, (chunk_size, keep_ends, mk))
+                    self.assertEqual(b''.join(bytes(mv) for mv in buf.segments()), b'tail')
+
+    def test_single_delim_include_delims(self) -> None:
+        f = LongestMatchDelimiterByteStreamFrameDecoder([b'\n'])
+        b = SegmentedByteStreamBuffer()
+        b.write(b'a\n\nbb\nrest')
+        out = f.decode(b, include_delims=True)
+        self.assertEqual([(v.tobytes(), d) for v, d in out], [(b'a', b'\n'), (b'', b'\n'), (b'bb', b'\n')])
+        self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'rest')
+
+    def test_single_delim_batch_views_are_stable(self) -> None:
+        f = LongestMatchDelimiterByteStreamFrameDecoder([b'\n'])
+        b = SegmentedByteStreamBuffer(chunk_size=32)
+        b.write(b'aaa\nbbb\n')
+        out = f.decode(b)
+
+        # Views must stay valid after the buffer moves on.
+        b.write(b'c' * 100)
+        b.split_to(50)
+        self.assertEqual([v.tobytes() for v in out], [b'aaa', b'bbb'])
 
 
 class TestLengthFieldFrameDecoderRegressions(unittest.TestCase):

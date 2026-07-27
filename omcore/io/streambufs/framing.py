@@ -2,6 +2,8 @@
 # @om-lite
 import typing as ta
 
+from .direct import _EMPTY_DIRECT_BYTE_STREAM_BUFFER_VIEW
+from .direct import DirectByteStreamBufferView
 from .errors import BufferTooLargeByteStreamBufferError
 from .errors import FrameTooLargeByteStreamBufferError
 from .types import ByteStreamBuffer
@@ -118,7 +120,15 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
 
         out: ta.List[ta.Any] = []
 
+        # With a single delimiter there is no same-position ambiguity and no mid-buffer deferral, so all complete
+        # frames within the buffer's contiguous prefix can be batch-decoded in a handful of bulk calls. Cross-segment
+        # matches and the buffered tail still go through the careful per-frame path below.
+        batch = len(self._delims) == 1
+
         while True:
+            if batch:
+                self._decode_prefix_batch(buf, out, include_delims=include_delims)
+
             hit = self._find_next_delim(buf)
             if hit is None:
                 if self._max_size is not None and len(buf) > self._max_size and not out:
@@ -146,6 +156,72 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
                 out.append((frame, delim))
             else:
                 out.append(frame)
+
+    def _decode_prefix_batch(
+            self,
+            buf: ByteStreamBuffer,
+            out: ta.List[ta.Any],
+            *,
+            include_delims: bool,
+    ) -> None:
+        """
+        Batch-decode all complete single-delimiter frames lying within the buffer's contiguous readable prefix.
+
+        Per round, one `find_all_in_prefix` scan yields every delimiter hit, one `split_to` consumes through the last
+        hit, and the frames are sliced as stable views out of that single split. This amortizes the per-frame call
+        overhead of the general loop across all frames in the prefix.
+
+        Stops (leaving the buffer positioned for the caller's per-frame path to take over) at: a frame exceeding
+        max_size, a possible cross-segment match, or the incomplete buffered tail.
+        """
+
+        d = self._delims[0]
+        dl = len(d)
+        ms = self._max_size
+        ke = self._keep_ends
+
+        while True:
+            hits = buf.find_all_in_prefix(d)
+            if not hits:
+                return
+
+            # Stop before any frame exceeding max_size - the caller's per-frame path re-discovers it and applies the
+            # error contract (return already-decoded frames first, raise on the next call).
+            stopped = False
+            if ms is not None:
+                prev = 0
+                for k, h in enumerate(hits):
+                    if h - prev > ms:
+                        hits = hits[:k]
+                        stopped = True
+                        break
+                    prev = h + dl
+                if not hits:
+                    return
+
+            consumed = hits[-1] + dl
+            v = buf.split_to(consumed)
+            mv = v.peek()
+            if len(mv) < consumed:
+                # Defensive: a split of a contiguous run should itself be contiguous for all in-repo buffers.
+                mv = memoryview(v.tobytes())
+
+            prev = 0
+            for h in hits:
+                fe = (h + dl) if ke else h
+                fv: ByteStreamBufferView
+                if fe > prev:
+                    fv = DirectByteStreamBufferView(mv[prev:fe])
+                else:
+                    fv = _EMPTY_DIRECT_BYTE_STREAM_BUFFER_VIEW
+                out.append((fv, d) if include_delims else fv)
+                prev = h + dl
+
+            if stopped:
+                return
+
+            # Consuming through the last hit may have exposed a new contiguous prefix (the run ended exactly at a
+            # segment boundary) - loop to rescan; otherwise the next scan comes up empty and returns.
 
     def _find_next_delim(self, buf: ByteStreamBuffer) -> ta.Optional[ta.Tuple[int, bytes]]:
         """

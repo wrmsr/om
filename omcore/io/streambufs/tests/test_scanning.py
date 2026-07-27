@@ -10,11 +10,12 @@ from ..segmented import SegmentedByteStreamBuffer
 class _SpyFindSegmentedByteStreamBuffer:
     """Test helper: wraps a SegmentedByteStreamBuffer and records find() calls."""
 
-    def __init__(self) -> None:
+    def __init__(self, buf: ta.Optional[SegmentedByteStreamBuffer] = None) -> None:
         super().__init__()
 
-        self._buf = SegmentedByteStreamBuffer()
+        self._buf = SegmentedByteStreamBuffer() if buf is None else buf
         self.find_calls: list[tuple[bytes, int, ta.Optional[int]]] = []
+        self.find_all_in_prefix_calls: list[tuple[bytes, int]] = []
 
     def __len__(self) -> int:
         return len(self._buf)
@@ -37,6 +38,10 @@ class _SpyFindSegmentedByteStreamBuffer:
 
     def rfind(self, sub: bytes, start: int = 0, end: ta.Optional[int] = None) -> int:
         return self._buf.rfind(sub, start, end)
+
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        self.find_all_in_prefix_calls.append((sub, start))
+        return self._buf.find_all_in_prefix(sub, start)
 
     def write(self, data, /) -> None:
         self._buf.write(data)
@@ -115,3 +120,33 @@ class TestScanningByteStreamBuffer(unittest.TestCase):
         fb.write(b'abcabcabc')
         self.assertEqual(fb.find(b'abc', 3, None), 3)
         self.assertEqual(fb.find(b'abc', 4, None), 6)
+
+    def test_find_all_in_prefix_caches_negative_progress(self) -> None:
+        # Chunked inner buffer so trickle writes coalesce into one contiguous prefix.
+        spy = _SpyFindSegmentedByteStreamBuffer(SegmentedByteStreamBuffer(chunk_size=64))
+        fb = ScanningByteStreamBuffer(spy)
+
+        needle = b'\r\n'
+
+        for _ in range(32):
+            fb.write(b'a')
+            self.assertEqual(list(fb.find_all_in_prefix(needle)), [])
+
+        # Scan starts must advance rather than restarting from 0 each time.
+        starts = [st for _, st in spy.find_all_in_prefix_calls]
+        self.assertEqual(starts[0], 0)
+        self.assertGreater(starts[-1], 16)
+        self.assertEqual(starts, sorted(starts))
+
+        fb.write(b'\r\nbb\r\n')
+        self.assertEqual(list(fb.find_all_in_prefix(needle)), [32, 36])
+
+        # Consumption must adjust the cache so subsequent scans stay correct.
+        fb.advance(34)
+        self.assertEqual(list(fb.find_all_in_prefix(needle)), [2])
+
+    def test_find_all_in_prefix_nondefault_start_delegates(self) -> None:
+        fb = ScanningByteStreamBuffer(SegmentedByteStreamBuffer(chunk_size=64))
+        fb.write(b'X.X.X')
+        self.assertEqual(list(fb.find_all_in_prefix(b'X')), [0, 2, 4])
+        self.assertEqual(list(fb.find_all_in_prefix(b'X', 1)), [2, 4])

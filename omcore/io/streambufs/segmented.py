@@ -621,6 +621,32 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
         return ls, end_search
 
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if not sub:
+            raise ValueError('empty sub')
+        if start < 0:
+            raise ValueError(start)
+
+        if not self._segs:
+            return ()
+
+        s0 = self._segs[0]
+        off = self._head_off
+        if s0 is self._active:
+            rl = self._active_readable_len()
+        else:
+            rl = len(s0)
+
+        out: ta.List[int] = []
+        append = out.append
+        find = s0.find
+        m = len(sub)
+        pos = off + start
+        while (i := find(sub, pos, rl)) >= 0:
+            append(i - off)
+            pos = i + m
+        return out
+
     def find(self, sub: bytes, start: int = 0, end: ta.Optional[int] = None) -> int:
         start, end = self._norm_slice(start, end)
 

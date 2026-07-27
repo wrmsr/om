@@ -135,7 +135,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
             dict(path='../../omcore/io/pipelines/core.py', sha1='3bb2aad1972ff9e42bafbc5d21a6137d4657960e'),
-            dict(path='../../omcore/io/streambufs/types.py', sha1='3edeaaa038f975595ba3eeea10f7e313d84723bb'),
+            dict(path='../../omcore/io/streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../omcore/lite/maybes.py', sha1='5ac5f92e5610c6795b0a228c38e7bcd272bf6305'),
@@ -165,7 +165,6 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/io/pipelines/flow/types.py', sha1='81ead96b6a9487fbda313e858d75701ebe2d5518'),
             dict(path='../../omcore/io/pipelines/sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
             dict(path='../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
-            dict(path='../../omcore/io/streambufs/framing.py', sha1='27e2ae2a24b557b6ae696f8982eac517b4617e99'),
             dict(path='../../omcore/io/streambufs/utils.py', sha1='4b91a6eee8b5a8cc3444bed9df3a6b3e4e10e9b0'),
             dict(path='../../omcore/lite/inject.py', sha1='7dd6067b626c4c6a371b7a0e50eac54e320fcf3a'),
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
@@ -190,8 +189,8 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/pipelines/responses.py', sha1='3145565e89891902ecd2ce193fac1609d3a26fe6'),
             dict(path='../../omcore/http/simple/handlers.py', sha1='43502a58069673135882066ba939c99ea2f8dfc1'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
-            dict(path='../../omcore/io/streambufs/direct.py', sha1='5a629d79aa7f618dce40e11c2609bc0dcd008599'),
-            dict(path='../../omcore/io/streambufs/scanning.py', sha1='47049a4c6c3e7ea1df49fda1746662e25e7847f8'),
+            dict(path='../../omcore/io/streambufs/direct.py', sha1='c7a8d43feb8453fbe1e33dd4519c4c5afd6d7769'),
+            dict(path='../../omcore/io/streambufs/scanning.py', sha1='465553a41c9361e40cbfa5aaf5b9d2231db78085'),
             dict(path='../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
@@ -203,7 +202,8 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/pack/packing.py', sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad'),
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='f2ee8d546682c585eeb588c57da3e7967cbcae14'),
-            dict(path='../../omcore/io/streambufs/segmented.py', sha1='c4f0809d61172e2f1d035127582a08a1cfcbff77'),
+            dict(path='../../omcore/io/streambufs/framing.py', sha1='9dc947b00e65297abad0dcd451bd4a35ad3c86e8'),
+            dict(path='../../omcore/io/streambufs/segmented.py', sha1='e92e735904bebd7551287bb416eae4fab8fe317f'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='../../omcore/subprocesses/asyncs.py', sha1='8d428af73220f793d2c0e93f5c9966fac9474246'),
@@ -8737,6 +8737,24 @@ class ByteStreamBuffer(ByteStreamBufferLike, Abstract):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        """
+        Return the offsets of all non-overlapping occurrences of `sub` lying entirely within the *contiguous readable
+        prefix* (the region exposed by `peek()`), scanning left to right from `start` and stepping past each match.
+
+        This is the bulk-scanning primitive: implementations run the whole scan as a tight loop over their underlying
+        storage using C-accelerated search, amortizing per-call overhead across many hits - the per-call cost of
+        `find()` dominates codecs decoding many small frames otherwise. It is intentionally *not* stream-correct:
+        occurrences extending beyond the contiguous prefix are not found. Callers batch over the prefix and fall back to
+        `find()` to resolve possible cross-segment matches.
+
+        `sub` must be non-empty. `start` must be non-negative, and is an offset into the readable region as with
+        `find()`. Returned offsets are likewise readable-region offsets, in ascending order.
+        """
+
+        raise NotImplementedError
+
 
 class MutableByteStreamBuffer(ByteStreamBuffer, Abstract):
     """
@@ -13660,379 +13678,6 @@ class BaseByteStreamBufferLike(ByteStreamBufferLike, Abstract):
             return 0, len(self)
         s, e, _ = slice(start, end, 1).indices(len(self))
         return (s, s) if e < s else (s, e)
-
-
-########################################
-# ../../../omcore/io/streambufs/framing.py
-
-
-##
-
-
-class LongestMatchDelimiterByteStreamFrameDecoder:
-    """
-    A delimiter-based framing codec that supports *overlapping* delimiters with longest-match semantics.
-
-    This is intentionally decoupled from any I/O model: it operates purely on a `ByteStreamBuffer`-like object
-    (providing `__len__`, `find`, `split_to`, `advance`, and `segments`/`peek`).
-
-    Key property:
-      Given overlapping delimiters like [b'\\r', b'\\r\\n'], this codec will *not* emit a frame ending at '\\r' unless
-      it can prove the next byte is not '\\n' (or the stream is finalized).
-
-    Implementation note:
-      This codec relies on `ByteStreamBuffer.find(...)` being stream-correct and C-accelerated over the buffer's
-      underlying contiguous segments. In pure Python it is usually better to keep searching near the storage layer than
-      to re-implement scanning byte-by-byte in higher-level codecs.
-
-    Pairs well with `ScanningByteStreamBuffer`.
-    """
-
-    def __init__(
-            self,
-            delims: ta.Sequence[bytes],
-            *,
-            keep_ends: bool = False,
-            max_size: ta.Optional[int] = None,
-    ) -> None:
-        super().__init__()
-
-        dl = list(delims)
-        if not dl:
-            raise ValueError('no delimiters')
-        if any(not isinstance(d, (bytes, bytearray)) for d in dl):
-            raise TypeError(delims)
-        if any(not d for d in dl):
-            raise ValueError('empty delimiter')
-
-        self._delims = tuple(bytes(d) for d in dl)
-        self._keep_ends = keep_ends
-        self._max_size = max_size
-
-        # Sort by length descending for "choose longest at same start".
-        self._delims_by_len = tuple(sorted(self._delims, key=len, reverse=True))
-
-        # Build prefix relationships for overlap deferral. For each short delimiter, store longer delimiters that start
-        # with it.
-        pref: ta.Dict[bytes, ta.List[bytes]] = {}
-        for d in self._delims:
-            for e in self._delims:
-                if d is e:
-                    continue
-                if len(e) > len(d) and e.startswith(d):
-                    pref.setdefault(d, []).append(e)
-        for k, vs in list(pref.items()):
-            pref[k] = sorted(vs, key=len, reverse=True)
-        self._prefix_longer = pref
-
-        self._max_delim_len = max(len(d) for d in self._delims)
-
-    @ta.overload
-    def decode(
-            self,
-            buf: ByteStreamBuffer,
-            *,
-            final: bool = False,
-            include_delims: ta.Literal[True],
-    ) -> ta.List[ta.Tuple[ByteStreamBufferView, bytes]]:
-        ...
-
-    @ta.overload
-    def decode(
-            self,
-            buf: ByteStreamBuffer,
-            *,
-            final: bool = False,
-            include_delims: ta.Literal[False] = False,
-    ) -> ta.List[ByteStreamBufferView]:
-        ...
-
-    def decode(
-            self,
-            buf,
-            *,
-            final=False,
-            include_delims=False,
-    ):
-        """
-        Consume as many complete frames as possible from `buf` and return them as views.
-
-        - Frames are produced without copying (via `buf.split_to(...)`) when possible.
-        - The delimiter is consumed from the buffer; it may be retained on the frame if `keep_ends=True`.
-        - If `final=True`, the codec will not defer on overlapping delimiter prefixes at the end of the buffer.
-
-        Raises:
-          - BufferTooLargeByteStreamBufferError if no delimiter is present and the buffered prefix exceeds max_size.
-          - FrameTooLargeByteStreamBufferError if the next frame payload (bytes before delimiter) exceeds max_size.
-
-        Note on `max_size`:
-          `max_size` is enforced as a limit on the *current* frame (bytes before the next delimiter). If the buffer
-          contains bytes for a subsequent frame that already exceed `max_size`, this codec will only raise when it would
-          otherwise need to make progress on that oversized frame. Concretely: if this call already emitted at least one
-          frame, it will return those frames rather than raising - frames already consumed from the buffer must never
-          be lost to an exception. The error is then raised by the next call, when the offending frame is first in
-          line and nothing has been consumed yet.
-        """
-
-        out: ta.List[ta.Any] = []
-
-        while True:
-            hit = self._find_next_delim(buf)
-            if hit is None:
-                if self._max_size is not None and len(buf) > self._max_size and not out:
-                    raise BufferTooLargeByteStreamBufferError('buffer exceeded max_size without delimiter')
-                return out
-
-            pos, delim = hit
-
-            if self._max_size is not None and pos > self._max_size:
-                # Never lose already-consumed frames to an exception - return them, and raise on the next call.
-                if out:
-                    return out
-                raise FrameTooLargeByteStreamBufferError('frame exceeded max_size')
-
-            if not final and self._should_defer(buf, pos, delim):
-                return out
-
-            if self._keep_ends:
-                frame = buf.split_to(pos + len(delim))
-            else:
-                frame = buf.split_to(pos)
-                buf.advance(len(delim))
-
-            if include_delims:
-                out.append((frame, delim))
-            else:
-                out.append(frame)
-
-    def _find_next_delim(self, buf: ByteStreamBuffer) -> ta.Optional[ta.Tuple[int, bytes]]:
-        """
-        Return (pos, delim) for the earliest delimiter occurrence. If multiple delimiters occur at the same position,
-        choose the longest matching delimiter.
-        """
-
-        ln = len(buf)
-        if not ln:
-            return None
-
-        # Single delimiter: no same-position ambiguity is possible.
-        if len(self._delims) == 1:
-            d = self._delims[0]
-            if (i := buf.find(d, 0, None)) == -1:
-                return None
-            return i, d
-
-        best_pos = None  # type: ta.Optional[int]
-        best_delim = None  # type: ta.Optional[bytes]
-
-        # First pass: find the earliest position of any delimiter (cheap, uses buf.find).
-        for d in self._delims:
-            i = buf.find(d, 0, None)
-            if i == -1:
-                continue
-            if best_pos is None or i < best_pos:
-                best_pos = i
-                best_delim = d
-                if not best_pos:
-                    # Can't beat position 0; still need to choose longest at this position.
-                    pass
-            elif i == best_pos and best_delim is not None and len(d) > len(best_delim):
-                best_delim = d
-
-        if best_pos is None or best_delim is None:
-            return None
-
-        # Any two delimiters matching at the same position necessarily match the same bytes there, so one must be a
-        # prefix of the other - and the first pass already tie-breaks same-position matches by length. So when no
-        # prefix relationships exist among the delimiters at all, the first-pass winner is exact.
-        if not self._prefix_longer:
-            return best_pos, best_delim
-
-        # Second pass: at that position, choose the longest delimiter that actually matches there. (We can't just rely
-        # on "which delimiter found it first" when overlaps exist.)
-        pos = best_pos
-        for d in self._delims_by_len:
-            if pos + len(d) > ln:
-                continue
-            if buf.find(d, pos, pos + len(d)) == pos:
-                return pos, d
-
-        # Shouldn't happen: best_pos came from some delimiter occurrence.
-        return pos, best_delim
-
-    def _should_defer(self, buf: ByteStreamBuffer, pos: int, matched: bytes) -> bool:
-        """
-        Return True if we must defer because a longer delimiter could still match starting at `pos` but we don't yet
-        have enough bytes to decide.
-
-        We only defer when:
-          - there exists some longer delimiter that has `matched` as a prefix, and
-          - not all of that longer delimiter's bytes are buffered from `pos` (had they been, `_find_next_delim` would
-            have already decided), and
-          - the buffered bytes from `pos` match the available prefix of that longer delimiter.
-
-        Note that the current match ending *before* the end of the buffered bytes does not preclude deferral: a longer
-        delimiter may extend more than one byte past the current match, with only part of that extension buffered
-        (e.g. matched=b'\\r' with b'\\r\\n' buffered and a longer delimiter of b'\\r\\n\\r\\n').
-        """
-
-        longer = self._prefix_longer.get(matched)
-        if not longer:
-            return False
-
-        avail = len(buf) - pos
-        for d2 in longer:
-            if avail >= len(d2):
-                # If we had enough bytes, we'd have matched d2 in _find_next_delim.
-                continue
-            # Check whether buffered bytes match the prefix of d2 that we have available.
-            # Use stream-correct find on the prefix.
-            prefix = d2[:avail]
-            if buf.find(prefix, pos, pos + avail) == pos:
-                return True
-
-        return False
-
-
-##
-
-
-class LengthFieldByteStreamFrameDecoder:
-    """
-    Decode length-prefixed frames from a BytesBuffer/MutableBytesBuffer.
-
-    This is modeled after the common Netty pattern:
-      total_frame_length = length_field_value + length_adjustment + length_field_end_offset
-    where:
-      length_field_end_offset = length_field_offset + length_field_length
-
-    Parameters:
-      - length_field_offset: byte offset of the length field from the start of the frame
-      - length_field_length: length of the length field in bytes (1, 2, 4, or 8)
-      - byteorder: 'big' or 'little'
-      - length_adjustment: adjustment added to computed frame length (may be negative)
-      - initial_bytes_to_strip: number of leading bytes to drop from the emitted frame (typically used to strip the
-        length field and/or header from the delivered payload)
-      - max_frame_length: maximum allowed total frame length (before stripping)
-
-    Notes:
-      - This decoder operates directly on the provided buffer and consumes bytes as frames are produced.
-      - It relies on `buf.coalesce(n)` for efficient header parsing in pure Python.
-      - It does not require async/await and is suitable for pipeline-style codecs.
-    """
-
-    def __init__(
-            self,
-            *,
-            length_field_offset: int = 0,
-            length_field_length: int = 4,
-            byteorder: ta.Literal['little', 'big'] = 'big',
-            length_adjustment: int = 0,
-            initial_bytes_to_strip: int = 0,
-            max_frame_length: ta.Optional[int] = None,
-    ) -> None:
-        super().__init__()
-
-        if length_field_offset < 0:
-            raise ValueError(length_field_offset)
-        if length_field_length not in (1, 2, 4, 8):
-            raise ValueError(length_field_length)
-        if byteorder not in ('big', 'little'):
-            raise ValueError(byteorder)
-        if initial_bytes_to_strip < 0:
-            raise ValueError(initial_bytes_to_strip)
-        if max_frame_length is not None and max_frame_length < 0:
-            raise ValueError(max_frame_length)
-
-        self._off = int(length_field_offset)
-        self._llen = int(length_field_length)
-        self._byteorder = byteorder
-        self._adj = int(length_adjustment)
-        self._strip = int(initial_bytes_to_strip)
-        self._max = None if max_frame_length is None else int(max_frame_length)
-
-        self._end_off = self._off + self._llen
-
-    def decode(self, buf: ByteStreamBuffer) -> ta.List[ByteStreamBufferView]:
-        """
-        Consume as many complete frames as possible from `buf` and return them as views.
-
-        Returns:
-          - list of BytesView-like objects (from `split_to`) representing each decoded frame
-
-        Raises:
-          - FrameTooLarge if a frame exceeds max_frame_length
-          - BufferTooLarge if max_frame_length is set and the buffered unread prefix grows beyond it without making
-            progress (defensive; rarely hit if upstream caps buffer growth)
-          - ValueError on frames whose computed total length is negative, smaller than the length field end offset, or
-            smaller than initial_bytes_to_strip (a corrupt stream - decoding cannot resynchronize)
-
-        If frames were already decoded by the current call, they are returned instead of raising - frames already
-        consumed from the buffer must never be lost to an exception. The error is then raised by the next call, when
-        the offending frame is first in line and nothing has been consumed yet.
-        """
-
-        out: ta.List[ta.Any] = []
-
-        while True:
-            # Need at least enough bytes to read the length field.
-            if len(buf) < self._end_off:
-                return out
-
-            # Read header up through the length field contiguously.
-            # IMPORTANT: don't keep exported memoryviews alive across buffer mutation.
-            mv = buf.coalesce(self._end_off)
-            if len(mv) < self._end_off:
-                # Defensive: coalesce contract.
-                return out
-
-            # Copy just the length field bytes (1/2/4/8) so we can safely mutate the buffer afterward.
-            lf_bytes = bytes(mv[self._off:self._end_off])
-            # del mv
-
-            length_val = int.from_bytes(lf_bytes, self._byteorder, signed=False)
-
-            total_len = length_val + self._adj + self._end_off
-            if total_len < 0:
-                if out:
-                    return out
-                raise ValueError('negative frame length')
-
-            # A frame shorter than its own header would leave part of the header unconsumed and permanently desync
-            # the stream (Netty rejects this as a corrupted frame too).
-            if total_len < self._end_off:
-                if out:
-                    return out
-                raise ValueError('frame length less than length field end offset')
-
-            if self._max is not None and total_len > self._max:
-                if out:
-                    return out
-                raise FrameTooLargeByteStreamBufferError('frame exceeded max_frame_length')
-
-            # If we don't have the full frame yet, either wait or (optionally) fail fast if buffering is clearly out of
-            # control.
-            if len(buf) < total_len:
-                if self._max is not None and len(buf) > self._max:
-                    if out:
-                        return out
-                    raise BufferTooLargeByteStreamBufferError(
-                        'buffer exceeded max_frame_length without completing a frame',
-                    )
-                return out
-
-            # We have a complete frame available.
-            if self._strip:
-                if self._strip > total_len:
-                    if out:
-                        return out
-                    raise ValueError('initial_bytes_to_strip > frame length')
-                buf.advance(self._strip)
-                total_len -= self._strip
-
-            out.append(buf.split_to(total_len))
-
-            # Loop for additional frames
 
 
 ########################################
@@ -22200,6 +21845,24 @@ class DirectByteStreamBuffer(BaseDirectByteStreamBufferLike, ByteStreamBuffer):
         idx = b.rfind(sub, self._rpos + start, self._rpos + end)
         return (idx - self._rpos) if idx >= 0 else -1
 
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if not sub:
+            raise ValueError('empty sub')
+        if start < 0:
+            raise ValueError(start)
+
+        out: ta.List[int] = []
+        append = out.append
+        find = self._b().find
+        rp = self._rpos
+        end = len(self._data)
+        m = len(sub)
+        pos = rp + start
+        while (i := find(sub, pos, end)) >= 0:
+            append(i - rp)
+            pos = i + m
+        return out
+
     def coalesce(self, n: int, /) -> memoryview:
         if n < 0 or n > len(self):
             raise ValueError(n)
@@ -22305,6 +21968,29 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
     def rfind(self, sub: bytes, start: int = 0, end: ta.Optional[int] = None) -> int:
         # rfind isn't the typical trickle hot-path; delegate.
         return self._buf.rfind(sub, start, end)
+
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if start != 0 or not (m := len(sub)):
+            return self._buf.find_all_in_prefix(sub, start)
+
+        scan_from = self._scan_from_by_sub.get(sub, 0)
+
+        # Allow overlap so a match spanning old/new boundary is discoverable.
+        eff_start = scan_from - (m - 1)
+        if eff_start < 0:
+            eff_start = 0
+
+        hits = self._buf.find_all_in_prefix(sub, eff_start)
+        if not hits:
+            # A miss only proves no match *starts* early enough to lie entirely within the contiguous prefix - one
+            # starting in its last m-1 bytes may still complete across the segment boundary or after future writes.
+            # The stored value's read-side overlap rewind accounts for exactly that, so the prefix length itself is
+            # the correct cache value (mirroring find()'s use of the full buffer length).
+            pl = len(self._buf.peek())
+            if pl > scan_from:
+                self._scan_from_by_sub[sub] = pl
+
+        return hits
 
     #
 
@@ -26909,6 +26595,453 @@ class IoPipelineHttpObjectDechunker(
 
 
 ########################################
+# ../../../omcore/io/streambufs/framing.py
+
+
+##
+
+
+class LongestMatchDelimiterByteStreamFrameDecoder:
+    """
+    A delimiter-based framing codec that supports *overlapping* delimiters with longest-match semantics.
+
+    This is intentionally decoupled from any I/O model: it operates purely on a `ByteStreamBuffer`-like object
+    (providing `__len__`, `find`, `split_to`, `advance`, and `segments`/`peek`).
+
+    Key property:
+      Given overlapping delimiters like [b'\\r', b'\\r\\n'], this codec will *not* emit a frame ending at '\\r' unless
+      it can prove the next byte is not '\\n' (or the stream is finalized).
+
+    Implementation note:
+      This codec relies on `ByteStreamBuffer.find(...)` being stream-correct and C-accelerated over the buffer's
+      underlying contiguous segments. In pure Python it is usually better to keep searching near the storage layer than
+      to re-implement scanning byte-by-byte in higher-level codecs.
+
+    Pairs well with `ScanningByteStreamBuffer`.
+    """
+
+    def __init__(
+            self,
+            delims: ta.Sequence[bytes],
+            *,
+            keep_ends: bool = False,
+            max_size: ta.Optional[int] = None,
+    ) -> None:
+        super().__init__()
+
+        dl = list(delims)
+        if not dl:
+            raise ValueError('no delimiters')
+        if any(not isinstance(d, (bytes, bytearray)) for d in dl):
+            raise TypeError(delims)
+        if any(not d for d in dl):
+            raise ValueError('empty delimiter')
+
+        self._delims = tuple(bytes(d) for d in dl)
+        self._keep_ends = keep_ends
+        self._max_size = max_size
+
+        # Sort by length descending for "choose longest at same start".
+        self._delims_by_len = tuple(sorted(self._delims, key=len, reverse=True))
+
+        # Build prefix relationships for overlap deferral. For each short delimiter, store longer delimiters that start
+        # with it.
+        pref: ta.Dict[bytes, ta.List[bytes]] = {}
+        for d in self._delims:
+            for e in self._delims:
+                if d is e:
+                    continue
+                if len(e) > len(d) and e.startswith(d):
+                    pref.setdefault(d, []).append(e)
+        for k, vs in list(pref.items()):
+            pref[k] = sorted(vs, key=len, reverse=True)
+        self._prefix_longer = pref
+
+        self._max_delim_len = max(len(d) for d in self._delims)
+
+    @ta.overload
+    def decode(
+            self,
+            buf: ByteStreamBuffer,
+            *,
+            final: bool = False,
+            include_delims: ta.Literal[True],
+    ) -> ta.List[ta.Tuple[ByteStreamBufferView, bytes]]:
+        ...
+
+    @ta.overload
+    def decode(
+            self,
+            buf: ByteStreamBuffer,
+            *,
+            final: bool = False,
+            include_delims: ta.Literal[False] = False,
+    ) -> ta.List[ByteStreamBufferView]:
+        ...
+
+    def decode(
+            self,
+            buf,
+            *,
+            final=False,
+            include_delims=False,
+    ):
+        """
+        Consume as many complete frames as possible from `buf` and return them as views.
+
+        - Frames are produced without copying (via `buf.split_to(...)`) when possible.
+        - The delimiter is consumed from the buffer; it may be retained on the frame if `keep_ends=True`.
+        - If `final=True`, the codec will not defer on overlapping delimiter prefixes at the end of the buffer.
+
+        Raises:
+          - BufferTooLargeByteStreamBufferError if no delimiter is present and the buffered prefix exceeds max_size.
+          - FrameTooLargeByteStreamBufferError if the next frame payload (bytes before delimiter) exceeds max_size.
+
+        Note on `max_size`:
+          `max_size` is enforced as a limit on the *current* frame (bytes before the next delimiter). If the buffer
+          contains bytes for a subsequent frame that already exceed `max_size`, this codec will only raise when it would
+          otherwise need to make progress on that oversized frame. Concretely: if this call already emitted at least one
+          frame, it will return those frames rather than raising - frames already consumed from the buffer must never
+          be lost to an exception. The error is then raised by the next call, when the offending frame is first in
+          line and nothing has been consumed yet.
+        """
+
+        out: ta.List[ta.Any] = []
+
+        # With a single delimiter there is no same-position ambiguity and no mid-buffer deferral, so all complete
+        # frames within the buffer's contiguous prefix can be batch-decoded in a handful of bulk calls. Cross-segment
+        # matches and the buffered tail still go through the careful per-frame path below.
+        batch = len(self._delims) == 1
+
+        while True:
+            if batch:
+                self._decode_prefix_batch(buf, out, include_delims=include_delims)
+
+            hit = self._find_next_delim(buf)
+            if hit is None:
+                if self._max_size is not None and len(buf) > self._max_size and not out:
+                    raise BufferTooLargeByteStreamBufferError('buffer exceeded max_size without delimiter')
+                return out
+
+            pos, delim = hit
+
+            if self._max_size is not None and pos > self._max_size:
+                # Never lose already-consumed frames to an exception - return them, and raise on the next call.
+                if out:
+                    return out
+                raise FrameTooLargeByteStreamBufferError('frame exceeded max_size')
+
+            if not final and self._should_defer(buf, pos, delim):
+                return out
+
+            if self._keep_ends:
+                frame = buf.split_to(pos + len(delim))
+            else:
+                frame = buf.split_to(pos)
+                buf.advance(len(delim))
+
+            if include_delims:
+                out.append((frame, delim))
+            else:
+                out.append(frame)
+
+    def _decode_prefix_batch(
+            self,
+            buf: ByteStreamBuffer,
+            out: ta.List[ta.Any],
+            *,
+            include_delims: bool,
+    ) -> None:
+        """
+        Batch-decode all complete single-delimiter frames lying within the buffer's contiguous readable prefix.
+
+        Per round, one `find_all_in_prefix` scan yields every delimiter hit, one `split_to` consumes through the last
+        hit, and the frames are sliced as stable views out of that single split. This amortizes the per-frame call
+        overhead of the general loop across all frames in the prefix.
+
+        Stops (leaving the buffer positioned for the caller's per-frame path to take over) at: a frame exceeding
+        max_size, a possible cross-segment match, or the incomplete buffered tail.
+        """
+
+        d = self._delims[0]
+        dl = len(d)
+        ms = self._max_size
+        ke = self._keep_ends
+
+        while True:
+            hits = buf.find_all_in_prefix(d)
+            if not hits:
+                return
+
+            # Stop before any frame exceeding max_size - the caller's per-frame path re-discovers it and applies the
+            # error contract (return already-decoded frames first, raise on the next call).
+            stopped = False
+            if ms is not None:
+                prev = 0
+                for k, h in enumerate(hits):
+                    if h - prev > ms:
+                        hits = hits[:k]
+                        stopped = True
+                        break
+                    prev = h + dl
+                if not hits:
+                    return
+
+            consumed = hits[-1] + dl
+            v = buf.split_to(consumed)
+            mv = v.peek()
+            if len(mv) < consumed:
+                # Defensive: a split of a contiguous run should itself be contiguous for all in-repo buffers.
+                mv = memoryview(v.tobytes())
+
+            prev = 0
+            for h in hits:
+                fe = (h + dl) if ke else h
+                fv: ByteStreamBufferView
+                if fe > prev:
+                    fv = DirectByteStreamBufferView(mv[prev:fe])
+                else:
+                    fv = _EMPTY_DIRECT_BYTE_STREAM_BUFFER_VIEW
+                out.append((fv, d) if include_delims else fv)
+                prev = h + dl
+
+            if stopped:
+                return
+
+            # Consuming through the last hit may have exposed a new contiguous prefix (the run ended exactly at a
+            # segment boundary) - loop to rescan; otherwise the next scan comes up empty and returns.
+
+    def _find_next_delim(self, buf: ByteStreamBuffer) -> ta.Optional[ta.Tuple[int, bytes]]:
+        """
+        Return (pos, delim) for the earliest delimiter occurrence. If multiple delimiters occur at the same position,
+        choose the longest matching delimiter.
+        """
+
+        ln = len(buf)
+        if not ln:
+            return None
+
+        # Single delimiter: no same-position ambiguity is possible.
+        if len(self._delims) == 1:
+            d = self._delims[0]
+            if (i := buf.find(d, 0, None)) == -1:
+                return None
+            return i, d
+
+        best_pos = None  # type: ta.Optional[int]
+        best_delim = None  # type: ta.Optional[bytes]
+
+        # First pass: find the earliest position of any delimiter (cheap, uses buf.find).
+        for d in self._delims:
+            i = buf.find(d, 0, None)
+            if i == -1:
+                continue
+            if best_pos is None or i < best_pos:
+                best_pos = i
+                best_delim = d
+                if not best_pos:
+                    # Can't beat position 0; still need to choose longest at this position.
+                    pass
+            elif i == best_pos and best_delim is not None and len(d) > len(best_delim):
+                best_delim = d
+
+        if best_pos is None or best_delim is None:
+            return None
+
+        # Any two delimiters matching at the same position necessarily match the same bytes there, so one must be a
+        # prefix of the other - and the first pass already tie-breaks same-position matches by length. So when no
+        # prefix relationships exist among the delimiters at all, the first-pass winner is exact.
+        if not self._prefix_longer:
+            return best_pos, best_delim
+
+        # Second pass: at that position, choose the longest delimiter that actually matches there. (We can't just rely
+        # on "which delimiter found it first" when overlaps exist.)
+        pos = best_pos
+        for d in self._delims_by_len:
+            if pos + len(d) > ln:
+                continue
+            if buf.find(d, pos, pos + len(d)) == pos:
+                return pos, d
+
+        # Shouldn't happen: best_pos came from some delimiter occurrence.
+        return pos, best_delim
+
+    def _should_defer(self, buf: ByteStreamBuffer, pos: int, matched: bytes) -> bool:
+        """
+        Return True if we must defer because a longer delimiter could still match starting at `pos` but we don't yet
+        have enough bytes to decide.
+
+        We only defer when:
+          - there exists some longer delimiter that has `matched` as a prefix, and
+          - not all of that longer delimiter's bytes are buffered from `pos` (had they been, `_find_next_delim` would
+            have already decided), and
+          - the buffered bytes from `pos` match the available prefix of that longer delimiter.
+
+        Note that the current match ending *before* the end of the buffered bytes does not preclude deferral: a longer
+        delimiter may extend more than one byte past the current match, with only part of that extension buffered
+        (e.g. matched=b'\\r' with b'\\r\\n' buffered and a longer delimiter of b'\\r\\n\\r\\n').
+        """
+
+        longer = self._prefix_longer.get(matched)
+        if not longer:
+            return False
+
+        avail = len(buf) - pos
+        for d2 in longer:
+            if avail >= len(d2):
+                # If we had enough bytes, we'd have matched d2 in _find_next_delim.
+                continue
+            # Check whether buffered bytes match the prefix of d2 that we have available.
+            # Use stream-correct find on the prefix.
+            prefix = d2[:avail]
+            if buf.find(prefix, pos, pos + avail) == pos:
+                return True
+
+        return False
+
+
+##
+
+
+class LengthFieldByteStreamFrameDecoder:
+    """
+    Decode length-prefixed frames from a BytesBuffer/MutableBytesBuffer.
+
+    This is modeled after the common Netty pattern:
+      total_frame_length = length_field_value + length_adjustment + length_field_end_offset
+    where:
+      length_field_end_offset = length_field_offset + length_field_length
+
+    Parameters:
+      - length_field_offset: byte offset of the length field from the start of the frame
+      - length_field_length: length of the length field in bytes (1, 2, 4, or 8)
+      - byteorder: 'big' or 'little'
+      - length_adjustment: adjustment added to computed frame length (may be negative)
+      - initial_bytes_to_strip: number of leading bytes to drop from the emitted frame (typically used to strip the
+        length field and/or header from the delivered payload)
+      - max_frame_length: maximum allowed total frame length (before stripping)
+
+    Notes:
+      - This decoder operates directly on the provided buffer and consumes bytes as frames are produced.
+      - It relies on `buf.coalesce(n)` for efficient header parsing in pure Python.
+      - It does not require async/await and is suitable for pipeline-style codecs.
+    """
+
+    def __init__(
+            self,
+            *,
+            length_field_offset: int = 0,
+            length_field_length: int = 4,
+            byteorder: ta.Literal['little', 'big'] = 'big',
+            length_adjustment: int = 0,
+            initial_bytes_to_strip: int = 0,
+            max_frame_length: ta.Optional[int] = None,
+    ) -> None:
+        super().__init__()
+
+        if length_field_offset < 0:
+            raise ValueError(length_field_offset)
+        if length_field_length not in (1, 2, 4, 8):
+            raise ValueError(length_field_length)
+        if byteorder not in ('big', 'little'):
+            raise ValueError(byteorder)
+        if initial_bytes_to_strip < 0:
+            raise ValueError(initial_bytes_to_strip)
+        if max_frame_length is not None and max_frame_length < 0:
+            raise ValueError(max_frame_length)
+
+        self._off = int(length_field_offset)
+        self._llen = int(length_field_length)
+        self._byteorder = byteorder
+        self._adj = int(length_adjustment)
+        self._strip = int(initial_bytes_to_strip)
+        self._max = None if max_frame_length is None else int(max_frame_length)
+
+        self._end_off = self._off + self._llen
+
+    def decode(self, buf: ByteStreamBuffer) -> ta.List[ByteStreamBufferView]:
+        """
+        Consume as many complete frames as possible from `buf` and return them as views.
+
+        Returns:
+          - list of BytesView-like objects (from `split_to`) representing each decoded frame
+
+        Raises:
+          - FrameTooLarge if a frame exceeds max_frame_length
+          - BufferTooLarge if max_frame_length is set and the buffered unread prefix grows beyond it without making
+            progress (defensive; rarely hit if upstream caps buffer growth)
+          - ValueError on frames whose computed total length is negative, smaller than the length field end offset, or
+            smaller than initial_bytes_to_strip (a corrupt stream - decoding cannot resynchronize)
+
+        If frames were already decoded by the current call, they are returned instead of raising - frames already
+        consumed from the buffer must never be lost to an exception. The error is then raised by the next call, when
+        the offending frame is first in line and nothing has been consumed yet.
+        """
+
+        out: ta.List[ta.Any] = []
+
+        while True:
+            # Need at least enough bytes to read the length field.
+            if len(buf) < self._end_off:
+                return out
+
+            # Read header up through the length field contiguously.
+            # IMPORTANT: don't keep exported memoryviews alive across buffer mutation.
+            mv = buf.coalesce(self._end_off)
+            if len(mv) < self._end_off:
+                # Defensive: coalesce contract.
+                return out
+
+            # Copy just the length field bytes (1/2/4/8) so we can safely mutate the buffer afterward.
+            lf_bytes = bytes(mv[self._off:self._end_off])
+            # del mv
+
+            length_val = int.from_bytes(lf_bytes, self._byteorder, signed=False)
+
+            total_len = length_val + self._adj + self._end_off
+            if total_len < 0:
+                if out:
+                    return out
+                raise ValueError('negative frame length')
+
+            # A frame shorter than its own header would leave part of the header unconsumed and permanently desync
+            # the stream (Netty rejects this as a corrupted frame too).
+            if total_len < self._end_off:
+                if out:
+                    return out
+                raise ValueError('frame length less than length field end offset')
+
+            if self._max is not None and total_len > self._max:
+                if out:
+                    return out
+                raise FrameTooLargeByteStreamBufferError('frame exceeded max_frame_length')
+
+            # If we don't have the full frame yet, either wait or (optionally) fail fast if buffering is clearly out of
+            # control.
+            if len(buf) < total_len:
+                if self._max is not None and len(buf) > self._max:
+                    if out:
+                        return out
+                    raise BufferTooLargeByteStreamBufferError(
+                        'buffer exceeded max_frame_length without completing a frame',
+                    )
+                return out
+
+            # We have a complete frame available.
+            if self._strip:
+                if self._strip > total_len:
+                    if out:
+                        return out
+                    raise ValueError('initial_bytes_to_strip > frame length')
+                buf.advance(self._strip)
+                total_len -= self._strip
+
+            out.append(buf.split_to(total_len))
+
+            # Loop for additional frames
+
+
+########################################
 # ../../../omcore/io/streambufs/segmented.py
 
 
@@ -27514,6 +27647,32 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             return None
 
         return ls, end_search
+
+    def find_all_in_prefix(self, sub: bytes, start: int = 0) -> ta.Sequence[int]:
+        if not sub:
+            raise ValueError('empty sub')
+        if start < 0:
+            raise ValueError(start)
+
+        if not self._segs:
+            return ()
+
+        s0 = self._segs[0]
+        off = self._head_off
+        if s0 is self._active:
+            rl = self._active_readable_len()
+        else:
+            rl = len(s0)
+
+        out: ta.List[int] = []
+        append = out.append
+        find = s0.find
+        m = len(sub)
+        pos = off + start
+        while (i := find(sub, pos, rl)) >= 0:
+            append(i - off)
+            pos = i + m
+        return out
 
     def find(self, sub: bytes, start: int = 0, end: ta.Optional[int] = None) -> int:
         start, end = self._norm_slice(start, end)
