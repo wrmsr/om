@@ -4,7 +4,7 @@ from omcore.secrets.tests.harness import HarnessSecrets
 from omcore.testing.pytest.inject import Harness
 
 from ... import llm
-from ..lib.dummy.weather import WEATHER_TOOL
+from ..dummy.weather import weather_tool
 from ..loop import Loop
 from ..types.contexts import Context
 from ..types.tools import ToolSet
@@ -74,7 +74,7 @@ async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
                 llm.UserMessage('What is the weather in Edinburgh, Scotland?'),
             ],
             tools=ToolSet([
-                WEATHER_TOOL,
+                weather_tool(),
             ]),
         ),
     )

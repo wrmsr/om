@@ -11,10 +11,60 @@ from omcore.lite.reflect import is_optional_alias
 from ... import llm
 from ..types.tools import Tool
 from ..types.tools import ToolContext
+from ..types.tools import ToolResult
 
 
 with lang.auto_proxy_import(globals()):
     from omdev.py import docstrings
+
+
+##
+
+
+class _ReflectedToolExecutor:
+    def __init__(
+            self,
+            fn: ta.Callable,
+            llm_tool: llm.Tool,
+            *,
+            ctx_param: str | None = None,
+    ) -> None:
+        super().__init__()
+
+        self._fn = fn
+        self._llm_tool = llm_tool
+        self._ctx_param = ctx_param
+
+    async def __call__(self, ctx: ToolContext) -> ToolResult:
+        kwargs: dict[str, ta.Any] = {}
+
+        if self._ctx_param is not None:
+            kwargs[self._ctx_param] = ctx
+
+        args = dict(ctx.args)
+        missing: list[str] = []
+        for tp in self._llm_tool.params:
+            try:
+                av = args.pop(tp.name)
+            except KeyError:
+                if not tp.optional:
+                    missing.append(tp.name)
+                continue
+            kwargs[tp.name] = av
+
+        if missing:
+            raise TypeError(f'Missing arguments: {missing}!r')
+
+        if (unexpected := list(args)):
+            raise TypeError(f'Unexpected arguments: {unexpected}!r')
+
+        rv = await self._fn(**kwargs)
+
+        return ToolResult(
+            content=llm.TextContent(
+                check.isinstance(rv, str),  # FIXME: lol
+            ),
+        )
 
 
 ##
@@ -54,10 +104,13 @@ def reflect_tool(
     th = ta.get_type_hints(fn)
 
     tps: list[llm.ToolParam] = []
+    ctx_param: str | None = None
     for sp in sig.parameters.values():
         ty = th[sp.name]
 
         if ty == ToolContext:
+            check.none(ctx_param)
+            ctx_param = sp.name
             continue
 
         optional = False
@@ -87,11 +140,15 @@ def reflect_tool(
         return_type = _reflect_type(ret_ty)
 
     return Tool(
-        llm_tool=llm.Tool(
+        llm_tool=(llm_tool := llm.Tool(
             name=name,
             description=description,
             params=tps,
             type=return_type,
+        )),
+        executor=_ReflectedToolExecutor(
+            fn,
+            llm_tool,
+            ctx_param=ctx_param,
         ),
-        executor=fn,
     )
