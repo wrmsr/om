@@ -30,6 +30,8 @@ from ...responses import IoPipelineHttpResponseHead
 
 T = ta.TypeVar('T')
 
+_IoPipelineAsgiStepResult = ta.Literal['continue', 'stop', 'defer']
+
 
 ##
 
@@ -226,8 +228,11 @@ class _IoPipelineAsgiDriver:
         k: ta.Literal['y', 'r']
         v: ta.Any
 
+    def _has_flow(self) -> bool:
+        return self._ctx.services.find(IoPipelineFlow) is not None
+
     def _append_flush_output(self, out: ta.List[ta.Any]) -> None:
-        if self._ctx.services.find(IoPipelineFlow) is not None:
+        if self._has_flow():
             out.append(IoPipelineFlowMessages.FlushOutput())
 
     def _feed_out(self, out: ta.Iterable[ta.Any]) -> None:
@@ -255,11 +260,19 @@ class _IoPipelineAsgiDriver:
                 gv = self._Gv('y', y)
 
             out: ta.List[ta.Any] = []
-            should_continue = self._step_one(gv, out)
+            result = self._step_one(gv, out)
             self._feed_out(out)
 
-            if not should_continue:
-                break
+            if result == 'continue':
+                continue
+
+            if result == 'defer':
+                self._ctx.defer_no_context(self.step)
+
+            elif result != 'stop':
+                raise RuntimeError(f'Invalid ASGI step result: {result!r}')
+
+            break
 
     #
 
@@ -364,7 +377,7 @@ class _IoPipelineAsgiDriver:
 
         f.result, f.done = None, True
 
-    def _step_one(self, gv: _Gv, out: ta.List[ta.Any]) -> bool:
+    def _step_one(self, gv: _Gv, out: ta.List[ta.Any]) -> _IoPipelineAsgiStepResult:
         if gv.k == 'y' and not isinstance(gv.v, _IoPipelineAsgiFuture):
             awm = AsyncIoPipelineMessages.Await(gv.v)
 
@@ -374,7 +387,7 @@ class _IoPipelineAsgiDriver:
 
             out.append(awm)
 
-            return False
+            return 'stop'
 
         if gv.k == 'y' and isinstance(gv.v, _IoPipelineAsgiFuture):
             f = gv.v
@@ -383,10 +396,10 @@ class _IoPipelineAsgiDriver:
                 if not self._output_writable:
                     check.none(self._sending_fut)
                     self._sending_fut = f
-                    return False
+                    return 'stop'
 
                 self._accept_send(f, out)
-                return True
+                return 'defer' if self._has_flow() else 'continue'
 
         if self._state == _IoPipelineAsgiDriver.State.RUNNING:
             check.state(gv.k == 'y')
@@ -405,7 +418,7 @@ class _IoPipelineAsgiDriver:
                     }
                     f.done = True
 
-                    return True
+                    return 'continue'
 
                 else:
                     self._receiving_fut = f
@@ -414,7 +427,7 @@ class _IoPipelineAsgiDriver:
 
                     IoPipelineFlow.maybe_ready_for_input(self._ctx)
 
-                    return False
+                    return 'stop'
 
             else:
                 raise TypeError(f.arg)
@@ -427,7 +440,7 @@ class _IoPipelineAsgiDriver:
 
             self.close()
 
-            return False
+            return 'stop'
 
         else:
             raise RuntimeError(f'Invalid state: {self._state!r}')
