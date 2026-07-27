@@ -32,8 +32,8 @@ def __om_amalg__():  # noqa
             dict(path='reading.py', sha1='36ca4cdf831d8913088dc82a5a512ea7ad0aa66b'),
             dict(path='utils.py', sha1='4b91a6eee8b5a8cc3444bed9df3a6b3e4e10e9b0'),
             dict(path='direct.py', sha1='5a629d79aa7f618dce40e11c2609bc0dcd008599'),
-            dict(path='scanning.py', sha1='36411208b4e6515528f0310c7052b3faf2572b24'),
-            dict(path='adapters.py', sha1='672207f8bdc5261c22cd7d9049d9f763523bf46e'),
+            dict(path='scanning.py', sha1='47049a4c6c3e7ea1df49fda1746662e25e7847f8'),
+            dict(path='adapters.py', sha1='67e059ae73c494a48685ffb63b61891f7c3e96fd'),
             dict(path='linear.py', sha1='4897174ad12a18336507749ebff40bb466b39801'),
             dict(path='segmented.py', sha1='caf24577e336514ba74d941c45556b1cf17cfa67'),
             dict(path='_amalg.py', sha1='795e3dc80a8acd501be0ff3fd579e9e4a5f74794'),
@@ -1479,7 +1479,7 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
         super().__init__()
 
         self._buf = buf
-        self._scan_from_by_sub: dict[bytes, int] = {}
+        self._scan_from_by_sub: ta.Dict[bytes, int] = {}
 
     @property
     def max_size(self) -> ta.Optional[int]:
@@ -1636,6 +1636,8 @@ class BaseByteStreamBufferBytesReaderAdapter(Abstract, ta.Generic[BytesOrAwaitab
                 raise ValueError('fill callback only valid with policy=fill')
         elif policy is None:
             policy = self.DEFAULT_POLICY
+        elif policy == 'fill':
+            raise ValueError('policy=fill requires a fill callback')
         self._policy = policy
         self._fill = fill
 

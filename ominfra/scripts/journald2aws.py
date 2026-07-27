@@ -96,7 +96,7 @@ def __om_amalg__():  # noqa
             dict(path='../../../../omcore/subprocesses/wrap.py', sha1='12d94dc2357951cd0fed1c50a46817d30d628927'),
             dict(path='../logs.py', sha1='d6773b6e7b0b84e14d49dbe8c0ebc29a3ddab4a6'),
             dict(path='../../../../omcore/io/streambufs/direct.py', sha1='5a629d79aa7f618dce40e11c2609bc0dcd008599'),
-            dict(path='../../../../omcore/io/streambufs/scanning.py', sha1='36411208b4e6515528f0310c7052b3faf2572b24'),
+            dict(path='../../../../omcore/io/streambufs/scanning.py', sha1='47049a4c6c3e7ea1df49fda1746662e25e7847f8'),
             dict(path='../../../../omcore/lite/configs.py', sha1='c8602e0e197ef1133e7e8e248935ac745bfd46cb'),
             dict(path='../../../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
@@ -6691,7 +6691,7 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
         super().__init__()
 
         self._buf = buf
-        self._scan_from_by_sub: dict[bytes, int] = {}
+        self._scan_from_by_sub: ta.Dict[bytes, int] = {}
 
     @property
     def max_size(self) -> ta.Optional[int]:

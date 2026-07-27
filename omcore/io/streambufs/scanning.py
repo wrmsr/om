@@ -1,4 +1,4 @@
-# ruff: noqa: UP045
+# ruff: noqa: UP006 UP045
 # @om-lite
 import typing as ta
 
@@ -32,7 +32,7 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
         super().__init__()
 
         self._buf = buf
-        self._scan_from_by_sub: dict[bytes, int] = {}
+        self._scan_from_by_sub: ta.Dict[bytes, int] = {}
 
     @property
     def max_size(self) -> ta.Optional[int]:

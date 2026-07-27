@@ -35,6 +35,12 @@ class TestIoAdapters(unittest.TestCase):
         self.assertEqual(a.read(3), b'hi')  # partial
         self.assertEqual(a.read(1), b'')  # empty now
 
+    def test_bytesbuffer_reader_adapter_fill_policy_requires_fill(self) -> None:
+        # Regression: previously accepted, then blew up with a TypeError inside read().
+        b = SegmentedByteStreamBuffer()
+        with self.assertRaises(ValueError):
+            ByteStreamBufferBytesReaderAdapter(b, policy='fill')
+
     def test_bytesbuffer_reader_adapter_block(self) -> None:
         b = SegmentedByteStreamBuffer()
 

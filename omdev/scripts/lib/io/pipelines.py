@@ -64,7 +64,7 @@ def __om_amalg__():  # noqa
             dict(path='bytes/queues.py', sha1='0b6e9de9fc1ec723fd66c59a9e1d2bf510a2f719'),
             dict(path='handlers/flatmap.py', sha1='221fb097b9f93fcff167a8aed30a909c9ca45b01'),
             dict(path='../streambufs/direct.py', sha1='5a629d79aa7f618dce40e11c2609bc0dcd008599'),
-            dict(path='../streambufs/scanning.py', sha1='36411208b4e6515528f0310c7052b3faf2572b24'),
+            dict(path='../streambufs/scanning.py', sha1='47049a4c6c3e7ea1df49fda1746662e25e7847f8'),
             dict(path='../../logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../streambufs/segmented.py', sha1='caf24577e336514ba74d941c45556b1cf17cfa67'),
@@ -5959,7 +5959,7 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
         super().__init__()
 
         self._buf = buf
-        self._scan_from_by_sub: dict[bytes, int] = {}
+        self._scan_from_by_sub: ta.Dict[bytes, int] = {}
 
     @property
     def max_size(self) -> ta.Optional[int]:

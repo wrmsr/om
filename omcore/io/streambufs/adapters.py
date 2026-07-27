@@ -89,6 +89,8 @@ class BaseByteStreamBufferBytesReaderAdapter(Abstract, ta.Generic[BytesOrAwaitab
                 raise ValueError('fill callback only valid with policy=fill')
         elif policy is None:
             policy = self.DEFAULT_POLICY
+        elif policy == 'fill':
+            raise ValueError('policy=fill requires a fill callback')
         self._policy = policy
         self._fill = fill
 
