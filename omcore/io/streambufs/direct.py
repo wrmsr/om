@@ -67,7 +67,8 @@ class DirectByteStreamBuffer(BaseDirectByteStreamBufferLike, ByteStreamBuffer):
     A read-only ByteStreamBuffer that wraps existing bytes without copying.
 
     This is a lightweight, zero-copy wrapper around bytes/bytearray/memoryview that provides the full
-    ByteStreamBuffer interface (find, rfind, split_to, advance, coalesce) without mutation capabilities.
+    ByteStreamBuffer interface (find, rfind, find_all_in_prefix, split_to, advance, coalesce) without mutation
+    capabilities.
 
     Strengths:
       - Zero-copy construction from existing data

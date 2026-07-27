@@ -164,7 +164,9 @@ Rules:
 - Only one outstanding reservation at a time
 - While reserved:
   - No reshaping operations allowed
-  - No coalescing, splitting, advancing, or writing
+  - No coalescing, splitting, advancing, or writing (enforced: these raise
+    `OutstandingReserveByteStreamBufferError`)
+  - Non-mutating reads (peek/segments/find) remain valid and observe only readable bytes
 - `commit(n)` appends exactly `n` bytes
 - Reservation buffers are **temporary**, not views into live storage
   - Avoids Python `BufferError` pinning issues
@@ -207,6 +209,7 @@ These limits are enforced eagerly to prevent memory exhaustion.
 - Tracks "scan_from" position per delimiter
 - Allows overlap region (`delimiter_length - 1`) to catch matches spanning old/new boundaries
 - Adjusts cache on consumption (advance/split_to)
+- The same cache accelerates `find_all_in_prefix`, so batch framing stays linear under trickle input
 
 Pairs well with `LongestMatchDelimiterByteStreamFrameDecoder`.
 
@@ -219,6 +222,19 @@ Pairs well with `LongestMatchDelimiterByteStreamFrameDecoder`.
 Key insight: > Delimiter resolution must live *above* the buffer but *below* protocol logic.
 
 The buffer's `find/rfind` remain simple, single-needle primitives; framing logic resolves ambiguity.
+
+### Bulk prefix scanning (`find_all_in_prefix`)
+In pure Python, decoding many small frames is dominated by per-call overhead rather than byte scanning. The buffer
+interface therefore exposes exactly one bulk primitive: all non-overlapping occurrences of a needle within the
+*contiguous readable prefix*, found in a single call. It lives close to storage by necessity - `memoryview` has no
+`find`, so only the buffer can run the scan over its raw segments without copying.
+
+- Intentionally *not* stream-correct: callers batch over the prefix and fall back to `find()` for possible
+  cross-segment matches
+- Single-delimiter framing batch-decodes on top of it (no same-position ambiguity or mid-buffer deferral exists to
+  resolve); overlapping-delimiter families keep the careful per-frame path
+- This is also the intended seam for optional native acceleration: implementations swap the scan loop, the interface
+  and pure-python fallback remain
 
 ### Length-field framing (`LengthFieldByteStreamFrameDecoder`)
 - Netty-style length-prefixed frame decoding
@@ -303,6 +319,8 @@ With the buffer layer stabilized and core framers implemented, higher-level work
 - Binary read helpers (`ByteStreamBufferReader`)
 - File-like adapters (`ByteStreamBufferBytesReaderAdapter`, `ByteStreamBufferWriterAdapter`)
 - Trickle-data optimization (`ScanningByteStreamBuffer`)
+- Bulk prefix scanning and batch single-delimiter decoding (`find_all_in_prefix`)
+- Informal benchmark suite (`tests/bench/`) covering accumulation, search, framing, and trickle patterns
 
 The buffer layer is now considered **foundationally complete**: additional features should be justified by concrete
 protocol needs, not speculation.

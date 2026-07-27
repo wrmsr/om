@@ -976,6 +976,21 @@ class TestSegmentedByteStreamBufferFindAllInPrefix(unittest.TestCase):
         self.assertEqual(list(b.find_all_in_prefix(b'\x00')), [1])
         self.assertEqual(list(b.find_all_in_prefix(b'X')), [0, 2])
 
+    def test_start_beyond_prefix(self) -> None:
+        b = SegmentedByteStreamBuffer()
+        b.write(b'ab')
+        self.assertEqual(list(b.find_all_in_prefix(b'a', 10)), [])
+
+    def test_during_in_active_reserve(self) -> None:
+        # Non-mutating reads are allowed during a reservation and must observe only readable bytes - not the
+        # zero-filled reserved region.
+        b = SegmentedByteStreamBuffer(chunk_size=8)
+        b.write(b'abcd')
+        _ = b.reserve(3)
+        self.assertEqual(list(b.find_all_in_prefix(b'cd')), [2])
+        self.assertEqual(list(b.find_all_in_prefix(b'\x00')), [])
+        b.commit(0)
+
     def test_validation(self) -> None:
         b = SegmentedByteStreamBuffer()
         b.write(b'a')

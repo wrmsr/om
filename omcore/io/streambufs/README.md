@@ -145,6 +145,9 @@ buf.write(b'\r\n')
 buf.find(b'\r\n')  # Found!
 ```
 
+The cache applies to both `find()` and the bulk `find_all_in_prefix()` primitive, so a batch-decoding framer stays
+linear under trickle input too.
+
 ## Key Concepts
 
 ### Views vs Copies
@@ -167,6 +170,23 @@ buf.write(b'cd')
 
 pos = buf.find(b'bc')  # Returns 1 (correctly finds cross-segment match)
 ```
+
+### Bulk Prefix Scanning
+
+`find_all_in_prefix()` returns every non-overlapping occurrence of a needle within the *contiguous readable prefix*
+(the `peek()` region) in a single call - the bulk primitive framing codecs use to batch-decode many small frames
+without per-frame call overhead:
+
+```python
+buf = SegmentedByteStreamBuffer(chunk_size=64 * 1024)
+buf.write(b'a\r\nbb\r\nccc')
+buf.find_all_in_prefix(b'\r\n')  # [1, 5]
+```
+
+Unlike `find()`, it is intentionally *not* stream-correct: occurrences extending past the contiguous prefix are not
+found - callers batch over the prefix and fall back to `find()` for possible cross-segment matches. It is also the
+intended seam for optional native acceleration: a C extension can swap the scan loop per backend while the interface
+and pure-python fallback remain.
 
 ### Reserve/Commit Model
 
@@ -200,6 +220,9 @@ from omcore.io.streambufs.errors import (
     OutstandingReserveByteStreamBufferError,  # Invalid state (reserve active)
 )
 ```
+
+Frame decoders never discard progress on errors: frames already decoded by a `decode()` call are returned, and the
+error is raised by the *next* call, once the offending frame is first in line and nothing has been consumed yet.
 
 ## Design Philosophy
 

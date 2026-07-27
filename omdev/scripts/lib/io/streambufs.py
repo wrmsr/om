@@ -29,13 +29,13 @@ def __om_amalg__():  # noqa
             dict(path='types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
             dict(path='reading.py', sha1='36ca4cdf831d8913088dc82a5a512ea7ad0aa66b'),
-            dict(path='utils.py', sha1='4b91a6eee8b5a8cc3444bed9df3a6b3e4e10e9b0'),
-            dict(path='direct.py', sha1='c7a8d43feb8453fbe1e33dd4519c4c5afd6d7769'),
-            dict(path='scanning.py', sha1='465553a41c9361e40cbfa5aaf5b9d2231db78085'),
+            dict(path='utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
+            dict(path='direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
+            dict(path='scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
             dict(path='adapters.py', sha1='46f94df341c7b7e67375942dc5b76991f8a13251'),
-            dict(path='framing.py', sha1='9dc947b00e65297abad0dcd451bd4a35ad3c86e8'),
+            dict(path='framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
             dict(path='linear.py', sha1='110520fd317355e92c246e09c47afcba9d86c8cb'),
-            dict(path='segmented.py', sha1='e92e735904bebd7551287bb416eae4fab8fe317f'),
+            dict(path='segmented.py', sha1='84e44da7dcb39f4be0b940d8f39f18f5d56bdf91'),
             dict(path='_amalg.py', sha1='795e3dc80a8acd501be0ff3fd579e9e4a5f74794'),
         ],
     )
@@ -937,6 +937,11 @@ class ByteStreamBuffers(NamespaceClass):
 
     @staticmethod
     def split(buf: ByteStreamBuffer, sep: bytes, /, *, final: bool = False) -> ta.List[ByteStreamBufferView]:
+        """
+        Split off a keep-ends frame (separator included) for each occurrence of `sep`, consuming them from `buf` and
+        leaving any separator-less remainder buffered. If `final` is true, the remainder is appended as a last frame.
+        """
+
         out: ta.List[ByteStreamBufferView] = []
         while (i := buf.find(sep)) >= 0:
             out.append(buf.split_to(i + len(sep)))
@@ -1005,7 +1010,8 @@ class DirectByteStreamBuffer(BaseDirectByteStreamBufferLike, ByteStreamBuffer):
     A read-only ByteStreamBuffer that wraps existing bytes without copying.
 
     This is a lightweight, zero-copy wrapper around bytes/bytearray/memoryview that provides the full
-    ByteStreamBuffer interface (find, rfind, split_to, advance, coalesce) without mutation capabilities.
+    ByteStreamBuffer interface (find, rfind, find_all_in_prefix, split_to, advance, coalesce) without mutation
+    capabilities.
 
     Strengths:
       - Zero-copy construction from existing data
@@ -1145,10 +1151,12 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
       - It only caches progress for the default find range (start==0, end is None).
       - It only caches *negative* results (i.e., "-1"): once a match is found, caching is not updated, to preserve the
         property that repeated `find(sub)` on an unchanged buffer yields the same answer.
+      - The same cache accelerates the bulk `find_all_in_prefix` primitive, keeping batch framing linear under trickle
+        input (an empty bulk scan records the prefix length as negative progress).
 
     This is designed to help framing-style code that repeatedly does:
       - buf.write(...small...)
-      - buf.find(delim)
+      - buf.find(delim) (or a batch-decoding framer's find_all_in_prefix(delim))
       - (not found) repeat
 
     Pairs well with `LongestMatchDelimiterByteStreamFrameDecoder`.
@@ -1786,7 +1794,7 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
     A delimiter-based framing codec that supports *overlapping* delimiters with longest-match semantics.
 
     This is intentionally decoupled from any I/O model: it operates purely on a `ByteStreamBuffer`-like object
-    (providing `__len__`, `find`, `split_to`, `advance`, and `segments`/`peek`).
+    (providing `__len__`, `find`, `find_all_in_prefix`, `split_to`, `advance`, and `segments`/`peek`).
 
     Key property:
       Given overlapping delimiters like [b'\\r', b'\\r\\n'], this codec will *not* emit a frame ending at '\\r' unless
@@ -1795,7 +1803,10 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
     Implementation note:
       This codec relies on `ByteStreamBuffer.find(...)` being stream-correct and C-accelerated over the buffer's
       underlying contiguous segments. In pure Python it is usually better to keep searching near the storage layer than
-      to re-implement scanning byte-by-byte in higher-level codecs.
+      to re-implement scanning byte-by-byte in higher-level codecs. With a single delimiter (where no same-position
+      ambiguity or mid-buffer deferral is possible) it batch-decodes all complete frames in the buffer's contiguous
+      prefix via `find_all_in_prefix`, amortizing per-frame call overhead; cross-segment matches and the buffered tail
+      go through the careful per-frame path.
 
     Pairs well with `ScanningByteStreamBuffer`.
     """
@@ -2607,6 +2618,9 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         the next active chunk).
       - If n > chunk_size, reserve allocates a dedicated buffer and on commit it is "closed" (it does not become the
         next active chunk).
+      - While a reservation is outstanding, write/prepend-into-active/advance/split_to/coalesce raise
+        OutstandingReserveByteStreamBufferError; commit() (possibly commit(0) to abandon) releases it. Non-mutating
+        reads (peek/segments/find/etc.) remain valid and observe only readable bytes.
 
     Important exported-view caveat:
       - reserve() returns a memoryview. As long as any exported memoryview exists, the underlying bytearray must not be

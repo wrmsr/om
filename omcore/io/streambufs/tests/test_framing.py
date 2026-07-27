@@ -283,6 +283,7 @@ class TestLongestMatchDelimiterFramerBatchDecoding(unittest.TestCase):
             lambda: ScanningByteStreamBuffer(SegmentedByteStreamBuffer(chunk_size=16)),
             lambda: ScanningByteStreamBuffer(SegmentedByteStreamBuffer()),
             LinearByteStreamBuffer,
+            lambda: ScanningByteStreamBuffer(LinearByteStreamBuffer()),
         ]
 
         for chunk_size in (1, 2, 3, 7, 64, len(data)):
@@ -306,6 +307,19 @@ class TestLongestMatchDelimiterFramerBatchDecoding(unittest.TestCase):
         out = f.decode(b, include_delims=True)
         self.assertEqual([(v.tobytes(), d) for v, d in out], [(b'a', b'\n'), (b'', b'\n'), (b'bb', b'\n')])
         self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'rest')
+
+    def test_single_delim_keep_ends_max_size(self) -> None:
+        # max_size bounds the frame *payload* (bytes before the delimiter), independent of keep_ends.
+        f = LongestMatchDelimiterByteStreamFrameDecoder([b'\r\n'], keep_ends=True, max_size=4)
+        b = SegmentedByteStreamBuffer()
+        b.write(b'okay\r\nTOOLONG\r\nx')
+
+        out = f.decode(b)
+        self.assertEqual([v.tobytes() for v in out], [b'okay\r\n'])
+
+        with self.assertRaises(FrameTooLargeByteStreamBufferError):
+            f.decode(b)
+        self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'TOOLONG\r\nx')
 
     def test_single_delim_batch_views_are_stable(self) -> None:
         f = LongestMatchDelimiterByteStreamFrameDecoder([b'\n'])

@@ -165,6 +165,11 @@ class ByteStreamBuffers(NamespaceClass):
 
     @staticmethod
     def split(buf: ByteStreamBuffer, sep: bytes, /, *, final: bool = False) -> ta.List[ByteStreamBufferView]:
+        """
+        Split off a keep-ends frame (separator included) for each occurrence of `sep`, consuming them from `buf` and
+        leaving any separator-less remainder buffered. If `final` is true, the remainder is appended as a last frame.
+        """
+
         out: ta.List[ByteStreamBufferView] = []
         while (i := buf.find(sep)) >= 0:
             out.append(buf.split_to(i + len(sep)))

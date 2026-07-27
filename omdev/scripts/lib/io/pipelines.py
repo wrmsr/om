@@ -57,17 +57,17 @@ def __om_amalg__():  # noqa
             dict(path='handlers/queues.py', sha1='0672c722e377d67369da3cb4a082b4816eb84875'),
             dict(path='sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
             dict(path='../streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
-            dict(path='../streambufs/utils.py', sha1='4b91a6eee8b5a8cc3444bed9df3a6b3e4e10e9b0'),
+            dict(path='../streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
             dict(path='../../logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../logs/utils.py', sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c'),
             dict(path='bytes/queues.py', sha1='0b6e9de9fc1ec723fd66c59a9e1d2bf510a2f719'),
             dict(path='handlers/flatmap.py', sha1='221fb097b9f93fcff167a8aed30a909c9ca45b01'),
-            dict(path='../streambufs/direct.py', sha1='c7a8d43feb8453fbe1e33dd4519c4c5afd6d7769'),
-            dict(path='../streambufs/scanning.py', sha1='465553a41c9361e40cbfa5aaf5b9d2231db78085'),
+            dict(path='../streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
+            dict(path='../streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
             dict(path='../../logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
-            dict(path='../streambufs/framing.py', sha1='9dc947b00e65297abad0dcd451bd4a35ad3c86e8'),
-            dict(path='../streambufs/segmented.py', sha1='e92e735904bebd7551287bb416eae4fab8fe317f'),
+            dict(path='../streambufs/framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
+            dict(path='../streambufs/segmented.py', sha1='84e44da7dcb39f4be0b940d8f39f18f5d56bdf91'),
             dict(path='../../logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
@@ -4737,6 +4737,11 @@ class ByteStreamBuffers(NamespaceClass):
 
     @staticmethod
     def split(buf: ByteStreamBuffer, sep: bytes, /, *, final: bool = False) -> ta.List[ByteStreamBufferView]:
+        """
+        Split off a keep-ends frame (separator included) for each occurrence of `sep`, consuming them from `buf` and
+        leaving any separator-less remainder buffered. If `final` is true, the remainder is appended as a last frame.
+        """
+
         out: ta.List[ByteStreamBufferView] = []
         while (i := buf.find(sep)) >= 0:
             out.append(buf.split_to(i + len(sep)))
@@ -5485,7 +5490,8 @@ class DirectByteStreamBuffer(BaseDirectByteStreamBufferLike, ByteStreamBuffer):
     A read-only ByteStreamBuffer that wraps existing bytes without copying.
 
     This is a lightweight, zero-copy wrapper around bytes/bytearray/memoryview that provides the full
-    ByteStreamBuffer interface (find, rfind, split_to, advance, coalesce) without mutation capabilities.
+    ByteStreamBuffer interface (find, rfind, find_all_in_prefix, split_to, advance, coalesce) without mutation
+    capabilities.
 
     Strengths:
       - Zero-copy construction from existing data
@@ -5625,10 +5631,12 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
       - It only caches progress for the default find range (start==0, end is None).
       - It only caches *negative* results (i.e., "-1"): once a match is found, caching is not updated, to preserve the
         property that repeated `find(sub)` on an unchanged buffer yields the same answer.
+      - The same cache accelerates the bulk `find_all_in_prefix` primitive, keeping batch framing linear under trickle
+        input (an empty bulk scan records the prefix length as negative progress).
 
     This is designed to help framing-style code that repeatedly does:
       - buf.write(...small...)
-      - buf.find(delim)
+      - buf.find(delim) (or a batch-decoding framer's find_all_in_prefix(delim))
       - (not found) repeat
 
     Pairs well with `LongestMatchDelimiterByteStreamFrameDecoder`.
@@ -6704,7 +6712,7 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
     A delimiter-based framing codec that supports *overlapping* delimiters with longest-match semantics.
 
     This is intentionally decoupled from any I/O model: it operates purely on a `ByteStreamBuffer`-like object
-    (providing `__len__`, `find`, `split_to`, `advance`, and `segments`/`peek`).
+    (providing `__len__`, `find`, `find_all_in_prefix`, `split_to`, `advance`, and `segments`/`peek`).
 
     Key property:
       Given overlapping delimiters like [b'\\r', b'\\r\\n'], this codec will *not* emit a frame ending at '\\r' unless
@@ -6713,7 +6721,10 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
     Implementation note:
       This codec relies on `ByteStreamBuffer.find(...)` being stream-correct and C-accelerated over the buffer's
       underlying contiguous segments. In pure Python it is usually better to keep searching near the storage layer than
-      to re-implement scanning byte-by-byte in higher-level codecs.
+      to re-implement scanning byte-by-byte in higher-level codecs. With a single delimiter (where no same-position
+      ambiguity or mid-buffer deferral is possible) it batch-decodes all complete frames in the buffer's contiguous
+      prefix via `find_all_in_prefix`, amortizing per-frame call overhead; cross-segment matches and the buffered tail
+      go through the careful per-frame path.
 
     Pairs well with `ScanningByteStreamBuffer`.
     """
@@ -7217,6 +7228,9 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         the next active chunk).
       - If n > chunk_size, reserve allocates a dedicated buffer and on commit it is "closed" (it does not become the
         next active chunk).
+      - While a reservation is outstanding, write/prepend-into-active/advance/split_to/coalesce raise
+        OutstandingReserveByteStreamBufferError; commit() (possibly commit(0) to abandon) releases it. Non-mutating
+        reads (peek/segments/find/etc.) remain valid and observe only readable bytes.
 
     Important exported-view caveat:
       - reserve() returns a memoryview. As long as any exported memoryview exists, the underlying bytearray must not be

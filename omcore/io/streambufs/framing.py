@@ -18,7 +18,7 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
     A delimiter-based framing codec that supports *overlapping* delimiters with longest-match semantics.
 
     This is intentionally decoupled from any I/O model: it operates purely on a `ByteStreamBuffer`-like object
-    (providing `__len__`, `find`, `split_to`, `advance`, and `segments`/`peek`).
+    (providing `__len__`, `find`, `find_all_in_prefix`, `split_to`, `advance`, and `segments`/`peek`).
 
     Key property:
       Given overlapping delimiters like [b'\\r', b'\\r\\n'], this codec will *not* emit a frame ending at '\\r' unless
@@ -27,7 +27,10 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
     Implementation note:
       This codec relies on `ByteStreamBuffer.find(...)` being stream-correct and C-accelerated over the buffer's
       underlying contiguous segments. In pure Python it is usually better to keep searching near the storage layer than
-      to re-implement scanning byte-by-byte in higher-level codecs.
+      to re-implement scanning byte-by-byte in higher-level codecs. With a single delimiter (where no same-position
+      ambiguity or mid-buffer deferral is possible) it batch-decodes all complete frames in the buffer's contiguous
+      prefix via `find_all_in_prefix`, amortizing per-frame call overhead; cross-segment matches and the buffered tail
+      go through the careful per-frame path.
 
     Pairs well with `ScanningByteStreamBuffer`.
     """

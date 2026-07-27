@@ -90,18 +90,18 @@ def __om_amalg__():  # noqa
             dict(path='../dataclasses.py', sha1='fbfac5bf101339124567fda0baf23c233c576aaf'),
             dict(path='../../../../omcore/configs/formats.py', sha1='9263da888199b408e902490244e9d5caddc69821'),
             dict(path='../../../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
-            dict(path='../../../../omcore/io/streambufs/utils.py', sha1='4b91a6eee8b5a8cc3444bed9df3a6b3e4e10e9b0'),
+            dict(path='../../../../omcore/io/streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
             dict(path='../../../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='../../../../omcore/subprocesses/wrap.py', sha1='12d94dc2357951cd0fed1c50a46817d30d628927'),
             dict(path='../logs.py', sha1='d6773b6e7b0b84e14d49dbe8c0ebc29a3ddab4a6'),
-            dict(path='../../../../omcore/io/streambufs/direct.py', sha1='c7a8d43feb8453fbe1e33dd4519c4c5afd6d7769'),
-            dict(path='../../../../omcore/io/streambufs/scanning.py', sha1='465553a41c9361e40cbfa5aaf5b9d2231db78085'),
+            dict(path='../../../../omcore/io/streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
+            dict(path='../../../../omcore/io/streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
             dict(path='../../../../omcore/lite/configs.py', sha1='c8602e0e197ef1133e7e8e248935ac745bfd46cb'),
             dict(path='../../../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='e92e735904bebd7551287bb416eae4fab8fe317f'),  # noqa
+            dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='84e44da7dcb39f4be0b940d8f39f18f5d56bdf91'),  # noqa
             dict(path='../../../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='../../../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
@@ -6092,6 +6092,11 @@ class ByteStreamBuffers(NamespaceClass):
 
     @staticmethod
     def split(buf: ByteStreamBuffer, sep: bytes, /, *, final: bool = False) -> ta.List[ByteStreamBufferView]:
+        """
+        Split off a keep-ends frame (separator included) for each occurrence of `sep`, consuming them from `buf` and
+        leaving any separator-less remainder buffered. If `final` is true, the remainder is appended as a last frame.
+        """
+
         out: ta.List[ByteStreamBufferView] = []
         while (i := buf.find(sep)) >= 0:
             out.append(buf.split_to(i + len(sep)))
@@ -6577,7 +6582,8 @@ class DirectByteStreamBuffer(BaseDirectByteStreamBufferLike, ByteStreamBuffer):
     A read-only ByteStreamBuffer that wraps existing bytes without copying.
 
     This is a lightweight, zero-copy wrapper around bytes/bytearray/memoryview that provides the full
-    ByteStreamBuffer interface (find, rfind, split_to, advance, coalesce) without mutation capabilities.
+    ByteStreamBuffer interface (find, rfind, find_all_in_prefix, split_to, advance, coalesce) without mutation
+    capabilities.
 
     Strengths:
       - Zero-copy construction from existing data
@@ -6717,10 +6723,12 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
       - It only caches progress for the default find range (start==0, end is None).
       - It only caches *negative* results (i.e., "-1"): once a match is found, caching is not updated, to preserve the
         property that repeated `find(sub)` on an unchanged buffer yields the same answer.
+      - The same cache accelerates the bulk `find_all_in_prefix` primitive, keeping batch framing linear under trickle
+        input (an empty bulk scan records the prefix length as negative progress).
 
     This is designed to help framing-style code that repeatedly does:
       - buf.write(...small...)
-      - buf.find(delim)
+      - buf.find(delim) (or a batch-decoding framer's find_all_in_prefix(delim))
       - (not found) repeat
 
     Pairs well with `LongestMatchDelimiterByteStreamFrameDecoder`.
@@ -8020,6 +8028,9 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         the next active chunk).
       - If n > chunk_size, reserve allocates a dedicated buffer and on commit it is "closed" (it does not become the
         next active chunk).
+      - While a reservation is outstanding, write/prepend-into-active/advance/split_to/coalesce raise
+        OutstandingReserveByteStreamBufferError; commit() (possibly commit(0) to abandon) releases it. Non-mutating
+        reads (peek/segments/find/etc.) remain valid and observe only readable bytes.
 
     Important exported-view caveat:
       - reserve() returns a memoryview. As long as any exported memoryview exists, the underlying bytearray must not be

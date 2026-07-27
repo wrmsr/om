@@ -92,6 +92,9 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         the next active chunk).
       - If n > chunk_size, reserve allocates a dedicated buffer and on commit it is "closed" (it does not become the
         next active chunk).
+      - While a reservation is outstanding, write/prepend-into-active/advance/split_to/coalesce raise
+        OutstandingReserveByteStreamBufferError; commit() (possibly commit(0) to abandon) releases it. Non-mutating
+        reads (peek/segments/find/etc.) remain valid and observe only readable bytes.
 
     Important exported-view caveat:
       - reserve() returns a memoryview. As long as any exported memoryview exists, the underlying bytearray must not be

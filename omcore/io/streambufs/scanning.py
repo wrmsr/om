@@ -19,10 +19,12 @@ class ScanningByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer
       - It only caches progress for the default find range (start==0, end is None).
       - It only caches *negative* results (i.e., "-1"): once a match is found, caching is not updated, to preserve the
         property that repeated `find(sub)` on an unchanged buffer yields the same answer.
+      - The same cache accelerates the bulk `find_all_in_prefix` primitive, keeping batch framing linear under trickle
+        input (an empty bulk scan records the prefix length as negative progress).
 
     This is designed to help framing-style code that repeatedly does:
       - buf.write(...small...)
-      - buf.find(delim)
+      - buf.find(delim) (or a batch-decoding framer's find_all_in_prefix(delim))
       - (not found) repeat
 
     Pairs well with `LongestMatchDelimiterByteStreamFrameDecoder`.
