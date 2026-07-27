@@ -78,6 +78,9 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                     else:
                         raise TypeError(out)  # noqa
 
+                elif isinstance(out, BaseException):
+                    raise HttpClientError from out
+
                 else:
                     raise TypeError(out)  # noqa
 
@@ -103,6 +106,7 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                 self._config.connect_timeout_s,
             )
 
+            drv: ta.Optional[PollAsyncioStreamIoPipelineDriver] = None
             try:
                 drv = PollAsyncioStreamIoPipelineDriver(
                     prepared.pipeline_spec,
@@ -139,6 +143,9 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
 
                             else:
                                 raise TypeError(out)  # noqa
+
+                        elif isinstance(out, BaseException):
+                            raise out
 
                         else:
                             raise TypeError(out)  # noqa
@@ -193,8 +200,12 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                 )
 
             except BaseException:
-                writer.close()
-                await writer.wait_closed()
+                try:
+                    if drv is not None:
+                        await drv.close()
+                finally:
+                    writer.close()
+                    await writer.wait_closed()
 
                 raise
 

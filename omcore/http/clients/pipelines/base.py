@@ -22,6 +22,7 @@ from ...pipelines.clients.responses import IoPipelineHttpResponseAggregatorDecod
 from ...pipelines.clients.responses import IoPipelineHttpResponseDechunker
 from ...pipelines.clients.responses import IoPipelineHttpResponseDecoder
 from ...pipelines.clients.responses import IoPipelineHttpResponseDecompressor
+from ...pipelines.clients.timeouts import IoPipelineHttpClientRequestTimeoutHandler
 from ...pipelines.requests import FullIoPipelineHttpRequest
 
 
@@ -35,6 +36,7 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
     @dc.dataclass(frozen=True)
     class Config:
         connect_timeout_s: ta.Optional[float] = 3.
+        request_timeout_s: ta.Optional[float] = None
 
     def __init__(
             self,
@@ -115,6 +117,8 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
             flow_auto_read: bool = False,
 
             raise_immediately: bool = False,
+
+            request_timeout_s: ta.Optional[float] = None,
     ) -> IoPipeline.Spec:
         return IoPipeline.Spec(
             [
@@ -134,6 +138,10 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
                 IoPipelineHttpRequestEncoder(),
                 IoPipelineHttpRequestCompressor(),
 
+                *(
+                    [IoPipelineHttpClientRequestTimeoutHandler(request_timeout_s)]
+                    if request_timeout_s is not None else []
+                ),
                 IoPipelineHttpClientHandler(),
 
                 *(innermost_handlers or []),
@@ -184,6 +192,15 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
             body=data,
         )
 
+        merged_pipeline_kwargs = {
+            **self._pipeline_kwargs,
+            **pipeline_kwargs,
+            'request_timeout_s': (
+                req.timeout_s
+                if req.timeout_s is not None else self._config.request_timeout_s
+            ),
+        }
+
         pipeline_spec = self._build_pipeline_spec(
             **(dict(  # type: ignore[arg-type]
                 with_ssl=True,
@@ -193,10 +210,7 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
                 ),
             ) if parsed_url.is_ssl else {}),
 
-            **{
-                **self._pipeline_kwargs,
-                **pipeline_kwargs,
-            },
+            **merged_pipeline_kwargs,
         )
 
         return self._PreparedRequest(

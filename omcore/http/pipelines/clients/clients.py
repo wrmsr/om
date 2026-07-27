@@ -49,6 +49,14 @@ class IoPipelineHttpClientHandler(IoPipelineHandler):
     _request: ta.Optional[IoPipelineHttpClientMessages.Request] = None
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.Error):
+            self._request = None
+
+            ctx.feed_out(msg.exc)
+            ctx.feed_final_output()
+
+            return
+
         if isinstance(msg, IoPipelineHttpClientMessages.Request):
             check.none(self._request)
             self._request = msg

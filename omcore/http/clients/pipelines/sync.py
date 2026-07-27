@@ -82,6 +82,9 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                     else:
                         raise TypeError(out)  # noqa
 
+                elif isinstance(out, BaseException):
+                    raise HttpClientError from out
+
                 else:
                     raise TypeError(out)  # noqa
 
@@ -104,7 +107,9 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                 **(dict(timeout=self._config.connect_timeout_s) if self._config.connect_timeout_s is not None else {}),  # type: ignore[arg-type]  # noqa
             )
 
+            drv: ta.Optional[SyncSocketIoPipelineDriver] = None
             try:
+                sock.settimeout(None)
                 self._try_set_nodelay(sock)
 
                 drv = SyncSocketIoPipelineDriver(prepared.pipeline_spec, sock)
@@ -138,6 +143,9 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
 
                             else:
                                 raise TypeError(out)  # noqa
+
+                        elif isinstance(out, BaseException):
+                            raise out
 
                         else:
                             raise TypeError(out)  # noqa
@@ -190,7 +198,11 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                 )
 
             except BaseException:
-                sock.close()
+                try:
+                    if drv is not None:
+                        drv.close()
+                finally:
+                    sock.close()
 
                 raise
 
