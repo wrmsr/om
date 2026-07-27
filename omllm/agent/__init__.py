@@ -48,6 +48,7 @@ with _lang.auto_proxy_init(globals()):
         ToolContext,
         ToolResult,
         Tool,
+        ToolSet,
     )
 
     ##

@@ -1,6 +1,8 @@
 # flake8: noqa: F401
 import typing as ta
 
+from omcore import cached
+from omcore import collections as col
 from omcore import dataclasses as dc
 
 from ... import llm
@@ -36,3 +38,37 @@ class Tool:
         return self.llm_tool.name
 
     executor: ToolExecutor
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(terse_repr=True)
+class ToolSet(ta.Sequence[Tool]):
+    tools: ta.Sequence[Tool]
+
+    @cached.property
+    @dc.init
+    def by_name(self) -> ta.Mapping[str, Tool]:
+        return col.make_map(((t.name, t) for t in self.tools), strict=True)
+
+    #
+
+    def __iter__(self) -> ta.Iterator:
+        return iter(self.tools)
+
+    def __len__(self) -> int:
+        return len(self.tools)
+
+    @ta.overload
+    def __getitem__(self, index: int | str, /) -> Tool:
+        ...
+
+    @ta.overload
+    def __getitem__(self, index: slice, /) -> ta.Sequence[Tool]:  # noqa
+        ...
+
+    def __getitem__(self, index):
+        if isinstance(index, str):
+            return self.by_name[index]
+        else:
+            return self.tools[index]

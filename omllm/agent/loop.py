@@ -1,5 +1,6 @@
 import typing as ta
 
+from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
@@ -126,7 +127,7 @@ class Loop:
         tool_calls = [c for c in message.content if isinstance(c, llm.ToolCall)]
         if tool_calls:
             for tool_call in tool_calls:
-                tool = self._context.tools_by_name[tool_call.name]
+                tool = check.not_none(self._context.tools)[tool_call.name]
 
                 tool_result = await tool.executor(ToolContext(  # noqa
                     args=tool_call.args,
