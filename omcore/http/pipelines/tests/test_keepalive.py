@@ -1,10 +1,15 @@
-# ruff: noqa: UP006 UP007 UP045
+# ruff: noqa: SLF001 UP006 UP007 UP045
 # @om-lite
+import asyncio
 import unittest
 
 from ....io.pipelines.core import IoPipeline
 from ....io.pipelines.core import IoPipelineMessages
+from ....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from ....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ....io.pipelines.flow.stub import StubIoPipelineFlowService
 from ....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
+from ....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ...headers import HttpHeaders
 from ...versions import HttpVersions
 from ..requests import FullIoPipelineHttpRequest
@@ -22,6 +27,12 @@ from ..servers.responses import IoPipelineHttpResponseEncoder
 
 
 class TestKeepAliveDecision(unittest.TestCase):
+    def test_invalid_idle_timeout(self) -> None:
+        for timeout_s in [0., -1., float('inf'), float('-inf'), float('nan')]:
+            with self.subTest(timeout_s=timeout_s):
+                with self.assertRaises(ValueError):
+                    IoPipelineHttpServerKeepAliveHandler(timeout_s)
+
     def test_http11_default_keep_alive(self) -> None:
         head = IoPipelineHttpRequestHead(
             method='GET',
@@ -102,6 +113,15 @@ def _make_ka_channel():
         echo,
     ], IoPipeline.Config(inbound_terminal='drop'))
     return channel
+
+
+def _make_timed_ka_spec(*handlers):
+    return IoPipeline.Spec(
+        handlers,
+        services=[
+            StubIoPipelineFlowService(auto_read=False),
+        ],
+    )
 
 
 class TestKeepAliveHandler(unittest.TestCase):
@@ -263,6 +283,88 @@ class TestKeepAliveHandler(unittest.TestCase):
         self.assertEqual(len(out), 2)
         self.assertIsInstance(out[0], FullIoPipelineHttpResponse)
         self.assertIsInstance(out[1], IoPipelineMessages.FinalOutput)
+
+
+class TestSyncKeepAliveIdleTimeout(unittest.TestCase):
+    def test_expires_while_waiting_for_first_request(self) -> None:
+        keep_alive = IoPipelineHttpServerKeepAliveHandler(.01)
+        drv = SyncSocketIoPipelineDriver(_make_timed_ka_spec(keep_alive), object())
+        try:
+            self.assertIsNone(drv.next())
+
+            self.assertFalse(drv.is_running)
+            self.assertIsNone(keep_alive._handle)
+        finally:
+            drv.close()
+
+    def test_cancels_while_request_is_active(self) -> None:
+        keep_alive = IoPipelineHttpServerKeepAliveHandler(60.)
+        requests = InboundQueueIoPipelineHandler(filter_type=FullIoPipelineHttpRequest)
+        drv = SyncSocketIoPipelineDriver(_make_timed_ka_spec(keep_alive, requests), object())
+        try:
+            self.assertIsNone(drv.next(read=False))
+            self.assertIsNotNone(keep_alive._handle)
+
+            drv.enqueue(FullIoPipelineHttpRequest(
+                head=IoPipelineHttpRequestHead(
+                    method='GET',
+                    target='/active',
+                    headers=HttpHeaders([('Host', 'test')]),
+                    version=HttpVersions.HTTP_1_1,
+                ),
+                body=b'',
+            ))
+            self.assertIsNone(drv.next(read=False))
+
+            self.assertIsNone(keep_alive._handle)
+            self.assertIsNone(drv._sched.next_delay())
+            self.assertEqual(len(requests.drain()), 1)
+        finally:
+            drv.close()
+
+    def test_rearms_after_response_completion(self) -> None:
+        keep_alive = IoPipelineHttpServerKeepAliveHandler(60.)
+        drv = SyncSocketIoPipelineDriver(
+            _make_timed_ka_spec(keep_alive, _SimpleEchoHandler.Handler()),
+            object(),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            first_handle = keep_alive._handle
+            self.assertIsNotNone(first_handle)
+
+            drv.enqueue(FullIoPipelineHttpRequest(
+                head=IoPipelineHttpRequestHead(
+                    method='GET',
+                    target='/complete',
+                    headers=HttpHeaders([('Host', 'test')]),
+                    version=HttpVersions.HTTP_1_1,
+                ),
+                body=b'',
+            ))
+            response = drv.next(read=False)
+
+            self.assertIsInstance(response, FullIoPipelineHttpResponse)
+            self.assertIsNotNone(keep_alive._handle)
+            self.assertIsNot(keep_alive._handle, first_handle)
+        finally:
+            drv.close()
+
+
+class TestAsyncioKeepAliveIdleTimeout(AsyncioIsolatedAsyncTestCase):
+    async def test_expires_while_waiting_for_first_request(self) -> None:
+        keep_alive = IoPipelineHttpServerKeepAliveHandler(.01)
+        drv = PollAsyncioStreamIoPipelineDriver(
+            _make_timed_ka_spec(keep_alive),
+            asyncio.StreamReader(),
+        )
+        try:
+            self.assertIsNone(await drv.next())
+
+            self.assertFalse(drv.pipeline.is_ready)
+            self.assertIsNone(keep_alive._handle)
+        finally:
+            await drv.close()
 
 
 ##

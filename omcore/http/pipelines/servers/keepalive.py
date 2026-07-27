@@ -1,10 +1,15 @@
 # ruff: noqa: UP006 UP007 UP045
 # @om-lite
+import math
 import typing as ta
 
 from ....io.pipelines.core import IoPipelineHandler
 from ....io.pipelines.core import IoPipelineHandlerContext
+from ....io.pipelines.core import IoPipelineHandlerNotification
+from ....io.pipelines.core import IoPipelineHandlerNotifications
 from ....io.pipelines.core import IoPipelineMessages
+from ....io.pipelines.sched.types import IoPipelineScheduling
+from ....lite.check import check
 from ...headers import HttpHeaders
 from ...versions import HttpVersions
 from ..requests import FullIoPipelineHttpRequest
@@ -26,13 +31,79 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
     themselves when this handler is present.
 
     HTTP/1.1 defaults to keep-alive; HTTP/1.0 defaults to close.
+
+    When idle_timeout_s is set, the connection is closed normally if no request is active before the interval elapses.
+    This includes the period before the first request and requires an IoPipelineScheduling service.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, idle_timeout_s: ta.Optional[float] = None) -> None:
         super().__init__()
+
+        if idle_timeout_s is not None and (not math.isfinite(idle_timeout_s) or idle_timeout_s <= 0.):
+            raise ValueError(idle_timeout_s)
+        self._idle_timeout_s = idle_timeout_s
 
         self._keep_alive = True
         self._idle = True
+        self._closing = False
+
+        self._handle: ta.Optional[IoPipelineScheduling.Handle] = None
+
+    #
+
+    def _cancel(self) -> None:
+        if (handle := self._handle) is not None:
+            self._handle = None
+            handle.cancel()
+
+    def _arm(self, ctx: IoPipelineHandlerContext) -> None:
+        if self._idle_timeout_s is None or not self._idle or self._closing:
+            return
+
+        self._cancel()
+        self._handle = ctx.services[IoPipelineScheduling].schedule(
+            ctx.ref,
+            self._idle_timeout_s,
+            lambda: self._on_timeout(ctx),
+        )
+
+    def _close_output(self, ctx: IoPipelineHandlerContext) -> None:
+        if self._closing:
+            return
+
+        self._closing = True
+        self._cancel()
+        ctx.feed_final_output()
+
+    def _on_timeout(self, ctx: IoPipelineHandlerContext) -> None:
+        self._handle = None
+        if not self._idle or self._closing:
+            return
+
+        self._close_output(ctx)
+
+    def _complete_response(self, ctx: IoPipelineHandlerContext) -> None:
+        self._idle = True
+        if self._keep_alive:
+            self._arm(ctx)
+        else:
+            self._close_output(ctx)
+
+    #
+
+    def notify(self, ctx: IoPipelineHandlerContext, no: IoPipelineHandlerNotification) -> None:
+        if isinstance(no, IoPipelineHandlerNotifications.Added):
+            if self._idle_timeout_s is not None:
+                check.not_none(ctx.services.find(IoPipelineScheduling))
+
+            self._keep_alive = True
+            self._idle = True
+            self._closing = False
+            self._cancel()
+
+        elif isinstance(no, IoPipelineHandlerNotifications.Removed):
+            self._closing = True
+            self._cancel()
 
     #
 
@@ -75,22 +146,30 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
     #
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            ctx.feed_in(msg)
+            self._arm(ctx)
+            return
+
         if isinstance(msg, FullIoPipelineHttpRequest):
+            self._cancel()
             self._idle = False
             self._keep_alive = self.is_request_keep_alive(msg.head)
             ctx.feed_in(msg)
             return
 
         if isinstance(msg, IoPipelineHttpRequestHead):
+            self._cancel()
             self._idle = False
             self._keep_alive = self.is_request_keep_alive(msg)
             ctx.feed_in(msg)
             return
 
         if isinstance(msg, IoPipelineMessages.FinalInput):
+            self._cancel()
             if self._idle:
                 ctx.feed_in(msg)
-                ctx.feed_final_output()
+                self._close_output(ctx)
                 return
 
             self._keep_alive = False
@@ -106,9 +185,7 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
                 body=msg.body,
             )
             ctx.feed_out(msg)
-            self._idle = True
-            if not self._keep_alive:
-                ctx.feed_final_output()
+            self._complete_response(ctx)
             return
 
         if isinstance(msg, IoPipelineHttpResponseHead):
@@ -118,9 +195,13 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
 
         if isinstance(msg, IoPipelineHttpResponseEnd):
             ctx.feed_out(msg)
-            self._idle = True
-            if not self._keep_alive:
-                ctx.feed_final_output()
+            self._complete_response(ctx)
+            return
+
+        if isinstance(msg, IoPipelineMessages.FinalOutput):
+            self._closing = True
+            self._cancel()
+            ctx.feed_out(msg)
             return
 
         ctx.feed_out(msg)
