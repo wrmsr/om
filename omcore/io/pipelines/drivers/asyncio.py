@@ -201,18 +201,37 @@ class PollAsyncioStreamIoPipelineDriver:
 
     #
 
-    async def _close_writer(self) -> None:
+    async def _gracefully_close_writer(self) -> None:
         if self._writer is None:
             return
 
+        writer = self._writer
+        self._writer = None
+
         try:
-            self._writer.close()
-            await self._writer.wait_closed()
+            writer.close()
+            await writer.wait_closed()
 
         except Exception:  # noqa
             pass
 
+    async def _abort_writer(self) -> None:
+        if self._writer is None:
+            return
+
+        writer = self._writer
         self._writer = None
+
+        try:
+            try:
+                writer.transport.abort()
+            except (AttributeError, NotImplementedError):
+                writer.close()
+
+            await writer.wait_closed()
+
+        except Exception:  # noqa
+            pass
 
     ##
 
@@ -344,11 +363,6 @@ class PollAsyncioStreamIoPipelineDriver:
         self._pipeline.feed_in(*in_msgs)
 
         #
-
-        if eof:
-            self._shutdown_event.set()
-
-            await self._close_writer()
 
     ##
     # scheduling
@@ -619,7 +633,7 @@ class PollAsyncioStreamIoPipelineDriver:
     async def _handle_output_final_output(self, msg: IoPipelineMessages.FinalOutput) -> ta.Optional[str]:
         self._shutdown_event.set()
 
-        await self._close_writer()
+        await self._gracefully_close_writer()
 
         return 'stop'
 
@@ -776,6 +790,8 @@ class PollAsyncioStreamIoPipelineDriver:
     # lifecycle
 
     async def close(self) -> None:
+        """Abort the driver without waiting for graceful pipeline output completion."""
+
         self._shutdown_event.set()
 
         self._want_read_event.set()
@@ -784,7 +800,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
 
-        await self._close_writer()
+        await self._abort_writer()
 
         if hasattr(self, '_sched'):
             self._sched.cancel_all()

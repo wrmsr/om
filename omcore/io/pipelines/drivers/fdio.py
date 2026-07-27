@@ -163,6 +163,8 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     #
 
     def close(self) -> None:
+        """Abort the driver and discard any queued transport output."""
+
         if self._state is self.State.CLOSED:
             return
 
@@ -178,6 +180,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                     pipeline.destroy()
 
             finally:
+                self._write_q.clear()
+                self._write_q_bytes = 0
+
                 super().close()
 
                 self._state = self.State.CLOSED

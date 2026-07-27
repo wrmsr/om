@@ -134,7 +134,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/headers.py', sha1='0486a9e31f4ed77163e6b388bb15fc864b1a01ef'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='3bb2aad1972ff9e42bafbc5d21a6137d4657960e'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='3ee8ae583e786b12d4f697e7f66cb5b81201f012'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -221,7 +221,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='54c6aced29c5b0fb434e83be93cff5868a71aa55'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='b121a9b5534de208b4f86b2644c2fab8236162e0'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='ec056ecec708440ca839c19b29ee87203b92b365'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -6742,7 +6742,12 @@ class IoPipelineMessages(NamespaceClass):
     @ta.final
     @dc.dataclass(frozen=True, eq=False)
     class FinalInput(NeverOutbound, MustPropagate):  # ~ Netty `ChannelInboundHandler::channelInactive`
-        """Signals that the inbound stream has produced its final message (`eof`)."""
+        """
+        Signals that the inbound stream has produced its final message (`eof`).
+
+        This records peer/input completion only. It does not itself request outbound closure; an application or
+        protocol policy may still produce output before sending FinalOutput.
+        """
 
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
@@ -6750,7 +6755,13 @@ class IoPipelineMessages(NamespaceClass):
     @ta.final
     @dc.dataclass(frozen=True, eq=False)
     class FinalOutput(NeverInbound, MustPropagate):  # ~ Netty `ChannelOutboundHandler::close`
-        """Signals that the outbound stream has produced its final message (`close`)."""
+        """
+        Requests graceful output completion and connection closure.
+
+        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
+        protocol shutdown, and must forward it only after all output preceding it. No output may reach the pipeline
+        terminal after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
+        """
 
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
@@ -8512,6 +8523,13 @@ class IoPipeline:
         self.destroy()
 
     def destroy(self) -> None:
+        """
+        Immediately tear down the pipeline without graceful output draining.
+
+        Destruction does not synthesize FinalInput or FinalOutput. Callers that require graceful closure must drive a
+        FinalOutput to the pipeline terminal before destroying it.
+        """
+
         if self._state == IoPipeline.State.DESTROYED:
             return
 
@@ -31644,6 +31662,8 @@ class SyncSocketIoPipelineDriver:
     #
 
     def close(self) -> None:
+        """Abort the pipeline; the caller retains ownership of the socket."""
+
         if (pipeline := self._opt_pipeline()) is not None:
             pipeline.destroy()
 

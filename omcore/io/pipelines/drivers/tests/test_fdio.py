@@ -7,6 +7,7 @@ import unittest
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
+from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
 from ..fdio import IoPipelineDriverSocketFdioHandler
@@ -44,6 +45,30 @@ class CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, (IoPipelineFlowMessages.PauseOutput, IoPipelineFlowMessages.ReadyForOutput)):
             self.events.append(msg)
+        ctx.feed_in(msg)
+
+
+_CLOSE = object()
+
+
+class GracefulCloseIoPipelineHandler(IoPipelineHandler):
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if msg is _CLOSE:
+            ctx.feed_out(b'payload')
+            ctx.feed_final_output()
+        else:
+            ctx.feed_in(msg)
+
+
+class CaptureFinalInputIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.saw_final_input = False
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            self.saw_final_input = True
         ctx.feed_in(msg)
 
 
@@ -134,3 +159,77 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             )
         finally:
             drv.close()
+
+    def test_final_output_drains_queued_bytes(self) -> None:
+        sock: ta.Any = ScriptedSendSocket(BlockingIOError())
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                [GracefulCloseIoPipelineHandler()],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            drv.enqueue(_CLOSE)
+
+            self.assertIsNone(drv.next(read=False))
+
+            self.assertIs(drv.state, drv.State.DRAINING)
+            self.assertEqual([bytes(b) for b in drv._write_q], [b'payload'])
+            self.assertFalse(sock.closed)
+            self.assertTrue(drv.pipeline.is_ready)
+
+            drv.on_writable()
+
+            self.assertEqual(sock.sent, [b'payload'])
+            self.assertTrue(sock.closed)
+            self.assertIs(drv.state, drv.State.CLOSED)
+            self.assertFalse(drv.pipeline.is_ready)
+        finally:
+            drv.close()
+
+    def test_final_input_does_not_close_output(self) -> None:
+        sock: ta.Any = ScriptedSendSocket()
+        capture = CaptureFinalInputIoPipelineHandler()
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                [capture],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            drv.enqueue(IoPipelineMessages.FinalInput())
+
+            self.assertIsNone(drv.next(read=False))
+
+            self.assertTrue(capture.saw_final_input)
+            self.assertIs(drv.state, drv.State.RUNNING)
+            self.assertFalse(sock.closed)
+            self.assertFalse(drv.pipeline.saw_final_output)
+        finally:
+            drv.close()
+
+    def test_close_discards_queued_bytes(self) -> None:
+        sock: ta.Any = ScriptedSendSocket(BlockingIOError())
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        self.assertIsNone(drv.next(read=False))
+        drv._do_write_or_q([b'payload'])
+        self.assertEqual(drv._write_q_bytes, 7)
+
+        drv.close()
+
+        self.assertEqual(drv._write_q_bytes, 0)
+        self.assertEqual(list(drv._write_q), [])
+        self.assertEqual(sock.sent, [])
+        self.assertTrue(sock.closed)

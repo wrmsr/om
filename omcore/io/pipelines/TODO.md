@@ -4,9 +4,10 @@
   - `IoPipelineHandlerContext._pipeline`
   - `IoPipelineHandlerContext._context`
 - shutdown sequence / error handling
-  - more channel states lol
-  - send FinalInput in destroy if it hasn't been?
-    - is destroy fully 'runnable'? no, it can't feed_out
+  - `FinalOutput` is the ordered graceful-close barrier; `destroy` / driver `close` is abortive and does not synthesize
+    final messages
+  - expose close-requested / protocol-closing / transport-draining / closed states
+  - report graceful drain failures instead of silently converting them to successful closure
 - reimpl full (bytes) flow control (watermarks)
   - bidirectional?
 - hand optimize a bit

@@ -80,7 +80,12 @@ class IoPipelineMessages(NamespaceClass):
     @ta.final
     @dc.dataclass(frozen=True, eq=False)
     class FinalInput(NeverOutbound, MustPropagate):  # ~ Netty `ChannelInboundHandler::channelInactive`
-        """Signals that the inbound stream has produced its final message (`eof`)."""
+        """
+        Signals that the inbound stream has produced its final message (`eof`).
+
+        This records peer/input completion only. It does not itself request outbound closure; an application or
+        protocol policy may still produce output before sending FinalOutput.
+        """
 
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
@@ -88,7 +93,13 @@ class IoPipelineMessages(NamespaceClass):
     @ta.final
     @dc.dataclass(frozen=True, eq=False)
     class FinalOutput(NeverInbound, MustPropagate):  # ~ Netty `ChannelOutboundHandler::close`
-        """Signals that the outbound stream has produced its final message (`close`)."""
+        """
+        Requests graceful output completion and connection closure.
+
+        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
+        protocol shutdown, and must forward it only after all output preceding it. No output may reach the pipeline
+        terminal after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
+        """
 
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
@@ -1850,6 +1861,13 @@ class IoPipeline:
         self.destroy()
 
     def destroy(self) -> None:
+        """
+        Immediately tear down the pipeline without graceful output draining.
+
+        Destruction does not synthesize FinalInput or FinalOutput. Callers that require graceful closure must drive a
+        FinalOutput to the pipeline terminal before destroying it.
+        """
+
         if self._state == IoPipeline.State.DESTROYED:
             return
 

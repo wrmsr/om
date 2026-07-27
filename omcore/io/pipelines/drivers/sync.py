@@ -126,6 +126,8 @@ class SyncSocketIoPipelineDriver:
     #
 
     def close(self) -> None:
+        """Abort the pipeline; the caller retains ownership of the socket."""
+
         if (pipeline := self._opt_pipeline()) is not None:
             pipeline.destroy()
 

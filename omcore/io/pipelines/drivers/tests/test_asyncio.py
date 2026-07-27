@@ -1,4 +1,4 @@
-# ruff: noqa: SLF001
+# ruff: noqa: SLF001 UP006 UP037
 # @om-lite
 import asyncio
 import typing as ta
@@ -35,6 +35,33 @@ class TimerOutputIoPipelineHandler(IoPipelineHandler):
 
 class NopIoPipelineHandler(IoPipelineHandler):
     pass
+
+
+_CLOSE = object()
+_EOF_SEEN = object()
+
+
+class GracefulCloseIoPipelineHandler(IoPipelineHandler):
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if msg is _CLOSE:
+            ctx.feed_out(b'payload')
+            ctx.feed_final_output()
+        else:
+            ctx.feed_in(msg)
+
+
+class CaptureFinalInputIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.saw_final_input = False
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            self.saw_final_input = True
+            ctx.feed_out(b'after-eof')
+            ctx.feed_out(_EOF_SEEN)
+        ctx.feed_in(msg)
 
 
 class CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
@@ -76,6 +103,39 @@ class BufferedStreamWriter:
 
     async def wait_closed(self):
         pass
+
+
+class LifecycleStreamWriter:
+    class Transport:
+        def __init__(self, owner: 'LifecycleStreamWriter') -> None:
+            self._owner = owner
+            self._size = 0
+
+        def set_write_buffer_limits(self, *, high: int, low: int) -> None:
+            pass
+
+        def get_write_buffer_size(self) -> int:
+            return self._size
+
+        def abort(self) -> None:
+            self._owner.events.append('abort')
+            self._owner.closed = True
+
+    def __init__(self) -> None:
+        self.transport = self.Transport(self)
+        self.events: ta.List[ta.Any] = []
+        self.closed = False
+
+    def write(self, data: ta.Any) -> None:
+        self.transport._size += len(data)
+        self.events.append(('write', bytes(data)))
+
+    def close(self) -> None:
+        self.events.append('close')
+        self.closed = True
+
+    async def wait_closed(self) -> None:
+        self.events.append('wait_closed')
 
 
 class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCase):
@@ -257,3 +317,60 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
             )
         finally:
             await drv.close()
+
+
+class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCase):
+    async def test_final_output_gracefully_drains_preceding_bytes(self) -> None:
+        writer = LifecycleStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [GracefulCloseIoPipelineHandler()],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            drv.enqueue(_CLOSE)
+
+            self.assertIsNone(await drv.next(read=False))
+
+            self.assertEqual(writer.events, [('write', b'payload'), 'close', 'wait_closed'])
+            self.assertFalse(drv.pipeline.is_ready)
+        finally:
+            await drv.close()
+
+    async def test_final_input_does_not_close_output(self) -> None:
+        reader = asyncio.StreamReader()
+        reader.feed_eof()
+        writer = LifecycleStreamWriter()
+        capture = CaptureFinalInputIoPipelineHandler()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec([capture]),
+            reader,
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        try:
+            self.assertIs(await drv.next(), _EOF_SEEN)
+
+            self.assertTrue(capture.saw_final_input)
+            self.assertEqual(writer.events, [('write', b'after-eof')])
+            self.assertTrue(drv.pipeline.is_ready)
+            self.assertFalse(drv.pipeline.saw_final_output)
+        finally:
+            await drv.close()
+
+    async def test_close_is_abortive(self) -> None:
+        writer = LifecycleStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        self.assertIsNone(await drv.next(read=False))
+
+        await drv.close()
+
+        self.assertEqual(writer.events, ['abort', 'wait_closed'])
+        self.assertFalse(drv.pipeline.is_ready)

@@ -44,7 +44,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='core.py', sha1='3bb2aad1972ff9e42bafbc5d21a6137d4657960e'),
+            dict(path='core.py', sha1='3ee8ae583e786b12d4f697e7f66cb5b81201f012'),
             dict(path='../streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
@@ -72,7 +72,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='44f29072886e8e74b3ff92ba2dcb0304971cad84'),
+            dict(path='drivers/asyncio.py', sha1='c1b7cb0b1f4e3ad89543d15b37b4271c2f05b007'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -1429,7 +1429,12 @@ class IoPipelineMessages(NamespaceClass):
     @ta.final
     @dc.dataclass(frozen=True, eq=False)
     class FinalInput(NeverOutbound, MustPropagate):  # ~ Netty `ChannelInboundHandler::channelInactive`
-        """Signals that the inbound stream has produced its final message (`eof`)."""
+        """
+        Signals that the inbound stream has produced its final message (`eof`).
+
+        This records peer/input completion only. It does not itself request outbound closure; an application or
+        protocol policy may still produce output before sending FinalOutput.
+        """
 
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
@@ -1437,7 +1442,13 @@ class IoPipelineMessages(NamespaceClass):
     @ta.final
     @dc.dataclass(frozen=True, eq=False)
     class FinalOutput(NeverInbound, MustPropagate):  # ~ Netty `ChannelOutboundHandler::close`
-        """Signals that the outbound stream has produced its final message (`close`)."""
+        """
+        Requests graceful output completion and connection closure.
+
+        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
+        protocol shutdown, and must forward it only after all output preceding it. No output may reach the pipeline
+        terminal after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
+        """
 
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
@@ -3199,6 +3210,13 @@ class IoPipeline:
         self.destroy()
 
     def destroy(self) -> None:
+        """
+        Immediately tear down the pipeline without graceful output draining.
+
+        Destruction does not synthesize FinalInput or FinalOutput. Callers that require graceful closure must drive a
+        FinalOutput to the pipeline terminal before destroying it.
+        """
+
         if self._state == IoPipeline.State.DESTROYED:
             return
 
@@ -8671,18 +8689,37 @@ class PollAsyncioStreamIoPipelineDriver:
 
     #
 
-    async def _close_writer(self) -> None:
+    async def _gracefully_close_writer(self) -> None:
         if self._writer is None:
             return
 
+        writer = self._writer
+        self._writer = None
+
         try:
-            self._writer.close()
-            await self._writer.wait_closed()
+            writer.close()
+            await writer.wait_closed()
 
         except Exception:  # noqa
             pass
 
+    async def _abort_writer(self) -> None:
+        if self._writer is None:
+            return
+
+        writer = self._writer
         self._writer = None
+
+        try:
+            try:
+                writer.transport.abort()
+            except (AttributeError, NotImplementedError):
+                writer.close()
+
+            await writer.wait_closed()
+
+        except Exception:  # noqa
+            pass
 
     ##
 
@@ -8814,11 +8851,6 @@ class PollAsyncioStreamIoPipelineDriver:
         self._pipeline.feed_in(*in_msgs)
 
         #
-
-        if eof:
-            self._shutdown_event.set()
-
-            await self._close_writer()
 
     ##
     # scheduling
@@ -9089,7 +9121,7 @@ class PollAsyncioStreamIoPipelineDriver:
     async def _handle_output_final_output(self, msg: IoPipelineMessages.FinalOutput) -> ta.Optional[str]:
         self._shutdown_event.set()
 
-        await self._close_writer()
+        await self._gracefully_close_writer()
 
         return 'stop'
 
@@ -9246,6 +9278,8 @@ class PollAsyncioStreamIoPipelineDriver:
     # lifecycle
 
     async def close(self) -> None:
+        """Abort the driver without waiting for graceful pipeline output completion."""
+
         self._shutdown_event.set()
 
         self._want_read_event.set()
@@ -9254,7 +9288,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
 
-        await self._close_writer()
+        await self._abort_writer()
 
         if hasattr(self, '_sched'):
             self._sched.cancel_all()

@@ -51,6 +51,30 @@ class NopIoPipelineHandler(IoPipelineHandler):
     pass
 
 
+_CLOSE = object()
+
+
+class GracefulCloseIoPipelineHandler(IoPipelineHandler):
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if msg is _CLOSE:
+            ctx.feed_out(b'payload')
+            ctx.feed_final_output()
+        else:
+            ctx.feed_in(msg)
+
+
+class CaptureFinalInputIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.saw_final_input = False
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            self.saw_final_input = True
+        ctx.feed_in(msg)
+
+
 class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
     def make_driver(self, *handlers: IoPipelineHandler) -> SyncSocketIoPipelineDriver:
         drv = SyncSocketIoPipelineDriver(
@@ -226,5 +250,44 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
                 self.assertEqual(drv.next(), 'first')
                 self.assertEqual(drv.next(), 'second')
                 self.assertEqual(drv.next(), 'third')
+            finally:
+                drv.close()
+
+
+class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
+    def test_final_output_drains_preceding_bytes(self) -> None:
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            drv = SyncSocketIoPipelineDriver(
+                IoPipeline.Spec(
+                    [GracefulCloseIoPipelineHandler()],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+                sock,
+            )
+            try:
+                self.assertIsNone(drv.next(read=False))
+                drv.enqueue(_CLOSE)
+
+                self.assertIsNone(drv.next(read=False))
+
+                self.assertEqual(peer.recv(7), b'payload')
+                self.assertFalse(drv.pipeline.is_ready)
+            finally:
+                drv.close()
+
+    def test_final_input_does_not_close_output(self) -> None:
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            capture = CaptureFinalInputIoPipelineHandler()
+            drv = SyncSocketIoPipelineDriver(IoPipeline.Spec([capture]), sock)
+            try:
+                peer.shutdown(socket.SHUT_WR)
+
+                self.assertIsNone(drv.next(raise_on_stall=False))
+
+                self.assertTrue(capture.saw_final_input)
+                self.assertTrue(drv.pipeline.is_ready)
+                self.assertFalse(drv.pipeline.saw_final_output)
             finally:
                 drv.close()
