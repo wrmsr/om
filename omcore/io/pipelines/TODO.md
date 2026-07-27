@@ -6,7 +6,8 @@
 - shutdown sequence / error handling
   - `FinalOutput` is the ordered graceful-close barrier; `destroy` / driver `close` is abortive and does not synthesize
     final messages
-  - expose close-requested / protocol-closing / transport-draining / closed states
+  - shared driver `NEW` / `RUNNING` / `DRAINING` / `CLOSED` / `FAILED` states are exposed; decide whether general
+    pipeline-level close-requested visibility is useful beyond protocol-specific state such as TLS
   - report graceful drain failures instead of silently converting them to successful closure
 - reimpl full (bytes) flow control (watermarks)
   - bidirectional?

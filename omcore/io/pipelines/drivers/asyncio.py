@@ -21,6 +21,7 @@ from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..sched.types import IoPipelineScheduling
 from .metadata import DriverIoPipelineMetadata
+from .types import IoPipelineDriverState
 
 
 log, alog = get_module_loggers(globals())  # noqa
@@ -88,6 +89,8 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._output_writable = True
 
+        self._state = IoPipelineDriverState.NEW
+
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._FeedInCommand([
             IoPipelineMessages.InitialInput(),
         ]))
@@ -100,16 +103,20 @@ class PollAsyncioStreamIoPipelineDriver:
         return self._config
 
     @property
+    def state(self) -> IoPipelineDriverState:
+        return self._state
+
+    @property
     def pipeline(self) -> IoPipeline:
         return self._pipeline
 
     @property
     def is_running(self) -> bool:
-        try:
-            pipeline = self._pipeline
-        except AttributeError:
-            return False
-        return pipeline.is_ready
+        return (
+            self._state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING) and
+            hasattr(self, '_pipeline') and
+            self._pipeline.is_ready
+        )
 
     ##
     # init
@@ -128,8 +135,26 @@ class PollAsyncioStreamIoPipelineDriver:
     async def _ensure_init(self) -> IoPipeline:
         if self._has_init:
             return self._pipeline
+        check.state(self._state is IoPipelineDriverState.NEW)
         self._has_init = True
 
+        try:
+            return self._init()
+
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            self._shutdown_event.set()
+
+            try:
+                if self._pipeline.is_ready:
+                    self._pipeline.destroy()
+            except AttributeError:
+                pass
+
+            await self._abort_writer()
+            raise
+
+    def _init(self) -> IoPipeline:
         self._pending_awaits = set()
 
         self._sched = self._SchedulingService(self)
@@ -164,6 +189,8 @@ class PollAsyncioStreamIoPipelineDriver:
         if self._is_auto_read():
             self._want_read = True
             self._want_read_event.set()
+
+        self._state = IoPipelineDriverState.RUNNING
 
         return self._pipeline
 
@@ -208,12 +235,8 @@ class PollAsyncioStreamIoPipelineDriver:
         writer = self._writer
         self._writer = None
 
-        try:
-            writer.close()
-            await writer.wait_closed()
-
-        except Exception:  # noqa
-            pass
+        writer.close()
+        await writer.wait_closed()
 
     async def _abort_writer(self) -> None:
         if self._writer is None:
@@ -633,7 +656,15 @@ class PollAsyncioStreamIoPipelineDriver:
     async def _handle_output_final_output(self, msg: IoPipelineMessages.FinalOutput) -> ta.Optional[str]:
         self._shutdown_event.set()
 
-        await self._gracefully_close_writer()
+        self._state = IoPipelineDriverState.DRAINING
+        try:
+            await self._gracefully_close_writer()
+
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            if self._pipeline.is_ready:
+                self._pipeline.destroy()
+            raise
 
         return 'stop'
 
@@ -770,7 +801,13 @@ class PollAsyncioStreamIoPipelineDriver:
 
             await self._sched._flush_pending()  # noqa
 
-        pipeline.destroy()
+        try:
+            pipeline.destroy()
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            raise
+
+        self._state = IoPipelineDriverState.CLOSED
         return None
 
     @async_exception_logging(alog)
@@ -791,6 +828,11 @@ class PollAsyncioStreamIoPipelineDriver:
 
     async def close(self) -> None:
         """Abort the driver without waiting for graceful pipeline output completion."""
+
+        if self._state is IoPipelineDriverState.CLOSED:
+            return
+
+        failed = self._state is IoPipelineDriverState.FAILED
 
         self._shutdown_event.set()
 
@@ -813,6 +855,8 @@ class PollAsyncioStreamIoPipelineDriver:
                     self._pipeline.destroy()
             except AttributeError:
                 pass
+
+        self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
 
     async def __aenter__(self) -> 'PollAsyncioStreamIoPipelineDriver':  # noqa
         return self

@@ -24,6 +24,7 @@ from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..sched.types import IoPipelineScheduling
 from .metadata import DriverIoPipelineMetadata
+from .types import IoPipelineDriverState
 
 
 log = get_module_logger(globals())  # noqa
@@ -63,12 +64,18 @@ class SyncSocketIoPipelineDriver:
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
+        self._state = IoPipelineDriverState.NEW
+
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}'
 
     @property
     def config(self) -> Config:
         return self._config
+
+    @property
+    def state(self) -> IoPipelineDriverState:
+        return self._state
 
     @property
     def pipeline(self) -> IoPipeline:
@@ -92,13 +99,22 @@ class SyncSocketIoPipelineDriver:
         except AttributeError:
             pass
 
-        self._sched = self._SchedulingService(self)
+        check.state(self._state is IoPipelineDriverState.NEW)
 
-        self._pipeline = pipeline = self._make_pipeline()
+        try:
+            self._sched = self._SchedulingService(self)
 
-        self._flow = flow = pipeline.services.find(IoPipelineFlow)
-        if flow is None:
-            self._want_read = True
+            self._pipeline = pipeline = self._make_pipeline()
+
+            self._flow = flow = pipeline.services.find(IoPipelineFlow)
+            if flow is None:
+                self._want_read = True
+
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            raise
+
+        self._state = IoPipelineDriverState.RUNNING
 
         return pipeline
 
@@ -119,16 +135,33 @@ class SyncSocketIoPipelineDriver:
 
     @property
     def is_running(self) -> bool:
-        if (pipeline := self._opt_pipeline()) is None:
-            return False
-        return pipeline.is_ready
+        return (
+            self._state is IoPipelineDriverState.RUNNING and
+            (pipeline := self._opt_pipeline()) is not None and
+            pipeline.is_ready
+        )
 
     #
 
     def close(self) -> None:
         """Abort the pipeline; the caller retains ownership of the socket."""
 
-        if (pipeline := self._opt_pipeline()) is not None:
+        if self._state is IoPipelineDriverState.CLOSED:
+            return
+
+        failed = self._state is IoPipelineDriverState.FAILED
+        try:
+            if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
+                pipeline.destroy()
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            raise
+        else:
+            self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
+
+    def _fail(self) -> None:
+        self._state = IoPipelineDriverState.FAILED
+        if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
             pipeline.destroy()
 
     def __enter__(self) -> 'SyncSocketIoPipelineDriver':  # noqa
@@ -346,8 +379,12 @@ class SyncSocketIoPipelineDriver:
 
     def _handle_output(self, msg: ta.Any) -> ta.Literal['handled', 'unhandled', 'stop']:
         if ByteStreamBuffers.can_bytes(msg):
-            for mv in ByteStreamBuffers.iter_segments(msg):
-                self._sock.sendall(mv)
+            try:
+                for mv in ByteStreamBuffers.iter_segments(msg):
+                    self._sock.sendall(mv)
+            except OSError:
+                self._fail()
+                raise
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
@@ -453,6 +490,7 @@ class SyncSocketIoPipelineDriver:
 
             elif out == 'stop':
                 pipeline.destroy()
+                self._state = IoPipelineDriverState.CLOSED
 
                 return None
 

@@ -9,7 +9,6 @@ TODO:
 """
 import collections
 import dataclasses as dc
-import enum
 import socket
 import typing as ta
 
@@ -24,6 +23,7 @@ from ..core import IoPipelineMessages
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from .metadata import DriverIoPipelineMetadata
+from .types import IoPipelineDriverState
 
 
 log = get_module_logger(globals())  # noqa
@@ -89,24 +89,15 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     #
 
-    class State(enum.Enum):
-        NEW = 'new'
-
-        RUNNING = 'running'
-        DRAINING = 'draining'
-
-        CLOSED = 'closed'
-        FAILED = 'failed'
-
-    ACTIVE_STATES: ta.ClassVar[ta.Tuple[State, ...]] = (
-        State.RUNNING,
-        State.DRAINING,
+    ACTIVE_STATES: ta.ClassVar[ta.Tuple[IoPipelineDriverState, ...]] = (
+        IoPipelineDriverState.RUNNING,
+        IoPipelineDriverState.DRAINING,
     )
 
-    _state: State = State.NEW
+    _state: IoPipelineDriverState = IoPipelineDriverState.NEW
 
     @property
-    def state(self) -> State:
+    def state(self) -> IoPipelineDriverState:
         return self._state
 
     @property
@@ -131,7 +122,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         except AttributeError:
             pass
 
-        check.state(self._state is self.State.NEW)
+        check.state(self._state is IoPipelineDriverState.NEW)
 
         try:
             self._pipeline = pipeline = self._make_pipeline()
@@ -147,7 +138,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             return pipeline
 
         except BaseException:
-            self._state = self.State.FAILED
+            self._state = IoPipelineDriverState.FAILED
             raise
 
     def _make_pipeline(self) -> IoPipeline:
@@ -165,11 +156,16 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     def close(self) -> None:
         """Abort the driver and discard any queued transport output."""
 
-        if self._state is self.State.CLOSED:
+        if self._state is IoPipelineDriverState.CLOSED:
             return
 
-        if self._state is self.State.NEW:
-            self._state = self.State.CLOSED
+        if self._state is IoPipelineDriverState.FAILED:
+            if not self.closed:
+                self._fail()
+            return
+
+        if self._state is IoPipelineDriverState.NEW:
+            self._state = IoPipelineDriverState.CLOSED
             return
 
         check.state(self._state in self.ACTIVE_STATES)
@@ -185,11 +181,25 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
                 super().close()
 
-                self._state = self.State.CLOSED
+                self._state = IoPipelineDriverState.CLOSED
 
         except BaseException:  # noqa
-            self._state = self.State.FAILED
+            self._state = IoPipelineDriverState.FAILED
             raise
+
+    def _fail(self) -> None:
+        try:
+            if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
+                pipeline.destroy()
+
+        finally:
+            self._write_q.clear()
+            self._write_q_bytes = 0
+
+            try:
+                super().close()
+            finally:
+                self._state = IoPipelineDriverState.FAILED
 
     #
 
@@ -227,12 +237,12 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 pb = b[p:] if p else b
                 try:
                     sr = check.not_none(self._sock).send(pb)
-                except ConnectionResetError:
-                    self.close()
-                    return
                 except BlockingIOError:
                     self._write_q.appendleft(pb)
                     return
+                except OSError:
+                    self._fail()
+                    raise
                 p += sr
                 self._write_q_bytes -= sr
                 if p >= len(b):
@@ -257,6 +267,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                     self._write_q.append(pbl)
                     self._write_q_bytes += len(pbl)
                     break
+                except OSError:
+                    self._fail()
+                    raise
                 p += sr
                 if p >= len(bl):
                     break
@@ -381,7 +394,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
             elif out == 'stop':
                 if self._write_q:
-                    self._state = self.State.DRAINING
+                    self._state = IoPipelineDriverState.DRAINING
                 else:
                     self.close()
 
@@ -417,7 +430,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     ##
 
     def readable(self) -> bool:
-        return self._state is self.State.RUNNING and self._want_read
+        return self._state is IoPipelineDriverState.RUNNING and self._want_read
 
     def writable(self) -> bool:
         return self.is_active and bool(self._write_q)
@@ -432,9 +445,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         self._try_flush_write_q()
 
-        if self._state is self.State.DRAINING and not self._write_q:
+        if self._state is IoPipelineDriverState.DRAINING and not self._write_q:
             self.close()
 
-        elif self._state is self.State.RUNNING:
+        elif self._state is IoPipelineDriverState.RUNNING:
             self._update_output_writability()
             check.none(self.next(read=False))

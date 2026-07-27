@@ -12,6 +12,7 @@ from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...sched.types import IoPipelineScheduling
 from ..sync import SyncSocketIoPipelineDriver
+from ..types import IoPipelineDriverState
 
 
 class TimerOutputIoPipelineHandler(IoPipelineHandler):
@@ -73,6 +74,14 @@ class CaptureFinalInputIoPipelineHandler(IoPipelineHandler):
         if isinstance(msg, IoPipelineMessages.FinalInput):
             self.saw_final_input = True
         ctx.feed_in(msg)
+
+
+class FailingSendSocket:
+    def __init__(self, exc: BaseException) -> None:
+        self._exc = exc
+
+    def sendall(self, data: ta.Any) -> None:
+        raise self._exc
 
 
 class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
@@ -255,6 +264,24 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
 
 
 class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
+    def test_stall_does_not_fail_driver(self) -> None:
+        drv = SyncSocketIoPipelineDriver(
+            IoPipeline.Spec(
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            object(),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+
+            with self.assertRaises(RuntimeError):
+                drv.next()
+
+            self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
+            self.assertTrue(drv.pipeline.is_ready)
+        finally:
+            drv.close()
+
     def test_final_output_drains_preceding_bytes(self) -> None:
         sock, peer = socket.socketpair()
         with sock, peer:
@@ -267,11 +294,13 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
             )
             try:
                 self.assertIsNone(drv.next(read=False))
+                self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
                 drv.enqueue(_CLOSE)
 
                 self.assertIsNone(drv.next(read=False))
 
                 self.assertEqual(peer.recv(7), b'payload')
+                self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
                 self.assertFalse(drv.pipeline.is_ready)
             finally:
                 drv.close()
@@ -287,7 +316,32 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
                 self.assertIsNone(drv.next(raise_on_stall=False))
 
                 self.assertTrue(capture.saw_final_input)
+                self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
                 self.assertTrue(drv.pipeline.is_ready)
                 self.assertFalse(drv.pipeline.saw_final_output)
             finally:
                 drv.close()
+
+    def test_write_failure_is_reported(self) -> None:
+        error = BrokenPipeError('broken')
+        drv = SyncSocketIoPipelineDriver(
+            IoPipeline.Spec(
+                [GracefulCloseIoPipelineHandler()],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            FailingSendSocket(error),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            drv.enqueue(_CLOSE)
+
+            with self.assertRaises(BrokenPipeError) as raised:
+                drv.next(read=False)
+
+            self.assertIs(raised.exception, error)
+            self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+            self.assertFalse(drv.pipeline.is_ready)
+        finally:
+            drv.close()
+
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)

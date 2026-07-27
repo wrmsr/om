@@ -11,6 +11,7 @@ from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
 from ..fdio import IoPipelineDriverSocketFdioHandler
+from ..types import IoPipelineDriverState
 
 
 class ScriptedSendSocket:
@@ -176,7 +177,7 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
 
             self.assertIsNone(drv.next(read=False))
 
-            self.assertIs(drv.state, drv.State.DRAINING)
+            self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
             self.assertEqual([bytes(b) for b in drv._write_q], [b'payload'])
             self.assertFalse(sock.closed)
             self.assertTrue(drv.pipeline.is_ready)
@@ -185,7 +186,7 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
 
             self.assertEqual(sock.sent, [b'payload'])
             self.assertTrue(sock.closed)
-            self.assertIs(drv.state, drv.State.CLOSED)
+            self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
             self.assertFalse(drv.pipeline.is_ready)
         finally:
             drv.close()
@@ -208,7 +209,7 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             self.assertIsNone(drv.next(read=False))
 
             self.assertTrue(capture.saw_final_input)
-            self.assertIs(drv.state, drv.State.RUNNING)
+            self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
             self.assertFalse(sock.closed)
             self.assertFalse(drv.pipeline.saw_final_output)
         finally:
@@ -233,3 +234,34 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
         self.assertEqual(list(drv._write_q), [])
         self.assertEqual(sock.sent, [])
         self.assertTrue(sock.closed)
+        self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+
+    def test_graceful_drain_failure_is_reported(self) -> None:
+        error = BrokenPipeError('broken')
+        sock: ta.Any = ScriptedSendSocket(BlockingIOError(), error)
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                [GracefulCloseIoPipelineHandler()],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            drv.enqueue(_CLOSE)
+            self.assertIsNone(drv.next(read=False))
+            self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
+
+            with self.assertRaises(BrokenPipeError) as raised:
+                drv.on_writable()
+
+            self.assertIs(raised.exception, error)
+            self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+            self.assertTrue(sock.closed)
+            self.assertEqual(list(drv._write_q), [])
+            self.assertFalse(drv.pipeline.is_ready)
+        finally:
+            drv.close()
+
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)

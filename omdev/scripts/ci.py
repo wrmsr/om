@@ -99,6 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/statuses.py', sha1='675eff6e1638e48aebb7aeae422e426c21a612d2'),
             dict(path='../../omcore/http/urllib.py', sha1='fc273565255546f42152ab2dfc264feb8c8b8dc6'),
             dict(path='../../omcore/http/versions.py', sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890'),
+            dict(path='../../omcore/io/pipelines/drivers/types.py', sha1='6f04c483ee8806823c2c591acf3df043be23b2a8'),
             dict(path='../../omcore/io/pipelines/errors.py', sha1='5b21a04b81ebec31ad81ecb4f811820cea5a0036'),
             dict(path='../../omcore/io/streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
             dict(path='../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
@@ -221,7 +222,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='54c6aced29c5b0fb434e83be93cff5868a71aa55'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='ec056ecec708440ca839c19b29ee87203b92b365'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='f69b6533fff7f6952770a65ccc7a28bcb072630f'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -1075,6 +1076,23 @@ class HttpVersions:
             return cls.from_str(o)
         else:
             raise TypeError(o)
+
+
+########################################
+# ../../../omcore/io/pipelines/drivers/types.py
+
+
+##
+
+
+class IoPipelineDriverState(enum.Enum):
+    """Transport-facing lifecycle shared by I/O pipeline drivers."""
+
+    NEW = 'new'
+    RUNNING = 'running'
+    DRAINING = 'draining'
+    CLOSED = 'closed'
+    FAILED = 'failed'
 
 
 ########################################
@@ -31599,12 +31617,18 @@ class SyncSocketIoPipelineDriver:
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
+        self._state = IoPipelineDriverState.NEW
+
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}'
 
     @property
     def config(self) -> Config:
         return self._config
+
+    @property
+    def state(self) -> IoPipelineDriverState:
+        return self._state
 
     @property
     def pipeline(self) -> IoPipeline:
@@ -31628,13 +31652,22 @@ class SyncSocketIoPipelineDriver:
         except AttributeError:
             pass
 
-        self._sched = self._SchedulingService(self)
+        check.state(self._state is IoPipelineDriverState.NEW)
 
-        self._pipeline = pipeline = self._make_pipeline()
+        try:
+            self._sched = self._SchedulingService(self)
 
-        self._flow = flow = pipeline.services.find(IoPipelineFlow)
-        if flow is None:
-            self._want_read = True
+            self._pipeline = pipeline = self._make_pipeline()
+
+            self._flow = flow = pipeline.services.find(IoPipelineFlow)
+            if flow is None:
+                self._want_read = True
+
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            raise
+
+        self._state = IoPipelineDriverState.RUNNING
 
         return pipeline
 
@@ -31655,16 +31688,33 @@ class SyncSocketIoPipelineDriver:
 
     @property
     def is_running(self) -> bool:
-        if (pipeline := self._opt_pipeline()) is None:
-            return False
-        return pipeline.is_ready
+        return (
+            self._state is IoPipelineDriverState.RUNNING and
+            (pipeline := self._opt_pipeline()) is not None and
+            pipeline.is_ready
+        )
 
     #
 
     def close(self) -> None:
         """Abort the pipeline; the caller retains ownership of the socket."""
 
-        if (pipeline := self._opt_pipeline()) is not None:
+        if self._state is IoPipelineDriverState.CLOSED:
+            return
+
+        failed = self._state is IoPipelineDriverState.FAILED
+        try:
+            if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
+                pipeline.destroy()
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            raise
+        else:
+            self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
+
+    def _fail(self) -> None:
+        self._state = IoPipelineDriverState.FAILED
+        if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
             pipeline.destroy()
 
     def __enter__(self) -> 'SyncSocketIoPipelineDriver':  # noqa
@@ -31882,8 +31932,12 @@ class SyncSocketIoPipelineDriver:
 
     def _handle_output(self, msg: ta.Any) -> ta.Literal['handled', 'unhandled', 'stop']:
         if ByteStreamBuffers.can_bytes(msg):
-            for mv in ByteStreamBuffers.iter_segments(msg):
-                self._sock.sendall(mv)
+            try:
+                for mv in ByteStreamBuffers.iter_segments(msg):
+                    self._sock.sendall(mv)
+            except OSError:
+                self._fail()
+                raise
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
@@ -31989,6 +32043,7 @@ class SyncSocketIoPipelineDriver:
 
             elif out == 'stop':
                 pipeline.destroy()
+                self._state = IoPipelineDriverState.CLOSED
 
                 return None
 
