@@ -18,7 +18,7 @@ class ToolParam:
     name: str = dc.xfield(coerce=check.non_empty_str)
     description: str | None = None
     type: str = dc.xfield(coerce=check.non_empty_str)
-    optional: bool = False
+    optional: bool = dc.xfield(False, repr_fn=lang.truthy_repr)
 
 
 @ta.final
@@ -28,6 +28,7 @@ class Tool:
     name: str = dc.xfield(coerce=check.non_empty_str)
     description: str | None = None
     params: ta.Sequence[ToolParam] = ()
+    type: str | None = dc.xfield(None, validate=lambda s: s is None or (isinstance(s, str) and bool(s)))
 
     @cached.property
     @dc.init

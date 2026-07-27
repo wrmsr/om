@@ -7,12 +7,12 @@ from omcore.testing.pytest.inject import Harness
 from ... import llm
 from ..agent import Agent
 from ..backends import DictBackendManager
+from ..lib.dummy.weather import WEATHER_TOOL
 from ..types.tools import ToolSet
 from .models import ANTHROPIC
 from .models import GOOGLE
 from .models import OPENAI
 from .models import ModelForTest
-from .weather import WEATHER_TOOL
 
 
 ##

@@ -4,6 +4,7 @@ from omcore.secrets.tests.harness import HarnessSecrets
 from omcore.testing.pytest.inject import Harness
 
 from ... import llm
+from ..lib.dummy.weather import WEATHER_TOOL
 from ..loop import Loop
 from ..types.contexts import Context
 from ..types.tools import ToolSet
@@ -11,7 +12,6 @@ from .models import ANTHROPIC
 from .models import GOOGLE
 from .models import OPENAI
 from .models import ModelForTest
-from .weather import WEATHER_TOOL
 
 
 ##

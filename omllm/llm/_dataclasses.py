@@ -2294,27 +2294,31 @@ def _process_dataclass__2f297aff3600bf09ca74d5106118f3c78a4c2890():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('name', 'description', 'params')), EqPlan(fields=('name', 'description', 'params')"
-        "), FrozenPlan(fields=('name', 'description', 'params'), allow_dynamic_dunder_attrs=False), HashPlan(action='ad"
-        "d', fields=('name', 'description', 'params'), cache=False), InitPlan(fields=(InitPlan.Field(name='name', annot"
-        "ation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, f"
-        "ield_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0.coerce'), validate=None, check_type=None), Init"
-        "Plan.Field(name='description', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fie"
-        "lds.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, "
-        "validate=None, check_type=None), InitPlan.Field(name='params', annotation=OpRef(name='init.fields.2.annotation"
-        "'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=F"
-        "ieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_pa"
-        "rams=('name', 'description', 'params'), frozen=True, slots=False, post_init_params=None, init_fns=(OpRef(name="
-        "'init.init_fns.0'),), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='name', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='description', kw_only=True, fn=None), ReprPlan.Field(name='params', kw_only=True, fn=None)"
-        "), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('name', 'description', 'params', 'type')), EqPlan(fields=('name', 'description', '"
+        "params', 'type')), FrozenPlan(fields=('name', 'description', 'params', 'type'), allow_dynamic_dunder_attrs=Fal"
+        "se), HashPlan(action='add', fields=('name', 'description', 'params', 'type'), cache=False), InitPlan(fields=(I"
+        "nitPlan.Field(name='name', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=No"
+        "ne, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0.coerce'), valid"
+        "ate=None, check_type=None), InitPlan.Field(name='description', annotation=OpRef(name='init.fields.1.annotation"
+        "'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=F"
+        "ieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='params', annotation=OpRe"
+        "f(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=Tr"
+        "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
+        "d(name='type', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'),"
+        " default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=OpRef(n"
+        "ame='init.fields.3.validate'), check_type=None)), self_param='self', std_params=(), kw_only_params=('name', 'd"
+        "escription', 'params', 'type'), frozen=True, slots=False, post_init_params=None, init_fns=(OpRef(name='init.in"
+        "it_fns.0'),), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='name', kw_only=True, fn=None), ReprPlan."
+        "Field(name='description', kw_only=True, fn=None), ReprPlan.Field(name='params', kw_only=True, fn=None), ReprPl"
+        "an.Field(name='type', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn')"
+        ")))"
     ),
-    plan_repr_sha1='c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9',
+    plan_repr_sha1='024ecef31c77bde4a57d78cbfe682974cde3e2d0',
     cls_names=(
         ('omllm.llm.types.tools', 'Tool'),
     ),
 )
-def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
+def _process_dataclass__024ecef31c77bde4a57d78cbfe682974cde3e2d0():
     def _process_dataclass(
         *,
         __class__,
@@ -2324,8 +2328,12 @@ def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
         __dataclass__init__fields__1__default,
         __dataclass__init__fields__2__annotation,
         __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__3__validate,
         __dataclass__init__init_fns__0,
         __dataclass__repr__default_fn,
+        __dataclass__FieldFnValidationError,  # noqa
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -2339,6 +2347,7 @@ def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
                 name=self.name,
                 description=self.description,
                 params=self.params,
+                type=self.type,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -2351,7 +2360,8 @@ def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
             return (
                 self.name == other.name and
                 self.description == other.description and
-                self.params == other.params
+                self.params == other.params and
+                self.type == other.type
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -2360,6 +2370,7 @@ def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
             'name',
             'description',
             'params',
+            'type',
         }
 
         def __setattr__(self, name, value):
@@ -2387,6 +2398,7 @@ def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
                 self.name,
                 self.description,
                 self.params,
+                self.type,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -2397,11 +2409,20 @@ def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
             name: __dataclass__init__fields__0__annotation,
             description: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             params: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            type: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             name = __dataclass__init__fields__0__coerce(name)
+            if not __dataclass__init__fields__3__validate(type): 
+                raise __dataclass__FieldFnValidationError(
+                    obj=self,
+                    fn=__dataclass__init__fields__3__validate,
+                    field='type',
+                    value=type,
+                )
             __dataclass__object_setattr(self, 'name', name)
             __dataclass__object_setattr(self, 'description', description)
             __dataclass__object_setattr(self, 'params', params)
+            __dataclass__object_setattr(self, 'type', type)
             __dataclass__init__init_fns__0(self)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -2415,6 +2436,8 @@ def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
                 parts.append(f"description={s}")
             if (s := __dataclass__repr__default_fn(self.params)) is not None:
                 parts.append(f"params={s}")
+            if (s := __dataclass__repr__default_fn(self.type)) is not None:
+                parts.append(f"type={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -2443,15 +2466,15 @@ def _process_dataclass__c66553162ab08b5b8d772b0e5f01ccffdcd7b5c9():
         "e=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('name', 'description', 'type', 'o"
         "ptional'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Re"
         "prPlan.Field(name='name', kw_only=True, fn=None), ReprPlan.Field(name='description', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='type', kw_only=True, fn=None), ReprPlan.Field(name='optional', kw_only=True, fn=None)), id"
-        "=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "eprPlan.Field(name='type', kw_only=True, fn=None), ReprPlan.Field(name='optional', kw_only=True, fn=OpRef(name"
+        "='repr.fns.3.fn'))), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='abe043f1a77748cdea590defeb4ee3dd954954b4',
+    plan_repr_sha1='eab120fc86654066169ee1c4f646f3a6509d553d',
     cls_names=(
         ('omllm.llm.types.tools', 'ToolParam'),
     ),
 )
-def _process_dataclass__abe043f1a77748cdea590defeb4ee3dd954954b4():
+def _process_dataclass__eab120fc86654066169ee1c4f646f3a6509d553d():
     def _process_dataclass(
         *,
         __class__,
@@ -2464,6 +2487,7 @@ def _process_dataclass__abe043f1a77748cdea590defeb4ee3dd954954b4():
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
         __dataclass__repr__default_fn,
+        __dataclass__repr__fns__3__fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -2559,7 +2583,7 @@ def _process_dataclass__abe043f1a77748cdea590defeb4ee3dd954954b4():
                 parts.append(f"description={s}")
             if (s := __dataclass__repr__default_fn(self.type)) is not None:
                 parts.append(f"type={s}")
-            if (s := __dataclass__repr__default_fn(self.optional)) is not None:
+            if (s := __dataclass__repr__fns__3__fn(self.optional)) is not None:
                 parts.append(f"optional={s}")
             return (
                 f"{self.__class__.__qualname__}("
