@@ -1,9 +1,9 @@
 from omcore import check
 
 from ... import llm
-from ..tools import Tool
-from ..tools import ToolContext
-from ..tools import ToolResult
+from ..types.tools import Tool
+from ..types.tools import ToolContext
+from ..types.tools import ToolResult
 
 
 ##

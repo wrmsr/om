@@ -6,11 +6,11 @@ from omcore import lang
 
 from .. import llm
 from .backends import BackendManager
-from .contexts import Context
-from .events import EventSink
 from .loop import Loop
 from .loop import LoopConfig
-from .messages import Message
+from .types.contexts import Context
+from .types.events import EventSink
+from .types.messages import Message
 
 
 ##

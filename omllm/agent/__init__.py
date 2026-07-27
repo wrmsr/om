@@ -18,22 +18,11 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
-    from .agent import (  # noqa
-        State,
-        Agent,
-    )
-
-    from .backends import (  # noqa
-        BackendManager,
-
-        DictBackendManager,
-    )
-
-    from .contexts import (  # noqa
+    from .types.contexts import (  # noqa
         Context,
     )
 
-    from .events import (  # noqa
+    from .types.events import (  # noqa
         Event,
         EventSink,
 
@@ -50,13 +39,26 @@ with _lang.auto_proxy_init(globals()):
         Loop,
     )
 
-    from .messages import (  # noqa
+    from .types.messages import (  # noqa
         Message,
     )
 
-    from .tools import (  # noqa
+    from .types.tools import (  # noqa
         ToolExecutor,
         ToolContext,
         ToolResult,
         Tool,
+    )
+
+    ##
+
+    from .agent import (  # noqa
+        State,
+        Agent,
+    )
+
+    from .backends import (  # noqa
+        BackendManager,
+
+        DictBackendManager,
     )

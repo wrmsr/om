@@ -3,7 +3,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
-from .. import llm
+from ... import llm
 
 
 type ToolExecutor = ta.Callable[[ToolContext], ta.Awaitable[ToolResult]]

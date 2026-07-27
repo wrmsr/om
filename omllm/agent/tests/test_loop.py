@@ -4,8 +4,8 @@ from omcore.secrets.tests.harness import HarnessSecrets
 from omcore.testing.pytest.inject import Harness
 
 from ... import llm
-from ..contexts import Context
 from ..loop import Loop
+from ..types.contexts import Context
 from .models import ANTHROPIC
 from .models import GOOGLE
 from .models import OPENAI
