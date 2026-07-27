@@ -180,8 +180,10 @@ class LinearByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer):
         if not n:
             return _EMPTY_DIRECT_BYTE_STREAM_BUFFER_VIEW
 
-        # Copy out the split prefix to keep the view stable even if the underlying buffer compacts.
-        b = memoryview_to_bytes(memoryview(self._ba)[self._rpos:self._rpos + n])
+        # Copy out the split prefix to keep the view stable even if the underlying buffer compacts. Note that this must
+        # be bytes() and not memoryview_to_bytes(): when the slice spans the entire backing bytearray the latter
+        # returns the bytearray itself, and the resulting aliased view would pin it against subsequent resizing.
+        b = bytes(memoryview(self._ba)[self._rpos:self._rpos + n])
         self._rpos += n
 
         # If we consumed everything, reset best-effort; otherwise allow compaction policy to handle later.
@@ -190,7 +192,7 @@ class LinearByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffer):
             self._wpos = 0
             self._try_clear_if_empty()
 
-        return DirectByteStreamBufferView(memoryview(b))
+        return DirectByteStreamBufferView(b)
 
     def find(self, sub: bytes, start: int = 0, end: ta.Optional[int] = None) -> int:
         start, end = self._norm_slice(start, end)

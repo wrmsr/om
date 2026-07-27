@@ -149,3 +149,19 @@ class TestLinearByteStreamBuffer(unittest.TestCase):
         self.assertEqual(len(b), 0)
         self.assertEqual(b.peek().tobytes(), b'')
         del mv
+
+    def test_split_to_whole_buffer_is_stable_copy(self) -> None:
+        # Regression: split_to covering the entire backing store must copy - a view aliasing the backing bytearray
+        # would pin it against the resize in the next write (BufferError).
+        b = LinearByteStreamBuffer()
+        b.write(b'hello')
+        v = b.split_to(5)
+
+        b.write(b'x')  # must not raise BufferError while the view is held
+        self.assertEqual(v.tobytes(), b'hello')
+        self.assertEqual(b.peek().tobytes(), b'x')
+
+        b.advance(1)
+        b.write(b'yz')
+        self.assertEqual(v.tobytes(), b'hello')
+        self.assertEqual(b.peek().tobytes(), b'yz')

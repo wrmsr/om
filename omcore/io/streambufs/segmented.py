@@ -142,12 +142,9 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
     def _active_readable_len(self) -> int:
         if self._active is None:
             return 0
-        if self._reserved_in_active and self._reserved is not None:
-            tail = self._reserved_len
-        else:
-            tail = 0
-        rl = self._active_used - tail
-        return rl if rl > 0 else 0
+        # An in-active reservation is carved *beyond* _active_used and only becomes readable at commit() (which then
+        # advances _active_used), so readable bytes are always exactly _active_used.
+        return self._active_used
 
     def peek(self) -> memoryview:
         if not self._segs:
@@ -201,6 +198,10 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
     #
 
+    def _check_no_reserve(self) -> None:
+        if self._reserved is not None:
+            raise OutstandingReserveByteStreamBufferError('outstanding reserve')
+
     def _ensure_active(self) -> bytearray:
         if self._chunk_size <= 0:
             raise RuntimeError('no active chunk without chunk_size')
@@ -248,6 +249,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         self._active_used = 0
 
     def write(self, data: BytesLike, /) -> None:
+        self._check_no_reserve()
         if not data:
             return
         if isinstance(data, memoryview):
@@ -267,9 +269,6 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             self._len += dl
             return
 
-        if self._reserved_in_active:
-            raise OutstandingReserveByteStreamBufferError('outstanding reserve')
-
         if dl >= self._chunk_size:
             self._flush_active()
             self._segs.append(data)
@@ -287,6 +286,8 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         self._len += dl
 
     def prepend(self, data: BytesLike, /) -> None:
+        # Note: unlike write/advance/split_to, prepend is safe with an outstanding reserve as long as it does not need
+        # to reshape the active chunk - it only inserts a segment at the front.
         if not data:
             return
         if isinstance(data, memoryview):
@@ -395,6 +396,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
     #
 
     def advance(self, n: int, /) -> None:
+        self._check_no_reserve()
         if n < 0 or n > self._len:
             raise ValueError(n)
         if not n:
@@ -433,6 +435,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             raise RuntimeError(n)
 
     def split_to(self, n: int, /) -> ByteStreamBufferView:
+        self._check_no_reserve()
         if n < 0 or n > self._len:
             raise ValueError(n)
         if not n:
@@ -482,8 +485,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         if not n:
             return memoryview(b'')
 
-        if self._reserved is not None:
-            raise OutstandingReserveByteStreamBufferError('outstanding reserve')
+        self._check_no_reserve()
 
         mv0 = self.peek()
         if len(mv0) >= n:
@@ -493,6 +495,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         w = 0
 
         new_segs: ta.List[Bytes] = []
+        active_touched = False
 
         seg_i = 0
         while w < n and seg_i < len(self._segs):
@@ -511,6 +514,11 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             if take > seg_len:
                 take = seg_len
 
+            if s is self._active:
+                # Once bytes are pulled out of the active chunk it can no longer serve as the write tail: a partial
+                # remainder is copied below, so the original fixed-capacity bytearray must not be reused.
+                active_touched = True
+
             out[w:w + take] = memoryview(s)[off:off + take]
             w += take
 
@@ -524,13 +532,16 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             seg_i += 1
 
         if seg_i < len(self._segs):
+            # Untouched trailing segments carry over as-is - including the active chunk, whose fixed-capacity
+            # bytearray must NOT be demoted to a plain segment (its unused capacity would become 'readable').
             new_segs.extend(self._segs[seg_i:])
 
         self._segs = [bytes(out), *new_segs]
         self._head_off = 0
 
-        self._active = None
-        self._active_used = 0
+        if active_touched:
+            self._active = None
+            self._active_used = 0
 
         return memoryview(self._segs[0])[:n]
 
@@ -624,14 +635,8 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             seg_gs = gpos
             seg_ge = gpos + seg_len
 
-            # Within-segment search
-            search_range = self._seg_search_range(start, limit, m, seg_gs, seg_ge, seg_len)
-            if search_range is not None:
-                ls, end_search = search_range
-                idx = s.find(sub, off + ls, off + end_search)
-                if idx != -1:
-                    return seg_gs + (idx - off)
-
+            # Cross-boundary check first: matches spanning into this segment start in the previous one, so they come
+            # before any within-segment match.
             if m > 1 and tail:
                 head_need = m - 1
                 # Only read as many bytes as are actually available in this segment to avoid reading uninitialized data
@@ -640,11 +645,23 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
                 if head_avail > 0:
                     head = s[off:off + head_avail]
                     comb = tail + head
+                    # Walk *all* candidates in the stitched window: an early candidate may be rejected by the
+                    # start/limit bounds (or lie entirely within the head) while a later one is still valid.
                     j = comb.find(sub)
-                    if j != -1 and j < len(tail) < j + m:
-                        cand = tail_gstart + j
-                        if start <= cand <= limit:
-                            return cand
+                    while j != -1:
+                        if j < len(tail) < j + m:
+                            cand = tail_gstart + j
+                            if start <= cand <= limit:
+                                return cand
+                        j = comb.find(sub, j + 1)
+
+            # Within-segment search
+            search_range = self._seg_search_range(start, limit, m, seg_gs, seg_ge, seg_len)
+            if search_range is not None:
+                ls, end_search = search_range
+                idx = s.find(sub, off + ls, off + end_search)
+                if idx != -1:
+                    return seg_gs + (idx - off)
 
             if m > 1:
                 take = m - 1
@@ -736,11 +753,17 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
                     head = b''
 
                 comb = tail + head
+                # Walk candidates in descending order: the last candidate may be rejected by the start/limit bounds
+                # (or lie entirely within the head) while an earlier one is still valid.
                 j = comb.rfind(sub)
-                if j != -1 and j < len(tail) < j + m:
-                    cand = tail_gstart + j
-                    if start <= cand <= limit and cand > best:
-                        best = cand
+                while j != -1:
+                    if j < len(tail) < j + m:
+                        cand = tail_gstart + j
+                        if start <= cand <= limit:
+                            if cand > best:
+                                best = cand
+                            break
+                    j = comb.rfind(sub, 0, j + m - 1)
 
             if best >= seg_gs:
                 return best

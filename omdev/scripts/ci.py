@@ -165,8 +165,8 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/io/pipelines/flow/types.py', sha1='81ead96b6a9487fbda313e858d75701ebe2d5518'),
             dict(path='../../omcore/io/pipelines/sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
             dict(path='../../omcore/io/streambufs/base.py', sha1='0f0cea0fe05f9d7b4669a7b3871bc78e12af98f6'),
-            dict(path='../../omcore/io/streambufs/framing.py', sha1='de1f818064576e855f20b005ea7855a1fd5f3f56'),
-            dict(path='../../omcore/io/streambufs/utils.py', sha1='62d7fce79bae738c199627668bdee8bb389efa1e'),
+            dict(path='../../omcore/io/streambufs/framing.py', sha1='46fda15aaedc362280834b30da3cc362ebad368b'),
+            dict(path='../../omcore/io/streambufs/utils.py', sha1='4b91a6eee8b5a8cc3444bed9df3a6b3e4e10e9b0'),
             dict(path='../../omcore/lite/inject.py', sha1='7dd6067b626c4c6a371b7a0e50eac54e320fcf3a'),
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
@@ -203,7 +203,7 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/pack/packing.py', sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad'),
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='f2ee8d546682c585eeb588c57da3e7967cbcae14'),
-            dict(path='../../omcore/io/streambufs/segmented.py', sha1='ad3c91e91d7b91396c51549fc7578419b1c3d336'),
+            dict(path='../../omcore/io/streambufs/segmented.py', sha1='caf24577e336514ba74d941c45556b1cf17cfa67'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='../../omcore/subprocesses/asyncs.py', sha1='8d428af73220f793d2c0e93f5c9966fac9474246'),
@@ -13766,8 +13766,9 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
           `max_size` is enforced as a limit on the *current* frame (bytes before the next delimiter). If the buffer
           contains bytes for a subsequent frame that already exceed `max_size`, this codec will only raise when it would
           otherwise need to make progress on that oversized frame. Concretely: if this call already emitted at least one
-          frame, it will return those frames rather than raising immediately on trailing oversized data, leaving the
-          remaining bytes buffered.
+          frame, it will return those frames rather than raising - frames already consumed from the buffer must never
+          be lost to an exception. The error is then raised by the next call, when the offending frame is first in
+          line and nothing has been consumed yet.
         """
 
         out: ta.List[ta.Any] = []
@@ -13782,6 +13783,9 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
             pos, delim = hit
 
             if self._max_size is not None and pos > self._max_size:
+                # Never lose already-consumed frames to an exception - return them, and raise on the next call.
+                if out:
+                    return out
                 raise FrameTooLargeByteStreamBufferError('frame exceeded max_size')
 
             if not final and self._should_defer(buf, pos, delim):
@@ -13846,21 +13850,21 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
         have enough bytes to decide.
 
         We only defer when:
-          - the current match ends at the end of the currently buffered bytes, and
           - there exists some longer delimiter that has `matched` as a prefix, and
-          - the buffered bytes from pos match the available prefix of that longer delimiter.
-        """
+          - not all of that longer delimiter's bytes are buffered from `pos` (had they been, `_find_next_delim` would
+            have already decided), and
+          - the buffered bytes from `pos` match the available prefix of that longer delimiter.
 
-        ln = len(buf)
-        endpos = pos + len(matched)
-        if endpos != ln:
-            return False
+        Note that the current match ending *before* the end of the buffered bytes does not preclude deferral: a longer
+        delimiter may extend more than one byte past the current match, with only part of that extension buffered
+        (e.g. matched=b'\\r' with b'\\r\\n' buffered and a longer delimiter of b'\\r\\n\\r\\n').
+        """
 
         longer = self._prefix_longer.get(matched)
         if not longer:
             return False
 
-        avail = ln - pos
+        avail = len(buf) - pos
         for d2 in longer:
             if avail >= len(d2):
                 # If we had enough bytes, we'd have matched d2 in _find_next_delim.
@@ -13944,6 +13948,12 @@ class LengthFieldByteStreamFrameDecoder:
           - FrameTooLarge if a frame exceeds max_frame_length
           - BufferTooLarge if max_frame_length is set and the buffered unread prefix grows beyond it without making
             progress (defensive; rarely hit if upstream caps buffer growth)
+          - ValueError on frames whose computed total length is negative, smaller than the length field end offset, or
+            smaller than initial_bytes_to_strip (a corrupt stream - decoding cannot resynchronize)
+
+        If frames were already decoded by the current call, they are returned instead of raising - frames already
+        consumed from the buffer must never be lost to an exception. The error is then raised by the next call, when
+        the offending frame is first in line and nothing has been consumed yet.
         """
 
         out: ta.List[ta.Any] = []
@@ -13968,15 +13978,28 @@ class LengthFieldByteStreamFrameDecoder:
 
             total_len = length_val + self._adj + self._end_off
             if total_len < 0:
+                if out:
+                    return out
                 raise ValueError('negative frame length')
 
+            # A frame shorter than its own header would leave part of the header unconsumed and permanently desync
+            # the stream (Netty rejects this as a corrupted frame too).
+            if total_len < self._end_off:
+                if out:
+                    return out
+                raise ValueError('frame length less than length field end offset')
+
             if self._max is not None and total_len > self._max:
+                if out:
+                    return out
                 raise FrameTooLargeByteStreamBufferError('frame exceeded max_frame_length')
 
             # If we don't have the full frame yet, either wait or (optionally) fail fast if buffering is clearly out of
             # control.
             if len(buf) < total_len:
                 if self._max is not None and len(buf) > self._max:
+                    if out:
+                        return out
                     raise BufferTooLargeByteStreamBufferError(
                         'buffer exceeded max_frame_length without completing a frame',
                     )
@@ -13985,6 +14008,8 @@ class LengthFieldByteStreamFrameDecoder:
             # We have a complete frame available.
             if self._strip:
                 if self._strip > total_len:
+                    if out:
+                        return out
                     raise ValueError('initial_bytes_to_strip > frame length')
                 buf.advance(self._strip)
                 total_len -= self._strip
@@ -14148,7 +14173,7 @@ class ByteStreamBuffers(NamespaceClass):
     def split(buf: ByteStreamBuffer, sep: bytes, /, *, final: bool = False) -> ta.List[ByteStreamBufferView]:
         out: ta.List[ByteStreamBufferView] = []
         while (i := buf.find(sep)) >= 0:
-            out.append(buf.split_to(i + 1))
+            out.append(buf.split_to(i + len(sep)))
         if final and len(buf):
             out.append(buf.split_to(len(buf)))
         return out
@@ -26995,12 +27020,9 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
     def _active_readable_len(self) -> int:
         if self._active is None:
             return 0
-        if self._reserved_in_active and self._reserved is not None:
-            tail = self._reserved_len
-        else:
-            tail = 0
-        rl = self._active_used - tail
-        return rl if rl > 0 else 0
+        # An in-active reservation is carved *beyond* _active_used and only becomes readable at commit() (which then
+        # advances _active_used), so readable bytes are always exactly _active_used.
+        return self._active_used
 
     def peek(self) -> memoryview:
         if not self._segs:
@@ -27054,6 +27076,10 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
 
     #
 
+    def _check_no_reserve(self) -> None:
+        if self._reserved is not None:
+            raise OutstandingReserveByteStreamBufferError('outstanding reserve')
+
     def _ensure_active(self) -> bytearray:
         if self._chunk_size <= 0:
             raise RuntimeError('no active chunk without chunk_size')
@@ -27101,6 +27127,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         self._active_used = 0
 
     def write(self, data: BytesLike, /) -> None:
+        self._check_no_reserve()
         if not data:
             return
         if isinstance(data, memoryview):
@@ -27120,9 +27147,6 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             self._len += dl
             return
 
-        if self._reserved_in_active:
-            raise OutstandingReserveByteStreamBufferError('outstanding reserve')
-
         if dl >= self._chunk_size:
             self._flush_active()
             self._segs.append(data)
@@ -27140,6 +27164,8 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         self._len += dl
 
     def prepend(self, data: BytesLike, /) -> None:
+        # Note: unlike write/advance/split_to, prepend is safe with an outstanding reserve as long as it does not need
+        # to reshape the active chunk - it only inserts a segment at the front.
         if not data:
             return
         if isinstance(data, memoryview):
@@ -27248,6 +27274,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
     #
 
     def advance(self, n: int, /) -> None:
+        self._check_no_reserve()
         if n < 0 or n > self._len:
             raise ValueError(n)
         if not n:
@@ -27286,6 +27313,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             raise RuntimeError(n)
 
     def split_to(self, n: int, /) -> ByteStreamBufferView:
+        self._check_no_reserve()
         if n < 0 or n > self._len:
             raise ValueError(n)
         if not n:
@@ -27335,8 +27363,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         if not n:
             return memoryview(b'')
 
-        if self._reserved is not None:
-            raise OutstandingReserveByteStreamBufferError('outstanding reserve')
+        self._check_no_reserve()
 
         mv0 = self.peek()
         if len(mv0) >= n:
@@ -27346,6 +27373,7 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
         w = 0
 
         new_segs: ta.List[Bytes] = []
+        active_touched = False
 
         seg_i = 0
         while w < n and seg_i < len(self._segs):
@@ -27364,6 +27392,11 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             if take > seg_len:
                 take = seg_len
 
+            if s is self._active:
+                # Once bytes are pulled out of the active chunk it can no longer serve as the write tail: a partial
+                # remainder is copied below, so the original fixed-capacity bytearray must not be reused.
+                active_touched = True
+
             out[w:w + take] = memoryview(s)[off:off + take]
             w += take
 
@@ -27377,13 +27410,16 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             seg_i += 1
 
         if seg_i < len(self._segs):
+            # Untouched trailing segments carry over as-is - including the active chunk, whose fixed-capacity
+            # bytearray must NOT be demoted to a plain segment (its unused capacity would become 'readable').
             new_segs.extend(self._segs[seg_i:])
 
         self._segs = [bytes(out), *new_segs]
         self._head_off = 0
 
-        self._active = None
-        self._active_used = 0
+        if active_touched:
+            self._active = None
+            self._active_used = 0
 
         return memoryview(self._segs[0])[:n]
 
@@ -27477,14 +27513,8 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             seg_gs = gpos
             seg_ge = gpos + seg_len
 
-            # Within-segment search
-            search_range = self._seg_search_range(start, limit, m, seg_gs, seg_ge, seg_len)
-            if search_range is not None:
-                ls, end_search = search_range
-                idx = s.find(sub, off + ls, off + end_search)
-                if idx != -1:
-                    return seg_gs + (idx - off)
-
+            # Cross-boundary check first: matches spanning into this segment start in the previous one, so they come
+            # before any within-segment match.
             if m > 1 and tail:
                 head_need = m - 1
                 # Only read as many bytes as are actually available in this segment to avoid reading uninitialized data
@@ -27493,11 +27523,23 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
                 if head_avail > 0:
                     head = s[off:off + head_avail]
                     comb = tail + head
+                    # Walk *all* candidates in the stitched window: an early candidate may be rejected by the
+                    # start/limit bounds (or lie entirely within the head) while a later one is still valid.
                     j = comb.find(sub)
-                    if j != -1 and j < len(tail) < j + m:
-                        cand = tail_gstart + j
-                        if start <= cand <= limit:
-                            return cand
+                    while j != -1:
+                        if j < len(tail) < j + m:
+                            cand = tail_gstart + j
+                            if start <= cand <= limit:
+                                return cand
+                        j = comb.find(sub, j + 1)
+
+            # Within-segment search
+            search_range = self._seg_search_range(start, limit, m, seg_gs, seg_ge, seg_len)
+            if search_range is not None:
+                ls, end_search = search_range
+                idx = s.find(sub, off + ls, off + end_search)
+                if idx != -1:
+                    return seg_gs + (idx - off)
 
             if m > 1:
                 take = m - 1
@@ -27589,11 +27631,17 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
                     head = b''
 
                 comb = tail + head
+                # Walk candidates in descending order: the last candidate may be rejected by the start/limit bounds
+                # (or lie entirely within the head) while an earlier one is still valid.
                 j = comb.rfind(sub)
-                if j != -1 and j < len(tail) < j + m:
-                    cand = tail_gstart + j
-                    if start <= cand <= limit and cand > best:
-                        best = cand
+                while j != -1:
+                    if j < len(tail) < j + m:
+                        cand = tail_gstart + j
+                        if start <= cand <= limit:
+                            if cand > best:
+                                best = cand
+                            break
+                    j = comb.rfind(sub, 0, j + m - 1)
 
             if best >= seg_gs:
                 return best

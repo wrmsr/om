@@ -218,3 +218,89 @@ class TestLengthFieldFrameDecoder(unittest.TestCase):
         v = out[0]
         self.assertEqual(v.to_bytes() if hasattr(v, 'to_bytes') else v.tobytes(), b'data')
         self.assertEqual(len(b), 0)
+
+
+class TestLongestMatchDelimiterFramerRegressions(unittest.TestCase):
+    def test_frame_too_large_returns_decoded_frames_first(self) -> None:
+        f = LongestMatchDelimiterByteStreamFrameDecoder([b'\n'], max_size=4)
+        b = SegmentedByteStreamBuffer()
+        b.write(b'ok\nTOOLONGFRAME\nrest')
+
+        # Frames decoded before hitting the oversized one must be returned, not lost to the exception.
+        out = f.decode(b)
+        self.assertEqual([_view_bytes(v) for v in out], [b'ok'])
+        self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'TOOLONGFRAME\nrest')
+
+        # With the oversized frame now first in line, the next call raises without consuming anything.
+        with self.assertRaises(FrameTooLargeByteStreamBufferError):
+            f.decode(b)
+        self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'TOOLONGFRAME\nrest')
+
+    def test_defers_on_partially_buffered_longer_delimiter(self) -> None:
+        f = LongestMatchDelimiterByteStreamFrameDecoder([b'\r', b'\r\n\r\n'])
+        b = SegmentedByteStreamBuffer()
+
+        # b'\r' matched at 1, and the buffered b'\r\n' is a live prefix of b'\r\n\r\n' - must defer even though the
+        # match does not end at the buffer end.
+        b.write(b'x\r\n')
+        self.assertEqual(f.decode(b), [])
+        self.assertEqual(len(b), 3)
+
+        b.write(b'\r\n')
+        out = f.decode(b, include_delims=True)
+        self.assertEqual([(_view_bytes(v), d) for v, d in out], [(b'x', b'\r\n\r\n')])
+        self.assertEqual(len(b), 0)
+
+    def test_emits_short_delimiter_when_longer_is_disproved(self) -> None:
+        f = LongestMatchDelimiterByteStreamFrameDecoder([b'\r', b'\r\n\r\n'])
+        b = SegmentedByteStreamBuffer()
+        b.write(b'x\r\nq')  # 'q' disproves b'\r\n\r\n'
+        out = f.decode(b, include_delims=True)
+        self.assertEqual([(_view_bytes(v), d) for v, d in out], [(b'x', b'\r')])
+        self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'\nq')
+
+    def test_final_flush_does_not_defer(self) -> None:
+        f = LongestMatchDelimiterByteStreamFrameDecoder([b'\r', b'\r\n\r\n'])
+        b = SegmentedByteStreamBuffer()
+        b.write(b'x\r\n')
+        out = f.decode(b, final=True, include_delims=True)
+        self.assertEqual([(_view_bytes(v), d) for v, d in out], [(b'x', b'\r')])
+        self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'\n')
+
+
+class TestLengthFieldFrameDecoderRegressions(unittest.TestCase):
+    def test_short_frame_length_raises(self) -> None:
+        # A computed frame length smaller than the length field end offset would leave part of the header unconsumed
+        # and permanently desync the stream.
+        dec = LengthFieldByteStreamFrameDecoder(length_field_length=1, length_adjustment=-1)
+        b = SegmentedByteStreamBuffer()
+        b.write(b'\x00A')  # total frame length 0 < header size 1
+        with self.assertRaises(ValueError):
+            dec.decode(b)
+        self.assertEqual(len(b), 2)  # nothing consumed
+
+    def test_short_frame_returns_decoded_frames_first(self) -> None:
+        dec = LengthFieldByteStreamFrameDecoder(length_field_length=1, length_adjustment=-1)
+        b = SegmentedByteStreamBuffer()
+        b.write(b'\x03ab' + b'\x00A')
+
+        out = dec.decode(b)
+        self.assertEqual([_view_bytes(v) for v in out], [b'\x03ab'])
+        self.assertEqual(len(b), 2)
+
+        with self.assertRaises(ValueError):
+            dec.decode(b)
+        self.assertEqual(len(b), 2)
+
+    def test_frame_too_large_returns_decoded_frames_first(self) -> None:
+        dec = LengthFieldByteStreamFrameDecoder(length_field_length=1, max_frame_length=4)
+        b = SegmentedByteStreamBuffer()
+        b.write(b'\x02ab' + b'\x09' + b'x' * 9)
+
+        out = dec.decode(b)
+        self.assertEqual([_view_bytes(v) for v in out], [b'\x02ab'])
+        self.assertEqual(len(b), 10)
+
+        with self.assertRaises(FrameTooLargeByteStreamBufferError):
+            dec.decode(b)
+        self.assertEqual(len(b), 10)

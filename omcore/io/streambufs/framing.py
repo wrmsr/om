@@ -111,8 +111,9 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
           `max_size` is enforced as a limit on the *current* frame (bytes before the next delimiter). If the buffer
           contains bytes for a subsequent frame that already exceed `max_size`, this codec will only raise when it would
           otherwise need to make progress on that oversized frame. Concretely: if this call already emitted at least one
-          frame, it will return those frames rather than raising immediately on trailing oversized data, leaving the
-          remaining bytes buffered.
+          frame, it will return those frames rather than raising - frames already consumed from the buffer must never
+          be lost to an exception. The error is then raised by the next call, when the offending frame is first in
+          line and nothing has been consumed yet.
         """
 
         out: ta.List[ta.Any] = []
@@ -127,6 +128,9 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
             pos, delim = hit
 
             if self._max_size is not None and pos > self._max_size:
+                # Never lose already-consumed frames to an exception - return them, and raise on the next call.
+                if out:
+                    return out
                 raise FrameTooLargeByteStreamBufferError('frame exceeded max_size')
 
             if not final and self._should_defer(buf, pos, delim):
@@ -191,21 +195,21 @@ class LongestMatchDelimiterByteStreamFrameDecoder:
         have enough bytes to decide.
 
         We only defer when:
-          - the current match ends at the end of the currently buffered bytes, and
           - there exists some longer delimiter that has `matched` as a prefix, and
-          - the buffered bytes from pos match the available prefix of that longer delimiter.
-        """
+          - not all of that longer delimiter's bytes are buffered from `pos` (had they been, `_find_next_delim` would
+            have already decided), and
+          - the buffered bytes from `pos` match the available prefix of that longer delimiter.
 
-        ln = len(buf)
-        endpos = pos + len(matched)
-        if endpos != ln:
-            return False
+        Note that the current match ending *before* the end of the buffered bytes does not preclude deferral: a longer
+        delimiter may extend more than one byte past the current match, with only part of that extension buffered
+        (e.g. matched=b'\\r' with b'\\r\\n' buffered and a longer delimiter of b'\\r\\n\\r\\n').
+        """
 
         longer = self._prefix_longer.get(matched)
         if not longer:
             return False
 
-        avail = ln - pos
+        avail = len(buf) - pos
         for d2 in longer:
             if avail >= len(d2):
                 # If we had enough bytes, we'd have matched d2 in _find_next_delim.
@@ -289,6 +293,12 @@ class LengthFieldByteStreamFrameDecoder:
           - FrameTooLarge if a frame exceeds max_frame_length
           - BufferTooLarge if max_frame_length is set and the buffered unread prefix grows beyond it without making
             progress (defensive; rarely hit if upstream caps buffer growth)
+          - ValueError on frames whose computed total length is negative, smaller than the length field end offset, or
+            smaller than initial_bytes_to_strip (a corrupt stream - decoding cannot resynchronize)
+
+        If frames were already decoded by the current call, they are returned instead of raising - frames already
+        consumed from the buffer must never be lost to an exception. The error is then raised by the next call, when
+        the offending frame is first in line and nothing has been consumed yet.
         """
 
         out: ta.List[ta.Any] = []
@@ -313,15 +323,28 @@ class LengthFieldByteStreamFrameDecoder:
 
             total_len = length_val + self._adj + self._end_off
             if total_len < 0:
+                if out:
+                    return out
                 raise ValueError('negative frame length')
 
+            # A frame shorter than its own header would leave part of the header unconsumed and permanently desync
+            # the stream (Netty rejects this as a corrupted frame too).
+            if total_len < self._end_off:
+                if out:
+                    return out
+                raise ValueError('frame length less than length field end offset')
+
             if self._max is not None and total_len > self._max:
+                if out:
+                    return out
                 raise FrameTooLargeByteStreamBufferError('frame exceeded max_frame_length')
 
             # If we don't have the full frame yet, either wait or (optionally) fail fast if buffering is clearly out of
             # control.
             if len(buf) < total_len:
                 if self._max is not None and len(buf) > self._max:
+                    if out:
+                        return out
                     raise BufferTooLargeByteStreamBufferError(
                         'buffer exceeded max_frame_length without completing a frame',
                     )
@@ -330,6 +353,8 @@ class LengthFieldByteStreamFrameDecoder:
             # We have a complete frame available.
             if self._strip:
                 if self._strip > total_len:
+                    if out:
+                        return out
                     raise ValueError('initial_bytes_to_strip > frame length')
                 buf.advance(self._strip)
                 total_len -= self._strip

@@ -1,5 +1,6 @@
-# ruff: noqa: PT009 PT027
+# ruff: noqa: PT009 PT027 UP006
 # @om-lite
+import typing as ta
 import unittest
 
 from ..errors import BufferTooLargeByteStreamBufferError
@@ -856,3 +857,167 @@ class TestSegmentedByteStreamBufferPrepend(unittest.TestCase):
         b.write(b'world')
         b.prepend(memoryview(b'hello '))
         self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'hello world')
+
+
+class TestSegmentedByteStreamBufferCrossBoundarySearch(unittest.TestCase):
+    """Regressions: find/rfind must behave exactly like the equivalent flat bytes operations."""
+
+    def test_find_prefers_cross_boundary_match(self) -> None:
+        # A match spanning the segment boundary starts earlier than the match lying wholly within the second segment -
+        # find must return the earlier one.
+        b = SegmentedByteStreamBuffer()
+        b.write(b'xa')
+        b.write(b'bab')
+        self.assertEqual(b.find(b'ab'), 1)
+
+    def test_find_skips_out_of_range_cross_boundary_candidate(self) -> None:
+        # The earliest boundary-spanning candidate (at 1) is excluded by start=2; the next one (at 2) must still be
+        # found.
+        b = SegmentedByteStreamBuffer()
+        b.write(b'xaa')
+        b.write(b'aa')
+        self.assertEqual(b.find(b'aaa', 2), 2)
+
+    def test_rfind_skips_out_of_range_cross_boundary_candidate(self) -> None:
+        # The latest boundary-spanning candidate (at 2) is excluded by end=4; the earlier one (at 1) must still be
+        # found.
+        b = SegmentedByteStreamBuffer()
+        b.write(b'xaa')
+        b.write(b'aa')
+        self.assertEqual(b.rfind(b'aaa', 0, 4), 1)
+
+    NEEDLES = (b'a', b'b', b'ab', b'ba', b'aa', b'aba', b'aab', b'baa', b'aaba', b'bb')
+
+    def _check_against_reference(self, buf, data):
+        starts = [*range(len(data) + 1), -3, -20]
+        ends = [None, *range(len(data) + 1), -2, -20]
+        for sub in self.NEEDLES:
+            for st in starts:
+                for en in ends:
+                    if en is None:
+                        exp_f = data.find(sub, st)
+                        exp_r = data.rfind(sub, st)
+                    else:
+                        exp_f = data.find(sub, st, en)
+                        exp_r = data.rfind(sub, st, en)
+                    got_f = buf.find(sub, st, en)
+                    assert got_f == exp_f, ('find', sub, st, en, got_f, exp_f)
+                    got_r = buf.rfind(sub, st, en)
+                    assert got_r == exp_r, ('rfind', sub, st, en, got_r, exp_r)
+
+    def test_find_rfind_all_segmentations(self) -> None:
+        data = b'aabbaaba'
+
+        parts_list: ta.List[ta.Tuple[bytes, ...]] = [(data,)]
+        for i in range(1, len(data)):
+            parts_list.append((data[:i], data[i:]))
+            for j in range(i + 1, len(data)):
+                parts_list.append((data[:i], data[i:j], data[j:]))
+
+        for parts in parts_list:
+            b = SegmentedByteStreamBuffer()
+            for p in parts:
+                b.write(p)
+            self._check_against_reference(b, data)
+
+    def test_find_rfind_chunked_with_active_chunk(self) -> None:
+        b = SegmentedByteStreamBuffer(chunk_size=4)
+        b.write(b'ab')    # into active chunk
+        b.write(b'baab')  # flushes active, appended as own segment
+        b.write(b'ab')    # into a fresh, partially filled active chunk
+        self._check_against_reference(b, b'abbaabab')
+
+
+class TestSegmentedByteStreamBufferReserveRegressions(unittest.TestCase):
+    def test_in_active_reserve_keeps_readable_visible(self) -> None:
+        b = SegmentedByteStreamBuffer(chunk_size=8)
+        b.write(b'abcd')
+        mv = b.reserve(3)
+
+        # The reservation is carved beyond the readable bytes - it must not hide them.
+        self.assertEqual(len(b), 4)
+        self.assertEqual(bytes(b.peek()), b'abcd')
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'abcd')
+        self.assertEqual(b.find(b'cd'), 2)
+        self.assertEqual(b.rfind(b'ab'), 0)
+
+        mv[:2] = b'XY'
+        b.commit(2)
+        self.assertEqual(len(b), 6)
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'abcdXY')
+
+    def test_consuming_ops_raise_during_in_active_reserve(self) -> None:
+        b = SegmentedByteStreamBuffer(chunk_size=8)
+        b.write(b'abcd')
+        _ = b.reserve(2)
+
+        with self.assertRaises(OutstandingReserveByteStreamBufferError):
+            b.advance(1)
+        with self.assertRaises(OutstandingReserveByteStreamBufferError):
+            b.split_to(2)
+        with self.assertRaises(OutstandingReserveByteStreamBufferError):
+            b.write(b'x')
+
+        b.commit(0)
+        b.advance(1)
+        self.assertEqual(b.split_to(2).tobytes(), b'bc')
+        b.write(b'x')
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'dx')
+
+    def test_consuming_ops_raise_during_dedicated_reserve(self) -> None:
+        b = SegmentedByteStreamBuffer()
+        b.write(b'abcd')
+        _ = b.reserve(2)
+
+        with self.assertRaises(OutstandingReserveByteStreamBufferError):
+            b.advance(1)
+        with self.assertRaises(OutstandingReserveByteStreamBufferError):
+            b.split_to(2)
+        with self.assertRaises(OutstandingReserveByteStreamBufferError):
+            b.write(b'x')
+
+        b.commit(0)
+        b.advance(1)
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'bcd')
+
+
+class TestSegmentedByteStreamBufferCoalesceActiveChunk(unittest.TestCase):
+    def test_coalesce_ending_before_active_chunk_preserves_it(self) -> None:
+        b = SegmentedByteStreamBuffer(chunk_size=8)
+        b.write(b'A' * 8)
+        b.write(b'B' * 8)
+        b.write(b'zz')  # partially fills the active chunk
+        self.assertEqual(len(b), 18)
+
+        mv = b.coalesce(16)  # ends exactly at the boundary before the active chunk
+        self.assertEqual(bytes(mv), b'A' * 8 + b'B' * 8)
+        del mv
+
+        # The untouched active chunk must not be demoted to a plain segment - its unused capacity must not become
+        # 'readable'.
+        self.assertEqual(len(b), 18)
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'A' * 8 + b'B' * 8 + b'zz')
+
+        b.advance(16)
+        self.assertEqual(len(b), 2)
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'zz')
+
+        # The active chunk must still be usable for subsequent small writes.
+        b.write(b'q')
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'zzq')
+
+    def test_coalesce_into_active_chunk_demotes_it(self) -> None:
+        b = SegmentedByteStreamBuffer(chunk_size=8)
+        b.write(b'A' * 8)
+        b.write(b'zz')
+
+        mv = b.coalesce(9)  # takes one byte out of the active chunk
+        self.assertEqual(bytes(mv), b'A' * 8 + b'z')
+        del mv
+
+        self.assertEqual(len(b), 10)
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'A' * 8 + b'zz')
+
+        b.write(b'q')
+        self.assertEqual(len(b), 11)
+        self.assertEqual(b''.join(bytes(m) for m in b.segments()), b'A' * 8 + b'zzq')
