@@ -58,7 +58,7 @@ basedpyright==1.39.9
 
 blobfile==3.2.0
 
-pydantic-monty==0.0.18
+pydantic-monty==0.0.19
 
 # TODO: quickjs
 

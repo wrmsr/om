@@ -180,7 +180,8 @@ pyclipper==1.4.0
 pycodestyle==2.14.0
 pycparser==3.0
 pycryptodomex==3.23.0
-pydantic-monty==0.0.18
+pydantic-monty==0.0.19
+pydantic-monty-runtime==0.0.19
 pyee==13.0.1
 pyflakes==3.4.0
 Pygments==2.20.0
@@ -251,7 +252,7 @@ tomli_w==1.2.0
 tomlkit==0.15.1
 torch==2.13.0
 torchvision==0.28.0
-tqdm==4.69.1
+tqdm==4.70.0
 traitlets==5.15.1
 transformers==5.11.0
 tree-sitter==0.26.0
@@ -273,7 +274,7 @@ tree-sitter-yaml==0.7.2
 trino==0.338.0
 trio==0.33.0
 truststore==0.10.4
-twine==6.2.0
+twine==7.0.0
 typer==0.27.0
 types-awscrt==0.34.1
 types-boto3==1.43.56
