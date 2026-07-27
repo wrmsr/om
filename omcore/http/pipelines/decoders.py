@@ -395,6 +395,9 @@ class IoPipelineHttpObjectDecoder(
                     continue
 
                 if (buf := self._buf) is None:
+                    # TODO: Reuse a single chunk-header buffer across chunks - this currently allocates a fresh
+                    #  ScanningByteStreamBuffer + SegmentedByteStreamBuffer per chunk header, which churns on
+                    #  small-chunk streams.
                     buf = self._buf = ScanningByteStreamBuffer(SegmentedByteStreamBuffer(
                         max_size=self._d._config.chunk_header_buffer.max_size,  # noqa
                         chunk_size=self._d._config.chunk_header_buffer.chunk_size,  # noqa

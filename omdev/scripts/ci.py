@@ -220,7 +220,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
-            dict(path='../../omcore/http/pipelines/decoders.py', sha1='26ad861596fd85d8bc68b3d9612217fb9a098b7e'),
+            dict(path='../../omcore/http/pipelines/decoders.py', sha1='54c6aced29c5b0fb434e83be93cff5868a71aa55'),
             dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='b121a9b5534de208b4f86b2644c2fab8236162e0'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
@@ -31062,6 +31062,9 @@ class IoPipelineHttpObjectDecoder(
                     continue
 
                 if (buf := self._buf) is None:
+                    # TODO: Reuse a single chunk-header buffer across chunks - this currently allocates a fresh
+                    #  ScanningByteStreamBuffer + SegmentedByteStreamBuffer per chunk header, which churns on
+                    #  small-chunk streams.
                     buf = self._buf = ScanningByteStreamBuffer(SegmentedByteStreamBuffer(
                         max_size=self._d._config.chunk_header_buffer.max_size,  # noqa
                         chunk_size=self._d._config.chunk_header_buffer.chunk_size,  # noqa

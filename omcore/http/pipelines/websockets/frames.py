@@ -25,13 +25,19 @@ from .objects import IoPipelineWebsocketText
 class IoPipelineWebsocketFrames(NamespaceClass):
     @staticmethod
     def mask_xor(data: bytes, key: bytes) -> bytes:
-        out = bytearray(len(data))
-        k0, k1, k2, k3 = key
-        for i, b in enumerate(data):
-            j = i & 3
-            kb = k0 if j == 0 else k1 if j == 1 else k2 if j == 2 else k3
-            out[i] = b ^ kb
-        return bytes(out)
+        if len(key) != 4:
+            raise ValueError(key)
+
+        n = len(data)
+        if not n:
+            return b''
+
+        # XOR the whole payload as a single big int against the key cycled out to cover it - int.from_bytes / to_bytes
+        # and big-int xor all run at C speed, roughly two orders of magnitude faster than a python-level per-byte loop.
+        kb = key * ((n + 3) // 4)
+        if len(kb) != n:
+            kb = kb[:n]
+        return (int.from_bytes(data, 'little') ^ int.from_bytes(kb, 'little')).to_bytes(n, 'little')
 
 
 ##
