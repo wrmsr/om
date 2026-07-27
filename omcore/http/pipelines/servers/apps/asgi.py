@@ -12,6 +12,7 @@ from .....io.pipelines.core import IoPipelineHandler
 from .....io.pipelines.core import IoPipelineHandlerContext
 from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.flow.types import IoPipelineFlow
+from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.streambufs.types import BytesLike
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.abstract import Abstract
@@ -22,6 +23,8 @@ from ...requests import FullIoPipelineHttpRequest
 from ...requests import IoPipelineHttpRequestBodyData
 from ...requests import IoPipelineHttpRequestEnd
 from ...requests import IoPipelineHttpRequestHead
+from ...responses import IoPipelineHttpResponseBodyData
+from ...responses import IoPipelineHttpResponseEnd
 from ...responses import IoPipelineHttpResponseHead
 
 
@@ -125,6 +128,8 @@ class _IoPipelineAsgiDriver:
             ctx: IoPipelineHandlerContext,
             app: ta.Any,
             req: ta.Union[IoPipelineHttpRequestHead, FullIoPipelineHttpRequest],
+            *,
+            output_writable: bool = True,
     ) -> None:
         super().__init__()
 
@@ -133,6 +138,11 @@ class _IoPipelineAsgiDriver:
         self._req = req
 
         self._read_q: collections.deque[BytesLike] = collections.deque()
+        self._receiving_fut: ta.Optional[_IoPipelineAsgiFuture] = None
+
+        self._output_writable = output_writable
+        self._announced_output_writable = output_writable
+        self._sending_fut: ta.Optional[_IoPipelineAsgiFuture] = None
 
         if isinstance(req, FullIoPipelineHttpRequest):
             self._head = req.head
@@ -166,6 +176,10 @@ class _IoPipelineAsgiDriver:
     @property
     def state(self) -> State:
         return self._state
+
+    @property
+    def output_writable(self) -> bool:
+        return self._output_writable
 
     #
 
@@ -212,6 +226,14 @@ class _IoPipelineAsgiDriver:
         k: ta.Literal['y', 'r']
         v: ta.Any
 
+    def _append_flush_output(self, out: ta.List[ta.Any]) -> None:
+        if self._ctx.services.find(IoPipelineFlow) is not None:
+            out.append(IoPipelineFlowMessages.FlushOutput())
+
+    def _feed_out(self, out: ta.Iterable[ta.Any]) -> None:
+        for msg in out:
+            self._ctx.feed_out(msg)
+
     def step(self) -> None:
         if self._state == _IoPipelineAsgiDriver.State.NEW:
             self.start()
@@ -221,8 +243,6 @@ class _IoPipelineAsgiDriver:
             _IoPipelineAsgiDriver.State.CLOSING,
             _IoPipelineAsgiDriver.State.CLOSED,
         ))
-
-        out: ta.List[ta.Any] = []
 
         while True:
             try:
@@ -234,17 +254,50 @@ class _IoPipelineAsgiDriver:
             else:
                 gv = self._Gv('y', y)
 
-            if not self._step_one(gv, out):
-                break
+            out: ta.List[ta.Any] = []
+            should_continue = self._step_one(gv, out)
+            self._feed_out(out)
 
-        for out_msg in out:
-            self._ctx.feed_out(out_msg)
+            if not should_continue:
+                break
 
     #
 
-    _receiving_fut: ta.Optional[_IoPipelineAsgiFuture] = None
+    def _update_output_writability(self) -> None:
+        if self._output_writable == self._announced_output_writable:
+            return
+
+        self._announced_output_writable = self._output_writable
+        self._ctx.feed_in(
+            IoPipelineFlowMessages.ReadyForOutput() if self._output_writable
+            else IoPipelineFlowMessages.PauseOutput(),
+        )
+
+    def _resume_pending_send(self) -> None:
+        f = check.not_none(self._sending_fut)
+        self._sending_fut = None
+
+        out: ta.List[ta.Any] = []
+        self._accept_send(f, out)
+        self._feed_out(out)
+
+        self._ctx.defer_no_context(self.step)
+
+    def _on_output_writability(self, msg: ta.Any) -> None:
+        self._output_writable = isinstance(msg, IoPipelineFlowMessages.ReadyForOutput)
+
+        if self._output_writable and self._sending_fut is not None:
+            self._resume_pending_send()
+
+        self._update_output_writability()
+
+    #
 
     def feed_in(self, msg: ta.Any) -> None:
+        if isinstance(msg, (IoPipelineFlowMessages.ReadyForOutput, IoPipelineFlowMessages.PauseOutput)):
+            self._on_output_writability(msg)
+            return
+
         if isinstance(msg, (IoPipelineHttpRequestBodyData, IoPipelineHttpRequestEnd)):
             check.state(not self._is_full_req)
 
@@ -279,6 +332,38 @@ class _IoPipelineAsgiDriver:
 
     ##
 
+    def _accept_send(self, f: _IoPipelineAsgiFuture, out: ta.List[ta.Any]) -> None:
+        md = check.isinstance(check.isinstance(f.arg, _IoPipelineAsgiOps.Send).msg, collections.abc.Mapping)
+
+        if self._state == _IoPipelineAsgiDriver.State.RUNNING:
+            check.equal(md['type'], 'http.response.start')
+
+            out.append(IoPipelineHttpResponseHead(
+                status=(status_code := md['status']),
+                reason=IoPipelineHttpResponseHead.get_reason_phrase(status_code),
+                headers=HttpHeaders(md['headers']),
+            ))
+            self._append_flush_output(out)
+
+            self._state = _IoPipelineAsgiDriver.State.RESPONSE_STARTED
+
+        elif self._state == _IoPipelineAsgiDriver.State.RESPONSE_STARTED:
+            check.equal(md['type'], 'http.response.body')
+
+            if body := md.get('body', b''):
+                out.append(IoPipelineHttpResponseBodyData(body))
+
+            if not md.get('more_body', False):
+                out.append(IoPipelineHttpResponseEnd())
+                self._state = _IoPipelineAsgiDriver.State.RESPONSE_FINISHED
+
+            self._append_flush_output(out)
+
+        else:
+            raise RuntimeError(f'Invalid state for ASGI send: {self._state!r}')
+
+        f.result, f.done = None, True
+
     def _step_one(self, gv: _Gv, out: ta.List[ta.Any]) -> bool:
         if gv.k == 'y' and not isinstance(gv.v, _IoPipelineAsgiFuture):
             awm = AsyncIoPipelineMessages.Await(gv.v)
@@ -291,29 +376,23 @@ class _IoPipelineAsgiDriver:
 
             return False
 
+        if gv.k == 'y' and isinstance(gv.v, _IoPipelineAsgiFuture):
+            f = gv.v
+
+            if isinstance(f.arg, _IoPipelineAsgiOps.Send):
+                if not self._output_writable:
+                    check.none(self._sending_fut)
+                    self._sending_fut = f
+                    return False
+
+                self._accept_send(f, out)
+                return True
+
         if self._state == _IoPipelineAsgiDriver.State.RUNNING:
             check.state(gv.k == 'y')
             f = check.isinstance(gv.v, _IoPipelineAsgiFuture)
 
-            if isinstance(f.arg, _IoPipelineAsgiOps.Send):
-                md = check.isinstance(f.arg.msg, collections.abc.Mapping)
-                check.equal(md['type'], 'http.response.start')
-
-                out.append(IoPipelineHttpResponseHead(
-                    status=(status_code := md['status']),
-                    reason=IoPipelineHttpResponseHead.get_reason_phrase(status_code),
-                    headers=HttpHeaders(md['headers']),
-                ))
-
-                IoPipelineFlow.maybe_flush_output(self._ctx)
-
-                self._state = _IoPipelineAsgiDriver.State.RESPONSE_STARTED
-
-                f.result, f.done = None, True
-
-                return True
-
-            elif isinstance(f.arg, _IoPipelineAsgiOps.Receive):
+            if isinstance(f.arg, _IoPipelineAsgiOps.Receive):
                 check.none(self._receiving_fut)
 
                 if len(self._read_q):
@@ -340,22 +419,6 @@ class _IoPipelineAsgiDriver:
             else:
                 raise TypeError(f.arg)
 
-        elif self._state == _IoPipelineAsgiDriver.State.RESPONSE_STARTED:
-            check.state(gv.k == 'y')
-            f = check.isinstance(gv.v, _IoPipelineAsgiFuture)
-            md = check.isinstance(check.isinstance(f.arg, _IoPipelineAsgiOps.Send).msg, collections.abc.Mapping)
-            check.equal(md['type'], 'http.response.body')
-
-            out.append(md['body'])
-            IoPipelineFlow.maybe_flush_output(self._ctx)
-
-            if not md.get('more_body', False):
-                self._state = _IoPipelineAsgiDriver.State.RESPONSE_FINISHED
-
-            f.result, f.done = None, True
-
-            return True
-
         elif self._state == _IoPipelineAsgiDriver.State.RESPONSE_FINISHED:
             check.state(gv.k == 'r')
             check.state(gv.v is None)
@@ -378,8 +441,8 @@ class AsgiIoPipelineHandler(IoPipelineHandler):
         super().__init__()
 
         self._app = app
-
-    _drv: ta.Optional[_IoPipelineAsgiDriver] = None
+        self._drv: ta.Optional[_IoPipelineAsgiDriver] = None
+        self._output_writable = True
 
     def _maybe_reset_driver(self) -> None:
         if (drv := self._drv) is None:
@@ -388,8 +451,12 @@ class AsgiIoPipelineHandler(IoPipelineHandler):
             self._drv = None
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, (IoPipelineFlowMessages.ReadyForOutput, IoPipelineFlowMessages.PauseOutput)):
+            self._output_writable = isinstance(msg, IoPipelineFlowMessages.ReadyForOutput)
+
         if (drv := self._drv) is not None:
             drv.feed_in(msg)
+            self._output_writable = drv.output_writable
             self._maybe_reset_driver()
             return
 
@@ -403,6 +470,7 @@ class AsgiIoPipelineHandler(IoPipelineHandler):
                 ctx,
                 self._app,
                 msg,
+                output_writable=self._output_writable,
             )
             drv.step()
             self._maybe_reset_driver()
