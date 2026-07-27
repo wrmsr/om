@@ -1,6 +1,23 @@
 from ... import inject as inj
 
 
+def test_dupe_scope_bindings():
+    ss = inj.SeededScope('hi')
+    i = inj.create_injector(
+        inj.as_elements(
+            inj.bind_scope(ss),
+            inj.bind(420, in_=ss),
+        ),
+        inj.as_elements(
+            inj.bind_scope(ss),
+            inj.bind('four twenty', in_=ss),
+        ),
+    )
+    with inj.enter_seeded_scope(i, ss, {}):
+        assert i[int] == 420
+        assert i[str] == 'four twenty'
+
+
 def test_scopes():
     ss = inj.SeededScope('hi')
     i = inj.create_injector(

@@ -71,6 +71,20 @@ def test_dupe_squashing():
         )
 
 
+def test_dupe_unhashable_squashing():
+    i = inj.create_injector(
+        inj.bind([1, 2, 3]),
+        inj.bind([1, 2, 3]),
+    )
+    assert i[list] == [1, 2, 3]
+
+    with pytest.raises(inj.ConflictingKeyError):
+        inj.create_injector(
+            inj.bind([1, 2, 3]),
+            inj.bind([4, 5, 6]),
+        )
+
+
 def test_collect_elements():
     c = 0
 

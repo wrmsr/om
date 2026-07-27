@@ -494,6 +494,104 @@ def _process_dataclass__54394c5ebd85aa173d2f60f20fae81b348f6cb9d():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('key', 'source', 'name', 'map_key')), EqPlan(fields=('key', 'source', 'name', 'map"
+        "_key')), HashPlan(action='set_none', fields=None, cache=None), InitPlan(fields=(InitPlan.Field(name='key', ann"
+        "otation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False,"
+        " field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='source', an"
+        "notation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory="
+        "None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), "
+        "InitPlan.Field(name='name', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields"
+        ".2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
+        "idate=None, check_type=None), InitPlan.Field(name='map_key', annotation=OpRef(name='init.fields.3.annotation')"
+        ", default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=Fie"
+        "ldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('key', 'source'"
+        ", 'name', 'map_key'), kw_only_params=(), frozen=False, slots=False, post_init_params=None, init_fns=(), valida"
+        "te_fns=()), ReprPlan(fields=(ReprPlan.Field(name='key', kw_only=False, fn=None), ReprPlan.Field(name='source',"
+        " kw_only=False, fn=None), ReprPlan.Field(name='name', kw_only=False, fn=None), ReprPlan.Field(name='map_key', "
+        "kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='f2f47645ab8c793c21850ea9da40e62b9a2ac13e',
+    cls_names=(
+        ('omcore.inject.errors', 'DuplicateMapKeyError'),
+    ),
+)
+def _process_dataclass__f2f47645ab8c793c21850ea9da40e62b9a2ac13e():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                key=self.key,
+                source=self.source,
+                name=self.name,
+                map_key=self.map_key,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.key == other.key and
+                self.source == other.source and
+                self.name == other.name and
+                self.map_key == other.map_key
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            key: __dataclass__init__fields__0__annotation,
+            source: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            name: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            map_key: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            self.key = key
+            self.source = source
+            self.name = name
+            self.map_key = map_key
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"key={self.key!r}")
+            parts.append(f"source={self.source!r}")
+            parts.append(f"name={self.name!r}")
+            parts.append(f"map_key={self.map_key!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('scope',)), EqPlan(fields=('scope',)), HashPlan(action='set_none', fields=None, ca"
         "che=None), InitPlan(fields=(InitPlan.Field(name='scope', annotation=OpRef(name='init.fields.0.annotation'), de"
         "fault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"

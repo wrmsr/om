@@ -27,6 +27,11 @@ class ConflictingKeyError(BaseKeyError):
 
 
 @dc.dataclass()
+class DuplicateMapKeyError(BaseKeyError):
+    map_key: ta.Any = None
+
+
+@dc.dataclass()
 class CyclicDependencyError(BaseKeyError):
     pass
 

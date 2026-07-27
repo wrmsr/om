@@ -1,3 +1,5 @@
+import pytest
+
 from ... import inject as inj
 
 
@@ -49,3 +51,10 @@ def test_eager_priorities():
 
     run((i, -1), (s, 0), (f, 1))
     run((i, 1), (s, -1), (f, 0))
+
+
+def test_eager_unbound_key():
+    with pytest.raises(inj.UnboundKeyError):
+        inj.create_injector(
+            inj.as_elements(inj.Eager(inj.as_key(int))),
+        )

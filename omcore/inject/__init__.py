@@ -83,6 +83,7 @@ with _lang.auto_proxy_init(globals()):
         BaseKeyError,
         ConflictingKeyError,
         CyclicDependencyError,
+        DuplicateMapKeyError,
         ScopeAlreadyOpenError,
         ScopeError,
         ScopeNotOpenError,

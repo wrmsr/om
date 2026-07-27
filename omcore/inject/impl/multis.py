@@ -4,6 +4,7 @@ from ... import check
 from ... import dataclasses as dc
 from ... import lang
 from ..elements import Element
+from ..errors import DuplicateMapKeyError
 from ..injector import AsyncInjector
 from ..multis import MapBinding
 from ..multis import MapProvider
@@ -68,13 +69,23 @@ def make_multi_provider_impl(p: Provider, es_by_ty: ta.MutableMapping[type, list
     elif isinstance(p, MapProvider):
         mbs: ta.Iterable[MapBinding] = es_by_ty.pop(MapBinding, ())  # type: ignore
         check.empty(es_by_ty)
-        return MapProviderImpl([
-            MapProviderImpl.Entry(
+        seen: dict[ta.Any, MapBinding] = {}
+        es: list[MapProviderImpl.Entry] = []
+        for mb in mbs:
+            try:
+                ex = seen[mb.map_key]
+            except KeyError:
+                pass
+            else:
+                if mb == ex:
+                    continue
+                raise DuplicateMapKeyError(mb.multi_key, map_key=mb.map_key)
+            seen[mb.map_key] = mb
+            es.append(MapProviderImpl.Entry(
                 mb.map_key,
                 LinkProviderImpl(LinkProvider(mb.dst)),
-            )
-            for mb in mbs
-        ])
+            ))
+        return MapProviderImpl(es)
 
     else:
         raise TypeError(p)

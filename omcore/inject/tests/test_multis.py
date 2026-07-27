@@ -1,6 +1,8 @@
 import dataclasses as dc
 import typing as ta
 
+import pytest
+
 from ... import inject as inj
 
 
@@ -24,6 +26,28 @@ def test_map_multi():
         inj.map_binder[str, int]().bind('b', inj.as_key(int, tag='four twenty one')),
     )
     assert i.provide(ta.Mapping[str, int]) == {'a': 420, 'b': 421}
+
+
+def test_conflicting_map_keys():
+    with pytest.raises(inj.DuplicateMapKeyError):
+        inj.create_injector(
+            inj.bind(420, tag='four twenty'),
+            inj.map_binder[str, int]().bind('a', inj.as_key(int, tag='four twenty')),
+
+            inj.bind(421, tag='four twenty one'),
+            inj.map_binder[str, int]().bind('a', inj.as_key(int, tag='four twenty one')),
+        )
+
+
+def test_dupe_map_bindings():
+    mb = inj.map_binder[str, int]()
+    mb.bind('a', inj.as_key(int, tag='four twenty'))
+    es = inj.as_elements(
+        inj.bind(420, tag='four twenty'),
+        mb,
+    )
+    i = inj.create_injector(es, es)
+    assert i.provide(ta.Mapping[str, int]) == {'a': 420}
 
 
 def test_private_multis():

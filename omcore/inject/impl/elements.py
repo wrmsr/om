@@ -88,6 +88,7 @@ class ElementCollection(CollectedElements, lang.Final):
         self._es = check.isinstance(es, Elements)
 
         self._private_infos: ta.MutableMapping[Private, _privates.PrivateInfo] | None = None
+        self._scope_auto_elements: dict[Scope, Elements | None] = {}
 
     ##
 
@@ -99,6 +100,18 @@ class ElementCollection(CollectedElements, lang.Final):
         except KeyError:
             pis[p] = ec = _privates.PrivateInfo(self, p)
             return ec
+
+    ##
+
+    def _get_scope_auto_elements(self, sc: Scope) -> Elements | None:
+        # Cached so equal ScopeBindings expand to identical elements, which then squash as duplicates rather than
+        # conflict - auto elements (like SeededScope's Manager binding) are not otherwise value-comparable.
+        try:
+            return self._scope_auto_elements[sc]
+        except KeyError:
+            pass
+        self._scope_auto_elements[sc] = sae = make_scope_impl(sc).auto_elements()
+        return sae
 
     ##
 
@@ -125,8 +138,7 @@ class ElementCollection(CollectedElements, lang.Final):
 
             elif isinstance(e, ScopeBinding):
                 add(None, e)
-                sci = make_scope_impl(e.scope)
-                if (sae := sci.auto_elements()) is not None:
+                if (sae := self._get_scope_auto_elements(e.scope)) is not None:
                     self._build_raw_element_multimap(sae, out)
 
             elif isinstance(e, Private):
@@ -142,6 +154,9 @@ class ElementCollection(CollectedElements, lang.Final):
                     except KeyError:
                         bs = b
                     add(k, *bs)
+                for k, bs in ovr.items():
+                    if k not in src:
+                        add(k, *bs)
 
             else:
                 raise TypeError(e)
@@ -163,12 +178,18 @@ class ElementCollection(CollectedElements, lang.Final):
             raise UnboundKeyError(k)
 
         elif len(bs) > 1:
-            d: dict = {}
+            # Grouped pairwise by equality, not in a dict - bindings need not be hashable (eg. unhashable consts).
+            gs: list[list[Binding]] = []
             for b in bs:
-                d.setdefault(b, []).append(b)
-            if len(d) > 1:
+                for g in gs:
+                    if b == g[0]:
+                        g.append(b)
+                        break
+                else:
+                    gs.append([b])
+            if len(gs) > 1:
                 raise ConflictingKeyError(k)
-            l = check.single(d.values())
+            l = check.single(gs)
             b = copy.copy(l[0])
             set_origins(b, Origins(tuple(o for c in l for o in c.origins)))
             return b
@@ -218,7 +239,10 @@ class ElementCollection(CollectedElements, lang.Final):
         bim = self.binding_impl_map()
         dct: dict[Scope, list[Eager]] = {}
         for e in self.elements_of_type(Eager):
-            bi = bim[e.key]
+            try:
+                bi = bim[e.key]
+            except KeyError:
+                raise UnboundKeyError(e.key) from None
             dct.setdefault(bi.scope, []).append(e)
         return {
             sc: tuple(eg.key for eg in sorted(egs, key=lambda eg: eg.priority))
