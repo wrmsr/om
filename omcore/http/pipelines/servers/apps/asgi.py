@@ -240,6 +240,9 @@ class _IoPipelineAsgiDriver:
             self._ctx.feed_out(msg)
 
     def step(self) -> None:
+        if self._state == _IoPipelineAsgiDriver.State.CLOSED:
+            return
+
         if self._state == _IoPipelineAsgiDriver.State.NEW:
             self.start()
         check.state(self._state not in (
@@ -383,7 +386,11 @@ class _IoPipelineAsgiDriver:
 
             @awm.add_listener
             def awm_done(_):
-                self._ctx.defer_no_context(self.step)
+                if self._state not in (
+                        _IoPipelineAsgiDriver.State.CLOSING,
+                        _IoPipelineAsgiDriver.State.CLOSED,
+                ):
+                    self._ctx.defer_no_context(self.step)
 
             out.append(awm)
 
@@ -468,6 +475,12 @@ class AsgiIoPipelineHandler(IoPipelineHandler):
             self._output_writable = isinstance(msg, IoPipelineFlowMessages.ReadyForOutput)
 
         if (drv := self._drv) is not None:
+            if isinstance(msg, IoPipelineMessages.Error):
+                drv.close()
+                self._maybe_reset_driver()
+                ctx.feed_in(msg)
+                return
+
             drv.feed_in(msg)
             self._output_writable = drv.output_writable
             self._maybe_reset_driver()
