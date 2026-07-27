@@ -8,6 +8,7 @@ from ...io.pipelines.core import IoPipelineHandlerContext
 from ...io.pipelines.core import IoPipelineMessages
 from ...io.pipelines.flow.types import IoPipelineFlow
 from ...io.pipelines.flow.types import IoPipelineFlowMessages
+from ...io.pipelines.handlers.decoders import MessageToMessageDecoderIoPipelineHandler
 from ...lite.abstract import Abstract
 from ...lite.bytes import BytesLike
 from .objects import IoPipelineHttpMessageObjects
@@ -199,7 +200,7 @@ class IoPipelineHttpObjectChunker(
 
 class IoPipelineHttpObjectDechunker(
     IoPipelineHttpMessageObjects,
-    IoPipelineHandler,
+    MessageToMessageDecoderIoPipelineHandler,
     Abstract,
 ):
     """
@@ -215,10 +216,27 @@ class IoPipelineHttpObjectDechunker(
 
         self._active = False
 
-    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+    def _should_decode(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> bool:
+        return isinstance(msg, (
+            self._head_type,
+            self._chunk_type,
+            self._end_chunk_type,
+            self._last_chunk_type,
+            self._chunked_trailers_type,
+            self._body_data_type,
+            self._end_type,
+            self._aborted_type,
+        ))
+
+    def _decode(
+            self,
+            ctx: IoPipelineHandlerContext,
+            msg: ta.Any,
+            out: ta.List[ta.Any],
+    ) -> None:
         if isinstance(msg, self._head_type):
             self._active = msg.headers.contains_value('transfer-encoding', 'chunked', ignore_case=True)
-            ctx.feed_in(msg)
+            out.append(msg)
             return
 
         if self._active and isinstance(msg, (
@@ -232,4 +250,4 @@ class IoPipelineHttpObjectDechunker(
         if isinstance(msg, (self._end_type, self._aborted_type)):
             self._active = False
 
-        ctx.feed_in(msg)
+        out.append(msg)

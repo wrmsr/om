@@ -6,6 +6,7 @@ import unittest
 from ....io.pipelines.core import IoPipeline
 from ....io.pipelines.core import IoPipelineHandler
 from ....io.pipelines.core import IoPipelineHandlerContext
+from ....io.pipelines.core import IoPipelineMessages
 from ....io.pipelines.flow.stub import StubIoPipelineFlowService
 from ....io.pipelines.flow.types import IoPipelineFlowMessages
 from ....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
@@ -73,6 +74,86 @@ class ReadyForOutputOnChunkIoPipelineHandler(IoPipelineHandler):
 
 
 class TestDechunker(unittest.TestCase):
+    def test_manual_read_rearms_after_framing_only_batch(self) -> None:
+        channel = IoPipeline.new(
+            [
+                IoPipelineHttpResponseDecoder(),
+                IoPipelineHttpResponseDechunker(),
+                ibq := InboundQueueIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+
+        channel.feed_in(
+            b'HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n',
+            IoPipelineFlowMessages.FlushInput(),
+        )
+        head_batch = ibq.drain()
+        self.assertEqual(len(head_batch), 2)
+        self.assertIsInstance(head_batch[0], IoPipelineHttpResponseHead)
+        self.assertIsInstance(head_batch[1], IoPipelineFlowMessages.FlushInput)
+        self.assertEqual(channel.output.drain(), [])
+
+        channel.feed_in(b'5\r\n', IoPipelineFlowMessages.FlushInput())
+        framing_batch = ibq.drain()
+        self.assertEqual(len(framing_batch), 1)
+        self.assertIsInstance(framing_batch[0], IoPipelineFlowMessages.FlushInput)
+        read_requests = channel.output.drain()
+        self.assertEqual(len(read_requests), 1)
+        self.assertIsInstance(read_requests[0], IoPipelineFlowMessages.ReadyForInput)
+
+        channel.feed_in(b'hello', IoPipelineFlowMessages.FlushInput())
+        body_batch = ibq.drain()
+        self.assertEqual(len(body_batch), 2)
+        self.assertEqual(ByteStreamBuffers.to_bytes(body_batch[0].data), b'hello')
+        self.assertIsInstance(body_batch[1], IoPipelineFlowMessages.FlushInput)
+        self.assertEqual(channel.output.drain(), [])
+
+    def test_auto_read_does_not_rearm_after_framing_only_batch(self) -> None:
+        channel = IoPipeline.new(
+            [
+                IoPipelineHttpRequestDechunker(),
+                ibq := InboundQueueIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService(auto_read=True)],
+        )
+
+        channel.feed_in(IoPipelineHttpRequestHead(
+            method='POST',
+            target='/upload',
+            headers=HttpHeaders([('Transfer-Encoding', 'chunked')]),
+        ))
+        ibq.drain()
+
+        channel.feed_in(
+            IoPipelineHttpRequestChunk(5),
+            IoPipelineFlowMessages.FlushInput(),
+        )
+
+        framing_batch = ibq.drain()
+        self.assertEqual(len(framing_batch), 1)
+        self.assertIsInstance(framing_batch[0], IoPipelineFlowMessages.FlushInput)
+        self.assertEqual(channel.output.drain(), [])
+
+    def test_final_input_identity_after_swallowed_framing(self) -> None:
+        channel = IoPipeline.new([
+            IoPipelineHttpRequestDechunker(),
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        channel.feed_in(IoPipelineHttpRequestHead(
+            method='POST',
+            target='/upload',
+            headers=HttpHeaders([('Transfer-Encoding', 'chunked')]),
+        ))
+        channel.feed_in(IoPipelineHttpRequestChunk(5))
+        channel.feed_in(final_input := IoPipelineMessages.FinalInput())
+
+        output = ibq.drain()
+        self.assertEqual(len(output), 2)
+        self.assertIsInstance(output[0], IoPipelineHttpRequestHead)
+        self.assertIs(output[1], final_input)
+
     def test_strips_chunk_framing(self) -> None:
         dechunker = IoPipelineHttpRequestDechunker()
         channel = IoPipeline.new([
