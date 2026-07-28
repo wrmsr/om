@@ -1,47 +1,29 @@
-import typing as ta
-
 from omcore import check
 from omcore import dataclasses as dc
-from omcore import lang
 
-from .. import llm
-from .types.contexts import Context
-from .types.events import AgentEndEvent
-from .types.events import AgentStartEvent
-from .types.events import Event
-from .types.events import EventSink
-from .types.events import TurnEndEvent
-from .types.events import TurnStartEvent
-from .types.messages import Message
-from .types.tools import ToolContext
-from .types.tools import ToolEnvironment
+from ... import llm
+from ..types.contexts import Context
+from ..types.events import AgentEndEvent
+from ..types.events import AgentStartEvent
+from ..types.events import Event
+from ..types.events import EventSink
+from ..types.events import TurnEndEvent
+from ..types.events import TurnStartEvent
+from ..types.messages import Message
+from ..types.tools import ToolContext
+from ..types.tools import ToolEnvironment
+from ..types.turns import TurnConfig
+from ..types.turns import TurnResult
 
 
 ##
 
 
-@ta.final
-@dc.dataclass(frozen=True, kw_only=True)
-@dc.extra_class_params(default_repr_fn=lang.opt_repr)
-class LoopConfig:
-    llm_options: llm.Options | None = None
-
-
-@ta.final
-@dc.dataclass(frozen=True, kw_only=True)
-@dc.extra_class_params(default_repr_fn=lang.opt_repr)
-class LoopResult:
-    config: LoopConfig
-    context: Context
-
-    new_messages: ta.Sequence[Message] | None = None
-
-
-class Loop:
+class TurnLoop:
     def __init__(
             self,
             *,
-            config: LoopConfig | None = None,
+            config: TurnConfig | None = None,
             context: Context | None = None,
             sink: EventSink | None = None,
             llm_backend: llm.ImmediateBackend,
@@ -50,7 +32,7 @@ class Loop:
         super().__init__()
 
         if config is None:
-            config = LoopConfig()
+            config = TurnConfig()
         self._initial_config = config
         if context is None:
             context = Context()
@@ -159,7 +141,7 @@ class Loop:
 
     #
 
-    async def run(self) -> LoopResult:
+    async def run(self) -> TurnResult:
         await self._emit(AgentStartEvent())
 
         while True:
@@ -174,7 +156,7 @@ class Loop:
             new_messages=self._new_messages,
         ))
 
-        return LoopResult(
+        return TurnResult(
             config=self._config,
             context=self._context,
 

@@ -3,15 +3,15 @@ import pytest
 from omcore.secrets.tests.harness import HarnessSecrets
 from omcore.testing.pytest.inject import Harness
 
-from ... import llm
-from ..dummy.weather import weather_tool
-from ..loop import Loop
-from ..types.contexts import Context
-from ..types.tools import ToolSet
-from .models import ANTHROPIC
-from .models import GOOGLE
-from .models import OPENAI
-from .models import ModelForTest
+from .... import llm
+from ...dummy.weather import weather_tool
+from ...tests.models import ANTHROPIC
+from ...tests.models import GOOGLE
+from ...tests.models import OPENAI
+from ...tests.models import ModelForTest
+from ...types.contexts import Context
+from ...types.tools import ToolSet
+from ..loop import TurnLoop
 
 
 ##
@@ -26,7 +26,7 @@ async def _test_loop(
         api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
     )
 
-    loop = Loop(
+    loop = TurnLoop(
         llm_backend=svc,
         context=Context(
             messages=[
@@ -67,7 +67,7 @@ async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
         api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
     )
 
-    loop = Loop(
+    loop = TurnLoop(
         llm_backend=svc,
         context=Context(
             messages=[

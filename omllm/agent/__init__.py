@@ -55,6 +55,11 @@ with _lang.auto_proxy_init(globals()):
         ToolSet,
     )
 
+    from .types.turns import (  # noqa
+        TurnConfig,
+        TurnResult,
+    )
+
     ##
 
     from .agent import (  # noqa
@@ -66,10 +71,4 @@ with _lang.auto_proxy_init(globals()):
         BackendManager,
 
         DictBackendManager,
-    )
-
-    from .loop import (  # noqa
-        LoopConfig,
-        LoopResult,
-        Loop,
     )

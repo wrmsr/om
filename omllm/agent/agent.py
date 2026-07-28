@@ -6,12 +6,12 @@ from omcore import lang
 
 from .. import llm
 from .backends import BackendManager
-from .loop import Loop
-from .loop import LoopConfig
+from .turns.loop import TurnLoop
 from .types.contexts import Context
 from .types.events import EventSink
 from .types.messages import Message
 from .types.tools import ToolEnvironment
+from .types.turns import TurnConfig
 
 
 ##
@@ -25,7 +25,7 @@ class State:
 
     model: llm.Model | None = None
 
-    loop_config: LoopConfig | None = None
+    turn_config: TurnConfig | None = None
 
     tool_env: ToolEnvironment | None = None
 
@@ -72,8 +72,8 @@ class Agent:
 
         llm_backend = self._backends.get_backend(llm.ImmediateBackend, self._state.model)  # type: ignore[type-abstract]
 
-        loop = Loop(
-            config=self._state.loop_config,
+        loop = TurnLoop(
+            config=self._state.turn_config,
             context=context,
             sink=self._sink,
             llm_backend=llm_backend,
@@ -85,6 +85,6 @@ class Agent:
         self._state = dc.replace(
             self._state,
 
-            loop_config=result.config,
+            turn_config=result.config,
             context=result.context,
         )
