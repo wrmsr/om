@@ -45,6 +45,26 @@ def test_zlib_inc_decompressor():
     assert ow.getvalue() == _DEC_DATA
 
 
+def test_zlib_inc_decompressor_trailing_garbage():
+    # Data after the end of the stream that is not a valid new stream is ignored, matching stdlib file semantics.
+    ir = io.BytesIO(_ENC_DATA + b'not a zlib stream')
+    ow = io.BytesIO()
+    g = ZlibCompression().decompress_incremental()
+    o = next(g)
+    sz = 13
+    while True:
+        if o is None:
+            o = g.send(ir.read(sz))
+        elif isinstance(o, bytes):
+            if not o:
+                break
+            ow.write(o)
+            o = g.send(None)
+        else:
+            raise TypeError(o)
+    assert ow.getvalue() == _DEC_DATA
+
+
 def test_zlib_inc_decompressed_buffered():
     g = ZlibCompression().decompress_incremental()
     bg = buffer_bytes_stepped_reader_coro(g)

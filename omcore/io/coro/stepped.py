@@ -159,30 +159,33 @@ def buffer_bytes_stepped_reader_coro(
         *,
         buffer_chunk_size: int = 16 * 1024,
 ) -> BytesSteppedCoro:
+    """
+    Adapts a reader coro to the stepped coro protocol, buffering input to satisfy the reader's sized requests. Once the
+    terminal empty input has been received, requests beyond the buffered data are answered with short or empty reads -
+    like a file at EOF - leaving it to the reader to decide whether that constitutes an error.
+    """
+
     i: lang.Bytes | None
     o = g.send(None)
     buf = SegmentedByteStreamBuffer(chunk_size=buffer_chunk_size)
     eof = False
 
     while True:
-        if eof:
-            raise EOFError
-
-        if not len(buf):
-            if (more := check.isinstance((yield None), lang.BYTES_TYPES)):
-                buf.write(more)
-            else:
-                eof = True
-
         if o is None:
+            if not len(buf) and not eof:
+                if (more := check.isinstance((yield None), lang.BYTES_TYPES)):
+                    buf.write(more)
+                else:
+                    eof = True
+
             i = buf.split_to(len(buf)).tobytes()
 
         elif isinstance(o, int):
-            while len(buf) < o:
-                more = check.isinstance((yield None), lang.BYTES_TYPES)
-                if not more:
-                    raise EOFError
-                buf.write(more)
+            while len(buf) < o and not eof:
+                if (more := check.isinstance((yield None), lang.BYTES_TYPES)):
+                    buf.write(more)
+                else:
+                    eof = True
 
             i = buf.split_to(min(o, len(buf))).tobytes()
 

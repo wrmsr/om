@@ -81,7 +81,8 @@ class PrependableCoroReader(CoroReader[AnyT], lang.Abstract):
             return d
 
         if sz is None:
-            return self._queue.pop(0)[0]
+            c, p = self._queue.pop(0)
+            return c[p:] if p else c
 
         lst: list[AnyT] = []
         rem = sz

@@ -251,7 +251,7 @@
     "module": ".io.compress.gzip",
     "attr": "_GZIP_LAZY_CODEC",
     "file": "omcore/io/compress/gzip.py",
-    "line": 349,
+    "line": 333,
     "value": {
       "!.codecs.base.LazyLoadedCodec": {
         "module": "omcore.io.compress.gzip",

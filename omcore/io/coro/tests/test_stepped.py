@@ -79,6 +79,38 @@ def test_buffer():
     assert next(g) == b''
 
 
+def test_buffer_eof_short_reads():
+    def f():
+        assert (yield 2) == b'ab'
+        assert (yield b'A') is None
+
+        # At EOF sized requests are satisfied short from the remaining buffer, then empty - like a file read.
+        assert (yield 4) == b'cd'
+        assert (yield 4) == b''
+        assert (yield None) == b''
+
+        assert (yield b'') is None
+
+    g = buffer_bytes_stepped_reader_coro(f())
+    assert g.send(b'abcd') == b'A'
+    assert next(g) is None
+    assert g.send(b'') == b''
+    with pytest.raises(StopIteration):
+        next(g)
+
+
+def test_buffer_eof_pending_sized_read():
+    def f():
+        assert (yield 4) == b'ab'
+        assert (yield b'') is None
+
+    g = buffer_bytes_stepped_reader_coro(f())
+    assert g.send(b'ab') is None
+    assert g.send(b'') == b''
+    with pytest.raises(StopIteration):
+        next(g)
+
+
 def test_buffer_iterable():
     def f():
         assert (yield 1) == b'a'

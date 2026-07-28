@@ -66,7 +66,7 @@ def _run_incremental_codec(g: ta.Generator[bytes | None, bytes | None], i: bytes
         o.write(r.v)
         r = cg.send(None)
 
-    # assert r.is_return  # FIXME: ??
+    assert r.is_return
     cg.close()
 
     return o.getvalue()

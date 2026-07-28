@@ -37,6 +37,7 @@
 import typing as ta
 
 from ... import check
+from ... import lang
 from ..coro.stepped import BytesSteppedCoro
 from ..coro.stepped import BytesSteppedReaderCoro
 from .abc import CompressorObject
@@ -60,7 +61,7 @@ class CompressorObjectIncrementalAdapter:
         compressor = self._factory()
 
         while True:
-            data = check.isinstance((yield None), bytes)
+            data = check.isinstance((yield None), lang.BYTES_TYPES)
             if not data:
                 break
 
@@ -90,8 +91,6 @@ class DecompressorObjectIncrementalAdapter:
         self._trailing_error = trailing_error
 
     def __call__(self) -> BytesSteppedReaderCoro:
-        pos = 0
-
         data = None  # Default if EOF is encountered
 
         decompressor = self._factory()
@@ -103,7 +102,7 @@ class DecompressorObjectIncrementalAdapter:
                 if decompressor.eof:
                     rawblock = decompressor.unused_data
                     if not rawblock:
-                        rawblock = check.isinstance((yield None), bytes)
+                        rawblock = check.isinstance((yield None), lang.BYTES_TYPES)
                     if not rawblock:
                         break
 
@@ -119,7 +118,7 @@ class DecompressorObjectIncrementalAdapter:
                 else:
                     if hasattr(decompressor, 'needs_input'):
                         if decompressor.needs_input:
-                            rawblock = check.isinstance((yield None), bytes)
+                            rawblock = check.isinstance((yield None), lang.BYTES_TYPES)
                             if not rawblock:
                                 raise EOFError('Compressed file ended before the end-of-stream marker was reached')
                         else:
@@ -127,7 +126,7 @@ class DecompressorObjectIncrementalAdapter:
 
                     elif hasattr(decompressor, 'unconsumed_tail'):
                         if not (rawblock := decompressor.unconsumed_tail):
-                            rawblock = check.isinstance((yield None), bytes)
+                            rawblock = check.isinstance((yield None), lang.BYTES_TYPES)
                             if not rawblock:
                                 raise EOFError('Compressed file ended before the end-of-stream marker was reached')
 
@@ -143,6 +142,5 @@ class DecompressorObjectIncrementalAdapter:
                 check.none((yield b''))
                 return
 
-            pos += len(data)
             check.none((yield data))
             data = None

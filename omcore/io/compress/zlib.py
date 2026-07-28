@@ -61,7 +61,7 @@ class ZlibCompression(Compression, IncrementalCompression):
                 **(dict(wbits=self.wbits) if self.wbits is not None else {}),  # type: ignore[arg-type]
                 **(dict(zdict=self.zdict) if self.zdict is not None else {}),  # type: ignore[arg-type]
             ),
-            trailing_error=OSError,
+            trailing_error=zlib.error,  # zlib.error subclasses Exception, not OSError like bz2's errors
         )()
 
 
