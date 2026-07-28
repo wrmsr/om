@@ -85,6 +85,7 @@ with _lang.auto_proxy_init(globals()):
         CyclicDependencyError,
         DeadInjectorError,
         DuplicateMapKeyError,
+        InjectorConcurrencyError,
         ScopeAlreadyOpenError,
         ScopeError,
         ScopeNotOpenError,

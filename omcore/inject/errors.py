@@ -40,6 +40,11 @@ class CyclicDependencyError(BaseKeyError):
 
 
 @dc.dataclass()
+class InjectorConcurrencyError(Exception):
+    pass
+
+
+@dc.dataclass()
 class DeadInjectorError(Exception):
     pass
 

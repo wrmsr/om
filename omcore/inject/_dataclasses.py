@@ -598,6 +598,7 @@ def _process_dataclass__a849059009a8352bbb0b55a5aff0b55a98378aa9():
     plan_repr_sha1='71bacd53030a648c2f0136fe3d7d92425681d317',
     cls_names=(
         ('omcore.inject.errors', 'DeadInjectorError'),
+        ('omcore.inject.errors', 'InjectorConcurrencyError'),
     ),
 )
 def _process_dataclass__71bacd53030a648c2f0136fe3d7d92425681d317():
