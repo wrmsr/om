@@ -14,6 +14,7 @@ from .types.events import TurnEndEvent
 from .types.events import TurnStartEvent
 from .types.messages import Message
 from .types.tools import ToolContext
+from .types.tools import ToolEnvironment
 
 
 ##
@@ -44,6 +45,7 @@ class Loop:
             context: Context | None = None,
             sink: EventSink | None = None,
             llm_backend: llm.ImmediateBackend,
+            tool_env: ToolEnvironment | None = None,
     ) -> None:
         super().__init__()
 
@@ -55,6 +57,7 @@ class Loop:
         self._initial_context = context
         self._sink = sink
         self._llm_backend = llm_backend
+        self._tool_env = tool_env
 
         #
 
@@ -133,6 +136,8 @@ class Loop:
                     args=tool_call.args,
 
                     llm_tool_call=tool_call,
+
+                    env=self._tool_env,
                 ))
 
                 tool_result_message = llm.ToolResultMessage(

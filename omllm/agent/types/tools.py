@@ -16,10 +16,18 @@ type ToolExecutor = ta.Callable[[ToolContext], ta.Awaitable[ToolResult]]
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
+class ToolEnvironment:
+    cwd: str | None = None
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
 class ToolContext:
     args: ta.Mapping[str, ta.Any]
 
     llm_tool_call: llm.ToolCall | None = None
+
+    env: ToolEnvironment | None = None
 
 
 @ta.final

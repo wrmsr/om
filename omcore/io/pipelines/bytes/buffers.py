@@ -36,7 +36,7 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
         def __post_init__(self) -> None:
             """Validate output writability watermarks."""
 
-            if not 0 <= self.write_low_watermark <= self.write_high_watermark:
+            if not (0 <= self.write_low_watermark <= self.write_high_watermark):
                 raise ValueError((self.write_low_watermark, self.write_high_watermark))
 
     Config.DEFAULT = Config()

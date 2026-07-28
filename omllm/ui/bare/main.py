@@ -1,11 +1,15 @@
 import asyncio
 import functools
+import os
 import sys
 
+from omcore import dataclasses as dc
 from omdev.home.secrets import load_secrets
 
 from ... import agent as ag
 from ... import llm
+from ...agent.fs.tools.ls import ls_tool
+from ...agent.fs.tools.read import read_tool
 
 
 ##
@@ -15,6 +19,8 @@ async def _a_main() -> None:
     model_key = llm.ModelKey('openai', 'gpt-5.4-mini')
     api_key_name = 'openai_api_key'
     backend_cls = llm.OpenaiCompletionsImmediateBackend
+
+    cwd = os.path.abspath(os.path.realpath(os.getcwd()))
 
     #
 
@@ -30,6 +36,25 @@ async def _a_main() -> None:
     agent = ag.Agent(
         backends=ag.DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
         sink=on_event,
+    )
+
+    await agent.modify_state(
+        lambda state: dc.replace(
+            state,
+            context=dc.replace(
+                state.context,
+                system_prompt='\n\n'.join([
+                    f'Current working directory: {cwd}',
+                ]),
+                tools=ag.ToolSet([
+                    ls_tool(),
+                    read_tool(),
+                ]),
+            ),
+            tool_env=ag.ToolEnvironment(
+                cwd=cwd,
+            ),
+        ),
     )
 
     #

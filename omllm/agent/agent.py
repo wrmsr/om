@@ -11,6 +11,7 @@ from .loop import LoopConfig
 from .types.contexts import Context
 from .types.events import EventSink
 from .types.messages import Message
+from .types.tools import ToolEnvironment
 
 
 ##
@@ -25,6 +26,8 @@ class State:
     model: llm.Model | None = None
 
     loop_config: LoopConfig | None = None
+
+    tool_env: ToolEnvironment | None = None
 
 
 class Agent:
@@ -74,6 +77,7 @@ class Agent:
             context=context,
             sink=self._sink,
             llm_backend=llm_backend,
+            tool_env=self._state.tool_env,
         )
 
         result = await loop.run()
