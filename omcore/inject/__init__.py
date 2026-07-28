@@ -54,6 +54,10 @@ with _lang.auto_proxy_init(globals()):
         wrapper_binder_helper,
     )
 
+    from .asyncio import (  # noqa
+        create_asyncio_injector,
+    )
+
     from .binder import (  # noqa
         bind,
         bind_as_fn,

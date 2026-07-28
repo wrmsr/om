@@ -63,8 +63,9 @@ class SomeAsyncManager:
 
 
 @pytest.mark.asyncs('asyncio')
+@pytest.mark.parametrize('use_asyncio', [True, False])
 @pytest.mark.parametrize('eager', [False, True])
-async def test_async_managed(eager):
+async def test_async_managed(use_asyncio, eager):
     async with inj.create_async_managed_injector(
             inj.bind(
                 SomeAsyncManager,
@@ -72,6 +73,7 @@ async def test_async_managed(eager):
                 eager=eager,
                 to_async_fn=inj.make_async_managed_provider(SomeAsyncManager),
             ),
+            factory=inj.create_asyncio_injector if use_asyncio else None,
     ) as i:
         sam = await i.provide(SomeAsyncManager)
         assert sam.ec == 1

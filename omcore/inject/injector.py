@@ -115,5 +115,5 @@ class _InjectorCreator(ta.Generic[T, R]):
 
 create_async_injector = _InjectorCreator[AsyncInjector, ta.Awaitable[AsyncInjector]](
     lambda ce, p=None, *, concurrency=None: _injector.create_async_injector(ce, p, concurrency=concurrency),
-    lambda: _concurrency.AsyncioConcurrency(),
+    lambda: _concurrency.NoConcurrency(),
 )

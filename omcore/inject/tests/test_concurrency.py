@@ -10,6 +10,7 @@ import pytest
 from ... import inject as inj
 from ...asyncs.asynclite.promises import AsynclitePromise
 from ...asyncs.asynclite.sync.api import SyncAsynclite
+from ..errors import InjectorConcurrencyError
 from ..impl.concurrency import ConcurrencyIdentity
 from ..impl.injector import AsyncInjectorImpl
 from ..impl.provision import OnceProvisionMap
@@ -223,7 +224,8 @@ def test_seeded_scope_concurrent_threads():
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_singleton_concurrent_tasks():
+@pytest.mark.parametrize('use_asyncio', [True, False])
+async def test_singleton_concurrent_tasks(use_asyncio):
     class Bar:
         pass
 
@@ -237,7 +239,14 @@ async def test_singleton_concurrent_tasks():
         await release.wait()
         return Bar()
 
-    ai = await inj.create_async_injector(inj.bind(Bar, to_async_fn=make_bar, singleton=True))
+    bindings: list = [
+        inj.bind(Bar, to_async_fn=make_bar, singleton=True),
+    ]
+
+    if use_asyncio:
+        ai = await inj.create_asyncio_injector(*bindings)
+    else:
+        ai = await inj.create_async_injector(*bindings)
 
     task1: asyncio.Future = asyncio.ensure_future(ai.provide(Bar))
     await entered.wait()
@@ -247,13 +256,18 @@ async def test_singleton_concurrent_tasks():
     release.set()
 
     b1 = await task1
-    b2 = await task2
-    assert b1 is b2
+    if use_asyncio:
+        b2 = await task2
+        assert b1 is b2
+    else:
+        with pytest.raises(InjectorConcurrencyError):
+            await task2
     assert len(calls) == 1
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_concurrent_requests_do_not_share_unscoped():
+@pytest.mark.parametrize('use_asyncio', [True, False])
+async def test_concurrent_requests_do_not_share_unscoped(use_asyncio):
     class C:
         pass
 
@@ -273,11 +287,16 @@ async def test_concurrent_requests_do_not_share_unscoped():
         await release.wait()
         return A(c)
 
-    ai = await inj.create_async_injector(
+    bindings: list = [
         inj.bind(C),
         inj.bind(A, to_async_fn=make_a),
         inj.bind(B),
-    )
+    ]
+
+    if use_asyncio:
+        ai = await inj.create_asyncio_injector(*bindings)
+    else:
+        ai = await inj.create_async_injector(*bindings)
 
     task1: asyncio.Future = asyncio.ensure_future(ai.provide(A))
     await entered.wait()
@@ -542,7 +561,8 @@ def test_cross_context_cycle_threads():
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_cross_context_cycle_tasks():
+@pytest.mark.parametrize('use_asyncio', [True, False])
+async def test_cross_context_cycle_tasks(use_asyncio):
     class A:
         pass
 
@@ -564,12 +584,20 @@ async def test_cross_context_cycle_tasks():
         await i.provide(A)
         return B()
 
-    ai = await inj.create_async_injector(
+    bindings: list = [
         inj.bind(A, to_async_fn=make_a, singleton=True),
         inj.bind(B, to_async_fn=make_b, singleton=True),
-    )
+    ]
+
+    if use_asyncio:
+        ai = await inj.create_asyncio_injector(*bindings)
+    else:
+        ai = await inj.create_async_injector(*bindings)
 
     rs = await asyncio.gather(ai.provide(A), ai.provide(B), return_exceptions=True)
 
     assert isinstance(rs[0], inj.CyclicDependencyError)
-    assert isinstance(rs[1], inj.CyclicDependencyError)
+    if use_asyncio:
+        assert isinstance(rs[1], inj.CyclicDependencyError)
+    else:
+        assert isinstance(rs[1], inj.InjectorConcurrencyError)

@@ -8,6 +8,7 @@
     override `SetBinding`/`MapBinding` replaces all of src's entries for that multi-key (instead of adding to them), and
     a `bind(..., eager=True)` overridden by a plain binding silently loses its `Eager`. Adjacent to the existing `#
     FIXME: merge None keys?` there.
+- create_asyncio_managed_injector? deal with that..
 - ** can currently bind in a child/private scope shadowing an external parent binding **
 - better source tracking
 - scope bindings, auto in root

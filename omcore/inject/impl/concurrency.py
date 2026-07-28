@@ -26,10 +26,14 @@ class Concurrency(lang.Abstract):
 ##
 
 
+class NO_CONCURRENCY_IDENTITY(lang.Marker):  # noqa
+    pass
+
+
 @ta.final
 class NoConcurrency(Concurrency):
     def current_identity(self) -> ConcurrencyIdentity:
-        return ConcurrencyIdentity(None)
+        return ConcurrencyIdentity(NO_CONCURRENCY_IDENTITY)
 
     def make_promise(self) -> asl.Promise:
         raise InjectorConcurrencyError
@@ -44,22 +48,7 @@ class SyncConcurrency(Concurrency):
         self._api = asl.sync.All()
 
     def current_identity(self) -> ConcurrencyIdentity:
-        return ConcurrencyIdentity(self._api.current_identity())
-
-    def make_promise(self) -> asl.Promise:
-        return self._api.make_promise()
-
-
-##
-
-
-@ta.final
-class AsyncioConcurrency(Concurrency):
-    def __init__(self) -> None:
-        self._api = asl.asyncio.All()
-
-    def current_identity(self) -> ConcurrencyIdentity:
-        return ConcurrencyIdentity((threading.get_ident(), self._api.current_identity()))
+        return ConcurrencyIdentity(threading.get_ident())
 
     def make_promise(self) -> asl.Promise:
         return self._api.make_promise()
