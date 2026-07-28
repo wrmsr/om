@@ -202,7 +202,7 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/media.py', sha1='803842842e9b3f1d51ccb48c41c7fb7df9d833b3'),
             dict(path='../specs/oci/pack/packing.py', sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad'),
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
-            dict(path='../../omcore/http/pipelines/chunking.py', sha1='f2ee8d546682c585eeb588c57da3e7967cbcae14'),
+            dict(path='../../omcore/http/pipelines/chunking.py', sha1='a6539c4d533324f1d9ee5634466407f538e2580b'),
             dict(path='../../omcore/io/streambufs/framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
             dict(path='../../omcore/io/streambufs/segmented.py', sha1='84e44da7dcb39f4be0b940d8f39f18f5d56bdf91'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
@@ -26428,7 +26428,7 @@ class IoPipelineHttpObjectChunker(
     ) -> None:
         super().__init__()
 
-        if not 0 <= write_low_watermark <= write_high_watermark:
+        if not (0 <= write_low_watermark <= write_high_watermark):
             raise ValueError((write_low_watermark, write_high_watermark))
 
         self._max_chunk_size = max_chunk_size

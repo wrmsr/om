@@ -2149,7 +2149,7 @@ def _process_dataclass__8e1f31f368d04d4784c49dcc2d91408279e36285():
     ),
     plan_repr_sha1='22a2410dbb7691486f11c9b4f3624b8e2c501964',
     cls_names=(
-        ('omcore.inject.impl.scopes', 'OnceProvisionMap._Done'),
+        ('omcore.inject.impl.provision', 'OnceProvisionMap._Done'),
     ),
 )
 def _process_dataclass__22a2410dbb7691486f11c9b4f3624b8e2c501964():
@@ -2221,27 +2221,94 @@ def _process_dataclass__22a2410dbb7691486f11c9b4f3624b8e2c501964():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('promise', 'owner')), FrozenPlan(fields=('promise', 'owner'), allow_dynamic_dunder"
-        "_attrs=False), InitPlan(fields=(InitPlan.Field(name='promise', annotation=OpRef(name='init.fields.0.annotation"
-        "'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None), InitPlan.Field(name='owner', annotation=OpRef(name='init.fields.1.annotation"
-        "'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None)), self_param='self', std_params=('promise', 'owner'), kw_only_params=(), froz"
-        "en=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(na"
-        "me='promise', kw_only=False, fn=None), ReprPlan.Field(name='owner', kw_only=False, fn=None)), id=False, terse="
-        "False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('owner', 'promise')), InitPlan(fields=(InitPlan.Field(name='owner', annotation=OpR"
+        "ef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type"
+        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='promise', annotation=O"
+        "pRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init"
+        "=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_para"
+        "m='self', std_params=('owner', 'promise'), kw_only_params=(), frozen=False, slots=False, post_init_params=None"
+        ", init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='owner', kw_only=False, fn=None), ReprPl"
+        "an.Field(name='promise', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='0bd3dd18821b4ec9da3abe44f32bc31b3f75e424',
+    plan_repr_sha1='356c1e2d946242ef705892efafdada494580cf31',
     cls_names=(
-        ('omcore.inject.impl.scopes', 'OnceProvisionMap._Entry'),
+        ('omcore.inject.impl.provision', 'OnceProvisionMap._Entry'),
     ),
 )
-def _process_dataclass__0bd3dd18821b4ec9da3abe44f32bc31b3f75e424():
+def _process_dataclass__356c1e2d946242ef705892efafdada494580cf31():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                owner=self.owner,
+                promise=self.promise,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __init__(
+            self,
+            owner: __dataclass__init__fields__0__annotation,
+            promise: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+        ) -> __dataclass__None:
+            self.owner = owner
+            self.promise = promise
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"owner={self.owner!r}")
+            parts.append(f"promise={self.promise!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('key', 'promise', 'target_owner')), FrozenPlan(fields=('key', 'promise', 'target_o"
+        "wner'), allow_dynamic_dunder_attrs=False), InitPlan(fields=(InitPlan.Field(name='key', annotation=OpRef(name='"
+        "init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTyp"
+        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='promise', annotation=OpRef(name"
+        "='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldT"
+        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='target_owner', annotation=OpR"
+        "ef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type"
+        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('key', 'pro"
+        "mise', 'target_owner'), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), valid"
+        "ate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='key', kw_only=False, fn=None), ReprPlan.Field(name='promise"
+        "', kw_only=False, fn=None), ReprPlan.Field(name='target_owner', kw_only=False, fn=None)), id=False, terse=Fals"
+        "e, default_fn=None)))"
+    ),
+    plan_repr_sha1='07b5c2c9057470494ad6bbe78f81c17b12925ad9',
+    cls_names=(
+        ('omcore.inject.impl.provision', '_ProvisionWaitRegistry._Wait'),
+    ),
+)
+def _process_dataclass__07b5c2c9057470494ad6bbe78f81c17b12925ad9():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -2252,15 +2319,17 @@ def _process_dataclass__0bd3dd18821b4ec9da3abe44f32bc31b3f75e424():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
+                key=self.key,
                 promise=self.promise,
-                owner=self.owner,
+                target_owner=self.target_owner,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
+            'key',
             'promise',
-            'owner',
+            'target_owner',
         }
 
         def __setattr__(self, name, value):
@@ -2285,19 +2354,22 @@ def _process_dataclass__0bd3dd18821b4ec9da3abe44f32bc31b3f75e424():
 
         def __init__(
             self,
-            promise: __dataclass__init__fields__0__annotation,
-            owner: __dataclass__init__fields__1__annotation,
+            key: __dataclass__init__fields__0__annotation,
+            promise: __dataclass__init__fields__1__annotation,
+            target_owner: __dataclass__init__fields__2__annotation,
         ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'key', key)
             __dataclass__object_setattr(self, 'promise', promise)
-            __dataclass__object_setattr(self, 'owner', owner)
+            __dataclass__object_setattr(self, 'target_owner', target_owner)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
+            parts.append(f"key={self.key!r}")
             parts.append(f"promise={self.promise!r}")
-            parts.append(f"owner={self.owner!r}")
+            parts.append(f"target_owner={self.target_owner!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -2413,105 +2485,6 @@ def _process_dataclass__9ba528e1f2c13de1fa8da59652e70fd288a9e2d8():
             parts = []
             parts.append(f"seeds={self.seeds!r}")
             parts.append(f"om={self.om!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('key', 'promise', 'target_owner')), FrozenPlan(fields=('key', 'promise', 'target_o"
-        "wner'), allow_dynamic_dunder_attrs=False), InitPlan(fields=(InitPlan.Field(name='key', annotation=OpRef(name='"
-        "init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTyp"
-        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='promise', annotation=OpRef(name"
-        "='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldT"
-        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='target_owner', annotation=OpR"
-        "ef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type"
-        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('key', 'pro"
-        "mise', 'target_owner'), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), valid"
-        "ate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='key', kw_only=False, fn=None), ReprPlan.Field(name='promise"
-        "', kw_only=False, fn=None), ReprPlan.Field(name='target_owner', kw_only=False, fn=None)), id=False, terse=Fals"
-        "e, default_fn=None)))"
-    ),
-    plan_repr_sha1='07b5c2c9057470494ad6bbe78f81c17b12925ad9',
-    cls_names=(
-        ('omcore.inject.impl.scopes', '_ProvisionWaitRegistry._Wait'),
-    ),
-)
-def _process_dataclass__07b5c2c9057470494ad6bbe78f81c17b12925ad9():
-    def _process_dataclass(
-        *,
-        __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
-    ):
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                key=self.key,
-                promise=self.promise,
-                target_owner=self.target_owner,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'key',
-            'promise',
-            'target_owner',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __init__(
-            self,
-            key: __dataclass__init__fields__0__annotation,
-            promise: __dataclass__init__fields__1__annotation,
-            target_owner: __dataclass__init__fields__2__annotation,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'key', key)
-            __dataclass__object_setattr(self, 'promise', promise)
-            __dataclass__object_setattr(self, 'target_owner', target_owner)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"key={self.key!r}")
-            parts.append(f"promise={self.promise!r}")
-            parts.append(f"target_owner={self.target_owner!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

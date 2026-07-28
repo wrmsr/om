@@ -11,9 +11,9 @@ from ... import inject as inj
 from ...asyncs.asynclite.promises import AsynclitePromise
 from ...asyncs.asynclite.sync.api import SyncAsynclite
 from ..impl.injector import AsyncInjectorImpl
-from ..impl.scopes import OnceProvisionMap
+from ..impl.provision import OnceProvisionMap
+from ..impl.provision import _ProvisionWaitRegistry
 from ..impl.scopes import SingletonScopeImpl
-from ..impl.scopes import _ProvisionWaitRegistry
 
 
 def test_thread_scope_overlapping_provides():
@@ -288,6 +288,27 @@ async def test_concurrent_requests_do_not_share_unscoped():
 
     b2 = await ai.provide(B)
     assert b.c is not b2.c
+
+
+def test_uncontended_singleton_promise_not_allocated():
+    class Foo:
+        pass
+
+    seen: list = []
+
+    def make_foo(i: inj.Injector) -> Foo:
+        ai = i[inj.AsyncInjector]
+        assert isinstance(ai, AsyncInjectorImpl)
+        ssi = ai.get_scope_impl(inj.Singleton())
+        assert isinstance(ssi, SingletonScopeImpl)
+        (e,) = ssi._om._dct.values()
+        assert isinstance(e, OnceProvisionMap._Entry)
+        seen.append(e.promise)
+        return Foo()
+
+    i = inj.create_injector(inj.bind(Foo, to_fn=make_foo, singleton=True))
+    i[Foo]
+    assert seen == [None]
 
 
 def test_completed_singleton_entry_is_terminal():

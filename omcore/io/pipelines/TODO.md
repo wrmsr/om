@@ -12,8 +12,6 @@
 ### core
 
 - revive DESIGN.md
-- ssl
-  - `ssl.MemoryBIO -> ctx.wrap_bio -> while True: sslobj.do_handshake() -> except ssl.SSLWantReadError, ssl.SSLWantWriteError, ...`
 - drivers
   - 'pure' - no io
   - sync

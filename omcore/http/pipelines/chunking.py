@@ -43,7 +43,7 @@ class IoPipelineHttpObjectChunker(
     ) -> None:
         super().__init__()
 
-        if not 0 <= write_low_watermark <= write_high_watermark:
+        if not (0 <= write_low_watermark <= write_high_watermark):
             raise ValueError((write_low_watermark, write_high_watermark))
 
         self._max_chunk_size = max_chunk_size

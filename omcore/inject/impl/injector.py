@@ -26,7 +26,7 @@ from ..types import Scope
 from ..types import Unscoped
 from .elements import ElementCollection
 from .inspect import build_kwargs_target
-from .scopes import DEFAULT_PROVISION_WAIT_TIMEOUT_S
+from .provision import DEFAULT_PROVISION_WAIT_TIMEOUT_S
 from .scopes import ScopeImpl
 from .scopes import make_scope_impl
 

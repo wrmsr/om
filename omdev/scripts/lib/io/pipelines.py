@@ -73,7 +73,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='b353046f667f92a90406aad3e9f4855bb185ca0a'),
+            dict(path='drivers/asyncio.py', sha1='f007bd82796874ac1ec5159c71d531b8250e2d22'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -8558,7 +8558,7 @@ class PollAsyncioStreamIoPipelineDriver:
         def __post_init__(self) -> None:
             """Validate output writability watermarks."""
 
-            if not 0 <= self.write_low_watermark <= self.write_high_watermark:
+            if not (0 <= self.write_low_watermark <= self.write_high_watermark):
                 raise ValueError((self.write_low_watermark, self.write_high_watermark))
 
     Config.DEFAULT = Config()
