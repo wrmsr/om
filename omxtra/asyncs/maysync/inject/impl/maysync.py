@@ -4,8 +4,8 @@ import typing as ta
 from omcore import check
 from omcore import lang
 from omcore.inject.elements import CollectedElements
+from omcore.inject.impl.concurrency import Concurrency
 from omcore.inject.impl.injector import AsyncInjectorImpl
-from omcore.inject.impl.injector import Asynclite
 from omcore.inject.injector import AsyncInjector
 from omcore.inject.inspect import KwargsTarget
 from omcore.inject.keys import as_key
@@ -38,7 +38,7 @@ def create_maysync_injector(
         ce: CollectedElements,
         p: MaysyncInjector | None = None,
         *,
-        al: Asynclite | None = None,
+        concurrency: Concurrency | None = None,
 ) -> MaysyncInjector:
     ap: AsyncInjectorImpl | None = None
     if p is not None:
@@ -52,7 +52,7 @@ def create_maysync_injector(
             as_key(MaysyncInjector): si,
             as_key(Injector): si,
         },
-        al=al,
+        concurrency=concurrency,
     )
     si._ai = ai
     run_maysync(ai._init())

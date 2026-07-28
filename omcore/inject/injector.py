@@ -1,4 +1,5 @@
 import abc
+import threading
 import typing as ta
 
 from .. import check
@@ -8,6 +9,8 @@ from .elements import CollectedElements
 from .elements import Elemental
 from .elements import as_elements
 from .elements import collect_elements
+from .impl.concurrency import Concurrency
+from .impl.concurrency import ConcurrencyIdentity
 from .inspect import KwargsTarget
 from .keys import Key
 
@@ -61,12 +64,12 @@ class _InjectorCreatorFactory(ta.Protocol[T_contra, R_co]):
         p: T_contra | None = None,
         /,
         *,
-        al: ta.Any | None = None,
+        concurrency: ta.Any | None = None,
     ) -> R_co: ...
 
 
-class _InjectorAsyncliteFactory(ta.Protocol):
-    def __call__(self) -> _injector.Asynclite: ...
+class _InjectorConcurrencyFactory(ta.Protocol):
+    def __call__(self) -> _injector.Concurrency: ...
 
 
 @ta.final
@@ -74,10 +77,10 @@ class _InjectorCreator(ta.Generic[T, R]):
     def __init__(
         self,
         fac: _InjectorCreatorFactory[T, R],
-        alf: _InjectorAsyncliteFactory,
+        c_fac: _InjectorConcurrencyFactory,
     ) -> None:
         self._fac = fac
-        self._alf = alf
+        self._c_fac = c_fac
 
     @ta.overload
     def __call__(
@@ -86,7 +89,7 @@ class _InjectorCreator(ta.Generic[T, R]):
         /,
         *,
         parent: T | None = None,
-        al: ta.Any | None = None,
+        concurrency: ta.Any | None = None,
     ) -> R: ...
 
     @ta.overload
@@ -94,25 +97,40 @@ class _InjectorCreator(ta.Generic[T, R]):
         self,
         *es: Elemental,
         parent: T | None = None,
-        al: ta.Any | None = None,
+        concurrency: ta.Any | None = None,
     ) -> R: ...
 
-    def __call__(self, arg0, *argv, parent=None, al=None):
+    def __call__(self, arg0, *argv, parent=None, concurrency=None):
         ce: CollectedElements
         if isinstance(arg0, CollectedElements):
             check.arg(not argv)
             ce = arg0
         else:
             ce = collect_elements(as_elements(arg0, *argv))
-        if parent is None and al is None:
-            al = self._alf()
-        return self._fac(ce, parent, al=al)
+        if parent is None and concurrency is None:
+            concurrency = self._c_fac()
+        return self._fac(ce, parent, concurrency=concurrency)
 
 
 ##
 
 
+@ta.final
+class _AsyncioConcurrency(Concurrency):
+    def __init__(self) -> None:
+        self._api = asl.asyncio.All()
+
+    def current_identity(self) -> ConcurrencyIdentity:
+        return ConcurrencyIdentity((threading.get_ident(), self._api.current_identity()))
+
+    def make_promise(self) -> asl.Promise:
+        return self._api.make_promise()
+
+
+#
+
+
 create_async_injector = _InjectorCreator[AsyncInjector, ta.Awaitable[AsyncInjector]](
-    lambda ce, p=None, *, al=None: _injector.create_async_injector(ce, p, al=al),
-    lambda: ta.cast(ta.Any, asl.asyncio.All()),
+    lambda ce, p=None, *, concurrency=None: _injector.create_async_injector(ce, p, concurrency=concurrency),
+    lambda: _AsyncioConcurrency(),
 )

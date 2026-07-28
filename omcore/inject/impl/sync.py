@@ -8,8 +8,8 @@ from ..injector import AsyncInjector
 from ..inspect import KwargsTarget
 from ..keys import as_key
 from ..sync import Injector
+from .concurrency import Concurrency
 from .injector import AsyncInjectorImpl
-from .injector import Asynclite
 
 
 ##
@@ -35,7 +35,7 @@ def create_injector(
         ce: CollectedElements,
         p: Injector | None = None,
         *,
-        al: Asynclite | None = None,
+        concurrency: Concurrency | None = None,
 ) -> Injector:
     ap: AsyncInjectorImpl | None = None
     if p is not None:
@@ -48,7 +48,7 @@ def create_injector(
         internal_consts={
             as_key(Injector): si,
         },
-        al=al,
+        concurrency=check.isinstance(concurrency, Concurrency) if concurrency is not None else None,
     )
     si._ai = ai
     lang.sync_await(ai._init())

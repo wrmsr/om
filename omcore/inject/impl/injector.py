@@ -9,7 +9,6 @@ import weakref
 from ... import check
 from ... import lang
 from ...asyncs.asynclite import all as asl
-from ...logs import all as logs
 from ..elements import CollectedElements
 from ..errors import CyclicDependencyError
 from ..errors import DeadInjectorError
@@ -24,14 +23,13 @@ from ..scopes import Singleton
 from ..scopes import ThreadScope
 from ..types import Scope
 from ..types import Unscoped
+from .concurrency import Concurrency
+from .concurrency import ConcurrencyIdentity
 from .elements import ElementCollection
 from .inspect import build_kwargs_target
 from .provision import DEFAULT_PROVISION_WAIT_TIMEOUT_S
 from .scopes import ScopeImpl
 from .scopes import make_scope_impl
-
-
-log = logs.get_module_logger(globals())
 
 
 ##
@@ -42,14 +40,6 @@ DEFAULT_SCOPES: list[Scope] = [
     Singleton(),
     ThreadScope(),
 ]
-
-
-class Asynclite(
-    asl.Promises,
-    asl.Identities,
-    lang.Intersection,
-):
-    pass
 
 
 ##
@@ -76,9 +66,6 @@ class _RequestFrame:
         self.prev = prev
 
 
-RequestOwner = ta.NewType('RequestOwner', object)
-
-
 # A single process-wide contextvar, per contextvars best practice. Contextvars are both task-local and thread-local,
 # isolating concurrent provisions, and strict token-reset discipline leaves this empty between provisions in any given
 # context - frames only outlive a provision in contexts captured mid-provision.
@@ -96,16 +83,16 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             p: AsyncInjectorImpl | None = None,
             *,
             internal_consts: dict[Key, ta.Any] | None = None,
-            al: Asynclite | None = None,
+            concurrency: Concurrency | None = None,
     ) -> None:
         self._ec = (ec := check.isinstance(ec, ElementCollection))
         self._p: AsyncInjectorImpl | None = check.isinstance(p, (AsyncInjectorImpl, None))
 
         if p is not None:
-            check.none(al)
-            self._al = p._al  # noqa
+            check.none(concurrency)
+            self._concurrency = p._concurrency  # noqa
         else:
-            self._al = check.not_none(al)
+            self._concurrency = check.not_none(concurrency)
 
         self._internal_consts: dict[Key, ta.Any] = {
             as_key(AsyncInjector): self,
@@ -136,36 +123,29 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
         self._init_mtx = threading.Lock()
         self._init_promise: asl.Promise[bool] | None = None
-        self._init_owner: RequestOwner | None = None
+        self._init_owner: ConcurrencyIdentity | None = None
         self._dead_error: BaseException | None = None
 
         if self._p is not None:
             self._p._add_child(self)  # noqa
 
-    _al: Asynclite
+    _concurrency: Concurrency
 
     _cs: weakref.WeakSet[AsyncInjectorImpl] | None = None  # noqa
-
-    #
-
-    def _current_owner(self) -> RequestOwner:
-        """Identifies the current provisioning context - the OS thread plus the backend's task identity, if any."""
-
-        return RequestOwner((threading.get_ident(), self._al.current_identity()))
 
     #
 
     async def _init(self) -> bool:
         with self._init_mtx:
             if (ip := self._init_promise) is None:
-                ip = self._init_promise = self._al.make_promise()
-                self._init_owner = self._current_owner()
+                ip = self._init_promise = self._concurrency.make_promise()
+                self._init_owner = self._concurrency.current_identity()
                 mine = True
             else:
                 mine = False
 
         if not mine:
-            if not ip.is_done() and self._init_owner == self._current_owner():
+            if not ip.is_done() and self._init_owner == self._concurrency.current_identity():
                 return False  # a reentrant provide during this context's own eager instantiation
             await ip.wait(timeout=DEFAULT_PROVISION_WAIT_TIMEOUT_S)
             return False
@@ -210,7 +190,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
     class _Request:
         """Note: requests must never strongly reference their injector - see _RequestFrame."""
 
-        def __init__(self, owner: RequestOwner) -> None:
+        def __init__(self, owner: ConcurrencyIdentity) -> None:
             super().__init__()
 
             self._owner = owner
@@ -219,7 +199,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             self._source_stack: list[ta.Any] = []
 
         @property
-        def owner(self) -> RequestOwner:
+        def owner(self) -> ConcurrencyIdentity:
             return self._owner
 
         def handle_key(self, key: Key) -> lang.Maybe[lang.Maybe]:
@@ -254,7 +234,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         # request leaked in via context inheritance (a spawned task or thread) must not be shared, and is instead
         # shadowed by a fresh frame pushed at the head.
         head = _CURRENT_REQUEST_STACK.get()
-        owner = self._current_owner()
+        owner = self._concurrency.current_identity()
 
         cur = head
         while cur is not None:
@@ -352,12 +332,12 @@ async def create_async_injector(
         ce: CollectedElements,
         p: AsyncInjector | None = None,
         *,
-        al: Asynclite | None = None,
+        concurrency: Concurrency | None = None,
 ) -> AsyncInjector:
     i = AsyncInjectorImpl(
         ce,
         check.isinstance(p, (AsyncInjectorImpl, None)),
-        al=check.isinstance(al, Asynclite) if al is not None else None,
+        concurrency=check.isinstance(concurrency, Concurrency) if concurrency is not None else None,
     )
     await i._init()  # noqa
     return i

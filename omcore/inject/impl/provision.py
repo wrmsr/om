@@ -10,6 +10,7 @@ from ..errors import CyclicDependencyError
 from ..injector import AsyncInjector
 from ..keys import Key
 from .bindings import BindingImpl
+from .concurrency import ConcurrencyIdentity
 
 
 if ta.TYPE_CHECKING:
@@ -33,24 +34,24 @@ class _ProvisionWaitRegistry(lang.Final):
         super().__init__()
 
         self._mtx = threading.Lock()  # guards _waits, held only for bookkeeping and walks - never while waiting
-        self._waits: dict[_injector.RequestOwner, _ProvisionWaitRegistry._Wait] = {}
+        self._waits: dict[ConcurrencyIdentity, _ProvisionWaitRegistry._Wait] = {}
 
     @dc.dataclass(frozen=True, eq=False)
     class _Wait:
         key: Key
         promise: asl.Promise
-        target_owner: _injector.RequestOwner
+        target_owner: ConcurrencyIdentity
 
     def _detect(
             self,
-            owner: _injector.RequestOwner,
+            owner: ConcurrencyIdentity,
             key: Key,
-            target_owner: _injector.RequestOwner,
+            target_owner: ConcurrencyIdentity,
     ) -> None:
         # Callers must hold _mtx. Since every wait-edge addition performs this check under the mutex, whichever
         # context adds the closing edge of a cycle is guaranteed to observe it.
         chain: list[Key] = [key]
-        seen: set[_injector.RequestOwner] = {owner}
+        seen: set[ConcurrencyIdentity] = {owner}
         cur = target_owner
         while True:
             if cur == owner:
@@ -68,10 +69,10 @@ class _ProvisionWaitRegistry(lang.Final):
     @contextlib.contextmanager
     def waiting(
             self,
-            owner: _injector.RequestOwner,
+            owner: ConcurrencyIdentity,
             key: Key,
             promise: asl.Promise,
-            target_owner: _injector.RequestOwner,
+            target_owner: ConcurrencyIdentity,
     ) -> ta.Iterator[None]:
         with self._mtx:
             self._detect(owner, key, target_owner)
@@ -113,7 +114,7 @@ class OnceProvisionMap(lang.Final):
 
     @dc.dataclass(eq=False)
     class _Entry:
-        owner: _injector.RequestOwner
+        owner: ConcurrencyIdentity
         promise: asl.Promise | None = None  # lazily created by the first waiter, under the map's mutex
 
     @dc.dataclass(frozen=True, eq=False)
@@ -126,7 +127,7 @@ class OnceProvisionMap(lang.Final):
             return e.v
 
         ii = check.isinstance(injector, _injector.AsyncInjectorImpl)
-        owner = ii._current_owner()  # noqa
+        owner = ii._concurrency.current_identity()  # noqa
 
         while True:
             p: asl.Promise | None = None
@@ -141,7 +142,7 @@ class OnceProvisionMap(lang.Final):
                 else:
                     mine = False
                     if (p := e.promise) is None:
-                        p = e.promise = ii._al.make_promise()  # noqa
+                        p = e.promise = ii._concurrency.make_promise()  # noqa
 
             if mine:
                 # Note: on both completion paths the promise slot must be read under the same lock acquisition that

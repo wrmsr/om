@@ -3,6 +3,8 @@ import typing as ta
 
 from .. import lang
 from ..asyncs.asynclite import all as asl
+from .impl.concurrency import Concurrency
+from .impl.concurrency import ConcurrencyIdentity
 from .injector import _InjectorCreator
 from .inspect import KwargsTarget
 from .keys import Key
@@ -47,7 +49,22 @@ class Injector(lang.Abstract):
 ##
 
 
+@ta.final
+class _SyncConcurrency(Concurrency):
+    def __init__(self) -> None:
+        self._api = asl.sync.All()
+
+    def current_identity(self) -> ConcurrencyIdentity:
+        return ConcurrencyIdentity(self._api.current_identity())
+
+    def make_promise(self) -> asl.Promise:
+        return self._api.make_promise()
+
+
+##
+
+
 create_injector = _InjectorCreator[Injector, Injector](
-    lambda ce, p=None, *, al=None: _sync.create_injector(ce, p, al=al),
-    lambda: ta.cast(ta.Any, asl.sync.All()),
+    lambda ce, p=None, *, concurrency=None: _sync.create_injector(ce, p, concurrency=concurrency),
+    lambda: _SyncConcurrency(),
 )

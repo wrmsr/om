@@ -25,6 +25,6 @@ class MaysyncInjector(Injector, lang.Abstract):
 
 
 create_maysync_injector = _InjectorCreator[MaysyncInjector, MaysyncInjector](
-    lambda ce, p=None, *, al=None: _maysync.create_maysync_injector(ce, p, al=al),
+    lambda ce, p=None, *, concurrency=None: _maysync.create_maysync_injector(ce, p, concurrency=concurrency),
     lambda: lang.raise_(NotImplementedError),
 )
