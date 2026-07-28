@@ -23,8 +23,8 @@ bitsandbytes==0.49.2
 black==26.5.1
 blinker==1.9.0
 blobfile==3.2.0
-boto3==1.43.56
-botocore==1.43.56
+boto3==1.43.57
+botocore==1.43.57
 botocore-stubs==1.43.14
 brotli==1.2.0
 build==1.5.1
@@ -277,12 +277,12 @@ truststore==0.10.4
 twine==7.0.0
 typer==0.27.0
 types-awscrt==0.34.1
-types-boto3==1.43.56
+types-boto3==1.43.57
 types-docutils==0.22.3.20260724
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20260724
 types-psutil==7.2.2.20260518
-types-Pygments==2.20.0.20260518
+types-Pygments==2.20.0.20260728
 types-PyMySQL==1.2.0.20260724
 types-PyYAML==6.0.12.20260724
 types-regex==2026.7.19.20260720
