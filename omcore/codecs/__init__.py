@@ -1,3 +1,5 @@
+# Note: The following are consciously not lazy-imported due to import-time registration.
+
 from .base import (  # noqa
     EagerCodec,
     IncrementalCodec,
@@ -22,28 +24,11 @@ from .bytes import (  # noqa
     HEX,
 )
 
-from .chain import (  # noqa
-    ChainEagerCodec,
-
-    chain,
-)
-
 from .funcs import (  # noqa
     FnPairEagerCodec,
 
     of_pair,
     of,
-)
-
-from .registry import (  # noqa
-    CodecRegistry,
-
-    REGISTRY,
-    register,
-    lookup,
-
-    encode,
-    decode,
 )
 
 from .standard import (  # noqa
@@ -70,3 +55,30 @@ from .text import (  # noqa
     UTF8,
     UTF8SIG,
 )
+
+
+##
+
+
+from .. import lang as _lang
+
+
+with _lang.auto_proxy_init(globals()):
+    ##
+
+    from .chain import (  # noqa
+        ChainEagerCodec,
+
+        chain,
+    )
+
+    from .registry import (  # noqa
+        CodecRegistry,
+
+        REGISTRY,
+        register,
+        lookup,
+
+        encode,
+        decode,
+    )
