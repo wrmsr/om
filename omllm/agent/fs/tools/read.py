@@ -5,7 +5,7 @@ import os.path
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ...tools.reflect import reflect_tool
+from ...tools.reflect import reflect_tool_fn
 from ...types.tools import Tool
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -116,4 +116,4 @@ async def read(
 
 @lang.cached_function
 def read_tool() -> Tool:
-    return reflect_tool(READ_DESCRIPTION, read)
+    return reflect_tool_fn(READ_DESCRIPTION, read)

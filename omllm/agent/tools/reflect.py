@@ -19,6 +19,36 @@ from ..types.tools import ToolResult
 ##
 
 
+def instantiate_tool_params[T](
+        params_cls: type[T],
+        llm_tool_params: ta.Sequence[llm.ToolParam],
+        ctx: ToolContext,
+) -> T:
+    params_kwargs: dict[str, ta.Any] = {}
+
+    args = dict(ctx.args)
+    missing: list[str] = []
+    for tp in llm_tool_params:
+        try:
+            av = args.pop(tp.name)
+        except KeyError:
+            if not tp.optional:
+                missing.append(tp.name)
+            continue
+        params_kwargs[tp.name] = av
+
+    if missing:
+        raise TypeError(f'Missing arguments: {missing}!r')
+
+    if (unexpected := list(args)):
+        raise TypeError(f'Unexpected arguments: {unexpected}!r')
+
+    return params_cls(**params_kwargs)
+
+
+##
+
+
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 class _ReflectedToolExecutor:
@@ -29,26 +59,11 @@ class _ReflectedToolExecutor:
     ctx_param: str | None = None
 
     async def __call__(self, ctx: ToolContext) -> ToolResult:
-        params_kwargs: dict[str, ta.Any] = {}
-
-        args = dict(ctx.args)
-        missing: list[str] = []
-        for tp in self.llm_tool.params:
-            try:
-                av = args.pop(tp.name)
-            except KeyError:
-                if not tp.optional:
-                    missing.append(tp.name)
-                continue
-            params_kwargs[tp.name] = av
-
-        if missing:
-            raise TypeError(f'Missing arguments: {missing}!r')
-
-        if (unexpected := list(args)):
-            raise TypeError(f'Unexpected arguments: {unexpected}!r')
-
-        params = self.params_cls(**params_kwargs)
+        params: ta.Any = instantiate_tool_params(
+            self.params_cls,
+            self.llm_tool.params,
+            ctx,
+        )
 
         kwargs: dict[str, ta.Any] = {
             self.params_param: params,
@@ -118,7 +133,7 @@ def reflect_tool_params(
     return tps
 
 
-def reflect_tool(
+def reflect_tool_fn(
         description: ToolDescription,
         fn: ta.Callable,
         *,

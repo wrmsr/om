@@ -5,7 +5,7 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ...tools.reflect import reflect_tool
+from ...tools.reflect import reflect_tool_fn
 from ...types.tools import Tool
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -65,4 +65,4 @@ async def bash(
 
 @lang.cached_function
 def bash_tool() -> Tool:
-    return reflect_tool(BASH_DESCRIPTION, bash)
+    return reflect_tool_fn(BASH_DESCRIPTION, bash)

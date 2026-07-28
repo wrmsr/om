@@ -1,7 +1,7 @@
 from omcore import dataclasses as dc
 
 from ...types.tools import ToolDescription
-from ..reflect import reflect_tool
+from ..reflect import reflect_tool_fn
 
 
 @dc.dataclass(frozen=True)
@@ -20,5 +20,5 @@ def add2(params: Add2Params) -> int:
 
 
 def test_reflect_tool():
-    tool = reflect_tool(ADD2_DESCRIPTION, add2)
+    tool = reflect_tool_fn(ADD2_DESCRIPTION, add2)
     print(tool)

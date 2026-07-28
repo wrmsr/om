@@ -19,7 +19,7 @@ with _lang.auto_proxy_init(globals()):
     ##
 
     from .tools.reflect import (  # noqa
-        reflect_tool,
+        reflect_tool_fn,
     )
 
     ##

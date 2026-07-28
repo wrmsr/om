@@ -1,7 +1,7 @@
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ..tools.reflect import reflect_tool
+from ..tools.reflect import reflect_tool_fn
 from ..types.tools import Tool
 from ..types.tools import ToolDescription
 
@@ -32,4 +32,4 @@ async def get_weather(params: GetWeatherParams) -> str:
 
 @lang.cached_function
 def weather_tool() -> Tool:
-    return reflect_tool(GET_WEATHER_DESCRIPTION, get_weather)
+    return reflect_tool_fn(GET_WEATHER_DESCRIPTION, get_weather)
