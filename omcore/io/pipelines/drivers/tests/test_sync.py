@@ -1,6 +1,7 @@
 # ruff: noqa: SLF001
 # @om-lite
 import socket
+import time
 import typing as ta
 import unittest
 
@@ -53,6 +54,7 @@ class NopIoPipelineHandler(IoPipelineHandler):
 
 
 _CLOSE = object()
+_WRITE = object()
 
 
 class GracefulCloseIoPipelineHandler(IoPipelineHandler):
@@ -60,6 +62,19 @@ class GracefulCloseIoPipelineHandler(IoPipelineHandler):
         if msg is _CLOSE:
             ctx.feed_out(b'payload')
             ctx.feed_final_output()
+        else:
+            ctx.feed_in(msg)
+
+
+class WriteIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, data: bytes) -> None:
+        super().__init__()
+
+        self._data = data
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if msg is _WRITE:
+            ctx.feed_out(self._data)
         else:
             ctx.feed_in(msg)
 
@@ -80,8 +95,36 @@ class FailingSendSocket:
     def __init__(self, exc: BaseException) -> None:
         self._exc = exc
 
-    def sendall(self, data: ta.Any) -> None:
+    def send(self, data: ta.Any) -> int:
         raise self._exc
+
+
+def fill_socket_send_buffer(sock: socket.socket) -> int:
+    timeout = sock.gettimeout()
+    sock.setblocking(False)
+    total = 0
+    try:
+        while True:
+            try:
+                total += sock.send(b'x' * 64 * 1024)
+            except BlockingIOError:
+                return total
+    finally:
+        sock.settimeout(timeout)
+
+
+def drain_socket(sock: socket.socket) -> bytes:
+    timeout = sock.gettimeout()
+    sock.setblocking(False)
+    chunks = []
+    try:
+        while True:
+            try:
+                chunks.append(sock.recv(64 * 1024))
+            except BlockingIOError:
+                return b''.join(chunks)
+    finally:
+        sock.settimeout(timeout)
 
 
 class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
@@ -120,9 +163,40 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
             )
             try:
                 self.assertEqual(drv.next(), 'timer')
-                self.assertEqual(sock.gettimeout(), 10.)
+                self.assertEqual(sock.gettimeout(), 0.)
             finally:
                 drv.close()
+            self.assertEqual(sock.gettimeout(), 10.)
+
+    def test_timer_wakes_saturated_write_select(self):
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            self.assertGreater(fill_socket_send_buffer(sock), 0)
+            drv = SyncSocketIoPipelineDriver(
+                IoPipeline.Spec(
+                    [
+                        TimerOutputIoPipelineHandler(.01, 'timer'),
+                        WriteIoPipelineHandler(b'payload'),
+                    ],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+                sock,
+            )
+            try:
+                self.assertIsNone(drv.next(read=False))
+                drv.enqueue(_WRITE)
+
+                start = time.monotonic()
+                self.assertEqual(drv.next(), 'timer')
+                self.assertLess(time.monotonic() - start, .5)
+
+                self.assertEqual(drv._write_q_bytes, len(b'payload'))
+                self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
+                self.assertTrue(drv.pipeline.is_ready)
+            finally:
+                drv.close()
+
+            self.assertIsNone(sock.gettimeout())
 
     def test_handle_and_owner_cancellation(self):
         ah = NopIoPipelineHandler()
@@ -264,6 +338,12 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
 
 
 class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
+    def test_invalid_chunk_sizes(self) -> None:
+        with self.assertRaises(ValueError):
+            SyncSocketIoPipelineDriver.Config(read_chunk_size=0)
+        with self.assertRaises(ValueError):
+            SyncSocketIoPipelineDriver.Config(write_chunk_max=0)
+
     def test_stall_does_not_fail_driver(self) -> None:
         drv = SyncSocketIoPipelineDriver(
             IoPipeline.Spec(
@@ -302,6 +382,41 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
                 self.assertEqual(peer.recv(7), b'payload')
                 self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
                 self.assertFalse(drv.pipeline.is_ready)
+            finally:
+                drv.close()
+
+    def test_read_false_queues_and_later_drains_saturated_write(self) -> None:
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            self.assertGreater(fill_socket_send_buffer(sock), 0)
+            drv = SyncSocketIoPipelineDriver(
+                IoPipeline.Spec(
+                    [GracefulCloseIoPipelineHandler()],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+                sock,
+                SyncSocketIoPipelineDriver.Config(write_chunk_max=2),
+            )
+            try:
+                self.assertIsNone(drv.next(read=False))
+                self.assertEqual(sock.gettimeout(), 0.)
+                drv.enqueue(_CLOSE)
+
+                start = time.monotonic()
+                self.assertIsNone(drv.next(read=False))
+                self.assertLess(time.monotonic() - start, .5)
+                self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
+                self.assertTrue(drv.is_running)
+                self.assertEqual(drv._write_q_bytes, len(b'payload'))
+
+                self.assertTrue(drain_socket(peer))
+                self.assertIsNone(drv.next(read=False))
+
+                self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+                self.assertFalse(drv.is_running)
+                self.assertFalse(drv.pipeline.is_ready)
+                self.assertIsNone(sock.gettimeout())
+                self.assertEqual(peer.recv(len(b'payload')), b'payload')
             finally:
                 drv.close()
 

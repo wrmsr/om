@@ -124,12 +124,15 @@ class TestSyncIoPipelineHttpClientTimeout(unittest.TestCase):
                     f'http://127.0.0.1:{server.port}/',
                     timeout_s=.02,
             )) as response:
-                self.assertIsNone(response.underlying._sock.gettimeout())
+                sock = response.underlying._sock
+                self.assertEqual(sock.gettimeout(), 0.)
 
                 with self.assertRaises(HttpClientError) as raised:
                     response.stream.read()
 
                 self.assertIsInstance(raised.exception.cause, TimeoutIoPipelineError)
+
+            self.assertIsNone(sock.gettimeout())
         finally:
             server.close()
 
