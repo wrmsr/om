@@ -81,6 +81,43 @@ def _reflect_type(ty: ta.Any) -> str:
     return _JSONSCHEMA_TYPES[ty]
 
 
+def reflect_tool_params(
+        params_cls: type,
+        *,
+        description: ToolDescription | None = None,
+) -> list[llm.ToolParam]:
+    param_descs: dict[str, str] = {}
+    if description is not None:
+        param_descs = dict(description.params or {})
+
+    tps: list[llm.ToolParam] = []
+    dc_rfl = dc.reflect(check.not_none(params_cls))
+    for dc_fld in dc_rfl.fields.values():
+        ty = dc_fld.type
+
+        optional = False
+        if dc_fld.default is not dc.MISSING:
+            optional = True
+            if is_optional_alias(ty):
+                ty = get_optional_alias_arg(ty)
+        else:
+            check.arg(not is_optional_alias(ty))
+
+        tp_desc = param_descs.pop(dc_fld.name, None)
+
+        tps.append(llm.ToolParam(
+            name=dc_fld.name,
+            description=tp_desc,
+            type=_reflect_type(ty),
+            optional=optional,
+        ))
+
+    if param_descs:
+        raise TypeError(f'Mismatched parameter descriptions: {list(param_descs)}')
+
+    return tps
+
+
 def reflect_tool(
         description: ToolDescription,
         fn: ta.Callable,
@@ -119,32 +156,10 @@ def reflect_tool(
     if params_param is None or params_cls is None:
         raise TypeError('No params param')
 
-    param_descs = dict(description.params or {})
-
-    tps: list[llm.ToolParam] = []
-    dc_rfl = dc.reflect(check.not_none(params_cls))
-    for dc_fld in dc_rfl.fields.values():
-        ty = dc_fld.type
-
-        optional = False
-        if dc_fld.default is not dc.MISSING:
-            optional = True
-            if is_optional_alias(ty):
-                ty = get_optional_alias_arg(ty)
-        else:
-            check.arg(not is_optional_alias(ty))
-
-        tp_desc = param_descs.pop(dc_fld.name, None)
-
-        tps.append(llm.ToolParam(
-            name=dc_fld.name,
-            description=tp_desc,
-            type=_reflect_type(ty),
-            optional=optional,
-        ))
-
-    if param_descs:
-        raise TypeError(f'Mismatched parameter descriptions: {list(param_descs)}')
+    tps = reflect_tool_params(
+        params_cls,
+        description=description,
+    )
 
     return_type: str | None = None
     if 'return' in fn_th:
