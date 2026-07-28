@@ -393,6 +393,57 @@ def test_failed_init_concurrent_waiter():
     assert isinstance(res['t2'].__cause__, FooError)
 
 
+def test_uncontended_init_promise_not_allocated():
+    seen: list = []
+
+    def f(i: inj.Injector) -> int:
+        ai = i[inj.AsyncInjector]
+        assert isinstance(ai, AsyncInjectorImpl)
+        seen.append(ai._init_promise)
+        return 420
+
+    i = inj.create_injector(inj.bind(f, eager=True))
+
+    assert seen == [None]
+
+    ai = i[inj.AsyncInjector]
+    assert isinstance(ai, AsyncInjectorImpl)
+    assert ai._is_initialized
+    assert ai._init_owner is None
+    assert ai._init_promise is None
+
+    assert i.provide(int) == 420
+
+
+def test_concurrent_init_waiter():
+    grabbed: list = []
+    entered = threading.Event()
+    t2_ready = threading.Event()
+
+    def f(i: inj.Injector) -> int:
+        grabbed.append(i)
+        entered.set()
+        t2_ready.wait(30)
+        return 420
+
+    res: dict = {}
+
+    def t2fn():
+        entered.wait(30)
+        t2_ready.set()
+        res['t2'] = grabbed[0].provide(int)
+
+    t2 = threading.Thread(target=t2fn)
+    t2.start()
+    try:
+        i = inj.create_injector(inj.bind(f, eager=True, singleton=True))
+    finally:
+        t2.join(30)
+
+    assert res['t2'] == 420
+    assert i.provide(int) == 420
+
+
 def test_context_residue_does_not_pin_injector():
     class Foo:
         pass

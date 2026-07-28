@@ -122,8 +122,9 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         }
 
         self._init_mtx = threading.Lock()
-        self._init_promise: asl.Promise[bool] | None = None
+        self._is_initialized = False
         self._init_owner: ConcurrencyIdentity | None = None
+        self._init_promise: asl.Promise[bool] | None = None  # lazily created by a contending context, under _init_mtx
         self._dead_error: BaseException | None = None
 
         if self._p is not None:
@@ -136,34 +137,52 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
     #
 
     async def _init(self) -> bool:
+        my = self._concurrency.current_identity()
+
+        ip: asl.Promise[bool] | None = None
         with self._init_mtx:
-            if (ip := self._init_promise) is None:
-                ip = self._init_promise = self._concurrency.make_promise()
-                self._init_owner = self._concurrency.current_identity()
+            if self._is_initialized:
+                return False
+            if (io := self._init_owner) is None:
+                self._init_owner = my
                 mine = True
             else:
+                if io == my:
+                    return False  # a reentrant provide during this context's own eager instantiation
                 mine = False
+                if (ip := self._init_promise) is None:
+                    ip = self._init_promise = self._concurrency.make_promise()
 
         if not mine:
-            if not ip.is_done() and self._init_owner == self._concurrency.current_identity():
-                return False  # a reentrant provide during this context's own eager instantiation
+            ip = check.not_none(ip)  # always set on the waiter path
             await ip.wait(timeout=DEFAULT_PROVISION_WAIT_TIMEOUT_S)
             return False
 
+        # Note: on both completion paths the promise slot must be read under the same lock acquisition that sets
+        # _is_initialized - read separately, a contending context could create a promise just after the read and before
+        # the flag flip, and it would never be completed.
         try:
             await self._instantiate_eagers(Unscoped())
             await self._instantiate_eagers(Singleton())
         except BaseException as e:
             # A failed init permanently kills the injector: the original error propagates to the initial creator, and
             # all other use - concurrent init waiters included - raises DeadInjectorError chained to it. The marker is
-            # written before the init promise completes, so it is visible to anyone observing the promise as done.
+            # written before _is_initialized is set, so it is visible to anyone observing the injector as initialized.
             self._dead_error = e
-            ip.set_value(True)
-            self._init_owner = None  # never read once the init promise is done - only pins a thread / task identity
+            with self._init_mtx:
+                self._is_initialized = True
+                self._init_owner = None  # never read once initialized - only pins a thread / task identity
+                ip = self._init_promise
+            if ip is not None:
+                ip.set_value(True)
             raise
 
-        ip.set_value(True)
-        self._init_owner = None
+        with self._init_mtx:
+            self._is_initialized = True
+            self._init_owner = None
+            ip = self._init_promise
+        if ip is not None:
+            ip.set_value(True)
         return True
 
     #
@@ -251,7 +270,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             _CURRENT_REQUEST_STACK.reset(tok)
 
     async def _try_provide(self, key: ta.Any, *, source: ta.Any = None) -> lang.Maybe[ta.Any]:
-        if (ip := self._init_promise) is None or not ip.is_done():
+        if not self._is_initialized:
             await self._init()
 
         if (de := self._dead_error) is not None:
