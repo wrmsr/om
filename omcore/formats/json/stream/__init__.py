@@ -39,6 +39,7 @@ from .lexing import (  # noqa
 
 from .parsing import (  # noqa
     JsonStreamParseError,
+    JsonStreamParserClosedError,
     JsonStreamObject,
     JsonStreamParser,
 )

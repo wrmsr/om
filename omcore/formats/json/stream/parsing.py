@@ -1,7 +1,6 @@
 import dataclasses as dc
 import typing as ta
 
-from ....funcs.genmachine import GenMachine
 from .errors import JsonStreamError
 from .events import BeginArray
 from .events import BeginObject
@@ -15,6 +14,22 @@ from .tokens import Position
 from .tokens import Token
 
 
+_ParserState: ta.TypeAlias = ta.Literal[
+    'VALUE',
+    'VALUE_REQUIRED',
+    'OBJECT_BODY',
+    'OBJECT_BODY_REQUIRED',
+    'AFTER_KEY',
+    'AFTER_PAIR',
+    'AFTER_ELEMENT',
+
+    # Terminal states: 'DEAD' is entered when a call raises - further calls return nothing and close is quiet, matching
+    # the dead-generator behavior of the GenMachine implementation this replaced. 'CLOSED' is entered by close.
+    'DEAD',
+    'CLOSED',
+]
+
+
 ##
 
 
@@ -25,12 +40,21 @@ class JsonStreamParseError(JsonStreamError):
     pos: Position | None = None
 
 
+class JsonStreamParserClosedError(JsonStreamError):
+    pass
+
+
 class JsonStreamObject(list):
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({super().__repr__()})'
 
 
-class JsonStreamParser(GenMachine[Token, Event]):
+class JsonStreamParser:
+    """
+    A plain, non-suspending state machine consuming `Token`s one at a time via `__call__` and returning any `Event`s
+    produced. `close` must be called after the final token - an incomplete document raises from there.
+    """
+
     def __init__(
             self,
             *,
@@ -40,6 +64,8 @@ class JsonStreamParser(GenMachine[Token, Event]):
 
             allow_extended_idents: bool = False,
     ) -> None:
+        super().__init__()
+
         self._allow_trailing_commas = allow_trailing_commas
 
         self._allow_ident_values = allow_ident_values
@@ -47,188 +73,197 @@ class JsonStreamParser(GenMachine[Token, Event]):
         self._allow_extended_idents = allow_extended_idents
 
         self._stack: list[ta.Literal['OBJECT', 'KEY', 'ARRAY']] = []
+        self._state: _ParserState = 'VALUE'
+        self._key: ta.Any = None
 
-        super().__init__(self._do_value())
-
-    #
-
-    def _next_tok(self):
-        while True:
-            tok = yield None
-
-            if tok.kind != 'SPACE' and tok.kind != 'COMMENT':
-                return tok
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}@{id(self):x}<{self._state}>'
 
     #
 
-    def _emit_event(self, v):
-        if not self._stack:
-            return ((v,), self._do_value())
+    @property
+    def state(self) -> _ParserState:
+        return self._state
 
-        tt = self._stack[-1]
+    @property
+    def closed(self) -> bool:
+        return self._state == 'CLOSED' or self._state == 'DEAD'
+
+    def close(self) -> None:
+        state = self._state
+        self._state = 'CLOSED'
+
+        if state == 'CLOSED' or state == 'DEAD':
+            return
+
+        if state == 'VALUE' or state == 'VALUE_REQUIRED':
+            if self._stack:
+                raise JsonStreamParseError('Expected value')
+        elif state == 'OBJECT_BODY' or state == 'OBJECT_BODY_REQUIRED':
+            raise JsonStreamParseError('Expected object body')
+        elif state == 'AFTER_KEY':
+            raise JsonStreamParseError('Expected key')
+        else:
+            raise JsonStreamParseError('Expected continuation')
+
+    def __enter__(self) -> ta.Self:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    #
+
+    def _emit_value(self, v: Event) -> tuple[Event, ...]:
+        if not (stack := self._stack):
+            self._state = 'VALUE'
+            return (v,)
+
+        tt = stack[-1]
         if tt == 'KEY':
-            self._stack.pop()
-            if not self._stack:
+            stack.pop()
+            if not stack or stack[-1] != 'OBJECT':
                 raise JsonStreamParseError('Unexpected key')
 
-            tt2 = self._stack[-1]
-            if tt2 == 'OBJECT':
-                return ((v,), self._do_after_pair())
-
-            else:
-                raise JsonStreamParseError('Unexpected key')
+            self._state = 'AFTER_PAIR'
+            return (v,)
 
         elif tt == 'ARRAY':
-            return ((v,), self._do_after_element())
+            self._state = 'AFTER_ELEMENT'
+            return (v,)
 
         else:
             raise JsonStreamParseError(f'Unexpected value: {v!r}')
 
+    def _end_object(self) -> tuple[Event, ...]:
+        if not (stack := self._stack) or stack.pop() != 'OBJECT':
+            raise JsonStreamParseError('Unexpected end object')
+
+        return self._emit_value(EndObject)
+
+    def _end_array(self) -> tuple[Event, ...]:
+        if not (stack := self._stack) or stack.pop() != 'ARRAY':
+            raise JsonStreamParseError('Unexpected end array')
+
+        return self._emit_value(EndArray)
+
     #
 
-    def _do_value(self, *, must_be_present: bool = False):
-        try:
-            tok = yield from self._next_tok()
-        except GeneratorExit:
-            if self._stack:
-                raise JsonStreamParseError('Expected value') from None
-            else:
-                raise
-        # except Exception as e:
-        #     raise
+    def _on_value(self, tok: Token, required: bool) -> tuple[Event, ...]:
+        if (kind := tok.kind) in VALUE_TOKEN_KINDS:
+            return self._emit_value(tok.value)
 
-        if tok.kind in VALUE_TOKEN_KINDS:
-            y, r = self._emit_event(tok.value)
-            yield y
-            return r
-
-        elif tok.kind == 'IDENT':
+        elif kind == 'IDENT':
             try:
-                cv = CONST_IDENT_VALUES[tok.value]
+                # IDENT token values are always strs
+                cv = CONST_IDENT_VALUES[tok.value]  # type: ignore[index]
             except KeyError:
                 if not self._allow_ident_values:
                     raise JsonStreamParseError('Expected value', tok.pos) from None
-                else:
-                    y, r = self._emit_event(tok.value)
+                return self._emit_value(tok.value)
+            return self._emit_value(cv)
+
+        elif kind == 'LBRACE':
+            self._stack.append('OBJECT')
+            self._state = 'OBJECT_BODY'
+            return (BeginObject,)
+
+        elif kind == 'LBRACKET':
+            self._stack.append('ARRAY')
+            self._state = 'VALUE'
+            return (BeginArray,)
+
+        elif required:
+            raise JsonStreamParseError('Expected value', tok.pos)
+
+        elif kind == 'RBRACKET':
+            return self._end_array()
+
+        else:
+            raise JsonStreamParseError('Expected value', tok.pos)
+
+    def _on_object_body(self, tok: Token, required: bool) -> tuple[Event, ...]:
+        if (kind := tok.kind) == 'STRING' or (self._allow_extended_idents and kind == 'IDENT'):
+            self._key = tok.value
+            self._state = 'AFTER_KEY'
+            return ()
+
+        elif required:
+            raise JsonStreamParseError('Expected value', tok.pos)
+
+        elif kind == 'RBRACE':
+            return self._end_object()
+
+        else:
+            raise JsonStreamParseError('Expected value', tok.pos)
+
+    def _on_after_key(self, tok: Token) -> tuple[Event, ...]:
+        if tok.kind != 'COLON':
+            raise JsonStreamParseError('Expected colon', tok.pos)
+
+        k = self._key
+        self._key = None
+
+        self._stack.append('KEY')
+        self._state = 'VALUE'
+        return (Key(k),)
+
+    def _on_after_pair(self, tok: Token) -> tuple[Event, ...]:
+        if (kind := tok.kind) == 'COMMA':
+            self._state = 'OBJECT_BODY' if self._allow_trailing_commas else 'OBJECT_BODY_REQUIRED'
+            return ()
+
+        elif kind == 'RBRACE':
+            return self._end_object()
+
+        else:
+            raise JsonStreamParseError('Expected continuation', tok.pos)
+
+    def _on_after_element(self, tok: Token) -> tuple[Event, ...]:
+        if (kind := tok.kind) == 'COMMA':
+            self._state = 'VALUE' if self._allow_trailing_commas else 'VALUE_REQUIRED'
+            return ()
+
+        elif kind == 'RBRACKET':
+            return self._end_array()
+
+        else:
+            raise JsonStreamParseError('Expected continuation', tok.pos)
+
+    #
+
+    def __call__(self, tok: Token) -> ta.Sequence[Event]:
+        if (kind := tok.kind) == 'SPACE' or kind == 'COMMENT':
+            return ()
+
+        try:
+            if (state := self._state) == 'VALUE':
+                return self._on_value(tok, False)
+
+            elif state == 'OBJECT_BODY':
+                return self._on_object_body(tok, False)
+
+            elif state == 'AFTER_KEY':
+                return self._on_after_key(tok)
+
+            elif state == 'AFTER_PAIR':
+                return self._on_after_pair(tok)
+
+            elif state == 'AFTER_ELEMENT':
+                return self._on_after_element(tok)
+
+            elif state == 'VALUE_REQUIRED':
+                return self._on_value(tok, True)
+
+            elif state == 'OBJECT_BODY_REQUIRED':
+                return self._on_object_body(tok, True)
+
+            elif state == 'DEAD':
+                return ()
+
             else:
-                y, r = self._emit_event(cv)
-            yield y
-            return r
+                raise JsonStreamParserClosedError
 
-        elif tok.kind == 'LBRACE':
-            y, r = self._emit_begin_object()
-            yield y
-            return r
-
-        elif tok.kind == 'LBRACKET':
-            y, r = self._emit_begin_array()
-            yield y
-            return r
-
-        elif must_be_present:
-            raise JsonStreamParseError('Expected value', tok.pos)
-
-        elif tok.kind == 'RBRACKET':
-            y, r = self._emit_end_array()
-            yield y
-            return r
-
-        else:
-            raise JsonStreamParseError('Expected value', tok.pos)
-
-    #
-
-    def _emit_begin_object(self):
-        self._stack.append('OBJECT')
-        return ((BeginObject,), self._do_object_body())
-
-    def _emit_end_object(self):
-        if not self._stack:
-            raise JsonStreamParseError('Unexpected end object')
-
-        tt = self._stack.pop()
-        if tt != 'OBJECT':
-            raise JsonStreamParseError('Unexpected end object')
-
-        return self._emit_event(EndObject)
-
-    def _do_object_body(self, *, must_be_present: bool = False):
-        try:
-            tok = yield from self._next_tok()
-        except GeneratorExit:
-            raise JsonStreamParseError('Expected object body') from None
-
-        if tok.kind == 'STRING' or (self._allow_extended_idents and tok.kind == 'IDENT'):
-            k = tok.value
-
-            try:
-                tok = yield from self._next_tok()
-            except GeneratorExit:
-                raise JsonStreamParseError('Expected key') from None
-            if tok.kind != 'COLON':
-                raise JsonStreamParseError('Expected colon', tok.pos)
-
-            yield (Key(k),)
-            self._stack.append('KEY')
-            return self._do_value()
-
-        elif must_be_present:
-            raise JsonStreamParseError('Expected value', tok.pos)
-
-        elif tok.kind == 'RBRACE':
-            y, r = self._emit_end_object()
-            yield y
-            return r
-
-        else:
-            raise JsonStreamParseError('Expected value', tok.pos)
-
-    def _do_after_pair(self):
-        try:
-            tok = yield from self._next_tok()
-        except GeneratorExit:
-            raise JsonStreamParseError('Expected continuation') from None
-
-        if tok.kind == 'COMMA':
-            return self._do_object_body(must_be_present=not self._allow_trailing_commas)
-
-        elif tok.kind == 'RBRACE':
-            y, r = self._emit_end_object()
-            yield y
-            return r
-
-        else:
-            raise JsonStreamParseError('Expected continuation', tok.pos)
-
-    #
-
-    def _emit_begin_array(self):
-        self._stack.append('ARRAY')
-        return ((BeginArray,), self._do_value())
-
-    def _emit_end_array(self):
-        if not self._stack:
-            raise JsonStreamParseError('Unexpected end array')
-
-        tt = self._stack.pop()
-        if tt != 'ARRAY':
-            raise JsonStreamParseError('Unexpected end array')
-
-        return self._emit_event(EndArray)
-
-    def _do_after_element(self):
-        try:
-            tok = yield from self._next_tok()
-        except GeneratorExit:
-            raise JsonStreamParseError('Expected continuation') from None
-
-        if tok.kind == 'COMMA':
-            return self._do_value(must_be_present=not self._allow_trailing_commas)
-
-        elif tok.kind == 'RBRACKET':
-            y, r = self._emit_end_array()
-            yield y
-            return r
-
-        else:
-            raise JsonStreamParseError('Expected continuation', tok.pos)
+        except JsonStreamParseError:
+            self._state = 'DEAD'
+            raise
