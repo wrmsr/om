@@ -11,6 +11,7 @@ from ... import inject as inj
 from ...asyncs.asynclite.promises import AsynclitePromise
 from ...asyncs.asynclite.sync.api import SyncAsynclite
 from ..impl.injector import AsyncInjectorImpl
+from ..impl.injector import RequestOwner
 from ..impl.provision import OnceProvisionMap
 from ..impl.provision import _ProvisionWaitRegistry
 from ..impl.scopes import SingletonScopeImpl
@@ -418,8 +419,8 @@ def test_wait_registry_walk():
     k1 = inj.as_key(int)
     k2 = inj.as_key(str)
     p2: AsynclitePromise = SyncAsynclite().make_promise()
-    o1 = (1, None)
-    o2 = (2, None)
+    o1 = RequestOwner((1, None))
+    o2 = RequestOwner((2, None))
 
     # Self-cycle: o1 re-arriving at its own in-flight construction.
     with pytest.raises(inj.CyclicDependencyError) as ei:

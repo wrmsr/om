@@ -33,24 +33,24 @@ class _ProvisionWaitRegistry(lang.Final):
         super().__init__()
 
         self._mtx = threading.Lock()  # guards _waits, held only for bookkeeping and walks - never while waiting
-        self._waits: dict[tuple[int, ta.Any], _ProvisionWaitRegistry._Wait] = {}
+        self._waits: dict[_injector.RequestOwner, _ProvisionWaitRegistry._Wait] = {}
 
     @dc.dataclass(frozen=True, eq=False)
     class _Wait:
         key: Key
         promise: asl.Promise
-        target_owner: tuple[int, ta.Any]
+        target_owner: _injector.RequestOwner
 
     def _detect(
             self,
-            owner: tuple[int, ta.Any],
+            owner: _injector.RequestOwner,
             key: Key,
-            target_owner: tuple[int, ta.Any],
+            target_owner: _injector.RequestOwner,
     ) -> None:
         # Callers must hold _mtx. Since every wait-edge addition performs this check under the mutex, whichever
         # context adds the closing edge of a cycle is guaranteed to observe it.
         chain: list[Key] = [key]
-        seen: set[tuple[int, ta.Any]] = {owner}
+        seen: set[_injector.RequestOwner] = {owner}
         cur = target_owner
         while True:
             if cur == owner:
@@ -68,10 +68,10 @@ class _ProvisionWaitRegistry(lang.Final):
     @contextlib.contextmanager
     def waiting(
             self,
-            owner: tuple[int, ta.Any],
+            owner: _injector.RequestOwner,
             key: Key,
             promise: asl.Promise,
-            target_owner: tuple[int, ta.Any],
+            target_owner: _injector.RequestOwner,
     ) -> ta.Iterator[None]:
         with self._mtx:
             self._detect(owner, key, target_owner)
@@ -113,7 +113,7 @@ class OnceProvisionMap(lang.Final):
 
     @dc.dataclass(eq=False)
     class _Entry:
-        owner: tuple[int, ta.Any]
+        owner: _injector.RequestOwner
         promise: asl.Promise | None = None  # lazily created by the first waiter, under the map's mutex
 
     @dc.dataclass(frozen=True, eq=False)

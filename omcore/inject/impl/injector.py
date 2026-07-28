@@ -76,6 +76,9 @@ class _RequestFrame:
         self.prev = prev
 
 
+RequestOwner = ta.NewType('RequestOwner', object)
+
+
 # A single process-wide contextvar, per contextvars best practice. Contextvars are both task-local and thread-local,
 # isolating concurrent provisions, and strict token-reset discipline leaves this empty between provisions in any given
 # context - frames only outlive a provision in contexts captured mid-provision.
@@ -133,7 +136,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
         self._init_mtx = threading.Lock()
         self._init_promise: asl.Promise[bool] | None = None
-        self._init_owner: tuple[int, ta.Any] | None = None
+        self._init_owner: RequestOwner | None = None
         self._dead_error: BaseException | None = None
 
         if self._p is not None:
@@ -145,10 +148,10 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
     #
 
-    def _current_owner(self) -> tuple[int, ta.Any]:
+    def _current_owner(self) -> RequestOwner:
         """Identifies the current provisioning context - the OS thread plus the backend's task identity, if any."""
 
-        return (threading.get_ident(), self._al.current_identity())
+        return RequestOwner((threading.get_ident(), self._al.current_identity()))
 
     #
 
@@ -207,7 +210,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
     class _Request:
         """Note: requests must never strongly reference their injector - see _RequestFrame."""
 
-        def __init__(self, owner: tuple[int, ta.Any]) -> None:
+        def __init__(self, owner: RequestOwner) -> None:
             super().__init__()
 
             self._owner = owner
@@ -216,7 +219,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             self._source_stack: list[ta.Any] = []
 
         @property
-        def owner(self) -> tuple[int, ta.Any]:
+        def owner(self) -> RequestOwner:
             return self._owner
 
         def handle_key(self, key: Key) -> lang.Maybe[lang.Maybe]:
