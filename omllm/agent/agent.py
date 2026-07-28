@@ -72,7 +72,7 @@ class Agent:
         loop = Loop(
             config=self._state.loop_config,
             context=context,
-
+            sink=self._sink,
             llm_backend=llm_backend,
         )
 
