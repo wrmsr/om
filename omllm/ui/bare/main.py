@@ -10,6 +10,7 @@ from ... import agent as ag
 from ... import llm
 from ...agent.fs.tools.ls import ls_tool
 from ...agent.fs.tools.read import read_tool
+from ...agent.shell.tools.bash import bash_tool
 
 
 ##
@@ -47,6 +48,7 @@ async def _a_main() -> None:
                     f'Current working directory: {cwd}',
                 ]),
                 tools=ag.ToolSet([
+                    bash_tool(),
                     ls_tool(),
                     read_tool(),
                 ]),

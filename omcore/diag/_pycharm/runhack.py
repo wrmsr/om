@@ -12,6 +12,7 @@ See:
  - https://github.com/JetBrains/intellij-community/blob/6400f70dde6f743e39a257a5a78cc51b644c835e/python/helpers/pycharm/_jb_pytest_runner.py
  - https://github.com/JetBrains/intellij-community/blob/5a4e584aa59767f2e7cf4bd377adfaaf7503984b/python/helpers/pycharm/_jb_runner_tools.py
  - https://github.com/JetBrains/intellij-community/blob/5a4e584aa59767f2e7cf4bd377adfaaf7503984b/python/helpers/pydev/_pydevd_bundle/pydevd_command_line_handling.py
+ - https://github.com/JetBrains/intellij-community/blob/e48fb75cca20046b191de25e00602a630376c563/python/helpers/debugpy/__main__.py
 """  # noqa
 import os.path
 import sys
@@ -283,7 +284,10 @@ class RunEnv(AttrsClass, AsJson):
         self._ide_project_roots = list(ide_project_roots)
 
         if pycharm_hosted is None:
-            pycharm_hosted = 'PYCHARM_HOSTED' in os.environ
+            pycharm_hosted = (
+                'PYCHARM_HOSTED' in os.environ or
+                os.environ.get('__CFBundleIdentifier') == 'com.jetbrains.pycharm'  # noqa
+            )
         self._pycharm_hosted = pycharm_hosted
 
         if sys_path is None:
@@ -396,10 +400,15 @@ class Params:
         self._params = params
         self._params_by_name = {}  # type: dict[str, Param]
 
+        self._final_param = None  # type: Param | None
         for p in params:
             if p.name in self._params_by_name:
                 raise KeyError(p.name)
             self._params_by_name[p.name] = p
+            if p.cls is FinalArg:
+                if self._final_param is not None:
+                    raise TypeError('Final param already set')
+                self._final_param = p
 
     @property
     def params(self):  # type: () -> list[Param]
@@ -408,6 +417,10 @@ class Params:
     @property
     def params_by_name(self):  # type: () -> dict[str, Param]
         return self._params_by_name
+
+    @property
+    def final_param(self):  # type: () -> Param | None
+        return self._final_param
 
     def __repr__(self) -> str:
         return _attr_repr(self, 'params')
@@ -554,15 +567,20 @@ def parse_args(
     for s in it:
         if len(s) > 1 and s.startswith('--'):
             s = s[2:]
+
+            if '=' in s:
+                k, _, v = s.partition('=')
+            else:
+                k, v = s, None
+
+            p = params.params_by_name[k]
+
+        elif (fp := params.final_param) is not None:
+            l.append(FinalArg(fp, [s, *it]))
+            break
+
         else:
             raise ArgParseError(s, argv)
-
-        if '=' in s:
-            k, _, v = s.partition('=')
-        else:
-            k, v = s, None
-
-        p = params.params_by_name[k]
 
         if p.cls is BoolArg:
             if v is not None:
@@ -708,25 +726,55 @@ class PycharmTarget(Target):
         return self._args
 
 
+class DebuggerKind(AttrsClass, AsJson):
+    def __init__(self, module_arg_style: str) -> None:
+        super().__init__()
+
+        self._module_arg_style = module_arg_style
+
+    @property
+    def module_arg_style(self) -> str:
+        return self._module_arg_style
+
+    __attrs__ = ('module_arg',)
+
+    def as_json(self):  # type: () -> dict[str, object]
+        return {
+            'module_arg_style': self._module_arg_style,
+        }
+
+
 class DebuggerTarget(PycharmTarget):
-    def __init__(self, file: str, args: Args, target: Target) -> None:
+    def __init__(
+            self,
+            file: str,
+            args: Args,
+            target: Target,
+            kind: DebuggerKind,
+    ) -> None:
         super().__init__(file, args)
 
         if isinstance(target, DebuggerTarget):
             raise TypeError(target)
         self._target = target
+        self._kind = kind
 
     @property
     def target(self) -> Target:
         return self._target
 
-    __attrs__ = ('file', 'args', 'target')
+    @property
+    def kind(self) -> DebuggerKind:
+        return self._kind
+
+    __attrs__ = ('file', 'args', 'target', 'kind')
 
     def as_json(self):  # type: () -> dict[str, object]
         return {
             'debugger': self._file,
             'args': self._args.as_json(),
             'target': self._target.as_json(),
+            'kind': self._kind.as_json(),
         }
 
 
@@ -814,15 +862,85 @@ def is_pycharm_file(given: str, expected: str) -> bool:
     )
 
 
+class PycharmFile:
+    def __init__(self, file: str) -> None:
+        super().__init__()
+
+        self._file = file
+
+    @property
+    def file(self) -> str:
+        return self._file
+
+    def __repr__(self) -> str:
+        return _attr_repr(self, 'file')
+
+
+#
+
+
+def star_match(pattern: str, string: str) -> bool:
+    pi = 0
+    si = 0
+
+    star = -1
+    star_si = -1
+
+    while si < len(string):
+        if pi < len(pattern) and pattern[pi] == string[si]:
+            pi += 1
+            si += 1
+
+        elif pi < len(pattern) and pattern[pi] == '*':
+            star = pi
+            star_si = si
+            pi += 1
+
+        elif star != -1:
+            # Let the most recent `*` consume one more character.
+            star_si += 1
+            si = star_si
+            pi = star + 1
+
+        else:
+            return False
+
+    while pi < len(pattern) and pattern[pi] == '*':
+        pi += 1
+
+    return pi == len(pattern)
+
+
+class FilePat:
+    def __init__(self, pat: str) -> None:
+        super().__init__()
+
+        self._pat = pat
+
+    @property
+    def pat(self) -> str:
+        return self._pat
+
+    def __repr__(self) -> str:
+        return _attr_repr(self, 'pat')
+
+
+#
+
+
 class PycharmEntrypoint:
-    def __init__(self, file: str, params: Params) -> None:
+    def __init__(
+            self,
+            file,  # type: PycharmFile | FilePat
+            params: Params,
+    ) -> None:
         super().__init__()
 
         self._file = file
         self._params = params
 
     @property
-    def file(self) -> str:
+    def file(self):  # type: () -> PycharmFile | FilePat
         return self._file
 
     @property
@@ -833,35 +951,78 @@ class PycharmEntrypoint:
         return _attr_repr(self, 'file', 'params')
 
 
-DEBUGGER_ENTRYPOINT = PycharmEntrypoint(
-    'plugins/python-ce/helpers/pydev/pydevd.py',
-    Params([
-        Param('port', StrArg),
-        Param('vm_type', StrArg),
-        Param('client', StrArg),
+class PycharmDebuggerEntrypoint:
+    def __init__(
+            self,
+            kind: DebuggerKind,
+            entrypoint: PycharmEntrypoint,
+    ) -> None:
+        super().__init__()
 
-        Param('qt-support', OptStrArg),
+        self._kind = kind
+        self._entrypoint = entrypoint
 
-        Param('file', FinalArg),
+    @property
+    def kind(self) -> DebuggerKind:
+        return self._kind
 
-        Param('server', BoolArg),
-        Param('DEBUG_RECORD_SOCKET_READS', BoolArg),
-        Param('multiproc', BoolArg),
-        Param('multiprocess', BoolArg),
-        Param('save-signatures', BoolArg),
-        Param('save-threading', BoolArg),
-        Param('save-asyncio', BoolArg),
-        Param('print-in-debugger-startup', BoolArg),
-        Param('cmd-line', BoolArg),
-        Param('module', BoolArg),
-        Param('help', BoolArg),
-        Param('DEBUG', BoolArg),
-    ]),
+    @property
+    def entrypoint(self) -> PycharmEntrypoint:
+        return self._entrypoint
+
+    def __repr__(self) -> str:
+        return _attr_repr(self, 'kind', 'entrypoint')
+
+
+PYDEVD_DEBUGGER_ENTRYPOINT = PycharmDebuggerEntrypoint(
+    DebuggerKind(
+        'pydevd',
+    ),
+    PycharmEntrypoint(
+        PycharmFile('plugins/python-ce/helpers/pydev/pydevd.py'),
+        Params([
+            Param('port', StrArg),
+            Param('vm_type', StrArg),
+            Param('client', StrArg),
+
+            Param('qt-support', OptStrArg),
+
+            Param('file', FinalArg),
+
+            Param('server', BoolArg),
+            Param('DEBUG_RECORD_SOCKET_READS', BoolArg),
+            Param('multiproc', BoolArg),
+            Param('multiprocess', BoolArg),
+            Param('save-signatures', BoolArg),
+            Param('save-threading', BoolArg),
+            Param('save-asyncio', BoolArg),
+            Param('print-in-debugger-startup', BoolArg),
+            Param('cmd-line', BoolArg),
+            Param('module', BoolArg),
+            Param('help', BoolArg),
+            Param('DEBUG', BoolArg),
+        ]),
+    ),
 )
 
+DEBUGPY_DEBUGGER_ENTRYPOINT = PycharmDebuggerEntrypoint(
+    DebuggerKind(
+        'debugpy',
+    ),
+    PycharmEntrypoint(
+        FilePat('*/debugpy/adapter/../../debugpy/launcher/../../debugpy'),
+        Params([
+            Param('connect', StrArg),
+            Param('configure-qt', StrArg),
+            Param('adapter-access-token', StrArg),
+
+            Param('file', FinalArg),
+        ]),
+    ),
+)
 
 TEST_RUNNER_ENTRYPOINT = PycharmEntrypoint(
-    'plugins/python-ce/helpers/pycharm/_jb_pytest_runner.py',
+    PycharmFile('plugins/python-ce/helpers/pycharm/_jb_pytest_runner.py'),
     Params([
         Param('path', StrArg),
         Param('offset', StrArg),
@@ -876,8 +1037,16 @@ def try_parse_entrypoint_args(ep, argv):  # type: (PycharmEntrypoint, list[str])
     if not argv:
         return None
 
-    if not is_pycharm_file(argv[0], ep.file):
-        return None
+    if isinstance(ep.file, PycharmFile):
+        if not is_pycharm_file(argv[0], ep.file.file):
+            return None
+
+    elif isinstance(ep.file, FilePat):
+        if not star_match(ep.file.pat, argv[0]):
+            return None
+
+    else:
+        raise TypeError(ep.file)
 
     return parse_args(ep.params, argv[1:])
 
@@ -899,31 +1068,36 @@ def parse_args_target(
     if not argv:
         raise Exception
 
-    elif (pa := try_parse_entrypoint_args(DEBUGGER_ENTRYPOINT, argv)) is not None:
-        fa = pa.args[-1]
-        if not isinstance(fa, FinalArg) or fa.param.name != 'file':
-            raise TypeError(fa)
+    for dbg_ep in (
+        PYDEVD_DEBUGGER_ENTRYPOINT,
+        DEBUGPY_DEBUGGER_ENTRYPOINT,
+    ):
+        if (pa := try_parse_entrypoint_args(dbg_ep.entrypoint, argv)) is not None:
+            fa = pa.args[-1]
+            if not isinstance(fa, FinalArg) or fa.param.name != 'file':
+                raise TypeError(fa)
 
-        st = parse_args_target(fa.values)
+            st = parse_args_target(fa.values)
 
-        if isinstance(st, TestRunnerTarget):
-            if 'module' in pa.arg_lists_by_name:
-                raise ArgParseError(argv)
+            if isinstance(st, TestRunnerTarget):
+                if 'module' in pa.arg_lists_by_name:
+                    raise ArgParseError(argv)
 
-        elif isinstance(st, FileTarget):
-            if 'module' in pa.arg_lists_by_name:
-                st = ModuleTarget(st.file, st.argv)
+            elif isinstance(st, FileTarget):
+                if 'module' in pa.arg_lists_by_name:
+                    st = ModuleTarget(st.file, st.argv)
 
-        else:
-            raise TypeError(st)
+            else:
+                raise TypeError(st)
 
-        return DebuggerTarget(
-            argv[0],
-            pa.without('file', 'module'),
-            st,
-        )
+            return DebuggerTarget(
+                argv[0],
+                pa.without('file', 'module'),
+                st,
+                dbg_ep.kind,
+            )
 
-    elif (pa := try_parse_entrypoint_args(TEST_RUNNER_ENTRYPOINT, argv)) is not None:
+    if (pa := try_parse_entrypoint_args(TEST_RUNNER_ENTRYPOINT, argv)) is not None:
         ts = []  # type: list[Test]
         for a in pa.args:
             if isinstance(a, StrArg):
@@ -938,11 +1112,10 @@ def parse_args_target(
             ts,
         )
 
-    elif argv[0].startswith('-m'):
+    if argv[0].startswith('-m'):
         return _make_module_target(argv)
 
-    else:
-        return FileTarget(argv[0], argv[1:])
+    return FileTarget(argv[0], argv[1:])
 
 
 #
@@ -962,7 +1135,12 @@ def render_target_args(tgt):  # type: (Target) -> list[str]
         ]
         dt = tgt.target
         if isinstance(dt, ModuleTarget):
-            l.extend(['--module', '--file', dt.module, *dt.argv])
+            if tgt.kind.module_arg_style == 'pydevd':
+                l.extend(['--module', '--file', dt.module, *dt.argv])
+            elif tgt.kind.module_arg_style == 'debugpy':
+                l.extend(['-m', dt.module, *dt.argv])
+            else:
+                raise TypeError(tgt.kind.module_arg_style)
         else:
             l.extend(['--file', *render_target_args(dt)])
         return l
