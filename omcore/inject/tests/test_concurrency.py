@@ -10,6 +10,9 @@ import pytest
 from ... import inject as inj
 from ...asyncs.asynclite.promises import AsynclitePromise
 from ...asyncs.asynclite.sync.api import SyncAsynclite
+from ..impl.injector import AsyncInjectorImpl
+from ..impl.scopes import OnceProvisionMap
+from ..impl.scopes import SingletonScopeImpl
 from ..impl.scopes import _ProvisionWaitRegistry
 
 
@@ -285,6 +288,25 @@ async def test_concurrent_requests_do_not_share_unscoped():
 
     b2 = await ai.provide(B)
     assert b.c is not b2.c
+
+
+def test_completed_singleton_entry_is_terminal():
+    class Foo:
+        pass
+
+    i = inj.create_injector(inj.bind(Foo, singleton=True))
+    foo = i[Foo]
+
+    ai = i[inj.AsyncInjector]
+    assert isinstance(ai, AsyncInjectorImpl)
+    assert ai._init_owner is None
+
+    ssi = ai.get_scope_impl(inj.Singleton())
+    assert isinstance(ssi, SingletonScopeImpl)
+    (e,) = ssi._om._dct.values()
+    assert isinstance(e, OnceProvisionMap._Done)
+    assert e.v is foo
+    assert i[Foo] is foo
 
 
 def test_failed_init_marks_injector_dead():

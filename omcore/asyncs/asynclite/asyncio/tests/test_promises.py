@@ -1,9 +1,11 @@
+# ruff: noqa: SLF001
 # @om-lite
 import asyncio
 
 from .....lite.asyncs import SyncAwaitCoroutineNotTerminatedError
 from .....lite.asyncs import sync_await
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from ...eventpromises import EventAsynclitePromise
 from ...promises import AsynclitePromiseWaitTimeoutError
 from ..api import AsyncioAsynclite
 
@@ -57,6 +59,21 @@ class TestAsyncioPromises(AsyncioIsolatedAsyncTestCase):
             await task
 
         p.set_value(420)
+        self.assertEqual(await p.wait(), 420)
+
+    async def test_done_promise_sheds_machinery(self):
+        p = AsyncioAsynclite().make_promise()
+        assert isinstance(p, EventAsynclitePromise)
+
+        # A mid-wait waiter holds its own ref to the event and is unaffected by the shedding.
+        task: asyncio.Future = asyncio.ensure_future(p.wait())
+        await asyncio.sleep(0.01)
+
+        p.set_value(420)
+        self.assertIsNone(p._ev)
+        self.assertIsNone(p._mtx)
+
+        self.assertEqual(await task, 420)
         self.assertEqual(await p.wait(), 420)
 
     async def test_timeout(self):

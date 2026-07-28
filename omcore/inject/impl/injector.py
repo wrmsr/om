@@ -176,9 +176,11 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             # written before the init promise completes, so it is visible to anyone observing the promise as done.
             self._dead_error = e
             ip.set_value(True)
+            self._init_owner = None  # never read once the init promise is done - only pins a thread / task identity
             raise
 
         ip.set_value(True)
+        self._init_owner = None
         return True
 
     #

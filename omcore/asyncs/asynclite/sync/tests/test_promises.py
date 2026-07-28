@@ -1,7 +1,9 @@
+# ruff: noqa: SLF001
 # @om-lite
 import threading
 
 from .....testing.unittest.asyncs import SyncIsolatedAsyncTestCase
+from ...eventpromises import EventAsynclitePromise
 from ...promises import AsynclitePromiseAlreadySetError
 from ...promises import AsynclitePromiseWaitTimeoutError
 from ..api import SyncAsynclite
@@ -60,6 +62,39 @@ class TestSyncPromises(SyncIsolatedAsyncTestCase):
 
         p.set_value(420)
         self.assertEqual(await p.wait(timeout=0), 420)
+
+    async def test_done_promise_sheds_machinery(self):
+        p = SyncAsynclite().make_promise()
+        assert isinstance(p, EventAsynclitePromise)
+
+        self.assertIsNotNone(p._ev)
+        self.assertIsNotNone(p._mtx)
+
+        p.set_value(420)
+        self.assertIsNone(p._ev)
+        self.assertIsNone(p._mtx)
+
+        self.assertTrue(p.is_done())
+        self.assertEqual(p.poll().must(), 420)
+        self.assertEqual(await p.wait(), 420)
+        with self.assertRaises(AsynclitePromiseAlreadySetError):
+            p.set_value(421)
+
+    async def test_error_promise_sheds_machinery(self):
+        class FooError(Exception):
+            pass
+
+        p = SyncAsynclite().make_promise()
+        assert isinstance(p, EventAsynclitePromise)
+
+        p.set_error(FooError())
+        self.assertIsNone(p._ev)
+        self.assertIsNone(p._mtx)
+
+        with self.assertRaises(FooError):
+            await p.wait()
+        with self.assertRaises(AsynclitePromiseAlreadySetError):
+            p.set_value(420)
 
     async def test_cross_thread(self):
         p = SyncAsynclite().make_promise()

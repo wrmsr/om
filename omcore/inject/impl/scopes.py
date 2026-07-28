@@ -120,27 +120,31 @@ class OnceProvisionMap(lang.Final):
         super().__init__()
 
         self._mtx = threading.Lock()  # guards _dct only - must never be held across construction
-        self._dct: dict[BindingImpl, OnceProvisionMap._Entry] = {}
+        self._dct: dict[BindingImpl, OnceProvisionMap._Entry | OnceProvisionMap._Done] = {}
 
     @dc.dataclass(frozen=True, eq=False)
     class _Entry:
         promise: asl.Promise
         owner: tuple[int, ta.Any]
 
+    @dc.dataclass(frozen=True, eq=False)
+    class _Done:
+        v: ta.Any
+
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
         # Unlocked fast path for the common already-constructed case.
-        if (e := self._dct.get(binding)) is not None and e.promise.is_done():
-            try:
-                return e.promise.poll().must()
-            except BaseException:  # noqa
-                pass  # raced a failed attempt's removal - take the slow path
+        if isinstance(e := self._dct.get(binding), OnceProvisionMap._Done):
+            return e.v
 
         ii = check.isinstance(injector, _injector.AsyncInjectorImpl)
         owner = ii._current_owner()  # noqa
 
         while True:
             with self._mtx:
-                if (e := self._dct.get(binding)) is None:
+                e = self._dct.get(binding)
+                if isinstance(e, OnceProvisionMap._Done):
+                    return e.v
+                if e is None:
                     e = OnceProvisionMap._Entry(ii._al.make_promise(), owner)  # noqa
                     self._dct[binding] = e
                     mine = True
@@ -157,6 +161,10 @@ class OnceProvisionMap(lang.Final):
                     e.promise.set_error(ex)
                     raise
                 e.promise.set_value(v)
+                # The full entry is then swapped for a minimal terminal record - the promise, its synchronization
+                # machinery, and the owner identity all become garbage once any in-flight waiters drain.
+                with self._mtx:
+                    self._dct[binding] = OnceProvisionMap._Done(v)
                 return v
 
             try:
