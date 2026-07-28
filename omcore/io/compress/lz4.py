@@ -1,9 +1,9 @@
 import dataclasses as dc
 import typing as ta
 
-from ... import check
 from ... import lang
-from ..coro.stepped import BytesSteppedCoro
+from ..transforms.types import BaseByteStreamTransform
+from ..transforms.types import ByteStreamTransform
 from .base import Compression
 from .base import IncrementalCompression
 from .codecs import make_compression_codec
@@ -14,6 +14,54 @@ if ta.TYPE_CHECKING:
     import lz4.frame as lz4_frame
 else:
     lz4_frame = lang.proxy_import('lz4.frame')
+
+
+##
+
+
+class _Lz4CompressorByteStreamTransform(BaseByteStreamTransform[None]):
+    def __init__(self, compressor: ta.Any) -> None:
+        super().__init__()
+
+        self._compressor = compressor
+        self._started = False
+
+    def _begin(self) -> bytes:
+        self._started = True
+        return self._compressor.begin()
+
+    def _feed(self, i: lang.BytesLike, /) -> ta.Sequence[bytes]:
+        out: list[bytes] = []
+        if not self._started:
+            out.append(self._begin())
+        if i and (o := self._compressor.compress(i)):
+            out.append(o)
+        return out
+
+    def _finish(self) -> ta.Sequence[bytes]:
+        out: list[bytes] = []
+        if not self._started:
+            out.append(self._begin())
+        if (o := self._compressor.flush()):
+            out.append(o)
+        self._complete(None)
+        return out
+
+
+class _Lz4DecompressorByteStreamTransform(BaseByteStreamTransform[None]):
+    def __init__(self, decompressor: ta.Any) -> None:
+        super().__init__()
+
+        self._decompressor = decompressor
+
+    def _feed(self, i: lang.BytesLike, /) -> ta.Sequence[bytes]:
+        if i and (o := self._decompressor.decompress(i)):
+            return (o,)
+        return ()
+
+    def _finish(self) -> ta.Sequence[bytes]:
+        self._complete(None)
+        return ()
 
 
 ##
@@ -45,41 +93,18 @@ class Lz4Compression(Compression, IncrementalCompression):
             d,
         )
 
-    @lang.autostart
-    def compress_incremental(self) -> BytesSteppedCoro[None]:
-        with lz4_frame.LZ4FrameCompressor(
-                compression_level=self.level,
-                block_size=self.block_size,
-                block_linked=self.block_linked,
-                block_checksum=self.block_checksum,
-                content_checksum=self.content_checksum,
-                auto_flush=self.auto_flush,
-        ) as compressor:
-            started = False
-            while True:
-                i = check.isinstance((yield None), lang.BYTES_TYPES)
-                if not started:
-                    yield compressor.begin()
-                    started = True
-                if not i:
-                    yield compressor.flush()
-                    yield b''
-                    return
-                if (o := compressor.compress(i)):
-                    yield o
+    def compress_incremental(self) -> ByteStreamTransform[None]:
+        return _Lz4CompressorByteStreamTransform(lz4_frame.LZ4FrameCompressor(
+            compression_level=self.level,
+            block_size=self.block_size,
+            block_linked=self.block_linked,
+            block_checksum=self.block_checksum,
+            content_checksum=self.content_checksum,
+            auto_flush=self.auto_flush,
+        ))
 
-    @lang.autostart
-    def decompress_incremental(self) -> BytesSteppedCoro[None]:
-        # lz4 lib does internal buffering so this is simply a BytesSteppedCoro not a BytesSteppedReaderCoro as it
-        # only yields None, accepting any number of bytes at a time.
-        with lz4_frame.LZ4FrameDecompressor() as decompressor:
-            while True:
-                i = check.isinstance((yield None), lang.BYTES_TYPES)
-                if not i:
-                    yield b''
-                    return
-                if (o := decompressor.decompress(i)):
-                    yield o
+    def decompress_incremental(self) -> ByteStreamTransform[None]:
+        return _Lz4DecompressorByteStreamTransform(lz4_frame.LZ4FrameDecompressor())
 
 
 ##

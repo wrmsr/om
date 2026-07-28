@@ -41,11 +41,10 @@ import time
 import typing as ta
 
 from ... import cached
-from ... import check
 from ... import lang
-from ..coro.readers import PrependableBytesCoroReader
-from ..coro.stepped import BytesSteppedCoro
-from ..coro.stepped import BytesSteppedReaderCoro
+from ..transforms.pump import ByteStreamTransformContext
+from ..transforms.pump import PumpedByteStreamTransform
+from ..transforms.types import ByteStreamTransform
 from .base import Compression
 from .base import IncrementalCompression
 from .codecs import make_compression_codec
@@ -86,14 +85,14 @@ class GzipCompression(Compression, IncrementalCompression):
             d,
         )
 
-    def compress_incremental(self) -> BytesSteppedCoro[None]:
-        return lang.nextgen(IncrementalGzipCompressor(
+    def compress_incremental(self) -> ByteStreamTransform[None]:
+        return PumpedByteStreamTransform(IncrementalGzipCompressor(
             level=self.level,
             mtime=self.mtime,
-        )())
+        ).run)
 
-    def decompress_incremental(self) -> BytesSteppedReaderCoro[None]:
-        return IncrementalGzipDecompressor()()
+    def decompress_incremental(self) -> ByteStreamTransform[int | None]:
+        return PumpedByteStreamTransform(IncrementalGzipDecompressor().run)
 
 
 ##
@@ -121,9 +120,11 @@ class IncrementalGzipCompressor:
         self._level = level
         self._mtime = mtime
 
-    def _write_gzip_header(self) -> ta.Generator[bytes]:
-        check.none((yield b'\037\213'))  # magic header
-        check.none((yield b'\010'))  # compression method
+    def _make_header(self) -> bytes:
+        buf = [
+            b'\037\213',  # magic header
+            b'\010',  # compression method
+        ]
 
         try:
             # RFC 1952 requires the FNAME field to be Latin-1. Do not include filenames that cannot be represented that
@@ -139,12 +140,12 @@ class IncrementalGzipCompressor:
         flags = 0
         if fname:
             flags = gzip.FNAME
-        check.none((yield chr(flags).encode('latin-1')))
+        buf.append(chr(flags).encode('latin-1'))
 
         mtime = self._mtime
         if mtime is None:
             mtime = time.time()
-        check.none((yield struct.pack('<L', int(mtime))))
+        buf.append(struct.pack('<L', int(mtime)))
 
         if self._level == COMPRESS_LEVEL_BEST:
             xfl = b'\002'
@@ -152,14 +153,16 @@ class IncrementalGzipCompressor:
             xfl = b'\004'
         else:
             xfl = b'\000'
-        check.none((yield xfl))
+        buf.append(xfl)
 
-        check.none((yield b'\377'))
+        buf.append(b'\377')
 
         if fname:
-            check.none((yield fname + b'\000'))
+            buf.append(fname + b'\000')
 
-    def __call__(self) -> BytesSteppedCoro:
+        return b''.join(buf)
+
+    async def run(self, ctx: ByteStreamTransformContext) -> None:
         crc = _zero_crc()
         size = 0
         wrote_header = False
@@ -173,28 +176,26 @@ class IncrementalGzipCompressor:
         )
 
         while True:
-            data = check.isinstance((yield None), lang.BYTES_TYPES)
+            data = await ctx.read()
 
             if not wrote_header:
-                yield from self._write_gzip_header()
+                await ctx.emit(self._make_header())
                 wrote_header = True
 
             if not data:
                 break
 
             if (fl := compress.compress(data)):
-                check.none((yield fl))
+                await ctx.emit(fl)
             size += len(data)
             crc = zlib.crc32(data, crc)
 
         if (fl := compress.flush()):
-            check.none((yield fl))
+            await ctx.emit(fl)
 
-        yield struct.pack('<L', crc)
+        await ctx.emit(struct.pack('<L', crc))
         # size may exceed 2 GiB, or even 4 GiB
-        yield struct.pack('<L', size & 0xffffffff)
-
-        yield b''
+        await ctx.emit(struct.pack('<L', size & 0xffffffff))
 
 
 ##
@@ -209,120 +210,101 @@ class IncrementalGzipDecompressor:
             wbits=-zlib.MAX_WBITS,
         )
 
-    def _read_gzip_header(
+    async def _read_gzip_header(
             self,
-            rdr: PrependableBytesCoroReader,
-    ) -> ta.Generator[int | None, bytes, int | None]:
-        magic = yield from rdr.read(2)
+            ctx: ByteStreamTransformContext,
+    ) -> int | None:
+        magic = await ctx.read(2)
         if magic == b'':
             return None
 
         if magic != b'\037\213':
             raise gzip.BadGzipFile(f'Not a gzipped file ({magic!r})')
 
-        buf = yield from rdr.read_exact(8)
+        buf = await ctx.read_exact(8)
         method, flag, last_mtime = struct.unpack('<BBIxx', buf)
         if method != 8:
             raise gzip.BadGzipFile('Unknown compression method')
 
         if flag & gzip.FEXTRA:
             # Read & discard the extra field, if present
-            buf = yield from rdr.read_exact(2)
+            buf = await ctx.read_exact(2)
             extra_len, = struct.unpack('<H', buf)
             if extra_len:
-                yield from rdr.read_exact(extra_len)
+                await ctx.read_exact(extra_len)
 
         if flag & gzip.FNAME:
             # Read and discard a null-terminated string containing the filename
             while True:
-                s = yield from rdr.read(1)
+                s = await ctx.read(1)
                 if not s or s == b'\000':
                     break
 
         if flag & gzip.FCOMMENT:
             # Read and discard a null-terminated string containing a comment
             while True:
-                s = yield from rdr.read(1)
+                s = await ctx.read(1)
                 if not s or s == b'\000':
                     break
 
         if flag & gzip.FHCRC:
-            yield from rdr.read_exact(2)  # Read & discard the 16-bit header CRC
+            await ctx.read_exact(2)  # Read & discard the 16-bit header CRC
 
         return last_mtime
 
-    def _read_eof(
+    async def _read_eof(
             self,
-            rdr: PrependableBytesCoroReader,
+            ctx: ByteStreamTransformContext,
             crc: int,
             stream_size: int,
-    ) -> ta.Generator[int | None, bytes]:
-        # We've read to the end of the file.
+    ) -> None:
+        # We've read to the end of the member.
         # We check that the computed CRC and size of the uncompressed data matches the stored values. Note that the size
         # stored is the true file size mod 2**32.
-        buf = yield from rdr.read_exact(8)
+        buf = await ctx.read_exact(8)
         crc32, isize = struct.unpack('<II', buf)
         if crc32 != crc:
             raise gzip.BadGzipFile(f'CRC check failed {hex(crc32)} != {hex(crc)}')
         elif isize != (stream_size & 0xffffffff):
             raise gzip.BadGzipFile('Incorrect length of data produced')
 
-        # Gzip files can be padded with zeroes and still have archives. Consume all zero bytes and set the file position
-        # to the first non-zero byte. See http://www.gzip.org/#faq8
+        # Gzip files can be padded with zeroes and still have archives. Consume all zero bytes and set the position to
+        # the first non-zero byte. See http://www.gzip.org/#faq8
         c = b'\0'
         while c == b'\0':
-            c = yield from rdr.read(1)
+            c = await ctx.read(1)
         if c:
-            rdr.prepend(c)
+            ctx.unread(c)
 
-    def __call__(self) -> BytesSteppedReaderCoro:
-        rdr = PrependableBytesCoroReader()
-
-        crc = _zero_crc()
-        stream_size = 0  # Decompressed size of unconcatenated stream
-        new_member = True
-
-        decompressor = self._factory()
+    async def run(self, ctx: ByteStreamTransformContext) -> int | None:
+        last_mtime: int | None = None
 
         while True:
-            # For certain input data, a single call to decompress() may not return any data. In this case, retry until
-            # we get some data or reach EOF.
-            while True:
-                if decompressor.eof:
-                    # Ending case: we've come to the end of a member in the file, so finish up this member, and read a
-                    # new gzip header. Check the CRC and file size, and set the flag so we read a new member
-                    yield from self._read_eof(rdr, crc, stream_size)
-                    new_member = True
-                    decompressor = self._factory()
+            if (mtime := await self._read_gzip_header(ctx)) is None:
+                return last_mtime
+            last_mtime = mtime
 
-                if new_member:
-                    # If the _new_member flag is set, we have to jump to the next member, if there is one.
-                    crc = _zero_crc()
-                    stream_size = 0  # Decompressed size of unconcatenated stream
-                    last_mtime = yield from self._read_gzip_header(rdr)
-                    if last_mtime is None:
-                        check.none((yield b''))
-                        return
-                    new_member = False
+            crc = _zero_crc()
+            stream_size = 0
+            decompressor = self._factory()
 
-                # Read a chunk of data from the file. decompress() is never called with a max_length, so it always
-                # consumes its input fully and unconsumed_tail need not be considered.
-                buf = yield from rdr.read(None)
+            while not decompressor.eof:
+                buf = await ctx.read()
                 uncompress = decompressor.decompress(buf)
 
                 if decompressor.unused_data != b'':
-                    # Prepend the already read bytes to the fileobj so they can be seen by _read_eof() and
-                    # _read_gzip_header()
-                    rdr.prepend(decompressor.unused_data)
+                    # Push back the already read bytes so they can be seen by _read_eof() and the next member's
+                    # _read_gzip_header().
+                    ctx.unread(decompressor.unused_data)
 
-                if uncompress != b'':
-                    break
-                if buf == b'':
+                if uncompress:
+                    crc = zlib.crc32(uncompress, crc)
+                    stream_size += len(uncompress)
+                    await ctx.emit(uncompress)
+                elif buf == b'' and not decompressor.eof:
                     raise EOFError('Compressed file ended before the end-of-stream marker was reached')
 
-            crc = zlib.crc32(uncompress, crc)
-            stream_size += len(uncompress)
-            check.none((yield uncompress))
+            await self._read_eof(ctx, crc, stream_size)
 
 
 ##

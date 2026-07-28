@@ -4,9 +4,16 @@ import functools
 import typing as ta
 
 from .. import check
+from ..io.transforms.types import BaseStreamTransform
+from ..io.transforms.types import StreamTransform
+from ..io.transforms.types import UnusedDataStreamTransform
 from .base import Codec
 from .base import ComboCodec
 from .standard import STANDARD_CODECS
+
+
+I = ta.TypeVar('I')
+O = ta.TypeVar('O')
 
 
 ##
@@ -62,6 +69,54 @@ class TextEncodingOptions:
 ##
 
 
+class _TextEncodingStreamTransform(BaseStreamTransform[I, O, None], ta.Generic[I, O]):
+    """Adapts a stdlib incremental encoder/decoder method (`fn(data, final=False)`) to a `StreamTransform`."""
+
+    def __init__(self, fn: ta.Callable[..., O], empty: I) -> None:
+        super().__init__()
+
+        self._fn = fn
+        self._empty = empty
+
+    def _feed(self, i: I, /) -> ta.Sequence[O]:
+        if i and (o := self._fn(i)):
+            return (o,)
+        return ()
+
+    def _finish(self) -> ta.Sequence[O]:
+        o = self._fn(self._empty, final=True)
+        self._complete(None)
+        if o:
+            return (o,)
+        return ()
+
+
+class TextEncodingDecodeStreamTransform(
+    _TextEncodingStreamTransform[bytes, str],
+    UnusedDataStreamTransform[bytes],
+):
+    def __init__(
+            self,
+            fn: ta.Callable[..., str],
+            get_unused: ta.Callable[[], bytes],
+    ) -> None:
+        super().__init__(fn, b'')
+
+        self._get_unused = get_unused
+        self._unused = b''
+
+    @property
+    def unused_data(self) -> bytes:
+        return self._unused
+
+    def _finish(self) -> ta.Sequence[str]:
+        # Snapshot the decoder's still-undecoded tail before the final decode call: with 'strict' errors that call
+        # raises on truncated input, leaving the tail readable by the catcher. With lenient handlers the tail is both
+        # consumed per the handler *and* reported raw here.
+        self._unused = self._get_unused()
+        return super()._finish()
+
+
 class TextEncodingComboCodec(ComboCodec[str, bytes]):
     def __init__(
             self,
@@ -89,27 +144,14 @@ class TextEncodingComboCodec(ComboCodec[str, bytes]):
         i, _ = self._info.decode(o, self._opts.errors)
         return i
 
-    def encode_incremental(self) -> ta.Generator[bytes | None, str]:
+    def encode_incremental(self) -> StreamTransform[str, bytes, ta.Any]:
         x = self._info.incrementalencoder(self._opts.errors)
-        i = yield None
-        while True:
-            if not i:
-                break
-            o = x.encode(i)
-            i = yield o or None
-        o = x.encode(i, final=True)
-        yield o
+        return _TextEncodingStreamTransform(x.encode, '')
 
-    def decode_incremental(self) -> ta.Generator[str | None, bytes]:
+    def decode_incremental(self) -> TextEncodingDecodeStreamTransform:
         x = self._info.incrementaldecoder(self._opts.errors)
-        i = yield None
-        while True:
-            if not i:
-                break
-            o = x.decode(i)
-            i = yield o or None
-        o = x.decode(i, final=True)
-        yield o
+        # IncrementalDecoder.getstate() is specified to return `(still_undecoded_input, int_flags)`.
+        return TextEncodingDecodeStreamTransform(x.decode, lambda: x.getstate()[0])
 
 
 ##

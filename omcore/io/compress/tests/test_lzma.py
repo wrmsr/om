@@ -1,8 +1,9 @@
-import io
 import lzma
 
-from ...coro.stepped import read_into_bytes_stepped_coro
+import pytest
+
 from ..lzma import LzmaCompression
+from .helpers import run_transform_chunked as _run
 
 
 _DEC_DATA = b'foobar' * 128
@@ -10,33 +11,16 @@ _ENC_DATA = lzma.compress(_DEC_DATA)
 
 
 def test_lzma_inc_compressor():
-    ow = io.BytesIO()
-    for b in read_into_bytes_stepped_coro(
-            LzmaCompression().compress_incremental(),
-            io.BytesIO(_DEC_DATA),
-            read_size=13,
-    ):
-        ow.write(b)
-
-    assert ow.getvalue() == _ENC_DATA
+    out = _run(LzmaCompression().compress_incremental(), _DEC_DATA)
+    assert out == _ENC_DATA
 
 
 def test_lzma_inc_decompressor():
-    ir = io.BytesIO(_ENC_DATA)
-    ow = io.BytesIO()
-    g = LzmaCompression().decompress_incremental()
-    o = next(g)
-    sz = 13
-    while True:
-        if isinstance(o, int):
-            o = g.send(ir.read(o))
-        elif o is None:
-            o = g.send(ir.read(sz))
-        elif isinstance(o, bytes):
-            if not o:
-                break
-            ow.write(o)
-            o = g.send(None)
-        else:
-            raise TypeError(o)
-    assert ow.getvalue() == _DEC_DATA
+    t = LzmaCompression().decompress_incremental()
+    assert _run(t, _ENC_DATA) == _DEC_DATA
+    assert t.eof
+
+
+def test_lzma_inc_decompressor_truncated():
+    with pytest.raises(EOFError):
+        _run(LzmaCompression().decompress_incremental(), _ENC_DATA[:-7])

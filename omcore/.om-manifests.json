@@ -237,7 +237,7 @@
     "module": ".io.compress.bz2",
     "attr": "_BZ2_LAZY_CODEC",
     "file": "omcore/io/compress/bz2.py",
-    "line": 60,
+    "line": 55,
     "value": {
       "!.codecs.base.LazyLoadedCodec": {
         "module": "omcore.io.compress.bz2",
@@ -251,7 +251,7 @@
     "module": ".io.compress.gzip",
     "attr": "_GZIP_LAZY_CODEC",
     "file": "omcore/io/compress/gzip.py",
-    "line": 333,
+    "line": 315,
     "value": {
       "!.codecs.base.LazyLoadedCodec": {
         "module": "omcore.io.compress.gzip",
@@ -267,7 +267,7 @@
     "module": ".io.compress.lz4",
     "attr": "_LZ4_LAZY_CODEC",
     "file": "omcore/io/compress/lz4.py",
-    "line": 90,
+    "line": 115,
     "value": {
       "!.codecs.base.LazyLoadedCodec": {
         "module": "omcore.io.compress.lz4",
@@ -281,7 +281,7 @@
     "module": ".io.compress.lzma",
     "attr": "_LZMA_LAZY_CODEC",
     "file": "omcore/io/compress/lzma.py",
-    "line": 80,
+    "line": 74,
     "value": {
       "!.codecs.base.LazyLoadedCodec": {
         "module": "omcore.io.compress.lzma",
@@ -309,7 +309,7 @@
     "module": ".io.compress.zlib",
     "attr": "_ZLIB_LAZY_CODEC",
     "file": "omcore/io/compress/zlib.py",
-    "line": 73,
+    "line": 67,
     "value": {
       "!.codecs.base.LazyLoadedCodec": {
         "module": "omcore.io.compress.zlib",

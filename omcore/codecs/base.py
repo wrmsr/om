@@ -11,6 +11,7 @@ from .. import check
 from .. import dataclasses as dc
 from .. import lang
 from ..funcs import pairs as fps
+from ..io.transforms.types import StreamTransform
 from ..manifests.base import ModAttrManifest
 
 
@@ -36,11 +37,11 @@ class EagerCodec(lang.Abstract, ta.Generic[I, O]):
 
 class IncrementalCodec(lang.Abstract, ta.Generic[I, O]):
     @abc.abstractmethod
-    def encode_incremental(self) -> ta.Generator[O | None, I]:
+    def encode_incremental(self) -> StreamTransform[I, O, ta.Any]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def decode_incremental(self) -> ta.Generator[I | None, O]:
+    def decode_incremental(self) -> StreamTransform[O, I, ta.Any]:
         raise NotImplementedError
 
 

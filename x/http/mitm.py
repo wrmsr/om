@@ -12,7 +12,6 @@ from omcore.http.simple.handlers import SimpleHttpHandlerRequest
 from omcore.http.simple.handlers import SimpleHttpHandlerResponse
 from omcore.http.simple.pipelines.sync import make_simple_http_server
 from omcore.http.simple.types import SimpleHttpHandlerResponseStreamedData
-from omcore.io.coro import iterable_bytes_stepped_coro
 
 
 ##
@@ -92,9 +91,7 @@ class SimpleMitmHandler:
                         t_resp.headers is not None and
                         t_resp.headers.contains_value('content-encoding', 'gzip', ignore_case=True)
                 ):
-                    dec = iterable_bytes_stepped_coro(
-                        check.not_none(cdu.lookup('gzip').new_incremental)().decode_incremental(),
-                    ).send
+                    dec = check.not_none(cdu.lookup('gzip').new_incremental)().decode_incremental().feed
                 else:
                     dec = lambda b: [b]
 

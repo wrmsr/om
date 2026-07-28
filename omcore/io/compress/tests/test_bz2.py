@@ -1,8 +1,9 @@
 import bz2
-import io
 
-from ...coro.stepped import read_into_bytes_stepped_coro
+import pytest
+
 from ..bz2 import Bz2Compression
+from .helpers import run_transform_chunked as _run
 
 
 _DEC_DATA = b'foobar' * 128
@@ -10,33 +11,20 @@ _ENC_DATA = bz2.compress(_DEC_DATA)
 
 
 def test_bz2_inc_compressor():
-    ow = io.BytesIO()
-    for b in read_into_bytes_stepped_coro(
-            Bz2Compression().compress_incremental(),
-            io.BytesIO(_DEC_DATA),
-            read_size=13,
-    ):
-        ow.write(b)
-
-    assert ow.getvalue() == _ENC_DATA
+    out = _run(Bz2Compression().compress_incremental(), _DEC_DATA)
+    assert out == _ENC_DATA
 
 
 def test_bz2_inc_decompressor():
-    ir = io.BytesIO(_ENC_DATA)
-    ow = io.BytesIO()
-    g = Bz2Compression().decompress_incremental()
-    o = next(g)
-    sz = 13
-    while True:
-        if isinstance(o, int):
-            o = g.send(ir.read(o))
-        elif o is None:
-            o = g.send(ir.read(sz))
-        elif isinstance(o, bytes):
-            if not o:
-                break
-            ow.write(o)
-            o = g.send(None)
-        else:
-            raise TypeError(o)
-    assert ow.getvalue() == _DEC_DATA
+    t = Bz2Compression().decompress_incremental()
+    assert _run(t, _ENC_DATA) == _DEC_DATA
+    assert t.eof
+
+
+def test_bz2_inc_decompressor_multi_stream():
+    assert _run(Bz2Compression().decompress_incremental(), _ENC_DATA * 2) == _DEC_DATA * 2
+
+
+def test_bz2_inc_decompressor_truncated():
+    with pytest.raises(EOFError):
+        _run(Bz2Compression().decompress_incremental(), _ENC_DATA[:-7])

@@ -1,16 +1,14 @@
 import dataclasses as dc
-import functools
 import typing as ta
 
 from ... import lang
-from ..coro.stepped import BytesSteppedCoro
-from ..coro.stepped import BytesSteppedReaderCoro
-from .adapters import CompressorObjectIncrementalAdapter
-from .adapters import DecompressorObjectIncrementalAdapter
+from ..transforms.types import ByteStreamTransform
 from .base import Compression
 from .base import IncrementalCompression
 from .codecs import make_compression_codec
 from .codecs import make_compression_lazy_loaded_codec
+from .transforms import CompressorObjectByteStreamTransform
+from .transforms import DecompressorObjectByteStreamTransform
 
 
 if ta.TYPE_CHECKING:
@@ -49,27 +47,23 @@ class LzmaCompression(Compression, IncrementalCompression):
             filters=self.filters,  # type: ignore[arg-type]
         )
 
-    def compress_incremental(self) -> BytesSteppedCoro[None]:
-        return lang.nextgen(CompressorObjectIncrementalAdapter(
-            functools.partial(  # type: ignore
-                lzma.LZMACompressor,
-                format=self.format if self.format is not None else lzma.FORMAT_XZ,
-                check=self.check,
-                preset=self.preset,
-                filters=self.filters,  # type: ignore[arg-type]
-            ),
-        )())
+    def compress_incremental(self) -> ByteStreamTransform[None]:
+        return CompressorObjectByteStreamTransform(lzma.LZMACompressor(
+            format=self.format if self.format is not None else lzma.FORMAT_XZ,
+            check=self.check,
+            preset=self.preset,
+            filters=self.filters,  # type: ignore[arg-type]
+        ))
 
-    def decompress_incremental(self) -> BytesSteppedReaderCoro[None]:
-        return DecompressorObjectIncrementalAdapter(
-            functools.partial(  # type: ignore
-                lzma.LZMADecompressor,
+    def decompress_incremental(self) -> ByteStreamTransform[None]:
+        return DecompressorObjectByteStreamTransform(
+            lambda: lzma.LZMADecompressor(  # type: ignore[arg-type, return-value]
                 format=self.format if self.format is not None else lzma.FORMAT_AUTO,
                 memlimit=self.mem_limit,
                 filters=self.filters,  # type: ignore[arg-type]
             ),
             trailing_error=lzma.LZMAError,
-        )()
+        )
 
 
 ##

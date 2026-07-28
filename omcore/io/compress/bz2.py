@@ -1,16 +1,14 @@
 import dataclasses as dc
-import functools
 import typing as ta
 
 from ... import lang
-from ..coro.stepped import BytesSteppedCoro
-from ..coro.stepped import BytesSteppedReaderCoro
-from .adapters import CompressorObjectIncrementalAdapter
-from .adapters import DecompressorObjectIncrementalAdapter
+from ..transforms.types import ByteStreamTransform
 from .base import Compression
 from .base import IncrementalCompression
 from .codecs import make_compression_codec
 from .codecs import make_compression_lazy_loaded_codec
+from .transforms import CompressorObjectByteStreamTransform
+from .transforms import DecompressorObjectByteStreamTransform
 
 
 if ta.TYPE_CHECKING:
@@ -37,19 +35,16 @@ class Bz2Compression(Compression, IncrementalCompression):
             d,
         )
 
-    def compress_incremental(self) -> BytesSteppedCoro[None]:
-        return lang.nextgen(CompressorObjectIncrementalAdapter(
-            functools.partial(
-                bz2.BZ2Compressor,  # type: ignore
-                self.level,
-            ),
-        )())
+    def compress_incremental(self) -> ByteStreamTransform[None]:
+        return CompressorObjectByteStreamTransform(bz2.BZ2Compressor(  # type: ignore[arg-type]
+            self.level,
+        ))
 
-    def decompress_incremental(self) -> BytesSteppedReaderCoro[None]:
-        return DecompressorObjectIncrementalAdapter(
-            bz2.BZ2Decompressor,  # type: ignore
+    def decompress_incremental(self) -> ByteStreamTransform[None]:
+        return DecompressorObjectByteStreamTransform(
+            bz2.BZ2Decompressor,  # type: ignore[arg-type]
             trailing_error=OSError,
-        )()
+        )
 
 
 ##

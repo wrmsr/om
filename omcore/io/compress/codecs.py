@@ -3,7 +3,7 @@ import typing as ta
 
 from ... import codecs
 from ... import lang
-from ..coro.stepped import buffer_bytes_stepped_reader_coro
+from ..transforms.types import StreamTransform
 from .base import Compression
 from .base import IncrementalCompression
 
@@ -29,11 +29,11 @@ class CompressionEagerCodec(codecs.EagerCodec[lang.Bytes, lang.Bytes]):
 class CompressionIncrementalCodec(codecs.IncrementalCodec[lang.Bytes, lang.Bytes]):
     compression: IncrementalCompression
 
-    def encode_incremental(self) -> ta.Generator[lang.Bytes | None, lang.Bytes]:
+    def encode_incremental(self) -> StreamTransform[lang.Bytes, lang.Bytes, ta.Any]:
         return self.compression.compress_incremental()
 
-    def decode_incremental(self) -> ta.Generator[lang.Bytes | None, lang.Bytes]:
-        return buffer_bytes_stepped_reader_coro(self.compression.decompress_incremental())
+    def decode_incremental(self) -> StreamTransform[lang.Bytes, lang.Bytes, ta.Any]:
+        return self.compression.decompress_incremental()
 
 
 ##

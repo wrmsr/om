@@ -1,8 +1,8 @@
 import abc
+import typing as ta
 
 from ... import lang
-from ..coro.stepped import BytesSteppedCoro
-from ..coro.stepped import BytesSteppedReaderCoro
+from ..transforms.types import ByteStreamTransform
 
 
 ##
@@ -20,9 +20,9 @@ class Compression(lang.Abstract):
 
 class IncrementalCompression(lang.Abstract):
     @abc.abstractmethod
-    def compress_incremental(self) -> BytesSteppedCoro[None]:
+    def compress_incremental(self) -> ByteStreamTransform[ta.Any]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def decompress_incremental(self) -> BytesSteppedReaderCoro[None]:
+    def decompress_incremental(self) -> ByteStreamTransform[ta.Any]:
         raise NotImplementedError

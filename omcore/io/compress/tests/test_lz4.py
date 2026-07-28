@@ -1,8 +1,6 @@
-import io
-
 from ....testing import pytest as ptu
-from ...coro.stepped import read_into_bytes_stepped_coro
 from ..lz4 import Lz4Compression
+from .helpers import run_transform_chunked as _run
 
 
 _DEC_DATA = b'foobar' * 128
@@ -14,22 +12,13 @@ def test_lz4():
     d = Lz4Compression().decompress(c)
     assert d == _DEC_DATA
 
-    ow = io.BytesIO()
-    for b in read_into_bytes_stepped_coro(
-            Lz4Compression().compress_incremental(),
-            io.BytesIO(_DEC_DATA),
-            read_size=13,
-    ):
-        ow.write(b)
-    d = Lz4Compression().decompress(ow.getvalue())
-    assert d == _DEC_DATA
+    enc = _run(Lz4Compression().compress_incremental(), _DEC_DATA)
+    assert Lz4Compression().decompress(enc) == _DEC_DATA
 
-    ow = io.BytesIO()
-    for b in read_into_bytes_stepped_coro(
-            Lz4Compression().decompress_incremental(),
-            io.BytesIO(c),
-            read_size=13,
-    ):
-        ow.write(b)
-    d = ow.getvalue()
-    assert d == _DEC_DATA
+    assert _run(Lz4Compression().decompress_incremental(), c) == _DEC_DATA
+
+
+@ptu.skip.if_cant_import('lz4.frame')
+def test_lz4_inc_empty():
+    enc = _run(Lz4Compression().compress_incremental(), b'')
+    assert _run(Lz4Compression().decompress_incremental(), enc) == b''

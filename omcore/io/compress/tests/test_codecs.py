@@ -1,4 +1,3 @@
-import io
 import typing as ta
 
 import pytest
@@ -7,6 +6,8 @@ from .... import check
 from .... import codecs
 from .... import lang
 from ....testing import pytest as ptu
+from ...transforms.funcs import run_stream_transform
+from ...transforms.types import StreamTransform
 
 
 ##
@@ -46,30 +47,11 @@ def test_compression_zstd() -> None:
 ##
 
 
-def _run_incremental_codec(g: ta.Generator[bytes | None, bytes | None], i: bytes) -> bytes:
-    cg = lang.capture_coroutine(g)
-    o = io.BytesIO()
-
-    for b in i:
-        r = cg.send(bytes([b]))
-        assert not r.is_return
-
-        while r.v is not None:
-            o.write(r.v)
-            r = cg.send(None)
-            assert not r.is_return
-
-    r = cg.send(b'')
-    assert not r.is_return
-
-    while r.v is not None:
-        o.write(r.v)
-        r = cg.send(None)
-
-    assert r.is_return
-    cg.close()
-
-    return o.getvalue()
+def _run_incremental_codec(t: StreamTransform[bytes, lang.Bytes, ta.Any], i: bytes) -> bytes:
+    # Byte-at-a-time to stress incremental behavior.
+    out = b''.join(run_stream_transform(t, (bytes([b]) for b in i)))
+    assert t.eof
+    return out
 
 
 def _test_incremental_compression(name: str) -> None:
