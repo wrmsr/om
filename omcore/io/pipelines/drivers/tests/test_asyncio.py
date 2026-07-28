@@ -274,6 +274,12 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
 
 
 class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyncTestCase):
+    def test_invalid_chunk_sizes(self):
+        with self.assertRaises(ValueError):
+            PollAsyncioStreamIoPipelineDriver.Config(read_chunk_size=0)
+        with self.assertRaises(ValueError):
+            PollAsyncioStreamIoPipelineDriver.Config(write_chunk_max=0)
+
     def test_invalid_watermarks(self):
         with self.assertRaises(ValueError):
             PollAsyncioStreamIoPipelineDriver.Config(
@@ -291,6 +297,29 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
         try:
             self.assertIsNone(await drv.next(read=False))
             self.assertIsNone(writer.transport.limits)
+        finally:
+            await drv.close()
+
+    async def test_write_chunk_max_bounds_each_write(self):
+        writer = LifecycleStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+            config=PollAsyncioStreamIoPipelineDriver.Config(write_chunk_max=2),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+
+            self.assertEqual(await drv._handle_output(b'abcde'), 'handled')
+            self.assertEqual(
+                writer.events,
+                [
+                    ('write', b'ab'),
+                    ('write', b'cd'),
+                    ('write', b'e'),
+                ],
+            )
         finally:
             await drv.close()
 

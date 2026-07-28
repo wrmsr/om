@@ -73,7 +73,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='f007bd82796874ac1ec5159c71d531b8250e2d22'),
+            dict(path='drivers/asyncio.py', sha1='3bd17f65512e1b0ed0ccff3e1d411d2d06b2d25d'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -8556,8 +8556,12 @@ class PollAsyncioStreamIoPipelineDriver:
         write_low_watermark: int = 16 * 1024
 
         def __post_init__(self) -> None:
-            """Validate output writability watermarks."""
+            """Validate I/O chunk sizes and output writability watermarks."""
 
+            if self.read_chunk_size < 1:
+                raise ValueError(self.read_chunk_size)
+            if self.write_chunk_max is not None and self.write_chunk_max < 1:
+                raise ValueError(self.write_chunk_max)
             if not (0 <= self.write_low_watermark <= self.write_high_watermark):
                 raise ValueError((self.write_low_watermark, self.write_high_watermark))
 
@@ -9182,7 +9186,11 @@ class PollAsyncioStreamIoPipelineDriver:
     async def _handle_output_bytes(self, msg: ta.Any) -> None:
         for mv in ByteStreamBuffers.iter_segments(msg):
             if self._writer is not None and mv:
-                self._writer.write(mv)
+                if (wcm := self._config.write_chunk_max) is None:
+                    self._writer.write(mv)
+                else:
+                    for pos in range(0, len(mv), wcm):
+                        self._writer.write(mv[pos:pos + wcm])
 
         self._update_output_writability()
 

@@ -51,8 +51,12 @@ class PollAsyncioStreamIoPipelineDriver:
         write_low_watermark: int = 16 * 1024
 
         def __post_init__(self) -> None:
-            """Validate output writability watermarks."""
+            """Validate I/O chunk sizes and output writability watermarks."""
 
+            if self.read_chunk_size < 1:
+                raise ValueError(self.read_chunk_size)
+            if self.write_chunk_max is not None and self.write_chunk_max < 1:
+                raise ValueError(self.write_chunk_max)
             if not (0 <= self.write_low_watermark <= self.write_high_watermark):
                 raise ValueError((self.write_low_watermark, self.write_high_watermark))
 
@@ -677,7 +681,11 @@ class PollAsyncioStreamIoPipelineDriver:
     async def _handle_output_bytes(self, msg: ta.Any) -> None:
         for mv in ByteStreamBuffers.iter_segments(msg):
             if self._writer is not None and mv:
-                self._writer.write(mv)
+                if (wcm := self._config.write_chunk_max) is None:
+                    self._writer.write(mv)
+                else:
+                    for pos in range(0, len(mv), wcm):
+                        self._writer.write(mv[pos:pos + wcm])
 
         self._update_output_writability()
 
