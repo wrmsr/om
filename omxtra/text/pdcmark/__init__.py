@@ -7,6 +7,16 @@ implementation plan and module layout.
 Based on pulldown-cmark - see LICENSE file.
 ~ https://github.com/pulldown-cmark/pulldown-cmark/tree/b93cbc043fe8a24b5ee3868b21299e320e0f7d41
 """
+from omcore import dataclasses as _dc  # noqa
+
+
+_dc.init_package(
+    globals(),
+    codegen=True,
+)
+
+
+##
 
 
 from .brokenlinks import (  # noqa
@@ -63,7 +73,7 @@ from .options import (  # noqa
     Options,
 )
 
-from .utils.text_merge import (  # noqa
+from .utils.textmerge import (  # noqa
     merge_text,
 )
 
