@@ -100,7 +100,8 @@ class JsonValueBuilder:
             return ()
 
         elif e is EndArray:
-            if not stk or not isinstance(tv := stk.pop(), list):
+            # JsonStreamObject subclasses list, so it must be explicitly excluded here
+            if not stk or not isinstance(tv := stk.pop(), list) or isinstance(tv, JsonStreamObject):
                 raise self.StateError
 
             return self._emit_value(tv)

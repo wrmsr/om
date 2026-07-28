@@ -23,7 +23,6 @@ TODO:
    - Names and values separated by = or => instead of :.
    - Name/value pairs separated by ; instead of ,.
 """
-import itertools
 import typing as ta
 
 from .... import lang
@@ -36,6 +35,15 @@ from .tokens import Token
 
 
 ##
+
+
+def _yield_chunks_with_eof(i: ta.Iterable[str]) -> ta.Iterator[str]:
+    # The lexer interprets an empty chunk as EOF, so any present in user input must be skipped before the final
+    # sentinel is appended.
+    for c in i:
+        if c:
+            yield c
+    yield ''
 
 
 class JsonStreamValueParser(lang.ExitStacked):
@@ -71,7 +79,7 @@ class JsonStreamValueParser(lang.ExitStacked):
             i: ta.Iterable[str],
     ) -> ta.Iterator[ta.Any]:
         with cls(m) as p:
-            yield from p.feed(itertools.chain(i, ['']))
+            yield from p.feed(_yield_chunks_with_eof(i))
 
     @classmethod
     def parse_one_value(
@@ -80,7 +88,7 @@ class JsonStreamValueParser(lang.ExitStacked):
             i: ta.Iterable[str],
     ) -> ta.Any:
         with cls(m) as p:
-            return next(p.feed(itertools.chain(i, [''])))
+            return next(p.feed(_yield_chunks_with_eof(i)))
 
     @classmethod
     def parse_exactly_one_value(
@@ -91,7 +99,7 @@ class JsonStreamValueParser(lang.ExitStacked):
         r: ta.Any
         r = not_set = object()
         with cls(m) as p:
-            for v in p.feed(itertools.chain(i, [''])):
+            for v in p.feed(_yield_chunks_with_eof(i)):
                 if r is not_set:
                     r = v
                 else:

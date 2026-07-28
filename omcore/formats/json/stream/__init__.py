@@ -65,6 +65,7 @@ from .tokens import (  # noqa
     CONTROL_TOKENS,
     CONST_IDENT_VALUES,
 
+    SPACE_CHARS,
     EXPANDED_SPACE_CHARS,
 )
 

@@ -71,7 +71,7 @@ class Token(ta.NamedTuple):
 ##
 
 
-NUMBER_PAT = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+NUMBER_PAT = re.compile(r'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?')  # note: \d matches unicode digits
 
 CONTROL_TOKENS: ta.Mapping[str, TokenKind] = {
     '{': 'LBRACE',
@@ -98,6 +98,8 @@ MAX_CONST_IDENT_LEN = max(map(len, CONST_IDENT_VALUES))
 
 ##
 
+
+SPACE_CHARS = ' \t\n\r'
 
 EXPANDED_SPACE_CHARS = (
     '\u0009'

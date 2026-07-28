@@ -63,7 +63,6 @@ def test_parsing():
 
         # Supported because streaming
         'n_single_space.json',
-        'n_structure_whitespace_formfeed.json',
         'n_structure_no_data.json',
         'n_structure_double_array.json',
         'n_structure_object_with_trailing_garbage.json',

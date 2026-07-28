@@ -18,6 +18,7 @@ from .tokens import CONTROL_TOKENS
 from .tokens import EXPANDED_SPACE_CHARS
 from .tokens import MAX_CONST_IDENT_LEN
 from .tokens import NUMBER_PAT
+from .tokens import SPACE_CHARS
 from .tokens import Position
 from .tokens import ScalarValue
 from .tokens import Token
@@ -70,6 +71,9 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
         self._allow_single_quotes = allow_single_quotes
         if string_literal_parser is None:
+            if allow_single_quotes:
+                # The default json.loads will always reject single-quoted raw literals.
+                raise TypeError('allow_single_quotes requires a string_literal_parser')
             string_literal_parser = json.loads  # noqa
         self._string_literal_parser = string_literal_parser
 
@@ -99,7 +103,10 @@ class JsonStreamLexer(GenMachine[str, Token]):
         )
 
     def _advance_pos(self, c: str) -> str:
-        if c and len(c) != 1:
+        if not c:
+            return c
+
+        if len(c) != 1:
             raise JsonStreamError(c)
 
         self._ofs += 1
@@ -174,7 +181,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
             if not c:
                 return None
 
-            if c.isspace() or (self._allow_extended_space and c in EXPANDED_SPACE_CHARS):
+            if c in SPACE_CHARS or (self._allow_extended_space and c in EXPANDED_SPACE_CHARS):
                 if self._include_space:
                     yield self._make_tok('SPACE', c, c, self.pos)
                 continue
@@ -186,7 +193,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
             if c == '"' or (self._allow_single_quotes and c == "'"):
                 return self._do_string(c)
 
-            if c.isdigit() or c == '-' or (self._allow_extended_number_literals and c in '.+'):
+            if c in '0123456789-' or (self._allow_extended_number_literals and c in '.+'):
                 return self._do_number(c)
 
             if self._allow_comments and c == '/':
@@ -225,6 +232,8 @@ class JsonStreamLexer(GenMachine[str, Token]):
             self._line = line
             self._col = col
 
+        bs_count = 0  # count of consecutive backslashes immediately preceding the current position
+
         while True:
             c: str | None = None
 
@@ -248,6 +257,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
                         else:
                             col += skip_to - char_in_str_pos
                         buf.write(char_in_str[char_in_str_pos:skip_to])
+                        bs_count = 0  # the skipped range contains no backslashes
 
                         if skip_to >= char_in_str_len:
                             char_in_str = None
@@ -279,6 +289,10 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
                 break
 
+            if not c:
+                restore_state()
+                self._raise(f'Unterminated string literal: {buf.getvalue()}')
+
             ofs += 1
 
             if c == '\n':
@@ -287,23 +301,17 @@ class JsonStreamLexer(GenMachine[str, Token]):
             else:
                 col += 1
 
-            if not c:
-                restore_state()
-                self._raise(f'Unterminated string literal: {buf.getvalue()}')
-
             buf.write(c)
-            if c == q:
-                # Count consecutive backslashes before this quote
-                backslash_count = 0
-                buf_val = buf.getvalue()
-                check_pos = len(buf_val) - 2  # -2 because we just wrote the quote
-                while check_pos >= 0 and buf_val[check_pos] == '\\':
-                    backslash_count += 1
-                    check_pos -= 1
 
-                # Quote is escaped only if preceded by odd number of backslashes
-                if backslash_count % 2 == 0:
+            if c == q:
+                # Quote is escaped only if preceded by an odd number of backslashes
+                if not bs_count % 2:
                     break
+                bs_count = 0
+            elif c == '\\':
+                bs_count += 1
+            else:
+                bs_count = 0
 
         restore_state()
 
@@ -335,7 +343,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
             if not c:
                 break
 
-            if not (c.isdigit() or c in '.eE+-' or (self._allow_extended_number_literals and c in 'xXabcdefABCDEF')):
+            if not (c in '0123456789.eE+-' or (self._allow_extended_number_literals and c in 'xXabcdefABCDEF')):
                 break
             self._buf.write(c)
 
@@ -345,7 +353,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
         if self._allow_extended_number_literals:
             p = 1 if raw[0] in '+-' else 0
-            if (len(raw) - p) > 1 and raw[p] == '0' and raw[p + 1].isdigit():
+            if (len(raw) - p) > 1 and raw[p] == '0' and raw[p + 1] in '0123456789':
                 self._raise('Invalid number literal')
 
         if raw == '-' or (self._allow_extended_number_literals and raw == '+'):
@@ -355,9 +363,6 @@ class JsonStreamLexer(GenMachine[str, Token]):
             ]:
                 if c != svs[0]:
                     continue
-
-                if not c:
-                    self._raise('Unexpected end of input')
 
                 raw += c
                 try:

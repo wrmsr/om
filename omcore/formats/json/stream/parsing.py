@@ -208,7 +208,7 @@ class JsonStreamParser(GenMachine[Token, Event]):
 
     def _emit_end_array(self):
         if not self._stack:
-            raise JsonStreamParseError('Expected end array')
+            raise JsonStreamParseError('Unexpected end array')
 
         tt = self._stack.pop()
         if tt != 'ARRAY':
