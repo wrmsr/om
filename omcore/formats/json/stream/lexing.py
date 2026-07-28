@@ -34,6 +34,16 @@ else:
 ##
 
 
+_CONST_IDENTS_BY_FIRST_CHAR: ta.Mapping[str, str] = {
+    s[0]: s
+    for s in CONST_IDENT_VALUES
+    if not s.startswith('-')
+}
+
+
+##
+
+
 @dc.dataclass()
 class JsonStreamLexError(JsonStreamError):
     message: str
@@ -81,6 +91,10 @@ class JsonStreamLexer(GenMachine[str, Token]):
         self._number_literal_parser = number_literal_parser
 
         self._allow_extended_idents = allow_extended_idents
+
+        self._space_chars = SPACE_CHARS + (EXPANDED_SPACE_CHARS if allow_extended_space else '')
+        # Bulk number scanning requires standard literals - NUMBER_PAT does not describe the extended forms.
+        self._bulk_numbers = not allow_extended_number_literals and number_literal_parser is None
 
         self._char_in_str: str | None = None
         self._char_in_str_len: int = 0
@@ -133,6 +147,14 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
         return c
 
+    def _store_char_in(self, s: str) -> None:
+        if self._char_in_str is not None:
+            raise JsonStreamError
+
+        self._char_in_str = s
+        self._char_in_str_len = len(s)
+        self._char_in_str_pos = 0
+
     def _str_char_in(self) -> str | None:
         if (s := self._char_in_str) is None:
             return None
@@ -169,19 +191,192 @@ class JsonStreamLexer(GenMachine[str, Token]):
     def _raise(self, msg: str, src: Exception | None = None) -> ta.NoReturn:
         raise JsonStreamLexError(msg, self.pos) from src
 
+    def _scan_chunk(self, toks: list[Token]) -> str | None:
+        """
+        Bulk-scans the stored input chunk, appending any tokens completed within it to `toks`. Returns a handoff char -
+        already consumed and position-advanced, exactly as if read via `_str_char_in` - which the caller must dispatch
+        to the per-char scanners, or None if the chunk was consumed without one. Tokens which may straddle the chunk
+        boundary are always handed off - only tokens provably complete within the chunk are emitted here.
+        """
+
+        if (s := self._char_in_str) is None:
+            return None
+
+        p = self._char_in_str_pos
+        sl = self._char_in_str_len
+
+        ofs = self._ofs
+        line = self._line
+        col = self._col
+
+        include_raw = self._include_raw
+        include_space = self._include_space
+        space_chars = self._space_chars
+        bulk_numbers = self._bulk_numbers
+        ext_idents = self._allow_extended_idents
+        single_quotes = self._allow_single_quotes
+        str_parser = self._string_literal_parser
+        ctrl_get = CONTROL_TOKENS.get
+        num_match = NUMBER_PAT.match
+
+        try:
+            while p < sl:
+                c = s[p]
+
+                if c in space_chars:
+                    if include_space:
+                        p += 1
+                        ofs += 1
+                        if c == '\n':
+                            line += 1
+                            col = 0
+                        else:
+                            col += 1
+                        toks.append(Token(
+                            'SPACE',
+                            c,
+                            c if include_raw else None,
+                            Position(ofs, line, col),
+                        ))
+                        continue
+
+                    q = p + 1
+                    while q < sl and s[q] in space_chars:
+                        q += 1
+                    ofs += q - p
+                    if (np := s.rfind('\n', p, q)) >= 0:
+                        line += s.count('\n', p, q)
+                        col = q - np - 1
+                    else:
+                        col += q - p
+                    p = q
+                    continue
+
+                if (k := ctrl_get(c)) is not None:
+                    p += 1
+                    ofs += 1
+                    col += 1
+                    toks.append(Token(
+                        k,
+                        c,
+                        c if include_raw else None,
+                        Position(ofs, line, col),
+                    ))
+                    continue
+
+                if c == '"' or (single_quotes and c == "'"):
+                    e = p + 1
+                    while (qp := s.find(c, e)) >= 0:
+                        b = qp - 1
+                        while b > p and s[b] == '\\':
+                            b -= 1
+                        # Quote is escaped only if preceded by an odd number of backslashes
+                        if (qp - 1 - b) % 2 == 0:
+                            break
+                        e = qp + 1
+
+                    if qp >= 0:
+                        try:
+                            sv = str_parser(s[p:qp + 1])
+                        except Exception:  # noqa
+                            # Errors must surface through the per-char scanner so that any already-batched tokens are
+                            # flushed to the consumer first - hand off to it to rescan and re-raise.
+                            pass
+                        else:
+                            pos = Position(ofs + 1, line, col + 1)
+                            raw = s[p:qp + 1] if include_raw else None
+                            tl = qp + 1 - p
+                            ofs += tl
+                            if (np := s.rfind('\n', p, qp + 1)) >= 0:
+                                line += s.count('\n', p, qp + 1)
+                                col = qp - np
+                            else:
+                                col += tl
+                            p = qp + 1
+
+                            toks.append(Token(
+                                'STRING',
+                                sv,
+                                raw,
+                                pos,
+                            ))
+                            continue
+
+                    # No closing quote in this chunk (or a bad literal) - hand off to the suspendable scanner.
+
+                elif bulk_numbers and c in '0123456789-':
+                    m = num_match(s, p)
+                    # A match reaching the chunk end may continue in the next chunk, and one followed by another
+                    # number-ish char must be greedily consumed (and rejected) by the per-char scanner as a whole.
+                    if m is not None and (e := m.end()) < sl and s[e] not in '0123456789.eE+-':
+                        raw = s[p:e]
+                        toks.append(Token(
+                            'NUMBER',
+                            float(raw) if m.lastindex else int(raw),
+                            raw if include_raw else None,
+                            Position(ofs + 1, line, col + 1),
+                        ))
+                        tl = e - p
+                        ofs += tl
+                        col += tl
+                        p = e
+                        continue
+
+                elif not ext_idents and (ci := _CONST_IDENTS_BY_FIRST_CHAR.get(c)) is not None:
+                    # Const idents are prefix-free, so a full match is unambiguous even at the chunk end.
+                    if s.startswith(ci, p):
+                        toks.append(Token(
+                            'IDENT',
+                            ci,
+                            ci if include_raw else None,
+                            Position(ofs + 1, line, col + 1),
+                        ))
+                        tl = len(ci)
+                        ofs += tl
+                        col += tl
+                        p += tl
+                        continue
+
+                p += 1
+                ofs += 1
+                col += 1
+                return c
+
+            return None
+
+        finally:
+            self._char_in_str_pos = p
+            self._ofs = ofs
+            self._line = line
+            self._col = col
+
     def _do_main(self, peek: str | None = None):
+        toks: list[Token] = []
+
         while True:
+            c: str | None
             if peek is not None:
                 c = peek
                 peek = None
             else:
-                if (c := self._str_char_in()) is None:  # type: ignore[assignment]
-                    c = self._yield_char_in((yield None))  # noqa
+                c = self._scan_chunk(toks)
+
+                # Any batched tokens must be flushed before suspending for input or switching to a per-char scanner.
+                if toks:
+                    yield toks
+                    toks = []
+
+                if c is None and (c := self._str_char_in()) is None:
+                    cs = yield None
+                    if cs and len(cs) > 1:
+                        self._store_char_in(cs)
+                        continue
+                    c = self._advance_pos(cs)
 
             if not c:
                 return None
 
-            if c in SPACE_CHARS or (self._allow_extended_space and c in EXPANDED_SPACE_CHARS):
+            if c in self._space_chars:
                 if self._include_space:
                     yield self._make_tok('SPACE', c, c, self.pos)
                 continue
@@ -393,10 +588,10 @@ class JsonStreamLexer(GenMachine[str, Token]):
             nv = np(raw)
 
         else:
-            if not NUMBER_PAT.fullmatch(raw):
+            if (m := NUMBER_PAT.fullmatch(raw)) is None:
                 self._raise(f'Invalid number format: {raw}')
 
-            if '.' in raw or 'e' in raw or 'E' in raw:
+            if m.lastindex:
                 nv = float(raw)
             else:
                 nv = int(raw)

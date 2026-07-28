@@ -71,7 +71,8 @@ class Token(ta.NamedTuple):
 ##
 
 
-NUMBER_PAT = re.compile(r'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?')  # note: \d matches unicode digits
+# A match with any group present is a float, otherwise an int. Note: \d must be avoided as it matches unicode digits.
+NUMBER_PAT = re.compile(r'-?(?:0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?')
 
 CONTROL_TOKENS: ta.Mapping[str, TokenKind] = {
     '{': 'LBRACE',

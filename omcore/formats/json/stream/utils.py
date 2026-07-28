@@ -40,9 +40,14 @@ from .tokens import Token
 def _yield_chunks_with_eof(i: ta.Iterable[str]) -> ta.Iterator[str]:
     # The lexer interprets an empty chunk as EOF, so any present in user input must be skipped before the final
     # sentinel is appended.
-    for c in i:
-        if c:
-            yield c
+    if isinstance(i, str):
+        # A bare str would otherwise be fed char by char - hand it to the lexer as a single chunk.
+        if i:
+            yield i
+    else:
+        for c in i:
+            if c:
+                yield c
     yield ''
 
 
