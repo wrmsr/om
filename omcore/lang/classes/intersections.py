@@ -26,7 +26,7 @@ class _IntersectionMeta(type):
         ibl: list[type] = []
         ibs: set[type] = set()
         for b in bases:
-            if b is ibc:
+            if b is ibc or b is Abstract:
                 continue
             elif isinstance(b, _IntersectionMeta):
                 for ib in b.__intersection_bases__:

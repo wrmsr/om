@@ -3,13 +3,13 @@ import typing as ta
 
 from ... import check
 from ... import lang
-from ...asyncs.asynclite import all as asl
 from ..elements import CollectedElements
 from ..injector import AsyncInjector
 from ..inspect import KwargsTarget
 from ..keys import as_key
 from ..sync import Injector
 from .injector import AsyncInjectorImpl
+from .injector import Asynclite
 
 
 ##
@@ -31,7 +31,12 @@ class InjectorImpl(Injector, lang.Final):
         return lang.sync_await(self._ai.inject(obj))
 
 
-def create_injector(ce: CollectedElements, p: Injector | None = None) -> Injector:
+def create_injector(
+        ce: CollectedElements,
+        p: Injector | None = None,
+        *,
+        al: Asynclite | None = None,
+) -> Injector:
     ap: AsyncInjectorImpl | None = None
     if p is not None:
         ap = check.isinstance(check.isinstance(p, InjectorImpl)._ai, AsyncInjectorImpl)
@@ -43,7 +48,7 @@ def create_injector(ce: CollectedElements, p: Injector | None = None) -> Injecto
         internal_consts={
             as_key(Injector): si,
         },
-        al=ta.cast(ta.Any, asl.sync.All()) if p is None else None,
+        al=al,
     )
     si._ai = ai
     lang.sync_await(ai._init())

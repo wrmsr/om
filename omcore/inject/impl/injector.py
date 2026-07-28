@@ -345,11 +345,16 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         return obj(**kws)
 
 
-async def create_async_injector(ce: CollectedElements, p: AsyncInjector | None = None) -> AsyncInjector:
+async def create_async_injector(
+        ce: CollectedElements,
+        p: AsyncInjector | None = None,
+        *,
+        al: Asynclite | None = None,
+) -> AsyncInjector:
     i = AsyncInjectorImpl(
         ce,
         check.isinstance(p, (AsyncInjectorImpl, None)),
-        al=ta.cast(ta.Any, asl.asyncio.All()) if p is None else None,
+        al=check.isinstance(al, Asynclite) if al is not None else None,
     )
     await i._init()  # noqa
     return i

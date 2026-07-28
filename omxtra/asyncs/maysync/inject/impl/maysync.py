@@ -5,6 +5,7 @@ from omcore import check
 from omcore import lang
 from omcore.inject.elements import CollectedElements
 from omcore.inject.impl.injector import AsyncInjectorImpl
+from omcore.inject.impl.injector import Asynclite
 from omcore.inject.injector import AsyncInjector
 from omcore.inject.inspect import KwargsTarget
 from omcore.inject.keys import as_key
@@ -33,7 +34,12 @@ class MaysyncInjectorImpl(MaysyncInjector, lang.Final):
         return run_maysync(self._ai.inject(obj))
 
 
-def create_maysync_injector(ce: CollectedElements, p: MaysyncInjector | None = None) -> MaysyncInjector:
+def create_maysync_injector(
+        ce: CollectedElements,
+        p: MaysyncInjector | None = None,
+        *,
+        al: Asynclite | None = None,
+) -> MaysyncInjector:
     ap: AsyncInjectorImpl | None = None
     if p is not None:
         ap = check.isinstance(check.isinstance(p, MaysyncInjectorImpl)._ai, AsyncInjectorImpl)
@@ -46,6 +52,7 @@ def create_maysync_injector(ce: CollectedElements, p: MaysyncInjector | None = N
             as_key(MaysyncInjector): si,
             as_key(Injector): si,
         },
+        al=al,
     )
     si._ai = ai
     run_maysync(ai._init())

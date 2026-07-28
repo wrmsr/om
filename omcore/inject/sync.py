@@ -2,6 +2,7 @@ import abc
 import typing as ta
 
 from .. import lang
+from ..asyncs.asynclite import all as asl
 from .injector import _InjectorCreator
 from .inspect import KwargsTarget
 from .keys import Key
@@ -47,5 +48,6 @@ class Injector(lang.Abstract):
 
 
 create_injector = _InjectorCreator[Injector, Injector](
-    lambda ce, p=None: _sync.create_injector(ce, p),
+    lambda ce, p=None, *, al=None: _sync.create_injector(ce, p, al=al),
+    lambda: ta.cast(ta.Any, asl.sync.All()),
 )

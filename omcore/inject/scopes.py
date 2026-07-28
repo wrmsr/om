@@ -7,7 +7,6 @@ from .. import dataclasses as dc
 from .. import lang
 from .bindings import Binding
 from .elements import Element
-from .injector import AsyncInjector
 from .keys import Key
 from .keys import as_key
 from .providers import Provider
@@ -108,7 +107,7 @@ def enter_seeded_scope(
     def inner():
         # FIXME: helper lol
         ag = async_enter_seeded_scope(
-            i[AsyncInjector],
+            i[_injector.AsyncInjector],
             ss,
             keys,
         )
