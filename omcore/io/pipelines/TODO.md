@@ -4,13 +4,8 @@
   - `IoPipelineHandlerContext._pipeline`
   - `IoPipelineHandlerContext._context`
 - shutdown sequence / error handling
-  - `FinalOutput` is the ordered graceful-close barrier; `destroy` / driver `close` is abortive and does not synthesize
-    final messages
-  - shared driver `NEW` / `RUNNING` / `DRAINING` / `CLOSED` / `FAILED` states are exposed; decide whether general
-    pipeline-level close-requested visibility is useful beyond protocol-specific state such as TLS
-  - report graceful drain failures instead of silently converting them to successful closure
-- reimpl full (bytes) flow control (watermarks)
-  - bidirectional?
+  - decide whether general pipeline-level close-requested visibility is useful beyond `saw_final_output`, shared driver
+    lifecycle state, and protocol-specific state such as TLS
 - hand optimize a bit
   - segmented split_to should mutate seg list in place
 

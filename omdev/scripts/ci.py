@@ -163,7 +163,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='fa174d01438db50305953e0f500d303c6a80faac'),  # noqa
-            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='81ead96b6a9487fbda313e858d75701ebe2d5518'),
+            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='0636054377b5f539875808cfc4ae63a48ba58422'),
             dict(path='../../omcore/io/pipelines/sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
             dict(path='../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
             dict(path='../../omcore/io/streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
@@ -13576,7 +13576,7 @@ class IoPipelineFlowMessages(NamespaceClass):
         pass
 
     ##
-    # TODO / WIP:
+    # Output writability contract:
     #  - Level-triggered writability, edge-notified: emitters send one message per *transition*, never repeats.
     #    ReadyForOutput means 'output may flow'; PauseOutput means 'stop producing output'.
     #  - They flow INBOUND (transport -> app), originated by the transport head (or a dedicated watermark handler

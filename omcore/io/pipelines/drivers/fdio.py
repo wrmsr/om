@@ -133,7 +133,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
             check.state(pipeline.is_ready)
 
-            self._state = self.state.RUNNING
+            self._state = IoPipelineDriverState.RUNNING
 
             return pipeline
 

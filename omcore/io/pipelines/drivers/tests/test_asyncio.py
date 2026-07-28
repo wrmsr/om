@@ -357,6 +357,7 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
             self.assertEqual(writer.events, [('write', b'payload'), 'close', 'wait_closed'])
             self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
             self.assertFalse(drv.pipeline.is_ready)
+            self.assertTrue(ta.cast(asyncio.Task, drv._read_task).done())
         finally:
             await drv.close()
 

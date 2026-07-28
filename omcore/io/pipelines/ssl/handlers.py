@@ -182,6 +182,7 @@ class SslIoPipelineHandler(
     _read_satisfied = False       # a manual read token was satisfied with data this turn
     _rfi_outstanding = False      # we sent ReadyForInput and haven't received bytes since
     _flush_pending = False        # app requested FlushOutput; not yet forwarded
+    _unflushed_output = False     # ciphertext emitted since the last downstream FlushOutput
     _flush_in_seen = False        # transport sent FlushInput; not yet forwarded/swallowed
     _delivered_plaintext = False  # plaintext fed inbound since the last FlushInput we forwarded
     _plaintext_eof = False        # engine reported EOF; synthetic FinalInput owed (once)
@@ -725,18 +726,33 @@ class SslIoPipelineHandler(
         for b in out_chunks:
             ctx.feed_out(b)
 
-        # 2) FlushOutput: forward the app's flush once its bytes (if any) have actually gone out; emit our own after
-        # engine-driven output (handshake / shutdown / renegotiation records, session tickets) so manual-flush
-        # transports never sit on control records.
+        # 2) FlushOutput: forward the app's flush once its bytes (if any) have actually gone out. If downstream
+        # backpressure interrupts a write, emit progress flushes for ciphertext already produced while retaining the
+        # pending app flush until all of its plaintext has been processed; otherwise a buffering downstream handler can
+        # wait for our flush while we wait for its writability. Also emit our own after engine-driven output
+        # (handshake / shutdown / renegotiation records, session tickets) so manual-flush transports never sit on
+        # control records.
         produced = bool(out_chunks)
+        if produced:
+            self._unflushed_output = True
+
         emit_flush = False
-        if self._flush_pending and (produced or not self._write_q):
-            self._flush_pending = False
+        if self._flush_pending:
+            if not self._write_q:
+                self._flush_pending = False
+                emit_flush = True
+            elif self._unflushed_output:
+                # A downstream buffering handler may have paused us while receiving only part of the ciphertext for
+                # this application flush. Let it flush that prefix so it can become writable again, but retain the
+                # application flush until all plaintext preceding it has been processed.
+                emit_flush = True
+
+        elif self._unflushed_output and self._control_activity and fc is not None:
             emit_flush = True
-        elif produced and self._control_activity and fc is not None:
-            emit_flush = True
+
         self._control_activity = False
         if emit_flush:
+            self._unflushed_output = False
             ctx.feed_out(IoPipelineFlowMessages.FlushOutput())
 
         # 3) Deferred FinalOutput.

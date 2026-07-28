@@ -655,9 +655,11 @@ class PollAsyncioStreamIoPipelineDriver:
 
     async def _handle_output_final_output(self, msg: IoPipelineMessages.FinalOutput) -> ta.Optional[str]:
         self._shutdown_event.set()
+        self._want_read_event.set()
 
         self._state = IoPipelineDriverState.DRAINING
         try:
+            await self._cancel_tasks(self._read_task, check_running=True)
             await self._gracefully_close_writer()
 
         except BaseException:

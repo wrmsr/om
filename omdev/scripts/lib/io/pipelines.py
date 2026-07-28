@@ -53,7 +53,7 @@ def __om_amalg__():  # noqa
             dict(path='asyncs.py', sha1='c0eb92ac287f81aca8d1d61e6e3ae9b0873a856b'),
             dict(path='bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='drivers/metadata.py', sha1='fa174d01438db50305953e0f500d303c6a80faac'),
-            dict(path='flow/types.py', sha1='81ead96b6a9487fbda313e858d75701ebe2d5518'),
+            dict(path='flow/types.py', sha1='0636054377b5f539875808cfc4ae63a48ba58422'),
             dict(path='handlers/fns.py', sha1='d3e3c43b3359572122b8cb9018c770441c598d48'),
             dict(path='handlers/queues.py', sha1='0672c722e377d67369da3cb4a082b4816eb84875'),
             dict(path='sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
@@ -73,7 +73,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='77ac83c4aaaee26148617aecdb53eb4abe163a88'),
+            dict(path='drivers/asyncio.py', sha1='b353046f667f92a90406aad3e9f4855bb185ca0a'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -4204,7 +4204,7 @@ class IoPipelineFlowMessages(NamespaceClass):
         pass
 
     ##
-    # TODO / WIP:
+    # Output writability contract:
     #  - Level-triggered writability, edge-notified: emitters send one message per *transition*, never repeats.
     #    ReadyForOutput means 'output may flow'; PauseOutput means 'stop producing output'.
     #  - They flow INBOUND (transport -> app), originated by the transport head (or a dedicated watermark handler
@@ -9160,9 +9160,11 @@ class PollAsyncioStreamIoPipelineDriver:
 
     async def _handle_output_final_output(self, msg: IoPipelineMessages.FinalOutput) -> ta.Optional[str]:
         self._shutdown_event.set()
+        self._want_read_event.set()
 
         self._state = IoPipelineDriverState.DRAINING
         try:
+            await self._cancel_tasks(self._read_task, check_running=True)
             await self._gracefully_close_writer()
 
         except BaseException:

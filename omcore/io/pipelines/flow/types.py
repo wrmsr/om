@@ -49,7 +49,7 @@ class IoPipelineFlowMessages(NamespaceClass):
         pass
 
     ##
-    # TODO / WIP:
+    # Output writability contract:
     #  - Level-triggered writability, edge-notified: emitters send one message per *transition*, never repeats.
     #    ReadyForOutput means 'output may flow'; PauseOutput means 'stop producing output'.
     #  - They flow INBOUND (transport -> app), originated by the transport head (or a dedicated watermark handler
