@@ -1,9 +1,12 @@
 # ruff: noqa: SLF001
 # @om-lite
 import socket
+import time
 import typing as ta
 import unittest
 
+from ....fdio.manager import FdioManager
+from ....fdio.pollers import SelectFdioPoller
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
@@ -21,6 +24,10 @@ class ScriptedSendSocket:
         self._send_results = list(send_results)
         self.sent = []
         self.closed = False
+        self.blocking = True
+
+    def setblocking(self, blocking):
+        self.blocking = blocking
 
     def send(self, data):
         if self._send_results:
@@ -35,6 +42,34 @@ class ScriptedSendSocket:
 
     def close(self):
         self.closed = True
+
+
+def fill_socket_send_buffer(sock: socket.socket) -> int:
+    timeout = sock.gettimeout()
+    sock.setblocking(False)
+    total = 0
+    try:
+        while True:
+            try:
+                total += sock.send(b'x' * 64 * 1024)
+            except BlockingIOError:
+                return total
+    finally:
+        sock.settimeout(timeout)
+
+
+def drain_socket(sock: socket.socket) -> bytes:
+    timeout = sock.gettimeout()
+    sock.setblocking(False)
+    chunks = []
+    try:
+        while True:
+            try:
+                chunks.append(sock.recv(64 * 1024))
+            except BlockingIOError:
+                return b''.join(chunks)
+    finally:
+        sock.settimeout(timeout)
 
 
 class CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
@@ -74,6 +109,12 @@ class CaptureFinalInputIoPipelineHandler(IoPipelineHandler):
 
 
 class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
+    def test_invalid_chunk_sizes(self):
+        with self.assertRaises(ValueError):
+            IoPipelineDriverSocketFdioHandler.Config(read_chunk_size=0)
+        with self.assertRaises(ValueError):
+            IoPipelineDriverSocketFdioHandler.Config(write_chunk_max=0)
+
     def test_invalid_watermarks(self):
         with self.assertRaises(ValueError):
             IoPipelineDriverSocketFdioHandler.Config(
@@ -84,6 +125,7 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
     def test_read_false_does_not_raise_on_stall(self):
         sock, peer = socket.socketpair()
         with peer:
+            self.assertIsNone(sock.gettimeout())
             drv = IoPipelineDriverSocketFdioHandler(
                 sock,
                 ('127.0.0.1', 0),
@@ -94,9 +136,24 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
                 ),
             )
             try:
+                self.assertEqual(sock.gettimeout(), 0.)
                 self.assertIsNone(drv.next(read=False))
             finally:
                 drv.close()
+
+    def test_close_before_pipeline_initialization_closes_socket(self):
+        sock, peer = socket.socketpair()
+        with peer:
+            drv = IoPipelineDriverSocketFdioHandler(
+                sock,
+                ('127.0.0.1', 0),
+                IoPipeline.Spec(),
+            )
+
+            drv.close()
+
+            self.assertTrue(drv.closed)
+            self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
 
     def test_queues_new_output_behind_existing_backlog(self):
         sock: ta.Any = ScriptedSendSocket(
@@ -121,6 +178,36 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
         assert sock.sent == [b'ab', b'cd', b'ef']
         assert not drv._write_q
         assert drv._write_q_bytes == 0
+
+    def test_write_chunk_max_bounds_each_send(self):
+        sock: ta.Any = ScriptedSendSocket()
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(),
+            config=IoPipelineDriverSocketFdioHandler.Config(write_chunk_max=2),
+        )
+        try:
+            drv._do_write_or_q([b'abcde'])
+
+            self.assertEqual(sock.sent, [b'ab', b'cd', b'e'])
+            self.assertEqual(list(drv._write_q), [])
+        finally:
+            drv.close()
+
+    def test_zero_progress_send_fails_driver(self):
+        sock: ta.Any = ScriptedSendSocket(0)
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(),
+        )
+
+        with self.assertRaises(BrokenPipeError):
+            drv._do_write_or_q([b'x'])
+
+        self.assertTrue(sock.closed)
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
 
     def test_output_writability_watermark_transitions(self):
         sock: ta.Any = ScriptedSendSocket(BlockingIOError())
@@ -191,6 +278,44 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
         finally:
             drv.close()
 
+    def test_saturated_socket_drains_final_output_when_writable(self) -> None:
+        sock, peer = socket.socketpair()
+        poller = SelectFdioPoller()
+        with peer:
+            self.assertGreater(fill_socket_send_buffer(sock), 0)
+            drv = IoPipelineDriverSocketFdioHandler(
+                sock,
+                ('127.0.0.1', 0),
+                IoPipeline.Spec(
+                    [GracefulCloseIoPipelineHandler()],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+            )
+            manager = FdioManager(poller)
+            try:
+                self.assertIsNone(drv.next(read=False))
+                drv.enqueue(_CLOSE)
+
+                start = time.monotonic()
+                self.assertIsNone(drv.next(read=False))
+                self.assertLess(time.monotonic() - start, .5)
+                self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
+                self.assertEqual(drv._write_q_bytes, len(b'payload'))
+
+                manager.register(drv)
+                manager.poll(timeout=0.)
+                self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
+
+                self.assertTrue(drain_socket(peer))
+                manager.poll(timeout=.5)
+
+                self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+                self.assertTrue(drv.closed)
+                self.assertEqual(peer.recv(len(b'payload')), b'payload')
+            finally:
+                drv.close()
+                poller.close()
+
     def test_final_input_does_not_close_output(self) -> None:
         sock: ta.Any = ScriptedSendSocket()
         capture = CaptureFinalInputIoPipelineHandler()
@@ -214,6 +339,30 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             self.assertFalse(drv.pipeline.saw_final_output)
         finally:
             drv.close()
+
+    def test_transport_eof_clears_automatic_read_interest(self) -> None:
+        sock, peer = socket.socketpair()
+        with peer:
+            capture = CaptureFinalInputIoPipelineHandler()
+            drv = IoPipelineDriverSocketFdioHandler(
+                sock,
+                ('127.0.0.1', 0),
+                IoPipeline.Spec([capture]),
+            )
+            try:
+                self.assertIsNone(drv.next(read=False))
+                self.assertTrue(drv.readable())
+                peer.shutdown(socket.SHUT_WR)
+
+                drv.on_readable()
+
+                self.assertTrue(capture.saw_final_input)
+                self.assertTrue(drv.pipeline.saw_final_input)
+                self.assertFalse(drv.readable())
+                self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
+                self.assertFalse(drv.closed)
+            finally:
+                drv.close()
 
     def test_close_discards_queued_bytes(self) -> None:
         sock: ta.Any = ScriptedSendSocket(BlockingIOError())

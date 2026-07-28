@@ -4,7 +4,6 @@
 TODO:
  - can implement sched w/ settimeout
  - sanity / upper bound read/write timeouts
- - sendall? blocks prob
  - self._sock.shutdown(socket.SHUT_WR) ?
 """
 import collections
@@ -46,8 +45,12 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         write_low_watermark: int = 16 * 1024
 
         def __post_init__(self) -> None:
-            """Validate output writability watermarks."""
+            """Validate I/O chunk sizes and output writability watermarks."""
 
+            if self.read_chunk_size < 1:
+                raise ValueError(self.read_chunk_size)
+            if self.write_chunk_max is not None and self.write_chunk_max < 1:
+                raise ValueError(self.write_chunk_max)
             if not (0 <= self.write_low_watermark <= self.write_high_watermark):
                 raise ValueError((self.write_low_watermark, self.write_high_watermark))
 
@@ -62,6 +65,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             spec: IoPipeline.Spec,
             config: ta.Optional[Config] = None,
     ) -> None:
+        sock.setblocking(False)
         super().__init__(sock, addr)
 
         self._spec = spec
@@ -165,7 +169,13 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             return
 
         if self._state is IoPipelineDriverState.NEW:
-            self._state = IoPipelineDriverState.CLOSED
+            try:
+                super().close()
+            except BaseException:
+                self._state = IoPipelineDriverState.FAILED
+                raise
+            else:
+                self._state = IoPipelineDriverState.CLOSED
             return
 
         check.state(self._state in self.ACTIVE_STATES)
@@ -217,36 +227,49 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         if not b:
             out.append(IoPipelineMessages.FinalInput())
+            self._want_read = False
         else:
             out.append(b)
             if self._flow is not None:
                 out.append(IoPipelineFlowMessages.FlushInput())
-
-        if self._flow is not None:
-            self._want_read = False
+                self._want_read = False
 
         return out
 
     #
 
+    def _try_send(self, b: BytesLike) -> ta.Optional[int]:
+        if (wcm := self._config.write_chunk_max) is not None and len(b) > wcm:
+            write_b = b[:wcm]
+        else:
+            write_b = b
+
+        try:
+            sr = check.not_none(self._sock).send(write_b)
+        except BlockingIOError:
+            return None
+        except OSError:
+            self._fail()
+            raise
+
+        if sr < 1:
+            error = BrokenPipeError('socket send returned no progress')
+            self._fail()
+            raise error
+
+        return sr
+
     def _try_flush_write_q(self) -> None:
         while self._write_q:
-            b = self._write_q.popleft()
-            p = 0
-            while True:
-                pb = b[p:] if p else b
-                try:
-                    sr = check.not_none(self._sock).send(pb)
-                except BlockingIOError:
-                    self._write_q.appendleft(pb)
-                    return
-                except OSError:
-                    self._fail()
-                    raise
-                p += sr
-                self._write_q_bytes -= sr
-                if p >= len(b):
-                    break
+            b = self._write_q[0]
+            if (sr := self._try_send(b)) is None:
+                return
+
+            self._write_q_bytes -= sr
+            if sr == len(b):
+                self._write_q.popleft()
+            else:
+                self._write_q[0] = b[sr:]
 
     def _do_write_or_q(self, bls: ta.Iterable[BytesLike]) -> None:
         queuing = bool(self._write_q)
@@ -257,22 +280,17 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 self._write_q.append(bl)
                 self._write_q_bytes += len(bl)
                 continue
-            p = 0
+
             while True:
-                pbl = bl[p:] if p else bl
-                try:
-                    sr = check.not_none(self._sock).send(pbl)
-                except BlockingIOError:
+                if (sr := self._try_send(bl)) is None:
                     queuing = True
-                    self._write_q.append(pbl)
-                    self._write_q_bytes += len(pbl)
+                    self._write_q.append(bl)
+                    self._write_q_bytes += len(bl)
                     break
-                except OSError:
-                    self._fail()
-                    raise
-                p += sr
-                if p >= len(bl):
+
+                if sr == len(bl):
                     break
+                bl = bl[sr:]
 
     def _update_output_writability(self) -> None:
         if self._flow is None:
@@ -430,7 +448,11 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     ##
 
     def readable(self) -> bool:
-        return self._state is IoPipelineDriverState.RUNNING and self._want_read
+        return (
+            self._state is IoPipelineDriverState.RUNNING and
+            not self._pipeline.saw_final_input and
+            self._want_read
+        )
 
     def writable(self) -> bool:
         return self.is_active and bool(self._write_q)
@@ -438,7 +460,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     #
 
     def on_readable(self) -> None:
-        check.none(self.next())
+        check.none(self.next(raise_on_stall=False))
 
     def on_writable(self) -> None:
         check.not_empty(self._write_q)
