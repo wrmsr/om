@@ -33,6 +33,14 @@ class DuplicateMapKeyError(BaseKeyError):
 
 @dc.dataclass()
 class CyclicDependencyError(BaseKeyError):
+    chain: ta.Sequence[Key] | None = None
+
+
+##
+
+
+@dc.dataclass()
+class DeadInjectorError(Exception):
     pass
 
 

@@ -1,11 +1,4 @@
 - Bugs
-  - **`omcore/inject`: concurrent provision corrupts shared request state.** `AsyncInjectorImpl.__cur_req`
-    (`omcore/inject/impl/injector.py`) is a plain instance attribute, so any two provisions overlapping in time - two OS
-    threads, or two asyncio tasks interleaving at an await - silently share one `_Request` (`_seen_keys` /
-    `_provisions`). Confirmed fallout: spurious `CyclicDependencyError` for a second thread providing a
-    `ThreadScope`-scoped key mid-provision, spurious `CyclicDependencyError` for two tasks racing the same singleton,
-    and unscoped instances leaking across what should be independent per-request memos. Fix direction: track the current
-    request in a `contextvars.ContextVar` (covers both threads and tasks, including the `sync_await` path).
   - **`omcore/inject`: `eager=True` on a `ThreadScope` binding is silently ignored.** `_init`
     (`omcore/inject/impl/injector.py`) instantiates eagers for `Unscoped`/`Singleton` only, `SeededScope` eagers run at
     scope entry, and `ThreadScope` eagers are grouped into `_ekbs` but never instantiated. Needs a behavior decision:

@@ -1,36 +1,42 @@
-from .api import (  # noqa
-    SyncAsynclite as All,
-)
+from .... import lang as _lang
 
-from .base import (  # noqa
-    SyncAsyncliteObject as Object,
-    SyncAsyncliteApi as Api,
-)
 
-from .events import (  # noqa
-    SyncAsyncliteEvent as Event,
-    SyncAsyncliteEvents as Events,
-)
+with _lang.auto_proxy_init(globals()):
+    ##
 
-from .identities import (  # noqa
-    SyncAsyncliteIdentities as Identities,
-)
+    from .api import (  # noqa
+        SyncAsynclite as All,
+    )
 
-from .locks import (  # noqa
-    SyncAsyncliteLock as Lock,
-    SyncAsyncliteLocks as Locks,
-)
+    from .base import (  # noqa
+        SyncAsyncliteObject as Object,
+        SyncAsyncliteApi as Api,
+    )
 
-from .queues import (  # noqa
-    SyncAsyncliteQueue as Queue,
-    SyncAsyncliteQueues as Queues,
-)
+    from .events import (  # noqa
+        SyncAsyncliteEvent as Event,
+        SyncAsyncliteEvents as Events,
+    )
 
-from .semaphores import (  # noqa
-    SyncAsyncliteSemaphore as Semaphore,
-    SyncAsyncliteSemaphores as Semaphores,
-)
+    from .identities import (  # noqa
+        SyncAsyncliteIdentities as Identities,
+    )
 
-from .sleeps import (  # noqa
-    SyncAsyncliteSleeps as Sleeps,
-)
+    from .locks import (  # noqa
+        SyncAsyncliteLock as Lock,
+        SyncAsyncliteLocks as Locks,
+    )
+
+    from .queues import (  # noqa
+        SyncAsyncliteQueue as Queue,
+        SyncAsyncliteQueues as Queues,
+    )
+
+    from .semaphores import (  # noqa
+        SyncAsyncliteSemaphore as Semaphore,
+        SyncAsyncliteSemaphores as Semaphores,
+    )
+
+    from .sleeps import (  # noqa
+        SyncAsyncliteSleeps as Sleeps,
+    )

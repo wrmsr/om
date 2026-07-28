@@ -1,5 +1,6 @@
 import typing as ta
 
+from ...lite.abstract import Abstract
 from ..objects import super_meta
 from ..strings import is_dunder
 
@@ -37,6 +38,9 @@ class _IntersectionMeta(type):
                     ibl.append(b)
                     ibs.add(b)
         dct.update(__intersection_bases__=tuple(ibl))
+
+        if Abstract not in bases:
+            bases = (*bases, Abstract)
 
         return super_meta(super(), cls, name, bases, dct)
 

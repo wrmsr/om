@@ -10,4 +10,7 @@ from ..identities import AsyncliteIdentities
 
 class AsyncioAsyncliteIdentities(AsyncliteIdentities):
     def current_identity(self) -> ta.Any:
-        return asyncio.current_task()
+        try:
+            return asyncio.current_task()
+        except RuntimeError:  # no running event loop
+            return None

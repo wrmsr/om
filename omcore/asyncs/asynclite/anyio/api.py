@@ -1,4 +1,5 @@
 from ..api import Asynclite
+from ..eventpromises import EventAsynclitePromises
 from .events import AnyioAsyncliteEvents
 from .identities import AnyioAsyncliteIdentities
 from .locks import AnyioAsyncliteLocks
@@ -14,6 +15,7 @@ class AnyioAsynclite(
     AnyioAsyncliteEvents,
     AnyioAsyncliteIdentities,
     AnyioAsyncliteLocks,
+    EventAsynclitePromises,
     AnyioAsyncliteQueues,
     AnyioAsyncliteSemaphores,
     AnyioAsyncliteSleeps,
