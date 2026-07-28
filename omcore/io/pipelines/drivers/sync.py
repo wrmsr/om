@@ -51,13 +51,18 @@ class SyncSocketIoPipelineDriver:
 
         strict_input_flow: bool = False
 
+        write_high_watermark: int = 64 * 1024
+        write_low_watermark: int = 16 * 1024
+
         def __post_init__(self) -> None:
-            """Validate I/O chunk sizes."""
+            """Validate I/O chunk sizes and output writability watermarks."""
 
             if self.read_chunk_size < 1:
                 raise ValueError(self.read_chunk_size)
             if self.write_chunk_max is not None and self.write_chunk_max < 1:
                 raise ValueError(self.write_chunk_max)
+            if not (0 <= self.write_low_watermark <= self.write_high_watermark):
+                raise ValueError((self.write_low_watermark, self.write_high_watermark))
 
     Config.DEFAULT = Config()
 
@@ -82,6 +87,7 @@ class SyncSocketIoPipelineDriver:
 
         self._write_q: ta.Deque[memoryview] = collections.deque()
         self._write_q_bytes = 0
+        self._output_writable = True
 
         self._socket_mode_prepared = False
         self._socket_mode_changed = False
@@ -276,6 +282,8 @@ class SyncSocketIoPipelineDriver:
                 self._write_q.append(mv)
                 self._write_q_bytes += len(mv)
 
+        self._update_output_writability()
+
     def _try_write(self) -> bool:
         if not self._write_q:
             return False
@@ -305,7 +313,21 @@ class SyncSocketIoPipelineDriver:
         else:
             self._write_q[0] = mv[n:]
 
+        self._update_output_writability()
         return True
+
+    def _update_output_writability(self) -> None:
+        if self._flow is None or self._state is not IoPipelineDriverState.RUNNING:
+            return
+
+        if self._output_writable:
+            if self._write_q_bytes > self._config.write_high_watermark:
+                self._output_writable = False
+                self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
+
+        elif self._write_q_bytes <= self._config.write_low_watermark:
+            self._output_writable = True
+            self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
     #
 

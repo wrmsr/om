@@ -222,7 +222,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='54c6aced29c5b0fb434e83be93cff5868a71aa55'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='b62600c128a18ad2893b4a7b706b4e63edb82bd8'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='4cab8d04385ea8e893713a93fec9e667407ea82b'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -31604,13 +31604,18 @@ class SyncSocketIoPipelineDriver:
 
         strict_input_flow: bool = False
 
+        write_high_watermark: int = 64 * 1024
+        write_low_watermark: int = 16 * 1024
+
         def __post_init__(self) -> None:
-            """Validate I/O chunk sizes."""
+            """Validate I/O chunk sizes and output writability watermarks."""
 
             if self.read_chunk_size < 1:
                 raise ValueError(self.read_chunk_size)
             if self.write_chunk_max is not None and self.write_chunk_max < 1:
                 raise ValueError(self.write_chunk_max)
+            if not (0 <= self.write_low_watermark <= self.write_high_watermark):
+                raise ValueError((self.write_low_watermark, self.write_high_watermark))
 
     Config.DEFAULT = Config()
 
@@ -31635,6 +31640,7 @@ class SyncSocketIoPipelineDriver:
 
         self._write_q: ta.Deque[memoryview] = collections.deque()
         self._write_q_bytes = 0
+        self._output_writable = True
 
         self._socket_mode_prepared = False
         self._socket_mode_changed = False
@@ -31829,6 +31835,8 @@ class SyncSocketIoPipelineDriver:
                 self._write_q.append(mv)
                 self._write_q_bytes += len(mv)
 
+        self._update_output_writability()
+
     def _try_write(self) -> bool:
         if not self._write_q:
             return False
@@ -31858,7 +31866,21 @@ class SyncSocketIoPipelineDriver:
         else:
             self._write_q[0] = mv[n:]
 
+        self._update_output_writability()
         return True
+
+    def _update_output_writability(self) -> None:
+        if self._flow is None or self._state is not IoPipelineDriverState.RUNNING:
+            return
+
+        if self._output_writable:
+            if self._write_q_bytes > self._config.write_high_watermark:
+                self._output_writable = False
+                self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
+
+        elif self._write_q_bytes <= self._config.write_low_watermark:
+            self._output_writable = True
+            self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
     #
 
