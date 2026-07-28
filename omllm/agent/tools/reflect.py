@@ -3,7 +3,8 @@ import inspect
 import typing as ta
 
 from omcore import check
-from omcore import lang
+from omcore import contextual as cxl
+from omcore import dataclasses as dc
 from omcore.lite.reflect import get_optional_alias_arg
 from omcore.lite.reflect import is_generic_alias
 from omcore.lite.reflect import is_optional_alias
@@ -11,46 +12,35 @@ from omcore.lite.reflect import is_optional_alias
 from ... import llm
 from ..types.tools import Tool
 from ..types.tools import ToolContext
+from ..types.tools import ToolDescription
 from ..types.tools import ToolResult
-
-
-with lang.auto_proxy_import(globals()):
-    from omdev.py import docstrings
 
 
 ##
 
 
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
 class _ReflectedToolExecutor:
-    def __init__(
-            self,
-            fn: ta.Callable,
-            llm_tool: llm.Tool,
-            *,
-            ctx_param: str | None = None,
-    ) -> None:
-        super().__init__()
-
-        self._fn = fn
-        self._llm_tool = llm_tool
-        self._ctx_param = ctx_param
+    fn: ta.Callable
+    llm_tool: llm.Tool
+    params_cls: type
+    params_param: str
+    ctx_param: str | None = None
 
     async def __call__(self, ctx: ToolContext) -> ToolResult:
-        kwargs: dict[str, ta.Any] = {}
-
-        if self._ctx_param is not None:
-            kwargs[self._ctx_param] = ctx
+        params_kwargs: dict[str, ta.Any] = {}
 
         args = dict(ctx.args)
         missing: list[str] = []
-        for tp in self._llm_tool.params:
+        for tp in self.llm_tool.params:
             try:
                 av = args.pop(tp.name)
             except KeyError:
                 if not tp.optional:
                     missing.append(tp.name)
                 continue
-            kwargs[tp.name] = av
+            params_kwargs[tp.name] = av
 
         if missing:
             raise TypeError(f'Missing arguments: {missing}!r')
@@ -58,7 +48,16 @@ class _ReflectedToolExecutor:
         if (unexpected := list(args)):
             raise TypeError(f'Unexpected arguments: {unexpected}!r')
 
-        rv = await self._fn(**kwargs)
+        params = self.params_cls(**params_kwargs)
+
+        kwargs: dict[str, ta.Any] = {
+            self.params_param: params,
+        }
+
+        if self.ctx_param is not None:
+            kwargs[self.ctx_param] = ctx
+
+        rv = await self.fn(**kwargs)
 
         return ToolResult(
             content=llm.TextContent(
@@ -83,58 +82,73 @@ def _reflect_type(ty: ta.Any) -> str:
 
 
 def reflect_tool(
+        description: ToolDescription,
         fn: ta.Callable,
         *,
         name: str | None = None,
-        description: str | None = None,
 ) -> Tool:
     if name is None:
         name = fn.__name__
 
-    dsps: dict[str, docstrings.DocstringParam] = {}
-    if (doc := inspect.getdoc(fn)) is not None:
-        ds = docstrings.parse(doc)
+    fn_sig = inspect.signature(fn)
+    fn_th = ta.get_type_hints(fn)
 
-        dsps.update({dsp.arg_name: dsp for dsp in ds.params})
-
-        if description is None:
-            description = ds.description
-
-    sig = inspect.signature(fn)
-    th = ta.get_type_hints(fn)
-
-    tps: list[llm.ToolParam] = []
+    params_param: str | None = None
+    params_cls: type | None = None
     ctx_param: str | None = None
-    for sp in sig.parameters.values():
-        ty = th[sp.name]
+    for sp in fn_sig.parameters.values():
+        ty = fn_th[sp.name]
 
         if ty == ToolContext:
+            check.state(not cxl.is_unbound_param(sp.default))
             check.none(ctx_param)
             ctx_param = sp.name
             continue
 
+        if cxl.is_unbound_param(sp.default):
+            continue
+
+        if isinstance(ty, type) and dc.is_dataclass(ty):
+            check.none(params_param)
+            params_param = sp.name
+            params_cls = ty
+            continue
+
+        raise TypeError(f'Unhandled parameter: {sp}')
+
+    if params_param is None or params_cls is None:
+        raise TypeError('No params param')
+
+    param_descs = dict(description.params or {})
+
+    tps: list[llm.ToolParam] = []
+    dc_rfl = dc.reflect(check.not_none(params_cls))
+    for dc_fld in dc_rfl.fields.values():
+        ty = dc_fld.type
+
         optional = False
-        if sp.default is not inspect.Signature.empty:
+        if dc_fld.default is not dc.MISSING:
             optional = True
             if is_optional_alias(ty):
                 ty = get_optional_alias_arg(ty)
         else:
             check.arg(not is_optional_alias(ty))
 
-        tp_desc: str | None = None
-        if (dsp := dsps.get(sp.name)) is not None:
-            tp_desc = dsp.description
+        tp_desc = param_descs.pop(dc_fld.name, None)
 
         tps.append(llm.ToolParam(
-            name=sp.name,
+            name=dc_fld.name,
             description=tp_desc,
             type=_reflect_type(ty),
             optional=optional,
         ))
 
+    if param_descs:
+        raise TypeError(f'Mismatched parameter descriptions: {list(param_descs)}')
+
     return_type: str | None = None
-    if 'return' in th:
-        ret_ty = th['return']
+    if 'return' in fn_th:
+        ret_ty = fn_th['return']
         if is_generic_alias(ret_ty) and ta.get_origin(ret_ty) is collections.abc.Awaitable:
             [ret_ty] = ta.get_args(ret_ty)
         return_type = _reflect_type(ret_ty)
@@ -142,13 +156,15 @@ def reflect_tool(
     return Tool(
         llm_tool=(llm_tool := llm.Tool(
             name=name,
-            description=description,
+            description=description.description,
             params=tps,
             type=return_type,
         )),
         executor=_ReflectedToolExecutor(
-            fn,
-            llm_tool,
+            fn=fn,
+            llm_tool=llm_tool,
+            params_cls=params_cls,
+            params_param=params_param,
             ctx_param=ctx_param,
         ),
     )

@@ -2,11 +2,13 @@ import io
 import itertools
 import os.path
 
+from omcore import dataclasses as dc
 from omcore import lang
 
 from ...tools.reflect import reflect_tool
 from ...types.tools import Tool
 from ...types.tools import ToolContext
+from ...types.tools import ToolDescription
 
 
 ##
@@ -17,13 +19,17 @@ DEFAULT_MAX_NUM_LINES = 2_000
 MAX_LINE_LENGTH = 2_000
 
 
-async def read(
-        ctx: ToolContext,
-        file_path: str,
-        *,
-        line_offset: int = 0,
-        num_lines: int = DEFAULT_MAX_NUM_LINES,
-) -> str:
+@dc.dataclass(frozen=True)
+class ReadParams:
+    file_path: str
+
+    _: dc.KW_ONLY
+
+    line_offset: int = 0
+    num_lines: int = DEFAULT_MAX_NUM_LINES
+
+
+READ_DESCRIPTION = ToolDescription(
     """
         Reads a file from the local filesystem. You can access any file directly by using this tool.
 
@@ -40,34 +46,40 @@ async def read(
         - Results are returned using cat -n format, with line numbers starting at 1 and suffixed with a pipe character
           "|".
         - This tool cannot read binary files, including images.
+    """,
+    dict(
+        file_path='The absolute path to the file to read.',
+        line_offset='The line number to start reading from (0-based).',
+        num_lines='The number of lines to read (defaults to 2000).',
+    ),
+)
 
-        Args:
-            file_path - The absolute path to the file to read.
-            line_offset - The line number to start reading from (0-based).
-            num_lines - The number of lines to read (defaults to 2000).
-    """
 
-    if os.path.abspath(os.path.realpath(file_path)) != file_path:
+async def read(
+        ctx: ToolContext,
+        params: ReadParams,
+) -> str:
+    if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
         raise ValueError('Path must be absolute')
     if ctx.env is None or (cwd := ctx.env.cwd) is None:
         raise ValueError('No working directory configured')
-    if os.path.commonpath((cwd, file_path)) != cwd:
+    if os.path.commonpath((cwd, params.file_path)) != cwd:
         raise ValueError('Path not under configured working directory')
-    if not os.path.exists(file_path):
+    if not os.path.exists(params.file_path):
         raise ValueError('Path does not exist')
-    if not os.path.isfile(file_path):
+    if not os.path.isfile(params.file_path):
         raise ValueError('Path is not a file')
 
     out = io.StringIO()
     out.write('<file>\n')
 
-    zp = len(str(line_offset + num_lines))
-    n = line_offset
+    zp = len(str(params.line_offset + params.num_lines))
+    n = params.line_offset
     has_trunc = False  # noqa
-    with open(file_path, errors='replace') as f:  # noqa
+    with open(params.file_path, errors='replace') as f:  # noqa
         fi = iter(f)
 
-        for line in itertools.islice(fi, line_offset, line_offset + num_lines):
+        for line in itertools.islice(fi, params.line_offset, params.line_offset + params.num_lines):
             out.write(f'{str(n + 1).zfill(zp):}|')
             line = line.removesuffix('\n')
             if len(line) > MAX_LINE_LENGTH:
@@ -95,7 +107,8 @@ async def read(
 
     if has_more:
         out.write(
-            f'\n(File has more lines. Use "line_offset" parameter to read beyond line {line_offset + num_lines}.)\n',
+            f'\n(File has more lines. Use "line_offset" parameter to read beyond line '
+            f'{params.line_offset + params.num_lines}.)\n',
         )
 
     return out.getvalue()
@@ -103,4 +116,4 @@ async def read(
 
 @lang.cached_function
 def read_tool() -> Tool:
-    return reflect_tool(read)
+    return reflect_tool(READ_DESCRIPTION, read)

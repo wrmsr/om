@@ -1,21 +1,29 @@
+from omcore import dataclasses as dc
 from omcore import lang
 
 from ..tools.reflect import reflect_tool
 from ..types.tools import Tool
+from ..types.tools import ToolDescription
 
 
 ##
 
 
-async def get_weather(location: str) -> str:
-    """
-    Get the weather in a given location.
+@dc.dataclass(frozen=True)
+class GetWeatherParams:
+    location: str
 
-    Args:
-        location: The city and state, e.g. San Francisco, CA
-    """
 
-    if 'edinburgh' in location.lower():
+GET_WEATHER_DESCRIPTION = ToolDescription(
+    'Get the weather in a given location.',
+    dict(
+        location='The city and state, e.g. San Francisco, CA.',
+    ),
+)
+
+
+async def get_weather(params: GetWeatherParams) -> str:
+    if 'edinburgh' in params.location.lower():
         return 'The weather in Edinburgh, Scotland is sunny.'
 
     else:
@@ -24,4 +32,4 @@ async def get_weather(location: str) -> str:
 
 @lang.cached_function
 def weather_tool() -> Tool:
-    return reflect_tool(get_weather)
+    return reflect_tool(GET_WEATHER_DESCRIPTION, get_weather)

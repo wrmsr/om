@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import functools
 import os
@@ -17,6 +18,15 @@ from ...agent.shell.tools.bash import bash_tool
 
 
 async def _a_main() -> None:
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--fs', action='store_true')
+    parser.add_argument('--bash', action='store_true')
+
+    args = parser.parse_args()
+
+    #
+
     model_key = llm.ModelKey('openai', 'gpt-5.4-mini')
     api_key_name = 'openai_api_key'
     backend_cls = llm.OpenaiCompletionsImmediateBackend
@@ -39,6 +49,17 @@ async def _a_main() -> None:
         sink=on_event,
     )
 
+    tools = ag.ToolSet([
+        *([
+            bash_tool(),
+        ] if args.bash else []),
+
+        *([
+            ls_tool(),
+            read_tool(),
+        ] if args.fs else []),
+    ])
+
     await agent.modify_state(
         lambda state: dc.replace(
             state,
@@ -47,11 +68,7 @@ async def _a_main() -> None:
                 system_prompt='\n\n'.join([
                     f'Current working directory: {cwd}',
                 ]),
-                tools=ag.ToolSet([
-                    bash_tool(),
-                    ls_tool(),
-                    read_tool(),
-                ]),
+                tools=tools,
             ),
             tool_env=ag.ToolEnvironment(
                 cwd=cwd,

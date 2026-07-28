@@ -36,6 +36,17 @@ class ToolResult:
     content: llm.TextContent
 
 
+##
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class ToolDescription:
+    description: str
+
+    params: ta.Mapping[str, str] | None = None
+
+
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 class Tool:

@@ -2,37 +2,47 @@ import asyncio
 import shutil
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore import lang
 
 from ...tools.reflect import reflect_tool
 from ...types.tools import Tool
 from ...types.tools import ToolContext
+from ...types.tools import ToolDescription
 
 
 ##
 
 
+@dc.dataclass(frozen=True)
+class BashParams:
+    command: str
+
+    _: dc.KW_ONLY
+
+    timeout_s: float | None = None
+
+
+BASH_DESCRIPTION = ToolDescription(
+    'Executes a bash command in the current working directory. Returns stdout and stderr.',
+    dict(
+        command='The bash command to execute.',
+        timeout_s='An optional timeout in seconds.',
+    ),
+)
+
+
 async def bash(
         ctx: ToolContext,
-        command: str,
-        *,
-        timeout_s: float | None = None,
+        params: BashParams,
 ) -> str:
-    """
-    Executes a bash command in the current working directory. Returns stdout and stderr.
-
-    Args:
-        command: The bash command to execute.
-        timeout_s: An optional timeout in seconds.
-    """
-
     if ctx.env is None or (cwd := ctx.env.cwd) is None:
         raise ValueError('No working directory configured')
 
     proc = await asyncio.create_subprocess_exec(
         check.not_none(shutil.which('bash')),
         '-c',
-        command,
+        params.command,
         cwd=cwd,
         stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
@@ -43,7 +53,7 @@ async def bash(
     try:
         stdout, stderr = await asyncio.wait_for(  # noqa
             proc.communicate(),
-            timeout=timeout_s,
+            timeout=params.timeout_s,
         )
     except TimeoutError:
         proc.kill()
@@ -55,4 +65,4 @@ async def bash(
 
 @lang.cached_function
 def bash_tool() -> Tool:
-    return reflect_tool(bash)
+    return reflect_tool(BASH_DESCRIPTION, bash)
