@@ -82,6 +82,8 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         self._write_q_bytes = 0
         self._output_writable = True
 
+        self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
+
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}<{self._state.name}>'
 
@@ -191,6 +193,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             finally:
                 self._write_q.clear()
                 self._write_q_bytes = 0
+                self._transport_final_output = None
 
                 super().close()
 
@@ -208,11 +211,48 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         finally:
             self._write_q.clear()
             self._write_q_bytes = 0
+            self._transport_final_output = None
 
             try:
                 super().close()
             finally:
                 self._state = IoPipelineDriverState.FAILED
+
+    #
+
+    def _complete_transport_final_output(self) -> None:
+        msg = check.not_none(self._transport_final_output)
+        self._transport_final_output = None
+        with self._pipeline.enter():
+            if not msg.is_done():
+                msg.set_succeeded(None)
+
+    def _gracefully_close(self) -> None:
+        pipeline = self._ensure_pipeline()
+        check.state(self._state in self.ACTIVE_STATES)
+        check.empty(self._write_q)
+        check.not_none(self._transport_final_output)
+
+        try:
+            super().close()
+            self._complete_transport_final_output()
+            pipeline.destroy()
+
+        except BaseException:
+            try:
+                if pipeline.is_ready:
+                    pipeline.destroy()
+            finally:
+                self._state = IoPipelineDriverState.FAILED
+            raise
+
+        else:
+            self._state = IoPipelineDriverState.CLOSED
+
+        finally:
+            self._write_q.clear()
+            self._write_q_bytes = 0
+            self._transport_final_output = None
 
     #
 
@@ -335,6 +375,8 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
+            check.none(self._transport_final_output)
+            self._transport_final_output = msg
             return 'stop'
 
         elif isinstance(msg, IoPipelineMessages.Defer):
@@ -442,7 +484,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 if self._write_q:
                     self._state = IoPipelineDriverState.DRAINING
                 else:
-                    self.close()
+                    self._gracefully_close()
 
                 return None
 
@@ -496,7 +538,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         self._try_flush_write_q()
 
         if self._state is IoPipelineDriverState.DRAINING and not self._write_q:
-            self.close()
+            self._gracefully_close()
 
         elif self._state is IoPipelineDriverState.RUNNING:
             self._update_output_writability()

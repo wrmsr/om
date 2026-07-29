@@ -198,17 +198,23 @@ class TestSslHandlers(unittest.TestCase):
         ch.outbound(cctx, b'bye soon')
         assert app_bytes(sctx) == b'bye soon'
         ch.outbound(cctx, IoPipelineFlowMessages.FlushOutput())
-        ch.outbound(cctx, IoPipelineMessages.FinalOutput())
+        client_final_output = IoPipelineMessages.FinalOutput()
+        ch.outbound(cctx, client_final_output)
         # Server sees clean EOF:
         assert has(sctx, IoPipelineMessages.FinalInput), sctx.app_msgs
         # Server closes its side too:
-        sh.outbound(sctx, IoPipelineMessages.FinalOutput())
+        server_final_output = IoPipelineMessages.FinalOutput()
+        sh.outbound(sctx, server_final_output)
         assert has(cctx, IoPipelineMessages.FinalInput), cctx.app_msgs
         assert ch.state == SslIoPipelineHandler.State.CLOSED, ch.state
         assert sh.state == SslIoPipelineHandler.State.CLOSED, sh.state
         # FinalOutputs released to both transports, exactly once:
         assert sum(isinstance(m, IoPipelineMessages.FinalOutput) for m in ct.wire_out) == 1
         assert sum(isinstance(m, IoPipelineMessages.FinalOutput) for m in st.wire_out) == 1
+        assert next(m for m in ct.wire_out if isinstance(m, IoPipelineMessages.FinalOutput)) is client_final_output
+        assert next(m for m in st.wire_out if isinstance(m, IoPipelineMessages.FinalOutput)) is server_final_output
+        assert not client_final_output.is_done()
+        assert not server_final_output.is_done()
         # close_notify records must precede FinalOutput on the wire:
         fo_ix = next(i for i, m in enumerate(ct.wire_out) if isinstance(m, IoPipelineMessages.FinalOutput))
         assert any(isinstance(m, bytes) for m in ct.wire_out[:fo_ix])

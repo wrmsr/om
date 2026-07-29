@@ -95,7 +95,7 @@ class SyncSocketIoPipelineDriver:
         self._socket_mode_changed = False
         self._socket_original_timeout: ta.Optional[float] = None
 
-        self._saw_transport_final_output = False
+        self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
 
         self._state = IoPipelineDriverState.NEW
 
@@ -234,6 +234,7 @@ class SyncSocketIoPipelineDriver:
         finally:
             self._write_q.clear()
             self._write_q_bytes = 0
+            self._transport_final_output = None
             self._restore_socket_mode()
 
     def _fail(self) -> None:
@@ -244,6 +245,7 @@ class SyncSocketIoPipelineDriver:
             if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                 pipeline.destroy()
         finally:
+            self._transport_final_output = None
             self._restore_socket_mode()
 
     def __enter__(self) -> 'SyncSocketIoPipelineDriver':  # noqa
@@ -584,6 +586,15 @@ class SyncSocketIoPipelineDriver:
 
     #
 
+    def _complete_transport_final_output(self) -> None:
+        msg = check.not_none(self._transport_final_output)
+        self._transport_final_output = None
+        with self._pipeline.enter():
+            if not msg.is_done():
+                msg.set_succeeded(None)
+
+    #
+
     def _handle_output(self, msg: ta.Any) -> ta.Literal['handled', 'unhandled']:
         if ByteStreamBuffers.can_bytes(msg):
             self._enqueue_write(msg)
@@ -594,7 +605,8 @@ class SyncSocketIoPipelineDriver:
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
-            self._saw_transport_final_output = True
+            check.none(self._transport_final_output)
+            self._transport_final_output = msg
             self._state = IoPipelineDriverState.DRAINING
             return 'handled'
 
@@ -642,7 +654,7 @@ class SyncSocketIoPipelineDriver:
                 self._try_write()
                 continue
 
-            if self._saw_transport_final_output:
+            if self._transport_final_output is not None:
                 return 'write' if self._write_q else 'stop'
 
             if self._input_q:
@@ -696,6 +708,8 @@ class SyncSocketIoPipelineDriver:
 
             elif out == 'stop':
                 try:
+                    self._restore_socket_mode()
+                    self._complete_transport_final_output()
                     pipeline.destroy()
                 except BaseException:
                     self._state = IoPipelineDriverState.FAILED
@@ -719,7 +733,7 @@ class SyncSocketIoPipelineDriver:
             if not read:
                 while self._write_q and self._try_write():
                     pass
-                if self._saw_transport_final_output and not self._write_q:
+                if self._transport_final_output is not None and not self._write_q:
                     continue
                 return None
 

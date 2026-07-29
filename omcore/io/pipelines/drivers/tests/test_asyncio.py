@@ -68,10 +68,15 @@ _EOF_SEEN = object()
 
 
 class GracefulCloseIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.final_output = IoPipelineMessages.FinalOutput()
+
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if msg is _CLOSE:
             ctx.feed_out(b'payload')
-            ctx.feed_final_output()
+            ctx.feed_out(self.final_output)
         else:
             ctx.feed_in(msg)
 
@@ -793,9 +798,14 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
 
     async def test_final_output_gracefully_drains_preceding_bytes(self) -> None:
         writer = LifecycleStreamWriter()
+        graceful_close = GracefulCloseIoPipelineHandler()
+        completion_writer_events = []
+        graceful_close.final_output.add_listener(
+            lambda msg: completion_writer_events.append((msg.is_succeeded(), list(writer.events))),
+        )
         drv = PollAsyncioStreamIoPipelineDriver(
             IoPipeline.Spec(
-                [GracefulCloseIoPipelineHandler()],
+                [graceful_close],
                 services=[StubIoPipelineFlowService(auto_read=False)],
             ),
             asyncio.StreamReader(),
@@ -809,6 +819,11 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
             self.assertIsNone(await drv.next(read=False))
 
             self.assertEqual(writer.events, [('write', b'payload'), 'close', 'wait_closed'])
+            self.assertTrue(graceful_close.final_output.is_succeeded())
+            self.assertEqual(
+                completion_writer_events,
+                [(True, [('write', b'payload'), 'close', 'wait_closed'])],
+            )
             self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
             self.assertFalse(drv.pipeline.is_ready)
             self.assertTrue(ta.cast(asyncio.Task, drv._read_task).done())
@@ -925,9 +940,10 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
 
     async def test_draining_state_is_observable(self) -> None:
         writer = BlockingCloseStreamWriter()
+        graceful_close = GracefulCloseIoPipelineHandler()
         drv = PollAsyncioStreamIoPipelineDriver(
             IoPipeline.Spec(
-                [GracefulCloseIoPipelineHandler()],
+                [graceful_close],
                 services=[StubIoPipelineFlowService(auto_read=False)],
             ),
             asyncio.StreamReader(),
@@ -943,10 +959,12 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
 
             self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
             self.assertTrue(drv.pipeline.is_ready)
+            self.assertFalse(graceful_close.final_output.is_done())
 
             writer.allow_wait_closed.set()
             self.assertIsNone(await task)
 
+            self.assertTrue(graceful_close.final_output.is_succeeded())
             self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
             self.assertFalse(drv.pipeline.is_ready)
         finally:
@@ -958,9 +976,10 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
     async def test_close_while_draining_is_abortive(self) -> None:
         lifecycle = LifecycleIoPipelineService()
         writer = AbortableBlockingCloseStreamWriter()
+        graceful_close = GracefulCloseIoPipelineHandler()
         drv = PollAsyncioStreamIoPipelineDriver(
             IoPipeline.Spec(
-                [GracefulCloseIoPipelineHandler()],
+                [graceful_close],
                 services=[
                     lifecycle,
                     StubIoPipelineFlowService(auto_read=False),
@@ -977,9 +996,11 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
             await writer.wait_closed_started.wait()
 
             self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
+            self.assertFalse(graceful_close.final_output.is_done())
             await drv.close()
             self.assertIsNone(await task)
 
+            self.assertTrue(graceful_close.final_output.is_failed())
             self.assertEqual(
                 writer.events,
                 [
@@ -1002,9 +1023,12 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
     async def test_graceful_drain_failure_is_reported(self) -> None:
         error = BrokenPipeError('broken')
         writer = LifecycleStreamWriter(error)
+        graceful_close = GracefulCloseIoPipelineHandler()
+        completion_errors = []
+        graceful_close.final_output.add_listener(lambda msg: completion_errors.append(msg.get_exception()))
         drv = PollAsyncioStreamIoPipelineDriver(
             IoPipeline.Spec(
-                [GracefulCloseIoPipelineHandler()],
+                [graceful_close],
                 services=[StubIoPipelineFlowService(auto_read=False)],
             ),
             asyncio.StreamReader(),
@@ -1018,6 +1042,8 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
                 await drv.next(read=False)
 
             self.assertIs(raised.exception, error)
+            self.assertTrue(graceful_close.final_output.is_failed())
+            self.assertEqual(completion_errors, [error])
             self.assertEqual(
                 writer.events,
                 [

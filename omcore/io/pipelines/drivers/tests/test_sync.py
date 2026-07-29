@@ -65,10 +65,15 @@ _WRITE = object()
 
 
 class GracefulCloseIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.final_output = IoPipelineMessages.FinalOutput()
+
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if msg is _CLOSE:
             ctx.feed_out(b'payload')
-            ctx.feed_final_output()
+            ctx.feed_out(self.final_output)
         else:
             ctx.feed_in(msg)
 
@@ -584,9 +589,17 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
     def test_final_output_drains_preceding_bytes(self) -> None:
         sock, peer = socket.socketpair()
         with sock, peer:
+            sock.settimeout(2.)
+            graceful_close = GracefulCloseIoPipelineHandler()
+            completion_socket_states = []
+            graceful_close.final_output.add_listener(lambda msg: completion_socket_states.append((
+                msg.is_succeeded(),
+                sock.fileno() >= 0,
+                sock.gettimeout(),
+            )))
             drv = SyncSocketIoPipelineDriver(
                 IoPipeline.Spec(
-                    [GracefulCloseIoPipelineHandler()],
+                    [graceful_close],
                     services=[StubIoPipelineFlowService(auto_read=False)],
                 ),
                 sock,
@@ -599,6 +612,8 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
                 self.assertIsNone(drv.next(read=False))
 
                 self.assertEqual(peer.recv(7), b'payload')
+                self.assertTrue(graceful_close.final_output.is_succeeded())
+                self.assertEqual(completion_socket_states, [(True, True, 2.)])
                 self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
                 self.assertFalse(drv.pipeline.is_ready)
             finally:
@@ -609,9 +624,10 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
         with sock, peer:
             self.assertGreater(fill_socket_send_buffer(sock), 0)
             lifecycle = LifecycleIoPipelineService()
+            graceful_close = GracefulCloseIoPipelineHandler()
             drv = SyncSocketIoPipelineDriver(
                 IoPipeline.Spec(
-                    [GracefulCloseIoPipelineHandler()],
+                    [graceful_close],
                     services=[
                         lifecycle,
                         StubIoPipelineFlowService(auto_read=False),
@@ -625,9 +641,11 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
 
             self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
             self.assertEqual(drv._write_q_bytes, len(b'payload'))
+            self.assertFalse(graceful_close.final_output.is_done())
 
             drv.close()
 
+            self.assertTrue(graceful_close.final_output.is_failed())
             self.assertEqual(drv._write_q_bytes, 0)
             self.assertEqual(list(drv._write_q), [])
             self.assertEqual(lifecycle.removed, 1)

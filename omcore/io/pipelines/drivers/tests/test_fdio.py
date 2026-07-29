@@ -130,10 +130,15 @@ _CLOSE = object()
 
 
 class GracefulCloseIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.final_output = IoPipelineMessages.FinalOutput()
+
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if msg is _CLOSE:
             ctx.feed_out(b'payload')
-            ctx.feed_final_output()
+            ctx.feed_out(self.final_output)
         else:
             ctx.feed_in(msg)
 
@@ -414,11 +419,16 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
 
     def test_final_output_drains_queued_bytes(self) -> None:
         sock: ta.Any = ScriptedSendSocket(BlockingIOError())
+        graceful_close = GracefulCloseIoPipelineHandler()
+        completion_socket_states = []
+        graceful_close.final_output.add_listener(
+            lambda msg: completion_socket_states.append((msg.is_succeeded(), sock.closed)),
+        )
         drv = IoPipelineDriverSocketFdioHandler(
             sock,
             ('127.0.0.1', 0),
             IoPipeline.Spec(
-                [GracefulCloseIoPipelineHandler()],
+                [graceful_close],
                 services=[StubIoPipelineFlowService(auto_read=False)],
             ),
         )
@@ -435,11 +445,14 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             )
             self.assertFalse(sock.closed)
             self.assertTrue(drv.pipeline.is_ready)
+            self.assertFalse(graceful_close.final_output.is_done())
 
             drv.on_writable()
 
             self.assertEqual(sock.sent, [b'payload'])
             self.assertTrue(sock.closed)
+            self.assertTrue(graceful_close.final_output.is_succeeded())
+            self.assertEqual(completion_socket_states, [(True, True)])
             self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
             self.assertFalse(drv.pipeline.is_ready)
         finally:
@@ -448,11 +461,12 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
     def test_close_while_draining_discards_queued_bytes(self) -> None:
         sock: ta.Any = ScriptedSendSocket(BlockingIOError())
         lifecycle = LifecycleIoPipelineService()
+        graceful_close = GracefulCloseIoPipelineHandler()
         drv = IoPipelineDriverSocketFdioHandler(
             sock,
             ('127.0.0.1', 0),
             IoPipeline.Spec(
-                [GracefulCloseIoPipelineHandler()],
+                [graceful_close],
                 services=[
                     lifecycle,
                     StubIoPipelineFlowService(auto_read=False),
@@ -465,9 +479,11 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
 
         self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
         self.assertEqual(drv._write_q_bytes, len(b'payload'))
+        self.assertFalse(graceful_close.final_output.is_done())
 
         drv.close()
 
+        self.assertTrue(graceful_close.final_output.is_failed())
         self.assertEqual(drv._write_q_bytes, 0)
         self.assertEqual(list(drv._write_q), [])
         self.assertEqual(lifecycle.removed, 1)

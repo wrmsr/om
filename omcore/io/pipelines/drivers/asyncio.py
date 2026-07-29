@@ -674,6 +674,26 @@ class PollAsyncioStreamIoPipelineDriver:
             self._next_drain_flush_outputs = []
         return flush_outputs
 
+    def _finish_final_output(
+            self,
+            msg: IoPipelineMessages.FinalOutput,
+            exc: ta.Optional[BaseException] = None,
+            *,
+            raise_listener_errors: bool = True,
+    ) -> None:
+        if msg.is_done():
+            return
+
+        try:
+            with self._pipeline.enter():
+                if exc is None:
+                    msg.set_succeeded(None)
+                else:
+                    msg.set_failed(exc)
+        except BaseException:  # noqa
+            if raise_listener_errors:
+                raise
+
     def _start_drain(self) -> None:
         check.none(self._drain_task)
         writer = check.not_none(self._writer)
@@ -875,10 +895,14 @@ class PollAsyncioStreamIoPipelineDriver:
                 e,
                 raise_listener_errors=False,
             )
+            self._finish_final_output(msg, e, raise_listener_errors=False)
             await self._fail()
             raise
 
-        self._finish_flush_outputs(self._take_drain_flush_outputs())
+        try:
+            self._finish_flush_outputs(self._take_drain_flush_outputs())
+        finally:
+            self._finish_final_output(msg)
 
         return 'stop'
 

@@ -93,25 +93,6 @@ class IoPipelineMessages(NamespaceClass):
             return f'{type(self).__name__}@{id(self):x}()'
 
     @ta.final
-    @dc.dataclass(frozen=True, eq=False)
-    class FinalOutput(NeverInbound, MustPropagate):  # ~ Netty `ChannelOutboundHandler::close`
-        """
-        Requests graceful output completion and connection closure.
-
-        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
-        protocol shutdown, and must forward it only after all output preceding it. No output may reach the pipeline
-        terminal after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
-        """
-
-        def __repr__(self) -> str:
-            return f'{type(self).__name__}@{id(self):x}()'
-
-    # TODO: Make FinalOutput Completable[None]. Its success boundary must be after all preceding output, protocol
-    #       shutdown, transport draining, and graceful writer closure rather than merely reaching the pipeline terminal.
-
-    #
-
-    @ta.final
     @dc.dataclass(frozen=True)
     class Error(NeverOutbound):
         """Signals an exception occurred in the pipeline."""
@@ -251,6 +232,24 @@ class IoPipelineMessages(NamespaceClass):
 
         def set_failed(self, exc: ta.Optional[BaseException] = None) -> None:
             self._finish('failed', exc=exc)
+
+    #
+
+    @ta.final
+    @dc.dataclass(frozen=True, eq=False)
+    class FinalOutput(NeverInbound, MustPropagate, Completable[None]):  # ~ Netty `ChannelOutboundHandler::close`
+        """
+        Requests graceful output completion and driver termination.
+
+        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
+        protocol shutdown, and must forward it only after all output preceding it. Successful completion means that
+        protocol shutdown reached the transport and the driver completed its graceful-output responsibility; it does
+        not require closing a caller-owned transport or imply peer receipt. No output may reach the pipeline terminal
+        after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
+        """
+
+        def __repr__(self) -> str:
+            return f'{type(self).__name__}@{id(self):x}()'
 
     #
 
@@ -711,8 +710,10 @@ class IoPipelineHandlerContext:
 
     #
 
-    def feed_final_output(self) -> None:
-        self.feed_out(IoPipelineMessages.FinalOutput())
+    def feed_final_output(self) -> IoPipelineMessages.FinalOutput:
+        msg = IoPipelineMessages.FinalOutput()
+        self.feed_out(msg)
+        return msg
 
     #
 

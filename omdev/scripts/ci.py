@@ -135,7 +135,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/headers.py', sha1='28c986b43cb6d3283d5df0249d80f8770522c9de'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='f180e2bf365d0f1e5284eb61a9a203562b741bc8'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='053f27036671acaa20fb03307f9a29117d902853'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -222,7 +222,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='32a063c0cdfb151e256c99bf8161934292946ff2'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='f97405c62b35758db2356e68bd93433d9563c09f'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='832f8ffd4fc58df1894c4fde445631502ee2e488'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -6785,25 +6785,6 @@ class IoPipelineMessages(NamespaceClass):
             return f'{type(self).__name__}@{id(self):x}()'
 
     @ta.final
-    @dc.dataclass(frozen=True, eq=False)
-    class FinalOutput(NeverInbound, MustPropagate):  # ~ Netty `ChannelOutboundHandler::close`
-        """
-        Requests graceful output completion and connection closure.
-
-        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
-        protocol shutdown, and must forward it only after all output preceding it. No output may reach the pipeline
-        terminal after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
-        """
-
-        def __repr__(self) -> str:
-            return f'{type(self).__name__}@{id(self):x}()'
-
-    # TODO: Make FinalOutput Completable[None]. Its success boundary must be after all preceding output, protocol
-    #       shutdown, transport draining, and graceful writer closure rather than merely reaching the pipeline terminal.
-
-    #
-
-    @ta.final
     @dc.dataclass(frozen=True)
     class Error(NeverOutbound):
         """Signals an exception occurred in the pipeline."""
@@ -6943,6 +6924,24 @@ class IoPipelineMessages(NamespaceClass):
 
         def set_failed(self, exc: ta.Optional[BaseException] = None) -> None:
             self._finish('failed', exc=exc)
+
+    #
+
+    @ta.final
+    @dc.dataclass(frozen=True, eq=False)
+    class FinalOutput(NeverInbound, MustPropagate, Completable[None]):  # ~ Netty `ChannelOutboundHandler::close`
+        """
+        Requests graceful output completion and driver termination.
+
+        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
+        protocol shutdown, and must forward it only after all output preceding it. Successful completion means that
+        protocol shutdown reached the transport and the driver completed its graceful-output responsibility; it does
+        not require closing a caller-owned transport or imply peer receipt. No output may reach the pipeline terminal
+        after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
+        """
+
+        def __repr__(self) -> str:
+            return f'{type(self).__name__}@{id(self):x}()'
 
     #
 
@@ -7403,8 +7402,10 @@ class IoPipelineHandlerContext:
 
     #
 
-    def feed_final_output(self) -> None:
-        self.feed_out(IoPipelineMessages.FinalOutput())
+    def feed_final_output(self) -> IoPipelineMessages.FinalOutput:
+        msg = IoPipelineMessages.FinalOutput()
+        self.feed_out(msg)
+        return msg
 
     #
 
@@ -31787,7 +31788,7 @@ class SyncSocketIoPipelineDriver:
         self._socket_mode_changed = False
         self._socket_original_timeout: ta.Optional[float] = None
 
-        self._saw_transport_final_output = False
+        self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
 
         self._state = IoPipelineDriverState.NEW
 
@@ -31926,6 +31927,7 @@ class SyncSocketIoPipelineDriver:
         finally:
             self._write_q.clear()
             self._write_q_bytes = 0
+            self._transport_final_output = None
             self._restore_socket_mode()
 
     def _fail(self) -> None:
@@ -31936,6 +31938,7 @@ class SyncSocketIoPipelineDriver:
             if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                 pipeline.destroy()
         finally:
+            self._transport_final_output = None
             self._restore_socket_mode()
 
     def __enter__(self) -> 'SyncSocketIoPipelineDriver':  # noqa
@@ -32276,6 +32279,15 @@ class SyncSocketIoPipelineDriver:
 
     #
 
+    def _complete_transport_final_output(self) -> None:
+        msg = check.not_none(self._transport_final_output)
+        self._transport_final_output = None
+        with self._pipeline.enter():
+            if not msg.is_done():
+                msg.set_succeeded(None)
+
+    #
+
     def _handle_output(self, msg: ta.Any) -> ta.Literal['handled', 'unhandled']:
         if ByteStreamBuffers.can_bytes(msg):
             self._enqueue_write(msg)
@@ -32286,7 +32298,8 @@ class SyncSocketIoPipelineDriver:
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
-            self._saw_transport_final_output = True
+            check.none(self._transport_final_output)
+            self._transport_final_output = msg
             self._state = IoPipelineDriverState.DRAINING
             return 'handled'
 
@@ -32334,7 +32347,7 @@ class SyncSocketIoPipelineDriver:
                 self._try_write()
                 continue
 
-            if self._saw_transport_final_output:
+            if self._transport_final_output is not None:
                 return 'write' if self._write_q else 'stop'
 
             if self._input_q:
@@ -32388,6 +32401,8 @@ class SyncSocketIoPipelineDriver:
 
             elif out == 'stop':
                 try:
+                    self._restore_socket_mode()
+                    self._complete_transport_final_output()
                     pipeline.destroy()
                 except BaseException:
                     self._state = IoPipelineDriverState.FAILED
@@ -32411,7 +32426,7 @@ class SyncSocketIoPipelineDriver:
             if not read:
                 while self._write_q and self._try_write():
                     pass
-                if self._saw_transport_final_output and not self._write_q:
+                if self._transport_final_output is not None and not self._write_q:
                     continue
                 return None
 

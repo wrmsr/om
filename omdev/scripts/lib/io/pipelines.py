@@ -46,7 +46,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='core.py', sha1='f180e2bf365d0f1e5284eb61a9a203562b741bc8'),
+            dict(path='core.py', sha1='053f27036671acaa20fb03307f9a29117d902853'),
             dict(path='../streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
@@ -74,7 +74,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='814d2565a20f17fd230351fa2692fc91741dffc6'),
+            dict(path='drivers/asyncio.py', sha1='d0d2bdc7186af1a9f9d373ab2b6673a770a5adfc'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -1469,25 +1469,6 @@ class IoPipelineMessages(NamespaceClass):
             return f'{type(self).__name__}@{id(self):x}()'
 
     @ta.final
-    @dc.dataclass(frozen=True, eq=False)
-    class FinalOutput(NeverInbound, MustPropagate):  # ~ Netty `ChannelOutboundHandler::close`
-        """
-        Requests graceful output completion and connection closure.
-
-        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
-        protocol shutdown, and must forward it only after all output preceding it. No output may reach the pipeline
-        terminal after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
-        """
-
-        def __repr__(self) -> str:
-            return f'{type(self).__name__}@{id(self):x}()'
-
-    # TODO: Make FinalOutput Completable[None]. Its success boundary must be after all preceding output, protocol
-    #       shutdown, transport draining, and graceful writer closure rather than merely reaching the pipeline terminal.
-
-    #
-
-    @ta.final
     @dc.dataclass(frozen=True)
     class Error(NeverOutbound):
         """Signals an exception occurred in the pipeline."""
@@ -1627,6 +1608,24 @@ class IoPipelineMessages(NamespaceClass):
 
         def set_failed(self, exc: ta.Optional[BaseException] = None) -> None:
             self._finish('failed', exc=exc)
+
+    #
+
+    @ta.final
+    @dc.dataclass(frozen=True, eq=False)
+    class FinalOutput(NeverInbound, MustPropagate, Completable[None]):  # ~ Netty `ChannelOutboundHandler::close`
+        """
+        Requests graceful output completion and driver termination.
+
+        This is an ordered barrier, not an abort: handlers may retain it while flushing accepted output or completing
+        protocol shutdown, and must forward it only after all output preceding it. Successful completion means that
+        protocol shutdown reached the transport and the driver completed its graceful-output responsibility; it does
+        not require closing a caller-owned transport or imply peer receipt. No output may reach the pipeline terminal
+        after FinalOutput. Use pipeline/driver destruction for immediate abortive teardown.
+        """
+
+        def __repr__(self) -> str:
+            return f'{type(self).__name__}@{id(self):x}()'
 
     #
 
@@ -2087,8 +2086,10 @@ class IoPipelineHandlerContext:
 
     #
 
-    def feed_final_output(self) -> None:
-        self.feed_out(IoPipelineMessages.FinalOutput())
+    def feed_final_output(self) -> IoPipelineMessages.FinalOutput:
+        msg = IoPipelineMessages.FinalOutput()
+        self.feed_out(msg)
+        return msg
 
     #
 
@@ -9308,6 +9309,26 @@ class PollAsyncioStreamIoPipelineDriver:
             self._next_drain_flush_outputs = []
         return flush_outputs
 
+    def _finish_final_output(
+            self,
+            msg: IoPipelineMessages.FinalOutput,
+            exc: ta.Optional[BaseException] = None,
+            *,
+            raise_listener_errors: bool = True,
+    ) -> None:
+        if msg.is_done():
+            return
+
+        try:
+            with self._pipeline.enter():
+                if exc is None:
+                    msg.set_succeeded(None)
+                else:
+                    msg.set_failed(exc)
+        except BaseException:  # noqa
+            if raise_listener_errors:
+                raise
+
     def _start_drain(self) -> None:
         check.none(self._drain_task)
         writer = check.not_none(self._writer)
@@ -9509,10 +9530,14 @@ class PollAsyncioStreamIoPipelineDriver:
                 e,
                 raise_listener_errors=False,
             )
+            self._finish_final_output(msg, e, raise_listener_errors=False)
             await self._fail()
             raise
 
-        self._finish_flush_outputs(self._take_drain_flush_outputs())
+        try:
+            self._finish_flush_outputs(self._take_drain_flush_outputs())
+        finally:
+            self._finish_final_output(msg)
 
         return 'stop'
 
