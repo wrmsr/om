@@ -20,6 +20,7 @@ from ..core import IoPipelineMessages
 from ..core import IoPipelineService
 from ..core import IoPipelineServices
 from ..core import IoPipelineUpdate
+from ..errors import AbortedIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..sched.types import IoPipelineScheduling
@@ -99,6 +100,8 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._drain_task: ta.Optional[asyncio.Task] = None
         self._drain_again = False
+        self._drain_flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
+        self._next_drain_flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
         self._post_drain_output_q: collections.deque[ta.Any] = collections.deque()
 
         self._state = IoPipelineDriverState.NEW
@@ -634,15 +637,48 @@ class PollAsyncioStreamIoPipelineDriver:
     class _DrainCompletedCommand(_Command):
         task: asyncio.Task
 
-    def _request_drain(self) -> None:
-        if self._writer is None:
+    def _finish_flush_outputs(
+            self,
+            flush_outputs: ta.Iterable[IoPipelineFlowMessages.FlushOutput],
+            exc: ta.Optional[BaseException] = None,
+            *,
+            raise_listener_errors: bool = True,
+    ) -> None:
+        flush_outputs = list(flush_outputs)
+        if not flush_outputs:
             return
 
-        if self._drain_task is not None:
-            self._drain_again = True
-            return
+        first_listener_exc: ta.Optional[BaseException] = None
 
-        task = asyncio.create_task(self._writer.drain())
+        with self._pipeline.enter():
+            for flush_output in flush_outputs:
+                if flush_output.is_done():
+                    continue
+                try:
+                    if exc is None:
+                        flush_output.set_succeeded(None)
+                    else:
+                        flush_output.set_failed(exc)
+                except BaseException as listener_exc:  # noqa
+                    if first_listener_exc is None:
+                        first_listener_exc = listener_exc
+
+        if first_listener_exc is not None and raise_listener_errors:
+            raise first_listener_exc
+
+    def _take_drain_flush_outputs(self) -> ta.List[IoPipelineFlowMessages.FlushOutput]:
+        flush_outputs = self._drain_flush_outputs
+        self._drain_flush_outputs = []
+        if self._next_drain_flush_outputs:
+            flush_outputs.extend(self._next_drain_flush_outputs)
+            self._next_drain_flush_outputs = []
+        return flush_outputs
+
+    def _start_drain(self) -> None:
+        check.none(self._drain_task)
+        writer = check.not_none(self._writer)
+
+        task = asyncio.create_task(writer.drain())
         self._drain_task = task
 
         def done_callback(done_task: asyncio.Task) -> None:
@@ -652,6 +688,19 @@ class PollAsyncioStreamIoPipelineDriver:
                 )
 
         task.add_done_callback(done_callback)
+
+    def _request_drain(self, flush_output: IoPipelineFlowMessages.FlushOutput) -> None:
+        if self._writer is None:
+            self._finish_flush_outputs([flush_output])
+            return
+
+        if self._drain_task is not None:
+            self._drain_again = True
+            self._next_drain_flush_outputs.append(flush_output)
+            return
+
+        self._drain_flush_outputs.append(flush_output)
+        self._start_drain()
 
     async def _cancel_drain_task(self, *, propagate_done_error: bool = False) -> None:
         task = self._drain_task
@@ -676,17 +725,26 @@ class PollAsyncioStreamIoPipelineDriver:
         self._drain_task = None
         drain_again = self._drain_again
         self._drain_again = False
+        flush_outputs = self._drain_flush_outputs
+        self._drain_flush_outputs = []
 
         try:
             cmd.task.result()
-        except BaseException:
+        except BaseException as e:
+            flush_outputs.extend(self._next_drain_flush_outputs)
+            self._next_drain_flush_outputs = []
+            self._finish_flush_outputs(flush_outputs, e, raise_listener_errors=False)
             await self._fail()
             raise
+
+        self._finish_flush_outputs(flush_outputs)
 
         if self._state is IoPipelineDriverState.RUNNING:
             self._update_output_writability()
             if drain_again:
-                self._request_drain()
+                self._drain_flush_outputs = self._next_drain_flush_outputs
+                self._next_drain_flush_outputs = []
+                self._start_drain()
 
     ##
     # awaits
@@ -811,9 +869,16 @@ class PollAsyncioStreamIoPipelineDriver:
             await self._cancel_tasks(self._read_task, check_running=True)
             await self._gracefully_close_writer()
 
-        except BaseException:
+        except BaseException as e:
+            self._finish_flush_outputs(
+                self._take_drain_flush_outputs(),
+                e,
+                raise_listener_errors=False,
+            )
             await self._fail()
             raise
+
+        self._finish_flush_outputs(self._take_drain_flush_outputs())
 
         return 'stop'
 
@@ -833,7 +898,7 @@ class PollAsyncioStreamIoPipelineDriver:
         self._update_output_writability()
 
     async def _handle_output_flush_output(self, msg: IoPipelineFlowMessages.FlushOutput) -> ta.Optional[str]:
-        self._request_drain()
+        self._request_drain(msg)
         return None
 
     async def _handle_output_ready_for_input(self, msg: IoPipelineFlowMessages.ReadyForInput) -> ta.Optional[str]:
@@ -1024,6 +1089,11 @@ class PollAsyncioStreamIoPipelineDriver:
             self._want_read_event.set()
 
             await self._cancel_drain_task()
+            self._finish_flush_outputs(
+                self._take_drain_flush_outputs(),
+                AbortedIoPipelineError('Driver closed before transport flush completion'),
+                raise_listener_errors=False,
+            )
             self._post_drain_output_q.clear()
 
             await self._cancel_tasks(self._read_task, check_running=True)

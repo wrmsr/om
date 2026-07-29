@@ -37,8 +37,14 @@ class IoPipelineFlowMessages(NamespaceClass):
     class FlushOutput(  # ~ Netty 'ChannelOutboundInvoker::flush'
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.Completable[None],
     ):
-        pass
+        """
+        Ordered transport-flush fence.
+
+        Success means all preceding output has left pipeline-owned buffering and crossed the driver's transport
+        boundary; it does not mean that the peer received or acknowledged the data.
+        """
 
     @ta.final
     @dc.dataclass(frozen=True)

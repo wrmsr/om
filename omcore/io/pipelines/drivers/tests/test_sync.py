@@ -86,6 +86,21 @@ class WriteIoPipelineHandler(IoPipelineHandler):
             ctx.feed_in(msg)
 
 
+class WriteAndFlushIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, data: bytes, flush_output: IoPipelineFlowMessages.FlushOutput) -> None:
+        super().__init__()
+
+        self._data = data
+        self._flush_output = flush_output
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if msg is _WRITE:
+            ctx.feed_out(self._data)
+            ctx.feed_out(self._flush_output)
+        else:
+            ctx.feed_in(msg)
+
+
 class CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
     def __init__(self) -> None:
         super().__init__()
@@ -672,6 +687,43 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
                 self.assertEqual(drv._write_q_bytes, 0)
                 self.assertEqual(len(capture.events), 2)
                 self.assertEqual(peer.recv(len(b'abcde')), b'abcde')
+            finally:
+                drv.close()
+
+    def test_flush_output_completes_after_preceding_bytes_are_sent(self) -> None:
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            self.assertGreater(fill_socket_send_buffer(sock), 0)
+            flush_output = IoPipelineFlowMessages.FlushOutput()
+            completions = []
+            flush_output.add_listener(lambda msg: completions.append(msg.is_succeeded()))
+            drv = SyncSocketIoPipelineDriver(
+                IoPipeline.Spec(
+                    [WriteAndFlushIoPipelineHandler(b'abcde', flush_output)],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+                sock,
+                SyncSocketIoPipelineDriver.Config(write_chunk_max=2),
+            )
+            try:
+                self.assertIsNone(drv.next(read=False))
+                drv.enqueue(_WRITE)
+                self.assertIsNone(drv.next(read=False))
+
+                self.assertEqual(drv._write_q_bytes, 5)
+                self.assertIs(drv._write_q[-1], flush_output)
+                self.assertFalse(flush_output.is_done())
+
+                self.assertTrue(drain_socket(peer))
+                for remaining in (3, 1, 0):
+                    self.assertTrue(drv._try_write())
+                    self.assertEqual(drv._write_q_bytes, remaining)
+                    self.assertFalse(flush_output.is_done())
+
+                self.assertTrue(drv._try_write())
+                self.assertTrue(flush_output.is_succeeded())
+                self.assertEqual(completions, [True])
+                self.assertEqual(peer.recv(5), b'abcde')
             finally:
                 drv.close()
 

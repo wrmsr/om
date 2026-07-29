@@ -37,7 +37,7 @@ def __om_amalg__():  # noqa
     return dict(
         src_files=[
             dict(path='drivers/types.py', sha1='74626aba05c6869daeede82de3b7fec562abe2a7'),
-            dict(path='errors.py', sha1='5b21a04b81ebec31ad81ecb4f811820cea5a0036'),
+            dict(path='errors.py', sha1='4996d5e8a39e1362d979077bd6fb8a6ee19c3d4b'),
             dict(path='../streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
             dict(path='../../lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../lite/asyncs.py', sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5'),
@@ -46,7 +46,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='core.py', sha1='888ec287060cd0ebf961807d84726981af604537'),
+            dict(path='core.py', sha1='ce0469020a26c81c9265f7f9e84b782e9c8363ca'),
             dict(path='../streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
@@ -54,7 +54,7 @@ def __om_amalg__():  # noqa
             dict(path='asyncs.py', sha1='c0eb92ac287f81aca8d1d61e6e3ae9b0873a856b'),
             dict(path='bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),
-            dict(path='flow/types.py', sha1='0636054377b5f539875808cfc4ae63a48ba58422'),
+            dict(path='flow/types.py', sha1='1b6fe098a89265acec7335ab561bbce902e0ebbb'),
             dict(path='handlers/fns.py', sha1='d3e3c43b3359572122b8cb9018c770441c598d48'),
             dict(path='handlers/queues.py', sha1='0672c722e377d67369da3cb4a082b4816eb84875'),
             dict(path='sched/types.py', sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f'),
@@ -74,7 +74,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='082e43f90abc808f95b7131363b8a62b4d7a18f6'),
+            dict(path='drivers/asyncio.py', sha1='814d2565a20f17fd230351fa2692fc91741dffc6'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -157,6 +157,10 @@ class IoPipelineError(Exception):
 
 
 class TimeoutIoPipelineError(IoPipelineError, TimeoutError):
+    pass
+
+
+class AbortedIoPipelineError(IoPipelineError):
     pass
 
 
@@ -1478,6 +1482,9 @@ class IoPipelineMessages(NamespaceClass):
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
 
+    # TODO: Make FinalOutput Completable[None]. Its success boundary must be after all preceding output, protocol
+    #       shutdown, transport draining, and graceful writer closure rather than merely reaching the pipeline terminal.
+
     #
 
     @ta.final
@@ -1554,39 +1561,72 @@ class IoPipelineMessages(NamespaceClass):
                 lst = cpl.listeners = []
             lst.append(fn)
 
-        def set_succeeded(self, result: T) -> None:
+        def _bind_pipeline(self, pipeline: 'IoPipeline') -> None:
             check.state(not self.is_done())
 
-            object.__setattr__(self, '_completion_state', 'succeeded')
+            try:
+                pipeline_ref = self._completion_pipeline_ref  # type: ignore[attr-defined]
+            except AttributeError:
+                object.__setattr__(self, '_completion_pipeline_ref', weakref.ref(pipeline))
+            else:
+                check.is_(pipeline_ref(), pipeline)
+
+            pipeline._pending_completables[id(self)] = self  # noqa
+
+        def _unbind_pipeline(self) -> None:
+            try:
+                pipeline_ref = self._completion_pipeline_ref  # type: ignore[attr-defined]
+            except AttributeError:
+                return
+
+            object.__delattr__(self, '_completion_pipeline_ref')
+            if (pipeline := pipeline_ref()) is not None:
+                pipeline._pending_completables.pop(id(self), None)  # noqa
+
+        def _finish(
+                self,
+                state: ta.Literal['succeeded', 'failed'],
+                *,
+                result: ta.Any = None,
+                exc: ta.Optional[BaseException] = None,
+        ) -> None:
+            check.state(not self.is_done())
+
+            object.__setattr__(self, '_completion_state', state)
+            self._unbind_pipeline()
 
             try:
                 cpl = self._completion_  # type: ignore[attr-defined]
             except AttributeError:
                 return
 
-            cpl.result = result
-            if (lst := cpl.listeners) is not None:
-                for fn in lst:
-                    fn(self)
+            if state == 'succeeded':
+                cpl.result = result
+            else:
+                cpl.exc = exc
 
-            object.__delattr__(self, '_completion_')
+            listeners = cpl.listeners
+            cpl.listeners = None
+            first_listener_exc: ta.Optional[BaseException] = None
+            try:
+                if listeners is not None:
+                    for fn in listeners:
+                        try:
+                            fn(self)
+                        except BaseException as listener_exc:  # noqa
+                            if first_listener_exc is None:
+                                first_listener_exc = listener_exc
+            finally:
+                object.__delattr__(self, '_completion_')
+
+            if first_listener_exc is not None:
+                raise first_listener_exc
+
+        def set_succeeded(self, result: T) -> None:
+            self._finish('succeeded', result=result)
 
         def set_failed(self, exc: ta.Optional[BaseException] = None) -> None:
-            check.state(not self.is_done())
-
-            object.__setattr__(self, '_completion_state', 'failed')
-
-            try:
-                cpl = self._completion_  # type: ignore[attr-defined]
-            except AttributeError:
-                return
-
-            cpl.exc = exc
-            if (lst := cpl.listeners) is not None:
-                for fn in lst:
-                    fn(self)
-
-            object.__delattr__(self, '_completion_')
+            self._finish('failed', exc=exc)
 
     #
 
@@ -1931,16 +1971,23 @@ class IoPipelineHandlerContext:
         if (mt := self._pipeline._message_tap) is not None:  # noqa
             mt(self, 'outbound', msg)
 
-        if isinstance(msg, IoPipelineMessages.MustPropagate):
-            self._pipeline._propagation.add_must(self, 'outbound', msg)  # noqa
-
         try:
+            if isinstance(msg, IoPipelineMessages.Completable):
+                msg._bind_pipeline(self._pipeline)  # noqa
+
+            if isinstance(msg, IoPipelineMessages.MustPropagate):
+                self._pipeline._propagation.add_must(self, 'outbound', msg)  # noqa
+
             self._handler.outbound(self, msg)
 
-        except self._pipeline._all_never_handle_exceptions:  # type: ignore[misc]  # noqa
+        except self._pipeline._all_never_handle_exceptions as e:  # type: ignore[misc]  # noqa
+            if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():
+                msg.set_failed(e)
             raise
 
         except BaseException as e:
+            if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():
+                msg.set_failed(e)
             if self._handling_error or self._pipeline._config.raise_immediately:  # noqa
                 raise
             self._handle_error(e, 'outbound')
@@ -2579,6 +2626,8 @@ class IoPipeline:
         #
 
         self._output: ta.Final[IoPipeline._Output] = IoPipeline._Output()
+
+        self._pending_completables: ta.Final[ta.Dict[int, IoPipelineMessages.Completable]] = {}
 
         #
 
@@ -3278,20 +3327,41 @@ class IoPipeline:
         check.state(self._state == IoPipeline.State.READY)
         self._state = IoPipeline.State.DESTROYING
 
-        self._step_in()
         try:
-            im_ctx = self._innermost  # noqa
-            om_ctx = self._outermost  # noqa
-            while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
-                self.remove(ctx._ref)  # noqa
+            self._step_in()
+            try:
+                im_ctx = self._innermost  # noqa
+                om_ctx = self._outermost  # noqa
+                while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
+                    self.remove(ctx._ref)  # noqa
+
+            finally:
+                self._step_out()
+
+            for svc in self._services._handles_pipeline_update:  # noqa
+                svc.pipeline_update(self, 'removed')
 
         finally:
-            self._step_out()
+            try:
+                self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
+            finally:
+                self._state = IoPipeline.State.DESTROYED
 
-        for svc in self._services._handles_pipeline_update:  # noqa
-            svc.pipeline_update(self, 'removed')
+    def _fail_pending_completables(self, exc: BaseException) -> None:
+        first_listener_exc: ta.Optional[BaseException] = None
 
-        self._state = IoPipeline.State.DESTROYED
+        for completable in tuple(self._pending_completables.values()):
+            if completable.is_done():
+                continue
+            try:
+                completable.set_failed(exc)
+            except BaseException as listener_exc:  # noqa
+                if first_listener_exc is None:
+                    first_listener_exc = listener_exc
+
+        check.empty(self._pending_completables)
+        if first_listener_exc is not None:
+            raise first_listener_exc
 
 
 ########################################
@@ -4235,8 +4305,14 @@ class IoPipelineFlowMessages(NamespaceClass):
     class FlushOutput(  # ~ Netty 'ChannelOutboundInvoker::flush'
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.Completable[None],
     ):
-        pass
+        """
+        Ordered transport-flush fence.
+
+        Success means all preceding output has left pipeline-owned buffering and crossed the driver's transport
+        boundary; it does not mean that the peer received or acknowledged the data.
+        """
 
     @ta.final
     @dc.dataclass(frozen=True)
@@ -8662,6 +8738,8 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._drain_task: ta.Optional[asyncio.Task] = None
         self._drain_again = False
+        self._drain_flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
+        self._next_drain_flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
         self._post_drain_output_q: collections.deque[ta.Any] = collections.deque()
 
         self._state = IoPipelineDriverState.NEW
@@ -9197,15 +9275,48 @@ class PollAsyncioStreamIoPipelineDriver:
     class _DrainCompletedCommand(_Command):
         task: asyncio.Task
 
-    def _request_drain(self) -> None:
-        if self._writer is None:
+    def _finish_flush_outputs(
+            self,
+            flush_outputs: ta.Iterable[IoPipelineFlowMessages.FlushOutput],
+            exc: ta.Optional[BaseException] = None,
+            *,
+            raise_listener_errors: bool = True,
+    ) -> None:
+        flush_outputs = list(flush_outputs)
+        if not flush_outputs:
             return
 
-        if self._drain_task is not None:
-            self._drain_again = True
-            return
+        first_listener_exc: ta.Optional[BaseException] = None
 
-        task = asyncio.create_task(self._writer.drain())
+        with self._pipeline.enter():
+            for flush_output in flush_outputs:
+                if flush_output.is_done():
+                    continue
+                try:
+                    if exc is None:
+                        flush_output.set_succeeded(None)
+                    else:
+                        flush_output.set_failed(exc)
+                except BaseException as listener_exc:  # noqa
+                    if first_listener_exc is None:
+                        first_listener_exc = listener_exc
+
+        if first_listener_exc is not None and raise_listener_errors:
+            raise first_listener_exc
+
+    def _take_drain_flush_outputs(self) -> ta.List[IoPipelineFlowMessages.FlushOutput]:
+        flush_outputs = self._drain_flush_outputs
+        self._drain_flush_outputs = []
+        if self._next_drain_flush_outputs:
+            flush_outputs.extend(self._next_drain_flush_outputs)
+            self._next_drain_flush_outputs = []
+        return flush_outputs
+
+    def _start_drain(self) -> None:
+        check.none(self._drain_task)
+        writer = check.not_none(self._writer)
+
+        task = asyncio.create_task(writer.drain())
         self._drain_task = task
 
         def done_callback(done_task: asyncio.Task) -> None:
@@ -9215,6 +9326,19 @@ class PollAsyncioStreamIoPipelineDriver:
                 )
 
         task.add_done_callback(done_callback)
+
+    def _request_drain(self, flush_output: IoPipelineFlowMessages.FlushOutput) -> None:
+        if self._writer is None:
+            self._finish_flush_outputs([flush_output])
+            return
+
+        if self._drain_task is not None:
+            self._drain_again = True
+            self._next_drain_flush_outputs.append(flush_output)
+            return
+
+        self._drain_flush_outputs.append(flush_output)
+        self._start_drain()
 
     async def _cancel_drain_task(self, *, propagate_done_error: bool = False) -> None:
         task = self._drain_task
@@ -9239,17 +9363,26 @@ class PollAsyncioStreamIoPipelineDriver:
         self._drain_task = None
         drain_again = self._drain_again
         self._drain_again = False
+        flush_outputs = self._drain_flush_outputs
+        self._drain_flush_outputs = []
 
         try:
             cmd.task.result()
-        except BaseException:
+        except BaseException as e:
+            flush_outputs.extend(self._next_drain_flush_outputs)
+            self._next_drain_flush_outputs = []
+            self._finish_flush_outputs(flush_outputs, e, raise_listener_errors=False)
             await self._fail()
             raise
+
+        self._finish_flush_outputs(flush_outputs)
 
         if self._state is IoPipelineDriverState.RUNNING:
             self._update_output_writability()
             if drain_again:
-                self._request_drain()
+                self._drain_flush_outputs = self._next_drain_flush_outputs
+                self._next_drain_flush_outputs = []
+                self._start_drain()
 
     ##
     # awaits
@@ -9374,9 +9507,16 @@ class PollAsyncioStreamIoPipelineDriver:
             await self._cancel_tasks(self._read_task, check_running=True)
             await self._gracefully_close_writer()
 
-        except BaseException:
+        except BaseException as e:
+            self._finish_flush_outputs(
+                self._take_drain_flush_outputs(),
+                e,
+                raise_listener_errors=False,
+            )
             await self._fail()
             raise
+
+        self._finish_flush_outputs(self._take_drain_flush_outputs())
 
         return 'stop'
 
@@ -9396,7 +9536,7 @@ class PollAsyncioStreamIoPipelineDriver:
         self._update_output_writability()
 
     async def _handle_output_flush_output(self, msg: IoPipelineFlowMessages.FlushOutput) -> ta.Optional[str]:
-        self._request_drain()
+        self._request_drain(msg)
         return None
 
     async def _handle_output_ready_for_input(self, msg: IoPipelineFlowMessages.ReadyForInput) -> ta.Optional[str]:
@@ -9587,6 +9727,11 @@ class PollAsyncioStreamIoPipelineDriver:
             self._want_read_event.set()
 
             await self._cancel_drain_task()
+            self._finish_flush_outputs(
+                self._take_drain_flush_outputs(),
+                AbortedIoPipelineError('Driver closed before transport flush completion'),
+                raise_listener_errors=False,
+            )
             self._post_drain_output_q.clear()
 
             await self._cancel_tasks(self._read_task, check_running=True)

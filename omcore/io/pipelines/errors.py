@@ -15,6 +15,10 @@ class TimeoutIoPipelineError(IoPipelineError, TimeoutError):
     pass
 
 
+class AbortedIoPipelineError(IoPipelineError):
+    pass
+
+
 ##
 
 

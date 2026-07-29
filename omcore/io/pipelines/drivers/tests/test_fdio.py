@@ -303,11 +303,11 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
 
         drv._do_write_or_q([b'abcd'])
         assert sock.sent == [b'ab']
-        assert [bytes(b) for b in drv._write_q] == [b'cd']
+        assert [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv._write_q)] == [b'cd']
 
         drv._do_write_or_q([b'ef'])
         assert sock.sent == [b'ab']
-        assert [bytes(b) for b in drv._write_q] == [b'cd', b'ef']
+        assert [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv._write_q)] == [b'cd', b'ef']
 
         drv._try_flush_write_q()
         assert sock.sent == [b'ab', b'cd', b'ef']
@@ -383,6 +383,35 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
         finally:
             drv.close()
 
+    def test_flush_output_completes_after_queued_bytes_are_sent(self) -> None:
+        sock: ta.Any = ScriptedSendSocket(BlockingIOError())
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        flush_output = IoPipelineFlowMessages.FlushOutput()
+        completions = []
+        flush_output.add_listener(lambda msg: completions.append(msg.is_succeeded()))
+        try:
+            self.assertIsNone(drv.next(read=False))
+            self.assertEqual(drv._handle_output(b'payload'), 'handled')
+            self.assertEqual(drv._handle_output(flush_output), 'handled')
+
+            self.assertEqual(drv._write_q_bytes, len(b'payload'))
+            self.assertIs(drv._write_q[-1], flush_output)
+            self.assertFalse(flush_output.is_done())
+
+            drv.on_writable()
+
+            self.assertEqual(sock.sent, [b'payload'])
+            self.assertTrue(flush_output.is_succeeded())
+            self.assertEqual(completions, [True])
+        finally:
+            drv.close()
+
     def test_final_output_drains_queued_bytes(self) -> None:
         sock: ta.Any = ScriptedSendSocket(BlockingIOError())
         drv = IoPipelineDriverSocketFdioHandler(
@@ -400,7 +429,10 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             self.assertIsNone(drv.next(read=False))
 
             self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
-            self.assertEqual([bytes(b) for b in drv._write_q], [b'payload'])
+            self.assertEqual(
+                [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv._write_q)],
+                [b'payload'],
+            )
             self.assertFalse(sock.closed)
             self.assertTrue(drv.pipeline.is_ready)
 

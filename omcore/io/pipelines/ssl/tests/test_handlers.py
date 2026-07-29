@@ -309,8 +309,10 @@ class TestSslHandlers(unittest.TestCase):
         ch, sh, cctx, sctx, ct, st = make_pair(self._cert)
         ch.outbound(cctx, b'a')
         n = sum(isinstance(m, IoPipelineFlowMessages.FlushOutput) for m in ct.wire_out)
-        ch.outbound(cctx, IoPipelineFlowMessages.FlushOutput())
+        flush_output = IoPipelineFlowMessages.FlushOutput()
+        ch.outbound(cctx, flush_output)
         assert sum(isinstance(m, IoPipelineFlowMessages.FlushOutput) for m in ct.wire_out) == n + 1
+        assert ct.wire_out[-1] is flush_output
 
     def test_manual_read_client_and_server(self):
         # Both sides manual: the full handshake must complete purely on self-armed reads.

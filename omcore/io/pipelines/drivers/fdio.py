@@ -76,7 +76,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
-        self._write_q: collections.deque[BytesLike] = collections.deque()
+        self._write_q: collections.deque[
+            ta.Union[BytesLike, IoPipelineFlowMessages.FlushOutput]
+        ] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
 
@@ -263,7 +265,15 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     def _try_flush_write_q(self) -> None:
         while self._write_q:
-            b = self._write_q[0]
+            head = self._write_q[0]
+            if isinstance(head, IoPipelineFlowMessages.FlushOutput):
+                self._write_q.popleft()
+                with self._pipeline.enter():
+                    if not head.is_done():
+                        head.set_succeeded(None)
+                continue
+
+            b = head
             if (sr := self._try_send(b)) is None:
                 return
 
@@ -316,8 +326,12 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
-            # FIXME: 'block' until write_q empty
-            # self._sock.flush()
+            if self._write_q:
+                self._write_q.append(msg)
+            else:
+                with self._pipeline.enter():
+                    if not msg.is_done():
+                        msg.set_succeeded(None)
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):

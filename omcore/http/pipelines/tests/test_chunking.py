@@ -345,7 +345,8 @@ class TestChunker(unittest.TestCase):
             [IoPipelineFlowMessages.PauseOutput],
         )
 
-        channel.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
+        flush_output = IoPipelineFlowMessages.FlushOutput()
+        channel.feed_in(fbi.wrap(flush_output))
         self.assertEqual(chunker.outbound_buffered_bytes(), 0)
         self.assertEqual(
             [type(event) for event in capture.events],
@@ -379,7 +380,8 @@ class TestChunker(unittest.TestCase):
         channel.feed_in(IoPipelineFlowMessages.PauseOutput())
         events.clear()
 
-        channel.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
+        flush_output = IoPipelineFlowMessages.FlushOutput()
+        channel.feed_in(fbi.wrap(flush_output))
 
         self.assertEqual(
             [type(event) for event in events],
@@ -391,6 +393,7 @@ class TestChunker(unittest.TestCase):
                 IoPipelineFlowMessages.ReadyForOutput,
             ],
         )
+        self.assertIs(events[-2], flush_output)
 
     def test_basic_chunking(self) -> None:
         chunker = IoPipelineHttpResponseChunker()

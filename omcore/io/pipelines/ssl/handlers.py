@@ -182,7 +182,7 @@ class SslIoPipelineHandler(
     _read_requested = False       # a manual-mode read token from downstream is outstanding
     _read_satisfied = False       # a manual read token was satisfied with data this turn
     _rfi_outstanding = False      # we sent ReadyForInput and haven't received bytes since
-    _flush_pending = False        # app requested FlushOutput; not yet forwarded
+    _pending_flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput]
     _unflushed_output = False     # ciphertext emitted since the last downstream FlushOutput
     _flush_in_seen = False        # transport sent FlushInput; not yet forwarded/swallowed
     _delivered_plaintext = False  # plaintext fed inbound since the last FlushInput we forwarded
@@ -221,6 +221,7 @@ class SslIoPipelineHandler(
         )
 
         self._write_q = collections.deque()
+        self._pending_flush_outputs = []
 
         # Baseline for edge-detection: whatever the transport last told us (pre-TLS writability signals were passed
         # through transparently, so the app has already seen them).
@@ -427,7 +428,7 @@ class SslIoPipelineHandler(
             if self.state is None:
                 ctx.feed_out(msg)
                 return
-            self._flush_pending = True
+            self._pending_flush_outputs.append(msg)
             self._turn(ctx)
             return
 
@@ -742,24 +743,30 @@ class SslIoPipelineHandler(
         if produced:
             self._unflushed_output = True
 
-        emit_flush = False
-        if self._flush_pending:
+        emit_progress_flush = False
+        pending_flush_outputs: ta.Sequence[IoPipelineFlowMessages.FlushOutput] = ()
+        if self._pending_flush_outputs:
             if not self._write_q:
-                self._flush_pending = False
-                emit_flush = True
+                pending_flush_outputs = self._pending_flush_outputs
+                self._pending_flush_outputs = []
             elif self._unflushed_output:
                 # A downstream buffering handler may have paused us while receiving only part of the ciphertext for
                 # this application flush. Let it flush that prefix so it can become writable again, but retain the
                 # application flush until all plaintext preceding it has been processed.
-                emit_flush = True
+                emit_progress_flush = True
 
         elif self._unflushed_output and self._control_activity and fc is not None:
-            emit_flush = True
+            emit_progress_flush = True
 
         self._control_activity = False
-        if emit_flush:
+        if emit_progress_flush or pending_flush_outputs:
             self._unflushed_output = False
+
+        if emit_progress_flush:
             ctx.feed_out(IoPipelineFlowMessages.FlushOutput())
+
+        for flush_output in pending_flush_outputs:
+            ctx.feed_out(flush_output)
 
         # 3) Deferred FinalOutput.
         if self._state == self.State.CLOSED and self._pending_final_output is not None:

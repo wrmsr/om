@@ -11,6 +11,7 @@ from ..core import IoPipelineHandler
 from ..core import IoPipelineHandlerContext
 from ..core import IoPipelineMessages
 from ..core import IoPipelineMetadata
+from ..errors import AbortedIoPipelineError
 from ..errors import ContextInvalidatedIoPipelineError
 from ..errors import MessageNotPropagatedIoPipelineError
 from ..handlers.feedback import FeedbackInboundIoPipelineHandler
@@ -256,6 +257,41 @@ class TestCompletable(unittest.TestCase):
         assert cf.is_done()
 
         assert l == ['hiya']
+
+    def test_listener_failure_does_not_retain_completion_state(self):
+        cf = TestCompletable.CompletableFoo(420)
+        events = []
+
+        def fail_listener(o):
+            events.append(('fail', o.get_result()))
+            raise RuntimeError('listener')
+
+        cf.add_listener(fail_listener)
+        cf.add_listener(lambda o: events.append(('later', o.get_result())))
+
+        with self.assertRaisesRegex(RuntimeError, 'listener'):
+            cf.set_succeeded('hiya')
+
+        self.assertTrue(cf.is_succeeded())
+        self.assertFalse(hasattr(cf, '_completion_'))
+        self.assertEqual(events, [('fail', 'hiya'), ('later', 'hiya')])
+
+    def test_pipeline_destroy_fails_pending_completable(self):
+        ch = IoPipeline.new([
+            fbi := FeedbackInboundIoPipelineHandler(),
+        ])
+        cf = TestCompletable.CompletableFoo(420)
+        failures = []
+        cf.add_listener(lambda o: failures.append(o.get_exception()))
+
+        ch.feed_in(fbi.wrap(cf))
+        self.assertFalse(cf.is_done())
+
+        ch.destroy()
+
+        self.assertTrue(cf.is_failed())
+        self.assertEqual(len(failures), 1)
+        self.assertIsInstance(failures[0], AbortedIoPipelineError)
 
 
 class TestMustPropagate(unittest.TestCase):

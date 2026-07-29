@@ -405,6 +405,24 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
                 write_low_watermark=2,
             )
 
+    async def test_flush_without_writer_completes_immediately(self) -> None:
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            flush_output = IoPipelineFlowMessages.FlushOutput()
+
+            self.assertEqual(await drv._handle_output(flush_output), 'handled')
+
+            self.assertTrue(flush_output.is_succeeded())
+            self.assertIsNone(drv._drain_task)
+        finally:
+            await drv.close()
+
     async def test_no_flow_preserves_transport_limits(self):
         writer = BufferedStreamWriter()
         drv = PollAsyncioStreamIoPipelineDriver(
@@ -555,26 +573,32 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
         try:
             self.assertIsNone(await drv.next(read=False))
             self.assertEqual(await drv._handle_output(b'abcde'), 'handled')
+            first_flush_output = IoPipelineFlowMessages.FlushOutput()
             self.assertEqual(
-                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                await drv._handle_output(first_flush_output),
                 'handled',
             )
             await writer.drain_started.wait()
+            self.assertFalse(first_flush_output.is_done())
 
             first_task = drv._drain_task
             if first_task is None:
                 self.fail('Expected a pending drain task')
+            second_flush_output = IoPipelineFlowMessages.FlushOutput()
             self.assertEqual(
-                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                await drv._handle_output(second_flush_output),
                 'handled',
             )
             self.assertIs(drv._drain_task, first_task)
             self.assertTrue(drv._drain_again)
+            self.assertFalse(second_flush_output.is_done())
 
             writer.allow_drain.set()
             await first_task
             await asyncio.sleep(0)
             self.assertIsNone(await drv.next(read=False))
+            self.assertTrue(first_flush_output.is_succeeded())
+            self.assertFalse(second_flush_output.is_done())
 
             second_task = drv._drain_task
             if second_task is None:
@@ -583,6 +607,7 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
             await second_task
             await asyncio.sleep(0)
             self.assertIsNone(await drv.next(read=False))
+            self.assertTrue(second_flush_output.is_succeeded())
 
             self.assertEqual(writer.drain_calls, 2)
             self.assertEqual(writer.max_active_drains, 1)
@@ -611,10 +636,12 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
         )
         try:
             self.assertIsNone(await drv.next(read=False))
+            flush_output = IoPipelineFlowMessages.FlushOutput()
             self.assertEqual(
-                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                await drv._handle_output(flush_output),
                 'handled',
             )
+            self.assertFalse(flush_output.is_done())
 
             drain_task = drv._drain_task
             if drain_task is None:
@@ -627,6 +654,7 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
                 await asyncio.wait_for(drv.next(), .5)
             self.assertIs(driver_raised.exception, error)
 
+            self.assertTrue(flush_output.is_failed())
             self.assertIs(drv.state, IoPipelineDriverState.FAILED)
             self.assertFalse(drv.pipeline.is_ready)
             self.assertTrue(writer.closed)

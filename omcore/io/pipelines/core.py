@@ -10,6 +10,7 @@ import weakref
 from ...lite.abstract import Abstract
 from ...lite.check import check
 from ...lite.namespaces import NamespaceClass
+from .errors import AbortedIoPipelineError
 from .errors import ContextInvalidatedIoPipelineError
 from .errors import MessageNotPropagatedIoPipelineError
 from .errors import MessageReachedTerminalIoPipelineError
@@ -105,6 +106,9 @@ class IoPipelineMessages(NamespaceClass):
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
 
+    # TODO: Make FinalOutput Completable[None]. Its success boundary must be after all preceding output, protocol
+    #       shutdown, transport draining, and graceful writer closure rather than merely reaching the pipeline terminal.
+
     #
 
     @ta.final
@@ -181,39 +185,72 @@ class IoPipelineMessages(NamespaceClass):
                 lst = cpl.listeners = []
             lst.append(fn)
 
-        def set_succeeded(self, result: T) -> None:
+        def _bind_pipeline(self, pipeline: 'IoPipeline') -> None:
             check.state(not self.is_done())
 
-            object.__setattr__(self, '_completion_state', 'succeeded')
+            try:
+                pipeline_ref = self._completion_pipeline_ref  # type: ignore[attr-defined]
+            except AttributeError:
+                object.__setattr__(self, '_completion_pipeline_ref', weakref.ref(pipeline))
+            else:
+                check.is_(pipeline_ref(), pipeline)
+
+            pipeline._pending_completables[id(self)] = self  # noqa
+
+        def _unbind_pipeline(self) -> None:
+            try:
+                pipeline_ref = self._completion_pipeline_ref  # type: ignore[attr-defined]
+            except AttributeError:
+                return
+
+            object.__delattr__(self, '_completion_pipeline_ref')
+            if (pipeline := pipeline_ref()) is not None:
+                pipeline._pending_completables.pop(id(self), None)  # noqa
+
+        def _finish(
+                self,
+                state: ta.Literal['succeeded', 'failed'],
+                *,
+                result: ta.Any = None,
+                exc: ta.Optional[BaseException] = None,
+        ) -> None:
+            check.state(not self.is_done())
+
+            object.__setattr__(self, '_completion_state', state)
+            self._unbind_pipeline()
 
             try:
                 cpl = self._completion_  # type: ignore[attr-defined]
             except AttributeError:
                 return
 
-            cpl.result = result
-            if (lst := cpl.listeners) is not None:
-                for fn in lst:
-                    fn(self)
+            if state == 'succeeded':
+                cpl.result = result
+            else:
+                cpl.exc = exc
 
-            object.__delattr__(self, '_completion_')
+            listeners = cpl.listeners
+            cpl.listeners = None
+            first_listener_exc: ta.Optional[BaseException] = None
+            try:
+                if listeners is not None:
+                    for fn in listeners:
+                        try:
+                            fn(self)
+                        except BaseException as listener_exc:  # noqa
+                            if first_listener_exc is None:
+                                first_listener_exc = listener_exc
+            finally:
+                object.__delattr__(self, '_completion_')
+
+            if first_listener_exc is not None:
+                raise first_listener_exc
+
+        def set_succeeded(self, result: T) -> None:
+            self._finish('succeeded', result=result)
 
         def set_failed(self, exc: ta.Optional[BaseException] = None) -> None:
-            check.state(not self.is_done())
-
-            object.__setattr__(self, '_completion_state', 'failed')
-
-            try:
-                cpl = self._completion_  # type: ignore[attr-defined]
-            except AttributeError:
-                return
-
-            cpl.exc = exc
-            if (lst := cpl.listeners) is not None:
-                for fn in lst:
-                    fn(self)
-
-            object.__delattr__(self, '_completion_')
+            self._finish('failed', exc=exc)
 
     #
 
@@ -558,16 +595,23 @@ class IoPipelineHandlerContext:
         if (mt := self._pipeline._message_tap) is not None:  # noqa
             mt(self, 'outbound', msg)
 
-        if isinstance(msg, IoPipelineMessages.MustPropagate):
-            self._pipeline._propagation.add_must(self, 'outbound', msg)  # noqa
-
         try:
+            if isinstance(msg, IoPipelineMessages.Completable):
+                msg._bind_pipeline(self._pipeline)  # noqa
+
+            if isinstance(msg, IoPipelineMessages.MustPropagate):
+                self._pipeline._propagation.add_must(self, 'outbound', msg)  # noqa
+
             self._handler.outbound(self, msg)
 
-        except self._pipeline._all_never_handle_exceptions:  # type: ignore[misc]  # noqa
+        except self._pipeline._all_never_handle_exceptions as e:  # type: ignore[misc]  # noqa
+            if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():
+                msg.set_failed(e)
             raise
 
         except BaseException as e:
+            if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():
+                msg.set_failed(e)
             if self._handling_error or self._pipeline._config.raise_immediately:  # noqa
                 raise
             self._handle_error(e, 'outbound')
@@ -1206,6 +1250,8 @@ class IoPipeline:
         #
 
         self._output: ta.Final[IoPipeline._Output] = IoPipeline._Output()
+
+        self._pending_completables: ta.Final[ta.Dict[int, IoPipelineMessages.Completable]] = {}
 
         #
 
@@ -1905,17 +1951,38 @@ class IoPipeline:
         check.state(self._state == IoPipeline.State.READY)
         self._state = IoPipeline.State.DESTROYING
 
-        self._step_in()
         try:
-            im_ctx = self._innermost  # noqa
-            om_ctx = self._outermost  # noqa
-            while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
-                self.remove(ctx._ref)  # noqa
+            self._step_in()
+            try:
+                im_ctx = self._innermost  # noqa
+                om_ctx = self._outermost  # noqa
+                while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
+                    self.remove(ctx._ref)  # noqa
+
+            finally:
+                self._step_out()
+
+            for svc in self._services._handles_pipeline_update:  # noqa
+                svc.pipeline_update(self, 'removed')
 
         finally:
-            self._step_out()
+            try:
+                self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
+            finally:
+                self._state = IoPipeline.State.DESTROYED
 
-        for svc in self._services._handles_pipeline_update:  # noqa
-            svc.pipeline_update(self, 'removed')
+    def _fail_pending_completables(self, exc: BaseException) -> None:
+        first_listener_exc: ta.Optional[BaseException] = None
 
-        self._state = IoPipeline.State.DESTROYED
+        for completable in tuple(self._pending_completables.values()):
+            if completable.is_done():
+                continue
+            try:
+                completable.set_failed(exc)
+            except BaseException as listener_exc:  # noqa
+                if first_listener_exc is None:
+                    first_listener_exc = listener_exc
+
+        check.empty(self._pending_completables)
+        if first_listener_exc is not None:
+            raise first_listener_exc

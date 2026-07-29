@@ -100,7 +100,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/urllib.py', sha1='fc273565255546f42152ab2dfc264feb8c8b8dc6'),
             dict(path='../../omcore/http/versions.py', sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890'),
             dict(path='../../omcore/io/pipelines/drivers/types.py', sha1='74626aba05c6869daeede82de3b7fec562abe2a7'),
-            dict(path='../../omcore/io/pipelines/errors.py', sha1='5b21a04b81ebec31ad81ecb4f811820cea5a0036'),
+            dict(path='../../omcore/io/pipelines/errors.py', sha1='4996d5e8a39e1362d979077bd6fb8a6ee19c3d4b'),
             dict(path='../../omcore/io/streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
             dict(path='../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../omcore/lite/asyncs.py', sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5'),
@@ -135,7 +135,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/headers.py', sha1='28c986b43cb6d3283d5df0249d80f8770522c9de'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='888ec287060cd0ebf961807d84726981af604537'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='ce0469020a26c81c9265f7f9e84b782e9c8363ca'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -163,7 +163,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
-            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='0636054377b5f539875808cfc4ae63a48ba58422'),
+            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='1b6fe098a89265acec7335ab561bbce902e0ebbb'),
             dict(path='../../omcore/io/pipelines/sched/types.py', sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f'),
             dict(path='../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
             dict(path='../../omcore/io/streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
@@ -222,7 +222,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='32a063c0cdfb151e256c99bf8161934292946ff2'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='e915738797c95ad9567c88f37d20fc5a599d8f3e'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='f97405c62b35758db2356e68bd93433d9563c09f'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -1113,6 +1113,10 @@ class IoPipelineError(Exception):
 
 
 class TimeoutIoPipelineError(IoPipelineError, TimeoutError):
+    pass
+
+
+class AbortedIoPipelineError(IoPipelineError):
     pass
 
 
@@ -6794,6 +6798,9 @@ class IoPipelineMessages(NamespaceClass):
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
 
+    # TODO: Make FinalOutput Completable[None]. Its success boundary must be after all preceding output, protocol
+    #       shutdown, transport draining, and graceful writer closure rather than merely reaching the pipeline terminal.
+
     #
 
     @ta.final
@@ -6870,39 +6877,72 @@ class IoPipelineMessages(NamespaceClass):
                 lst = cpl.listeners = []
             lst.append(fn)
 
-        def set_succeeded(self, result: T) -> None:
+        def _bind_pipeline(self, pipeline: 'IoPipeline') -> None:
             check.state(not self.is_done())
 
-            object.__setattr__(self, '_completion_state', 'succeeded')
+            try:
+                pipeline_ref = self._completion_pipeline_ref  # type: ignore[attr-defined]
+            except AttributeError:
+                object.__setattr__(self, '_completion_pipeline_ref', weakref.ref(pipeline))
+            else:
+                check.is_(pipeline_ref(), pipeline)
+
+            pipeline._pending_completables[id(self)] = self  # noqa
+
+        def _unbind_pipeline(self) -> None:
+            try:
+                pipeline_ref = self._completion_pipeline_ref  # type: ignore[attr-defined]
+            except AttributeError:
+                return
+
+            object.__delattr__(self, '_completion_pipeline_ref')
+            if (pipeline := pipeline_ref()) is not None:
+                pipeline._pending_completables.pop(id(self), None)  # noqa
+
+        def _finish(
+                self,
+                state: ta.Literal['succeeded', 'failed'],
+                *,
+                result: ta.Any = None,
+                exc: ta.Optional[BaseException] = None,
+        ) -> None:
+            check.state(not self.is_done())
+
+            object.__setattr__(self, '_completion_state', state)
+            self._unbind_pipeline()
 
             try:
                 cpl = self._completion_  # type: ignore[attr-defined]
             except AttributeError:
                 return
 
-            cpl.result = result
-            if (lst := cpl.listeners) is not None:
-                for fn in lst:
-                    fn(self)
+            if state == 'succeeded':
+                cpl.result = result
+            else:
+                cpl.exc = exc
 
-            object.__delattr__(self, '_completion_')
+            listeners = cpl.listeners
+            cpl.listeners = None
+            first_listener_exc: ta.Optional[BaseException] = None
+            try:
+                if listeners is not None:
+                    for fn in listeners:
+                        try:
+                            fn(self)
+                        except BaseException as listener_exc:  # noqa
+                            if first_listener_exc is None:
+                                first_listener_exc = listener_exc
+            finally:
+                object.__delattr__(self, '_completion_')
+
+            if first_listener_exc is not None:
+                raise first_listener_exc
+
+        def set_succeeded(self, result: T) -> None:
+            self._finish('succeeded', result=result)
 
         def set_failed(self, exc: ta.Optional[BaseException] = None) -> None:
-            check.state(not self.is_done())
-
-            object.__setattr__(self, '_completion_state', 'failed')
-
-            try:
-                cpl = self._completion_  # type: ignore[attr-defined]
-            except AttributeError:
-                return
-
-            cpl.exc = exc
-            if (lst := cpl.listeners) is not None:
-                for fn in lst:
-                    fn(self)
-
-            object.__delattr__(self, '_completion_')
+            self._finish('failed', exc=exc)
 
     #
 
@@ -7247,16 +7287,23 @@ class IoPipelineHandlerContext:
         if (mt := self._pipeline._message_tap) is not None:  # noqa
             mt(self, 'outbound', msg)
 
-        if isinstance(msg, IoPipelineMessages.MustPropagate):
-            self._pipeline._propagation.add_must(self, 'outbound', msg)  # noqa
-
         try:
+            if isinstance(msg, IoPipelineMessages.Completable):
+                msg._bind_pipeline(self._pipeline)  # noqa
+
+            if isinstance(msg, IoPipelineMessages.MustPropagate):
+                self._pipeline._propagation.add_must(self, 'outbound', msg)  # noqa
+
             self._handler.outbound(self, msg)
 
-        except self._pipeline._all_never_handle_exceptions:  # type: ignore[misc]  # noqa
+        except self._pipeline._all_never_handle_exceptions as e:  # type: ignore[misc]  # noqa
+            if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():
+                msg.set_failed(e)
             raise
 
         except BaseException as e:
+            if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():
+                msg.set_failed(e)
             if self._handling_error or self._pipeline._config.raise_immediately:  # noqa
                 raise
             self._handle_error(e, 'outbound')
@@ -7895,6 +7942,8 @@ class IoPipeline:
         #
 
         self._output: ta.Final[IoPipeline._Output] = IoPipeline._Output()
+
+        self._pending_completables: ta.Final[ta.Dict[int, IoPipelineMessages.Completable]] = {}
 
         #
 
@@ -8594,20 +8643,41 @@ class IoPipeline:
         check.state(self._state == IoPipeline.State.READY)
         self._state = IoPipeline.State.DESTROYING
 
-        self._step_in()
         try:
-            im_ctx = self._innermost  # noqa
-            om_ctx = self._outermost  # noqa
-            while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
-                self.remove(ctx._ref)  # noqa
+            self._step_in()
+            try:
+                im_ctx = self._innermost  # noqa
+                om_ctx = self._outermost  # noqa
+                while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
+                    self.remove(ctx._ref)  # noqa
+
+            finally:
+                self._step_out()
+
+            for svc in self._services._handles_pipeline_update:  # noqa
+                svc.pipeline_update(self, 'removed')
 
         finally:
-            self._step_out()
+            try:
+                self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
+            finally:
+                self._state = IoPipeline.State.DESTROYED
 
-        for svc in self._services._handles_pipeline_update:  # noqa
-            svc.pipeline_update(self, 'removed')
+    def _fail_pending_completables(self, exc: BaseException) -> None:
+        first_listener_exc: ta.Optional[BaseException] = None
 
-        self._state = IoPipeline.State.DESTROYED
+        for completable in tuple(self._pending_completables.values()):
+            if completable.is_done():
+                continue
+            try:
+                completable.set_failed(exc)
+            except BaseException as listener_exc:  # noqa
+                if first_listener_exc is None:
+                    first_listener_exc = listener_exc
+
+        check.empty(self._pending_completables)
+        if first_listener_exc is not None:
+            raise first_listener_exc
 
 
 ########################################
@@ -13610,8 +13680,14 @@ class IoPipelineFlowMessages(NamespaceClass):
     class FlushOutput(  # ~ Netty 'ChannelOutboundInvoker::flush'
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.Completable[None],
     ):
-        pass
+        """
+        Ordered transport-flush fence.
+
+        Success means all preceding output has left pipeline-owned buffering and crossed the driver's transport
+        boundary; it does not mean that the peer received or acknowledged the data.
+        """
 
     @ta.final
     @dc.dataclass(frozen=True)
@@ -31707,7 +31783,7 @@ class SyncSocketIoPipelineDriver:
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
-        self._write_q: ta.Deque[memoryview] = collections.deque()
+        self._write_q: ta.Deque[ta.Union[memoryview, IoPipelineFlowMessages.FlushOutput]] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
 
@@ -31913,7 +31989,15 @@ class SyncSocketIoPipelineDriver:
         if not self._write_q:
             return False
 
-        mv = self._write_q[0]
+        head = self._write_q[0]
+        if isinstance(head, IoPipelineFlowMessages.FlushOutput):
+            self._write_q.popleft()
+            with self._pipeline.enter():
+                if not head.is_done():
+                    head.set_succeeded(None)
+            return True
+
+        mv = head
         if (wcm := self._config.write_chunk_max) is not None and len(mv) > wcm:
             write_mv = mv[:wcm]
         else:
@@ -32202,7 +32286,7 @@ class SyncSocketIoPipelineDriver:
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
-            # self._sock.flush()
+            self._write_q.append(msg)
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
@@ -32249,6 +32333,10 @@ class SyncSocketIoPipelineDriver:
 
                 else:
                     raise RuntimeError(f'Unknown handled value: {handled!r}')
+
+            if self._write_q and isinstance(self._write_q[0], IoPipelineFlowMessages.FlushOutput):
+                self._try_write()
+                continue
 
             if self._saw_transport_final_output:
                 return 'write' if self._write_q else 'stop'

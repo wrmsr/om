@@ -69,14 +69,15 @@ class TestOutboundBytesBuffer(unittest.TestCase):
         assert ch.output.drain() == []
 
         # Now flush
-        ch.feed_in(fbi.wrap(IoPipelineFlowMessages.FlushOutput()))
+        flush_output = IoPipelineFlowMessages.FlushOutput()
+        ch.feed_in(fbi.wrap(flush_output))
 
         # Should now see the buffered bytes
         drained = ch.output.drain()
         # Buffer coalesces the segments, so we get 1 byte segment + FlushOutput
         assert len(drained) == 2
         assert drained[0].tobytes() == b'abcdef'
-        assert isinstance(drained[1], IoPipelineFlowMessages.FlushOutput)
+        assert drained[1] is flush_output
 
     def test_threshold_flush(self):
         """Test that buffering flushes when threshold is reached."""

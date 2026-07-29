@@ -87,7 +87,7 @@ class SyncSocketIoPipelineDriver:
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
-        self._write_q: ta.Deque[memoryview] = collections.deque()
+        self._write_q: ta.Deque[ta.Union[memoryview, IoPipelineFlowMessages.FlushOutput]] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
 
@@ -293,7 +293,15 @@ class SyncSocketIoPipelineDriver:
         if not self._write_q:
             return False
 
-        mv = self._write_q[0]
+        head = self._write_q[0]
+        if isinstance(head, IoPipelineFlowMessages.FlushOutput):
+            self._write_q.popleft()
+            with self._pipeline.enter():
+                if not head.is_done():
+                    head.set_succeeded(None)
+            return True
+
+        mv = head
         if (wcm := self._config.write_chunk_max) is not None and len(mv) > wcm:
             write_mv = mv[:wcm]
         else:
@@ -582,7 +590,7 @@ class SyncSocketIoPipelineDriver:
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
-            # self._sock.flush()
+            self._write_q.append(msg)
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
@@ -629,6 +637,10 @@ class SyncSocketIoPipelineDriver:
 
                 else:
                     raise RuntimeError(f'Unknown handled value: {handled!r}')
+
+            if self._write_q and isinstance(self._write_q[0], IoPipelineFlowMessages.FlushOutput):
+                self._try_write()
+                continue
 
             if self._saw_transport_final_output:
                 return 'write' if self._write_q else 'stop'
