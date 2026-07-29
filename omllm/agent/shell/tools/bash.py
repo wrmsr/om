@@ -5,6 +5,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
+from ...permissions import PermissionGranter
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -35,9 +36,21 @@ class BashTool(ToolClass[BashParams]):
         ),
     )
 
+    def __init__(
+            self,
+            *,
+            permission_granter: PermissionGranter,
+    ) -> None:
+        super().__init__()
+
+        self._permission_granter = permission_granter
+
     async def execute(self, ctx: ToolContext, params: BashParams) -> str:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
+
+        if not await self._permission_granter.grant_permission(f'Execute bash: {params.command!r}'):
+            raise RuntimeError('Permission denied')
 
         proc = await asyncio.create_subprocess_exec(
             check.not_none(shutil.which('bash')),

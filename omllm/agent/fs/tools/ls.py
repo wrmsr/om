@@ -4,6 +4,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
+from ...permissions import PermissionGranter
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -29,6 +30,15 @@ class LsTool(ToolClass[LsParams]):
         ),
     )
 
+    def __init__(
+            self,
+            *,
+            permission_granter: PermissionGranter,
+    ) -> None:
+        super().__init__()
+
+        self._permission_granter = permission_granter
+
     async def execute(self, ctx: ToolContext, params: LsParams) -> str:
         if os.path.abspath(os.path.realpath(params.dir_path)) != params.dir_path:
             raise ValueError('Path must be absolute')
@@ -40,6 +50,9 @@ class LsTool(ToolClass[LsParams]):
             raise ValueError('Path does not exist')
         if not os.path.isdir(params.dir_path):
             raise ValueError('Path is not a directory')
+
+        if not await self._permission_granter.grant_permission(f'List dir: {params.dir_path!r}'):
+            raise RuntimeError('Permission denied')
 
         out = io.StringIO()
         out.write('<dir>\n')

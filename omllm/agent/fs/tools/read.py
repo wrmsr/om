@@ -5,6 +5,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
+from ...permissions import PermissionGranter
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -58,6 +59,15 @@ class ReadTool(ToolClass[ReadParams]):
         ),
     )
 
+    def __init__(
+            self,
+            *,
+            permission_granter: PermissionGranter,
+    ) -> None:
+        super().__init__()
+
+        self._permission_granter = permission_granter
+
     async def execute(self, ctx: ToolContext, params: ReadParams) -> str:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')
@@ -69,6 +79,9 @@ class ReadTool(ToolClass[ReadParams]):
             raise ValueError('Path does not exist')
         if not os.path.isfile(params.file_path):
             raise ValueError('Path is not a file')
+
+        if not await self._permission_granter.grant_permission(f'Read file: {params.file_path!r}'):
+            raise RuntimeError('Permission denied')
 
         out = io.StringIO()
         out.write('<file>\n')

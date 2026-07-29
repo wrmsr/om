@@ -79,3 +79,9 @@ with _lang.auto_proxy_init(globals()):
 
         DictBackendManager,
     )
+
+    from .permissions import (  # noqa
+        PermissionGranter,
+
+        ConstantPermissionGranter,
+    )

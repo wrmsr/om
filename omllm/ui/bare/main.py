@@ -49,15 +49,25 @@ async def _a_main() -> None:
         sink=on_event,
     )
 
+    permission_granter = ag.ConstantPermissionGranter(True)
+
     tools = ag.ToolSet([
+
         *([
-            BashTool().tool(),
+            BashTool(
+                permission_granter=permission_granter,
+            ).tool(),
         ] if args.bash else []),
 
         *([
-            LsTool().tool(),
-            ReadTool().tool(),
+            LsTool(
+                permission_granter=permission_granter,
+            ).tool(),
+            ReadTool(
+                permission_granter=permission_granter,
+            ).tool(),
         ] if args.fs else []),
+
     ])
 
     await agent.modify_state(
