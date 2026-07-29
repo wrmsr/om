@@ -1,5 +1,7 @@
 import pytest
 
+from omcore import lang
+from omcore.http import all as http
 from omcore.secrets.tests.harness import HarnessSecrets
 
 from .....models.default import default_model_catalog
@@ -38,6 +40,31 @@ class BaseBackendTest:
                 max_tokens=max_tokens,
             ),
         )
+
+        print(out)
+
+    @pytest.mark.online
+    def test_backend_sync(
+            self,
+            harness,
+            model,
+    ):
+        model_key, api_key_name = model
+
+        svc = OpenaiCompletionsImmediateBackend(
+            default_model_catalog()[model_key],  # noqa
+            api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
+            http_client=http.SyncAsyncHttpClient(http.client()),
+        )
+
+        out = lang.sync_await(svc.immediate(
+            Context(
+                system_prompt='You are a helpful assistant.',
+                messages=[
+                    UserMessage('hi'),
+                ],
+            ),
+        ))
 
         print(out)
 
