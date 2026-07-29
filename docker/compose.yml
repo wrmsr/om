@@ -67,7 +67,7 @@ services:
       - '35224:5432'
 
   om-mysql:
-    image: 'mysql:9.7.1'
+    image: 'mysql:9.7.2'
     restart: 'unless-stopped'
     environment:
       MYSQL_USER: 'om'
