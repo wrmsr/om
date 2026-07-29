@@ -21,7 +21,7 @@ from ..utils import stream_parse_values
 
 def _parse_all(s, **lex_kwargs):
     vs: list = []
-    with JsonStreamLexer(**lex_kwargs) as lex:
+    with JsonStreamLexer(JsonStreamLexer.Config(**lex_kwargs)) as lex:
         with JsonStreamParser() as parse:
             with JsonValueBuilder() as build:
                 for c in [*s, '']:

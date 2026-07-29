@@ -13,7 +13,7 @@ from ..utils import stream_parse_values
 
 
 def _lex_all(chunks, **kwargs):
-    with JsonStreamLexer(**kwargs) as lex:
+    with JsonStreamLexer(JsonStreamLexer.Config(**kwargs)) as lex:
         ts: list = []
         for c in chunks:
             ts.extend(lex(c))
