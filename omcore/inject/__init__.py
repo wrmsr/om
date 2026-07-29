@@ -93,6 +93,7 @@ with _lang.auto_proxy_init(globals()):
         ScopeAlreadyOpenError,
         ScopeEagerUnsupportedError,
         ScopeError,
+        ScopeFrozenError,
         ScopeNotOpenError,
         UnboundKeyError,
     )

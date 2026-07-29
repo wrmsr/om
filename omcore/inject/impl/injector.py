@@ -326,15 +326,21 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         raise RuntimeError  # noqa
 
     async def provide_kwargs(self, kt: KwargsTarget) -> ta.Mapping[str, ta.Any]:
+        if not self._is_initialized:
+            await self._init()
+
+        # A single request spans all of the target's parameters - sibling provisions share memoization just as a
+        # bound root's dependencies do.
         ret: dict[str, ta.Any] = {}
-        for kw in kt.kwargs:
-            if kw.has_default:
-                if not (mv := await self._try_provide(kw.key, source=kt)).present:
-                    continue
-                v = mv.must()
-            else:
-                v = await self._provide(kw.key, source=kt)
-            ret[kw.name] = v
+        with self._current_request():
+            for kw in kt.kwargs:
+                if kw.has_default:
+                    if not (mv := await self._try_provide(kw.key, source=kt)).present:
+                        continue
+                    v = mv.must()
+                else:
+                    v = await self._provide(kw.key, source=kt)
+                ret[kw.name] = v
         return ret
 
     async def inject(self, obj: ta.Any) -> ta.Any:
@@ -342,9 +348,15 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             obj, kt = obj.obj, obj
         else:
             kt = build_kwargs_target(obj)
-        kws = await self.provide_kwargs(kt)
-        # FIXME: still 'injecting' (as in has a req) if ctor needs and uses Injector
-        return obj(**kws)
+
+        if not self._is_initialized:
+            await self._init()
+
+        # The request also spans the injected call itself, so a constructor reentrantly using an injected Injector
+        # joins it.
+        with self._current_request():
+            kws = await self.provide_kwargs(kt)
+            return obj(**kws)
 
 
 async def create_async_injector(

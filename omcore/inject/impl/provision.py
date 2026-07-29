@@ -121,6 +121,15 @@ class OnceProvisionMap(lang.Final):
     class _Done:
         v: ta.Any
 
+    def has(self, binding: BindingImpl) -> bool:
+        """
+        Whether the binding has an entry - terminal or in-flight. Lets frozen scopes distinguish 'still servable'
+        from 'would require new construction'.
+        """
+
+        with self._mtx:
+            return binding in self._dct
+
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
         # Unlocked fast path for the common already-constructed case.
         if isinstance(e := self._dct.get(binding), OnceProvisionMap._Done):

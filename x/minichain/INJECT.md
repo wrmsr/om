@@ -162,8 +162,9 @@ els.append(foo_handlers().bind_item(                                  # adapted
 ))
 ```
 
-Consumers just take `handlers: FooHandlers` in their constructors. Order is registration order; an empty collection
-is fine.
+Consumers just take `handlers: FooHandlers` in their constructors. Order across contributions is **deliberately
+unspecified** - contributions route through sets internally, and may genuinely shuffle from run to run. Sort (or key)
+on the consumer side if order matters; an empty collection is fine.
 
 **The big caveat: items do not cross child-injector boundaries.** The provider collects only items bound in *its
 own* injector's elements. An item bound in a parent is invisible to a child's provider (and vice versa). If a value

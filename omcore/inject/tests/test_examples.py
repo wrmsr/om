@@ -51,8 +51,8 @@ def test_unbound_keys():
 # Part 2: Binding classes and functions.
 #
 # Binding a *type* binds it to its own constructor, with parameters provided by annotation. Binding a *function* binds
-# its return annotation as the key. Anything callable-but-annotationless (lambdas) can be adapted via
-# `lang.typed_lambda` or `inj.target`.
+# its return annotation as the key. Anything callable-but-annotationless (lambdas) is adapted via `inj.target` (or
+# its lower-level spelling, `inj.KwargsTarget`), which names dependencies explicitly.
 
 
 def test_class_binding():
@@ -86,10 +86,12 @@ def test_function_binding():
 
 
 def test_lambda_binding():
-    # Lambdas can't carry annotations - `lang.typed_lambda` wraps one in an annotated signature:
+    # Lambdas can't carry annotations - `inj.target` names their dependencies explicitly (values may be types or
+    # full keys), yielding a KwargsTarget bindable via to_fn. (`lang.typed_lambda` also works but is deprecated for
+    # injection - see test_inject.py's pinned test.)
     i = inj.create_injector(
         inj.bind(420),
-        inj.bind(lang.typed_lambda(str, n=int)(lambda n: f'#{n}')),
+        inj.bind(str, to_fn=inj.target(n=int)(lambda n: f'#{n}')),
     )
     assert i[str] == '#420'
 
@@ -309,9 +311,9 @@ def test_eager_needs_an_instantiation_point():
 ##
 # Part 6: The injector in the graph.
 #
-# Provisions are memoized per *request* (one top-level `provide` call): a diamond dependency sees a single shared
-# instance even unscoped. The injector itself is injectable - useful for adapters, though domain code should almost
-# never touch it.
+# Provisions are memoized per *request* (one top-level `provide`, `inject`, or `provide_kwargs` call): a diamond
+# dependency sees a single shared instance even unscoped. The injector itself is injectable - useful for adapters,
+# though domain code should almost never touch it.
 
 
 class DiamondLeaf:
@@ -411,8 +413,7 @@ def test_binder_function_composition():
             inj.bind(cfg.greeting, tag='greeting'),
         ]
 
-        # Note `inj.target`, not `lang.typed_lambda`: typed_lambda annotates with *types*, while target takes full
-        # keys - needed here since the dependency is tagged.
+        # target's values are full keys, so tagged dependencies work directly:
         if cfg.shout:
             els.append(inj.bind(
                 str,

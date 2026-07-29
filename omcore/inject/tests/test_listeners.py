@@ -1,5 +1,4 @@
 from ... import inject as inj
-from ... import lang
 
 
 def test_provision_listener():
@@ -16,7 +15,7 @@ def test_provision_listener():
 
     i = inj.create_injector(
         inj.bind(420),
-        inj.bind(lang.typed_lambda(str, i=int)(lambda i: str(i))),
+        inj.bind(str, to_fn=inj.target(i=int)(lambda i: str(i))),
         inj.bind_provision_listener(pl),
     )
 

@@ -11,6 +11,7 @@ from ..bindings import Binding
 from ..elements import Elements
 from ..elements import as_elements
 from ..errors import ScopeAlreadyOpenError
+from ..errors import ScopeFrozenError
 from ..errors import ScopeNotOpenError
 from ..injector import AsyncInjector
 from ..keys import Key
@@ -181,10 +182,11 @@ class SeededScopeImpl(ScopeImpl[SeededScope]):
 
     #
 
-    @dc.dataclass(frozen=True)
+    @dc.dataclass(eq=False)
     class State:
         seeds: dict[Key, ta.Any]
         om: OnceProvisionMap = dc.field(default_factory=OnceProvisionMap)
+        frozen: bool = False
 
     def __init__(self, scope: SeededScope) -> None:
         super().__init__(scope)
@@ -196,6 +198,19 @@ class SeededScopeImpl(ScopeImpl[SeededScope]):
         if (st := self._st) is None:
             raise ScopeNotOpenError(self._scope)
         return st
+
+    def freeze(self) -> None:
+        """
+        Transitions the current opening to serve-only: provisions already made (or in flight) remain available, but
+        further construction raises ScopeFrozenError. The freeze boundary is 'no new construction attempts', not a
+        barrier - an in-flight construction at freeze time completes and serves. Lasts until the scope is exited;
+        the next opening starts fresh.
+        """
+
+        with self._st_mtx:
+            if (st := self._st) is None:
+                raise ScopeNotOpenError(self._scope)
+            st.frozen = True
 
     class Manager(SeededScope.Manager, lang.Final):
         def __init__(self, scope: SeededScope, i: AsyncInjector) -> None:
@@ -222,6 +237,10 @@ class SeededScopeImpl(ScopeImpl[SeededScope]):
 
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
         st = self.must_state()
+        # The has/provide window is benign: freezing is meant for quiescent transition points, and the one race it
+        # leaves - a pre-freeze construction failing after the check - correctly rejects the retry.
+        if st.frozen and not st.om.has(binding):
+            raise ScopeFrozenError(self._scope, binding.key)
         return await st.om.provide(binding, injector)
 
 

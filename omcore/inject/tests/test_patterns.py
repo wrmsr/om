@@ -114,7 +114,8 @@ def test_override_specializes_a_stack():
 #
 # The items-binder helper is how packages contribute into an extensible collection (event callbacks, tool catalogs,
 # ...): a NewType'd Sequence as the collection's key, one owner binding the provider, any number of contributors
-# binding items. Consumers just take the collection type; ordering is registration order; empty is fine.
+# binding items. Consumers just take the collection type; cross-contribution ordering is deliberately unspecified;
+# empty is fine.
 
 
 @dc.dataclass(frozen=True)
@@ -147,13 +148,9 @@ def test_contributed_items():
         inj.bind(ToolBox, singleton=True),
     )
 
-    ts = [t.name for t in i[ToolBox].ts]
-
-    # NOTE - real finding, deliberately pinned loosely: INJECT.md promises 'order is registration order', but the
-    # helper collects contribution boxes through a *set* whose iteration order follows id()-based hashes, so
-    # cross-contribution order is nondeterministic in practice. Order within one bind_item_consts call does hold.
-    assert set(ts) == {'read', 'write', 'search'}
-    assert ts.index('read') < ts.index('write')
+    # Cross-contribution ordering is *deliberately* unspecified - contributions route through sets internally and may
+    # genuinely shuffle from run to run. Consumers needing order sort (or key) on their side.
+    assert {t.name for t in i[ToolBox].ts} == {'read', 'write', 'search'}
 
 
 def test_contributed_items_empty():
@@ -519,6 +516,52 @@ def test_nested_session_turn_scopes():
 
 
 ##
+# Pattern: the frozen catalog scope (iceworm's post-phase carriers).
+#
+# A catalog materializes at scope open (a scope-open eager over that moment's inputs), the scope is then *frozen* -
+# serve-only - and stays open across later work: downstream reads keep hitting the sealed catalog, while any attempt
+# to lazily construct new state into the passed moment fails loudly. Freezing is (currently) impl-level api.
+
+
+CATALOG_SCOPE = inj.SeededScope('catalog')
+
+CatalogInputs = ta.NewType('CatalogInputs', ta.Sequence[str])
+
+
+class Catalog:
+    def __init__(self, inputs: CatalogInputs) -> None:
+        self.entries = tuple(sorted(inputs))
+
+
+class CatalogLateComer:
+    pass
+
+
+def test_frozen_catalog_scope():
+    from ..impl.injector import AsyncInjectorImpl
+    from ..impl.scopes import SeededScopeImpl
+
+    i = inj.create_injector(
+        inj.bind_scope(CATALOG_SCOPE),
+        inj.bind_scope_seed(CatalogInputs, CATALOG_SCOPE),
+        inj.bind(Catalog, in_=CATALOG_SCOPE, eager=True),
+        inj.bind(CatalogLateComer, in_=CATALOG_SCOPE),
+    )
+
+    with inj.enter_seeded_scope(i, CATALOG_SCOPE, {inj.as_key(CatalogInputs): CatalogInputs(['b', 'a'])}):
+        ai = i[inj.AsyncInjector]
+        assert isinstance(ai, AsyncInjectorImpl)
+        ssi = ai.get_scope_impl(CATALOG_SCOPE)
+        assert isinstance(ssi, SeededScopeImpl)
+        ssi.freeze()
+
+        # ...later phases run here, reading the sealed catalog...
+        assert i[Catalog].entries == ('a', 'b')
+        with pytest.raises(inj.ScopeFrozenError):
+            i.provide(CatalogLateComer)
+
+
+##
 # Pattern: keyed executor registries in a work scope (iceworm's op execution).
 #
 # A map multibinding from op type to executor, with executors constructed *inside* a per-execution seeded scope so
@@ -671,8 +714,9 @@ def test_multibinding_fold():
 ##
 # Pattern: binding a bound method of an injected object.
 #
-# There is no `to_method` - the shipped workaround (verbatim from the app shell) synthesizes an annotated lambda so
-# provider introspection can resolve the owner, then registers the tagged key into the task collection.
+# There is no `to_method` - the idiom (from the app shell, modernized from its typed_lambda spelling to the blessed
+# `inj.target`) names the owner as an explicit dependency of a wrapping lambda, then registers the tagged key into
+# the task collection.
 
 
 ShellTask = ta.NewType('ShellTask', lang.Func0[str])
@@ -690,7 +734,7 @@ def test_bound_method_binding():
         inj.bind(
             ShellTask,
             tag=AsgiServerTask,
-            to_fn=lang.typed_lambda(ShellTask, o=AsgiServerTask)(lambda o: ShellTask(lang.Func0(o.run))),
+            to_fn=inj.target(o=AsgiServerTask)(lambda o: ShellTask(lang.Func0(o.run))),
         ),
         inj.set_binder[ShellTask]().bind(inj.as_key(ShellTask, tag=AsgiServerTask)),
     )

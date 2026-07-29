@@ -48,11 +48,9 @@ def test_wide_fanout_shares_one_request():
     assert all(v is made[0] for v in vs)
 
 
-def test_top_level_inject_splits_requests():
-    # Surprise, pinned as-is: request memoization spans one top-level `provide` call - but top-level `inject` /
-    # `provide_kwargs` resolves each parameter as its *own* request, so unlike the bound root above, siblings do NOT
-    # share unscoped dependencies. (Adjacent to `inject()`'s FIXME in impl/injector.py - a candidate for a behavior
-    # decision.)
+def test_top_level_inject_shares_one_request():
+    # Top-level `inject` / `provide_kwargs` runs under a single request, just like a bound root - sibling parameters
+    # share unscoped provisions. (This once resolved each parameter as its own request - pinned against regression.)
     made: list = []
 
     class Dep:
@@ -67,8 +65,19 @@ def test_top_level_inject_splits_requests():
 
     i = inj.create_injector(*els)
     i.inject(inj.KwargsTarget.of(lambda **kw: None, **keys))
+    assert len(made) == 1
 
-    assert len(made) == 3  # not 1!
+    # The injected call itself is inside the request too - a constructor reentrantly using an injected Injector
+    # joins it and sees the same memoized provisions its sibling parameters got:
+    class Reentrant:
+        def __init__(self, i: inj.Injector, a0: ta.Annotated[object, inj.Tag(0)]) -> None:
+            self.a0 = a0
+            self.a1 = i.provide(inj.as_key(object, tag=1))
+
+    made.clear()
+    r = inj.create_injector(*els).inject(Reentrant)
+    assert len(made) == 1
+    assert r.a0 is r.a1
 
 
 def test_self_cycle():

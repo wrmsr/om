@@ -1,6 +1,5 @@
 from ... import dataclasses as dc
 from ... import inject as inj
-from ... import lang
 
 
 @dc.dataclass(frozen=True)
@@ -15,7 +14,7 @@ def test_privates():
             inj.bind(12.3),
         )),
         inj.Private(inj.as_elements(
-            inj.bind(lang.typed_lambda(str, f=float, foo=Foo)(lambda f, foo: f'{f}! {foo.s}'), expose=True),
+            inj.bind(str, to_fn=inj.target(f=float, foo=Foo)(lambda f, foo: f'{f}! {foo.s}'), expose=True),
             inj.bind(32.1),
         )),
         inj.bind(Foo('foo')),

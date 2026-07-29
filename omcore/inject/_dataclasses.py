@@ -826,6 +826,7 @@ def _process_dataclass__d43eaf7e550de17fc6936c19e4e5aa545c8a93d8():
     plan_repr_sha1='a882947135bf043f07a1ee49890d343fe5c01b9e',
     cls_names=(
         ('omcore.inject.errors', 'ScopeEagerUnsupportedError'),
+        ('omcore.inject.errors', 'ScopeFrozenError'),
     ),
 )
 def _process_dataclass__a882947135bf043f07a1ee49890d343fe5c01b9e():
@@ -2462,34 +2463,35 @@ def _process_dataclass__07b5c2c9057470494ad6bbe78f81c17b12925ad9():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('seeds', 'om')), EqPlan(fields=('seeds', 'om')), FrozenPlan(fields=('seeds', 'om')"
-        ", allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('seeds', 'om'), cache=False), InitPlan(fie"
-        "lds=(InitPlan.Field(name='seeds', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_fac"
-        "tory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=No"
-        "ne), InitPlan.Field(name='om', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factor"
-        "y=OpRef(name='init.fields.1.default_factory'), init=True, override=False, field_type=FieldType.INSTANCE, coerc"
-        "e=None, validate=None, check_type=None)), self_param='self', std_params=('seeds', 'om'), kw_only_params=(), fr"
-        "ozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field("
-        "name='seeds', kw_only=False, fn=None), ReprPlan.Field(name='om', kw_only=False, fn=None)), id=False, terse=Fal"
-        "se, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('seeds', 'om', 'frozen')), InitPlan(fields=(InitPlan.Field(name='seeds', annotatio"
+        "n=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field"
+        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='om', annotation=O"
+        "pRef(name='init.fields.1.annotation'), default=None, default_factory=OpRef(name='init.fields.1.default_factory"
+        "'), init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), In"
+        "itPlan.Field(name='frozen', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields"
+        ".2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
+        "idate=None, check_type=None)), self_param='self', std_params=('seeds', 'om', 'frozen'), kw_only_params=(), fro"
+        "zen=False, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field("
+        "name='seeds', kw_only=False, fn=None), ReprPlan.Field(name='om', kw_only=False, fn=None), ReprPlan.Field(name="
+        "'frozen', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='9ba528e1f2c13de1fa8da59652e70fd288a9e2d8',
+    plan_repr_sha1='f13f82c722cf524af36f410328e1c063bedcaf11',
     cls_names=(
         ('omcore.inject.impl.scopes', 'SeededScopeImpl.State'),
     ),
 )
-def _process_dataclass__9ba528e1f2c13de1fa8da59652e70fd288a9e2d8():
+def _process_dataclass__f13f82c722cf524af36f410328e1c063bedcaf11():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__default_factory,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
         __dataclass__HAS_DEFAULT_FACTORY=dataclasses._HAS_DEFAULT_FACTORY,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
         __dataclass__set_cls_attr,
     ):
         def __copy__(self):
@@ -2498,64 +2500,22 @@ def _process_dataclass__9ba528e1f2c13de1fa8da59652e70fd288a9e2d8():
             return __class__(  # noqa
                 seeds=self.seeds,
                 om=self.om,
+                frozen=self.frozen,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.seeds == other.seeds and
-                self.om == other.om
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'seeds',
-            'om',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.seeds,
-                self.om,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
 
         def __init__(
             self,
             seeds: __dataclass__init__fields__0__annotation,
             om: __dataclass__init__fields__1__annotation = __dataclass__HAS_DEFAULT_FACTORY,
+            frozen: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             if om is __dataclass__HAS_DEFAULT_FACTORY:
                 om = __dataclass__init__fields__1__default_factory()
-            __dataclass__object_setattr(self, 'seeds', seeds)
-            __dataclass__object_setattr(self, 'om', om)
+            self.seeds = seeds
+            self.om = om
+            self.frozen = frozen
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2564,6 +2524,7 @@ def _process_dataclass__9ba528e1f2c13de1fa8da59652e70fd288a9e2d8():
             parts = []
             parts.append(f"seeds={self.seeds!r}")
             parts.append(f"om={self.om!r}")
+            parts.append(f"frozen={self.frozen!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

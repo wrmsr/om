@@ -10,9 +10,21 @@ from ... import lang
 def test_inject():
     i = inj.create_injector(
         inj.bind(420),
-        inj.bind(lang.typed_lambda(str, i=int)(lambda i: str(i))),
+        inj.bind(str, to_fn=inj.target(i=int)(lambda i: str(i))),
     )
     assert i.provide(int) == 420
+    assert i.provide(str) == '420'
+
+
+def test_typed_lambda():
+    # Deliberately pinned: `lang.typed_lambda` still works as a binding target, but is *deprecated for injection* -
+    # it exec()'s a synthesized wrapper through the full cpython machinery, at runtime, which is exactly the cost the
+    # aot dataclass codegen exists to avoid. Use `inj.target` / `inj.KwargsTarget` for wiring; typed_lambda survives
+    # as a bigger gun for appeasing opaque inspect-based machinery in a pinch.
+    i = inj.create_injector(
+        inj.bind(420),
+        inj.bind(lang.typed_lambda(str, i=int)(lambda i: str(i))),
+    )
     assert i.provide(str) == '420'
 
 

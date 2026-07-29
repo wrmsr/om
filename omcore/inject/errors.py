@@ -70,3 +70,8 @@ class ScopeNotOpenError(ScopeError):
 @dc.dataclass()
 class ScopeEagerUnsupportedError(ScopeError):
     key: Key | None = None
+
+
+@dc.dataclass()
+class ScopeFrozenError(ScopeError):
+    key: Key | None = None
