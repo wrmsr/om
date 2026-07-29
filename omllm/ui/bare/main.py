@@ -3,9 +3,13 @@ import asyncio
 import functools
 import os
 import sys
+import typing as ta
 
 from omcore import dataclasses as dc
+from omcore import lang
 from omdev.home.secrets import load_secrets
+from omdev.tui import rich
+from omdev.tui.rich import textual as rich_tx
 
 from ... import agent as ag
 from ... import llm
@@ -64,11 +68,27 @@ class InputPermissionGranter(ag.PermissionGranter):
 
     async def grant_permission(self, message: str) -> bool:
         while True:
-            out = await self._input_manager.input(message + ' (y/n)\n')
+            out = await self._input_manager.input(message + ' (y/n) ')
             if out == 'y':
                 return True
             elif out == 'n':
                 return False
+
+
+##
+
+
+class RichMarkdown(ta.NamedTuple):
+    theme: ta.Any
+    code_theme: ta.Any
+
+
+@lang.cached_function
+def rich_markdown() -> RichMarkdown:
+    return RichMarkdown(
+        rich_tx.build_theme(rich_tx.TEXTUAL_DARK),
+        rich_tx.build_pygments_theme(rich_tx.TEXTUAL_DARK),
+    )
 
 
 ##
@@ -104,7 +124,11 @@ async def _a_main() -> None:
     async def on_event(ev: ag.Event) -> None:
         if isinstance(ev, ag.TurnEndEvent):
             if isinstance(msg := ev.message, llm.AiMessage):
-                print(msg)
+                for c in msg.content:
+                    if isinstance(c, llm.TextContent):
+                        if (s := c.text.strip()):
+                            rm = rich_markdown()
+                            rich.Console(theme=rm.theme).print(rich.Markdown(s, code_theme=rm.code_theme))
 
     agent = ag.Agent(
         backends=ag.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore
@@ -167,8 +191,6 @@ async def _a_main() -> None:
 
         if entry == '/quit':
             break
-
-        print(entry)
 
         await agent.prompt(entry)
 
