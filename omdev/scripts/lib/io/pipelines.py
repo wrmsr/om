@@ -69,7 +69,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../streambufs/framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
-            dict(path='../streambufs/segmented.py', sha1='84e44da7dcb39f4be0b940d8f39f18f5d56bdf91'),
+            dict(path='../streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='../../logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
@@ -7428,8 +7428,8 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             raise ValueError(chunk_compact_threshold)
         self._chunk_compact_threshold = chunk_compact_threshold
 
-        self._active: ta.Optional[bytearray] = None
-        self._active_used = 0
+    _active: ta.Optional[bytearray] = None
+    _active_used = 0
 
     @property
     def max_size(self) -> ta.Optional[int]:

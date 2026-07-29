@@ -35,7 +35,7 @@ def __om_amalg__():  # noqa
             dict(path='adapters.py', sha1='46f94df341c7b7e67375942dc5b76991f8a13251'),
             dict(path='framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
             dict(path='linear.py', sha1='110520fd317355e92c246e09c47afcba9d86c8cb'),
-            dict(path='segmented.py', sha1='84e44da7dcb39f4be0b940d8f39f18f5d56bdf91'),
+            dict(path='segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='_amalg.py', sha1='795e3dc80a8acd501be0ff3fd579e9e4a5f74794'),
         ],
     )
@@ -2649,8 +2649,8 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             raise ValueError(chunk_compact_threshold)
         self._chunk_compact_threshold = chunk_compact_threshold
 
-        self._active: ta.Optional[bytearray] = None
-        self._active_used = 0
+    _active: ta.Optional[bytearray] = None
+    _active_used = 0
 
     @property
     def max_size(self) -> ta.Optional[int]:

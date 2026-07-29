@@ -101,7 +101,7 @@ def __om_amalg__():  # noqa
             dict(path='../../../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='84e44da7dcb39f4be0b940d8f39f18f5d56bdf91'),  # noqa
+            dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),  # noqa
             dict(path='../../../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='../../../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
@@ -8059,8 +8059,8 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             raise ValueError(chunk_compact_threshold)
         self._chunk_compact_threshold = chunk_compact_threshold
 
-        self._active: ta.Optional[bytearray] = None
-        self._active_used = 0
+    _active: ta.Optional[bytearray] = None
+    _active_used = 0
 
     @property
     def max_size(self) -> ta.Optional[int]:

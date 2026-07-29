@@ -123,8 +123,8 @@ class SegmentedByteStreamBuffer(BaseByteStreamBufferLike, MutableByteStreamBuffe
             raise ValueError(chunk_compact_threshold)
         self._chunk_compact_threshold = chunk_compact_threshold
 
-        self._active: ta.Optional[bytearray] = None
-        self._active_used = 0
+    _active: ta.Optional[bytearray] = None
+    _active_used = 0
 
     @property
     def max_size(self) -> ta.Optional[int]:

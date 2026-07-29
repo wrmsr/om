@@ -1,6 +1,7 @@
 import collections.abc
 import inspect
 import typing as ta
+import weakref
 
 from omcore import check
 from omcore import contextual as cxl
@@ -96,17 +97,29 @@ def _reflect_type(ty: ta.Any) -> str:
     return _JSONSCHEMA_TYPES[ty]
 
 
+#
+
+
+_TOOL_PARAMS_DC_RFL_CACHE: ta.MutableMapping[type, dc.ClassReflection] = weakref.WeakKeyDictionary()
+
+
 def reflect_tool_params(
         params_cls: type,
         *,
         description: ToolDescription | None = None,
-) -> list[llm.ToolParam]:
+) -> ta.Sequence[llm.ToolParam]:
+    check.arg(dc.is_dataclass(check.isinstance(params_cls, type)))
+
+    try:
+        dc_rfl = _TOOL_PARAMS_DC_RFL_CACHE[params_cls]
+    except KeyError:
+        dc_rfl = _TOOL_PARAMS_DC_RFL_CACHE[params_cls] = dc.reflect(params_cls)
+
     param_descs: dict[str, str] = {}
     if description is not None:
         param_descs = dict(description.params or {})
 
     tps: list[llm.ToolParam] = []
-    dc_rfl = dc.reflect(check.not_none(params_cls))
     for dc_fld in dc_rfl.fields.values():
         ty = dc_fld.type
 
@@ -131,6 +144,9 @@ def reflect_tool_params(
         raise TypeError(f'Mismatched parameter descriptions: {list(param_descs)}')
 
     return tps
+
+
+#
 
 
 def reflect_tool_fn(
