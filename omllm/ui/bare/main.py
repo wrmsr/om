@@ -11,7 +11,8 @@ from omdev.home.secrets import load_secrets
 from omdev.tui import rich
 from omdev.tui.rich import textual as rich_tx
 
-from ... import agent as ag
+from ... import agent as agn
+from ... import harness as har
 from ... import llm
 from ...agent.fs.tools.ls import LsTool
 from ...agent.fs.tools.read import ReadTool
@@ -60,7 +61,7 @@ class InputManager:
 ##
 
 
-class InputPermissionGranter(ag.PermissionGranter):
+class InputPermissionGranter(agn.PermissionGranter):
     def __init__(self, *, input_manager: InputManager) -> None:
         super().__init__()
 
@@ -126,11 +127,11 @@ async def _a_main() -> None:
         api_key=load_secrets().get(api_key_name),
     )
 
-    async def on_event(ev: ag.Event) -> None:
+    async def on_event(ev: agn.Event) -> None:
         if args.verbose:
             print(ev)
 
-        if isinstance(ev, ag.TurnEndEvent):
+        if isinstance(ev, agn.TurnEndEvent):
             if isinstance(msg := ev.message, llm.AiMessage):
                 for c in msg.content:
                     if isinstance(c, llm.TextContent):
@@ -138,17 +139,17 @@ async def _a_main() -> None:
                             rm = rich_markdown()
                             rich.Console(theme=rm.theme).print(rich.Markdown(s, code_theme=rm.code_theme))
 
-    agent = ag.Agent(
-        backends=ag.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore
+    agent = agn.Agent(
+        backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore
         sink=on_event,
     )
 
     permission_granter = (
-        # ag.ConstantPermissionGranter(True)
+        # agn.ConstantPermissionGranter(True)
         InputPermissionGranter(input_manager=input_manager)
     )
 
-    tools = ag.ToolSet([
+    tools = agn.ToolSet([
 
         *([
             BashTool(
@@ -177,10 +178,16 @@ async def _a_main() -> None:
                 ]),
                 tools=tools,
             ),
-            tool_env=ag.ToolEnvironment(
+            tool_env=agn.ToolEnvironment(
                 cwd=cwd,
             ),
         ),
+    )
+
+    #
+
+    session = har.Session(
+        agent=agent,
     )
 
     #
@@ -200,7 +207,7 @@ async def _a_main() -> None:
         if entry == '/quit':
             break
 
-        await agent.prompt(entry)
+        await session.prompt(entry)
 
 
 def _main() -> None:
