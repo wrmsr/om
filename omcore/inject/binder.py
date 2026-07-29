@@ -85,7 +85,7 @@ def bind(
         to_const: ta.Any = None,
         to_key: ta.Any = None,
 
-        in_: Scope | None = None,
+        in_: Scope | str | None = None,
         singleton: bool = False,
 
         eager: bool | int = False,
