@@ -23,8 +23,28 @@ class InputManager:
 
         self._mtx = asyncio.Lock()
 
+    #
+
+    _has_init = False
+
+    async def _do_init(self) -> None:
+        if sys.stdin.isatty():
+            try:
+                import readline  # noqa
+            except ImportError:
+                pass
+
+    async def _maybe_init(self) -> None:
+        if not self._has_init:
+            await self._do_init()
+            self._has_init = True
+
+    #
+
     async def input(self, prompt: str | None = None) -> str:
         async with self._mtx:
+            await self._maybe_init()
+
             return await asyncio.to_thread(
                 functools.partial(
                     input,
@@ -54,7 +74,11 @@ async def _a_main() -> None:
 
     #
 
-    svc = backend_cls(
+    input_manager = InputManager()
+
+    #
+
+    backend = backend_cls(
         llm.default_model_catalog()[model_key],  # noqa
         api_key=load_secrets().get(api_key_name),
     )
@@ -64,7 +88,7 @@ async def _a_main() -> None:
             print(ev.message)
 
     agent = ag.Agent(
-        backends=ag.DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+        backends=ag.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore
         sink=on_event,
     )
 
@@ -114,7 +138,10 @@ async def _a_main() -> None:
             pass
 
     while True:
-        entry = await asyncio.to_thread(functools.partial(input, '> '))
+        try:
+            entry = await input_manager.input('> ')
+        except EOFError:
+            break
 
         if entry == '/quit':
             break
