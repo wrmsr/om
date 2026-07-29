@@ -1,8 +1,66 @@
 # ruff: noqa: FURB188 UP006 UP037 UP045
 # @om-lite
 """
-TODO:
- - netty 'pending_removal' trick
+TODO: Dynamic decoder removal / Netty pending-removal semantics.
+
+The recirculation in ``BytesToMessageDecoderIoPipelineHandler._call_decode`` does not implement Netty's
+``STATE_HANDLER_REMOVED_PENDING`` trick. It solves a different ordering problem: reentrant ``FlushInput`` and
+``FinalInput`` messages are queued until the active decode and its output delivery finish. Reentrant byte input is not
+queued; it either uses the explicitly enabled reentrant-decode path or raises ``RuntimeError``.
+
+Netty's ``ByteToMessageDecoder`` has separate protection for removal during ``decode()``. If removal is requested while
+the decoder is on the stack, it marks removal pending. After ``decode()`` returns, it first forwards any messages that
+were already decoded, then runs removal cleanup and forwards the remaining undecoded cumulation as raw bytes. Netty's
+reentrant ``channelRead`` input queue is the mechanism analogous to the recirculation here, not its pending-removal
+state.
+
+This cannot be fixed entirely inside this decoder. ``IoPipeline._remove`` currently unlinks and invalidates a context,
+and deletes its neighbor links, before notifying the handler that it was removed. Consequently the old context cannot be
+used to finish delivering decoded output or to drain residual bytes. In particular:
+
+ - A decoder which removes itself from ``_decode`` can fail in ``ctx.feed_in`` because ``_next_in`` was deleted.
+ - If a downstream handler removes the decoder while consuming the first of multiple decoded messages, the first can be
+   delivered while delivery of the rest fails.
+ - Removing a buffered decoder with unread cumulation silently strands those bytes in the removed handler.
+ - The eventual ``Removed`` notification is too late to drain through the handler's former pipeline position.
+
+The topology-mutation contract should be decided in the core before implementing a decoder-local removal state. The
+recommended contract is:
+
+ 1. Removal requested during a handler invocation becomes pending rather than immediately destroying its routing
+    context.
+ 2. Already-produced messages retain their order and are forwarded before removal cleanup. 3. A pre-unlink removal phase
+    has a stable successor route through which handler-owned state can be drained or transferred. Ordinary handler
+    callbacks must not resume after the handler has entered removal.
+ 4. A buffered byte decoder forwards its remaining undecoded cumulation as raw bytes, matching Netty and supporting
+    protocol-upgrade boundaries such as STARTTLS.
+ 5. Stateful protocol transforms such as compression and TLS either define safe drainage/completion semantics or reject
+    removal outside a quiescent state.
+ 6. Outbound buffers likewise need an explicit drain, failure, or rejection policy; removal must not silently lose
+    bytes, pending flush/final fences, or a previously announced paused state.
+
+Dynamic addition also needs a flow-state contract. Output writability is currently communicated as edges, while a newly
+inserted buffering handler initializes its downstream as writable. If it is inserted while downstream is already paused,
+it misses that edge and can later announce a false ``ReadyForOutput`` when its local buffer drains (and can emit a
+duplicate ``PauseOutput`` while filling). Either current downstream writability must be queryable/replayed on addition,
+or live mutation must be constrained to a defined quiescent point with a known writable baseline.
+
+Coverage associated with this work should include:
+
+ - Core add/remove/replace during both inbound and outbound handler calls, including self-removal, downstream-triggered
+   removal during multi-message delivery, notification ordering, exception behavior, stable successor routing, and
+   reference release with cyclic GC disabled.
+ - Decoder removal while idle, with unread cumulation, from inside ``_decode`` after producing zero/one/multiple
+   messages, from downstream while consuming the first decoded message, and with reentrant flush/final messages queued.
+ - Decoder replacement across a byte-split protocol-upgrade boundary.
+ - Outbound-buffer removal while empty, nonempty, locally paused, and downstream-paused; addition while downstream is
+   paused; replacement of one buffering handler by another; and pending ``FlushOutput``/``FinalOutput`` completion.
+ - The corresponding pending-state cases for chunking, compression, decompression, and TLS, with tests documenting which
+   transforms permit live removal and which require quiescence.
+
+Existing tests cover ordinary topology changes and steady-state buffering/watermark behavior, but do not exercise these
+interactions. Do not remove this to-do merely because input recirculation exists; it represents a broader, currently
+undefined topology-mutation and buffered-state contract.
 """
 import abc
 import collections
