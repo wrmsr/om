@@ -339,7 +339,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
 
             drv._sched.schedule(br, 0., lambda: events.append('live'))
 
-            self.assertEqual(drv._sched._run_due(), 1)
+            self.assertEqual(drv._sched.run_due(), 1)
             self.assertEqual(events, ['live'])
         finally:
             drv.close()
@@ -364,7 +364,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
                 lambda: events.append('removed'),
             )
 
-            self.assertEqual(drv._sched._run_due(), 1)
+            self.assertEqual(drv._sched.run_due(), 1)
             self.assertEqual(events, [])
             self.assertTrue(removed_ref.invalidated)
             self.assertIsNone(drv._sched.next_delay())
@@ -384,7 +384,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
         drv.close()
 
         self.assertIsNone(drv._sched.next_delay())
-        self.assertEqual(drv._sched._run_due(), 0)
+        self.assertEqual(drv._sched.run_due(), 0)
         self.assertEqual(events, [])
 
     def test_timer_without_read_interest(self):

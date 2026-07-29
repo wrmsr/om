@@ -313,7 +313,7 @@ class TestIoPipelineDriverSocketFdioHandlerScheduling(unittest.TestCase):
             drv._sched.cancel_all(first_ref)
             drv._sched.schedule(second_ref, 0., lambda: events.append('live'))
 
-            self.assertEqual(drv._sched._run_due(), 1)
+            self.assertEqual(drv._sched.run_due(), 1)
             self.assertEqual(events, ['live'])
         finally:
             drv.close()

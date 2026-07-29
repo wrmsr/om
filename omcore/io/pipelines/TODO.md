@@ -9,8 +9,6 @@
 - drivers
   - 'pure' - no io
   - sync
-  - fdio
-    - scheduling / timeouts
   - anyio
 - thread safety? nogil?
 - inject interop

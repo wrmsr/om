@@ -1,14 +1,20 @@
 # ruff: noqa: SLF001 UP006 UP007 UP045
 # @om-lite
 import asyncio
+import socket
+import time
 import typing as ta
 import unittest
 
+from .....io.fdio.manager import FdioManager
+from .....io.fdio.pollers import FdioPoller
+from .....io.fdio.pollers import SelectFdioPoller
 from .....io.pipelines.core import IoPipeline
 from .....io.pipelines.core import IoPipelineHandler
 from .....io.pipelines.core import IoPipelineHandlerContext
 from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from .....io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
 from .....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from .....io.pipelines.errors import TimeoutIoPipelineError
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
@@ -27,6 +33,8 @@ from ...responses import IoPipelineHttpResponseBodyData
 from ...responses import IoPipelineHttpResponseEnd
 from ...responses import IoPipelineHttpResponseHead
 from ..apps.asgi import AsgiIoPipelineHandler
+from ..requests import IoPipelineHttpRequestDecoder
+from ..responses import IoPipelineHttpResponseEncoder
 from ..timeouts import IoPipelineHttpServerRequestTimeoutHandler
 
 
@@ -108,6 +116,33 @@ class TimeoutResponseIoPipelineHandler(IoPipelineHandler):
 
         elif isinstance(msg, IoPipelineMessages.MustPropagate):
             ctx.feed_in(msg)
+
+
+class ClosingTimeoutResponseIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.errors: ta.List[IoPipelineMessages.Error] = []
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.Error) and isinstance(msg.exc, TimeoutIoPipelineError):
+            self.errors.append(msg)
+            ctx.feed_out(FullIoPipelineHttpResponse.simple(status=408, body=b'timed out'))
+            ctx.feed_final_output()
+
+        elif isinstance(msg, IoPipelineMessages.MustPropagate):
+            ctx.feed_in(msg)
+
+
+class RecordingSelectFdioPoller(SelectFdioPoller):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.timeouts: ta.List[ta.Optional[float]] = []
+
+    def poll(self, timeout: ta.Optional[float]) -> FdioPoller.PollResult:
+        self.timeouts.append(timeout)
+        return super().poll(timeout)
 
 
 def make_spec(
@@ -273,6 +308,77 @@ class TestSyncIoPipelineHttpServerRequestTimeoutHandler(unittest.TestCase):
             self.assertIsNone(drv._sched.next_delay())
         finally:
             drv.close()
+
+
+class TestFdioIoPipelineHttpServerRequestTimeoutHandler(unittest.TestCase):
+    def test_partial_request_times_out_with_drained_response(self) -> None:
+        sock, peer = socket.socketpair()
+        peer.settimeout(.5)
+        poller = RecordingSelectFdioPoller()
+        timeout_s = .05
+        timeout = IoPipelineHttpServerRequestTimeoutHandler(timeout_s)
+        response = ClosingTimeoutResponseIoPipelineHandler()
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('local', 0),
+            IoPipeline.Spec([
+                IoPipelineHttpRequestDecoder(),
+                IoPipelineHttpResponseEncoder(),
+                timeout,
+                response,
+            ]),
+        )
+        manager = FdioManager(poller)
+        try:
+            self.assertIsNone(drv.next(read=False))
+            self.assertIsNone(drv.next_deadline())
+            manager.register(drv)
+
+            peer.sendall(
+                b'POST /slow HTTP/1.1\r\n'
+                b'Host: test\r\n'
+                b'Content-Length: 4\r\n'
+                b'Connection: close\r\n'
+                b'\r\n',
+            )
+            manager.poll(timeout=.5)
+
+            self.assertIsNotNone(timeout._handle)
+            self.assertIsNotNone(drv.next_deadline())
+            self.assertEqual(poller.timeouts, [.5])
+            self.assertTrue(drv.readable())
+
+            start = time.monotonic()
+            manager.poll()
+            elapsed = time.monotonic() - start
+
+            self.assertGreaterEqual(elapsed, .005)
+            self.assertLess(elapsed, .5)
+            self.assertEqual(len(poller.timeouts), 2)
+            timer_delay = poller.timeouts[1]
+            if timer_delay is None:
+                self.fail('Expected fdio manager to wait for the request deadline')
+            self.assertGreaterEqual(timer_delay, 0.)
+            self.assertLessEqual(timer_delay, timeout_s)
+
+            chunks: ta.List[bytes] = []
+            while chunk := peer.recv(64 * 1024):
+                chunks.append(chunk)
+            raw_response = b''.join(chunks)
+
+            self.assertTrue(raw_response.startswith(b'HTTP/1.1 408 Request Timeout\r\n'))
+            self.assertTrue(raw_response.endswith(b'\r\ntimed out'))
+            self.assertEqual(len(response.errors), 1)
+            self.assertIsInstance(response.errors[0].exc, TimeoutIoPipelineError)
+            self.assertIsNone(timeout._handle)
+            self.assertIsNone(drv.next_deadline())
+            self.assertTrue(drv.closed)
+            self.assertFalse(drv.pipeline.is_ready)
+            self.assertEqual(manager._handlers, {})
+        finally:
+            drv.close()
+            peer.close()
+            poller.close()
 
 
 class TestAsyncioIoPipelineHttpServerRequestTimeoutHandler(AsyncioIsolatedAsyncTestCase):
