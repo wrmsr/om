@@ -23,13 +23,16 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
     """
     Tickless heap scheduling for select-, poll-, and generator-style pipeline drivers.
 
-    `next_deadline()` returns an absolute `time.monotonic()` deadline suitable for pollers, while `next_delay()`
-    returns the corresponding relative delay. Drivers call `run_due()` after waiting. Callbacks execute inside their
-    pipeline and are automatically cancelled when their owning handler is removed or the pipeline is destroyed.
+    `next_deadline()` returns an absolute deadline in the configured clock's time base, while `next_delay()` returns
+    the corresponding relative delay. The default clock is `time.monotonic()`; deterministic drivers may inject one.
+    Drivers call `run_due()` after waiting. Callbacks execute inside their pipeline and are automatically cancelled
+    when their owning handler is removed or the pipeline is destroyed.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, clock: ta.Callable[[], float] = time.monotonic) -> None:
         super().__init__()
+
+        self._clock = clock
 
         self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
 
@@ -81,14 +84,14 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
 
         if (deadline := self.next_deadline()) is None:
             return None
-        return max(0., deadline - time.monotonic())
+        return max(0., deadline - self._clock())
 
     def run_due(self) -> int:
         """Run the callbacks due at entry and return the number that ran."""
 
         self._clear_cancelled()
 
-        now = time.monotonic()
+        now = self._clock()
         due: ta.List[HeapIoPipelineSchedulingService._Handle] = []
 
         while self._pending and self._pending[0][0] <= now:
@@ -180,7 +183,7 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             handler_ref,
             fn,
             with_context,
-            time.monotonic() + max(0., delay_s),
+            self._clock() + max(0., delay_s),
             self._seq,
         )
         self._seq += 1

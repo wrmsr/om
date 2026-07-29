@@ -264,7 +264,8 @@ That remains application or protocol policy.
 ## 8. Driver boundary and parity
 
 There is intentionally no common `IoPipelineDriver` base class. A driver is any integration which faithfully implements
-the terminal contract. The sync socket, asyncio stream, and fdio socket implementations are reference drivers.
+the terminal contract. The sync socket, asyncio stream, fdio socket, and pure/no-I/O implementations are reference
+drivers. A shared conformance suite runs the same observable scenarios against all four without imposing inheritance.
 
 A conforming transport driver must:
 
@@ -300,6 +301,9 @@ Driver-specific ownership remains explicit:
 - The asyncio driver owns its stream-driving tasks and coordinates `drain()` with flush fences.
 - The fdio driver is a nonblocking `FdioHandler`; `FdioManager` combines descriptor readiness with the earliest handler
   deadline. It is valid in forked or otherwise single-threaded contexts and does not depend on asyncio.
+- The pure driver queues supplied transport input, accepts output only through explicit drain steps, and advances an
+  injected scheduler clock only when requested. It is both an executable reference contract and a deterministic
+  generator-style integration; it does not emulate socket syscalls.
 
 ---
 

@@ -6,7 +6,6 @@
 ### core
 
 - drivers
-  - 'pure' - no io
   - sync
   - anyio
 - thread safety? nogil?

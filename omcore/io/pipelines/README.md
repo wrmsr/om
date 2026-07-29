@@ -198,6 +198,8 @@ Beyond the core pipeline abstraction, the package includes:
 - **Services**: Cross-cutting pipeline concerns like async/await integration, task scheduling, and cooperative yielding
 - **Flow control**: Backpressure and readiness signaling for producers and consumers (implemented as a service)
 - **Metadata**: Type-safe attachment of configuration or context to pipelines
+- **Reference drivers**: Sync sockets, asyncio streams, fdio sockets, and a deterministic pure/no-I/O driver sharing
+  one lifecycle, ordering, flow-control, completion, and scheduling conformance suite
 
 These components build on the core abstractions but are entirely optional - the core pipeline can be used standalone
 for any message transformation use case.

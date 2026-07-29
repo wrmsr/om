@@ -130,8 +130,7 @@ class SyncSocketIoPipelineDriver:
             self._pipeline = pipeline = self._make_pipeline()
 
             self._flow = flow = pipeline.services.find(IoPipelineFlow)
-            if flow is None:
-                self._want_read = True
+            self._want_read = IoPipelineFlow.is_auto_read(flow)
 
         except BaseException:
             self._state = IoPipelineDriverState.FAILED
@@ -259,13 +258,12 @@ class SyncSocketIoPipelineDriver:
 
         if not b:
             out.append(IoPipelineMessages.FinalInput())
+            self._want_read = False
         else:
             out.append(b)
             if self._flow is not None:
                 out.append(IoPipelineFlowMessages.FlushInput())
-
-        if self._flow is not None:
-            self._want_read = False
+                self._want_read = self._flow.is_auto_read()
 
         return out
 

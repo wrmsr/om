@@ -61,6 +61,27 @@ class TestHeapIoPipelineSchedulingService(unittest.TestCase):
         finally:
             pipeline.destroy()
 
+    def test_injected_clock(self) -> None:
+        now = [10.]
+        handler = NopIoPipelineHandler()
+        sched = HeapIoPipelineSchedulingService(lambda: now[0])
+        pipeline = IoPipeline.new([handler], services=[sched])
+        try:
+            events: ta.List[str] = []
+            sched.schedule(self.find_handler_ref(pipeline, handler), 3., lambda: events.append('timer'))
+
+            self.assertEqual(sched.next_deadline(), 13.)
+            self.assertEqual(sched.next_delay(), 3.)
+            self.assertEqual(sched.run_due(), 0)
+
+            now[0] = 13.
+            self.assertEqual(sched.next_delay(), 0.)
+            self.assertEqual(sched.run_due(), 1)
+            self.assertEqual(events, ['timer'])
+            self.assertIsNone(sched.next_deadline())
+        finally:
+            pipeline.destroy()
+
     def test_due_batch_is_snapshotted_and_context_is_supplied(self) -> None:
         handler = NopIoPipelineHandler()
         pipeline, sched = self.make_pipeline(handler)

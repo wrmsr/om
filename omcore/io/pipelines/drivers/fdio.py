@@ -137,8 +137,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             self._pipeline = pipeline = self._make_pipeline()
 
             self._flow = flow = pipeline.services.find(IoPipelineFlow)
-            if flow is None:
-                self._want_read = True
+            self._want_read = IoPipelineFlow.is_auto_read(flow)
 
             check.state(pipeline.is_ready)
 
@@ -282,7 +281,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             out.append(b)
             if self._flow is not None:
                 out.append(IoPipelineFlowMessages.FlushInput())
-                self._want_read = False
+                self._want_read = self._flow.is_auto_read()
 
         return out
 

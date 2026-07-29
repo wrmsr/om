@@ -190,7 +190,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/pipelines/responses.py', sha1='3145565e89891902ecd2ce193fac1609d3a26fe6'),
             dict(path='../../omcore/http/simple/handlers.py', sha1='43502a58069673135882066ba939c99ea2f8dfc1'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
-            dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='ebc7fea77e65082b1a90f1888ff935d3c7dd6924'),
+            dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
             dict(path='../../omcore/io/streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
             dict(path='../../omcore/io/streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
             dict(path='../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
@@ -223,7 +223,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='32a063c0cdfb151e256c99bf8161934292946ff2'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='18f4faa2428e3fa1a99ccf480c94c1c21e95424d'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='c0ccb2903d3d5d83317a4e1c64aceb57849d4465'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -21891,13 +21891,16 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
     """
     Tickless heap scheduling for select-, poll-, and generator-style pipeline drivers.
 
-    `next_deadline()` returns an absolute `time.monotonic()` deadline suitable for pollers, while `next_delay()`
-    returns the corresponding relative delay. Drivers call `run_due()` after waiting. Callbacks execute inside their
-    pipeline and are automatically cancelled when their owning handler is removed or the pipeline is destroyed.
+    `next_deadline()` returns an absolute deadline in the configured clock's time base, while `next_delay()` returns
+    the corresponding relative delay. The default clock is `time.monotonic()`; deterministic drivers may inject one.
+    Drivers call `run_due()` after waiting. Callbacks execute inside their pipeline and are automatically cancelled
+    when their owning handler is removed or the pipeline is destroyed.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, clock: ta.Callable[[], float] = time.monotonic) -> None:
         super().__init__()
+
+        self._clock = clock
 
         self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
 
@@ -21949,14 +21952,14 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
 
         if (deadline := self.next_deadline()) is None:
             return None
-        return max(0., deadline - time.monotonic())
+        return max(0., deadline - self._clock())
 
     def run_due(self) -> int:
         """Run the callbacks due at entry and return the number that ran."""
 
         self._clear_cancelled()
 
-        now = time.monotonic()
+        now = self._clock()
         due: ta.List[HeapIoPipelineSchedulingService._Handle] = []
 
         while self._pending and self._pending[0][0] <= now:
@@ -22048,7 +22051,7 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             handler_ref,
             fn,
             with_context,
-            time.monotonic() + max(0., delay_s),
+            self._clock() + max(0., delay_s),
             self._seq,
         )
         self._seq += 1
@@ -32034,8 +32037,7 @@ class SyncSocketIoPipelineDriver:
             self._pipeline = pipeline = self._make_pipeline()
 
             self._flow = flow = pipeline.services.find(IoPipelineFlow)
-            if flow is None:
-                self._want_read = True
+            self._want_read = IoPipelineFlow.is_auto_read(flow)
 
         except BaseException:
             self._state = IoPipelineDriverState.FAILED
@@ -32163,13 +32165,12 @@ class SyncSocketIoPipelineDriver:
 
         if not b:
             out.append(IoPipelineMessages.FinalInput())
+            self._want_read = False
         else:
             out.append(b)
             if self._flow is not None:
                 out.append(IoPipelineFlowMessages.FlushInput())
-
-        if self._flow is not None:
-            self._want_read = False
+                self._want_read = self._flow.is_auto_read()
 
         return out
 
