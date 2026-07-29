@@ -9,6 +9,7 @@ import unittest
 import weakref
 
 from .....lite.check import check
+from .....secrets import tempssl
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ....fdio.manager import FdioManager
 from ....fdio.pollers import FdioPoller
@@ -163,6 +164,23 @@ class RecordingSelectFdioPoller(SelectFdioPoller):
     def poll(self, timeout: ta.Optional[float]) -> FdioPoller.PollResult:
         self.timeouts.append(timeout)
         return super().poll(timeout)
+
+
+def drain_socket(sock: socket.socket) -> bytes:
+    timeout = sock.gettimeout()
+    sock.setblocking(False)
+    chunks: ta.List[bytes] = []
+    try:
+        while True:
+            try:
+                chunk = sock.recv(64 * 1024)
+            except BlockingIOError:
+                return b''.join(chunks)
+            if not chunk:
+                return b''.join(chunks)
+            chunks.append(chunk)
+    finally:
+        sock.settimeout(timeout)
 
 
 def make_pipeline(
@@ -393,6 +411,135 @@ class TestFdioSslIoPipelineHandlerTimeout(unittest.TestCase):
             self.assertIsNone(error.direction)
             handler_ref = check.not_none(error.handler)
             self.assertIs(handler_ref.handler, handler)
+
+            self.assertEqual(peer.recv(1), b'')
+            self.assertTrue(driver.closed)
+            self.assertFalse(driver.pipeline.is_ready)
+            self.assertIsNone(driver.next_deadline())
+            self.assertEqual(manager._handlers, {})
+        finally:
+            driver.close()
+            peer.close()
+            poller.close()
+
+
+class TestFdioSslIoPipelineHandlerShutdownTimeout(unittest.TestCase):
+    _cert: ta.ClassVar[tempssl.SslCert]
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from .....subprocesses import sync as _  # import side-effect installing _DEFAULT_SUBPROCESSES  # noqa
+
+        cls._cert = tempssl.generate_temp_localhost_ssl_cert().cert
+
+    def test_real_tls_shutdown_timeout(self) -> None:
+        server_ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        server_ssl_ctx.load_cert_chain(self._cert.cert_file, self._cert.key_file)
+        handler = SslIoPipelineHandler(
+            server_ssl_ctx,
+            server_side=True,
+            config=SslIoPipelineHandler.Config(shutdown_timeout_s=.05),
+        )
+        capture = CaptureTimeoutIoPipelineHandler()
+        sock, peer = socket.socketpair()
+        peer.settimeout(.5)
+        poller = RecordingSelectFdioPoller()
+        driver = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('local', 0),
+            IoPipeline.Spec([handler, capture]),
+        )
+        manager = FdioManager(poller)
+
+        client_ssl_ctx = ssl.create_default_context(cafile=self._cert.cert_file)
+        client_in_bio = ssl.MemoryBIO()
+        client_out_bio = ssl.MemoryBIO()
+        client_ssl = client_ssl_ctx.wrap_bio(
+            client_in_bio,
+            client_out_bio,
+            server_side=False,
+            server_hostname='localhost',
+        )
+
+        try:
+            self.assertIsNone(driver.next(read=False))
+            manager.register(driver)
+
+            client_handshake_done = False
+            try:
+                client_ssl.do_handshake()
+            except ssl.SSLWantReadError:
+                pass
+
+            for _ in range(20):
+                sent = False
+                while client_out_bio.pending:
+                    peer.sendall(client_out_bio.read())
+                    sent = True
+                if sent:
+                    manager.poll(timeout=.5)
+
+                if (server_data := drain_socket(peer)):
+                    client_in_bio.write(server_data)
+
+                if not client_handshake_done:
+                    try:
+                        client_ssl.do_handshake()
+                    except ssl.SSLWantReadError:
+                        pass
+                    else:
+                        client_handshake_done = True
+
+                if client_handshake_done and handler.state is SslIoPipelineHandler.State.ESTABLISHED:
+                    break
+            else:
+                self.fail((client_handshake_done, handler.state))
+
+            self.assertIsNone(handler._shutdown_timeout_handle)
+            self.assertIsNone(driver.next_deadline())
+
+            final_output = IoPipelineMessages.FinalOutput()
+            completions: ta.List[bool] = []
+            final_output.add_listener(lambda msg: completions.append(msg.is_succeeded()))
+            driver.enqueue(Close(final_output))
+            self.assertIsNone(driver.next(read=False))
+
+            self.assertIs(handler.state, SslIoPipelineHandler.State.SHUTTING_DOWN)
+            self.assertIsNotNone(handler._shutdown_timeout_handle)
+            self.assertIsNotNone(driver.next_deadline())
+            self.assertFalse(final_output.is_done())
+
+            server_shutdown_data = drain_socket(peer)
+            self.assertTrue(server_shutdown_data)
+            client_in_bio.write(server_shutdown_data)
+            try:
+                client_ssl.unwrap()
+            except ssl.SSLWantReadError:
+                pass
+            self.assertGreater(client_out_bio.pending, 0)
+
+            poll_count = len(poller.timeouts)
+            start = time.monotonic()
+            manager.poll()
+            elapsed = time.monotonic() - start
+
+            self.assertGreaterEqual(elapsed, .005)
+            self.assertLess(elapsed, .5)
+            self.assertEqual(len(poller.timeouts), poll_count + 1)
+            timer_delay = poller.timeouts[-1]
+            if timer_delay is None:
+                self.fail('Expected fdio manager to wait for the TLS shutdown deadline')
+            self.assertGreaterEqual(timer_delay, 0.)
+            self.assertLessEqual(timer_delay, .05)
+
+            self.assertIs(handler.state, SslIoPipelineHandler.State.CLOSED)
+            self.assertIsNone(handler._shutdown_timeout_handle)
+            self.assertEqual(len(capture.errors), 1)
+            error = capture.errors[0]
+            self.assertIsInstance(error.exc, TimeoutIoPipelineError)
+            self.assertIn('TLS shutdown timed out', str(error.exc))
+            self.assertTrue(final_output.is_succeeded())
+            self.assertEqual(completions, [True])
 
             self.assertEqual(peer.recv(1), b'')
             self.assertTrue(driver.closed)
