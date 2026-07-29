@@ -91,6 +91,7 @@ with _lang.auto_proxy_init(globals()):
         DuplicateMapKeyError,
         InjectorConcurrencyError,
         ScopeAlreadyOpenError,
+        ScopeEagerUnsupportedError,
         ScopeError,
         ScopeNotOpenError,
         UnboundKeyError,

@@ -58,3 +58,37 @@ def test_eager_unbound_key():
         inj.create_injector(
             inj.as_elements(inj.Eager(inj.as_key(int))),
         )
+
+
+def test_eager_thread_scope_rejected():
+    c = 0
+
+    def f() -> int:
+        nonlocal c
+        c += 1
+        return 420
+
+    with pytest.raises(inj.ScopeEagerUnsupportedError) as ei:
+        inj.create_injector(
+            inj.bind(f, in_=inj.ThreadScope(), eager=True),
+        )
+    assert ei.value.scope == inj.ThreadScope()
+    assert ei.value.key == inj.as_key(int)
+    assert c == 0
+
+
+def test_lazy_thread_scope_still_works():
+    c = 0
+
+    def f() -> int:
+        nonlocal c
+        c += 1
+        return 420
+
+    i = inj.create_injector(
+        inj.bind(f, in_=inj.ThreadScope()),
+    )
+    assert c == 0
+    assert i.provide(int) == 420
+    assert i.provide(int) == 420
+    assert c == 1

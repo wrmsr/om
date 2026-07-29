@@ -1,5 +1,6 @@
 import abc
 import contextlib
+import enum
 import threading
 import typing as ta
 
@@ -36,7 +37,20 @@ else:
 ##
 
 
+class EagerInstantiationPoint(enum.Enum):
+    """
+    The point in an injector's or scope's lifecycle at which a scope's eager bindings are instantiated. A scope impl
+    with no eager instantiation point does not support eager bindings at all, and eagers on its bindings are rejected
+    at element collection.
+    """
+
+    INJECTOR_INIT = enum.auto()
+    SCOPE_OPEN = enum.auto()
+
+
 class ScopeImpl(lang.Abstract):
+    eager_point: ta.ClassVar[EagerInstantiationPoint | None] = None
+
     @property
     @abc.abstractmethod
     def scope(self) -> Scope:
@@ -51,6 +65,8 @@ class ScopeImpl(lang.Abstract):
 
 
 class UnscopedScopeImpl(ScopeImpl, lang.Final):
+    eager_point = EagerInstantiationPoint.INJECTOR_INIT
+
     @property
     def scope(self) -> Unscoped:
         return Unscoped()
@@ -60,6 +76,8 @@ class UnscopedScopeImpl(ScopeImpl, lang.Final):
 
 
 class SingletonScopeImpl(ScopeImpl, lang.Final):
+    eager_point = EagerInstantiationPoint.INJECTOR_INIT
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -116,6 +134,8 @@ class ScopeSeededProviderImpl(ProviderImpl):
 
 
 class SeededScopeImpl(ScopeImpl):
+    eager_point = EagerInstantiationPoint.SCOPE_OPEN
+
     @dc.dataclass(frozen=True)
     class State:
         seeds: dict[Key, ta.Any]

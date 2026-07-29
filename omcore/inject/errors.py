@@ -65,3 +65,8 @@ class ScopeAlreadyOpenError(ScopeError):
 @dc.dataclass()
 class ScopeNotOpenError(ScopeError):
     pass
+
+
+@dc.dataclass()
+class ScopeEagerUnsupportedError(ScopeError):
+    key: Key | None = None

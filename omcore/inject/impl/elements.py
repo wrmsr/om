@@ -31,6 +31,7 @@ from ..elements import CollectedElements
 from ..elements import Element
 from ..elements import Elements
 from ..errors import ConflictingKeyError
+from ..errors import ScopeEagerUnsupportedError
 from ..errors import UnboundKeyError
 from ..keys import Key
 from ..listeners import ProvisionListenerBinding
@@ -237,6 +238,7 @@ class ElementCollection(CollectedElements, lang.Final):
     @lang.cached_function
     def sorted_eager_keys_by_scope(self) -> ta.Mapping[Scope, ta.Sequence[Key]]:
         bim = self.binding_impl_map()
+
         dct: dict[Scope, list[Eager]] = {}
         for e in self.elements_of_type(Eager):
             try:
@@ -244,6 +246,13 @@ class ElementCollection(CollectedElements, lang.Final):
             except KeyError:
                 raise UnboundKeyError(e.key) from None
             dct.setdefault(bi.scope, []).append(e)
+
+        # Temporary impls, as with _get_scope_auto_elements - eagerability is declared by the impl, and the injector's
+        # long-lived impls don't exist at collection time.
+        for sc, egs in dct.items():
+            if make_scope_impl(sc).eager_point is None:
+                raise ScopeEagerUnsupportedError(sc, egs[0].key)
+
         return {
             sc: tuple(eg.key for eg in sorted(egs, key=lambda eg: eg.priority))
             for sc, egs in dct.items()
