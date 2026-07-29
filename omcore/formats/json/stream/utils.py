@@ -23,6 +23,7 @@ TODO:
    - Names and values separated by = or => instead of :.
    - Name/value pairs separated by ; instead of ,.
 """
+import sys
 import typing as ta
 
 from .... import lang
@@ -67,6 +68,16 @@ class JsonStreamValueParser(lang.ExitStacked):
     def _enter_contexts(self) -> None:
         self._enter_context(self._m.lex)
         self._enter_context(self._m.parse)
+
+    def _exit_contexts(self) -> None:
+        if sys.exc_info()[0] is not None:
+            # An error is already propagating - close the machinery defensively, suppressing any secondary errors its
+            # closes would raise so the original error surfaces rather than being replaced during unwind.
+            for m in (self._m.parse, self._m.lex):
+                try:
+                    m.close()
+                except JsonStreamError:
+                    pass
 
     def feed(self, i: ta.Iterable[str]) -> ta.Iterator[ta.Any]:
         for c in i:

@@ -78,7 +78,13 @@ class StreamParser(lang.ExitStacked):
         self._parse = self._enter_context(JsonStreamParser())
 
     def parse(self, b: bytes) -> ta.Iterator[Event]:
-        for s in self._decoder.decode(b, not b):
-            for c in s:
-                for t in self._lex(c):
-                    yield from self._parse(t)
+        # Empty decoder output must not reach the lexer mid-stream - it would read it as EOF - and can legitimately
+        # occur, such as when a multibyte utf-8 sequence is split across chunks.
+        if s := self._decoder.decode(b, not b):
+            for t in self._lex(s):
+                yield from self._parse(t)
+
+        if not b:
+            # The final (empty) input chunk signals EOF to the lexer, flushing any trailing token.
+            for t in self._lex(''):
+                yield from self._parse(t)

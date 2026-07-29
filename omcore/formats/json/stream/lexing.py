@@ -5,11 +5,9 @@ TODO:
  - mark start pos of tokens, currently returning end
 """
 import dataclasses as dc
-import io
 import json
 import typing as ta
 
-from .... import check
 from .... import lang
 from ....funcs.genmachine import GenMachine
 from .errors import JsonStreamError
@@ -40,6 +38,9 @@ _CONST_IDENTS_BY_FIRST_CHAR: ta.Mapping[str, str] = {
     if not s.startswith('-')
 }
 
+_CONTROL_TOKENS_GET = CONTROL_TOKENS.get
+_NUMBER_PAT_MATCH = NUMBER_PAT.match
+
 
 ##
 
@@ -52,6 +53,16 @@ class JsonStreamLexError(JsonStreamError):
 
 
 class JsonStreamLexer(GenMachine[str, Token]):
+    """
+    Input is held in a single buffer `_s` with consumption index `_i` - received chunks (of any size, including single
+    chars) replace the buffer once it is fully consumed. Tokens spanning chunk boundaries accumulate their raw text in
+    scanner-local part lists.
+
+    Position is tracked as the absolute offset of the buffer start plus the current line and the absolute offset of its
+    first char - columns are derived only when a `Position` is built, and line tracking is updated in bulk when
+    consuming ranges which may contain newlines.
+    """
+
     def __init__(
             self,
             *,
@@ -96,76 +107,75 @@ class JsonStreamLexer(GenMachine[str, Token]):
         # Bulk number scanning requires standard literals - NUMBER_PAT does not describe the extended forms.
         self._bulk_numbers = not allow_extended_number_literals and number_literal_parser is None
 
-        self._char_in_str: str | None = None
-        self._char_in_str_len: int = 0
-        self._char_in_str_pos: int = 0
+        self._s = ''
+        self._i = 0
+        self._eof = False
 
-        self._ofs = 0
+        self._base_ofs = 0
         self._line = 1
-        self._col = 0
-
-        self._buf = io.StringIO()
+        self._line_start = 0
 
         super().__init__(self._do_main())
 
     @property
     def pos(self) -> Position:
+        o = self._base_ofs + self._i
         return Position(
-            self._ofs,
+            o,
             self._line,
-            self._col,
+            o - self._line_start,
         )
 
-    def _advance_pos(self, c: str) -> str:
-        if not c:
-            return c
+    def _consume_to(self, j: int) -> None:
+        """Advances `_i` to buffer index `j`, updating line tracking for any newlines in the consumed range."""
 
-        if len(c) != 1:
-            raise JsonStreamError(c)
+        if (np := self._s.rfind('\n', self._i, j)) >= 0:
+            self._line += self._s.count('\n', self._i, j)
+            self._line_start = self._base_ofs + np + 1
+        self._i = j
 
-        self._ofs += 1
+    def _more(self):
+        """
+        Suspends for the next input chunk mid-token, returning False once EOF has been signalled by an empty chunk.
+        Callers must have fully consumed the buffer. Closing the machine mid-token is an error.
+        """
 
-        if c == '\n':
-            self._line += 1
-            self._col = 0
-        else:
-            self._col += 1
+        if self._eof:
+            return False
 
-        return c
+        try:
+            cs = yield None
+        except GeneratorExit:
+            self._raise('Unexpected end of input')
 
-    def _yield_char_in(self, c: str) -> str:
-        if self._char_in_str is not None:
-            raise JsonStreamError
+        if not cs:
+            self._eof = True
+            return False
 
-        if (cl := len(c)) > 1:
-            self._char_in_str = c
-            self._char_in_str_len = cl
-            self._char_in_str_pos = 1
-            c = c[0]
+        self._base_ofs += len(self._s)
+        self._s = cs
+        self._i = 0
+        return True
 
-        self._advance_pos(c)
+    def _read_chars(self, n: int):
+        """Consumes and returns up to `n` chars, suspending as needed - fewer are returned only at EOF."""
 
-        return c
+        parts: list[str] = []
+        need = n
+        while need > 0:
+            s = self._s
+            i = self._i
+            if i >= len(s):
+                if not (yield from self._more()):
+                    break
+                continue
 
-    def _store_char_in(self, s: str) -> None:
-        if self._char_in_str is not None:
-            raise JsonStreamError
+            j = min(len(s), i + need)
+            parts.append(s[i:j])
+            self._consume_to(j)
+            need -= j - i
 
-        self._char_in_str = s
-        self._char_in_str_len = len(s)
-        self._char_in_str_pos = 0
-
-    def _str_char_in(self) -> str | None:
-        if (s := self._char_in_str) is None:
-            return None
-
-        if (p := self._char_in_str_pos) >= self._char_in_str_len:
-            self._char_in_str = None
-            return None
-
-        c = s[p]
-        self._char_in_str_pos += 1
-        return self._advance_pos(c)
+        return ''.join(parts)
 
     def _make_tok(
             self,
@@ -182,32 +192,29 @@ class JsonStreamLexer(GenMachine[str, Token]):
         )
         return (tok,)
 
-    def _flip_buf(self) -> str:
-        raw = self._buf.getvalue()
-        self._buf.seek(0)
-        self._buf.truncate()
-        return raw
-
     def _raise(self, msg: str, src: Exception | None = None) -> ta.NoReturn:
         raise JsonStreamLexError(msg, self.pos) from src
 
-    def _scan_chunk(self, toks: list[Token]) -> str | None:
+    def _scan(self, toks: list[Token]) -> str | None:
         """
-        Bulk-scans the stored input chunk, appending any tokens completed within it to `toks`. Returns a handoff char -
-        already consumed and position-advanced, exactly as if read via `_str_char_in` - which the caller must dispatch
-        to the per-char scanners, or None if the chunk was consumed without one. Tokens which may straddle the chunk
-        boundary are always handed off - only tokens provably complete within the chunk are emitted here.
+        Bulk-scans the buffer, appending any tokens completed within it to `toks`. Returns a handoff char - left
+        unconsumed at `_i` - which the caller must dispatch to the suspendable scanners, or None if the buffer was
+        consumed without one. Tokens which may straddle the buffer end are always handed off - only tokens provably
+        complete within the buffer are emitted here.
+
+        NOTE: `_do_main`'s single-char fast path deliberately duplicates the space and control token handling here -
+        changes to either must be mirrored in the other.
         """
 
-        if (s := self._char_in_str) is None:
+        s = self._s
+        p = self._i
+        sl = len(s)
+        if p >= sl:
             return None
 
-        p = self._char_in_str_pos
-        sl = self._char_in_str_len
-
-        ofs = self._ofs
+        base = self._base_ofs
         line = self._line
-        col = self._col
+        line_start = self._line_start
 
         include_raw = self._include_raw
         include_space = self._include_space
@@ -216,8 +223,8 @@ class JsonStreamLexer(GenMachine[str, Token]):
         ext_idents = self._allow_extended_idents
         single_quotes = self._allow_single_quotes
         str_parser = self._string_literal_parser
-        ctrl_get = CONTROL_TOKENS.get
-        num_match = NUMBER_PAT.match
+        ctrl_get = _CONTROL_TOKENS_GET
+        num_match = _NUMBER_PAT_MATCH
 
         try:
             while p < sl:
@@ -226,41 +233,35 @@ class JsonStreamLexer(GenMachine[str, Token]):
                 if c in space_chars:
                     if include_space:
                         p += 1
-                        ofs += 1
+                        o = base + p
                         if c == '\n':
                             line += 1
-                            col = 0
-                        else:
-                            col += 1
+                            line_start = o
                         toks.append(Token(
                             'SPACE',
                             c,
                             c if include_raw else None,
-                            Position(ofs, line, col),
+                            Position(o, line, o - line_start),
                         ))
                         continue
 
                     q = p + 1
                     while q < sl and s[q] in space_chars:
                         q += 1
-                    ofs += q - p
                     if (np := s.rfind('\n', p, q)) >= 0:
                         line += s.count('\n', p, q)
-                        col = q - np - 1
-                    else:
-                        col += q - p
+                        line_start = base + np + 1
                     p = q
                     continue
 
                 if (k := ctrl_get(c)) is not None:
                     p += 1
-                    ofs += 1
-                    col += 1
+                    o = base + p
                     toks.append(Token(
                         k,
                         c,
                         c if include_raw else None,
-                        Position(ofs, line, col),
+                        Position(o, line, o - line_start),
                     ))
                     continue
 
@@ -279,19 +280,16 @@ class JsonStreamLexer(GenMachine[str, Token]):
                         try:
                             sv = str_parser(s[p:qp + 1])
                         except Exception:  # noqa
-                            # Errors must surface through the per-char scanner so that any already-batched tokens are
-                            # flushed to the consumer first - hand off to it to rescan and re-raise.
+                            # Errors must surface through the suspendable scanner so that any already-batched tokens
+                            # are flushed to the consumer first - hand off to it to rescan and re-raise.
                             pass
                         else:
-                            pos = Position(ofs + 1, line, col + 1)
+                            o = base + p + 1
+                            pos = Position(o, line, o - line_start)
                             raw = s[p:qp + 1] if include_raw else None
-                            tl = qp + 1 - p
-                            ofs += tl
                             if (np := s.rfind('\n', p, qp + 1)) >= 0:
                                 line += s.count('\n', p, qp + 1)
-                                col = qp - np
-                            else:
-                                col += tl
+                                line_start = base + np + 1
                             p = qp + 1
 
                             toks.append(Token(
@@ -302,247 +300,220 @@ class JsonStreamLexer(GenMachine[str, Token]):
                             ))
                             continue
 
-                    # No closing quote in this chunk (or a bad literal) - hand off to the suspendable scanner.
+                    # No closing quote in this buffer (or a bad literal) - hand off.
 
                 elif bulk_numbers and c in '0123456789-':
                     m = num_match(s, p)
-                    # A match reaching the chunk end may continue in the next chunk, and one followed by another
-                    # number-ish char must be greedily consumed (and rejected) by the per-char scanner as a whole.
+                    # A match reaching the buffer end may continue in the next chunk, and one followed by another
+                    # number-ish char must be greedily consumed (and rejected) by the suspendable scanner as a whole.
                     if m is not None and (e := m.end()) < sl and s[e] not in '0123456789.eE+-':
+                        o = base + p + 1
                         raw = s[p:e]
                         toks.append(Token(
                             'NUMBER',
                             float(raw) if m.lastindex else int(raw),
                             raw if include_raw else None,
-                            Position(ofs + 1, line, col + 1),
+                            Position(o, line, o - line_start),
                         ))
-                        tl = e - p
-                        ofs += tl
-                        col += tl
                         p = e
                         continue
 
                 elif not ext_idents and (ci := _CONST_IDENTS_BY_FIRST_CHAR.get(c)) is not None:
-                    # Const idents are prefix-free, so a full match is unambiguous even at the chunk end.
+                    # Const idents are prefix-free, so a full match is unambiguous even at the buffer end.
                     if s.startswith(ci, p):
+                        o = base + p + 1
                         toks.append(Token(
                             'IDENT',
                             ci,
                             ci if include_raw else None,
-                            Position(ofs + 1, line, col + 1),
+                            Position(o, line, o - line_start),
                         ))
-                        tl = len(ci)
-                        ofs += tl
-                        col += tl
-                        p += tl
+                        p += len(ci)
                         continue
 
-                p += 1
-                ofs += 1
-                col += 1
                 return c
 
             return None
 
         finally:
-            self._char_in_str_pos = p
-            self._ofs = ofs
+            self._i = p
             self._line = line
-            self._col = col
+            self._line_start = line_start
 
-    def _do_main(self, peek: str | None = None):
+    def _do_main(self):
         toks: list[Token] = []
 
         while True:
-            c: str | None
-            if peek is not None:
-                c = peek
-                peek = None
-            else:
-                c = self._scan_chunk(toks)
+            s = self._s
+            i = self._i
 
-                # Any batched tokens must be flushed before suspending for input or switching to a per-char scanner.
+            # Fast path for single-char buffers - that is, per-char feeding, where _scan's setup cost dwarfs its work.
+            # On one char _scan can only ever skip a space, emit a control token, or hand off, so this DELIBERATELY
+            # DUPLICATES its space and control handling (keep the two in sync!) and lets everything else fall through
+            # to the shared dispatch below.
+            c: str | None
+            if i + 1 == len(s):
+                cc = s[i]
+                c = cc
+                if cc in self._space_chars:
+                    self._i = i + 1
+                    if cc == '\n':
+                        self._line += 1
+                        self._line_start = self._base_ofs + self._i
+                    if self._include_space:
+                        o = self._base_ofs + self._i
+                        yield self._make_tok('SPACE', cc, cc, Position(o, self._line, o - self._line_start))
+                    c = None
+
+                elif (k := _CONTROL_TOKENS_GET(cc)) is not None:
+                    self._i = i + 1
+                    o = self._base_ofs + self._i
+                    yield self._make_tok(k, cc, cc, Position(o, self._line, o - self._line_start))
+                    c = None
+
+            else:
+                c = self._scan(toks)
+
+                # Any batched tokens must be flushed before suspending for input or switching to another scanner.
                 if toks:
                     yield toks
                     toks = []
 
-                if c is None and (c := self._str_char_in()) is None:
-                    cs = yield None
-                    if cs and len(cs) > 1:
-                        self._store_char_in(cs)
-                        continue
-                    c = self._advance_pos(cs)
-
-            if not c:
-                return None
-
-            if c in self._space_chars:
-                if self._include_space:
-                    yield self._make_tok('SPACE', c, c, self.pos)
-                continue
-
-            if c in CONTROL_TOKENS:
-                yield self._make_tok(CONTROL_TOKENS[c], c, c, self.pos)
+            if c is None:
+                # Inline of _recv - this is hit once per chunk, which under per-char feeding means once per char.
+                if self._eof:
+                    return None
+                cs = yield None
+                if not cs:
+                    self._eof = True
+                    return None
+                self._base_ofs += len(self._s)
+                self._s = cs
+                self._i = 0
                 continue
 
             if c == '"' or (self._allow_single_quotes and c == "'"):
                 return self._do_string(c)
 
             if c in '0123456789-' or (self._allow_extended_number_literals and c in '.+'):
-                return self._do_number(c)
+                return self._do_number()
 
             if self._allow_comments and c == '/':
                 return self._do_comment()
 
             if self._allow_extended_idents:
-                return self._do_extended_ident(c)
+                return self._do_extended_ident()
 
             if c in 'tfnIN':
-                return self._do_const(c)
+                return self._do_const()
 
+            self._i += 1
             self._raise(f'Unexpected character: {c}')
 
     def _do_string(self, q: str):
-        check.state(self._buf.tell() == 0)
-        self._buf.write(q)
+        o = self._base_ofs + self._i + 1
+        pos = Position(o, self._line, o - self._line_start)
 
-        pos = self.pos
-
-        #
-
-        buf = self._buf
-
-        char_in_str = self._char_in_str
-        char_in_str_len = self._char_in_str_len
-        char_in_str_pos = self._char_in_str_pos
-        ofs = self._ofs
-        line = self._line
-        col = self._col
-
-        def restore_state():
-            self._char_in_str = char_in_str
-            self._char_in_str_len = char_in_str_len
-            self._char_in_str_pos = char_in_str_pos
-            self._ofs = ofs
-            self._line = line
-            self._col = col
-
-        bs_count = 0  # count of consecutive backslashes immediately preceding the current position
+        parts: list[str] = []
+        bs_count = 0
+        skip = 1  # the opening quote, on the first pass only
 
         while True:
-            c: str | None = None
+            s = self._s
+            sl = len(s)
+            j = self._i + skip
+            skip = 0
+            end = -1
 
-            while True:
-                if char_in_str is not None:
-                    if char_in_str_pos >= char_in_str_len:
-                        char_in_str = None
-                        continue
+            while j < sl:
+                qp = s.find(q, j)
+                sp = s.find('\\', j)
 
-                    skip_to = char_in_str_len
-                    if (qp := char_in_str.find(q, char_in_str_pos)) >= 0 and qp < skip_to:
-                        skip_to = qp
-                    if (sp := char_in_str.find('\\', char_in_str_pos)) >= 0 and sp < skip_to:
-                        skip_to = sp
+                if sp >= 0 and (qp < 0 or sp < qp):
+                    # A backslash run comes first
+                    if sp > j:
+                        bs_count = 0
+                    k = sp + 1
+                    while k < sl and s[k] == '\\':
+                        k += 1
+                    bs_count += k - sp
+                    j = k
 
-                    if skip_to != char_in_str_pos:
-                        ofs += skip_to - char_in_str_pos
-                        if (np := char_in_str.rfind('\n', char_in_str_pos, skip_to)) >= 0:
-                            line += char_in_str.count('\n', char_in_str_pos, skip_to)
-                            col = skip_to - np - 1
-                        else:
-                            col += skip_to - char_in_str_pos
-                        buf.write(char_in_str[char_in_str_pos:skip_to])
-                        bs_count = 0  # the skipped range contains no backslashes
+                elif qp >= 0:
+                    # A quote comes first - it terminates only if preceded by an even number of backslashes
+                    if qp > j:
+                        bs_count = 0
+                    if not bs_count % 2:
+                        end = qp
+                        break
+                    bs_count = 0
+                    j = qp + 1
 
-                        if skip_to >= char_in_str_len:
-                            char_in_str = None
-                            continue
-                        char_in_str_pos = skip_to
+                else:
+                    # Neither present - the rest is plain content
+                    bs_count = 0
+                    j = sl
 
-                    c = char_in_str[char_in_str_pos]
-                    char_in_str_pos += 1
+            if end >= 0:
+                piece = s[self._i:end + 1]
+                self._consume_to(end + 1)
+                raw = ''.join([*parts, piece]) if parts else piece
 
-                if c is None:
-                    try:
-                        c = (yield None)
-                    except GeneratorExit:
-                        restore_state()
-                        self._raise('Unexpected end of input')
+                try:
+                    sv = self._string_literal_parser(raw)
+                except json.JSONDecodeError as e:
+                    self._raise(f'Invalid string literal: {raw!r}', e)
 
-                    if len(c) > 1:
-                        char_in_str = c
-                        char_in_str_len = len(char_in_str)
-                        char_in_str_pos = 0
-                        c = None
-                        continue
+                yield self._make_tok('STRING', sv, raw, pos)
 
-                if c is None:
-                    raise JsonStreamError
+                return self._do_main()
 
-                if c and len(c) != 1:
-                    raise JsonStreamError(c)
+            parts.append(s[self._i:])
+            self._consume_to(sl)
 
-                break
+            # Inline of _more - this is the hottest refill point, hit once per char under per-char feeding
+            if self._eof:
+                self._raise(f'Unterminated string literal: {"".join(parts)}')
 
-            if not c:
-                restore_state()
-                self._raise(f'Unterminated string literal: {buf.getvalue()}')
-
-            ofs += 1
-
-            if c == '\n':
-                line += 1
-                col = 0
-            else:
-                col += 1
-
-            buf.write(c)
-
-            if c == q:
-                # Quote is escaped only if preceded by an odd number of backslashes
-                if not bs_count % 2:
-                    break
-                bs_count = 0
-            elif c == '\\':
-                bs_count += 1
-            else:
-                bs_count = 0
-
-        restore_state()
-
-        #
-
-        raw = self._flip_buf()
-        try:
-            sv = self._string_literal_parser(raw)
-        except json.JSONDecodeError as e:
-            self._raise(f'Invalid string literal: {raw!r}', e)
-
-        yield self._make_tok('STRING', sv, raw, pos)
-
-        return self._do_main()
-
-    def _do_number(self, c: str):
-        check.state(self._buf.tell() == 0)
-        self._buf.write(c)
-
-        pos = self.pos
-
-        while True:
             try:
-                if (c := self._str_char_in()) is None:  # type: ignore[assignment]
-                    c = self._yield_char_in((yield None))  # noqa
+                cs = yield None
             except GeneratorExit:
                 self._raise('Unexpected end of input')
 
-            if not c:
+            if not cs:
+                self._eof = True
+                self._raise(f'Unterminated string literal: {"".join(parts)}')
+
+            self._base_ofs += sl
+            self._s = cs
+            self._i = 0
+
+    def _do_number(self):
+        o = self._base_ofs + self._i + 1
+        pos = Position(o, self._line, o - self._line_start)
+
+        parts: list[str] = []
+        while True:
+            s = self._s
+            sl = len(s)
+            i = j = self._i
+            while j < sl and (
+                    s[j] in '0123456789.eE+-' or
+                    (self._allow_extended_number_literals and s[j] in 'xXabcdefABCDEF')
+            ):
+                j += 1
+
+            if j > i:
+                parts.append(s[i:j])
+                self._i = j  # number chars are never newlines
+
+            if j < sl:
                 break
 
-            if not (c in '0123456789.eE+-' or (self._allow_extended_number_literals and c in 'xXabcdefABCDEF')):
+            if not (yield from self._more()):
                 break
-            self._buf.write(c)
 
-        raw = self._flip_buf()
+        raw = ''.join(parts)
 
         #
 
@@ -552,23 +523,16 @@ class JsonStreamLexer(GenMachine[str, Token]):
                 self._raise('Invalid number literal')
 
         if raw == '-' or (self._allow_extended_number_literals and raw == '+'):
+            nc = self._s[self._i] if self._i < len(self._s) else ''
             for svs in [
                 'Infinity',
                 *(['NaN'] if self._allow_extended_number_literals else []),
             ]:
-                if c != svs[0]:
+                if nc != svs[0]:
                     continue
 
-                raw += c
-                try:
-                    for _ in range(len(svs) - 1):
-                        if (c := self._str_char_in()) is None:  # type: ignore[assignment]
-                            c = self._yield_char_in((yield None))  # noqa
-                        if not c:
-                            break
-                        raw += c
-                except GeneratorExit:
-                    self._raise('Unexpected end of input')
+                rest = yield from self._read_chars(len(svs))
+                raw += rest
 
                 if raw[1:] != svs:
                     self._raise(f'Invalid number format: {raw}')
@@ -598,24 +562,21 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
         yield self._make_tok('NUMBER', nv, raw, pos)
 
-        #
+        return self._do_main()
 
-        if not c:
-            return None
+    def _do_const(self):
+        o = self._base_ofs + self._i + 1
+        pos = Position(o, self._line, o - self._line_start)
 
-        return self._do_main(c)
-
-    def _do_const(self, c: str):
-        pos = self.pos
-        raw = c
+        raw = ''
         while True:
-            try:
-                if (c := self._str_char_in()) is None:  # type: ignore[assignment]
-                    c = self._yield_char_in((yield None))  # noqa
-            except GeneratorExit:
-                self._raise('Unexpected end of input')
+            if (i := self._i) >= len(self._s):
+                if not (yield from self._more()):
+                    self._raise('Unexpected end of input')
+                continue
 
-            raw += c
+            raw += self._s[i]
+            self._consume_to(i + 1)
 
             if raw in CONST_IDENT_VALUES:
                 break
@@ -628,125 +589,138 @@ class JsonStreamLexer(GenMachine[str, Token]):
         return self._do_main()
 
     def _do_unicode_escape(self):
-        try:
-            if (c := self._str_char_in()) is None:
-                c = self._yield_char_in((yield None))  # noqa
-        except GeneratorExit:
-            self._raise('Unexpected end of input')
-
-        if c != 'u':
+        if (yield from self._read_chars(1)) != 'u':
             self._raise('Illegal identifier escape')
 
-        ux = []
-        for _ in range(4):
-            try:
-                if (c := self._str_char_in()) is None:
-                    c = self._yield_char_in((yield None))  # noqa
-            except GeneratorExit:
-                self._raise('Unexpected end of input')
+        ux = yield from self._read_chars(4)
+        if len(ux) != 4 or any(c not in '0123456789abcdefABCDEF' for c in ux):
+            self._raise('Illegal identifier escape')
 
-            if c not in '0123456789abcdefABCDEF':
-                self._raise('Illegal identifier escape')
+        return chr(int(ux, 16))
 
-            ux.append(c)
+    def _do_extended_ident(self):
+        parts: list[str] = []
 
-        return chr(int(''.join(ux), 16))
-
-    def _do_extended_ident(self, c: str):
-        check.state(self._buf.tell() == 0)
-
+        c = self._s[self._i]
         if c == '\\':
+            self._i += 1
             c = yield from self._do_unicode_escape()
-
         elif not (c in '$_' or unicodedata.category(c).startswith('L')):
             self._raise('Illegal identifier start')
-
-        self._buf.write(c)
+        else:
+            self._i += 1
+        parts.append(c)
 
         pos = self.pos
 
         while True:
-            try:
-                if (c := self._str_char_in()) is None:  # type: ignore[assignment]
-                    c = self._yield_char_in((yield None))  # noqa
-            except GeneratorExit:
-                self._raise('Unexpected end of input')
-
-            if c == '\\':
-                c = yield from self._do_unicode_escape()
-                self._buf.write(c)
+            if (i := self._i) >= len(self._s):
+                if not (yield from self._more()):
+                    break
                 continue
 
-            if not c:
-                break
+            c = self._s[i]
+
+            if c == '\\':
+                self._i = i + 1
+                c = yield from self._do_unicode_escape()
+                parts.append(c)
+                continue
 
             if c not in '$_\u200C\u200D':
                 uc = unicodedata.category(c)
                 if not (uc.startswith(('L', 'M', 'N')) or uc == 'Pc'):
                     break
 
-            self._buf.write(c)
+            parts.append(c)
+            self._i = i + 1
 
-        raw = self._flip_buf()
+        raw = ''.join(parts)
 
         yield self._make_tok('IDENT', raw, raw, pos)
 
-        return self._do_main(c)
+        return self._do_main()
 
     def _do_comment(self):
-        check.state(self._buf.tell() == 0)
+        o = self._base_ofs + self._i + 1
+        pos = Position(o, self._line, o - self._line_start)
+        self._i += 1  # the opening '/'
 
-        pos = self.pos
-        try:
-            if (oc := self._str_char_in()) is None:
-                oc = self._yield_char_in((yield None))  # noqa
-        except GeneratorExit:
-            self._raise('Unexpected end of input')
+        include = self._include_comments
+        parts: list[str] = []
 
+        oc = yield from self._read_chars(1)
         if oc == '/':
+            terminated = False
             while True:
-                try:
-                    if (ic := self._str_char_in()) is None:
-                        ic = self._yield_char_in((yield None))  # noqa
-                except GeneratorExit:
-                    self._raise('Unexpected end of input')
+                s = self._s
+                i = self._i
+                if i >= len(s):
+                    if not (yield from self._more()):
+                        break
+                    continue
 
-                if not ic or ic == '\n':
+                if (nl := s.find('\n', i)) >= 0:
+                    if include:
+                        parts.append(s[i:nl])
+                    self._consume_to(nl + 1)
+                    terminated = True
                     break
 
-                if self._include_comments:
-                    self._buf.write(ic)
+                if include:
+                    parts.append(s[i:])
+                self._consume_to(len(s))
 
-            if self._include_comments:
-                cmt = self._flip_buf()
+            if include:
+                cmt = ''.join(parts)
                 raw = f'//{cmt}\n' if self._include_raw else None
                 yield self._make_tok('COMMENT', cmt, raw, pos)
 
-            if not ic:
-                return
+            if not terminated:
+                return None
+
+            return self._do_main()
 
         elif oc == '*':
-            lc: str | None = None
+            star = False  # a '*' held back at a buffer boundary
             while True:
-                try:
-                    if (ic := self._str_char_in()) is None:
-                        ic = self._yield_char_in((yield None))  # noqa
-                except GeneratorExit:
-                    self._raise('Unexpected end of input')
+                s = self._s
+                i = self._i
+                sl = len(s)
+                if i >= sl:
+                    if not (yield from self._more()):
+                        self._raise('Unexpected end of input')
+                    continue
 
-                if lc == '*' and ic == '/':
+                if star:
+                    if s[i] == '/':
+                        self._i = i + 1
+                        break
+                    if include:
+                        parts.append('*')
+                    star = False
+                    continue
+
+                if (fp := s.find('*/', i)) >= 0:
+                    if include:
+                        parts.append(s[i:fp])
+                    self._consume_to(fp + 2)
                     break
 
-                if lc is not None and self._include_comments:
-                    self._buf.write(lc)
-                lc = ic
+                e = sl
+                if s[sl - 1] == '*':
+                    e = sl - 1
+                    star = True
+                if include:
+                    parts.append(s[i:e])
+                self._consume_to(sl)
 
-            if self._include_comments:
-                cmt = self._flip_buf()
+            if include:
+                cmt = ''.join(parts)
                 raw = f'/*{cmt}*/' if self._include_raw else None
                 yield self._make_tok('COMMENT', cmt, raw, pos)
 
+            return self._do_main()
+
         else:
             self._raise(f'Unexpected character after comment start: {oc}')
-
-        return self._do_main()
