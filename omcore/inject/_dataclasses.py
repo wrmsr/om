@@ -813,6 +813,84 @@ def _process_dataclass__d43eaf7e550de17fc6936c19e4e5aa545c8a93d8():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('scope', 'key')), EqPlan(fields=('scope', 'key')), HashPlan(action='set_none', fie"
+        "lds=None, cache=None), InitPlan(fields=(InitPlan.Field(name='scope', annotation=OpRef(name='init.fields.0.anno"
+        "tation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
+        "=None, validate=None, check_type=None), InitPlan.Field(name='key', annotation=OpRef(name='init.fields.1.annota"
+        "tion'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_ty"
+        "pe=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('scope', "
+        "'key'), kw_only_params=(), frozen=False, slots=False, post_init_params=None, init_fns=(), validate_fns=()), Re"
+        "prPlan(fields=(ReprPlan.Field(name='scope', kw_only=False, fn=None), ReprPlan.Field(name='key', kw_only=False,"
+        " fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='a882947135bf043f07a1ee49890d343fe5c01b9e',
+    cls_names=(
+        ('omcore.inject.errors', 'ScopeEagerUnsupportedError'),
+    ),
+)
+def _process_dataclass__a882947135bf043f07a1ee49890d343fe5c01b9e():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                scope=self.scope,
+                key=self.key,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.scope == other.scope and
+                self.key == other.key
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            scope: __dataclass__init__fields__0__annotation,
+            key: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+        ) -> __dataclass__None:
+            self.scope = scope
+            self.key = key
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"scope={self.scope!r}")
+            parts.append(f"key={self.key!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('v',)), FrozenPlan(fields=('v',), allow_dynamic_dunder_attrs=False), InitPlan(fiel"
         "ds=(InitPlan.Field(name='v', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory="
         "None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),)"

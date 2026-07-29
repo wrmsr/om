@@ -34,6 +34,9 @@ else:
     _injector = lang.proxy_import('.injector', __package__)
 
 
+ScopeT = ta.TypeVar('ScopeT', bound=Scope)
+
+
 ##
 
 
@@ -48,58 +51,82 @@ class EagerInstantiationPoint(enum.Enum):
     SCOPE_OPEN = enum.auto()
 
 
-class ScopeImpl(lang.Abstract):
-    eager_point: ta.ClassVar[EagerInstantiationPoint | None] = None
-
-    @property
+class ScopeImpl(lang.Abstract, ta.Generic[ScopeT]):
+    @classmethod
     @abc.abstractmethod
-    def scope(self) -> Scope:
+    def scope_cls(cls) -> type[ScopeT]:
         raise NotImplementedError
 
-    def auto_elements(self) -> Elements | None:
+    @classmethod
+    def eager_point(cls) -> EagerInstantiationPoint | None:
         return None
+
+    @classmethod
+    def auto_elements(cls, scope: ScopeT) -> Elements | None:  # noqa
+        return None
+
+    #
+
+    def __init__(self, scope: ScopeT) -> None:
+        super().__init__()
+
+        self._scope = check.isinstance(scope, self.scope_cls())
+
+    @property
+    def scope(self) -> ScopeT:
+        return self._scope
 
     @abc.abstractmethod
     def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Awaitable[ta.Any]:
         raise NotImplementedError
 
 
-class UnscopedScopeImpl(ScopeImpl, lang.Final):
-    eager_point = EagerInstantiationPoint.INJECTOR_INIT
+class UnscopedScopeImpl(ScopeImpl[Unscoped], lang.Final):
+    @classmethod
+    def scope_cls(cls) -> type[Unscoped]:
+        return Unscoped
 
-    @property
-    def scope(self) -> Unscoped:
-        return Unscoped()
+    @classmethod
+    def eager_point(cls) -> EagerInstantiationPoint | None:
+        return EagerInstantiationPoint.INJECTOR_INIT
+
+    #
 
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
         return await binding.provider.provide(injector)
 
 
-class SingletonScopeImpl(ScopeImpl, lang.Final):
-    eager_point = EagerInstantiationPoint.INJECTOR_INIT
+class SingletonScopeImpl(ScopeImpl[Singleton], lang.Final):
+    @classmethod
+    def scope_cls(cls) -> type[Singleton]:
+        return Singleton
 
-    def __init__(self) -> None:
-        super().__init__()
+    @classmethod
+    def eager_point(cls) -> EagerInstantiationPoint | None:
+        return EagerInstantiationPoint.INJECTOR_INIT
+
+    #
+
+    def __init__(self, scope: Singleton) -> None:
+        super().__init__(scope)
 
         self._om = OnceProvisionMap()
-
-    @property
-    def scope(self) -> Singleton:
-        return Singleton()
 
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
         return await self._om.provide(binding, injector)
 
 
-class ThreadScopeImpl(ScopeImpl, lang.Final):
-    def __init__(self) -> None:
-        super().__init__()
+class ThreadScopeImpl(ScopeImpl[ThreadScope], lang.Final):
+    @classmethod
+    def scope_cls(cls) -> type[ThreadScope]:
+        return ThreadScope
+
+    #
+
+    def __init__(self, scope: ThreadScope) -> None:
+        super().__init__(scope)
 
         self._local = threading.local()
-
-    @property
-    def scope(self) -> ThreadScope:
-        return ThreadScope()
 
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
         dct: dict[BindingImpl, ta.Any]
@@ -133,61 +160,65 @@ class ScopeSeededProviderImpl(ProviderImpl):
         return ssi.must_state().seeds[self.p.key]
 
 
-class SeededScopeImpl(ScopeImpl):
-    eager_point = EagerInstantiationPoint.SCOPE_OPEN
+class SeededScopeImpl(ScopeImpl[SeededScope]):
+    @classmethod
+    def scope_cls(cls) -> type[SeededScope]:
+        return SeededScope
+
+    @classmethod
+    def eager_point(cls) -> EagerInstantiationPoint | None:
+        return EagerInstantiationPoint.SCOPE_OPEN
+
+    @classmethod
+    def auto_elements(cls, scope: SeededScope) -> Elements:
+        return as_elements(
+            Binding(
+                as_key(SeededScope.Manager, tag=scope),
+                FnProvider(lang.typed_partial(SeededScopeImpl.Manager, scope=scope)),
+                scope=Singleton(),
+            ),
+        )
+
+    #
 
     @dc.dataclass(frozen=True)
     class State:
         seeds: dict[Key, ta.Any]
         om: OnceProvisionMap = dc.field(default_factory=OnceProvisionMap)
 
-    def __init__(self, ss: SeededScope) -> None:
-        super().__init__()
+    def __init__(self, scope: SeededScope) -> None:
+        super().__init__(scope)
 
-        self._ss = check.isinstance(ss, SeededScope)
         self._st_mtx = threading.Lock()
         self._st: SeededScopeImpl.State | None = None
 
-    @property
-    def scope(self) -> SeededScope:
-        return self._ss
-
     def must_state(self) -> SeededScopeImpl.State:
         if (st := self._st) is None:
-            raise ScopeNotOpenError(self._ss)
+            raise ScopeNotOpenError(self._scope)
         return st
 
     class Manager(SeededScope.Manager, lang.Final):
-        def __init__(self, ss: SeededScope, i: AsyncInjector) -> None:
+        def __init__(self, scope: SeededScope, i: AsyncInjector) -> None:
             super().__init__()
 
-            self._ss = check.isinstance(ss, SeededScope)
+            self._scope = check.isinstance(scope, SeededScope)
             self._ii = check.isinstance(i, _injector.AsyncInjectorImpl)
-            self._ssi = check.isinstance(self._ii.get_scope_impl(self._ss), SeededScopeImpl)
+            self._ssi = check.isinstance(self._ii.get_scope_impl(self._scope), SeededScopeImpl)
 
         def __call__(self, seeds: ta.Mapping[Key, ta.Any]) -> ta.AsyncContextManager[None]:
             @contextlib.asynccontextmanager
             async def inner():
                 with self._ssi._st_mtx:  # noqa
                     if self._ssi._st is not None:  # noqa
-                        raise ScopeAlreadyOpenError(self._ss)
+                        raise ScopeAlreadyOpenError(self._scope)
                     self._ssi._st = SeededScopeImpl.State(dict(seeds))  # noqa
                 try:
-                    await self._ii._instantiate_eagers(self._ss)  # noqa
+                    await self._ii._instantiate_eagers(self._scope)  # noqa
                     yield
                 finally:
                     with self._ssi._st_mtx:  # noqa
                         self._ssi._st = None  # noqa
             return inner()
-
-    def auto_elements(self) -> Elements:
-        return as_elements(
-            Binding(
-                as_key(SeededScope.Manager, tag=self._ss),
-                FnProvider(lang.typed_partial(SeededScopeImpl.Manager, ss=self._ss)),
-                scope=Singleton(),
-            ),
-        )
 
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
         st = self.must_state()
@@ -197,20 +228,25 @@ class SeededScopeImpl(ScopeImpl):
 ##
 
 
-SCOPE_IMPLS_BY_SCOPE: dict[type[Scope], ta.Callable[..., ScopeImpl]] = {
-    Unscoped: lambda _: UnscopedScopeImpl(),
-    Singleton: lambda _: SingletonScopeImpl(),
-    ThreadScope: lambda _: ThreadScopeImpl(),
-    SeededScope: lambda s: SeededScopeImpl(s),
+SCOPE_IMPLS: ta.Final[ta.Sequence[type[ScopeImpl]]] = [
+    UnscopedScopeImpl,
+    SingletonScopeImpl,
+    ThreadScopeImpl,
+    SeededScopeImpl,
+]
+
+
+SCOPE_IMPLS_BY_SCOPE: ta.Final[ta.Mapping[type[Scope], type[ScopeImpl]]] = {
+    si.scope_cls(): si for si in SCOPE_IMPLS
 }
 
 
-def make_scope_impl(s: Scope) -> ScopeImpl:
+def get_scope_impl(s: Scope) -> type[ScopeImpl]:
     try:
-        fac = SCOPE_IMPLS_BY_SCOPE[type(s)]
+        return SCOPE_IMPLS_BY_SCOPE[type(s)]
     except KeyError:
-        pass
-    else:
-        return fac(s)
+        raise TypeError(s) from None
 
-    raise TypeError(s)
+
+def make_scope_impl(s: Scope) -> ScopeImpl:
+    return get_scope_impl(s)(s)

@@ -50,7 +50,7 @@ from .origins import Origins
 from .origins import set_origins
 from .providers import ProviderImpl
 from .providersmap import make_provider_impl
-from .scopes import make_scope_impl
+from .scopes import get_scope_impl
 
 
 if ta.TYPE_CHECKING:
@@ -111,7 +111,7 @@ class ElementCollection(CollectedElements, lang.Final):
             return self._scope_auto_elements[sc]
         except KeyError:
             pass
-        self._scope_auto_elements[sc] = sae = make_scope_impl(sc).auto_elements()
+        self._scope_auto_elements[sc] = sae = get_scope_impl(sc).auto_elements(sc)
         return sae
 
     ##
@@ -250,7 +250,7 @@ class ElementCollection(CollectedElements, lang.Final):
         # Temporary impls, as with _get_scope_auto_elements - eagerability is declared by the impl, and the injector's
         # long-lived impls don't exist at collection time.
         for sc, egs in dct.items():
-            if make_scope_impl(sc).eager_point is None:
+            if get_scope_impl(sc).eager_point() is None:
                 raise ScopeEagerUnsupportedError(sc, egs[0].key)
 
         return {
