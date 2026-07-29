@@ -1,8 +1,8 @@
-from ..json import render_obj_json_ui_text
+from ..json import render_obj_json_text
 
 
 def test_render():
-    t = render_obj_json_ui_text({
+    t = render_obj_json_text({
         'hi': ['there', '!'],
     })
 

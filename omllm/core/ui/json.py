@@ -6,20 +6,20 @@ from omcore.formats import json5
 from omcore.formats.json import all as json
 from omcore.formats.json.rendering import JsonRenderer
 
-from .text import CanUiText
-from .text import ConcatUiText
-from .text import JsonUiText
-from .text import StrUiText
-from .text import StyleUiText
-from .text import UiText
-from .text import UiTextStyle
+from .text import CanText
+from .text import ConcatText
+from .text import JsonText
+from .text import StrText
+from .text import StyleText
+from .text import Text
+from .text import TextStyle
 
 
 ##
 
 
 @dc.dataclass(frozen=True)
-class JsonUiTextRendering:
+class JsonTextRendering:
     mode: ta.Literal['pretty', 'compact', None] = None
 
     _: dc.KW_ONLY
@@ -35,7 +35,7 @@ class _StyleRendererOut:
     def __init__(self) -> None:
         super().__init__()
 
-        self._stack: list[tuple[_StyleRendererOut.Op | None, list[CanUiText]]] = [(None, [])]
+        self._stack: list[tuple[_StyleRendererOut.Op | None, list[CanText]]] = [(None, [])]
 
     class Op(ta.NamedTuple):  # noqa
         mode: ta.Literal['open', 'close']
@@ -61,14 +61,14 @@ class _StyleRendererOut:
 
                 match s.item:
                     case 'key':
-                        sty = UiTextStyle(color='blue')
+                        sty = TextStyle(color='blue')
                     case 'str':
-                        sty = UiTextStyle(color='green')
+                        sty = TextStyle(color='green')
                     case _:
                         raise ValueError(s.item)
 
-                tx = StyleUiText(
-                    UiText.of(*lst),
+                tx = StyleText(
+                    Text.of(*lst),
                     sty,
                 )
 
@@ -83,16 +83,16 @@ class _StyleRendererOut:
         else:
             raise TypeError(s)
 
-    def build(self) -> UiText:
+    def build(self) -> Text:
         (op, lst) = check.single(self._stack)
         check.none(op)
-        return UiText.of(*lst)
+        return Text.of(*lst)
 
 
-def render_obj_json_ui_text(
+def render_obj_json_text(
         obj: ta.Any,
-        args: JsonUiTextRendering = JsonUiTextRendering(),
-) -> UiText:
+        args: JsonTextRendering = JsonTextRendering(),
+) -> Text:
     cls: ta.Any
     if args.five:
         cls = json5.Json5Renderer
@@ -125,24 +125,24 @@ def render_obj_json_ui_text(
 ##
 
 
-def render_json_ui_texts(
-        root: UiText,
-        args: JsonUiTextRendering = JsonUiTextRendering(),
-) -> UiText:
-    def rec(cur: UiText) -> CanUiText:
-        if isinstance(cur, StrUiText):
+def render_json_texts(
+        root: Text,
+        args: JsonTextRendering = JsonTextRendering(),
+) -> Text:
+    def rec(cur: Text) -> CanText:
+        if isinstance(cur, StrText):
             return cur
 
-        elif isinstance(cur, StyleUiText):
-            return StyleUiText(UiText.of(rec(cur.c)), cur.y)
+        elif isinstance(cur, StyleText):
+            return StyleText(Text.of(rec(cur.c)), cur.y)
 
-        elif isinstance(cur, ConcatUiText):
+        elif isinstance(cur, ConcatText):
             return [rec(ch) for ch in cur.l]
 
-        elif isinstance(cur, JsonUiText):
-            return render_obj_json_ui_text(cur.v, args)
+        elif isinstance(cur, JsonText):
+            return render_obj_json_text(cur.v, args)
 
         else:
             raise TypeError(cur)
 
-    return UiText.of(rec(root))
+    return Text.of(rec(root))

@@ -5,17 +5,17 @@ with _lang.auto_proxy_init(globals()):
     ##
 
     from .display import (  # noqa
-        UiTextDisplayer,
-        NopUiTextDisplayer,
-        PrintUiTextDisplayer,
+        TextDisplayer,
+        NopTextDisplayer,
+        PrintTextDisplayer,
     )
 
     from .json import (  # noqa
-        JsonUiTextRendering,
+        JsonTextRendering,
 
-        render_obj_json_ui_text,
+        render_obj_json_text,
 
-        render_json_ui_texts,
+        render_json_texts,
     )
 
     from .rich import (  # noqa
@@ -23,16 +23,16 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .text import (  # noqa
-        CanUiText,
+        CanText,
 
-        UiTextColor,
-        UiTextStyle,
+        TextColor,
+        TextStyle,
 
-        UiText,
-        StrUiText,
-        ConcatUiText,
-        StyleUiText,
-        JsonUiText,
-        MarkdownUiText,
-        DiffUiText,
+        Text,
+        StrText,
+        ConcatText,
+        StyleText,
+        JsonText,
+        MarkdownText,
+        DiffText,
     )

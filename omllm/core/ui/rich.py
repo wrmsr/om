@@ -1,34 +1,34 @@
 from omdev.tui import rich
 
-from .text import CanUiText
-from .text import ConcatUiText
-from .text import DiffUiText
-from .text import StrUiText
-from .text import StyleUiText
-from .text import UiText
-from .text import UiTextStyle
+from .text import CanText
+from .text import ConcatText
+from .text import DiffText
+from .text import StrText
+from .text import StyleText
+from .text import Text
+from .text import TextStyle
 
 
 ##
 
 
-def ui_text_to_rich_text(t: CanUiText) -> rich.Text:
-    """Convert UiText tree into rich.Text with correct nested style inheritance."""
+def ui_text_to_rich_text(t: CanText) -> rich.Text:
+    """Convert Text tree into rich.Text with correct nested style inheritance."""
 
-    root = UiText.of(t)
+    root = Text.of(t)
     out = rich.Text()
 
     def merge_style(
-            parent: UiTextStyle,
-            child: UiTextStyle,
-    ) -> UiTextStyle:
-        return UiTextStyle(
+            parent: TextStyle,
+            child: TextStyle,
+    ) -> TextStyle:
+        return TextStyle(
             color=child.color if child.color is not None else parent.color,
             bold=child.bold if child.bold is not None else parent.bold,
             italic=child.italic if child.italic is not None else parent.italic,
         )
 
-    def to_rich_style(s: UiTextStyle) -> rich.Style | None:
+    def to_rich_style(s: TextStyle) -> rich.Style | None:
         if (
                 s.color is None and
                 s.bold is None and
@@ -42,20 +42,20 @@ def ui_text_to_rich_text(t: CanUiText) -> rich.Text:
             italic=s.italic,
         )
 
-    def visit(node: UiText, style: UiTextStyle) -> None:
-        if isinstance(node, StrUiText):
+    def visit(node: Text, style: TextStyle) -> None:
+        if isinstance(node, StrText):
             if node.s:
                 out.append(node.s, style=to_rich_style(style))
 
-        elif isinstance(node, ConcatUiText):
+        elif isinstance(node, ConcatText):
             for c in node.l:
                 visit(c, style)
 
-        elif isinstance(node, StyleUiText):
+        elif isinstance(node, StyleText):
             new_style = merge_style(style, node.y)
             visit(node.c, new_style)
 
-        elif isinstance(node, DiffUiText):
+        elif isinstance(node, DiffText):
             for l in node.diff_lines:
                 if not l.endswith('\n'):
                     l += '\n'
@@ -72,6 +72,6 @@ def ui_text_to_rich_text(t: CanUiText) -> rich.Text:
         else:
             raise TypeError(node)
 
-    visit(root, UiTextStyle.DEFAULT)
+    visit(root, TextStyle.DEFAULT)
 
     return out

@@ -3,24 +3,24 @@ import typing as ta
 
 from omcore import lang
 
-from .text import CanUiText
-from .text import UiText
+from .text import CanText
+from .text import Text
 
 
 ##
 
 
-class UiTextDisplayer(lang.Abstract):
+class TextDisplayer(lang.Abstract):
     @abc.abstractmethod
-    def display_ui_text(self, text: CanUiText) -> ta.Awaitable[None]:
+    def display_text(self, text: CanText) -> ta.Awaitable[None]:
         pass
 
 
-class NopUiTextDisplayer(UiTextDisplayer):
-    async def display_ui_text(self, text: CanUiText) -> None:
+class NopTextDisplayer(TextDisplayer):
+    async def display_text(self, text: CanText) -> None:
         pass
 
 
-class PrintUiTextDisplayer(UiTextDisplayer):
-    async def display_ui_text(self, text: CanUiText) -> None:
-        print(UiText.str_of(text))
+class PrintTextDisplayer(TextDisplayer):
+    async def display_text(self, text: CanText) -> None:
+        print(Text.str_of(text))

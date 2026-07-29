@@ -6,7 +6,7 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.argparse import all as ap
 
-from ...core.ui.text import CanUiText
+from ...core import ui
 
 
 ##
@@ -87,7 +87,7 @@ class Command(lang.Abstract):
 
     @dc.dataclass(frozen=True, kw_only=True)
     class Context:
-        print: ta.Callable[[CanUiText], ta.Awaitable[None]]
+        print: ta.Callable[[ui.CanText], ta.Awaitable[None]]
 
     @ta.final
     async def run(self, ctx: Context, argv: list[str]) -> None:

@@ -4,7 +4,7 @@ import typing as ta
 
 from omcore import collections as col
 
-from ...core.ui import UiTextDisplayer
+from ...core import ui
 from .base import Command
 from .base import Commands
 
@@ -22,7 +22,7 @@ class CommandsManager:
             self,
             *,
             commands: Commands,
-            ui_text_displayer: UiTextDisplayer,
+            ui_text_displayer: ui.TextDisplayer,
     ) -> None:
         super().__init__()
 
@@ -40,7 +40,7 @@ class CommandsManager:
         try:
             parts = shlex.split(text)
         except ValueError as e:
-            await self._ui_text_displayer.display_ui_text(f'Invalid command syntax: {e}')
+            await self._ui_text_displayer.display_text(f'Invalid command syntax: {e}')
             return RunCommandResult.FAILURE
 
         if not parts:
@@ -51,11 +51,11 @@ class CommandsManager:
 
         command = self._commands_by_name.get(cmd)
         if not command:
-            await self._ui_text_displayer.display_ui_text(f'Unknown command: {cmd}')
+            await self._ui_text_displayer.display_text(f'Unknown command: {cmd}')
             return RunCommandResult.FAILURE
 
         ctx = Command.Context(
-            print=self._ui_text_displayer.display_ui_text,
+            print=self._ui_text_displayer.display_text,
         )
 
         await command.run(ctx, argv)

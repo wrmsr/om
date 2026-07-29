@@ -385,7 +385,7 @@ def _process_dataclass__bde0c0d91a4b571f45125653c50284e13fe42448():
     ),
     plan_repr_sha1='8062e6b592d552c879ea83331512fd13fc8fe85f',
     cls_names=(
-        ('omllm.core.ui.json', 'JsonUiTextRendering'),
+        ('omllm.core.ui.json', 'JsonTextRendering'),
     ),
 )
 def _process_dataclass__8062e6b592d552c879ea83331512fd13fc8fe85f():
@@ -506,7 +506,7 @@ def _process_dataclass__8062e6b592d552c879ea83331512fd13fc8fe85f():
     ),
     plan_repr_sha1='30c3cfbd3078ff6d612c66f613e50ddf96bca5cc',
     cls_names=(
-        ('omllm.core.ui.text', 'ConcatUiText'),
+        ('omllm.core.ui.text', 'ConcatText'),
     ),
 )
 def _process_dataclass__30c3cfbd3078ff6d612c66f613e50ddf96bca5cc():
@@ -611,7 +611,7 @@ def _process_dataclass__30c3cfbd3078ff6d612c66f613e50ddf96bca5cc():
     ),
     plan_repr_sha1='bbb61553f91e97994ae73c51122983ac4dff8df4',
     cls_names=(
-        ('omllm.core.ui.text', 'DiffUiText'),
+        ('omllm.core.ui.text', 'DiffText'),
     ),
 )
 def _process_dataclass__bbb61553f91e97994ae73c51122983ac4dff8df4():
@@ -741,7 +741,7 @@ def _process_dataclass__bbb61553f91e97994ae73c51122983ac4dff8df4():
     ),
     plan_repr_sha1='e6ae81c2c73b7f811842161edf907181205cc27a',
     cls_names=(
-        ('omllm.core.ui.text', 'JsonUiText'),
+        ('omllm.core.ui.text', 'JsonText'),
     ),
 )
 def _process_dataclass__e6ae81c2c73b7f811842161edf907181205cc27a():
@@ -853,8 +853,8 @@ def _process_dataclass__e6ae81c2c73b7f811842161edf907181205cc27a():
     ),
     plan_repr_sha1='f4e6b81cb21510ffec9598279f74b9afddc6c1de',
     cls_names=(
-        ('omllm.core.ui.text', 'MarkdownUiText'),
-        ('omllm.core.ui.text', 'StrUiText'),
+        ('omllm.core.ui.text', 'MarkdownText'),
+        ('omllm.core.ui.text', 'StrText'),
     ),
 )
 def _process_dataclass__f4e6b81cb21510ffec9598279f74b9afddc6c1de():
@@ -968,7 +968,7 @@ def _process_dataclass__f4e6b81cb21510ffec9598279f74b9afddc6c1de():
     ),
     plan_repr_sha1='82bc12cdc7d90d1a2cc323667faa10c3124d2d9d',
     cls_names=(
-        ('omllm.core.ui.text', 'StyleUiText'),
+        ('omllm.core.ui.text', 'StyleText'),
     ),
 )
 def _process_dataclass__82bc12cdc7d90d1a2cc323667faa10c3124d2d9d():
@@ -1087,7 +1087,7 @@ def _process_dataclass__82bc12cdc7d90d1a2cc323667faa10c3124d2d9d():
     ),
     plan_repr_sha1='32aca8223fa20a902d4408c1bd046d52b1c41318',
     cls_names=(
-        ('omllm.core.ui.text', 'UiText'),
+        ('omllm.core.ui.text', 'Text'),
     ),
 )
 def _process_dataclass__32aca8223fa20a902d4408c1bd046d52b1c41318():
@@ -1181,7 +1181,7 @@ def _process_dataclass__32aca8223fa20a902d4408c1bd046d52b1c41318():
     ),
     plan_repr_sha1='aaaaf67b231f933c820a9536a9ad09676619608d',
     cls_names=(
-        ('omllm.core.ui.text', 'UiTextStyle'),
+        ('omllm.core.ui.text', 'TextStyle'),
     ),
 )
 def _process_dataclass__aaaaf67b231f933c820a9536a9ad09676619608d():
