@@ -411,10 +411,6 @@ class IoPipelineHandlerContext:
 
     @property
     def ref(self) -> IoPipelineHandlerRef_:
-        return self._ref
-
-    @property
-    def _ref(self) -> IoPipelineHandlerRef_:
         if (ref_ref := self.__ref_ref) is not None and (ref := ref_ref()) is not None:
             return ref
 
@@ -558,24 +554,24 @@ class IoPipelineHandlerContext:
 
     def _inbound(self, msg: ta.Any) -> None:
         check.state(not self._invalidated, ContextInvalidatedIoPipelineError)
-        check.state(self._pipeline._state == IoPipeline.State.READY and self._pipeline._execution_depth > 0)  # noqa
+        check.state((pipeline := self._pipeline)._state == IoPipeline.State.READY and pipeline._execution_depth > 0)  # noqa
 
         check.not_isinstance(msg, self._FORBIDDEN_INBOUND_TYPES)
 
-        if (mt := self._pipeline._message_tap) is not None:  # noqa
+        if (mt := pipeline._message_tap) is not None:  # noqa
             mt(self, 'inbound', msg)
 
         if isinstance(msg, IoPipelineMessages.MustPropagate):
-            self._pipeline._propagation.add_must(self, 'inbound', msg)  # noqa
+            pipeline._propagation.add_must(self, 'inbound', msg)  # noqa
 
         try:
             self._handler.inbound(self, msg)
 
-        except self._pipeline._all_never_handle_exceptions:  # type: ignore[misc]  # noqa
+        except pipeline._all_never_handle_exceptions:  # type: ignore[misc]  # noqa
             raise
 
         except BaseException as e:
-            if self._handling_error or self._pipeline._config.raise_immediately:  # noqa
+            if self._handling_error or pipeline._config.raise_immediately:  # noqa
                 raise
             self._handle_error(e, 'inbound')
 
@@ -588,23 +584,23 @@ class IoPipelineHandlerContext:
 
     def _outbound(self, msg: ta.Any) -> None:
         check.state(not self._invalidated, ContextInvalidatedIoPipelineError)
-        check.state(self._pipeline._state == IoPipeline.State.READY and self._pipeline._execution_depth > 0)  # noqa
+        check.state((pipeline := self._pipeline)._state == IoPipeline.State.READY and pipeline._execution_depth > 0)  # noqa
 
         check.not_isinstance(msg, self._FORBIDDEN_OUTBOUND_TYPES)
 
-        if (mt := self._pipeline._message_tap) is not None:  # noqa
+        if (mt := pipeline._message_tap) is not None:  # noqa
             mt(self, 'outbound', msg)
 
         try:
             if isinstance(msg, IoPipelineMessages.Completable):
-                msg._bind_pipeline(self._pipeline)  # noqa
+                msg._bind_pipeline(pipeline)  # noqa
 
             if isinstance(msg, IoPipelineMessages.MustPropagate):
-                self._pipeline._propagation.add_must(self, 'outbound', msg)  # noqa
+                pipeline._propagation.add_must(self, 'outbound', msg)  # noqa
 
             self._handler.outbound(self, msg)
 
-        except self._pipeline._all_never_handle_exceptions as e:  # type: ignore[misc]  # noqa
+        except pipeline._all_never_handle_exceptions as e:  # type: ignore[misc]  # noqa
             if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():
                 msg.set_failed(e)
             raise
@@ -612,7 +608,7 @@ class IoPipelineHandlerContext:
         except BaseException as e:
             if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():
                 msg.set_failed(e)
-            if self._handling_error or self._pipeline._config.raise_immediately:  # noqa
+            if self._handling_error or pipeline._config.raise_immediately:  # noqa
                 raise
             self._handle_error(e, 'outbound')
 
@@ -620,7 +616,7 @@ class IoPipelineHandlerContext:
 
     def _run_deferred(self, dfl: IoPipelineMessages.Defer) -> None:
         check.state(not self._invalidated, ContextInvalidatedIoPipelineError)
-        check.state(self._pipeline._state == IoPipeline.State.READY and self._pipeline._execution_depth > 0)  # noqa
+        check.state((pipeline := self._pipeline)._state == IoPipeline.State.READY and pipeline._execution_depth > 0)  # noqa
 
         check.state(dfl._ctx is self)  # noqa
 
@@ -630,13 +626,13 @@ class IoPipelineHandlerContext:
             else:
                 res = dfl.fn(self)  # type: ignore[call-arg]
 
-        except self._pipeline._all_never_handle_exceptions:  # type: ignore[misc]  # noqa
+        except pipeline._all_never_handle_exceptions:  # type: ignore[misc]  # noqa
             raise
 
         except BaseException as e:  # noqa
             dfl.set_failed(e)
 
-            if self._handling_error or self._pipeline._config.raise_immediately:  # noqa
+            if self._handling_error or pipeline._config.raise_immediately:  # noqa
                 raise
             self._handle_error(e, 'inbound')
 
@@ -653,7 +649,7 @@ class IoPipelineHandlerContext:
 
         try:
             try:
-                self.feed_in(IoPipelineMessages.Error(e, direction, self._ref))
+                self.feed_in(IoPipelineMessages.Error(e, direction, self.ref))
 
             except self._pipeline._all_never_handle_exceptions:  # type: ignore[misc]  # noqa
                 raise
@@ -1067,7 +1063,7 @@ class _IoPipelinePropagation:
             raise MessageNotPropagatedIoPipelineError.new_single(
                 direction,
                 msg,
-                last_seen=ctx._ref,  # noqa
+                last_seen=ctx.ref,  # noqa
             ) from None
 
         if (
@@ -1078,7 +1074,7 @@ class _IoPipelinePropagation:
             raise MessageNotPropagatedIoPipelineError.new_single(
                 direction,
                 msg,
-                last_seen=ctx._ref,  # noqa
+                last_seen=ctx.ref,  # noqa
             )
 
     def check_and_clear(self) -> None:
@@ -1093,7 +1089,7 @@ class _IoPipelinePropagation:
 
         for x in self._pending_must.values():
             if x.pinned_by is None:
-                (il if x.direction == 'inbound' else ol).append((x.msg, x.last_seen._ref))  # noqa
+                (il if x.direction == 'inbound' else ol).append((x.msg, x.last_seen.ref))  # noqa
 
         if not (il or ol):
             return
@@ -1533,7 +1529,7 @@ class IoPipeline:
 
     def _handler_update(self, ctx: IoPipelineHandlerContext, kind: IoPipelineHandlerUpdate) -> None:
         for svc in self._services._handles_handler_update:  # noqa
-            svc.handler_update(ctx._ref, kind)  # noqa
+            svc.handler_update(ctx.ref, kind)  # noqa
 
     #
 
@@ -1644,7 +1640,7 @@ class IoPipeline:
         # FIXME: exceptions?
         self._notify(ctx, IoPipelineHandlerNotifications.Added(ctx))
 
-        return ctx._ref  # noqa
+        return ctx.ref  # noqa
 
     def add_innermost(
             self,
@@ -1810,7 +1806,7 @@ class IoPipeline:
                     contexts.append(ctx)
                 self._handler_contexts = contexts
 
-            return [ctx._ref for ctx in contexts]  # noqa
+            return [ctx.ref for ctx in contexts]  # noqa
 
         _handler_contexts_by_name: ta.Mapping[str, IoPipelineHandlerContext]
 
@@ -1825,7 +1821,7 @@ class IoPipeline:
                         contexts_by_name[n] = ctx
                 self._handler_contexts_by_name = contexts_by_name
 
-            return {name: ctx._ref for name, ctx in contexts_by_name.items()}  # noqa
+            return {name: ctx.ref for name, ctx in contexts_by_name.items()}  # noqa
 
         def find_handlers_of_type(self, ty: ta.Type[T]) -> ta.Sequence[IoPipelineHandlerRef[T]]:
             try:
@@ -1838,7 +1834,7 @@ class IoPipeline:
                         contexts.append(ctx)
                 self._handlers_by_type_cache[ty] = contexts
 
-            return [ctx._ref for ctx in contexts]  # type: ignore[misc]  # noqa
+            return [ctx.ref for ctx in contexts]  # type: ignore[misc]  # noqa
 
         def find_single_handler_of_type(self, ty: ta.Type[T]) -> ta.Optional[IoPipelineHandlerRef[T]]:
             try:
@@ -1849,7 +1845,7 @@ class IoPipeline:
                 self._single_handlers_by_type_cache[ty] = None if ref is None else ref._context  # noqa
                 return ref
 
-            return None if ctx is None else ctx._ref  # type: ignore[return-value]  # noqa
+            return None if ctx is None else ctx.ref  # type: ignore[return-value]  # noqa
 
     __caches: _Caches
 
@@ -1917,7 +1913,7 @@ class IoPipeline:
             ctx = self._outermost
             while (ctx := ctx._next_in) is not self._innermost:  # noqa
                 if handler == ctx._handler:  # noqa
-                    out.append(ctx._ref)  # noqa
+                    out.append(ctx.ref)  # noqa
             return out
 
         else:
@@ -1925,7 +1921,7 @@ class IoPipeline:
             ctx = self._outermost
             while (ctx := ctx._next_in) is not self._innermost:  # noqa
                 if handler == ctx._handler:  # noqa
-                    return ctx._ref  # noqa
+                    return ctx.ref  # noqa
             return None
 
     ##
@@ -1957,7 +1953,7 @@ class IoPipeline:
                 im_ctx = self._innermost  # noqa
                 om_ctx = self._outermost  # noqa
                 while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
-                    self.remove(ctx._ref)  # noqa
+                    self.remove(ctx.ref)  # noqa
 
             finally:
                 self._step_out()
