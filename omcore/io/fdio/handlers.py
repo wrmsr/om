@@ -40,6 +40,13 @@ class FdioHandler(Abstract):
 
     #
 
+    def next_deadline(self) -> ta.Optional[float]:
+        """Return the next absolute `time.monotonic()` deadline, or none when no timed work is active."""
+
+        return None
+
+    #
+
     def on_readable(self) -> None:
         raise TypeError
 
@@ -48,6 +55,11 @@ class FdioHandler(Abstract):
 
     def on_error(self, exc: ta.Optional[BaseException] = None) -> None:  # noqa
         pass
+
+    def on_timeout(self) -> None:
+        """Run work whose `next_deadline()` is due."""
+
+        raise TypeError
 
 
 ##

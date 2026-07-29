@@ -164,7 +164,7 @@ if hasattr(select, 'poll'):
             self._update_registration(fd, r=fd in self._readable, w=True)
 
         def _unregister_readable(self, fd: int) -> None:
-            self._update_registration(fd, r=False, w=False)
+            self._update_registration(fd, r=False, w=fd in self._writable)
 
         def _unregister_writable(self, fd: int) -> None:
             self._update_registration(fd, r=fd in self._readable, w=False)
