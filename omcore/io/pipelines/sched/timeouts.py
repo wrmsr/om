@@ -113,13 +113,8 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
         self._handles[state] = ctx.services[IoPipelineScheduling].schedule_context(
             ctx.ref,
             timeout_s,
-            functools.partial(self._run_idle, state=state),
+            lambda ctx2: check.isinstance(ctx2.handler, IdleStateIoPipelineHandler)._on_idle(ctx2, state),  # noqa
         )
-
-    @staticmethod
-    def _run_idle(ctx: IoPipelineHandlerContext, *, state: IoPipelineIdleState) -> None:
-        handler = check.isinstance(ctx.handler, IdleStateIoPipelineHandler)
-        handler._on_idle(ctx, state)  # noqa
 
     def _record_activity(
             self,
@@ -273,13 +268,8 @@ class ReadTimeoutIoPipelineHandler(IoPipelineHandler):
         self._handle = ctx.services[IoPipelineScheduling].schedule_context(
             ctx.ref,
             self._timeout_s,
-            self._run_timeout,
+            lambda ctx2: check.isinstance(ctx2.handler, ReadTimeoutIoPipelineHandler)._on_timeout(ctx2),  # noqa
         )
-
-    @staticmethod
-    def _run_timeout(ctx: IoPipelineHandlerContext) -> None:
-        handler = check.isinstance(ctx.handler, ReadTimeoutIoPipelineHandler)
-        handler._on_timeout(ctx)  # noqa
 
     def _on_timeout(self, ctx: IoPipelineHandlerContext) -> None:
         self._handle = None
@@ -368,11 +358,6 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
         for handle in handles:
             handle.cancel()
 
-    @staticmethod
-    def _run_timeout(ctx: IoPipelineHandlerContext, *, token: int) -> None:
-        handler = check.isinstance(ctx.handler, WriteTimeoutIoPipelineHandler)
-        handler._on_timeout(ctx, token)  # noqa
-
     def _on_timeout(self, ctx: IoPipelineHandlerContext, token: int) -> None:
         if self._handles.pop(token, None) is None or not self._active or self._timed_out:
             return
@@ -415,7 +400,7 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
         handle = ctx.services[IoPipelineScheduling].schedule_context(
             ctx.ref,
             self._timeout_s,
-            functools.partial(self._run_timeout, token=token),
+            lambda ctx2: check.isinstance(ctx2.handler, WriteTimeoutIoPipelineHandler)._on_timeout(ctx2, token),  # noqa
         )
         self._handles[token] = handle
         msg.add_listener(functools.partial(

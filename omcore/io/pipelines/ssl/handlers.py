@@ -3,7 +3,6 @@
 import collections
 import dataclasses as dc
 import enum
-import functools
 import math
 import ssl
 import typing as ta
@@ -286,7 +285,10 @@ class SslIoPipelineHandler(
                 self._handshake_timeout_handle = ctx.services[IoPipelineScheduling].schedule_context(
                     ctx.ref,
                     self._config.handshake_timeout_s,
-                    functools.partial(self._run_state_timeout, state=self.State.HANDSHAKE),
+                    lambda ctx2: check.isinstance(ctx2.handler, SslIoPipelineHandler)._on_state_timeout(  # noqa
+                        ctx2,
+                        SslIoPipelineHandler.State.HANDSHAKE,
+                    ),
                 )
         else:
             self._cancel_timeout(self._handshake_timeout_handle)
@@ -297,16 +299,14 @@ class SslIoPipelineHandler(
                 self._shutdown_timeout_handle = ctx.services[IoPipelineScheduling].schedule_context(
                     ctx.ref,
                     self._config.shutdown_timeout_s,
-                    functools.partial(self._run_state_timeout, state=self.State.SHUTTING_DOWN),
+                    lambda ctx2: check.isinstance(ctx2.handler, SslIoPipelineHandler)._on_state_timeout(  # noqa
+                        ctx2,
+                        SslIoPipelineHandler.State.SHUTTING_DOWN,
+                    ),
                 )
         else:
             self._cancel_timeout(self._shutdown_timeout_handle)
             self._shutdown_timeout_handle = None
-
-    @staticmethod
-    def _run_state_timeout(ctx: IoPipelineHandlerContext, *, state: State) -> None:
-        handler = check.isinstance(ctx.handler, SslIoPipelineHandler)
-        handler._on_state_timeout(ctx, state)  # noqa
 
     def _on_state_timeout(self, ctx: IoPipelineHandlerContext, state: State) -> None:
         if state == self.State.HANDSHAKE:
