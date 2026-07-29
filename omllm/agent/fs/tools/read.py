@@ -4,10 +4,8 @@ import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
-from omcore import lang
 
 from ...tools.classes import ToolClass
-from ...types.tools import Tool
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 
@@ -114,8 +112,3 @@ class ReadTool(ToolClass[ReadParams]):
             )
 
         return out.getvalue()
-
-
-@lang.cached_function
-def read_tool() -> Tool:
-    return ReadTool().tool()

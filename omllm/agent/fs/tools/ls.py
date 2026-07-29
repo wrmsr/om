@@ -3,10 +3,8 @@ import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
-from omcore import lang
 
 from ...tools.classes import ToolClass
-from ...types.tools import Tool
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 
@@ -50,8 +48,3 @@ class LsTool(ToolClass[LsParams]):
         out.write('</dir>\n')
 
         return out.getvalue()
-
-
-@lang.cached_function
-def ls_tool() -> Tool:
-    return LsTool().tool()

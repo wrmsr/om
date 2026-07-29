@@ -9,9 +9,9 @@ from omdev.home.secrets import load_secrets
 
 from ... import agent as ag
 from ... import llm
-from ...agent.fs.tools.ls import ls_tool
-from ...agent.fs.tools.read import read_tool
-from ...agent.shell.tools.bash import bash_tool
+from ...agent.fs.tools.ls import LsTool
+from ...agent.fs.tools.read import ReadTool
+from ...agent.shell.tools.bash import BashTool
 
 
 ##
@@ -51,12 +51,12 @@ async def _a_main() -> None:
 
     tools = ag.ToolSet([
         *([
-            bash_tool(),
+            BashTool().tool(),
         ] if args.bash else []),
 
         *([
-            ls_tool(),
-            read_tool(),
+            LsTool().tool(),
+            ReadTool().tool(),
         ] if args.fs else []),
     ])
 

@@ -7,7 +7,7 @@ from omcore.testing.pytest.inject import Harness
 from ... import llm
 from ..agent import Agent
 from ..backends import DictBackendManager
-from ..dummy.weather import weather_tool
+from ..dummy.weather import GetWeatherTool
 from ..types.tools import ToolSet
 from .models import ANTHROPIC
 from .models import GOOGLE
@@ -73,7 +73,7 @@ async def _test_agent_with_tool(harness: Harness, model: ModelForTest) -> None:
             context=dc.replace(
                 state.context,
                 tools=ToolSet([
-                    weather_tool(),
+                    GetWeatherTool().tool(),
                 ]),
             ),
         ),
