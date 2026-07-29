@@ -3,12 +3,16 @@
 import asyncio
 import socket
 import ssl
+import time
 import typing as ta
 import unittest
 import weakref
 
 from .....lite.check import check
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from ....fdio.manager import FdioManager
+from ....fdio.pollers import FdioPoller
+from ....fdio.pollers import SelectFdioPoller
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
@@ -16,6 +20,7 @@ from ...core import IoPipelineHandlerRef
 from ...core import IoPipelineMessages
 from ...core import IoPipelineService
 from ...drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
 from ...drivers.sync import SyncSocketIoPipelineDriver
 from ...errors import TimeoutIoPipelineError
 from ...flow.types import IoPipelineFlowMessages
@@ -147,6 +152,17 @@ class CaptureTimeoutIoPipelineHandler(IoPipelineHandler):
 
         else:
             ctx.feed_in(msg)
+
+
+class RecordingSelectFdioPoller(SelectFdioPoller):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.timeouts: ta.List[ta.Optional[float]] = []
+
+    def poll(self, timeout: ta.Optional[float]) -> FdioPoller.PollResult:
+        self.timeouts.append(timeout)
+        return super().poll(timeout)
 
 
 def make_pipeline(
@@ -326,6 +342,67 @@ class TestSyncSslIoPipelineHandlerTimeout(unittest.TestCase):
                 self.assertEqual(len(capture.errors), 1)
             finally:
                 driver.close()
+
+
+class TestFdioSslIoPipelineHandlerTimeout(unittest.TestCase):
+    def test_real_tls_handshake_timeout(self) -> None:
+        ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        timeout_s = .05
+        handler = SslIoPipelineHandler(
+            ssl_ctx,
+            server_side=True,
+            config=SslIoPipelineHandler.Config(handshake_timeout_s=timeout_s),
+        )
+        capture = CaptureTimeoutIoPipelineHandler()
+        sock, peer = socket.socketpair()
+        peer.settimeout(.5)
+        poller = RecordingSelectFdioPoller()
+        driver = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('local', 0),
+            IoPipeline.Spec([handler, capture]),
+        )
+        manager = FdioManager(poller)
+        try:
+            self.assertIsNone(driver.next(read=False))
+            self.assertIs(handler.state, SslIoPipelineHandler.State.HANDSHAKE)
+            self.assertIsNotNone(handler._handshake_timeout_handle)
+            self.assertIsNotNone(driver.next_deadline())
+            self.assertTrue(driver.readable())
+            self.assertFalse(driver.writable())
+            manager.register(driver)
+
+            start = time.monotonic()
+            manager.poll()
+            elapsed = time.monotonic() - start
+
+            self.assertGreaterEqual(elapsed, .005)
+            self.assertLess(elapsed, .5)
+            self.assertEqual(len(poller.timeouts), 1)
+            timer_delay = poller.timeouts[0]
+            if timer_delay is None:
+                self.fail('Expected fdio manager to wait for the TLS handshake deadline')
+            self.assertGreaterEqual(timer_delay, 0.)
+            self.assertLessEqual(timer_delay, timeout_s)
+
+            self.assertIs(handler.state, SslIoPipelineHandler.State.CLOSED)
+            self.assertIsNone(handler._handshake_timeout_handle)
+            self.assertEqual(len(capture.errors), 1)
+            error = capture.errors[0]
+            self.assertIsInstance(error.exc, TimeoutIoPipelineError)
+            self.assertIsNone(error.direction)
+            handler_ref = check.not_none(error.handler)
+            self.assertIs(handler_ref.handler, handler)
+
+            self.assertEqual(peer.recv(1), b'')
+            self.assertTrue(driver.closed)
+            self.assertFalse(driver.pipeline.is_ready)
+            self.assertIsNone(driver.next_deadline())
+            self.assertEqual(manager._handlers, {})
+        finally:
+            driver.close()
+            peer.close()
+            poller.close()
 
 
 class TestAsyncioSslIoPipelineHandlerTimeout(AsyncioIsolatedAsyncTestCase):

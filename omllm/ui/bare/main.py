@@ -56,6 +56,24 @@ class InputManager:
 ##
 
 
+class InputPermissionGranter(ag.PermissionGranter):
+    def __init__(self, *, input_manager: InputManager) -> None:
+        super().__init__()
+
+        self._input_manager = input_manager
+
+    async def grant_permission(self, message: str) -> bool:
+        while True:
+            out = await self._input_manager.input(message + ' (y/n)\n')
+            if out == 'y':
+                return True
+            elif out == 'n':
+                return False
+
+
+##
+
+
 async def _a_main() -> None:
     parser = argparse.ArgumentParser()
 
@@ -92,7 +110,10 @@ async def _a_main() -> None:
         sink=on_event,
     )
 
-    permission_granter = ag.ConstantPermissionGranter(True)
+    permission_granter = (
+        # ag.ConstantPermissionGranter(True)
+        InputPermissionGranter(input_manager=input_manager)
+    )
 
     tools = ag.ToolSet([
 
