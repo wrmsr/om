@@ -53,7 +53,7 @@ duckdb==1.5.5
 execnet==2.1.2
 executing==2.2.1
 fake-useragent==2.2.0
-filelock==3.32.0
+filelock==3.32.2
 flake8==7.3.0
 Flake8-pyproject==1.2.4
 Flask==3.1.3
