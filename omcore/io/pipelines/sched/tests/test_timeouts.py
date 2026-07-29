@@ -127,12 +127,19 @@ _FINAL_OUTPUT = object()
 
 
 class IdleStateActivityIoPipelineHandler(CaptureIdleStateIoPipelineHandler):
+    def __init__(self, *, emit: bool = False) -> None:
+        super().__init__(emit=emit)
+
+        self.flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
+
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if msg is _WRITE_ACTIVITY:
             ctx.feed_out('write')
 
         elif msg is _WRITE_CONTROL:
-            ctx.feed_out(IoPipelineFlowMessages.FlushOutput())
+            flush_output = IoPipelineFlowMessages.FlushOutput()
+            self.flush_outputs.append(flush_output)
+            ctx.feed_out(flush_output)
             ctx.feed_out(IoPipelineFlowMessages.ReadyForInput())
 
         elif msg is _FINAL_OUTPUT:
@@ -287,10 +294,24 @@ class TestIdleStateIoPipelineHandler(unittest.TestCase):
             )
 
             write_handle = idle._handles[IoPipelineIdleState.WRITE_IDLE]
+            all_handle = idle._handles[IoPipelineIdleState.ALL_IDLE]
             pipeline.feed_in(_WRITE_CONTROL)
             self.assertIs(idle._handles[IoPipelineIdleState.WRITE_IDLE], write_handle)
-            pipeline.output.drain()
+            self.assertIsNot(idle._handles[IoPipelineIdleState.ALL_IDLE], all_handle)
+            outputs = pipeline.output.drain()
+            self.assertEqual(len(outputs), 2)
+            flush_output = check.isinstance(outputs[0], IoPipelineFlowMessages.FlushOutput)
+            all_handle = idle._handles[IoPipelineIdleState.ALL_IDLE]
+            read_handle = idle._handles[IoPipelineIdleState.READ_IDLE]
 
+            with pipeline.enter():
+                flush_output.set_succeeded(None)
+
+            self.assertIs(idle._handles[IoPipelineIdleState.READ_IDLE], read_handle)
+            self.assertIsNot(idle._handles[IoPipelineIdleState.WRITE_IDLE], write_handle)
+            self.assertIsNot(idle._handles[IoPipelineIdleState.ALL_IDLE], all_handle)
+
+            write_handle = idle._handles[IoPipelineIdleState.WRITE_IDLE]
             pipeline.feed_in(_WRITE_ACTIVITY)
             self.assertIsNot(idle._handles[IoPipelineIdleState.WRITE_IDLE], write_handle)
             self.assertEqual(pipeline.output.drain(), ['write'])
@@ -303,6 +324,83 @@ class TestIdleStateIoPipelineHandler(unittest.TestCase):
             self.assertIsInstance(final_output[0], IoPipelineMessages.FinalOutput)
         finally:
             pipeline.destroy()
+
+    def test_failed_flush_completion_is_not_activity(self) -> None:
+        idle = IdleStateIoPipelineHandler(write_idle_timeout_s=1., all_idle_timeout_s=1.)
+        capture = IdleStateActivityIoPipelineHandler()
+        pipeline, scheduling, _ = make_idle_channel(idle, capture)
+        try:
+            pipeline.feed_in(_WRITE_CONTROL)
+            outputs = pipeline.output.drain()
+            flush_output = check.isinstance(outputs[0], IoPipelineFlowMessages.FlushOutput)
+            handles_before_completion = dict(idle._handles)
+
+            with pipeline.enter():
+                flush_output.set_failed(BrokenPipeError())
+
+            self.assertEqual(idle._handles, handles_before_completion)
+            self.assertEqual(len(scheduling.live_handles()), 2)
+        finally:
+            pipeline.destroy()
+
+    def test_irrelevant_flush_completion_is_not_observed(self) -> None:
+        idle = IdleStateIoPipelineHandler(read_idle_timeout_s=1.)
+        capture = IdleStateActivityIoPipelineHandler()
+        pipeline, _, _ = make_idle_channel(idle, capture)
+        try:
+            pipeline.feed_in(_WRITE_CONTROL)
+            outputs = pipeline.output.drain()
+            flush_output = check.isinstance(outputs[0], IoPipelineFlowMessages.FlushOutput)
+
+            self.assertFalse(hasattr(flush_output, '_completion_'))
+        finally:
+            pipeline.destroy()
+
+    def test_flush_completion_after_final_output_does_not_restart_timers(self) -> None:
+        idle = IdleStateIoPipelineHandler(write_idle_timeout_s=1., all_idle_timeout_s=1.)
+        capture = IdleStateActivityIoPipelineHandler()
+        pipeline, scheduling, _ = make_idle_channel(idle, capture)
+        try:
+            pipeline.feed_in(_WRITE_CONTROL)
+            outputs = pipeline.output.drain()
+            flush_output = check.isinstance(outputs[0], IoPipelineFlowMessages.FlushOutput)
+
+            pipeline.feed_in(_FINAL_OUTPUT)
+            self.assertEqual(idle._handles, {})
+            self.assertEqual(scheduling.live_handles(), [])
+
+            with pipeline.enter():
+                flush_output.set_succeeded(None)
+
+            self.assertEqual(idle._handles, {})
+            self.assertEqual(scheduling.live_handles(), [])
+        finally:
+            pipeline.destroy()
+
+    def test_pending_flush_does_not_retain_removed_handler(self) -> None:
+        was_enabled = gc.isenabled()
+        gc.disable()
+        pipeline: ta.Optional[IoPipeline] = None
+        try:
+            idle = IdleStateIoPipelineHandler(write_idle_timeout_s=60.)
+            capture = IdleStateActivityIoPipelineHandler()
+            pipeline, scheduling, _ = make_idle_channel(idle, capture)
+            pipeline.feed_in(_WRITE_CONTROL)
+            outputs = pipeline.output.drain()
+            flush_output = check.isinstance(outputs[0], IoPipelineFlowMessages.FlushOutput)
+
+            idle_ref = weakref.ref(idle)
+            pipeline.remove(check.not_none(pipeline.find_handler(idle)))
+            del idle
+
+            self.assertIsNone(idle_ref())
+            self.assertFalse(flush_output.is_done())
+            self.assertEqual(scheduling.live_handles(), [])
+        finally:
+            if pipeline is not None:
+                pipeline.destroy()
+            if was_enabled:
+                gc.enable()
 
     def test_read_idle_stops_at_final_input(self):
         idle = IdleStateIoPipelineHandler(read_idle_timeout_s=1.)
@@ -357,6 +455,30 @@ class TestSyncIdleStateIoPipelineHandler(unittest.TestCase):
         finally:
             drv.close()
 
+    def test_flush_completion_records_write_activity(self) -> None:
+        idle = IdleStateIoPipelineHandler(write_idle_timeout_s=60.)
+        capture = IdleStateActivityIoPipelineHandler()
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            drv = SyncSocketIoPipelineDriver(
+                IoPipeline.Spec(
+                    [idle, capture],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+                sock,
+            )
+            try:
+                self.assertIsNone(drv.next(read=False))
+                initial_handle = idle._handles[IoPipelineIdleState.WRITE_IDLE]
+
+                drv.enqueue(_WRITE_CONTROL)
+                self.assertIsNone(drv.next(read=False))
+
+                self.assertTrue(check.single(capture.flush_outputs).is_succeeded())
+                self.assertIsNot(idle._handles[IoPipelineIdleState.WRITE_IDLE], initial_handle)
+            finally:
+                drv.close()
+
 
 class TestAsyncioIdleStateIoPipelineHandler(AsyncioIsolatedAsyncTestCase):
     async def test_expires(self):
@@ -377,6 +499,55 @@ class TestAsyncioIdleStateIoPipelineHandler(AsyncioIsolatedAsyncTestCase):
             )
         finally:
             await drv.close()
+
+    async def test_flush_completion_records_write_activity(self) -> None:
+        idle = IdleStateIoPipelineHandler(write_idle_timeout_s=60.)
+        capture = IdleStateActivityIoPipelineHandler()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [idle, capture],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            initial_handle = idle._handles[IoPipelineIdleState.WRITE_IDLE]
+
+            drv.enqueue(_WRITE_CONTROL)
+            self.assertIsNone(await drv.next(read=False))
+
+            self.assertTrue(check.single(capture.flush_outputs).is_succeeded())
+            self.assertIsNot(idle._handles[IoPipelineIdleState.WRITE_IDLE], initial_handle)
+        finally:
+            await drv.close()
+
+
+class TestFdioIdleStateIoPipelineHandler(unittest.TestCase):
+    def test_flush_completion_records_write_activity(self) -> None:
+        idle = IdleStateIoPipelineHandler(write_idle_timeout_s=60.)
+        capture = IdleStateActivityIoPipelineHandler()
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            drv = IoPipelineDriverSocketFdioHandler(
+                sock,
+                ('local', 0),
+                IoPipeline.Spec(
+                    [idle, capture],
+                    services=[StubIoPipelineFlowService(auto_read=False)],
+                ),
+            )
+            try:
+                self.assertIsNone(drv.next(read=False))
+                initial_handle = idle._handles[IoPipelineIdleState.WRITE_IDLE]
+
+                drv.enqueue(_WRITE_CONTROL)
+                self.assertIsNone(drv.next(read=False))
+
+                self.assertTrue(check.single(capture.flush_outputs).is_succeeded())
+                self.assertIsNot(idle._handles[IoPipelineIdleState.WRITE_IDLE], initial_handle)
+            finally:
+                drv.close()
 
 
 class CaptureReadTimeoutIoPipelineHandler(IoPipelineHandler):

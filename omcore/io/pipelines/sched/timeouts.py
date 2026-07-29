@@ -49,13 +49,18 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
     Each configured state uses an exact, independently reset scheduler deadline. Unconfigured states schedule nothing;
     when all intervals are omitted, this handler does not require an IoPipelineScheduling service and remains tickless.
 
-    Read and write activity currently mean ordinary messages crossing this handler in their respective directions.
-    Flow-control, lifecycle, error, and idle-event messages are not activity. Write completion tracking may refine write
-    activity in the future without changing the emitted event contract.
+    Read and write activity include ordinary messages crossing this handler in their respective directions. A
+    successfully completed FlushOutput additionally records write activity at the transport boundary; emitting the
+    fence itself is not activity. Other flow-control, lifecycle, error, and idle-event messages are not activity.
     """
 
     _STATES: ta.ClassVar[ta.Tuple[IoPipelineIdleState, ...]] = (
         IoPipelineIdleState.READ_IDLE,
+        IoPipelineIdleState.WRITE_IDLE,
+        IoPipelineIdleState.ALL_IDLE,
+    )
+
+    _WRITE_ACTIVITY_STATES: ta.ClassVar[ta.Tuple[IoPipelineIdleState, ...]] = (
         IoPipelineIdleState.WRITE_IDLE,
         IoPipelineIdleState.ALL_IDLE,
     )
@@ -127,6 +132,27 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
 
             self._first[state] = True
             self._arm(ctx, state)
+
+    @staticmethod
+    def _on_flush_output_done(
+            context_ref: ta.Callable[[], ta.Optional[IoPipelineHandlerContext]],
+            msg: IoPipelineFlowMessages.FlushOutput,
+    ) -> None:
+        if not msg.is_succeeded() or (ctx := context_ref()) is None or ctx.invalidated:
+            return
+
+        handler = check.isinstance(ctx.handler, IdleStateIoPipelineHandler)
+        handler._record_activity(ctx, handler._WRITE_ACTIVITY_STATES)  # noqa
+
+    def _track_flush_output(
+            self,
+            ctx: IoPipelineHandlerContext,
+            msg: IoPipelineFlowMessages.FlushOutput,
+    ) -> None:
+        if not self._started or not any(self._timeouts[state] is not None for state in self._WRITE_ACTIVITY_STATES):
+            return
+
+        msg.add_listener(functools.partial(self._on_flush_output_done, weakref.ref(ctx)))
 
     def _on_idle(self, ctx: IoPipelineHandlerContext, state: IoPipelineIdleState) -> None:
         self._handles.pop(state, None)
@@ -200,6 +226,9 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
             self._started = False
             self._read_open = False
             self._cancel()
+
+        elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
+            self._track_flush_output(ctx, msg)
 
         elif not isinstance(msg, self._NON_WRITE_ACTIVITY_TYPES):
             self._record_activity(ctx, (
