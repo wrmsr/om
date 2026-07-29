@@ -159,7 +159,7 @@ class JsonStreamParser:
                 cv = CONST_IDENT_VALUES[tok.value]  # type: ignore[index]
             except KeyError:
                 if not self._allow_ident_values:
-                    raise JsonStreamParseError('Expected value', tok.pos) from None
+                    raise JsonStreamParseError('Expected value', tok.position) from None
                 return self._emit_value(tok.value)
             return self._emit_value(cv)
 
@@ -174,13 +174,13 @@ class JsonStreamParser:
             return (BeginArray,)
 
         elif required:
-            raise JsonStreamParseError('Expected value', tok.pos)
+            raise JsonStreamParseError('Expected value', tok.position)
 
         elif kind == 'RBRACKET':
             return self._end_array()
 
         else:
-            raise JsonStreamParseError('Expected value', tok.pos)
+            raise JsonStreamParseError('Expected value', tok.position)
 
     def _on_object_body(self, tok: Token, required: bool) -> tuple[Event, ...]:
         if (kind := tok.kind) == 'STRING' or (self._allow_extended_idents and kind == 'IDENT'):
@@ -189,17 +189,17 @@ class JsonStreamParser:
             return ()
 
         elif required:
-            raise JsonStreamParseError('Expected value', tok.pos)
+            raise JsonStreamParseError('Expected value', tok.position)
 
         elif kind == 'RBRACE':
             return self._end_object()
 
         else:
-            raise JsonStreamParseError('Expected value', tok.pos)
+            raise JsonStreamParseError('Expected value', tok.position)
 
     def _on_after_key(self, tok: Token) -> tuple[Event, ...]:
         if tok.kind != 'COLON':
-            raise JsonStreamParseError('Expected colon', tok.pos)
+            raise JsonStreamParseError('Expected colon', tok.position)
 
         k = self._key
         self._key = None
@@ -217,7 +217,7 @@ class JsonStreamParser:
             return self._end_object()
 
         else:
-            raise JsonStreamParseError('Expected continuation', tok.pos)
+            raise JsonStreamParseError('Expected continuation', tok.position)
 
     def _on_after_element(self, tok: Token) -> tuple[Event, ...]:
         if (kind := tok.kind) == 'COMMA':
@@ -228,7 +228,7 @@ class JsonStreamParser:
             return self._end_array()
 
         else:
-            raise JsonStreamParseError('Expected continuation', tok.pos)
+            raise JsonStreamParseError('Expected continuation', tok.position)
 
     #
 

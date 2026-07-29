@@ -59,7 +59,9 @@ from .tokens import (  # noqa
     ScalarValue,
     SCALAR_VALUE_TYPES,
 
+    PackedPosition,
     Position,
+    unpack_position,
 
     Token,
 

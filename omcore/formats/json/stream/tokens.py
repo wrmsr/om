@@ -51,10 +51,23 @@ SCALAR_VALUE_TYPES: tuple[type, ...] = tuple(
 ##
 
 
+# Field order matches Position - the bare tuple form is what the lexer stores on Tokens, as its construction is
+# significantly cheaper than that of the NamedTuple (a single BUILD_TUPLE op, eligible for the freelist).
+type PackedPosition = tuple[
+    int,  # ofs
+    int,  # line
+    int,  # col
+]
+
+
 class Position(ta.NamedTuple):
     ofs: int
     line: int
     col: int
+
+
+def unpack_position(p: PackedPosition) -> Position:
+    return Position(*p)
 
 
 class Token(ta.NamedTuple):
@@ -62,7 +75,11 @@ class Token(ta.NamedTuple):
     value: ScalarValue
     raw: str | None
 
-    pos: Position
+    packed_pos: PackedPosition
+
+    @property
+    def position(self) -> Position:
+        return unpack_position(self.packed_pos)
 
     def __iter__(self):
         raise TypeError

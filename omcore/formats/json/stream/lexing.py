@@ -17,6 +17,7 @@ from .tokens import EXPANDED_SPACE_CHARS
 from .tokens import MAX_CONST_IDENT_LEN
 from .tokens import NUMBER_PAT
 from .tokens import SPACE_CHARS
+from .tokens import PackedPosition
 from .tokens import Position
 from .tokens import ScalarValue
 from .tokens import Token
@@ -182,7 +183,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
             kind: TokenKind,
             value: ScalarValue,
             raw: str | None,
-            pos: Position,
+            pos: PackedPosition,
     ) -> ta.Sequence[Token]:
         tok = Token(
             kind,
@@ -241,7 +242,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
                             'SPACE',
                             c,
                             c if include_raw else None,
-                            Position(o, line, o - line_start),
+                            (o, line, o - line_start),
                         ))
                         continue
 
@@ -261,7 +262,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
                         k,
                         c,
                         c if include_raw else None,
-                        Position(o, line, o - line_start),
+                        (o, line, o - line_start),
                     ))
                     continue
 
@@ -285,7 +286,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
                             pass
                         else:
                             o = base + p + 1
-                            pos = Position(o, line, o - line_start)
+                            pos = (o, line, o - line_start)
                             raw = s[p:qp + 1] if include_raw else None
                             if (np := s.rfind('\n', p, qp + 1)) >= 0:
                                 line += s.count('\n', p, qp + 1)
@@ -313,7 +314,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
                             'NUMBER',
                             float(raw) if m.lastindex else int(raw),
                             raw if include_raw else None,
-                            Position(o, line, o - line_start),
+                            (o, line, o - line_start),
                         ))
                         p = e
                         continue
@@ -326,7 +327,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
                             'IDENT',
                             ci,
                             ci if include_raw else None,
-                            Position(o, line, o - line_start),
+                            (o, line, o - line_start),
                         ))
                         p += len(ci)
                         continue
@@ -362,13 +363,13 @@ class JsonStreamLexer(GenMachine[str, Token]):
                         self._line_start = self._base_ofs + self._i
                     if self._include_space:
                         o = self._base_ofs + self._i
-                        yield self._make_tok('SPACE', cc, cc, Position(o, self._line, o - self._line_start))
+                        yield self._make_tok('SPACE', cc, cc, (o, self._line, o - self._line_start))
                     c = None
 
                 elif (k := _CONTROL_TOKENS_GET(cc)) is not None:
                     self._i = i + 1
                     o = self._base_ofs + self._i
-                    yield self._make_tok(k, cc, cc, Position(o, self._line, o - self._line_start))
+                    yield self._make_tok(k, cc, cc, (o, self._line, o - self._line_start))
                     c = None
 
             else:
@@ -412,7 +413,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
     def _do_string(self, q: str):
         o = self._base_ofs + self._i + 1
-        pos = Position(o, self._line, o - self._line_start)
+        pos = (o, self._line, o - self._line_start)
 
         parts: list[str] = []
         bs_count = 0
@@ -490,7 +491,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
     def _do_number(self):
         o = self._base_ofs + self._i + 1
-        pos = Position(o, self._line, o - self._line_start)
+        pos = (o, self._line, o - self._line_start)
 
         parts: list[str] = []
         while True:
@@ -566,7 +567,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
     def _do_const(self):
         o = self._base_ofs + self._i + 1
-        pos = Position(o, self._line, o - self._line_start)
+        pos = (o, self._line, o - self._line_start)
 
         raw = ''
         while True:
@@ -611,7 +612,8 @@ class JsonStreamLexer(GenMachine[str, Token]):
             self._i += 1
         parts.append(c)
 
-        pos = self.pos
+        o = self._base_ofs + self._i
+        pos = (o, self._line, o - self._line_start)
 
         while True:
             if (i := self._i) >= len(self._s):
@@ -643,7 +645,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
     def _do_comment(self):
         o = self._base_ofs + self._i + 1
-        pos = Position(o, self._line, o - self._line_start)
+        pos = (o, self._line, o - self._line_start)
         self._i += 1  # the opening '/'
 
         include = self._include_comments
