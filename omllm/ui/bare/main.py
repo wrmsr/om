@@ -103,7 +103,8 @@ async def _a_main() -> None:
 
     async def on_event(ev: ag.Event) -> None:
         if isinstance(ev, ag.TurnEndEvent):
-            print(ev.message)
+            if isinstance(msg := ev.message, llm.AiMessage):
+                print(msg)
 
     agent = ag.Agent(
         backends=ag.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore

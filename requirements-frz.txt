@@ -7,7 +7,7 @@ aiosqlite==0.22.1
 annotated-doc==0.0.5
 antlr4-python3-runtime==4.13.2
 anyio==4.14.2
-apsw==3.53.3.1
+apsw==3.53.4.0
 asgiref==3.12.1
 asn1crypto==1.5.1
 ast_serialize==0.6.0
@@ -23,8 +23,8 @@ bitsandbytes==0.50.0
 black==26.5.1
 blinker==1.9.0
 blobfile==3.2.0
-boto3==1.43.58
-botocore==1.43.58
+boto3==1.43.59
+botocore==1.43.59
 botocore-stubs==1.43.14
 brotli==1.2.0
 build==1.5.1
@@ -277,7 +277,7 @@ truststore==0.10.4
 twine==7.0.0
 typer==0.27.0
 types-awscrt==0.34.1
-types-boto3==1.43.58
+types-boto3==1.43.59
 types-docutils==0.22.3.20260724
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20260724
