@@ -5,7 +5,6 @@
 
 ### core
 
-- revive DESIGN.md
 - drivers
   - 'pure' - no io
   - sync

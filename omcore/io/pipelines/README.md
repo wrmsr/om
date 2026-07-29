@@ -3,6 +3,9 @@
 A lightweight, composable pipeline framework for transforming and routing data through chains of handlers. Inspired by
 Netty's `ChannelPipeline` architecture, but designed for Python with significant simplifications and adaptations.
 
+See [DESIGN.md](DESIGN.md) for the architectural contracts governing lifecycle, completion, flow control, scheduling,
+drivers, protocol layering, and reference ownership.
+
 ## Overview
 
 The pipeline system provides a structured way to process data through an ordered sequence of handlers. Unlike
