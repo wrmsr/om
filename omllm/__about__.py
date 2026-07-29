@@ -16,8 +16,19 @@ class Project(ProjectBase):
             f'omdev == {__version__}',
         ],
 
-        'huggingface': [
+        'interop': [
             'huggingface-hub ~= 1.24',
+
+            'llama-cpp-python ~= 0.3',
+
+            'mlx ~= 0.32; sys_platform == "darwin"',
+            'mlx-lm ~= 0.31; sys_platform == "darwin"',
+
+            'tinygrad ~= 0.13',
+
+            'torch ~= 2.13',
+
+            'transformers ~= 5.11',
         ],
     }
 
