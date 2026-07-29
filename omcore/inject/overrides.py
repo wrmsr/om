@@ -20,6 +20,13 @@ class Overrides(Element, lang.Final):
 
 
 def override(src: ta.Any, *ovr: ta.Any) -> Elemental:
+    """
+    Overrides operate on keys: the override's elements for a key replace the source's wholesale, all element kinds
+    alike - including multi entries and Eagers. Non-keyed elements (scope bindings, provision listeners) concatenate,
+    as with no key there is nothing to override. Additive intent is instead expressed by composing outside the
+    override - `as_elements` appends, so for example new multi entries are added as siblings of the override.
+    """
+
     sce = as_elements(src)
     ove = as_elements(*ovr)
     if not lang.ilen(ove):

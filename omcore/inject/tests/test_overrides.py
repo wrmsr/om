@@ -1,7 +1,5 @@
 import typing as ta
 
-import pytest
-
 from ... import inject as inj
 from ... import lang
 
@@ -36,12 +34,13 @@ def test_override_new_keys():
 
 
 ##
-# FIXME: override currently replaces per-key element lists wholesale - see TODO.md. The following tests encode the
-# intended behaviors and are expected to fail until that is addressed.
+# Overrides operate on keys: per-key element buckets replace wholesale, all element kinds alike - an override binding
+# a key is the entire story for that key. Non-keyed elements (scope bindings, provision listeners) concatenate - with
+# no key, there is nothing to override. Additive intent is instead expressed by composing outside the override:
+# `as_elements` appends, so new multi entries or Eagers are added as siblings of the override.
 
 
-@pytest.mark.xfail(reason='override replaces multi-bindings wholesale', strict=True)
-def test_override_set_multi_merges():
+def test_override_replaces_set_multi():
     src = inj.as_elements(
         inj.bind(420, tag='a'),
         inj.set_binder[int]().bind(inj.as_key(int, tag='a')),
@@ -55,11 +54,10 @@ def test_override_set_multi_merges():
     )
 
     i = inj.create_injector(inj.override(src, ovr))
-    assert i.provide(ta.AbstractSet[int]) == {420, 421, 422}
+    assert i.provide(ta.AbstractSet[int]) == {422}
 
 
-@pytest.mark.xfail(reason='override replaces multi-bindings wholesale', strict=True)
-def test_override_map_multi_merges():
+def test_override_replaces_map_multi():
     src = inj.as_elements(
         inj.bind(420, tag='a'),
         inj.map_binder[str, int]().bind('a', inj.as_key(int, tag='a')),
@@ -73,11 +71,31 @@ def test_override_map_multi_merges():
     )
 
     i = inj.create_injector(inj.override(src, ovr))
-    assert i.provide(ta.Mapping[str, int]) == {'a': 420, 'b': 421, 'c': 422}
+    assert i.provide(ta.Mapping[str, int]) == {'c': 422}
 
 
-@pytest.mark.xfail(reason='override drops src Eager elements alongside replaced bindings', strict=True)
-def test_override_preserves_eager():
+def test_override_then_append_set_multi():
+    src = inj.as_elements(
+        inj.bind('bar'),
+
+        inj.bind(420, tag='a'),
+        inj.set_binder[int]().bind(inj.as_key(int, tag='a')),
+
+        inj.bind(421, tag='b'),
+        inj.set_binder[int]().bind(inj.as_key(int, tag='b')),
+    )
+
+    i = inj.create_injector(
+        inj.override(src, inj.bind('foo')),
+
+        inj.bind(422, tag='c'),
+        inj.set_binder[int]().bind(inj.as_key(int, tag='c')),
+    )
+    assert i.provide(str) == 'foo'
+    assert i.provide(ta.AbstractSet[int]) == {420, 421, 422}
+
+
+def test_override_replaces_eager():
     cf = cg = 0
 
     def f() -> int:
@@ -96,12 +114,44 @@ def test_override_preserves_eager():
             inj.bind(g, singleton=True),
         ),
     )
-    assert (cf, cg) == (0, 1)
+    assert (cf, cg) == (0, 0)
     assert i.provide(int) == 421
+    assert (cf, cg) == (0, 1)
+
+    cf = cg = 0
+    inj.create_injector(
+        inj.override(
+            inj.bind(f, singleton=True, eager=True),
+            inj.bind(g, singleton=True, eager=True),
+        ),
+    )
+    assert (cf, cg) == (0, 1)
 
 
-@pytest.mark.xfail(reason='override replaces the non-keyed element bucket wholesale', strict=True)
-def test_override_preserves_non_keyed_elements():
+def test_override_then_append_eager():
+    cf = cg = 0
+
+    def f() -> int:
+        nonlocal cf
+        cf += 1
+        return 420
+
+    def g() -> int:
+        nonlocal cg
+        cg += 1
+        return 421
+
+    inj.create_injector(
+        inj.override(
+            inj.bind(f, singleton=True, eager=True),
+            inj.bind(g, singleton=True),
+        ),
+        inj.Eager(inj.as_key(int)),
+    )
+    assert (cf, cg) == (0, 1)
+
+
+def test_override_concats_non_keyed():
     ss = inj.SeededScope('hi')
     src = inj.as_elements(
         inj.bind_scope(ss),

@@ -149,14 +149,18 @@ class ElementCollection(CollectedElements, lang.Final):
             elif isinstance(e, Overrides):
                 src = self._build_raw_element_multimap(e.src)
                 ovr = self._build_raw_element_multimap(e.ovr)
-                for k, b in src.items():  # FIXME: merge None keys?
-                    try:
-                        bs = ovr[k]
-                    except KeyError:
-                        bs = b
-                    add(k, *bs)
+
+                # Keyed buckets replace wholesale, all element kinds alike - an override binding a key is the entire
+                # story for that key. The non-keyed bucket instead concatenates - with no key, there is nothing to
+                # override.
+                for m in (src, ovr):
+                    if (nes := m.get(None)):
+                        add(None, *nes)
+                for k, bs in src.items():
+                    if k is not None:
+                        add(k, *ovr.get(k, bs))
                 for k, bs in ovr.items():
-                    if k not in src:
+                    if k is not None and k not in src:
                         add(k, *bs)
 
             else:

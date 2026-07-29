@@ -1,16 +1,9 @@
-- Bugs
-  - **`omcore/inject`: `eager=True` on a `ThreadScope` binding is silently ignored.** `_init`
-    (`omcore/inject/impl/injector.py`) instantiates eagers for `Unscoped`/`Singleton` only, `SeededScope` eagers run at
-    scope entry, and `ThreadScope` eagers are grouped into `_ekbs` but never instantiated. Needs a behavior decision:
-    reject loudly at injector init, or instantiate per-thread on first use.
-  - **`omcore/inject`: override replaces per-key element lists wholesale.** In `_build_raw_element_multimap`
-    (`omcore/inject/impl/elements.py`), an override's elements for a key *replace* the source's rather than merge: an
-    override `SetBinding`/`MapBinding` replaces all of src's entries for that multi-key (instead of adding to them), and
-    a `bind(..., eager=True)` overridden by a plain binding silently loses its `Eager`. Adjacent to the existing `#
-    FIXME: merge None keys?` there.
 - create_asyncio_managed_injector? deal with that..
 - ** can currently bind in a child/private scope shadowing an external parent binding **
 - better source tracking
+- validate binding scopes at collection - a binding in a never-registered scope (no `ScopeBinding`, not a default)
+  currently dies with a raw `KeyError` from `_scopes[bi.scope]` at provision time; reject loudly at injector creation,
+  as with eagers
 - scope bindings, auto in root
 - injector-internal / blacklisted bindings (Injector itself, default scopes) without rebuilding ElementCollection
 - config - proxies, impl select, etc
