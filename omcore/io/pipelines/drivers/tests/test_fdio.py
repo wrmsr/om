@@ -1,20 +1,26 @@
-# ruff: noqa: SLF001 UP045
+# ruff: noqa: SLF001 UP006 UP045
 # @om-lite
+import gc
 import socket
 import time
 import typing as ta
 import unittest
+import weakref
 
+from .....lite.check import check
 from ....fdio.manager import FdioManager
 from ....fdio.pollers import SelectFdioPoller
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
+from ...core import IoPipelineHandlerRef
 from ...core import IoPipelineMessages
 from ...core import IoPipelineService
 from ...core import IoPipelineUpdate
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
+from ...sched.timeouts import ReadTimeoutIoPipelineHandler
+from ...sched.types import IoPipelineScheduling
 from ..fdio import IoPipelineDriverSocketFdioHandler
 from ..types import IoPipelineDriverState
 
@@ -153,6 +159,225 @@ class CaptureFinalInputIoPipelineHandler(IoPipelineHandler):
         if isinstance(msg, IoPipelineMessages.FinalInput):
             self.saw_final_input = True
         ctx.feed_in(msg)
+
+
+class TimerOutputIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, delay_s: float, output: ta.Any) -> None:
+        super().__init__()
+
+        self._delay_s = delay_s
+        self._output = output
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            ctx.services[IoPipelineScheduling].schedule_context(
+                ctx.ref,
+                self._delay_s,
+                lambda timer_ctx: timer_ctx.feed_out(self._output),
+            )
+
+        ctx.feed_in(msg)
+
+
+class TimerCallbackIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, delay_s: float, fn: ta.Callable[[], None]) -> None:
+        super().__init__()
+
+        self._delay_s = delay_s
+        self._fn = fn
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            ctx.services[IoPipelineScheduling].schedule(ctx.ref, self._delay_s, self._fn)
+
+        ctx.feed_in(msg)
+
+
+class CaptureErrorIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.errors: ta.List[IoPipelineMessages.Error] = []
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.Error):
+            self.errors.append(msg)
+        else:
+            ctx.feed_in(msg)
+
+
+class NopIoPipelineHandler(IoPipelineHandler):
+    pass
+
+
+class TestIoPipelineDriverSocketFdioHandlerScheduling(unittest.TestCase):
+    def make_driver(
+            self,
+            *handlers: IoPipelineHandler,
+    ) -> IoPipelineDriverSocketFdioHandler:
+        sock: ta.Any = ScriptedSendSocket()
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                handlers,
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        self.assertIsNone(drv.next(read=False))
+        return drv
+
+    def find_handler_ref(
+            self,
+            drv: IoPipelineDriverSocketFdioHandler,
+            handler: IoPipelineHandler,
+    ) -> IoPipelineHandlerRef:
+        ref = drv.pipeline.find_handler(handler)
+        if ref is None:
+            self.fail('Expected handler in pipeline')
+        return ref
+
+    def test_active_handler_timer_does_not_require_cyclic_gc(self) -> None:
+        def make_refs():
+            drv = self.make_driver(ReadTimeoutIoPipelineHandler(60.))
+            handler_ref = check.not_none(drv.pipeline.find_single_handler_of_type(ReadTimeoutIoPipelineHandler))
+            handler = handler_ref.handler
+            handle = check.not_none(handler._handle)  # noqa
+            return (
+                weakref.ref(drv),
+                weakref.ref(drv.pipeline),
+                weakref.ref(handler),
+                weakref.ref(handle),
+            )
+
+        was_enabled = gc.isenabled()
+        gc.disable()
+        try:
+            refs = make_refs()
+            self.assertTrue(all(ref() is None for ref in refs))
+        finally:
+            if was_enabled:
+                gc.enable()
+
+    def test_unconfigured_driver_is_tickless(self) -> None:
+        drv = self.make_driver()
+        try:
+            self.assertIsNone(drv.next_deadline())
+        finally:
+            drv.close()
+
+    def test_due_timer_runs_without_read_interest(self) -> None:
+        sock: ta.Any = ScriptedSendSocket()
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                [TimerOutputIoPipelineHandler(0., 'timer')],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            self.assertEqual(drv.next(read=False), 'timer')
+            self.assertIsNone(drv.next_deadline())
+        finally:
+            drv.close()
+
+    def test_future_deadline_is_absolute(self) -> None:
+        drv = self.make_driver(TimerOutputIoPipelineHandler(60., 'timer'))
+        try:
+            deadline = drv.next_deadline()
+            if deadline is None:
+                self.fail('Expected a pending timer')
+
+            delay = deadline - time.monotonic()
+            self.assertLess(0., delay)
+            self.assertLessEqual(delay, 60.)
+        finally:
+            drv.close()
+
+    def test_handle_and_owner_cancellation(self) -> None:
+        first_handler = NopIoPipelineHandler()
+        second_handler = NopIoPipelineHandler()
+        drv = self.make_driver(first_handler, second_handler)
+        try:
+            first_ref = self.find_handler_ref(drv, first_handler)
+            second_ref = self.find_handler_ref(drv, second_handler)
+            events: ta.List[str] = []
+
+            cancelled_handle = drv._sched.schedule(first_ref, 0., lambda: events.append('handle'))
+            cancelled_handle.cancel()
+            cancelled_handle.cancel()
+
+            drv._sched.schedule(first_ref, 0., lambda: events.append('owner'))
+            drv._sched.cancel_all(first_ref)
+            drv._sched.schedule(second_ref, 0., lambda: events.append('live'))
+
+            self.assertEqual(drv._sched._run_due(), 1)
+            self.assertEqual(events, ['live'])
+        finally:
+            drv.close()
+
+    def test_manager_wakes_for_timer_without_fd_interest(self) -> None:
+        sock, peer = socket.socketpair()
+        poller = SelectFdioPoller()
+        events: ta.List[float] = []
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                [TimerCallbackIoPipelineHandler(.01, lambda: events.append(time.monotonic()))],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        manager = FdioManager(poller)
+        try:
+            self.assertIsNone(drv.next(read=False))
+            self.assertFalse(drv.readable())
+            self.assertFalse(drv.writable())
+            manager.register(drv)
+
+            start = time.monotonic()
+            manager.poll()
+
+            self.assertEqual(len(events), 1)
+            self.assertGreaterEqual(events[0] - start, .005)
+            self.assertLess(events[0] - start, .3)
+            self.assertIsNone(drv.next_deadline())
+        finally:
+            drv.close()
+            peer.close()
+            poller.close()
+
+    def test_read_timeout_runs_through_manager(self) -> None:
+        sock, peer = socket.socketpair()
+        poller = SelectFdioPoller()
+        timeout = ReadTimeoutIoPipelineHandler(.01)
+        capture = CaptureErrorIoPipelineHandler()
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                [timeout, capture],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        manager = FdioManager(poller)
+        try:
+            self.assertIsNone(drv.next(read=False))
+            manager.register(drv)
+
+            manager.poll()
+
+            self.assertEqual(len(capture.errors), 1)
+            handler_ref = check.not_none(capture.errors[0].handler)
+            self.assertIs(handler_ref.handler, timeout)
+            self.assertIsInstance(capture.errors[0].exc, TimeoutError)
+            self.assertIsNone(drv.next_deadline())
+        finally:
+            drv.close()
+            peer.close()
+            poller.close()
 
 
 class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
