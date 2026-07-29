@@ -28,9 +28,6 @@ class JsonTextRendering:
     multiline_strings: bool = False
 
 
-##
-
-
 class _StyleRendererOut:
     def __init__(self) -> None:
         super().__init__()
@@ -120,9 +117,6 @@ def render_obj_json_text(
     cls(out, **kw).render(obj)
 
     return out.build()
-
-
-##
 
 
 def render_json_texts(

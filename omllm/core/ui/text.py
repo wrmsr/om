@@ -305,7 +305,10 @@ class MarkdownText(Text, lang.Final):
     #
 
     def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
+        fn('\n')
         fn(self.s)
+        if not self.s.endswith('\n'):
+            fn('\n')
 
 
 ##

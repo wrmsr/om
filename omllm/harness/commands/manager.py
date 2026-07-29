@@ -6,6 +6,7 @@ from omcore import collections as col
 
 from ...core import ui
 from .base import Command
+from .base import CommandContext
 from .base import Commands
 
 
@@ -22,14 +23,14 @@ class CommandsManager:
             self,
             *,
             commands: Commands,
-            ui_text_displayer: ui.TextDisplayer,
+            text_displayer: ui.TextDisplayer,
     ) -> None:
         super().__init__()
 
         self._commands = commands
-        self._ui_text_displayer = ui_text_displayer
+        self._text_displayer = text_displayer
 
-        self._commands_by_name = col.make_map((
+        self._commands_by_name: ta.Mapping[str, Command] = col.make_map((
             (c.name, c) for c in commands
         ), strict=True)
 
@@ -40,7 +41,7 @@ class CommandsManager:
         try:
             parts = shlex.split(text)
         except ValueError as e:
-            await self._ui_text_displayer.display_text(f'Invalid command syntax: {e}')
+            await self._text_displayer.display_text(f'Invalid command syntax: {e}')
             return RunCommandResult.FAILURE
 
         if not parts:
@@ -51,11 +52,11 @@ class CommandsManager:
 
         command = self._commands_by_name.get(cmd)
         if not command:
-            await self._ui_text_displayer.display_text(f'Unknown command: {cmd}')
+            await self._text_displayer.display_text(f'Unknown command: {cmd}')
             return RunCommandResult.FAILURE
 
-        ctx = Command.Context(
-            print=self._ui_text_displayer.display_text,
+        ctx = CommandContext(
+            print=self._text_displayer.display_text,
         )
 
         await command.run(ctx, argv)

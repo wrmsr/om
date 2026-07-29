@@ -17,6 +17,9 @@ from ... import llm
 from ...agent.fs.tools.ls import LsTool
 from ...agent.fs.tools.read import ReadTool
 from ...agent.shell.tools.bash import BashTool
+from ...core import ui
+from ...harness.commands.simple import EchoCommand
+from ...harness.commands.simple import QuitCommand
 
 
 ##
@@ -186,8 +189,21 @@ async def _a_main() -> None:
 
     #
 
+    text_displayer = ui.PrintTextDisplayer()
+
+    commands_manager = har.CommandsManager(
+        commands=har.Commands([
+            EchoCommand(),
+            QuitCommand(
+                quit_signal=ui.RaiseQuitSignal(KeyboardInterrupt),
+            ),
+        ]),
+        text_displayer=text_displayer,
+    )
+
     session = har.Session(
         agent=agent,
+        commands_manager=commands_manager,
     )
 
     #

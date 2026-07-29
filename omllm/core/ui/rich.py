@@ -12,7 +12,7 @@ from .text import TextStyle
 ##
 
 
-def ui_text_to_rich_text(t: CanText) -> rich.Text:
+def text_to_rich_text(t: CanText) -> rich.Text:
     """Convert Text tree into rich.Text with correct nested style inheritance."""
 
     root = Text.of(t)

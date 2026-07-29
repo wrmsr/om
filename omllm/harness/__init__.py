@@ -24,8 +24,12 @@ with _lang.auto_proxy_init(globals()):
 
         Command,
         Commands,
+    )
 
-        ParserClassCommand,
+    from .commands.classes import (  # noqa
+        CommandClass,
+
+        ParserCommandClass,
     )
 
     from .commands.manager import (  # noqa

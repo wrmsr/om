@@ -131,7 +131,7 @@ def _process_dataclass__0843ef2470048b534567b0a1d3bd52e06d96c21b():
     ),
     plan_repr_sha1='b85c47820b05dab0f4c49061d498738fe67a73a4',
     cls_names=(
-        ('omllm.harness.commands.base', 'Command.Context'),
+        ('omllm.harness.commands.base', 'CommandContext'),
     ),
 )
 def _process_dataclass__b85c47820b05dab0f4c49061d498738fe67a73a4():

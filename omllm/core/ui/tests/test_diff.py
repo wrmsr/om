@@ -1,6 +1,6 @@
 from omcore import marshal as msh
 
-from ..rich import ui_text_to_rich_text
+from ..rich import text_to_rich_text
 from ..text import DiffText
 from ..text import Text
 
@@ -17,7 +17,7 @@ def test_diff_text():
     assert '-b' in s
     assert '+B' in s
 
-    rt = ui_text_to_rich_text(d)
+    rt = text_to_rich_text(d)
     assert '+B' in rt.plain
 
     m = msh.marshal(d, Text)
