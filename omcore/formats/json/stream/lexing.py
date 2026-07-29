@@ -64,49 +64,42 @@ class JsonStreamLexer(GenMachine[str, Token]):
     consuming ranges which may contain newlines.
     """
 
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config:
+        include_raw: bool = False
+
+        allow_extended_space: bool = False
+        include_space: bool = False
+
+        allow_comments: bool = False
+        include_comments: bool = False
+
+        allow_single_quotes: bool = False
+        string_literal_parser: ta.Callable[[str], str] | None = None
+
+        allow_extended_number_literals: bool = False
+        number_literal_parser: ta.Callable[[str], ta.Any] | None = None
+
+        allow_extended_idents: bool = False
+
     def __init__(
             self,
-            *,
-            include_raw: bool = False,
-
-            allow_extended_space: bool = False,
-            include_space: bool = False,
-
-            allow_comments: bool = False,
-            include_comments: bool = False,
-
-            allow_single_quotes: bool = False,
-            string_literal_parser: ta.Callable[[str], str] | None = None,
-
-            allow_extended_number_literals: bool = False,
-            number_literal_parser: ta.Callable[[str], ta.Any] | None = None,
-
-            allow_extended_idents: bool = False,
+            config: Config = Config(),
     ) -> None:
-        self._include_raw = include_raw
+        self._config = config
 
-        self._allow_extended_space = allow_extended_space
-        self._include_space = include_space
+        self._include_raw = self._config.include_raw
 
-        self._allow_comments = allow_comments
-        self._include_comments = include_comments
-
-        self._allow_single_quotes = allow_single_quotes
-        if string_literal_parser is None:
-            if allow_single_quotes:
+        if (string_literal_parser := config.string_literal_parser) is None:
+            if config.allow_single_quotes:
                 # The default json.loads will always reject single-quoted raw literals.
                 raise TypeError('allow_single_quotes requires a string_literal_parser')
             string_literal_parser = json.loads  # noqa
         self._string_literal_parser = string_literal_parser
 
-        self._allow_extended_number_literals = allow_extended_number_literals
-        self._number_literal_parser = number_literal_parser
-
-        self._allow_extended_idents = allow_extended_idents
-
-        self._space_chars = SPACE_CHARS + (EXPANDED_SPACE_CHARS if allow_extended_space else '')
+        self._space_chars = SPACE_CHARS + (EXPANDED_SPACE_CHARS if config.allow_extended_space else '')
         # Bulk number scanning requires standard literals - NUMBER_PAT does not describe the extended forms.
-        self._bulk_numbers = not allow_extended_number_literals and number_literal_parser is None
+        self._bulk_numbers = not config.allow_extended_number_literals and config.number_literal_parser is None
 
         self._s = ''
         self._i = 0
@@ -218,11 +211,11 @@ class JsonStreamLexer(GenMachine[str, Token]):
         line_start = self._line_start
 
         include_raw = self._include_raw
-        include_space = self._include_space
+        include_space = self._config.include_space
         space_chars = self._space_chars
         bulk_numbers = self._bulk_numbers
-        ext_idents = self._allow_extended_idents
-        single_quotes = self._allow_single_quotes
+        ext_idents = self._config.allow_extended_idents
+        single_quotes = self._config.allow_single_quotes
         str_parser = self._string_literal_parser
         ctrl_get = _CONTROL_TOKENS_GET
         num_match = _NUMBER_PAT_MATCH
@@ -361,7 +354,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
                     if cc == '\n':
                         self._line += 1
                         self._line_start = self._base_ofs + self._i
-                    if self._include_space:
+                    if self._config.include_space:
                         o = self._base_ofs + self._i
                         yield self._make_tok('SPACE', cc, cc, (o, self._line, o - self._line_start))
                     c = None
@@ -393,16 +386,16 @@ class JsonStreamLexer(GenMachine[str, Token]):
                 self._i = 0
                 continue
 
-            if c == '"' or (self._allow_single_quotes and c == "'"):
+            if c == '"' or (self._config.allow_single_quotes and c == "'"):
                 return self._do_string(c)
 
-            if c in '0123456789-' or (self._allow_extended_number_literals and c in '.+'):
+            if c in '0123456789-' or (self._config.allow_extended_number_literals and c in '.+'):
                 return self._do_number()
 
-            if self._allow_comments and c == '/':
+            if self._config.allow_comments and c == '/':
                 return self._do_comment()
 
-            if self._allow_extended_idents:
+            if self._config.allow_extended_idents:
                 return self._do_extended_ident()
 
             if c in 'tfnIN':
@@ -500,7 +493,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
             i = j = self._i
             while j < sl and (
                     s[j] in '0123456789.eE+-' or
-                    (self._allow_extended_number_literals and s[j] in 'xXabcdefABCDEF')
+                    (self._config.allow_extended_number_literals and s[j] in 'xXabcdefABCDEF')
             ):
                 j += 1
 
@@ -518,16 +511,16 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
         #
 
-        if self._allow_extended_number_literals:
+        if self._config.allow_extended_number_literals:
             p = 1 if raw[0] in '+-' else 0
             if (len(raw) - p) > 1 and raw[p] == '0' and raw[p + 1] in '0123456789':
                 self._raise('Invalid number literal')
 
-        if raw == '-' or (self._allow_extended_number_literals and raw == '+'):
+        if raw == '-' or (self._config.allow_extended_number_literals and raw == '+'):
             nc = self._s[self._i] if self._i < len(self._s) else ''
             for svs in [
                 'Infinity',
-                *(['NaN'] if self._allow_extended_number_literals else []),
+                *(['NaN'] if self._config.allow_extended_number_literals else []),
             ]:
                 if nc != svs[0]:
                     continue
@@ -549,7 +542,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
 
         nv: ta.Any
 
-        if (np := self._number_literal_parser) is not None:
+        if (np := self._config.number_literal_parser) is not None:
             nv = np(raw)
 
         else:
@@ -648,7 +641,7 @@ class JsonStreamLexer(GenMachine[str, Token]):
         pos = (o, self._line, o - self._line_start)
         self._i += 1  # the opening '/'
 
-        include = self._include_comments
+        include = self._config.include_comments
         parts: list[str] = []
 
         oc = yield from self._read_chars(1)

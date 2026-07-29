@@ -40,7 +40,7 @@ def make_machinery(
         yield_object_lists: bool = False,
 ) -> JsonStreamValueParser.Machinery:
     return JsonStreamValueParser.Machinery(
-        JsonStreamLexer(
+        JsonStreamLexer(JsonStreamLexer.Config(
             include_raw=include_raw,
 
             allow_extended_space=True,
@@ -54,19 +54,19 @@ def make_machinery(
             number_literal_parser=parse_number_literal,
 
             allow_extended_idents=True,
-        ),
+        )),
 
-        JsonStreamParser(
+        JsonStreamParser(JsonStreamParser.Config(
             allow_trailing_commas=True,
 
             allow_ident_values=allow_ident_values,
 
             allow_extended_idents=True,
-        ),
+        )),
 
-        JsonValueBuilder(
+        JsonValueBuilder(JsonValueBuilder.Config(
             yield_object_lists=yield_object_lists,
-        ),
+        )),
     )
 
 

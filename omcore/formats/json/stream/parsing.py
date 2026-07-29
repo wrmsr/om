@@ -55,22 +55,21 @@ class JsonStreamParser:
     produced. `close` must be called after the final token - an incomplete document raises from there.
     """
 
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config:
+        allow_trailing_commas: bool = False
+
+        allow_ident_values: bool = False
+
+        allow_extended_idents: bool = False
+
     def __init__(
             self,
-            *,
-            allow_trailing_commas: bool = False,
-
-            allow_ident_values: bool = False,
-
-            allow_extended_idents: bool = False,
+            config: Config = Config(),
     ) -> None:
         super().__init__()
 
-        self._allow_trailing_commas = allow_trailing_commas
-
-        self._allow_ident_values = allow_ident_values
-
-        self._allow_extended_idents = allow_extended_idents
+        self._config = config
 
         self._stack: list[ta.Literal['OBJECT', 'KEY', 'ARRAY']] = []
         self._state: _ParserState = 'VALUE'
@@ -158,7 +157,7 @@ class JsonStreamParser:
                 # IDENT token values are always strs
                 cv = CONST_IDENT_VALUES[tok.value]  # type: ignore[index]
             except KeyError:
-                if not self._allow_ident_values:
+                if not self._config.allow_ident_values:
                     raise JsonStreamParseError('Expected value', tok.position) from None
                 return self._emit_value(tok.value)
             return self._emit_value(cv)
@@ -183,7 +182,7 @@ class JsonStreamParser:
             raise JsonStreamParseError('Expected value', tok.position)
 
     def _on_object_body(self, tok: Token, required: bool) -> tuple[Event, ...]:
-        if (kind := tok.kind) == 'STRING' or (self._allow_extended_idents and kind == 'IDENT'):
+        if (kind := tok.kind) == 'STRING' or (self._config.allow_extended_idents and kind == 'IDENT'):
             self._key = tok.value
             self._state = 'AFTER_KEY'
             return ()
@@ -210,7 +209,7 @@ class JsonStreamParser:
 
     def _on_after_pair(self, tok: Token) -> tuple[Event, ...]:
         if (kind := tok.kind) == 'COMMA':
-            self._state = 'OBJECT_BODY' if self._allow_trailing_commas else 'OBJECT_BODY_REQUIRED'
+            self._state = 'OBJECT_BODY' if self._config.allow_trailing_commas else 'OBJECT_BODY_REQUIRED'
             return ()
 
         elif kind == 'RBRACE':
@@ -221,7 +220,7 @@ class JsonStreamParser:
 
     def _on_after_element(self, tok: Token) -> tuple[Event, ...]:
         if (kind := tok.kind) == 'COMMA':
-            self._state = 'VALUE' if self._allow_trailing_commas else 'VALUE_REQUIRED'
+            self._state = 'VALUE' if self._config.allow_trailing_commas else 'VALUE_REQUIRED'
             return ()
 
         elif kind == 'RBRACKET':

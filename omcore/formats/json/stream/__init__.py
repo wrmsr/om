@@ -1,3 +1,5 @@
+# fmt: off
+# ruff: noqa: I001
 """
 A generator powered, configurable, mostly fully streaming JSON parser.
 
@@ -9,6 +11,16 @@ Regarding the 'streamyness' of the subsystems:
 It's reasonably optimized, but performance is not a primary or even secondary goal: its goal is flexibility. If speed
 matters use a native library.
 """
+from .... import dataclasses as _dc  # noqa
+
+
+_dc.init_package(
+    globals(),
+    codegen=True,
+)
+
+
+##
 
 
 from .building import (  # noqa

@@ -158,15 +158,15 @@ def make_machinery(
         yield_object_lists: bool = False,
 ) -> JsonStreamValueParser.Machinery:
     return JsonStreamValueParser.Machinery(
-        JsonStreamLexer(
+        JsonStreamLexer(JsonStreamLexer.Config(
             include_raw=include_raw,
-        ),
+        )),
 
         JsonStreamParser(),
 
-        JsonValueBuilder(
+        JsonValueBuilder(JsonValueBuilder.Config(
             yield_object_lists=yield_object_lists,
-        ),
+        )),
     )
 
 

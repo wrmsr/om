@@ -1,3 +1,4 @@
+import dataclasses as dc
 import typing as ta
 
 from .parsing import BeginArray
@@ -12,17 +13,20 @@ from .tokens import SCALAR_VALUE_TYPES
 
 ##
 
-
 class JsonValueBuilder:
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config:
+        yield_object_lists: bool = False
+
     def __init__(
             self,
-            *,
-            yield_object_lists: bool = False,
+            config: Config = Config(),
     ) -> None:
         super().__init__()
 
+        self._config = config
+
         self._stack: list[JsonStreamObject | list | Key] = []
-        self._yield_object_lists = yield_object_lists
 
     class StateError(Exception):
         pass
@@ -88,7 +92,7 @@ class JsonValueBuilder:
             if not stk or not isinstance(tv := stk.pop(), JsonStreamObject):
                 raise self.StateError
 
-            if not self._yield_object_lists:
+            if not self._config.yield_object_lists:
                 tv = dict(tv)
 
             return self._emit_value(tv)

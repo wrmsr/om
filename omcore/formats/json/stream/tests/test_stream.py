@@ -22,9 +22,9 @@ def test_stream(include_space):
         ts = []
         es = []
         vs = []
-        with JsonStreamLexer(
+        with JsonStreamLexer(JsonStreamLexer.Config(
                 include_space=include_space,
-        ) as lex:
+        )) as lex:
             with JsonStreamParser() as parse:
                 with JsonValueBuilder() as build:
                     for c in [*s, '']:

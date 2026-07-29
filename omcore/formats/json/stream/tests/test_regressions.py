@@ -152,7 +152,9 @@ def test_eof_error_position():
 
 def test_single_quotes_require_string_literal_parser():
     with pytest.raises(TypeError):
-        JsonStreamLexer(allow_single_quotes=True)
+        JsonStreamLexer(JsonStreamLexer.Config(
+            allow_single_quotes=True,
+        ))
 
     assert _parse_all(
         "'abc' ",
