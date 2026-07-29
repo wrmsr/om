@@ -17,6 +17,25 @@ from ...agent.shell.tools.bash import BashTool
 ##
 
 
+class InputManager:
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._mtx = asyncio.Lock()
+
+    async def input(self, prompt: str | None = None) -> str:
+        async with self._mtx:
+            return await asyncio.to_thread(
+                functools.partial(
+                    input,
+                    *([prompt] if prompt is not None else []),
+                ),
+            )
+
+
+##
+
+
 async def _a_main() -> None:
     parser = argparse.ArgumentParser()
 
