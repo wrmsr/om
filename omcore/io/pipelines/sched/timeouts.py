@@ -1,10 +1,11 @@
-# ruff: noqa: UP006 UP007 UP045
+# ruff: noqa: UP006 UP007 UP037 UP045
 # @om-lite
 import dataclasses as dc
 import enum
 import functools
 import math
 import typing as ta
+import weakref
 
 from ....lite.check import check
 from ..core import IoPipelineHandler
@@ -301,3 +302,132 @@ class ReadTimeoutIoPipelineHandler(IoPipelineHandler):
             self._arm(ctx)
 
         ctx.feed_in(msg)
+
+
+##
+
+
+class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
+    """
+    Emits one inbound timeout error when an explicit outbound completion fence remains pending for too long.
+
+    FlushOutput and FinalOutput are ordered fences whose completion means all preceding output crossed the transport
+    boundary. Each fence gets an independent deadline, making the oldest outstanding fence the effective deadline.
+    Ordinary outbound messages do not implicitly flush or schedule anything, so the handler remains tickless whenever
+    no fence is outstanding.
+
+    Timeout only reports the stalled write. Error policy remains responsible for deciding whether to close the
+    pipeline, and a later fence completion remains valid.
+    """
+
+    def __init__(self, timeout_s: float) -> None:
+        super().__init__()
+
+        if not math.isfinite(timeout_s) or timeout_s <= 0.:
+            raise ValueError(timeout_s)
+        self._timeout_s = timeout_s
+
+        self._handles: ta.Dict[int, IoPipelineScheduling.Handle] = {}
+        self._active = False
+        self._timed_out = False
+
+    #
+
+    def _cancel(self) -> None:
+        handles = tuple(self._handles.values())
+        self._handles.clear()
+        for handle in handles:
+            handle.cancel()
+
+    @staticmethod
+    def _run_timeout(ctx: IoPipelineHandlerContext, *, token: int) -> None:
+        handler = check.isinstance(ctx.handler, WriteTimeoutIoPipelineHandler)
+        handler._on_timeout(ctx, token)  # noqa
+
+    def _on_timeout(self, ctx: IoPipelineHandlerContext, token: int) -> None:
+        if self._handles.pop(token, None) is None or not self._active or self._timed_out:
+            return
+
+        self._timed_out = True
+        self._cancel()
+        ctx.feed_in(IoPipelineMessages.Error(
+            TimeoutIoPipelineError(f'Write timed out after {self._timeout_s:g} seconds'),
+            direction='outbound',
+            handler=ctx.ref,
+        ))
+
+    @staticmethod
+    def _on_fence_done(
+            handler_ref: ta.Callable[[], ta.Optional['WriteTimeoutIoPipelineHandler']],
+            token: int,
+            final_output: bool,
+            _msg: IoPipelineMessages.Completable[None],
+    ) -> None:
+        if (handler := handler_ref()) is None:
+            return
+
+        if (handle := handler._handles.pop(token, None)) is not None:  # noqa
+            handle.cancel()
+
+        if final_output:
+            handler._active = False  # noqa
+            handler._cancel()  # noqa
+
+    def _track_fence(
+            self,
+            ctx: IoPipelineHandlerContext,
+            msg: IoPipelineMessages.Completable[None],
+            *,
+            final_output: bool,
+    ) -> None:
+        token = id(msg)
+        check.not_in(token, self._handles)
+
+        handle = ctx.services[IoPipelineScheduling].schedule_context(
+            ctx.ref,
+            self._timeout_s,
+            functools.partial(self._run_timeout, token=token),
+        )
+        self._handles[token] = handle
+        msg.add_listener(functools.partial(
+            self._on_fence_done,
+            weakref.ref(self),
+            token,
+            final_output,
+        ))
+
+    #
+
+    def notify(self, ctx: IoPipelineHandlerContext, no: IoPipelineHandlerNotification) -> None:
+        if isinstance(no, IoPipelineHandlerNotifications.Added):
+            check.not_none(ctx.services.find(IoPipelineScheduling))
+
+            self._active = False
+            self._timed_out = False
+            self._cancel()
+
+        elif isinstance(no, IoPipelineHandlerNotifications.Removed):
+            self._active = False
+            self._cancel()
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            self._cancel()
+            self._active = True
+            self._timed_out = False
+
+        ctx.feed_in(msg)
+
+    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if (
+                self._active and
+                not self._timed_out and
+                isinstance(msg, (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.FinalOutput))
+        ):
+            self._track_fence(
+                ctx,
+                msg,
+                final_output=isinstance(msg, IoPipelineMessages.FinalOutput),
+            )
+
+        ctx.feed_out(msg)

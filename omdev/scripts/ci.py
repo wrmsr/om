@@ -223,7 +223,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='32a063c0cdfb151e256c99bf8161934292946ff2'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='242fd7def408a8373cbe88ebd048d8f7ede65de1'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='18f4faa2428e3fa1a99ccf480c94c1c21e95424d'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -31919,10 +31919,6 @@ class IoPipelineHttpObjectDecoder(
 
 ########################################
 # ../../../omcore/io/pipelines/drivers/sync.py
-"""
-TODO:
- - sanity / upper bound read/write timeouts
-"""
 
 
 log = get_module_logger(globals())  # noqa

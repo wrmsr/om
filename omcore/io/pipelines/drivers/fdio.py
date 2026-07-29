@@ -2,7 +2,6 @@
 # @om-lite
 """
 TODO:
- - sanity / upper bound read/write timeouts
  - self._sock.shutdown(socket.SHUT_WR) ?
 """
 import collections
