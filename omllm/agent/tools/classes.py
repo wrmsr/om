@@ -29,6 +29,7 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
     def params_cls(self) -> type[P]:
         raise NotImplementedError
 
+    @property
     @abc.abstractmethod
     def description(self) -> ToolDescription:
         raise NotImplementedError
@@ -37,7 +38,7 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
     def llm_tool(self) -> llm.Tool:
         return llm.Tool(
             name=self.name,
-            description=(description := self.description()).description,
+            description=(description := self.description).description,
             params=reflect_tool_params(
                 self.params_cls,
                 description=description,

@@ -1,11 +1,12 @@
 import io
 import itertools
 import os.path
+import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ...tools.reflect import reflect_tool_fn
+from ...tools.classes import ToolClass
 from ...types.tools import Tool
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -29,91 +30,92 @@ class ReadParams:
     num_lines: int = DEFAULT_MAX_NUM_LINES
 
 
-READ_DESCRIPTION = ToolDescription(
-    """
-        Reads a file from the local filesystem. You can access any file directly by using this tool.
+class ReadTool(ToolClass[ReadParams]):
+    name: ta.Final = 'read'
 
-        Assume this tool is able to read all files on the machine. If the User provides a path to a file assume that
-        path is valid. It is okay to read a file that does not exist; an error will be returned.
+    params_cls: ta.Final = ReadParams
 
-        Usage:
-        - The file_path parameter must be an absolute path, not a relative path.
-        - By default, it reads up to 2000 lines starting from the beginning of the file.
-        - You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to
-          read the whole file by not providing these parameters.
-        - Any lines longer than 2000 characters will be truncated with "...".
-        - Invalid unicode characters will be replaced with the unicode replacement character "\\ufffd".
-        - Results are returned using cat -n format, with line numbers starting at 1 and suffixed with a pipe character
-          "|".
-        - This tool cannot read binary files, including images.
-    """,
-    dict(
-        file_path='The absolute path to the file to read.',
-        line_offset='The line number to start reading from (0-based).',
-        num_lines='The number of lines to read (defaults to 2000).',
-    ),
-)
+    description: ta.Final = ToolDescription(
+        """
+            Reads a file from the local filesystem. You can access any file directly by using this tool.
 
+            Assume this tool is able to read all files on the machine. If the User provides a path to a file assume that
+            path is valid. It is okay to read a file that does not exist; an error will be returned.
 
-async def read(
-        ctx: ToolContext,
-        params: ReadParams,
-) -> str:
-    if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
-        raise ValueError('Path must be absolute')
-    if ctx.env is None or (cwd := ctx.env.cwd) is None:
-        raise ValueError('No working directory configured')
-    if os.path.commonpath((cwd, params.file_path)) != cwd:
-        raise ValueError('Path not under configured working directory')
-    if not os.path.exists(params.file_path):
-        raise ValueError('Path does not exist')
-    if not os.path.isfile(params.file_path):
-        raise ValueError('Path is not a file')
+            Usage:
+            - The file_path parameter must be an absolute path, not a relative path.
+            - By default, it reads up to 2000 lines starting from the beginning of the file.
+            - You can optionally specify a line offset and limit (especially handy for long files), but it's recommended
+              to read the whole file by not providing these parameters.
+            - Any lines longer than 2000 characters will be truncated with "...".
+            - Invalid unicode characters will be replaced with the unicode replacement character "\\ufffd".
+            - Results are returned using cat -n format, with line numbers starting at 1 and suffixed with a pipe
+              character "|".
+            - This tool cannot read binary files, including images.
+        """,
+        dict(
+            file_path='The absolute path to the file to read.',
+            line_offset='The line number to start reading from (0-based).',
+            num_lines='The number of lines to read (defaults to 2000).',
+        ),
+    )
 
-    out = io.StringIO()
-    out.write('<file>\n')
+    async def execute(self, ctx: ToolContext, params: ReadParams) -> str:
+        if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
+            raise ValueError('Path must be absolute')
+        if ctx.env is None or (cwd := ctx.env.cwd) is None:
+            raise ValueError('No working directory configured')
+        if os.path.commonpath((cwd, params.file_path)) != cwd:
+            raise ValueError('Path not under configured working directory')
+        if not os.path.exists(params.file_path):
+            raise ValueError('Path does not exist')
+        if not os.path.isfile(params.file_path):
+            raise ValueError('Path is not a file')
 
-    zp = len(str(params.line_offset + params.num_lines))
-    n = params.line_offset
-    has_trunc = False  # noqa
-    with open(params.file_path, errors='replace') as f:  # noqa
-        fi = iter(f)
+        out = io.StringIO()
+        out.write('<file>\n')
 
-        for line in itertools.islice(fi, params.line_offset, params.line_offset + params.num_lines):
-            out.write(f'{str(n + 1).zfill(zp):}|')
-            line = line.removesuffix('\n')
-            if len(line) > MAX_LINE_LENGTH:
-                has_trunc = True  # noqa
-                out.write(line[:MAX_LINE_LENGTH])
-                out.write('...')
+        zp = len(str(params.line_offset + params.num_lines))
+        n = params.line_offset
+        has_trunc = False  # noqa
+        with open(params.file_path, errors='replace') as f:  # noqa
+            fi = iter(f)
+
+            for line in itertools.islice(fi, params.line_offset, params.line_offset + params.num_lines):
+                out.write(f'{str(n + 1).zfill(zp):}|')
+                line = line.removesuffix('\n')
+                if len(line) > MAX_LINE_LENGTH:
+                    has_trunc = True  # noqa
+                    out.write(line[:MAX_LINE_LENGTH])
+                    out.write('...')
+                else:
+                    out.write(line)
+                out.write('\n')
+                n += 1
+
+            # tl = n
+            # if (ml := lang.ilen(fi)):
+            #     check.state(n == num_lines)
+            #     tl += ml
+
+            try:
+                next(fi)
+            except StopIteration:
+                has_more = False
             else:
-                out.write(line)
-            out.write('\n')
-            n += 1
+                has_more = True
 
-        # tl = n
-        # if (ml := lang.ilen(fi)):
-        #     check.state(n == num_lines)
-        #     tl += ml
+        out.write(f'</file>\n')
 
-        try:
-            next(fi)
-        except StopIteration:
-            has_more = False
-        else:
-            has_more = True
+        if has_more:
+            out.write(
+                f'\n(File has more lines. Use "line_offset" parameter to read beyond line '
+                f'{params.line_offset + params.num_lines}.)\n',
+            )
 
-    out.write(f'</file>\n')
-
-    if has_more:
-        out.write(
-            f'\n(File has more lines. Use "line_offset" parameter to read beyond line '
-            f'{params.line_offset + params.num_lines}.)\n',
-        )
-
-    return out.getvalue()
+        return out.getvalue()
 
 
 @lang.cached_function
 def read_tool() -> Tool:
-    return reflect_tool_fn(READ_DESCRIPTION, read)
+    return ReadTool().tool()

@@ -18,6 +18,10 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
+    from .tools.classes import (  # noqa
+        ToolClass,
+    )
+
     from .tools.reflect import (  # noqa
         instantiate_tool_params,
 
