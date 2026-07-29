@@ -1277,6 +1277,106 @@ def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('event',)), EqPlan(fields=('event',)), FrozenPlan(fields=('event',), allow_dynamic"
+        "_dunder_attrs=False), HashPlan(action='add', fields=('event',), cache=False), InitPlan(fields=(InitPlan.Field("
+        "name='event', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True"
+        ", override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='s"
+        "elf', std_params=('event',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), "
+        "validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='event', kw_only=False, fn=None),), id=False, terse=Fal"
+        "se, default_fn=None)))"
+    ),
+    plan_repr_sha1='d7593c07dc232d34c599b6859cdfde9d9a747ba2',
+    cls_names=(
+        ('omllm.agent.types.events', 'LlmAiStreamEvent'),
+    ),
+)
+def _process_dataclass__d7593c07dc232d34c599b6859cdfde9d9a747ba2():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                event=self.event,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.event == other.event
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'event',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.event,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            event: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'event', event)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"event={self.event!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('message',)), EqPlan(fields=('message',)), FrozenPlan(fields=('message',), allow_d"
         "ynamic_dunder_attrs=False), HashPlan(action='add', fields=('message',), cache=False), InitPlan(fields=(InitPla"
         "n.Field(name='message', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None,"

@@ -106,7 +106,10 @@ async def _a_main() -> None:
 
     model_key = llm.ModelKey('openai', 'gpt-5.4-mini')
     api_key_name = 'openai_api_key'
-    backend_cls = llm.OpenaiCompletionsImmediateBackend
+    backend_cls = (
+        # llm.OpenaiCompletionsImmediateBackend
+        llm.OpenaiCompletionsStreamBackend
+    )
 
     cwd = os.path.abspath(os.path.realpath(os.getcwd()))
 
@@ -122,6 +125,8 @@ async def _a_main() -> None:
     )
 
     async def on_event(ev: ag.Event) -> None:
+        print(ev)
+
         if isinstance(ev, ag.TurnEndEvent):
             if isinstance(msg := ev.message, llm.AiMessage):
                 for c in msg.content:

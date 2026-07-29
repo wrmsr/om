@@ -7,6 +7,7 @@ from ..types.events import AgentEndEvent
 from ..types.events import AgentStartEvent
 from ..types.events import Event
 from ..types.events import EventSink
+from ..types.events import LlmAiStreamEvent
 from ..types.events import TurnEndEvent
 from ..types.events import TurnStartEvent
 from ..types.messages import Message
@@ -82,10 +83,20 @@ class TurnLoop:
             ] if self._context.tools else None,
         )
 
-        return await self._llm_backend.immediate(
-            llm_context,
-            self._config.llm_options,
-        )
+        if isinstance(llm_backend := self._llm_backend, llm.StreamBackend):
+            async with (await llm_backend.stream(
+                    llm_context,
+                    self._config.llm_options,
+            )) as it:
+                async for e in it:
+                    await self._emit(LlmAiStreamEvent(e))
+                return it.result.must()
+
+        else:
+            return await self._llm_backend.immediate(
+                llm_context,
+                self._config.llm_options,
+            )
 
     #
 

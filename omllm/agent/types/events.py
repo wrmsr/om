@@ -3,6 +3,7 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
+from ... import llm
 from .contexts import Context
 from .messages import Message
 
@@ -16,6 +17,15 @@ class Event(lang.Abstract):
 
 
 type EventSink = ta.Callable[[Event], ta.Awaitable[None]]
+
+
+##
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class LlmAiStreamEvent(Event):
+    event: llm.AiStreamEvent
 
 
 ##
