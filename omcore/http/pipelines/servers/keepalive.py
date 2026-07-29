@@ -61,10 +61,10 @@ class IoPipelineHttpServerKeepAliveHandler(IoPipelineHandler):
             return
 
         self._cancel()
-        self._handle = ctx.services[IoPipelineScheduling].schedule(
+        self._handle = ctx.services[IoPipelineScheduling].schedule_context(
             ctx.ref,
             self._idle_timeout_s,
-            lambda: self._on_timeout(ctx),
+            lambda ctx2: check.isinstance(ctx2.handler, IoPipelineHttpServerKeepAliveHandler)._on_timeout(ctx2),  # noqa
         )
 
     def _close_output(self, ctx: IoPipelineHandlerContext) -> None:

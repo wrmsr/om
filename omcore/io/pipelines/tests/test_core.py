@@ -1,7 +1,9 @@
 # @om-lite
 import dataclasses as dc
+import gc
 import typing as ta
 import unittest
+import weakref
 
 from ....lite.check import check
 from ..core import IoPipeline
@@ -59,6 +61,55 @@ class ReplaceSelfInboundHandler(IoPipelineHandler):
         h = self.fn()
         hr = ctx.pipeline.replace(ctx.ref, h)
         ctx.pipeline.feed_in_to(hr, msg)
+
+
+class TestReferenceOwnership(unittest.TestCase):
+    def test_pipeline_topology_does_not_require_cyclic_gc(self) -> None:
+        def make_refs():
+            first = IntIncInboundHandler()
+            second = IntStrDuplexHandler()
+            pipeline = IoPipeline.new([first, second])
+
+            # Populate every handler lookup cache; these are part of the long-lived pipeline topology too.
+            pipeline.handlers()
+            pipeline.handlers_by_name()
+            pipeline.find_handlers_of_type(IoPipelineHandler)
+            pipeline.find_single_handler_of_type(IntIncInboundHandler)
+
+            handler_ref = check.not_none(pipeline.find_handler(first))
+            return (
+                weakref.ref(pipeline),
+                weakref.ref(first),
+                weakref.ref(second),
+                weakref.ref(handler_ref._context),  # noqa
+                weakref.ref(handler_ref),
+            )
+
+        was_enabled = gc.isenabled()
+        gc.disable()
+        try:
+            refs = make_refs()
+            self.assertTrue(all(ref() is None for ref in refs))
+        finally:
+            if was_enabled:
+                gc.enable()
+
+    def test_handler_ref_keeps_pipeline_alive_without_a_cycle(self) -> None:
+        was_enabled = gc.isenabled()
+        gc.disable()
+        try:
+            pipeline = IoPipeline.new([IntIncInboundHandler()])
+            pipeline_ref = weakref.ref(pipeline)
+            handler_ref = pipeline.handlers()[0]
+
+            del pipeline
+            self.assertIs(handler_ref.pipeline, pipeline_ref())
+
+            del handler_ref
+            self.assertIsNone(pipeline_ref())
+        finally:
+            if was_enabled:
+                gc.enable()
 
 
 class TestCore(unittest.TestCase):

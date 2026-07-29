@@ -1,14 +1,20 @@
-# ruff: noqa: UP006 UP007 UP045
 # @om-lite
-import dataclasses as dc
 import typing as ta
+import weakref
 
+from ....lite.check import check
 from ..core import IoPipelineMetadata
 
 
 ##
 
 
-@dc.dataclass(frozen=True)
 class DriverIoPipelineMetadata(IoPipelineMetadata):
-    driver: ta.Any
+    def __init__(self, driver: ta.Any) -> None:
+        super().__init__()
+
+        self.__driver_ref = weakref.ref(driver)
+
+    @property
+    def driver(self) -> ta.Any:
+        return check.not_none(self.__driver_ref())

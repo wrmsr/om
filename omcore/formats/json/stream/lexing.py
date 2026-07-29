@@ -4,10 +4,10 @@ TODO:
  - max recursion depth
  - mark start pos of tokens, currently returning end
 """
-import dataclasses as dc
 import json
 import typing as ta
 
+from .... import dataclasses as dc
 from .... import lang
 from ....funcs.genmachine import GenMachine
 from .errors import JsonStreamError

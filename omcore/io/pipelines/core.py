@@ -5,6 +5,7 @@ import collections
 import dataclasses as dc
 import enum
 import typing as ta
+import weakref
 
 from ...lite.abstract import Abstract
 from ...lite.check import check
@@ -279,10 +280,11 @@ class IoPipelineHandlerRef(ta.Generic[T]):
 
     def __init__(self, *, _context: 'IoPipelineHandlerContext') -> None:
         self._context = _context
+        self._pipeline = _context._pipeline  # noqa
 
     @property
     def pipeline(self) -> 'IoPipeline':
-        return self._context._pipeline  # noqa
+        return self._pipeline
 
     @property
     def handler(self) -> T:
@@ -335,19 +337,31 @@ class IoPipelineHandlerContext:
     ) -> None:
         super().__init__()
 
-        self._pipeline: ta.Final[IoPipeline] = _pipeline
+        self.__pipeline_ref = weakref.ref(_pipeline)
         self._handler: ta.Final[IoPipelineHandler] = _handler
 
         self._name: ta.Final[ta.Optional[str]] = _name
 
-        self._ref: IoPipelineHandlerRef_ = IoPipelineHandlerRef(_context=self)
+        self.__ref_ref: ta.Optional[weakref.ReferenceType] = None
 
         hty = type(_handler)
         self._handles_inbound = hty.inbound is not IoPipelineHandler.inbound
         self._handles_outbound = hty.outbound is not IoPipelineHandler.outbound
 
-    _next_in: 'IoPipelineHandlerContext'  # 'next'
-    _next_out: 'IoPipelineHandlerContext'  # 'prev'
+    _next_in: 'IoPipelineHandlerContext'  # 'next', owning
+    __next_out_ref: weakref.ReferenceType  # 'prev', non-owning
+
+    @property
+    def _next_out(self) -> 'IoPipelineHandlerContext':
+        return check.not_none(self.__next_out_ref())
+
+    @_next_out.setter
+    def _next_out(self, ctx: 'IoPipelineHandlerContext') -> None:
+        self.__next_out_ref = weakref.ref(ctx)
+
+    @_next_out.deleter
+    def _next_out(self) -> None:
+        del self.__next_out_ref
 
     def __repr__(self) -> str:
         return (
@@ -361,6 +375,19 @@ class IoPipelineHandlerContext:
     @property
     def ref(self) -> IoPipelineHandlerRef_:
         return self._ref
+
+    @property
+    def _ref(self) -> IoPipelineHandlerRef_:
+        if (ref_ref := self.__ref_ref) is not None and (ref := ref_ref()) is not None:
+            return ref
+
+        ref = IoPipelineHandlerRef(_context=self)
+        self.__ref_ref = weakref.ref(ref)
+        return ref
+
+    @property
+    def _pipeline(self) -> 'IoPipeline':
+        return check.not_none(self.__pipeline_ref())
 
     @property
     def pipeline(self) -> 'IoPipeline':
@@ -922,10 +949,14 @@ class _IoPipelinePropagation:
         pinned_by: ta.Optional[IoPipelineMessages.Pinning] = None
 
     def __init__(self, p: 'IoPipeline') -> None:
-        self._p = p
+        self.__p_ref = weakref.ref(p)
 
         if not self._p._config.disable_propagation_checking:  # noqa
             self._pending_must: ta.Final[ta.Dict[int, _IoPipelinePropagation._PendingMustEntry]] = {}
+
+    @property
+    def _p(self) -> 'IoPipeline':
+        return check.not_none(self.__p_ref())
 
     def add_must(
             self,
@@ -1712,67 +1743,67 @@ class IoPipeline:
     @ta.final
     class _Caches:
         def __init__(self, p: 'IoPipeline') -> None:
-            self._p = p
+            self.__p_ref = weakref.ref(p)
 
-            self._handlers_by_type_cache: ta.Dict[type, ta.Sequence[IoPipelineHandlerRef]] = {}
-            self._single_handlers_by_type_cache: ta.Dict[type, ta.Optional[IoPipelineHandlerRef]] = {}
+            self._handlers_by_type_cache: ta.Dict[type, ta.Sequence[IoPipelineHandlerContext]] = {}
+            self._single_handlers_by_type_cache: ta.Dict[type, ta.Optional[IoPipelineHandlerContext]] = {}
 
-        _handlers: ta.Sequence[IoPipelineHandlerRef_]
+        @property
+        def _p(self) -> 'IoPipeline':
+            return check.not_none(self.__p_ref())
+
+        _handler_contexts: ta.Sequence[IoPipelineHandlerContext]
 
         def handlers(self) -> ta.Sequence[IoPipelineHandlerRef_]:
             try:
-                return self._handlers
+                contexts = self._handler_contexts
             except AttributeError:
-                pass
+                contexts = []
+                ctx = self._p._outermost  # noqa
+                while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
+                    contexts.append(ctx)
+                self._handler_contexts = contexts
 
-            lst: ta.List[IoPipelineHandlerRef_] = []
-            ctx = self._p._outermost  # noqa
-            while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
-                lst.append(ctx._ref)  # noqa
+            return [ctx._ref for ctx in contexts]  # noqa
 
-            self._handlers = lst
-            return lst
-
-        _handlers_by_name: ta.Mapping[str, IoPipelineHandlerRef_]
+        _handler_contexts_by_name: ta.Mapping[str, IoPipelineHandlerContext]
 
         def handlers_by_name(self) -> ta.Mapping[str, IoPipelineHandlerRef_]:
             try:
-                return self._handlers_by_name
+                contexts_by_name = self._handler_contexts_by_name
             except AttributeError:
-                pass
+                contexts_by_name = {}
+                ctx = self._p._outermost  # noqa
+                while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
+                    if (n := ctx._name) is not None:  # noqa
+                        contexts_by_name[n] = ctx
+                self._handler_contexts_by_name = contexts_by_name
 
-            dct: ta.Dict[str, IoPipelineHandlerRef_] = {}
-            ctx = self._p._outermost  # noqa
-            while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
-                if (n := ctx._name) is not None:  # noqa
-                    dct[n] = ctx._ref  # noqa
-
-            self._handlers_by_name = dct
-            return dct
+            return {name: ctx._ref for name, ctx in contexts_by_name.items()}  # noqa
 
         def find_handlers_of_type(self, ty: ta.Type[T]) -> ta.Sequence[IoPipelineHandlerRef[T]]:
             try:
-                return self._handlers_by_type_cache[ty]
+                contexts = self._handlers_by_type_cache[ty]
             except KeyError:
-                pass
+                contexts = []
+                ctx = self._p._outermost  # noqa
+                while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
+                    if isinstance(ctx._handler, ty):  # noqa
+                        contexts.append(ctx)
+                self._handlers_by_type_cache[ty] = contexts
 
-            ret: ta.List[ta.Any] = []
-            ctx = self._p._outermost  # noqa
-            while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
-                if isinstance(ctx._handler, ty):  # noqa
-                    ret.append(ctx._ref)  # noqa
-
-            self._handlers_by_type_cache[ty] = ret
-            return ret
+            return [ctx._ref for ctx in contexts]  # type: ignore[misc]  # noqa
 
         def find_single_handler_of_type(self, ty: ta.Type[T]) -> ta.Optional[IoPipelineHandlerRef[T]]:
             try:
-                return self._single_handlers_by_type_cache[ty]
+                ctx = self._single_handlers_by_type_cache[ty]
             except KeyError:
-                pass
+                refs = self.find_handlers_of_type(ty)
+                ref = check.opt_single(refs)
+                self._single_handlers_by_type_cache[ty] = None if ref is None else ref._context  # noqa
+                return ref
 
-            self._single_handlers_by_type_cache[ty] = ret = check.opt_single(self.find_handlers_of_type(ty))
-            return ret
+            return None if ctx is None else ctx._ref  # type: ignore[return-value]  # noqa
 
     __caches: _Caches
 

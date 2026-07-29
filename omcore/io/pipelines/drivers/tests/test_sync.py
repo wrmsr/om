@@ -1,10 +1,13 @@
 # ruff: noqa: SLF001 UP045
 # @om-lite
+import gc
 import socket
 import time
 import typing as ta
 import unittest
+import weakref
 
+from .....lite.check import check
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
@@ -14,6 +17,7 @@ from ...core import IoPipelineService
 from ...core import IoPipelineUpdate
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
+from ...sched.timeouts import ReadTimeoutIoPipelineHandler
 from ...sched.types import IoPipelineScheduling
 from ..sync import SyncSocketIoPipelineDriver
 from ..types import IoPipelineDriverState
@@ -216,6 +220,28 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
         if ref is None:
             self.fail('Expected handler in pipeline')
         return ref
+
+    def test_active_handler_timer_does_not_require_cyclic_gc(self) -> None:
+        def make_refs():
+            drv = self.make_driver(ReadTimeoutIoPipelineHandler(60.))
+            handler_ref = check.not_none(drv.pipeline.find_single_handler_of_type(ReadTimeoutIoPipelineHandler))
+            handler = handler_ref.handler
+            handle = check.not_none(handler._handle)  # noqa
+            return (
+                weakref.ref(drv),
+                weakref.ref(drv.pipeline),
+                weakref.ref(handler),
+                weakref.ref(handle),
+            )
+
+        was_enabled = gc.isenabled()
+        gc.disable()
+        try:
+            refs = make_refs()
+            self.assertTrue(all(ref() is None for ref in refs))
+        finally:
+            if was_enabled:
+                gc.enable()
 
     def test_timer_wakes_read_select(self):
         sock, peer = socket.socketpair()

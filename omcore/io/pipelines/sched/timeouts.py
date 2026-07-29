@@ -2,6 +2,7 @@
 # @om-lite
 import dataclasses as dc
 import enum
+import functools
 import math
 import typing as ta
 
@@ -103,11 +104,16 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
         if not self._is_active(state) or (timeout_s := self._timeouts[state]) is None:
             return
 
-        self._handles[state] = ctx.services[IoPipelineScheduling].schedule(
+        self._handles[state] = ctx.services[IoPipelineScheduling].schedule_context(
             ctx.ref,
             timeout_s,
-            lambda: self._on_idle(ctx, state),
+            functools.partial(self._run_idle, state=state),
         )
+
+    @staticmethod
+    def _run_idle(ctx: IoPipelineHandlerContext, *, state: IoPipelineIdleState) -> None:
+        handler = check.isinstance(ctx.handler, IdleStateIoPipelineHandler)
+        handler._on_idle(ctx, state)  # noqa
 
     def _record_activity(
             self,
@@ -234,11 +240,16 @@ class ReadTimeoutIoPipelineHandler(IoPipelineHandler):
 
     def _arm(self, ctx: IoPipelineHandlerContext) -> None:
         self._cancel()
-        self._handle = ctx.services[IoPipelineScheduling].schedule(
+        self._handle = ctx.services[IoPipelineScheduling].schedule_context(
             ctx.ref,
             self._timeout_s,
-            lambda: self._on_timeout(ctx),
+            self._run_timeout,
         )
+
+    @staticmethod
+    def _run_timeout(ctx: IoPipelineHandlerContext) -> None:
+        handler = check.isinstance(ctx.handler, ReadTimeoutIoPipelineHandler)
+        handler._on_timeout(ctx)  # noqa
 
     def _on_timeout(self, ctx: IoPipelineHandlerContext) -> None:
         self._handle = None

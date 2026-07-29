@@ -10,11 +10,13 @@ import heapq
 import select
 import time
 import typing as ta
+import weakref
 
 from ....lite.check import check
 from ....logs.modules import get_module_logger
 from ...streambufs.utils import ByteStreamBuffers
 from ..core import IoPipeline
+from ..core import IoPipelineHandlerContext
 from ..core import IoPipelineHandlerRef
 from ..core import IoPipelineHandlerUpdate
 from ..core import IoPipelineMessages
@@ -338,13 +340,27 @@ class SyncSocketIoPipelineDriver:
         def __init__(self, d: 'SyncSocketIoPipelineDriver') -> None:
             super().__init__()
 
-            self._d = d
+            self.__d_ref = weakref.ref(d)
 
-            self._pipeline: ta.Optional[IoPipeline] = None
+            self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
 
             self._seq = 0
             self._pending: ta.List[ta.Tuple[float, int, SyncSocketIoPipelineDriver._SchedulingService._Handle]] = []
             self._live: ta.Set[SyncSocketIoPipelineDriver._SchedulingService._Handle] = set()
+
+        @property
+        def _d(self) -> 'SyncSocketIoPipelineDriver':
+            return check.not_none(self.__d_ref())
+
+        @property
+        def _pipeline(self) -> ta.Optional[IoPipeline]:
+            if self.__pipeline_ref is None:
+                return None
+            return self.__pipeline_ref()
+
+        @_pipeline.setter
+        def _pipeline(self, pipeline: ta.Optional[IoPipeline]) -> None:
+            self.__pipeline_ref = None if pipeline is None else weakref.ref(pipeline)
 
         def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
             if kind == 'added':
@@ -395,7 +411,7 @@ class SyncSocketIoPipelineDriver:
 
                 try:
                     with self._d.pipeline.enter():
-                        h._fn()  # noqa
+                        h._run()  # noqa
 
                 except BaseException:
                     for rh in due[i + 1:]:
@@ -413,31 +429,50 @@ class SyncSocketIoPipelineDriver:
                     self,
                     sched: 'SyncSocketIoPipelineDriver._SchedulingService',
                     handler_ref: IoPipelineHandlerRef,
-                    fn: ta.Callable[[], None],
+                    fn: ta.Callable[..., None],
+                    with_context: bool,
                     deadline: float,
                     seq: int,
             ) -> None:
-                self._sched = sched
+                self.__sched_ref = weakref.ref(sched)
                 self._deadline = deadline
                 self._seq = seq
-                self._handler_ref = handler_ref
+                self.__handler_context_ref = weakref.ref(handler_ref._context)  # noqa
                 self._fn = fn
+                self._with_context = with_context
 
                 self._cancelled = False
                 self._done = False
+
+            @property
+            def _sched(self) -> 'SyncSocketIoPipelineDriver._SchedulingService':
+                return check.not_none(self.__sched_ref())
+
+            @property
+            def _handler_context(self) -> IoPipelineHandlerContext:
+                return check.not_none(self.__handler_context_ref())
+
+            def _run(self) -> None:
+                if self._with_context:
+                    self._fn(self._handler_context)
+                else:
+                    self._fn()
 
             def cancel(self) -> None:
                 if self._cancelled or self._done:
                     return
 
                 self._cancelled = True
-                self._sched._live.remove(self)  # noqa
+                if (sched := self.__sched_ref()) is not None:
+                    sched._live.discard(self)  # noqa
 
-        def schedule(
+        def _schedule(
                 self,
                 handler_ref: IoPipelineHandlerRef,
                 delay_s: float,
-                fn: ta.Callable[[], None],
+                fn: ta.Callable[..., None],
+                *,
+                with_context: bool,
         ) -> IoPipelineScheduling.Handle:
             pipeline = check.not_none(self._pipeline)
             check.is_(handler_ref.pipeline, pipeline)
@@ -448,6 +483,7 @@ class SyncSocketIoPipelineDriver:
                 self,
                 handler_ref,
                 fn,
+                with_context,
                 time.monotonic() + max(0., delay_s),
                 self._seq,
             )
@@ -456,9 +492,25 @@ class SyncSocketIoPipelineDriver:
             self._live.add(h)
             return h
 
+        def schedule(
+                self,
+                handler_ref: IoPipelineHandlerRef,
+                delay_s: float,
+                fn: ta.Callable[[], None],
+        ) -> IoPipelineScheduling.Handle:
+            return self._schedule(handler_ref, delay_s, fn, with_context=False)
+
+        def schedule_context(
+                self,
+                handler_ref: IoPipelineHandlerRef,
+                delay_s: float,
+                fn: ta.Callable[[IoPipelineHandlerContext], None],
+        ) -> IoPipelineScheduling.Handle:
+            return self._schedule(handler_ref, delay_s, fn, with_context=True)
+
         def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
             for h in tuple(self._live):
-                if handler_ref is None or h._handler_ref is handler_ref:  # noqa
+                if handler_ref is None or h._handler_context is handler_ref._context:  # noqa
                     h.cancel()
 
             self._pending = [e for e in self._pending if not e[2]._cancelled]  # noqa

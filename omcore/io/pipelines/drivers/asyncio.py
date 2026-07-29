@@ -4,6 +4,7 @@ import asyncio
 import collections
 import dataclasses as dc
 import typing as ta
+import weakref
 
 from ....lite.abstract import Abstract
 from ....lite.check import check
@@ -12,6 +13,7 @@ from ....logs.utils import async_exception_logging
 from ...streambufs.utils import ByteStreamBuffers
 from ..asyncs import AsyncIoPipelineMessages
 from ..core import IoPipeline
+from ..core import IoPipelineHandlerContext
 from ..core import IoPipelineHandlerRef
 from ..core import IoPipelineHandlerUpdate
 from ..core import IoPipelineMessages
@@ -139,8 +141,8 @@ class PollAsyncioStreamIoPipelineDriver:
 
     _flow: ta.Optional[IoPipelineFlow]
 
-    _command_handlers: ta.Mapping[ta.Type['PollAsyncioStreamIoPipelineDriver._Command'], ta.Callable[[ta.Any], ta.Awaitable[None]]]  # noqa
-    _output_handlers: ta.Mapping[type, ta.Callable[[ta.Any], ta.Awaitable[ta.Optional[str]]]]
+    _command_handlers: ta.Mapping[ta.Type['PollAsyncioStreamIoPipelineDriver._Command'], ta.Callable[[ta.Any, ta.Any], ta.Awaitable[None]]]  # noqa
+    _output_handlers: ta.Mapping[type, ta.Callable[[ta.Any, ta.Any], ta.Awaitable[ta.Optional[str]]]]
 
     async def _ensure_init(self) -> IoPipeline:
         if self._has_init:
@@ -421,14 +423,28 @@ class PollAsyncioStreamIoPipelineDriver:
         def __init__(self, d: 'PollAsyncioStreamIoPipelineDriver') -> None:
             super().__init__()
 
-            self._d = d
+            self.__d_ref = weakref.ref(d)
 
-            self._pipeline: ta.Optional[IoPipeline] = None
+            self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
 
             self._seq = 0
             self._pending: ta.List[PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle] = []
             self._live: ta.Set[PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle] = set()
             self._tasks: ta.Set[asyncio.Task] = set()
+
+        @property
+        def _d(self) -> 'PollAsyncioStreamIoPipelineDriver':
+            return check.not_none(self.__d_ref())
+
+        @property
+        def _pipeline(self) -> ta.Optional[IoPipeline]:
+            if self.__pipeline_ref is None:
+                return None
+            return self.__pipeline_ref()
+
+        @_pipeline.setter
+        def _pipeline(self, pipeline: ta.Optional[IoPipeline]) -> None:
+            self.__pipeline_ref = None if pipeline is None else weakref.ref(pipeline)
 
         def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
             if kind == 'added':
@@ -455,34 +471,53 @@ class PollAsyncioStreamIoPipelineDriver:
                     handler_ref: IoPipelineHandlerRef,
                     deadline: float,
                     seq: int,
-                    fn: ta.Callable[[], None],
+                    fn: ta.Callable[..., None],
+                    with_context: bool,
             ) -> None:
-                self._sched = sched
-                self._handler_ref = handler_ref
+                self.__sched_ref = weakref.ref(sched)
+                self.__handler_context_ref = weakref.ref(handler_ref._context)  # noqa
                 self._deadline = deadline
                 self._seq = seq
                 self._fn = fn
+                self._with_context = with_context
 
                 self._task: ta.Optional[asyncio.Task] = None
                 self._queued = False
                 self._cancelled = False
                 self._done = False
 
+            @property
+            def _sched(self) -> 'PollAsyncioStreamIoPipelineDriver._SchedulingService':
+                return check.not_none(self.__sched_ref())
+
+            @property
+            def _handler_context(self) -> IoPipelineHandlerContext:
+                return check.not_none(self.__handler_context_ref())
+
+            def _run(self) -> None:
+                if self._with_context:
+                    self._fn(self._handler_context)
+                else:
+                    self._fn()
+
             def cancel(self) -> None:
                 if self._cancelled or self._done:
                     return
 
                 self._cancelled = True
-                self._sched._live.remove(self)  # noqa
+                if (sched := self.__sched_ref()) is not None:
+                    sched._live.discard(self)  # noqa
 
                 if self._task is not None:
                     self._task.cancel()
 
-        def schedule(
+        def _schedule(
                 self,
                 handler_ref: IoPipelineHandlerRef,
                 delay_s: float,
-                fn: ta.Callable[[], None],
+                fn: ta.Callable[..., None],
+                *,
+                with_context: bool,
         ) -> IoPipelineScheduling.Handle:
             pipeline = check.not_none(self._pipeline)
             check.is_(handler_ref.pipeline, pipeline)
@@ -496,15 +531,32 @@ class PollAsyncioStreamIoPipelineDriver:
                 loop.time() + max(0., delay_s),
                 self._seq,
                 fn,
+                with_context,
             )
             self._seq += 1
             self._pending.append(h)
             self._live.add(h)
             return h
 
+        def schedule(
+                self,
+                handler_ref: IoPipelineHandlerRef,
+                delay_s: float,
+                fn: ta.Callable[[], None],
+        ) -> IoPipelineScheduling.Handle:
+            return self._schedule(handler_ref, delay_s, fn, with_context=False)
+
+        def schedule_context(
+                self,
+                handler_ref: IoPipelineHandlerRef,
+                delay_s: float,
+                fn: ta.Callable[[IoPipelineHandlerContext], None],
+        ) -> IoPipelineScheduling.Handle:
+            return self._schedule(handler_ref, delay_s, fn, with_context=True)
+
         def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
             for h in tuple(self._live):
-                if handler_ref is None or h._handler_ref is handler_ref:  # noqa
+                if handler_ref is None or h._handler_context is handler_ref._context:  # noqa
                     h.cancel()
 
             self._pending = [h for h in self._pending if not h._cancelled]  # noqa
@@ -549,25 +601,25 @@ class PollAsyncioStreamIoPipelineDriver:
                 self._tasks.add(task)
                 task.add_done_callback(self._tasks.discard)
 
-        def _take(self, h: _Handle) -> ta.Optional[ta.Callable[[], None]]:
+        def _take(self, h: _Handle) -> bool:
             if h._cancelled or h._done:  # noqa
-                return None
+                return False
 
             check.in_(h, self._live)
             h._done = True  # noqa
             self._live.remove(h)
-            return h._fn  # noqa
+            return True
 
     @dc.dataclass(frozen=True)
     class _ScheduledCommand(_Command):
         handle: 'PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle'
 
     async def _handle_command_scheduled(self, cmd: _ScheduledCommand) -> None:
-        if (fn := self._sched._take(cmd.handle)) is None:  # noqa
+        if not self._sched._take(cmd.handle):  # noqa
             return
 
         with self._pipeline.enter():
-            fn()
+            cmd.handle._run()  # noqa
 
     ##
     # shutdown
@@ -718,16 +770,17 @@ class PollAsyncioStreamIoPipelineDriver:
 
     def _build_command_handlers(self) -> ta.Mapping[
         ta.Type[_Command],
-        ta.Callable[[ta.Any], ta.Awaitable[None]],
+        ta.Callable[[ta.Any, ta.Any], ta.Awaitable[None]],
     ]:
+        cls = type(self)
         return {
-            PollAsyncioStreamIoPipelineDriver._FeedInCommand: self._handle_command_feed_in,
-            PollAsyncioStreamIoPipelineDriver._ReadCompletedCommand: self._handle_command_read_completed,
-            PollAsyncioStreamIoPipelineDriver._ReadFailedCommand: self._handle_command_read_failed,
-            PollAsyncioStreamIoPipelineDriver._ScheduledCommand: self._handle_command_scheduled,
-            PollAsyncioStreamIoPipelineDriver._DrainCompletedCommand: self._handle_command_drain_completed,
-            PollAsyncioStreamIoPipelineDriver._AwaitCompletedCommand: self._handle_command_await_completed,
-            PollAsyncioStreamIoPipelineDriver._AwaitFailedCommand: self._handle_command_await_failed,
+            PollAsyncioStreamIoPipelineDriver._FeedInCommand: cls._handle_command_feed_in,
+            PollAsyncioStreamIoPipelineDriver._ReadCompletedCommand: cls._handle_command_read_completed,
+            PollAsyncioStreamIoPipelineDriver._ReadFailedCommand: cls._handle_command_read_failed,
+            PollAsyncioStreamIoPipelineDriver._ScheduledCommand: cls._handle_command_scheduled,
+            PollAsyncioStreamIoPipelineDriver._DrainCompletedCommand: cls._handle_command_drain_completed,
+            PollAsyncioStreamIoPipelineDriver._AwaitCompletedCommand: cls._handle_command_await_completed,
+            PollAsyncioStreamIoPipelineDriver._AwaitFailedCommand: cls._handle_command_await_failed,
         }
 
     async def _handle_command(self, cmd: _Command) -> None:
@@ -739,7 +792,7 @@ class PollAsyncioStreamIoPipelineDriver:
             raise TypeError(f'Unknown command type: {cmd.__class__}') from None
 
         try:
-            await fn(cmd)
+            await fn(self, cmd)
         except BaseException:
             if self._state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
                 await self._fail()
@@ -809,13 +862,17 @@ class PollAsyncioStreamIoPipelineDriver:
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
-    def _build_output_handlers(self) -> ta.Mapping[type, ta.Callable[[ta.Any], ta.Awaitable[ta.Optional[str]]]]:
+    def _build_output_handlers(self) -> ta.Mapping[
+        type,
+        ta.Callable[[ta.Any, ta.Any], ta.Awaitable[ta.Optional[str]]],
+    ]:
+        cls = type(self)
         return {
-            IoPipelineMessages.FinalOutput: self._handle_output_final_output,
-            IoPipelineMessages.Defer: self._handle_output_defer,
-            IoPipelineFlowMessages.FlushOutput: self._handle_output_flush_output,
-            IoPipelineFlowMessages.ReadyForInput: self._handle_output_ready_for_input,
-            AsyncIoPipelineMessages.Await: self._handle_output_await,
+            IoPipelineMessages.FinalOutput: cls._handle_output_final_output,
+            IoPipelineMessages.Defer: cls._handle_output_defer,
+            IoPipelineFlowMessages.FlushOutput: cls._handle_output_flush_output,
+            IoPipelineFlowMessages.ReadyForInput: cls._handle_output_ready_for_input,
+            AsyncIoPipelineMessages.Await: cls._handle_output_await,
         }
 
     async def _handle_output(self, msg: ta.Any) -> str:
@@ -831,7 +888,7 @@ class PollAsyncioStreamIoPipelineDriver:
             except KeyError:
                 return 'unhandled'
 
-            ret = await fn(msg)
+            ret = await fn(self, msg)
             return ret if ret is not None else 'handled'
 
         except BaseException:

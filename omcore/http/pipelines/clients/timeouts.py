@@ -67,10 +67,10 @@ class IoPipelineHttpClientRequestTimeoutHandler(IoPipelineHandler):
         self._active = True
         self._timed_out = False
         self._response_is_final = True
-        self._handle = ctx.services[IoPipelineScheduling].schedule(
+        self._handle = ctx.services[IoPipelineScheduling].schedule_context(
             ctx.ref,
             check.not_none(self._timeout_s),
-            lambda: self._on_timeout(ctx),
+            lambda ctx2: check.isinstance(ctx2.handler, IoPipelineHttpClientRequestTimeoutHandler)._on_timeout(ctx2),  # noqa
         )
 
     def _on_timeout(self, ctx: IoPipelineHandlerContext) -> None:

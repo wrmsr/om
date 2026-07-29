@@ -3,6 +3,7 @@
 import collections
 import dataclasses as dc
 import enum
+import functools
 import math
 import ssl
 import typing as ta
@@ -281,10 +282,10 @@ class SslIoPipelineHandler(
     def _sync_state_timeouts(self, ctx: IoPipelineHandlerContext) -> None:
         if self._state == self.State.HANDSHAKE and self._config.handshake_timeout_s is not None:
             if self._handshake_timeout_handle is None:
-                self._handshake_timeout_handle = ctx.services[IoPipelineScheduling].schedule(
+                self._handshake_timeout_handle = ctx.services[IoPipelineScheduling].schedule_context(
                     ctx.ref,
                     self._config.handshake_timeout_s,
-                    lambda: self._on_state_timeout(ctx, self.State.HANDSHAKE),
+                    functools.partial(self._run_state_timeout, state=self.State.HANDSHAKE),
                 )
         else:
             self._cancel_timeout(self._handshake_timeout_handle)
@@ -292,14 +293,19 @@ class SslIoPipelineHandler(
 
         if self._state == self.State.SHUTTING_DOWN and self._config.shutdown_timeout_s is not None:
             if self._shutdown_timeout_handle is None:
-                self._shutdown_timeout_handle = ctx.services[IoPipelineScheduling].schedule(
+                self._shutdown_timeout_handle = ctx.services[IoPipelineScheduling].schedule_context(
                     ctx.ref,
                     self._config.shutdown_timeout_s,
-                    lambda: self._on_state_timeout(ctx, self.State.SHUTTING_DOWN),
+                    functools.partial(self._run_state_timeout, state=self.State.SHUTTING_DOWN),
                 )
         else:
             self._cancel_timeout(self._shutdown_timeout_handle)
             self._shutdown_timeout_handle = None
+
+    @staticmethod
+    def _run_state_timeout(ctx: IoPipelineHandlerContext, *, state: State) -> None:
+        handler = check.isinstance(ctx.handler, SslIoPipelineHandler)
+        handler._on_state_timeout(ctx, state)  # noqa
 
     def _on_state_timeout(self, ctx: IoPipelineHandlerContext, state: State) -> None:
         if state == self.State.HANDSHAKE:

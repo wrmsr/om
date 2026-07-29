@@ -11,6 +11,7 @@ import collections.abc
 import dataclasses as dc
 import http.client
 import typing as ta
+import weakref
 
 from ..lite.check import check
 
@@ -206,15 +207,17 @@ class HttpHeaders(ta.Mapping[str, ta.Sequence[str]]):
             except KeyError:
                 return default
 
-    _single: _SingleAccessor
+    _single_ref: weakref.ReferenceType
 
     @property
     def single(self) -> _SingleAccessor:
         try:
-            return self._single
+            if (a := self._single_ref()) is not None:
+                return a
         except AttributeError:
             pass
-        a = self._single = self._SingleAccessor(self)
+        a = self._SingleAccessor(self)
+        self._single_ref = weakref.ref(a)
         return a
 
     #
@@ -248,15 +251,17 @@ class HttpHeaders(ta.Mapping[str, ta.Sequence[str]]):
             except KeyError:
                 return default
 
-    _lower: _LowerAccessor
+    _lower_ref: weakref.ReferenceType
 
     @property
     def lower(self) -> _LowerAccessor:
         try:
-            return self._lower
+            if (a := self._lower_ref()) is not None:
+                return a
         except AttributeError:
             pass
-        a = self._lower = self._LowerAccessor(self)
+        a = self._LowerAccessor(self)
+        self._lower_ref = weakref.ref(a)
         return a
 
     #

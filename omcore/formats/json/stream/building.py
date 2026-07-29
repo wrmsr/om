@@ -1,6 +1,6 @@
-import dataclasses as dc
 import typing as ta
 
+from .... import dataclasses as dc
 from .parsing import BeginArray
 from .parsing import BeginObject
 from .parsing import EndArray

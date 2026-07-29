@@ -1,6 +1,6 @@
-import dataclasses as dc
 import typing as ta
 
+from .... import dataclasses as dc
 from .errors import JsonStreamError
 from .events import BeginArray
 from .events import BeginObject

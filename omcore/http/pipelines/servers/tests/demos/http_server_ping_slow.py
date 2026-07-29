@@ -1,6 +1,7 @@
 # ruff: noqa: UP045
 # @om-lite
 import asyncio
+import functools
 import typing as ta
 
 from ......io.pipelines.core import IoPipeline
@@ -23,6 +24,20 @@ from ...responses import IoPipelineHttpResponseHead
 
 
 class PingHandler(IoPipelineHandler):
+    @staticmethod
+    def _write_pong(ctx: IoPipelineHandlerContext, *, n: int) -> None:
+        ctx.feed_out(b'pong'[n:n + 1])
+        ctx.feed_out(IoPipelineFlowMessages.FlushOutput())
+
+        if n < 4:
+            ctx.services[IoPipelineScheduling].schedule_context(
+                ctx.ref,
+                1,
+                functools.partial(PingHandler._write_pong, n=n + 1),
+            )
+        else:
+            ctx.feed_final_output()
+
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if not isinstance(msg, IoPipelineHttpRequestHead):
             ctx.feed_in(msg)
@@ -41,16 +56,11 @@ class PingHandler(IoPipelineHandler):
             ))
             ctx.feed_out(IoPipelineFlowMessages.FlushOutput())
 
-            def write_pong(n: int) -> None:
-                ctx.feed_out(b'pong'[n:n + 1])
-                ctx.feed_out(IoPipelineFlowMessages.FlushOutput())
-
-                if n < 4:
-                    ctx.services[IoPipelineScheduling].schedule(ctx.ref, 1, lambda: write_pong(n + 1))
-                else:
-                    ctx.feed_final_output()
-
-            ctx.services[IoPipelineScheduling].schedule(ctx.ref, 1, lambda: write_pong(0))
+            ctx.services[IoPipelineScheduling].schedule_context(
+                ctx.ref,
+                1,
+                functools.partial(self._write_pong, n=0),
+            )
 
         else:
             ctx.feed_out(FullIoPipelineHttpResponse.simple(

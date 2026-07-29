@@ -5,7 +5,9 @@ import socket
 import ssl
 import typing as ta
 import unittest
+import weakref
 
+from .....lite.check import check
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
@@ -27,11 +29,13 @@ class ManualSchedulingService(IoPipelineScheduling, IoPipelineService):
                 self,
                 handler_ref: IoPipelineHandlerRef,
                 delay_s: float,
-                fn: ta.Callable[[], None],
+                fn: ta.Callable[..., None],
+                with_context: bool,
         ) -> None:
-            self.handler_ref = handler_ref
+            self.__context_ref = weakref.ref(handler_ref._context)
             self.delay_s = delay_s
             self.fn = fn
+            self.with_context = with_context
 
             self.cancelled = False
             self.done = False
@@ -44,8 +48,16 @@ class ManualSchedulingService(IoPipelineScheduling, IoPipelineService):
                 return
 
             self.done = True
-            with self.handler_ref.pipeline.enter():
-                self.fn()
+            context = self.context
+            with context.pipeline.enter():
+                if self.with_context:
+                    self.fn(context)
+                else:
+                    self.fn()
+
+        @property
+        def context(self) -> IoPipelineHandlerContext:
+            return check.not_none(self.__context_ref())
 
     def __init__(self) -> None:
         super().__init__()
@@ -58,13 +70,23 @@ class ManualSchedulingService(IoPipelineScheduling, IoPipelineService):
             delay_s: float,
             fn: ta.Callable[[], None],
     ) -> IoPipelineScheduling.Handle:
-        handle = self.Handle(handler_ref, delay_s, fn)
+        handle = self.Handle(handler_ref, delay_s, fn, False)
+        self.handles.append(handle)
+        return handle
+
+    def schedule_context(
+            self,
+            handler_ref: IoPipelineHandlerRef,
+            delay_s: float,
+            fn: ta.Callable[[IoPipelineHandlerContext], None],
+    ) -> IoPipelineScheduling.Handle:
+        handle = self.Handle(handler_ref, delay_s, fn, True)
         self.handles.append(handle)
         return handle
 
     def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
         for handle in self.handles:
-            if handler_ref is None or handle.handler_ref is handler_ref:
+            if handler_ref is None or handle.context is handler_ref._context:
                 handle.cancel()
 
     def single_live(self) -> Handle:

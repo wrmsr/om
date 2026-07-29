@@ -32,15 +32,16 @@ class IoPipelineHttpObjectEncoder(
 
         self._streaming = False
 
-        self._outbound_dispatch_dct: ta.Mapping[type, ta.Callable[[IoPipelineHandlerContext, ta.Any], None]] = {
-            self._head_type: self._handle_request_head,
-            self._full_type: self._handle_full_request,
-            self._chunk_type: self._handle_chunk,
-            self._end_chunk_type: self._handle_end_chunk,
-            self._last_chunk_type: self._handle_last_chunk,
-            self._chunked_trailers_type: self._handle_chunked_trailers,
-            self._body_data_type: self._handle_body_data,
-            self._end_type: self._handle_request_end,
+        cls = type(self)
+        self._outbound_dispatch_dct: ta.Mapping[type, ta.Callable[[ta.Any, IoPipelineHandlerContext, ta.Any], None]] = {  # noqa
+            self._head_type: cls._handle_request_head,
+            self._full_type: cls._handle_full_request,
+            self._chunk_type: cls._handle_chunk,
+            self._end_chunk_type: cls._handle_end_chunk,
+            self._last_chunk_type: cls._handle_last_chunk,
+            self._chunked_trailers_type: cls._handle_chunked_trailers,
+            self._body_data_type: cls._handle_body_data,
+            self._end_type: cls._handle_request_end,
         }
 
     #
@@ -53,7 +54,7 @@ class IoPipelineHttpObjectEncoder(
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if (fn := self._outbound_dispatch_dct.get(type(msg))) is not None:
-            fn(ctx, msg)
+            fn(self, ctx, msg)
             return
 
         ctx.feed_out(msg)

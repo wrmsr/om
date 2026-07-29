@@ -132,10 +132,10 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/compression.py', sha1='427ff583b6df669b826228baa273193a83af5e17'),
             dict(path='../../omcore/argparse/parsers.py', sha1='46321356fbfd17d94eeb0347e86eb042a9333d37'),
             dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
-            dict(path='../../omcore/http/headers.py', sha1='0486a9e31f4ed77163e6b388bb15fc864b1a01ef'),
+            dict(path='../../omcore/http/headers.py', sha1='28c986b43cb6d3283d5df0249d80f8770522c9de'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='3ee8ae583e786b12d4f697e7f66cb5b81201f012'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='888ec287060cd0ebf961807d84726981af604537'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -162,9 +162,9 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/pipelines/objects.py', sha1='18e331467e8ab0b66bc17938712434dd0e765f77'),
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
-            dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='fa174d01438db50305953e0f500d303c6a80faac'),  # noqa
+            dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
             dict(path='../../omcore/io/pipelines/flow/types.py', sha1='0636054377b5f539875808cfc4ae63a48ba58422'),
-            dict(path='../../omcore/io/pipelines/sched/types.py', sha1='9860e5852e72f9b93ce0fd52d96cb46c18196078'),
+            dict(path='../../omcore/io/pipelines/sched/types.py', sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f'),
             dict(path='../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
             dict(path='../../omcore/io/streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
             dict(path='../../omcore/lite/inject.py', sha1='7dd6067b626c4c6a371b7a0e50eac54e320fcf3a'),
@@ -185,7 +185,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/formats/yaml/goyaml/scanning.py', sha1='58956f9159780d5532d2d61fb6f11c8ac946003d'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='560abca3f4989ddb7c8c121a4ce862f87dea71a1'),  # noqa
             dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='a767b565416cb6f3c1d27e3770ce479bb5d27595'),  # noqa
-            dict(path='../../omcore/http/pipelines/encoders.py', sha1='2d36c841643c792ffacf0b8377ff06db244ffe42'),
+            dict(path='../../omcore/http/pipelines/encoders.py', sha1='339afab8253286438f275d10a3625900552bb702'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='b825e91750b19e96176fd0e872eb8bdded965f01'),
             dict(path='../../omcore/http/pipelines/responses.py', sha1='3145565e89891902ecd2ce193fac1609d3a26fe6'),
             dict(path='../../omcore/http/simple/handlers.py', sha1='43502a58069673135882066ba939c99ea2f8dfc1'),
@@ -221,8 +221,8 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
-            dict(path='../../omcore/http/pipelines/decoders.py', sha1='54c6aced29c5b0fb434e83be93cff5868a71aa55'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='683525e23ade307dc55e5441fd7b4065372828b1'),
+            dict(path='../../omcore/http/pipelines/decoders.py', sha1='32a063c0cdfb151e256c99bf8161934292946ff2'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='e915738797c95ad9567c88f37d20fc5a599d8f3e'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -4568,15 +4568,17 @@ class HttpHeaders(ta.Mapping[str, ta.Sequence[str]]):
             except KeyError:
                 return default
 
-    _single: _SingleAccessor
+    _single_ref: weakref.ReferenceType
 
     @property
     def single(self) -> _SingleAccessor:
         try:
-            return self._single
+            if (a := self._single_ref()) is not None:
+                return a
         except AttributeError:
             pass
-        a = self._single = self._SingleAccessor(self)
+        a = self._SingleAccessor(self)
+        self._single_ref = weakref.ref(a)
         return a
 
     #
@@ -4610,15 +4612,17 @@ class HttpHeaders(ta.Mapping[str, ta.Sequence[str]]):
             except KeyError:
                 return default
 
-    _lower: _LowerAccessor
+    _lower_ref: weakref.ReferenceType
 
     @property
     def lower(self) -> _LowerAccessor:
         try:
-            return self._lower
+            if (a := self._lower_ref()) is not None:
+                return a
         except AttributeError:
             pass
-        a = self._lower = self._LowerAccessor(self)
+        a = self._LowerAccessor(self)
+        self._lower_ref = weakref.ref(a)
         return a
 
     #
@@ -6965,10 +6969,11 @@ class IoPipelineHandlerRef(ta.Generic[T]):
 
     def __init__(self, *, _context: 'IoPipelineHandlerContext') -> None:
         self._context = _context
+        self._pipeline = _context._pipeline  # noqa
 
     @property
     def pipeline(self) -> 'IoPipeline':
-        return self._context._pipeline  # noqa
+        return self._pipeline
 
     @property
     def handler(self) -> T:
@@ -7021,19 +7026,31 @@ class IoPipelineHandlerContext:
     ) -> None:
         super().__init__()
 
-        self._pipeline: ta.Final[IoPipeline] = _pipeline
+        self.__pipeline_ref = weakref.ref(_pipeline)
         self._handler: ta.Final[IoPipelineHandler] = _handler
 
         self._name: ta.Final[ta.Optional[str]] = _name
 
-        self._ref: IoPipelineHandlerRef_ = IoPipelineHandlerRef(_context=self)
+        self.__ref_ref: ta.Optional[weakref.ReferenceType] = None
 
         hty = type(_handler)
         self._handles_inbound = hty.inbound is not IoPipelineHandler.inbound
         self._handles_outbound = hty.outbound is not IoPipelineHandler.outbound
 
-    _next_in: 'IoPipelineHandlerContext'  # 'next'
-    _next_out: 'IoPipelineHandlerContext'  # 'prev'
+    _next_in: 'IoPipelineHandlerContext'  # 'next', owning
+    __next_out_ref: weakref.ReferenceType  # 'prev', non-owning
+
+    @property
+    def _next_out(self) -> 'IoPipelineHandlerContext':
+        return check.not_none(self.__next_out_ref())
+
+    @_next_out.setter
+    def _next_out(self, ctx: 'IoPipelineHandlerContext') -> None:
+        self.__next_out_ref = weakref.ref(ctx)
+
+    @_next_out.deleter
+    def _next_out(self) -> None:
+        del self.__next_out_ref
 
     def __repr__(self) -> str:
         return (
@@ -7047,6 +7064,19 @@ class IoPipelineHandlerContext:
     @property
     def ref(self) -> IoPipelineHandlerRef_:
         return self._ref
+
+    @property
+    def _ref(self) -> IoPipelineHandlerRef_:
+        if (ref_ref := self.__ref_ref) is not None and (ref := ref_ref()) is not None:
+            return ref
+
+        ref = IoPipelineHandlerRef(_context=self)
+        self.__ref_ref = weakref.ref(ref)
+        return ref
+
+    @property
+    def _pipeline(self) -> 'IoPipeline':
+        return check.not_none(self.__pipeline_ref())
 
     @property
     def pipeline(self) -> 'IoPipeline':
@@ -7608,10 +7638,14 @@ class _IoPipelinePropagation:
         pinned_by: ta.Optional[IoPipelineMessages.Pinning] = None
 
     def __init__(self, p: 'IoPipeline') -> None:
-        self._p = p
+        self.__p_ref = weakref.ref(p)
 
         if not self._p._config.disable_propagation_checking:  # noqa
             self._pending_must: ta.Final[ta.Dict[int, _IoPipelinePropagation._PendingMustEntry]] = {}
+
+    @property
+    def _p(self) -> 'IoPipeline':
+        return check.not_none(self.__p_ref())
 
     def add_must(
             self,
@@ -8398,67 +8432,67 @@ class IoPipeline:
     @ta.final
     class _Caches:
         def __init__(self, p: 'IoPipeline') -> None:
-            self._p = p
+            self.__p_ref = weakref.ref(p)
 
-            self._handlers_by_type_cache: ta.Dict[type, ta.Sequence[IoPipelineHandlerRef]] = {}
-            self._single_handlers_by_type_cache: ta.Dict[type, ta.Optional[IoPipelineHandlerRef]] = {}
+            self._handlers_by_type_cache: ta.Dict[type, ta.Sequence[IoPipelineHandlerContext]] = {}
+            self._single_handlers_by_type_cache: ta.Dict[type, ta.Optional[IoPipelineHandlerContext]] = {}
 
-        _handlers: ta.Sequence[IoPipelineHandlerRef_]
+        @property
+        def _p(self) -> 'IoPipeline':
+            return check.not_none(self.__p_ref())
+
+        _handler_contexts: ta.Sequence[IoPipelineHandlerContext]
 
         def handlers(self) -> ta.Sequence[IoPipelineHandlerRef_]:
             try:
-                return self._handlers
+                contexts = self._handler_contexts
             except AttributeError:
-                pass
+                contexts = []
+                ctx = self._p._outermost  # noqa
+                while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
+                    contexts.append(ctx)
+                self._handler_contexts = contexts
 
-            lst: ta.List[IoPipelineHandlerRef_] = []
-            ctx = self._p._outermost  # noqa
-            while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
-                lst.append(ctx._ref)  # noqa
+            return [ctx._ref for ctx in contexts]  # noqa
 
-            self._handlers = lst
-            return lst
-
-        _handlers_by_name: ta.Mapping[str, IoPipelineHandlerRef_]
+        _handler_contexts_by_name: ta.Mapping[str, IoPipelineHandlerContext]
 
         def handlers_by_name(self) -> ta.Mapping[str, IoPipelineHandlerRef_]:
             try:
-                return self._handlers_by_name
+                contexts_by_name = self._handler_contexts_by_name
             except AttributeError:
-                pass
+                contexts_by_name = {}
+                ctx = self._p._outermost  # noqa
+                while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
+                    if (n := ctx._name) is not None:  # noqa
+                        contexts_by_name[n] = ctx
+                self._handler_contexts_by_name = contexts_by_name
 
-            dct: ta.Dict[str, IoPipelineHandlerRef_] = {}
-            ctx = self._p._outermost  # noqa
-            while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
-                if (n := ctx._name) is not None:  # noqa
-                    dct[n] = ctx._ref  # noqa
-
-            self._handlers_by_name = dct
-            return dct
+            return {name: ctx._ref for name, ctx in contexts_by_name.items()}  # noqa
 
         def find_handlers_of_type(self, ty: ta.Type[T]) -> ta.Sequence[IoPipelineHandlerRef[T]]:
             try:
-                return self._handlers_by_type_cache[ty]
+                contexts = self._handlers_by_type_cache[ty]
             except KeyError:
-                pass
+                contexts = []
+                ctx = self._p._outermost  # noqa
+                while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
+                    if isinstance(ctx._handler, ty):  # noqa
+                        contexts.append(ctx)
+                self._handlers_by_type_cache[ty] = contexts
 
-            ret: ta.List[ta.Any] = []
-            ctx = self._p._outermost  # noqa
-            while (ctx := ctx._next_in) is not self._p._innermost:  # noqa
-                if isinstance(ctx._handler, ty):  # noqa
-                    ret.append(ctx._ref)  # noqa
-
-            self._handlers_by_type_cache[ty] = ret
-            return ret
+            return [ctx._ref for ctx in contexts]  # type: ignore[misc]  # noqa
 
         def find_single_handler_of_type(self, ty: ta.Type[T]) -> ta.Optional[IoPipelineHandlerRef[T]]:
             try:
-                return self._single_handlers_by_type_cache[ty]
+                ctx = self._single_handlers_by_type_cache[ty]
             except KeyError:
-                pass
+                refs = self.find_handlers_of_type(ty)
+                ref = check.opt_single(refs)
+                self._single_handlers_by_type_cache[ty] = None if ref is None else ref._context  # noqa
+                return ref
 
-            self._single_handlers_by_type_cache[ty] = ret = check.opt_single(self.find_handlers_of_type(ty))
-            return ret
+            return None if ctx is None else ctx._ref  # type: ignore[return-value]  # noqa
 
     __caches: _Caches
 
@@ -13535,9 +13569,15 @@ class OutboundBytesBufferingIoPipelineHandler(IoPipelineHandler, Abstract):
 ##
 
 
-@dc.dataclass(frozen=True)
 class DriverIoPipelineMetadata(IoPipelineMetadata):
-    driver: ta.Any
+    def __init__(self, driver: ta.Any) -> None:
+        super().__init__()
+
+        self.__driver_ref = weakref.ref(driver)
+
+    @property
+    def driver(self) -> ta.Any:
+        return check.not_none(self.__driver_ref())
 
 
 ########################################
@@ -13695,6 +13735,24 @@ class IoPipelineScheduling(Abstract):
         Schedule a callback owned by an active handler ref.
 
         The callback must not run after its owning handler ref is invalidated.
+        Callers that need the owning context should use schedule_context instead of closing over it.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def schedule_context(
+            self,
+            handler_ref: IoPipelineHandlerRef,
+            delay_s: float,
+            fn: ta.Callable[[IoPipelineHandlerContext], None],
+    ) -> Handle:
+        """
+        Schedule a callback receiving its owning handler context.
+
+        Unlike a closure over the context, this lets scheduler implementations retain it non-owningly and avoids a
+        reference cycle when the handler retains the returned handle. The callback should likewise avoid closing over
+        the handler, context, or handler ref.
         """
 
         raise NotImplementedError
@@ -21046,15 +21104,16 @@ class IoPipelineHttpObjectEncoder(
 
         self._streaming = False
 
-        self._outbound_dispatch_dct: ta.Mapping[type, ta.Callable[[IoPipelineHandlerContext, ta.Any], None]] = {
-            self._head_type: self._handle_request_head,
-            self._full_type: self._handle_full_request,
-            self._chunk_type: self._handle_chunk,
-            self._end_chunk_type: self._handle_end_chunk,
-            self._last_chunk_type: self._handle_last_chunk,
-            self._chunked_trailers_type: self._handle_chunked_trailers,
-            self._body_data_type: self._handle_body_data,
-            self._end_type: self._handle_request_end,
+        cls = type(self)
+        self._outbound_dispatch_dct: ta.Mapping[type, ta.Callable[[ta.Any, IoPipelineHandlerContext, ta.Any], None]] = {  # noqa
+            self._head_type: cls._handle_request_head,
+            self._full_type: cls._handle_full_request,
+            self._chunk_type: cls._handle_chunk,
+            self._end_chunk_type: cls._handle_end_chunk,
+            self._last_chunk_type: cls._handle_last_chunk,
+            self._chunked_trailers_type: cls._handle_chunked_trailers,
+            self._body_data_type: cls._handle_body_data,
+            self._end_type: cls._handle_request_end,
         }
 
     #
@@ -21067,7 +21126,7 @@ class IoPipelineHttpObjectEncoder(
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if (fn := self._outbound_dispatch_dct.get(type(msg))) is not None:
-            fn(ctx, msg)
+            fn(self, ctx, msg)
             return
 
         ctx.feed_out(msg)
@@ -31055,7 +31114,11 @@ class IoPipelineHttpObjectDecoder(
         def __init__(self, d: 'IoPipelineHttpObjectDecoder') -> None:
             super().__init__()
 
-            self._d = d
+            self.__d_ref = weakref.ref(d)
+
+        @property
+        def _d(self) -> 'IoPipelineHttpObjectDecoder':
+            return check.not_none(self.__d_ref())
 
         @property
         def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
@@ -31897,13 +31960,27 @@ class SyncSocketIoPipelineDriver:
         def __init__(self, d: 'SyncSocketIoPipelineDriver') -> None:
             super().__init__()
 
-            self._d = d
+            self.__d_ref = weakref.ref(d)
 
-            self._pipeline: ta.Optional[IoPipeline] = None
+            self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
 
             self._seq = 0
             self._pending: ta.List[ta.Tuple[float, int, SyncSocketIoPipelineDriver._SchedulingService._Handle]] = []
             self._live: ta.Set[SyncSocketIoPipelineDriver._SchedulingService._Handle] = set()
+
+        @property
+        def _d(self) -> 'SyncSocketIoPipelineDriver':
+            return check.not_none(self.__d_ref())
+
+        @property
+        def _pipeline(self) -> ta.Optional[IoPipeline]:
+            if self.__pipeline_ref is None:
+                return None
+            return self.__pipeline_ref()
+
+        @_pipeline.setter
+        def _pipeline(self, pipeline: ta.Optional[IoPipeline]) -> None:
+            self.__pipeline_ref = None if pipeline is None else weakref.ref(pipeline)
 
         def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
             if kind == 'added':
@@ -31954,7 +32031,7 @@ class SyncSocketIoPipelineDriver:
 
                 try:
                     with self._d.pipeline.enter():
-                        h._fn()  # noqa
+                        h._run()  # noqa
 
                 except BaseException:
                     for rh in due[i + 1:]:
@@ -31972,31 +32049,50 @@ class SyncSocketIoPipelineDriver:
                     self,
                     sched: 'SyncSocketIoPipelineDriver._SchedulingService',
                     handler_ref: IoPipelineHandlerRef,
-                    fn: ta.Callable[[], None],
+                    fn: ta.Callable[..., None],
+                    with_context: bool,
                     deadline: float,
                     seq: int,
             ) -> None:
-                self._sched = sched
+                self.__sched_ref = weakref.ref(sched)
                 self._deadline = deadline
                 self._seq = seq
-                self._handler_ref = handler_ref
+                self.__handler_context_ref = weakref.ref(handler_ref._context)  # noqa
                 self._fn = fn
+                self._with_context = with_context
 
                 self._cancelled = False
                 self._done = False
+
+            @property
+            def _sched(self) -> 'SyncSocketIoPipelineDriver._SchedulingService':
+                return check.not_none(self.__sched_ref())
+
+            @property
+            def _handler_context(self) -> IoPipelineHandlerContext:
+                return check.not_none(self.__handler_context_ref())
+
+            def _run(self) -> None:
+                if self._with_context:
+                    self._fn(self._handler_context)
+                else:
+                    self._fn()
 
             def cancel(self) -> None:
                 if self._cancelled or self._done:
                     return
 
                 self._cancelled = True
-                self._sched._live.remove(self)  # noqa
+                if (sched := self.__sched_ref()) is not None:
+                    sched._live.discard(self)  # noqa
 
-        def schedule(
+        def _schedule(
                 self,
                 handler_ref: IoPipelineHandlerRef,
                 delay_s: float,
-                fn: ta.Callable[[], None],
+                fn: ta.Callable[..., None],
+                *,
+                with_context: bool,
         ) -> IoPipelineScheduling.Handle:
             pipeline = check.not_none(self._pipeline)
             check.is_(handler_ref.pipeline, pipeline)
@@ -32007,6 +32103,7 @@ class SyncSocketIoPipelineDriver:
                 self,
                 handler_ref,
                 fn,
+                with_context,
                 time.monotonic() + max(0., delay_s),
                 self._seq,
             )
@@ -32015,9 +32112,25 @@ class SyncSocketIoPipelineDriver:
             self._live.add(h)
             return h
 
+        def schedule(
+                self,
+                handler_ref: IoPipelineHandlerRef,
+                delay_s: float,
+                fn: ta.Callable[[], None],
+        ) -> IoPipelineScheduling.Handle:
+            return self._schedule(handler_ref, delay_s, fn, with_context=False)
+
+        def schedule_context(
+                self,
+                handler_ref: IoPipelineHandlerRef,
+                delay_s: float,
+                fn: ta.Callable[[IoPipelineHandlerContext], None],
+        ) -> IoPipelineScheduling.Handle:
+            return self._schedule(handler_ref, delay_s, fn, with_context=True)
+
         def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
             for h in tuple(self._live):
-                if handler_ref is None or h._handler_ref is handler_ref:  # noqa
+                if handler_ref is None or h._handler_context is handler_ref._context:  # noqa
                     h.cancel()
 
             self._pending = [e for e in self._pending if not e[2]._cancelled]  # noqa

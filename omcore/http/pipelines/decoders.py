@@ -9,6 +9,7 @@ TODO:
 import abc
 import dataclasses as dc
 import typing as ta
+import weakref
 
 from ...io.pipelines.bytes.buffering import InboundBytesBufferingIoPipelineHandler
 from ...io.pipelines.bytes.decoders import BytesToMessageDecoderIoPipelineHandler
@@ -118,7 +119,11 @@ class IoPipelineHttpObjectDecoder(
         def __init__(self, d: 'IoPipelineHttpObjectDecoder') -> None:
             super().__init__()
 
-            self._d = d
+            self.__d_ref = weakref.ref(d)
+
+        @property
+        def _d(self) -> 'IoPipelineHttpObjectDecoder':
+            return check.not_none(self.__d_ref())
 
         @property
         def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
