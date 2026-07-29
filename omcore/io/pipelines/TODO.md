@@ -1,8 +1,5 @@
 ### immed
 
-- assess cyclic garbage - possible weakrefs:
-  - `IoPipelineHandlerContext._pipeline`
-  - `IoPipelineHandlerContext._context`
 - hand optimize a bit
   - segmented split_to should mutate seg list in place
 
@@ -13,6 +10,7 @@
   - 'pure' - no io
   - sync
   - fdio
+    - scheduling / timeouts
   - anyio
 - thread safety? nogil?
 - inject interop

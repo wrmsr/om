@@ -12,6 +12,7 @@ from .....io.pipelines.core import IoPipelineHandlerContext
 from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from .....io.pipelines.drivers.types import IoPipelineDriverState
+from .....io.pipelines.errors import TimeoutIoPipelineError
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlow
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
@@ -19,12 +20,18 @@ from .....io.pipelines.ssl.handlers import SslIoPipelineHandler
 from .....lite.check import check
 from .....secrets import tempssl
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from ....headers import HttpHeaders
+from ....versions import HttpVersions
+from ...responses import IoPipelineHttpResponseBodyData
+from ...responses import IoPipelineHttpResponseEnd
+from ...responses import IoPipelineHttpResponseHead
 from ..apps.asgi import AsgiIoPipelineHandler
 from ..requests import IoPipelineHttpRequestAggregatorDecoder
 from ..requests import IoPipelineHttpRequestDecoder
 from ..responses import IoPipelineHttpResponseChunker
 from ..responses import IoPipelineHttpResponseCompressor
 from ..responses import IoPipelineHttpResponseEncoder
+from ..timeouts import IoPipelineHttpServerRequestTimeoutHandler
 
 
 ##
@@ -164,6 +171,65 @@ class _RawTlsHttpClientIoPipelineHandler(IoPipelineHandler):
             raise msg.exc
 
         else:
+            ctx.feed_in(msg)
+
+
+class _TimeoutResponseIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, timeout_seen: asyncio.Event, body_chunks: ta.Iterable[bytes]) -> None:
+        super().__init__()
+
+        self._timeout_seen = timeout_seen
+        self._body_chunks = list(body_chunks)
+        self._next_chunk = 0
+
+        self._active = False
+        self._output_writable = True
+        self.finished = False
+
+    def _pump(self, ctx: IoPipelineHandlerContext) -> None:
+        if not self._active or not self._output_writable or self.finished:
+            return
+
+        if self._next_chunk == 0:
+            ctx.feed_out(IoPipelineHttpResponseHead(
+                status=504,
+                reason='Gateway Timeout',
+                version=HttpVersions.HTTP_1_1,
+                headers=HttpHeaders([
+                    ('Content-Encoding', 'gzip'),
+                    ('Transfer-Encoding', 'chunked'),
+                    ('Connection', 'close'),
+                ]),
+            ))
+
+        ctx.feed_out(IoPipelineHttpResponseBodyData(self._body_chunks[self._next_chunk]))
+        self._next_chunk += 1
+
+        if self._next_chunk == len(self._body_chunks):
+            ctx.feed_out(IoPipelineHttpResponseEnd())
+            self.finished = True
+
+        IoPipelineFlow.maybe_flush_output(ctx)
+
+        if self.finished:
+            ctx.feed_final_output()
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.Error) and isinstance(msg.exc, TimeoutIoPipelineError):
+            self._active = True
+            self._timeout_seen.set()
+            self._pump(ctx)
+
+        elif isinstance(msg, IoPipelineFlowMessages.PauseOutput):
+            self._output_writable = False
+            ctx.feed_in(msg)
+
+        elif isinstance(msg, IoPipelineFlowMessages.ReadyForOutput):
+            self._output_writable = True
+            self._pump(ctx)
+            ctx.feed_in(msg)
+
+        elif isinstance(msg, IoPipelineMessages.MustPropagate):
             ctx.feed_in(msg)
 
 
@@ -428,6 +494,183 @@ class TestBackpressureIntegration(AsyncioIsolatedAsyncTestCase):
             )
 
         finally:
+            server_writer.auto_drain = True
+            for _ in range(16):
+                server_writer.allow_drain()
+                client_writer.allow_drain()
+            for task in (server_task, client_task):
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(server_task, client_task, return_exceptions=True)
+            await server_driver.close()
+            await client_driver.close()
+
+    async def test_timeout_response_drains_through_slow_tls_gzip_output(self) -> None:
+        server_ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        server_ssl_ctx.load_cert_chain(self._cert.cert_file, self._cert.key_file)
+        client_ssl_ctx = ssl.create_default_context(cafile=self._cert.cert_file)
+
+        request_received = asyncio.Event()
+        timeout_seen = asyncio.Event()
+        pending = asyncio.get_running_loop().create_future()
+
+        async def app(scope, receive, send):  # noqa
+            request_received.set()
+            await pending
+
+        body_chunks = [bytes((i + j) % 256 for i in range(1024)) for j in range(4)]
+        timeout_response = _TimeoutResponseIoPipelineHandler(timeout_seen, body_chunks)
+        capture = _CaptureOutputWritabilityIoPipelineHandler()
+
+        server_reader = asyncio.StreamReader()
+        client_reader = asyncio.StreamReader()
+        server_writer = _PairedControlledStreamWriter(client_reader)
+        client_writer = _PairedControlledStreamWriter(server_reader)
+
+        outer_buffer = OutboundBytesBufferIoPipelineHandler(
+            OutboundBytesBufferIoPipelineHandler.Config(
+                flush_threshold=None,
+                write_high_watermark=128,
+                write_low_watermark=32,
+            ),
+        )
+        server_ssl = SslIoPipelineHandler(
+            server_ssl_ctx,
+            server_side=True,
+            config=SslIoPipelineHandler.Config(
+                write_high_watermark=128,
+                write_low_watermark=32,
+            ),
+        )
+        chunker = IoPipelineHttpResponseChunker(
+            max_chunk_size=64,
+            write_high_watermark=128,
+            write_low_watermark=32,
+        )
+
+        server_driver = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [
+                    outer_buffer,
+                    server_ssl,
+                    IoPipelineHttpRequestDecoder(),
+                    IoPipelineHttpRequestAggregatorDecoder(),
+                    IoPipelineHttpResponseEncoder(),
+                    chunker,
+                    IoPipelineHttpResponseCompressor(),
+                    IoPipelineHttpServerRequestTimeoutHandler(.05),
+                    capture,
+                    AsgiIoPipelineHandler(app),
+                    timeout_response,
+                ],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            server_reader,
+            ta.cast(asyncio.StreamWriter, server_writer),
+            config=PollAsyncioStreamIoPipelineDriver.Config(
+                strict_input_flow=True,
+                write_high_watermark=1,
+                write_low_watermark=0,
+            ),
+        )
+
+        client_handler = _RawTlsHttpClientIoPipelineHandler(
+            b'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n',
+        )
+        client_driver = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [
+                    OutboundBytesBufferIoPipelineHandler(),
+                    SslIoPipelineHandler(
+                        client_ssl_ctx,
+                        server_side=False,
+                        server_hostname='localhost',
+                    ),
+                    client_handler,
+                ],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            client_reader,
+            ta.cast(asyncio.StreamWriter, client_writer),
+            config=PollAsyncioStreamIoPipelineDriver.Config(
+                strict_input_flow=True,
+                write_high_watermark=1,
+                write_low_watermark=0,
+            ),
+        )
+
+        server_task = asyncio.create_task(server_driver.loop_until_done())
+        client_task = asyncio.create_task(client_driver.loop_until_done())
+        try:
+            await asyncio.wait_for(request_received.wait(), 2.)
+            for _ in range(3):
+                await asyncio.sleep(0)
+
+            self.assertEqual(server_writer.buffer_size, 0)
+            capture.events.clear()
+            server_writer.reset_max_buffer_size()
+            server_writer.auto_drain = False
+            first_blocked_drain = server_writer.drain_calls + 1
+
+            await asyncio.wait_for(timeout_seen.wait(), 1.)
+            if not pending.done():
+                pending.set_result(None)
+            await server_writer.wait_for_drain(first_blocked_drain)
+
+            self.assertFalse(timeout_response.finished)
+            self.assertFalse(server_writer.closed)
+            self.assertGreater(server_writer.buffer_size, 1)
+            self.assertEqual(outer_buffer.outbound_buffered_bytes(), 0)
+            self.assertLessEqual(check.not_none(server_ssl.outbound_buffered_bytes()), 512)
+            self.assertEqual(chunker.outbound_buffered_bytes(), 0)
+
+            while not timeout_response.finished:
+                drain_calls = server_writer.drain_calls
+                server_writer.allow_drain()
+                await server_writer.wait_for_drain(drain_calls + 1)
+
+            self.assertFalse(server_writer.closed)
+            self.assertGreater(server_writer.buffer_size, 1)
+            self.assertIn(server_driver.state, (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING))
+
+            event_types = [type(event) for event in capture.events]
+            self.assertGreaterEqual(len(event_types), 4)
+            self.assertEqual(
+                event_types,
+                [
+                    IoPipelineFlowMessages.PauseOutput
+                    if i % 2 == 0 else IoPipelineFlowMessages.ReadyForOutput
+                    for i in range(len(event_types))
+                ],
+            )
+            self.assertIs(event_types[-1], IoPipelineFlowMessages.PauseOutput)
+
+            server_writer.auto_drain = True
+            server_writer.allow_drain()
+            await asyncio.wait_for(asyncio.gather(server_task, client_task), 2.)
+
+            self.assertEqual(server_driver.state, IoPipelineDriverState.CLOSED)
+            self.assertEqual(client_driver.state, IoPipelineDriverState.CLOSED)
+            self.assertTrue(server_writer.closed)
+            self.assertTrue(client_writer.closed)
+            self.assertFalse(server_writer.aborted)
+            self.assertFalse(client_writer.aborted)
+            self.assertFalse(server_writer.closed_with_pending)
+            self.assertFalse(client_writer.closed_with_pending)
+
+            response_head, encoded_body = bytes(client_handler.response).split(b'\r\n\r\n', 1)
+            self.assertIn(b'504 Gateway Timeout', response_head)
+            self.assertIn(b'content-encoding: gzip', response_head.lower())
+            self.assertIn(b'transfer-encoding: chunked', response_head.lower())
+            compressed_body = self._decode_chunked(encoded_body)
+            self.assertEqual(
+                zlib.decompress(compressed_body, 16 + zlib.MAX_WBITS),
+                b''.join(body_chunks),
+            )
+
+        finally:
+            if not pending.done():
+                pending.set_result(None)
             server_writer.auto_drain = True
             for _ in range(16):
                 server_writer.allow_drain()
