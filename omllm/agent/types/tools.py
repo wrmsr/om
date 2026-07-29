@@ -35,6 +35,8 @@ class ToolContext:
 class ToolResult:
     content: llm.TextContent
 
+    error: BaseException | None = None
+
 
 ##
 

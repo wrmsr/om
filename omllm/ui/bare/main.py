@@ -100,6 +100,8 @@ async def _a_main() -> None:
     parser.add_argument('--fs', action='store_true')
     parser.add_argument('--bash', action='store_true')
 
+    parser.add_argument('-v', '--verbose', action='store_true')
+
     args = parser.parse_args()
 
     #
@@ -125,7 +127,8 @@ async def _a_main() -> None:
     )
 
     async def on_event(ev: ag.Event) -> None:
-        print(ev)
+        if args.verbose:
+            print(ev)
 
         if isinstance(ev, ag.TurnEndEvent):
             if isinstance(msg := ev.message, llm.AiMessage):

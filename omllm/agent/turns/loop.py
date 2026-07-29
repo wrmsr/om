@@ -68,8 +68,8 @@ class TurnLoop:
 
     #
 
-    async def _llm_complete(self) -> llm.AiMessage:
-        llm_context = llm.Context(
+    def _build_llm_context(self) -> llm.Context:
+        return llm.Context(
             system_prompt=self._context.system_prompt,
 
             messages=[  # noqa
@@ -82,6 +82,9 @@ class TurnLoop:
                 for t in self._context.tools
             ] if self._context.tools else None,
         )
+
+    async def _llm_complete(self) -> llm.AiMessage:
+        llm_context = self._build_llm_context()
 
         if isinstance(llm_backend := self._llm_backend, llm.StreamBackend):
             async with (await llm_backend.stream(

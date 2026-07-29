@@ -1929,24 +1929,29 @@ def _process_dataclass__0c8062a40ccf848665acad4f04f4eb5e0b6fc7fc():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('content',)), EqPlan(fields=('content',)), FrozenPlan(fields=('content',), allow_d"
-        "ynamic_dunder_attrs=False), HashPlan(action='add', fields=('content',), cache=False), InitPlan(fields=(InitPla"
-        "n.Field(name='content', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None,"
-        " init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), sel"
-        "f_param='self', std_params=(), kw_only_params=('content',), frozen=True, slots=False, post_init_params=None, i"
-        "nit_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='content', kw_only=True, fn=None),), id=Fal"
-        "se, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('content', 'error')), EqPlan(fields=('content', 'error')), FrozenPlan(fields=('con"
+        "tent', 'error'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('content', 'error'), cache="
+        "False), InitPlan(fields=(InitPlan.Field(name='content', annotation=OpRef(name='init.fields.0.annotation'), def"
+        "ault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
+        "te=None, check_type=None), InitPlan.Field(name='error', annotation=OpRef(name='init.fields.1.annotation'), def"
+        "ault=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldTyp"
+        "e.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('"
+        "content', 'error'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(f"
+        "ields=(ReprPlan.Field(name='content', kw_only=True, fn=None), ReprPlan.Field(name='error', kw_only=True, fn=No"
+        "ne)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='d91681782d2ba47660a94a84f913dd392bf8d1ae',
+    plan_repr_sha1='b930c132252da993952bf167a9a0b4241b81b491',
     cls_names=(
         ('omllm.agent.types.tools', 'ToolResult'),
     ),
 )
-def _process_dataclass__d91681782d2ba47660a94a84f913dd392bf8d1ae():
+def _process_dataclass__b930c132252da993952bf167a9a0b4241b81b491():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -1958,6 +1963,7 @@ def _process_dataclass__d91681782d2ba47660a94a84f913dd392bf8d1ae():
                 raise TypeError(self)
             return __class__(  # noqa
                 content=self.content,
+                error=self.error,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1968,13 +1974,15 @@ def _process_dataclass__d91681782d2ba47660a94a84f913dd392bf8d1ae():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.content == other.content
+                self.content == other.content and
+                self.error == other.error
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'content',
+            'error',
         }
 
         def __setattr__(self, name, value):
@@ -2000,6 +2008,7 @@ def _process_dataclass__d91681782d2ba47660a94a84f913dd392bf8d1ae():
         def __hash__(self):
             return hash((
                 self.content,
+                self.error,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -2008,8 +2017,10 @@ def _process_dataclass__d91681782d2ba47660a94a84f913dd392bf8d1ae():
             self,
             *,
             content: __dataclass__init__fields__0__annotation,
+            error: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'content', content)
+            __dataclass__object_setattr(self, 'error', error)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2017,6 +2028,7 @@ def _process_dataclass__d91681782d2ba47660a94a84f913dd392bf8d1ae():
         def __repr__(self):
             parts = []
             parts.append(f"content={self.content!r}")
+            parts.append(f"error={self.error!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

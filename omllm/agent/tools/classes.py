@@ -53,6 +53,24 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
             executor=self.execute_context,
         )
 
+    #
+
+    def _build_result(self, out: str) -> ToolResult:
+        return ToolResult(
+            content=llm.TextContent(out),
+        )
+
+    _error_exception_types: tuple[type[BaseException], ...] = (
+        Exception,
+    )
+
+    def _build_error_result(self, e: BaseException) -> ToolResult:
+        return ToolResult(
+            content=llm.TextContent(f'Error executing tool:\n\n{e!r}'),
+
+            error=e,
+        )
+
     async def execute_context(self, ctx: ToolContext) -> ToolResult:
         params = instantiate_tool_params(
             self.params_cls,
@@ -60,11 +78,12 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
             ctx,
         )
 
-        out = await self.execute(ctx, params)
-
-        return ToolResult(
-            content=llm.TextContent(out),
-        )
+        try:
+            out = await self.execute(ctx, params)
+        except self._error_exception_types as e:
+            return self._build_error_result(e)
+        else:
+            return self._build_result(out)
 
     @abc.abstractmethod
     async def execute(self, ctx: ToolContext, params: P) -> str:
