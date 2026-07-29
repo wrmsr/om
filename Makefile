@@ -129,7 +129,7 @@ dep-unfreeze: venv
 
 .PHONY: dep-tree
 dep-tree:
-	@${PYTHON} -m pipdeptree
+	@${PYTHON} -m x.pipdeptree
 
 .PHONY: dep-updates
 dep-updates: venv

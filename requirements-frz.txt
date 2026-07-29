@@ -21,13 +21,12 @@ basedpyright==1.39.9
 bcrypt==5.0.0
 bitsandbytes==0.50.0
 black==26.5.1
-blinker==1.9.0
 blobfile==3.2.0
 boto3==1.43.59
 botocore==1.43.59
 botocore-stubs==1.43.14
 brotli==1.2.0
-build==1.5.1
+build==1.5.0
 cbor2==6.1.3
 certifi==2026.7.22
 cffi==2.1.0
@@ -56,9 +55,6 @@ fake-useragent==2.2.0
 filelock==3.32.2
 flake8==7.3.0
 Flake8-pyproject==1.2.4
-Flask==3.1.3
-Flask-Login==0.6.3
-Flask-SQLAlchemy==3.1.1
 flatbuffers==25.12.19
 fonttools==4.63.0
 frozenlist==1.8.0
@@ -89,11 +85,9 @@ idna==3.18
 ImageIO==2.37.4
 importlib_metadata==9.0.0
 iniconfig==2.3.0
-installer==1.0.1
 invoke==3.0.3
 ipython==9.15.0
 ipython_pygments_lexers==1.1.1
-itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
 jaraco.functools==4.6.0
@@ -132,9 +126,6 @@ mypy==2.3.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.7.0
 mysqlclient==2.2.8
-nab-index==0.0.11
-nab-python==0.0.11
-nab-resolver==0.0.11
 narwhals==2.24.0
 networkx==3.6.1
 nh3==0.3.6
@@ -155,7 +146,6 @@ pcpp==1.30
 pexpect==4.9.0
 pg8000==1.31.5
 pillow==12.3.0
-pipdeptree==4.1.0
 platformdirs==4.11.0
 playwright==1.61.0
 pluggy==1.6.0
@@ -247,8 +237,6 @@ threadpoolctl==3.6.0
 tifffile==2026.7.14
 tiktoken==0.13.0
 tokenizers==0.22.2
-tomli==2.4.1
-tomli_w==1.2.0
 tomlkit==0.15.1
 torch==2.13.0
 torchvision==0.28.0
@@ -273,7 +261,6 @@ tree-sitter-xml==0.7.0
 tree-sitter-yaml==0.7.2
 trino==0.338.0
 trio==0.33.0
-truststore==0.10.4
 twine==7.0.0
 typer==0.27.0
 types-awscrt==0.34.1
@@ -302,7 +289,6 @@ uv==0.12.0
 uvicorn==0.51.0
 watchdog==6.0.0
 wcwidth==0.8.2
-Werkzeug==3.1.8
 wheel==0.47.0
 wikitextparser==1.0.2
 wsproto==1.3.2
