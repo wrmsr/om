@@ -154,7 +154,7 @@ def build_session(
 
     # Handle custom ca-bundles from the user
     if session_opts.cert:
-        session.verify = session_opts.cert  # type: ignore[assignment]
+        session.verify = session_opts.cert
 
     # Handle SSL client certificate
     if session_opts.client_cert:
@@ -171,7 +171,7 @@ def build_session(
             'https': session_opts.proxy,
         }
         session.trust_env = False
-        session.pip_proxy = session_opts.proxy  # type: ignore[assignment]
+        session.pip_proxy = session_opts.proxy
 
     # Determine if we can prompt the user for authentication or not
     auth: ta.Any = session.auth
@@ -651,7 +651,12 @@ def _main() -> None:
 
     #
 
-    from pip._internal.utils.compat import stdlib_pkgs  # noqa
+    try:
+        # pip 26.2+ https://github.com/pypa/pip/commit/c06a1b8747e8216bfb82d045cebd56fa6210a106
+        from pip._internal.metadata.base import stdlib_pkgs  # noqa
+    except ImportError:
+        from pip._internal.utils.compat import stdlib_pkgs  # type: ignore
+
     skip = set(stdlib_pkgs)
     if args.excludes:
         from pip._vendor.packaging.utils import canonicalize_name  # noqa
