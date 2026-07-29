@@ -34,6 +34,29 @@ class TimerOutputIoPipelineHandler(IoPipelineHandler):
         ctx.feed_in(msg)
 
 
+class TimerCallbackIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, delay_s, fn, output):
+        super().__init__()
+
+        self._delay_s = delay_s
+        self._fn = fn
+        self._output = output
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            def run() -> None:
+                self._fn()
+                ctx.feed_out(self._output)
+
+            ctx.services[IoPipelineScheduling].schedule(
+                ctx.ref,
+                self._delay_s,
+                run,
+            )
+
+        ctx.feed_in(msg)
+
+
 class NopIoPipelineHandler(IoPipelineHandler):
     pass
 
@@ -153,6 +176,38 @@ class BlockingCloseStreamWriter(LifecycleStreamWriter):
         self.events.append('wait_closed')
         self.wait_closed_started.set()
         await self.allow_wait_closed.wait()
+
+
+class BlockingDrainStreamWriter(LifecycleStreamWriter):
+    def __init__(self, drain_exc: ta.Optional[BaseException] = None) -> None:
+        super().__init__()
+
+        self.drain_started = asyncio.Event()
+        self.drain_cancelled = asyncio.Event()
+        self.allow_drain = asyncio.Event()
+
+        self.drain_calls = 0
+        self.active_drains = 0
+        self.max_active_drains = 0
+
+        self._drain_exc = drain_exc
+
+    async def drain(self) -> None:
+        self.events.append('drain')
+        self.drain_calls += 1
+        self.active_drains += 1
+        self.max_active_drains = max(self.max_active_drains, self.active_drains)
+        self.drain_started.set()
+        try:
+            await self.allow_drain.wait()
+            if self._drain_exc is not None:
+                raise self._drain_exc
+            self.transport._size = 0
+        except asyncio.CancelledError:
+            self.drain_cancelled.set()
+            raise
+        finally:
+            self.active_drains -= 1
 
 
 class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCase):
@@ -354,6 +409,12 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
                 await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
                 'handled',
             )
+            drain_task = drv._drain_task
+            if drain_task is None:
+                self.fail('Expected a pending drain task')
+            await drain_task
+            await asyncio.sleep(0)
+            self.assertIsNone(await drv.next(read=False))
             self.assertEqual(
                 [type(event) for event in capture.events],
                 [
@@ -363,6 +424,154 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
             )
         finally:
             await drv.close()
+
+    async def test_blocked_drain_does_not_block_read_false_or_timer(self):
+        timer_fired = asyncio.Event()
+        timer_error = TimeoutError('timer')
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        writer = BlockingDrainStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [
+                    TimerCallbackIoPipelineHandler(
+                        .01,
+                        timer_fired.set,
+                        timer_error,
+                    ),
+                    capture,
+                ],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+            config=PollAsyncioStreamIoPipelineDriver.Config(
+                write_high_watermark=4,
+                write_low_watermark=2,
+            ),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            self.assertEqual(await drv._handle_output(b'payload'), 'handled')
+            self.assertEqual(
+                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                'handled',
+            )
+            await writer.drain_started.wait()
+
+            self.assertIsNone(await asyncio.wait_for(drv.next(read=False), .1))
+            next_task = asyncio.create_task(drv.next())
+            await asyncio.wait_for(timer_fired.wait(), .5)
+
+            self.assertIs(await asyncio.wait_for(next_task, .5), timer_error)
+            self.assertIsNotNone(drv._drain_task)
+
+            self.assertEqual(
+                [type(event) for event in capture.events],
+                [IoPipelineFlowMessages.PauseOutput],
+            )
+        finally:
+            await drv.close()
+
+        self.assertTrue(writer.drain_cancelled.is_set())
+
+    async def test_flushes_coalesce_without_concurrent_drains(self):
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        writer = BlockingDrainStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [capture],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+            config=PollAsyncioStreamIoPipelineDriver.Config(
+                write_high_watermark=4,
+                write_low_watermark=2,
+            ),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            self.assertEqual(await drv._handle_output(b'abcde'), 'handled')
+            self.assertEqual(
+                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                'handled',
+            )
+            await writer.drain_started.wait()
+
+            first_task = drv._drain_task
+            if first_task is None:
+                self.fail('Expected a pending drain task')
+            self.assertEqual(
+                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                'handled',
+            )
+            self.assertIs(drv._drain_task, first_task)
+            self.assertTrue(drv._drain_again)
+
+            writer.allow_drain.set()
+            await first_task
+            await asyncio.sleep(0)
+            self.assertIsNone(await drv.next(read=False))
+
+            second_task = drv._drain_task
+            if second_task is None:
+                self.fail('Expected a coalesced follow-up drain task')
+            self.assertIsNot(second_task, first_task)
+            await second_task
+            await asyncio.sleep(0)
+            self.assertIsNone(await drv.next(read=False))
+
+            self.assertEqual(writer.drain_calls, 2)
+            self.assertEqual(writer.max_active_drains, 1)
+            self.assertIsNone(drv._drain_task)
+            self.assertEqual(
+                [type(event) for event in capture.events],
+                [
+                    IoPipelineFlowMessages.PauseOutput,
+                    IoPipelineFlowMessages.ReadyForOutput,
+                ],
+            )
+        finally:
+            writer.allow_drain.set()
+            await drv.close()
+
+    async def test_drain_failure_fails_driver(self):
+        error = BrokenPipeError('broken')
+        writer = BlockingDrainStreamWriter(error)
+        writer.allow_drain.set()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            self.assertEqual(
+                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                'handled',
+            )
+
+            drain_task = drv._drain_task
+            if drain_task is None:
+                self.fail('Expected a pending drain task')
+            with self.assertRaises(BrokenPipeError) as task_raised:
+                await drain_task
+            self.assertIs(task_raised.exception, error)
+
+            with self.assertRaises(BrokenPipeError) as driver_raised:
+                await asyncio.wait_for(drv.next(), .5)
+            self.assertIs(driver_raised.exception, error)
+
+            self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+            self.assertFalse(drv.pipeline.is_ready)
+            self.assertTrue(writer.closed)
+            self.assertEqual(writer.events, ['drain', 'abort', 'wait_closed'])
+        finally:
+            await drv.close()
+
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
 
 
 class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCase):
@@ -388,6 +597,78 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
             self.assertFalse(drv.pipeline.is_ready)
             self.assertTrue(ta.cast(asyncio.Task, drv._read_task).done())
         finally:
+            await drv.close()
+
+    async def test_final_output_waits_for_pending_drain(self) -> None:
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        writer = BlockingDrainStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [
+                    capture,
+                    GracefulCloseIoPipelineHandler(),
+                ],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+            config=PollAsyncioStreamIoPipelineDriver.Config(
+                write_high_watermark=4,
+                write_low_watermark=2,
+            ),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            self.assertEqual(await drv._handle_output(b'abcde'), 'handled')
+            self.assertEqual(
+                await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
+                'handled',
+            )
+            await writer.drain_started.wait()
+
+            drv.enqueue(_CLOSE)
+            self.assertIsNone(await drv.next(read=False))
+
+            self.assertFalse(writer.drain_cancelled.is_set())
+            self.assertIsNotNone(drv._drain_task)
+            self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
+            self.assertEqual(
+                [type(event) for event in capture.events],
+                [IoPipelineFlowMessages.PauseOutput],
+            )
+
+            writer.allow_drain.set()
+            drain_task = drv._drain_task
+            if drain_task is None:
+                self.fail('Expected a pending drain task')
+            await drain_task
+            await asyncio.sleep(0)
+            self.assertIsNone(await drv.next(read=False))
+
+            self.assertIsNone(drv._drain_task)
+            self.assertFalse(drv._drain_again)
+            self.assertEqual(
+                [type(event) for event in capture.events],
+                [
+                    IoPipelineFlowMessages.PauseOutput,
+                    IoPipelineFlowMessages.ReadyForOutput,
+                    IoPipelineFlowMessages.PauseOutput,
+                ],
+            )
+            self.assertEqual(
+                writer.events,
+                [
+                    ('write', b'abcde'),
+                    'drain',
+                    ('write', b'payload'),
+                    'close',
+                    'wait_closed',
+                ],
+            )
+            self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+            self.assertFalse(drv.pipeline.is_ready)
+        finally:
+            writer.allow_drain.set()
             await drv.close()
 
     async def test_final_input_does_not_close_output(self) -> None:

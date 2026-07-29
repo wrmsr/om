@@ -1,6 +1,7 @@
 # ruff: noqa: UP006 UP007 UP037 UP045
 # @om-lite
 import asyncio
+import collections
 import dataclasses as dc
 import typing as ta
 
@@ -92,6 +93,10 @@ class PollAsyncioStreamIoPipelineDriver:
         self._want_read_event = asyncio.Event()
 
         self._output_writable = True
+
+        self._drain_task: ta.Optional[asyncio.Task] = None
+        self._drain_again = False
+        self._post_drain_output_q: collections.deque[ta.Any] = collections.deque()
 
         self._state = IoPipelineDriverState.NEW
 
@@ -553,6 +558,68 @@ class PollAsyncioStreamIoPipelineDriver:
         pass
 
     ##
+    # output drain
+
+    @dc.dataclass(frozen=True)
+    class _DrainCompletedCommand(_Command):
+        task: asyncio.Task
+
+    def _request_drain(self) -> None:
+        if self._writer is None:
+            return
+
+        if self._drain_task is not None:
+            self._drain_again = True
+            return
+
+        task = asyncio.create_task(self._writer.drain())
+        self._drain_task = task
+
+        def done_callback(done_task: asyncio.Task) -> None:
+            if not self._shutdown_event.is_set():
+                self._command_queue.put_nowait(
+                    PollAsyncioStreamIoPipelineDriver._DrainCompletedCommand(done_task),
+                )
+
+        task.add_done_callback(done_callback)
+
+    async def _cancel_drain_task(self, *, propagate_done_error: bool = False) -> None:
+        task = self._drain_task
+        self._drain_task = None
+        self._drain_again = False
+
+        if task is None:
+            return
+
+        was_done = task.done()
+        if not was_done:
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+        if propagate_done_error and was_done and not task.cancelled():
+            task.result()
+
+    async def _handle_command_drain_completed(self, cmd: _DrainCompletedCommand) -> None:
+        if cmd.task is not self._drain_task:
+            return
+
+        self._drain_task = None
+        drain_again = self._drain_again
+        self._drain_again = False
+
+        try:
+            cmd.task.result()
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            await self.close()
+            raise
+
+        if self._state is IoPipelineDriverState.RUNNING:
+            self._update_output_writability()
+            if drain_again:
+                self._request_drain()
+
+    ##
     # awaits
 
     @dc.dataclass(frozen=True)
@@ -640,6 +707,7 @@ class PollAsyncioStreamIoPipelineDriver:
             PollAsyncioStreamIoPipelineDriver._FeedInCommand: self._handle_command_feed_in,
             PollAsyncioStreamIoPipelineDriver._ReadCompletedCommand: self._handle_command_read_completed,
             PollAsyncioStreamIoPipelineDriver._ScheduledCommand: self._handle_command_scheduled,
+            PollAsyncioStreamIoPipelineDriver._DrainCompletedCommand: self._handle_command_drain_completed,
             PollAsyncioStreamIoPipelineDriver._AwaitCompletedCommand: self._handle_command_await_completed,
             PollAsyncioStreamIoPipelineDriver._AwaitFailedCommand: self._handle_command_await_failed,
         }
@@ -663,13 +731,13 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._state = IoPipelineDriverState.DRAINING
         try:
+            await self._cancel_drain_task(propagate_done_error=True)
             await self._cancel_tasks(self._read_task, check_running=True)
             await self._gracefully_close_writer()
 
         except BaseException:
             self._state = IoPipelineDriverState.FAILED
-            if self._pipeline.is_ready:
-                self._pipeline.destroy()
+            await self.close()
             raise
 
         return 'stop'
@@ -690,9 +758,7 @@ class PollAsyncioStreamIoPipelineDriver:
         self._update_output_writability()
 
     async def _handle_output_flush_output(self, msg: IoPipelineFlowMessages.FlushOutput) -> ta.Optional[str]:
-        if self._writer is not None:
-            await self._writer.drain()
-            self._update_output_writability()
+        self._request_drain()
         return None
 
     async def _handle_output_ready_for_input(self, msg: IoPipelineFlowMessages.ReadyForInput) -> ta.Optional[str]:
@@ -704,7 +770,11 @@ class PollAsyncioStreamIoPipelineDriver:
         return None
 
     def _update_output_writability(self) -> None:
-        if self._flow is None or self._writer is None:
+        if (
+                self._state is not IoPipelineDriverState.RUNNING or
+                self._flow is None or
+                self._writer is None
+        ):
             return
 
         size = self._writer.transport.get_write_buffer_size()
@@ -748,6 +818,9 @@ class PollAsyncioStreamIoPipelineDriver:
         if self._pending_awaits:
             return True
 
+        if self._drain_task is not None:
+            return True
+
         if self._read_task is not None and not self._read_task.done():
             return True
 
@@ -775,20 +848,32 @@ class PollAsyncioStreamIoPipelineDriver:
         self._sched._enqueue_due(asyncio.get_running_loop().time())  # noqa
 
         while True:
-            if (out_msg := pipeline.output.poll()) is not None:
-                handled = await self._handle_output(out_msg)
+            if self._drain_task is not None:
+                while (blocked_msg := pipeline.output.poll()) is not None:
+                    if isinstance(blocked_msg, (BaseException, IoPipelineMessages.Error)):
+                        return blocked_msg
+                    self._post_drain_output_q.append(blocked_msg)
 
-                if handled == 'handled':
-                    continue
-
-                elif handled == 'unhandled':
-                    return out_msg
-
-                elif handled == 'stop':
-                    break
-
+            else:
+                if self._post_drain_output_q:
+                    out_msg = self._post_drain_output_q.popleft()
                 else:
-                    raise RuntimeError(f'Unknown handled value: {handled!r}')
+                    out_msg = pipeline.output.poll()
+
+                if out_msg is not None:
+                    handled = await self._handle_output(out_msg)
+
+                    if handled == 'handled':
+                        continue
+
+                    elif handled == 'unhandled':
+                        return out_msg
+
+                    elif handled == 'stop':
+                        break
+
+                    else:
+                        raise RuntimeError(f'Unknown handled value: {handled!r}')
 
             try:
                 cmd = self._command_queue.get_nowait()
@@ -847,6 +932,9 @@ class PollAsyncioStreamIoPipelineDriver:
         self._shutdown_event.set()
 
         self._want_read_event.set()
+
+        await self._cancel_drain_task()
+        self._post_drain_output_q.clear()
 
         await self._cancel_tasks(self._read_task, check_running=True)
 
