@@ -19,6 +19,9 @@ with _lang.auto_proxy_init(globals()):
     ##
 
     from .tools.reflect import (  # noqa
+        instantiate_tool_params,
+
+        reflect_tool_params,
         reflect_tool_fn,
     )
 
