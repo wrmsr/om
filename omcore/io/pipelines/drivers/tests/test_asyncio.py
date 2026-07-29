@@ -9,6 +9,8 @@ from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineHandlerRef
 from ...core import IoPipelineMessages
+from ...core import IoPipelineService
+from ...core import IoPipelineUpdate
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
 from ...sched.types import IoPipelineScheduling
@@ -178,6 +180,18 @@ class BlockingCloseStreamWriter(LifecycleStreamWriter):
         await self.allow_wait_closed.wait()
 
 
+class AbortableBlockingCloseStreamWriter(BlockingCloseStreamWriter):
+    class Transport(LifecycleStreamWriter.Transport):
+        def abort(self) -> None:
+            super().abort()
+            ta.cast('AbortableBlockingCloseStreamWriter', self._owner).allow_wait_closed.set()
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.transport = self.Transport(self)
+
+
 class BlockingDrainStreamWriter(LifecycleStreamWriter):
     def __init__(self, drain_exc: ta.Optional[BaseException] = None) -> None:
         super().__init__()
@@ -208,6 +222,55 @@ class BlockingDrainStreamWriter(LifecycleStreamWriter):
             raise
         finally:
             self.active_drains -= 1
+
+
+class FailingWriteStreamWriter(LifecycleStreamWriter):
+    def __init__(self, exc: BaseException) -> None:
+        super().__init__()
+
+        self._exc = exc
+
+    def write(self, data: ta.Any) -> None:
+        self.events.append(('write', bytes(data)))
+        raise self._exc
+
+
+class FailingStreamReader:
+    def __init__(self, exc: BaseException) -> None:
+        self._exc = exc
+
+    async def read(self, size: int) -> bytes:
+        raise self._exc
+
+
+class LifecycleIoPipelineService(IoPipelineService):
+    def __init__(self, removal_exc: ta.Optional[BaseException] = None) -> None:
+        super().__init__()
+
+        self.removed = 0
+        self._removal_exc = removal_exc
+
+    def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
+        if kind == 'removed':
+            self.removed += 1
+            if self._removal_exc is not None:
+                raise self._removal_exc
+
+
+_ERROR = object()
+
+
+class OutputErrorIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, error: BaseException) -> None:
+        super().__init__()
+
+        self._error = error
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if msg is _ERROR:
+            ctx.feed_out(self._error)
+        else:
+            ctx.feed_in(msg)
 
 
 class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCase):
@@ -575,6 +638,131 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
 
 
 class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCase):
+    async def test_close_before_pipeline_initialization(self) -> None:
+        writer = LifecycleStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+
+        await drv.close()
+        await drv.close()
+
+        self.assertEqual(writer.events, ['abort', 'wait_closed'])
+        self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+
+    async def test_repeated_close_destroys_pipeline_once(self) -> None:
+        lifecycle = LifecycleIoPipelineService()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                services=[
+                    lifecycle,
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+            asyncio.StreamReader(),
+        )
+        self.assertIsNone(await drv.next(read=False))
+
+        await drv.close()
+        await drv.close()
+
+        self.assertEqual(lifecycle.removed, 1)
+        self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+
+    async def test_pipeline_output_error_is_non_terminal(self) -> None:
+        error = RuntimeError('pipeline')
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [OutputErrorIoPipelineHandler(error)],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+        )
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            drv.enqueue(_ERROR)
+
+            self.assertIs(await drv.next(read=False), error)
+            self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
+            self.assertTrue(drv.pipeline.is_ready)
+        finally:
+            await drv.close()
+
+    async def test_transport_read_failure_fails_driver(self) -> None:
+        error = ConnectionResetError('reset')
+        writer = LifecycleStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(),
+            ta.cast(asyncio.StreamReader, FailingStreamReader(error)),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+
+        with self.assertRaises(ConnectionResetError) as raised:
+            await drv.next()
+
+        self.assertIs(raised.exception, error)
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+        self.assertFalse(drv.pipeline.is_ready)
+        self.assertEqual(writer.events, ['abort', 'wait_closed'])
+
+        await drv.close()
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+
+    async def test_transport_write_failure_fails_driver(self) -> None:
+        error = BrokenPipeError('broken')
+        writer = FailingWriteStreamWriter(error)
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [GracefulCloseIoPipelineHandler()],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        self.assertIsNone(await drv.next(read=False))
+        drv.enqueue(_CLOSE)
+
+        with self.assertRaises(BrokenPipeError) as raised:
+            await drv.next(read=False)
+
+        self.assertIs(raised.exception, error)
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+        self.assertFalse(drv.pipeline.is_ready)
+        self.assertEqual(writer.events, [('write', b'payload'), 'abort', 'wait_closed'])
+
+        await drv.close()
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+
+    async def test_pipeline_removal_failure_fails_close(self) -> None:
+        error = RuntimeError('remove')
+        lifecycle = LifecycleIoPipelineService(error)
+        writer = LifecycleStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                services=[
+                    lifecycle,
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        self.assertIsNone(await drv.next(read=False))
+
+        with self.assertRaises(RuntimeError) as raised:
+            await drv.close()
+
+        self.assertIs(raised.exception, error)
+        self.assertEqual(lifecycle.removed, 1)
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+        self.assertFalse(drv.pipeline.is_ready)
+        self.assertEqual(writer.events, ['abort', 'wait_closed'])
+
+        await drv.close()
+        self.assertEqual(lifecycle.removed, 1)
+
     async def test_final_output_gracefully_drains_preceding_bytes(self) -> None:
         writer = LifecycleStreamWriter()
         drv = PollAsyncioStreamIoPipelineDriver(
@@ -739,6 +927,50 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
                 await asyncio.gather(task, return_exceptions=True)
             await drv.close()
 
+    async def test_close_while_draining_is_abortive(self) -> None:
+        lifecycle = LifecycleIoPipelineService()
+        writer = AbortableBlockingCloseStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [GracefulCloseIoPipelineHandler()],
+                services=[
+                    lifecycle,
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        task: ta.Optional[asyncio.Task] = None
+        try:
+            self.assertIsNone(await drv.next(read=False))
+            drv.enqueue(_CLOSE)
+            task = asyncio.create_task(drv.next(read=False))
+            await writer.wait_closed_started.wait()
+
+            self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
+            await drv.close()
+            self.assertIsNone(await task)
+
+            self.assertEqual(
+                writer.events,
+                [
+                    ('write', b'payload'),
+                    'close',
+                    'wait_closed',
+                    'abort',
+                    'wait_closed',
+                ],
+            )
+            self.assertEqual(lifecycle.removed, 1)
+            self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+            self.assertFalse(drv.pipeline.is_ready)
+        finally:
+            writer.allow_wait_closed.set()
+            if task is not None:
+                await asyncio.gather(task, return_exceptions=True)
+            await drv.close()
+
     async def test_graceful_drain_failure_is_reported(self) -> None:
         error = BrokenPipeError('broken')
         writer = LifecycleStreamWriter(error)
@@ -758,7 +990,16 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
                 await drv.next(read=False)
 
             self.assertIs(raised.exception, error)
-            self.assertEqual(writer.events, [('write', b'payload'), 'close', 'wait_closed'])
+            self.assertEqual(
+                writer.events,
+                [
+                    ('write', b'payload'),
+                    'close',
+                    'wait_closed',
+                    'abort',
+                    'wait_closed',
+                ],
+            )
             self.assertIs(drv.state, IoPipelineDriverState.FAILED)
             self.assertFalse(drv.pipeline.is_ready)
         finally:

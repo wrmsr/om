@@ -261,6 +261,9 @@ class SyncSocketIoPipelineDriver:
             b = self._sock.recv(self._config.read_chunk_size)
         except BlockingIOError:
             return out
+        except OSError:
+            self._fail()
+            raise
 
         if not b:
             out.append(IoPipelineMessages.FinalInput())
@@ -491,14 +494,22 @@ class SyncSocketIoPipelineDriver:
             else:
                 timeout = min(timer_delay, socket_timeout)
 
-            readable, writable, _ = select.select(
-                [self._sock] if want_read else [],
-                [self._sock] if want_write else [],
-                [],
-                timeout,
-            )
+            try:
+                readable, writable, _ = select.select(
+                    [self._sock] if want_read else [],
+                    [self._sock] if want_write else [],
+                    [],
+                    timeout,
+                )
+            except (OSError, ValueError):
+                self._fail()
+                raise
 
-            ran_timer = bool(self._sched._run_due())  # noqa
+            try:
+                ran_timer = bool(self._sched._run_due())  # noqa
+            except BaseException:
+                self._fail()
+                raise
             if readable or writable or ran_timer:
                 return (bool(readable), bool(writable), ran_timer)
 
@@ -598,10 +609,18 @@ class SyncSocketIoPipelineDriver:
         pipeline = self._ensure_pipeline()  # noqa
         check.state(pipeline.is_ready)
 
-        ran_timer = bool(self._sched._run_due())  # noqa
+        try:
+            ran_timer = bool(self._sched._run_due())  # noqa
+        except BaseException:
+            self._fail()
+            raise
 
         while True:
-            out = self._poll()
+            try:
+                out = self._poll()
+            except BaseException:
+                self._fail()
+                raise
 
             if isinstance(out, tuple):
                 ok, ov = out

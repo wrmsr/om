@@ -99,7 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/statuses.py', sha1='675eff6e1638e48aebb7aeae422e426c21a612d2'),
             dict(path='../../omcore/http/urllib.py', sha1='fc273565255546f42152ab2dfc264feb8c8b8dc6'),
             dict(path='../../omcore/http/versions.py', sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890'),
-            dict(path='../../omcore/io/pipelines/drivers/types.py', sha1='6f04c483ee8806823c2c591acf3df043be23b2a8'),
+            dict(path='../../omcore/io/pipelines/drivers/types.py', sha1='74626aba05c6869daeede82de3b7fec562abe2a7'),
             dict(path='../../omcore/io/pipelines/errors.py', sha1='5b21a04b81ebec31ad81ecb4f811820cea5a0036'),
             dict(path='../../omcore/io/streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
             dict(path='../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
@@ -222,7 +222,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='54c6aced29c5b0fb434e83be93cff5868a71aa55'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='4cab8d04385ea8e893713a93fec9e667407ea82b'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='683525e23ade307dc55e5441fd7b4065372828b1'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -1086,7 +1086,13 @@ class HttpVersions:
 
 
 class IoPipelineDriverState(enum.Enum):
-    """Transport-facing lifecycle shared by I/O pipeline drivers."""
+    """
+    Transport-facing lifecycle shared by I/O pipeline drivers.
+
+    DRAINING means the transport terminal has accepted FinalOutput and is finishing output that preceded it. Explicit
+    close remains abortive in RUNNING or DRAINING. CLOSED records successful graceful or explicit closure; FAILED is a
+    terminal record of transport, pipeline-driving, or teardown failure.
+    """
 
     NEW = 'new'
     RUNNING = 'running'
@@ -31814,6 +31820,9 @@ class SyncSocketIoPipelineDriver:
             b = self._sock.recv(self._config.read_chunk_size)
         except BlockingIOError:
             return out
+        except OSError:
+            self._fail()
+            raise
 
         if not b:
             out.append(IoPipelineMessages.FinalInput())
@@ -32044,14 +32053,22 @@ class SyncSocketIoPipelineDriver:
             else:
                 timeout = min(timer_delay, socket_timeout)
 
-            readable, writable, _ = select.select(
-                [self._sock] if want_read else [],
-                [self._sock] if want_write else [],
-                [],
-                timeout,
-            )
+            try:
+                readable, writable, _ = select.select(
+                    [self._sock] if want_read else [],
+                    [self._sock] if want_write else [],
+                    [],
+                    timeout,
+                )
+            except (OSError, ValueError):
+                self._fail()
+                raise
 
-            ran_timer = bool(self._sched._run_due())  # noqa
+            try:
+                ran_timer = bool(self._sched._run_due())  # noqa
+            except BaseException:
+                self._fail()
+                raise
             if readable or writable or ran_timer:
                 return (bool(readable), bool(writable), ran_timer)
 
@@ -32151,10 +32168,18 @@ class SyncSocketIoPipelineDriver:
         pipeline = self._ensure_pipeline()  # noqa
         check.state(pipeline.is_ready)
 
-        ran_timer = bool(self._sched._run_due())  # noqa
+        try:
+            ran_timer = bool(self._sched._run_due())  # noqa
+        except BaseException:
+            self._fail()
+            raise
 
         while True:
-            out = self._poll()
+            try:
+                out = self._poll()
+            except BaseException:
+                self._fail()
+                raise
 
             if isinstance(out, tuple):
                 ok, ov = out

@@ -35,7 +35,7 @@ if sys.version_info < (3, 8):
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(path='drivers/types.py', sha1='6f04c483ee8806823c2c591acf3df043be23b2a8'),
+            dict(path='drivers/types.py', sha1='74626aba05c6869daeede82de3b7fec562abe2a7'),
             dict(path='errors.py', sha1='5b21a04b81ebec31ad81ecb4f811820cea5a0036'),
             dict(path='../streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
             dict(path='../../lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
@@ -73,7 +73,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='bytes/decoders.py', sha1='4f0df234d6fba71e485378de06fa6c1f9276e6ef'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='17958a5b3d93bbdcbc588cccad8971b4d4d9a7d1'),
+            dict(path='drivers/asyncio.py', sha1='1fdeb1f88bf2e40814e5e7547ab3feeb35c011b1'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -129,7 +129,13 @@ LoggingContextInfoT = ta.TypeVar('LoggingContextInfoT', bound=LoggingContextInfo
 
 
 class IoPipelineDriverState(enum.Enum):
-    """Transport-facing lifecycle shared by I/O pipeline drivers."""
+    """
+    Transport-facing lifecycle shared by I/O pipeline drivers.
+
+    DRAINING means the transport terminal has accepted FinalOutput and is finishing output that preceded it. Explicit
+    close remains abortive in RUNNING or DRAINING. CLOSED records successful graceful or explicit closure; FAILED is a
+    terminal record of transport, pipeline-driving, or teardown failure.
+    """
 
     NEW = 'new'
     RUNNING = 'running'
@@ -8583,6 +8589,7 @@ class PollAsyncioStreamIoPipelineDriver:
         self._spec = spec
         self._reader = reader
         self._writer = writer
+        self._closing_writer: ta.Optional[asyncio.StreamWriter] = None
         if config is None:
             config = PollAsyncioStreamIoPipelineDriver.Config.DEFAULT
         self._config = config
@@ -8747,16 +8754,22 @@ class PollAsyncioStreamIoPipelineDriver:
 
         writer = self._writer
         self._writer = None
+        self._closing_writer = writer
 
         writer.close()
         await writer.wait_closed()
+        if self._closing_writer is writer:
+            self._closing_writer = None
 
     async def _abort_writer(self) -> None:
-        if self._writer is None:
+        writer = self._writer
+        if writer is None:
+            writer = self._closing_writer
+        if writer is None:
             return
 
-        writer = self._writer
         self._writer = None
+        self._closing_writer = None
 
         try:
             try:
@@ -8834,8 +8847,12 @@ class PollAsyncioStreamIoPipelineDriver:
                     data = await self._reader.read(self._config.read_chunk_size)
                 except asyncio.CancelledError:
                     raise
-                except Exception:  # noqa
-                    data = b''
+                except Exception as e:  # noqa
+                    if not self._shutdown_event.is_set():
+                        self._command_queue.put_nowait(
+                            PollAsyncioStreamIoPipelineDriver._ReadFailedCommand(e),
+                        )
+                    break
 
                 if self._shutdown_event.is_set():
                     break
@@ -8871,6 +8888,10 @@ class PollAsyncioStreamIoPipelineDriver:
             else:
                 raise TypeError(self._data)
 
+    @dc.dataclass(frozen=True)
+    class _ReadFailedCommand(_Command):
+        exc: BaseException
+
     async def _handle_command_read_completed(self, cmd: _ReadCompletedCommand) -> None:
         eof = False
 
@@ -8899,6 +8920,9 @@ class PollAsyncioStreamIoPipelineDriver:
         self._pipeline.feed_in(*in_msgs)
 
         #
+
+    async def _handle_command_read_failed(self, cmd: _ReadFailedCommand) -> None:
+        raise cmd.exc
 
     ##
     # scheduling
@@ -9114,8 +9138,7 @@ class PollAsyncioStreamIoPipelineDriver:
         try:
             cmd.task.result()
         except BaseException:
-            self._state = IoPipelineDriverState.FAILED
-            await self.close()
+            await self._fail()
             raise
 
         if self._state is IoPipelineDriverState.RUNNING:
@@ -9210,6 +9233,7 @@ class PollAsyncioStreamIoPipelineDriver:
         return {
             PollAsyncioStreamIoPipelineDriver._FeedInCommand: self._handle_command_feed_in,
             PollAsyncioStreamIoPipelineDriver._ReadCompletedCommand: self._handle_command_read_completed,
+            PollAsyncioStreamIoPipelineDriver._ReadFailedCommand: self._handle_command_read_failed,
             PollAsyncioStreamIoPipelineDriver._ScheduledCommand: self._handle_command_scheduled,
             PollAsyncioStreamIoPipelineDriver._DrainCompletedCommand: self._handle_command_drain_completed,
             PollAsyncioStreamIoPipelineDriver._AwaitCompletedCommand: self._handle_command_await_completed,
@@ -9224,7 +9248,12 @@ class PollAsyncioStreamIoPipelineDriver:
         except KeyError:
             raise TypeError(f'Unknown command type: {cmd.__class__}') from None
 
-        await fn(cmd)
+        try:
+            await fn(cmd)
+        except BaseException:
+            if self._state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+                await self._fail()
+            raise
 
     ##
     # output handling
@@ -9240,8 +9269,7 @@ class PollAsyncioStreamIoPipelineDriver:
             await self._gracefully_close_writer()
 
         except BaseException:
-            self._state = IoPipelineDriverState.FAILED
-            await self.close()
+            await self._fail()
             raise
 
         return 'stop'
@@ -9303,17 +9331,23 @@ class PollAsyncioStreamIoPipelineDriver:
     async def _handle_output(self, msg: ta.Any) -> str:
         log.debug(lambda: f'Handling output: {msg!r}')
 
-        if ByteStreamBuffers.can_bytes(msg):
-            await self._handle_output_bytes(msg)
-            return 'handled'
-
         try:
-            fn = self._output_handlers[msg.__class__]
-        except KeyError:
-            return 'unhandled'
+            if ByteStreamBuffers.can_bytes(msg):
+                await self._handle_output_bytes(msg)
+                return 'handled'
 
-        ret = await fn(msg)
-        return ret if ret is not None else 'handled'
+            try:
+                fn = self._output_handlers[msg.__class__]
+            except KeyError:
+                return 'unhandled'
+
+            ret = await fn(msg)
+            return ret if ret is not None else 'handled'
+
+        except BaseException:
+            if self._state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+                await self._fail()
+            raise
 
     ##
     # core loop
@@ -9403,7 +9437,7 @@ class PollAsyncioStreamIoPipelineDriver:
         try:
             pipeline.destroy()
         except BaseException:
-            self._state = IoPipelineDriverState.FAILED
+            await self._fail()
             raise
 
         self._state = IoPipelineDriverState.CLOSED
@@ -9425,6 +9459,10 @@ class PollAsyncioStreamIoPipelineDriver:
     ##
     # lifecycle
 
+    async def _fail(self) -> None:
+        self._state = IoPipelineDriverState.FAILED
+        await self.close()
+
     async def close(self) -> None:
         """Abort the driver without waiting for graceful pipeline output completion."""
 
@@ -9433,30 +9471,35 @@ class PollAsyncioStreamIoPipelineDriver:
 
         failed = self._state is IoPipelineDriverState.FAILED
 
-        self._shutdown_event.set()
+        try:
+            self._shutdown_event.set()
 
-        self._want_read_event.set()
+            self._want_read_event.set()
 
-        await self._cancel_drain_task()
-        self._post_drain_output_q.clear()
+            await self._cancel_drain_task()
+            self._post_drain_output_q.clear()
 
-        await self._cancel_tasks(self._read_task, check_running=True)
+            await self._cancel_tasks(self._read_task, check_running=True)
 
-        self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
+            self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
 
-        await self._abort_writer()
+            await self._abort_writer()
 
-        if hasattr(self, '_sched'):
-            self._sched.cancel_all()
-            if self._sched._tasks:  # noqa
-                await asyncio.gather(*self._sched._tasks, return_exceptions=True)  # noqa
+            if hasattr(self, '_sched'):
+                self._sched.cancel_all()
+                if self._sched._tasks:  # noqa
+                    await asyncio.gather(*self._sched._tasks, return_exceptions=True)  # noqa
 
-        if self._has_init:
-            try:
-                if self._pipeline.is_ready:
-                    self._pipeline.destroy()
-            except AttributeError:
-                pass
+            if self._has_init:
+                try:
+                    if self._pipeline.is_ready:
+                        self._pipeline.destroy()
+                except AttributeError:
+                    pass
+
+        except BaseException:
+            self._state = IoPipelineDriverState.FAILED
+            raise
 
         self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
 

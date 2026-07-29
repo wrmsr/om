@@ -143,6 +143,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         except BaseException:
             self._state = IoPipelineDriverState.FAILED
+            self._fail()
             raise
 
     def _make_pipeline(self) -> IoPipeline:
@@ -182,7 +183,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         try:
             try:
-                if (pipeline := self._opt_pipeline()) is not None:
+                if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                     pipeline.destroy()
 
             finally:
@@ -222,8 +223,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             b = check.not_none(self._sock).recv(self._config.read_chunk_size)
         except BlockingIOError:
             return out
-        except ConnectionResetError:
-            b = b''
+        except OSError:
+            self._fail()
+            raise
 
         if not b:
             out.append(IoPipelineMessages.FinalInput())
@@ -340,7 +342,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     def enqueue(self, *in_msgs: ta.Any) -> None:
         self._input_q.extend(in_msgs)
 
-    def poll(self) -> ta.Union[
+    def _poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
         ta.Literal['read', 'stop'],
         None,
@@ -372,6 +374,18 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 return 'read'
 
             return None
+
+    def poll(self) -> ta.Union[
+        ta.Tuple[ta.Literal['unhandled'], ta.Any],
+        ta.Literal['read', 'stop'],
+        None,
+    ]:
+        try:
+            return self._poll()
+        except BaseException:
+            if self._state is not IoPipelineDriverState.CLOSED:
+                self._fail()
+            raise
 
     def next(
             self,

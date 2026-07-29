@@ -1,4 +1,4 @@
-# ruff: noqa: SLF001
+# ruff: noqa: SLF001 UP045
 # @om-lite
 import socket
 import time
@@ -11,6 +11,8 @@ from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
+from ...core import IoPipelineService
+from ...core import IoPipelineUpdate
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
 from ..fdio import IoPipelineDriverSocketFdioHandler
@@ -42,6 +44,46 @@ class ScriptedSendSocket:
 
     def close(self):
         self.closed = True
+
+
+class FailingRecvSocket(ScriptedSendSocket):
+    def __init__(self, exc: BaseException) -> None:
+        super().__init__()
+
+        self._exc = exc
+
+    def recv(self, size: int) -> bytes:
+        raise self._exc
+
+
+class LifecycleIoPipelineService(IoPipelineService):
+    def __init__(self, removal_exc: ta.Optional[BaseException] = None) -> None:
+        super().__init__()
+
+        self.removed = 0
+        self._removal_exc = removal_exc
+
+    def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
+        if kind == 'removed':
+            self.removed += 1
+            if self._removal_exc is not None:
+                raise self._removal_exc
+
+
+_ERROR = object()
+
+
+class OutputErrorIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, error: BaseException) -> None:
+        super().__init__()
+
+        self._error = error
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if msg is _ERROR:
+            ctx.feed_out(self._error)
+        else:
+            ctx.feed_in(msg)
 
 
 def fill_socket_send_buffer(sock: socket.socket) -> int:
@@ -109,6 +151,99 @@ class CaptureFinalInputIoPipelineHandler(IoPipelineHandler):
 
 
 class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
+    def test_repeated_close_destroys_pipeline_once(self) -> None:
+        sock: ta.Any = ScriptedSendSocket()
+        lifecycle = LifecycleIoPipelineService()
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                services=[
+                    lifecycle,
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+        )
+        self.assertIsNone(drv.next(read=False))
+
+        drv.close()
+        drv.close()
+
+        self.assertEqual(lifecycle.removed, 1)
+        self.assertTrue(sock.closed)
+        self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+
+    def test_pipeline_output_error_is_non_terminal(self) -> None:
+        sock: ta.Any = ScriptedSendSocket()
+        error = RuntimeError('pipeline')
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                [OutputErrorIoPipelineHandler(error)],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            drv.enqueue(_ERROR)
+
+            self.assertIs(drv.next(read=False), error)
+            self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
+            self.assertTrue(drv.pipeline.is_ready)
+            self.assertFalse(sock.closed)
+        finally:
+            drv.close()
+
+    def test_transport_read_failure_fails_driver(self) -> None:
+        error = ConnectionResetError('reset')
+        sock: ta.Any = FailingRecvSocket(error)
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(),
+        )
+        self.assertIsNone(drv.next(read=False))
+
+        with self.assertRaises(ConnectionResetError) as raised:
+            drv.on_readable()
+
+        self.assertIs(raised.exception, error)
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+        self.assertFalse(drv.pipeline.is_ready)
+        self.assertTrue(sock.closed)
+
+        drv.close()
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+
+    def test_pipeline_removal_failure_fails_close(self) -> None:
+        error = RuntimeError('remove')
+        sock: ta.Any = ScriptedSendSocket()
+        lifecycle = LifecycleIoPipelineService(error)
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                services=[
+                    lifecycle,
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+        )
+        self.assertIsNone(drv.next(read=False))
+
+        with self.assertRaises(RuntimeError) as raised:
+            drv.close()
+
+        self.assertIs(raised.exception, error)
+        self.assertEqual(lifecycle.removed, 1)
+        self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+        self.assertFalse(drv.pipeline.is_ready)
+        self.assertTrue(sock.closed)
+
+        drv.close()
+        self.assertEqual(lifecycle.removed, 1)
+
     def test_invalid_chunk_sizes(self):
         with self.assertRaises(ValueError):
             IoPipelineDriverSocketFdioHandler.Config(read_chunk_size=0)
@@ -277,6 +412,36 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             self.assertFalse(drv.pipeline.is_ready)
         finally:
             drv.close()
+
+    def test_close_while_draining_discards_queued_bytes(self) -> None:
+        sock: ta.Any = ScriptedSendSocket(BlockingIOError())
+        lifecycle = LifecycleIoPipelineService()
+        drv = IoPipelineDriverSocketFdioHandler(
+            sock,
+            ('127.0.0.1', 0),
+            IoPipeline.Spec(
+                [GracefulCloseIoPipelineHandler()],
+                services=[
+                    lifecycle,
+                    StubIoPipelineFlowService(auto_read=False),
+                ],
+            ),
+        )
+        self.assertIsNone(drv.next(read=False))
+        drv.enqueue(_CLOSE)
+        self.assertIsNone(drv.next(read=False))
+
+        self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
+        self.assertEqual(drv._write_q_bytes, len(b'payload'))
+
+        drv.close()
+
+        self.assertEqual(drv._write_q_bytes, 0)
+        self.assertEqual(list(drv._write_q), [])
+        self.assertEqual(lifecycle.removed, 1)
+        self.assertTrue(sock.closed)
+        self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+        self.assertFalse(drv.pipeline.is_ready)
 
     def test_saturated_socket_drains_final_output_when_writable(self) -> None:
         sock, peer = socket.socketpair()

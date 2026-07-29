@@ -3,9 +3,6 @@
 - assess cyclic garbage - possible weakrefs:
   - `IoPipelineHandlerContext._pipeline`
   - `IoPipelineHandlerContext._context`
-- shutdown sequence / error handling
-  - decide whether general pipeline-level close-requested visibility is useful beyond `saw_final_output`, shared driver
-    lifecycle state, and protocol-specific state such as TLS
 - hand optimize a bit
   - segmented split_to should mutate seg list in place
 
