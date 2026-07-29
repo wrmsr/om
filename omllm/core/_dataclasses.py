@@ -853,6 +853,7 @@ def _process_dataclass__e6ae81c2c73b7f811842161edf907181205cc27a():
     ),
     plan_repr_sha1='f4e6b81cb21510ffec9598279f74b9afddc6c1de',
     cls_names=(
+        ('omllm.core.ui.text', 'MarkdownUiText'),
         ('omllm.core.ui.text', 'StrUiText'),
     ),
 )

@@ -4,6 +4,12 @@ from omcore import lang as _lang
 with _lang.auto_proxy_init(globals()):
     ##
 
+    from .display import (  # noqa
+        UiTextDisplayer,
+        NopUiTextDisplayer,
+        PrintUiTextDisplayer,
+    )
+
     from .json import (  # noqa
         JsonUiTextRendering,
 
@@ -18,19 +24,15 @@ with _lang.auto_proxy_init(globals()):
 
     from .text import (  # noqa
         CanUiText,
-        UiTextColor,
 
+        UiTextColor,
         UiTextStyle,
 
         UiText,
-
         StrUiText,
-
         ConcatUiText,
-
         StyleUiText,
-
         JsonUiText,
-
+        MarkdownUiText,
         DiffUiText,
     )

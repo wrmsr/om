@@ -1,5 +1,8 @@
+"""
+TODO:
+ - finish markdown impl lol
+"""
 import abc
-import difflib
 import io
 import typing as ta
 
@@ -9,6 +12,10 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore import marshal as msh
 from omcore.formats.json import all as json
+
+
+with lang.auto_proxy_import(globals()):
+    import difflib
 
 
 type CanUiText = ta.Union[  # noqa
@@ -285,6 +292,20 @@ class JsonUiText(UiText, lang.Final):
 
     def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
         fn(json.dumps_compact(self.v))
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(cache_hash=True, terse_repr=True)
+class MarkdownUiText(UiText, lang.Final):
+    s: str
+
+    #
+
+    def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
+        fn(self.s)
 
 
 ##
