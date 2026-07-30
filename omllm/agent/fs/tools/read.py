@@ -5,7 +5,8 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
-from ...permissions import PermissionGranter
+from ...permissions.fs import FsPermissionTarget
+from ...permissions.types import PermissionDecider
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -62,11 +63,11 @@ class ReadTool(ToolClass[ReadParams]):
     def __init__(
             self,
             *,
-            permission_granter: PermissionGranter,
+            permissions: PermissionDecider,
     ) -> None:
         super().__init__()
 
-        self._permission_granter = permission_granter
+        self._permissions = permissions
 
     async def execute(self, ctx: ToolContext, params: ReadParams) -> str:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
@@ -80,8 +81,7 @@ class ReadTool(ToolClass[ReadParams]):
         if not os.path.isfile(params.file_path):
             raise ValueError('Path is not a file')
 
-        if not await self._permission_granter.grant_permission(f'Read file: {params.file_path!r}'):
-            raise RuntimeError('Permission denied')
+        await self._permissions.check_allowed(FsPermissionTarget(params.file_path, 'r'))
 
         out = io.StringIO()
         out.write('<file>\n')

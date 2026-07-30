@@ -18,6 +18,51 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
+    from .permissions.collection import (  # noqa
+        PermissionRules,
+    )
+
+    from .permissions.deciders import (  # noqa
+        StaticPermissionDecider,
+        DENY_TOOL_PERMISSION_DECIDER,
+    )
+
+    from .permissions.fs import (  # noqa
+        FsPermissionMode,
+        FS_TOOL_PERMISSION_MODES,
+        FsPermissionTarget,
+        GlobFsPermissionMatcher,
+    )
+
+    from .permissions.managers import (  # noqa
+        PermissionsManager,
+
+        SimplePermissionsManager,
+    )
+
+    from .permissions.shell import (  # noqa
+        ShellPermissionTarget,
+        ShellPermissionMatcher,
+    )
+
+    from .permissions.types import (  # noqa
+        PermissionState,
+        DecidedPermissionState,
+        PermissionDeniedError,
+        PermissionDecider,
+
+        PermissionTarget,
+        PermissionMatcher,
+        PermissionRule,
+    )
+
+    from .permissions.url import (  # noqa
+        UrlPermissionTarget,
+        RegexUrlPermissionMatcher,
+    )
+
+    ##
+
     from .tools.classes import (  # noqa
         ToolClass,
     )
@@ -80,10 +125,4 @@ with _lang.auto_proxy_init(globals()):
         BackendManager,
 
         DictBackendManager,
-    )
-
-    from .permissions import (  # noqa
-        PermissionGranter,
-
-        ConstantPermissionGranter,
     )

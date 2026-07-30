@@ -64,19 +64,19 @@ class InputManager:
 ##
 
 
-class InputPermissionGranter(agn.PermissionGranter):
-    def __init__(self, *, input_manager: InputManager) -> None:
-        super().__init__()
-
-        self._input_manager = input_manager
-
-    async def grant_permission(self, message: str) -> bool:
-        while True:
-            out = await self._input_manager.input(message + ' (y/n) ')
-            if out == 'y':
-                return True
-            elif out == 'n':
-                return False
+# class InputPermissionGranter(agn.PermissionGranter):
+#     def __init__(self, *, input_manager: InputManager) -> None:
+#         super().__init__()
+#
+#         self._input_manager = input_manager
+#
+#     async def grant_permission(self, message: str) -> bool:
+#         while True:
+#             out = await self._input_manager.input(message + ' (y/n) ')
+#             if out == 'y':
+#                 return True
+#             elif out == 'n':
+#                 return False
 
 
 ##
@@ -147,25 +147,29 @@ async def _a_main() -> None:
         sink=on_event,
     )
 
-    permission_granter = (
-        # agn.ConstantPermissionGranter(True)
-        InputPermissionGranter(input_manager=input_manager)
-    )
+    permissions_manager = agn.SimplePermissionsManager([  # noqa
+        agn.PermissionRule(
+            agn.GlobFsPermissionMatcher(os.path.join(cwd, '**/*'), ['r']),
+            agn.PermissionState.ALLOW,
+        ),
+    ])
+
+    permission_decider = agn.DENY_TOOL_PERMISSION_DECIDER
 
     tools = agn.ToolSet([
 
         *([
             BashTool(
-                permission_granter=permission_granter,
+                permissions=permission_decider,
             ).tool(),
         ] if args.bash else []),
 
         *([
             LsTool(
-                permission_granter=permission_granter,
+                permissions=permission_decider,
             ).tool(),
             ReadTool(
-                permission_granter=permission_granter,
+                permissions=permission_decider,
             ).tool(),
         ] if args.fs else []),
 
