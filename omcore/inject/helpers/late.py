@@ -4,8 +4,8 @@ injection modules due to it itself being in here (as user code shouldn't referen
 something.
 """
 import abc
-import functools
 import typing as ta
+import weakref
 
 from ... import check
 from ... import lang
@@ -13,6 +13,7 @@ from ... import reflect as rfl
 from ..binder import bind
 from ..elements import Elements
 from ..elements import as_elements
+from ..errors import DeadInjectorError
 from ..injector import AsyncInjector
 from ..inspect import KwargsTarget
 from ..keys import Key
@@ -41,6 +42,20 @@ class AsyncLate(lang.Abstract, ta.Generic[T]):
 #
 
 
+def _make_late_fn(i: ta.Any, key: Key) -> ta.Callable[[], ta.Any]:
+    # The injector is held weakly: a late must not pin - or, when held by a scope-cached service, cycle with - the
+    # injector whose graph it came from. A late that outlives its injector (eg. reached through a service extracted
+    # from a dropped graph) raises loudly rather than resolving stale.
+    wr = weakref.ref(i)
+
+    def late_fn():
+        if (li := wr()) is None:
+            raise DeadInjectorError
+        return li.provide(key)
+
+    return late_fn
+
+
 def _bind_late(
         injector_cls: type,
         late_cls: ta.Any,
@@ -64,7 +79,7 @@ def _bind_late(
 
     return as_elements(
         bind(outer_key, to_fn=KwargsTarget.of(  # noqa
-            lambda i: outer_fac(functools.partial(i.provide, inner_key)),
+            lambda i: outer_fac(_make_late_fn(i, inner_key)),
             i=injector_cls,
         )),
     )

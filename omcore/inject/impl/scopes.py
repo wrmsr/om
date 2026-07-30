@@ -3,6 +3,7 @@ import contextlib
 import enum
 import threading
 import typing as ta
+import weakref
 
 from ... import check
 from ... import dataclasses as dc
@@ -10,6 +11,7 @@ from ... import lang
 from ..bindings import Binding
 from ..elements import Elements
 from ..elements import as_elements
+from ..errors import DeadInjectorError
 from ..errors import ScopeAlreadyOpenError
 from ..errors import ScopeFrozenError
 from ..errors import ScopeNotOpenError
@@ -217,18 +219,24 @@ class SeededScopeImpl(ScopeImpl[SeededScope]):
             super().__init__()
 
             self._scope = check.isinstance(scope, SeededScope)
-            self._ii = check.isinstance(i, _injector.AsyncInjectorImpl)
-            self._ssi = check.isinstance(self._ii.get_scope_impl(self._scope), SeededScopeImpl)
+            ii = check.isinstance(i, _injector.AsyncInjectorImpl)
+            # Held weakly - the manager is cached in the injector's own singleton scope, and a strong ref would make
+            # every seeded-scope-bearing injector a reference cycle.
+            self._ii_ref: weakref.ref = weakref.ref(ii)
+            self._ssi = check.isinstance(ii.get_scope_impl(self._scope), SeededScopeImpl)
 
         def __call__(self, seeds: ta.Mapping[Key, ta.Any]) -> ta.AsyncContextManager[None]:
             @contextlib.asynccontextmanager
             async def inner():
+                if (ii := self._ii_ref()) is None:
+                    raise DeadInjectorError
+
                 with self._ssi._st_mtx:  # noqa
                     if self._ssi._st is not None:  # noqa
                         raise ScopeAlreadyOpenError(self._scope)
                     self._ssi._st = SeededScopeImpl.State(dict(seeds))  # noqa
                 try:
-                    await self._ii._instantiate_eagers(self._scope)  # noqa
+                    await ii._instantiate_eagers(self._scope)  # noqa
                     yield
                 finally:
                     with self._ssi._st_mtx:  # noqa

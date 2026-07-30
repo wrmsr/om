@@ -45,7 +45,9 @@ class PrivateInjectorProviderImpl(ProviderImpl, lang.Final):
         return ()
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
-        return await create_async_injector(self.ec, injector)
+        # weak_parent: the private child lives in this injector's own singleton cache, and is only ever reached
+        # through it - a strong parent ref would cycle the pair.
+        return await create_async_injector(self.ec, injector, weak_parent=True)
 
 
 ##

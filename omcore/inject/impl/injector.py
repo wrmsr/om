@@ -84,9 +84,21 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             *,
             internal_consts: dict[Key, ta.Any] | None = None,
             concurrency: Concurrency | None = None,
+            weak_parent: bool = False,
     ) -> None:
         self._ec = (ec := check.isinstance(ec, ElementCollection))
-        self._p: AsyncInjectorImpl | None = check.isinstance(p, (AsyncInjectorImpl, None))
+
+        p = check.isinstance(p, (AsyncInjectorImpl, None))
+        self._p: AsyncInjectorImpl | None
+        self._p_ref: weakref.ref[AsyncInjectorImpl] | None
+        if p is not None and weak_parent:
+            # A private child is only reachable through its owner, so the owner strictly outlives every use of the
+            # child - held weakly so the owner's singleton cache (which holds the child) doesn't form a cycle.
+            self._p = None
+            self._p_ref = weakref.ref(p)
+        else:
+            self._p = p
+            self._p_ref = None
 
         if p is not None:
             check.none(concurrency)
@@ -94,9 +106,12 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         else:
             self._concurrency = check.not_none(concurrency)
 
-        self._internal_consts: dict[Key, ta.Any] = {
-            as_key(AsyncInjector): self,
-            **(internal_consts or {}),
+        # Internal consts are held weakly: they are the injector itself and its facades, and strong entries would
+        # make every injector a reference cycle. A dead ref (eg. a dropped sync facade whose async half outlived it)
+        # is treated as absent.
+        self._internal_consts: dict[Key, weakref.ref] = {
+            as_key(AsyncInjector): weakref.ref(self),
+            **{k: weakref.ref(v) for k, v in (internal_consts or {}).items()},
         }
 
         self._bim = ec.binding_impl_map()
@@ -110,8 +125,6 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             ),
             *(p._pls if p is not None else []),  # noqa
         )
-
-        self._root: AsyncInjectorImpl = p._root if p is not None else self  # noqa
 
         self._scopes: dict[Scope, ScopeImpl] = {
             s: make_scope_impl(s)
@@ -127,8 +140,8 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         self._init_promise: asl.Promise[bool] | None = None  # lazily created by a contending context, under _init_mtx
         self._dead_error: BaseException | None = None
 
-        if self._p is not None:
-            self._p._add_child(self)  # noqa
+        if p is not None:
+            p._add_child(self)  # noqa
 
     _concurrency: Concurrency
 
@@ -187,7 +200,19 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
     #
 
-    _root: AsyncInjectorImpl
+    def _parent(self) -> AsyncInjectorImpl | None:
+        if (pr := self._p_ref) is not None:
+            if (p := pr()) is None:
+                raise DeadInjectorError
+            return p
+        return self._p
+
+    @property
+    def root(self) -> AsyncInjectorImpl:
+        i = self
+        while (p := i._parent()) is not None:
+            i = p
+        return i
 
     async def _instantiate_eagers(self, sc: Scope) -> None:
         for k in self._ekbs.get(sc, ()):
@@ -284,8 +309,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
                 if (rv := cr.handle_key(key)).present:
                     return rv.must()
 
-                ic = self._internal_consts.get(key)
-                if ic is not None:
+                if (icr := self._internal_consts.get(key)) is not None and (ic := icr()) is not None:
                     return cr.handle_provision(key, lang.just(ic))
 
                 bi = self._bim.get(key)
@@ -299,8 +323,8 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
                     return cr.handle_provision(key, lang.just(v))
 
-                if self._p is not None:
-                    pv = await self._p._try_provide(key, source=source)  # noqa
+                if (pp := self._parent()) is not None:
+                    pv = await pp._try_provide(key, source=source)  # noqa
                     if pv.present:
                         return cr.handle_provision(key, pv)
 
@@ -364,11 +388,13 @@ async def create_async_injector(
         p: AsyncInjector | None = None,
         *,
         concurrency: Concurrency | None = None,
+        weak_parent: bool = False,
 ) -> AsyncInjector:
     i = AsyncInjectorImpl(
         ce,
         check.isinstance(p, (AsyncInjectorImpl, None)),
         concurrency=check.isinstance(concurrency, Concurrency) if concurrency is not None else None,
+        weak_parent=weak_parent,
     )
     await i._init()  # noqa
     return i

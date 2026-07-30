@@ -1,3 +1,11 @@
+- refcycle hygiene (steady-state provision and injector drop - privates and wrapper stacks included - are
+  refcount-clean as of the weakref passes - see `tests/test_gc.py`; remaining known cycles):
+  - `ElementCollection` is a self-contained cycle cluster: its `@lang.cached_function` methods install bound wrappers
+    in `__dict__` whose `_instance` points back. Doesn't pin the injector; matters when ECs churn. Await the
+    cached_function weakref work (its own TODO), or switch EC to eager/plain-attr caching.
+  - Singletons that inject `Injector` itself cycle through the scope cache - accepted (it's the antipattern).
+    Possible sugar: 'automatic' weakref-wrapping injection, analogous to optional-stripping - eg. a param annotated
+    `weakref.ref[Foo]` (or a marker) provided as a weak ref. Maybe.
 - create_asyncio_managed_injector? deal with that..
 - ** can currently bind in a child/private scope shadowing an external parent binding **
 - better source tracking
@@ -60,3 +68,5 @@
   - greenlet?
   - dynamic? https://github.com/wrmsr/iceworm/blob/2f6b4d5e9d237ef9665f7d57cfa6ce328efa0757/iceworm/utils/inject.py#L44
 - proxy lol
+- InjectorConfig by now probably
+- internal_consts being weakrefs is weird
