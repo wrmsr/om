@@ -3,6 +3,20 @@
 """
 Self-contained HTTP pipeline benchmarks.
 
+IMPORTANT FDIO CLIENT COMPARABILITY NOTE:
+    The ``fdio`` *client* case is intentionally a lean driver-plus-codec benchmark, not an implementation of the full
+    ``omcore.http.clients.pipelines`` client stack used by the ``sync`` and ``asyncio`` cases. It uses the real HTTP
+    request encoder and request-aware response decoder, but omits the higher-level client handler, output buffering and
+    flow service, dechunking, decompression, aggregation, compression, request timeout policy, and TLS. It also counts
+    decoded response body bytes without assembling them into one final ``bytes`` object. Its results are useful as an
+    indicator of fdio driver/codec performance and of the surrounding machinery's cost, but they are not an
+    apples-to-apples high-level HTTP-client comparison. There is currently no general fdio ``HttpClient`` adapter or
+    settled ownership model for threading an ``FdioManager`` through that interface.
+
+    The ``fdio`` *server* case does use the same request decoder, request aggregator, response encoder, and benchmark
+    application pipeline as the ``sync`` and ``asyncio`` server cases, so this warning does not apply to that server
+    comparison.
+
 Examples::
 
     ./python -m omcore.http.pipelines.tests.bench.bench --suite all

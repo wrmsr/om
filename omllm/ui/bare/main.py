@@ -64,19 +64,24 @@ class InputManager:
 ##
 
 
-# class InputPermissionGranter(agn.PermissionGranter):
-#     def __init__(self, *, input_manager: InputManager) -> None:
-#         super().__init__()
-#
-#         self._input_manager = input_manager
-#
-#     async def grant_permission(self, message: str) -> bool:
-#         while True:
-#             out = await self._input_manager.input(message + ' (y/n) ')
-#             if out == 'y':
-#                 return True
-#             elif out == 'n':
-#                 return False
+class InputPermissionAsker(agn.PermissionAsker):
+    def __init__(self, *, input_manager: InputManager) -> None:
+        super().__init__()
+
+        self._input_manager = input_manager
+
+    async def ask(
+            self,
+            requestor: agn.PermissionRequestor,
+            target: agn.PermissionTarget,
+            rule: agn.PermissionRule,
+    ) -> agn.DecidedPermissionState:
+        while True:
+            out = await self._input_manager.input(repr(target) + ' (y/n) ')
+            if out == 'y':
+                return agn.PermissionState.ALLOW
+            elif out == 'n':
+                return agn.PermissionState.DENY
 
 
 ##
@@ -150,11 +155,16 @@ async def _a_main() -> None:
     permissions_manager = agn.StandardPermissionsManager([  # noqa
         agn.PermissionRule(
             agn.GlobFsPermissionMatcher(os.path.join(cwd, '**/*'), ['r']),
-            agn.PermissionState.ALLOW,
+            agn.PermissionState.ASK,
         ),
     ])
 
-    permission_decider = agn.DENY_TOOL_PERMISSION_DECIDER
+    permission_decider = agn.StandardPermissionDecider(
+        manager=permissions_manager,
+        asker=InputPermissionAsker(
+            input_manager=input_manager,
+        ),
+    )
 
     tools = agn.ToolSet([
 

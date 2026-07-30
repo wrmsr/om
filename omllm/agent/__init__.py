@@ -25,6 +25,8 @@ with _lang.auto_proxy_init(globals()):
     from .permissions.deciders import (  # noqa
         StaticPermissionDecider,
         DENY_TOOL_PERMISSION_DECIDER,
+
+        StandardPermissionDecider,
     )
 
     from .permissions.fs import (  # noqa
