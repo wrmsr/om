@@ -37,7 +37,7 @@ with _lang.auto_proxy_init(globals()):
     from .permissions.managers import (  # noqa
         PermissionsManager,
 
-        SimplePermissionsManager,
+        StandardPermissionsManager,
     )
 
     from .permissions.shell import (  # noqa
@@ -47,6 +47,8 @@ with _lang.auto_proxy_init(globals()):
 
     from .permissions.types import (  # noqa
         PermissionState,
+
+        PermissionRequestor,
         DecidedPermissionState,
         PermissionDeniedError,
         PermissionDecider,
@@ -54,6 +56,7 @@ with _lang.auto_proxy_init(globals()):
         PermissionTarget,
         PermissionMatcher,
         PermissionRule,
+        PermissionAsker,
     )
 
     from .permissions.url import (  # noqa

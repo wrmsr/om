@@ -147,7 +147,7 @@ async def _a_main() -> None:
         sink=on_event,
     )
 
-    permissions_manager = agn.SimplePermissionsManager([  # noqa
+    permissions_manager = agn.StandardPermissionsManager([  # noqa
         agn.PermissionRule(
             agn.GlobFsPermissionMatcher(os.path.join(cwd, '**/*'), ['r']),
             agn.PermissionState.ALLOW,

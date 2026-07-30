@@ -1,3 +1,7 @@
+"""
+TODO:
+ - rename 'shell', include user shell in tool desc
+"""
 import asyncio
 import shutil
 import typing as ta
@@ -50,7 +54,7 @@ class BashTool(ToolClass[BashParams]):
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
 
-        await self._permissions.check_allowed(ShellPermissionTarget(params.command))
+        await self._permissions.check_allowed(ctx, ShellPermissionTarget(params.command))
 
         proc = await asyncio.create_subprocess_exec(
             check.not_none(shutil.which('bash')),

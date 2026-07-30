@@ -52,7 +52,7 @@ class LsTool(ToolClass[LsParams]):
         if not os.path.isdir(params.dir_path):
             raise ValueError('Path is not a directory')
 
-        await self._permissions.check_allowed(FsPermissionTarget(params.dir_path, 'r'))
+        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.dir_path, 'r'))
 
         out = io.StringIO()
         out.write('<dir>\n')

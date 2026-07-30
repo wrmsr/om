@@ -81,7 +81,7 @@ class ReadTool(ToolClass[ReadParams]):
         if not os.path.isfile(params.file_path):
             raise ValueError('Path is not a file')
 
-        await self._permissions.check_allowed(FsPermissionTarget(params.file_path, 'r'))
+        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'r'))
 
         out = io.StringIO()
         out.write('<file>\n')

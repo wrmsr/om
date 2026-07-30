@@ -2,6 +2,7 @@
 TODO:
  - move to agent.types.permissions
   - need to figure out _marshal.py deprecation
+ - PermissionRequestor lol
 """
 import abc
 import enum
@@ -21,6 +22,15 @@ class PermissionState(enum.Enum):
     ASK = enum.auto()
     ALLOW = enum.auto()
 
+    def __bool__(self) -> ta.Never:
+        raise TypeError('Must not `bool` PermissionStates')
+
+
+##
+
+
+PermissionRequestor: ta.TypeAlias = ta.Any
+
 
 DecidedPermissionState: ta.TypeAlias = ta.Literal[
     PermissionState.DENY,
@@ -35,16 +45,20 @@ class PermissionDeniedError(Exception):
 
 class PermissionDecider(lang.Abstract):
     @abc.abstractmethod
-    def decide(self, target: PermissionTarget) -> ta.Awaitable[DecidedPermissionState | None]:
+    def decide(
+            self,
+            requestor: PermissionRequestor,
+            target: PermissionTarget,
+    ) -> ta.Awaitable[DecidedPermissionState | None]:
         raise NotImplementedError
 
     @ta.final
-    async def is_allowed(self, target: PermissionTarget) -> bool:
-        return (await self.decide(target)) is PermissionState.ALLOW
+    async def is_allowed(self, requestor: PermissionRequestor, target: PermissionTarget) -> bool:
+        return (await self.decide(requestor, target)) is PermissionState.ALLOW
 
     @ta.final
-    async def check_allowed(self, target: PermissionTarget) -> None:
-        if not await self.is_allowed(target):
+    async def check_allowed(self, requestor: PermissionRequestor, target: PermissionTarget) -> None:
+        if not await self.is_allowed(requestor, target):
             raise PermissionDeniedError(target)
 
 
@@ -73,3 +87,14 @@ class PermissionRule(fh.FieldHashable, lang.Final):
             fh.FieldHashField('matcher', self.matcher),
             fh.FieldHashField('result', self.result.name),
         ))
+
+
+class PermissionAsker(lang.Abstract):
+    @abc.abstractmethod
+    def ask(
+            self,
+            requestor: PermissionRequestor,
+            target: PermissionTarget,
+            rule: PermissionRule,
+    ) -> ta.Awaitable[DecidedPermissionState]:
+        raise NotImplementedError

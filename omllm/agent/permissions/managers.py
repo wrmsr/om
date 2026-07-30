@@ -28,7 +28,7 @@ class PermissionsManager(lang.Abstract):
 ##
 
 
-class SimplePermissionsManager(PermissionsManager):
+class StandardPermissionsManager(PermissionsManager):
     def __init__(self, rules: ta.Sequence[PermissionRule] | None = None) -> None:
         super().__init__()
 
