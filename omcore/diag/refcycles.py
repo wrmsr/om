@@ -15,8 +15,7 @@
 #   - drop_cycles_involving_types:
 #       still build SCCs normally, but suppress any detected SCC containing a type.
 #   - prune_type_nodes:
-#       remove type objects before SCC detection. Blunter and less informative than
-#       drop_cycles_involving_types.
+#       remove type objects before SCC detection. Blunter and less informative than drop_cycles_involving_types.
 #
 # Caveats:
 #   - This only sees the GC traversal graph, not every possible C/internal ref.
@@ -110,7 +109,7 @@ def _generic_repr(obj: object) -> str:
 
     try:
         return object.__repr__(obj)
-    except Exception as e:  # pragma: no cover
+    except Exception as e:  # noqa
         return f'<repr failed: {type(e).__name__}: {e}>'
 
 
@@ -615,7 +614,7 @@ def collect_unreachable_with_saveall() -> list[object]:
 
 if __name__ == '__main__':
     class A:
-        pass
+        other: ta.Any
 
     a = A()
     b = A()
