@@ -83,6 +83,16 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
 
+    _state: IoPipelineDriverState = IoPipelineDriverState.NEW
+
+    _pipeline: IoPipeline
+
+    _flow: ta.Optional[IoPipelineFlow]
+
+    _want_read: bool = False
+
+    _sched: HeapIoPipelineSchedulingService
+
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}<{self._state.name}>'
 
@@ -101,8 +111,6 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         IoPipelineDriverState.DRAINING,
     )
 
-    _state: IoPipelineDriverState = IoPipelineDriverState.NEW
-
     @property
     def state(self) -> IoPipelineDriverState:
         return self._state
@@ -112,10 +120,6 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         return self._state in self.ACTIVE_STATES
 
     #
-
-    _pipeline: IoPipeline
-
-    _flow: ta.Optional[IoPipelineFlow]
 
     def _opt_pipeline(self) -> ta.Optional[IoPipeline]:
         try:
@@ -261,8 +265,6 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     #
 
-    _want_read: bool = False
-
     def _do_read(self) -> ta.List[ta.Any]:
         out: ta.List[ta.Any] = []
 
@@ -361,10 +363,6 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         elif self._write_q_bytes <= self._config.write_low_watermark:
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
-
-    #
-
-    _sched: HeapIoPipelineSchedulingService
 
     #
 

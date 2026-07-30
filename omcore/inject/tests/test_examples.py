@@ -5,6 +5,7 @@ ones. Where a topic has deeper dedicated coverage (concurrency, overrides, multi
 called out.
 """
 import abc
+import asyncio
 import contextlib
 import functools
 import threading
@@ -250,6 +251,17 @@ def test_nominal_keys():
     )
     assert i[int] == 420
     assert i[bool] is True
+
+
+def test_nothing_is_type_checked():
+    # Nothing provided is type checked - intentionally, as a feature. The irl truth of a gradually-typed dynalang is
+    # that annotations get lied to and `ta.cast`ed away to make real stuff run - for things the type system can't
+    # express, things not worth properly annotating, one-off quick hacks - and that's fine. The injector takes the same
+    # stance: a key is a nominal *label*, and provision returns whatever was bound under it, isinstance-checked never.
+    # You probably, like, shouldn't. But square pegs do fit round holes when you need them to (the classic use - faking
+    # nominal getter types to keep `inj.Late` out of app code - is retired by Part 12's `outer` param):
+    i = inj.create_injector(inj.bind(Storage, to_const='not remotely a Storage'))
+    assert i[Storage] == 'not remotely a Storage'
 
 
 ##
@@ -595,9 +607,10 @@ def test_wrapper_stack():
 ##
 # Part 12: Cycles, and breaking them with Late.
 #
-# Construction cycles are detected and rejected. The sanctioned fix is `Late[T]` - a no-arg callable resolving T from
-# the injector on first call - bound via `inj.bind_late` (or `bind_async_late`), keeping laziness at the *dependency*
-# level rather than contorting constructors. See test_late.py for named-getter variants.
+# Construction cycles are detected and rejected. The sanctioned fix is late binding - a no-arg callable resolving the
+# target from the injector on first call, keeping laziness at the *dependency* level rather than contorting
+# constructors. The explicit `inj.Late[T]` annotation comes first below; the app-owned-getter form that follows it is
+# the preferred spelling. See test_late.py for the async variants.
 
 
 class Chicken:
@@ -642,6 +655,43 @@ def test_late_breaks_cycles():
 
     chicken = i[LateChicken]
     assert chicken.egg.chicken is chicken
+
+
+# That worked, but at a cost: LateEgg - domain code - now references, and so imports, `inj`. That collides with *the*
+# single biggest guiding style principle of the system: user / app / impl code should never reference - or even
+# import - injection machinery. Injection lives in binder / composition modules; domain classes just take constructor
+# args. Hence `bind_late`'s (admittedly poorly-named) `outer` param: the app declares its own nominal getter type - a
+# `lang.CachedFunc0[T]` subclass; `lang` is a plain-language dependency, not injection machinery - and the binder
+# tells the injector to construct one around the late resolver. The graph then really does contain an instance of the
+# declared type - unlike the Part 4 square-peg trick of binding a raw resolver under the nominal key, which is
+# exactly how this was spelled before `outer` existed. (`bind_async_late` takes the same param, pairing with
+# `lang.AsyncCachedFunc0`.)
+
+
+class GetterChicken:
+    def __init__(self, egg: GetterEgg) -> None:
+        self.egg = egg
+
+
+class ChickenGetter(lang.CachedFunc0[GetterChicken]):
+    pass
+
+
+class GetterEgg:
+    def __init__(self, chicken: ChickenGetter) -> None:
+        self.chicken = chicken
+
+
+def test_late_without_referencing_inj():
+    i = inj.create_injector(
+        inj.bind(GetterChicken, singleton=True),
+        inj.bind(GetterEgg, singleton=True),
+        inj.bind_late(GetterChicken, ChickenGetter),
+    )
+
+    chicken = i[GetterChicken]
+    assert isinstance(chicken.egg.chicken, ChickenGetter)
+    assert chicken.egg.chicken() is chicken
 
 
 ##
@@ -728,8 +778,8 @@ def test_request_scope():
 # Part 15: Async.
 #
 # The real injector is async-native - the sync one is a facade over it. `create_async_injector` awaits provisions,
-# async provider functions bind just like sync ones, and everything above translates directly. See test_managed.py
-# and test_concurrency.py for deeper async coverage.
+# async provider functions bind just like sync ones, and everything above translates directly. Under asyncio, default
+# to `create_asyncio_injector`. See test_managed.py and test_concurrency.py for deeper async coverage.
 
 
 def test_async_injector():
@@ -742,6 +792,37 @@ def test_async_injector():
     ))
 
     assert lang.sync_await(i.provide(str)) == '#420'
+
+
+class AsyncService:
+    pass
+
+
+def test_asyncio_injector():
+    # `create_async_injector` is async-*native*, not async-*concurrent*: a provision overlapping another in-flight
+    # one raises `InjectorConcurrencyError` rather than coordinating. `create_asyncio_injector` is the same api with
+    # asyncio-aware concurrency - racing tasks coalesce on the one in-flight construction - so if you know you'll be
+    # under asyncio anyway, just use it by default. See test_concurrency.py for the full semantics.
+    async def make() -> AsyncService:
+        await asyncio.sleep(0)  # a genuine suspension - the two gathered tasks really do overlap here
+        return AsyncService()
+
+    async def coalesces():
+        i = await inj.create_asyncio_injector(inj.bind(AsyncService, singleton=True, to_async_fn=make))
+        a, b = await asyncio.gather(i.provide(AsyncService), i.provide(AsyncService))
+        assert a is b
+
+    asyncio.run(coalesces())
+
+    async def collides():
+        i = await inj.create_async_injector(inj.bind(AsyncService, singleton=True, to_async_fn=make))
+        t1 = asyncio.ensure_future(i.provide(AsyncService))
+        t2 = asyncio.ensure_future(i.provide(AsyncService))
+        with pytest.raises(inj.InjectorConcurrencyError):
+            await asyncio.gather(t1, t2)
+        assert isinstance(await t1, AsyncService)  # the first, unraced provision itself was fine
+
+    asyncio.run(collides())
 
 
 ##

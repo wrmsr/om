@@ -87,6 +87,14 @@ class SyncSocketIoPipelineDriver:
 
         self._state = IoPipelineDriverState.NEW
 
+    _pipeline: IoPipeline
+
+    _flow: ta.Optional[IoPipelineFlow]
+
+    _want_read: bool = False
+
+    _sched: HeapIoPipelineSchedulingService
+
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}'
 
@@ -103,10 +111,6 @@ class SyncSocketIoPipelineDriver:
         return self._pipeline
 
     #
-
-    _pipeline: IoPipeline
-
-    _flow: ta.Optional[IoPipelineFlow]
 
     def _opt_pipeline(self) -> ta.Optional[IoPipeline]:
         try:
@@ -243,8 +247,6 @@ class SyncSocketIoPipelineDriver:
 
     #
 
-    _want_read: bool = False
-
     def _do_read(self) -> ta.List[ta.Any]:
         out: ta.List[ta.Any] = []
 
@@ -329,10 +331,6 @@ class SyncSocketIoPipelineDriver:
         elif self._write_q_bytes <= self._config.write_low_watermark:
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
-
-    #
-
-    _sched: HeapIoPipelineSchedulingService
 
     #
 

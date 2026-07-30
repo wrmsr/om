@@ -90,6 +90,11 @@ class PureIoPipelineDriver:
         self._clock = self._Clock()
         self._state = IoPipelineDriverState.NEW
 
+    _pipeline: IoPipeline
+    _flow: ta.Optional[IoPipelineFlow]
+    _sched: HeapIoPipelineSchedulingService
+    _want_read = False
+
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}'
 
@@ -130,11 +135,6 @@ class PureIoPipelineDriver:
         )
 
     #
-
-    _pipeline: IoPipeline
-    _flow: ta.Optional[IoPipelineFlow]
-    _sched: HeapIoPipelineSchedulingService
-    _want_read = False
 
     def _opt_pipeline(self) -> ta.Optional[IoPipeline]:
         try:

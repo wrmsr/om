@@ -93,10 +93,8 @@ class PollAsyncioStreamIoPipelineDriver:
         self._shutdown_event = asyncio.Event()
         self._command_queue: asyncio.Queue = asyncio.Queue()
 
-        self._want_read = False
-        self._want_read_event = asyncio.Event()
-
-        self._output_writable = True
+        self._state = IoPipelineDriverState.NEW
+        self._has_init = False
 
         self._drain_task: ta.Optional[asyncio.Task] = None
         self._drain_again = False
@@ -104,11 +102,27 @@ class PollAsyncioStreamIoPipelineDriver:
         self._next_drain_flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
         self._post_drain_output_q: collections.deque[ta.Any] = collections.deque()
 
-        self._state = IoPipelineDriverState.NEW
+        self._pending_awaits: ta.Set[asyncio.Future] = set()
+
+        self._read_task: ta.Optional[asyncio.Task] = None
+        self._want_read = False
+        self._want_read_event = asyncio.Event()
+        self._has_read_eof: bool = False
+
+        self._output_writable = True
+
+        self._command_handlers: ta.Mapping[ta.Type['PollAsyncioStreamIoPipelineDriver._Command'], ta.Callable[[ta.Any, ta.Any], ta.Awaitable[None]]]  # noqa
+        self._output_handlers: ta.Mapping[type, ta.Callable[[ta.Any, ta.Any], ta.Awaitable[ta.Optional[str]]]]
 
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._FeedInCommand([
             IoPipelineMessages.InitialInput(),
         ]))
+
+    _sched: 'PollAsyncioStreamIoPipelineDriver._SchedulingService'
+
+    _pipeline: IoPipeline
+
+    _flow: ta.Optional[IoPipelineFlow]
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}'
@@ -136,17 +150,6 @@ class PollAsyncioStreamIoPipelineDriver:
     ##
     # init
 
-    _has_init = False
-
-    _sched: 'PollAsyncioStreamIoPipelineDriver._SchedulingService'
-
-    _pipeline: IoPipeline
-
-    _flow: ta.Optional[IoPipelineFlow]
-
-    _command_handlers: ta.Mapping[ta.Type['PollAsyncioStreamIoPipelineDriver._Command'], ta.Callable[[ta.Any, ta.Any], ta.Awaitable[None]]]  # noqa
-    _output_handlers: ta.Mapping[type, ta.Callable[[ta.Any, ta.Any], ta.Awaitable[ta.Optional[str]]]]
-
     async def _ensure_init(self) -> IoPipeline:
         if self._has_init:
             return self._pipeline
@@ -170,8 +173,6 @@ class PollAsyncioStreamIoPipelineDriver:
             raise
 
     def _init(self) -> IoPipeline:
-        self._pending_awaits = set()
-
         self._sched = self._SchedulingService(self)
 
         services = IoPipelineServices.of(self._spec.services)
@@ -321,10 +322,6 @@ class PollAsyncioStreamIoPipelineDriver:
 
     ##
     # read task
-
-    _read_task: ta.Optional[asyncio.Task] = None
-
-    _has_read_eof: bool = False
 
     async def _read_task_main(self) -> None:
         try:
@@ -778,8 +775,6 @@ class PollAsyncioStreamIoPipelineDriver:
     class _AwaitFailedCommand(_Command):
         msg: AsyncIoPipelineMessages.Await
         exc: BaseException
-
-    _pending_awaits: ta.Set[asyncio.Future]
 
     async def _handle_command_await_completed(self, cmd: _AwaitCompletedCommand) -> None:
         fut = cmd.fut
