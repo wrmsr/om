@@ -96,6 +96,9 @@ class _ConformanceDriverAdapter(abc.ABC):
             *,
             manual_input: bool = False,
             explicit_auto_input: bool = False,
+            read_chunk_size: int = 64 * 1024,
+            read_batch_max_bytes: int = 1024 * 1024,
+            read_batch_max_reads: int = 16,
             write_high_watermark: int = 4,
             write_low_watermark: int = 2,
     ) -> None:
@@ -104,6 +107,9 @@ class _ConformanceDriverAdapter(abc.ABC):
         self.handler = handler
         self._manual_input = manual_input
         self._explicit_auto_input = explicit_auto_input
+        self._read_chunk_size = read_chunk_size
+        self._read_batch_max_bytes = read_batch_max_bytes
+        self._read_batch_max_reads = read_batch_max_reads
         self._write_high_watermark = write_high_watermark
         self._write_low_watermark = write_low_watermark
 
@@ -208,6 +214,9 @@ class _SyncConformanceDriverAdapter(_ConformanceDriverAdapter):
             ),
             self._sock,
             SyncSocketIoPipelineDriver.Config(
+                read_chunk_size=self._read_chunk_size,
+                read_batch_max_bytes=self._read_batch_max_bytes,
+                read_batch_max_reads=self._read_batch_max_reads,
                 write_high_watermark=self._write_high_watermark,
                 write_low_watermark=self._write_low_watermark,
             ),
@@ -279,6 +288,9 @@ class _FdioConformanceDriverAdapter(_ConformanceDriverAdapter):
                 explicit_auto_input=self._explicit_auto_input,
             ),
             IoPipelineDriverSocketFdioHandler.Config(
+                read_chunk_size=self._read_chunk_size,
+                read_batch_max_bytes=self._read_batch_max_bytes,
+                read_batch_max_reads=self._read_batch_max_reads,
                 write_high_watermark=self._write_high_watermark,
                 write_low_watermark=self._write_low_watermark,
             ),
@@ -392,6 +404,9 @@ class _AsyncioConformanceDriverAdapter(_ConformanceDriverAdapter):
             self._reader,
             ta.cast(asyncio.StreamWriter, self._writer),
             PollAsyncioStreamIoPipelineDriver.Config(
+                read_chunk_size=self._read_chunk_size,
+                read_batch_max_bytes=self._read_batch_max_bytes,
+                read_batch_max_reads=self._read_batch_max_reads,
                 write_high_watermark=self._write_high_watermark,
                 write_low_watermark=self._write_low_watermark,
             ),
@@ -473,6 +488,9 @@ class _PureConformanceDriverAdapter(_ConformanceDriverAdapter):
                 explicit_auto_input=self._explicit_auto_input,
             ),
             PureIoPipelineDriver.Config(
+                read_chunk_size=self._read_chunk_size,
+                read_batch_max_bytes=self._read_batch_max_bytes,
+                read_batch_max_reads=self._read_batch_max_reads,
                 write_high_watermark=self._write_high_watermark,
                 write_low_watermark=self._write_low_watermark,
             ),
@@ -539,6 +557,9 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
             manual_input: bool = False,
             explicit_auto_input: bool = False,
             output_after_final_input: ta.Optional[bytes] = None,
+            read_chunk_size: int = 64 * 1024,
+            read_batch_max_bytes: int = 1024 * 1024,
+            read_batch_max_reads: int = 16,
     ) -> None:
         for adapter_type in self.ADAPTER_TYPES:
             with self.subTest(driver=adapter_type.NAME):
@@ -547,6 +568,9 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
                     handler,
                     manual_input=manual_input,
                     explicit_auto_input=explicit_auto_input,
+                    read_chunk_size=read_chunk_size,
+                    read_batch_max_bytes=read_batch_max_bytes,
+                    read_batch_max_reads=read_batch_max_reads,
                 )
                 try:
                     await fn(adapter)
@@ -598,6 +622,31 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
             )
 
         await self._with_adapters(run, manual_input=True)
+
+    async def test_manual_input_token_reads_one_bounded_batch(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            self.assertIsNone(await adapter.enqueue(_RequestInput()))
+
+            self.assertIsInstance(await adapter.feed_input(b'abcdef'), _ObservedInput)
+            while await adapter.step_nonblocking() is not None:
+                pass
+
+            input_bytes = [msg for msg in adapter.handler.inputs if isinstance(msg, bytes)]
+            self.assertEqual(b''.join(input_bytes), b'abcd')
+            self.assertEqual(
+                sum(isinstance(msg, IoPipelineFlowMessages.FlushInput) for msg in adapter.handler.inputs),
+                1,
+            )
+            self.assertIsNone(await adapter.step_nonblocking())
+
+        await self._with_adapters(
+            run,
+            manual_input=True,
+            read_chunk_size=2,
+            read_batch_max_bytes=4,
+            read_batch_max_reads=2,
+        )
 
     async def test_explicit_auto_read_service_keeps_reading(self) -> None:
         async def run(adapter: _ConformanceDriverAdapter) -> None:

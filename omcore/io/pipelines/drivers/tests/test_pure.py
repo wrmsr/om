@@ -72,6 +72,10 @@ class TestPureIoPipelineDriver(unittest.TestCase):
         with self.assertRaises(ValueError):
             PureIoPipelineDriver.Config(read_chunk_size=0)
         with self.assertRaises(ValueError):
+            PureIoPipelineDriver.Config(read_batch_max_bytes=0)
+        with self.assertRaises(ValueError):
+            PureIoPipelineDriver.Config(read_batch_max_reads=0)
+        with self.assertRaises(ValueError):
             PureIoPipelineDriver.Config(write_chunk_max=0)
         with self.assertRaises(ValueError):
             PureIoPipelineDriver.Config(write_high_watermark=1, write_low_watermark=2)
@@ -93,6 +97,67 @@ class TestPureIoPipelineDriver(unittest.TestCase):
 
             self.assertIsInstance(capture.inputs[0], IoPipelineMessages.InitialInput)
             self.assertEqual(capture.inputs[1:], [b'ab', b'cd'])
+        finally:
+            driver.close()
+
+    def test_read_batch_honors_byte_and_read_limits(self) -> None:
+        for config, expected in [
+            (
+                PureIoPipelineDriver.Config(
+                    read_chunk_size=3,
+                    read_batch_max_bytes=4,
+                    read_batch_max_reads=3,
+                ),
+                [b'abc', b'd'],
+            ),
+            (
+                PureIoPipelineDriver.Config(
+                    read_chunk_size=2,
+                    read_batch_max_bytes=10,
+                    read_batch_max_reads=2,
+                ),
+                [b'ab', b'cd'],
+            ),
+        ]:
+            with self.subTest(config=config):
+                driver = PureIoPipelineDriver(
+                    IoPipeline.Spec(services=[StubIoPipelineFlowService(auto_read=False)]),
+                    config,
+                )
+                try:
+                    self.assertIsNone(driver.next(read=False))
+                    driver.feed_input(b'abcdef')
+                    driver._want_read = True
+
+                    messages = driver._do_read()
+
+                    self.assertEqual(messages[:-1], expected)
+                    self.assertIsInstance(messages[-1], IoPipelineFlowMessages.FlushInput)
+                    self.assertFalse(driver.wants_input)
+                finally:
+                    driver.close()
+
+    def test_read_batch_flushes_before_eof(self) -> None:
+        driver = PureIoPipelineDriver(
+            IoPipeline.Spec(services=[StubIoPipelineFlowService(auto_read=False)]),
+            PureIoPipelineDriver.Config(
+                read_chunk_size=2,
+                read_batch_max_bytes=10,
+                read_batch_max_reads=4,
+            ),
+        )
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.feed_input(b'abc')
+            driver.feed_eof()
+            driver._want_read = True
+
+            messages = driver._do_read()
+
+            self.assertEqual(messages[:2], [b'ab', b'c'])
+            self.assertIsInstance(messages[2], IoPipelineFlowMessages.FlushInput)
+            self.assertIsInstance(messages[3], IoPipelineMessages.FinalInput)
+            self.assertFalse(driver.wants_input)
         finally:
             driver.close()
 

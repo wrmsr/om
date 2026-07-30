@@ -36,6 +36,8 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         DEFAULT: ta.ClassVar['IoPipelineDriverSocketFdioHandler.Config']
 
         read_chunk_size: int = 64 * 1024
+        read_batch_max_bytes: int = 1024 * 1024
+        read_batch_max_reads: int = 16
         write_chunk_max: ta.Optional[int] = None
 
         strict_input_flow: bool = False
@@ -48,6 +50,10 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
             if self.read_chunk_size < 1:
                 raise ValueError(self.read_chunk_size)
+            if self.read_batch_max_bytes < 1:
+                raise ValueError(self.read_batch_max_bytes)
+            if self.read_batch_max_reads < 1:
+                raise ValueError(self.read_batch_max_reads)
             if self.write_chunk_max is not None and self.write_chunk_max < 1:
                 raise ValueError(self.write_chunk_max)
             if not (0 <= self.write_low_watermark <= self.write_high_watermark):
@@ -82,6 +88,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         self._output_writable = True
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
+        self._pending_read_error: ta.Optional[OSError] = None
 
     _state: IoPipelineDriverState = IoPipelineDriverState.NEW
 
@@ -203,6 +210,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 self._write_q.clear()
                 self._write_q_bytes = 0
                 self._transport_final_output = None
+                self._pending_read_error = None
 
                 super().close()
 
@@ -221,6 +229,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
+            self._pending_read_error = None
 
             try:
                 super().close()
@@ -262,28 +271,43 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
+            self._pending_read_error = None
 
     #
 
     def _do_read(self) -> ta.List[ta.Any]:
         out: ta.List[ta.Any] = []
 
-        try:
-            b = check.not_none(self._sock).recv(self._config.read_chunk_size)
-        except BlockingIOError:
-            return out
-        except OSError:
-            self._fail()
-            raise
+        remaining = self._config.read_batch_max_bytes
+        eof = False
+        for _ in range(self._config.read_batch_max_reads):
+            try:
+                b = check.not_none(self._sock).recv(min(self._config.read_chunk_size, remaining))
+            except BlockingIOError:
+                break
+            except OSError as exc:
+                if not out:
+                    self._fail()
+                    raise
+                self._pending_read_error = exc
+                break
 
-        if not b:
+            if not b:
+                eof = True
+                break
+
+            out.append(b)
+            remaining -= len(b)
+            if remaining < 1:
+                break
+
+        if out and self._flow is not None:
+            out.append(IoPipelineFlowMessages.FlushInput())
+            self._want_read = self._flow.is_auto_read()
+
+        if eof:
             out.append(IoPipelineMessages.FinalInput())
             self._want_read = False
-        else:
-            out.append(b)
-            if self._flow is not None:
-                out.append(IoPipelineFlowMessages.FlushInput())
-                self._want_read = self._flow.is_auto_read()
 
         return out
 
@@ -438,6 +462,11 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             if self._input_q:
                 pipeline.feed_in(self._input_q.popleft())
                 continue
+
+            if (read_error := self._pending_read_error) is not None:
+                self._pending_read_error = None
+                self._fail()
+                raise read_error
 
             if not pipeline.saw_final_input and self._want_read:
                 return 'read'

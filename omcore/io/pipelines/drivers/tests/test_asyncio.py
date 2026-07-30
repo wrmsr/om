@@ -95,6 +95,18 @@ class CaptureFinalInputIoPipelineHandler(IoPipelineHandler):
         ctx.feed_in(msg)
 
 
+class CaptureInputIoPipelineHandler(IoPipelineHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.inputs: ta.List[ta.Any] = []
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        self.inputs.append(msg)
+        if not isinstance(msg, bytes):
+            ctx.feed_in(msg)
+
+
 class CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
     def __init__(self):
         super().__init__()
@@ -401,6 +413,10 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
         with self.assertRaises(ValueError):
             PollAsyncioStreamIoPipelineDriver.Config(read_chunk_size=0)
         with self.assertRaises(ValueError):
+            PollAsyncioStreamIoPipelineDriver.Config(read_batch_max_bytes=0)
+        with self.assertRaises(ValueError):
+            PollAsyncioStreamIoPipelineDriver.Config(read_batch_max_reads=0)
+        with self.assertRaises(ValueError):
             PollAsyncioStreamIoPipelineDriver.Config(write_chunk_max=0)
 
     def test_invalid_watermarks(self):
@@ -409,6 +425,29 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
                 write_high_watermark=1,
                 write_low_watermark=2,
             )
+
+    async def test_read_batch_flushes_before_eof(self) -> None:
+        capture = CaptureInputIoPipelineHandler()
+        driver = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(
+                [capture],
+                services=[StubIoPipelineFlowService(auto_read=False)],
+            ),
+            asyncio.StreamReader(),
+        )
+        try:
+            self.assertIsNone(await driver.next(read=False))
+
+            await driver._handle_command_read_completed(
+                PollAsyncioStreamIoPipelineDriver._ReadCompletedCommand([b'abc', b'']),
+            )
+
+            self.assertEqual(capture.inputs[1], b'abc')
+            self.assertIsInstance(capture.inputs[2], IoPipelineFlowMessages.FlushInput)
+            self.assertIsInstance(capture.inputs[3], IoPipelineMessages.FinalInput)
+            self.assertFalse(driver._want_read)
+        finally:
+            await driver.close()
 
     async def test_flush_without_writer_completes_immediately(self) -> None:
         drv = PollAsyncioStreamIoPipelineDriver(

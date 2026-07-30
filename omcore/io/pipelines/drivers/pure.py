@@ -37,6 +37,8 @@ class PureIoPipelineDriver:
         DEFAULT: ta.ClassVar['PureIoPipelineDriver.Config']
 
         read_chunk_size: int = 64 * 1024
+        read_batch_max_bytes: int = 1024 * 1024
+        read_batch_max_reads: int = 16
         write_chunk_max: ta.Optional[int] = None
 
         strict_input_flow: bool = False
@@ -49,6 +51,10 @@ class PureIoPipelineDriver:
 
             if self.read_chunk_size < 1:
                 raise ValueError(self.read_chunk_size)
+            if self.read_batch_max_bytes < 1:
+                raise ValueError(self.read_batch_max_bytes)
+            if self.read_batch_max_reads < 1:
+                raise ValueError(self.read_batch_max_reads)
             if self.write_chunk_max is not None and self.write_chunk_max < 1:
                 raise ValueError(self.write_chunk_max)
             if not (0 <= self.write_low_watermark <= self.write_high_watermark):
@@ -242,21 +248,37 @@ class PureIoPipelineDriver:
         if not self._transport_input_q:
             return []
 
-        msg = self._transport_input_q.popleft()
-        if isinstance(msg, IoPipelineMessages.FinalInput):
-            self._want_read = False
-            return [msg]
+        out: ta.List[ta.Any] = []
+        remaining = self._config.read_batch_max_bytes
+        eof = False
+        for _ in range(self._config.read_batch_max_reads):
+            msg = self._transport_input_q.popleft()
+            if isinstance(msg, IoPipelineMessages.FinalInput):
+                eof = True
+                break
 
-        if isinstance(msg, (bytes, bytearray, memoryview)) and len(msg) > self._config.read_chunk_size:
-            mv = memoryview(msg)
-            chunk = bytes(mv[:self._config.read_chunk_size])
-            self._transport_input_q.appendleft(mv[self._config.read_chunk_size:])
-            msg = chunk
+            if isinstance(msg, (bytes, bytearray, memoryview)):
+                mv = memoryview(msg)
+                size = min(len(mv), self._config.read_chunk_size, remaining)
+                if size < len(mv):
+                    self._transport_input_q.appendleft(mv[size:])
+                    msg = bytes(mv[:size])
+                out.append(msg)
+                remaining -= size
+            else:
+                out.append(msg)
 
-        out = [msg]
-        if self._flow is not None:
+            if remaining < 1 or not self._transport_input_q:
+                break
+
+        if out and self._flow is not None:
             out.append(IoPipelineFlowMessages.FlushInput())
             self._want_read = self._flow.is_auto_read()
+
+        if eof:
+            out.append(IoPipelineMessages.FinalInput())
+            self._want_read = False
+
         return out
 
     #

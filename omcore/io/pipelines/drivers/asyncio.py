@@ -47,6 +47,8 @@ class PollAsyncioStreamIoPipelineDriver:
         DEFAULT: ta.ClassVar['PollAsyncioStreamIoPipelineDriver.Config']
 
         read_chunk_size: int = 64 * 1024
+        read_batch_max_bytes: int = 1024 * 1024
+        read_batch_max_reads: int = 16
         write_chunk_max: ta.Optional[int] = None
 
         strict_input_flow: bool = False
@@ -59,6 +61,10 @@ class PollAsyncioStreamIoPipelineDriver:
 
             if self.read_chunk_size < 1:
                 raise ValueError(self.read_chunk_size)
+            if self.read_batch_max_bytes < 1:
+                raise ValueError(self.read_batch_max_bytes)
+            if self.read_batch_max_reads < 1:
+                raise ValueError(self.read_batch_max_reads)
             if self.write_chunk_max is not None and self.write_chunk_max < 1:
                 raise ValueError(self.write_chunk_max)
             if not (0 <= self.write_low_watermark <= self.write_high_watermark):
@@ -336,7 +342,10 @@ class PollAsyncioStreamIoPipelineDriver:
                     self._want_read_event.clear()
 
                 try:
-                    data = await self._reader.read(self._config.read_chunk_size)
+                    data = await self._reader.read(min(
+                        self._config.read_batch_max_bytes,
+                        self._config.read_chunk_size * self._config.read_batch_max_reads,
+                    ))
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:  # noqa
@@ -386,6 +395,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
     async def _handle_command_read_completed(self, cmd: _ReadCompletedCommand) -> None:
         eof = False
+        had_data = False
 
         in_msgs: ta.List[ta.Any] = []
 
@@ -395,8 +405,9 @@ class PollAsyncioStreamIoPipelineDriver:
                 eof = True
             else:
                 in_msgs.append(b)
+                had_data = True
 
-        if not eof and self._flow is not None:
+        if had_data and self._flow is not None:
             in_msgs.append(IoPipelineFlowMessages.FlushInput())
 
         if self._flow is not None:

@@ -559,7 +559,37 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
         with self.assertRaises(ValueError):
             SyncSocketIoPipelineDriver.Config(read_chunk_size=0)
         with self.assertRaises(ValueError):
+            SyncSocketIoPipelineDriver.Config(read_batch_max_bytes=0)
+        with self.assertRaises(ValueError):
+            SyncSocketIoPipelineDriver.Config(read_batch_max_reads=0)
+        with self.assertRaises(ValueError):
             SyncSocketIoPipelineDriver.Config(write_chunk_max=0)
+
+    def test_read_batch_flushes_before_eof(self) -> None:
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            driver = SyncSocketIoPipelineDriver(
+                IoPipeline.Spec(services=[StubIoPipelineFlowService(auto_read=False)]),
+                sock,
+                SyncSocketIoPipelineDriver.Config(
+                    read_chunk_size=2,
+                    read_batch_max_bytes=10,
+                    read_batch_max_reads=4,
+                ),
+            )
+            try:
+                self.assertIsNone(driver.next(read=False))
+                peer.sendall(b'abc')
+                peer.shutdown(socket.SHUT_WR)
+
+                messages = driver._do_read()
+
+                self.assertEqual(messages[:2], [b'ab', b'c'])
+                self.assertIsInstance(messages[2], IoPipelineFlowMessages.FlushInput)
+                self.assertIsInstance(messages[3], IoPipelineMessages.FinalInput)
+                self.assertFalse(driver._want_read)
+            finally:
+                driver.close()
 
     def test_invalid_watermarks(self) -> None:
         with self.assertRaises(ValueError):
