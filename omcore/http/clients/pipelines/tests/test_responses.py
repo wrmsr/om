@@ -7,6 +7,7 @@ import typing as ta
 import unittest
 
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from ...base import HttpClientError
 from ...base import HttpClientRequest
 from ..asyncio import AsyncioIoPipelineAsyncHttpClient
 from ..sync import IoPipelineHttpClient
@@ -57,6 +58,48 @@ class SyncLoopbackHttpServer:
 
 
 class TestSyncIoPipelineHttpClientResponses(unittest.TestCase):
+    def test_stream_reader_honors_sizes_and_latches_end(self) -> None:
+        server = SyncLoopbackHttpServer(
+            b'HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nabcdef',
+        )
+        try:
+            client = IoPipelineHttpClient(IoPipelineHttpClient.Config(request_timeout_s=.2))
+            with client.stream_request(HttpClientRequest(
+                    f'http://127.0.0.1:{server.port}/',
+            )) as response:
+                self.assertEqual(response.stream.read1(0), b'')
+                self.assertEqual(response.stream.read1(2), b'ab')
+                self.assertEqual(response.stream.read(3), b'cde')
+                self.assertEqual(response.stream.read1(10), b'f')
+                self.assertEqual(response.stream.read1(1), b'')
+                self.assertEqual(response.stream.read(1), b'')
+        finally:
+            server.close()
+
+    def test_response_abort_after_head_is_http_client_error(self) -> None:
+        server = SyncLoopbackHttpServer(
+            b'HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nxZZ',
+        )
+        try:
+            client = IoPipelineHttpClient(IoPipelineHttpClient.Config(request_timeout_s=.2))
+            with client.stream_request(HttpClientRequest(
+                    f'http://127.0.0.1:{server.port}/',
+            )) as response:
+                self.assertEqual(response.stream.read1(), b'x')
+                with self.assertRaisesRegex(HttpClientError, 'HTTP response aborted'):
+                    response.stream.read1()
+        finally:
+            server.close()
+
+    def test_response_abort_before_head_is_http_client_error(self) -> None:
+        server = SyncLoopbackHttpServer(b'x' * 5000)
+        try:
+            client = IoPipelineHttpClient(IoPipelineHttpClient.Config(request_timeout_s=.2))
+            with self.assertRaisesRegex(HttpClientError, 'HTTP response aborted'):
+                client.stream_request(HttpClientRequest(f'http://127.0.0.1:{server.port}/'))
+        finally:
+            server.close()
+
     def test_head_ignores_advertised_body_length_without_waiting_for_eof(self) -> None:
         server = SyncLoopbackHttpServer(
             b'HTTP/1.1 200 OK\r\nContent-Length: 999\r\nContent-Encoding: gzip\r\n\r\n',
@@ -145,6 +188,49 @@ class TestAsyncioIoPipelineHttpClientResponses(AsyncioIsolatedAsyncTestCase):
             b'HTTP/1.1 200 OK\r\nContent-Length: 999\r\nContent-Encoding: gzip\r\n\r\n',
             run,
         )
+
+    async def test_stream_reader_honors_sizes_and_latches_end(self) -> None:
+        async def run(url: str) -> None:
+            client = AsyncioIoPipelineAsyncHttpClient(
+                AsyncioIoPipelineAsyncHttpClient.Config(request_timeout_s=.2),
+            )
+            async with (await client.stream_request(HttpClientRequest(url))) as response:
+                self.assertEqual(await response.stream.read1(0), b'')
+                self.assertEqual(await response.stream.read1(2), b'ab')
+                self.assertEqual(await response.stream.read(3), b'cde')
+                self.assertEqual(await response.stream.read1(10), b'f')
+                self.assertEqual(await response.stream.read1(1), b'')
+                self.assertEqual(await response.stream.read(1), b'')
+
+        await self._run_response_test(
+            b'HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nabcdef',
+            run,
+        )
+
+    async def test_response_abort_after_head_is_http_client_error(self) -> None:
+        async def run(url: str) -> None:
+            client = AsyncioIoPipelineAsyncHttpClient(
+                AsyncioIoPipelineAsyncHttpClient.Config(request_timeout_s=.2),
+            )
+            async with (await client.stream_request(HttpClientRequest(url))) as response:
+                self.assertEqual(await response.stream.read1(), b'x')
+                with self.assertRaisesRegex(HttpClientError, 'HTTP response aborted'):
+                    await response.stream.read1()
+
+        await self._run_response_test(
+            b'HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nxZZ',
+            run,
+        )
+
+    async def test_response_abort_before_head_is_http_client_error(self) -> None:
+        async def run(url: str) -> None:
+            client = AsyncioIoPipelineAsyncHttpClient(
+                AsyncioIoPipelineAsyncHttpClient.Config(request_timeout_s=.2),
+            )
+            with self.assertRaisesRegex(HttpClientError, 'HTTP response aborted'):
+                await client.stream_request(HttpClientRequest(url))
+
+        await self._run_response_test(b'x' * 5000, run)
 
     async def test_interim_response_is_skipped(self) -> None:
         async def run(url: str) -> None:

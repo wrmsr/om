@@ -19,10 +19,13 @@ from ...clients.sync import HttpClient
 from ...clients.sync import StreamHttpClientResponse
 from ...pipelines.clients.clients import IoPipelineHttpClientMessages
 from ...pipelines.responses import FullIoPipelineHttpResponse
+from ...pipelines.responses import IoPipelineHttpResponseAborted
 from ...pipelines.responses import IoPipelineHttpResponseBodyData
 from ...pipelines.responses import IoPipelineHttpResponseEnd
 from ...pipelines.responses import IoPipelineHttpResponseHead
 from ..base import HttpClientError
+from .base import _IoPipelineHttpResponseReaderState
+from .base import _raise_http_response_aborted
 from .base import BaseIoPipelineHttpClient
 
 
@@ -59,9 +62,12 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
             self._drv = drv
             self._sock = sock
 
-            self._done = False
+            self._state = _IoPipelineHttpResponseReaderState()
 
         def read1(self, n: int = -1, /) -> Bytes:
+            if (pending := self._state.read_pending(n)) is not None:
+                return pending
+
             while True:
                 out = check.not_none(self._drv.next())
 
@@ -69,29 +75,42 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                     msg = out.msg
 
                     if isinstance(msg, IoPipelineHttpResponseBodyData):
-                        return ByteStreamBuffers.to_bytes(msg.data)
+                        return self._state.feed_data(msg.data, n)
+
+                    elif isinstance(msg, IoPipelineHttpResponseAborted):
+                        self._state.feed_end()
+                        _raise_http_response_aborted(msg)
 
                     elif isinstance(msg, (
                             IoPipelineHttpResponseEnd,
                             IoPipelineMessages.FinalInput,
                             IoPipelineHttpClientMessages.Close,
                     )):
-                        return b''
+                        return self._state.feed_end()
 
                     else:
                         raise TypeError(out)  # noqa
 
                 elif isinstance(out, BaseException):
+                    self._state.feed_end()
                     raise HttpClientError from out
 
                 else:
                     raise TypeError(out)  # noqa
 
         def read(self, n: int = -1, /) -> Bytes:
-            buf = io.BytesIO()
+            if n == 0:
+                return b''
 
-            while b := self.read1(n):
+            buf = io.BytesIO()
+            remaining = n
+
+            while b := self.read1(remaining):
                 buf.write(b)
+                if remaining > 0:
+                    remaining -= len(b)
+                    if remaining == 0:
+                        break
 
             return buf.getvalue()
 
@@ -144,6 +163,9 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                                 response = msg
 
                                 drv.enqueue(IoPipelineHttpClientMessages.Close())
+
+                            elif isinstance(msg, IoPipelineHttpResponseAborted):
+                                _raise_http_response_aborted(msg)
 
                             elif isinstance(msg, IoPipelineHttpResponseEnd) and interim_response:
                                 interim_response = False
@@ -215,6 +237,9 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                     sock.close()
 
                 raise
+
+        except HttpClientError:
+            raise
 
         except Exception as e:
             raise HttpClientError from e

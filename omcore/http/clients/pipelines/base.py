@@ -4,6 +4,7 @@ import dataclasses as dc
 import errno
 import socket
 import typing as ta
+import urllib.parse
 
 from ....io.pipelines.bytes.buffers import OutboundBytesBufferIoPipelineHandler
 from ....io.pipelines.core import IoPipeline
@@ -11,8 +12,11 @@ from ....io.pipelines.core import IoPipelineHandler
 from ....io.pipelines.flow.stub import StubIoPipelineFlowService
 from ....io.pipelines.handlers.logs import LoggingIoPipelineHandler
 from ....io.pipelines.ssl.handlers import SslIoPipelineHandler
+from ....io.streambufs.utils import ByteStreamBuffers
 from ....lite.abstract import Abstract
+from ....lite.check import check
 from ...clients.base import BaseHttpClient
+from ...clients.base import HttpClientError
 from ...clients.base import HttpClientRequest
 from ...headers import HttpHeaders
 from ...pipelines.clients.clients import IoPipelineHttpClientHandler
@@ -24,9 +28,62 @@ from ...pipelines.clients.responses import IoPipelineHttpResponseDechunker
 from ...pipelines.clients.responses import IoPipelineHttpResponseDecompressor
 from ...pipelines.clients.timeouts import IoPipelineHttpClientRequestTimeoutHandler
 from ...pipelines.requests import FullIoPipelineHttpRequest
+from ...pipelines.responses import IoPipelineHttpResponseAborted
 
 
 BaseIoPipelineHttpClientConfigT = ta.TypeVar('BaseIoPipelineHttpClientConfigT', bound='BaseIoPipelineHttpClient.Config')
+
+
+##
+
+
+class _IoPipelineHttpResponseReaderState:
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._pending = b''
+        self._pending_pos = 0
+        self._done = False
+
+    def read_pending(self, n: int) -> ta.Optional[bytes]:
+        if n == 0 or self._done:
+            return b''
+        if self._pending_pos >= len(self._pending):
+            return None
+
+        remaining = len(self._pending) - self._pending_pos
+        if n < 0 or n >= remaining:
+            out = self._pending[self._pending_pos:]
+            self._pending = b''
+            self._pending_pos = 0
+            return out
+
+        out = self._pending[self._pending_pos:self._pending_pos + n]
+        self._pending_pos += n
+        return out
+
+    def feed_data(self, data: ta.Any, n: int) -> bytes:
+        if self._done or self._pending_pos < len(self._pending):
+            raise RuntimeError('invalid response reader state')
+
+        self._pending = ByteStreamBuffers.to_bytes(data, strict=True)
+        self._pending_pos = 0
+        if not self._pending:
+            raise RuntimeError('empty HTTP response body data')
+        return check.not_none(self.read_pending(n))
+
+    def feed_end(self) -> bytes:
+        if self._pending_pos < len(self._pending):
+            raise RuntimeError('HTTP response ended with pending reader data')
+        self._done = True
+        return b''
+
+
+def _raise_http_response_aborted(msg: IoPipelineHttpResponseAborted) -> ta.NoReturn:
+    exc = HttpClientError(f'HTTP response aborted: {msg.reason_str}')
+    if isinstance(msg.reason, BaseException):
+        raise exc from msg.reason
+    raise exc
 
 
 ##
@@ -59,42 +116,51 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
         host: str
         port: int
         path: str
+        authority: str
 
         is_ssl: bool = False
 
     @classmethod
     def parse_url(cls, url: str) -> ParsedUrl:
-        # Parse URL (very simple - just extract host and path)
-        if url.startswith('http://'):
+        parsed = urllib.parse.urlsplit(url)
+
+        if parsed.scheme == 'http':
+            default_port = 80
             is_ssl = False
-            url_without_scheme = url[7:]
-        elif url.startswith('https://'):
+        elif parsed.scheme == 'https':
+            default_port = 443
             is_ssl = True
-            url_without_scheme = url[8:]
         else:
             raise ValueError(url)
 
-        if '/' in url_without_scheme:
-            host, path = url_without_scheme.split('/', 1)
-            path = '/' + path
-        else:
-            host = url_without_scheme
-            path = '/'
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError('URL userinfo is not supported')
 
-        # Extract port if present
-        if ':' in host:
-            host, port_str = host.split(':', 1)
-            port = int(port_str)
-        else:
-            if is_ssl:
-                port = 443
-            else:
-                port = 80
+        host = parsed.hostname
+        if not host:
+            raise ValueError('URL host is required')
+
+        explicit_port = parsed.port
+        port = explicit_port if explicit_port is not None else default_port
+        if not 1 <= port <= 65535:
+            raise ValueError(f'invalid URL port: {port}')
+
+        authority_host = f'[{host}]' if ':' in host else host
+        authority = (
+            f'{authority_host}:{explicit_port}'
+            if explicit_port is not None else
+            authority_host
+        )
+
+        path = parsed.path or '/'
+        if parsed.query:
+            path += f'?{parsed.query}'
 
         return cls.ParsedUrl(
             host,
             port,
             path,
+            authority,
             is_ssl=is_ssl,
         )
 
@@ -183,7 +249,7 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
             raise TypeError(req.data)
 
         full_request = FullIoPipelineHttpRequest.simple(
-            parsed_url.host,
+            parsed_url.authority,
             parsed_url.path,
             method=req.method_or_default,
             headers=HttpHeaders.of(req.headers_).update(
