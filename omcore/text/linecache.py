@@ -17,7 +17,7 @@ def reserve_filename(prefix: str) -> str:
     try:
         e = _RESERVED_FILENAME_UUID_THREAD_LOCAL.unique_id
     except AttributeError:
-        e = _RESERVED_FILENAME_UUID_THREAD_LOCAL.unique_id = _ReservedFilenameEntry(str(uuid.uuid4()))
+        e = _RESERVED_FILENAME_UUID_THREAD_LOCAL.unique_id = _ReservedFilenameEntry(str(uuid.uuid7()))
     while True:
         unique_filename = f'<generated:{prefix}:{e.seq}>'
         cache_line = (1, None, (e.unique_id,), unique_filename)

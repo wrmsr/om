@@ -97,7 +97,7 @@ class ListJournal(Journal):
 
     def write(self, key: bytes, value: bytes) -> None:
         self._lst.append(JournalEntry(
-            id=uuid.uuid4(),
+            id=uuid.uuid7(),
             key=key,
             value=value,
             created_at=lang.utcnow(),

@@ -93,7 +93,7 @@ class GoogleGenerativeImmediateBackend(BaseHttpBackend, ImmediateBackend):
 
                     content.append(ToolCall(
                         # Google does not reliably issue tool call ids - fabricate as needed.
-                        id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid4())),
+                        id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid7())),
                         name=check.non_empty_str(raw_fc['name']),
                         args=check.isinstance(raw_fc.get('args') or {}, ta.Mapping),
                         backend_signature=check.isinstance(raw_part.get('thoughtSignature'), (str, None)),

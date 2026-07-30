@@ -102,7 +102,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
                     # each such part is a fully-formed new tool call, indexed only by arrival order. Google does not
                     # reliably issue ids for them, so they are fabricated as needed.
                     tool_call = self._tool_call(
-                        id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid4())),
+                        id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid7())),
                         index=self._next_tool_call_index_,
                     )
                     self._next_tool_call_index_ += 1

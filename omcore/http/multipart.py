@@ -31,7 +31,7 @@ class MultipartEncoder:
         super().__init__()
 
         self._fields = fields
-        self._boundary = boundary or (b'----WebKitFormBoundary-' + uuid.uuid4().hex.encode('ascii'))
+        self._boundary = boundary or (b'----WebKitFormBoundary-' + uuid.uuid7().hex.encode('ascii'))
 
     class _Line(ta.NamedTuple):
         data: MultipartData

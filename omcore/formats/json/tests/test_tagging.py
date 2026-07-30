@@ -36,7 +36,7 @@ from ..tagging import JsonTagger
         [(1, 2, 3)],
         b'\xff',
         # markupsafe.Markup('<html>'),
-        # uuid.uuid4(),
+        # uuid.uuid7(),
         # lang.utcnow().replace(microsecond=0),
     ],
 )
