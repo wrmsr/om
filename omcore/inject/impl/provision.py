@@ -130,7 +130,17 @@ class OnceProvisionMap(lang.Final):
         with self._mtx:
             return binding in self._dct
 
-    async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
+    async def provide(
+            self,
+            binding: BindingImpl,
+            injector: AsyncInjector,
+            fn: ta.Callable[[], ta.Awaitable[ta.Any]] | None = None,
+    ) -> ta.Any:
+        """
+        `fn`, if given, computes the value in place of the binding's provider - compiled provision plans route
+        their scope misses through here so the once-protocol stays authoritative. See plans.py.
+        """
+
         # Unlocked fast path for the common already-constructed case.
         if isinstance(e := self._dct.get(binding), OnceProvisionMap._Done):
             return e.v
@@ -158,7 +168,7 @@ class OnceProvisionMap(lang.Final):
                 # retires the entry - read separately, a waiter could create a promise just after the read and before
                 # the retirement, and it would never be completed.
                 try:
-                    v = await binding.provider.provide(injector)
+                    v = await (fn() if fn is not None else binding.provider.provide(injector))
                 except BaseException as ex:
                     with self._mtx:
                         if self._dct.get(binding) is e:
