@@ -23,6 +23,7 @@ deps = [
   'mosh',
   'net-tools',
   'netcat-openbsd',
+  'nginx',
   'openssh-server',
   'socat',
   'tcpdump',
@@ -82,6 +83,7 @@ deps = [
   'libpq-dev',
   'libsqlite3-dev',
   'postgresql-client',
+  'redis',
   'sqlite3',
 
   # terminal UX & interactive tools

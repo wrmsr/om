@@ -102,6 +102,7 @@ DEPS="$DEPS\
   ncdu\
   net-tools\
   netcat-openbsd\
+  nginx\
   opensbi\
   openssh-server\
   ovmf\
@@ -116,6 +117,7 @@ DEPS="$DEPS\
   qemu-system-x86\
   qemu-user\
   qemu-utils\
+  redis\
   ripgrep\
   ruby\
   silversearcher-ag\
