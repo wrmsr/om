@@ -30,7 +30,7 @@ from ...responses import IoPipelineHttpResponseHead
 
 T = ta.TypeVar('T')
 
-_IoPipelineAsgiStepResult = ta.Literal['continue', 'stop', 'defer']
+_IoPipelineAsgiStepResult = ta.Literal['continue', 'stop', 'defer']  # ta.TypeAlias
 
 
 ##
