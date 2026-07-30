@@ -10,10 +10,11 @@ Examples::
     ./python -m omcore.http.pipelines.tests.bench.bench --suite servers --json
 
 The benchmark intentionally uses only the standard library and programs commonly present on a development machine.
-Client cases run against a temporary nginx instance unless ``--client-base-url`` is supplied. Server cases are driven
-by concurrent curl processes. Each client case and each server implementation runs in a separate process so peak RSS
-is meaningful and failures do not contaminate later cases. Peak RSS includes the interpreter and common benchmark
-harness; RSS growth is measured from a post-warmup baseline.
+Each client case runs against a fresh temporary nginx instance unless ``--client-base-url`` is supplied, preventing
+closed connections from earlier cases from contaminating later ones. Server cases are driven by concurrent curl
+processes. Each client case and each server implementation runs in a separate process so peak RSS is meaningful and
+failures do not contaminate later cases. Peak RSS includes the interpreter and common benchmark harness; RSS growth is
+measured from a post-warmup baseline.
 """
 import argparse
 import asyncio
@@ -1470,30 +1471,42 @@ def _unavailable_result(suite: str, implementation: str, scenario: str, reason: 
     )
 
 
-def _run_client_suite(args: argparse.Namespace, scenarios: ta.Sequence[str]) -> ta.List[BenchmarkResult]:
+def _run_client_suite(
+        args: argparse.Namespace,
+        scenarios: ta.Sequence[str],
+        *,
+        target_factory: ta.Optional[ta.Callable[[], ta.ContextManager[str]]] = None,
+        case_runner: ta.Callable[..., BenchmarkResult] = _run_client_case,
+) -> ta.List[BenchmarkResult]:
     implementations = _parse_names(args.clients, CLIENT_IMPLEMENTATIONS)
     results: ta.List[BenchmarkResult] = []
 
-    @contextlib.contextmanager
-    def target() -> ta.Iterator[str]:
-        if args.client_base_url:
-            yield args.client_base_url.rstrip('/')
-        else:
-            with _NginxFixture(args.nginx, args.payload_size, args.timeout) as nginx:
-                yield nginx.base_url
+    if target_factory is None:
+        @contextlib.contextmanager
+        def default_target() -> ta.Iterator[str]:
+            if args.client_base_url:
+                yield args.client_base_url.rstrip('/')
+            else:
+                # A fresh listening port prevents one-connection-per-request cases from inheriting closed-connection
+                # state from cases that ran earlier in the suite. This is deliberately portable rather than relying on
+                # platform-specific socket options or TCP sysctls.
+                with _NginxFixture(args.nginx, args.payload_size, args.timeout) as nginx:
+                    yield nginx.base_url
 
-    with target() as base_url:
-        for implementation in implementations:
-            if implementation == 'httpx' and not _module_available('httpx'):
-                results.extend(
-                    _unavailable_result('client', implementation, scenario, 'httpx is not installed')
-                    for scenario in scenarios
-                )
-                continue
+        target_factory = default_target
 
-            for scenario in scenarios:
+    for implementation in implementations:
+        if implementation == 'httpx' and not _module_available('httpx'):
+            results.extend(
+                _unavailable_result('client', implementation, scenario, 'httpx is not installed')
+                for scenario in scenarios
+            )
+            continue
+
+        for scenario in scenarios:
+            with target_factory() as base_url:
                 case_requests = args.requests if scenario == 'requests' else args.transfer_requests
-                results.append(_run_client_case(
+                results.append(case_runner(
                     implementation=implementation,
                     scenario=scenario,
                     base_url=base_url,
