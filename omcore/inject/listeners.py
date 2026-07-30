@@ -11,12 +11,16 @@ from .keys import Key
 ##
 
 
-ProvisionListener: ta.TypeAlias = ta.Callable[[
-    AsyncInjector,
-    Key,
-    Binding | None,
-    ta.Callable[[], ta.Awaitable[ta.Any]],
-], ta.Awaitable[ta.Any]]
+class ProvisionListener(ta.Protocol):
+    def __call__(
+            self,
+            injector: AsyncInjector,
+            key: Key,
+            binding: Binding | None,
+            provide: ta.Callable[[], ta.Awaitable[ta.Any]],
+            /,
+    ) -> ta.Awaitable[ta.Any]:
+        ...
 
 
 @dc.dataclass(frozen=True)
