@@ -381,6 +381,17 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
             bi = self._bim.get(key)
             if bi is not None:
+                # Compiled-plan fast path: plans are per-key caches on the (shared) ElementCollection, async-native
+                # and correct under any concurrency - only listener-bearing injectors always interpret (listeners
+                # wrap every provision). Sync-rooted plans complete without a coroutine.
+                if not self._pls and (plan := self._ec.provision_plan(key)) is not None:
+                    is_aw, v = plan._begin(self, cr, tok is None)  # noqa
+                    if is_aw:
+                        v = await v
+                    if (mv := cr._provisions.get(key)) is not None:  # noqa  # mirroring plans mirror their own root
+                        return mv
+                    return cr.handle_provision(key, lang.just(v))
+
                 sc = self.get_scope_impl(bi.scope)
 
                 fn = lambda: sc.provide(bi, self)  # noqa

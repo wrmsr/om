@@ -1,17 +1,26 @@
 """
-Tests for the (experimental, impl-level) provision-plan compiler: parity with interpreted semantics, the compile-time
-mirroring decision, and cross-boundary coherence. See impl/plans.py.
+Tests for the (impl-level) provision-plan compiler: parity with interpreted semantics, the
+mirroring decisions, and cross-boundary coherence. See impl/plans.py.
 """
+import asyncio
+import contextvars
 import typing as ta
 
 import pytest
 
 from ... import inject as inj
+from ... import lang
+from ..impl.plans import ProvisionPlan
 from ..impl.plans import ProvisionPlanCompiler
 from ..impl.plans import compile_provision_plan
 
 
 ##
+
+
+def _provide(p: ProvisionPlan, i: ta.Any) -> ta.Any:
+    # Plans are async-native - drive them as the sync facade drives everything else:
+    return lang.sync_await(p.provide(i))
 
 
 class Leaf:
@@ -47,9 +56,9 @@ def test_diamond_memoization():
 
     assert p.is_closed
 
-    r = p.provide(i)
+    r = _provide(p, i)
     assert r.left.leaf is r.right.leaf
-    assert p.provide(i).left.leaf is not r.left.leaf
+    assert _provide(p, i).left.leaf is not r.left.leaf
 
 
 def test_singleton_cache_shared_with_interpreter():
@@ -59,12 +68,12 @@ def test_singleton_cache_shared_with_interpreter():
     i = inj.create_injector(ce)
     p = compile_provision_plan(ce, Leaf)
 
-    first = p.provide(i)
+    first = _provide(p, i)
     assert i[Leaf] is first
 
     i2 = inj.create_injector(ce)
     second = i2[Leaf]
-    assert p.provide(i2) is second  # one plan serves any injector over the collection
+    assert _provide(p, i2) is second  # one plan serves any injector over the collection
 
 
 def test_delimited_scope():
@@ -79,16 +88,16 @@ def test_delimited_scope():
     p = compile_provision_plan(ce, str)
 
     with pytest.raises(inj.ScopeNotOpenError):
-        p.provide(i)
+        _provide(p, i)
 
     with inj.enter_scope(i, ss, {inj.as_key(float): 4.2}):
-        v = p.provide(i)
+        v = _provide(p, i)
         assert v == 'f=4.2'
-        assert p.provide(i) is v  # cached per opening
+        assert _provide(p, i) is v  # cached per opening
         assert i[str] is v  # the interpreter sees the plan-filled scope cache
 
     with inj.enter_scope(i, ss, {inj.as_key(float): 5.2}):
-        assert p.provide(i) == 'f=5.2'  # fresh per opening
+        assert _provide(p, i) == 'f=5.2'  # fresh per opening
 
 
 def test_cycles_detected_at_compile_time():
@@ -104,7 +113,7 @@ def test_unbound_key_raises():
     ce = inj.collect_elements(inj.as_elements(inj.bind(420)))
     i = inj.create_injector(ce)
     with pytest.raises(inj.UnboundKeyError):
-        compile_provision_plan(ce, str).provide(i)
+        _provide(compile_provision_plan(ce, str), i)
 
 
 def test_listener_fallback():
@@ -117,7 +126,7 @@ def test_listener_fallback():
         inj.bind_provision_listener(exclaim),
     ))
     i = inj.create_injector(ce)
-    assert compile_provision_plan(ce, str).provide(i) == 'hi!'
+    assert _provide(compile_provision_plan(ce, str), i) == 'hi!'
 
 
 def test_parent_delegation_via_hole():
@@ -130,7 +139,7 @@ def test_parent_delegation_via_hole():
     for _ in range(2):
         parent = inj.create_injector(pce)
         child = inj.create_injector(cce, parent=parent)
-        assert p.provide(child).leaf is parent[Leaf]
+        assert _provide(p, child).leaf is parent[Leaf]
 
 
 ##
@@ -173,7 +182,7 @@ def test_cross_boundary_coherence_compiled_first():
     p = compile_provision_plan(ce, CompiledFirstRoot)
     assert not p.is_closed
 
-    r = p.provide(i)
+    r = _provide(p, i)
     assert r.b.leaf is r.leaf
 
 
@@ -184,7 +193,7 @@ def test_cross_boundary_coherence_hole_first():
     i = inj.create_injector(ce)
     p = compile_provision_plan(ce, HoleFirstRoot)
 
-    r = p.provide(i)
+    r = _provide(p, i)
     assert r.b.leaf is r.leaf
 
 
@@ -197,4 +206,38 @@ def test_compiler_reuse_shares_subtrees():
     i = inj.create_injector(ce)
     c = ProvisionPlanCompiler(ce)
     pl, pr = c.compile(Left), c.compile(Right)
-    assert pl.provide(i).leaf is pr.provide(i).leaf  # via the shared singleton
+    assert _provide(pl, i).leaf is _provide(pr, i).leaf  # via the shared singleton
+
+
+##
+
+
+async def _make_async_leaf() -> Leaf:
+    return Leaf()
+
+
+_AIO_VAR: contextvars.ContextVar = contextvars.ContextVar(f'{__name__}._AIO_VAR')
+
+
+def test_asyncio_fast_path():
+    # Plans are async-native: under event-loop concurrency the fast path engages too, and genuinely-suspending
+    # holes (an async provider) are awaited in the loop rather than sync-driven:
+    ss = inj.DelimitedScope('plans-aio', context=inj.ContextVarScopeContext(_AIO_VAR))
+    ce = inj.collect_elements(inj.as_elements(
+        inj.bind_scope(ss),
+        inj.bind_scope_seed(float, ss),
+        inj.bind(str, in_=ss, to_fn=inj.target(f=float)(lambda f: f'f={f}')),
+        inj.bind(Leaf, to_async_fn=_make_async_leaf),
+        inj.bind(Left),
+    ))
+
+    async def main() -> None:
+        i = await inj.create_asyncio_injector(ce)
+
+        async with inj.async_enter_scope(i, ss, {inj.as_key(float): 4.2}):
+            assert (await i.provide(str)) == 'f=4.2'  # planned, scoped, under the loop
+
+        v = await i.provide(Left)  # planned root over an async-provider hole
+        assert isinstance(v.leaf, Leaf)
+
+    asyncio.run(main())

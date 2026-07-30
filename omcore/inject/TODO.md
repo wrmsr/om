@@ -46,8 +46,13 @@
 - *ta.Annotated as alternative to tag*
   - need to pre-collect all tags (/type pairs?) in CollectedElements, scan for only those, strip Annotated otherwise
     - KwargsTarget cache needs an additional weak key dimension of Annotated type set
-- pre-generate, or cache, KT -> provision / injection action graph
-  - move towards efficient RequestScope usecase
+- provision plans (done: `impl/plans.py`, cached per-key on ElementCollection, auto-consulted by the injector,
+  async-native/two-color) - residuals, none load-bearing:
+  - per-node listener inlining (listener-bearing injectors currently interpret wholesale - accepted)
+  - a sync uncontended fast path in OnceProvisionMap would shave the ~1.5µs scope-miss protocol cost
+  - plans skip source-stack pushes - moot until 'better source tracking' exists, revisit together
+  - `provision_plan`'s cached_function is unlocked - benign double-compile on a race; take `lock=` if ever
+    free-threaded
 - DynamicSetBinding / DynamicMapBinding ? provider of set[T] / map[K, V] ?
   - doable not guicey - too much dynamism
 - audit multis scopes

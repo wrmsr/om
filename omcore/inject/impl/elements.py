@@ -54,8 +54,10 @@ from .scopes import get_scope_impl
 
 
 if ta.TYPE_CHECKING:
+    from . import plans as _plans
     from . import privates as _privates
 else:
+    _plans = lang.proxy_import('.plans', __package__)
     _privates = lang.proxy_import('.privates', __package__)
 
 
@@ -238,6 +240,23 @@ class ElementCollection(CollectedElements, lang.Final):
     @lang.cached_function
     def scope_binding_scopes(self) -> ta.Sequence[Scope]:
         return [sb.scope for sb in self.elements_of_type(ScopeBinding)]
+
+    @lang.cached_function
+    def provision_plan(self, key: Key) -> _plans.ProvisionPlan | None:
+        """
+        The compiled provision plan for a locally-bound key, or None where compilation would be degenerate (the
+        key's own node is an interpreter hole - async providers, multis, privates, ThreadScope) and interpretation
+        is simply correct. Raises UnboundKeyError for keys this collection does not bind at all - and, exceptions
+        being uncached (the cached_function default), bad keys never stick in the cache. Cached per key on the
+        collection, so plans are shared by every injector over it - the injector's provision fast path consults this.
+        """
+
+        check.isinstance(key, Key)
+        if key not in self.binding_impl_map():
+            raise UnboundKeyError(key)
+
+        p = _plans.ProvisionPlanCompiler(self).compile(key)
+        return p if not p.is_degenerate else None
 
     @lang.cached_function
     def keys_by_scope(self) -> ta.Mapping[Scope, frozenset[Key]]:

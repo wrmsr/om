@@ -232,16 +232,26 @@ def test_child_binding_into_parent_scope_collects_without_gc():
 
 def test_element_collection_collects_without_gc():
     # ElementCollection's lazy caches are weak-instance cached_functions - a dropped (fully-forced) collection is
-    # reclaimed by pure refcounting, so per-request collections don't churn cyclic garbage either.
+    # reclaimed by pure refcounting, so per-request collections don't churn cyclic garbage either. This includes the
+    # per-key provision_plan cache (the arg-ful cached_function populated by the injector's plan fast path): plans
+    # reference binding impls the collection owns, never the collection or any injector, so no cycle can close.
     with _no_gc():
         es = inj.as_elements(inj.bind(Leaf), inj.bind(Holder, singleton=True))
         ec = inj.collect_elements(es)
         i = inj.create_injector(ec)
-        assert isinstance(i[Holder], Holder)
+        assert isinstance(i[Holder], Holder)  # populates the plan cache via the fast path
 
-        refs = (weakref.ref(i), weakref.ref(i[inj.AsyncInjector]), weakref.ref(ec), weakref.ref(es))
-        del i, ec, es
+        # A plan held past its injector's death pins nothing injector-ward:
+        plan = ec.provision_plan(inj.as_key(Holder))  # type: ignore[attr-defined]
+        assert plan is not None
+
+        refs = (weakref.ref(i), weakref.ref(i[inj.AsyncInjector]))
+        del i
         assert all(r() is None for r in refs)
+
+        ecr = (weakref.ref(ec), weakref.ref(es))
+        del ec, es, plan
+        assert all(r() is None for r in ecr)
 
 
 def test_steady_state_makes_no_cyclic_garbage():
