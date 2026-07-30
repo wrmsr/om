@@ -4,6 +4,8 @@ import asyncio
 import typing as ta
 
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from ....streambufs.types import ByteStreamBuffer
+from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
@@ -103,7 +105,7 @@ class CaptureInputIoPipelineHandler(IoPipelineHandler):
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         self.inputs.append(msg)
-        if not isinstance(msg, bytes):
+        if not ByteStreamBuffers.can_bytes(msg):
             ctx.feed_in(msg)
 
 
@@ -439,10 +441,12 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
             self.assertIsNone(await driver.next(read=False))
 
             await driver._handle_command_read_completed(
-                PollAsyncioStreamIoPipelineDriver._ReadCompletedCommand([b'abc', b'']),
+                PollAsyncioStreamIoPipelineDriver._ReadCompletedCommand([b'ab', b'c', b'']),
             )
 
-            self.assertEqual(capture.inputs[1], b'abc')
+            self.assertIsInstance(capture.inputs[1], ByteStreamBuffer)
+            self.assertEqual([bytes(mv) for mv in capture.inputs[1].segments()], [b'ab', b'c'])
+            self.assertEqual(ByteStreamBuffers.to_bytes(capture.inputs[1], strict=True), b'abc')
             self.assertIsInstance(capture.inputs[2], IoPipelineFlowMessages.FlushInput)
             self.assertIsInstance(capture.inputs[3], IoPipelineMessages.FinalInput)
             self.assertFalse(driver._want_read)

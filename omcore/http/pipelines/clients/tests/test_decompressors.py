@@ -12,6 +12,7 @@ from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
+from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
 from ...compression.decompressors import IoPipelineHttpDecompressionConfig
@@ -105,7 +106,10 @@ class TestGzipDecompressorSimple(unittest.TestCase):
         results = ibq.drain()
         self.assertEqual(len(results), 3)
         self.assertIs(results[0], head)
-        self.assertEqual(check.isinstance(results[1], IoPipelineHttpResponseBodyData).data, raw_data)
+        self.assertEqual(
+            ByteStreamBuffers.to_bytes(check.isinstance(results[1], IoPipelineHttpResponseBodyData).data),
+            raw_data,
+        )
         self.assertIsInstance(results[2], IoPipelineHttpResponseEnd)
 
     def test_gzip_multiple_chunks(self):
@@ -148,7 +152,7 @@ class TestGzipDecompressorSimple(unittest.TestCase):
         self.assertIs(results[0], head)
 
         body_data_msgs = [m for m in results[1:-1] if isinstance(m, IoPipelineHttpResponseBodyData)]
-        decompressed = b''.join(m.data for m in body_data_msgs)
+        decompressed = b''.join(ByteStreamBuffers.to_bytes(m.data, strict=True) for m in body_data_msgs)
 
         self.assertEqual(decompressed, raw_data)
         self.assertIsInstance(results[-1], IoPipelineHttpResponseEnd)
@@ -179,7 +183,12 @@ class TestGzipDecompressorSimple(unittest.TestCase):
         messages = ibq.drain()
         for head, raw_data, end in expected:
             self.assertIs(messages.pop(0), head)
-            self.assertEqual(check.isinstance(messages.pop(0), IoPipelineHttpResponseBodyData).data, raw_data)
+            self.assertEqual(
+                ByteStreamBuffers.to_bytes(
+                    check.isinstance(messages.pop(0), IoPipelineHttpResponseBodyData).data,
+                ),
+                raw_data,
+            )
             self.assertIs(messages.pop(0), end)
         self.assertEqual(messages, [])
 
@@ -242,7 +251,10 @@ class TestGzipDecompressorFlow(unittest.TestCase):
         [*out_data, out_fi] = ibq.drain()
 
         # 3. Final Verification
-        full_output = b''.join(check.isinstance(m, IoPipelineHttpResponseBodyData).data for m in out_data)
+        full_output = b''.join(
+            ByteStreamBuffers.to_bytes(check.isinstance(m, IoPipelineHttpResponseBodyData).data, strict=True)
+            for m in out_data
+        )
         self.assertEqual(full_output, raw_data)
         self.assertIs(fi, out_fi)
 
@@ -277,7 +289,7 @@ class TestGzipDecompressorFlow(unittest.TestCase):
             self.assertIsInstance(delivered[1], IoPipelineFlowMessages.FlushInput)
 
             if isinstance(delivered[0], IoPipelineHttpResponseBodyData):
-                body_parts.append(delivered[0].data)
+                body_parts.append(ByteStreamBuffers.to_bytes(delivered[0].data, strict=True))
             else:
                 self.assertIs(delivered[0], end)
                 break
@@ -325,7 +337,7 @@ class TestGzipDecompressorFlow(unittest.TestCase):
             if isinstance(delivered[0], IoPipelineHttpResponseBodyData):
                 self.assertEqual(len(delivered), 2)
                 self.assertIsInstance(delivered[1], IoPipelineFlowMessages.FlushInput)
-                body_parts.append(delivered[0].data)
+                body_parts.append(ByteStreamBuffers.to_bytes(delivered[0].data, strict=True))
             else:
                 self.assertEqual(delivered, [end, IoPipelineFlowMessages.FlushInput(), final_input])
                 break

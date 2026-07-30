@@ -14,6 +14,7 @@ from ......io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from ......io.pipelines.flow.stub import StubIoPipelineFlowService
 from ......io.pipelines.flow.types import IoPipelineFlow
 from ......io.pipelines.flow.types import IoPipelineFlowMessages
+from ......io.streambufs.utils import ByteStreamBuffers
 from ......lite.abstract import Abstract
 from ......lite.bytes import BYTES_LIKE_TYPES
 from ......lite.bytes import BytesLike
@@ -223,7 +224,7 @@ class WsgiConnHandler:
                         out = out.msg
 
                         if isinstance(out, IoPipelineHttpRequestBodyData):
-                            return out.data
+                            return ByteStreamBuffers.to_bytes(out.data, strict=True)
 
                         elif isinstance(out, IoPipelineHttpRequestEnd):
                             return b''

@@ -3,9 +3,14 @@
 import os
 import typing as ta
 
+from ....io.pipelines.bytes.decoders import BufferedBytesToMessageDecoderIoPipelineHandler
 from ....io.pipelines.core import IoPipelineHandler
 from ....io.pipelines.core import IoPipelineHandlerContext
-from ....lite.bytes import bytes_like_to_bytes_strict
+from ....io.streambufs.direct import DirectByteStreamBufferView
+from ....io.streambufs.types import ByteStreamBuffer
+from ....io.streambufs.types import ByteStreamBufferView
+from ....io.streambufs.utils import ByteStreamBuffers
+from ....io.streambufs.utils import CanByteStreamBuffer
 from ....lite.namespaces import NamespaceClass
 from ..objects import IoPipelineHttpMessageBodyData
 from ..requests import IoPipelineHttpRequestBodyData
@@ -53,7 +58,7 @@ class IoPipelineWebsocketFrameEncoder(IoPipelineHandler):
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineWebsocketFrame):
-            ctx.feed_out(self._encode_frame(msg, mask=self._mask))
+            self._emit_frame(ctx, msg)
             return
 
         if isinstance(msg, IoPipelineWebsocketText):
@@ -62,7 +67,7 @@ class IoPipelineWebsocketFrameEncoder(IoPipelineHandler):
                 opcode=IoPipelineWebsocketOpcode.TEXT,
                 payload=msg.text.encode('utf-8'),
             )
-            ctx.feed_out(self._encode_frame(frame, mask=self._mask))
+            self._emit_frame(ctx, frame)
             return
 
         if isinstance(msg, IoPipelineWebsocketBinary):
@@ -71,7 +76,7 @@ class IoPipelineWebsocketFrameEncoder(IoPipelineHandler):
                 opcode=IoPipelineWebsocketOpcode.BINARY,
                 payload=msg.data,
             )
-            ctx.feed_out(self._encode_frame(frame, mask=self._mask))
+            self._emit_frame(ctx, frame)
             return
 
         if isinstance(msg, IoPipelineWebsocketPing):
@@ -80,7 +85,7 @@ class IoPipelineWebsocketFrameEncoder(IoPipelineHandler):
                 opcode=IoPipelineWebsocketOpcode.PING,
                 payload=msg.data,
             )
-            ctx.feed_out(self._encode_frame(frame, mask=self._mask))
+            self._emit_frame(ctx, frame)
             return
 
         if isinstance(msg, IoPipelineWebsocketPong):
@@ -89,7 +94,7 @@ class IoPipelineWebsocketFrameEncoder(IoPipelineHandler):
                 opcode=IoPipelineWebsocketOpcode.PONG,
                 payload=msg.data,
             )
-            ctx.feed_out(self._encode_frame(frame, mask=self._mask))
+            self._emit_frame(ctx, frame)
             return
 
         if isinstance(msg, IoPipelineWebsocketClose):
@@ -103,12 +108,23 @@ class IoPipelineWebsocketFrameEncoder(IoPipelineHandler):
                 opcode=IoPipelineWebsocketOpcode.CLOSE,
                 payload=payload,
             )
-            ctx.feed_out(self._encode_frame(frame, mask=self._mask))
+            self._emit_frame(ctx, frame)
             return
 
         ctx.feed_out(msg)
 
-    def _encode_frame(self, frame: IoPipelineWebsocketFrame, *, mask: bool) -> bytes:
+    def _emit_frame(self, ctx: IoPipelineHandlerContext, frame: IoPipelineWebsocketFrame) -> None:
+        head, payload = self._encode_frame(frame, mask=self._mask)
+        ctx.feed_out(head)
+        if len(payload):
+            ctx.feed_out(payload)
+
+    def _encode_frame(
+            self,
+            frame: IoPipelineWebsocketFrame,
+            *,
+            mask: bool,
+    ) -> ta.Tuple[ByteStreamBufferView, CanByteStreamBuffer]:
         b0 = (
             (0x80 if frame.fin else 0x00) |
             (0x40 if frame.rsv1 else 0) |
@@ -136,9 +152,12 @@ class IoPipelineWebsocketFrameEncoder(IoPipelineHandler):
         if mask:
             key = os.urandom(4)
             h.extend(key)
-            payload = IoPipelineWebsocketFrames.mask_xor(payload, key)
+            payload = IoPipelineWebsocketFrames.mask_xor(
+                ByteStreamBuffers.to_bytes(payload, strict=True),
+                key,
+            )
 
-        return bytes(h) + payload
+        return DirectByteStreamBufferView(bytes(h)), payload
 
 
 class IoPipelineWebsocketClientFrameEncoder(IoPipelineWebsocketFrameEncoder):
@@ -154,7 +173,7 @@ class IoPipelineWebsocketServerFrameEncoder(IoPipelineWebsocketFrameEncoder):
 ##
 
 
-class IoPipelineWebsocketFrameDecoder(IoPipelineHandler):
+class IoPipelineWebsocketFrameDecoder(BufferedBytesToMessageDecoderIoPipelineHandler):
     """
     Decodes inbound bytes into WsFrame objects. If expect_masked is True/False, validates the MASK bit accordingly; if
     None, accepts either.
@@ -171,39 +190,34 @@ class IoPipelineWebsocketFrameDecoder(IoPipelineHandler):
         self._expect_mask = expect_masked
         self._unwrap_message_body_cls = unwrap_message_body_cls
 
-        self._buf = bytearray()
-
-    def _unwrap_message_bytes(self, msg: ta.Any) -> ta.Optional[bytes]:
-        if isinstance(msg, (bytes, bytearray, memoryview)):
-            return bytes(msg)
-
-        if (mbc := self._unwrap_message_body_cls) is not None and isinstance(msg, mbc):
-            return bytes_like_to_bytes_strict(msg.data)
-
-        return None
-
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if (bs := self._unwrap_message_bytes(msg)) is not None:
-            self._buf.extend(bs)
-            self._drain(ctx)
+        if (mbc := self._unwrap_message_body_cls) is not None and isinstance(msg, mbc):
+            self._on_bytes_input(ctx, msg.data)
             return
 
-        ctx.feed_in(msg)
+        super().inbound(ctx, msg)
 
-    def _drain(self, ctx: IoPipelineHandlerContext) -> None:
+    def _decode_buffer(
+            self,
+            ctx: IoPipelineHandlerContext,
+            buf: ByteStreamBuffer,
+            out: ta.List[ta.Any],
+            *,
+            final: bool = False,
+    ) -> None:
         while True:
-            frm = self._try_parse_one()
+            frm = self._try_parse_one(buf)
             if frm is None:
-                break
-            ctx.feed_in(frm)
+                return
+            out.append(frm)
 
-    def _try_parse_one(self) -> ta.Optional[IoPipelineWebsocketFrame]:
-        b = self._buf
-        if len(b) < 2:
+    def _try_parse_one(self, buf: ByteStreamBuffer) -> ta.Optional[IoPipelineWebsocketFrame]:
+        if len(buf) < 2:
             return None
 
-        b0 = b[0]
-        b1 = b[1]
+        head = buf.coalesce(2)
+        b0 = head[0]
+        b1 = head[1]
 
         fin = bool(b0 & 0x80)
         rsv1 = bool(b0 & 0x40)
@@ -216,28 +230,31 @@ class IoPipelineWebsocketFrameDecoder(IoPipelineHandler):
         o = 2
 
         if ln == 126:
-            if len(b) < o + 2:
+            if len(buf) < o + 2:
                 return None
-            ln = int.from_bytes(b[o:o + 2], 'big')
+            head = buf.coalesce(o + 2)
+            ln = int.from_bytes(head[o:o + 2], 'big')
             o += 2
         elif ln == 127:
-            if len(b) < o + 8:
+            if len(buf) < o + 8:
                 return None
-            ln = int.from_bytes(b[o:o + 8], 'big')
+            head = buf.coalesce(o + 8)
+            ln = int.from_bytes(head[o:o + 8], 'big')
             o += 8
 
         key = None
         if masked:
-            if len(b) < o + 4:
+            if len(buf) < o + 4:
                 return None
-            key = bytes(b[o:o + 4])
+            head = buf.coalesce(o + 4)
+            key = bytes(head[o:o + 4])
             o += 4
 
-        if len(b) < o + ln:
+        if len(buf) < o + ln:
             return None
 
-        payload = bytes(b[o:o + ln])
-        del b[:o + ln]
+        buf.advance(o)
+        payload: CanByteStreamBuffer = buf.split_to(ln)
 
         if self._expect_mask is True and not masked:
             raise ValueError('expected masked websocket frame')
@@ -246,7 +263,10 @@ class IoPipelineWebsocketFrameDecoder(IoPipelineHandler):
             pass
 
         if masked and key is not None:
-            payload = IoPipelineWebsocketFrames.mask_xor(payload, key)
+            payload = DirectByteStreamBufferView(IoPipelineWebsocketFrames.mask_xor(
+                ByteStreamBuffers.to_bytes(payload, strict=True),
+                key,
+            ))
 
         # Basic control-frame checks
         if opcode in (

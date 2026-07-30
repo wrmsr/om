@@ -13,6 +13,7 @@ from ......io.pipelines.core import IoPipelineHandler
 from ......io.pipelines.core import IoPipelineHandlerContext
 from ......io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from ......io.pipelines.flow.stub import StubIoPipelineFlowService
+from ......io.streambufs.utils import ByteStreamBuffers
 from ....requests import IoPipelineHttpRequestAborted
 from ....requests import IoPipelineHttpRequestBodyData
 from ....requests import IoPipelineHttpRequestEnd
@@ -61,7 +62,8 @@ class Sha1Handler(IoPipelineHandler):
 
         if isinstance(msg, IoPipelineHttpRequestBodyData):
             if self._active and self._h is not None:
-                self._h.update(msg.data)
+                for mv in ByteStreamBuffers.iter_segments(msg.data):
+                    self._h.update(mv)
 
             return
 

@@ -15,6 +15,7 @@ from ......io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from ......io.pipelines.flow.stub import StubIoPipelineFlowService
 from ......io.pipelines.flow.types import IoPipelineFlow
 from ......io.pipelines.flow.types import IoPipelineFlowMessages
+from ......io.streambufs.utils import ByteStreamBuffers
 from ......lite.bytes import BYTES_LIKE_TYPES
 from ......lite.bytes import BytesLike
 from ......lite.check import check
@@ -62,7 +63,7 @@ class StreamWsgiInnerHandler(IoPipelineHandler):
                     msg = iq.popleft()
 
                     if isinstance(msg, IoPipelineHttpRequestBodyData):
-                        return msg.data
+                        return ByteStreamBuffers.to_bytes(msg.data, strict=True)
                     elif isinstance(msg, IoPipelineHttpRequestEnd):
                         return b''
                     else:
@@ -76,7 +77,7 @@ class StreamWsgiInnerHandler(IoPipelineHandler):
             msg = iq.popleft()
 
             if isinstance(msg, IoPipelineHttpRequestBodyData):
-                return msg.data
+                return ByteStreamBuffers.to_bytes(msg.data, strict=True)
             elif isinstance(msg, IoPipelineHttpRequestEnd):
                 return b''
             else:

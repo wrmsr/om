@@ -1,4 +1,4 @@
-# ruff: noqa: UP006
+# ruff: noqa: SLF001 UP006
 # @om-lite
 import dataclasses as dc
 import typing as ta
@@ -6,7 +6,10 @@ import unittest
 
 from .....lite.bytes import Bytes
 from .....lite.check import check
+from ....streambufs.direct import DirectByteStreamBuffer
+from ....streambufs.segmented import SegmentedByteStreamBuffer
 from ....streambufs.types import ByteStreamBuffer
+from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
 from ...core import IoPipelineMessages
 from ...core import IoPipelineService
@@ -129,3 +132,56 @@ def test_b2md_nar():
 
     ch.feed_in(IoPipelineMessages.FinalInput())
     print(f'{ch.output.drain()=} {ibq.drain()=}')
+
+
+class TestBufferedBytesToMessageDecoderIoPipelineHandler(unittest.TestCase):
+    def test_adopts_mutable_input_buffer_and_retains_remainder(self) -> None:
+        decoder = ByteTripletsToMessageDecoder()
+        ch = IoPipeline.new([
+            decoder,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        buf = SegmentedByteStreamBuffer(chunk_size=2)
+        buf.write(b'ab')
+        buf.write(b'cd')
+        ch.feed_in(buf)
+
+        self.assertIs(decoder._buf, buf)
+        self.assertEqual(len(buf), 1)
+        self.assertEqual(ibq.drain(), [DumbBytesMessage(b'abc')])
+
+        ch.feed_in(DirectByteStreamBuffer(b'ef'))
+
+        self.assertIsNone(decoder._buf)
+        self.assertEqual(ibq.drain(), [DumbBytesMessage(b'def')])
+
+    def test_consumes_read_only_input_without_cumulation_copy(self) -> None:
+        decoder = ByteTripletsToMessageDecoder()
+        ch = IoPipeline.new([
+            decoder,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        buf = DirectByteStreamBuffer(b'abc')
+        ch.feed_in(buf)
+
+        self.assertEqual(len(buf), 0)
+        self.assertIsNone(decoder._buf)
+        self.assertEqual(ibq.drain(), [DumbBytesMessage(b'abc')])
+
+    def test_copies_only_read_only_input_remainder(self) -> None:
+        decoder = ByteTripletsToMessageDecoder()
+        ch = IoPipeline.new([
+            decoder,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        buf = DirectByteStreamBuffer(b'abcd')
+        ch.feed_in(buf)
+
+        self.assertEqual(len(buf), 1)
+        self.assertIsNotNone(decoder._buf)
+        self.assertIsNot(decoder._buf, buf)
+        self.assertEqual(ByteStreamBuffers.to_bytes(check.not_none(decoder._buf)), b'd')
+        self.assertEqual(ibq.drain(), [DumbBytesMessage(b'abc')])

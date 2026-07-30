@@ -64,6 +64,7 @@ class TestDirectByteStreamBuffer(unittest.TestCase):
         buf = DirectByteStreamBuffer(b'hello world')
         view = buf.split_to(5)
         self.assertEqual(view.tobytes(), b'hello')
+        self.assertEqual(bytes(view), b'hello')
         self.assertEqual(len(buf), 6)
         self.assertEqual(bytes(buf.peek()), b' world')
 

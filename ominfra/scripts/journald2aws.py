@@ -80,7 +80,7 @@ def __om_amalg__():  # noqa
             dict(path='../../../../omcore/os/pidfiles/pidfile.py', sha1='1082f109ec1272d7c281707b9620ae6a9a241a9f'),
             dict(path='../../../../omcore/subprocesses/utils.py', sha1='54f0e245f69ed3d4e64f3b6bdac7bdc6e28cf9a4'),
             dict(path='../../../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
-            dict(path='../../../../omcore/io/streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
+            dict(path='../../../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../../../omcore/lite/runtime.py', sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70'),
@@ -3527,6 +3527,12 @@ class ByteStreamBufferView(ByteStreamBufferLike, Abstract):
     Implementations may be backed by one or many `memoryview` segments; the semantics are defined as if all readable
     bytes were concatenated in order.
     """
+
+    def __bytes__(self) -> bytes:
+        b = self.tobytes()
+        if type(b) is bytes:
+            return b
+        return bytes(b)
 
     @abc.abstractmethod
     def tobytes(self) -> Bytes:

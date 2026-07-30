@@ -10,6 +10,7 @@ import weakref
 from .....lite.check import check
 from ....fdio.manager import FdioManager
 from ....fdio.pollers import SelectFdioPoller
+from ....streambufs.types import ByteStreamBuffer
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
@@ -58,7 +59,7 @@ class FailingRecvSocket(ScriptedSendSocket):
 
         self._exc = exc
 
-    def recv(self, size: int) -> bytes:
+    def recv_into(self, buffer: ta.Any) -> int:
         raise self._exc
 
 
@@ -504,9 +505,10 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
 
                 messages = driver._do_read()
 
-                self.assertEqual(messages[:2], [b'ab', b'c'])
-                self.assertIsInstance(messages[2], IoPipelineFlowMessages.FlushInput)
-                self.assertIsInstance(messages[3], IoPipelineMessages.FinalInput)
+                self.assertIsInstance(messages[0], ByteStreamBuffer)
+                self.assertEqual([bytes(mv) for mv in messages[0].segments()], [b'ab', b'c'])
+                self.assertIsInstance(messages[1], IoPipelineFlowMessages.FlushInput)
+                self.assertIsInstance(messages[2], IoPipelineMessages.FinalInput)
                 self.assertFalse(driver._want_read)
             finally:
                 driver.close()

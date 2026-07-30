@@ -115,9 +115,7 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
         # synchronously re-announces writability while receiving a segment.
         self._buf = None
 
-        # Collect all buffered segments and feed them out
-        for seg in buf.segments():
-            ctx.feed_out(seg)
+        ctx.feed_out(buf.split_to(len(buf)))
 
         self._update_writability(ctx)
 

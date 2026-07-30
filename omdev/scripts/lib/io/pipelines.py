@@ -47,7 +47,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
             dict(path='core.py', sha1='053f27036671acaa20fb03307f9a29117d902853'),
-            dict(path='../streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
+            dict(path='../streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
@@ -72,9 +72,9 @@ def __om_amalg__():  # noqa
             dict(path='../streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='../../logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
-            dict(path='bytes/decoders.py', sha1='ea7531826ca4a4504b306533e399c4b795429c88'),
+            dict(path='bytes/decoders.py', sha1='63326429eebabf82ba525a885c49f4f8941eb0c4'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='fbd10c5c76e3806ef5db2a41a43c4441e19b4109'),
+            dict(path='drivers/asyncio.py', sha1='f8eaa5cb1154e763c757e8e768da8908061b228a'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -3437,6 +3437,12 @@ class ByteStreamBufferView(ByteStreamBufferLike, Abstract):
     Implementations may be backed by one or many `memoryview` segments; the semantics are defined as if all readable
     bytes were concatenated in order.
     """
+
+    def __bytes__(self) -> bytes:
+        b = self.tobytes()
+        if type(b) is bytes:
+            return b
+        return bytes(b)
 
     @abc.abstractmethod
     def tobytes(self) -> Bytes:
@@ -8669,13 +8675,41 @@ class BufferedBytesToMessageDecoderIoPipelineHandler(
 
         check.arg(len(data) > 0)
 
-        if (buf := self._buf) is None:
+        if (max_size := self._max_buffer_size) is not None:
+            buffered = len(self._buf) if self._buf is not None else 0
+            if buffered + len(data) > max_size:
+                raise BufferTooLargeByteStreamBufferError('buffer exceeded max_size')
+
+        write_data = True
+        if (buf := self._buf) is None and isinstance(data, ByteStreamBuffer):
+            if isinstance(data, MutableByteStreamBuffer):
+                buf = data
+                if self._scanning_buffer and not isinstance(buf, ScanningByteStreamBuffer):
+                    buf = ScanningByteStreamBuffer(buf)
+                self._buf = buf
+                write_data = False
+
+            else:
+                self._decode_buffer(ctx, data, out)
+                if not len(data):
+                    return
+
+                buf = self._buf = self._new_buf()
+                for seg in data.segments():
+                    buf.write(seg)
+
+                return
+
+        elif buf is None:
             buf = self._buf = self._new_buf()
 
-        for seg in ByteStreamBuffers.iter_segments(data):
-            buf.write(seg)
+        if write_data:
+            for seg in ByteStreamBuffers.iter_segments(data):
+                buf.write(seg)
 
         self._decode_buffer(ctx, buf, out, final=final)
+        if not len(buf):
+            self._buf = None
 
     #
 
@@ -9088,7 +9122,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
     async def _handle_command_read_completed(self, cmd: _ReadCompletedCommand) -> None:
         eof = False
-        had_data = False
+        data: ta.List[bytes] = []
 
         in_msgs: ta.List[ta.Any] = []
 
@@ -9097,10 +9131,18 @@ class PollAsyncioStreamIoPipelineDriver:
             if not b:
                 eof = True
             else:
-                in_msgs.append(b)
-                had_data = True
+                data.append(b)
 
-        if had_data and self._flow is not None:
+        if data:
+            if len(data) == 1:
+                in_msgs.append(DirectByteStreamBuffer(data[0]))
+            else:
+                buf = SegmentedByteStreamBuffer()
+                for b in data:
+                    buf.write(b)
+                in_msgs.append(buf)
+
+        if data and self._flow is not None:
             in_msgs.append(IoPipelineFlowMessages.FlushInput())
 
         if self._flow is not None:

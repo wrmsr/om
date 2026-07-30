@@ -7,6 +7,8 @@ import socket
 import typing as ta
 
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from ....streambufs.types import ByteStreamBuffer
+from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
@@ -79,7 +81,9 @@ class _ConformanceIoPipelineHandler(IoPipelineHandler):
                 ctx.feed_out(self._output_after_final_input)
             ctx.feed_out(_ObservedInput(msg))
         elif not isinstance(msg, (IoPipelineMessages.InitialInput, IoPipelineFlowMessages.FlushInput)):
-            ctx.feed_out(_ObservedInput(msg))
+            ctx.feed_out(_ObservedInput(
+                ByteStreamBuffers.to_bytes(msg, strict=True) if ByteStreamBuffers.can_bytes(msg) else msg,
+            ))
             return
         ctx.feed_in(msg)
 
@@ -588,7 +592,8 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
             self.assertIsInstance(observed, _ObservedInput)
             self.assertEqual(observed.msg, b'input')
             self.assertIsInstance(adapter.handler.inputs[0], IoPipelineMessages.InitialInput)
-            self.assertEqual(adapter.handler.inputs[1], b'input')
+            self.assertIsInstance(adapter.handler.inputs[1], ByteStreamBuffer)
+            self.assertEqual(ByteStreamBuffers.to_bytes(adapter.handler.inputs[1], strict=True), b'input')
 
         await self._with_adapters(run)
 
@@ -613,7 +618,8 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
             self.assertIsNone(await adapter.step_nonblocking())
 
             self.assertEqual(
-                [msg for msg in adapter.handler.inputs if isinstance(msg, bytes)],
+                [ByteStreamBuffers.to_bytes(msg, strict=True)
+                 for msg in adapter.handler.inputs if ByteStreamBuffers.can_bytes(msg)],
                 [b'first', b'second'],
             )
             self.assertEqual(
@@ -632,8 +638,10 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
             while await adapter.step_nonblocking() is not None:
                 pass
 
-            input_bytes = [msg for msg in adapter.handler.inputs if isinstance(msg, bytes)]
-            self.assertEqual(b''.join(input_bytes), b'abcd')
+            input_buffers = [msg for msg in adapter.handler.inputs if ByteStreamBuffers.can_bytes(msg)]
+            self.assertEqual(len(input_buffers), 1)
+            self.assertIsInstance(input_buffers[0], ByteStreamBuffer)
+            self.assertEqual(ByteStreamBuffers.to_bytes(input_buffers[0], strict=True), b'abcd')
             self.assertEqual(
                 sum(isinstance(msg, IoPipelineFlowMessages.FlushInput) for msg in adapter.handler.inputs),
                 1,
@@ -657,7 +665,8 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
             self.assertIsNone(await adapter.step_nonblocking())
 
             self.assertEqual(
-                [msg for msg in adapter.handler.inputs if isinstance(msg, bytes)],
+                [ByteStreamBuffers.to_bytes(msg, strict=True)
+                 for msg in adapter.handler.inputs if ByteStreamBuffers.can_bytes(msg)],
                 [b'first', b'second'],
             )
 

@@ -9,8 +9,8 @@ from ...io.pipelines.core import IoPipelineMessages
 from ...io.pipelines.flow.types import IoPipelineFlow
 from ...io.pipelines.flow.types import IoPipelineFlowMessages
 from ...io.pipelines.handlers.decoders import MessageToMessageDecoderIoPipelineHandler
+from ...io.streambufs.utils import CanByteStreamBuffer
 from ...lite.abstract import Abstract
-from ...lite.bytes import BytesLike
 from .objects import IoPipelineHttpMessageObjects
 
 
@@ -51,7 +51,7 @@ class IoPipelineHttpObjectChunker(
         self._write_low_watermark = write_low_watermark
 
         self._active = False
-        self._buf: ta.List[BytesLike] = []
+        self._buf: ta.List[CanByteStreamBuffer] = []
         self._buf_size = 0
 
         self._downstream_writable = True
@@ -118,7 +118,7 @@ class IoPipelineHttpObjectChunker(
             ctx.feed_out(self._make_body_data(data))
         ctx.feed_out(self._make_end_chunk())
 
-    def _buffer_data(self, ctx: IoPipelineHandlerContext, data: BytesLike) -> None:
+    def _buffer_data(self, ctx: IoPipelineHandlerContext, data: CanByteStreamBuffer) -> None:
         dl = len(data)
 
         if (mcs := self._max_chunk_size) is not None and (self._buf_size + dl) > mcs:

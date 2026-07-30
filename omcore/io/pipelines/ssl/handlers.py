@@ -8,6 +8,7 @@ import ssl
 import typing as ta
 
 from ....lite.check import check
+from ...streambufs.segmented import SegmentedByteStreamBufferView
 from ...streambufs.utils import ByteStreamBuffers
 from ..bytes.buffering import InboundBytesBufferingIoPipelineHandler
 from ..bytes.buffering import OutboundBytesBufferingIoPipelineHandler
@@ -730,8 +731,8 @@ class SslIoPipelineHandler(
         fc = self._fc(ctx)
 
         # 1) Ciphertext.
-        for b in out_chunks:
-            ctx.feed_out(b)
+        if out_chunks:
+            ctx.feed_out(SegmentedByteStreamBufferView([memoryview(b) for b in out_chunks]))
 
         # 2) FlushOutput: forward the app's flush once its bytes (if any) have actually gone out. If downstream
         # backpressure interrupts a write, emit progress flushes for ciphertext already produced while retaining the
@@ -776,9 +777,9 @@ class SslIoPipelineHandler(
             ctx.feed_out(fo)
 
         # 4) Plaintext.
-        for b in in_chunks:
+        if in_chunks:
             self._delivered_plaintext = True
-            ctx.feed_in(b)
+            ctx.feed_in(SegmentedByteStreamBufferView([memoryview(b) for b in in_chunks]))
 
         # 5) Synthetic FinalInput, exactly once. An EOF also retires any outstanding manual read token - but
         # deliberately does not count as 'delivered' for FlushInput purposes.

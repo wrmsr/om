@@ -17,6 +17,7 @@ from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlow
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.ssl.handlers import SslIoPipelineHandler
+from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from .....secrets import tempssl
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
@@ -156,8 +157,9 @@ class _RawTlsHttpClientIoPipelineHandler(IoPipelineHandler):
             IoPipelineFlow.maybe_flush_output(ctx)
             IoPipelineFlow.maybe_ready_for_input(ctx)
 
-        elif isinstance(msg, (bytes, bytearray, memoryview)):
-            self.response.extend(msg)
+        elif ByteStreamBuffers.can_bytes(msg):
+            for mv in ByteStreamBuffers.iter_segments(msg):
+                self.response.extend(mv)
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushInput):
             self.input_flushes += 1

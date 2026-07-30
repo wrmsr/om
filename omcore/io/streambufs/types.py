@@ -81,6 +81,12 @@ class ByteStreamBufferView(ByteStreamBufferLike, Abstract):
     bytes were concatenated in order.
     """
 
+    def __bytes__(self) -> bytes:
+        b = self.tobytes()
+        if type(b) is bytes:
+            return b
+        return bytes(b)
+
     @abc.abstractmethod
     def tobytes(self) -> Bytes:
         """

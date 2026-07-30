@@ -4,6 +4,8 @@ import dataclasses as dc
 import typing as ta
 import unittest
 
+from ....streambufs.types import ByteStreamBuffer
+from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
@@ -58,8 +60,8 @@ class CaptureIoPipelineHandler(IoPipelineHandler):
         self.inputs.append(msg)
         if isinstance(msg, (IoPipelineFlowMessages.PauseOutput, IoPipelineFlowMessages.ReadyForOutput)):
             self.output_writability.append(msg)
-        elif isinstance(msg, (bytes, bytearray, memoryview)):
-            ctx.feed_out(Observed(bytes(msg)))
+        elif ByteStreamBuffers.can_bytes(msg):
+            ctx.feed_out(Observed(ByteStreamBuffers.to_bytes(msg, strict=True)))
             return
         ctx.feed_in(msg)
 
@@ -91,12 +93,17 @@ class TestPureIoPipelineDriver(unittest.TestCase):
             driver.feed_input(b'abcd')
 
             self.assertIsNone(driver.next(read=False))
-            self.assertEqual(driver.next(read=True, raise_on_stall=False), Observed(b'ab'))
-            self.assertEqual(driver.next(read=True, raise_on_stall=False), Observed(b'cd'))
+            self.assertEqual(driver.next(read=True, raise_on_stall=False), Observed(b'abcd'))
             self.assertIsNone(driver.next(read=False))
 
             self.assertIsInstance(capture.inputs[0], IoPipelineMessages.InitialInput)
-            self.assertEqual(capture.inputs[1:], [b'ab', b'cd'])
+            input_buffers = [msg for msg in capture.inputs if ByteStreamBuffers.can_bytes(msg)]
+            self.assertEqual(len(input_buffers), 1)
+            self.assertTrue(all(isinstance(msg, ByteStreamBuffer) for msg in input_buffers))
+            self.assertEqual(
+                [bytes(mv) for mv in input_buffers[0].segments()],
+                [b'ab', b'cd'],
+            )
         finally:
             driver.close()
 
@@ -131,7 +138,12 @@ class TestPureIoPipelineDriver(unittest.TestCase):
 
                     messages = driver._do_read()
 
-                    self.assertEqual(messages[:-1], expected)
+                    self.assertEqual(len(messages), 2)
+                    self.assertIsInstance(messages[0], ByteStreamBuffer)
+                    self.assertEqual(
+                        [bytes(mv) for mv in messages[0].segments()],
+                        expected,
+                    )
                     self.assertIsInstance(messages[-1], IoPipelineFlowMessages.FlushInput)
                     self.assertFalse(driver.wants_input)
                 finally:
@@ -154,9 +166,10 @@ class TestPureIoPipelineDriver(unittest.TestCase):
 
             messages = driver._do_read()
 
-            self.assertEqual(messages[:2], [b'ab', b'c'])
-            self.assertIsInstance(messages[2], IoPipelineFlowMessages.FlushInput)
-            self.assertIsInstance(messages[3], IoPipelineMessages.FinalInput)
+            self.assertIsInstance(messages[0], ByteStreamBuffer)
+            self.assertEqual([bytes(mv) for mv in messages[0].segments()], [b'ab', b'c'])
+            self.assertIsInstance(messages[1], IoPipelineFlowMessages.FlushInput)
+            self.assertIsInstance(messages[2], IoPipelineMessages.FinalInput)
             self.assertFalse(driver.wants_input)
         finally:
             driver.close()

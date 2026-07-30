@@ -3,8 +3,8 @@
 import dataclasses as dc
 import typing as ta
 
+from ...io.streambufs.utils import CanByteStreamBuffer
 from ...lite.abstract import Abstract
-from ...lite.bytes import BytesLike
 from ...lite.check import check
 from ...lite.dataclasses import install_dataclass_kw_only_init
 from ..headers import CanHttpHeaders
@@ -55,7 +55,7 @@ class IoPipelineHttpRequestHead(IoPipelineHttpMessageHead, IoPipelineHttpRequest
 @dc.dataclass(frozen=True)
 class FullIoPipelineHttpRequest(FullIoPipelineHttpMessage, IoPipelineHttpRequestObject):
     head: IoPipelineHttpRequestHead
-    body: BytesLike
+    body: CanByteStreamBuffer
 
     @classmethod
     def simple(
@@ -175,7 +175,7 @@ class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
 
     _full_type: ta.Final = FullIoPipelineHttpRequest
 
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: BytesLike) -> FullIoPipelineHttpRequest:
+    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpRequest:
         return FullIoPipelineHttpRequest(check.isinstance(head, IoPipelineHttpRequestHead), body)
 
     #
@@ -210,7 +210,7 @@ class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
 
     _body_data_type: ta.Final = IoPipelineHttpRequestBodyData
 
-    def _make_body_data(self, data: BytesLike) -> IoPipelineHttpRequestBodyData:
+    def _make_body_data(self, data: CanByteStreamBuffer) -> IoPipelineHttpRequestBodyData:
         return IoPipelineHttpRequestBodyData(data)
 
     #

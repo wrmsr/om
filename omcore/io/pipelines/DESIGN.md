@@ -281,6 +281,19 @@ A conforming transport driver must:
 9. Integrate scheduler deadlines without polling when none exist.
 10. Destroy the pipeline and fail pending completables on abort or failure.
 
+The generic core remains completely bytes-agnostic. At a byte transport boundary, however, the reference drivers
+deliver each bounded read batch as one `ByteStreamBuffer` followed by one `FlushInput` when flow control is installed.
+The sync and fdio drivers fill a mutable segmented buffer directly with `recv_into`; asyncio wraps the `bytes` returned
+by its public stream API; the pure driver preserves the same observable batching contract.
+
+Byte buffers are consumption-oriented messages with transfer ownership. Once a producer feeds a `ByteStreamBuffer`
+into a pipeline, it must not advance, mutate, refill, or recycle that object. A byte decoder may adopt the buffer and
+consume it directly rather than copying it into another accumulator. `split_to()` transfers a stable read-only view of
+the selected segments to the produced frame or body message, so later consumption of the source buffer does not change
+the view. Consumers should use `peek()` or `segments()` when their API supports scattered input, and deliberately use
+`tobytes()` / `ByteStreamBuffers.to_bytes()` at boundaries which require owned contiguous bytes. Ordinary `bytes`,
+`bytearray`, and `memoryview` messages remain accepted by the byte toolbox for simple and contrived uses.
+
 The shared driver lifecycle is:
 
 ```text

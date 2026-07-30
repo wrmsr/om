@@ -19,7 +19,6 @@ from ...io.streambufs.types import MutableByteStreamBuffer
 from ...io.streambufs.utils import ByteStreamBuffers
 from ...io.streambufs.utils import CanByteStreamBuffer
 from ...lite.abstract import Abstract
-from ...lite.bytes import BytesLike
 from .bodymodes import IoPipelineHttpBodyMode
 from .bodymodes import IoPipelineHttpBodyModeError
 from .objects import IoPipelineHttpMessageHead
@@ -257,7 +256,7 @@ class IoPipelineHttpObjectAggregator(
             elif isinstance(msg, self._a._end_type):  # noqa
                 body: CanByteStreamBuffer
                 if (buf := self._buf) is not None:
-                    body = buf.coalesce(len(buf))
+                    body = buf.split_to(len(buf))
                 else:
                     body = b''
 
@@ -278,7 +277,7 @@ class IoPipelineHttpObjectAggregator(
                 self,
                 a: 'IoPipelineHttpObjectAggregator',
                 head: IoPipelineHttpMessageHead,
-                body: BytesLike,
+                body: CanByteStreamBuffer,
         ) -> None:
             super().__init__(a)
 

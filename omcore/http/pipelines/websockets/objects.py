@@ -4,6 +4,7 @@ import dataclasses as dc
 import enum
 import typing as ta
 
+from ....io.streambufs.utils import CanByteStreamBuffer
 from ....lite.abstract import Abstract
 from ....lite.check import check
 
@@ -31,7 +32,7 @@ class IoPipelineWebsocketFrame:
     fin: bool
     opcode: IoPipelineWebsocketOpcode
 
-    payload: bytes
+    payload: CanByteStreamBuffer
 
     rsv1: bool = False
     rsv2: bool = False
@@ -64,13 +65,13 @@ class IoPipelineWebsocketText(IoPipelineWebsocketObject):
 @ta.final
 @dc.dataclass(frozen=True)
 class IoPipelineWebsocketBinary(IoPipelineWebsocketObject):
-    data: bytes
+    data: CanByteStreamBuffer
 
 
 @ta.final
 @dc.dataclass(frozen=True)
 class IoPipelineWebsocketPing(IoPipelineWebsocketObject):
-    data: bytes = b''
+    data: CanByteStreamBuffer = b''
 
     def __post_init__(self) -> None:
         check.arg(len(self.data) <= 125)
@@ -79,7 +80,7 @@ class IoPipelineWebsocketPing(IoPipelineWebsocketObject):
 @ta.final
 @dc.dataclass(frozen=True)
 class IoPipelineWebsocketPong(IoPipelineWebsocketObject):
-    data: bytes = b''
+    data: CanByteStreamBuffer = b''
 
     def __post_init__(self) -> None:
         check.arg(len(self.data) <= 125)

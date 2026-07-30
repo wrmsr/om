@@ -120,7 +120,7 @@ class TestPipelineHttpRequestAggregatorDecoder(unittest.TestCase):
         req = out[0]
         self.assertIsInstance(req, FullIoPipelineHttpRequest)
         self.assertEqual(req.head.method, 'POST')
-        self.assertEqual(req.body, b'hello world')
+        self.assertEqual(ByteStreamBuffers.to_bytes(req.body), b'hello world')
 
     def test_request_with_body_multiple_chunks(self) -> None:
         """Test request body received in multiple chunks."""
@@ -150,7 +150,7 @@ class TestPipelineHttpRequestAggregatorDecoder(unittest.TestCase):
         self.assertEqual(len(out), 1)  # Complete!
 
         req = out[0]
-        self.assertEqual(req.body, b'helloworld')
+        self.assertEqual(ByteStreamBuffers.to_bytes(req.body), b'helloworld')
 
     def test_eof_before_body_complete(self) -> None:
         """Test EOF before body complete raises error."""
@@ -270,7 +270,7 @@ class TestPipelineHttpRequestObjectDecoder(unittest.TestCase):
         ]:
             self.assertIsInstance(co, IoPipelineHttpRequestChunk)
             self.assertIsInstance(cdo, IoPipelineHttpRequestBodyData)
-            self.assertEqual(cdo.data, xd)
+            self.assertEqual(ByteStreamBuffers.to_bytes(cdo.data), xd)
             self.assertIsInstance(eco, IoPipelineHttpRequestEndChunk)
         self.assertIsInstance(last_chunk, IoPipelineHttpRequestLastChunk)
         self.assertIsInstance(trailers, IoPipelineHttpRequestChunkedTrailers)

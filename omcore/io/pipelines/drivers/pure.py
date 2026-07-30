@@ -6,6 +6,7 @@ import math
 import typing as ta
 
 from ....lite.check import check
+from ...streambufs.segmented import SegmentedByteStreamBuffer
 from ...streambufs.utils import ByteStreamBuffers
 from ..core import IoPipeline
 from ..core import IoPipelineMessages
@@ -249,6 +250,7 @@ class PureIoPipelineDriver:
             return []
 
         out: ta.List[ta.Any] = []
+        buf: ta.Optional[SegmentedByteStreamBuffer] = None
         remaining = self._config.read_batch_max_bytes
         eof = False
         for _ in range(self._config.read_batch_max_reads):
@@ -257,19 +259,27 @@ class PureIoPipelineDriver:
                 eof = True
                 break
 
-            if isinstance(msg, (bytes, bytearray, memoryview)):
-                mv = memoryview(msg)
+            if ByteStreamBuffers.can_bytes(msg):
+                mv = memoryview(ByteStreamBuffers.to_bytes(msg, strict=True))
                 size = min(len(mv), self._config.read_chunk_size, remaining)
                 if size < len(mv):
                     self._transport_input_q.appendleft(mv[size:])
-                    msg = bytes(mv[:size])
-                out.append(msg)
+                if size:
+                    if buf is None:
+                        buf = SegmentedByteStreamBuffer(chunk_size=self._config.read_chunk_size)
+                    buf.write(bytes(mv[:size]))
                 remaining -= size
             else:
+                if buf is not None and len(buf):
+                    out.append(buf)
+                    buf = None
                 out.append(msg)
 
             if remaining < 1 or not self._transport_input_q:
                 break
+
+        if buf is not None and len(buf):
+            out.append(buf)
 
         if out and self._flow is not None:
             out.append(IoPipelineFlowMessages.FlushInput())

@@ -9,6 +9,7 @@ from ....io.pipelines.core import IoPipelineHandlerContext
 from ....io.pipelines.core import IoPipelineMessages
 from ....io.pipelines.flow.types import IoPipelineFlow
 from ....io.pipelines.flow.types import IoPipelineFlowMessages
+from ....io.streambufs.direct import DirectByteStreamBufferView
 from ....io.streambufs.utils import ByteStreamBuffers
 from ....lite.abstract import Abstract
 from ....lite.bytes import BytesLike
@@ -130,7 +131,7 @@ class IoPipelineHttpObjectDecompressor(
             if not self._is_auto_read(ctx):
                 self._read_requested = False
 
-            ctx.feed_in(self._make_body_data(o))
+            ctx.feed_in(self._make_body_data(DirectByteStreamBufferView(o)))
             emitted = True
 
             # In manual mode, we satisfy one 'read' at a time.

@@ -4,8 +4,8 @@ import abc
 import dataclasses as dc
 import typing as ta
 
+from ...io.streambufs.utils import CanByteStreamBuffer
 from ...lite.abstract import Abstract
-from ...lite.bytes import BytesLike
 from ...lite.check import check
 from ..headers import HttpHeaders
 from ..parsing import ParsedHttpMessage
@@ -50,7 +50,7 @@ class FullIoPipelineHttpMessage(IoPipelineHttpMessageObject, Abstract):
 
     @property
     @abc.abstractmethod
-    def body(self) -> BytesLike:
+    def body(self) -> CanByteStreamBuffer:
         raise NotImplementedError
 
 
@@ -98,7 +98,7 @@ class IoPipelineHttpMessageChunkedTrailers(IoPipelineHttpMessageObject, Abstract
 
 @dc.dataclass(frozen=True)
 class IoPipelineHttpMessageBodyData(IoPipelineHttpMessageObject, Abstract):
-    data: BytesLike
+    data: CanByteStreamBuffer
 
     def __post_init__(self) -> None:
         check.arg(len(self.data) > 0)
@@ -167,7 +167,7 @@ class IoPipelineHttpMessageObjects(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: BytesLike) -> FullIoPipelineHttpMessage:
+    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpMessage:
         raise NotImplementedError
 
     #
@@ -222,7 +222,7 @@ class IoPipelineHttpMessageObjects(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _make_body_data(self, data: BytesLike) -> IoPipelineHttpMessageBodyData:
+    def _make_body_data(self, data: CanByteStreamBuffer) -> IoPipelineHttpMessageBodyData:
         raise NotImplementedError
 
     #

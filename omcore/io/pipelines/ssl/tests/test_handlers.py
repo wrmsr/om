@@ -3,6 +3,7 @@ import typing as ta
 import unittest
 
 from .....secrets import tempssl
+from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlow
@@ -75,10 +76,10 @@ class FakeTransport:
             self.closed_write = True
             if self.peer is not None:
                 self.peer.on_peer_eof()
-        elif isinstance(msg, (bytes, bytearray, memoryview)):
+        elif ByteStreamBuffers.can_bytes(msg):
             assert not self.closed_write, f'{self.name}: bytes after FinalOutput!'
             if self.peer is not None:
-                self.peer.on_peer_bytes(bytes(msg))
+                self.peer.on_peer_bytes(ByteStreamBuffers.to_bytes(msg, strict=True))
         # else: ignore
 
     # events coming from the wire:
@@ -131,7 +132,11 @@ def make_pair(
 
 
 def app_bytes(ctx):
-    return b''.join(bytes(m) for m in ctx.app_msgs if isinstance(m, (bytes, bytearray, memoryview)))
+    return b''.join(
+        ByteStreamBuffers.to_bytes(m, strict=True)
+        for m in ctx.app_msgs
+        if ByteStreamBuffers.can_bytes(m)
+    )
 
 
 def has(ctx_or_list, cls):
@@ -217,7 +222,7 @@ class TestSslHandlers(unittest.TestCase):
         assert not server_final_output.is_done()
         # close_notify records must precede FinalOutput on the wire:
         fo_ix = next(i for i, m in enumerate(ct.wire_out) if isinstance(m, IoPipelineMessages.FinalOutput))
-        assert any(isinstance(m, bytes) for m in ct.wire_out[:fo_ix])
+        assert any(ByteStreamBuffers.can_bytes(m) for m in ct.wire_out[:fo_ix])
 
     def test_half_close_server_keeps_writing(self):
         # Client closes write side; server must still be able to send, client still receive.

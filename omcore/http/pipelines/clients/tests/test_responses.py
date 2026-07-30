@@ -6,6 +6,8 @@ from .....io.pipelines.core import IoPipeline
 from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
 from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
+from .....io.streambufs.segmented import SegmentedByteStreamBuffer
+from .....io.streambufs.segmented import SegmentedByteStreamBufferView
 from .....io.streambufs.utils import ByteStreamBuffers
 from ....headers import HttpHeaders
 from ...bodymodes import IoPipelineHttpBodyMode
@@ -62,6 +64,25 @@ class TestPipelineHttpResponseDecoder(unittest.TestCase):
         self.assertIsInstance(body, IoPipelineHttpResponseBodyData)
         self.assertEqual(ByteStreamBuffers.to_bytes(body.data), b'hello')
 
+        self.assertIsInstance(end, IoPipelineHttpResponseEnd)
+
+    def test_response_batches_segmented_body_without_materializing(self) -> None:
+        decoder = IoPipelineHttpResponseDecoder()
+        channel = IoPipeline.new([
+            decoder,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        response = SegmentedByteStreamBuffer()
+        response.write(b'HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhe')
+        response.write(b'llo')
+        channel.feed_in(response)
+
+        head, body, end = ibq.drain()
+        self.assertIsInstance(head, IoPipelineHttpResponseHead)
+        self.assertIsInstance(body, IoPipelineHttpResponseBodyData)
+        self.assertIsInstance(body.data, SegmentedByteStreamBufferView)
+        self.assertEqual([bytes(mv) for mv in body.data.segments()], [b'he', b'llo'])
         self.assertIsInstance(end, IoPipelineHttpResponseEnd)
 
     def test_response_incremental_head(self) -> None:

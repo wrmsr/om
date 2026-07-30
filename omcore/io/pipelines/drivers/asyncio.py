@@ -10,6 +10,8 @@ from ....lite.abstract import Abstract
 from ....lite.check import check
 from ....logs.modules import get_module_loggers
 from ....logs.utils import async_exception_logging
+from ...streambufs.direct import DirectByteStreamBuffer
+from ...streambufs.segmented import SegmentedByteStreamBuffer
 from ...streambufs.utils import ByteStreamBuffers
 from ..asyncs import AsyncIoPipelineMessages
 from ..core import IoPipeline
@@ -395,7 +397,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
     async def _handle_command_read_completed(self, cmd: _ReadCompletedCommand) -> None:
         eof = False
-        had_data = False
+        data: ta.List[bytes] = []
 
         in_msgs: ta.List[ta.Any] = []
 
@@ -404,10 +406,18 @@ class PollAsyncioStreamIoPipelineDriver:
             if not b:
                 eof = True
             else:
-                in_msgs.append(b)
-                had_data = True
+                data.append(b)
 
-        if had_data and self._flow is not None:
+        if data:
+            if len(data) == 1:
+                in_msgs.append(DirectByteStreamBuffer(data[0]))
+            else:
+                buf = SegmentedByteStreamBuffer()
+                for b in data:
+                    buf.write(b)
+                in_msgs.append(buf)
+
+        if data and self._flow is not None:
             in_msgs.append(IoPipelineFlowMessages.FlushInput())
 
         if self._flow is not None:

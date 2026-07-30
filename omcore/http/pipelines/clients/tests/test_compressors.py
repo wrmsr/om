@@ -8,6 +8,7 @@ from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
 from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
+from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
 from ...requests import IoPipelineHttpRequestBodyData
@@ -80,7 +81,7 @@ class TestGzipCompressorSimple(unittest.TestCase):
         self.assertIs(results[-1], end)
 
         compressed_data = b''.join([
-            check.isinstance(r, IoPipelineHttpRequestBodyData).data
+            ByteStreamBuffers.to_bytes(check.isinstance(r, IoPipelineHttpRequestBodyData).data, strict=True)
             for r in results[1:-1]
         ])
 
@@ -124,7 +125,7 @@ class TestGzipCompressorSimple(unittest.TestCase):
         self.assertIs(results[0], head)
 
         body_data_msgs = [m for m in results[1:-1] if isinstance(m, IoPipelineHttpRequestBodyData)]
-        compressed = b''.join(m.data for m in body_data_msgs)
+        compressed = b''.join(ByteStreamBuffers.to_bytes(m.data, strict=True) for m in body_data_msgs)
 
         # Verify by decompressing
         decompressor = zlib.decompressobj(wbits=16 + zlib.MAX_WBITS)

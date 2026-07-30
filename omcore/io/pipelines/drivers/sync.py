@@ -7,6 +7,7 @@ import typing as ta
 
 from ....lite.check import check
 from ....logs.modules import get_module_logger
+from ...streambufs.segmented import SegmentedByteStreamBuffer
 from ...streambufs.utils import ByteStreamBuffers
 from ..core import IoPipeline
 from ..core import IoPipelineMessages
@@ -259,30 +260,45 @@ class SyncSocketIoPipelineDriver:
     def _do_read(self) -> ta.List[ta.Any]:
         out: ta.List[ta.Any] = []
 
+        buf = SegmentedByteStreamBuffer(chunk_size=self._config.read_chunk_size)
         remaining = self._config.read_batch_max_bytes
         eof = False
         for _ in range(self._config.read_batch_max_reads):
+            reserve = buf.reserve(min(self._config.read_chunk_size, remaining))
             try:
-                b = self._sock.recv(min(self._config.read_chunk_size, remaining))
+                read = self._sock.recv_into(reserve)
             except BlockingIOError:
+                reserve.release()
+                buf.commit(0)
                 break
             except OSError as exc:
-                if not out:
+                reserve.release()
+                buf.commit(0)
+                if not len(buf):
                     self._fail()
                     raise
                 self._pending_read_error = exc
                 break
+            except BaseException:
+                reserve.release()
+                buf.commit(0)
+                raise
+            else:
+                reserve.release()
+                buf.commit(read)
 
-            if not b:
+            if not read:
                 eof = True
                 break
 
-            out.append(b)
-            remaining -= len(b)
+            remaining -= read
             if remaining < 1:
                 break
 
-        if out and self._flow is not None:
+        if len(buf):
+            out.append(buf)
+
+        if len(buf) and self._flow is not None:
             out.append(IoPipelineFlowMessages.FlushInput())
             self._want_read = self._flow.is_auto_read()
 

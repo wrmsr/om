@@ -12,7 +12,6 @@ from ....io.readers import BytesReader
 from ....io.readers import BytesReaders
 from ....io.streambufs.types import Bytes
 from ....io.streambufs.utils import ByteStreamBuffers
-from ....lite.bytes import bytes_like_to_bytes
 from ....lite.check import check
 from ...clients.base import HttpClientContext
 from ...clients.base import HttpClientRequest
@@ -175,7 +174,7 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                 if isinstance(response, FullIoPipelineHttpResponse):
                     head = check.not_none(response).head
 
-                    response_reader = BytesReaders.of_bytes(bytes_like_to_bytes(response.body))
+                    response_reader = BytesReaders.of_bytes(ByteStreamBuffers.to_bytes(response.body, strict=True))
 
                     drv.close()
                     sock.close()

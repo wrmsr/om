@@ -12,7 +12,6 @@ from ....io.readers import AsyncBytesReader
 from ....io.readers import AsyncBytesReaders
 from ....io.streambufs.utils import ByteStreamBuffers
 from ....lite.bytes import Bytes
-from ....lite.bytes import bytes_like_to_bytes
 from ....lite.check import check
 from ...clients.asyncs import AsyncHttpClient
 from ...clients.asyncs import AsyncStreamHttpClientResponse
@@ -175,7 +174,7 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                 if isinstance(response, FullIoPipelineHttpResponse):
                     head = check.not_none(response).head
 
-                    response_reader = AsyncBytesReaders.of_bytes(bytes_like_to_bytes(response.body))
+                    response_reader = AsyncBytesReaders.of_bytes(ByteStreamBuffers.to_bytes(response.body, strict=True))
 
                     await drv.close()
                     writer.close()

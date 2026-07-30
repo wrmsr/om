@@ -4,6 +4,7 @@ import typing as ta
 
 from ....io.pipelines.core import IoPipelineHandler
 from ....io.pipelines.core import IoPipelineHandlerContext
+from ....io.streambufs.utils import ByteStreamBuffers
 from .objects import IoPipelineWebsocketBinary
 from .objects import IoPipelineWebsocketClose
 from .objects import IoPipelineWebsocketFrame
@@ -34,12 +35,14 @@ class IoPipelineWebsocketAggregator(IoPipelineHandler):
         if op == IoPipelineWebsocketOpcode.TEXT or op == IoPipelineWebsocketOpcode.BINARY:
             if msg.fin:
                 if op == IoPipelineWebsocketOpcode.TEXT:
-                    ctx.feed_in(IoPipelineWebsocketText(msg.payload.decode('utf-8')))
+                    ctx.feed_in(IoPipelineWebsocketText(
+                        ByteStreamBuffers.to_bytes(msg.payload, strict=True).decode('utf-8'),
+                    ))
                 else:
                     ctx.feed_in(IoPipelineWebsocketBinary(msg.payload))
                 return
 
-            self._assembling = (op, bytearray(msg.payload))
+            self._assembling = (op, bytearray(ByteStreamBuffers.to_bytes(msg.payload, strict=True)))
             return
 
         if op == IoPipelineWebsocketOpcode.CONTINUATION:
@@ -50,7 +53,8 @@ class IoPipelineWebsocketAggregator(IoPipelineHandler):
                 return
 
             first_op, buf = self._assembling
-            buf.extend(msg.payload)
+            for mv in ByteStreamBuffers.iter_segments(msg.payload):
+                buf.extend(mv)
 
             if msg.fin:
                 data = bytes(buf)
@@ -70,13 +74,14 @@ class IoPipelineWebsocketAggregator(IoPipelineHandler):
             return
 
         if op == IoPipelineWebsocketOpcode.CLOSE:
+            payload = ByteStreamBuffers.to_bytes(msg.payload, strict=True)
             code = 1000
             reason = ''
-            if len(msg.payload) >= 2:
-                code = int.from_bytes(msg.payload[:2], 'big')
-                if len(msg.payload) > 2:
+            if len(payload) >= 2:
+                code = int.from_bytes(payload[:2], 'big')
+                if len(payload) > 2:
                     try:
-                        reason = msg.payload[2:].decode('utf-8')
+                        reason = payload[2:].decode('utf-8')
                     except UnicodeDecodeError:
                         reason = ''
             ctx.feed_in(IoPipelineWebsocketClose(code=code, reason=reason))

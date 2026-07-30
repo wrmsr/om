@@ -69,6 +69,7 @@ import typing as ta
 from ....lite.abstract import Abstract
 from ....lite.check import check
 from ...streambufs.direct import DirectByteStreamBuffer
+from ...streambufs.errors import BufferTooLargeByteStreamBufferError
 from ...streambufs.framing import LongestMatchDelimiterByteStreamFrameDecoder
 from ...streambufs.scanning import ScanningByteStreamBuffer
 from ...streambufs.segmented import SegmentedByteStreamBuffer
@@ -407,13 +408,41 @@ class BufferedBytesToMessageDecoderIoPipelineHandler(
 
         check.arg(len(data) > 0)
 
-        if (buf := self._buf) is None:
+        if (max_size := self._max_buffer_size) is not None:
+            buffered = len(self._buf) if self._buf is not None else 0
+            if buffered + len(data) > max_size:
+                raise BufferTooLargeByteStreamBufferError('buffer exceeded max_size')
+
+        write_data = True
+        if (buf := self._buf) is None and isinstance(data, ByteStreamBuffer):
+            if isinstance(data, MutableByteStreamBuffer):
+                buf = data
+                if self._scanning_buffer and not isinstance(buf, ScanningByteStreamBuffer):
+                    buf = ScanningByteStreamBuffer(buf)
+                self._buf = buf
+                write_data = False
+
+            else:
+                self._decode_buffer(ctx, data, out)
+                if not len(data):
+                    return
+
+                buf = self._buf = self._new_buf()
+                for seg in data.segments():
+                    buf.write(seg)
+
+                return
+
+        elif buf is None:
             buf = self._buf = self._new_buf()
 
-        for seg in ByteStreamBuffers.iter_segments(data):
-            buf.write(seg)
+        if write_data:
+            for seg in ByteStreamBuffers.iter_segments(data):
+                buf.write(seg)
 
         self._decode_buffer(ctx, buf, out, final=final)
+        if not len(buf):
+            self._buf = None
 
     #
 

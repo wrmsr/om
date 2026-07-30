@@ -3,6 +3,7 @@
 import typing as ta
 import unittest
 
+from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
@@ -32,7 +33,7 @@ class PauseOutputOnBytesIoPipelineHandler(IoPipelineHandler):
         self._paused = False
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, (bytes, bytearray, memoryview)) and not self._paused:
+        if ByteStreamBuffers.can_bytes(msg) and not self._paused:
             self._paused = True
             ctx.feed_in(IoPipelineFlowMessages.PauseOutput())
         ctx.feed_out(msg)

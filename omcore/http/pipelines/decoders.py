@@ -307,9 +307,9 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
-            for mv in ByteStreamBuffers.iter_segments(data):
-                if len(data):
-                    out.append(self._d._make_body_data(mv))  # noqa
+            body_mvs = [mv for mv in ByteStreamBuffers.iter_segments(data) if mv]
+            if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                out.append(self._d._make_body_data(body))  # noqa
 
             if final:
                 out.append(self._d._make_end())  # noqa
@@ -328,9 +328,10 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
-            for mv in ByteStreamBuffers.iter_segments(data):
-                if mv:
-                    out.append(mv)
+            if (body := SegmentedByteStreamBufferView.of_opt([
+                    mv for mv in ByteStreamBuffers.iter_segments(data) if mv
+            ])) is not None:
+                out.append(body)
 
             return None
 
@@ -357,7 +358,9 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
+            body_mvs: ta.List[memoryview] = []
             next_mvs: ta.List[memoryview]
+            ended = False
 
             for mv in ByteStreamBuffers.iter_segments(data):
                 mvl = len(mv)
@@ -369,21 +372,26 @@ class IoPipelineHttpObjectDecoder(
                     continue
 
                 if self._remaining > mvl:
-                    out.append(self._d._make_body_data(mv))  # noqa
+                    body_mvs.append(mv)
                     self._remaining -= mvl
 
                 elif self._remaining == mvl:
-                    out.append(self._d._make_body_data(mv))  # noqa
-                    out.append(self._d._make_end())  # noqa
+                    body_mvs.append(mv)
                     self._remaining = 0
                     next_mvs = []
+                    ended = True
 
                 else:
-                    out.append(self._d._make_body_data(mv[:self._remaining]))  # noqa
-                    out.append(self._d._make_end())  # noqa
+                    body_mvs.append(mv[:self._remaining])
                     ofs = self._remaining
                     self._remaining = 0
                     next_mvs = [mv[ofs:]]
+                    ended = True
+
+            if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                out.append(self._d._make_body_data(body))  # noqa
+            if ended:
+                out.append(self._d._make_end())  # noqa
 
             if final and self._remaining > 0:
                 return self._abort(out, 'EOF before HTTP body complete')
@@ -517,6 +525,7 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
+            body_mvs: ta.List[memoryview] = []
             next_mvs: ta.Optional[ta.List[memoryview]] = None
 
             for mv in ByteStreamBuffers.iter_segments(data):
@@ -530,16 +539,16 @@ class IoPipelineHttpObjectDecoder(
 
                 if mvl < self._remaining:
                     self._remaining -= mvl
-                    out.append(self._d._make_body_data(mv))  # noqa
+                    body_mvs.append(mv)
                     continue
 
                 if self._remaining > 0:
                     if mvl == self._remaining:
-                        out.append(self._d._make_body_data(mv))  # noqa
+                        body_mvs.append(mv)
                         self._remaining = 0
                         continue
 
-                    out.append(self._d._make_body_data(mv[:self._remaining]))  # noqa
+                    body_mvs.append(mv[:self._remaining])
                     mv = mv[self._remaining:]
                     mvl = len(mv)
                     self._remaining = 0
@@ -549,6 +558,8 @@ class IoPipelineHttpObjectDecoder(
 
                 if not self._got_cr:
                     if mv[0] != 0x0d:
+                        if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                            out.append(self._d._make_body_data(body))  # noqa
                         return self._abort(out, f'Expected \\r\\n after chunk data, got {bytes([mv[0]])!r}')
                     self._got_cr = True
                     mv = mv[1:]
@@ -557,6 +568,8 @@ class IoPipelineHttpObjectDecoder(
                         continue
 
                 if mv[0] != 0x0a:
+                    if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                        out.append(self._d._make_body_data(body))  # noqa
                     return self._abort(out, f'Expected \\r\\n after chunk data, got {bytes([mv[0]])!r}')
                 mv = mv[1:]
                 mvl -= 1
@@ -565,6 +578,9 @@ class IoPipelineHttpObjectDecoder(
 
                 if mvl > 0:
                     next_mvs.append(mv)
+
+            if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                out.append(self._d._make_body_data(body))  # noqa
 
             if next_mvs is not None:
                 out.append(self._d._make_end_chunk())  # noqa

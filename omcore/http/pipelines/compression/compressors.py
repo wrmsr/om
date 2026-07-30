@@ -7,6 +7,7 @@ from ....io.pipelines.core import IoPipelineHandler
 from ....io.pipelines.core import IoPipelineHandlerContext
 from ....io.pipelines.core import IoPipelineMessages
 from ....io.pipelines.flow.types import IoPipelineFlowMessages
+from ....io.streambufs.direct import DirectByteStreamBufferView
 from ....io.streambufs.utils import ByteStreamBuffers
 from ....lite.abstract import Abstract
 from ..objects import IoPipelineHttpMessageBodyData
@@ -90,7 +91,7 @@ class IoPipelineHttpObjectCompressor(
         for mv in ByteStreamBuffers.iter_segments(msg.data):
             out = z.compress(mv)
             if out:
-                ctx.feed_out(self._make_body_data(out))
+                ctx.feed_out(self._make_body_data(DirectByteStreamBufferView(out)))
 
     def _on_outbound_flush_output(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.FlushOutput) -> None:
         if (z := self._compressor) is None:
@@ -98,7 +99,7 @@ class IoPipelineHttpObjectCompressor(
             return
 
         if chunk := z.flush():
-            ctx.feed_out(self._make_body_data(chunk))
+            ctx.feed_out(self._make_body_data(DirectByteStreamBufferView(chunk)))
 
         ctx.feed_out(msg)
 
@@ -109,7 +110,7 @@ class IoPipelineHttpObjectCompressor(
 
         out = z.finish()
         if out:
-            ctx.feed_out(self._make_body_data(out))
+            ctx.feed_out(self._make_body_data(DirectByteStreamBufferView(out)))
 
         self._reset()
         ctx.feed_out(msg)

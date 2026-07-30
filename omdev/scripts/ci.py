@@ -136,7 +136,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
             dict(path='../../omcore/io/pipelines/core.py', sha1='053f27036671acaa20fb03307f9a29117d902853'),
-            dict(path='../../omcore/io/streambufs/types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
+            dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../omcore/lite/maybes.py', sha1='5ac5f92e5610c6795b0a228c38e7bcd272bf6305'),
@@ -159,7 +159,6 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='cfde8108f1128ceea3502c77eefb015fb43a6239'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fd4ceb8a60ebc33776c0ff8a916ee570afcedafb'),
-            dict(path='../../omcore/http/pipelines/objects.py', sha1='18e331467e8ab0b66bc17938712434dd0e765f77'),
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
@@ -183,11 +182,7 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/tars.py', sha1='2a143153b5b727fa46a83a325b42f6dc28734359'),
             dict(path='../../omcore/formats/yaml/goyaml/ast.py', sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631'),
             dict(path='../../omcore/formats/yaml/goyaml/scanning.py', sha1='58956f9159780d5532d2d61fb6f11c8ac946003d'),
-            dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='560abca3f4989ddb7c8c121a4ce862f87dea71a1'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='a767b565416cb6f3c1d27e3770ce479bb5d27595'),  # noqa
-            dict(path='../../omcore/http/pipelines/encoders.py', sha1='339afab8253286438f275d10a3625900552bb702'),
-            dict(path='../../omcore/http/pipelines/requests.py', sha1='b825e91750b19e96176fd0e872eb8bdded965f01'),
-            dict(path='../../omcore/http/pipelines/responses.py', sha1='7e1fda6f0a68370b76a07a2eebf96ab9ebd4a113'),
+            dict(path='../../omcore/http/pipelines/objects.py', sha1='24e4c33d5568cfe7e1227c8574ba4ec79e3dbda9'),
             dict(path='../../omcore/http/simple/handlers.py', sha1='43502a58069673135882066ba939c99ea2f8dfc1'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
             dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
@@ -203,7 +198,12 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/media.py', sha1='803842842e9b3f1d51ccb48c41c7fb7df9d833b3'),
             dict(path='../specs/oci/pack/packing.py', sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad'),
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
-            dict(path='../../omcore/http/pipelines/chunking.py', sha1='a6539c4d533324f1d9ee5634466407f538e2580b'),
+            dict(path='../../omcore/http/pipelines/chunking.py', sha1='610cfbdbcafd85e9b5dacc88e5b60dde64a3409a'),
+            dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='a91dd573b851f5dec9f74308bfddaef0ea9db9a2'),  # noqa
+            dict(path='../../omcore/http/pipelines/encoders.py', sha1='339afab8253286438f275d10a3625900552bb702'),
+            dict(path='../../omcore/http/pipelines/requests.py', sha1='c9a703c66cbe3f0a60a630c2a90ee97258d9e72a'),
+            dict(path='../../omcore/http/pipelines/responses.py', sha1='12987dd87b9dc3a6cb3b7fbfe461f6c2d24955f5'),
             dict(path='../../omcore/io/streambufs/framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
             dict(path='../../omcore/io/streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
@@ -216,14 +216,14 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/loading.py', sha1='2fe11d2ab1446a57e9d5f508575ed455cfe0fd23'),
             dict(path='../../omcore/asyncs/asyncio/subprocesses.py', sha1='901e82ac03fb6ce967728a715f1785e6e591ff8b'),
             dict(path='../../omcore/formats/yaml/goyaml/decoding.py', sha1='73e387af353d56ed6c3f817e490038aa1ba940c8'),
-            dict(path='../../omcore/http/pipelines/aggregators.py', sha1='2788fff67d15aff9648521dd04e8dec3463e6d96'),
+            dict(path='../../omcore/http/pipelines/aggregators.py', sha1='17b015789f6ffbea43ccde91b83083536d90c3e1'),
             dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='2c0be02c7a0510348e93cea96c4376d531b6a19c'),  # noqa
-            dict(path='../../omcore/io/pipelines/bytes/decoders.py', sha1='ea7531826ca4a4504b306533e399c4b795429c88'),
+            dict(path='../../omcore/io/pipelines/bytes/decoders.py', sha1='63326429eebabf82ba525a885c49f4f8941eb0c4'),
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
-            dict(path='../../omcore/http/pipelines/decoders.py', sha1='7cb24218e1fc8fe2adeb3e8fe089859721d7b52e'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='5074cdc11e7295b3b56546c119e801312cd55213'),
+            dict(path='../../omcore/http/pipelines/decoders.py', sha1='f658935dd1e8dd4ec73a99d6e8957a1545807aae'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='6b6c29eca0d1679ac4219d81cbeb1f1e549a772e'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -8755,6 +8755,12 @@ class ByteStreamBufferView(ByteStreamBufferLike, Abstract):
     bytes were concatenated in order.
     """
 
+    def __bytes__(self) -> bytes:
+        b = self.tobytes()
+        if type(b) is bytes:
+            return b
+        return bytes(b)
+
     @abc.abstractmethod
     def tobytes(self) -> Bytes:
         """
@@ -13275,246 +13281,6 @@ class IoPipelineHttpBodyMode:
             return cls('empty', None)
 
         return cls('cl', n)
-
-
-########################################
-# ../../../omcore/http/pipelines/objects.py
-
-
-##
-
-
-class IoPipelineHttpMessageObject(Abstract):
-    pass
-
-
-#
-
-
-class IoPipelineHttpMessageHead(IoPipelineHttpMessageObject, Abstract):
-    @property
-    @abc.abstractmethod
-    def headers(self) -> HttpHeaders:
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
-    def parsed(self) -> ta.Optional[ParsedHttpMessage]:
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
-    def version(self) -> HttpVersion:
-        raise NotImplementedError
-
-
-#
-
-
-class FullIoPipelineHttpMessage(IoPipelineHttpMessageObject, Abstract):
-    @property
-    @abc.abstractmethod
-    def head(self) -> IoPipelineHttpMessageHead:
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
-    def body(self) -> BytesLike:
-        raise NotImplementedError
-
-
-#
-
-
-@dc.dataclass(frozen=True)
-class IoPipelineHttpMessageChunk(IoPipelineHttpMessageObject, Abstract):
-    size: int
-    # ext: HttpHeaders
-
-    def __post_init__(self) -> None:
-        check.arg(self.size > 0)
-
-
-#
-
-
-@dc.dataclass(frozen=True)
-class IoPipelineHttpMessageEndChunk(IoPipelineHttpMessageObject, Abstract):
-    pass
-
-
-#
-
-
-@dc.dataclass(frozen=True)
-class IoPipelineHttpMessageLastChunk(IoPipelineHttpMessageObject, Abstract):
-    # ext: HttpHeaders
-    pass
-
-
-#
-
-
-@dc.dataclass(frozen=True)
-class IoPipelineHttpMessageChunkedTrailers(IoPipelineHttpMessageObject, Abstract):
-    # trailers: HttpHeaders
-    # parsed_trailers: ta.Optional[ParsedHttpMessage] = None
-    pass
-
-
-#
-
-
-@dc.dataclass(frozen=True)
-class IoPipelineHttpMessageBodyData(IoPipelineHttpMessageObject, Abstract):
-    data: BytesLike
-
-    def __post_init__(self) -> None:
-        check.arg(len(self.data) > 0)
-
-
-#
-
-
-@dc.dataclass(frozen=True)
-class IoPipelineHttpMessageEnd(IoPipelineHttpMessageObject, Abstract):
-    pass
-
-
-#
-
-
-@dc.dataclass(frozen=True)
-class IoPipelineHttpMessageAborted(IoPipelineHttpMessageObject, Abstract):
-    reason: ta.Union[str, BaseException]
-
-    @property
-    def reason_str(self) -> str:
-        if isinstance(r := self.reason, str):
-            return r
-        elif isinstance(r, BaseException):
-            return repr(r)
-        else:
-            raise TypeError(r)
-
-
-##
-
-
-def _un_abstract_pipeline_http_object_classes() -> None:
-    # So this is regrettable, but I think the benefits of having the base objects be actual dataclasses outweighs the
-    # gnarliness here.
-    for cls in [IoPipelineHttpMessageHead, FullIoPipelineHttpMessage]:
-        atts = {a for a in cls.__dict__ if not a.startswith('_')}
-        for att in atts:
-            delattr(cls, att)
-        ams = check.isinstance(getattr(cls, '__abstractmethods__'), frozenset)
-        setattr(cls, '__abstractmethods__', ams - atts)
-
-
-_un_abstract_pipeline_http_object_classes()
-
-
-##
-
-
-class IoPipelineHttpMessageObjects(Abstract):
-    @property
-    @abc.abstractmethod
-    def _head_type(self) -> ta.Type[IoPipelineHttpMessageHead]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_head(self, parsed: ParsedHttpMessage) -> IoPipelineHttpMessageHead:
-        raise NotImplementedError
-
-    #
-
-    @property
-    @abc.abstractmethod
-    def _full_type(self) -> ta.Type[FullIoPipelineHttpMessage]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: BytesLike) -> FullIoPipelineHttpMessage:
-        raise NotImplementedError
-
-    #
-
-    @property
-    @abc.abstractmethod
-    def _chunk_type(self) -> ta.Type[IoPipelineHttpMessageChunk]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_chunk(self, size: int) -> IoPipelineHttpMessageChunk:
-        raise NotImplementedError
-
-    #
-
-    @property
-    @abc.abstractmethod
-    def _end_chunk_type(self) -> ta.Type[IoPipelineHttpMessageEndChunk]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_end_chunk(self) -> IoPipelineHttpMessageEndChunk:
-        raise NotImplementedError
-
-    #
-
-    @property
-    @abc.abstractmethod
-    def _last_chunk_type(self) -> ta.Type[IoPipelineHttpMessageLastChunk]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_last_chunk(self) -> IoPipelineHttpMessageLastChunk:
-        raise NotImplementedError
-
-    #
-
-    @property
-    @abc.abstractmethod
-    def _chunked_trailers_type(self) -> ta.Type[IoPipelineHttpMessageChunkedTrailers]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_chunked_trailers(self) -> IoPipelineHttpMessageChunkedTrailers:
-        raise NotImplementedError
-
-    #
-
-    @property
-    @abc.abstractmethod
-    def _body_data_type(self) -> ta.Type[IoPipelineHttpMessageBodyData]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_body_data(self, data: BytesLike) -> IoPipelineHttpMessageBodyData:
-        raise NotImplementedError
-
-    #
-
-    @property
-    @abc.abstractmethod
-    def _end_type(self) -> ta.Type[IoPipelineHttpMessageEnd]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_end(self) -> ta.Any:
-        raise NotImplementedError
-
-    #
-
-    @property
-    @abc.abstractmethod
-    def _aborted_type(self) -> ta.Type[IoPipelineHttpMessageAborted]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_aborted(self, reason: ta.Union[str, BaseException]) -> IoPipelineHttpMessageAborted:
-        raise NotImplementedError
 
 
 ########################################
@@ -20712,1004 +20478,243 @@ def _yaml_trim_right_func(s: str, predicate: ta.Callable[[str], bool]) -> str:
 
 
 ########################################
-# ../../../omcore/http/pipelines/compression/compressors.py
+# ../../../omcore/http/pipelines/objects.py
 
 
 ##
 
 
-@dc.dataclass(frozen=True)
-class IoPipelineHttpCompressionConfig:
-    DEFAULT: ta.ClassVar['IoPipelineHttpCompressionConfig']
-
-
-IoPipelineHttpCompressionConfig.DEFAULT = IoPipelineHttpCompressionConfig()
+class IoPipelineHttpMessageObject(Abstract):
+    pass
 
 
 #
 
 
-class IoPipelineHttpObjectCompressor(
-    IoPipelineHttpMessageObjects,
-    IoPipelineHandler,
-    Abstract,
-):
-    def __init__(
-            self,
-            codings: ta.Optional[IoPiplineHttpCompressorCodings] = None,
-            config: IoPipelineHttpCompressionConfig = IoPipelineHttpCompressionConfig.DEFAULT,
-    ) -> None:
-        super().__init__()
+class IoPipelineHttpMessageHead(IoPipelineHttpMessageObject, Abstract):
+    @property
+    @abc.abstractmethod
+    def headers(self) -> HttpHeaders:
+        raise NotImplementedError
 
-        self._config = config
-        if codings is None:
-            codings = DefaultIoPiplineHttpCompressionCodings.COMPRESSOR
-        self._codings = codings
+    @property
+    @abc.abstractmethod
+    def parsed(self) -> ta.Optional[ParsedHttpMessage]:
+        raise NotImplementedError
 
-        self._compressor: ta.Optional[IoPiplineHttpCompressorCoding] = None
-
-    #
-
-    def _reset(self) -> None:
-        self._compressor = None
-
-    #
-
-    def _on_outbound_final_output(self, ctx: IoPipelineHandlerContext, msg: IoPipelineMessages.FinalOutput) -> None:
-        if self._compressor is None:
-            ctx.feed_out(msg)
-            return
-
-        self._reset()
-
-        ctx.feed_out(self._make_aborted('eof before end of message'))
-        ctx.feed_out(msg)
-
-    def _on_outbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
-        if self._compressor is not None:
-            ctx.feed_out(self._make_aborted('unexpected message sequence'))
-            return
-
-        enc = msg.headers.lower.get('content-encoding', ())
-
-        for coding_name, coding in self._codings.items():
-            if coding_name.lower() in enc:
-                self._compressor = coding()
-                break
-
-        ctx.feed_out(msg)
-
-    def _on_outbound_body_data(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageBodyData) -> None:
-        if (z := self._compressor) is None:
-            ctx.feed_out(msg)
-            return
-
-        for mv in ByteStreamBuffers.iter_segments(msg.data):
-            out = z.compress(mv)
-            if out:
-                ctx.feed_out(self._make_body_data(out))
-
-    def _on_outbound_flush_output(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.FlushOutput) -> None:
-        if (z := self._compressor) is None:
-            ctx.feed_out(msg)
-            return
-
-        if chunk := z.flush():
-            ctx.feed_out(self._make_body_data(chunk))
-
-        ctx.feed_out(msg)
-
-    def _on_outbound_end(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEnd) -> None:
-        if (z := self._compressor) is None:
-            ctx.feed_out(msg)
-            return
-
-        out = z.finish()
-        if out:
-            ctx.feed_out(self._make_body_data(out))
-
-        self._reset()
-        ctx.feed_out(msg)
-
-    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
-            self._on_outbound_final_output(ctx, msg)
-
-        elif isinstance(msg, self._head_type):
-            self._on_outbound_head(ctx, msg)
-
-        elif isinstance(msg, self._body_data_type):
-            self._on_outbound_body_data(ctx, msg)
-
-        elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
-            self._on_outbound_flush_output(ctx, msg)
-
-        elif isinstance(msg, self._end_type):
-            self._on_outbound_end(ctx, msg)
-
-        else:
-            ctx.feed_out(msg)
-
-
-########################################
-# ../../../omcore/http/pipelines/compression/decompressors.py
-
-
-##
-
-
-@dc.dataclass(frozen=True)
-class IoPipelineHttpDecompressionConfig:
-    DEFAULT: ta.ClassVar['IoPipelineHttpDecompressionConfig']
-
-    max_decomp_chunk: int = 64 * 1024  # max bytes emitted per inflate step
-
-    max_decomp_total: ta.Optional[int] = None    # max total decompressed bytes per object
-    max_expansion_ratio: ta.Optional[int] = 200  # max_out <= max(1, in_total) * ratio (+ small slack)
-
-    max_out_pending: ta.Optional[int] = 256 * 1024  # cap decompressed bytes retained by this stage (if you buffer)
-
-    # CPU Bounding: how many decompress steps to perform before yielding to the driver
-    max_steps_per_call: ta.Optional[int] = None
-
-
-IoPipelineHttpDecompressionConfig.DEFAULT = IoPipelineHttpDecompressionConfig()
+    @property
+    @abc.abstractmethod
+    def version(self) -> HttpVersion:
+        raise NotImplementedError
 
 
 #
 
 
-class IoPipelineHttpObjectDecompressor(
-    IoPipelineHttpMessageObjects,
-    InboundBytesBufferingIoPipelineHandler,
-    Abstract,
-):
-    def __init__(
-            self,
-            codings: ta.Optional[IoPiplineHttpDecompressorCodings] = None,
-            config: IoPipelineHttpDecompressionConfig = IoPipelineHttpDecompressionConfig.DEFAULT,
-    ) -> None:
-        super().__init__()
-
-        self._config = config
-        if codings is None:
-            codings = DefaultIoPiplineHttpCompressionCodings.DECOMPRESSOR
-        self._codings = codings
-
-        self._decompressor: ta.Optional[IoPiplineHttpDecompressorCoding] = None
-
-        # Statistics for budget checks
-        self._in_total_bytes = 0
-        self._out_total_bytes = 0
-
-        # Internal buffering
-        self._in_pending: collections.deque[BytesLike] = collections.deque()
-        self._in_pending_bytes = 0
-        self._out_pending: collections.deque[BytesLike] = collections.deque()
-        self._out_pending_bytes = 0
-
-        # Flow Control and Deferral State
-        self._read_requested = False
-        self._pending_end: ta.Optional[IoPipelineHttpMessageEnd] = None
-        self._finished = False
-        self._pending_final_input: ta.Optional[IoPipelineMessages.FinalInput] = None
-
-    #
-
-    def inbound_buffered_bytes(self) -> int:
-        return self._in_pending_bytes + self._out_pending_bytes
-
-    #
-
-    def _reset(self, *, preserve_pending_final_input: bool = False) -> None:
-        self._decompressor = None
-
-        self._in_total_bytes = 0
-        self._out_total_bytes = 0
-
-        self._in_pending.clear()
-        self._in_pending_bytes = 0
-        self._out_pending.clear()
-        self._out_pending_bytes = 0
-
-        self._read_requested = False
-        self._pending_end = None
-        self._finished = False
-        if not preserve_pending_final_input:
-            self._pending_final_input = None
-
-    def _check_budgets(self) -> None:
-        if (mdt := self._config.max_decomp_total) is not None and self._out_total_bytes > mdt:
-            raise ValueError('decompressor output exceeds limit (possible zip bomb)')
-
-        if (mer := self._config.max_expansion_ratio) is not None:
-            slack = self._config.max_decomp_chunk
-            if self._out_total_bytes > (max(1, self._in_total_bytes) * mer + slack):
-                raise ValueError('decompressor expansion ratio exceeds limit (possible zip bomb)')
-
-    def _is_auto_read(self, ctx: IoPipelineHandlerContext) -> bool:
-        if (flow := ctx.services.find(IoPipelineFlow)) is None:
-            return True
-        return flow.is_auto_read()
-
-    def _emit_out_pending(self, ctx: IoPipelineHandlerContext) -> bool:
-        """Returns True if at least one message was emitted."""
-
-        emitted = False
-
-        while self._out_pending and (self._is_auto_read(ctx) or self._read_requested):
-            o = self._out_pending.popleft()
-            self._out_pending_bytes -= len(o)
-
-            if not self._is_auto_read(ctx):
-                self._read_requested = False
-
-            ctx.feed_in(self._make_body_data(o))
-            emitted = True
-
-            # In manual mode, we satisfy one 'read' at a time.
-            if not self._is_auto_read(ctx):
-                break
-
-        return emitted
-
-    def _pump(self, ctx: IoPipelineHandlerContext) -> bool:
-        """Returns True if it effectively satisfied a read request."""
-
-        z = self._decompressor
-        if z is None:
-            return False
-
-        steps = 0
-        max_steps = self._config.max_steps_per_call
-
-        # 1. Try to clear existing output.
-        if self._emit_out_pending(ctx):
-            if not self._is_auto_read(ctx):
-                return True
-
-        # 2. If blocked by downstream, we can't satisfy anything.
-        if self._out_pending:
-            return False
-
-        # 3. Decompression Loop
-        while self._in_pending:
-            # Enforce output buffer budget
-            if (mop := self._config.max_out_pending) is not None:
-                if self._out_pending_bytes >= mop:
-                    break
-
-            # Check for CPU step limit
-            if max_steps is not None and steps >= max_steps:
-                self._defer_resume(ctx)
-                return False  # We haven't satisfied it yet, we deferred.
-
-            steps += 1
-            chunk = self._in_pending.popleft()
-            cl = len(chunk)
-            self._in_pending_bytes -= cl
-
-            out = z.decompress(chunk, self._config.max_decomp_chunk)
-            if out:
-                ol = len(out)
-                self._out_total_bytes += ol
-                self._out_pending.append(out)
-                self._out_pending_bytes += ol
-                self._check_budgets()
-
-                if self._emit_out_pending(ctx):
-                    if not self._is_auto_read(ctx):
-                        return True  # Satisfied!
-
-            ut = z.unconsumed_tail()
-            if ut:
-                self._in_pending.appendleft(ut)
-                self._in_pending_bytes += len(ut)
-                if not out:
-                    break
-
-        # 4. Finish and deliver the HTTP message end.
-        if not self._in_pending and self._pending_end is not None:
-            if not self._finished:
-                if max_steps is not None and steps >= max_steps:
-                    self._defer_resume(ctx)
-                    return False
-
-                out = z.finish()
-                self._finished = True
-                if out:
-                    ol = len(out)
-                    self._out_total_bytes += ol
-                    self._out_pending.append(out)
-                    self._out_pending_bytes += ol
-                    self._check_budgets()
-                    if self._emit_out_pending(ctx) and not self._is_auto_read(ctx):
-                        return True
-
-            if self._out_pending:
-                return False
-
-            if not self._is_auto_read(ctx) and not self._read_requested:
-                return False
-
-            msg = self._pending_end
-            self._reset(preserve_pending_final_input=True)
-            ctx.feed_in(msg)
-            return True  # End counts as satisfying the last read.
-
-        return False
-
-    def _defer_resume(self, ctx: IoPipelineHandlerContext) -> None:
-        def resume(c: IoPipelineHandlerContext) -> None:
-            # If a deferred pump satisfies a read, it must provide the FlushInput
-            if self._pump(c) and not self._is_auto_read(c):
-                c.feed_in(IoPipelineFlowMessages.FlushInput())
-                self._release_pending_final_input(c)
-
-        ctx.defer(resume)
-
-    #
-
-    def _release_pending_final_input(self, ctx: IoPipelineHandlerContext) -> None:
-        if self._decompressor is not None or self._pending_final_input is None:
-            return
-
-        msg = self._pending_final_input
-        self._pending_final_input = None
-        ctx.feed_in(msg)
-
-    #
-
-    def _on_inbound_final_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineMessages.FinalInput) -> None:
-        if self._decompressor is None:
-            ctx.feed_in(msg)
-            return
-
-        if self._pending_end is not None:
-            ctx.mark_propagated('inbound', msg)
-            self._pending_final_input = msg
-            return
-
-        self._reset()
-
-        ctx.feed_in(self._make_aborted('eof before end of message'))
-        ctx.feed_in(msg)
-
-    def _on_inbound_flush_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.FlushInput) -> None:
-        self._pump(ctx)
-        ctx.feed_in(msg)
-
-    def _on_inbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
-        if self._decompressor is not None:
-            ctx.feed_in(self._make_aborted('unexpected message sequence'))
-            return
-
-        enc = msg.headers.lower.get('content-encoding', ())
-
-        # TODO: spec is actually an ordered stack lol
-        for coding_name, coding in self._codings.items():
-            if coding_name.lower() in enc:
-                self._decompressor = coding()
-                break
-
-        ctx.feed_in(msg)
-
-    def _on_inbound_body_data(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageBodyData) -> None:
-        if self._decompressor is None:
-            ctx.feed_in(msg)
-            return
-
-        for mv in ByteStreamBuffers.iter_segments(msg.data):
-            mvl = len(mv)
-            self._in_total_bytes += mvl
-            self._in_pending.append(mv)
-            self._in_pending_bytes += mvl
-            self._check_budgets()
-
-        self._pump(ctx)
-
-    def _on_inbound_end(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEnd) -> None:
-        if self._decompressor is None:
-            ctx.feed_in(msg)
-            return
-
-        self._pending_end = msg
-        self._pump(ctx)
-
-    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.FinalInput):
-            self._on_inbound_final_input(ctx, msg)
-
-        elif isinstance(msg, IoPipelineFlowMessages.FlushInput):
-            self._on_inbound_flush_input(ctx, msg)
-
-        elif isinstance(msg, self._head_type):
-            self._on_inbound_head(ctx, msg)
-
-        elif isinstance(msg, self._body_data_type):
-            self._on_inbound_body_data(ctx, msg)
-
-        elif isinstance(msg, self._end_type):
-            self._on_inbound_end(ctx, msg)
+class FullIoPipelineHttpMessage(IoPipelineHttpMessageObject, Abstract):
+    @property
+    @abc.abstractmethod
+    def head(self) -> IoPipelineHttpMessageHead:
+        raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def body(self) -> CanByteStreamBuffer:
+        raise NotImplementedError
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpMessageChunk(IoPipelineHttpMessageObject, Abstract):
+    size: int
+    # ext: HttpHeaders
+
+    def __post_init__(self) -> None:
+        check.arg(self.size > 0)
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpMessageEndChunk(IoPipelineHttpMessageObject, Abstract):
+    pass
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpMessageLastChunk(IoPipelineHttpMessageObject, Abstract):
+    # ext: HttpHeaders
+    pass
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpMessageChunkedTrailers(IoPipelineHttpMessageObject, Abstract):
+    # trailers: HttpHeaders
+    # parsed_trailers: ta.Optional[ParsedHttpMessage] = None
+    pass
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpMessageBodyData(IoPipelineHttpMessageObject, Abstract):
+    data: CanByteStreamBuffer
+
+    def __post_init__(self) -> None:
+        check.arg(len(self.data) > 0)
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpMessageEnd(IoPipelineHttpMessageObject, Abstract):
+    pass
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpMessageAborted(IoPipelineHttpMessageObject, Abstract):
+    reason: ta.Union[str, BaseException]
+
+    @property
+    def reason_str(self) -> str:
+        if isinstance(r := self.reason, str):
+            return r
+        elif isinstance(r, BaseException):
+            return repr(r)
         else:
-            ctx.feed_in(msg)
-
-    #
-
-    def _on_outbound_ready_for_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.ReadyForInput) -> None:  # Noqa
-        self._read_requested = True
-
-        if (
-                self._out_pending or
-                (
-                    self._decompressor is not None and
-                    (self._in_pending or self._pending_end is not None)
-                )
-        ):
-            if self._pump(ctx):
-                if not self._is_auto_read(ctx):
-                    ctx.feed_in(IoPipelineFlowMessages.FlushInput())
-                    self._release_pending_final_input(ctx)
-
-                return  # Swallow since we satisfied it
-
-        ctx.feed_out(msg)
-
-    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
-            self._on_outbound_ready_for_input(ctx, msg)
-
-        else:
-            ctx.feed_out(msg)
-
-
-########################################
-# ../../../omcore/http/pipelines/encoders.py
+            raise TypeError(r)
 
 
 ##
 
 
-class IoPipelineHttpObjectEncoder(
-    IoPipelineHttpMessageObjects,
-    IoPipelineHandler,
-    Abstract,
-):
-    def __init__(self) -> None:
-        super().__init__()
+def _un_abstract_pipeline_http_object_classes() -> None:
+    # So this is regrettable, but I think the benefits of having the base objects be actual dataclasses outweighs the
+    # gnarliness here.
+    for cls in [IoPipelineHttpMessageHead, FullIoPipelineHttpMessage]:
+        atts = {a for a in cls.__dict__ if not a.startswith('_')}
+        for att in atts:
+            delattr(cls, att)
+        ams = check.isinstance(getattr(cls, '__abstractmethods__'), frozenset)
+        setattr(cls, '__abstractmethods__', ams - atts)
 
-        self._streaming = False
 
-        cls = type(self)
-        self._outbound_dispatch_dct: ta.Mapping[type, ta.Callable[[ta.Any, IoPipelineHandlerContext, ta.Any], None]] = {  # noqa
-            self._head_type: cls._handle_request_head,
-            self._full_type: cls._handle_full_request,
-            self._chunk_type: cls._handle_chunk,
-            self._end_chunk_type: cls._handle_end_chunk,
-            self._last_chunk_type: cls._handle_last_chunk,
-            self._chunked_trailers_type: cls._handle_chunked_trailers,
-            self._body_data_type: cls._handle_body_data,
-            self._end_type: cls._handle_request_end,
-        }
+_un_abstract_pipeline_http_object_classes()
 
-    #
+
+##
+
+
+class IoPipelineHttpMessageObjects(Abstract):
+    @property
+    @abc.abstractmethod
+    def _head_type(self) -> ta.Type[IoPipelineHttpMessageHead]:
+        raise NotImplementedError
 
     @abc.abstractmethod
-    def _encode_head_line(self, head: IoPipelineHttpMessageHead) -> bytes:
+    def _make_head(self, parsed: ParsedHttpMessage) -> IoPipelineHttpMessageHead:
         raise NotImplementedError
 
     #
 
-    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if (fn := self._outbound_dispatch_dct.get(type(msg))) is not None:
-            fn(self, ctx, msg)
-            return
+    @property
+    @abc.abstractmethod
+    def _full_type(self) -> ta.Type[FullIoPipelineHttpMessage]:
+        raise NotImplementedError
 
-        ctx.feed_out(msg)
-
-    #
-
-    def _handle_request_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:  # noqa
-        self._streaming = True
-
-        ctx.feed_out(self._encode_head(msg))
+    @abc.abstractmethod
+    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpMessage:
+        raise NotImplementedError
 
     #
-
-    def _handle_full_request(self, ctx: IoPipelineHandlerContext, msg: FullIoPipelineHttpMessage) -> ta.Any:
-        ctx.feed_out(self._encode_head(msg.head))
-        if len(msg.body) > 0:
-            ctx.feed_out(msg.body)
-
-    #
-
-    def _handle_chunk(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageChunk) -> None:  # noqa
-        ctx.feed_out(f'{msg.size:x}\r\n'.encode('ascii'))
-
-    #
-
-    def _handle_end_chunk(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEndChunk) -> None:  # noqa
-        ctx.feed_out(b'\r\n')
-
-    #
-
-    def _handle_last_chunk(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageLastChunk) -> None:  # noqa
-        ctx.feed_out(b'0\r\n')
-
-    #
-
-    def _handle_chunked_trailers(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageChunkedTrailers) -> None:  # noqa
-        ctx.feed_out(b'\r\n')
-
-    #
-
-    def _handle_body_data(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageBodyData) -> None:  # noqa
-        if not self._streaming:
-            # Not in streaming mode - pass through unchanged
-            ctx.feed_out(msg)
-
-        if len(msg.data) < 1:
-            pass
-
-        ctx.feed_out(msg.data)
-
-    #
-
-    def _handle_request_end(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEnd) -> None:  # noqa
-        if not self._streaming:
-            # Not in streaming mode - pass through
-            ctx.feed_out(msg)
-            return
-
-        # Reset state
-        self._streaming = False
-
-    #
-
-    def _encode_head(self, head: IoPipelineHttpMessageHead) -> bytes:
-        buf = io.BytesIO()
-
-        buf.write(self._encode_head_line(head))
-
-        for hl in self._encode_headers(head.headers):
-            buf.write(hl)
-
-        buf.write(b'\r\n')
-
-        return buf.getvalue()
-
-    def _encode_headers(self, headers: HttpHeaders) -> ta.List[bytes]:
-        lines: ta.List[bytes] = []
-
-        # HttpHeaders stores entries as list of (name, value) tuples
-        for name, value in headers.raw:
-            # Header names and values should be ASCII-safe in practice
-            line = f'{name}: {value}\r\n'.encode('ascii')
-            lines.append(line)
-
-        return lines
-
-
-########################################
-# ../../../omcore/http/pipelines/requests.py
-
-
-##
-
-
-class IoPipelineHttpRequestObject(IoPipelineHttpMessageObject, Abstract):
-    pass
-
-
-#
-
-
-@ta.final
-@install_dataclass_kw_only_init()
-@dc.dataclass(frozen=True)
-class IoPipelineHttpRequestHead(IoPipelineHttpMessageHead, IoPipelineHttpRequestObject):
-    method: str
-    target: str
-
-    headers: HttpHeaders
-    parsed: ta.Optional[ParsedHttpMessage] = None
-
-    version: HttpVersion = HttpVersions.HTTP_1_1
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class FullIoPipelineHttpRequest(FullIoPipelineHttpMessage, IoPipelineHttpRequestObject):
-    head: IoPipelineHttpRequestHead
-    body: BytesLike
-
-    @classmethod
-    def simple(
-            cls,
-            host: str,
-            target: str,
-            *,
-            method: str = 'GET',
-            version: HttpVersion = HttpVersions.HTTP_1_1,
-
-            content_type: ta.Optional[str] = None,
-            body: bytes = b'',
-            connection: str = 'close',
-
-            headers: ta.Optional[CanHttpHeaders] = None,
-    ) -> 'FullIoPipelineHttpRequest':
-        headers = HttpHeaders.of(headers).update(
-            ('Host', host),
-            ('Content-Type', content_type),
-            ('Content-Length', lambda: str(len(body)) if body else None),
-            ('Connection', connection),
-            if_present='skip',
-        )
-
-        return cls(
-            head=IoPipelineHttpRequestHead(
-                method=method,
-                target=target,
-                version=version,
-                headers=headers,
-            ),
-            body=body,
-        )
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpRequestChunk(IoPipelineHttpMessageChunk, IoPipelineHttpRequestObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpRequestEndChunk(IoPipelineHttpMessageEndChunk, IoPipelineHttpRequestObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpRequestLastChunk(IoPipelineHttpMessageLastChunk, IoPipelineHttpRequestObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpRequestChunkedTrailers(IoPipelineHttpMessageChunkedTrailers, IoPipelineHttpRequestObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpRequestBodyData(IoPipelineHttpMessageBodyData, IoPipelineHttpRequestObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpRequestEnd(IoPipelineHttpMessageEnd, IoPipelineHttpRequestObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpRequestAborted(IoPipelineHttpMessageAborted, IoPipelineHttpRequestObject):
-    pass
-
-
-##
-
-
-class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
-    _head_type: ta.Final = IoPipelineHttpRequestHead
-
-    def _make_head(self, parsed: ParsedHttpMessage) -> IoPipelineHttpRequestHead:
-        request = check.not_none(parsed.request_line)
-
-        return IoPipelineHttpRequestHead(
-            method=request.method,
-            target=check.not_none(request.request_target).decode('utf-8'),  # type: ignore[attr-defined]
-            version=request.http_version,
-            headers=HttpHeaders(parsed.headers.entries),
-            parsed=parsed,
-        )
-
-    #
-
-    _full_type: ta.Final = FullIoPipelineHttpRequest
-
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: BytesLike) -> FullIoPipelineHttpRequest:
-        return FullIoPipelineHttpRequest(check.isinstance(head, IoPipelineHttpRequestHead), body)
-
-    #
-
-    _chunk_type: ta.Final = IoPipelineHttpRequestChunk
-
-    def _make_chunk(self, size: int) -> IoPipelineHttpRequestChunk:
-        return IoPipelineHttpRequestChunk(size)
-
-    #
-
-    _end_chunk_type: ta.Final = IoPipelineHttpRequestEndChunk
-
-    def _make_end_chunk(self) -> IoPipelineHttpRequestEndChunk:
-        return IoPipelineHttpRequestEndChunk()
-
-    #
-
-    _last_chunk_type: ta.Final = IoPipelineHttpRequestLastChunk
-
-    def _make_last_chunk(self) -> IoPipelineHttpRequestLastChunk:
-        return IoPipelineHttpRequestLastChunk()
-
-    #
-
-    _chunked_trailers_type: ta.Final = IoPipelineHttpRequestChunkedTrailers
-
-    def _make_chunked_trailers(self) -> IoPipelineHttpRequestChunkedTrailers:
-        return IoPipelineHttpRequestChunkedTrailers()
-
-    #
-
-    _body_data_type: ta.Final = IoPipelineHttpRequestBodyData
-
-    def _make_body_data(self, data: BytesLike) -> IoPipelineHttpRequestBodyData:
-        return IoPipelineHttpRequestBodyData(data)
-
-    #
-
-    _end_type: ta.Final = IoPipelineHttpRequestEnd
-
-    def _make_end(self) -> IoPipelineHttpRequestEnd:
-        return IoPipelineHttpRequestEnd()
-
-    #
-
-    _aborted_type: ta.Final = IoPipelineHttpRequestAborted
-
-    def _make_aborted(self, reason: ta.Union[str, BaseException]) -> IoPipelineHttpRequestAborted:
-        return IoPipelineHttpRequestAborted(reason)
-
-
-########################################
-# ../../../omcore/http/pipelines/responses.py
-
-
-##
-
-
-class IoPipelineHttpResponseObject(IoPipelineHttpMessageObject, Abstract):
-    pass
-
-
-#
-
-
-@ta.final
-@install_dataclass_kw_only_init()
-@dc.dataclass(frozen=True)
-class IoPipelineHttpResponseHead(IoPipelineHttpMessageHead, IoPipelineHttpResponseObject):
-    status: int
-    reason: str
-
-    headers: HttpHeaders
-    parsed: ta.Optional[ParsedHttpMessage] = None
-
-    version: HttpVersion = HttpVersions.HTTP_1_1
-
-    @staticmethod
-    def get_reason_phrase(code: int) -> str:
-        try:
-            return HttpStatus(code).phrase
-        except ValueError:
-            return ''
 
     @property
-    def is_interim(self) -> bool:
-        return 100 <= self.status < 200 and self.status != 101
+    @abc.abstractmethod
+    def _chunk_type(self) -> ta.Type[IoPipelineHttpMessageChunk]:
+        raise NotImplementedError
 
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class FullIoPipelineHttpResponse(FullIoPipelineHttpMessage, IoPipelineHttpResponseObject):
-    head: IoPipelineHttpResponseHead
-    body: BytesLike
-
-    @classmethod
-    def simple(
-            cls,
-            *,
-            version: HttpVersion = HttpVersions.HTTP_1_1,
-            status: int = 200,
-            reason: ta.Optional[str] = None,
-
-            content_type: str = 'text/plain; charset=utf-8',
-            body: bytes = b'',
-            connection: str = 'close',
-
-            headers: ta.Optional[ta.Mapping[str, str]] = None,
-    ):
-        return cls(
-            head=IoPipelineHttpResponseHead(
-                version=version,
-                status=status,
-                reason=IoPipelineHttpResponseHead.get_reason_phrase(status) if reason is None else reason,
-                headers=HttpHeaders([
-                    ('Content-Type', content_type),
-                    ('Content-Length', str(len(body))),
-                    ('Connection', connection),
-                    *(headers.items() if headers else []),
-                ]),
-            ),
-            body=body,
-        )
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpResponseChunk(IoPipelineHttpMessageChunk, IoPipelineHttpResponseObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpResponseEndChunk(IoPipelineHttpMessageEndChunk, IoPipelineHttpResponseObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpResponseLastChunk(IoPipelineHttpMessageLastChunk, IoPipelineHttpResponseObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpResponseChunkedTrailers(IoPipelineHttpMessageChunkedTrailers, IoPipelineHttpResponseObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpResponseBodyData(IoPipelineHttpMessageBodyData, IoPipelineHttpResponseObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpResponseEnd(IoPipelineHttpMessageEnd, IoPipelineHttpResponseObject):
-    pass
-
-
-#
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class IoPipelineHttpResponseAborted(IoPipelineHttpMessageAborted, IoPipelineHttpResponseObject):
-    pass
-
-
-##
-
-
-class IoPipelineHttpResponseObjects(IoPipelineHttpMessageObjects):
-    _head_type: ta.Final = IoPipelineHttpResponseHead
-
-    def _make_head(self, parsed: ParsedHttpMessage) -> ta.Any:
-        status = check.not_none(parsed.status_line)
-
-        return IoPipelineHttpResponseHead(
-            version=status.http_version,
-            status=status.status_code,
-            reason=status.reason_phrase,
-            headers=HttpHeaders(parsed.headers.entries),
-            parsed=parsed,
-        )
+    @abc.abstractmethod
+    def _make_chunk(self, size: int) -> IoPipelineHttpMessageChunk:
+        raise NotImplementedError
 
     #
 
-    _full_type: ta.Final = FullIoPipelineHttpResponse
+    @property
+    @abc.abstractmethod
+    def _end_chunk_type(self) -> ta.Type[IoPipelineHttpMessageEndChunk]:
+        raise NotImplementedError
 
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: BytesLike) -> FullIoPipelineHttpResponse:
-        return FullIoPipelineHttpResponse(check.isinstance(head, IoPipelineHttpResponseHead), body)
-
-    #
-
-    _chunk_type: ta.Final = IoPipelineHttpResponseChunk
-
-    def _make_chunk(self, size: int) -> IoPipelineHttpResponseChunk:
-        return IoPipelineHttpResponseChunk(size)
+    @abc.abstractmethod
+    def _make_end_chunk(self) -> IoPipelineHttpMessageEndChunk:
+        raise NotImplementedError
 
     #
 
-    _end_chunk_type: ta.Final = IoPipelineHttpResponseEndChunk
+    @property
+    @abc.abstractmethod
+    def _last_chunk_type(self) -> ta.Type[IoPipelineHttpMessageLastChunk]:
+        raise NotImplementedError
 
-    def _make_end_chunk(self) -> IoPipelineHttpResponseEndChunk:
-        return IoPipelineHttpResponseEndChunk()
-
-    #
-
-    _last_chunk_type: ta.Final = IoPipelineHttpResponseLastChunk
-
-    def _make_last_chunk(self) -> IoPipelineHttpResponseLastChunk:
-        return IoPipelineHttpResponseLastChunk()
+    @abc.abstractmethod
+    def _make_last_chunk(self) -> IoPipelineHttpMessageLastChunk:
+        raise NotImplementedError
 
     #
 
-    _chunked_trailers_type: ta.Final = IoPipelineHttpResponseChunkedTrailers
+    @property
+    @abc.abstractmethod
+    def _chunked_trailers_type(self) -> ta.Type[IoPipelineHttpMessageChunkedTrailers]:
+        raise NotImplementedError
 
-    def _make_chunked_trailers(self) -> IoPipelineHttpResponseChunkedTrailers:
-        return IoPipelineHttpResponseChunkedTrailers()
-
-    #
-
-    _body_data_type: ta.Final = IoPipelineHttpResponseBodyData
-
-    def _make_body_data(self, data: BytesLike) -> IoPipelineHttpResponseBodyData:
-        return IoPipelineHttpResponseBodyData(data)
+    @abc.abstractmethod
+    def _make_chunked_trailers(self) -> IoPipelineHttpMessageChunkedTrailers:
+        raise NotImplementedError
 
     #
 
-    _end_type: ta.Final = IoPipelineHttpResponseEnd
+    @property
+    @abc.abstractmethod
+    def _body_data_type(self) -> ta.Type[IoPipelineHttpMessageBodyData]:
+        raise NotImplementedError
 
-    def _make_end(self) -> IoPipelineHttpResponseEnd:
-        return IoPipelineHttpResponseEnd()
+    @abc.abstractmethod
+    def _make_body_data(self, data: CanByteStreamBuffer) -> IoPipelineHttpMessageBodyData:
+        raise NotImplementedError
 
     #
 
-    _aborted_type: ta.Final = IoPipelineHttpResponseAborted
+    @property
+    @abc.abstractmethod
+    def _end_type(self) -> ta.Type[IoPipelineHttpMessageEnd]:
+        raise NotImplementedError
 
-    def _make_aborted(self, reason: ta.Union[str, BaseException]) -> IoPipelineHttpResponseAborted:
-        return IoPipelineHttpResponseAborted(reason)
+    @abc.abstractmethod
+    def _make_end(self) -> ta.Any:
+        raise NotImplementedError
+
+    #
+
+    @property
+    @abc.abstractmethod
+    def _aborted_type(self) -> ta.Type[IoPipelineHttpMessageAborted]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _make_aborted(self, reason: ta.Union[str, BaseException]) -> IoPipelineHttpMessageAborted:
+        raise NotImplementedError
 
 
 ########################################
@@ -26787,7 +25792,7 @@ class IoPipelineHttpObjectChunker(
         self._write_low_watermark = write_low_watermark
 
         self._active = False
-        self._buf: ta.List[BytesLike] = []
+        self._buf: ta.List[CanByteStreamBuffer] = []
         self._buf_size = 0
 
         self._downstream_writable = True
@@ -26854,7 +25859,7 @@ class IoPipelineHttpObjectChunker(
             ctx.feed_out(self._make_body_data(data))
         ctx.feed_out(self._make_end_chunk())
 
-    def _buffer_data(self, ctx: IoPipelineHandlerContext, data: BytesLike) -> None:
+    def _buffer_data(self, ctx: IoPipelineHandlerContext, data: CanByteStreamBuffer) -> None:
         dl = len(data)
 
         if (mcs := self._max_chunk_size) is not None and (self._buf_size + dl) > mcs:
@@ -26987,6 +25992,1007 @@ class IoPipelineHttpObjectDechunker(
             self._active = False
 
         out.append(msg)
+
+
+########################################
+# ../../../omcore/http/pipelines/compression/compressors.py
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpCompressionConfig:
+    DEFAULT: ta.ClassVar['IoPipelineHttpCompressionConfig']
+
+
+IoPipelineHttpCompressionConfig.DEFAULT = IoPipelineHttpCompressionConfig()
+
+
+#
+
+
+class IoPipelineHttpObjectCompressor(
+    IoPipelineHttpMessageObjects,
+    IoPipelineHandler,
+    Abstract,
+):
+    def __init__(
+            self,
+            codings: ta.Optional[IoPiplineHttpCompressorCodings] = None,
+            config: IoPipelineHttpCompressionConfig = IoPipelineHttpCompressionConfig.DEFAULT,
+    ) -> None:
+        super().__init__()
+
+        self._config = config
+        if codings is None:
+            codings = DefaultIoPiplineHttpCompressionCodings.COMPRESSOR
+        self._codings = codings
+
+        self._compressor: ta.Optional[IoPiplineHttpCompressorCoding] = None
+
+    #
+
+    def _reset(self) -> None:
+        self._compressor = None
+
+    #
+
+    def _on_outbound_final_output(self, ctx: IoPipelineHandlerContext, msg: IoPipelineMessages.FinalOutput) -> None:
+        if self._compressor is None:
+            ctx.feed_out(msg)
+            return
+
+        self._reset()
+
+        ctx.feed_out(self._make_aborted('eof before end of message'))
+        ctx.feed_out(msg)
+
+    def _on_outbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
+        if self._compressor is not None:
+            ctx.feed_out(self._make_aborted('unexpected message sequence'))
+            return
+
+        enc = msg.headers.lower.get('content-encoding', ())
+
+        for coding_name, coding in self._codings.items():
+            if coding_name.lower() in enc:
+                self._compressor = coding()
+                break
+
+        ctx.feed_out(msg)
+
+    def _on_outbound_body_data(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageBodyData) -> None:
+        if (z := self._compressor) is None:
+            ctx.feed_out(msg)
+            return
+
+        for mv in ByteStreamBuffers.iter_segments(msg.data):
+            out = z.compress(mv)
+            if out:
+                ctx.feed_out(self._make_body_data(DirectByteStreamBufferView(out)))
+
+    def _on_outbound_flush_output(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.FlushOutput) -> None:
+        if (z := self._compressor) is None:
+            ctx.feed_out(msg)
+            return
+
+        if chunk := z.flush():
+            ctx.feed_out(self._make_body_data(DirectByteStreamBufferView(chunk)))
+
+        ctx.feed_out(msg)
+
+    def _on_outbound_end(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEnd) -> None:
+        if (z := self._compressor) is None:
+            ctx.feed_out(msg)
+            return
+
+        out = z.finish()
+        if out:
+            ctx.feed_out(self._make_body_data(DirectByteStreamBufferView(out)))
+
+        self._reset()
+        ctx.feed_out(msg)
+
+    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.FinalOutput):
+            self._on_outbound_final_output(ctx, msg)
+
+        elif isinstance(msg, self._head_type):
+            self._on_outbound_head(ctx, msg)
+
+        elif isinstance(msg, self._body_data_type):
+            self._on_outbound_body_data(ctx, msg)
+
+        elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
+            self._on_outbound_flush_output(ctx, msg)
+
+        elif isinstance(msg, self._end_type):
+            self._on_outbound_end(ctx, msg)
+
+        else:
+            ctx.feed_out(msg)
+
+
+########################################
+# ../../../omcore/http/pipelines/compression/decompressors.py
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class IoPipelineHttpDecompressionConfig:
+    DEFAULT: ta.ClassVar['IoPipelineHttpDecompressionConfig']
+
+    max_decomp_chunk: int = 64 * 1024  # max bytes emitted per inflate step
+
+    max_decomp_total: ta.Optional[int] = None    # max total decompressed bytes per object
+    max_expansion_ratio: ta.Optional[int] = 200  # max_out <= max(1, in_total) * ratio (+ small slack)
+
+    max_out_pending: ta.Optional[int] = 256 * 1024  # cap decompressed bytes retained by this stage (if you buffer)
+
+    # CPU Bounding: how many decompress steps to perform before yielding to the driver
+    max_steps_per_call: ta.Optional[int] = None
+
+
+IoPipelineHttpDecompressionConfig.DEFAULT = IoPipelineHttpDecompressionConfig()
+
+
+#
+
+
+class IoPipelineHttpObjectDecompressor(
+    IoPipelineHttpMessageObjects,
+    InboundBytesBufferingIoPipelineHandler,
+    Abstract,
+):
+    def __init__(
+            self,
+            codings: ta.Optional[IoPiplineHttpDecompressorCodings] = None,
+            config: IoPipelineHttpDecompressionConfig = IoPipelineHttpDecompressionConfig.DEFAULT,
+    ) -> None:
+        super().__init__()
+
+        self._config = config
+        if codings is None:
+            codings = DefaultIoPiplineHttpCompressionCodings.DECOMPRESSOR
+        self._codings = codings
+
+        self._decompressor: ta.Optional[IoPiplineHttpDecompressorCoding] = None
+
+        # Statistics for budget checks
+        self._in_total_bytes = 0
+        self._out_total_bytes = 0
+
+        # Internal buffering
+        self._in_pending: collections.deque[BytesLike] = collections.deque()
+        self._in_pending_bytes = 0
+        self._out_pending: collections.deque[BytesLike] = collections.deque()
+        self._out_pending_bytes = 0
+
+        # Flow Control and Deferral State
+        self._read_requested = False
+        self._pending_end: ta.Optional[IoPipelineHttpMessageEnd] = None
+        self._finished = False
+        self._pending_final_input: ta.Optional[IoPipelineMessages.FinalInput] = None
+
+    #
+
+    def inbound_buffered_bytes(self) -> int:
+        return self._in_pending_bytes + self._out_pending_bytes
+
+    #
+
+    def _reset(self, *, preserve_pending_final_input: bool = False) -> None:
+        self._decompressor = None
+
+        self._in_total_bytes = 0
+        self._out_total_bytes = 0
+
+        self._in_pending.clear()
+        self._in_pending_bytes = 0
+        self._out_pending.clear()
+        self._out_pending_bytes = 0
+
+        self._read_requested = False
+        self._pending_end = None
+        self._finished = False
+        if not preserve_pending_final_input:
+            self._pending_final_input = None
+
+    def _check_budgets(self) -> None:
+        if (mdt := self._config.max_decomp_total) is not None and self._out_total_bytes > mdt:
+            raise ValueError('decompressor output exceeds limit (possible zip bomb)')
+
+        if (mer := self._config.max_expansion_ratio) is not None:
+            slack = self._config.max_decomp_chunk
+            if self._out_total_bytes > (max(1, self._in_total_bytes) * mer + slack):
+                raise ValueError('decompressor expansion ratio exceeds limit (possible zip bomb)')
+
+    def _is_auto_read(self, ctx: IoPipelineHandlerContext) -> bool:
+        if (flow := ctx.services.find(IoPipelineFlow)) is None:
+            return True
+        return flow.is_auto_read()
+
+    def _emit_out_pending(self, ctx: IoPipelineHandlerContext) -> bool:
+        """Returns True if at least one message was emitted."""
+
+        emitted = False
+
+        while self._out_pending and (self._is_auto_read(ctx) or self._read_requested):
+            o = self._out_pending.popleft()
+            self._out_pending_bytes -= len(o)
+
+            if not self._is_auto_read(ctx):
+                self._read_requested = False
+
+            ctx.feed_in(self._make_body_data(DirectByteStreamBufferView(o)))
+            emitted = True
+
+            # In manual mode, we satisfy one 'read' at a time.
+            if not self._is_auto_read(ctx):
+                break
+
+        return emitted
+
+    def _pump(self, ctx: IoPipelineHandlerContext) -> bool:
+        """Returns True if it effectively satisfied a read request."""
+
+        z = self._decompressor
+        if z is None:
+            return False
+
+        steps = 0
+        max_steps = self._config.max_steps_per_call
+
+        # 1. Try to clear existing output.
+        if self._emit_out_pending(ctx):
+            if not self._is_auto_read(ctx):
+                return True
+
+        # 2. If blocked by downstream, we can't satisfy anything.
+        if self._out_pending:
+            return False
+
+        # 3. Decompression Loop
+        while self._in_pending:
+            # Enforce output buffer budget
+            if (mop := self._config.max_out_pending) is not None:
+                if self._out_pending_bytes >= mop:
+                    break
+
+            # Check for CPU step limit
+            if max_steps is not None and steps >= max_steps:
+                self._defer_resume(ctx)
+                return False  # We haven't satisfied it yet, we deferred.
+
+            steps += 1
+            chunk = self._in_pending.popleft()
+            cl = len(chunk)
+            self._in_pending_bytes -= cl
+
+            out = z.decompress(chunk, self._config.max_decomp_chunk)
+            if out:
+                ol = len(out)
+                self._out_total_bytes += ol
+                self._out_pending.append(out)
+                self._out_pending_bytes += ol
+                self._check_budgets()
+
+                if self._emit_out_pending(ctx):
+                    if not self._is_auto_read(ctx):
+                        return True  # Satisfied!
+
+            ut = z.unconsumed_tail()
+            if ut:
+                self._in_pending.appendleft(ut)
+                self._in_pending_bytes += len(ut)
+                if not out:
+                    break
+
+        # 4. Finish and deliver the HTTP message end.
+        if not self._in_pending and self._pending_end is not None:
+            if not self._finished:
+                if max_steps is not None and steps >= max_steps:
+                    self._defer_resume(ctx)
+                    return False
+
+                out = z.finish()
+                self._finished = True
+                if out:
+                    ol = len(out)
+                    self._out_total_bytes += ol
+                    self._out_pending.append(out)
+                    self._out_pending_bytes += ol
+                    self._check_budgets()
+                    if self._emit_out_pending(ctx) and not self._is_auto_read(ctx):
+                        return True
+
+            if self._out_pending:
+                return False
+
+            if not self._is_auto_read(ctx) and not self._read_requested:
+                return False
+
+            msg = self._pending_end
+            self._reset(preserve_pending_final_input=True)
+            ctx.feed_in(msg)
+            return True  # End counts as satisfying the last read.
+
+        return False
+
+    def _defer_resume(self, ctx: IoPipelineHandlerContext) -> None:
+        def resume(c: IoPipelineHandlerContext) -> None:
+            # If a deferred pump satisfies a read, it must provide the FlushInput
+            if self._pump(c) and not self._is_auto_read(c):
+                c.feed_in(IoPipelineFlowMessages.FlushInput())
+                self._release_pending_final_input(c)
+
+        ctx.defer(resume)
+
+    #
+
+    def _release_pending_final_input(self, ctx: IoPipelineHandlerContext) -> None:
+        if self._decompressor is not None or self._pending_final_input is None:
+            return
+
+        msg = self._pending_final_input
+        self._pending_final_input = None
+        ctx.feed_in(msg)
+
+    #
+
+    def _on_inbound_final_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineMessages.FinalInput) -> None:
+        if self._decompressor is None:
+            ctx.feed_in(msg)
+            return
+
+        if self._pending_end is not None:
+            ctx.mark_propagated('inbound', msg)
+            self._pending_final_input = msg
+            return
+
+        self._reset()
+
+        ctx.feed_in(self._make_aborted('eof before end of message'))
+        ctx.feed_in(msg)
+
+    def _on_inbound_flush_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.FlushInput) -> None:
+        self._pump(ctx)
+        ctx.feed_in(msg)
+
+    def _on_inbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
+        if self._decompressor is not None:
+            ctx.feed_in(self._make_aborted('unexpected message sequence'))
+            return
+
+        enc = msg.headers.lower.get('content-encoding', ())
+
+        # TODO: spec is actually an ordered stack lol
+        for coding_name, coding in self._codings.items():
+            if coding_name.lower() in enc:
+                self._decompressor = coding()
+                break
+
+        ctx.feed_in(msg)
+
+    def _on_inbound_body_data(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageBodyData) -> None:
+        if self._decompressor is None:
+            ctx.feed_in(msg)
+            return
+
+        for mv in ByteStreamBuffers.iter_segments(msg.data):
+            mvl = len(mv)
+            self._in_total_bytes += mvl
+            self._in_pending.append(mv)
+            self._in_pending_bytes += mvl
+            self._check_budgets()
+
+        self._pump(ctx)
+
+    def _on_inbound_end(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEnd) -> None:
+        if self._decompressor is None:
+            ctx.feed_in(msg)
+            return
+
+        self._pending_end = msg
+        self._pump(ctx)
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            self._on_inbound_final_input(ctx, msg)
+
+        elif isinstance(msg, IoPipelineFlowMessages.FlushInput):
+            self._on_inbound_flush_input(ctx, msg)
+
+        elif isinstance(msg, self._head_type):
+            self._on_inbound_head(ctx, msg)
+
+        elif isinstance(msg, self._body_data_type):
+            self._on_inbound_body_data(ctx, msg)
+
+        elif isinstance(msg, self._end_type):
+            self._on_inbound_end(ctx, msg)
+
+        else:
+            ctx.feed_in(msg)
+
+    #
+
+    def _on_outbound_ready_for_input(self, ctx: IoPipelineHandlerContext, msg: IoPipelineFlowMessages.ReadyForInput) -> None:  # Noqa
+        self._read_requested = True
+
+        if (
+                self._out_pending or
+                (
+                    self._decompressor is not None and
+                    (self._in_pending or self._pending_end is not None)
+                )
+        ):
+            if self._pump(ctx):
+                if not self._is_auto_read(ctx):
+                    ctx.feed_in(IoPipelineFlowMessages.FlushInput())
+                    self._release_pending_final_input(ctx)
+
+                return  # Swallow since we satisfied it
+
+        ctx.feed_out(msg)
+
+    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
+            self._on_outbound_ready_for_input(ctx, msg)
+
+        else:
+            ctx.feed_out(msg)
+
+
+########################################
+# ../../../omcore/http/pipelines/encoders.py
+
+
+##
+
+
+class IoPipelineHttpObjectEncoder(
+    IoPipelineHttpMessageObjects,
+    IoPipelineHandler,
+    Abstract,
+):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._streaming = False
+
+        cls = type(self)
+        self._outbound_dispatch_dct: ta.Mapping[type, ta.Callable[[ta.Any, IoPipelineHandlerContext, ta.Any], None]] = {  # noqa
+            self._head_type: cls._handle_request_head,
+            self._full_type: cls._handle_full_request,
+            self._chunk_type: cls._handle_chunk,
+            self._end_chunk_type: cls._handle_end_chunk,
+            self._last_chunk_type: cls._handle_last_chunk,
+            self._chunked_trailers_type: cls._handle_chunked_trailers,
+            self._body_data_type: cls._handle_body_data,
+            self._end_type: cls._handle_request_end,
+        }
+
+    #
+
+    @abc.abstractmethod
+    def _encode_head_line(self, head: IoPipelineHttpMessageHead) -> bytes:
+        raise NotImplementedError
+
+    #
+
+    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if (fn := self._outbound_dispatch_dct.get(type(msg))) is not None:
+            fn(self, ctx, msg)
+            return
+
+        ctx.feed_out(msg)
+
+    #
+
+    def _handle_request_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:  # noqa
+        self._streaming = True
+
+        ctx.feed_out(self._encode_head(msg))
+
+    #
+
+    def _handle_full_request(self, ctx: IoPipelineHandlerContext, msg: FullIoPipelineHttpMessage) -> ta.Any:
+        ctx.feed_out(self._encode_head(msg.head))
+        if len(msg.body) > 0:
+            ctx.feed_out(msg.body)
+
+    #
+
+    def _handle_chunk(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageChunk) -> None:  # noqa
+        ctx.feed_out(f'{msg.size:x}\r\n'.encode('ascii'))
+
+    #
+
+    def _handle_end_chunk(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEndChunk) -> None:  # noqa
+        ctx.feed_out(b'\r\n')
+
+    #
+
+    def _handle_last_chunk(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageLastChunk) -> None:  # noqa
+        ctx.feed_out(b'0\r\n')
+
+    #
+
+    def _handle_chunked_trailers(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageChunkedTrailers) -> None:  # noqa
+        ctx.feed_out(b'\r\n')
+
+    #
+
+    def _handle_body_data(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageBodyData) -> None:  # noqa
+        if not self._streaming:
+            # Not in streaming mode - pass through unchanged
+            ctx.feed_out(msg)
+
+        if len(msg.data) < 1:
+            pass
+
+        ctx.feed_out(msg.data)
+
+    #
+
+    def _handle_request_end(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageEnd) -> None:  # noqa
+        if not self._streaming:
+            # Not in streaming mode - pass through
+            ctx.feed_out(msg)
+            return
+
+        # Reset state
+        self._streaming = False
+
+    #
+
+    def _encode_head(self, head: IoPipelineHttpMessageHead) -> bytes:
+        buf = io.BytesIO()
+
+        buf.write(self._encode_head_line(head))
+
+        for hl in self._encode_headers(head.headers):
+            buf.write(hl)
+
+        buf.write(b'\r\n')
+
+        return buf.getvalue()
+
+    def _encode_headers(self, headers: HttpHeaders) -> ta.List[bytes]:
+        lines: ta.List[bytes] = []
+
+        # HttpHeaders stores entries as list of (name, value) tuples
+        for name, value in headers.raw:
+            # Header names and values should be ASCII-safe in practice
+            line = f'{name}: {value}\r\n'.encode('ascii')
+            lines.append(line)
+
+        return lines
+
+
+########################################
+# ../../../omcore/http/pipelines/requests.py
+
+
+##
+
+
+class IoPipelineHttpRequestObject(IoPipelineHttpMessageObject, Abstract):
+    pass
+
+
+#
+
+
+@ta.final
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class IoPipelineHttpRequestHead(IoPipelineHttpMessageHead, IoPipelineHttpRequestObject):
+    method: str
+    target: str
+
+    headers: HttpHeaders
+    parsed: ta.Optional[ParsedHttpMessage] = None
+
+    version: HttpVersion = HttpVersions.HTTP_1_1
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class FullIoPipelineHttpRequest(FullIoPipelineHttpMessage, IoPipelineHttpRequestObject):
+    head: IoPipelineHttpRequestHead
+    body: CanByteStreamBuffer
+
+    @classmethod
+    def simple(
+            cls,
+            host: str,
+            target: str,
+            *,
+            method: str = 'GET',
+            version: HttpVersion = HttpVersions.HTTP_1_1,
+
+            content_type: ta.Optional[str] = None,
+            body: bytes = b'',
+            connection: str = 'close',
+
+            headers: ta.Optional[CanHttpHeaders] = None,
+    ) -> 'FullIoPipelineHttpRequest':
+        headers = HttpHeaders.of(headers).update(
+            ('Host', host),
+            ('Content-Type', content_type),
+            ('Content-Length', lambda: str(len(body)) if body else None),
+            ('Connection', connection),
+            if_present='skip',
+        )
+
+        return cls(
+            head=IoPipelineHttpRequestHead(
+                method=method,
+                target=target,
+                version=version,
+                headers=headers,
+            ),
+            body=body,
+        )
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpRequestChunk(IoPipelineHttpMessageChunk, IoPipelineHttpRequestObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpRequestEndChunk(IoPipelineHttpMessageEndChunk, IoPipelineHttpRequestObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpRequestLastChunk(IoPipelineHttpMessageLastChunk, IoPipelineHttpRequestObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpRequestChunkedTrailers(IoPipelineHttpMessageChunkedTrailers, IoPipelineHttpRequestObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpRequestBodyData(IoPipelineHttpMessageBodyData, IoPipelineHttpRequestObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpRequestEnd(IoPipelineHttpMessageEnd, IoPipelineHttpRequestObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpRequestAborted(IoPipelineHttpMessageAborted, IoPipelineHttpRequestObject):
+    pass
+
+
+##
+
+
+class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
+    _head_type: ta.Final = IoPipelineHttpRequestHead
+
+    def _make_head(self, parsed: ParsedHttpMessage) -> IoPipelineHttpRequestHead:
+        request = check.not_none(parsed.request_line)
+
+        return IoPipelineHttpRequestHead(
+            method=request.method,
+            target=check.not_none(request.request_target).decode('utf-8'),  # type: ignore[attr-defined]
+            version=request.http_version,
+            headers=HttpHeaders(parsed.headers.entries),
+            parsed=parsed,
+        )
+
+    #
+
+    _full_type: ta.Final = FullIoPipelineHttpRequest
+
+    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpRequest:
+        return FullIoPipelineHttpRequest(check.isinstance(head, IoPipelineHttpRequestHead), body)
+
+    #
+
+    _chunk_type: ta.Final = IoPipelineHttpRequestChunk
+
+    def _make_chunk(self, size: int) -> IoPipelineHttpRequestChunk:
+        return IoPipelineHttpRequestChunk(size)
+
+    #
+
+    _end_chunk_type: ta.Final = IoPipelineHttpRequestEndChunk
+
+    def _make_end_chunk(self) -> IoPipelineHttpRequestEndChunk:
+        return IoPipelineHttpRequestEndChunk()
+
+    #
+
+    _last_chunk_type: ta.Final = IoPipelineHttpRequestLastChunk
+
+    def _make_last_chunk(self) -> IoPipelineHttpRequestLastChunk:
+        return IoPipelineHttpRequestLastChunk()
+
+    #
+
+    _chunked_trailers_type: ta.Final = IoPipelineHttpRequestChunkedTrailers
+
+    def _make_chunked_trailers(self) -> IoPipelineHttpRequestChunkedTrailers:
+        return IoPipelineHttpRequestChunkedTrailers()
+
+    #
+
+    _body_data_type: ta.Final = IoPipelineHttpRequestBodyData
+
+    def _make_body_data(self, data: CanByteStreamBuffer) -> IoPipelineHttpRequestBodyData:
+        return IoPipelineHttpRequestBodyData(data)
+
+    #
+
+    _end_type: ta.Final = IoPipelineHttpRequestEnd
+
+    def _make_end(self) -> IoPipelineHttpRequestEnd:
+        return IoPipelineHttpRequestEnd()
+
+    #
+
+    _aborted_type: ta.Final = IoPipelineHttpRequestAborted
+
+    def _make_aborted(self, reason: ta.Union[str, BaseException]) -> IoPipelineHttpRequestAborted:
+        return IoPipelineHttpRequestAborted(reason)
+
+
+########################################
+# ../../../omcore/http/pipelines/responses.py
+
+
+##
+
+
+class IoPipelineHttpResponseObject(IoPipelineHttpMessageObject, Abstract):
+    pass
+
+
+#
+
+
+@ta.final
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class IoPipelineHttpResponseHead(IoPipelineHttpMessageHead, IoPipelineHttpResponseObject):
+    status: int
+    reason: str
+
+    headers: HttpHeaders
+    parsed: ta.Optional[ParsedHttpMessage] = None
+
+    version: HttpVersion = HttpVersions.HTTP_1_1
+
+    @staticmethod
+    def get_reason_phrase(code: int) -> str:
+        try:
+            return HttpStatus(code).phrase
+        except ValueError:
+            return ''
+
+    @property
+    def is_interim(self) -> bool:
+        return 100 <= self.status < 200 and self.status != 101
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class FullIoPipelineHttpResponse(FullIoPipelineHttpMessage, IoPipelineHttpResponseObject):
+    head: IoPipelineHttpResponseHead
+    body: CanByteStreamBuffer
+
+    @classmethod
+    def simple(
+            cls,
+            *,
+            version: HttpVersion = HttpVersions.HTTP_1_1,
+            status: int = 200,
+            reason: ta.Optional[str] = None,
+
+            content_type: str = 'text/plain; charset=utf-8',
+            body: bytes = b'',
+            connection: str = 'close',
+
+            headers: ta.Optional[ta.Mapping[str, str]] = None,
+    ):
+        return cls(
+            head=IoPipelineHttpResponseHead(
+                version=version,
+                status=status,
+                reason=IoPipelineHttpResponseHead.get_reason_phrase(status) if reason is None else reason,
+                headers=HttpHeaders([
+                    ('Content-Type', content_type),
+                    ('Content-Length', str(len(body))),
+                    ('Connection', connection),
+                    *(headers.items() if headers else []),
+                ]),
+            ),
+            body=body,
+        )
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpResponseChunk(IoPipelineHttpMessageChunk, IoPipelineHttpResponseObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpResponseEndChunk(IoPipelineHttpMessageEndChunk, IoPipelineHttpResponseObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpResponseLastChunk(IoPipelineHttpMessageLastChunk, IoPipelineHttpResponseObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpResponseChunkedTrailers(IoPipelineHttpMessageChunkedTrailers, IoPipelineHttpResponseObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpResponseBodyData(IoPipelineHttpMessageBodyData, IoPipelineHttpResponseObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpResponseEnd(IoPipelineHttpMessageEnd, IoPipelineHttpResponseObject):
+    pass
+
+
+#
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class IoPipelineHttpResponseAborted(IoPipelineHttpMessageAborted, IoPipelineHttpResponseObject):
+    pass
+
+
+##
+
+
+class IoPipelineHttpResponseObjects(IoPipelineHttpMessageObjects):
+    _head_type: ta.Final = IoPipelineHttpResponseHead
+
+    def _make_head(self, parsed: ParsedHttpMessage) -> ta.Any:
+        status = check.not_none(parsed.status_line)
+
+        return IoPipelineHttpResponseHead(
+            version=status.http_version,
+            status=status.status_code,
+            reason=status.reason_phrase,
+            headers=HttpHeaders(parsed.headers.entries),
+            parsed=parsed,
+        )
+
+    #
+
+    _full_type: ta.Final = FullIoPipelineHttpResponse
+
+    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpResponse:
+        return FullIoPipelineHttpResponse(check.isinstance(head, IoPipelineHttpResponseHead), body)
+
+    #
+
+    _chunk_type: ta.Final = IoPipelineHttpResponseChunk
+
+    def _make_chunk(self, size: int) -> IoPipelineHttpResponseChunk:
+        return IoPipelineHttpResponseChunk(size)
+
+    #
+
+    _end_chunk_type: ta.Final = IoPipelineHttpResponseEndChunk
+
+    def _make_end_chunk(self) -> IoPipelineHttpResponseEndChunk:
+        return IoPipelineHttpResponseEndChunk()
+
+    #
+
+    _last_chunk_type: ta.Final = IoPipelineHttpResponseLastChunk
+
+    def _make_last_chunk(self) -> IoPipelineHttpResponseLastChunk:
+        return IoPipelineHttpResponseLastChunk()
+
+    #
+
+    _chunked_trailers_type: ta.Final = IoPipelineHttpResponseChunkedTrailers
+
+    def _make_chunked_trailers(self) -> IoPipelineHttpResponseChunkedTrailers:
+        return IoPipelineHttpResponseChunkedTrailers()
+
+    #
+
+    _body_data_type: ta.Final = IoPipelineHttpResponseBodyData
+
+    def _make_body_data(self, data: CanByteStreamBuffer) -> IoPipelineHttpResponseBodyData:
+        return IoPipelineHttpResponseBodyData(data)
+
+    #
+
+    _end_type: ta.Final = IoPipelineHttpResponseEnd
+
+    def _make_end(self) -> IoPipelineHttpResponseEnd:
+        return IoPipelineHttpResponseEnd()
+
+    #
+
+    _aborted_type: ta.Final = IoPipelineHttpResponseAborted
+
+    def _make_aborted(self, reason: ta.Union[str, BaseException]) -> IoPipelineHttpResponseAborted:
+        return IoPipelineHttpResponseAborted(reason)
 
 
 ########################################
@@ -30630,7 +30636,7 @@ class IoPipelineHttpObjectAggregator(
             elif isinstance(msg, self._a._end_type):  # noqa
                 body: CanByteStreamBuffer
                 if (buf := self._buf) is not None:
-                    body = buf.coalesce(len(buf))
+                    body = buf.split_to(len(buf))
                 else:
                     body = b''
 
@@ -30651,7 +30657,7 @@ class IoPipelineHttpObjectAggregator(
                 self,
                 a: 'IoPipelineHttpObjectAggregator',
                 head: IoPipelineHttpMessageHead,
-                body: BytesLike,
+                body: CanByteStreamBuffer,
         ) -> None:
             super().__init__(a)
 
@@ -31192,13 +31198,41 @@ class BufferedBytesToMessageDecoderIoPipelineHandler(
 
         check.arg(len(data) > 0)
 
-        if (buf := self._buf) is None:
+        if (max_size := self._max_buffer_size) is not None:
+            buffered = len(self._buf) if self._buf is not None else 0
+            if buffered + len(data) > max_size:
+                raise BufferTooLargeByteStreamBufferError('buffer exceeded max_size')
+
+        write_data = True
+        if (buf := self._buf) is None and isinstance(data, ByteStreamBuffer):
+            if isinstance(data, MutableByteStreamBuffer):
+                buf = data
+                if self._scanning_buffer and not isinstance(buf, ScanningByteStreamBuffer):
+                    buf = ScanningByteStreamBuffer(buf)
+                self._buf = buf
+                write_data = False
+
+            else:
+                self._decode_buffer(ctx, data, out)
+                if not len(data):
+                    return
+
+                buf = self._buf = self._new_buf()
+                for seg in data.segments():
+                    buf.write(seg)
+
+                return
+
+        elif buf is None:
             buf = self._buf = self._new_buf()
 
-        for seg in ByteStreamBuffers.iter_segments(data):
-            buf.write(seg)
+        if write_data:
+            for seg in ByteStreamBuffers.iter_segments(data):
+                buf.write(seg)
 
         self._decode_buffer(ctx, buf, out, final=final)
+        if not len(buf):
+            self._buf = None
 
     #
 
@@ -31646,9 +31680,9 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
-            for mv in ByteStreamBuffers.iter_segments(data):
-                if len(data):
-                    out.append(self._d._make_body_data(mv))  # noqa
+            body_mvs = [mv for mv in ByteStreamBuffers.iter_segments(data) if mv]
+            if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                out.append(self._d._make_body_data(body))  # noqa
 
             if final:
                 out.append(self._d._make_end())  # noqa
@@ -31667,9 +31701,10 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
-            for mv in ByteStreamBuffers.iter_segments(data):
-                if mv:
-                    out.append(mv)
+            if (body := SegmentedByteStreamBufferView.of_opt([
+                    mv for mv in ByteStreamBuffers.iter_segments(data) if mv
+            ])) is not None:
+                out.append(body)
 
             return None
 
@@ -31696,7 +31731,9 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
+            body_mvs: ta.List[memoryview] = []
             next_mvs: ta.List[memoryview]
+            ended = False
 
             for mv in ByteStreamBuffers.iter_segments(data):
                 mvl = len(mv)
@@ -31708,21 +31745,26 @@ class IoPipelineHttpObjectDecoder(
                     continue
 
                 if self._remaining > mvl:
-                    out.append(self._d._make_body_data(mv))  # noqa
+                    body_mvs.append(mv)
                     self._remaining -= mvl
 
                 elif self._remaining == mvl:
-                    out.append(self._d._make_body_data(mv))  # noqa
-                    out.append(self._d._make_end())  # noqa
+                    body_mvs.append(mv)
                     self._remaining = 0
                     next_mvs = []
+                    ended = True
 
                 else:
-                    out.append(self._d._make_body_data(mv[:self._remaining]))  # noqa
-                    out.append(self._d._make_end())  # noqa
+                    body_mvs.append(mv[:self._remaining])
                     ofs = self._remaining
                     self._remaining = 0
                     next_mvs = [mv[ofs:]]
+                    ended = True
+
+            if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                out.append(self._d._make_body_data(body))  # noqa
+            if ended:
+                out.append(self._d._make_end())  # noqa
 
             if final and self._remaining > 0:
                 return self._abort(out, 'EOF before HTTP body complete')
@@ -31856,6 +31898,7 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
+            body_mvs: ta.List[memoryview] = []
             next_mvs: ta.Optional[ta.List[memoryview]] = None
 
             for mv in ByteStreamBuffers.iter_segments(data):
@@ -31869,16 +31912,16 @@ class IoPipelineHttpObjectDecoder(
 
                 if mvl < self._remaining:
                     self._remaining -= mvl
-                    out.append(self._d._make_body_data(mv))  # noqa
+                    body_mvs.append(mv)
                     continue
 
                 if self._remaining > 0:
                     if mvl == self._remaining:
-                        out.append(self._d._make_body_data(mv))  # noqa
+                        body_mvs.append(mv)
                         self._remaining = 0
                         continue
 
-                    out.append(self._d._make_body_data(mv[:self._remaining]))  # noqa
+                    body_mvs.append(mv[:self._remaining])
                     mv = mv[self._remaining:]
                     mvl = len(mv)
                     self._remaining = 0
@@ -31888,6 +31931,8 @@ class IoPipelineHttpObjectDecoder(
 
                 if not self._got_cr:
                     if mv[0] != 0x0d:
+                        if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                            out.append(self._d._make_body_data(body))  # noqa
                         return self._abort(out, f'Expected \\r\\n after chunk data, got {bytes([mv[0]])!r}')
                     self._got_cr = True
                     mv = mv[1:]
@@ -31896,6 +31941,8 @@ class IoPipelineHttpObjectDecoder(
                         continue
 
                 if mv[0] != 0x0a:
+                    if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                        out.append(self._d._make_body_data(body))  # noqa
                     return self._abort(out, f'Expected \\r\\n after chunk data, got {bytes([mv[0]])!r}')
                 mv = mv[1:]
                 mvl -= 1
@@ -31904,6 +31951,9 @@ class IoPipelineHttpObjectDecoder(
 
                 if mvl > 0:
                     next_mvs.append(mv)
+
+            if (body := SegmentedByteStreamBufferView.of_opt(body_mvs)) is not None:
+                out.append(self._d._make_body_data(body))  # noqa
 
             if next_mvs is not None:
                 out.append(self._d._make_end_chunk())  # noqa
@@ -32257,30 +32307,45 @@ class SyncSocketIoPipelineDriver:
     def _do_read(self) -> ta.List[ta.Any]:
         out: ta.List[ta.Any] = []
 
+        buf = SegmentedByteStreamBuffer(chunk_size=self._config.read_chunk_size)
         remaining = self._config.read_batch_max_bytes
         eof = False
         for _ in range(self._config.read_batch_max_reads):
+            reserve = buf.reserve(min(self._config.read_chunk_size, remaining))
             try:
-                b = self._sock.recv(min(self._config.read_chunk_size, remaining))
+                read = self._sock.recv_into(reserve)
             except BlockingIOError:
+                reserve.release()
+                buf.commit(0)
                 break
             except OSError as exc:
-                if not out:
+                reserve.release()
+                buf.commit(0)
+                if not len(buf):
                     self._fail()
                     raise
                 self._pending_read_error = exc
                 break
+            except BaseException:
+                reserve.release()
+                buf.commit(0)
+                raise
+            else:
+                reserve.release()
+                buf.commit(read)
 
-            if not b:
+            if not read:
                 eof = True
                 break
 
-            out.append(b)
-            remaining -= len(b)
+            remaining -= read
             if remaining < 1:
                 break
 
-        if out and self._flow is not None:
+        if len(buf):
+            out.append(buf)
+
+        if len(buf) and self._flow is not None:
             out.append(IoPipelineFlowMessages.FlushInput())
             self._want_read = self._flow.is_auto_read()
 

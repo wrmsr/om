@@ -33,6 +33,7 @@ class TestSegmentedByteStreamBuffer(unittest.TestCase):
         b.write(b'cd')
         v = b.split_to(3)
         self.assertEqual(v.tobytes(), b'abc')
+        self.assertEqual(bytes(v), b'abc')
         self.assertEqual(len(b), 1)
         self.assertEqual(b''.join(bytes(mv) for mv in b.segments()), b'd')
 

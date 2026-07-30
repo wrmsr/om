@@ -26,7 +26,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../lite/bytes.py', sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c'),
             dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
-            dict(path='types.py', sha1='f7f6ba7fdef010e150938b4d03d89fba9b1856eb'),
+            dict(path='types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
             dict(path='reading.py', sha1='36ca4cdf831d8913088dc82a5a512ea7ad0aa66b'),
             dict(path='utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
@@ -418,6 +418,12 @@ class ByteStreamBufferView(ByteStreamBufferLike, Abstract):
     Implementations may be backed by one or many `memoryview` segments; the semantics are defined as if all readable
     bytes were concatenated in order.
     """
+
+    def __bytes__(self) -> bytes:
+        b = self.tobytes()
+        if type(b) is bytes:
+            return b
+        return bytes(b)
 
     @abc.abstractmethod
     def tobytes(self) -> Bytes:
