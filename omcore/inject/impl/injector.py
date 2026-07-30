@@ -1,8 +1,8 @@
-import contextlib
 import contextvars
 import functools
 import itertools
 import threading
+import types
 import typing as ta
 import weakref
 
@@ -293,37 +293,54 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             self._provisions[key] = mv
             return mv
 
-        @contextlib.contextmanager
-        def push_source(self, source: ta.Any) -> ta.Iterator[None]:
-            self._source_stack.append(source)
-            try:
-                yield
-            finally:
-                nsource = self._source_stack.pop()
-                if source is not nsource:
-                    raise Exception(f'Stack error: {source=} is not {nsource=}')
+    class _RequestGuard:
+        """
+        Manual (non-generator) contextmanager for the ambient-request frame - this sits under every provision
+        entrypoint, where generator-contextmanager machinery measurably matters (see tests/bench). `_try_provide`
+        further inlines this logic wholesale; this class serves the coarser per-call entrypoints.
 
-    @contextlib.contextmanager
-    def _current_request(self) -> ta.Generator[_Request]:
-        # A frame is only reused if it is this injector's and its request's owner matches the current context - a
-        # request leaked in via context inheritance (a spawned task or thread) must not be shared, and is instead
-        # shadowed by a fresh frame pushed at the head.
-        head = _CURRENT_REQUEST_STACK.get()
-        owner = self._concurrency.current_identity()
+        A frame is only reused if it is this injector's and its request's owner matches the current context - a
+        request leaked in via context inheritance (a spawned task or thread) must not be shared, and is instead
+        shadowed by a fresh frame pushed at the head.
+        """
 
-        cur = head
-        while cur is not None:
-            if cur.injector_ref() is self and cur.request.owner == owner:
-                yield cur.request
-                return
-            cur = cur.prev
+        __slots__ = (
+            '_injector',
+            '_tok',
+        )
 
-        cr = self._Request(owner)
-        tok = _CURRENT_REQUEST_STACK.set(_RequestFrame(weakref.ref(self), cr, head))
-        try:
-            yield cr
-        finally:
-            _CURRENT_REQUEST_STACK.reset(tok)
+        _tok: contextvars.Token | None
+
+        def __init__(self, injector: AsyncInjectorImpl) -> None:
+            self._injector = injector
+
+        def __enter__(self) -> AsyncInjectorImpl._Request:
+            i = self._injector
+            head = _CURRENT_REQUEST_STACK.get()
+            owner = i._concurrency.current_identity()  # noqa
+
+            cur = head
+            while cur is not None:
+                if cur.injector_ref() is i and cur.request.owner == owner:
+                    self._tok = None
+                    return cur.request
+                cur = cur.prev
+
+            cr = AsyncInjectorImpl._Request(owner)
+            self._tok = _CURRENT_REQUEST_STACK.set(_RequestFrame(weakref.ref(i), cr, head))
+            return cr
+
+        def __exit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc_val: BaseException | None,
+                exc_tb: types.TracebackType | None,
+        ) -> None:
+            if (tok := self._tok) is not None:
+                _CURRENT_REQUEST_STACK.reset(tok)
+
+    def _current_request(self) -> _RequestGuard:
+        return AsyncInjectorImpl._RequestGuard(self)
 
     async def _try_provide(self, key: ta.Any, *, source: ta.Any = None) -> lang.Maybe[ta.Any]:
         if not self._is_initialized:
@@ -334,32 +351,60 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
         key = as_key(key)
 
-        cr: AsyncInjectorImpl._Request
-        with self._current_request() as cr:
-            with cr.push_source(source):
-                if (rv := cr.handle_key(key)).present:
-                    return rv.must()
+        # The request-frame guard and source-stack push are inlined here rather than being contextmanagers of any
+        # kind - this is the hottest path in the injector, and even manual-class contextmanager overhead measurably
+        # matters (see tests/bench). Mirrors _RequestGuard exactly - keep the two in sync.
+        head = _CURRENT_REQUEST_STACK.get()
+        owner = self._concurrency.current_identity()
 
-                if (icr := self._internal_consts.get(key)) is not None and (ic := icr()) is not None:
-                    return cr.handle_provision(key, lang.just(ic))
+        cr: AsyncInjectorImpl._Request | None = None
+        cur = head
+        while cur is not None:
+            if cur.injector_ref() is self and cur.request.owner == owner:
+                cr = cur.request
+                break
+            cur = cur.prev
 
-                bi = self._bim.get(key)
-                if bi is not None:
-                    sc = self.get_scope_impl(bi.scope)
+        tok = None
+        if cr is None:
+            cr = AsyncInjectorImpl._Request(owner)
+            tok = _CURRENT_REQUEST_STACK.set(_RequestFrame(weakref.ref(self), cr, head))
 
-                    fn = lambda: sc.provide(bi, self)  # noqa
-                    for pl in self._pls:
-                        fn = functools.partial(pl, self, key, bi.binding, fn)
-                    v = await fn()
+        ss = cr._source_stack  # noqa
+        ss.append(source)
+        try:
+            if (rv := cr.handle_key(key)).present:
+                return rv.must()
 
-                    return cr.handle_provision(key, lang.just(v))
+            if (icr := self._internal_consts.get(key)) is not None and (ic := icr()) is not None:
+                return cr.handle_provision(key, lang.just(ic))
 
-                if (pp := self._parent()) is not None:
-                    pv = await pp._try_provide(key, source=source)  # noqa
-                    if pv.present:
-                        return cr.handle_provision(key, pv)
+            bi = self._bim.get(key)
+            if bi is not None:
+                sc = self.get_scope_impl(bi.scope)
 
-                return cr.handle_provision(key, lang.empty())
+                fn = lambda: sc.provide(bi, self)  # noqa
+                for pl in self._pls:
+                    fn = functools.partial(pl, self, key, bi.binding, fn)
+                v = await fn()
+
+                return cr.handle_provision(key, lang.just(v))
+
+            if (pp := self._parent()) is not None:
+                pv = await pp._try_provide(key, source=source)  # noqa
+                if pv.present:
+                    return cr.handle_provision(key, pv)
+
+            return cr.handle_provision(key, lang.empty())
+
+        finally:
+            try:
+                nsource = ss.pop()
+                if source is not nsource:
+                    raise Exception(f'Stack error: {source=} is not {nsource=}')
+            finally:
+                if tok is not None:
+                    _CURRENT_REQUEST_STACK.reset(tok)
 
     async def _provide(self, key: ta.Any, *, source: ta.Any = None) -> ta.Any:
         v = await self._try_provide(key, source=source)

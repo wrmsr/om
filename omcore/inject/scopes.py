@@ -1,6 +1,6 @@
 import abc
-import contextlib
 import contextvars
+import types
 import typing as ta
 
 from .. import check
@@ -194,16 +194,47 @@ def bind_scope_seed(k: ta.Any, ss: DelimitedScope) -> Element:
 ##
 
 
+class _AsyncScopeEntry:
+    """Manual (non-generator) async contextmanager: provides the scope's Manager and delegates to its entry."""
+
+    __slots__ = (
+        '_i',
+        '_ss',
+        '_seeds',
+        '_inner',
+    )
+
+    def __init__(
+            self,
+            i: _injector.AsyncInjector,
+            ss: DelimitedScope,
+            seeds: ta.Mapping[Key, ta.Any] | None,
+    ) -> None:
+        self._i = i
+        self._ss = ss
+        self._seeds = seeds
+        self._inner: ta.AsyncContextManager[None] | None = None
+
+    async def __aenter__(self) -> None:
+        mgr = await self._i.provide(as_key(DelimitedScope.Manager, tag=self._ss))
+        self._inner = inner = mgr(self._seeds)
+        return await inner.__aenter__()
+
+    async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: types.TracebackType | None,
+    ) -> ta.Any:
+        return await check.not_none(self._inner).__aexit__(exc_type, exc_val, exc_tb)
+
+
 def async_enter_scope(
         i: _injector.AsyncInjector,
         ss: DelimitedScope,
         seeds: ta.Mapping[Key, ta.Any] | None = None,
 ) -> ta.AsyncContextManager[None]:
-    @contextlib.asynccontextmanager
-    async def inner():
-        async with (await i.provide(as_key(DelimitedScope.Manager, tag=ss)))(seeds):
-            yield
-    return inner()
+    return _AsyncScopeEntry(i, ss, seeds)
 
 
 def enter_scope(
@@ -211,17 +242,8 @@ def enter_scope(
         ss: DelimitedScope,
         seeds: ta.Mapping[Key, ta.Any] | None = None,
 ) -> ta.ContextManager[None]:
-    @contextlib.contextmanager
-    def inner():
-        # FIXME: helper lol
-        ag = async_enter_scope(
-            i[_injector.AsyncInjector],
-            ss,
-            seeds,
-        )
-        v = lang.sync_await(ag.__aenter__())
-        try:
-            yield v
-        finally:
-            lang.sync_await(ag.__aexit__(None, None, None))
-    return inner()
+    return lang.sync_async_with(async_enter_scope(
+        i[_injector.AsyncInjector],
+        ss,
+        seeds,
+    ))

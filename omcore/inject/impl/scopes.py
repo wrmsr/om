@@ -1,7 +1,7 @@
 import abc
-import contextlib
 import enum
 import threading
+import types
 import typing as ta
 import weakref
 
@@ -253,19 +253,46 @@ class DelimitedScopeImpl(ScopeImpl[DelimitedScope]):
             self._ii_ref: weakref.ref = weakref.ref(ii)
             self._ssi = check.isinstance(ii.get_scope_impl(self._scope), DelimitedScopeImpl)
 
-        def __call__(self, seeds: ta.Mapping[Key, ta.Any] | None = None) -> ta.AsyncContextManager[None]:
-            @contextlib.asynccontextmanager
-            async def inner():
-                if (ii := self._ii_ref()) is None:
+        class _Entry:
+            """
+            Manual (non-generator) async contextmanager - scope entry is warm, and flat frames single-step
+            better.
+            """
+
+            __slots__ = (
+                '_mgr',
+                '_seeds',
+                '_tok',
+            )
+
+            _tok: ta.Any
+
+            def __init__(self, mgr: DelimitedScopeImpl.Manager, seeds: ta.Mapping[Key, ta.Any] | None) -> None:
+                self._mgr = mgr
+                self._seeds = seeds
+
+            async def __aenter__(self) -> None:
+                mgr = self._mgr
+                if (ii := mgr._ii_ref()) is None:  # noqa
                     raise DeadInjectorError
 
-                tok = self._ssi._store.open(DelimitedScopeImpl.State(dict(seeds or {})))  # noqa
+                self._tok = tok = mgr._ssi._store.open(DelimitedScopeImpl.State(dict(self._seeds or {})))  # noqa
                 try:
-                    await ii._instantiate_eagers(self._scope)  # noqa
-                    yield
-                finally:
-                    self._ssi._store.close(tok)  # noqa
-            return inner()
+                    await ii._instantiate_eagers(mgr._scope)  # noqa
+                except BaseException:
+                    mgr._ssi._store.close(tok)  # noqa
+                    raise
+
+            async def __aexit__(
+                    self,
+                    exc_type: type[BaseException] | None,
+                    exc_val: BaseException | None,
+                    exc_tb: types.TracebackType | None,
+            ) -> None:
+                self._mgr._ssi._store.close(self._tok)  # noqa
+
+        def __call__(self, seeds: ta.Mapping[Key, ta.Any] | None = None) -> ta.AsyncContextManager[None]:
+            return self._Entry(self, seeds)
 
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
         st = self.must_state()
