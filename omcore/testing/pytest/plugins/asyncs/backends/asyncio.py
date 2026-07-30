@@ -30,7 +30,7 @@ class AsyncioAsyncsBackend(AsyncsBackend):
     def wrap_runner(self, fn):
         @functools.wraps(fn)
         def wrapper(**kwargs):
-            with asyncio.Runner(loop_factory=asyncio.get_event_loop_policy().new_event_loop) as runner:
+            with asyncio.Runner() as runner:
                 loop_cls = type(runner.get_loop())
                 check.equal(loop_cls.__module__.split('.')[0], 'asyncio')
                 return runner.run(fn(**kwargs))
