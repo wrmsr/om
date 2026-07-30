@@ -1,8 +1,6 @@
-- refcycle hygiene (steady-state provision and injector drop - privates and wrapper stacks included - are
-  refcount-clean as of the weakref passes - see `tests/test_gc.py`; remaining known cycles):
-  - `ElementCollection` is a self-contained cycle cluster: its `@lang.cached_function` methods install bound wrappers
-    in `__dict__` whose `_instance` points back. Doesn't pin the injector; matters when ECs churn. Await the
-    cached_function weakref work (its own TODO), or switch EC to eager/plain-attr caching.
+- refcycle hygiene (steady-state provision and injector/ElementCollection drop - privates and wrapper stacks
+  included - are refcount-clean as of the weakref passes and cached_function's weak instance binding - see
+  `tests/test_gc.py`; remaining known cycles):
   - Singletons that inject `Injector` itself cycle through the scope cache - accepted (it's the antipattern).
     Possible sugar: 'automatic' weakref-wrapping injection, analogous to optional-stripping - eg. a param annotated
     `weakref.ref[Foo]` (or a marker) provided as a weak ref. Maybe.

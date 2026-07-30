@@ -23,7 +23,16 @@ Keys come in three tiers:
   This facility remains the calling-convention authority for the future cext.
 
 Binding is instance-dict based: a descriptor's `__get__` installs a lightweight per-instance bound wrapper in
-`instance.__dict__[name]` (shadowing the non-data descriptor - later accesses never re-bind). Everything shared across
+`instance.__dict__[name]` (shadowing the non-data descriptor - later accesses never re-bind). The wrapper holds its
+instance *weakly* by default (falling back to a strong holder for non-weakrefable instances): the installed wrapper is
+only reachable through the instance's own `__dict__`, so a permanent strong back-reference would make every
+cached-method-bearing instance a reference cycle. To keep temporary-instance one-liners working (`Obj().meth()` -
+LOAD_ATTR drops the instance's last strong ref before the call), the bind also *pins* the instance strongly, and the
+miss path releases the pin right after storing its first computed value - so the cycle exists only in the
+bind-to-first-call window, which is ordinarily zero. The instance is dereferenced only on cache misses and cold paths
+- warm hits never touch it - so a wrapper that escapes its instance's lifetime still serves already-cached keys but
+raises `ReferenceError` on any further miss. Pass `strong_instance=True` for full bound-method-style pinning.
+Everything shared across
 an instance method's bindings (wrapper metadata, opts, key maker, defaults) lives as *class attributes* of a
 per-descriptor generated bound class, so the warm bind is a single generated `__get__` frame: `object.__new__` plus one
 `__dict__` literal holding only the truly per-instance state, plus the install. Class-attribute values that are
@@ -51,7 +60,6 @@ TODO:
    path can branch: `if va:` re-pass them positionally ahead of *va, else the existing omission-filtered kwargs dict
  - significant_kwargs_order=False - stdlib has significant kwarg order
  - integrate / expose with collections.cache
- - weakrefs (selectable by arg)
  - classmethod-scope pickling
  - use __transient_dict__ to support common state nuking
  - on_compute
@@ -65,6 +73,7 @@ import itertools
 import threading
 import types
 import typing as ta
+import weakref
 
 from ..classes.abstract import Abstract
 from ..classes.restrict import Final
@@ -265,6 +274,29 @@ _OMITTED_ARG = _OmittedArgSentinel()
 #
 
 
+class _StrongRef:
+    """The non-weakrefable-instance fallback for weak binding - a callable holder uniform with `weakref.ref`."""
+
+    __slots__ = ('_o',)
+
+    def __init__(self, o: ta.Any) -> None:
+        self._o = o
+
+    def __call__(self) -> ta.Any:
+        return self._o
+
+
+def _make_instance_ref(instance: ta.Any) -> ta.Callable[[], ta.Any]:
+    try:
+        return weakref.ref(instance)
+    except TypeError:
+        # Non-weakrefable (eg. __slots__ without __weakref__): fall back to pinning, preserving legacy behavior.
+        return _StrongRef(instance)
+
+
+#
+
+
 class _KeyShape(enum.Enum):
     NULLARY = enum.auto()  # zero effective params + dict map -> single-slot storage, no key maker, no backing map
     INLINE = enum.auto()   # __call__ carries the fn's own signature - interpreter-native canonicalization
@@ -294,6 +326,7 @@ class _CacheSpec(ta.NamedTuple):
     dict_map: bool = True            # DESCRIPTOR instance-scope only: bind literal uses {} vs the map maker
     bound_nullary: bool = False      # DESCRIPTOR instance-scope only: binds omit _values (slot storage)
     bound_raw_fn: bool = False       # DESCRIPTOR instance-scope only: binds omit _value_fn (raw-fn bound species)
+    weak_instance: bool = False      # instance-scope only: _instance is a ref callable, deref'd on the miss path
 
 
 #
@@ -307,7 +340,7 @@ class _ResolvedKeyShape(ta.NamedTuple):
 
 # Bare names the generated bodies reference - params shadowing them are ineligible for the INLINE tier (all other
 # generated names are __-prefixed, and __-prefixed params are rejected wholesale).
-_INLINE_FORBIDDEN_PARAM_NAMES: ta.AbstractSet[str] = frozenset(['KeyError'])
+_INLINE_FORBIDDEN_PARAM_NAMES: ta.AbstractSet[str] = frozenset(['KeyError', 'ReferenceError'])
 
 
 def _inline_shape(ps: ParamSpec) -> tuple | None:
@@ -427,6 +460,7 @@ class _CachedFunction(Abstract, ta.Generic[T]):
         transient: bool = False
         no_wrapper_update: bool = False
         cache_exceptions: type[BaseException] | tuple[type[BaseException], ...] | None = None
+        strong_instance: bool = False  # bound-method-style pinning: bound wrappers hold their instance strongly
 
         def __post_init__(self) -> None:
             if (ce := self.cache_exceptions) is not None:
@@ -447,6 +481,7 @@ class _CachedFunction(Abstract, ta.Generic[T]):
     _v: ta.Any  # the nullary single slot - _MISSING when empty
     _lock: ta.Any
     _cache_exceptions: type[BaseException] | tuple[type[BaseException], ...] | None
+    _instance_pin: ta.Any  # weak binds only: pins the instance from bind until the first successful store
 
     def reset(self) -> None:
         if self._values is not None:
@@ -534,6 +569,7 @@ class _DescriptorCachedFunction(_FullCachedFunction[T], Abstract):
         super().__init__(fn, **kwargs)
 
         self._scope = scope
+        self._bound_weak = scope is None and not self._opts.strong_instance
         self._given_name = name
         self._name: str = name if name is not None else unwrap_func(fn).__name__
         self._set_name: str | None = None
@@ -606,6 +642,7 @@ class _DescriptorCachedFunction(_FullCachedFunction[T], Abstract):
         nullary = res.key_shape is _KeyShape.NULLARY
         km = _make_cache_key_maker(fn, bound=True) if res.key_shape is _KeyShape.GENERAL else None
         raw = type(fn) is types.FunctionType and self._scope is None
+        weak = self._bound_weak
 
         self._bound_fn_get = fn.__get__ if not raw else None
         self._bound_map_maker = opts.map_maker if not nullary else None
@@ -619,6 +656,7 @@ class _DescriptorCachedFunction(_FullCachedFunction[T], Abstract):
             locked=self._bound_lock_factory is not None,
             cache_exceptions=opts.cache_exceptions is not None,
             raw_fn=raw,
+            weak_instance=weak,
         ))
 
         # The per-descriptor bound class: everything shared across this method's bindings lives here as class
@@ -642,6 +680,12 @@ class _DescriptorCachedFunction(_FullCachedFunction[T], Abstract):
         )
         if raw:
             bag['_raw_fn'] = staticmethod(fn)
+        if weak:
+            bag['_instance_pin'] = None
+            if not raw:
+                # Weak binds re-derive the bound value fn on each miss rather than storing one (it would strongly
+                # hold the instance). Not a plain function, so no staticmethod neutralization is needed.
+                bag['_fn_get'] = self._bound_fn_get
 
         self._bound_cls = bcls = type(self._name, (species,), bag)
         return bcls
@@ -697,9 +741,13 @@ class _BoundCachedFunction(_CachedFunction[T], Abstract):
         super().__init__()
 
         desc = self._desc
-        self._instance = instance
+        if desc._bound_weak and instance is not None:  # noqa
+            self._instance = _make_instance_ref(instance)
+            self._instance_pin = instance
+        else:
+            self._instance = instance
         self._owner = owner
-        if (fg := desc._bound_fn_get) is not None:  # noqa
+        if not desc._bound_weak and (fg := desc._bound_fn_get) is not None:  # noqa
             self._value_fn = fg(instance, owner)
         if (mm := desc._bound_map_maker) is not None:  # noqa
             self._values = values if values is not None else mm()
@@ -714,7 +762,12 @@ class _BoundCachedFunction(_CachedFunction[T], Abstract):
         desc = self._desc
         if desc._scope is not None:  # noqa
             raise TypeError(self)
-        if self._instance is None:
+
+        inst = self._instance
+        if desc._bound_weak and inst is not None:  # noqa
+            if (inst := inst()) is None:
+                raise ReferenceError('weakly-referenced instance no longer exists')
+        if inst is None:
             raise TypeError(self)
 
         if desc._opts.transient:  # noqa
@@ -723,7 +776,7 @@ class _BoundCachedFunction(_CachedFunction[T], Abstract):
             state = (True, self._v)  # nullary species: the value lives in the single slot
         else:
             state = (False, self._values)
-        return (_unpickle_bound, (self._instance, desc._name, state))  # noqa
+        return (_unpickle_bound, (inst, desc._name, state))  # noqa
 
 
 #
@@ -796,7 +849,11 @@ def _cls_descriptor_get(self, instance, owner=None):
 def _instance_bound_get(self, instance, owner=None):
     # Instance-scope bound wrappers live in instance __dict__s and thus aren't normally descriptor-accessed - handled
     # anyway for manual class-attribute placement.
-    if instance is None or instance is self._instance:
+    if instance is None:
+        return self
+    if (si := self._instance) is not None and self._desc._bound_weak:  # noqa
+        si = si()
+    if instance is si:
         return self
     return self._desc._bind(instance, owner)  # noqa
 
@@ -823,6 +880,7 @@ def _species_tag(spec: _CacheSpec) -> str:
         *(['locked'] if spec.locked else []),
         *(['exc'] if spec.cache_exceptions else []),
         *(['raw'] if spec.raw_fn else []),
+        *(['weak'] if spec.weak_instance else []),
     ])
 
 
@@ -846,6 +904,7 @@ class _SpeciesCodeGen(Final):
         self._nullary = spec.key_shape is _KeyShape.NULLARY
         self._inline = spec.key_shape is _KeyShape.INLINE
         self._exc = spec.cache_exceptions
+        self._weak_bound = spec.weak_instance and spec.bind_kind is _BindKind.BOUND
 
         self._ns: dict[str, ta.Any] = {
             '__missing': _MISSING,
@@ -854,6 +913,7 @@ class _SpeciesCodeGen(Final):
             '__tuple': tuple,
             '__sorted': sorted,
             '__new': object.__new__,
+            '__mkref': _make_instance_ref,
         }
 
     _INDENT: ta.ClassVar[str] = '    '
@@ -974,7 +1034,18 @@ class _SpeciesCodeGen(Final):
                 parts.append(f'**{vk}')
             args_src = ', '.join(parts)
 
-        if spec.raw_fn:
+        if self._weak_bound:
+            # Weak-instance species deref only here, on the miss path - warm hits never touch the instance.
+            pre = [
+                'if (__i := __self._instance()) is None:',
+                "    raise ReferenceError('weakly-referenced instance no longer exists')",
+                *pre,
+            ]
+            if spec.raw_fn:
+                call = f'__self._raw_fn(__i{", " if args_src else ""}{args_src})'
+            else:
+                call = f'__self._fn_get(__i)({args_src})'
+        elif spec.raw_fn:
             call = f'__self._raw_fn(__self._instance{", " if args_src else ""}{args_src})'
         else:
             call = f'__self._value_fn({args_src})'
@@ -1010,19 +1081,24 @@ class _SpeciesCodeGen(Final):
 
     def store_lines(self) -> list[str]:
         # Compute and store. The single place cache_exceptions changes computation: a matching exception is stored
-        # wrapped rather than propagated.
+        # wrapped rather than propagated. Weak binds release their instance pin here, after the first successful
+        # store - a compute that *raises* keeps the pin, so retries still have their instance.
         pre, call = self.compute_src()
         target = '__self._v' if self._nullary else '__self._values[__k]'
         if not self._exc:
-            return [*pre, f'{target} = __v = {call}']
-        return [
-            *pre,
-            'try:',
-            f'    __v = {call}',
-            'except __self._cache_exceptions as __e:',
-            '    __v = __cexc(__e)',
-            f'{target} = __v',
-        ]
+            lines = [*pre, f'{target} = __v = {call}']
+        else:
+            lines = [
+                *pre,
+                'try:',
+                f'    __v = {call}',
+                'except __self._cache_exceptions as __e:',
+                '    __v = __cexc(__e)',
+                f'{target} = __v',
+            ]
+        if self._weak_bound:
+            lines.append('__self._instance_pin = None')
+        return lines
 
     def call_lines(self) -> list[str]:
         lines = self.key_lines()
@@ -1045,8 +1121,11 @@ class _SpeciesCodeGen(Final):
     def get_lines(self) -> list[str]:
         spec = self._spec
 
-        entries = ["'_instance': instance"]
-        if not spec.bound_raw_fn:
+        if spec.weak_instance:
+            entries = ["'_instance': __mkref(instance)", "'_instance_pin': instance"]
+        else:
+            entries = ["'_instance': instance"]
+        if not spec.bound_raw_fn and not spec.weak_instance:
             entries.append("'_value_fn': __self._bound_fn_get(instance, owner)")
         if not spec.bound_nullary:
             entries.append("'_values': {}" if spec.dict_map else "'_values': __self._bound_map_maker()")
@@ -1183,6 +1262,7 @@ def _make_descriptor(
         dict_map=True if (cls_scope or bound_nullary) else dict_map,
         bound_nullary=False if cls_scope else bound_nullary,
         bound_raw_fn=bound_raw,
+        weak_instance=not cls_scope and not opts.strong_instance,
     ))
 
     return species(

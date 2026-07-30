@@ -182,6 +182,20 @@ def test_late_does_not_pin_injector():
 ##
 
 
+def test_element_collection_collects_without_gc():
+    # ElementCollection's lazy caches are weak-instance cached_functions - a dropped (fully-forced) collection is
+    # reclaimed by pure refcounting, so per-request collections don't churn cyclic garbage either.
+    with _no_gc():
+        es = inj.as_elements(inj.bind(Leaf), inj.bind(Holder, singleton=True))
+        ec = inj.collect_elements(es)
+        i = inj.create_injector(ec)
+        assert isinstance(i[Holder], Holder)
+
+        refs = (weakref.ref(i), weakref.ref(i[inj.AsyncInjector]), weakref.ref(ec), weakref.ref(es))
+        del i, ec, es
+        assert all(r() is None for r in refs)
+
+
 def test_steady_state_makes_no_cyclic_garbage():
     i = inj.create_injector(
         inj.bind(Leaf),
