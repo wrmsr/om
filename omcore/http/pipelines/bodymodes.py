@@ -17,7 +17,7 @@ class IoPipelineHttpBodyModeError(Exception):
 @ta.final
 @dc.dataclass(frozen=True)
 class IoPipelineHttpBodyMode:
-    mode: ta.Literal['empty', 'eof', 'cl', 'chunked']
+    mode: ta.Literal['empty', 'eof', 'cl', 'chunked', 'tunnel']
     length: ta.Optional[int]
 
     @classmethod
@@ -27,6 +27,9 @@ class IoPipelineHttpBodyMode:
             *,
             if_length_missing: ta.Literal['empty', 'eof'],
     ) -> 'IoPipelineHttpBodyMode':
+        if 'transfer-encoding' in headers and 'content-length' in headers:
+            raise IoPipelineHttpBodyModeError('both Transfer-Encoding and Content-Length are present')
+
         if headers.contains_value('transfer-encoding', 'chunked', ignore_case=True):
             return cls('chunked', None)
 

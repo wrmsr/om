@@ -94,6 +94,14 @@ class IoPipelineHttpObjectDecoder(
 
     #
 
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        return IoPipelineHttpBodyMode.select(
+            head.headers,
+            if_length_missing=self._if_content_length_missing,
+        )
+
+    #
+
     def _decode(
             self,
             ctx: IoPipelineHandlerContext,
@@ -252,10 +260,7 @@ class IoPipelineHttpObjectDecoder(
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
             try:
-                te = IoPipelineHttpBodyMode.select(
-                    self._head.headers,
-                    if_length_missing=self._d._if_content_length_missing,  # noqa
-                )
+                te = self._d._select_body_mode(self._head)  # noqa
             except IoPipelineHttpBodyModeError as e:
                 return self._abort(out, f'Invalid Transfer-Encoding: {e.reason}')
 
@@ -271,6 +276,10 @@ class IoPipelineHttpObjectDecoder(
 
             elif te.mode == 'chunked':
                 return (self._d._HeaderChunkedContentState(self._d, self._head), data)  # noqa
+
+            elif te.mode == 'tunnel':
+                out.append(self._d._make_end())  # noqa
+                return (self._d._TunnelState(self._d, self._head), data)  # noqa
 
             else:
                 raise RuntimeError(f'unexpected mode {te!r}')
@@ -307,6 +316,23 @@ class IoPipelineHttpObjectDecoder(
                 return (self._d._DoneState(self._d, self._head), b'')  # noqa
             else:
                 return None
+
+    #
+
+    class _TunnelState(_ContentState):
+        def decode(
+                self,
+                ctx: IoPipelineHandlerContext,
+                data: CanByteStreamBuffer,
+                out: ta.List[ta.Any],
+                *,
+                final: bool = False,
+        ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
+            for mv in ByteStreamBuffers.iter_segments(data):
+                if mv:
+                    out.append(mv)
+
+            return None
 
     #
 

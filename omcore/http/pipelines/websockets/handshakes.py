@@ -16,6 +16,7 @@ from ..requests import FullIoPipelineHttpRequest
 from ..requests import IoPipelineHttpRequestEnd
 from ..requests import IoPipelineHttpRequestHead
 from ..responses import FullIoPipelineHttpResponse
+from ..responses import IoPipelineHttpResponseEnd
 from ..responses import IoPipelineHttpResponseHead
 from ..servers.requests import IoPipelineHttpRequestDecoder
 from ..servers.responses import IoPipelineHttpResponseEncoder
@@ -146,6 +147,7 @@ class IoPipelineWebsocketClientUpgradeHandler(IoPipelineHandler):
 
     _key_b64: ta.Optional[str] = None
     _upgraded: bool = False
+    _awaiting_upgrade_end: bool = False
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if self._upgraded:
@@ -165,6 +167,9 @@ class IoPipelineWebsocketClientUpgradeHandler(IoPipelineHandler):
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if self._upgraded:
+            if self._awaiting_upgrade_end and isinstance(msg, IoPipelineHttpResponseEnd):
+                self._awaiting_upgrade_end = False
+                return
             ctx.feed_in(msg)
             return
 
@@ -181,12 +186,14 @@ class IoPipelineWebsocketClientUpgradeHandler(IoPipelineHandler):
             chosen_proto = msg.headers.single.get('Sec-Websocket-Protocol')
 
             self._upgraded = True
+            self._awaiting_upgrade_end = True
             ctx.defer_no_context(lambda: self._remove_http_handlers(ctx))
             ctx.feed_in(IoPipelineWebsocketOpen(subprotocol=chosen_proto))
             return
 
         elif isinstance(msg, FullIoPipelineHttpResponse):
             self.inbound(ctx, msg.head)
+            self._awaiting_upgrade_end = False
             return
 
         ctx.feed_in(msg)

@@ -120,6 +120,7 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                 ))
 
                 response: ta.Union[IoPipelineHttpResponseHead, FullIoPipelineHttpResponse, None] = None
+                interim_response = False
 
                 while True:
                     if (out := await drv.next()) is not None:
@@ -127,16 +128,26 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                             msg = out.msg
 
                             if isinstance(msg, IoPipelineHttpResponseHead):
+                                if msg.is_interim:
+                                    interim_response = True
+                                    continue
+
                                 check.none(response)
                                 response = msg
 
                                 break
 
                             if isinstance(msg, FullIoPipelineHttpResponse):
+                                if msg.head.is_interim:
+                                    continue
+
                                 check.none(response)
                                 response = msg
 
                                 drv.enqueue(IoPipelineHttpClientMessages.Close())
+
+                            elif isinstance(msg, IoPipelineHttpResponseEnd) and interim_response:
+                                interim_response = False
 
                             elif isinstance(msg, (IoPipelineMessages.FinalInput, IoPipelineHttpClientMessages.Close)):
                                 pass

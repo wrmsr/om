@@ -54,6 +54,10 @@ class IoPipelineHttpResponseHead(IoPipelineHttpMessageHead, IoPipelineHttpRespon
         except ValueError:
             return ''
 
+    @property
+    def is_interim(self) -> bool:
+        return 100 <= self.status < 200 and self.status != 101
+
 
 #
 

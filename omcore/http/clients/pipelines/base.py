@@ -18,9 +18,9 @@ from ...headers import HttpHeaders
 from ...pipelines.clients.clients import IoPipelineHttpClientHandler
 from ...pipelines.clients.requests import IoPipelineHttpRequestCompressor
 from ...pipelines.clients.requests import IoPipelineHttpRequestEncoder
+from ...pipelines.clients.responses import IoPipelineHttpClientResponseDecoder
 from ...pipelines.clients.responses import IoPipelineHttpResponseAggregatorDecoder
 from ...pipelines.clients.responses import IoPipelineHttpResponseDechunker
-from ...pipelines.clients.responses import IoPipelineHttpResponseDecoder
 from ...pipelines.clients.responses import IoPipelineHttpResponseDecompressor
 from ...pipelines.clients.timeouts import IoPipelineHttpClientRequestTimeoutHandler
 from ...pipelines.requests import FullIoPipelineHttpRequest
@@ -130,12 +130,13 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
 
                 *([SslIoPipelineHandler(**(ssl_kwargs or {}))] if with_ssl else []),
 
-                IoPipelineHttpResponseDecoder(),
+                IoPipelineHttpRequestEncoder(),
+
+                IoPipelineHttpClientResponseDecoder(),
                 *([IoPipelineHttpResponseDechunker()] if not self._aggregate_responses else []),
                 IoPipelineHttpResponseDecompressor(),
                 *([IoPipelineHttpResponseAggregatorDecoder()] if self._aggregate_responses else []),
 
-                IoPipelineHttpRequestEncoder(),
                 IoPipelineHttpRequestCompressor(),
 
                 *(

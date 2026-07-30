@@ -6,12 +6,19 @@ import unittest
 from .....io.pipelines.core import IoPipeline
 from .....io.pipelines.core import IoPipelineHandler
 from .....io.pipelines.core import IoPipelineHandlerContext
+from .....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
 from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
+from ....headers import HttpHeaders
+from ...requests import IoPipelineHttpRequestHead
+from ...responses import IoPipelineHttpResponseEnd
+from ...responses import IoPipelineHttpResponseHead
 from ..frames import IoPipelineWebsocketFrameDecoder
 from ..frames import IoPipelineWebsocketFrameEncoder
+from ..handshakes import IoPipelineWebsocketClientUpgradeHandler
 from ..handshakes import IoPipelineWebsocketHandshakes
 from ..objects import IoPipelineWebsocketFrame
 from ..objects import IoPipelineWebsocketOpcode
+from ..objects import IoPipelineWebsocketOpen
 from ..objects import IoPipelineWebsocketText
 
 
@@ -51,3 +58,40 @@ class TestBasic(unittest.TestCase):
         f = got[-1]
         assert f.opcode == IoPipelineWebsocketOpcode.TEXT
         assert f.payload == b'hi'
+
+    def test_client_upgrade_consumes_response_end(self) -> None:
+        handler = IoPipelineWebsocketClientUpgradeHandler(host='localhost')
+        pipeline = IoPipeline.new([
+            handler,
+            fbi := FeedbackInboundIoPipelineHandler(),
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        request = IoPipelineHttpRequestHead(
+            method='GET',
+            target='/',
+            headers=HttpHeaders([]),
+        )
+        pipeline.feed_in(fbi.wrap(request))
+        upgraded_request = pipeline.output.poll()
+        assert isinstance(upgraded_request, IoPipelineHttpRequestHead)
+        key = upgraded_request.headers.single['Sec-Websocket-Key']
+
+        pipeline.feed_in(
+            IoPipelineHttpResponseHead(
+                status=101,
+                reason='Switching Protocols',
+                headers=HttpHeaders([
+                    (
+                        'Sec-Websocket-Accept',
+                        IoPipelineWebsocketHandshakes.compute_accept_for_key(key),
+                    ),
+                ]),
+            ),
+            IoPipelineHttpResponseEnd(),
+            IoPipelineWebsocketText('ready'),
+        )
+
+        opened, text = ibq.drain()
+        self.assertIsInstance(opened, IoPipelineWebsocketOpen)
+        self.assertEqual(text, IoPipelineWebsocketText('ready'))

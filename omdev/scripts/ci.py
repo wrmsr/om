@@ -158,7 +158,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/asyncs/asyncio/sockets.py', sha1='57bfaf9aaf1cc8263dc3292d9b1397de9e81ce5d'),
             dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='cfde8108f1128ceea3502c77eefb015fb43a6239'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
-            dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='0df5c7697210b27064a7dd54c736487195f82703'),
+            dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fd4ceb8a60ebc33776c0ff8a916ee570afcedafb'),
             dict(path='../../omcore/http/pipelines/objects.py', sha1='18e331467e8ab0b66bc17938712434dd0e765f77'),
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
@@ -187,7 +187,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='a767b565416cb6f3c1d27e3770ce479bb5d27595'),  # noqa
             dict(path='../../omcore/http/pipelines/encoders.py', sha1='339afab8253286438f275d10a3625900552bb702'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='b825e91750b19e96176fd0e872eb8bdded965f01'),
-            dict(path='../../omcore/http/pipelines/responses.py', sha1='3145565e89891902ecd2ce193fac1609d3a26fe6'),
+            dict(path='../../omcore/http/pipelines/responses.py', sha1='7e1fda6f0a68370b76a07a2eebf96ab9ebd4a113'),
             dict(path='../../omcore/http/simple/handlers.py', sha1='43502a58069673135882066ba939c99ea2f8dfc1'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
             dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
@@ -222,7 +222,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
-            dict(path='../../omcore/http/pipelines/decoders.py', sha1='32a063c0cdfb151e256c99bf8161934292946ff2'),
+            dict(path='../../omcore/http/pipelines/decoders.py', sha1='7cb24218e1fc8fe2adeb3e8fe089859721d7b52e'),
             dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='c0ccb2903d3d5d83317a4e1c64aceb57849d4465'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
@@ -13243,7 +13243,7 @@ class IoPipelineHttpBodyModeError(Exception):
 @ta.final
 @dc.dataclass(frozen=True)
 class IoPipelineHttpBodyMode:
-    mode: ta.Literal['empty', 'eof', 'cl', 'chunked']
+    mode: ta.Literal['empty', 'eof', 'cl', 'chunked', 'tunnel']
     length: ta.Optional[int]
 
     @classmethod
@@ -13253,6 +13253,9 @@ class IoPipelineHttpBodyMode:
             *,
             if_length_missing: ta.Literal['empty', 'eof'],
     ) -> 'IoPipelineHttpBodyMode':
+        if 'transfer-encoding' in headers and 'content-length' in headers:
+            raise IoPipelineHttpBodyModeError('both Transfer-Encoding and Content-Length are present')
+
         if headers.contains_value('transfer-encoding', 'chunked', ignore_case=True):
             return cls('chunked', None)
 
@@ -21527,6 +21530,10 @@ class IoPipelineHttpResponseHead(IoPipelineHttpMessageHead, IoPipelineHttpRespon
             return HttpStatus(code).phrase
         except ValueError:
             return ''
+
+    @property
+    def is_interim(self) -> bool:
+        return 100 <= self.status < 200 and self.status != 101
 
 
 #
@@ -31426,6 +31433,14 @@ class IoPipelineHttpObjectDecoder(
 
     #
 
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        return IoPipelineHttpBodyMode.select(
+            head.headers,
+            if_length_missing=self._if_content_length_missing,
+        )
+
+    #
+
     def _decode(
             self,
             ctx: IoPipelineHandlerContext,
@@ -31584,10 +31599,7 @@ class IoPipelineHttpObjectDecoder(
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
             try:
-                te = IoPipelineHttpBodyMode.select(
-                    self._head.headers,
-                    if_length_missing=self._d._if_content_length_missing,  # noqa
-                )
+                te = self._d._select_body_mode(self._head)  # noqa
             except IoPipelineHttpBodyModeError as e:
                 return self._abort(out, f'Invalid Transfer-Encoding: {e.reason}')
 
@@ -31603,6 +31615,10 @@ class IoPipelineHttpObjectDecoder(
 
             elif te.mode == 'chunked':
                 return (self._d._HeaderChunkedContentState(self._d, self._head), data)  # noqa
+
+            elif te.mode == 'tunnel':
+                out.append(self._d._make_end())  # noqa
+                return (self._d._TunnelState(self._d, self._head), data)  # noqa
 
             else:
                 raise RuntimeError(f'unexpected mode {te!r}')
@@ -31639,6 +31655,23 @@ class IoPipelineHttpObjectDecoder(
                 return (self._d._DoneState(self._d, self._head), b'')  # noqa
             else:
                 return None
+
+    #
+
+    class _TunnelState(_ContentState):
+        def decode(
+                self,
+                ctx: IoPipelineHandlerContext,
+                data: CanByteStreamBuffer,
+                out: ta.List[ta.Any],
+                *,
+                final: bool = False,
+        ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
+            for mv in ByteStreamBuffers.iter_segments(data):
+                if mv:
+                    out.append(mv)
+
+            return None
 
     #
 

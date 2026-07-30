@@ -13,6 +13,7 @@ from ....lite.namespaces import NamespaceClass
 from ..requests import FullIoPipelineHttpRequest
 from ..responses import FullIoPipelineHttpResponse
 from ..responses import IoPipelineHttpResponseEnd
+from ..responses import IoPipelineHttpResponseHead
 from ..responses import IoPipelineHttpResponseObject
 from .responses import IoPipelineHttpResponseAggregatorDecoder
 
@@ -47,10 +48,12 @@ class IoPipelineHttpClientMessages(NamespaceClass):
 
 class IoPipelineHttpClientHandler(IoPipelineHandler):
     _request: ta.Optional[IoPipelineHttpClientMessages.Request] = None
+    _response_is_final: bool = True
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineMessages.Error):
             self._request = None
+            self._response_is_final = True
 
             ctx.feed_out(msg.exc)
             ctx.feed_final_output()
@@ -60,6 +63,7 @@ class IoPipelineHttpClientHandler(IoPipelineHandler):
         if isinstance(msg, IoPipelineHttpClientMessages.Request):
             check.none(self._request)
             self._request = msg
+            self._response_is_final = True
 
             if (ag := msg.aggregate) is not None:
                 rad = check.not_none(ctx.pipeline.find_single_handler_of_type(IoPipelineHttpResponseAggregatorDecoder))
@@ -79,8 +83,18 @@ class IoPipelineHttpClientHandler(IoPipelineHandler):
 
             ctx.feed_out(IoPipelineHttpClientMessages.Output(msg, request=self._request))
 
-            if isinstance(msg, (FullIoPipelineHttpResponse, IoPipelineHttpResponseEnd)):
-                self._request = None
+            if isinstance(msg, FullIoPipelineHttpResponse):
+                if not msg.head.is_interim:
+                    self._request = None
+
+            elif isinstance(msg, IoPipelineHttpResponseHead):
+                self._response_is_final = not msg.is_interim
+
+            elif isinstance(msg, IoPipelineHttpResponseEnd):
+                if self._response_is_final:
+                    self._request = None
+                else:
+                    self._response_is_final = True
 
             return
 
@@ -92,6 +106,7 @@ class IoPipelineHttpClientHandler(IoPipelineHandler):
             ctx.feed_out(IoPipelineHttpClientMessages.Output(msg, request=self._request))
 
             self._request = None
+            self._response_is_final = True
 
             if isinstance(msg, IoPipelineMessages.FinalInput):
                 ctx.feed_in(msg)
