@@ -91,10 +91,13 @@ with _lang.auto_proxy_init(globals()):
         DuplicateMapKeyError,
         InjectorConcurrencyError,
         ScopeAlreadyOpenError,
+        ScopeAlreadyRegisteredError,
+        ScopeEagerNonLocalError,
         ScopeEagerUnsupportedError,
         ScopeError,
         ScopeFrozenError,
         ScopeNotOpenError,
+        ScopeNotRegisteredError,
         UnboundKeyError,
     )
 
@@ -177,12 +180,15 @@ with _lang.auto_proxy_init(globals()):
 
         ThreadScope,
 
-        SeededScope,
+        DelimitedScopeStateStore,
+        DelimitedScopeContext,
+        DelimitedScope,
+        ContextVarScopeContext,
         ScopeSeededProvider,
         bind_scope_seed,
 
-        async_enter_seeded_scope,
-        enter_seeded_scope,
+        async_enter_scope,
+        enter_scope,
     )
 
     from .sync import (  # noqa

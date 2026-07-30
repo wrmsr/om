@@ -7,6 +7,7 @@ called out.
 import abc
 import asyncio
 import contextlib
+import contextvars
 import functools
 import threading
 import typing as ta
@@ -269,7 +270,7 @@ def test_nothing_is_type_checked():
 #
 # Unscoped (the default) constructs per provision. `singleton=True` caches on first provision; `eager=True`
 # additionally constructs it at injector creation (failing fast on broken graphs). See test_scopes.py and Part 14 for
-# seeded scopes, and test_concurrency.py for concurrent scope semantics.
+# delimited scopes, and test_concurrency.py for concurrent scope semantics.
 
 
 def test_singletons():
@@ -311,7 +312,7 @@ def test_thread_scope():
 
 def test_eager_needs_an_instantiation_point():
     # Rough edge, by design: eagerness requires a scope with a defined instantiation point (injector init for
-    # unscoped/singleton, scope open for seeded scopes). ThreadScope has none - there is no 'when' - so it is rejected
+    # unscoped/singleton, scope open for delimited scopes). ThreadScope has none - there is no 'when' - so it is
     # loudly at creation:
     class Conn:
         pass
@@ -724,14 +725,14 @@ def test_managed_lifecycle():
 
 
 ##
-# Part 14: Seeded scopes.
+# Part 14: Delimited scopes.
 #
-# A `SeededScope` is opened per unit-of-work (request, session, job), *seeded* with the values that define that unit.
+# A `DelimitedScope` is opened per unit-of-work (request, session, job), *seeded* with the values that define that unit.
 # Bindings `in_` the scope construct at most once per opening; seed keys are declared with `bind_scope_seed` and
 # provided at entry. See test_scopes.py for scope-open eagers, and test_concurrency.py for concurrent semantics.
 
 
-REQUEST_SCOPE = inj.SeededScope('web-request')
+REQUEST_SCOPE = inj.DelimitedScope('web-request')
 
 
 @dc.dataclass(frozen=True)
@@ -762,16 +763,49 @@ def test_request_scope():
     with pytest.raises(inj.ScopeNotOpenError):
         i.provide(WebHandler)
 
-    with inj.enter_seeded_scope(i, REQUEST_SCOPE, {inj.as_key(WebRequest): WebRequest('/a')}):
+    with inj.enter_scope(i, REQUEST_SCOPE, {inj.as_key(WebRequest): WebRequest('/a')}):
         h = i[WebHandler]
         assert h.handle() == '/a @ postgres://prod'
         assert i[WebHandler] is h  # one per scope opening
 
-    with inj.enter_seeded_scope(i, REQUEST_SCOPE, {inj.as_key(WebRequest): WebRequest('/b')}):
+    with inj.enter_scope(i, REQUEST_SCOPE, {inj.as_key(WebRequest): WebRequest('/b')}):
         h2 = i[WebHandler]
         assert h2 is not h  # each opening starts fresh
         assert h2.handle() == '/b @ postgres://prod'
         assert h2.db is h.db  # while singletons span openings
+
+
+REQUEST_SCOPE_VAR: contextvars.ContextVar = contextvars.ContextVar(f'{__name__}.REQUEST_SCOPE_VAR')
+
+
+def test_concurrent_request_scopes():
+    # By default a DelimitedScope's openings are injector-global: one at a time, seen by every thread and task. For
+    # true concurrent request handling - one shared injector, many simultaneous openings - give the scope a
+    # *context* around a ContextVar you own (module-level, per contextvars best practice; its contents are opaque):
+    # openings then live per execution context, so concurrent tasks (and anything spawned within them) each see
+    # their own. See test_scopes.py for the full semantics.
+    scope = inj.DelimitedScope('cv-request', context=inj.ContextVarScopeContext(REQUEST_SCOPE_VAR))
+
+    async def main():
+        i = await inj.create_asyncio_injector(
+            inj.bind(DbUrl, to_const=DbUrl('postgres://prod')),
+            inj.bind(Database, singleton=True),
+
+            inj.bind_scope(scope),
+            inj.bind_scope_seed(WebRequest, scope),
+            inj.bind(WebHandler, in_=scope),
+        )
+
+        async def handle(path: str) -> str:
+            async with inj.async_enter_scope(i, scope, {inj.as_key(WebRequest): WebRequest(path)}):
+                return (await i.provide(WebHandler)).handle()
+
+        assert sorted(await asyncio.gather(handle('/a'), handle('/b'))) == [
+            '/a @ postgres://prod',
+            '/b @ postgres://prod',
+        ]
+
+    asyncio.run(main())
 
 
 ##

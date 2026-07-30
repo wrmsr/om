@@ -162,13 +162,13 @@ def test_none_is_a_value():
 # Scope abuse.
 
 
-def test_seeded_scope_reentry_rejected():
-    ss = inj.SeededScope('once')
+def test_delimited_scope_reentry_rejected():
+    ss = inj.DelimitedScope('once')
     i = inj.create_injector(inj.bind_scope(ss))
 
-    with inj.enter_seeded_scope(i, ss, {}):
+    with inj.enter_scope(i, ss, {}):
         with pytest.raises(inj.ScopeAlreadyOpenError):  # noqa
-            with inj.enter_seeded_scope(i, ss, {}):
+            with inj.enter_scope(i, ss, {}):
                 pass
 
 
@@ -176,13 +176,13 @@ def test_missing_seed():
     # Entering a scope without a declared seed is not itself an error - but providing that seed key surfaces a raw
     # KeyError from the seed map. (A candidate for a friendlier error, like the unregistered-scope KeyError in
     # TODO.md.)
-    ss = inj.SeededScope('underfed')
+    ss = inj.DelimitedScope('underfed')
     i = inj.create_injector(
         inj.bind_scope(ss),
         inj.bind_scope_seed(float, ss),
     )
 
-    with inj.enter_seeded_scope(i, ss, {}):
+    with inj.enter_scope(i, ss, {}):
         with pytest.raises(KeyError):
             i.provide(float)
 
@@ -194,27 +194,27 @@ def test_singleton_captures_first_scope_value():
         def __init__(self, f: float) -> None:
             self.f = f
 
-    ss = inj.SeededScope('sticky')
+    ss = inj.DelimitedScope('sticky')
     i = inj.create_injector(
         inj.bind_scope(ss),
         inj.bind_scope_seed(float, ss),
         inj.bind(Sticky, singleton=True),
     )
 
-    with inj.enter_seeded_scope(i, ss, {inj.as_key(float): 1.0}):
+    with inj.enter_scope(i, ss, {inj.as_key(float): 1.0}):
         first = i[Sticky]
         assert first.f == 1.0
 
-    with inj.enter_seeded_scope(i, ss, {inj.as_key(float): 2.0}):
+    with inj.enter_scope(i, ss, {inj.as_key(float): 2.0}):
         assert i[Sticky] is first
         assert i[Sticky].f == 1.0  # not 2.0!
 
 
 def test_overlapping_scope_lifetimes():
-    # Seeded scopes are independent: their lifetimes may overlap without nesting. (Iceworm's staggered phase scopes
+    # Delimited scopes are independent: their lifetimes may overlap without nesting. (Iceworm's staggered phase scopes
     # relied on exactly this - a 'post' scope opening before the prior phase's scopes close, and outliving them.)
-    a = inj.SeededScope('a')
-    b = inj.SeededScope('b')
+    a = inj.DelimitedScope('a')
+    b = inj.DelimitedScope('b')
     i = inj.create_injector(
         inj.bind_scope(a),
         inj.bind_scope(b),
@@ -222,8 +222,8 @@ def test_overlapping_scope_lifetimes():
         inj.bind('yo', in_=b),
     )
 
-    cma = inj.enter_seeded_scope(i, a, {})
-    cmb = inj.enter_seeded_scope(i, b, {})
+    cma = inj.enter_scope(i, a, {})
+    cmb = inj.enter_scope(i, b, {})
 
     a_open = b_open = False
     try:

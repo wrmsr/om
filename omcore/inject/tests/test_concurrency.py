@@ -175,11 +175,11 @@ def test_singleton_concurrent_failure_retry():
     assert len(calls) == 2
 
 
-def test_seeded_scope_concurrent_threads():
+def test_delimited_scope_concurrent_threads():
     class Foo:
         pass
 
-    ss = inj.SeededScope('s')
+    ss = inj.DelimitedScope('s')
 
     entered = threading.Event()
     t2_ready = threading.Event()
@@ -206,7 +206,7 @@ def test_seeded_scope_concurrent_threads():
         t2_ready.set()
         res['t2'] = i[Foo]
 
-    with inj.enter_seeded_scope(i, ss, {}):
+    with inj.enter_scope(i, ss, {}):
         t1 = threading.Thread(target=t1fn)
         t2 = threading.Thread(target=t2fn)
         t1.start()

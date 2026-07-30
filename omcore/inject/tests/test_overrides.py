@@ -151,7 +151,7 @@ def test_override_then_append_eager():
 
 
 def test_override_concats_non_keyed():
-    ss = inj.SeededScope('hi')
+    ss = inj.DelimitedScope('hi')
     src = inj.as_elements(
         inj.bind_scope(ss),
         inj.bind(420, in_=ss),
@@ -171,6 +171,6 @@ def test_override_concats_non_keyed():
 
     i = inj.create_injector(inj.override(src, ovr))
     assert i.provide(str) == 'ovr'
-    with inj.enter_seeded_scope(i, ss, {}):
+    with inj.enter_scope(i, ss, {}):
         assert i.provide(int) == 420
     assert ls

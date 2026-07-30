@@ -106,7 +106,7 @@ class ElementCollection(CollectedElements, lang.Final):
 
     def _get_scope_auto_elements(self, sc: Scope) -> Elements | None:
         # Cached so equal ScopeBindings expand to identical elements, which then squash as duplicates rather than
-        # conflict - auto elements (like SeededScope's Manager binding) are not otherwise value-comparable.
+        # conflict - auto elements (like DelimitedScope's Manager binding) are not otherwise value-comparable.
         try:
             return self._scope_auto_elements[sc]
         except KeyError:
@@ -238,6 +238,13 @@ class ElementCollection(CollectedElements, lang.Final):
     @lang.cached_function
     def scope_binding_scopes(self) -> ta.Sequence[Scope]:
         return [sb.scope for sb in self.elements_of_type(ScopeBinding)]
+
+    @lang.cached_function
+    def keys_by_scope(self) -> ta.Mapping[Scope, frozenset[Key]]:
+        dct: dict[Scope, set[Key]] = {}
+        for k, bi in self.binding_impl_map().items():
+            dct.setdefault(bi.scope, set()).add(k)
+        return {sc: frozenset(ks) for sc, ks in dct.items()}
 
     @lang.cached_function
     def sorted_eager_keys_by_scope(self) -> ta.Mapping[Scope, ta.Sequence[Key]]:

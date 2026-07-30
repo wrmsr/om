@@ -1,7 +1,8 @@
 """
-Integration tests codifying real-world composition patterns from the injector's heavier users (the minichain driver,
-the app/server experiments, and the iceworm engine's phased-scope architecture, translated to the current injector).
-Each test is a miniature of a pattern that has seen production-ish use - if one of these breaks, an idiom broke.
+Integration tests codifying real-world composition patterns from the injector's heavier users (the minichain driver, the
+app/server experiments, and the iceworm (https://github.com/wrmsr/iceworm) engine's phased-scope architecture,
+translated to the current injector). Each test is a miniature of a pattern that has seen production-ish use - if one of
+these breaks, an idiom broke.
 """
 import abc
 import contextlib
@@ -18,9 +19,9 @@ from ... import lang
 ##
 # Pattern: per-package binder functions - config in, elements out.
 #
-# Applications are assembled from `bind_*()` functions taking (defaulted) frozen config dataclasses, branching on
-# them, and composing their children's binders. Impl selection is expressed as different bindings, not branches in
-# domain logic; internals of a subsystem hide in a private, exposing only its public interface.
+# Applications are assembled from `bind_*()` functions taking (defaulted) frozen config dataclasses, branching on them,
+# and composing their children's binders. Impl selection is expressed as different bindings, not branches in domain
+# logic; internals of a subsystem hide in a private, exposing only its public interface.
 
 
 UserName = ta.NewType('UserName', str)
@@ -113,9 +114,9 @@ def test_override_specializes_a_stack():
 # Pattern: contributed item collections.
 #
 # The items-binder helper is how packages contribute into an extensible collection (event callbacks, tool catalogs,
-# ...): a NewType'd Sequence as the collection's key, one owner binding the provider, any number of contributors
-# binding items. Consumers just take the collection type; cross-contribution ordering is deliberately unspecified;
-# empty is fine.
+# ...): a NewType'd Sequence as the collection's key, one owner binding the provider, any number of contributors binding
+# items. Consumers just take the collection type; cross-contribution ordering is deliberately unspecified; empty is
+# fine.
 
 
 @dc.dataclass(frozen=True)
@@ -161,8 +162,8 @@ def test_contributed_items_empty():
 ##
 # Pattern: the event-bus cycle, broken with Late.
 #
-# A bus needs its callbacks at construction; a callback that emits back into the bus needs the bus - a true cycle.
-# The house resolution: keep the participant's constructor clean, and resolve it lazily at the *callback* level.
+# A bus needs its callbacks at construction; a callback that emits back into the bus needs the bus - a true cycle. The
+# house resolution: keep the participant's constructor clean, and resolve it lazily at the *callback* level.
 
 
 @dc.dataclass(frozen=True)
@@ -216,10 +217,10 @@ def test_event_bus_cycle():
 ##
 # Pattern: child injectors as instance scopes.
 #
-# 'N drivers in one app': each unit gets a child injector with its own identity and per-instance services, sharing
-# the parent's singletons. Keys bound in the child shadow the parent's; unbound keys fall through. The known caveat:
-# contributed items do *not* cross the boundary - a child's collection sees only the child's contributions (and a
-# child with no collection of its own falls through to the parent's, wholesale). Data crosses via configs instead.
+# 'N drivers in one app': each unit gets a child injector with its own identity and per-instance services, sharing the
+# parent's singletons. Keys bound in the child shadow the parent's; unbound keys fall through. The known caveat:
+# contributed items do *not* cross the boundary - a child's collection sees only the child's contributions (and a child
+# with no collection of its own falls through to the parent's, wholesale). Data crosses via configs instead.
 
 
 DriverId = ta.NewType('DriverId', str)
@@ -239,8 +240,8 @@ def bind_one_driver(driver_id, *, extra_tools=()) -> inj.Elements:
         inj.bind(DriverId, to_const=DriverId(driver_id)),
         inj.bind(DriverBus, singleton=True),
 
-        # The items caveat's workaround, codified: values that must become items inside the child are carried in as
-        # data and contributed by the child's own binder:
+        # The items caveat's workaround, codified: values that must become items inside the child are carried in as data
+        # and contributed by the child's own binder:
         tools().bind_items_provider(singleton=True),
         *([tools().bind_item_consts(*extra_tools)] if extra_tools else []),
     )
@@ -277,14 +278,14 @@ def test_child_injectors_per_instance():
 ##
 # Pattern: the phased pipeline (iceworm's architecture, on modern scopes).
 #
-# A processing engine runs a document through ordered *phases*. Each phase is a SeededScope: opened with the evolving
+# A processing engine runs a document through ordered *phases*. Each phase is a DelimitedScope: opened with the evolving
 # document as its seed, hosting phase-scoped caches, per-phase contributed processor sets, and scope-open eagers
 # (auditors) - while app singletons span all phases. This is the deepest scope/multis/eager interplay in the suite.
 
 
 PIPELINE_PHASES = ('parse', 'analyze', 'render')
 
-PHASE_SCOPES: ta.Mapping[str, inj.SeededScope] = {p: inj.SeededScope(('pipeline', p)) for p in PIPELINE_PHASES}
+PHASE_SCOPES: ta.Mapping[str, inj.DelimitedScope] = {p: inj.DelimitedScope(('pipeline', p)) for p in PIPELINE_PHASES}
 
 
 @dc.dataclass(frozen=True)
@@ -417,7 +418,7 @@ def bind_pipeline() -> inj.Elements:
 
 def run_pipeline(i, doc):
     for phase in PIPELINE_PHASES:
-        with inj.enter_seeded_scope(i, PHASE_SCOPES[phase], {_phase_doc_key(phase): doc}):
+        with inj.enter_scope(i, PHASE_SCOPES[phase], {_phase_doc_key(phase): doc}):
             for p in sorted(i[_phase_processors_key(phase)], key=lambda p: p.priority):
                 doc = p.process(doc)
     return doc
@@ -442,11 +443,11 @@ def test_phased_pipeline_scoped_state():
 
     caches: list = []
 
-    with inj.enter_seeded_scope(i, PHASE_SCOPES['analyze'], {_phase_doc_key('analyze'): PipelineDoc('x')}):
+    with inj.enter_scope(i, PHASE_SCOPES['analyze'], {_phase_doc_key('analyze'): PipelineDoc('x')}):
         ps = sorted(i[_phase_processors_key('analyze')], key=lambda p: p.priority)
         caches.append([p.cache for p in ps])
 
-    with inj.enter_seeded_scope(i, PHASE_SCOPES['analyze'], {_phase_doc_key('analyze'): PipelineDoc('y')}):
+    with inj.enter_scope(i, PHASE_SCOPES['analyze'], {_phase_doc_key('analyze'): PipelineDoc('y')}):
         ps = sorted(i[_phase_processors_key('analyze')], key=lambda p: p.priority)
         caches.append([p.cache for p in ps])
 
@@ -459,12 +460,12 @@ def test_phased_pipeline_scoped_state():
 ##
 # Pattern: nested unit-of-work scopes.
 #
-# Session/turn (or session/query) nesting: an outer seeded scope stays open across many openings of an inner one.
+# Session/turn (or session/query) nesting: an outer delimited scope stays open across many openings of an inner one.
 # Inner-scoped services depend on outer-scoped ones and both kinds of seeds; outer state persists across inner units.
 
 
-SESSION_SCOPE = inj.SeededScope('session')
-TURN_SCOPE = inj.SeededScope('turn')
+SESSION_SCOPE = inj.DelimitedScope('session')
+TURN_SCOPE = inj.DelimitedScope('turn')
 
 SessionId = ta.NewType('SessionId', str)
 TurnInput = ta.NewType('TurnInput', str)
@@ -503,9 +504,9 @@ def test_nested_session_turn_scopes():
 
     def run_session(session_id, turn_inputs):
         outs = []
-        with inj.enter_seeded_scope(i, SESSION_SCOPE, {inj.as_key(SessionId): SessionId(session_id)}):
+        with inj.enter_scope(i, SESSION_SCOPE, {inj.as_key(SessionId): SessionId(session_id)}):
             for ti in turn_inputs:
-                with inj.enter_seeded_scope(i, TURN_SCOPE, {inj.as_key(TurnInput): TurnInput(ti)}):
+                with inj.enter_scope(i, TURN_SCOPE, {inj.as_key(TurnInput): TurnInput(ti)}):
                     outs.append(i[TurnHandler].handle())
         return outs
 
@@ -523,7 +524,7 @@ def test_nested_session_turn_scopes():
 # to lazily construct new state into the passed moment fails loudly. Freezing is (currently) impl-level api.
 
 
-CATALOG_SCOPE = inj.SeededScope('catalog')
+CATALOG_SCOPE = inj.DelimitedScope('catalog')
 
 CatalogInputs = ta.NewType('CatalogInputs', ta.Sequence[str])
 
@@ -539,7 +540,7 @@ class CatalogLateComer:
 
 def test_frozen_catalog_scope():
     from ..impl.injector import AsyncInjectorImpl
-    from ..impl.scopes import SeededScopeImpl
+    from ..impl.scopes import DelimitedScopeImpl
 
     i = inj.create_injector(
         inj.bind_scope(CATALOG_SCOPE),
@@ -548,11 +549,11 @@ def test_frozen_catalog_scope():
         inj.bind(CatalogLateComer, in_=CATALOG_SCOPE),
     )
 
-    with inj.enter_seeded_scope(i, CATALOG_SCOPE, {inj.as_key(CatalogInputs): CatalogInputs(['b', 'a'])}):
+    with inj.enter_scope(i, CATALOG_SCOPE, {inj.as_key(CatalogInputs): CatalogInputs(['b', 'a'])}):
         ai = i[inj.AsyncInjector]
         assert isinstance(ai, AsyncInjectorImpl)
         ssi = ai.get_scope_impl(CATALOG_SCOPE)
-        assert isinstance(ssi, SeededScopeImpl)
+        assert isinstance(ssi, DelimitedScopeImpl)
         ssi.freeze()
 
         # ...later phases run here, reading the sealed catalog...
@@ -564,11 +565,11 @@ def test_frozen_catalog_scope():
 ##
 # Pattern: keyed executor registries in a work scope (iceworm's op execution).
 #
-# A map multibinding from op type to executor, with executors constructed *inside* a per-execution seeded scope so
+# A map multibinding from op type to executor, with executors constructed *inside* a per-execution delimited scope so
 # they see that execution's connections. Providing the map inside the scope builds that execution's executor set.
 
 
-EXECUTION_SCOPE = inj.SeededScope('execution')
+EXECUTION_SCOPE = inj.DelimitedScope('execution')
 
 
 @dc.dataclass(frozen=True)
@@ -634,7 +635,7 @@ def test_op_executor_registry():
     )
 
     def execute_all(conns, ops):
-        with inj.enter_seeded_scope(i, EXECUTION_SCOPE, {inj.as_key(ConnectionSet): conns}):
+        with inj.enter_scope(i, EXECUTION_SCOPE, {inj.as_key(ConnectionSet): conns}):
             executors = i[ta.Mapping[ta.Any, OpExecutor]]
             return [executors[type(op)].execute(op) for op in ops]
 
@@ -649,7 +650,7 @@ def test_op_executor_registry():
 # Pattern: contextvar-thunk request state (the app/server web stack).
 #
 # Absent a request scope, per-request values live in contextvars, with the *getter* bound as a `Callable[[], T]`
-# constant - singleton handlers hold the thunk and call it per request. (A seeded scope is the structured
+# constant - singleton handlers hold the thunk and call it per request. (A delimited scope is the structured
 # alternative; this shape is nonetheless load-bearing in the web stack, and pins generic-alias-with-union keys.)
 
 
@@ -715,8 +716,8 @@ def test_multibinding_fold():
 # Pattern: binding a bound method of an injected object.
 #
 # There is no `to_method` - the idiom (from the app shell, modernized from its typed_lambda spelling to the blessed
-# `inj.target`) names the owner as an explicit dependency of a wrapping lambda, then registers the tagged key into
-# the task collection.
+# `inj.target`) names the owner as an explicit dependency of a wrapping lambda, then registers the tagged key into the
+# task collection.
 
 
 ShellTask = ta.NewType('ShellTask', lang.Func0[str])
@@ -747,8 +748,8 @@ def test_bound_method_binding():
 # Pattern: wrapper stacks with unwrapped_key= and with_= (the ai-driver stack).
 #
 # A stack can be built under an *internal* (tagged) key while its wrapper classes are written against the public
-# interface - `unwrapped_key=` aliases the public key to the layer below within each level's private. `with_=`
-# supplies extra elements visible only to that one layer's construction.
+# interface - `unwrapped_key=` aliases the public key to the layer below within each level's private. `with_=` supplies
+# extra elements visible only to that one layer's construction.
 
 
 class Renderer(lang.Abstract):
@@ -803,9 +804,9 @@ def test_wrapper_stack_unwrapped_and_with():
 ##
 # Pattern: a provision listener as a lifecycle registrar (iceworm's LifecycleRegistrar).
 #
-# Every provisioned instance of a marker interface is auto-registered with a manager - instrumentation attached at
-# the injector level, invisible to the bindings. Registration lands in dependency-first order, which is exactly the
-# order a lifecycle manager wants.
+# Every provisioned instance of a marker interface is auto-registered with a manager - instrumentation attached at the
+# injector level, invisible to the bindings. Registration lands in dependency-first order, which is exactly the order a
+# lifecycle manager wants.
 
 
 class Lifecycle:
@@ -848,8 +849,8 @@ def test_provision_listener_lifecycle_registrar():
 ##
 # Pattern: managed assembly, end to end.
 #
-# The usual entrypoint shape: a managed injector owning resource lifecycles, assembled from binder functions, torn
-# down in reverse order at exit.
+# The usual entrypoint shape: a managed injector owning resource lifecycles, assembled from binder functions, torn down
+# in reverse order at exit.
 
 
 class Closeable:

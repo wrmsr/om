@@ -85,7 +85,7 @@ class Harness:
             request: pytest.FixtureRequest,
     ) -> ta.Generator[None]:
         ss = SCOPES_BY_PYTEST_SCOPE[pytest_scope]
-        with inj.enter_seeded_scope(check.not_none(self._inj), ss, {
+        with inj.enter_scope(check.not_none(self._inj), ss, {
             inj.as_key(pytest.FixtureRequest, tag=pytest_scope): request,
         }):
             yield

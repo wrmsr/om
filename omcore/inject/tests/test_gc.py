@@ -4,6 +4,7 @@ Steady-state provision must produce zero cyclic garbage, and dropped injectors m
 alone - modulo deliberately-cyclic user graphs (a singleton injecting the Injector itself is its own antipattern).
 """
 import contextlib
+import contextvars
 import gc
 import weakref
 
@@ -37,7 +38,7 @@ class Holder:
         self.leaf = leaf
 
 
-SCOPE = inj.SeededScope('gc-req')
+SCOPE = inj.DelimitedScope('gc-req')
 
 
 ##
@@ -86,8 +87,8 @@ def test_child_injectors_collect_without_gc():
         assert pr() is None
 
 
-def test_seeded_scope_injector_collects_without_gc():
-    # Exercises the seeded-scope Manager (singleton-cached, holding its injector weakly) before dropping.
+def test_delimited_scope_injector_collects_without_gc():
+    # Exercises the delimited-scope Manager (singleton-cached, holding its injector weakly) before dropping.
     with _no_gc():
         i = inj.create_injector(
             inj.bind_scope(SCOPE),
@@ -95,7 +96,7 @@ def test_seeded_scope_injector_collects_without_gc():
             inj.bind(420, in_=SCOPE),
         )
         for f in (1.0, 2.0):
-            with inj.enter_seeded_scope(i, SCOPE, {inj.as_key(float): f}):
+            with inj.enter_scope(i, SCOPE, {inj.as_key(float): f}):
                 assert i[int] == 420
                 assert i[float] == f
 
@@ -182,6 +183,53 @@ def test_late_does_not_pin_injector():
 ##
 
 
+_CV_VAR: contextvars.ContextVar = contextvars.ContextVar(f'{__name__}._CV_VAR')
+
+CV_SCOPE = inj.DelimitedScope('gc-cv', context=inj.ContextVarScopeContext(_CV_VAR))
+
+
+def test_contextvar_scope_injector_collects_without_gc():
+    # The contextual policy adds no pins: each close removes this store's entry from the var's snapshot map, so
+    # nothing of the injector outlives it in the entering context - the (user-owned) var retains only an empty map.
+    with _no_gc():
+        i = inj.create_injector(
+            inj.bind_scope(CV_SCOPE),
+            inj.bind_scope_seed(float, CV_SCOPE),
+            inj.bind(420, in_=CV_SCOPE),
+        )
+        for f in (1.0, 2.0):
+            with inj.enter_scope(i, CV_SCOPE, {inj.as_key(float): f}):
+                assert i[int] == 420
+                assert i[float] == f
+
+        refs = (weakref.ref(i), weakref.ref(i[inj.AsyncInjector]))
+        del i
+        assert all(r() is None for r in refs)
+
+
+def test_child_binding_into_parent_scope_collects_without_gc():
+    # A child binding into a parent-owned scope caches in the parent's per-opening state, which dies at scope exit -
+    # neither the opening's cache nor the dropped child leaves cyclic garbage.
+    with _no_gc():
+        parent = inj.create_injector(
+            inj.bind_scope(SCOPE),
+            inj.bind_scope_seed(float, SCOPE),
+        )
+        c = inj.create_injector(inj.bind(Leaf), inj.bind(Holder, in_=SCOPE), parent=parent)
+
+        with inj.enter_scope(c, SCOPE, {inj.as_key(float): 1.0}):
+            h = c[Holder]
+            assert c[Holder] is h
+
+        refs = (weakref.ref(c), weakref.ref(h))
+        del c, h
+        assert all(r() is None for r in refs)
+
+        pr = weakref.ref(parent)
+        del parent
+        assert pr() is None
+
+
 def test_element_collection_collects_without_gc():
     # ElementCollection's lazy caches are weak-instance cached_functions - a dropped (fully-forced) collection is
     # reclaimed by pure refcounting, so per-request collections don't churn cyclic garbage either.
@@ -213,7 +261,7 @@ def test_steady_state_makes_no_cyclic_garbage():
         i.provide(Leaf)
         i.try_provide(str)
         i.inject(fn)
-        with inj.enter_seeded_scope(i, SCOPE, {inj.as_key(float): 4.2}):
+        with inj.enter_scope(i, SCOPE, {inj.as_key(float): 4.2}):
             i[int]
             i[float]
 

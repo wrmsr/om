@@ -20,8 +20,10 @@ from ..keys import Key
 from ..keys import as_key
 from ..providers import FnProvider
 from ..providers import Provider
+from ..scopes import DelimitedScope
+from ..scopes import DelimitedScopeContext
+from ..scopes import DelimitedScopeStateStore
 from ..scopes import ScopeSeededProvider
-from ..scopes import SeededScope
 from ..scopes import Singleton
 from ..scopes import ThreadScope
 from ..types import Scope
@@ -159,25 +161,54 @@ class ScopeSeededProviderImpl(ProviderImpl):
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         ii = check.isinstance(injector, _injector.AsyncInjectorImpl)
-        ssi = check.isinstance(ii.get_scope_impl(self.p.ss), SeededScopeImpl)
+        ssi = check.isinstance(ii.get_scope_impl(self.p.ss), DelimitedScopeImpl)
         return ssi.must_state().seeds[self.p.key]
 
 
-class SeededScopeImpl(ScopeImpl[SeededScope]):
+class _InjectorGlobalScopeContext(DelimitedScopeContext, lang.Singleton, lang.Final):
+    """The default (`context=None`) policy: one opening at a time, injector-global - every thread and task sees it."""
+
+    class _Store(DelimitedScopeStateStore, lang.Final):
+        def __init__(self, scope: DelimitedScope) -> None:
+            super().__init__()
+
+            self._scope = scope
+            self._mtx = threading.Lock()
+            self._st: ta.Any | None = None
+
+        def get(self) -> ta.Any | None:
+            return self._st
+
+        def open(self, state: ta.Any) -> ta.Any:
+            with self._mtx:
+                if self._st is not None:
+                    raise ScopeAlreadyOpenError(self._scope)
+                self._st = state
+            return state
+
+        def close(self, token: ta.Any) -> None:
+            with self._mtx:
+                self._st = None
+
+    def make_state_store(self, scope: DelimitedScope) -> DelimitedScopeStateStore:
+        return _InjectorGlobalScopeContext._Store(scope)
+
+
+class DelimitedScopeImpl(ScopeImpl[DelimitedScope]):
     @classmethod
-    def scope_cls(cls) -> type[SeededScope]:
-        return SeededScope
+    def scope_cls(cls) -> type[DelimitedScope]:
+        return DelimitedScope
 
     @classmethod
     def eager_point(cls) -> EagerInstantiationPoint | None:
         return EagerInstantiationPoint.SCOPE_OPEN
 
     @classmethod
-    def auto_elements(cls, scope: SeededScope) -> Elements:
+    def auto_elements(cls, scope: DelimitedScope) -> Elements:
         return as_elements(
             Binding(
-                as_key(SeededScope.Manager, tag=scope),
-                FnProvider(lang.typed_partial(SeededScopeImpl.Manager, scope=scope)),
+                as_key(DelimitedScope.Manager, tag=scope),
+                FnProvider(lang.typed_partial(DelimitedScopeImpl.Manager, scope=scope)),
                 scope=Singleton(),
             ),
         )
@@ -190,57 +221,50 @@ class SeededScopeImpl(ScopeImpl[SeededScope]):
         om: OnceProvisionMap = dc.field(default_factory=OnceProvisionMap)
         frozen: bool = False
 
-    def __init__(self, scope: SeededScope) -> None:
+    def __init__(self, scope: DelimitedScope) -> None:
         super().__init__(scope)
 
-        self._st_mtx = threading.Lock()
-        self._st: SeededScopeImpl.State | None = None
+        ctx: DelimitedScopeContext = scope.context if scope.context is not None else _InjectorGlobalScopeContext()
+        self._store = ctx.make_state_store(scope)
 
-    def must_state(self) -> SeededScopeImpl.State:
-        if (st := self._st) is None:
+    def must_state(self) -> DelimitedScopeImpl.State:
+        if (st := self._store.get()) is None:
             raise ScopeNotOpenError(self._scope)
         return st
 
     def freeze(self) -> None:
         """
-        Transitions the current opening to serve-only: provisions already made (or in flight) remain available, but
-        further construction raises ScopeFrozenError. The freeze boundary is 'no new construction attempts', not a
-        barrier - an in-flight construction at freeze time completes and serves. Lasts until the scope is exited;
-        the next opening starts fresh.
+        Transitions the current opening - under a contextual policy, the current *context's* opening - to serve-only:
+        provisions already made (or in flight) remain available, but further construction raises ScopeFrozenError.
+        The freeze boundary is 'no new construction attempts', not a barrier - an in-flight construction at freeze
+        time completes and serves. Lasts until the scope is exited; the next opening starts fresh.
         """
 
-        with self._st_mtx:
-            if (st := self._st) is None:
-                raise ScopeNotOpenError(self._scope)
-            st.frozen = True
+        self.must_state().frozen = True
 
-    class Manager(SeededScope.Manager, lang.Final):
-        def __init__(self, scope: SeededScope, i: AsyncInjector) -> None:
+    class Manager(DelimitedScope.Manager, lang.Final):
+        def __init__(self, scope: DelimitedScope, i: AsyncInjector) -> None:
             super().__init__()
 
-            self._scope = check.isinstance(scope, SeededScope)
+            self._scope = check.isinstance(scope, DelimitedScope)
             ii = check.isinstance(i, _injector.AsyncInjectorImpl)
             # Held weakly - the manager is cached in the injector's own singleton scope, and a strong ref would make
-            # every seeded-scope-bearing injector a reference cycle.
+            # every delimited-scope-bearing injector a reference cycle.
             self._ii_ref: weakref.ref = weakref.ref(ii)
-            self._ssi = check.isinstance(ii.get_scope_impl(self._scope), SeededScopeImpl)
+            self._ssi = check.isinstance(ii.get_scope_impl(self._scope), DelimitedScopeImpl)
 
-        def __call__(self, seeds: ta.Mapping[Key, ta.Any]) -> ta.AsyncContextManager[None]:
+        def __call__(self, seeds: ta.Mapping[Key, ta.Any] | None = None) -> ta.AsyncContextManager[None]:
             @contextlib.asynccontextmanager
             async def inner():
                 if (ii := self._ii_ref()) is None:
                     raise DeadInjectorError
 
-                with self._ssi._st_mtx:  # noqa
-                    if self._ssi._st is not None:  # noqa
-                        raise ScopeAlreadyOpenError(self._scope)
-                    self._ssi._st = SeededScopeImpl.State(dict(seeds))  # noqa
+                tok = self._ssi._store.open(DelimitedScopeImpl.State(dict(seeds or {})))  # noqa
                 try:
                     await ii._instantiate_eagers(self._scope)  # noqa
                     yield
                 finally:
-                    with self._ssi._st_mtx:  # noqa
-                        self._ssi._st = None  # noqa
+                    self._ssi._store.close(tok)  # noqa
             return inner()
 
     async def provide(self, binding: BindingImpl, injector: AsyncInjector) -> ta.Any:
@@ -255,11 +279,18 @@ class SeededScopeImpl(ScopeImpl[SeededScope]):
 ##
 
 
+DEFAULT_SCOPES: ta.Final[ta.Sequence[Scope]] = [
+    Unscoped(),
+    Singleton(),
+    ThreadScope(),
+]
+
+
 SCOPE_IMPLS: ta.Final[ta.Sequence[type[ScopeImpl]]] = [
     UnscopedScopeImpl,
     SingletonScopeImpl,
     ThreadScopeImpl,
-    SeededScopeImpl,
+    DelimitedScopeImpl,
 ]
 
 

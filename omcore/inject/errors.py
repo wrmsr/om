@@ -68,7 +68,22 @@ class ScopeNotOpenError(ScopeError):
 
 
 @dc.dataclass()
+class ScopeNotRegisteredError(ScopeError):
+    key: Key | None = None
+
+
+@dc.dataclass()
+class ScopeAlreadyRegisteredError(ScopeError):
+    pass
+
+
+@dc.dataclass()
 class ScopeEagerUnsupportedError(ScopeError):
+    key: Key | None = None
+
+
+@dc.dataclass()
+class ScopeEagerNonLocalError(ScopeError):
     key: Key | None = None
 
 

@@ -12,6 +12,9 @@ from ...asyncs.asynclite import all as asl
 from ..elements import CollectedElements
 from ..errors import CyclicDependencyError
 from ..errors import DeadInjectorError
+from ..errors import ScopeAlreadyRegisteredError
+from ..errors import ScopeEagerNonLocalError
+from ..errors import ScopeNotRegisteredError
 from ..errors import UnboundKeyError
 from ..injector import AsyncInjector
 from ..inspect import KwargsTarget
@@ -20,7 +23,6 @@ from ..keys import as_key
 from ..listeners import ProvisionListener
 from ..listeners import ProvisionListenerBinding
 from ..scopes import Singleton
-from ..scopes import ThreadScope
 from ..types import Scope
 from ..types import Unscoped
 from .concurrency import Concurrency
@@ -28,18 +30,9 @@ from .concurrency import ConcurrencyIdentity
 from .elements import ElementCollection
 from .inspect import build_kwargs_target
 from .provision import DEFAULT_PROVISION_WAIT_TIMEOUT_S
+from .scopes import DEFAULT_SCOPES
 from .scopes import ScopeImpl
 from .scopes import make_scope_impl
-
-
-##
-
-
-DEFAULT_SCOPES: list[Scope] = [
-    Unscoped(),
-    Singleton(),
-    ThreadScope(),
-]
 
 
 ##
@@ -134,6 +127,35 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             )
         }
 
+        ancestor_scopes: set[Scope] = set()
+        a: AsyncInjectorImpl | None = p
+        while a is not None:
+            ancestor_scopes.update(a._scopes)  # noqa
+            a = a._parent()  # noqa
+
+        # Scope redeclaration down the parent chain is forbidden: a child registering a scope an ancestor already has
+        # would get its own independent state, silently shadowing the ancestor's - and 'overriding scopes' is not a
+        # supported concept. Defaults count: every injector already carries them, so explicitly binding one in a
+        # child is always a redeclaration.
+        for s in ec.scope_binding_scopes():
+            if s in ancestor_scopes:
+                raise ScopeAlreadyRegisteredError(s)
+
+        # A binding's scope must be registered locally or in an ancestor - children (privates included) may bind
+        # *into* an ancestor's scope, provisioning into the owner's state (see get_scope_impl). A binding in a
+        # never-registered scope is rejected here rather than dying with a raw KeyError at provision time, as with
+        # unsupported eagers.
+        for sc, sks in ec.keys_by_scope().items():
+            if sc not in self._scopes and sc not in ancestor_scopes:
+                raise ScopeNotRegisteredError(sc, next(iter(sks)))
+
+        # Eagers, though, must be scope-local: a scope's eager instantiation point fires on the injector that owns
+        # the scope (its init, or its openings), which cannot see descendants' eagers - an eager binding into an
+        # ancestor's scope could never be honored, so it is rejected.
+        for sc, ks in self._ekbs.items():
+            if sc not in self._scopes:
+                raise ScopeEagerNonLocalError(sc, ks[0])
+
         self._init_mtx = threading.Lock()
         self._is_initialized = False
         self._init_owner: ConcurrencyIdentity | None = None
@@ -219,7 +241,16 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             await self.provide(k)
 
     def get_scope_impl(self, sc: Scope) -> ScopeImpl:
-        return self._scopes[sc]
+        # Scope impls resolve up the parent chain: a scope is owned by the unique (per __init__'s redeclaration
+        # check) injector that registered it, and a descendant binding into it provisions into the owner's state -
+        # one opening spans the whole tree.
+        i: AsyncInjectorImpl | None = self
+        while i is not None:
+            try:
+                return i._scopes[sc]  # noqa
+            except KeyError:
+                i = i._parent()  # noqa
+        raise ScopeNotRegisteredError(sc)
 
     def _add_child(self, c: AsyncInjectorImpl) -> AsyncInjector:
         check.isinstance(c, AsyncInjectorImpl)
@@ -314,7 +345,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
                 bi = self._bim.get(key)
                 if bi is not None:
-                    sc = self._scopes[bi.scope]
+                    sc = self.get_scope_impl(bi.scope)
 
                     fn = lambda: sc.provide(bi, self)  # noqa
                     for pl in self._pls:

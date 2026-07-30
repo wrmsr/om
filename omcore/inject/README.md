@@ -149,17 +149,31 @@ inj.bind(Cache, in_='singleton')
 # Thread scope - one instance per thread
 inj.bind(RequestContext, in_='thread')
 
-# Seeded scope - manually seeded instances
-request_scope = inj.SeededScope('request')
+# Delimited scope - an explicitly entered span of computation, optionally seeded per opening
+request_scope = inj.DelimitedScope('request')
 inj.bind_scope(request_scope)
 inj.bind(UserId, in_=request_scope)
 inj.bind_scope_seed(RequestContext, request_scope)
 
-with inj.enter_seeded_scope(injector, request_scope, {
+with inj.enter_scope(injector, request_scope, {
     inj.as_key(RequestContext): ctx,
 }):
     user_id = injector[UserId]
 ```
+
+By default a delimited scope's openings are injector-global - one at a time, seen by every thread and task. Giving
+the scope a *context* moves its openings into a `contextvars.ContextVar` you own, letting concurrent actors (asyncio
+tasks, threads) each open the same scope on one shared injector - the classic request-scope shape:
+
+```python
+request_scope_var: contextvars.ContextVar = contextvars.ContextVar('request_scope')
+
+request_scope = inj.DelimitedScope('request', context=inj.ContextVarScopeContext(request_scope_var))
+```
+
+The var is app infrastructure like the scope constant itself - created at module level, per `contextvars` best
+practice. Its contents are opaque, keyed per (scope, injector): one var may back any number of contextual scopes on
+any number of injectors, or each scope may have its own.
 
 ## Differences from Guice
 
