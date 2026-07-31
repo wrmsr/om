@@ -279,11 +279,11 @@ class Slice(LeafNode, lang.Final):
 class TernaryOperator(Node, lang.Final):
     condition: Node
     if_truthy: Node
-    if_falsy: Node
+    if_falsey: Node
 
     @property
     def children(self) -> ta.Sequence[Node]:
-        return [self.condition, self.if_truthy, self.if_falsy]
+        return [self.condition, self.if_truthy, self.if_falsey]
 
 
 @dc.dataclass(frozen=True)

@@ -294,7 +294,7 @@ class Interpreter(Visitor):
         evaluation = self.visit(node.condition, value)
 
         if self._is_false(evaluation):
-            return self.visit(node.if_falsy, value)
+            return self.visit(node.if_falsey, value)
         else:
             return self.visit(node.if_truthy, value)
 

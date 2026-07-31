@@ -13,7 +13,7 @@ def test_markdown_renders_as_block():
     assert str(Text.of('status: ', m, ' done')) == 'status: \n# hi\n done'
 
 
-def test_empty_markdown_is_falsy():
+def test_empty_markdown_is_falsey():
     m = MarkdownText('')
 
     assert not m

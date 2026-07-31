@@ -475,3 +475,8 @@ def make_it_a_tuple(t: T) -> tuple[T]:
 - Modules should mark themselves `Py_MOD_GIL_NOT_USED` and `Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED` as applicable.
   Modules should strive to be written to support both if at all possible.
 - See `omdev/cexts/_boilerplate.cc` for a simple C++ extension template.
+
+
+### Misc. Linguistic Pedantry
+
+- We spell it 'falsey' not 'falsy'.

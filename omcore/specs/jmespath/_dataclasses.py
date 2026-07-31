@@ -2061,26 +2061,26 @@ def _process_dataclass__d958b10b4f15409b30504a103e6c94dfe8c47b9d():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('condition', 'if_truthy', 'if_falsy')), EqPlan(fields=('condition', 'if_truthy', '"
-        "if_falsy')), FrozenPlan(fields=('condition', 'if_truthy', 'if_falsy'), allow_dynamic_dunder_attrs=False), Hash"
-        "Plan(action='add', fields=('condition', 'if_truthy', 'if_falsy'), cache=False), InitPlan(fields=(InitPlan.Fiel"
-        "d(name='condition', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, ini"
-        "t=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan."
-        "Field(name='if_truthy', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None,"
+        "Plans(tup=(CopyPlan(fields=('condition', 'if_truthy', 'if_falsey')), EqPlan(fields=('condition', 'if_truthy', "
+        "'if_falsey')), FrozenPlan(fields=('condition', 'if_truthy', 'if_falsey'), allow_dynamic_dunder_attrs=False), H"
+        "ashPlan(action='add', fields=('condition', 'if_truthy', 'if_falsey'), cache=False), InitPlan(fields=(InitPlan."
+        "Field(name='condition', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None,"
         " init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitP"
-        "lan.Field(name='if_falsy', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=No"
-        "ne, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), s"
-        "elf_param='self', std_params=('condition', 'if_truthy', 'if_falsy'), kw_only_params=(), frozen=True, slots=Fal"
-        "se, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='condition', kw"
-        "_only=False, fn=None), ReprPlan.Field(name='if_truthy', kw_only=False, fn=None), ReprPlan.Field(name='if_falsy"
-        "', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+        "lan.Field(name='if_truthy', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=N"
+        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), I"
+        "nitPlan.Field(name='if_falsey', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_facto"
+        "ry=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None"
+        ")), self_param='self', std_params=('condition', 'if_truthy', 'if_falsey'), kw_only_params=(), frozen=True, slo"
+        "ts=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='conditio"
+        "n', kw_only=False, fn=None), ReprPlan.Field(name='if_truthy', kw_only=False, fn=None), ReprPlan.Field(name='if"
+        "_falsey', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='f81e930fc657b10385e84befd8ddeba424da3fc1',
+    plan_repr_sha1='e441a2c49cf1d0ec51d178de96617e05c5a3c9a7',
     cls_names=(
         ('omcore.specs.jmespath.ast', 'TernaryOperator'),
     ),
 )
-def _process_dataclass__f81e930fc657b10385e84befd8ddeba424da3fc1():
+def _process_dataclass__e441a2c49cf1d0ec51d178de96617e05c5a3c9a7():
     def _process_dataclass(
         *,
         __class__,
@@ -2099,7 +2099,7 @@ def _process_dataclass__f81e930fc657b10385e84befd8ddeba424da3fc1():
             return __class__(  # noqa
                 condition=self.condition,
                 if_truthy=self.if_truthy,
-                if_falsy=self.if_falsy,
+                if_falsey=self.if_falsey,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -2112,7 +2112,7 @@ def _process_dataclass__f81e930fc657b10385e84befd8ddeba424da3fc1():
             return (
                 self.condition == other.condition and
                 self.if_truthy == other.if_truthy and
-                self.if_falsy == other.if_falsy
+                self.if_falsey == other.if_falsey
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -2120,7 +2120,7 @@ def _process_dataclass__f81e930fc657b10385e84befd8ddeba424da3fc1():
         __dataclass___frozen_fields = {
             'condition',
             'if_truthy',
-            'if_falsy',
+            'if_falsey',
         }
 
         def __setattr__(self, name, value):
@@ -2147,7 +2147,7 @@ def _process_dataclass__f81e930fc657b10385e84befd8ddeba424da3fc1():
             return hash((
                 self.condition,
                 self.if_truthy,
-                self.if_falsy,
+                self.if_falsey,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -2156,11 +2156,11 @@ def _process_dataclass__f81e930fc657b10385e84befd8ddeba424da3fc1():
             self,
             condition: __dataclass__init__fields__0__annotation,
             if_truthy: __dataclass__init__fields__1__annotation,
-            if_falsy: __dataclass__init__fields__2__annotation,
+            if_falsey: __dataclass__init__fields__2__annotation,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'condition', condition)
             __dataclass__object_setattr(self, 'if_truthy', if_truthy)
-            __dataclass__object_setattr(self, 'if_falsy', if_falsy)
+            __dataclass__object_setattr(self, 'if_falsey', if_falsey)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2169,7 +2169,7 @@ def _process_dataclass__f81e930fc657b10385e84befd8ddeba424da3fc1():
             parts = []
             parts.append(f"condition={self.condition!r}")
             parts.append(f"if_truthy={self.if_truthy!r}")
-            parts.append(f"if_falsy={self.if_falsy!r}")
+            parts.append(f"if_falsey={self.if_falsey!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

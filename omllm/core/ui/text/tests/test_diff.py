@@ -27,7 +27,7 @@ def test_diff_text():
     assert msh.marshal(d2, Text) == m
 
 
-def test_empty_diff_is_falsy():
+def test_empty_diff_is_falsey():
     d = DiffText(old='a\n', new='a\n')
 
     assert not d
