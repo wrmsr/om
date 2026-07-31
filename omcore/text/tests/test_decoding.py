@@ -16,3 +16,12 @@ def test_decode_indexed():
     s, dsi = decode_indexed('a☃b'.encode('utf-8'))  # noqa
     assert s == 'a☃b'
     assert list(dsi.byte_offsets) == [0, 1, 4, 5]
+
+
+def test_decode_indexed_multibyte_offsets_exceed_character_count():
+    text = '☃' * 100
+
+    decoded, dsi = decode_indexed(text.encode('utf-8'))
+
+    assert decoded == text
+    assert list(dsi.byte_offsets) == list(range(0, 301, 3))

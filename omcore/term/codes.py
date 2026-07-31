@@ -167,7 +167,7 @@ class SGRs(lang.Namespace, lang.Final):
 
 
 def _clamp_ofs(v: int, hi: int, ofs: int) -> str:
-    if v < 0 or v > hi:
+    if v < 0 or v >= hi:
         raise ValueError(v)
     return str(v + ofs)
 

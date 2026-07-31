@@ -54,7 +54,10 @@ class ProgressBar:
 
         if self._total is not None:
             remaining = (self._total - self._i) / iter_per_sec if iter_per_sec > 0 else 0
-            done = int(self._length * self._i / self._total)
+            if self._total:
+                done = int(self._length * self._i / self._total)
+            else:
+                done = self._length if complete else 0
 
             bar = f'[{"█" * done}{"." * (self._length - done)}]'
             info_parts = [

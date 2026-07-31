@@ -52,7 +52,7 @@ class IndentWriter:
                 break
             self._buf.write(s[i:n + 1])
             self._has_indented = False
-            i = n + 2
+            i = n + 1
 
     def getvalue(self) -> str:
         return self._buf.getvalue()

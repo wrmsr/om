@@ -116,7 +116,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
             dict(path='../../omcore/os/atomics.py', sha1='2e8bdffc2d762a7fccd4fc8630e3e3dbbea7ea0c'),
-            dict(path='../../omcore/text/indent.py', sha1='c5629b68ef0d0825c59e8ea1f4d2a16cb7f2435b'),
+            dict(path='../../omcore/text/indent.py', sha1='2bc3014c4cb46a7084c94c5965fc7122cf2fb6bf'),
             dict(path='../../omdev/home/paths.py', sha1='5092354b186f79d8abd54d74dc08d850e645f09e'),
             dict(path='../../omdev/packaging/specifiers.py', sha1='baec4e53b7187f99e8d8b36bdf48bf61af82c252'),
             dict(path='deploy/paths/specs.py', sha1='10e10dce4dc9dd95ac4fae4e503df0d875159b2b'),
@@ -8329,7 +8329,7 @@ class IndentWriter:
                 break
             self._buf.write(s[i:n + 1])
             self._has_indented = False
-            i = n + 2
+            i = n + 1
 
     def getvalue(self) -> str:
         return self._buf.getvalue()

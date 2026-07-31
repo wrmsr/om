@@ -43,11 +43,11 @@ def decode_indexed(
     dec_s = ''.join(dec_lst)
 
     bo_arr_len = len(dec_s) + 1
-    if bo_arr_len < 2**8:
+    if len(raw) < 2**8:
         fmt = 'B'
-    elif bo_arr_len < 2**16:
+    elif len(raw) < 2**16:
         fmt = 'H'
-    elif bo_arr_len < 2**32:
+    elif len(raw) < 2**32:
         fmt = 'L'
     else:
         fmt = 'Q'
