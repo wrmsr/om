@@ -1,7 +1,6 @@
 # ruff: noqa: UP045
 # @om-lite
 import asyncio
-import socket
 import threading
 import typing as ta
 
@@ -22,12 +21,10 @@ class HttpServerRunner:
     def __init__(
             self,
             spec_builder: ta.Callable[[], IoPipeline.Spec],
-            preferred_port: int = 0,
             *,
             use_flow_control: bool = False,
     ) -> None:
         self._spec_builder = spec_builder
-        self._preferred_port = preferred_port
         self._use_flow_control = use_flow_control
         self._port: ta.Optional[int] = None
         self._thread: ta.Optional[threading.Thread] = None
@@ -36,9 +33,6 @@ class HttpServerRunner:
         self._ready = threading.Event()
 
     def __enter__(self) -> int:
-        # Find available port
-        self._port = self._find_available_port(self._preferred_port)
-
         # Start server in thread
         self._thread = threading.Thread(target=self._run_server, daemon=True)
         self._thread.start()
@@ -46,6 +40,9 @@ class HttpServerRunner:
         # Wait for server to be ready
         if not self._ready.wait(timeout=5.0):
             raise RuntimeError('Server failed to start')
+
+        if self._port is None:
+            raise RuntimeError('Server did not report its port')
 
         return self._port
 
@@ -56,22 +53,6 @@ class HttpServerRunner:
 
         if self._thread is not None:
             self._thread.join(timeout=2.0)
-
-    def _find_available_port(self, preferred: int) -> int:
-        """Find an available port, trying preferred first."""
-
-        if preferred:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(('127.0.0.1', preferred))
-                    return preferred
-            except OSError:
-                pass
-
-        # Let OS assign a port
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('127.0.0.1', 0))
-            return s.getsockname()[1]
 
     def _run_server(self) -> None:
         """Run the asyncio server (runs in background thread)."""
@@ -99,8 +80,13 @@ class HttpServerRunner:
         self._server = await asyncio.start_server(
             _handle_client,
             '127.0.0.1',
-            self._port,
+            0,
         )
+
+        sockets = self._server.sockets
+        if not sockets:
+            raise RuntimeError('Server did not create a listening socket')
+        self._port = sockets[0].getsockname()[1]
 
         # Signal ready
         self._ready.set()
