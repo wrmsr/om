@@ -21,6 +21,9 @@ class Session:
             self,
             input: str,  # noqa
     ) -> None:
+        if not input:
+            return
+
         if input.startswith('/'):
             await self._commands_manager.run_command_text(input[1:])
             return

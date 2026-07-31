@@ -183,10 +183,20 @@ async def _a_main() -> None:
     )
 
     permissions_manager = agn.StandardPermissionsManager([  # noqa
-        agn.PermissionRule(
-            agn.GlobFsPermissionMatcher(os.path.join(cwd, '**'), ['r', 'w']),
-            agn.PermissionState.ASK,
-        ),
+        *([
+            agn.PermissionRule(
+                agn.GlobFsPermissionMatcher(os.path.join(cwd, '**'), ['r', 'w']),
+                agn.PermissionState.ASK,
+            ),
+        ] if args.fs else []),
+
+        *([
+            agn.PermissionRule(
+                agn.ShellPermissionMatcher(),
+                agn.PermissionState.ASK,
+
+            ),
+        ] if args.bash else []),
     ])
 
     permission_decider = agn.StandardPermissionDecider(
