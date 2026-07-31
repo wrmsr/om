@@ -154,6 +154,9 @@
   `import torch; t = torch.Tensor(...` rather than `from torch import Tensor; t = Tensor(...`.
   - Rationale: we have a lazy import mechanism that operates at the module level. Do not attempt to manually late-import
     such libraries, just import them as regular modules.
+- Outside of lite code, strongly avoid 'inner imports' within function or method bodies. Prefer instead a top-level
+  `with lang.auto_proxy_import(globals()): import foo` block, or a more traditional `if ta.TYPE_CHECKING: import foo;
+  else: foo = lang.proxy_import('foo')` style lazy import.
 
 
 ### Modules

@@ -11,6 +11,7 @@ with lang.auto_proxy_import(globals()):
     import difflib
 
     from . import normalize
+    from . import plain
 
 
 type CanText = ta.Union[  # noqa
@@ -133,9 +134,7 @@ class Text(lang.Abstract, lang.Sealed):
 
     @lang.cached_function
     def _render_str(self) -> str:
-        from .plain import render_plain_text  # function-local to avoid an import cycle with the renderer modules
-
-        return render_plain_text(self)
+        return plain.render_plain_text(self)
 
     def __str__(self) -> str:
         # Implicit special-method lookup bypasses instance dicts, so a cached_function directly on __str__ would rebind
