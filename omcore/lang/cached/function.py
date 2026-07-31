@@ -286,17 +286,6 @@ class _StrongRef:
         return self._o
 
 
-def _make_instance_ref(instance: ta.Any) -> ta.Callable[[], ta.Any]:
-    try:
-        return weakref.ref(instance)
-    except TypeError:
-        # Non-weakrefable (eg. __slots__ without __weakref__): fall back to pinning, preserving legacy behavior.
-        return _StrongRef(instance)
-
-
-#
-
-
 class _KeyShape(enum.Enum):
     NULLARY = enum.auto()  # zero effective params + dict map -> single-slot storage, no key maker, no backing map
     INLINE = enum.auto()   # __call__ carries the fn's own signature - interpreter-native canonicalization
@@ -481,6 +470,7 @@ class _CachedFunction(Abstract, ta.Generic[T]):
     _v: ta.Any  # the nullary single slot - _MISSING when empty
     _lock: ta.Any
     _cache_exceptions: type[BaseException] | tuple[type[BaseException], ...] | None
+    _instance: ta.Any  # bound wrappers: the instance itself, or a callable weak/strong ref for weak binds
     _instance_pin: ta.Any  # weak binds only: pins the instance from bind until the first successful store
 
     def reset(self) -> None:
@@ -742,7 +732,11 @@ class _BoundCachedFunction(_CachedFunction[T], Abstract):
 
         desc = self._desc
         if desc._bound_weak and instance is not None:  # noqa
-            self._instance = _make_instance_ref(instance)
+            try:
+                self._instance = weakref.ref(instance)
+            except TypeError:
+                # Non-weakrefable (eg. __slots__ without __weakref__): preserve legacy pinning behavior.
+                self._instance = _StrongRef(instance)
             self._instance_pin = instance
         else:
             self._instance = instance
@@ -913,7 +907,8 @@ class _SpeciesCodeGen(Final):
             '__tuple': tuple,
             '__sorted': sorted,
             '__new': object.__new__,
-            '__mkref': _make_instance_ref,
+            '__weakref_ref': weakref.ref,
+            '__strong_ref': _StrongRef,
         }
 
     _INDENT: ta.ClassVar[str] = '    '
@@ -1122,8 +1117,15 @@ class _SpeciesCodeGen(Final):
         spec = self._spec
 
         if spec.weak_instance:
-            entries = ["'_instance': __mkref(instance)", "'_instance_pin': instance"]
+            ref_lines = [
+                'try:',
+                '    __instance_ref = __weakref_ref(instance)',
+                'except TypeError:',
+                '    __instance_ref = __strong_ref(instance)',
+            ]
+            entries = ["'_instance': __instance_ref", "'_instance_pin': instance"]
         else:
+            ref_lines = []
             entries = ["'_instance': instance"]
         if not spec.bound_raw_fn and not spec.weak_instance:
             entries.append("'_value_fn': __self._bound_fn_get(instance, owner)")
@@ -1139,6 +1141,7 @@ class _SpeciesCodeGen(Final):
             '    return __self._get_unbound()',
             'if (__bcls := __self._bound_cls) is None:',
             '    return __self._bind(instance, owner)',
+            *ref_lines,
             f'(__b := __new(__bcls)).__dict__ = {{{", ".join(entries)}}}',
             'instance.__dict__[__self._name] = __b',
             'return __b',
