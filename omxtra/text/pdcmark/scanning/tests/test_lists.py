@@ -1,5 +1,5 @@
-from ...scanning.lists import scan_list_marker
-from ...scanning.lists import scan_task_list_marker
+from ..lists import scan_list_marker
+from ..lists import scan_task_list_marker
 
 
 def test_bullets():

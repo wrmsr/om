@@ -1666,7 +1666,7 @@ class IoPipeline:
             *,
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
-        ctx = inner_to._context   # noqa
+        ctx = inner_to._context  # noqa
         return self._add(handler, inner_to=ctx, name=name)
 
     def add_outer_to(
@@ -1676,7 +1676,7 @@ class IoPipeline:
             *,
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
-        ctx = outer_to._context   # noqa
+        ctx = outer_to._context  # noqa
         return self._add(handler, outer_to=ctx, name=name)
 
     #

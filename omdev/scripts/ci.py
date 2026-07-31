@@ -135,7 +135,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/headers.py', sha1='28c986b43cb6d3283d5df0249d80f8770522c9de'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='053f27036671acaa20fb03307f9a29117d902853'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='7070af81082d854f68323a85cf34b61e23215254'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -8360,7 +8360,7 @@ class IoPipeline:
             *,
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
-        ctx = inner_to._context   # noqa
+        ctx = inner_to._context  # noqa
         return self._add(handler, inner_to=ctx, name=name)
 
     def add_outer_to(
@@ -8370,7 +8370,7 @@ class IoPipeline:
             *,
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
-        ctx = outer_to._context   # noqa
+        ctx = outer_to._context  # noqa
         return self._add(handler, outer_to=ctx, name=name)
 
     #

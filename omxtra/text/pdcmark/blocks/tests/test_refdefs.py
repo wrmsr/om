@@ -1,7 +1,7 @@
 from .... import pdcmark as m
-from ...blocks.machine import BlockMachine
-from ...blocks.refdefs import parse_single_line_refdef
 from ...options import COMMONMARK
+from ..machine import BlockMachine
+from ..refdefs import parse_single_line_refdef
 
 
 def _feed(text):

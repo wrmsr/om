@@ -16,8 +16,9 @@ import pytest
 from ...options import COMMONMARK
 from ...options import GFM
 from ...parsing import parse
-from ...streaming.parser import StreamingParser
+from ...tests.conftest import pulldown_cmark_root  # noqa
 from ...tests.spec_runner import load_spec_file
+from ..parser import StreamingParser
 
 
 # Chunking strategies - each takes a str and yields a sequence of chunks whose concatenation is the original.
@@ -80,13 +81,13 @@ def _stream(text: str, strategy, options=COMMONMARK):
 
 
 @pytest.fixture(scope='module')
-def cm_corpus(pulldown_cmark_root) -> list[str]:
+def cm_corpus(pulldown_cmark_root) -> list[str]:  # noqa
     cases = load_spec_file(os.path.join(pulldown_cmark_root, 'third_party', 'CommonMark', 'spec.txt'))
     return [c.markdown for c in cases]
 
 
 @pytest.fixture(scope='module')
-def gfm_corpus(pulldown_cmark_root) -> list[str]:
+def gfm_corpus(pulldown_cmark_root) -> list[str]:  # noqa
     base = os.path.join(pulldown_cmark_root, 'third_party', 'GitHub')
     out: list[str] = []
     for f in ('gfm_strikethrough.txt', 'gfm_table.txt', 'gfm_tasklist.txt'):

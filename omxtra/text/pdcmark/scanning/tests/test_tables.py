@@ -1,7 +1,7 @@
 from ...events import Alignment
-from ...scanning.tables import line_could_be_table_row
-from ...scanning.tables import parse_alignment_row
-from ...scanning.tables import parse_table_row
+from ..tables import line_could_be_table_row
+from ..tables import parse_alignment_row
+from ..tables import parse_table_row
 
 
 def test_align_basic():

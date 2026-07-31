@@ -1,4 +1,4 @@
-from ...scanning.entities import scan_entity
+from ..entities import scan_entity
 
 
 def test_named():

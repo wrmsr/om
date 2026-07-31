@@ -3,7 +3,7 @@ import pytest
 
 from .... import pdcmark as m
 from ...errors import ParserStateError
-from ...streaming.parser import StreamingParser
+from ..parser import StreamingParser
 
 
 def _all_committed(out_list):

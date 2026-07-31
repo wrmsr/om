@@ -1,7 +1,7 @@
 from .... import pdcmark as m
-from ...blocks.machine import BlockMachine
 from ...options import COMMONMARK
 from ...options import GFM
+from ..machine import BlockMachine
 
 
 def feed(text, *, options=COMMONMARK):

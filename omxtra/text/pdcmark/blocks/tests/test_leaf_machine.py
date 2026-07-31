@@ -1,8 +1,8 @@
 import pytest
 
 from .... import pdcmark as m
-from ...blocks.machine import BlockMachine
 from ...options import COMMONMARK
+from ..machine import BlockMachine
 
 
 def feed(text, *, do_finish=True):

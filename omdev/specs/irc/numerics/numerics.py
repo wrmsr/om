@@ -47,7 +47,6 @@ RPL_MYINFO = _register_numeric_reply(
     'RPL_MYINFO',
     4,
     '<client> <servername> <version> <available user modes> <available channel modes> [<channel modes with a parameter>]',  # noqa
-    # noqa
 )
 
 RPL_ISUPPORT = _register_numeric_reply(

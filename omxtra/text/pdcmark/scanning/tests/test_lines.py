@@ -1,4 +1,4 @@
-from ...scanning.lines import LineStart
+from ..lines import LineStart
 
 
 def test_scan_space_simple():

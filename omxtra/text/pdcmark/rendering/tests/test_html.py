@@ -1,5 +1,5 @@
 from .... import pdcmark as m
-from ...rendering.html import render_html
+from ..html import render_html
 
 
 def render(src):

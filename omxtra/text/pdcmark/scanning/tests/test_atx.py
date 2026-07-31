@@ -1,4 +1,4 @@
-from ...scanning.atx import scan_atx_open
+from ..atx import scan_atx_open
 
 
 def _content(line, m):

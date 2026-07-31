@@ -1,4 +1,4 @@
-from ...scanning.hrule import scan_hrule
+from ..hrule import scan_hrule
 
 
 def test_simple_three_dashes():

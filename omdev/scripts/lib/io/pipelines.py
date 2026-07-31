@@ -46,7 +46,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='core.py', sha1='053f27036671acaa20fb03307f9a29117d902853'),
+            dict(path='core.py', sha1='7070af81082d854f68323a85cf34b61e23215254'),
             dict(path='../streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
@@ -3042,7 +3042,7 @@ class IoPipeline:
             *,
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
-        ctx = inner_to._context   # noqa
+        ctx = inner_to._context  # noqa
         return self._add(handler, inner_to=ctx, name=name)
 
     def add_outer_to(
@@ -3052,7 +3052,7 @@ class IoPipeline:
             *,
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
-        ctx = outer_to._context   # noqa
+        ctx = outer_to._context  # noqa
         return self._add(handler, outer_to=ctx, name=name)
 
     #

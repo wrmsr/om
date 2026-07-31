@@ -1,13 +1,13 @@
 """Inline tokenizer tests (pre-emphasis-resolution)."""
 from ...blocks.leaves import BufferedLine
-from ...inlines.nodes import AutolinkNode
-from ...inlines.nodes import CodeNode
-from ...inlines.nodes import DelimNode
-from ...inlines.nodes import HardBreakNode
-from ...inlines.nodes import HtmlNode
-from ...inlines.nodes import SoftBreakNode
-from ...inlines.nodes import TextNode
-from ...inlines.tokenize import tokenize_inline
+from ..nodes import AutolinkNode
+from ..nodes import CodeNode
+from ..nodes import DelimNode
+from ..nodes import HardBreakNode
+from ..nodes import HtmlNode
+from ..nodes import SoftBreakNode
+from ..nodes import TextNode
+from ..tokenize import tokenize_inline
 
 
 def _line(text: str, line_start: int = 0) -> BufferedLine:

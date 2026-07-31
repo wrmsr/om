@@ -1,5 +1,5 @@
-from ...scanning.fences import is_fence_close
-from ...scanning.fences import scan_fence_open
+from ..fences import is_fence_close
+from ..fences import scan_fence_open
 
 
 def test_basic_backtick_open():

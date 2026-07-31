@@ -1,8 +1,8 @@
-from ...scanning.whitespace import is_blank_line
-from ...scanning.whitespace import scan_blank_line
-from ...scanning.whitespace import scan_ch_repeat
-from ...scanning.whitespace import scan_eol
-from ...scanning.whitespace import scan_whitespace_no_nl
+from ..whitespace import is_blank_line
+from ..whitespace import scan_blank_line
+from ..whitespace import scan_ch_repeat
+from ..whitespace import scan_eol
+from ..whitespace import scan_whitespace_no_nl
 
 
 def test_scan_whitespace_no_nl():
