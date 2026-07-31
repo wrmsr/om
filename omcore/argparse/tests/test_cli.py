@@ -94,3 +94,60 @@ class TestFormatHelp(unittest.TestCase):
         p = FormatHelpCli.get_parser()
         p.formatter_class = FooHelpFormatter
         print(p.format_help())
+
+
+##
+
+
+class TestInheritance(unittest.TestCase):
+    def test_mro_precedence(self):
+        class IntValueCli(cli.ArgparseCli):
+            value: int = parsers.argparse_arg_('--value')
+
+        class StrValueCli(cli.ArgparseCli):
+            value: int = parsers.argparse_arg_('--value', type=str)
+
+        class CombinedCli(IntValueCli, StrValueCli):
+            pass
+
+        c = CombinedCli(['--value', '42'])
+        self.assertEqual(c.value, 42)
+
+    def test_normal_attribute_shadows_inherited_arg(self):
+        class BaseCli(cli.ArgparseCli):
+            value = parsers.argparse_arg('--value')
+
+        class ChildCli(BaseCli):
+            value = 'constant'
+
+        self.assertNotIn('--value', ChildCli.get_parser()._option_string_actions)  # noqa
+        self.assertEqual(ChildCli([]).value, 'constant')
+
+
+##
+
+
+class AsyncCli(cli.ArgparseCli):
+    @parsers.argparse_cmd()
+    async def async_run(self):
+        return 3
+
+    @parsers.argparse_cmd()
+    def sync_run(self):
+        return 4
+
+    @parsers.argparse_cmd()
+    async def invalid_run(self):
+        return 'invalid'
+
+
+class TestAsyncCli(unittest.IsolatedAsyncioTestCase):
+    async def test_async_run(self):
+        self.assertEqual(await AsyncCli(['async-run']).async_cli_run(), 3)
+
+    async def test_sync_run(self):
+        self.assertEqual(await AsyncCli(['sync-run']).async_cli_run(), 4)
+
+    async def test_invalid_run(self):
+        with self.assertRaises(TypeError):
+            await AsyncCli(['invalid-run']).async_cli_run()

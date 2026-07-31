@@ -15,6 +15,7 @@ class ImmediateExecutor(cf.Executor):
         super().__init__()
 
         self._immediate_exceptions = immediate_exceptions
+        self._shutdown = False
 
     def submit(
             self,
@@ -23,15 +24,22 @@ class ImmediateExecutor(cf.Executor):
             *args: P.args,
             **kwargs: P.kwargs,
     ) -> cf.Future[T]:
+        if self._shutdown:
+            raise RuntimeError('cannot schedule new futures after shutdown')
+
         future: ta.Any = cf.Future()
+        future.set_running_or_notify_cancel()
         try:
             result = fn(*args, **kwargs)
             future.set_result(result)
-        except Exception as e:
+        except BaseException as e:
             if self._immediate_exceptions:
                 raise
             future.set_exception(e)
         return future
+
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
+        self._shutdown = True
 
 
 @contextlib.contextmanager
@@ -43,9 +51,10 @@ def new_executor(
         **kwargs: ta.Any,
 ) -> ta.Generator[cf.Executor]:
     if max_workers == 0:
-        yield ImmediateExecutor(
-            immediate_exceptions=immediate_exceptions,
-        )
+        with ImmediateExecutor(
+                immediate_exceptions=immediate_exceptions,
+        ) as exe:
+            yield exe
 
     else:
         with cls(  # type: ignore

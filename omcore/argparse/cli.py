@@ -106,6 +106,8 @@ class ArgparseCli(ArgparseParserClass, Abstract):
             is_async = inspect.iscoroutinefunction(tfn)
 
         if is_async:
-            return await fn()
+            ret = await fn()
         else:
-            return fn()
+            ret = fn()
+
+        return check.isinstance(ret, (int, None))

@@ -64,13 +64,13 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='pidfile.py', sha1='1082f109ec1272d7c281707b9620ae6a9a241a9f'),
             dict(path='../signals.py', sha1='03690b977dc4ef5545ee4279c0016a9c11f21f92'),
-            dict(path='../../argparse/parsers.py', sha1='46321356fbfd17d94eeb0347e86eb042a9333d37'),
+            dict(path='../../argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
             dict(path='../../lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../lite/maybes.py', sha1='5ac5f92e5610c6795b0a228c38e7bcd272bf6305'),
             dict(path='../../lite/runtime.py', sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70'),
             dict(path='../../lite/timeouts.py', sha1='e7b2d3b364e7b99aba287f0f97f4dc8a5492bd94'),
             dict(path='../../logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
-            dict(path='../../argparse/cli.py', sha1='cbfc5b8a9863db3e643df46f268937cbba65b126'),
+            dict(path='../../argparse/cli.py', sha1='643ea018c916268b80efe227a13979c84c59be3c'),
             dict(path='../../lite/args.py', sha1='ae96b0baeb376617a63c0e64632ab2c5ff4171a8'),
             dict(path='../../subprocesses/run.py', sha1='425596d73f3b5cbe1ab936718c77e39a88283350'),
             dict(path='../../subprocesses/wrap.py', sha1='12d94dc2357951cd0fed1c50a46817d30d628927'),
@@ -2102,8 +2102,8 @@ def configure_argparse_parser_class_parser(
 ) -> argparse.ArgumentParser:
     ns = cls.__dict__
     objs = {}
-    mro = cls.__mro__[::-1]
-    for bns in [bcls.__dict__ for bcls in reversed(mro)] + [ns]:
+    for bcls in reversed(cls.__mro__):
+        bns = bcls.__dict__
         bseen = set()  # type: ignore
         for k, v in bns.items():
             if isinstance(v, (ArgparseCmd, ArgparseArg)):
@@ -2111,13 +2111,14 @@ def configure_argparse_parser_class_parser(
                 bseen.add(v)
                 objs[k] = v
             elif k in objs:
-                del [k]
+                del objs[k]
 
     #
 
     anns = ta.get_type_hints(_ArgparseParserClassAnnotationBox({
-        **{k: v for bcls in reversed(mro) for k, v in getattr(bcls, '__annotations__', {}).items()},
-        **ns.get('__annotations__', {}),
+        k: v
+        for bcls in reversed(cls.__mro__)
+        for k, v in getattr(bcls, '__annotations__', {}).items()
     }), globalns=ns.get('__globals__', {}))
 
     #
@@ -3629,9 +3630,11 @@ class ArgparseCli(ArgparseParserClass, Abstract):
             is_async = inspect.iscoroutinefunction(tfn)
 
         if is_async:
-            return await fn()
+            ret = await fn()
         else:
-            return fn()
+            ret = fn()
+
+        return check.isinstance(ret, (int, None))
 
 
 ########################################

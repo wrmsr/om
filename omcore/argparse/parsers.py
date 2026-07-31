@@ -154,8 +154,8 @@ def configure_argparse_parser_class_parser(
 ) -> argparse.ArgumentParser:
     ns = cls.__dict__
     objs = {}
-    mro = cls.__mro__[::-1]
-    for bns in [bcls.__dict__ for bcls in reversed(mro)] + [ns]:
+    for bcls in reversed(cls.__mro__):
+        bns = bcls.__dict__
         bseen = set()  # type: ignore
         for k, v in bns.items():
             if isinstance(v, (ArgparseCmd, ArgparseArg)):
@@ -163,13 +163,14 @@ def configure_argparse_parser_class_parser(
                 bseen.add(v)
                 objs[k] = v
             elif k in objs:
-                del [k]
+                del objs[k]
 
     #
 
     anns = ta.get_type_hints(_ArgparseParserClassAnnotationBox({
-        **{k: v for bcls in reversed(mro) for k, v in getattr(bcls, '__annotations__', {}).items()},
-        **ns.get('__annotations__', {}),
+        k: v
+        for bcls in reversed(cls.__mro__)
+        for k, v in getattr(bcls, '__annotations__', {}).items()
     }), globalns=ns.get('__globals__', {}))
 
     #

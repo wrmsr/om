@@ -130,7 +130,7 @@ def __om_amalg__():  # noqa
             dict(path='github/env.py', sha1='c7a2389048f008f46f59f6bcc11e0d15655f2b1c'),
             dict(path='shell.py', sha1='a59e59b812394d0502837f4c198e1cf604f90227'),
             dict(path='../specs/oci/compression.py', sha1='427ff583b6df669b826228baa273193a83af5e17'),
-            dict(path='../../omcore/argparse/parsers.py', sha1='46321356fbfd17d94eeb0347e86eb042a9333d37'),
+            dict(path='../../omcore/argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
             dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
             dict(path='../../omcore/http/headers.py', sha1='28c986b43cb6d3283d5df0249d80f8770522c9de'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
@@ -154,7 +154,7 @@ def __om_amalg__():  # noqa
             dict(path='github/bootstrap.py', sha1='9bf24b05603cd1a82db8be8b645bbad3e0d3f22f'),
             dict(path='../specs/oci/datarefs.py', sha1='19c6cf61c96efe6f667608a8eda120a0ad1ef466'),
             dict(path='../specs/oci/pack/unpacking.py', sha1='6cc7a1a64a91b96144c150ac4e0006bfe2caa3e0'),
-            dict(path='../../omcore/argparse/cli.py', sha1='cbfc5b8a9863db3e643df46f268937cbba65b126'),
+            dict(path='../../omcore/argparse/cli.py', sha1='643ea018c916268b80efe227a13979c84c59be3c'),
             dict(path='../../omcore/asyncs/asyncio/sockets.py', sha1='57bfaf9aaf1cc8263dc3292d9b1397de9e81ce5d'),
             dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='79905340353b28e51bcd02a62026787f41b731b9'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
@@ -4218,8 +4218,8 @@ def configure_argparse_parser_class_parser(
 ) -> argparse.ArgumentParser:
     ns = cls.__dict__
     objs = {}
-    mro = cls.__mro__[::-1]
-    for bns in [bcls.__dict__ for bcls in reversed(mro)] + [ns]:
+    for bcls in reversed(cls.__mro__):
+        bns = bcls.__dict__
         bseen = set()  # type: ignore
         for k, v in bns.items():
             if isinstance(v, (ArgparseCmd, ArgparseArg)):
@@ -4227,13 +4227,14 @@ def configure_argparse_parser_class_parser(
                 bseen.add(v)
                 objs[k] = v
             elif k in objs:
-                del [k]
+                del objs[k]
 
     #
 
     anns = ta.get_type_hints(_ArgparseParserClassAnnotationBox({
-        **{k: v for bcls in reversed(mro) for k, v in getattr(bcls, '__annotations__', {}).items()},
-        **ns.get('__annotations__', {}),
+        k: v
+        for bcls in reversed(cls.__mro__)
+        for k, v in getattr(bcls, '__annotations__', {}).items()
     }), globalns=ns.get('__globals__', {}))
 
     #
@@ -12101,9 +12102,11 @@ class ArgparseCli(ArgparseParserClass, Abstract):
             is_async = inspect.iscoroutinefunction(tfn)
 
         if is_async:
-            return await fn()
+            ret = await fn()
         else:
-            return fn()
+            ret = fn()
+
+        return check.isinstance(ret, (int, None))
 
 
 ########################################
