@@ -65,11 +65,23 @@ class PeekIterator(ta.Iterator[T]):
     #
 
     def take_while(self, fn: ta.Callable[[T], bool]) -> ta.Iterator[T]:
-        while fn(self.peek()):
+        while True:
+            try:
+                item = self.peek()
+            except StopIteration:
+                return
+            if not fn(item):
+                return
             yield next(self)
 
     def skip_while(self, fn: ta.Callable[[T], bool]) -> None:
-        while fn(self.peek()):
+        while True:
+            try:
+                item = self.peek()
+            except StopIteration:
+                return
+            if not fn(item):
+                return
             next(self)
 
     def take_until(self, fn: ta.Callable[[T], bool]) -> ta.Iterator[T]:

@@ -15,3 +15,8 @@ def test_bits():
     assert set_bit(3, 0, 0b01010) == 0b00010
     assert set_bits(1, 2, 0b11, 0b01010) == 0b01110
     assert set_bits(1, 2, 0b10, 0b01010) == 0b01100
+
+
+def test_set_bits_masks_value():
+    assert set_bits(4, 2, 0b1111, 0) == 0b110000
+    assert set_bits(4, 0, 0b1111, 0b1010) == 0b1010

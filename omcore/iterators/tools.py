@@ -78,7 +78,9 @@ def expand_indexed_pairs(
 ) -> list[T]:
     width_ = width
     if width_ is None:
-        width_ = (max(idx for idx, _ in seq) + 1) if seq else 0
+        pairs = list(seq)
+        width_ = max((idx for idx, _ in pairs), default=-1) + 1
+        seq = pairs
     result = [default] * width_
     for idx, value in seq:
         if idx < width_:

@@ -1,3 +1,5 @@
+import pytest
+
 from ..histogram import SamplingHistogram
 
 
@@ -39,3 +41,18 @@ def test_sampling_histogram():
     assert [p.value for p in st.last_percentiles if p.p == 0.5] == [14.0]
     assert [p.value for p in st.last_percentiles if p.p == 0.75] == [16.0]
     assert [p.value for p in st.last_percentiles if p.p == 0.95] == [18.0]
+
+
+def test_sampling_histogram_percentile_bounds():
+    sh = SamplingHistogram(size=2, percentiles=[0., 1.])
+    sh.add(10.)
+    sh.add(20.)
+
+    assert [(p.p, p.value) for p in sh.get().last_percentiles] == [
+        (0., 10.),
+        (1., 20.),
+    ]
+
+    for p in [-.1, 1.1, float('nan')]:
+        with pytest.raises(RuntimeError):
+            SamplingHistogram(percentiles=[p])

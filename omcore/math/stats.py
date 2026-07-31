@@ -68,17 +68,25 @@ class Stats(ta.Sequence[float]):
 
     @cached.property
     def mean(self) -> float:
+        if not self.data:
+            return self.default
         return sum(self.data, 0.0) / len(self.data)
 
     @cached.property
     def max(self) -> float:
+        if not self.data:
+            return self.default
         return max(self.data)
 
     @cached.property
     def min(self) -> float:
+        if not self.data:
+            return self.default
         return min(self.data)
 
     def get_quantile(self, q: float) -> float:
+        q = float(q)
+        check.arg(0.0 <= q <= 1.0)
         if not self.data:
             return self.default
         return get_quantile(self.sorted, q)
@@ -93,19 +101,27 @@ class Stats(ta.Sequence[float]):
 
     @cached.property
     def variance(self) -> float:
+        if not self.data:
+            return self.default
         return Stats(self.get_pow_diffs(2)).mean
 
     @cached.property
     def std_dev(self) -> float:
+        if not self.data:
+            return self.default
         return self.variance ** 0.5
 
     @cached.property
     def median_abs_dev(self) -> float:
+        if not self.data:
+            return self.default
         x = self.median
         return Stats([abs(x - v) for v in self.sorted]).median
 
     @cached.property
     def rel_std_dev(self) -> float:
+        if not self.data:
+            return self.default
         abs_mean = abs(self.mean)
         if abs_mean:
             return self.std_dev / abs_mean
@@ -114,6 +130,8 @@ class Stats(ta.Sequence[float]):
 
     @cached.property
     def skewness(self) -> float:
+        if not self.data:
+            return self.default
         data, s_dev = self.data, self.std_dev
         if len(data) > 1 and s_dev > 0:
             return (sum(self.get_pow_diffs(3)) / float((len(data) - 1) * (s_dev ** 3)))
@@ -122,6 +140,8 @@ class Stats(ta.Sequence[float]):
 
     @cached.property
     def kurtosis(self) -> float:
+        if not self.data:
+            return self.default
         data, s_dev = self.data, self.std_dev
         if len(data) > 1 and s_dev > 0:
             return (sum(self.get_pow_diffs(4)) / float((len(data) - 1) * (s_dev ** 4)))
@@ -130,10 +150,14 @@ class Stats(ta.Sequence[float]):
 
     @cached.property
     def iqr(self) -> float:
+        if not self.data:
+            return self.default
         return self.get_quantile(0.75) - self.get_quantile(0.25)
 
     @cached.property
     def trimean(self) -> float:
+        if not self.data:
+            return self.default
         return (self.get_quantile(0.25) + (2 * self.get_quantile(0.5)) + self.get_quantile(0.75)) / 4.0
 
     def get_zscore(self, value: float) -> float:
@@ -152,7 +176,7 @@ class Stats(ta.Sequence[float]):
         check.arg(0.0 <= trim < 0.5)
         size = len(self.data)
         size_diff = int(size * trim)
-        if self._eq(size_diff, 0.0):
+        if not size_diff:
             return self
         return Stats(self.sorted[size_diff:-size_diff], **self._kwargs)
 
@@ -161,6 +185,8 @@ class Stats(ta.Sequence[float]):
             count: int | None = None,
             with_max: bool = False,
     ) -> list[float]:
+        if count is not None:
+            check.arg(count > 0)
         if not self.data:
             return [0.0]
 
@@ -177,9 +203,12 @@ class Stats(ta.Sequence[float]):
             # freedman algorithm for fixed-width bin selection
             q25, q75 = self.get_quantile(0.25), self.get_quantile(0.75)
             dx = 2 * (q75 - q25) / (len_data ** (1 / 3.0))
-            bin_count = max(1, math.ceil((max_data - min_data) / dx))
-            bins = [min_data + (dx * i) for i in range(bin_count + 1)]
-            bins = [b for b in bins if b < max_data]
+            if not dx:
+                bins = [min_data]
+            else:
+                bin_count = max(1, math.ceil((max_data - min_data) / dx))
+                bins = [min_data + (dx * i) for i in range(bin_count + 1)]
+                bins = [b for b in bins if b < max_data]
 
         else:
             dx = (max_data - min_data) / float(count)
@@ -197,7 +226,7 @@ class Stats(ta.Sequence[float]):
             bin_digits: int = 1,
     ) -> list[tuple[float, int]]:
         bin_digits = int(bin_digits)
-        if not bins:
+        if bins is None or (not isinstance(bins, int) and not bins):
             bins = self.get_bin_bounds()
         elif isinstance(bins, int):
             bins = self.get_bin_bounds(bins)

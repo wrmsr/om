@@ -52,6 +52,7 @@ class SamplingHistogram:
 
         self._size = size
         self._percentiles = list(percentiles if percentiles is not None else self.DEFAULT_PERCENTILES)
+        check.arg(all(0. <= p <= 1. for p in self._percentiles))
 
         self._count = 0
         self._min = float('inf')
@@ -86,7 +87,7 @@ class SamplingHistogram:
 
     @staticmethod
     def _calc_percentile_pos(p: float, sz: int) -> int:
-        return round((p * sz) - 1)
+        return max(0, round((p * sz) - 1))
 
     def _calc_percentiles(self, entries: list[Entry | None]) -> list[Percentile]:
         entries = list(filter(None, entries))

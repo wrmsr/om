@@ -50,7 +50,7 @@ class ListDictDirectedGraph(DirectedGraph[V]):
 
     def yield_depth_first(self, root: V) -> ta.Iterator[V]:
         stack: list[V] = [root]
-        seen: set[V] = set()
+        seen: set[V] = {root}
         while stack:
             cur = stack.pop()
             yield cur
@@ -108,12 +108,12 @@ class DominatorTree(ta.Generic[V]):
             dfx = dominance_frontiers.setdefault(x, set())
 
             for y in self._graph.get_successors(x):
-                if self.immediate_dominators[y] != x:
+                if self.immediate_dominators.get(y) != x:
                     dfx.add(y)
 
             for z in self.dominator_tree.get(x, []):
                 for y in dominance_frontiers.get(z, []):
-                    if self.immediate_dominators[y] != x:
+                    if self.immediate_dominators.get(y) != x:
                         dfx.add(y)
 
         return {k: v for k, v in dominance_frontiers.items() if v}
@@ -148,20 +148,29 @@ class _Dfs(ta.Generic[V]):
         pred: dict[V, set[V]] = {}
         label: dict[V, V] = {}
 
-        for node in graph.yield_depth_first(root):
-            if node not in semi:
-                vertex.append(node)
+        def discover(node: V) -> None:
+            check.not_in(node, semi)
+            vertex.append(node)
+            semi[node] = len(semi)
+            check.not_in(node, label)
+            label[node] = node
 
-                check.not_in(node, semi)
-                semi[node] = len(semi)
-                check.not_in(node, label)
-                label[node] = node
+        discover(root)
+        stack: list[tuple[V, ta.Iterator[V]]] = [(root, iter(graph.get_successors(root)))]
+        while stack:
+            node, children = stack[-1]
+            try:
+                child = next(children)
+            except StopIteration:
+                stack.pop()
+                continue
 
-                for child in graph.get_successors(node):
-                    pred.setdefault(child, set()).add(node)
-                    if child not in semi:
-                        check.not_in(child, parent)
-                        parent[child] = node
+            pred.setdefault(child, set()).add(node)
+            if child not in semi:
+                check.not_in(child, parent)
+                parent[child] = node
+                discover(child)
+                stack.append((child, iter(graph.get_successors(child))))
 
         self._semi = semi
         self._vertex = vertex

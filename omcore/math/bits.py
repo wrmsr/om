@@ -14,4 +14,5 @@ def set_bit(bit: int, bit_value: int, value: int) -> int:
 
 
 def set_bits(bits_from: int, num_bits: int, bits_value: int, value: int) -> int:
-    return value & ~(((1 << num_bits) - 1) << bits_from) | (bits_value << bits_from)
+    bits_mask = (1 << num_bits) - 1
+    return value & ~(bits_mask << bits_from) | ((bits_value & bits_mask) << bits_from)

@@ -3,6 +3,7 @@ import textwrap
 import pytest
 
 from .. import items
+from .. import make
 from .. import rendering
 
 
@@ -19,8 +20,10 @@ def test_open_dot():
 
 
 def test_dot():
-    print(rendering.render(items.Value.of('hi')))
-    print(rendering.render(items.Value.of([['a', 'b'], ['c', 'd']])))
+    assert rendering.render(items.Value.of('hi')) == 'hi'
+    assert rendering.render(items.Value.of([['a', 'b'], ['c', 'd']])) == (
+        '<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>'
+    )
 
     def print_and_open(no):
         print(no)
@@ -35,3 +38,15 @@ def test_dot():
             items.Edge('a', 'b'),
         ],
     ))
+
+
+def test_make_simple_with_one_shot_successors():
+    graph = make.make_simple({
+        'a': iter(['b']),
+    })
+
+    assert items.Edge('a', 'b') in graph.stmts
+
+
+def test_id_escaping():
+    assert rendering.render(items.Id('a"b\\c\r\nd')) == '"a\\"b\\\\c\\r\\nd"'

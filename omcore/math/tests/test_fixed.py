@@ -151,3 +151,10 @@ def test_wrapped_uint64():
 
     assert divmod(i(5), 3) == (1, 2)
     assert isinstance(divmod(i(5), 3)[0], i)
+
+
+def test_mixed_numeric_operations_defer_to_other_operand():
+    i = CheckedInt64(5)
+
+    assert i + .5 == 5.5
+    assert divmod(i, 2.) == (2., 1.)

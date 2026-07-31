@@ -33,7 +33,10 @@ def _get_exclusive_base_cls(cls: type, base_classes: ta.Iterable[type]) -> type:
 
 def _gen_scalar_proxy_method(name):
     def inner(self, *args, **kwargs):
-        return self.__class__(orig(self, *args, **kwargs))
+        value = orig(self, *args, **kwargs)
+        if value is NotImplemented:
+            return NotImplemented
+        return self.__class__(value)
 
     orig = getattr(int, name)
     return functools.wraps(orig)(inner)
@@ -41,7 +44,10 @@ def _gen_scalar_proxy_method(name):
 
 def _gen_tuple_proxy_method(name):
     def inner(self, *args, **kwargs):
-        return tuple(map(self.__class__, orig(self, *args, **kwargs)))
+        value = orig(self, *args, **kwargs)
+        if value is NotImplemented:
+            return NotImplemented
+        return tuple(map(self.__class__, value))
 
     orig = getattr(int, name)
     return functools.wraps(orig)(inner)

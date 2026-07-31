@@ -67,7 +67,15 @@ class Renderer:
 
     @render.register
     def render_id(self, item: Id) -> None:
-        self._out.write(f'"{item.id}"')
+        self._out.write('"')
+        self._out.write(
+            item.id.
+            replace('\\', '\\\\').
+            replace('"', '\\"').
+            replace('\r', '\\r').
+            replace('\n', '\\n'),
+        )
+        self._out.write('"')
 
     @render.register
     def render_attrs(self, item: Attrs) -> None:
