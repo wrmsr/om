@@ -252,7 +252,8 @@ def test_contextvar_scope_task_inherits_opening():
     asyncio.run(main())
 
 
-def test_contextvar_scope_sync_and_threads():
+@pytest.mark.parametrize('inherit_context', [False, True])
+def test_contextvar_scope_sync_and_threads(inherit_context):
     # The sync facade works transparently (sync_await drives coroutines in the calling context), and raw threads are
     # their own contexts: each may hold its own opening, and one with none gets ScopeNotOpenError - loudly, rather
     # than silently reading another actor's request.
@@ -275,27 +276,35 @@ def test_contextvar_scope_sync_and_threads():
 
         t = threading.Thread(
             target=unopened,
-            # NOTE: 3.14t inherits contextvars by default, 3.14 does not - explicitly don't inherit here for testing
-            # purposes.
-            context=contextvars.Context(),
+            # NOTE: 3.14t inherits contextvars by default, 3.14 does not - so test both explicitly.
+            context=contextvars.copy_context() if inherit_context else contextvars.Context(),
         )
         t.start()
         t.join()
-        assert len(errs) == 1
+        if not inherit_context:
+            assert len(errs) == 1
+        else:
+            assert not errs
 
         res: list = []
 
         def opened():
-            with inj.enter_scope(i, ss, {inj.as_key(float): 5.2}):
-                res.append(i[float])
+            try:
+                with inj.enter_scope(i, ss, {inj.as_key(float): 5.2}):
+                    res.append(i[float])
+            except inj.ScopeAlreadyOpenError as e:
+                errs.append(e)
 
         t2 = threading.Thread(
             target=opened,
-            context=contextvars.Context(),
+            context=contextvars.copy_context() if inherit_context else contextvars.Context(),
         )
         t2.start()
         t2.join()
-        assert res == [5.2]
+        if not inherit_context:
+            assert res == [5.2]
+        else:
+            assert len(errs) == 1
 
         assert i[float] == 4.2  # the main thread's opening, undisturbed throughout
 

@@ -277,6 +277,21 @@ precheck: venv
 
 ## Build
 
+BUILD_ALL_VENVS=\
+	default \
+	14t \
+	15 \
+	15t \
+
+.PHONY: build-all
+build-all:
+	for V in ${BUILD_ALL_VENVS} ; do \
+		VENV=$$V ${MAKE} \
+			build-cext \
+			build-reflect \
+			; \
+	done
+
 # FIXME: pyproject lol
 .PHONY: build-cext
 build-cext: venv

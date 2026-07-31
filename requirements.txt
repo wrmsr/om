@@ -1,5 +1,8 @@
 #### optional
 
+executing==2.2.1
+asttokens==3.0.2
+
 greenlet==3.5.4
 
 pyyaml==6.0.3
