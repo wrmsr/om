@@ -196,6 +196,8 @@ class Runtime(_base.Enum):
     PROVIDED = 'provided'
     PROVIDED_AL2 = 'provided.al2'
     PROVIDED_AL2023 = 'provided.al2023'
+    NODEJS26_X = 'nodejs26.x'
+    PYTHON3_15 = 'python3.15'
     JAVA8_AL2023 = 'java8.al2023'
     JAVA11_AL2023 = 'java11.al2023'
     JAVA17_AL2023 = 'java17.al2023'
