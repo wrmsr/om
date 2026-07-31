@@ -145,7 +145,6 @@ static PyObject * StrongCache_dispatch(StrongCache *self, PyObject *cls)
         }
     }
 
-    Py_DECREF(impl);
     return impl;
 }
 
