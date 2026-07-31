@@ -60,6 +60,6 @@ class ConditionDeque(ta.Generic[T]):
         with self.cond:
             if not self.deque and if_empty is not None:
                 if_empty()
-            while not self.deque:
-                self.cond.wait(timeout)
+            if not self.cond.wait_for(lambda: bool(self.deque), timeout):
+                raise TimeoutError
             return self.deque.popleft()
