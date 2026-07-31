@@ -2,8 +2,6 @@
 TODO:
  - finish markdown impl lol
 """
-import abc
-import io
 import typing as ta
 
 from omcore import cached
@@ -11,7 +9,6 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore import marshal as msh
-from omcore.formats.json import all as json
 
 
 with lang.auto_proxy_import(globals()):
@@ -46,6 +43,15 @@ class TextStyle(lang.Final):
     bold: bool | None = None
     italic: bool | None = None
 
+    def merge(self, child: TextStyle) -> TextStyle:
+        """Overlays child onto self - child's set attributes win."""
+
+        return TextStyle(
+            color=child.color if child.color is not None else self.color,
+            bold=child.bold if child.bold is not None else self.bold,
+            italic=child.italic if child.italic is not None else self.italic,
+        )
+
 
 TextStyle.DEFAULT = TextStyle()
 
@@ -72,7 +78,10 @@ class Text(lang.Abstract, lang.Sealed):
             return cls._BLANK
 
         if len(objs) == 1 and isinstance(o0 := objs[0], Text):
-            return o0
+            if not o0:
+                return cls._BLANK
+            if not (isinstance(o0, StyleText) and o0.y == TextStyle.DEFAULT):
+                return o0
 
         out: list[Text] = []
         pending_strs: list[str] = []
@@ -101,11 +110,10 @@ class Text(lang.Abstract, lang.Sealed):
 
                 # Future style hook:
                 #
-                #   - Style(DEFAULT, x) -> x
-                #   - Style(Style(x, a), b) -> Style(x, a.merge(b))
                 #   - adjacent equal Style nodes maybe merge their children
                 #
-                # For now, preserve StyleText exactly as a boundary node.
+                # Style(DEFAULT, x) unwrapping is handled in the stack loop, and Style(Style(..)) chains are rejected
+                # at construction.
                 out.append(t)
 
         stack: list[CanText] = list(reversed(objs))
@@ -123,6 +131,10 @@ class Text(lang.Abstract, lang.Sealed):
 
             elif isinstance(o, ConcatText):
                 stack.extend(reversed(o.l))
+
+            elif isinstance(o, StyleText) and o.y == TextStyle.DEFAULT:
+                # Style(DEFAULT, x) -> x
+                stack.append(o.c)
 
             elif isinstance(o, Text):
                 emit_node(o)
@@ -186,26 +198,31 @@ class Text(lang.Abstract, lang.Sealed):
         ):
             return x
 
-        return StyleText(
-            x,
-            TextStyle(
-                color=color,
-                bold=bold,
-                italic=italic,
-            ),
+        y = TextStyle(
+            color=color,
+            bold=bold,
+            italic=italic,
         )
+
+        if isinstance(x, StyleText):
+            # Chains collapse: the new style applies 'outside' the existing one, so the existing (inner) style's set
+            # attrs win, matching the render semantics nested StyleTexts had before they were rejected.
+            return StyleText(x.c, y.merge(x.y))
+
+        return StyleText(x, y)
 
     #
 
-    @abc.abstractmethod
-    def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
-        raise NotImplementedError
-
     @lang.cached_function
+    def _render_str(self) -> str:
+        from .plain import render_plain_text  # function-local to avoid an import cycle with the renderer modules
+
+        return render_plain_text(self)
+
     def __str__(self) -> str:
-        out = io.StringIO()
-        self.write_str_to(out.write)
-        return out.getvalue()
+        # Implicit special-method lookup bypasses instance dicts, so a cached_function directly on __str__ would rebind
+        # and recompute on every str() call - delegate to a normally-accessed cached method instead.
+        return self._render_str()
 
 
 ##
@@ -219,11 +236,6 @@ class StrText(Text, lang.Final):
 
     def __bool__(self) -> bool:
         return bool(self.s)
-
-    #
-
-    def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
-        fn(self.s)
 
 
 Text._BLANK = StrText('')  # noqa
@@ -253,12 +265,6 @@ class ConcatText(Text, lang.Final):
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({list(self.l)!r})'
 
-    #
-
-    def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
-        for t in self.l:
-            t.write_str_to(fn)
-
 
 ##
 
@@ -272,12 +278,8 @@ class StyleText(Text, lang.Final):
     #
 
     def __post_init__(self) -> None:
-        check.state(bool(self.c))
-
-    #
-
-    def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
-        self.c.write_str_to(fn)
+        check.arg(bool(self.c))
+        check.not_isinstance(self.c, StyleText)
 
 
 ##
@@ -285,30 +287,30 @@ class StyleText(Text, lang.Final):
 
 @dc.dataclass(frozen=True)
 @dc.extra_class_params(cache_hash=True, terse_repr=True)
+@msh.update_object_options(unwrap_if_single_field=True)
 class JsonText(Text, lang.Final):
     v: ta.Any
 
-    #
-
-    def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
-        fn(json.dumps_compact(self.v))
-
 
 ##
 
 
 @dc.dataclass(frozen=True)
+class BlockText(Text, lang.Abstract):
+    """Marker for nodes which render as isolated multiline blocks rather than inline character runs."""
+
+
+#
+
+
+@dc.dataclass(frozen=True)
 @dc.extra_class_params(cache_hash=True, terse_repr=True)
-class MarkdownText(Text, lang.Final):
+@msh.update_object_options(unwrap_if_single_field=True)
+class MarkdownText(BlockText, lang.Final):
     s: str
 
-    #
-
-    def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
-        fn('\n')
-        fn(self.s)
-        if not self.s.endswith('\n'):
-            fn('\n')
+    def __bool__(self) -> bool:
+        return bool(self.s)
 
 
 ##
@@ -316,16 +318,20 @@ class MarkdownText(Text, lang.Final):
 
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(cache_hash=True)
-class DiffText(Text, lang.Final):
+@msh.update_object_options(field_defaults=msh.FieldOptions(omit_if=lang.is_none))
+class DiffText(BlockText, lang.Final):
     """
     An old->new text change, displayed as a unified diff. Carries the texts (the honest data); the rendering is derived
-    - plainly here, colorized by capable frontends.
+    by the frontends.
     """
 
     old: str
     new: str
 
     path: str | None = None
+
+    def __bool__(self) -> bool:
+        return self.old != self.new
 
     @cached.property
     def diff_lines(self) -> ta.Sequence[str]:
@@ -335,9 +341,3 @@ class DiffText(Text, lang.Final):
             fromfile=self.path if self.path is not None else 'old',
             tofile=self.path if self.path is not None else 'new',
         ))
-
-    #
-
-    def write_str_to(self, fn: ta.Callable[[str], ta.Any]) -> None:
-        for l in self.diff_lines:
-            fn(l if l.endswith('\n') else l + '\n')

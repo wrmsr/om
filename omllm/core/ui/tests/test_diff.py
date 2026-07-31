@@ -1,7 +1,8 @@
 from omcore import marshal as msh
 
-from ..rich import text_to_rich_text
+from ..rich import RichTextRenderer
 from ..text import DiffText
+from ..text import StrText
 from ..text import Text
 
 
@@ -17,13 +18,29 @@ def test_diff_text():
     assert '-b' in s
     assert '+B' in s
 
-    rt = text_to_rich_text(d)
+    rt = RichTextRenderer().render(d)
     assert '+B' in rt.plain
 
     m = msh.marshal(d, Text)
     d2 = msh.unmarshal(m, Text)
     assert d2 == d
     assert msh.marshal(d2, Text) == m
+
+
+def test_empty_diff_is_falsy():
+    d = DiffText(old='a\n', new='a\n')
+
+    assert not d
+    assert str(d) == ''
+    assert Text.of('x', d, 'y') == StrText('xy')
+
+
+def test_diff_marshal_omits_none_path():
+    d = DiffText(old='x\n', new='y\n')
+
+    m = msh.marshal(d, Text)
+    assert m == {'diff': {'old': 'x\n', 'new': 'y\n'}}
+    assert msh.unmarshal(m, Text) == d
 
 
 def test_diff_text_composes():

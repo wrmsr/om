@@ -220,6 +220,31 @@ def test_join_with_styled_delimiter_preserves_boundaries() -> None:
     assert_canonical(t)
 
 
+def test_of_single_blank_text_is_blank_singleton() -> None:
+    assert Text.of(StrText('')) is Text.blank()
+
+
+def test_of_unwraps_default_style() -> None:
+    t = Text.of('a', StyleText(StrText('b')), 'c')
+
+    assert isinstance(t, StrText)
+    assert t.s == 'abc'
+
+    s = StrText('x')
+    assert Text.of(StyleText(s)) == s
+
+
+def test_str_is_cached() -> None:
+    t = ConcatText((
+        StrText('abc '),
+        StyleText(StrText('def!'), TextStyle(bold=True)),
+    ))
+
+    s1 = str(t)
+    s2 = str(t)
+    assert s1 is s2
+
+
 def test_style_with_no_attrs_is_noop() -> None:
     t = Text.of('abc')
 
@@ -238,6 +263,21 @@ def test_style_with_attrs_wraps_once() -> None:
     assert t.y == TextStyle(color='red', bold=True)
     assert str(t) == 'abc'
     assert_canonical(t)
+
+
+def test_style_merges_onto_existing_style() -> None:
+    t = Text.of('x').style(color='red').style(color='green', bold=True)
+
+    assert isinstance(t, StyleText)
+    assert t.c == StrText('x')
+    assert t.y == TextStyle(color='red', bold=True)
+
+
+def test_style_text_rejects_nested_style() -> None:
+    inner = StyleText(StrText('a'), TextStyle(bold=True))
+
+    with pytest.raises(Exception):
+        StyleText(inner, TextStyle(italic=True))
 
 
 def test_concat_rejects_empty_children() -> None:

@@ -16,8 +16,18 @@ with _lang.auto_proxy_init(globals()):
         render_json_texts,
     )
 
+    from .plain import (  # noqa
+        PlainTextRenderer,
+        render_plain_text,
+    )
+
+    from .rendering import (  # noqa
+        TextRenderer,
+        TextRenderingOptions,
+    )
+
     from .rich import (  # noqa
-        text_to_rich_text,
+        RichTextRenderer,
     )
 
     from .text import (  # noqa
@@ -31,6 +41,8 @@ with _lang.auto_proxy_init(globals()):
         ConcatText,
         StyleText,
         JsonText,
+
+        BlockText,
         MarkdownText,
         DiffText,
     )

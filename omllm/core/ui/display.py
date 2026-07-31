@@ -13,7 +13,7 @@ from .text import Text
 class TextDisplayer(lang.Abstract):
     @abc.abstractmethod
     def display_text(self, text: CanText) -> ta.Awaitable[None]:
-        pass
+        raise NotImplementedError
 
 
 class NopTextDisplayer(TextDisplayer):

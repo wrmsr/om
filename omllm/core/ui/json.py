@@ -128,7 +128,15 @@ def render_json_texts(
             return cur
 
         elif isinstance(cur, StyleText):
-            return StyleText(Text.of(rec(cur.c)), cur.y)
+            inner = Text.of(rec(cur.c))
+
+            if not inner:
+                return inner
+
+            if isinstance(inner, StyleText):
+                return StyleText(inner.c, cur.y.merge(inner.y))
+
+            return StyleText(inner, cur.y)
 
         elif isinstance(cur, ConcatText):
             return [rec(ch) for ch in cur.l]
@@ -137,6 +145,7 @@ def render_json_texts(
             return render_obj_json_text(cur.v, args)
 
         else:
-            raise TypeError(cur)
+            # Foreign leaves (DiffText, MarkdownText, ...) pass through untouched - this only rewrites JsonText nodes.
+            return cur
 
     return Text.of(rec(root))
