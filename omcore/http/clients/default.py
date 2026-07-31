@@ -30,6 +30,12 @@ _PREFER_URLLIB = False
 _PREFER_HTTPX = False
 
 
+def _default_middleware() -> list[_middleware.HttpClientMiddleware]:
+    return [
+        _middleware.RedirectHandlingHttpClientMiddleware(),
+    ]
+
+
 def _default_client() -> HttpClient:
     cli: HttpClient
 
@@ -39,9 +45,7 @@ def _default_client() -> HttpClient:
     else:
         cli = _middleware.MiddlewareHttpClient(
             _pipelines_sync.IoPipelineHttpClient(),
-            [
-                _middleware.RedirectHandlingHttpClientMiddleware(),
-            ],
+            _default_middleware(),
         )
 
     return cli
@@ -66,9 +70,7 @@ def _default_async_client() -> AsyncHttpClient:
     else:
         cli = _middleware.MiddlewareAsyncHttpClient(
             _pipelines_asyncio.AsyncioIoPipelineAsyncHttpClient(),
-            [
-                _middleware.RedirectHandlingHttpClientMiddleware(),
-            ],
+            _default_middleware(),
         )
 
     return cli
