@@ -15,8 +15,10 @@ from omdev.tui.rich import textual as rich_tx
 from ... import agent as agn
 from ... import harness as har
 from ... import llm
+from ...agent.fs.tools.edit import EditTool
 from ...agent.fs.tools.ls import LsTool
 from ...agent.fs.tools.read import ReadTool
+from ...agent.fs.tools.write import WriteTool
 from ...agent.shell.tools.bash import BashTool
 from ...core import ui
 from ...harness.commands.permissions import PermissionsCommand
@@ -79,7 +81,7 @@ class InputPermissionAsker(agn.PermissionAsker):
             rule: agn.PermissionRule,
     ) -> agn.DecidedPermissionState:
         while True:
-            out = await self._input_manager.input(repr(target) + ' (y/n) ')
+            out = await self._input_manager.input(f'{requestor!r} :: {target!r} (y/n) ')
             if out == 'y':
                 return agn.PermissionState.ALLOW
             elif out == 'n':
@@ -182,7 +184,7 @@ async def _a_main() -> None:
 
     permissions_manager = agn.StandardPermissionsManager([  # noqa
         agn.PermissionRule(
-            agn.GlobFsPermissionMatcher(os.path.join(cwd, '**/*'), ['r']),
+            agn.GlobFsPermissionMatcher(os.path.join(cwd, '**'), ['r', 'w']),
             agn.PermissionState.ASK,
         ),
     ])
@@ -203,10 +205,16 @@ async def _a_main() -> None:
         ] if args.bash else []),
 
         *([
+            EditTool(
+                permissions=permission_decider,
+            ).tool(),
             LsTool(
                 permissions=permission_decider,
             ).tool(),
             ReadTool(
+                permissions=permission_decider,
+            ).tool(),
+            WriteTool(
                 permissions=permission_decider,
             ).tool(),
         ] if args.fs else []),
