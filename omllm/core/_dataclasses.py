@@ -468,27 +468,24 @@ def _process_dataclass__4d8c3c719677b1040c8f51e7cff8b9d294d38fd3():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('mode', 'five', 'multiline_strings')), EqPlan(fields=('mode', 'five', 'multiline_s"
-        "trings')), FrozenPlan(fields=('mode', 'five', 'multiline_strings'), allow_dynamic_dunder_attrs=False), HashPla"
-        "n(action='add', fields=('mode', 'five', 'multiline_strings'), cache=False), InitPlan(fields=(InitPlan.Field(na"
-        "me='mode', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), def"
-        "ault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check"
-        "_type=None), InitPlan.Field(name='five', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name"
-        "='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coe"
-        "rce=None, validate=None, check_type=None), InitPlan.Field(name='multiline_strings', annotation=OpRef(name='ini"
-        "t.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, overrid"
-        "e=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_"
-        "params=('mode',), kw_only_params=('five', 'multiline_strings'), frozen=True, slots=False, post_init_params=Non"
-        "e, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='mode', kw_only=False, fn=None), ReprPl"
-        "an.Field(name='five', kw_only=True, fn=None), ReprPlan.Field(name='multiline_strings', kw_only=True, fn=None))"
-        ", id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('density', 'json_style')), EqPlan(fields=('density', 'json_style')), FrozenPlan(fi"
+        "elds=('density', 'json_style'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('density', '"
+        "json_style'), cache=False), InitPlan(fields=(InitPlan.Field(name='density', annotation=OpRef(name='init.fields"
+        ".0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False,"
+        " field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='json_style'"
+        ", annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_fact"
+        "ory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=Non"
+        "e)), self_param='self', std_params=(), kw_only_params=('density', 'json_style'), frozen=True, slots=False, pos"
+        "t_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='density', kw_only=Tru"
+        "e, fn=None), ReprPlan.Field(name='json_style', kw_only=True, fn=None)), id=False, terse=False, default_fn=None"
+        ")))"
     ),
-    plan_repr_sha1='8062e6b592d552c879ea83331512fd13fc8fe85f',
+    plan_repr_sha1='b5106a4194f68d00d15fd2bb40cebeed8201ffe7',
     cls_names=(
-        ('omllm.core.ui.text.json', 'JsonTextRendering'),
+        ('omllm.core.ui.text.rendering', 'TextRenderingOptions'),
     ),
 )
-def _process_dataclass__8062e6b592d552c879ea83331512fd13fc8fe85f():
+def _process_dataclass__b5106a4194f68d00d15fd2bb40cebeed8201ffe7():
     def _process_dataclass(
         *,
         __class__,
@@ -496,124 +493,6 @@ def _process_dataclass__8062e6b592d552c879ea83331512fd13fc8fe85f():
         __dataclass__init__fields__0__default,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
-    ):
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                mode=self.mode,
-                five=self.five,
-                multiline_strings=self.multiline_strings,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.mode == other.mode and
-                self.five == other.five and
-                self.multiline_strings == other.multiline_strings
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'mode',
-            'five',
-            'multiline_strings',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.mode,
-                self.five,
-                self.multiline_strings,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            mode: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
-            *,
-            five: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            multiline_strings: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'mode', mode)
-            __dataclass__object_setattr(self, 'five', five)
-            __dataclass__object_setattr(self, 'multiline_strings', multiline_strings)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"mode={self.mode!r}")
-            parts.append(f"five={self.five!r}")
-            parts.append(f"multiline_strings={self.multiline_strings!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('density',)), EqPlan(fields=('density',)), FrozenPlan(fields=('density',), allow_d"
-        "ynamic_dunder_attrs=False), HashPlan(action='add', fields=('density',), cache=False), InitPlan(fields=(InitPla"
-        "n.Field(name='density', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.d"
-        "efault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validat"
-        "e=None, check_type=None),), self_param='self', std_params=(), kw_only_params=('density',), frozen=True, slots="
-        "False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='density', k"
-        "w_only=True, fn=None),), id=False, terse=False, default_fn=None)))"
-    ),
-    plan_repr_sha1='0cc800f3b0969668f988d0e137c52086f50d580c',
-    cls_names=(
-        ('omllm.core.ui.text.rendering', 'TextRenderingOptions'),
-    ),
-)
-def _process_dataclass__0cc800f3b0969668f988d0e137c52086f50d580c():
-    def _process_dataclass(
-        *,
-        __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__0__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -625,6 +504,7 @@ def _process_dataclass__0cc800f3b0969668f988d0e137c52086f50d580c():
                 raise TypeError(self)
             return __class__(  # noqa
                 density=self.density,
+                json_style=self.json_style,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -635,13 +515,15 @@ def _process_dataclass__0cc800f3b0969668f988d0e137c52086f50d580c():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.density == other.density
+                self.density == other.density and
+                self.json_style == other.json_style
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'density',
+            'json_style',
         }
 
         def __setattr__(self, name, value):
@@ -667,6 +549,7 @@ def _process_dataclass__0cc800f3b0969668f988d0e137c52086f50d580c():
         def __hash__(self):
             return hash((
                 self.density,
+                self.json_style,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -675,8 +558,10 @@ def _process_dataclass__0cc800f3b0969668f988d0e137c52086f50d580c():
             self,
             *,
             density: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            json_style: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'density', density)
+            __dataclass__object_setattr(self, 'json_style', json_style)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -684,6 +569,146 @@ def _process_dataclass__0cc800f3b0969668f988d0e137c52086f50d580c():
         def __repr__(self):
             parts = []
             parts.append(f"density={self.density!r}")
+            parts.append(f"json_style={self.json_style!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('key', 'string', 'number', 'literal')), EqPlan(fields=('key', 'string', 'number', "
+        "'literal')), FrozenPlan(fields=('key', 'string', 'number', 'literal'), allow_dynamic_dunder_attrs=False), Hash"
+        "Plan(action='add', fields=('key', 'string', 'number', 'literal'), cache=False), InitPlan(fields=(InitPlan.Fiel"
+        "d(name='key', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), "
+        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
+        "eck_type=None), InitPlan.Field(name='string', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef"
+        "(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE"
+        ", coerce=None, validate=None, check_type=None), InitPlan.Field(name='number', annotation=OpRef(name='init.fiel"
+        "ds.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=Fals"
+        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='literal',"
+        " annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_facto"
+        "ry=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None"
+        ")), self_param='self', std_params=(), kw_only_params=('key', 'string', 'number', 'literal'), frozen=True, slot"
+        "s=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='key', kw_"
+        "only=True, fn=None), ReprPlan.Field(name='string', kw_only=True, fn=None), ReprPlan.Field(name='number', kw_on"
+        "ly=True, fn=None), ReprPlan.Field(name='literal', kw_only=True, fn=None)), id=False, terse=False, default_fn=N"
+        "one)))"
+    ),
+    plan_repr_sha1='740ef1d687b72cbd89bb75df281286101a0a0b80',
+    cls_names=(
+        ('omllm.core.ui.text.rich', 'RichJsonStyles'),
+    ),
+)
+def _process_dataclass__740ef1d687b72cbd89bb75df281286101a0a0b80():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                key=self.key,
+                string=self.string,
+                number=self.number,
+                literal=self.literal,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.key == other.key and
+                self.string == other.string and
+                self.number == other.number and
+                self.literal == other.literal
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'key',
+            'string',
+            'number',
+            'literal',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.key,
+                self.string,
+                self.number,
+                self.literal,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            key: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            string: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            number: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            literal: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'key', key)
+            __dataclass__object_setattr(self, 'string', string)
+            __dataclass__object_setattr(self, 'number', number)
+            __dataclass__object_setattr(self, 'literal', literal)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"key={self.key!r}")
+            parts.append(f"string={self.string!r}")
+            parts.append(f"number={self.number!r}")
+            parts.append(f"literal={self.literal!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -1001,23 +1026,28 @@ def _process_dataclass__0615bd169ea15b2073a58d349c499e5ec8a9a760():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('v',)), EqPlan(fields=('v',)), FrozenPlan(fields=('v',), allow_dynamic_dunder_attr"
-        "s=False), HashPlan(action='add', fields=('v',), cache=True), InitPlan(fields=(InitPlan.Field(name='v', annotat"
-        "ion=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, fie"
-        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_params=('v'"
-        ",), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPla"
-        "n(fields=(ReprPlan.Field(name='v', kw_only=False, fn=None),), id=False, terse=True, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('v', 'y')), EqPlan(fields=('v', 'y')), FrozenPlan(fields=('v', 'y'), allow_dynamic"
+        "_dunder_attrs=False), HashPlan(action='add', fields=('v', 'y'), cache=True), InitPlan(fields=(InitPlan.Field(n"
+        "ame='v', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, ove"
+        "rride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name="
+        "'y', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_f"
+        "actory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type="
+        "None)), self_param='self', std_params=('v', 'y'), kw_only_params=(), frozen=True, slots=False, post_init_param"
+        "s=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='v', kw_only=False, fn=None), Repr"
+        "Plan.Field(name='y', kw_only=False, fn=None)), id=False, terse=True, default_fn=None)))"
     ),
-    plan_repr_sha1='2d71be5c5c7de7664a1eec9fc4665e6052cf59f8',
+    plan_repr_sha1='28cc57c38481e7cfeef4d25110ea1d6fb4fe957c',
     cls_names=(
         ('omllm.core.ui.text.types', 'JsonText'),
     ),
 )
-def _process_dataclass__2d71be5c5c7de7664a1eec9fc4665e6052cf59f8():
+def _process_dataclass__28cc57c38481e7cfeef4d25110ea1d6fb4fe957c():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -1029,6 +1059,7 @@ def _process_dataclass__2d71be5c5c7de7664a1eec9fc4665e6052cf59f8():
                 raise TypeError(self)
             return __class__(  # noqa
                 v=self.v,
+                y=self.y,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1039,13 +1070,15 @@ def _process_dataclass__2d71be5c5c7de7664a1eec9fc4665e6052cf59f8():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.v == other.v
+                self.v == other.v and
+                self.y == other.y
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'v',
+            'y',
         }
 
         def __setattr__(self, name, value):
@@ -1078,6 +1111,7 @@ def _process_dataclass__2d71be5c5c7de7664a1eec9fc4665e6052cf59f8():
                 '__dataclass_hash__',
                 h := hash((
                     self.v,
+                    self.y,
                 ))
             )
             return h
@@ -1087,8 +1121,10 @@ def _process_dataclass__2d71be5c5c7de7664a1eec9fc4665e6052cf59f8():
         def __init__(
             self,
             v: __dataclass__init__fields__0__annotation,
+            y: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'v', v)
+            __dataclass__object_setattr(self, 'y', y)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1096,6 +1132,150 @@ def _process_dataclass__2d71be5c5c7de7664a1eec9fc4665e6052cf59f8():
         def __repr__(self):
             parts = []
             parts.append(f"{self.v!r}")
+            parts.append(f"{self.y!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('mode', 'five', 'multiline_strings')), EqPlan(fields=('mode', 'five', 'multiline_s"
+        "trings')), FrozenPlan(fields=('DEFAULT', 'mode', 'five', 'multiline_strings'), allow_dynamic_dunder_attrs=Fals"
+        "e), HashPlan(action='add', fields=('mode', 'five', 'multiline_strings'), cache=True), InitPlan(fields=(InitPla"
+        "n.Field(name='DEFAULT', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None,"
+        " init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), Init"
+        "Plan.Field(name='mode', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.d"
+        "efault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validat"
+        "e=None, check_type=None), InitPlan.Field(name='five', annotation=OpRef(name='init.fields.2.annotation'), defau"
+        "lt=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType."
+        "INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='multiline_strings', annotation=Op"
+        "Ref(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init="
+        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param"
+        "='self', std_params=(), kw_only_params=('mode', 'five', 'multiline_strings'), frozen=True, slots=False, post_i"
+        "nit_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='mode', kw_only=True, fn="
+        "None), ReprPlan.Field(name='five', kw_only=True, fn=None), ReprPlan.Field(name='multiline_strings', kw_only=Tr"
+        "ue, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='c82d311f548f939d870c1d4076de8e602719b80d',
+    cls_names=(
+        ('omllm.core.ui.text.types', 'JsonTextStyle'),
+    ),
+)
+def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                mode=self.mode,
+                five=self.five,
+                multiline_strings=self.multiline_strings,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.mode == other.mode and
+                self.five == other.five and
+                self.multiline_strings == other.multiline_strings
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'DEFAULT',
+            'mode',
+            'five',
+            'multiline_strings',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            try:
+                return self.__dataclass_hash__
+            except AttributeError:
+                pass
+            object.__setattr__(
+                self,
+                '__dataclass_hash__',
+                h := hash((
+                    self.mode,
+                    self.five,
+                    self.multiline_strings,
+                ))
+            )
+            return h
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            mode: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            five: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            multiline_strings: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'mode', mode)
+            __dataclass__object_setattr(self, 'five', five)
+            __dataclass__object_setattr(self, 'multiline_strings', multiline_strings)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.mode)) is not None:
+                parts.append(f"mode={s}")
+            if (s := __dataclass__repr__default_fn(self.five)) is not None:
+                parts.append(f"five={s}")
+            if (s := __dataclass__repr__default_fn(self.multiline_strings)) is not None:
+                parts.append(f"multiline_strings={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

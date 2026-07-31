@@ -5,6 +5,7 @@ import os
 import sys
 import typing as ta
 
+from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 from omdev.home.secrets import load_secrets
@@ -88,16 +89,41 @@ class InputPermissionAsker(agn.PermissionAsker):
 ##
 
 
-class RichMarkdown(ta.NamedTuple):
+@dc.dataclass(frozen=True, kw_only=True)
+class RichUiStyles:
     theme: ta.Any
     code_theme: ta.Any
+    json_styles: ui.RichJsonStyles
 
 
 @lang.cached_function
-def rich_markdown() -> RichMarkdown:
-    return RichMarkdown(
-        rich_tx.build_theme(rich_tx.TEXTUAL_DARK),
-        rich_tx.build_pygments_theme(rich_tx.TEXTUAL_DARK),
+def rich_ui_styles() -> RichUiStyles:
+    dtx = rich_tx.TEXTUAL_DARK
+
+    ps = check.not_none(dtx.pygments_styles)
+
+    return RichUiStyles(
+        theme=rich_tx.build_theme(dtx),
+        code_theme=rich_tx.build_pygments_theme(dtx),
+        json_styles=ui.RichJsonStyles(
+            # Match the theme's code-block highlighting of json source.
+            key=ps['Token.Name.Tag'],
+            string=ps['Token.Literal.String.Double'],
+            number=ps['Token.Literal.Number'],
+            literal=ps['Token.Keyword.Constant'],
+        ),
+    )
+
+
+def build_rich_text_displayer() -> ui.RichTextDisplayer:
+    rs = rich_ui_styles()
+
+    return ui.RichTextDisplayer(
+        console=rich.Console(theme=rs.theme),
+        renderer=ui.RichTextRenderer(
+            markdown_code_theme=rs.code_theme,
+            json_styles=rs.json_styles,
+        ),
     )
 
 
@@ -136,6 +162,8 @@ async def _a_main() -> None:
         api_key=load_secrets().get(api_key_name),
     )
 
+    text_displayer = build_rich_text_displayer()
+
     async def on_event(ev: agn.Event) -> None:
         if args.verbose:
             print(ev)
@@ -145,8 +173,7 @@ async def _a_main() -> None:
                 for c in msg.content:
                     if isinstance(c, llm.TextContent):
                         if (s := c.text.strip()):
-                            rm = rich_markdown()
-                            rich.Console(theme=rm.theme).print(rich.Markdown(s, code_theme=rm.code_theme))
+                            await text_displayer.display_text(ui.MarkdownText(s))
 
     agent = agn.Agent(
         backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore
@@ -203,8 +230,6 @@ async def _a_main() -> None:
     )
 
     #
-
-    text_displayer = ui.PrintTextDisplayer()
 
     commands_manager = har.CommandsManager(
         commands=har.Commands([

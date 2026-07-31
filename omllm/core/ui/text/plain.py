@@ -2,10 +2,10 @@ import io
 
 from omcore import lang
 
-from .json import JsonTextRendering
 from .json import render_obj_json_text
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
+from .rendering import resolve_json_text_style
 from .rendering import squash_markdown_text
 from .rendering import summarize_diff_text
 from .types import CanText
@@ -64,7 +64,7 @@ class PlainTextRenderer(TextRenderer[str]):
                 stack.append(n.c)
 
             elif isinstance(n, JsonText):
-                stack.append(render_obj_json_text(n.v, JsonTextRendering(mode=self._options.density)))
+                stack.append(render_obj_json_text(n.v, resolve_json_text_style(self._options, n.y)))
 
             elif isinstance(n, MarkdownText):
                 if compact:

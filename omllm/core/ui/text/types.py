@@ -51,9 +51,9 @@ class TextStyle(lang.Final):
         """Overlays child onto self - child's set attributes win."""
 
         return TextStyle(
-            color=child.color if child.color is not None else self.color,
-            bold=child.bold if child.bold is not None else self.bold,
-            italic=child.italic if child.italic is not None else self.italic,
+            color=lang.opt_coalesce(child.color, self.color),
+            bold=lang.opt_coalesce(child.bold, self.bold),
+            italic=lang.opt_coalesce(child.italic, self.italic),
         )
 
 
@@ -219,11 +219,37 @@ class StyleText(Text, lang.Final):
 ##
 
 
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(cache_hash=True, default_repr_fn=lang.opt_repr)
+@msh.update_object_options(field_defaults=msh.FieldOptions(omit_if=lang.is_none))
+class JsonTextStyle(lang.Final):
+    DEFAULT: ta.ClassVar[JsonTextStyle]
+
+    mode: ta.Literal['pretty', 'compact'] | None = None
+
+    five: bool | None = None
+    multiline_strings: bool | None = None
+
+    def merge(self, child: JsonTextStyle) -> JsonTextStyle:
+        """Overlays child onto self - child's set attributes win."""
+
+        return JsonTextStyle(
+            mode=lang.opt_coalesce(child.mode, self.mode),
+            five=lang.opt_coalesce(child.five, self.five),
+            multiline_strings=lang.opt_coalesce(child.multiline_strings, self.multiline_strings),
+        )
+
+
+JsonTextStyle.DEFAULT = JsonTextStyle()
+
+
 @dc.dataclass(frozen=True)
 @dc.extra_class_params(cache_hash=True, terse_repr=True)
 @msh.update_object_options(unwrap_if_single_field=True)
+@msh.update_field_options('y', omit_if=lambda y: y == JsonTextStyle.DEFAULT)
 class JsonText(Text, lang.Final):
     v: ta.Any
+    y: JsonTextStyle = JsonTextStyle.DEFAULT
 
 
 ##
@@ -272,6 +298,6 @@ class DiffText(BlockText, lang.Final):
         return tuple(difflib.unified_diff(
             self.old.splitlines(keepends=True),
             self.new.splitlines(keepends=True),
-            fromfile=self.path if self.path is not None else 'old',
-            tofile=self.path if self.path is not None else 'new',
+            fromfile=lang.coalesce(self.path, 'old'),
+            tofile=lang.coalesce(self.path, 'new'),
         ))

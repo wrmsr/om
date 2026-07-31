@@ -6,6 +6,7 @@ from omcore import lang
 
 from .types import CanText
 from .types import DiffText
+from .types import JsonTextStyle
 from .types import MarkdownText
 
 
@@ -19,11 +20,25 @@ O = ta.TypeVar('O')
 class TextRenderingOptions:
     density: ta.Literal['pretty', 'compact', None] = None
 
+    json_style: JsonTextStyle = JsonTextStyle.DEFAULT
+
 
 class TextRenderer(lang.Abstract, ta.Generic[O]):
     @abc.abstractmethod
     def render(self, t: CanText) -> O:
         raise NotImplementedError
+
+
+##
+
+
+def resolve_json_text_style(
+        options: TextRenderingOptions,
+        style: JsonTextStyle = JsonTextStyle.DEFAULT,
+) -> JsonTextStyle:
+    """Layers, least to most specific: the options density, the options json_style, the given (node) style."""
+
+    return JsonTextStyle(mode=options.density).merge(options.json_style).merge(style)
 
 
 ##

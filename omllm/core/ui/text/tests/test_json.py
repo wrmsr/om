@@ -1,8 +1,11 @@
+from omcore import marshal as msh
+
 from ..json import render_json_texts
 from ..json import render_obj_json_text
 from ..types import ConcatText
 from ..types import DiffText
 from ..types import JsonText
+from ..types import JsonTextStyle
 from ..types import MarkdownText
 from ..types import StyleText
 from ..types import Text
@@ -48,3 +51,25 @@ def test_render_json_texts_merges_styles():
     assert isinstance(r, StyleText)
     assert r.y == TextStyle(color='green', bold=True)
     assert str(r) == '"hi"'
+
+
+def test_render_json_texts_respects_node_style():
+    t = Text.of('a ', JsonText({'k': [1]}, JsonTextStyle(mode='compact')))
+
+    assert str(render_json_texts(t)) == 'a {"k":[1]}'
+
+
+def test_json_text_marshal_unwraps_without_style():
+    t = JsonText([1, 'x'])
+
+    m = msh.marshal(t, Text)
+    assert m == {'json': [1, 'x']}
+    assert msh.unmarshal(m, Text) == t
+
+
+def test_json_text_marshal_with_style():
+    t = JsonText([1], JsonTextStyle(mode='compact', five=True))
+
+    m = msh.marshal(t, Text)
+    assert m == {'json': {'v': [1], 'y': {'mode': 'compact', 'five': True}}}
+    assert msh.unmarshal(m, Text) == t

@@ -5,7 +5,6 @@ from omcore import lang
 from omcore import marshal as msh
 from omcore.argparse import all as ap
 from omcore.formats import json5
-from omcore.formats.json import all as json
 
 from ... import agent as agn
 from ...core import ui
@@ -41,7 +40,10 @@ class PermissionsCommand(ParserCommandClass):
                 bold=True,
                 color=self._PERMISSION_STATE_COLORS[r.result],
             ),
-            json.dumps_compact(msh.marshal(r.matcher, agn.PermissionMatcher)),
+            ui.JsonText(
+                msh.marshal(r.matcher, agn.PermissionMatcher),
+                ui.JsonTextStyle(mode='compact', five=True),
+            ),
         ]))
 
     def _render_rules(self, rs: ta.Iterable[tuple[str, agn.PermissionRule]]) -> ui.CanText:

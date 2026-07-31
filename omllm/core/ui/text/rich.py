@@ -1,11 +1,15 @@
+import functools
 import typing as ta
 
+from omcore import dataclasses as dc
 from omdev.tui import rich
 
-from .json import JsonTextRendering
-from .json import render_obj_json_text
+from .display import TextDisplayer
+from .json import JsonTokenKind
+from .json import render_json_tokens
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
+from .rendering import resolve_json_text_style
 from .rendering import squash_markdown_text
 from .rendering import summarize_diff_text
 from .types import CanText
@@ -22,6 +26,20 @@ from .types import TextStyle
 ##
 
 
+@dc.dataclass(frozen=True, kw_only=True)
+class RichJsonStyles:
+    """
+    Rich styles applied per rendered json token kind - values are rich style specs (rich.Style instances or style
+    strings like 'bold #57A5E2'), or None to leave that kind unstyled. Defaults match the dumb TextColor-channel
+    styling of the Text-layer json rendering.
+    """
+
+    key: ta.Any | None = 'blue'
+    string: ta.Any | None = 'green'
+    number: ta.Any | None = None
+    literal: ta.Any | None = None
+
+
 class RichTextRenderer(TextRenderer[ta.Any]):
     """
     Renders a Text tree to a rich renderable: a rich.Text of correctly style-merged inline runs when no blocks are
@@ -33,11 +51,24 @@ class RichTextRenderer(TextRenderer[ta.Any]):
             options: TextRenderingOptions | None = None,
             *,
             markdown_code_theme: ta.Any | None = None,
+            json_styles: RichJsonStyles | None = None,
     ) -> None:
         super().__init__()
 
         self._options = options if options is not None else TextRenderingOptions()
         self._markdown_code_theme = markdown_code_theme
+
+        js = json_styles if json_styles is not None else RichJsonStyles()
+        self._json_token_styles: ta.Mapping[JsonTokenKind, ta.Any] = {
+            k: rich.Style.parse(v) if isinstance(v, str) else v
+            for k, v in [
+                (JsonTokenKind.KEY, js.key),
+                (JsonTokenKind.STRING, js.string),
+                (JsonTokenKind.NUMBER, js.number),
+                (JsonTokenKind.LITERAL, js.literal),
+            ]
+            if v is not None
+        }
 
     #
 
@@ -81,6 +112,25 @@ class RichTextRenderer(TextRenderer[ta.Any]):
 
         return dt
 
+    def _append_json_token(
+            self,
+            out: rich.Text,
+            base: rich.Style | None,
+            kind: JsonTokenKind | None,
+            s: str,
+    ) -> None:
+        ksty = self._json_token_styles.get(kind) if kind is not None else None
+
+        sty: ta.Any
+        if base is None:
+            sty = ksty
+        elif ksty is None:
+            sty = base
+        else:
+            sty = base + ksty
+
+        out.append(s, style=sty)
+
     def render(self, t: CanText) -> ta.Any:
         root = Text.of(t)
 
@@ -112,7 +162,11 @@ class RichTextRenderer(TextRenderer[ta.Any]):
                 stack.append((n.c, sty.merge(n.y)))
 
             elif isinstance(n, JsonText):
-                stack.append((render_obj_json_text(n.v, JsonTextRendering(mode=self._options.density)), sty))
+                render_json_tokens(
+                    n.v,
+                    resolve_json_text_style(self._options, n.y),
+                    write=functools.partial(self._append_json_token, cur, self._to_rich_style(sty)),
+                )
 
             elif isinstance(n, MarkdownText):
                 if compact:
@@ -138,3 +192,24 @@ class RichTextRenderer(TextRenderer[ta.Any]):
         if len(parts) == 1:
             return parts[0]
         return rich.Group(*parts)
+
+
+##
+
+
+class RichTextDisplayer(TextDisplayer):
+    """Displays texts by rendering them through a RichTextRenderer and printing them to a rich Console."""
+
+    def __init__(
+            self,
+            *,
+            console: rich.Console | None = None,
+            renderer: RichTextRenderer | None = None,
+    ) -> None:
+        super().__init__()
+
+        self._console = console if console is not None else rich.Console()
+        self._renderer = renderer if renderer is not None else RichTextRenderer()
+
+    async def display_text(self, text: CanText) -> None:
+        self._console.print(self._renderer.render(text))

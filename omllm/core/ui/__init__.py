@@ -11,7 +11,8 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .text.json import (  # noqa
-        JsonTextRendering,
+        JsonTokenKind,
+        render_json_tokens,
         render_obj_json_text,
         render_json_texts,
     )
@@ -27,7 +28,9 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .text.rich import (  # noqa
+        RichJsonStyles,
         RichTextRenderer,
+        RichTextDisplayer,
     )
 
     from .text.types import (  # noqa
@@ -40,6 +43,8 @@ with _lang.auto_proxy_init(globals()):
         StrText,
         ConcatText,
         StyleText,
+
+        JsonTextStyle,
         JsonText,
 
         BlockText,
