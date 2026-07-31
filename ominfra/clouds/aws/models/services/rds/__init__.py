@@ -356,6 +356,16 @@ class AdditionalStorageVolumeOutput(
         shape_name='String',
     ))
 
+    storage_operation_status: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='StorageOperationStatus',
+        shape_name='String',
+    ))
+
+    storage_operation_percent_progress: IntegerOptional | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='StorageOperationPercentProgress',
+        shape_name='IntegerOptional',
+    ))
+
     allocated_storage: int | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='AllocatedStorage',
         shape_name='Integer',
@@ -1856,6 +1866,16 @@ class DBInstance(
     storage_volume_status: str | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='StorageVolumeStatus',
         shape_name='String',
+    ))
+
+    storage_operation_status: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='StorageOperationStatus',
+        shape_name='String',
+    ))
+
+    storage_operation_percent_progress: IntegerOptional | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='StorageOperationPercentProgress',
+        shape_name='IntegerOptional',
     ))
 
 

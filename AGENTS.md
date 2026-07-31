@@ -36,6 +36,9 @@
   of virtualenvs and `PYTHONPATH` for you.
   - I repeat: **DO NOT USE THE SYSTEM PYTHON - USE THE `python` EXECUTABLE SCRIPT IN THE REPO ROOT**.
   - In general, prefer to run everything via `./python -m ...`, not via scripts in a venv's `bin/` dir.
+  - Additionally there may be other venvs available to you in the `.venvs` directory - particularly:
+    - `14t`: freethreaded 3.14, which is not yet the default but should be kept in mind
+    - `8`: 3.8, for working with lite code
 - Use pytest to run tests via the `python` script: `./python -m pytest ...`. During iterative development, only run
   tests relevant to code changed.
 

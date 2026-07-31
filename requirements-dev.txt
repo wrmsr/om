@@ -4,7 +4,7 @@ build>=1.4.0
 twine>=6.2.0
 wheel>=0.47.0
 
-uv>=0.11.33
+uv>=0.12.1
 
 pytest==9.1.1
 pytest-benchmark==5.2.3
@@ -119,7 +119,7 @@ hf-xet==1.5.2  # @om-venv !15t
 
 ## NOTE: the following add a full minute to CI just setting up the deps..
 
-datasets==5.0.0  # @om-venv !15 !15t  # !! includes arrow and pandas and shit
+datasets==5.0.1  # @om-venv !15 !15t  # !! includes arrow and pandas and shit
 
 transformers==5.11.0  # @om-venv !14t !14dt !15 !15t
 sentence-transformers==5.6.0  # @om-venv !14t !14dt !15 !15t
@@ -133,9 +133,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.61
-botocore==1.43.61
-types-boto3==1.43.61
+boto3==1.43.62
+botocore==1.43.62
+types-boto3==1.43.62
 botocore-stubs==1.43.14
 
 antlr4-python3-runtime==4.13.2

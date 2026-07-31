@@ -66,6 +66,7 @@ from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from .....io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
 from .....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from .....io.streambufs.utils import ByteStreamBuffers
+from .....lite.dataclasses import install_dataclass_kw_only_init
 from ....clients.base import HttpClientRequest
 from ....clients.pipelines.asyncio import AsyncioIoPipelineAsyncHttpClient
 from ....clients.pipelines.sync import IoPipelineHttpClient
@@ -86,11 +87,28 @@ from ...servers.responses import IoPipelineHttpResponseEncoder
 ##
 
 
-MODULE_NAME = 'omcore.http.pipelines.tests.bench.bench'
+MODULE_NAME = __package__ + '.bench'
 
-CLIENT_IMPLEMENTATIONS = ('sync', 'asyncio', 'fdio', 'urllib', 'httpx')
-SERVER_IMPLEMENTATIONS = ('sync', 'asyncio', 'fdio', 'uvicorn')
-SCENARIOS = ('requests', 'download', 'upload')
+CLIENT_IMPLEMENTATIONS = (
+    'sync',
+    'asyncio',
+    'fdio',
+    'httpx',
+    'urllib',
+)
+
+SERVER_IMPLEMENTATIONS = (
+    'sync',
+    'asyncio',
+    'fdio',
+    'uvicorn',
+)
+
+SCENARIOS = (
+    'requests',
+    'download',
+    'upload',
+)
 
 
 ##
@@ -127,11 +145,12 @@ def _latency_stats_ms(latencies_ns: ta.Sequence[int]) -> ta.Dict[str, float]:
     }
 
 
+@install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
 class BenchmarkResult:
     suite: str
-    implementation: str
     scenario: str
+    implementation: str
 
     available: bool = True
     reason: ta.Optional[str] = None
@@ -946,7 +965,7 @@ def _run_client_worker(args: argparse.Namespace) -> BenchmarkResult:
     payload = bytes(range(256)) * (args.payload_size // 256) + bytes(range(args.payload_size % 256))
     request = _make_client_request(args.base_url, args.scenario, payload, args.timeout)
 
-    if args.implementation in ('sync', 'urllib', 'httpx'):
+    if args.implementation in ('sync', 'httpx', 'urllib'):
         elapsed, latencies, transferred, rss_before = _run_sync_requester_batch(
             args.implementation,
             request,
@@ -1017,26 +1036,16 @@ def _run_client_case(
 ) -> BenchmarkResult:
     command = [
         sys.executable,
-        '-m',
-        MODULE_NAME,
-        '--_worker',
-        'client',
-        '--implementation',
-        implementation,
-        '--scenario',
-        scenario,
-        '--base-url',
-        base_url,
-        '--case-requests',
-        str(requests),
-        '--concurrency',
-        str(concurrency),
-        '--warmup',
-        str(warmup),
-        '--payload-size',
-        str(payload_size),
-        '--timeout',
-        str(timeout_s),
+        '-m', MODULE_NAME,
+        '--_worker', 'client',
+        '--implementation', implementation,
+        '--scenario', scenario,
+        '--base-url', base_url,
+        '--case-requests', str(requests),
+        '--concurrency', str(concurrency),
+        '--warmup', str(warmup),
+        '--payload-size', str(payload_size),
+        '--timeout', str(timeout_s),
     ]
     process = subprocess.Popen(
         command,
@@ -1580,8 +1589,10 @@ def _format_mib(value: ta.Optional[int]) -> str:
 
 def _print_results(metadata: ta.Mapping[str, ta.Any], results: ta.Sequence[BenchmarkResult]) -> None:
     print(
-        f'Python {metadata["python"]} ({metadata["python_implementation"]}); '
-        f'{metadata["platform"]}; CPUs={metadata["cpu_count"]}; '
+        f'Python {metadata["python"]} '
+        f'({metadata["python_implementation"]}); '
+        f'{metadata["platform"]}; '
+        f'CPUs={metadata["cpu_count"]}; '
         f'payload={metadata["payload_size"]} bytes',
     )
     if metadata.get('nginx'):
@@ -1591,16 +1602,24 @@ def _print_results(metadata: ta.Mapping[str, ta.Any], results: ta.Sequence[Bench
     print()
 
     headings = (
-        'suite', 'implementation', 'scenario', 'n/c', 'req/s', 'MiB/s',
-        'p50 ms', 'p99 ms', 'RSS MiB', '+RSS MiB',
+        'suite',
+        'scenario',
+        'implementation',
+        'n/c',
+        'req/s',
+        'MiB/s',
+        'p50 ms',
+        'p99 ms',
+        'RSS MiB',
+        '+RSS MiB',
     )
     rows: ta.List[ta.Tuple[str, ...]] = []
-    for result in results:
+    for result in sorted(results, key=lambda r: (r.suite, r.scenario)):
         if not result.available:
             rows.append((
                 result.suite,
-                result.implementation,
                 result.scenario,
+                result.implementation,
                 '-',
                 'unavailable',
                 '-',

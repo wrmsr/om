@@ -401,13 +401,13 @@ def make_it_a_tuple(t: T) -> tuple[T]:
 
 ### Threading
 
-- nogil / freethreaded / PEP703 python is to be considered a fully supported primary target, and will eventually become
+- nogil / freethreaded / PEP-703 python is to be considered a fully supported primary target, and will eventually become
   the default. Code should be written aware of and prepared for this: most things don't need to be thread-safe, but that
   should always be a conscious decision either way.
   - 'Large' toplevel entrypoints like the dependency injector, the marshaling system, the global manifest loader, etc.,
     should by default be thread-safe, but things below that generally don't have to be.
-  - Do not add mutexes where we don't strictly have to - we lean on the guaranteed thread-safety of the blessed handful
-    of atomic operations like dict getitem/setitem, list.append, etc.
+  - Lean on the guaranteed thread-safety of the blessed handful of atomic operations like dict getitem/setitem,
+    list.append, etc. - don't hide data behind a mutex if these atomic operations suffice.
   - In general 'harmless' lazily-initialized `cached_function`'s and such don't need to be locked, as long potentially
     duplicate initialization is acceptable.
   - While lite code must run on 3.8 - long predating freethreaded python - it must also be prepared to run under it.
