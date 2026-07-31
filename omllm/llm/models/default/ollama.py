@@ -8,6 +8,9 @@ from ...types.models import ModelKey
 ##
 
 
+DEFAULT_OLLAMA_URL = 'http://localhost:11434/'
+
+
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
     Model(
@@ -21,7 +24,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             url_path='/v1/chat/completions',
         ),
         http=Model.Http(
-            base_url='http://localhost:11434/',
+            base_url=DEFAULT_OLLAMA_URL,
         ),
     ),
 
@@ -36,7 +39,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             url_path='/v1/chat/completions',
         ),
         http=Model.Http(
-            base_url='http://localhost:11434/',
+            base_url=DEFAULT_OLLAMA_URL,
         ),
     ),
 

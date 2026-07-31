@@ -67,7 +67,8 @@ class DatetimeMarshaler(Marshaler, ta.Generic[DatetimeLikeT]):
         return o.strftime(self.fmt)
 
 
-_ZERO_DATE = datetime.datetime.now().strptime('', '').date()  # noqa
+# strptime's default date - what a parsed dateless time gets stamped with, and what a marshaled time renders as.
+_ZERO_DATE = datetime.date(1900, 1, 1)
 _ZERO_TIME = datetime.time(0)
 
 

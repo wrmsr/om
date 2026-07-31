@@ -89,6 +89,8 @@ class IterableUnmarshaler(Unmarshaler):
     ctor: ta.Callable[[collections.abc.Iterable], ta.Any] | None = None
 
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Iterable:
+        if isinstance(v, str):
+            raise TypeError(v)
         if (ctor := self.ctor) is None:
             ctor = get_default_iterable_constructor(self.cls, ctx.options)
         return ctor(map(functools.partial(self.e.unmarshal, ctx), check.isinstance(v, collections.abc.Iterable)))

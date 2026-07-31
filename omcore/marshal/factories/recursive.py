@@ -1,3 +1,4 @@
+import threading
 import typing as ta
 
 from ... import reflect as rfl
@@ -30,23 +31,30 @@ class _RecursiveFactory(ta.Generic[FactoryT]):
         self._fac = fac
         self._prx = prx
 
-        self._dct: dict[rfl.Type, ta.Any] = {}
+        # In-progress construction state is inherently per-construction-stack, and construction stacks are confined to
+        # a single thread - shared state here would leak unset proxies to concurrent constructions of the same type.
+        self._tl = threading.local()
 
     def _wrap(self, m, rty):
         def inner():
             try:
-                return self._dct[rty]
+                dct: dict[rfl.Type, ta.Any] = self._tl.dct
+            except AttributeError:
+                dct = self._tl.dct = {}
+
+            try:
+                return dct[rty]
             except KeyError:
                 pass
 
             p, sp = self._prx()
-            self._dct[rty] = p
+            dct[rty] = p
             try:
                 r = m()
                 sp(r)
                 return r
             finally:
-                del self._dct[rty]
+                del dct[rty]
 
         return inner
 

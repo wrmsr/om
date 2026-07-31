@@ -96,7 +96,7 @@ mdit-py-plugins==0.6.1
 
 pygments==2.20.0
 
-mwparserfromhell==0.7.2
+mwparserfromhell==0.7.2  # @om-venv !14t !15t
 wikitextparser==1.0.2  # !! GPL
 
 numpy==2.5.1

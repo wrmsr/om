@@ -192,7 +192,12 @@ class ObjectOptions(Config, lang.Final):
 
                     if (nfo := fv.get(None)) is not None:
                         for fn, fo in list(fd.items()):
+                            if fn is None:
+                                continue
                             fd[fn] = nfo.merge(fo)
+                        # Retained so it applies to fields absent from every merged mapping - specific entries always
+                        # win over it regardless of merge order.
+                        fd[None] = xnfo.merge(nfo) if (xnfo := fd.get(None)) is not None else nfo
                     nfo = fd.get(None)
 
                     for fn, fo in fv.items():

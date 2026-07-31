@@ -277,3 +277,65 @@ def test_metadata_decorator():
     v = unmarshal(mv, Thing)
     assert isinstance(v, Thing)
     assert v.foo == 'huh'
+
+
+##
+
+
+def test_all_fields_options():
+    # A `None` key in ObjectOptions.fields supplies defaults for every field not explicitly configured.
+    @dc.dataclass(frozen=True)
+    @update_field_options(None, omit_if=lang.is_none)
+    class Junk:
+        a: str
+        b: ta.Optional[int] = None
+        c: ta.Optional[str] = None
+
+    assert marshal(Junk('x')) == {'a': 'x'}
+    assert marshal(Junk('x', 1)) == {'a': 'x', 'b': 1}
+    assert unmarshal({'a': 'x'}, Junk) == Junk('x')
+
+
+def test_object_options_merge_preserves_all_fields_entry():
+    base = ObjectOptions(fields={None: FieldOptions(omit_if=lang.is_none)})
+    override = ObjectOptions(fields=dict(foo=FieldOptions(name='bar')))
+
+    merged = base.merge(override)
+    assert merged.fields is not None
+    assert merged.fields[None].omit_if is lang.is_none
+    # Specific entries pick up the all-fields defaults.
+    assert merged.fields['foo'].name == 'bar'
+    assert merged.fields['foo'].omit_if is lang.is_none
+
+    # Specific entries win over all-fields defaults regardless of merge order.
+    merged2 = ObjectOptions(fields=dict(foo=FieldOptions(name='bar'))).merge(
+        ObjectOptions(fields={None: FieldOptions(name='dfl')}),
+    )
+    assert merged2.fields is not None
+    assert merged2.fields['foo'].name == 'bar'
+
+    # Later all-fields defaults win over earlier ones.
+    merged3 = ObjectOptions(fields={None: FieldOptions(name='old')}).merge(
+        ObjectOptions(fields={None: FieldOptions(name='new')}),
+    )
+    assert merged3.fields is not None
+    assert merged3.fields[None].name == 'new'
+
+
+##
+
+
+def test_unwrap_if_single_field_with_excluded_field():
+    # Fields excluded from marshaling must not count against the single-field determination on the unmarshal side, or
+    # unwrapped output won't roundtrip.
+    @dc.dataclass(frozen=True)
+    @update_object_options(unwrap_if_single_field=True)
+    @update_field_options('b', no_marshal=True, no_unmarshal=True)
+    class Junk:
+        a: ta.Mapping[str, int]
+        b: ta.Optional[int] = None
+
+    uv = Junk({'x': 1})
+    mv = marshal(uv)
+    assert mv == {'x': 1}
+    assert unmarshal(mv, Junk) == uv

@@ -331,7 +331,14 @@ class _DataclassUnmarshalerBuilder:
             embeds_by_unmarshal_name=self._embeds_by_unmarshal_name,
             ignore_unknown=bool(obj_opts.ignore_unknown),
             unwrap_if_single_field=unwrap_if_single_field,
-            is_single_field=len(fis) < 2,
+            # Must mirror the marshaler's participating-field count (which excludes no_marshal fields and specials) or
+            # unwrapped output won't roundtrip.
+            is_single_field=len([
+                fi
+                for fi in fis
+                if not fi.options.no_unmarshal
+                and fi.name not in obj_opts.specials.set
+            ]) < 2,
         )
 
     def _add_field(self, fi: FieldInfo, *, prefixes: ta.Iterable[str] = ('',)) -> ta.Iterable[str]:
