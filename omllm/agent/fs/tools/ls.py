@@ -47,12 +47,13 @@ class LsTool(ToolClass[LsParams]):
             raise ValueError('No working directory configured')
         if os.path.commonpath((cwd, params.dir_path)) != cwd:
             raise ValueError('Path not under configured working directory')
+
+        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.dir_path, 'r'))
+
         if not os.path.exists(params.dir_path):
             raise ValueError('Path does not exist')
         if not os.path.isdir(params.dir_path):
             raise ValueError('Path is not a directory')
-
-        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.dir_path, 'r'))
 
         out = io.StringIO()
         out.write('<dir>\n')

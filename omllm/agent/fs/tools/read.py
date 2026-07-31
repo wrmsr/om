@@ -76,12 +76,13 @@ class ReadTool(ToolClass[ReadParams]):
             raise ValueError('No working directory configured')
         if os.path.commonpath((cwd, params.file_path)) != cwd:
             raise ValueError('Path not under configured working directory')
+
+        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'r'))
+
         if not os.path.exists(params.file_path):
             raise ValueError('Path does not exist')
         if not os.path.isfile(params.file_path):
             raise ValueError('Path is not a file')
-
-        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'r'))
 
         out = io.StringIO()
         out.write('<file>\n')

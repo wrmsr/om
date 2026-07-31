@@ -269,6 +269,142 @@ def _process_dataclass__d5298a2d35cd65a5a30ecaaf12272c3378262623():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('file_path', 'old_string', 'new_string', 'replace_all')), EqPlan(fields=('file_pat"
+        "h', 'old_string', 'new_string', 'replace_all')), FrozenPlan(fields=('file_path', 'old_string', 'new_string', '"
+        "replace_all'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('file_path', 'old_string', 'n"
+        "ew_string', 'replace_all'), cache=False), InitPlan(fields=(InitPlan.Field(name='file_path', annotation=OpRef(n"
+        "ame='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fie"
+        "ldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='old_string', annotation=Op"
+        "Ref(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_typ"
+        "e=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='new_string', annotati"
+        "on=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, fiel"
+        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='replace_all', an"
+        "notation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory="
+        "None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)),"
+        " self_param='self', std_params=('file_path', 'old_string', 'new_string'), kw_only_params=('replace_all',), fro"
+        "zen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(n"
+        "ame='file_path', kw_only=False, fn=None), ReprPlan.Field(name='old_string', kw_only=False, fn=None), ReprPlan."
+        "Field(name='new_string', kw_only=False, fn=None), ReprPlan.Field(name='replace_all', kw_only=True, fn=None)), "
+        "id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='6bb5155e2a9ee0e5fe7294f7c726ce7735685111',
+    cls_names=(
+        ('omllm.agent.fs.tools.edit', 'EditParams'),
+    ),
+)
+def _process_dataclass__6bb5155e2a9ee0e5fe7294f7c726ce7735685111():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                file_path=self.file_path,
+                old_string=self.old_string,
+                new_string=self.new_string,
+                replace_all=self.replace_all,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.file_path == other.file_path and
+                self.old_string == other.old_string and
+                self.new_string == other.new_string and
+                self.replace_all == other.replace_all
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'file_path',
+            'old_string',
+            'new_string',
+            'replace_all',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.file_path,
+                self.old_string,
+                self.new_string,
+                self.replace_all,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            file_path: __dataclass__init__fields__0__annotation,
+            old_string: __dataclass__init__fields__1__annotation,
+            new_string: __dataclass__init__fields__2__annotation,
+            *,
+            replace_all: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'file_path', file_path)
+            __dataclass__object_setattr(self, 'old_string', old_string)
+            __dataclass__object_setattr(self, 'new_string', new_string)
+            __dataclass__object_setattr(self, 'replace_all', replace_all)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"file_path={self.file_path!r}")
+            parts.append(f"old_string={self.old_string!r}")
+            parts.append(f"new_string={self.new_string!r}")
+            parts.append(f"replace_all={self.replace_all!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('dir_path',)), EqPlan(fields=('dir_path',)), FrozenPlan(fields=('dir_path',), allo"
         "w_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('dir_path',), cache=False), InitPlan(fields=(Ini"
         "tPlan.Field(name='dir_path', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory="
@@ -482,6 +618,130 @@ def _process_dataclass__c126660dd7e0a754a0ea97d31b0e819a7c894928():
             parts.append(f"file_path={self.file_path!r}")
             parts.append(f"line_offset={self.line_offset!r}")
             parts.append(f"num_lines={self.num_lines!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('file_path', 'contents', 'overwrite')), EqPlan(fields=('file_path', 'contents', 'o"
+        "verwrite')), FrozenPlan(fields=('file_path', 'contents', 'overwrite'), allow_dynamic_dunder_attrs=False), Hash"
+        "Plan(action='add', fields=('file_path', 'contents', 'overwrite'), cache=False), InitPlan(fields=(InitPlan.Fiel"
+        "d(name='file_path', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, ini"
+        "t=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan."
+        "Field(name='contents', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, "
+        "init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPl"
+        "an.Field(name='overwrite', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields."
+        "2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
+        "date=None, check_type=None)), self_param='self', std_params=('file_path', 'contents'), kw_only_params=('overwr"
+        "ite',), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprP"
+        "lan.Field(name='file_path', kw_only=False, fn=None), ReprPlan.Field(name='contents', kw_only=False, fn=None), "
+        "ReprPlan.Field(name='overwrite', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='bf4ba2344c06b183bc9ffaa16e21241a3195847e',
+    cls_names=(
+        ('omllm.agent.fs.tools.write', 'WriteParams'),
+    ),
+)
+def _process_dataclass__bf4ba2344c06b183bc9ffaa16e21241a3195847e():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                file_path=self.file_path,
+                contents=self.contents,
+                overwrite=self.overwrite,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.file_path == other.file_path and
+                self.contents == other.contents and
+                self.overwrite == other.overwrite
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'file_path',
+            'contents',
+            'overwrite',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.file_path,
+                self.contents,
+                self.overwrite,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            file_path: __dataclass__init__fields__0__annotation,
+            contents: __dataclass__init__fields__1__annotation,
+            *,
+            overwrite: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'file_path', file_path)
+            __dataclass__object_setattr(self, 'contents', contents)
+            __dataclass__object_setattr(self, 'overwrite', overwrite)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"file_path={self.file_path!r}")
+            parts.append(f"contents={self.contents!r}")
+            parts.append(f"overwrite={self.overwrite!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
