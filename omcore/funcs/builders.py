@@ -87,7 +87,7 @@ class DebugFnBuilder(FnBuilder):
                     sys.path.remove(self._src_dir())
                 except ValueError:
                     break
-            self._installed_sys_path = True
+            self._installed_sys_path = False
 
     def _gen_mod_name(
             self,

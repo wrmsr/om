@@ -48,3 +48,22 @@ def test_fnpipes():
     )(5) == 6
 
     assert l == [6]
+
+
+def test_keyword_placeholder():
+    fn = fp.bind(lambda *, value: value + 1, value=...)
+
+    assert fn(2) == 3
+
+
+def test_placeholder_uses_identity():
+    class EqualsEverything:
+        def __eq__(self, other):
+            return True
+
+        __hash__ = object.__hash__
+
+    bound = EqualsEverything()
+    fn = fp.bind(lambda first, second: (first, second), bound)
+
+    assert fn(2) == (bound, 2)

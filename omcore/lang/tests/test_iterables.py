@@ -2,6 +2,7 @@ import io
 
 import pytest
 
+from ..iterables import chunk
 from ..iterables import common_prefix_len
 from ..iterables import consume
 from ..iterables import indexes
@@ -78,3 +79,13 @@ def test_readiter():
     assert list(readiter(io.StringIO('abcdef'), 4)) == ['abcd', 'ef']
     assert list(readiter(io.BytesIO(b'abcdef'), 4)) == [b'abcd', b'ef']
     assert list(readiter(io.StringIO(''), 4)) == []
+
+
+def test_chunk():
+    assert list(chunk(2, range(5))) == [[0, 1], [2, 3], [4]]
+    assert list(chunk(2, range(4), strict=True)) == [[0, 1], [2, 3]]
+
+    with pytest.raises(ValueError, match='iterable is not divisible'):
+        list(chunk(2, range(3), strict=True))
+    with pytest.raises(ValueError, match='0'):
+        chunk(0, range(3))

@@ -42,7 +42,7 @@ class Bind(Fn[T]):
     def __init__(self, fn: ta.Callable[..., T], *args: ta.Any, **kwargs: ta.Any) -> None:
         super().__init__()
 
-        if Ellipsis not in args and Ellipsis not in kwargs:
+        if not any(a is Ellipsis for a in args) and not any(v is Ellipsis for v in kwargs.values()):
             args += (Ellipsis,)
         self._fn = fn
         self._args = args

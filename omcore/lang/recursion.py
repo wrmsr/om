@@ -68,10 +68,11 @@ def recursion_limiting_context(key: ta.Any, limit: int | None) -> ta.Iterator[in
         if not (isinstance(pd, int) and pd > 0):
             raise RuntimeError
 
-    if pd is not None and pd >= limit:
-        raise LimitedRecursionError(key, pd)
+    depth = pd or 0
+    if depth >= limit:
+        raise LimitedRecursionError(key, depth)
 
-    nd = (pd or 0) + 1
+    nd = depth + 1
     dm[key] = nd
 
     try:

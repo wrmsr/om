@@ -63,8 +63,10 @@ class GenMachine(ta.Generic[I, O]):
 
     def close(self) -> None:
         if self._gen is not None:
-            self._gen.close()
-            self._gen = None
+            try:
+                self._gen.close()
+            finally:
+                self._gen = None
 
     def __enter__(self) -> ta.Self:
         return self

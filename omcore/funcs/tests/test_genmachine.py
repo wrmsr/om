@@ -107,3 +107,20 @@ def test_close():
         with AbMachine() as m:
             for i, o in ios:
                 assert list(m(i)) == o
+
+
+def test_close_error_still_closes_machine():
+    def state():
+        try:
+            yield None
+        except GeneratorExit:
+            raise GenMachine.StateError from None
+
+    m = GenMachine[object, object](state())
+    with pytest.raises(GenMachine.StateError):
+        m.close()
+
+    assert m.closed
+    assert m.state is None
+    with pytest.raises(GenMachine.ClosedError):
+        next(m('input'))

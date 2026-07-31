@@ -36,6 +36,9 @@ def peek(vs: ta.Iterable[T]) -> tuple[T, ta.Iterator[T]]:
 
 def chunk(n: int, iterable: ta.Iterable[T], strict: bool = False) -> ta.Iterator[list[T]]:
     # TODO: replace with itertools.batched in 3.13 - 3.12 doesn't support strict
+    if n < 1:
+        raise ValueError(n)
+
     iterator = iter(functools.partial(take, n, iter(iterable)), [])
     if strict:
         def ret():

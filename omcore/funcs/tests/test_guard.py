@@ -29,6 +29,27 @@ def test_multi():
     assert mgf(1.0) is None
 
 
+def test_multi_strict():
+    def first(x):
+        return lambda: ('first', x)
+
+    def second(x):
+        return lambda: ('second', x)
+
+    with pytest.raises(gfs.AmbiguousGuardFnError):
+        gfs.multi(first, second, strict=True)(1)
+
+
+def test_multi_default():
+    def no_match(x):
+        return None
+
+    default = gfs.dumb(lambda x: ('default', x))
+    match = gfs.multi(no_match, default=default)(1)
+
+    assert check.not_none(match)() == ('default', 1)
+
+
 @pytest.mark.parametrize('instance_cache', [False, True])
 def test_guard_method(instance_cache):
     class A:
