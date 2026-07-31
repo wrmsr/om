@@ -295,7 +295,7 @@ build-all:
 # FIXME: pyproject lol
 .PHONY: build-cext
 build-cext: venv
-	for d in $$(find .pkg -name '*-cext' -maxdepth 1 | sort) ; do \
+	for d in $$(find .pkg -maxdepth 1 -name '*-cext' | sort) ; do \
 		echo ; \
 		echo "$$d" ; \
 		(cd "$$d" && ${PYTHON_ABS} setup.py build_ext --inplace) || exit 1 ; \
@@ -305,13 +305,13 @@ build-cext: venv
 .PHONY: build-mypyc
 build-mypyc: venv
 	rm "*__mypyc.*.so" || true
-	for d in $$(find .pkg -name '*-mypyc' -maxdepth 1 | sort) ; do \
+	for d in $$(find .pkg -maxdepth 1 -name '*-mypyc' | sort) ; do \
 		echo ; \
 		echo "$$d" ; \
-		find "$$d" -name '*__mypyc.*.so' -maxdepth 1 -delete ; \
+		find "$$d" -maxdepth 1 -name '*__mypyc.*.so' -delete ; \
 		rm -rf "$$d/build" || true ; \
 		(cd "$$d" && ${PYTHON_ABS} setup.py build_ext --inplace) || exit 1 ; \
-		find "$$d" -name '*__mypyc.*.so' -maxdepth 1 | xargs -n1 -I % cp % ./ ; \
+		find "$$d" -maxdepth 1 -name '*__mypyc.*.so' | xargs -n1 -I % cp % ./ ; \
 	done
 
 # FIXME: fix build-mypyc
@@ -625,7 +625,7 @@ publish: package test-install
 	${MAKE} versions
 	read -p "Press enter to publish"
 
-	find dist -type f -maxdepth 1 -print0 | xargs -n1 -P4 -0 ${PYTHON} -m twine upload
+	find dist -maxdepth 1 -type f -print0 | xargs -n1 -P4 -0 ${PYTHON} -m twine upload
 
 	${MAKE} _post-publish
 
