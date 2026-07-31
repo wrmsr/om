@@ -15,6 +15,8 @@ from ..json.types import Scalar
 ##
 
 
+IDENT_PAT = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
+
 MULTILINE_STRINGS_ENDL = '\\\n'
 MULTILINE_STRINGS_LQ = '"' + MULTILINE_STRINGS_ENDL
 MULTILINE_STRINGS_RQ = MULTILINE_STRINGS_ENDL + '"'
@@ -30,8 +32,13 @@ SOFTWRAP_WS_PAT = re.compile(r'\s+')
 
 class Json5Renderer(JsonRenderer):
     @dc.dataclass(frozen=True, kw_only=True)
+    @dc.extra_class_params(default_repr_fn=lang.truthy_repr)
     class Config(JsonRenderer.Config):
         multiline_strings: bool = False
+
+        unquote_ident_keys: bool = False
+        unquote_ident_values: bool = False
+
         softwrap_length: int | None = None
 
     def __init__(
@@ -103,10 +110,22 @@ class Json5Renderer(JsonRenderer):
         return out.getvalue()
 
     def _format_string(self, s: str, state: JsonRenderer.State | None = None) -> str:
+        softwrap_len = self._config.softwrap_length
+
+        if (
+            (
+                (self._config.unquote_ident_keys and state is JsonRenderer.State.KEY) or
+                (self._config.unquote_ident_values and state is JsonRenderer.State.VALUE)
+            ) and
+            (softwrap_len is None or len(s) < softwrap_len) and
+            IDENT_PAT.fullmatch(s)
+        ):
+            return s
+
         num_nls = s.count('\n')
         is_multiline = self._config.multiline_strings and num_nls
 
-        if (softwrap_len := self._config.softwrap_length) is not None:
+        if softwrap_len is not None:
             def process_chunks(chunks: list[str]) -> list[str]:
                 naive_len = sum(map(len, chunks))
 
@@ -155,7 +174,7 @@ class Json5Renderer(JsonRenderer):
 
     def _format_scalar(self, o: Scalar, state: JsonRenderer.State | None = None) -> str:
         if isinstance(o, str):
-            return self._format_string(o)
+            return self._format_string(o, state=state)
 
         else:
             return super()._format_scalar(o, state=state)

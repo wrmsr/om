@@ -1146,29 +1146,33 @@ def _process_dataclass__28cc57c38481e7cfeef4d25110ea1d6fb4fe957c():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('mode', 'five', 'multiline_strings')), EqPlan(fields=('mode', 'five', 'multiline_s"
-        "trings')), FrozenPlan(fields=('DEFAULT', 'mode', 'five', 'multiline_strings'), allow_dynamic_dunder_attrs=Fals"
-        "e), HashPlan(action='add', fields=('mode', 'five', 'multiline_strings'), cache=True), InitPlan(fields=(InitPla"
-        "n.Field(name='DEFAULT', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None,"
-        " init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), Init"
-        "Plan.Field(name='mode', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.d"
-        "efault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validat"
-        "e=None, check_type=None), InitPlan.Field(name='five', annotation=OpRef(name='init.fields.2.annotation'), defau"
-        "lt=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType."
-        "INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='multiline_strings', annotation=Op"
-        "Ref(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init="
-        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param"
-        "='self', std_params=(), kw_only_params=('mode', 'five', 'multiline_strings'), frozen=True, slots=False, post_i"
-        "nit_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='mode', kw_only=True, fn="
-        "None), ReprPlan.Field(name='five', kw_only=True, fn=None), ReprPlan.Field(name='multiline_strings', kw_only=Tr"
-        "ue, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('mode', 'five', 'multiline_strings', 'unquote_idents')), EqPlan(fields=('mode', 'f"
+        "ive', 'multiline_strings', 'unquote_idents')), FrozenPlan(fields=('DEFAULT', 'mode', 'five', 'multiline_string"
+        "s', 'unquote_idents'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('mode', 'five', 'mult"
+        "iline_strings', 'unquote_idents'), cache=True), InitPlan(fields=(InitPlan.Field(name='DEFAULT', annotation=OpR"
+        "ef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type"
+        "=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='mode', annotation=OpR"
+        "ef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=T"
+        "rue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fie"
+        "ld(name='five', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default')"
+        ", default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, "
+        "check_type=None), InitPlan.Field(name='multiline_strings', annotation=OpRef(name='init.fields.3.annotation'), "
+        "default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=Field"
+        "Type.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='unquote_idents', annotation="
+        "OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, ini"
+        "t=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_par"
+        "am='self', std_params=(), kw_only_params=('mode', 'five', 'multiline_strings', 'unquote_idents'), frozen=True,"
+        " slots=False, post_init_params=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='mode',"
+        " kw_only=True, fn=None), ReprPlan.Field(name='five', kw_only=True, fn=None), ReprPlan.Field(name='multiline_st"
+        "rings', kw_only=True, fn=None), ReprPlan.Field(name='unquote_idents', kw_only=True, fn=None)), id=False, terse"
+        "=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='c82d311f548f939d870c1d4076de8e602719b80d',
+    plan_repr_sha1='1f57ff40f800458b3e93f6c94ad44c9f7f498040',
     cls_names=(
         ('omllm.core.ui.text.types', 'JsonTextStyle'),
     ),
 )
-def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
+def _process_dataclass__1f57ff40f800458b3e93f6c94ad44c9f7f498040():
     def _process_dataclass(
         *,
         __class__,
@@ -1178,6 +1182,8 @@ def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
         __dataclass__init__fields__2__default,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
         __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
@@ -1192,6 +1198,7 @@ def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
                 mode=self.mode,
                 five=self.five,
                 multiline_strings=self.multiline_strings,
+                unquote_idents=self.unquote_idents,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1204,7 +1211,8 @@ def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
             return (
                 self.mode == other.mode and
                 self.five == other.five and
-                self.multiline_strings == other.multiline_strings
+                self.multiline_strings == other.multiline_strings and
+                self.unquote_idents == other.unquote_idents
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -1214,6 +1222,7 @@ def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
             'mode',
             'five',
             'multiline_strings',
+            'unquote_idents',
         }
 
         def __setattr__(self, name, value):
@@ -1248,6 +1257,7 @@ def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
                     self.mode,
                     self.five,
                     self.multiline_strings,
+                    self.unquote_idents,
                 ))
             )
             return h
@@ -1260,10 +1270,13 @@ def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
             mode: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             five: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             multiline_strings: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            unquote_idents: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'mode', mode)
             __dataclass__object_setattr(self, 'five', five)
             __dataclass__object_setattr(self, 'multiline_strings', multiline_strings)
+            __dataclass__object_setattr(self, 'unquote_idents', unquote_idents)
+            self.__post_init__()
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1276,6 +1289,8 @@ def _process_dataclass__c82d311f548f939d870c1d4076de8e602719b80d():
                 parts.append(f"five={s}")
             if (s := __dataclass__repr__default_fn(self.multiline_strings)) is not None:
                 parts.append(f"multiline_strings={s}")
+            if (s := __dataclass__repr__default_fn(self.unquote_idents)) is not None:
+                parts.append(f"unquote_idents={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

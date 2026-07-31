@@ -86,9 +86,9 @@ def render_json_tokens(
         write: ta.Callable[[JsonTokenKind | None, str], None],
 ) -> None:
     """
-    Renders obj as json into a stream of write((kind, str)) run callbacks. Kinds are the honest semantic
-    classification - what, if anything, they look like is entirely up to the consuming frontend. Unset style attrs
-    render as their zero-values - neutral mode, plain (non-five) json, no multiline strings.
+    Renders obj as json into a stream of write((kind, str)) run callbacks. Kinds are the honest semantic classification
+    - what, if anything, they look like is entirely up to the consuming frontend. Unset style attrs render as their
+    zero-values - neutral mode, plain (non-five) json, no multiline strings.
     """
 
     cls: ta.Any
@@ -98,6 +98,7 @@ def render_json_tokens(
         cls = JsonRenderer
 
     kw: dict[str, ta.Any] = {}
+
     match style.mode:
         case 'pretty':
             kw.update(json.PRETTY_KWARGS)
@@ -109,8 +110,10 @@ def render_json_tokens(
             raise ValueError(style.mode)
 
     if style.multiline_strings:
-        check.arg(bool(style.five))
         kw.update(multiline_strings=True)
+
+    if style.unquote_idents:
+        kw.update(unquote_ident_keys=True)
 
     out = _JsonTokenOut(write)
     kw.update(style=out.style)

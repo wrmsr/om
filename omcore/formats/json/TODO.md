@@ -1,3 +1,4 @@
+- at this point just embed json5 in here, make it just a different set of config defaults
 - delimited.py / jsonl
   -  + record separators ala https://en.wikipedia.org/wiki/JSON_streaming
 - hashing.py

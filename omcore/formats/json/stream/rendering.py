@@ -2,6 +2,7 @@ import io
 import typing as ta
 
 from .... import dataclasses as dc
+from .... import lang
 from ..rendering import AbstractJsonRenderer
 from ..types import SCALAR_TYPES
 from .events import BeginArray
@@ -17,9 +18,9 @@ from .events import Key
 
 class StreamJsonRenderer(AbstractJsonRenderer[ta.Iterable[Event]]):
     @dc.dataclass(frozen=True, kw_only=True)
+    @dc.extra_class_params(default_repr_fn=lang.truthy_repr)
     class Config(AbstractJsonRenderer.Config):
         delimiter: str = ''
-        sort_keys: bool = False
 
     def __init__(
             self,

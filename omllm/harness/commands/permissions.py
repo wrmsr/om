@@ -42,7 +42,11 @@ class PermissionsCommand(ParserCommandClass):
             ),
             ui.JsonText(
                 msh.marshal(r.matcher, agn.PermissionMatcher),
-                ui.JsonTextStyle(mode='compact', five=True),
+                ui.JsonTextStyle(
+                    mode='compact',
+                    five=True,
+                    unquote_idents=True,
+                ),
             ),
         ]))
 

@@ -22,12 +22,16 @@ MULTILINE_SEPARATORS = consts.Separators(',', ': ')
 
 class AbstractJsonRenderer(lang.Abstract, ta.Generic[I]):
     @dc.dataclass(frozen=True, kw_only=True)
+    @dc.extra_class_params(default_repr_fn=lang.truthy_repr)
     class Config:
         indent: int | str | None = None
         separators: tuple[str, str] | None = None
+
         sort_keys: bool = False
-        style: ta.Callable[[ta.Any, AbstractJsonRenderer.State], tuple[ta.Any, ta.Any] | None] | None = None
+
         ensure_ascii: bool = True
+
+        style: ta.Callable[[ta.Any, AbstractJsonRenderer.State], tuple[ta.Any, ta.Any] | None] | None = None
 
     class State(enum.Enum):
         VALUE = enum.auto()
@@ -110,6 +114,7 @@ class JsonRendererOut(ta.Protocol):
 
 class JsonRenderer(AbstractJsonRenderer[ta.Any]):
     @dc.dataclass(frozen=True, kw_only=True)
+    @dc.extra_class_params(default_repr_fn=lang.truthy_repr)
     class Config(AbstractJsonRenderer.Config):
         pass
 

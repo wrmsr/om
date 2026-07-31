@@ -229,6 +229,14 @@ class JsonTextStyle(lang.Final):
 
     five: bool | None = None
     multiline_strings: bool | None = None
+    unquote_idents: bool | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            self.multiline_strings or
+            self.unquote_idents
+        ):
+            check.arg(bool(self.five))
 
     def merge(self, child: JsonTextStyle) -> JsonTextStyle:
         """Overlays child onto self - child's set attributes win."""
@@ -237,6 +245,7 @@ class JsonTextStyle(lang.Final):
             mode=lang.opt_coalesce(child.mode, self.mode),
             five=lang.opt_coalesce(child.five, self.five),
             multiline_strings=lang.opt_coalesce(child.multiline_strings, self.multiline_strings),
+            unquote_idents=lang.opt_coalesce(child.unquote_idents, self.unquote_idents),
         )
 
 

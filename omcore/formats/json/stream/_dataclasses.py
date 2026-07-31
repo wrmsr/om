@@ -632,10 +632,10 @@ def _process_dataclass__f4439dd61ec1bfaa3ec60b12a392de695d66b565():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('indent', 'separators', 'sort_keys', 'style', 'ensure_ascii', 'delimiter')), EqPla"
-        "n(fields=('indent', 'separators', 'sort_keys', 'style', 'ensure_ascii', 'delimiter')), FrozenPlan(fields=('ind"
-        "ent', 'separators', 'sort_keys', 'style', 'ensure_ascii', 'delimiter'), allow_dynamic_dunder_attrs=False), Has"
-        "hPlan(action='add', fields=('indent', 'separators', 'sort_keys', 'style', 'ensure_ascii', 'delimiter'), cache="
+        "Plans(tup=(CopyPlan(fields=('indent', 'separators', 'sort_keys', 'ensure_ascii', 'style', 'delimiter')), EqPla"
+        "n(fields=('indent', 'separators', 'sort_keys', 'ensure_ascii', 'style', 'delimiter')), FrozenPlan(fields=('ind"
+        "ent', 'separators', 'sort_keys', 'ensure_ascii', 'style', 'delimiter'), allow_dynamic_dunder_attrs=False), Has"
+        "hPlan(action='add', fields=('indent', 'separators', 'sort_keys', 'ensure_ascii', 'style', 'delimiter'), cache="
         "False), InitPlan(fields=(InitPlan.Field(name='indent', annotation=OpRef(name='init.fields.0.annotation'), defa"
         "ult=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType"
         ".INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='separators', annotation=OpRef(na"
@@ -643,26 +643,26 @@ def _process_dataclass__f4439dd61ec1bfaa3ec60b12a392de695d66b565():
         "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(na"
         "me='sort_keys', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default')"
         ", default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, "
-        "check_type=None), InitPlan.Field(name='style', annotation=OpRef(name='init.fields.3.annotation'), default=OpRe"
-        "f(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANC"
-        "E, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ensure_ascii', annotation=OpRef(name='in"
+        "check_type=None), InitPlan.Field(name='ensure_ascii', annotation=OpRef(name='init.fields.3.annotation'), defau"
+        "lt=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType."
+        "INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='style', annotation=OpRef(name='in"
         "it.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, overri"
         "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='de"
         "limiter', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), defa"
         "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None)), self_param='self', std_params=(), kw_only_params=('indent', 'separators', 'sort_keys', 'style', '"
-        "ensure_ascii', 'delimiter'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), R"
+        "type=None)), self_param='self', std_params=(), kw_only_params=('indent', 'separators', 'sort_keys', 'ensure_as"
+        "cii', 'style', 'delimiter'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), R"
         "eprPlan(fields=(ReprPlan.Field(name='indent', kw_only=True, fn=None), ReprPlan.Field(name='separators', kw_onl"
-        "y=True, fn=None), ReprPlan.Field(name='sort_keys', kw_only=True, fn=None), ReprPlan.Field(name='style', kw_onl"
-        "y=True, fn=None), ReprPlan.Field(name='ensure_ascii', kw_only=True, fn=None), ReprPlan.Field(name='delimiter',"
-        " kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+        "y=True, fn=None), ReprPlan.Field(name='sort_keys', kw_only=True, fn=None), ReprPlan.Field(name='ensure_ascii',"
+        " kw_only=True, fn=None), ReprPlan.Field(name='style', kw_only=True, fn=None), ReprPlan.Field(name='delimiter',"
+        " kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5',
+    plan_repr_sha1='c2602be15d2e58db72dce8d1295ae509d318466e',
     cls_names=(
         ('omcore.formats.json.stream.rendering', 'StreamJsonRenderer.Config'),
     ),
 )
-def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
+def _process_dataclass__c2602be15d2e58db72dce8d1295ae509d318466e():
     def _process_dataclass(
         *,
         __class__,
@@ -678,6 +678,7 @@ def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
         __dataclass__init__fields__4__default,
         __dataclass__init__fields__5__annotation,
         __dataclass__init__fields__5__default,
+        __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -691,8 +692,8 @@ def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
                 indent=self.indent,
                 separators=self.separators,
                 sort_keys=self.sort_keys,
-                style=self.style,
                 ensure_ascii=self.ensure_ascii,
+                style=self.style,
                 delimiter=self.delimiter,
             )
 
@@ -707,8 +708,8 @@ def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
                 self.indent == other.indent and
                 self.separators == other.separators and
                 self.sort_keys == other.sort_keys and
-                self.style == other.style and
                 self.ensure_ascii == other.ensure_ascii and
+                self.style == other.style and
                 self.delimiter == other.delimiter
             )
 
@@ -718,8 +719,8 @@ def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
             'indent',
             'separators',
             'sort_keys',
-            'style',
             'ensure_ascii',
+            'style',
             'delimiter',
         }
 
@@ -748,8 +749,8 @@ def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
                 self.indent,
                 self.separators,
                 self.sort_keys,
-                self.style,
                 self.ensure_ascii,
+                self.style,
                 self.delimiter,
             ))
 
@@ -761,15 +762,15 @@ def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
             indent: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             separators: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             sort_keys: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            style: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            ensure_ascii: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            ensure_ascii: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            style: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
             delimiter: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'indent', indent)
             __dataclass__object_setattr(self, 'separators', separators)
             __dataclass__object_setattr(self, 'sort_keys', sort_keys)
-            __dataclass__object_setattr(self, 'style', style)
             __dataclass__object_setattr(self, 'ensure_ascii', ensure_ascii)
+            __dataclass__object_setattr(self, 'style', style)
             __dataclass__object_setattr(self, 'delimiter', delimiter)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -777,12 +778,18 @@ def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"indent={self.indent!r}")
-            parts.append(f"separators={self.separators!r}")
-            parts.append(f"sort_keys={self.sort_keys!r}")
-            parts.append(f"style={self.style!r}")
-            parts.append(f"ensure_ascii={self.ensure_ascii!r}")
-            parts.append(f"delimiter={self.delimiter!r}")
+            if (s := __dataclass__repr__default_fn(self.indent)) is not None:
+                parts.append(f"indent={s}")
+            if (s := __dataclass__repr__default_fn(self.separators)) is not None:
+                parts.append(f"separators={s}")
+            if (s := __dataclass__repr__default_fn(self.sort_keys)) is not None:
+                parts.append(f"sort_keys={s}")
+            if (s := __dataclass__repr__default_fn(self.ensure_ascii)) is not None:
+                parts.append(f"ensure_ascii={s}")
+            if (s := __dataclass__repr__default_fn(self.style)) is not None:
+                parts.append(f"style={s}")
+            if (s := __dataclass__repr__default_fn(self.delimiter)) is not None:
+                parts.append(f"delimiter={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
