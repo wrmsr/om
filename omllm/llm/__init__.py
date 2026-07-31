@@ -126,11 +126,15 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .types.models import (  # noqa
+        CacheCapabilities,
+
         ModelKey,
         Model,
     )
 
     from .types.options import (  # noqa
+        CacheRetention,
+
         Options,
     )
 

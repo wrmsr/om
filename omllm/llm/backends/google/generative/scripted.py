@@ -45,25 +45,22 @@ def _render_usage(usage: ScriptedUsage) -> dict[str, int]:
         usage.cache_write_tokens
     )
     reasoning_tokens = usage.reasoning_tokens or 0
+    check.arg(reasoning_tokens <= usage.output_tokens)
+    candidate_tokens = usage.output_tokens - reasoning_tokens
 
     return {
         'promptTokenCount': prompt_tokens,
-        'candidatesTokenCount': usage.output_tokens,
+        'candidatesTokenCount': candidate_tokens,
         **(
             {'thoughtsTokenCount': usage.reasoning_tokens}
             if usage.reasoning_tokens is not None
             else {}
         ),
         'cachedContentTokenCount': usage.cache_read_tokens,
-        **(
-            {'cacheWriteTokenCount': usage.cache_write_tokens}
-            if usage.cache_write_tokens
-            else {}
-        ),
         'totalTokenCount': (
             usage.total_tokens
             if usage.total_tokens is not None
-            else prompt_tokens + usage.output_tokens + reasoning_tokens
+            else prompt_tokens + usage.output_tokens
         ),
     }
 

@@ -13,6 +13,8 @@ from .....types.content import ToolCall
 from .....types.context import Context
 from .....types.messages import UserMessage
 from .....types.models import ModelKey
+from .....types.options import CacheRetention
+from .....types.options import Options
 from ....scripted.http import ScriptedHttpResponse
 from ....scripted.http import ScriptedUsage
 from ..immediate import AnthropicMessagesImmediateBackend
@@ -43,6 +45,7 @@ def _response():
         usage=ScriptedUsage(
             uncached_input_tokens=100,
             output_tokens=50,
+            reasoning_tokens=7,
             cache_read_tokens=20,
             cache_write_tokens=10,
         ),
@@ -83,8 +86,9 @@ def test_scripted_backend_round_trip(backend_cls):
     assert message.stop_reason == 'tool_use'
 
     usage = check.not_none(message.token_usage)
-    assert usage.input == 100
+    assert usage.input == 130
     assert usage.output == 50
+    assert usage.reasoning == 7
     assert usage.cache_read == 20
     assert usage.cache_write == 10
     assert usage.total == 180
@@ -92,6 +96,62 @@ def test_scripted_backend_round_trip(backend_cls):
     request = check.single(client.requests)
     assert bool(request.payload.get('stream')) is (backend_cls is AnthropicMessagesStreamBackend)
     assert request.headers.single['anthropic-version'] == '2023-06-01'
+
+
+@pytest.mark.parametrize(('retention', 'raw_retention'), [
+    (CacheRetention.FIVE_MINUTES, '5m'),
+    (CacheRetention.ONE_HOUR, '1h'),
+])
+def test_automatic_cache_options(retention, raw_retention):
+    client = AnthropicMessagesScriptedHttpClient([ScriptedHttpResponse()])
+    backend = AnthropicMessagesImmediateBackend(
+        _model(),
+        api_key=_api_key(),
+        http_client=client,
+    )
+
+    lang.sync_await(backend.immediate(_context(), Options(cache_retention=retention)))
+
+    assert check.single(client.requests).payload['cache_control'] == {
+        'type': 'ephemeral',
+        'ttl': raw_retention,
+    }
+
+
+def test_automatic_cache_usage_is_inclusive():
+    client = AnthropicMessagesScriptedHttpClient(
+        [ScriptedHttpResponse(), ScriptedHttpResponse()],
+        simulate_cache=True,
+    )
+    backend = AnthropicMessagesImmediateBackend(
+        _model(),
+        api_key=_api_key(),
+        http_client=client,
+    )
+    options = Options(cache_retention=CacheRetention.FIVE_MINUTES)
+
+    first = check.not_none(lang.sync_await(backend.immediate(_context(), options)).token_usage)
+    second = check.not_none(lang.sync_await(backend.immediate(_context(), options)).token_usage)
+
+    assert first.input == first.cache_write
+    assert first.cache_read == 0
+    assert second.input == second.cache_read
+    assert second.cache_write == 0
+    assert first.input == second.input
+
+
+def test_cache_key_is_unsupported():
+    client = AnthropicMessagesScriptedHttpClient([ScriptedHttpResponse()])
+    backend = AnthropicMessagesImmediateBackend(
+        _model(),
+        api_key=_api_key(),
+        http_client=client,
+    )
+
+    with pytest.raises(ValueError, match='does not support caller-supplied prompt cache keys'):
+        lang.sync_await(backend.immediate(_context(), Options(cache_key='key')))
+
+    assert not client.requests
 
 
 def _anthropic_start_usage(data):

@@ -34,8 +34,21 @@ class RequestPreparer:
             options,
         )
 
+    def _check_cache_options(self) -> None:
+        if self._options.cache_key is None and self._options.cache_retention is None:
+            return
+
+        # Gemini 2.5+ implicit caching is automatic and exposes no generation-request cache controls. Explicit caching
+        # requires creating and managing a cachedContents resource, then passing its name as cachedContent; that
+        # lifecycle cannot be represented by request-scoped Options and is intentionally not implemented here yet.
+        raise ValueError(
+            f'Model supports only implicit request-scoped caching: {self._model.key!r}',
+        )
+
     @lang.cached_function
     def raw_request(self) -> dict[str, ta.Any]:
+        self._check_cache_options()
+
         raw_request: dict = {}
 
         raw_generation_config: dict = {}

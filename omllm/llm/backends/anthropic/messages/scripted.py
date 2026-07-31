@@ -29,10 +29,15 @@ def _render_stop_reason(response: ScriptedHttpResponse) -> str:
     }[response.resolved_stop_reason()]
 
 
-def _render_usage(usage: ScriptedUsage) -> dict[str, int]:
+def _render_usage(usage: ScriptedUsage) -> dict[str, ta.Any]:
     return {
         'input_tokens': usage.uncached_input_tokens,
         'output_tokens': usage.output_tokens,
+        **(
+            {'output_tokens_details': {'thinking_tokens': usage.reasoning_tokens}}
+            if usage.reasoning_tokens is not None
+            else {}
+        ),
         'cache_read_input_tokens': usage.cache_read_tokens,
         'cache_creation_input_tokens': usage.cache_write_tokens,
     }
@@ -267,8 +272,10 @@ class AnthropicMessagesScriptedHttpClient(BaseScriptedHttpClient):
             'stop_reason': None,
         }
         if usage is not None:
+            raw_start_usage = _render_usage(usage)
+            raw_start_usage.pop('output_tokens_details', None)
             raw_message['usage'] = {
-                **_render_usage(usage),
+                **raw_start_usage,
                 'output_tokens': min(1, usage.output_tokens),
             }
 
@@ -370,7 +377,14 @@ class AnthropicMessagesScriptedHttpClient(BaseScriptedHttpClient):
             'delta': {'stop_reason': _render_stop_reason(response)},
         }
         if usage is not None:
-            message_delta['usage'] = {'output_tokens': usage.output_tokens}
+            message_delta['usage'] = {
+                'output_tokens': usage.output_tokens,
+                **(
+                    {'output_tokens_details': {'thinking_tokens': usage.reasoning_tokens}}
+                    if usage.reasoning_tokens is not None
+                    else {}
+                ),
+            }
         out.append(event('message_delta', message_delta))
         out.append(event('message_stop', {'type': 'message_stop'}))
 

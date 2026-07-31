@@ -18,6 +18,7 @@ type ScriptedHttpContent = TextContent | ThinkingContent | ToolCall
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 class ScriptedUsage:
+    # Input is supplied as its disjoint billing categories; output is inclusive of the reasoning detail below.
     uncached_input_tokens: int = 10
     output_tokens: int = 5
     reasoning_tokens: int | None = None

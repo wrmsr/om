@@ -13,9 +13,12 @@ from .....types.content import ToolCall
 from .....types.context import Context
 from .....types.messages import UserMessage
 from .....types.models import ModelKey
+from .....types.options import CacheRetention
+from .....types.options import Options
 from ....scripted.http import ScriptedHttpResponse
 from ....scripted.http import ScriptedUsage
 from ..immediate import GoogleGenerativeImmediateBackend
+from ..responses import translate_token_usage
 from ..scripted import GoogleGenerativeScriptedHttpClient
 from ..stream import GoogleGenerativeStreamBackend
 
@@ -88,10 +91,27 @@ def test_scripted_backend_round_trip(backend_cls):
     assert usage.reasoning == 7
     assert usage.cache_read == 20
     assert usage.cache_write is None
-    assert usage.total == 187
+    assert usage.total == 180
 
     request = check.single(client.requests)
     assert (':streamGenerateContent' in request.url) is (backend_cls is GoogleGenerativeStreamBackend)
+
+
+def test_usage_includes_tool_and_reasoning_tokens():
+    usage = translate_token_usage({
+        'promptTokenCount': 100,
+        'toolUsePromptTokenCount': 10,
+        'candidatesTokenCount': 20,
+        'thoughtsTokenCount': 5,
+        'cachedContentTokenCount': 40,
+        'totalTokenCount': 135,
+    })
+
+    assert usage.input == 110
+    assert usage.output == 25
+    assert usage.reasoning == 5
+    assert usage.cache_read == 40
+    assert usage.total == 135
 
 
 def test_cache_simulation_for_cached_content():
@@ -122,6 +142,22 @@ def test_cache_simulation_for_cached_content():
     second = json.loads(check.not_none(lang.sync_await(client.request(request)).data).decode('utf-8'))['usageMetadata']
 
     assert first['cachedContentTokenCount'] == 0
-    assert first['cacheWriteTokenCount'] > 0
+    assert 'cacheWriteTokenCount' not in first
     assert second['cachedContentTokenCount'] > 0
     assert 'cacheWriteTokenCount' not in second
+
+
+def test_request_scoped_explicit_cache_options_are_unsupported():
+    client = GoogleGenerativeScriptedHttpClient([ScriptedHttpResponse()])
+    backend = GoogleGenerativeImmediateBackend(
+        _model(),
+        api_key=_api_key(),
+        http_client=client,
+    )
+
+    with pytest.raises(ValueError, match='supports only implicit request-scoped caching'):
+        lang.sync_await(backend.immediate(_context(), Options(
+            cache_retention=CacheRetention.ONE_HOUR,
+        )))
+
+    assert not client.requests

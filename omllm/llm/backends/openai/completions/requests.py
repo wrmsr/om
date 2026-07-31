@@ -13,7 +13,21 @@ from ....types.messages import AiMessage
 from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
+from ....types.options import CacheRetention
 from ....types.options import Options
+
+
+##
+
+
+_LEGACY_CACHE_RETENTIONS: ta.Final[ta.Mapping[CacheRetention, str]] = {
+    CacheRetention.IN_MEMORY: 'in_memory',
+    CacheRetention.ONE_DAY: '24h',
+}
+
+_TTL_CACHE_RETENTIONS: ta.Final[ta.Mapping[CacheRetention, str]] = {
+    CacheRetention.THIRTY_MINUTES: '30m',
+}
 
 
 ##
@@ -42,6 +56,40 @@ class RequestPreparer:
         else:
             self._compat = OpenaiCompat()
 
+    def _add_cache_options(self, raw_request: dict[str, ta.Any]) -> None:
+        cache_key = self._options.cache_key
+        cache_retention = self._options.cache_retention
+        if cache_key is None and cache_retention is None:
+            return
+
+        cache = self._model.cache
+        if cache is None or cache.control_style not in ('openai_legacy', 'openai_ttl'):
+            raise ValueError(f'Model does not support OpenAI prompt cache controls: {self._model.key!r}')
+
+        if cache_key is not None:
+            if not cache.key:
+                raise ValueError(f'Model does not support prompt cache keys: {self._model.key!r}')
+            raw_request['prompt_cache_key'] = check.non_empty_str(cache_key)
+
+        if cache_retention is not None:
+            if cache_retention not in cache.retentions:
+                raise ValueError(
+                    f'Model does not support cache retention {cache_retention.name}: {self._model.key!r}',
+                )
+
+            if cache.control_style == 'openai_legacy':
+                raw_request['prompt_cache_retention'] = _LEGACY_CACHE_RETENTIONS[cache_retention]
+
+            elif cache.control_style == 'openai_ttl':
+                # The implicit mode remains in use. Explicit breakpoints require block-level content metadata and are
+                # intentionally left for a future content model which can represent them generically.
+                raw_request['prompt_cache_options'] = {
+                    'ttl': _TTL_CACHE_RETENTIONS[cache_retention],
+                }
+
+            else:
+                raise RuntimeError(cache.control_style)
+
     @lang.cached_function
     def raw_request(self) -> dict[str, ta.Any]:
         raw_request: dict = {
@@ -50,6 +98,8 @@ class RequestPreparer:
 
         if self._options.max_tokens is not None:
             raw_request[self._compat.max_tokens_field or 'max_completion_tokens'] = self._options.max_tokens
+
+        self._add_cache_options(raw_request)
 
         #
 

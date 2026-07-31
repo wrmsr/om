@@ -1,6 +1,7 @@
 import pytest
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore import lang
 from omcore.formats.json import all as json
 from omcore.http import all as http
@@ -12,7 +13,10 @@ from .....types.content import ThinkingContent
 from .....types.content import ToolCall
 from .....types.context import Context
 from .....types.messages import UserMessage
+from .....types.models import CacheCapabilities
 from .....types.models import ModelKey
+from .....types.options import CacheRetention
+from .....types.options import Options
 from ....scripted.http import ScriptedHttpError
 from ....scripted.http import ScriptedHttpException
 from ....scripted.http import ScriptedHttpRawResponse
@@ -81,11 +85,76 @@ def test_scripted_backend_round_trip(backend_cls):
     assert usage.output == 50
     assert usage.reasoning == 7
     assert usage.cache_read == 20
-    assert usage.cache_write is None
+    assert usage.cache_write == 10
     assert usage.total == 180
 
     request = check.single(client.requests)
     assert request.payload['stream'] is (backend_cls is OpenaiCompletionsStreamBackend)
+
+
+@pytest.mark.parametrize(('retention', 'raw_retention'), [
+    (CacheRetention.IN_MEMORY, 'in_memory'),
+    (CacheRetention.ONE_DAY, '24h'),
+])
+def test_legacy_cache_options(retention, raw_retention):
+    client = OpenaiCompletionsScriptedHttpClient([ScriptedHttpResponse()])
+    backend = OpenaiCompletionsImmediateBackend(
+        _model(),
+        api_key=_api_key(),
+        http_client=client,
+    )
+
+    lang.sync_await(backend.immediate(_context(), Options(
+        cache_key='shared-prefix',
+        cache_retention=retention,
+    )))
+
+    payload = check.single(client.requests).payload
+    assert payload['prompt_cache_key'] == 'shared-prefix'
+    assert payload['prompt_cache_retention'] == raw_retention
+
+
+def test_ttl_cache_options():
+    model = dc.replace(
+        _model(),
+        cache=CacheCapabilities(
+            control_style='openai_ttl',
+            retentions=frozenset({CacheRetention.THIRTY_MINUTES}),
+            key=True,
+        ),
+    )
+    client = OpenaiCompletionsScriptedHttpClient([ScriptedHttpResponse()])
+    backend = OpenaiCompletionsImmediateBackend(
+        model,
+        api_key=_api_key(),
+        http_client=client,
+    )
+
+    lang.sync_await(backend.immediate(_context(), Options(
+        cache_key='shared-prefix',
+        cache_retention=CacheRetention.THIRTY_MINUTES,
+    )))
+
+    payload = check.single(client.requests).payload
+    assert payload['prompt_cache_key'] == 'shared-prefix'
+    assert payload['prompt_cache_options'] == {'ttl': '30m'}
+    assert 'prompt_cache_retention' not in payload
+
+
+def test_unsupported_cache_options():
+    client = OpenaiCompletionsScriptedHttpClient([ScriptedHttpResponse()])
+    backend = OpenaiCompletionsImmediateBackend(
+        _model(),
+        api_key=_api_key(),
+        http_client=client,
+    )
+
+    with pytest.raises(ValueError, match='does not support cache retention ONE_HOUR'):
+        lang.sync_await(backend.immediate(_context(), Options(
+            cache_retention=CacheRetention.ONE_HOUR,
+        )))
+
+    assert not client.requests
 
 
 def test_mutable_queue_expectation_raw_response_and_errors():

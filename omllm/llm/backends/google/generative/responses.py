@@ -10,12 +10,24 @@ from ....types.messages import TokenUsage
 
 
 def translate_token_usage(m: ta.Mapping[str, ta.Any]) -> TokenUsage:
+    prompt_tokens = check.isinstance(m.get('promptTokenCount'), (int, None))
+    tool_use_prompt_tokens = check.isinstance(m.get('toolUsePromptTokenCount'), (int, None))
+    candidate_tokens = check.isinstance(m.get('candidatesTokenCount'), (int, None))
+    reasoning_tokens = check.isinstance(m.get('thoughtsTokenCount'), (int, None))
+
+    input_tokens: int | None = None
+    if prompt_tokens is not None:
+        input_tokens = prompt_tokens + (tool_use_prompt_tokens or 0)
+
+    output_tokens: int | None = None
+    if candidate_tokens is not None:
+        output_tokens = candidate_tokens + (reasoning_tokens or 0)
+
     return TokenUsage(
-        input=check.isinstance(m.get('promptTokenCount'), (int, None)),
-        output=check.isinstance(m.get('candidatesTokenCount'), (int, None)),
-        reasoning=check.isinstance(m.get('thoughtsTokenCount'), (int, None)),
+        input=input_tokens,
+        output=output_tokens,
+        reasoning=reasoning_tokens,
         cache_read=check.isinstance(m.get('cachedContentTokenCount'), (int, None)),
-        # Note: the reported total includes thoughts tokens, so it may exceed input + output.
         total=check.isinstance(m.get('totalTokenCount'), (int, None)),
     )
 

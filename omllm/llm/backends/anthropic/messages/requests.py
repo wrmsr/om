@@ -12,7 +12,17 @@ from ....types.messages import AiMessage
 from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
+from ....types.options import CacheRetention
 from ....types.options import Options
+
+
+##
+
+
+_CACHE_RETENTIONS: ta.Final[ta.Mapping[CacheRetention, str]] = {
+    CacheRetention.FIVE_MINUTES: '5m',
+    CacheRetention.ONE_HOUR: '1h',
+}
 
 
 ##
@@ -41,6 +51,32 @@ class RequestPreparer:
         else:
             self._compat = OpenaiCompat()
 
+    def _add_cache_options(self, raw_request: dict[str, ta.Any]) -> None:
+        if self._options.cache_key is not None:
+            raise ValueError(f'Model does not support caller-supplied prompt cache keys: {self._model.key!r}')
+
+        cache_retention = self._options.cache_retention
+        if cache_retention is None:
+            # Unlike OpenAI and Gemini, Anthropic caching is disabled unless cache_control is present.
+            return
+
+        cache = self._model.cache
+        if (
+                cache is None or
+                cache.control_style != 'anthropic' or
+                cache_retention not in cache.retentions
+        ):
+            raise ValueError(
+                f'Model does not support cache retention {cache_retention.name}: {self._model.key!r}',
+            )
+
+        # Top-level cache_control enables Anthropic's automatic moving breakpoint. Explicit per-block breakpoints are
+        # intentionally left for a future content model which can represent them without provider-specific options.
+        raw_request['cache_control'] = {
+            'type': 'ephemeral',
+            'ttl': _CACHE_RETENTIONS[cache_retention],
+        }
+
     @lang.cached_function
     def raw_request(self) -> dict[str, ta.Any]:
         raw_request: dict = {
@@ -52,6 +88,8 @@ class RequestPreparer:
 
         if self._options.thinking:
             raw_request['thinking'] = {'type': 'adaptive'}
+
+        self._add_cache_options(raw_request)
 
         #
 

@@ -5,7 +5,33 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from .compat import Compat
+from .options import CacheRetention
 from .options import Options
+
+
+CacheControlStyle: ta.TypeAlias = ta.Literal[
+    'anthropic',
+    'google_implicit',
+    'openai_legacy',
+    'openai_ttl',
+]
+
+
+##
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
+class CacheCapabilities:
+    # The provider request shape, including implicit-only providers which expose no request controls.
+    control_style: CacheControlStyle
+
+    # Exact retention policies which may be requested through Options.
+    retentions: ta.AbstractSet[CacheRetention] = frozenset()
+
+    # Whether Options.cache_key can be translated for this model.
+    key: bool = False
 
 
 ##
@@ -36,6 +62,10 @@ class Model:
     #
 
     compat: Compat | None = None
+
+    #
+
+    cache: CacheCapabilities | None = None
 
     #
 

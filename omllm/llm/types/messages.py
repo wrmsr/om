@@ -68,13 +68,22 @@ type StopReason = ta.Literal[
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(cache_hash=True, default_repr_fn=lang.truthy_repr)
 class TokenUsage:
+    # Inclusive input total. Cache reads and writes are overlapping details within this value.
     input: int | None = None
+
+    # Inclusive billed output total. Reasoning is an overlapping detail within this value.
     output: int | None = None
+
+    # Billed reasoning output, when reported by the provider. This is already included in output.
     reasoning: int | None = None
 
+    # Input tokens read from a prompt cache. This is already included in input.
     cache_read: int | None = None
+
+    # Input tokens written to a prompt cache. This is already included in input.
     cache_write: int | None = None
 
+    # The provider's authoritative total, or input + output when the provider does not report one.
     total: int | None = None
 
 

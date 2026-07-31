@@ -1,8 +1,10 @@
 import typing as ta
 
 from ...types.compat import OpenaiCompat
+from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
+from ...types.options import CacheRetention
 from ...types.options import Options
 
 
@@ -18,6 +20,13 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='Claude Sonnet 5',
         backend='anthropic-messages',
+        cache=CacheCapabilities(
+            control_style='anthropic',
+            retentions=frozenset({
+                CacheRetention.FIVE_MINUTES,
+                CacheRetention.ONE_HOUR,
+            }),
+        ),
         compat=OpenaiCompat(
             max_tokens_field='max_tokens',
         ),
