@@ -628,3 +628,167 @@ def _process_dataclass__f4439dd61ec1bfaa3ec60b12a392de695d66b565():
         __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
 
     return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('indent', 'separators', 'sort_keys', 'style', 'ensure_ascii', 'delimiter')), EqPla"
+        "n(fields=('indent', 'separators', 'sort_keys', 'style', 'ensure_ascii', 'delimiter')), FrozenPlan(fields=('ind"
+        "ent', 'separators', 'sort_keys', 'style', 'ensure_ascii', 'delimiter'), allow_dynamic_dunder_attrs=False), Has"
+        "hPlan(action='add', fields=('indent', 'separators', 'sort_keys', 'style', 'ensure_ascii', 'delimiter'), cache="
+        "False), InitPlan(fields=(InitPlan.Field(name='indent', annotation=OpRef(name='init.fields.0.annotation'), defa"
+        "ult=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType"
+        ".INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='separators', annotation=OpRef(na"
+        "me='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, "
+        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(na"
+        "me='sort_keys', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default')"
+        ", default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, "
+        "check_type=None), InitPlan.Field(name='style', annotation=OpRef(name='init.fields.3.annotation'), default=OpRe"
+        "f(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANC"
+        "E, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ensure_ascii', annotation=OpRef(name='in"
+        "it.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, overri"
+        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='de"
+        "limiter', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), defa"
+        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
+        "type=None)), self_param='self', std_params=(), kw_only_params=('indent', 'separators', 'sort_keys', 'style', '"
+        "ensure_ascii', 'delimiter'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), R"
+        "eprPlan(fields=(ReprPlan.Field(name='indent', kw_only=True, fn=None), ReprPlan.Field(name='separators', kw_onl"
+        "y=True, fn=None), ReprPlan.Field(name='sort_keys', kw_only=True, fn=None), ReprPlan.Field(name='style', kw_onl"
+        "y=True, fn=None), ReprPlan.Field(name='ensure_ascii', kw_only=True, fn=None), ReprPlan.Field(name='delimiter',"
+        " kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5',
+    cls_names=(
+        ('omcore.formats.json.stream.rendering', 'StreamJsonRenderer.Config'),
+    ),
+)
+def _process_dataclass__cc5cc7d5e0377a089813ddf7d419c8f2d2c4e0d5():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                indent=self.indent,
+                separators=self.separators,
+                sort_keys=self.sort_keys,
+                style=self.style,
+                ensure_ascii=self.ensure_ascii,
+                delimiter=self.delimiter,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.indent == other.indent and
+                self.separators == other.separators and
+                self.sort_keys == other.sort_keys and
+                self.style == other.style and
+                self.ensure_ascii == other.ensure_ascii and
+                self.delimiter == other.delimiter
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'indent',
+            'separators',
+            'sort_keys',
+            'style',
+            'ensure_ascii',
+            'delimiter',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.indent,
+                self.separators,
+                self.sort_keys,
+                self.style,
+                self.ensure_ascii,
+                self.delimiter,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            indent: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            separators: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            sort_keys: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            style: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            ensure_ascii: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            delimiter: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'indent', indent)
+            __dataclass__object_setattr(self, 'separators', separators)
+            __dataclass__object_setattr(self, 'sort_keys', sort_keys)
+            __dataclass__object_setattr(self, 'style', style)
+            __dataclass__object_setattr(self, 'ensure_ascii', ensure_ascii)
+            __dataclass__object_setattr(self, 'delimiter', delimiter)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"indent={self.indent!r}")
+            parts.append(f"separators={self.separators!r}")
+            parts.append(f"sort_keys={self.sort_keys!r}")
+            parts.append(f"style={self.style!r}")
+            parts.append(f"ensure_ascii={self.ensure_ascii!r}")
+            parts.append(f"delimiter={self.delimiter!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass

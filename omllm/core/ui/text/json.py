@@ -115,7 +115,7 @@ def render_json_tokens(
     out = _JsonTokenOut(write)
     kw.update(style=out.style)
 
-    cls(out, **kw).render(obj)
+    cls(out, cls.Config(**kw)).render(obj)
 
 
 ##

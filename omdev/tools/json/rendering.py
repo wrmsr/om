@@ -101,14 +101,16 @@ class StreamRenderer(Renderer):
 
         self._renderer = self._StreamJsonRenderer(
             self,
-            style=term_color if self._opts.color else None,
-            delimiter='\n',
-            **self._kw,
+            self._StreamJsonRenderer.Config(
+                style=term_color if self._opts.color else None,
+                delimiter='\n',
+                **self._kw,
+            ),
         )
 
     class _StreamJsonRenderer(StreamJsonRenderer):
-        def __init__(self, o: StreamRenderer, **kwargs: ta.Any) -> None:
-            super().__init__(**kwargs)
+        def __init__(self, o: StreamRenderer, config: StreamJsonRenderer.Config) -> None:
+            super().__init__(config)
 
             self.__o = o
 

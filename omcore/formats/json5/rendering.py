@@ -3,6 +3,7 @@ import re
 import typing as ta
 
 from ... import check
+from ... import dataclasses as dc
 from ... import lang
 from ..json.literals import ESCAPE_MAP
 from ..json.literals import encode_string
@@ -28,22 +29,26 @@ SOFTWRAP_WS_PAT = re.compile(r'\s+')
 
 
 class Json5Renderer(JsonRenderer):
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config(JsonRenderer.Config):
+        multiline_strings: bool = False
+        softwrap_length: int | None = None
+
     def __init__(
             self,
             out: JsonRendererOut,
-            *,
-            multiline_strings: bool = False,
-            softwrap_length: int | None = None,
-            **kwargs: ta.Any,
+            config: Config | None = None,
     ) -> None:
-        super().__init__(out, **kwargs)
+        if config is None:
+            config = self.Config()
 
-        self._multiline_strings = multiline_strings
-        self._softwrap_length = softwrap_length
+        super().__init__(out, config)
+
+    _config: Config
 
     def _softwrap_string_chunks(self, chunks: list[str]) -> str:
-        multiline_strings = self._multiline_strings
-        softwrap_len = check.not_none(self._softwrap_length)
+        multiline_strings = self._config.multiline_strings
+        softwrap_len = check.not_none(self._config.softwrap_length)
 
         out = io.StringIO()
         out.write(MULTILINE_STRINGS_LQ)
@@ -99,9 +104,9 @@ class Json5Renderer(JsonRenderer):
 
     def _format_string(self, s: str, state: JsonRenderer.State | None = None) -> str:
         num_nls = s.count('\n')
-        is_multiline = self._multiline_strings and num_nls
+        is_multiline = self._config.multiline_strings and num_nls
 
-        if (softwrap_len := self._softwrap_length) is not None:
+        if (softwrap_len := self._config.softwrap_length) is not None:
             def process_chunks(chunks: list[str]) -> list[str]:
                 naive_len = sum(map(len, chunks))
 
@@ -133,7 +138,7 @@ class Json5Renderer(JsonRenderer):
             return encode_string(
                 s,
                 q='',
-                ensure_ascii=self._ensure_ascii,
+                ensure_ascii=self._config.ensure_ascii,
                 process_chunks=process_chunks,
             )
 
@@ -143,7 +148,7 @@ class Json5Renderer(JsonRenderer):
                 lq=MULTILINE_STRINGS_LQ,
                 rq=MULTILINE_STRINGS_RQ,
                 escape_map=MULTILINE_STRINGS_ESCAPE_MAP,
-                ensure_ascii=self._ensure_ascii,
+                ensure_ascii=self._config.ensure_ascii,
             )
 
         return super()._format_scalar(s, state=state)

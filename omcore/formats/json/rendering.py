@@ -4,6 +4,7 @@ import io
 import json
 import typing as ta
 
+from ... import dataclasses as dc
 from ... import lang
 from . import consts
 from .types import SCALAR_TYPES
@@ -20,25 +21,30 @@ MULTILINE_SEPARATORS = consts.Separators(',', ': ')
 
 
 class AbstractJsonRenderer(lang.Abstract, ta.Generic[I]):
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config:
+        indent: int | str | None = None
+        separators: tuple[str, str] | None = None
+        sort_keys: bool = False
+        style: ta.Callable[[ta.Any, AbstractJsonRenderer.State], tuple[ta.Any, ta.Any] | None] | None = None
+        ensure_ascii: bool = True
+
     class State(enum.Enum):
         VALUE = enum.auto()
         KEY = enum.auto()
 
     def __init__(
             self,
-            *,
-            indent: int | str | None = None,
-            separators: tuple[str, str] | None = None,
-            sort_keys: bool = False,
-            style: ta.Callable[[ta.Any, State], tuple[ta.Any, ta.Any] | None] | None = None,
-            ensure_ascii: bool = True,
+            config: Config | None = None,
     ) -> None:
         super().__init__()
 
-        self._sort_keys = sort_keys
-        self._style = style
-        self._ensure_ascii = ensure_ascii
+        if config is None:
+            config = self.Config()
+        self._config = config
 
+        indent = config.indent
+        separators = config.separators
         if isinstance(indent, (str, int)):
             self._indent = (' ' * indent) if isinstance(indent, int) else indent
             self._endl = '\n'
@@ -54,6 +60,8 @@ class AbstractJsonRenderer(lang.Abstract, ta.Generic[I]):
 
         self._level = 0
         self._indent_cache: dict[int, str] = {}
+
+    _config: Config
 
     _literals: ta.ClassVar[ta.Mapping[ta.Any, str]] = {
         True: 'true',
@@ -82,7 +90,7 @@ class AbstractJsonRenderer(lang.Abstract, ta.Generic[I]):
             return self._literals[o]
 
         elif isinstance(o, (str, int, float)):
-            return json.dumps(o, ensure_ascii=self._ensure_ascii)
+            return json.dumps(o, ensure_ascii=self._config.ensure_ascii)
 
         else:
             raise TypeError(o)
@@ -101,14 +109,23 @@ class JsonRendererOut(ta.Protocol):
 
 
 class JsonRenderer(AbstractJsonRenderer[ta.Any]):
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config(AbstractJsonRenderer.Config):
+        pass
+
     def __init__(
             self,
             out: JsonRendererOut,
-            **kwargs: ta.Any,
+            config: Config | None = None,
     ) -> None:
-        super().__init__(**kwargs)
+        if config is None:
+            config = self.Config()
+
+        super().__init__(config)
 
         self._out = out
+
+    _config: Config
 
     def _write(self, s: str) -> None:
         if s:
@@ -123,8 +140,8 @@ class JsonRenderer(AbstractJsonRenderer[ta.Any]):
             state: AbstractJsonRenderer.State = AbstractJsonRenderer.State.VALUE,
     ) -> None:
         post: ta.Any = None
-        if self._style is not None:
-            if (st := self._style(o, state)) is not None:
+        if self._config.style is not None:
+            if (st := self._config.style(o, state)) is not None:
                 pre, post = st
                 self._write(pre)
 
@@ -141,7 +158,7 @@ class JsonRenderer(AbstractJsonRenderer[ta.Any]):
             self._write('{')
             self._level += 1
             items = list(o.items())
-            if self._sort_keys:
+            if self._config.sort_keys:
                 items.sort(key=lambda t: t[0])
             for i, (k, v) in enumerate(items):
                 if i:
@@ -180,5 +197,5 @@ class JsonRenderer(AbstractJsonRenderer[ta.Any]):
     @classmethod
     def render_str(cls, i: ta.Any, /, **kwargs: ta.Any) -> str:
         out = io.StringIO()
-        cls(out, **kwargs).render(i)
+        cls(out, cls.Config(**kwargs)).render(i)
         return out.getvalue()

@@ -1,6 +1,7 @@
 import io
 import typing as ta
 
+from .... import dataclasses as dc
 from ..rendering import AbstractJsonRenderer
 from ..types import SCALAR_TYPES
 from .events import BeginArray
@@ -15,22 +16,27 @@ from .events import Key
 
 
 class StreamJsonRenderer(AbstractJsonRenderer[ta.Iterable[Event]]):
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config(AbstractJsonRenderer.Config):
+        delimiter: str = ''
+        sort_keys: bool = False
+
     def __init__(
             self,
-            *,
-            delimiter: str = '',
-            sort_keys: bool = False,
-            **kwargs: ta.Any,
+            config: Config | None = None,
     ) -> None:
-        if sort_keys:
+        if config is None:
+            config = self.Config()
+
+        if config.sort_keys:
             raise TypeError('Not yet implemented')
 
-        self._delimiter = delimiter
-
-        super().__init__(**kwargs)
+        super().__init__(config)
 
         self._stack: list[tuple[ta.Literal['OBJECT', 'ARRAY'], int]] = []
         self._need_delimit = False
+
+    _config: Config
 
     def _render_value(
             self,
@@ -38,8 +44,8 @@ class StreamJsonRenderer(AbstractJsonRenderer[ta.Iterable[Event]]):
             state: AbstractJsonRenderer.State = AbstractJsonRenderer.State.VALUE,
     ) -> ta.Iterator[str]:
         post: ta.Any = None
-        if self._style is not None:
-            if (tp := self._style(o, state)) is not None:
+        if self._config.style is not None:
+            if (tp := self._config.style(o, state)) is not None:
                 pre, post = tp
                 yield pre
 
@@ -54,7 +60,7 @@ class StreamJsonRenderer(AbstractJsonRenderer[ta.Iterable[Event]]):
 
     def _render(self, e: Event) -> ta.Iterator[str]:
         if self._need_delimit:
-            yield self._delimiter
+            yield self._config.delimiter
             self._need_delimit = False
 
         if e != EndArray and self._stack and (tt := self._stack[-1])[0] == 'ARRAY':
@@ -131,6 +137,6 @@ class StreamJsonRenderer(AbstractJsonRenderer[ta.Iterable[Event]]):
     @classmethod
     def render_str(cls, i: ta.Iterable[Event], /, **kwargs: ta.Any) -> str:
         out = io.StringIO()
-        for s in cls(**kwargs).render(i):
+        for s in cls(cls.Config(**kwargs)).render(i):
             out.write(s)
         return out.getvalue()
