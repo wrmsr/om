@@ -15,9 +15,10 @@ from ...types.tools import ToolDescription
 ##
 
 
-DEFAULT_MAX_NUM_LINES = 2_000
+ABSOLUTE_MAX_NUM_LINES: ta.Final = 10_000
+DEFAULT_MAX_NUM_LINES: ta.Final = 2_000
 
-MAX_LINE_LENGTH = 2_000
+MAX_LINE_LENGTH: ta.Final = 2_000
 
 
 @dc.dataclass(frozen=True)
@@ -76,6 +77,8 @@ class ReadTool(ToolClass[ReadParams]):
             raise ValueError('No working directory configured')
         if os.path.commonpath((cwd, params.file_path)) != cwd:
             raise ValueError('Path not under configured working directory')
+        if params.num_lines > ABSOLUTE_MAX_NUM_LINES:
+            raise ValueError(f'Number of lines exceeds maximum of {ABSOLUTE_MAX_NUM_LINES}')
 
         await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'r'))
 
