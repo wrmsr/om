@@ -106,26 +106,38 @@ def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('max_tokens_field',)), EqPlan(fields=('max_tokens_field',)), FrozenPlan(fields=('m"
-        "ax_tokens_field',), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('max_tokens_field',), ca"
-        "che=False), InitPlan(fields=(InitPlan.Field(name='max_tokens_field', annotation=OpRef(name='init.fields.0.anno"
-        "tation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_"
-        "type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_params=(), kw_"
-        "only_params=('max_tokens_field',), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns="
-        "()), ReprPlan(fields=(ReprPlan.Field(name='max_tokens_field', kw_only=True, fn=None),), id=False, terse=False,"
-        " default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('url_path', 'max_tokens_field', 'no_object_type_checks')), EqPlan(fields=('url_pat"
+        "h', 'max_tokens_field', 'no_object_type_checks')), FrozenPlan(fields=('url_path', 'max_tokens_field', 'no_obje"
+        "ct_type_checks'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('url_path', 'max_tokens_fi"
+        "eld', 'no_object_type_checks'), cache=False), InitPlan(fields=(InitPlan.Field(name='url_path', annotation=OpRe"
+        "f(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=Tr"
+        "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
+        "d(name='max_tokens_field', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields."
+        "1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
+        "date=None, check_type=None), InitPlan.Field(name='no_object_type_checks', annotation=OpRef(name='init.fields.2"
+        ".annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, f"
+        "ield_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(),"
+        " kw_only_params=('url_path', 'max_tokens_field', 'no_object_type_checks'), frozen=True, slots=False, post_init"
+        "_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='url_path', kw_only=True, fn"
+        "=None), ReprPlan.Field(name='max_tokens_field', kw_only=True, fn=None), ReprPlan.Field(name='no_object_type_ch"
+        "ecks', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='07984f4058a40dd1ae7a4ad479a49991bc8948f8',
+    plan_repr_sha1='4bc1a445cd198a759c248cb0d6d35522fb07d853',
     cls_names=(
         ('omllm.llm.types.compat', 'OpenaiCompat'),
     ),
 )
-def _process_dataclass__07984f4058a40dd1ae7a4ad479a49991bc8948f8():
+def _process_dataclass__4bc1a445cd198a759c248cb0d6d35522fb07d853():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -136,7 +148,9 @@ def _process_dataclass__07984f4058a40dd1ae7a4ad479a49991bc8948f8():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
+                url_path=self.url_path,
                 max_tokens_field=self.max_tokens_field,
+                no_object_type_checks=self.no_object_type_checks,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -147,13 +161,17 @@ def _process_dataclass__07984f4058a40dd1ae7a4ad479a49991bc8948f8():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.max_tokens_field == other.max_tokens_field
+                self.url_path == other.url_path and
+                self.max_tokens_field == other.max_tokens_field and
+                self.no_object_type_checks == other.no_object_type_checks
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
+            'url_path',
             'max_tokens_field',
+            'no_object_type_checks',
         }
 
         def __setattr__(self, name, value):
@@ -178,7 +196,9 @@ def _process_dataclass__07984f4058a40dd1ae7a4ad479a49991bc8948f8():
 
         def __hash__(self):
             return hash((
+                self.url_path,
                 self.max_tokens_field,
+                self.no_object_type_checks,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -186,16 +206,25 @@ def _process_dataclass__07984f4058a40dd1ae7a4ad479a49991bc8948f8():
         def __init__(
             self,
             *,
-            max_tokens_field: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            url_path: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            max_tokens_field: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            no_object_type_checks: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'url_path', url_path)
             __dataclass__object_setattr(self, 'max_tokens_field', max_tokens_field)
+            __dataclass__object_setattr(self, 'no_object_type_checks', no_object_type_checks)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"max_tokens_field={self.max_tokens_field!r}")
+            if (s := __dataclass__repr__default_fn(self.url_path)) is not None:
+                parts.append(f"url_path={s}")
+            if (s := __dataclass__repr__default_fn(self.max_tokens_field)) is not None:
+                parts.append(f"max_tokens_field={s}")
+            if (s := __dataclass__repr__default_fn(self.no_object_type_checks)) is not None:
+                parts.append(f"no_object_type_checks={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

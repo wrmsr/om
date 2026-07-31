@@ -15,7 +15,7 @@ from ....types.messages import AiMessage
 from ....types.messages import StopReason
 from ....types.messages import TokenUsage
 from ....types.options import Options
-from ...base.http import BaseHttpBackend
+from .base import BaseGoogleGenerativeBackend
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
 from .responses import translate_token_usage
@@ -24,7 +24,7 @@ from .responses import translate_token_usage
 ##
 
 
-class GoogleGenerativeImmediateBackend(BaseHttpBackend, ImmediateBackend):
+class GoogleGenerativeImmediateBackend(BaseGoogleGenerativeBackend, ImmediateBackend):
     async def immediate(self, context: Context, options: Options | None = None) -> AiMessage:
         raw_request = RequestPreparer(
             self._model,

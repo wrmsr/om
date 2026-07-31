@@ -1,6 +1,7 @@
 import typing as ta
 
 from omcore import check
+from omcore import lang
 from omcore.formats.json import all as json
 from omcore.http import all as http
 
@@ -14,7 +15,7 @@ from ....types.messages import AiMessage
 from ....types.messages import StopReason
 from ....types.messages import TokenUsage
 from ....types.options import Options
-from ...base.http import BaseHttpBackend
+from .base import BaseOpenaiCompletionsBackend
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
 from .responses import translate_token_usage
@@ -23,13 +24,15 @@ from .responses import translate_token_usage
 ##
 
 
-class OpenaiCompletionsImmediateBackend(BaseHttpBackend, ImmediateBackend):
+class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateBackend):
     async def immediate(self, context: Context, options: Options | None = None) -> AiMessage:
         raw_request = RequestPreparer(
             self._model,
             context,
             options,
         ).raw_request()
+
+        raw_request['stream'] = False
 
         #
 
@@ -41,7 +44,7 @@ class OpenaiCompletionsImmediateBackend(BaseHttpBackend, ImmediateBackend):
         }
 
         http_request = http.HttpClientRequest(
-            self._base_url + '/chat/completions',
+            self._base_url + lang.coalesce(self._compat.url_path, '/chat/completions'),
             headers=http_headers,
             data=json.dumps(raw_request).encode('utf-8'),
         )
@@ -58,7 +61,8 @@ class OpenaiCompletionsImmediateBackend(BaseHttpBackend, ImmediateBackend):
 
         #
 
-        check.equal(raw_response['object'], 'chat.completion')
+        if not self._compat.no_object_type_checks:
+            check.equal(raw_response['object'], 'chat.completion')
 
         raw_choice = check.single(raw_response['choices'])
 

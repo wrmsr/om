@@ -26,7 +26,7 @@ class BaseBackendTest:
 
         svc = OpenaiCompletionsImmediateBackend(
             default_model_catalog()[model_key],  # noqa
-            api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
+            **(dict(api_key=harness[HarnessSecrets].get_or_skip(api_key_name)) if api_key_name is not None else {}),
         )
 
         out = await svc.immediate(
@@ -53,7 +53,7 @@ class BaseBackendTest:
 
         svc = OpenaiCompletionsImmediateBackend(
             default_model_catalog()[model_key],  # noqa
-            api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
+            **(dict(api_key=harness[HarnessSecrets].get_or_skip(api_key_name)) if api_key_name is not None else {}),
             http_client=http.SyncAsyncHttpClient(http.client()),
         )
 
@@ -91,3 +91,11 @@ class TestCerebrasBackend(BaseBackendTest):
     ])
     def model(self, request):
         return request.param
+
+
+# class TestOllamaBackend(BaseBackendTest):
+#     @pytest.fixture(params=[
+#         (ModelKey('ollama', 'qwen3.6:27b'), None),
+#     ])
+#     def model(self, request):
+#         return request.param

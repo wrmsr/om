@@ -14,8 +14,8 @@ from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
 from ....types.streams import ThinkingDeltaAiStreamEvent
 from ....types.streams import ToolCallDeltaAiStreamEvent
-from ...base.http import BaseHttpBackend
 from ...base.sse import BaseBackendSseEventProcessor
+from .base import BaseGoogleGenerativeBackend
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
 from .responses import translate_token_usage
@@ -135,7 +135,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 ##
 
 
-class GoogleGenerativeStreamBackend(BaseHttpBackend, StreamBackend):
+class GoogleGenerativeStreamBackend(BaseGoogleGenerativeBackend, StreamBackend):
     async def stream(self, context: Context, options: Options | None = None) -> AiStream:
         raw_request = RequestPreparer(  # noqa
             self._model,

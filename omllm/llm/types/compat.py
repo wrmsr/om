@@ -17,5 +17,10 @@ class Compat(lang.Abstract):
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.truthy_repr)
 class OpenaiCompat(Compat):
+    url_path: str | None = None
+
     max_tokens_field: str | None = None
+
+    no_object_type_checks: bool = False

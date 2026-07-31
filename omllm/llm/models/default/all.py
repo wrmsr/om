@@ -11,6 +11,7 @@ with lang.auto_proxy_import(globals()):
     from . import cerebras
     from . import google
     from . import groq
+    from . import ollama
     from . import openai
 
 
@@ -24,6 +25,7 @@ def default_models() -> ta.Sequence[Model]:
         *cerebras.MODELS,
         *google.MODELS,
         *groq.MODELS,
+        *ollama.MODELS,
         *openai.MODELS,
     ]
 
