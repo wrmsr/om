@@ -50,4 +50,4 @@ def temp_named_file_context(
             yield f
         finally:
             if cleanup:
-                shutil.rmtree(f.name, ignore_errors=True)
+                unlink_if_exists(f.name)

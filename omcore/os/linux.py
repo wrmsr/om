@@ -138,7 +138,7 @@ class LinuxOsRelease:
         Added in version 220.
         """
 
-        return self.raw['variant_id']
+        return self.raw['VARIANT_ID']
 
     # Information about the version of the operating system
 

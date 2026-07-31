@@ -123,6 +123,7 @@ class BaseKeyedExitStack:
                 check.state(not cb.is_async)
 
             self.__cb_lst.unlink_node(node)
+            del self.__cb_dct[key]
 
             return cb
 

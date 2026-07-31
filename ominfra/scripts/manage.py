@@ -95,8 +95,8 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
             dict(path='../../omcore/os/deathsig.py', sha1='be09a6fd1f168c1a6c9b66afee54733896c94810'),
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
-            dict(path='../../omcore/os/linux.py', sha1='3737d208fd874e4b3f8e8e6cd4ff5c994072f9da'),
-            dict(path='../../omcore/os/paths.py', sha1='d9cc256d0d39be0ebc9ee4c87ab386af0c5fa98f'),
+            dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
+            dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -4233,7 +4233,7 @@ class LinuxOsRelease:
         Added in version 220.
         """
 
-        return self.raw['variant_id']
+        return self.raw['VARIANT_ID']
 
     # Information about the version of the operating system
 
@@ -4618,7 +4618,7 @@ def is_path_in_dir(base_dir: str, target_path: str) -> bool:
     base_dir = abs_real_path(base_dir)
     target_path = abs_real_path(target_path)
 
-    return target_path.startswith(base_dir + os.path.sep)
+    return target_path != base_dir and target_path.startswith(base_dir.rstrip(os.path.sep) + os.path.sep)
 
 
 def relative_symlink(

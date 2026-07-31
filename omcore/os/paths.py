@@ -38,7 +38,7 @@ def is_path_in_dir(base_dir: str, target_path: str) -> bool:
     base_dir = abs_real_path(base_dir)
     target_path = abs_real_path(target_path)
 
-    return target_path.startswith(base_dir + os.path.sep)
+    return target_path != base_dir and target_path.startswith(base_dir.rstrip(os.path.sep) + os.path.sep)
 
 
 def relative_symlink(

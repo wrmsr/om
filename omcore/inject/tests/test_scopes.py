@@ -273,7 +273,12 @@ def test_contextvar_scope_sync_and_threads():
             except inj.ScopeNotOpenError as e:
                 errs.append(e)
 
-        t = threading.Thread(target=unopened)
+        t = threading.Thread(
+            target=unopened,
+            # NOTE: 3.14t inherits contextvars by default, 3.14 does not - explicitly don't inherit here for testing
+            # purposes.
+            context=contextvars.Context(),
+        )
         t.start()
         t.join()
         assert len(errs) == 1
@@ -284,7 +289,10 @@ def test_contextvar_scope_sync_and_threads():
             with inj.enter_scope(i, ss, {inj.as_key(float): 5.2}):
                 res.append(i[float])
 
-        t2 = threading.Thread(target=opened)
+        t2 = threading.Thread(
+            target=opened,
+            context=contextvars.Context(),
+        )
         t2.start()
         t2.join()
         assert res == [5.2]

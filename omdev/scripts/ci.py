@@ -122,7 +122,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/std/proxy.py', sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a'),
             dict(path='../../omcore/logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
             dict(path='../../omcore/os/files.py', sha1='0815ed435c8c7dc8b8bfe82026581abfe1ae610d'),
-            dict(path='../../omcore/os/paths.py', sha1='d9cc256d0d39be0ebc9ee4c87ab386af0c5fa98f'),
+            dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
             dict(path='../../omcore/secrets/ssl.py', sha1='a1927a9b862f5732c8f958020b2162e2599e5071'),
             dict(path='../../omcore/sockets/addresses.py', sha1='91e74bab525937f7633193c9aecc54530e54b6d2'),
             dict(path='../../omcore/sockets/io.py', sha1='8b4d1ef83a28e11c6cd6ba0c884b3922d8261446'),
@@ -145,7 +145,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
-            dict(path='../../omcore/os/temp.py', sha1='1a3ec8b53ddde9810c226965218242b714abca00'),
+            dict(path='../../omcore/os/temp.py', sha1='e83c59fcfda5aff9c3d15937cb70347965e6105b'),
             dict(path='../../omcore/sockets/bind.py', sha1='f4ad928b76155d500e3955e0923a86629bb31979'),
             dict(path='../../omcore/sockets/handlers/types.py', sha1='4cccd7bda3a5cc31e7faa7c4db7a0098bd6c75bd'),
             dict(path='../../omcore/text/mangle.py', sha1='c766b3cdf72a4dc211eb3a66f7f00278eb34dbd5'),
@@ -3818,7 +3818,7 @@ def is_path_in_dir(base_dir: str, target_path: str) -> bool:
     base_dir = abs_real_path(base_dir)
     target_path = abs_real_path(target_path)
 
-    return target_path.startswith(base_dir + os.path.sep)
+    return target_path != base_dir and target_path.startswith(base_dir.rstrip(os.path.sep) + os.path.sep)
 
 
 def relative_symlink(
@@ -10955,7 +10955,7 @@ def temp_named_file_context(
             yield f
         finally:
             if cleanup:
-                shutil.rmtree(f.name, ignore_errors=True)
+                unlink_if_exists(f.name)
 
 
 ########################################
