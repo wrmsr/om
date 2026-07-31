@@ -57,10 +57,12 @@ class CodecRegistry:
 
     def register(self, *codecs: Codec | LazyLoadedCodec) -> ta.Self:
         with self._lock:
+            new_names = set()
             for codec in codecs:
                 for n in {codec.name, *(codec.aliases or [])}:
-                    if n in self._names_by_alias:
+                    if n in self._names_by_alias or n in new_names:
                         raise KeyError(n)
+                    new_names.add(n)
 
             for codec in codecs:
                 self._by_name[codec.name] = codec

@@ -26,6 +26,9 @@ def distribute_evenly(
     :return: List of n_bins lists, each containing items assigned to that bin.
     """
 
+    if n_bins < 1:
+        raise ValueError('n_bins must be positive')
+
     # Sort items by size in descending order
     items_sorted = sorted(items, key=lambda x: x[1], reverse=True)
 
