@@ -1,14 +1,14 @@
 - at this point just embed json5 in here, make it just a different set of config defaults
+- cleanup the renderers they are gross
 - delimited.py / jsonl
   -  + record separators ala https://en.wikipedia.org/wiki/JSON_streaming
 - hashing.py
 - comparison / normalization
-- lite-ify stream
-- options/config dataclasses for stream/render
-- speed up literals.py lol
 - schema inference
 - 3.15: `json.loads('{"a": [1, 2, 3, 4]}', array_hook=tuple, object_hook=frozendict) == frozendict({'a': (1, 2, 3, 4)})`
-- jsonpatch
-- jsonpath
-- jsonpointer.py
-- jsonref or whatever
+- specs?
+  - jsonpatch
+  - jsonpath
+  - jsonpointer.py
+  - jsonref or whatever
+  - x/gron.py

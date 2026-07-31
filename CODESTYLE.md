@@ -384,6 +384,21 @@ def make_it_a_tuple(t: T) -> tuple[T]:
   explicitly at the top of the module is still the default style.
 
 
+### Async
+
+- Per the dependencies section, most async code should strive to be written independent of which (if any) event loop it
+  happens to be running under.
+  - While anyio is being phased out, `omcore.asyncs.asynclite` exists as an alternative for simple, lower-level async op
+    requirements like sleeps, locks, events, queues, promises, etc.
+  - asyncio-ness should generally be kept at a high level in the code-organizational stack - don't shy away from deep
+    integration with it, use what's available in it (accounting for lite's 3.8 mandate), but generally try to isolate
+    asyncio-specifics to injectable interfaces passed down to underlying machinery.
+    - A common pattern is `class Fooer(lang.Abstract): ...` -> `class AsyncioFooer(Fooer): ...`.
+- Test for async code that don't actually need any asyncio- or other- real async machinery should *not* be async tests -
+  they should be sync tests, driven by `lang.sync_await` / `lang.sync_async_with` / `lang.sync_aiter` (or lite
+  equivalents).
+
+
 ### Comments
 
 - Avoid unnecessary and frivolous comments. Most semantic meaning should be able to be inferred from package / module /

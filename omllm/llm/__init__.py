@@ -22,12 +22,20 @@ with _lang.auto_proxy_init(globals()):
         AnthropicMessagesImmediateBackend,
     )
 
+    from .backends.anthropic.messages.scripted import (  # noqa
+        AnthropicMessagesScriptedHttpClient,
+    )
+
     from .backends.anthropic.messages.stream import (  # noqa
         AnthropicMessagesStreamBackend,
     )
 
     from .backends.google.generative.immediate import (  # noqa
         GoogleGenerativeImmediateBackend,
+    )
+
+    from .backends.google.generative.scripted import (  # noqa
+        GoogleGenerativeScriptedHttpClient,
     )
 
     from .backends.google.generative.stream import (  # noqa
@@ -38,8 +46,52 @@ with _lang.auto_proxy_init(globals()):
         OpenaiCompletionsImmediateBackend,
     )
 
+    from .backends.openai.completions.scripted import (  # noqa
+        OpenaiCompletionsScriptedHttpClient,
+    )
+
     from .backends.openai.completions.stream import (  # noqa
         OpenaiCompletionsStreamBackend,
+    )
+
+    ##
+
+    from .backends.scripted.backend import (  # noqa
+        ScriptedImmediateBackend,
+        ScriptedStreamBackend,
+    )
+
+    from .backends.scripted.http import (  # noqa
+        ScriptedUsage,
+
+        ScriptedHttpResponse,
+        ScriptedHttpError,
+        ScriptedHttpRawResponse,
+        ScriptedHttpException,
+        ScriptedHttpResult,
+
+        RecordedHttpRequest,
+        ScriptedHttpExpectation,
+        ScriptedHttpTurn,
+        CanScriptedHttpTurn,
+
+        ScriptedHttpGate,
+        ScriptedHttpGatePoint,
+    )
+
+    from .backends.scripted.scripts import (  # noqa
+        BackendScriptError,
+        BackendScriptExhaustedError,
+
+        BackendScriptTurnExpectation,
+        BackendScriptInvocation,
+
+        BackendScriptGate,
+        BackendScriptGatePoint,
+
+        BackendScriptTurn,
+        BackendScript,
+        BackendScriptCursor,
     )
 
     ##
