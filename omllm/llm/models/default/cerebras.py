@@ -18,6 +18,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         backend='openai-completions',
         http=Model.Http(
             base_url='https://api.cerebras.ai/v1',
+            extra_headers={
+                'User-Agent': 'python-httpx/0.28.1',  # required or it 403's lol
+            },
         ),
     ),
 
