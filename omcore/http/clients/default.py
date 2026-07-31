@@ -26,19 +26,52 @@ R = ta.TypeVar('R')
 ##
 
 
+_PREFER_URLLIB = False
+_PREFER_HTTPX = False
+
+
 def _default_client() -> HttpClient:
-    return _urllib.UrllibHttpClient()
+    cli: HttpClient
+
+    if _PREFER_URLLIB:
+        cli = _urllib.UrllibHttpClient()
+
+    else:
+        cli = _middleware.MiddlewareHttpClient(
+            _pipelines_sync.IoPipelineHttpClient(),
+            [
+                _middleware.RedirectHandlingHttpClientMiddleware(),
+            ],
+        )
+
+    return cli
+
+
+@lang.cached_function
+def _is_httpx_available() -> bool:
+    try:
+        import httpx  # noqa
+    except ImportError:
+        return False
+    else:
+        return True
 
 
 def _default_async_client() -> AsyncHttpClient:
-    # return _httpx.HttpxAsyncHttpClient()
+    cli: AsyncHttpClient
 
-    return _middleware.MiddlewareAsyncHttpClient(
-        _pipelines_asyncio.AsyncioIoPipelineAsyncHttpClient(),
-        [
-            _middleware.RedirectHandlingHttpClientMiddleware(),
-        ],
-    )
+    if _PREFER_HTTPX and _is_httpx_available():
+        cli = _httpx.HttpxAsyncHttpClient()
+
+    else:
+        cli = _middleware.MiddlewareAsyncHttpClient(
+            _pipelines_asyncio.AsyncioIoPipelineAsyncHttpClient(),
+            [
+                _middleware.RedirectHandlingHttpClientMiddleware(),
+            ],
+        )
+
+    return cli
 
 
 ##
