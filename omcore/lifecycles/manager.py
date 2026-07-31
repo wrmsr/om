@@ -91,20 +91,20 @@ class _InnerLifecycleManager(AsyncLifecycleManaged, lang.Final):
 
         if self._get_state() >= LifecycleStates.CONSTRUCTING:
             async def rec(e):
-                if e.controller.state < LifecycleStates.CONSTRUCTED:
-                    for dep in e.dependencies:
-                        await rec(dep)
+                for dep in e.dependencies:
+                    await rec(dep)
 
+                if e.controller.state < LifecycleStates.CONSTRUCTED:
                     await as_async_lifecycle(e.controller).lifecycle_construct()
 
             await rec(entry)
 
         if self._get_state() >= LifecycleStates.STARTING:
             async def rec(e):
-                if e.controller.state < LifecycleStates.STARTED:
-                    for dep in e.dependencies:
-                        await rec(dep)
+                for dep in e.dependencies:
+                    await rec(dep)
 
+                if e.controller.state < LifecycleStates.STARTED:
                     await as_async_lifecycle(e.controller).lifecycle_start()
 
             await rec(entry)

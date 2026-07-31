@@ -79,14 +79,17 @@ class Dom:
         return self
 
     def remove(self, *contents: Content, strict: bool = False) -> Dom:
+        if strict:
+            for c in contents:
+                if self.body is None or not any(c is e for e in self.body):
+                    raise ValueError(f'Content {c} not in body')
+
         if self.body is not None:
             i = 0
             while i < len(self.body):
                 e = self.body[i]
                 if any(c is e for c in contents):
                     del self.body[i]
-                elif strict:
-                    raise ValueError(f'Content {e} not in body')
                 else:
                     i += 1
         return self

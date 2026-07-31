@@ -3,7 +3,6 @@ import textwrap
 import typing as ta
 
 from .. import check
-from .. import dataclasses as dc
 from .. import dispatch
 from .. import lang
 from .content import Dom
@@ -24,12 +23,10 @@ else:
 ##
 
 
-@dc.dataclass()
 class InvalidTagError(Exception):
     pass
 
 
-@dc.dataclass()
 class StrForbiddenError(Exception):
     pass
 
@@ -119,7 +116,7 @@ class Renderer:
     def _render_str(self, s: str) -> None:
         if self._forbid_str:
             raise StrForbiddenError(s)
-        self._write_string_content(s)
+        self._write_string_content(self._escape(s))
 
     @render.register  # noqa
     def _render_sequence(self, l: ta.Sequence) -> None:
@@ -143,7 +140,7 @@ class Renderer:
 
     def _render_attr_value(self, v: ta.Any) -> None:
         self._sb.write('"')
-        self._sb.write(check.isinstance(v, str))  # FIXME
+        self._sb.write(self._escape(check.isinstance(v, str)))
         self._sb.write('"')
 
     @render.register  # noqa

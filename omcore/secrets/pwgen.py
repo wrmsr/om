@@ -60,7 +60,7 @@ def _main() -> None:
     cs = {
         cc
         for cc in CHAR_CLASSES
-        if getattr(args, cc) is not None
+        if getattr(args, cc)
     }
     if cs:
         ccs = tuple(CHAR_CLASSES[cc] for cc in cs)
