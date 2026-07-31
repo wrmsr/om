@@ -152,7 +152,8 @@ class SortedListDict(
         self._impl.add((key, value))
 
     def __delitem__(self, key: K) -> None:
-        self._impl.remove((key, None))
+        if not self._impl.remove((key, None)):
+            raise KeyError(key)
 
     def __len__(self) -> int:
         return len(self._impl)
@@ -162,7 +163,7 @@ class SortedListDict(
             yield k
 
     def itervalues(self) -> ta.Iterator[V]:
-        return map(operator.itemgetter(0), self.iteritems())
+        return map(operator.itemgetter(1), self.iteritems())
 
     def iteritems(self) -> ta.Iterator[tuple[K, V]]:
         yield from self._impl.iter()

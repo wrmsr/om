@@ -83,6 +83,9 @@ class ProxySet(ta.AbstractSet[T], Proxy):
     def __and__(self, s: ta.AbstractSet[ta.Any]) -> ta.AbstractSet[T]:
         return self._target & s
 
+    def __rand__(self, s: ta.AbstractSet[ta.Any]) -> ta.AbstractSet[ta.Any]:
+        return s & self._target
+
     def __contains__(self, x: ta.Any) -> bool:
         return x in self._target
 
@@ -108,7 +111,7 @@ class ProxySet(ta.AbstractSet[T], Proxy):
         return len(self._target)
 
     def __lt__(self, s: ta.AbstractSet[ta.Any]) -> bool:
-        return self._target > s
+        return self._target < s
 
     def __ne__(self, o: object) -> bool:
         return self._target != o
@@ -116,11 +119,20 @@ class ProxySet(ta.AbstractSet[T], Proxy):
     def __or__(self, s: ta.AbstractSet[T]) -> ta.AbstractSet[T]:  # type: ignore
         return self._target | s
 
+    def __ror__(self, s: ta.AbstractSet[T]) -> ta.AbstractSet[T]:
+        return s | self._target
+
     def __sub__(self, s: ta.AbstractSet[ta.Any]) -> ta.AbstractSet[T]:
         return self._target - s
 
+    def __rsub__(self, s: ta.AbstractSet[ta.Any]) -> ta.AbstractSet[ta.Any]:
+        return s - self._target
+
     def __xor__(self, s: ta.AbstractSet[T]) -> ta.AbstractSet[T]:  # type: ignore
         return self._target ^ s
+
+    def __rxor__(self, s: ta.AbstractSet[T]) -> ta.AbstractSet[T]:
+        return s ^ self._target
 
     def isdisjoint(self, s: ta.Iterable[ta.Any]) -> bool:
         return self._target.isdisjoint(s)

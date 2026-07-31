@@ -202,8 +202,11 @@ class SkipList(SortedCollection[T]):
 
     def iter_from_desc(self, base: T) -> ta.Iterator[T]:
         cur = self._find(base)
-        while cur is not self._head and self._compare(base, cur.value) < 0:  # type: ignore
-            cur = cur.prev  # type: ignore
+        if cur is None:
+            cur = self._tail
+        else:
+            while cur is not self._head and self._compare(base, cur.value) < 0:  # type: ignore
+                cur = cur.prev  # type: ignore
 
         while cur is not self._head:
             yield cur.value  # type: ignore

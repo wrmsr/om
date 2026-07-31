@@ -43,7 +43,10 @@ class OrderedSet(ta.MutableSet[T]):
     def pop(self, last: bool = True) -> T:
         if not self:
             raise KeyError('set is empty')
-        item = next(reversed(self._dct.keys()))
+        if last:
+            item = next(reversed(self._dct.keys()))
+        else:
+            item = next(iter(self._dct))
         self.discard(item)
         return item
 

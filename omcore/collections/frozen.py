@@ -27,11 +27,14 @@ class FrozenDict(
     lang.Final,
 ):
     def __new__(cls, *args: ta.Any, **kwargs: ta.Any) -> 'FrozenDict[K, V]':  # noqa
-        if len(args) == 1 and Frozen in type(args[0]).__bases__:
+        if len(args) == 1 and not kwargs and type(args[0]) is cls:
             return args[0]
         return super().__new__(cls)
 
     def __init__(self, *args, **kwargs):
+        if len(args) == 1 and not kwargs and args[0] is self:
+            return
+
         super().__init__()
 
         self._hash = None
@@ -51,7 +54,7 @@ class FrozenDict(
 
     def __hash__(self) -> int:
         if self._hash is None:
-            self._hash = hash(tuple((k, self[k]) for k in sorted(self)))  # type: ignore
+            self._hash = hash(frozenset(self.items()))
         return self._hash
 
     def __eq__(self, other) -> bool:
@@ -96,7 +99,7 @@ class FrozenDict(
         return iter(self.items())
 
     def with_(self, k: K, v: V) -> ta.Self:
-        return self.set(k, v)
+        return self.set({k: v})
 
     def without(self, k: K) -> ta.Self:
         return self.drop(k)
@@ -104,7 +107,7 @@ class FrozenDict(
     def default(self, k: K, v: V) -> ta.Self:
         if k in self:
             return self
-        return self.set(k, v)
+        return self.set({k: v})
 
 
 @ta.final

@@ -151,7 +151,10 @@ def test_identity_weak_set():
     s.add(o0)
     assert o0 in s
     assert o1 not in s
+    assert list(s) == [o0]
 
     s.discard(o0)
     assert o0 not in s
     assert o1 not in s
+
+    s.discard(o0)

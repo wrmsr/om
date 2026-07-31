@@ -173,7 +173,10 @@ class IdentityWeakSet(ta.MutableSet[T]):
         self._dict[value] = None
 
     def discard(self, value):
-        del self._dict[value]
+        try:
+            del self._dict[value]
+        except KeyError:
+            pass
 
     def __contains__(self, x):
         return x in self._dict
@@ -182,4 +185,4 @@ class IdentityWeakSet(ta.MutableSet[T]):
         return len(self._dict)
 
     def __iter__(self):
-        return self._dict.keys()
+        return iter(self._dict)
