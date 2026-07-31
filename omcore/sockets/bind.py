@@ -244,7 +244,7 @@ class TcpSocketBinder(SocketBinder):
             dataclass_maybe_post_init(super())
             check.non_empty_str(self.host)
             check.isinstance(self.port, int)
-            check.arg(self.port > 0)
+            check.arg(self.port >= 0)
 
     def __init__(self, config: Config) -> None:
         super().__init__(check.isinstance(config, self.Config))

@@ -46,7 +46,7 @@ class SocketIoPair(ta.NamedTuple):
     ) -> 'SocketIoPair':
         rf: ta.Any = sock.makefile('rb', r_buf_size)
 
-        if w_buf_size:
+        if w_buf_size == 0:
             wf: ta.Any = SocketWriter(sock)
         else:
             wf = sock.makefile('wb', w_buf_size)

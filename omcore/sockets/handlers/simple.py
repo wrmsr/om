@@ -38,7 +38,8 @@ class StandardSocketHandler(SocketHandler_):
             self.handler(conn)
 
         finally:
-            close_socket_immediately(conn.socket)
+            if not self.no_close:
+                close_socket_immediately(conn.socket)
 
 
 ##

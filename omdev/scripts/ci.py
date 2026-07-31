@@ -125,7 +125,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
             dict(path='../../omcore/secrets/ssl.py', sha1='a1927a9b862f5732c8f958020b2162e2599e5071'),
             dict(path='../../omcore/sockets/addresses.py', sha1='91e74bab525937f7633193c9aecc54530e54b6d2'),
-            dict(path='../../omcore/sockets/io.py', sha1='8b4d1ef83a28e11c6cd6ba0c884b3922d8261446'),
+            dict(path='../../omcore/sockets/io.py', sha1='6be0d17f88f429ab9c7f477d730b67895c93d97a'),
             dict(path='consts.py', sha1='ef00d55ab4cdd799b22f2e8b736eacd52ee8a80e'),
             dict(path='github/env.py', sha1='c7a2389048f008f46f59f6bcc11e0d15655f2b1c'),
             dict(path='shell.py', sha1='a59e59b812394d0502837f4c198e1cf604f90227'),
@@ -146,7 +146,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
             dict(path='../../omcore/os/temp.py', sha1='e83c59fcfda5aff9c3d15937cb70347965e6105b'),
-            dict(path='../../omcore/sockets/bind.py', sha1='f4ad928b76155d500e3955e0923a86629bb31979'),
+            dict(path='../../omcore/sockets/bind.py', sha1='c0c5f2069115f7642cb5bc1cea58afd4280362d8'),
             dict(path='../../omcore/sockets/handlers/types.py', sha1='4cccd7bda3a5cc31e7faa7c4db7a0098bd6c75bd'),
             dict(path='../../omcore/text/mangle.py', sha1='c766b3cdf72a4dc211eb3a66f7f00278eb34dbd5'),
             dict(path='github/api/v1/api.py', sha1='067fa8aa3e2708c8108fd395f2c12a910a9f071b'),
@@ -171,7 +171,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='../../omcore/logs/utils.py', sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c'),
             dict(path='../../omcore/sockets/handlers/server.py', sha1='f95f80367c2122ab617162b062ab5387e57add7b'),
-            dict(path='../../omcore/sockets/handlers/simple.py', sha1='8d9fb9f4a91f5080f1f6c9bf50d8d4cf4bf9b677'),
+            dict(path='../../omcore/sockets/handlers/simple.py', sha1='bcf42bea16e224dca851e35f4a22dab1e02a2d4d'),
             dict(path='../../omcore/sockets/handlers/ssl.py', sha1='0db09b2095b8ee3b4eb401750f88ea75d3071ab9'),
             dict(path='../../omcore/sockets/handlers/threading.py', sha1='511b07f34fb198371c3fcc86c428198816d3044b'),
             dict(path='../../omcore/subprocesses/run.py', sha1='425596d73f3b5cbe1ab936718c77e39a88283350'),
@@ -3970,7 +3970,7 @@ class SocketIoPair(ta.NamedTuple):
     ) -> 'SocketIoPair':
         rf: ta.Any = sock.makefile('rb', r_buf_size)
 
-        if w_buf_size:
+        if w_buf_size == 0:
             wf: ta.Any = SocketWriter(sock)
         else:
             wf = sock.makefile('wb', w_buf_size)
@@ -11184,7 +11184,7 @@ class TcpSocketBinder(SocketBinder):
             dataclass_maybe_post_init(super())
             check.non_empty_str(self.host)
             check.isinstance(self.port, int)
-            check.arg(self.port > 0)
+            check.arg(self.port >= 0)
 
     def __init__(self, config: Config) -> None:
         super().__init__(check.isinstance(config, self.Config))
@@ -15344,7 +15344,8 @@ class StandardSocketHandler(SocketHandler_):
             self.handler(conn)
 
         finally:
-            close_socket_immediately(conn.socket)
+            if not self.no_close:
+                close_socket_immediately(conn.socket)
 
 
 ##
