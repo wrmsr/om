@@ -6,13 +6,13 @@ from omcore.formats import json5
 from omcore.formats.json import all as json
 from omcore.formats.json.rendering import JsonRenderer
 
-from .text import CanText
-from .text import ConcatText
-from .text import JsonText
-from .text import StrText
-from .text import StyleText
-from .text import Text
-from .text import TextStyle
+from .types import CanText
+from .types import ConcatText
+from .types import JsonText
+from .types import StrText
+from .types import StyleText
+from .types import Text
+from .types import TextStyle
 
 
 ##

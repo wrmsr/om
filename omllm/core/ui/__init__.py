@@ -4,33 +4,33 @@ from omcore import lang as _lang
 with _lang.auto_proxy_init(globals()):
     ##
 
-    from .display import (  # noqa
+    from .text.display import (  # noqa
         TextDisplayer,
         NopTextDisplayer,
         PrintTextDisplayer,
     )
 
-    from .json import (  # noqa
+    from .text.json import (  # noqa
         JsonTextRendering,
         render_obj_json_text,
         render_json_texts,
     )
 
-    from .plain import (  # noqa
+    from .text.plain import (  # noqa
         PlainTextRenderer,
         render_plain_text,
     )
 
-    from .rendering import (  # noqa
+    from .text.rendering import (  # noqa
         TextRenderer,
         TextRenderingOptions,
     )
 
-    from .rich import (  # noqa
+    from .text.rich import (  # noqa
         RichTextRenderer,
     )
 
-    from .text import (  # noqa
+    from .text.types import (  # noqa
         CanText,
 
         TextColor,
@@ -46,6 +46,8 @@ with _lang.auto_proxy_init(globals()):
         MarkdownText,
         DiffText,
     )
+
+    ##
 
     from .quit import (  # noqa
         QuitSignal,

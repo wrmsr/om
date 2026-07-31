@@ -3,8 +3,8 @@ import typing as ta
 
 from omcore import lang
 
-from .text import CanText
-from .text import Text
+from .types import CanText
+from .types import Text
 
 
 ##

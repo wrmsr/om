@@ -3,10 +3,10 @@ from omdev.tui import rich
 from ..plain import PlainTextRenderer
 from ..rendering import TextRenderingOptions
 from ..rich import RichTextRenderer
-from ..text import DiffText
-from ..text import JsonText
-from ..text import MarkdownText
-from ..text import Text
+from ..types import DiffText
+from ..types import JsonText
+from ..types import MarkdownText
+from ..types import Text
 
 
 def test_plain_compact_degrades_blocks():

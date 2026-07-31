@@ -1,9 +1,9 @@
 from omcore import marshal as msh
 
 from ..rich import RichTextRenderer
-from ..text import DiffText
-from ..text import StrText
-from ..text import Text
+from ..types import DiffText
+from ..types import StrText
+from ..types import Text
 
 
 def test_diff_text():

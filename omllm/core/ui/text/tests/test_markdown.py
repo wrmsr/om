@@ -1,8 +1,8 @@
 from omcore import marshal as msh
 
-from ..text import MarkdownText
-from ..text import StrText
-from ..text import Text
+from ..types import MarkdownText
+from ..types import StrText
+from ..types import Text
 
 
 def test_markdown_renders_as_block():

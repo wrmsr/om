@@ -3,11 +3,11 @@ import pytest
 
 from omcore import marshal as msh
 
-from ..text import ConcatText
-from ..text import StrText
-from ..text import StyleText
-from ..text import Text
-from ..text import TextStyle
+from ..types import ConcatText
+from ..types import StrText
+from ..types import StyleText
+from ..types import Text
+from ..types import TextStyle
 
 
 def assert_no_concat_children(t: Text) -> None:

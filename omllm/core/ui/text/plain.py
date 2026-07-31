@@ -8,14 +8,14 @@ from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
 from .rendering import squash_markdown_text
 from .rendering import summarize_diff_text
-from .text import CanText
-from .text import ConcatText
-from .text import DiffText
-from .text import JsonText
-from .text import MarkdownText
-from .text import StrText
-from .text import StyleText
-from .text import Text
+from .types import CanText
+from .types import ConcatText
+from .types import DiffText
+from .types import JsonText
+from .types import MarkdownText
+from .types import StrText
+from .types import StyleText
+from .types import Text
 
 
 ##

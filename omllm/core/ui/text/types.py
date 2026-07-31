@@ -1,7 +1,3 @@
-"""
-TODO:
- - finish markdown impl lol
-"""
 import typing as ta
 
 from omcore import cached
@@ -14,6 +10,8 @@ from omcore import marshal as msh
 with lang.auto_proxy_import(globals()):
     import difflib
 
+    from . import normalize
+
 
 type CanText = ta.Union[  # noqa
     Text,
@@ -21,15 +19,16 @@ type CanText = ta.Union[  # noqa
     ta.Sequence[CanText],
 ]
 
+
+##
+
+
 type TextColor = ta.Literal[
     'red',
     'green',
     'yellow',
     'blue',
 ]
-
-
-##
 
 
 @dc.dataclass(frozen=True, kw_only=True)
@@ -62,98 +61,17 @@ TextStyle.DEFAULT = TextStyle()
 @msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
 @dc.dataclass(frozen=True)
 class Text(lang.Abstract, lang.Sealed):
-    _BLANK: ta.ClassVar[StrText]
-
     @classmethod
     def blank(cls) -> StrText:
         check.is_(cls, Text, 'Method must not be accessed through subclasses.')
 
-        return cls._BLANK
+        return _BLANK_TEXT
 
     @classmethod
     def of(cls, *objs: CanText) -> Text:
         check.is_(cls, Text, 'Method must not be accessed through subclasses.')
 
-        if not objs:
-            return cls._BLANK
-
-        if len(objs) == 1 and isinstance(o0 := objs[0], Text):
-            if not o0:
-                return cls._BLANK
-            if not (isinstance(o0, StyleText) and o0.y == TextStyle.DEFAULT):
-                return o0
-
-        out: list[Text] = []
-        pending_strs: list[str] = []
-
-        def flush_strs() -> None:
-            if pending_strs:
-                out.append(StrText(''.join(pending_strs)))
-                pending_strs.clear()
-
-        def emit_node(t: Text) -> None:
-            if isinstance(t, StrText):
-                if t.s:
-                    pending_strs.append(t.s)
-
-            elif isinstance(t, ConcatText):
-                # Should normally be handled by stack expansion before this point. Kept here so future
-                # node-normalization hooks have one safe sink.
-                for c in t.l:
-                    emit_node(c)
-
-            else:
-                if not t:
-                    return
-
-                flush_strs()
-
-                # Future style hook:
-                #
-                #   - adjacent equal Style nodes maybe merge their children
-                #
-                # Style(DEFAULT, x) unwrapping is handled in the stack loop, and Style(Style(..)) chains are rejected
-                # at construction.
-                out.append(t)
-
-        stack: list[CanText] = list(reversed(objs))
-
-        while stack:
-            o = stack.pop()
-
-            if isinstance(o, str):
-                if o:
-                    pending_strs.append(o)
-
-            elif isinstance(o, StrText):
-                if o.s:
-                    pending_strs.append(o.s)
-
-            elif isinstance(o, ConcatText):
-                stack.extend(reversed(o.l))
-
-            elif isinstance(o, StyleText) and o.y == TextStyle.DEFAULT:
-                # Style(DEFAULT, x) -> x
-                stack.append(o.c)
-
-            elif isinstance(o, Text):
-                emit_node(o)
-
-            elif isinstance(o, ta.Sequence):
-                stack.extend(reversed(o))
-
-            else:
-                raise TypeError(o)
-
-        flush_strs()
-
-        if not out:
-            return cls._BLANK
-
-        if len(out) == 1:
-            return out[0]
-
-        return ConcatText(tuple(out))
+        return normalize.normalize_text(*objs)
 
     @classmethod
     def str_of(cls, obj: CanText) -> str:
@@ -189,7 +107,7 @@ class Text(lang.Abstract, lang.Sealed):
         x = Text.of(self)
 
         if not x:
-            return Text._BLANK
+            return _BLANK_TEXT
 
         if (
                 color is None and
@@ -238,7 +156,7 @@ class StrText(Text, lang.Final):
         return bool(self.s)
 
 
-Text._BLANK = StrText('')  # noqa
+_BLANK_TEXT = StrText('')  # noqa
 
 
 #
@@ -300,7 +218,7 @@ class BlockText(Text, lang.Abstract):
     """Marker for nodes which render as isolated multiline blocks rather than inline character runs."""
 
 
-#
+##
 
 
 @dc.dataclass(frozen=True)

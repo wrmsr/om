@@ -1,12 +1,12 @@
 from ..json import render_json_texts
 from ..json import render_obj_json_text
-from ..text import ConcatText
-from ..text import DiffText
-from ..text import JsonText
-from ..text import MarkdownText
-from ..text import StyleText
-from ..text import Text
-from ..text import TextStyle
+from ..types import ConcatText
+from ..types import DiffText
+from ..types import JsonText
+from ..types import MarkdownText
+from ..types import StyleText
+from ..types import Text
+from ..types import TextStyle
 
 
 def test_render():

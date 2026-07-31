@@ -4,9 +4,9 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
-from .text import CanText
-from .text import DiffText
-from .text import MarkdownText
+from .types import CanText
+from .types import DiffText
+from .types import MarkdownText
 
 
 O = ta.TypeVar('O')
