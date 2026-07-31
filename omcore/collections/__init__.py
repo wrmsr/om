@@ -24,6 +24,16 @@ with _lang.auto_proxy_init(globals()):
         make_mutable_bi_map,
     )
 
+    from .btreemap.btreemap import (  # noqa
+        BtreeMap,
+        new_btree_map,
+    )
+
+    from .btreeseq.btreeseq import (  # noqa
+        BtreeSeq,
+        new_btree_seq,
+    )
+
     from . import cache  # noqa
 
     from .coerce import (  # noqa
