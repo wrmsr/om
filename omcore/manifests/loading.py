@@ -148,7 +148,7 @@ class ManifestLoader:
         def __post_init__(self) -> None:
             if isinstance(self.package_scan_root_dirs, str):
                 raise TypeError(self.package_scan_root_dirs)
-            if isinstance(self.discover_packages_fallback_scan_root_dirs, bool):
+            if isinstance(self.discover_packages_fallback_scan_root_dirs, (str, bool)):
                 raise TypeError(self.discover_packages_fallback_scan_root_dirs)
 
         @classmethod
@@ -310,7 +310,17 @@ class ManifestLoader:
         if '' in parts:
             raise ManifestLoader.ClassKeyError(key)
 
-        pos = next(i for i, p in enumerate(parts) if p[0].isupper())
+        try:
+            pos = next(
+                i
+                for i, p in enumerate(parts)
+                if (sp := p.lstrip('_')) and sp[0].isupper()
+            )
+        except StopIteration:
+            raise ManifestLoader.ClassKeyError(key) from None
+
+        if not pos:
+            raise ManifestLoader.ClassKeyError(key)
 
         mod_name = '.'.join(parts[:pos])
         mod_name = self._module_remap.get(mod_name, mod_name)

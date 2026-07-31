@@ -156,7 +156,7 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/pack/unpacking.py', sha1='6cc7a1a64a91b96144c150ac4e0006bfe2caa3e0'),
             dict(path='../../omcore/argparse/cli.py', sha1='cbfc5b8a9863db3e643df46f268937cbba65b126'),
             dict(path='../../omcore/asyncs/asyncio/sockets.py', sha1='57bfaf9aaf1cc8263dc3292d9b1397de9e81ce5d'),
-            dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='cfde8108f1128ceea3502c77eefb015fb43a6239'),
+            dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='79905340353b28e51bcd02a62026787f41b731b9'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fd4ceb8a60ebc33776c0ff8a916ee570afcedafb'),
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
@@ -12163,7 +12163,12 @@ def asyncio_maybe_timeout(
         timeout: TimeoutLike = None,
 ) -> AwaitableT:
     if timeout is not None:
-        fut = asyncio.wait_for(fut, Timeout.of(timeout)())  # type: ignore
+        try:
+            seconds = Timeout.of(timeout)()
+        except BaseException:
+            asyncio.ensure_future(fut).cancel()
+            raise
+        fut = asyncio.wait_for(fut, seconds)  # type: ignore
     return fut
 
 

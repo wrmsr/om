@@ -73,7 +73,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
             dict(path='../packaging/specifiers.py', sha1='baec4e53b7187f99e8d8b36bdf48bf61af82c252'),
             dict(path='../../omcore/argparse/cli.py', sha1='cbfc5b8a9863db3e643df46f268937cbba65b126'),
-            dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='cfde8108f1128ceea3502c77eefb015fb43a6239'),
+            dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='79905340353b28e51bcd02a62026787f41b731b9'),
             dict(path='../../omcore/lite/inject.py', sha1='7dd6067b626c4c6a371b7a0e50eac54e320fcf3a'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='../../omcore/subprocesses/run.py', sha1='425596d73f3b5cbe1ab936718c77e39a88283350'),
@@ -3523,7 +3523,12 @@ def asyncio_maybe_timeout(
         timeout: TimeoutLike = None,
 ) -> AwaitableT:
     if timeout is not None:
-        fut = asyncio.wait_for(fut, Timeout.of(timeout)())  # type: ignore
+        try:
+            seconds = Timeout.of(timeout)()
+        except BaseException:
+            asyncio.ensure_future(fut).cancel()
+            raise
+        fut = asyncio.wait_for(fut, seconds)  # type: ignore
     return fut
 
 

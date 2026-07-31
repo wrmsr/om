@@ -18,5 +18,10 @@ def asyncio_maybe_timeout(
         timeout: TimeoutLike = None,
 ) -> AwaitableT:
     if timeout is not None:
-        fut = asyncio.wait_for(fut, Timeout.of(timeout)())  # type: ignore
+        try:
+            seconds = Timeout.of(timeout)()
+        except BaseException:
+            asyncio.ensure_future(fut).cancel()
+            raise
+        fut = asyncio.wait_for(fut, seconds)  # type: ignore
     return fut
