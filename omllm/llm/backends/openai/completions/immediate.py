@@ -1,7 +1,6 @@
 import typing as ta
 
 from omcore import check
-from omcore import lang
 from omcore.formats.json import all as json
 from omcore.http import all as http
 
@@ -44,7 +43,7 @@ class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateB
         }
 
         http_request = http.HttpClientRequest(
-            self._base_url + lang.coalesce(self._compat.url_path, '/chat/completions'),
+            self._url,
             headers=http_headers,
             data=json.dumps(raw_request).encode('utf-8'),
         )
@@ -60,9 +59,6 @@ class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateB
         raw_response = json.loads(check.not_none(http_response.data).decode('utf-8'))
 
         #
-
-        if not self._compat.no_object_type_checks:
-            check.equal(raw_response['object'], 'chat.completion')
 
         raw_choice = check.single(raw_response['choices'])
 

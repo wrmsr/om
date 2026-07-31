@@ -22,5 +22,3 @@ class OpenaiCompat(Compat):
     url_path: str | None = None
 
     max_tokens_field: str | None = None
-
-    no_object_type_checks: bool = False

@@ -1,3 +1,4 @@
+from omcore import cached
 from omcore import check
 from omcore import lang
 from omcore.http import all as http
@@ -29,3 +30,7 @@ class BaseOpenaiCompletionsBackend(BaseHttpBackend, lang.Abstract):
             self._compat = check.isinstance(model.compat, OpenaiCompat)
         else:
             self._compat = OpenaiCompat()
+
+    @cached.property
+    def _url(self) -> str:
+        return self._base_url + lang.coalesce(self._compat.url_path, '/chat/completions')

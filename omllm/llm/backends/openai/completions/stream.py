@@ -126,7 +126,7 @@ class OpenaiCompletionsStreamBackend(BaseOpenaiCompletionsBackend, StreamBackend
         }
 
         http_request = http.HttpClientRequest(
-            self._base_url + '/chat/completions',
+            self._url,
             headers=http_headers,
             data=json.dumps(raw_request).encode('utf-8'),
         )

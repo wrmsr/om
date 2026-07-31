@@ -13,16 +13,30 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='ollama',
+            id='qwen3.5:2b',
+        ),
+        name='qwen3.5:2b',
+        backend='openai-completions',
+        compat=OpenaiCompat(
+            url_path='/v1/chat/completions',
+        ),
+        http=Model.Http(
+            base_url='http://localhost:11434/',
+        ),
+    ),
+
+    Model(
+        key=ModelKey(
+            provider='ollama',
             id='qwen3.6:27b',
         ),
         name='qwen3.6:27b',
         backend='openai-completions',
         compat=OpenaiCompat(
-            url_path='/chat',
-            no_object_type_checks=True,
+            url_path='/v1/chat/completions',
         ),
         http=Model.Http(
-            base_url='http://localhost:11434/api',
+            base_url='http://localhost:11434/',
         ),
     ),
 

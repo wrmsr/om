@@ -93,9 +93,9 @@ class TestCerebrasBackend(BaseBackendTest):
         return request.param
 
 
-# class TestOllamaBackend(BaseBackendTest):
-#     @pytest.fixture(params=[
-#         (ModelKey('ollama', 'qwen3.6:27b'), None),
-#     ])
-#     def model(self, request):
-#         return request.param
+class TestOllamaBackend(BaseBackendTest):
+    @pytest.fixture(params=[
+        (ModelKey('ollama', 'qwen3.5:2b'), None),
+    ])
+    def model(self, request):
+        return request.param
