@@ -31,7 +31,7 @@ class TreapNode(ta.Protocol[T]):
 ##
 
 
-class _TreapBackend(ta.Protocol):  # noqa
+class TreapBackend(ta.Protocol):  # noqa
     def new(
         self,
         value: T,
@@ -94,33 +94,17 @@ class _TreapBackend(ta.Protocol):  # noqa
     ) -> TreapNode[T] | None: ...
 
 
+TREAP_BACKEND: TreapBackend
+
+
 ##
 
 
-from ._treap_py import (  # noqa
-    new,
-    find,
-    place,
-    union,
-    split,
-    intersect,
-    delete,
-    diff,
-)
-
+from . import _treap_py  # noqa
 
 try:
-    from . import _treap  # type: ignore
+    from . import _treap  # type: ignore  # noqa
 except ImportError:
-    pass
+    TREAP_BACKEND = ta.cast(ta.Any, _treap_py)
 else:
-    globals().update({a: getattr(_treap, a) for a in [
-        'new',
-        'find',
-        'place',
-        'union',
-        'split',
-        'intersect',
-        'delete',
-        'diff',
-    ]})
+    TREAP_BACKEND = _treap

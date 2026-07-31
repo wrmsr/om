@@ -22,7 +22,9 @@ from ..intersections import PersistentSortedMapping
 from ..mappings import IterItemsViewMapping
 from ..mappings import IterValuesViewMapping
 from ..mappings import iteritems_itervalues
-from . import treap
+from .treap import TREAP_BACKEND
+from .treap import Comparer
+from .treap import TreapNode
 
 
 T = ta.TypeVar('T')
@@ -46,10 +48,12 @@ class TreapMap(
     def __init__(
             self,
             *,
-            _n: treap.TreapNode[tuple[K, V]] | None,
-            _c: treap.Comparer[tuple[K, V]],
+            _n: TreapNode[tuple[K, V]] | None,
+            _c: Comparer[tuple[K, V]],
     ) -> None:
         self._n, self._c = _n, _c
+
+    _backend: ta.Final = TREAP_BACKEND
 
     @property
     def debug(self) -> ta.Mapping[K, V]:
@@ -59,10 +63,10 @@ class TreapMap(
         return self._n.count if self._n is not None else 0
 
     def __getitem__(self, item: K) -> V:
-        n = treap.find(self._n, (item, None), self._c)  # type: ignore
+        n = self._backend.find(self._n, (item, None), self._c)  # type: ignore
         if n is None:
             raise KeyError(item)
-        return n.value[1]  # type: ignore[return-value]
+        return n.value[1]
 
     @ta.overload
     def get(self, key: K, /) -> V | None: ...
@@ -71,7 +75,7 @@ class TreapMap(
     def get(self, key: K, /, default: V | T) -> V | T: ...
 
     def get(self, key, /, default=None):
-        n = treap.find(self._n, (key, None), self._c)  # type: ignore
+        n = self._backend.find(self._n, (key, None), self._c)  # type: ignore
         return n.value[1] if n is not None else default
 
     def __iter__(self) -> ta.Iterator[K]:
@@ -80,7 +84,7 @@ class TreapMap(
             yield i.next()[0]
 
     def __contains__(self, item: K) -> bool:  # type: ignore[override]
-        return treap.find(self._n, (item, None), self._c) is not None  # type: ignore
+        return self._backend.find(self._n, (item, None), self._c) is not None  # type: ignore
 
     itervalues = iteritems_itervalues
 
@@ -99,30 +103,30 @@ class TreapMap(
         return i
 
     def items_from(self, k: K) -> TreapMapIterator[K, V]:
-        lst: list = treap.place(self._n, (k, None), self._c, False)  # type: ignore
+        lst: list = self._backend.place(self._n, (k, None), self._c, False)
         i = TreapMapIterator(_st=lst, _n=lst.pop() if lst else None)
         return i
 
     def items_from_desc(self, k: K) -> TreapMapReverseIterator[K, V]:
-        lst: list = treap.place(self._n, (k, None), self._c, True)  # type: ignore
+        lst: list = self._backend.place(self._n, (k, None), self._c, True)
         i = TreapMapReverseIterator(_st=lst, _n=lst.pop() if lst else None)
         return i
 
     def with_(self, k: K, v: V) -> TreapMap[K, V]:
-        node = treap.new((k, v))
-        n = treap.union(self._n, node, self._c, True)  # type: ignore[arg-type]
+        node = self._backend.new((k, v))
+        n = self._backend.union(self._n, node, self._c, True)
         return TreapMap(_n=n, _c=self._c)
 
     def without(self, k: K) -> TreapMap[K, V]:
-        n = treap.delete(self._n, (k, None), self._c)  # type: ignore
+        n = self._backend.delete(self._n, (k, None), self._c)  # type: ignore
 
         if n is self._n:
             return self
 
-        return TreapMap(_n=n, _c=self._c)  # type: ignore[arg-type]
+        return TreapMap(_n=n, _c=self._c)
 
     def default(self, k: K, v: V) -> TreapMap[K, V]:
-        if treap.find(self._n, (k, None), self._c) is not None:  # type: ignore
+        if self._backend.find(self._n, (k, None), self._c) is not None:  # type: ignore
             return self
 
         return self.with_(k, v)
@@ -149,8 +153,8 @@ class BaseTreapMapIterator(lang.Abstract, ta.Iterator[tuple[K, V]], ta.Generic[K
     def __init__(
             self,
             *,
-            _st: list[treap.TreapNode[tuple[K, V]]],
-            _n: treap.TreapNode[tuple[K, V]] | None,
+            _st: list[TreapNode[tuple[K, V]]],
+            _n: TreapNode[tuple[K, V]] | None,
     ) -> None:
         self._st, self._n = _st, _n
 
