@@ -389,7 +389,7 @@ venv-14t:
 
 .PHONY: test-14t
 test-14t:
-	${PYPROJECT} venv 14t test -- ${PYTEST_OPTS} --ignore=omcore/sql
+	VENV=14t ${MAKE} test
 
 # 14dt
 
