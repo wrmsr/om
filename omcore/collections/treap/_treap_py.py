@@ -93,7 +93,12 @@ def new(
         *,
         priority: int | None = None,
 ) -> TreapNode[T]:
-    return TreapNode(_value=value, _priority=priority if priority is not None else _new_priority(), _left=None, _right=None)  # noqa
+    return TreapNode(
+        _value=value,
+        _priority=priority if priority is not None else _new_priority(),
+        _left=None,
+        _right=None,
+    )
 
 
 def find(
@@ -264,7 +269,11 @@ def intersect(
     return TreapNode(_value=n._value, _priority=n._priority, _left=left, _right=right)
 
 
-def delete(n: TreapNode[T] | None, v: T, c: Comparer[T] | None) -> TreapNode[T] | None:
+def delete(
+        n: TreapNode[T] | None,
+        v: T,
+        c: Comparer[T] | None,
+) -> TreapNode[T] | None:
     left, dupe, right = split(n, v, c)
 
     if dupe is None:
