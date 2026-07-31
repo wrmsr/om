@@ -43,7 +43,8 @@ deps = [
   'make',
   'pkg-config',
 
-  # libs
+  # dev libs
+  'libdebuginfod-dev',
   'libncurses5-dev',
   'libreadline6-dev',
   'libssl-dev',
@@ -75,6 +76,8 @@ deps = [
 
   # data formats
   'jq',
+  'libxml2-dev',
+  'libxslt-dev',
   'libyaml-dev',
 
   # databases

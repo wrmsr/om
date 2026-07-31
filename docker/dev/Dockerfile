@@ -77,6 +77,7 @@ DEPS="$DEPS\
   less\
   libbz2-dev\
   libdb-dev\
+  libdebuginfod-dev\
   libgdbm6\
   liblz4-dev\
   libncurses5-dev\
@@ -84,6 +85,8 @@ DEPS="$DEPS\
   libreadline6-dev\
   libsqlite3-dev\
   libssl-dev\
+  libxml2-dev\
+  libxslt-dev\
   libyaml-dev\
   lld\
   llvm\
