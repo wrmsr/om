@@ -24,6 +24,10 @@ type CanText = ta.Union[  # noqa
 ##
 
 
+# A deliberately dumb, limited signaling channel for the wide range of internal machinery that needs to tell the user
+# something - render an ASK permission as yellow, DENY as red, ALLOW as green. The canned handful of colors is a
+# conscious choice to not (yet?) abstract it into semantic notions like WARNING / INFO / BAD / MAYBE-BAD and
+# immediately wind up reinventing CSS.
 type TextColor = ta.Literal[
     'red',
     'green',
@@ -62,6 +66,19 @@ TextStyle.DEFAULT = TextStyle()
 @msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
 @dc.dataclass(frozen=True)
 class Text(lang.Abstract, lang.Sealed):
+    """
+    A small, closed family of composable nodes for presenting text to a (probably human) end user, renderable to bare
+    text, rich terminal text, html, and other future targets. This is *not* the representation of messages sent to and
+    from llm backends - it is the ui-facing channel from internal machinery (a tool executor, for example) to whatever
+    is displaying things to the user.
+
+    The inline nodes (StrText / ConcatText / StyleText / JsonText) are meant to be fairly user-friendly, cover common
+    simple cases, and be suitable for 'inline' rendering (like a bottom status bar in a tui), with a deliberately dumb,
+    limited styling channel (see TextColor). The block nodes (BlockText subclasses like MarkdownText and DiffText) are
+    for big, isolated, semantically meaningful payloads which merely ride the same channels - renderers receive them
+    whole and decide their presentation entirely themselves.
+    """
+
     @classmethod
     def blank(cls) -> StrText:
         check.is_(cls, Text, 'Method must not be accessed through subclasses.')
