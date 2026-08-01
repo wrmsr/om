@@ -280,3 +280,32 @@ class TestPureIoPipelineDriver(unittest.TestCase):
         self.assertTrue(final_output.is_succeeded())
         self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
         self.assertFalse(driver.pipeline.is_ready)
+
+    @unittest.expectedFailure
+    def test_watermarks_after_final_input(self) -> None:
+        # A half-closed peer (request sent, write side shut down) followed by a response large enough to cross the
+        # high watermark: _update_output_writability feeds PauseOutput inbound, which the pipeline rejects because it
+        # already saw FinalInput. The same crash reproduces on the sync and fdio drivers.
+
+        capture = CaptureIoPipelineHandler()
+        driver = PureIoPipelineDriver(
+            IoPipeline.Spec(
+                [capture],
+                services=[StubIoPipelineFlowService()],
+            ),
+            PureIoPipelineDriver.Config(
+                write_high_watermark=4,
+                write_low_watermark=2,
+            ),
+        )
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.feed_eof()
+            driver.next(read=True, raise_on_stall=False)
+
+            driver.enqueue(Emit([b'abcdef']))
+            self.assertIsNone(driver.next(read=False))
+
+            self.assertEqual(driver.drain_output(), b'abcdef')
+        finally:
+            driver.close()

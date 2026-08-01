@@ -2,6 +2,7 @@
 # @om-lite
 import asyncio
 import typing as ta
+import unittest
 
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ....streambufs.types import ByteStreamBuffer
@@ -57,6 +58,27 @@ class TimerCallbackIoPipelineHandler(IoPipelineHandler):
                 self._delay_s,
                 run,
             )
+
+        ctx.feed_in(msg)
+
+
+class DeferredTimerIoPipelineHandler(IoPipelineHandler):
+    def __init__(self, delay_s, output):
+        super().__init__()
+
+        self._delay_s = delay_s
+        self._output = output
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            def deferred(ctx2: IoPipelineHandlerContext) -> None:
+                ctx2.services[IoPipelineScheduling].schedule(
+                    ctx2.ref,
+                    self._delay_s,
+                    lambda: ctx.feed_out(self._output),
+                )
+
+            ctx.defer(deferred)
 
         ctx.feed_in(msg)
 
@@ -406,6 +428,21 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
         drv = await self.make_driver(TimerOutputIoPipelineHandler(60., 'timer'))
         try:
             self.assertIsNone(await drv.next(read=False))
+        finally:
+            await drv.close()
+
+    @unittest.expectedFailure
+    async def test_timer_scheduled_from_deferred_runs(self):
+        # next() only calls _sched._flush_pending() after handling a queued command. A Defer is drained from pipeline
+        # output rather than the command queue, so a timer scheduled inside the deferred callback never gets its
+        # sleeping task created and next() blocks forever waiting on the command queue. A due-on-arrival deadline is
+        # rescued by _enqueue_due at the top of next(); only a future one strands.
+
+        drv = await self.make_driver(DeferredTimerIoPipelineHandler(.01, 'timer'))
+        try:
+            self.assertEqual(await asyncio.wait_for(drv.next(), .5), 'timer')
+        except TimeoutError:
+            self.fail('timer scheduled from a deferred callback never ran')
         finally:
             await drv.close()
 
