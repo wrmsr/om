@@ -144,8 +144,16 @@ async def _a_main() -> None:
 
     #
 
-    model_key = llm.ModelKey('openai', 'gpt-5.4-mini')
-    api_key_name = 'openai_api_key'
+    model_key: llm.ModelKey
+    api_key_name: ta.Any
+
+    model_key, api_key_name = (
+        # (llm.ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key')
+        # (llm.ModelKey('groq', 'openai/gpt-oss-120b'), 'groq_api_key')
+        # (llm.ModelKey('cerebras', 'gpt-oss-120b'), 'cerebras_api_key')
+        (llm.ModelKey('ollama', 'qwen3.6:27b'), None)
+    )
+
     backend_cls = (
         # llm.OpenaiCompletionsImmediateBackend
         llm.OpenaiCompletionsStreamBackend
@@ -161,7 +169,7 @@ async def _a_main() -> None:
 
     backend = backend_cls(
         llm.default_model_catalog()[model_key],  # noqa
-        api_key=load_secrets().get(api_key_name),
+        **(dict(api_key=load_secrets().get(api_key_name)) if api_key_name is not None else {}),  # type: ignore  # noqa
     )
 
     text_displayer = build_rich_text_displayer()
