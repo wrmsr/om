@@ -104,6 +104,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/std/filters.py', sha1='3ec3856ade50561f99ce9463f54737ab1126d410'),
             dict(path='../../omcore/logs/std/proxy.py', sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a'),
             dict(path='../../omcore/logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
+            dict(path='../cexts/configs.py', sha1='400c32d0b3639cc714e7a575106228e7069211dd'),
             dict(path='../magic/magic.py', sha1='16a7598eac927e7994d78b9f851dd6cd1fce34c9'),
             dict(path='../magic/prepare.py', sha1='a9b6bd7408d86a52fab7aae2c522032fb251cb8e'),
             dict(path='../magic/styles.py', sha1='124aea52808fae5f67c74e5104aea6184073fdac'),
@@ -154,7 +155,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='ec43e91c6cc2fa651bd1985643d3056f250904b1'),
+            dict(path='pkg.py', sha1='314274f4827441e3aecd40f21dfe3eee8ba2f5a1'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -3306,6 +3307,26 @@ class ProxyLoggingHandler(ProxyLoggingFilterer, logging.Handler):
 
 class LoggingSetupWarning(Warning):
     pass
+
+
+########################################
+# ../../cexts/configs.py
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class CextConfig:
+    extra_sources: ta.Optional[ta.Sequence[str]] = None
+    extra_headers: ta.Optional[ta.Sequence[str]] = None
+
+    extra_compile_args: ta.Optional[ta.Sequence[str]] = None
+    extra_link_args: ta.Optional[ta.Sequence[str]] = None
+
+    define_macros: ta.Optional[ta.Mapping[str, str]] = None
+
+    libraries: ta.Optional[ta.Sequence[ta.Any]] = None  # list[str | tuple[str, str]] | None
 
 
 ########################################
@@ -13105,6 +13126,24 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
     #
 
+    def _get_ext_file_config(self, src_file: str) -> CextConfig:
+        with open(src_file) as f:
+            src = f.read()
+
+        src_magics = find_magic(
+            C_MAGIC_STYLE,
+            src.splitlines(),
+            file=src_file,
+            preparer=json_magic_preparer,
+        )
+
+        cext_magic = check.single(m for m in src_magics if m.key == CextMagic.KEY)
+
+        if cext_magic.prepared is None:
+            return CextConfig()
+
+        return unmarshal_obj(cext_magic.prepared, CextConfig)
+
     @cached_nullary
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
@@ -13130,22 +13169,79 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         ext_lines = []
 
+        needs_sys = False
+
         for ext_src in self.find_cext_srcs():
+            ext_cfg = self._get_ext_file_config(ext_src)
+
             ext_lang = ext_src.rpartition('.')[2]
+
             compile_args = {
                 'c': ['-std=c11'],
                 'cc': ['-std=c++20'],
             }.get(ext_lang, [])
+
             ext_name = ext_src.rpartition('.')[0].replace(os.sep, '.')
+            ext_arg_lines = [
+                f"name='{ext_name}',",
+            ]
+
+            ext_arg_lines.extend([
+                'sources=[',
+                *[f'    {sf!r},' for sf in [ext_src, *(ext_cfg.extra_sources or [])]],  # FIXME: fix relative
+                '],',
+            ])
+
+            ext_arg_lines.extend([
+                'extra_compile_args=[',
+                *[f'    {ca!r},' for ca in [*compile_args, *(ext_cfg.extra_compile_args or [])]],
+                '],',
+            ])
+
+            if ext_ela := ext_cfg.extra_link_args:
+                ext_arg_lines.extend([
+                    'extra_link_args=[',
+                    *[f'    {la!r},' for la in ext_ela],
+                    '],',
+                ])
+
+            if ext_dms := ext_cfg.define_macros:
+                ext_arg_lines.extend([
+                    'define_macros=[',
+                    *[f'    ({k!r}, {v!r}),' for k, v in ext_dms.items()],
+                    '],',
+                ])
+
+            if ext_libs := ext_cfg.libraries:
+                ext_arg_lines.append(
+                    'libraries=[',
+                )
+                for ext_lib in ext_libs:
+                    if isinstance(ext_lib, str):
+                        ext_arg_lines.append(
+                            f'    {ext_lib!r},',
+                        )
+                    else:
+                        needs_sys = True
+                        ext_lib_name, ext_lib_plat = ext_lib
+                        ext_arg_lines.append(
+                            f'    *([{ext_lib_name!r}] if sys.platform == {ext_lib_plat!r} else []),',
+                        )
+                ext_arg_lines.append(
+                    '],',
+                )
+
             ext_lines.extend([
                 'st.Extension(',
-                f"    name='{ext_name}',",
-                f"    sources=['{ext_src}'],",
-                f'    extra_compile_args={compile_args!r},',
+                *['    ' + l for l in ext_arg_lines],
                 '),',
             ])
 
         src = '\n'.join([
+            *([
+                'import sys',
+                '',
+            ] if needs_sys else []),
             'import setuptools as st',
             '',
             '',

@@ -42,11 +42,16 @@ from omcore.formats.toml.writer import TomlWriter
 from omcore.lite.abstract import Abstract
 from omcore.lite.cached import cached_nullary
 from omcore.lite.check import check
+from omcore.lite.marshal import unmarshal_obj
 from omcore.logs.modules import get_module_logger
 from omcore.subprocesses.sync import subprocesses
 
+from ..cexts.configs import CextConfig
 from ..cexts.magic import CextMagic
+from ..magic.find import find_magic
 from ..magic.find import find_magic_files
+from ..magic.prepare import json_magic_preparer
+from ..magic.styles import C_MAGIC_STYLE
 from ..packaging.revisions import GitRevisionAdder
 
 
@@ -540,6 +545,24 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
     #
 
+    def _get_ext_file_config(self, src_file: str) -> CextConfig:
+        with open(src_file) as f:
+            src = f.read()
+
+        src_magics = find_magic(
+            C_MAGIC_STYLE,
+            src.splitlines(),
+            file=src_file,
+            preparer=json_magic_preparer,
+        )
+
+        cext_magic = check.single(m for m in src_magics if m.key == CextMagic.KEY)
+
+        if cext_magic.prepared is None:
+            return CextConfig()
+
+        return unmarshal_obj(cext_magic.prepared, CextConfig)
+
     @cached_nullary
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
@@ -565,22 +588,79 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         ext_lines = []
 
+        needs_sys = False
+
         for ext_src in self.find_cext_srcs():
+            ext_cfg = self._get_ext_file_config(ext_src)
+
             ext_lang = ext_src.rpartition('.')[2]
+
             compile_args = {
                 'c': ['-std=c11'],
                 'cc': ['-std=c++20'],
             }.get(ext_lang, [])
+
             ext_name = ext_src.rpartition('.')[0].replace(os.sep, '.')
+            ext_arg_lines = [
+                f"name='{ext_name}',",
+            ]
+
+            ext_arg_lines.extend([
+                'sources=[',
+                *[f'    {sf!r},' for sf in [ext_src, *(ext_cfg.extra_sources or [])]],  # FIXME: fix relative
+                '],',
+            ])
+
+            ext_arg_lines.extend([
+                'extra_compile_args=[',
+                *[f'    {ca!r},' for ca in [*compile_args, *(ext_cfg.extra_compile_args or [])]],
+                '],',
+            ])
+
+            if ext_ela := ext_cfg.extra_link_args:
+                ext_arg_lines.extend([
+                    'extra_link_args=[',
+                    *[f'    {la!r},' for la in ext_ela],
+                    '],',
+                ])
+
+            if ext_dms := ext_cfg.define_macros:
+                ext_arg_lines.extend([
+                    'define_macros=[',
+                    *[f'    ({k!r}, {v!r}),' for k, v in ext_dms.items()],
+                    '],',
+                ])
+
+            if ext_libs := ext_cfg.libraries:
+                ext_arg_lines.append(
+                    'libraries=[',
+                )
+                for ext_lib in ext_libs:
+                    if isinstance(ext_lib, str):
+                        ext_arg_lines.append(
+                            f'    {ext_lib!r},',
+                        )
+                    else:
+                        needs_sys = True
+                        ext_lib_name, ext_lib_plat = ext_lib
+                        ext_arg_lines.append(
+                            f'    *([{ext_lib_name!r}] if sys.platform == {ext_lib_plat!r} else []),',
+                        )
+                ext_arg_lines.append(
+                    '],',
+                )
+
             ext_lines.extend([
                 'st.Extension(',
-                f"    name='{ext_name}',",
-                f"    sources=['{ext_src}'],",
-                f'    extra_compile_args={compile_args!r},',
+                *['    ' + l for l in ext_arg_lines],
                 '),',
             ])
 
         src = '\n'.join([
+            *([
+                'import sys',
+                '',
+            ] if needs_sys else []),
             'import setuptools as st',
             '',
             '',

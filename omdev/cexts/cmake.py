@@ -40,11 +40,13 @@ import typing as ta
 
 from omcore import check
 from omcore import lang
+from omcore.lite.marshal import unmarshal_obj
 from omcore.logs import all as logs
 
 from .. import cmake
 from .. import magic
 from ..cli import CliModule
+from .configs import CextConfig
 from .magic import CextMagic
 
 
@@ -211,10 +213,30 @@ class CmakeProjectGen:
         def py(self) -> CmakeProjectGen.PyInfo:
             return self.p.py_info()
 
+        def _get_ext_file_config(self, src_file: str) -> CextConfig:
+            with open(src_file) as f:
+                src = f.read()
+
+            src_magics = magic.find_magic(
+                magic.C_MAGIC_STYLE,
+                src.splitlines(),
+                file=src_file,
+                preparer=magic.json_magic_preparer,
+            )
+
+            cext_magic = check.single(m for m in src_magics if m.key == CextMagic.KEY)
+
+            if cext_magic.prepared is None:
+                return CextConfig()
+
+            return unmarshal_obj(cext_magic.prepared, CextConfig)
+
         def _add_ext(self, ext_src: str) -> None:
             ext_name = ext_src.rpartition('.')[0].replace('/', '__')
 
             log.info('Adding cmake c extension: %s -> %s', ext_src, ext_name)
+
+            ext_cfg = self._get_ext_file_config(ext_src)  # noqa
 
             so_name = ''.join([
                 os.path.basename(ext_src).split('.')[0],
@@ -229,6 +251,15 @@ class CmakeProjectGen:
             os.makedirs(sd, exist_ok=True)
             rp = os.path.relpath(os.path.abspath(ext_src), sd)
             os.symlink(rp, sal)
+
+            # FIXME: symlink extra_sources, extra_headers
+            # FIXME: ext_cfg:
+            #          extra_sources
+            #          extra_headers
+            #          extra_compile_args
+            #          extra_link_args
+            #          define_macros
+            #          libraries
 
             ml = cmake.ModuleLibrary(
                 ext_name,
