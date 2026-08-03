@@ -87,7 +87,7 @@ class Project(ProjectBase):
             'psycopg ~= 3.3',
 
             'pymysql ~= 1.2',
-            'mysql-connector-python ~= 9.7',
+            'mysql-connector-python ~= 26.7',
             'mysqlclient ~= 2.2',
 
             'snowflake-connector-python ~= 4.7',

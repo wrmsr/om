@@ -29,7 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 all = [
     'omdev == 0.0.37',
-    'huggingface-hub ~= 1.24',
+    'huggingface-hub ~= 1.26',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
@@ -41,7 +41,7 @@ omdev = [
     'omdev == 0.0.37',
 ]
 interop = [
-    'huggingface-hub ~= 1.24',
+    'huggingface-hub ~= 1.26',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.31; sys_platform == "darwin"',

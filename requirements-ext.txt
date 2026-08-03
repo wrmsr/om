@@ -81,7 +81,7 @@ ripgrep==15.1.0
 # diag
 
 yappi==1.7.6
-pyinstrument==5.1.2
+pyinstrument==5.1.3
 
 debugpy==1.8.21
 
