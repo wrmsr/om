@@ -104,7 +104,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/std/filters.py', sha1='3ec3856ade50561f99ce9463f54737ab1126d410'),
             dict(path='../../omcore/logs/std/proxy.py', sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a'),
             dict(path='../../omcore/logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='../cexts/configs.py', sha1='400c32d0b3639cc714e7a575106228e7069211dd'),
+            dict(path='../cexts/configs.py', sha1='54ff7f65b6f96efcd9ae56150d38d67afaac835d'),
             dict(path='../magic/magic.py', sha1='16a7598eac927e7994d78b9f851dd6cd1fce34c9'),
             dict(path='../magic/prepare.py', sha1='a9b6bd7408d86a52fab7aae2c522032fb251cb8e'),
             dict(path='../magic/styles.py', sha1='124aea52808fae5f67c74e5104aea6184073fdac'),
@@ -155,7 +155,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='314274f4827441e3aecd40f21dfe3eee8ba2f5a1'),
+            dict(path='pkg.py', sha1='545cd39bb265f64fe4417903f8fa1f77c23ca2af'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -3327,6 +3327,18 @@ class CextConfig:
     define_macros: ta.Optional[ta.Mapping[str, str]] = None
 
     libraries: ta.Optional[ta.Sequence[ta.Any]] = None  # list[str | tuple[str, str]] | None
+
+
+def resolve_cext_config_file(package_dir: str, config_file: str) -> str:
+    if os.path.isabs(config_file):
+        raise ValueError(config_file)
+
+    package_dir = os.path.normpath(package_dir)
+    resolved_file = os.path.normpath(os.path.join(package_dir, config_file))
+    if os.path.commonpath([package_dir, resolved_file]) != package_dir:
+        raise ValueError(config_file)
+
+    return resolved_file
 
 
 ########################################
@@ -13188,7 +13200,13 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
             ext_arg_lines.extend([
                 'sources=[',
-                *[f'    {sf!r},' for sf in [ext_src, *(ext_cfg.extra_sources or [])]],  # FIXME: fix relative
+                *[f'    {sf!r},' for sf in [
+                    ext_src,
+                    *[
+                        resolve_cext_config_file(self._dir_name, extra_source)
+                        for extra_source in ext_cfg.extra_sources or ()
+                    ],
+                ]],
                 '],',
             ])
 

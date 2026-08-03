@@ -47,6 +47,7 @@ from omcore.logs.modules import get_module_logger
 from omcore.subprocesses.sync import subprocesses
 
 from ..cexts.configs import CextConfig
+from ..cexts.configs import resolve_cext_config_file
 from ..cexts.magic import CextMagic
 from ..magic.find import find_magic
 from ..magic.find import find_magic_files
@@ -607,7 +608,13 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
             ext_arg_lines.extend([
                 'sources=[',
-                *[f'    {sf!r},' for sf in [ext_src, *(ext_cfg.extra_sources or [])]],  # FIXME: fix relative
+                *[f'    {sf!r},' for sf in [
+                    ext_src,
+                    *[
+                        resolve_cext_config_file(self._dir_name, extra_source)
+                        for extra_source in ext_cfg.extra_sources or ()
+                    ],
+                ]],
                 '],',
             ])
 

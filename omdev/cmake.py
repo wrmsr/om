@@ -27,6 +27,7 @@ class Target(lang.Abstract):
     src_files: ta.Sequence[str]
 
     include_dirs: ta.Sequence[str] | None = None
+    compile_defs: ta.Sequence[str] | None = None
     compile_opts: ta.Sequence[str] | None = None
     link_dirs: ta.Sequence[str] | None = None
     link_opts: ta.Sequence[str] | None = None
@@ -135,6 +136,8 @@ class CmakeGen:
 
         if target.include_dirs:
             self.write_cmd(Command('target_include_directories', [target.name, 'PRIVATE'], target.include_dirs))
+        if target.compile_defs:
+            self.write_cmd(Command('target_compile_definitions', [target.name, 'PRIVATE'], target.compile_defs))
         if target.compile_opts:
             self.write_cmd(Command('target_compile_options', [target.name, 'PRIVATE'], target.compile_opts))
 
