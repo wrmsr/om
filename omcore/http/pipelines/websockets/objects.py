@@ -24,6 +24,13 @@ class IoPipelineWebsocketOpcode(enum.IntEnum):
     # 0xB - 0xF reserved control
 
 
+CONTROL_IO_PIPELINES_WEBSOCKET_OPCODES: ta.Final[ta.FrozenSet[IoPipelineWebsocketOpcode]] = frozenset([
+    IoPipelineWebsocketOpcode.CLOSE,
+    IoPipelineWebsocketOpcode.PING,
+    IoPipelineWebsocketOpcode.PONG,
+])
+
+
 @ta.final
 @dc.dataclass(frozen=True)
 class IoPipelineWebsocketFrame:
@@ -40,11 +47,7 @@ class IoPipelineWebsocketFrame:
 
     def __post_init__(self) -> None:
         # Control frames must be <= 125 and not fragmented
-        if self.opcode in (
-            IoPipelineWebsocketOpcode.CLOSE,
-            IoPipelineWebsocketOpcode.PING,
-            IoPipelineWebsocketOpcode.PONG,
-        ):
+        if self.opcode in CONTROL_IO_PIPELINES_WEBSOCKET_OPCODES:
             check.arg(self.fin)
             check.arg(len(self.payload) <= 125)
 

@@ -74,12 +74,10 @@ class IoPipelineHttpDecompressionConfig:
         # Unbounded by default: each step is already bounded by max_decomp_chunk, and deferring per step would spend a
         # driver turn on every chunk. Note this is the opposite of the wsgi handler's default, which yields per chunk
         # because its unit of work is an arbitrary app-supplied one.
-        return _NEVER_YIELD_POLICY
+        return NeverIoPipelineYieldPolicy()
 
 
 IoPipelineHttpDecompressionConfig.DEFAULT = IoPipelineHttpDecompressionConfig()
-
-_NEVER_YIELD_POLICY: ta.Final[IoPipelineYieldPolicy] = NeverIoPipelineYieldPolicy()
 
 
 #

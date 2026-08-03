@@ -1,5 +1,16 @@
+from omcore import dataclasses as dc
+from omcore import lang
+
 from .. import agent as agn
 from .commands.manager import CommandsManager
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class SessionEntry(lang.Abstract, lang.Sealed):
+    pass
 
 
 ##

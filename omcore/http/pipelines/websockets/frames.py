@@ -15,6 +15,7 @@ from ....lite.namespaces import NamespaceClass
 from ..objects import IoPipelineHttpMessageBodyData
 from ..requests import IoPipelineHttpRequestBodyData
 from ..responses import IoPipelineHttpResponseBodyData
+from .objects import CONTROL_IO_PIPELINES_WEBSOCKET_OPCODES
 from .objects import IoPipelineWebsocketBinary
 from .objects import IoPipelineWebsocketClose
 from .objects import IoPipelineWebsocketFrame
@@ -173,13 +174,6 @@ class IoPipelineWebsocketServerFrameEncoder(IoPipelineWebsocketFrameEncoder):
 ##
 
 
-_CONTROL_WEBSOCKET_OPCODES: ta.FrozenSet[IoPipelineWebsocketOpcode] = frozenset([
-    IoPipelineWebsocketOpcode.CLOSE,
-    IoPipelineWebsocketOpcode.PING,
-    IoPipelineWebsocketOpcode.PONG,
-])
-
-
 class IoPipelineWebsocketFrameDecoder(BufferedBytesToMessageDecoderIoPipelineHandler):
     """
     Decodes inbound bytes into WsFrame objects. If expect_masked is True/False, validates the MASK bit accordingly; if
@@ -269,7 +263,7 @@ class IoPipelineWebsocketFrameDecoder(BufferedBytesToMessageDecoderIoPipelineHan
 
         # Validate from the header, *before* buffering the payload - otherwise a frame claiming an absurd length simply
         # buffers the rest of the connection.
-        if opcode in _CONTROL_WEBSOCKET_OPCODES and (not fin or ln > 125):
+        if opcode in CONTROL_IO_PIPELINES_WEBSOCKET_OPCODES and (not fin or ln > 125):
             raise ValueError('invalid control frame')
 
         if (mfs := self._max_frame_size) is not None and ln > mfs:

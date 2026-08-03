@@ -107,7 +107,7 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
 
     #
 
-    def _flush(self, ctx: IoPipelineHandlerContext, *, announce_writability: bool = True) -> None:
+    def _flush(self, ctx: IoPipelineHandlerContext, *, no_announce_writability: bool = False) -> None:
         if (buf := self._buf) is None or len(buf) == 0:
             return
 
@@ -117,14 +117,14 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
 
         ctx.feed_out(buf.split_to(len(buf)))
 
-        if announce_writability:
+        if not no_announce_writability:
             self._update_writability(ctx)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineMessages.FinalOutput):
             # Draining here can leave us writable again, but announcing that would invite a reentrant write which
             # could only land after FinalOutput - silently stranded, since the terminal rejects it.
-            self._flush(ctx, announce_writability=False)
+            self._flush(ctx, no_announce_writability=True)
             ctx.feed_out(msg)
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):

@@ -8,7 +8,6 @@ from ....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
 from ....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
 from ...headers import HttpHeaders
 from ..bodymodes import IoPipelineHttpBodyMode
-from ..bodymodes import is_chunked_transfer_encoding
 from ..clients.requests import IoPipelineHttpRequestChunker
 from ..requests import IoPipelineHttpRequestBodyData
 from ..requests import IoPipelineHttpRequestChunk
@@ -39,23 +38,23 @@ class TestIsChunkedTransferEncoding(unittest.TestCase):
         ]:
             with self.subTest(value=value):
                 self.assertEqual(
-                    is_chunked_transfer_encoding(HttpHeaders([('Transfer-Encoding', value)])),
+                    IoPipelineHttpBodyMode.is_chunked_transfer_encoding(HttpHeaders([('Transfer-Encoding', value)])),
                     expected,
                 )
 
     def test_repeated_header_lines(self) -> None:
-        self.assertTrue(is_chunked_transfer_encoding(HttpHeaders([
+        self.assertTrue(IoPipelineHttpBodyMode.is_chunked_transfer_encoding(HttpHeaders([
             ('Transfer-Encoding', 'gzip'),
             ('Transfer-Encoding', 'chunked'),
         ])))
 
-        self.assertFalse(is_chunked_transfer_encoding(HttpHeaders([
+        self.assertFalse(IoPipelineHttpBodyMode.is_chunked_transfer_encoding(HttpHeaders([
             ('Transfer-Encoding', 'chunked'),
             ('Transfer-Encoding', 'gzip'),
         ])))
 
     def test_missing(self) -> None:
-        self.assertFalse(is_chunked_transfer_encoding(HttpHeaders([('Host', 't')])))
+        self.assertFalse(IoPipelineHttpBodyMode.is_chunked_transfer_encoding(HttpHeaders([('Host', 't')])))
 
 
 class TestBodyModeSelect(unittest.TestCase):

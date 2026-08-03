@@ -11,7 +11,7 @@ from ...io.pipelines.flow.types import IoPipelineFlowMessages
 from ...io.pipelines.handlers.decoders import MessageToMessageDecoderIoPipelineHandler
 from ...io.streambufs.utils import CanByteStreamBuffer
 from ...lite.abstract import Abstract
-from .bodymodes import is_chunked_transfer_encoding
+from .bodymodes import IoPipelineHttpBodyMode
 from .objects import IoPipelineHttpMessageObjects
 
 
@@ -135,12 +135,12 @@ class IoPipelineHttpObjectChunker(
 
     def _outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, self._head_type):
-            self._active = is_chunked_transfer_encoding(msg.headers)
+            self._active = IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.headers)
             ctx.feed_out(msg)
             return
 
         if isinstance(msg, self._full_type):
-            if is_chunked_transfer_encoding(msg.head.headers):
+            if IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.head.headers):
                 ctx.feed_out(msg.head)
 
                 if len(msg.body) > 0:
@@ -240,7 +240,7 @@ class IoPipelineHttpObjectDechunker(
             out: ta.List[ta.Any],
     ) -> None:
         if isinstance(msg, self._head_type):
-            self._active = is_chunked_transfer_encoding(msg.headers)
+            self._active = IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.headers)
             out.append(msg)
             return
 

@@ -62,12 +62,6 @@ IoPipelineHttpDecodingConfig.DEFAULT = IoPipelineHttpDecodingConfig()
 #
 
 
-_HTTP_CHUNK_SIZE_DIGITS: ta.FrozenSet[int] = frozenset(b'0123456789abcdefABCDEF')
-
-
-#
-
-
 class IoPipelineHttpObjectDecoder(
     IoPipelineHttpMessageObjects,
     InboundBytesBufferingIoPipelineHandler,
@@ -442,6 +436,8 @@ class IoPipelineHttpObjectDecoder(
         def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
             return self._buf
 
+        _HTTP_CHUNK_SIZE_DIGITS: ta.FrozenSet[int] = frozenset(b'0123456789abcdefABCDEF')
+
         def decode(
                 self,
                 ctx: IoPipelineHandlerContext,
@@ -498,7 +494,7 @@ class IoPipelineHttpObjectDecoder(
                     size_bytes = size_bytes[:semi]
 
                 # chunk-size is strictly 1*HEXDIG - int() would otherwise accept '0x5', '1_0', '+5', and even '-5'.
-                if not size_bytes or not all(c in _HTTP_CHUNK_SIZE_DIGITS for c in size_bytes):
+                if not size_bytes or not all(c in self._HTTP_CHUNK_SIZE_DIGITS for c in size_bytes):
                     return self._abort(out, f'Invalid chunk size: {size_bytes!r}')
 
                 chunk_size = int(size_bytes, 16)

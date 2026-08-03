@@ -20,7 +20,7 @@ from .....io.pipelines.yielding import IoPipelineYieldPolicy
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
-from ...bodymodes import is_chunked_transfer_encoding
+from ...bodymodes import IoPipelineHttpBodyMode
 from ...requests import FullIoPipelineHttpRequest
 from ...responses import IoPipelineHttpResponseBodyData
 from ...responses import IoPipelineHttpResponseEnd
@@ -48,21 +48,21 @@ class IoPipelineWsgiConfig:
     # many chunks are *attempted* per turn - see the WsgiIoPipelineHandler docstring on blocking apps.
     yield_policy: ta.Optional[IoPipelineYieldPolicy] = None
 
+    DEFAULT_YIELD_POLICY: ta.ClassVar[IoPipelineYieldPolicy] = CountingIoPipelineYieldPolicy(1)
+
     def resolve_yield_policy(self) -> IoPipelineYieldPolicy:
         if (yp := self.yield_policy) is not None:
             return yp
-        return _DEFAULT_YIELD_POLICY
+        return self.DEFAULT_YIELD_POLICY
 
 
 IoPipelineWsgiConfig.DEFAULT = IoPipelineWsgiConfig()
-
-_DEFAULT_YIELD_POLICY: ta.Final[IoPipelineYieldPolicy] = CountingIoPipelineYieldPolicy(1)
 
 
 ##
 
 
-class _WsgiResponseStream:
+class _IoPipelineWsgiResponseStream:
     """
     Drives one WSGI app invocation, pulling its iterable lazily.
 
@@ -191,7 +191,7 @@ class _WsgiResponseStream:
         # closing the connection, so say so rather than leaving the peer to guess.
         if not (
                 'content-length' in hs or
-                is_chunked_transfer_encoding(hs)
+                IoPipelineHttpBodyMode.is_chunked_transfer_encoding(hs)
         ):
             hs = hs.update(('Connection', 'close'), if_present='skip')
 
@@ -273,12 +273,12 @@ class _WsgiResponseStream:
         out.append(IoPipelineHttpResponseEnd())
         out.append(IoPipelineMessages.FinalOutput())
 
-        self._state = _WsgiResponseStream.State.FINISHED
+        self._state = _IoPipelineWsgiResponseStream.State.FINISHED
 
     def pump(self, ctx: IoPipelineHandlerContext) -> None:
         self._ctx = ctx
 
-        if self._state is not _WsgiResponseStream.State.STREAMING:
+        if self._state is not _IoPipelineWsgiResponseStream.State.STREAMING:
             return
 
         should_yield = self._yield_policy.new_turn()
@@ -331,14 +331,14 @@ class _WsgiResponseStream:
         if (
                 self._output_writable and
                 not was_writable and
-                self._state is _WsgiResponseStream.State.STREAMING
+                self._state is _IoPipelineWsgiResponseStream.State.STREAMING
         ):
             self.pump(ctx)
 
     def close(self) -> None:
-        if self._state is _WsgiResponseStream.State.CLOSED:
+        if self._state is _IoPipelineWsgiResponseStream.State.CLOSED:
             return
-        self._state = _WsgiResponseStream.State.CLOSED
+        self._state = _IoPipelineWsgiResponseStream.State.CLOSED
 
         if (close := getattr(self._ret, 'close', None)) is not None:
             close()
@@ -380,7 +380,7 @@ class WsgiIoPipelineHandler(IoPipelineHandler):
         self._app = app
         self._config = config
 
-        self._stream: ta.Optional[_WsgiResponseStream] = None
+        self._stream: ta.Optional[_IoPipelineWsgiResponseStream] = None
         self._output_writable = True
 
     #
@@ -395,7 +395,7 @@ class WsgiIoPipelineHandler(IoPipelineHandler):
             stream.close()
 
     def _maybe_reset_stream(self) -> None:
-        if (stream := self._stream) is not None and stream.state is not _WsgiResponseStream.State.STREAMING:
+        if (stream := self._stream) is not None and stream.state is not _IoPipelineWsgiResponseStream.State.STREAMING:
             self._stream = None
 
     #
@@ -433,7 +433,7 @@ class WsgiIoPipelineHandler(IoPipelineHandler):
 
         check.none(self._stream)
 
-        self._stream = stream = _WsgiResponseStream(
+        self._stream = stream = _IoPipelineWsgiResponseStream(
             ctx,
             self._app,
             msg,

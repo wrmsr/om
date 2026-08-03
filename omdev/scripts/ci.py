@@ -159,7 +159,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/asyncs/asyncio/sockets.py', sha1='57bfaf9aaf1cc8263dc3292d9b1397de9e81ce5d'),
             dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='79905340353b28e51bcd02a62026787f41b731b9'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
-            dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='eb1590d53ede29d56920d35847c1ea05bc2f4173'),
+            dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
@@ -199,9 +199,9 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/media.py', sha1='803842842e9b3f1d51ccb48c41c7fb7df9d833b3'),
             dict(path='../specs/oci/pack/packing.py', sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad'),
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
-            dict(path='../../omcore/http/pipelines/chunking.py', sha1='3f75ab95c0a1db6e8e39cb27bd9cdb0a28a96069'),
+            dict(path='../../omcore/http/pipelines/chunking.py', sha1='d58fb8e037a4b8efda5f93ae0646c9af6897b7b2'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='b0e8af26f8924875a71311a2d581df272c73f729'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='2843fd0f3eeacfb0d257ef0dd889067319ece5eb'),  # noqa
             dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
             dict(path='../../omcore/http/pipelines/responses.py', sha1='ae664753451a32b654f52a51101e177d339a3064'),
@@ -223,7 +223,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
-            dict(path='../../omcore/http/pipelines/decoders.py', sha1='fc6e866d9bbab3790afc185fba6699e72d7dca66'),
+            dict(path='../../omcore/http/pipelines/decoders.py', sha1='00a5a981594b5f6133b6daec746f75b30da88fd9'),
             dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='6b6c29eca0d1679ac4219d81cbeb1f1e549a772e'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
@@ -13388,31 +13388,6 @@ def yaml_detect_line_break_char(src: str) -> str:
 ##
 
 
-def is_chunked_transfer_encoding(headers: HttpHeaders) -> bool:
-    """
-    Whether a message is framed with the chunked transfer-coding.
-
-    Transfer-Encoding is a `#`-list, so `gzip, chunked` is chunked-framed - but RFC 9112 §6.1 requires `chunked` to be
-    the final coding, so `chunked, gzip` is not (the parser rejects such messages outright, but these headers are also
-    built by hand outbound).
-    """
-
-    if not headers.contains_list_value('transfer-encoding', 'chunked', ignore_case=True):
-        return False
-
-    last = ''
-    for v in headers.lower['transfer-encoding']:
-        for e in v.split(','):
-            e = e.strip()
-            if e:
-                last = e
-
-    return last == 'chunked'
-
-
-##
-
-
 @dc.dataclass()
 class IoPipelineHttpBodyModeError(Exception):
     reason: str
@@ -13425,6 +13400,28 @@ class IoPipelineHttpBodyMode:
     length: ta.Optional[int]
 
     @classmethod
+    def is_chunked_transfer_encoding(cls, headers: HttpHeaders) -> bool:
+        """
+        Whether a message is framed with the chunked transfer-coding.
+
+        Transfer-Encoding is a `#`-list, so `gzip, chunked` is chunked-framed - but RFC 9112 §6.1 requires `chunked` to
+        be the final coding, so `chunked, gzip` is not (the parser rejects such messages outright, but these headers are
+        also built by hand outbound).
+        """
+
+        if not headers.contains_list_value('transfer-encoding', 'chunked', ignore_case=True):
+            return False
+
+        last = ''
+        for v in headers.lower['transfer-encoding']:
+            for e in v.split(','):
+                e = e.strip()
+                if e:
+                    last = e
+
+        return last == 'chunked'
+
+    @classmethod
     def select(
             cls,
             headers: HttpHeaders,
@@ -13434,7 +13431,7 @@ class IoPipelineHttpBodyMode:
         if 'transfer-encoding' in headers and 'content-length' in headers:
             raise IoPipelineHttpBodyModeError('both Transfer-Encoding and Content-Length are present')
 
-        if is_chunked_transfer_encoding(headers):
+        if cls.is_chunked_transfer_encoding(headers):
             return cls('chunked', None)
 
         cl = headers.single.get('content-length')
@@ -26074,12 +26071,12 @@ class IoPipelineHttpObjectChunker(
 
     def _outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, self._head_type):
-            self._active = is_chunked_transfer_encoding(msg.headers)
+            self._active = IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.headers)
             ctx.feed_out(msg)
             return
 
         if isinstance(msg, self._full_type):
-            if is_chunked_transfer_encoding(msg.head.headers):
+            if IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.head.headers):
                 ctx.feed_out(msg.head)
 
                 if len(msg.body) > 0:
@@ -26179,7 +26176,7 @@ class IoPipelineHttpObjectDechunker(
             out: ta.List[ta.Any],
     ) -> None:
         if isinstance(msg, self._head_type):
-            self._active = is_chunked_transfer_encoding(msg.headers)
+            self._active = IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.headers)
             out.append(msg)
             return
 
@@ -26373,12 +26370,10 @@ class IoPipelineHttpDecompressionConfig:
         # Unbounded by default: each step is already bounded by max_decomp_chunk, and deferring per step would spend a
         # driver turn on every chunk. Note this is the opposite of the wsgi handler's default, which yields per chunk
         # because its unit of work is an arbitrary app-supplied one.
-        return _NEVER_YIELD_POLICY
+        return NeverIoPipelineYieldPolicy()
 
 
 IoPipelineHttpDecompressionConfig.DEFAULT = IoPipelineHttpDecompressionConfig()
-
-_NEVER_YIELD_POLICY: ta.Final[IoPipelineYieldPolicy] = NeverIoPipelineYieldPolicy()
 
 
 #
@@ -31796,12 +31791,6 @@ IoPipelineHttpDecodingConfig.DEFAULT = IoPipelineHttpDecodingConfig()
 #
 
 
-_HTTP_CHUNK_SIZE_DIGITS: ta.FrozenSet[int] = frozenset(b'0123456789abcdefABCDEF')
-
-
-#
-
-
 class IoPipelineHttpObjectDecoder(
     IoPipelineHttpMessageObjects,
     InboundBytesBufferingIoPipelineHandler,
@@ -32176,6 +32165,8 @@ class IoPipelineHttpObjectDecoder(
         def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
             return self._buf
 
+        _HTTP_CHUNK_SIZE_DIGITS: ta.FrozenSet[int] = frozenset(b'0123456789abcdefABCDEF')
+
         def decode(
                 self,
                 ctx: IoPipelineHandlerContext,
@@ -32232,7 +32223,7 @@ class IoPipelineHttpObjectDecoder(
                     size_bytes = size_bytes[:semi]
 
                 # chunk-size is strictly 1*HEXDIG - int() would otherwise accept '0x5', '1_0', '+5', and even '-5'.
-                if not size_bytes or not all(c in _HTTP_CHUNK_SIZE_DIGITS for c in size_bytes):
+                if not size_bytes or not all(c in self._HTTP_CHUNK_SIZE_DIGITS for c in size_bytes):
                     return self._abort(out, f'Invalid chunk size: {size_bytes!r}')
 
                 chunk_size = int(size_bytes, 16)
