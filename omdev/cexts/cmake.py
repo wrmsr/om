@@ -234,8 +234,7 @@ class CmakeProjectGen:
 
         @staticmethod
         def _resolve_ext_config_file(ext_src: str, config_file: str) -> str:
-            package_dir = ext_src.partition(os.sep)[0]
-            return resolve_cext_config_file(package_dir, config_file)
+            return resolve_cext_config_file(ext_src, config_file)
 
         def _symlink_source_file(self, src_file: str) -> str:
             source_file = os.path.abspath(os.path.join(self.p.prj_root, src_file))

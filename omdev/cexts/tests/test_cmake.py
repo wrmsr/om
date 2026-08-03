@@ -10,14 +10,18 @@ from ..configs import resolve_cext_config_file
 
 
 def test_resolve_cext_config_file():
-    assert resolve_cext_config_file('omxtra', 'foo/foo-amalg.c') == os.path.join(
+    assert resolve_cext_config_file('omxtra/foo/_foo.c', 'foo-amalg.c') == os.path.join(
         'omxtra',
         'foo',
         'foo-amalg.c',
     )
+    assert resolve_cext_config_file('omxtra/foo/_foo.c', '../common.c') == os.path.join(
+        'omxtra',
+        'common.c',
+    )
 
     with pytest.raises(ValueError, match='foo-amalg'):
-        resolve_cext_config_file('omxtra', '../foo-amalg.c')
+        resolve_cext_config_file('omxtra/foo/_foo.c', '../../foo-amalg.c')
 
 
 def test_cmake_project_gen_cext_config(tmp_path):
@@ -35,8 +39,8 @@ def test_cmake_project_gen_cext_config(tmp_path):
     platform_library = 'm' if sys.platform == 'linux' else 'z'
     with open(ext_src, 'w') as f:
         f.write(f"""// @om-cext {{
-//   "extra_sources": ["foo/foo-amalg.c"],
-//   "extra_headers": ["foo/foo.h"],
+//   "extra_sources": ["foo-amalg.c"],
+//   "extra_headers": ["foo.h"],
 //   "extra_compile_args": ["-Wextra"],
 //   "extra_link_args": ["-g"],
 //   "define_macros": {{"_GNU_SOURCE": "1"}},

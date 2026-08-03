@@ -17,8 +17,8 @@ class _TestCextPackageGenerator(_PyprojectCextPackageGenerator):
 
     def _get_ext_file_config(self, src_file):
         return CextConfig(
-            extra_sources=['foo/foo-amalg.c'],
-            extra_headers=['foo/foo.h'],
+            extra_sources=['foo-amalg.c'],
+            extra_headers=['foo.h'],
         )
 
 

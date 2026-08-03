@@ -611,7 +611,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
                 *[f'    {sf!r},' for sf in [
                     ext_src,
                     *[
-                        resolve_cext_config_file(self._dir_name, extra_source)
+                        resolve_cext_config_file(ext_src, extra_source)
                         for extra_source in ext_cfg.extra_sources or ()
                     ],
                 ]],
