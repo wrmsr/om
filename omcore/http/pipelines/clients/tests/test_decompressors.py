@@ -12,6 +12,8 @@ from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
+from .....io.pipelines.yielding import CountingIoPipelineYieldPolicy
+from .....io.pipelines.yielding import NeverIoPipelineYieldPolicy
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
@@ -664,3 +666,81 @@ class TestGzipDecompressorAutoReadFinalInput(unittest.TestCase):
             if isinstance(m, IoPipelineHttpResponseBodyData)
         )
         self.assertEqual(body, raw_data)
+
+
+##
+
+
+class TestGzipDecompressorYieldPolicy(unittest.TestCase):
+    head = IoPipelineHttpResponseHead(
+        status=200,
+        reason='OK',
+        headers=HttpHeaders({'content-encoding': 'gzip'}),
+    )
+
+    def _run(self, config) -> ta.Tuple[bytes, int]:
+        """Returns the decompressed body and the number of driver turns it took."""
+
+        channel = IoPipeline.new([
+            IoPipelineHttpResponseDecompressor(config=config),
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'x' * 4096)))
+        channel.feed_in(IoPipelineHttpResponseEnd())
+
+        turns = 0
+        while True:
+            deferred = [m for m in channel.output.drain() if isinstance(m, IoPipelineMessages.Defer)]
+            if not deferred:
+                break
+            turns += 1
+            for dfl in deferred:
+                channel.run_deferred(dfl)
+
+        body = b''.join(
+            ByteStreamBuffers.to_bytes(m.data, strict=True)
+            for m in ibq.drain()
+            if isinstance(m, IoPipelineHttpResponseBodyData)
+        )
+        return body, turns
+
+    _CONFIG: ta.ClassVar[IoPipelineHttpDecompressionConfig] = dc.replace(
+        IoPipelineHttpDecompressionConfig.DEFAULT,
+        max_decomp_chunk=64,
+    )
+
+    def test_step_count_and_policy_forms_are_equivalent(self) -> None:
+        # max_steps_per_call is sugar for a counting policy - the two must behave identically.
+        sugar = self._run(dc.replace(self._CONFIG, max_steps_per_call=2))
+        policy = self._run(dc.replace(self._CONFIG, yield_policy=CountingIoPipelineYieldPolicy(2)))
+
+        self.assertEqual(sugar, policy)
+        self.assertEqual(sugar[0], b'x' * 4096)
+        self.assertGreater(sugar[1], 0)
+
+    def test_default_is_unbounded(self) -> None:
+        body, turns = self._run(self._CONFIG)
+
+        self.assertEqual(body, b'x' * 4096)
+        self.assertEqual(turns, 0)
+
+    def test_explicit_never_policy_matches_the_default(self) -> None:
+        self.assertEqual(
+            self._run(dc.replace(self._CONFIG, yield_policy=NeverIoPipelineYieldPolicy())),
+            self._run(self._CONFIG),
+        )
+
+    def test_smaller_budget_takes_more_turns(self) -> None:
+        _, few = self._run(dc.replace(self._CONFIG, max_steps_per_call=1))
+        _, many = self._run(dc.replace(self._CONFIG, max_steps_per_call=4))
+
+        self.assertGreater(few, many)
+
+    def test_both_forms_together_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            IoPipelineHttpDecompressionConfig(
+                max_steps_per_call=2,
+                yield_policy=CountingIoPipelineYieldPolicy(2),
+            )

@@ -9,6 +9,9 @@ from ....io.pipelines.core import IoPipelineHandlerContext
 from ....io.pipelines.core import IoPipelineMessages
 from ....io.pipelines.flow.types import IoPipelineFlow
 from ....io.pipelines.flow.types import IoPipelineFlowMessages
+from ....io.pipelines.yielding import CountingIoPipelineYieldPolicy
+from ....io.pipelines.yielding import IoPipelineYieldPolicy
+from ....io.pipelines.yielding import NeverIoPipelineYieldPolicy
 from ....io.streambufs.direct import DirectByteStreamBufferView
 from ....io.streambufs.utils import ByteStreamBuffers
 from ....lite.abstract import Abstract
@@ -36,8 +39,10 @@ class IoPipelineHttpDecompressionConfig:
 
     max_out_pending: ta.Optional[int] = 256 * 1024  # cap decompressed bytes retained by this stage (if you buffer)
 
-    # CPU Bounding: how many decompress steps to perform before yielding to the driver
+    # CPU Bounding: when to stop decompressing and defer the rest back to the driver. `max_steps_per_call` is sugar
+    # for a step count; `yield_policy` takes any policy (a timeslice, say). At most one may be given.
     max_steps_per_call: ta.Optional[int] = None
+    yield_policy: ta.Optional[IoPipelineYieldPolicy] = None
 
     # What to do with bytes following a complete compressed stream.
     #
@@ -48,15 +53,33 @@ class IoPipelineHttpDecompressionConfig:
     trailing_data: ta.Literal['member', 'ignore'] = 'member'
 
     def __post_init__(self) -> None:
-        # A zero step budget would defer before ever taking a step - an infinite defer loop.
+        if self.max_steps_per_call is not None and self.yield_policy is not None:
+            raise ValueError('may not give both max_steps_per_call and yield_policy')
+
+        # Eager, so a bad budget is rejected at construction rather than at the first pump. A zero budget would defer
+        # before ever taking a step - an infinite defer loop.
         if (msc := self.max_steps_per_call) is not None and msc < 1:
             raise ValueError(f'max_steps_per_call must be positive: {msc!r}')
 
         if self.trailing_data not in ('member', 'ignore'):
             raise ValueError(f'unknown trailing_data mode: {self.trailing_data!r}')
 
+    def resolve_yield_policy(self) -> IoPipelineYieldPolicy:
+        if (yp := self.yield_policy) is not None:
+            return yp
+
+        if (msc := self.max_steps_per_call) is not None:
+            return CountingIoPipelineYieldPolicy(msc)
+
+        # Unbounded by default: each step is already bounded by max_decomp_chunk, and deferring per step would spend a
+        # driver turn on every chunk. Note this is the opposite of the wsgi handler's default, which yields per chunk
+        # because its unit of work is an arbitrary app-supplied one.
+        return _NEVER_YIELD_POLICY
+
 
 IoPipelineHttpDecompressionConfig.DEFAULT = IoPipelineHttpDecompressionConfig()
+
+_NEVER_YIELD_POLICY: ta.Final[IoPipelineYieldPolicy] = NeverIoPipelineYieldPolicy()
 
 
 #
@@ -75,6 +98,7 @@ class IoPipelineHttpObjectDecompressor(
         super().__init__()
 
         self._config = config
+        self._yield_policy = config.resolve_yield_policy()
         if codings is None:
             codings = DefaultIoPiplineHttpCompressionCodings.DECOMPRESSOR
         self._codings = codings
@@ -170,8 +194,7 @@ class IoPipelineHttpObjectDecompressor(
         if z is None:
             return False
 
-        steps = 0
-        max_steps = self._config.max_steps_per_call
+        should_yield = self._yield_policy.new_turn()
 
         # 1. Try to clear existing output.
         if self._emit_out_pending(ctx):
@@ -190,11 +213,10 @@ class IoPipelineHttpObjectDecompressor(
                     break
 
             # Check for CPU step limit
-            if max_steps is not None and steps >= max_steps:
+            if should_yield():
                 self._defer_resume(ctx)
                 return False  # We haven't satisfied it yet, we deferred.
 
-            steps += 1
             chunk = self._in_pending.popleft()
             cl = len(chunk)
             self._in_pending_bytes -= cl
@@ -239,7 +261,8 @@ class IoPipelineHttpObjectDecompressor(
         # 4. Finish and deliver the HTTP message end.
         if not self._in_pending and self._pending_end is not None:
             if not self._finished:
-                if max_steps is not None and steps >= max_steps:
+                # Shares the turn's budget with the decompress loop above.
+                if should_yield():
                     self._defer_resume(ctx)
                     return False
 

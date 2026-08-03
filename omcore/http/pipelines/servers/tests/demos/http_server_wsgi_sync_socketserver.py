@@ -26,6 +26,7 @@ from ...apps.wsgi import IoPipelineWsgiSpec
 from ...apps.wsgi import WsgiIoPipelineHandler
 from ...requests import IoPipelineHttpRequestAggregatorDecoder
 from ...requests import IoPipelineHttpRequestDecoder
+from ...responses import IoPipelineHttpResponseChunker
 from ...responses import IoPipelineHttpResponseEncoder
 
 
@@ -62,6 +63,9 @@ def build_wsgi_spec(
             IoPipelineHttpRequestAggregatorDecoder(),
 
             IoPipelineHttpResponseEncoder(),
+
+            # An app which declares `Transfer-Encoding: chunked` needs this to actually frame its streamed body.
+            IoPipelineHttpResponseChunker(),
 
             WsgiIoPipelineHandler(app),
 

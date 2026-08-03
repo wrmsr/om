@@ -136,6 +136,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='0a249bfaede012e18fea8cd3b0f239c985a6cfec'),  # noqa
             dict(path='../../omcore/io/pipelines/core.py', sha1='8b13702756070e8b5faae0ff14e62c5d745de857'),
+            dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -200,7 +201,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='3f75ab95c0a1db6e8e39cb27bd9cdb0a28a96069'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='df00c8612dcddab5a6f16cc221faacad6393ec16'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='b0e8af26f8924875a71311a2d581df272c73f729'),  # noqa
             dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
             dict(path='../../omcore/http/pipelines/responses.py', sha1='ae664753451a32b654f52a51101e177d339a3064'),
@@ -8736,6 +8737,85 @@ class IoPipeline:
         check.empty(self._pending_completables)
         if first_listener_exc is not None:
             raise first_listener_exc
+
+
+########################################
+# ../../../omcore/io/pipelines/yielding.py
+"""
+TODO:
+ - timeslice policy, per TODO.md - wants a clock, likely off IoPipelineScheduling
+"""
+
+
+##
+
+
+class IoPipelineYieldPolicy(Abstract):
+    """
+    Decides when a handler doing bounded work on behalf of the driver should stop and defer the rest.
+
+    Deferring is a fairness yield, not a latency one: it lets the driver interleave reads, writes and timers before the
+    handler resumes. It cannot interrupt work already in progress, so a policy only bounds how much is attempted
+    between yields.
+    """
+
+    @abc.abstractmethod
+    def new_turn(self) -> ta.Callable[[], bool]:
+        """
+        Returns a predicate for a single turn of work - true means stop and defer.
+
+        The predicate holds the turn's state, so one policy instance may be shared by any number of handlers, and is
+        consulted before each unit of work rather than after.
+        """
+
+        raise NotImplementedError
+
+
+##
+
+
+class CountingIoPipelineYieldPolicy(IoPipelineYieldPolicy):
+    """Yields after a fixed number of units of work."""
+
+    def __init__(self, max_units: int) -> None:
+        super().__init__()
+
+        # A zero budget would yield before ever doing a unit of work - an infinite defer loop.
+        if max_units < 1:
+            raise ValueError(f'max_units must be positive: {max_units!r}')
+        self._max_units = max_units
+
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}({self._max_units!r})'
+
+    @property
+    def max_units(self) -> int:
+        return self._max_units
+
+    def new_turn(self) -> ta.Callable[[], bool]:
+        state = [0]
+        max_units = self._max_units
+
+        def should_yield() -> bool:
+            if state[0] >= max_units:
+                return True
+            state[0] += 1
+            return False
+
+        return should_yield
+
+
+##
+
+
+class NeverIoPipelineYieldPolicy(IoPipelineYieldPolicy):
+    """Never yields - the work runs to completion in one turn."""
+
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}()'
+
+    def new_turn(self) -> ta.Callable[[], bool]:
+        return lambda: False
 
 
 ########################################
@@ -26258,8 +26338,10 @@ class IoPipelineHttpDecompressionConfig:
 
     max_out_pending: ta.Optional[int] = 256 * 1024  # cap decompressed bytes retained by this stage (if you buffer)
 
-    # CPU Bounding: how many decompress steps to perform before yielding to the driver
+    # CPU Bounding: when to stop decompressing and defer the rest back to the driver. `max_steps_per_call` is sugar
+    # for a step count; `yield_policy` takes any policy (a timeslice, say). At most one may be given.
     max_steps_per_call: ta.Optional[int] = None
+    yield_policy: ta.Optional[IoPipelineYieldPolicy] = None
 
     # What to do with bytes following a complete compressed stream.
     #
@@ -26270,15 +26352,33 @@ class IoPipelineHttpDecompressionConfig:
     trailing_data: ta.Literal['member', 'ignore'] = 'member'
 
     def __post_init__(self) -> None:
-        # A zero step budget would defer before ever taking a step - an infinite defer loop.
+        if self.max_steps_per_call is not None and self.yield_policy is not None:
+            raise ValueError('may not give both max_steps_per_call and yield_policy')
+
+        # Eager, so a bad budget is rejected at construction rather than at the first pump. A zero budget would defer
+        # before ever taking a step - an infinite defer loop.
         if (msc := self.max_steps_per_call) is not None and msc < 1:
             raise ValueError(f'max_steps_per_call must be positive: {msc!r}')
 
         if self.trailing_data not in ('member', 'ignore'):
             raise ValueError(f'unknown trailing_data mode: {self.trailing_data!r}')
 
+    def resolve_yield_policy(self) -> IoPipelineYieldPolicy:
+        if (yp := self.yield_policy) is not None:
+            return yp
+
+        if (msc := self.max_steps_per_call) is not None:
+            return CountingIoPipelineYieldPolicy(msc)
+
+        # Unbounded by default: each step is already bounded by max_decomp_chunk, and deferring per step would spend a
+        # driver turn on every chunk. Note this is the opposite of the wsgi handler's default, which yields per chunk
+        # because its unit of work is an arbitrary app-supplied one.
+        return _NEVER_YIELD_POLICY
+
 
 IoPipelineHttpDecompressionConfig.DEFAULT = IoPipelineHttpDecompressionConfig()
+
+_NEVER_YIELD_POLICY: ta.Final[IoPipelineYieldPolicy] = NeverIoPipelineYieldPolicy()
 
 
 #
@@ -26297,6 +26397,7 @@ class IoPipelineHttpObjectDecompressor(
         super().__init__()
 
         self._config = config
+        self._yield_policy = config.resolve_yield_policy()
         if codings is None:
             codings = DefaultIoPiplineHttpCompressionCodings.DECOMPRESSOR
         self._codings = codings
@@ -26392,8 +26493,7 @@ class IoPipelineHttpObjectDecompressor(
         if z is None:
             return False
 
-        steps = 0
-        max_steps = self._config.max_steps_per_call
+        should_yield = self._yield_policy.new_turn()
 
         # 1. Try to clear existing output.
         if self._emit_out_pending(ctx):
@@ -26412,11 +26512,10 @@ class IoPipelineHttpObjectDecompressor(
                     break
 
             # Check for CPU step limit
-            if max_steps is not None and steps >= max_steps:
+            if should_yield():
                 self._defer_resume(ctx)
                 return False  # We haven't satisfied it yet, we deferred.
 
-            steps += 1
             chunk = self._in_pending.popleft()
             cl = len(chunk)
             self._in_pending_bytes -= cl
@@ -26461,7 +26560,8 @@ class IoPipelineHttpObjectDecompressor(
         # 4. Finish and deliver the HTTP message end.
         if not self._in_pending and self._pending_end is not None:
             if not self._finished:
-                if max_steps is not None and steps >= max_steps:
+                # Shares the turn's budget with the decompress loop above.
+                if should_yield():
                     self._defer_resume(ctx)
                     return False
 
