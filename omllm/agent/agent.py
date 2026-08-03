@@ -5,10 +5,11 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from .. import llm
+from ..core.eventbus import EventPublisher
 from .backends import BackendManager
 from .turns.loop import TurnLoop
 from .types.contexts import Context
-from .types.events import EventSink
+from .types.events import Event
 from .types.messages import Message
 from .types.tools import ToolEnvironment
 from .types.turns import TurnConfig
@@ -30,17 +31,17 @@ class State:
     tool_env: ToolEnvironment | None = None
 
 
-class Agent:
+class Agent(
+    EventPublisher[Event],
+):
     def __init__(
             self,
             *,
             backends: BackendManager,
-            sink: EventSink | None = None,
     ) -> None:
         super().__init__()
 
         self._backends = backends
-        self._sink = sink
 
         self._state = State()
 
@@ -75,7 +76,7 @@ class Agent:
         loop = TurnLoop(
             config=self._state.turn_config,
             context=context,
-            sink=self._sink,
+            subscriber=self._publish,
             llm_backend=llm_backend,
             tool_env=self._state.tool_env,
         )

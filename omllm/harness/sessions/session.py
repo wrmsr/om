@@ -1,12 +1,17 @@
 from ... import agent as agn
+from ...core.eventbus import EventPublisher
 from ..commands.manager import CommandsManager
+from .events import AgentSessionEvent
+from .events import SessionEvent
 from .storage import SessionStorage
 
 
 ##
 
 
-class Session:
+class Session(
+    EventPublisher[SessionEvent],
+):
     def __init__(
             self,
             *,
@@ -19,6 +24,11 @@ class Session:
         self._agent = agent
         self._storage = storage
         self._commands_manager = commands_manager
+
+        agent.subscribe(self._on_agent_event)
+
+    async def _on_agent_event(self, agn_event: agn.Event) -> None:
+        await self._publish(AgentSessionEvent(agn_event))
 
     async def prompt(
             self,

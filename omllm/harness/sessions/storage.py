@@ -26,3 +26,20 @@ class InMemorySessionStorage(SessionStorage):
 
     async def add_entry(self, *entries: SessionEntry) -> None:
         self._entries.extend(entries)
+
+
+##
+
+
+class JsonlSessionStorage(SessionStorage):
+    def __init__(
+            self,
+            *,
+            file_path: str,
+    ) -> None:
+        super().__init__()
+
+        self._file_path = file_path
+
+    async def add_entry(self, *entries: SessionEntry) -> None:
+        raise NotImplementedError

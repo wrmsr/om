@@ -1,7 +1,6 @@
 ### immed
 
-- hand optimize a bit
-  - segmented split_to should mutate seg list in place
+- unify config story
 
 ### core
 
@@ -22,7 +21,7 @@
 - ensure parity with urllib/http.server in general
 - ensure parity with netty security wise
 - request pipelining
-- keepalive
+- verify keepalive
 - proxy/tunnel connect
 - wire into omcore.http.client/server
 - Date default server header
@@ -30,13 +29,13 @@
 - h2 - _will not implement protocol manually_, plug in to `h2` lib
 - lean on ParsedHeaders more - validly-duplicate-but-identical content-length currently isn't handled for ex.
 - dangerous switch to not validate http headers
+- use nginx for a canned test harness server
 
 ### proto impls
 
-- websocket
 - jsonrpc
 - irc lol
 - dns?? stub
 - proto / grpc
-- redis / memcache
+- (promote) redis / memcache
 - db drivers?

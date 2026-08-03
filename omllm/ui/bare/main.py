@@ -1,13 +1,15 @@
 import argparse
 import asyncio
 import functools
-import os
+import os.path
 import sys
 import typing as ta
+import uuid
 
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omdev.home.paths import get_home_paths
 from omdev.home.secrets import load_secrets
 from omdev.tui import rich
 from omdev.tui.rich import textual as rich_tx
@@ -187,8 +189,9 @@ async def _a_main() -> None:
 
     agent = agn.Agent(
         backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore
-        sink=on_event,
     )
+
+    agent.subscribe(on_event)
 
     permissions_manager = agn.StandardPermissionsManager([  # noqa
         *([
@@ -274,7 +277,16 @@ async def _a_main() -> None:
         text_displayer=text_displayer,
     )
 
-    session_storage = har.InMemorySessionStorage()
+    session_id = uuid.uuid7()
+
+    state_dir_path = os.path.join(get_home_paths().state_dir, 'llm', 'sessions')
+    os.makedirs(state_dir_path, exist_ok=True)
+
+    state_file_path = os.path.join(state_dir_path, f'{session_id.hex}.jsonl')
+
+    session_storage = har.JsonlSessionStorage(
+        file_path=state_file_path,
+    )
 
     session = har.Session(
         agent=agent,

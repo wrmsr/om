@@ -87,7 +87,6 @@ with _lang.auto_proxy_init(globals()):
 
     from .types.events import (  # noqa
         Event,
-        EventSink,
 
         LlmAiStreamEvent,
 

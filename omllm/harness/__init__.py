@@ -43,6 +43,12 @@ with _lang.auto_proxy_init(globals()):
         SessionEntry,
     )
 
+    from .sessions.events import (  # noqa
+        SessionEvent,
+
+        AgentSessionEvent,
+    )
+
     from .sessions.session import (  # noqa
         Session,
     )
@@ -51,4 +57,6 @@ with _lang.auto_proxy_init(globals()):
         SessionStorage,
 
         InMemorySessionStorage,
+
+        JsonlSessionStorage,
     )

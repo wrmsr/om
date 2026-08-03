@@ -16,9 +16,6 @@ class Event(lang.Abstract):
     pass
 
 
-type EventSink = ta.Callable[[Event], ta.Awaitable[None]]
-
-
 ##
 
 
