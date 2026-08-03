@@ -1,16 +1,6 @@
-from omcore import dataclasses as dc
-from omcore import lang
-
-from .. import agent as agn
-from .commands.manager import CommandsManager
-
-
-##
-
-
-@dc.dataclass(frozen=True)
-class SessionEntry(lang.Abstract, lang.Sealed):
-    pass
+from ... import agent as agn
+from ..commands.manager import CommandsManager
+from .storage import SessionStorage
 
 
 ##
@@ -21,11 +11,13 @@ class Session:
             self,
             *,
             agent: agn.Agent,
+            storage: SessionStorage,
             commands_manager: CommandsManager,
     ) -> None:
         super().__init__()
 
         self._agent = agent
+        self._storage = storage
         self._commands_manager = commands_manager
 
     async def prompt(

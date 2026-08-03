@@ -274,8 +274,11 @@ async def _a_main() -> None:
         text_displayer=text_displayer,
     )
 
+    session_storage = har.InMemorySessionStorage()
+
     session = har.Session(
         agent=agent,
+        storage=session_storage,
         commands_manager=commands_manager,
     )
 

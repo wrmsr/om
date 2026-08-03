@@ -241,7 +241,7 @@ tomlkit==0.15.1
 torch==2.13.0
 torchvision==0.28.0
 tqdm==4.70.0
-traitlets==5.16.0
+traitlets==5.16.1
 transformers==5.11.0
 tree-sitter==0.26.0
 tree-sitter-bash==0.25.1
@@ -262,7 +262,7 @@ tree-sitter-yaml==0.7.2
 trino==0.338.0
 trio==0.33.0
 twine==7.0.0
-typer==0.27.0
+typer==0.27.1
 types-awscrt==0.34.1
 types-boto3==1.43.62
 types-docutils==0.22.3.20260724

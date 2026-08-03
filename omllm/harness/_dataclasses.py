@@ -229,7 +229,7 @@ def _process_dataclass__b85c47820b05dab0f4c49061d498738fe67a73a4():
     ),
     plan_repr_sha1='e1f7edfe11f2b721d6a656c46e698fedc95461bb',
     cls_names=(
-        ('omllm.harness.session', 'SessionEntry'),
+        ('omllm.harness.sessions.entries', 'SessionEntry'),
     ),
 )
 def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():

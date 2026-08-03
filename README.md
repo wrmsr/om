@@ -1,6 +1,6 @@
 # Overview
 
-My python monorepo, the successor to my previous one `omnibus`(... 'ish').
+This is `om`: my python monorepo, the successor to my previous one `omnibus`(... 'ish').
  
 This is my 'production' codebase - code which has graduated from and powers my various other little projects.
 

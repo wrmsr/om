@@ -39,6 +39,16 @@ with _lang.auto_proxy_init(globals()):
 
     ##
 
-    from .session import (  # noqa
+    from .sessions.entries import (  # noqa
+        SessionEntry,
+    )
+
+    from .sessions.session import (  # noqa
         Session,
+    )
+
+    from .sessions.storage import (  # noqa
+        SessionStorage,
+
+        InMemorySessionStorage,
     )
