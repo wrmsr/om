@@ -9,6 +9,7 @@ from ...lite.check import check
 from ...lite.dataclasses import install_dataclass_kw_only_init
 from ..headers import HttpHeaders
 from ..parsing import ParsedHttpMessage
+from ..parsing import ParsedHttpTrailers
 from ..statuses import HttpStatus
 from ..versions import HttpVersion
 from ..versions import HttpVersions
@@ -67,6 +68,8 @@ class IoPipelineHttpResponseHead(IoPipelineHttpMessageHead, IoPipelineHttpRespon
 class FullIoPipelineHttpResponse(FullIoPipelineHttpMessage, IoPipelineHttpResponseObject):
     head: IoPipelineHttpResponseHead
     body: CanByteStreamBuffer
+
+    trailers: HttpHeaders = dc.field(default_factory=HttpHeaders.empty)
 
     @classmethod
     def simple(
@@ -182,8 +185,17 @@ class IoPipelineHttpResponseObjects(IoPipelineHttpMessageObjects):
 
     _full_type: ta.Final = FullIoPipelineHttpResponse
 
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpResponse:
-        return FullIoPipelineHttpResponse(check.isinstance(head, IoPipelineHttpResponseHead), body)
+    def _make_full(
+            self,
+            head: IoPipelineHttpMessageHead,
+            body: CanByteStreamBuffer,
+            trailers: ta.Optional[HttpHeaders] = None,
+    ) -> FullIoPipelineHttpResponse:
+        return FullIoPipelineHttpResponse(
+            check.isinstance(head, IoPipelineHttpResponseHead),
+            body,
+            HttpHeaders.of(trailers),
+        )
 
     #
 
@@ -210,8 +222,15 @@ class IoPipelineHttpResponseObjects(IoPipelineHttpMessageObjects):
 
     _chunked_trailers_type: ta.Final = IoPipelineHttpResponseChunkedTrailers
 
-    def _make_chunked_trailers(self) -> IoPipelineHttpResponseChunkedTrailers:
-        return IoPipelineHttpResponseChunkedTrailers()
+    def _make_chunked_trailers(
+            self,
+            trailers: ta.Optional[HttpHeaders] = None,
+            parsed_trailers: ta.Optional[ParsedHttpTrailers] = None,
+    ) -> IoPipelineHttpResponseChunkedTrailers:
+        return IoPipelineHttpResponseChunkedTrailers(
+            HttpHeaders.of(trailers),
+            parsed_trailers,
+        )
 
     #
 

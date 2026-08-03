@@ -63,6 +63,17 @@ class IoPipelineMessages(NamespaceClass):
 
     #
 
+    class AfterFinalInput(Abstract):
+        """
+        These may be fed inbound at the pipeline boundary after FinalInput has been seen.
+
+        FinalInput is only an *input* half-close - output may still flow until FinalOutput - so transport-originated
+        control signals which concern output (notably writability) must remain deliverable afterwards. Ordinary input
+        messages must not, and remain rejected.
+        """
+
+    #
+
     class Pinning(Abstract):
         @property
         @abc.abstractmethod
@@ -1410,7 +1421,8 @@ class IoPipeline:
         try:
             for msg in msgs:
                 if self._saw_final_input:
-                    raise SawFinalInputIoPipelineError
+                    if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
+                        raise SawFinalInputIoPipelineError
                 elif isinstance(msg, IoPipelineMessages.FinalInput):
                     self._saw_final_input = True
 
@@ -1563,14 +1575,16 @@ class IoPipeline:
             handler: IoPipelineHandler,
             *,
             name: ta.Optional[str] = None,
+            ignore_name_of: ta.Optional[IoPipelineHandlerContext] = None,
     ) -> IoPipelineHandler:
         check.state(self._state == IoPipeline.State.READY)  # noqa
 
         if not isinstance(handler, ShareableIoPipelineHandler):
             check.not_in(handler, self._unique_contexts)
 
-        if name is not None:
-            check.not_in(name, self._contexts_by_name)
+        if name is not None and (ctx := self._contexts_by_name.get(name)) is not None:
+            # A replace() may reuse the name of the handler it is about to remove.
+            check.is_(ctx, check.not_none(ignore_name_of))
 
         return handler
 
@@ -1746,7 +1760,7 @@ class IoPipeline:
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
         self._check_can_remove(old_handler_ref)
-        self._check_can_add(new_handler, name=name)
+        self._check_can_add(new_handler, name=name, ignore_name_of=old_handler_ref._context)  # noqa
 
         inner_to = old_handler_ref._context._next_out  # noqa
         self._remove(old_handler_ref)

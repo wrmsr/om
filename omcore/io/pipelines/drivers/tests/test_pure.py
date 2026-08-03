@@ -37,17 +37,21 @@ class Schedule:
 
 
 class CaptureIoPipelineHandler(IoPipelineHandler):
-    def __init__(self) -> None:
+    def __init__(self, *, output_after_final_input: ta.Optional[bytes] = None) -> None:
         super().__init__()
 
         self.inputs: ta.List[ta.Any] = []
         self.output_writability: ta.List[ta.Any] = []
+        self._output_after_final_input = output_after_final_input
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, Emit):
             for out_msg in msg.msgs:
                 ctx.feed_out(out_msg)
             return
+
+        if isinstance(msg, IoPipelineMessages.FinalInput) and self._output_after_final_input is not None:
+            ctx.feed_out(self._output_after_final_input)
 
         if isinstance(msg, Schedule):
             ctx.services[IoPipelineScheduling].schedule_context(
@@ -281,13 +285,12 @@ class TestPureIoPipelineDriver(unittest.TestCase):
         self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
         self.assertFalse(driver.pipeline.is_ready)
 
-    @unittest.expectedFailure
     def test_watermarks_after_final_input(self) -> None:
         # A half-closed peer (request sent, write side shut down) followed by a response large enough to cross the
-        # high watermark: _update_output_writability feeds PauseOutput inbound, which the pipeline rejects because it
-        # already saw FinalInput. The same crash reproduces on the sync and fdio drivers.
+        # high watermark. Writability concerns output, which outlives input completion, so these must still be
+        # deliverable inbound after FinalInput.
 
-        capture = CaptureIoPipelineHandler()
+        capture = CaptureIoPipelineHandler(output_after_final_input=b'abcdef')
         driver = PureIoPipelineDriver(
             IoPipeline.Spec(
                 [capture],
@@ -301,11 +304,17 @@ class TestPureIoPipelineDriver(unittest.TestCase):
         try:
             self.assertIsNone(driver.next(read=False))
             driver.feed_eof()
-            driver.next(read=True, raise_on_stall=False)
+            self.assertIsNone(driver.next(read=True, raise_on_stall=False))
 
-            driver.enqueue(Emit([b'abcdef']))
-            self.assertIsNone(driver.next(read=False))
+            self.assertEqual(
+                [type(msg) for msg in capture.output_writability],
+                [IoPipelineFlowMessages.PauseOutput],
+            )
 
             self.assertEqual(driver.drain_output(), b'abcdef')
+            self.assertEqual(
+                [type(msg) for msg in capture.output_writability],
+                [IoPipelineFlowMessages.PauseOutput, IoPipelineFlowMessages.ReadyForOutput],
+            )
         finally:
             driver.close()

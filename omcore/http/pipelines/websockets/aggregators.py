@@ -33,6 +33,12 @@ class IoPipelineWebsocketAggregator(IoPipelineHandler):
         op = msg.opcode
 
         if op == IoPipelineWebsocketOpcode.TEXT or op == IoPipelineWebsocketOpcode.BINARY:
+            if self._assembling is not None:
+                # RFC 6455 §5.4: data frames may not be interleaved with an in-progress fragmented message. Drop the
+                # partial message before failing so a later continuation cannot be appended to it.
+                self._assembling = None
+                raise ValueError('unexpected websocket data frame during fragmented message')
+
             if msg.fin:
                 if op == IoPipelineWebsocketOpcode.TEXT:
                     ctx.feed_in(IoPipelineWebsocketText(
@@ -47,10 +53,7 @@ class IoPipelineWebsocketAggregator(IoPipelineHandler):
 
         if op == IoPipelineWebsocketOpcode.CONTINUATION:
             if self._assembling is None:
-                # Unexpected continuation; drop or raise - here we drop-through as-is if desired but better to surface
-                # error upstream; pass-through the raw frame:
-                ctx.feed_in(msg)
-                return
+                raise ValueError('unexpected websocket continuation frame')
 
             first_op, buf = self._assembling
             for mv in ByteStreamBuffers.iter_segments(msg.payload):

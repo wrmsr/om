@@ -173,22 +173,44 @@ class IoPipelineWebsocketServerFrameEncoder(IoPipelineWebsocketFrameEncoder):
 ##
 
 
+_CONTROL_WEBSOCKET_OPCODES: ta.FrozenSet[IoPipelineWebsocketOpcode] = frozenset([
+    IoPipelineWebsocketOpcode.CLOSE,
+    IoPipelineWebsocketOpcode.PING,
+    IoPipelineWebsocketOpcode.PONG,
+])
+
+
 class IoPipelineWebsocketFrameDecoder(BufferedBytesToMessageDecoderIoPipelineHandler):
     """
     Decodes inbound bytes into WsFrame objects. If expect_masked is True/False, validates the MASK bit accordingly; if
     None, accepts either.
     """
 
+    DEFAULT_MAX_FRAME_SIZE: ta.ClassVar[int] = 16 * 1024 * 1024
+
+    MAX_FRAME_HEADER_SIZE: ta.ClassVar[int] = 14  # 2 + 8 extended length + 4 mask key
+
     def __init__(
             self,
             *,
             expect_masked: bool,
             unwrap_message_body_cls: ta.Optional[ta.Type[IoPipelineHttpMessageBodyData]] = None,
+            max_frame_size: ta.Optional[int] = DEFAULT_MAX_FRAME_SIZE,
+            max_buffer_size: ta.Optional[int] = None,
     ) -> None:
-        super().__init__()
+        if max_frame_size is not None and max_frame_size < 1:
+            raise ValueError(f'max_frame_size must be positive: {max_frame_size!r}')
+
+        if max_buffer_size is None and max_frame_size is not None:
+            # A frame is only parseable once fully buffered, so the buffer must be able to hold the largest accepted
+            # frame plus its header.
+            max_buffer_size = max_frame_size + self.MAX_FRAME_HEADER_SIZE
+
+        super().__init__(max_buffer_size=max_buffer_size)
 
         self._expect_mask = expect_masked
         self._unwrap_message_body_cls = unwrap_message_body_cls
+        self._max_frame_size = max_frame_size
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if (mbc := self._unwrap_message_body_cls) is not None and isinstance(msg, mbc):
@@ -241,6 +263,17 @@ class IoPipelineWebsocketFrameDecoder(BufferedBytesToMessageDecoderIoPipelineHan
             head = buf.coalesce(o + 8)
             ln = int.from_bytes(head[o:o + 8], 'big')
             o += 8
+            # RFC 6455 §5.2: 'the most significant bit MUST be 0'.
+            if ln >> 63:
+                raise ValueError('invalid websocket frame length')
+
+        # Validate from the header, *before* buffering the payload - otherwise a frame claiming an absurd length simply
+        # buffers the rest of the connection.
+        if opcode in _CONTROL_WEBSOCKET_OPCODES and (not fin or ln > 125):
+            raise ValueError('invalid control frame')
+
+        if (mfs := self._max_frame_size) is not None and ln > mfs:
+            raise ValueError(f'websocket frame length exceeds limit: {ln} > {mfs}')
 
         key = None
         if masked:
@@ -268,15 +301,6 @@ class IoPipelineWebsocketFrameDecoder(BufferedBytesToMessageDecoderIoPipelineHan
                 key,
             ))
 
-        # Basic control-frame checks
-        if opcode in (
-            IoPipelineWebsocketOpcode.CLOSE,
-            IoPipelineWebsocketOpcode.PING,
-            IoPipelineWebsocketOpcode.PONG,
-        ):
-            if not fin or ln > 125:
-                raise ValueError('invalid control frame')
-
         return IoPipelineWebsocketFrame(
             fin=fin,
             opcode=opcode,
@@ -288,16 +312,30 @@ class IoPipelineWebsocketFrameDecoder(BufferedBytesToMessageDecoderIoPipelineHan
 
 
 class IoPipelineWebsocketClientFrameDecoder(IoPipelineWebsocketFrameDecoder):
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            *,
+            max_frame_size: ta.Optional[int] = IoPipelineWebsocketFrameDecoder.DEFAULT_MAX_FRAME_SIZE,
+            max_buffer_size: ta.Optional[int] = None,
+    ) -> None:
         super().__init__(
             expect_masked=False,
             unwrap_message_body_cls=IoPipelineHttpResponseBodyData,
+            max_frame_size=max_frame_size,
+            max_buffer_size=max_buffer_size,
         )
 
 
 class IoPipelineWebsocketServerFrameDecoder(IoPipelineWebsocketFrameDecoder):
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            *,
+            max_frame_size: ta.Optional[int] = IoPipelineWebsocketFrameDecoder.DEFAULT_MAX_FRAME_SIZE,
+            max_buffer_size: ta.Optional[int] = None,
+    ) -> None:
         super().__init__(
             expect_masked=True,
             unwrap_message_body_cls=IoPipelineHttpRequestBodyData,
+            max_frame_size=max_frame_size,
+            max_buffer_size=max_buffer_size,
         )

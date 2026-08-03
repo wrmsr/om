@@ -46,7 +46,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='core.py', sha1='7070af81082d854f68323a85cf34b61e23215254'),
+            dict(path='core.py', sha1='8b13702756070e8b5faae0ff14e62c5d745de857'),
             dict(path='../streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
@@ -54,7 +54,7 @@ def __om_amalg__():  # noqa
             dict(path='asyncs.py', sha1='c0eb92ac287f81aca8d1d61e6e3ae9b0873a856b'),
             dict(path='bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),
-            dict(path='flow/types.py', sha1='1b6fe098a89265acec7335ab561bbce902e0ebbb'),
+            dict(path='flow/types.py', sha1='d7182502ec64e84607e4f9cacb32472072307752'),
             dict(path='handlers/fns.py', sha1='d3e3c43b3359572122b8cb9018c770441c598d48'),
             dict(path='handlers/queues.py', sha1='0672c722e377d67369da3cb4a082b4816eb84875'),
             dict(path='sched/types.py', sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f'),
@@ -62,7 +62,7 @@ def __om_amalg__():  # noqa
             dict(path='../streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
             dict(path='../../logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../logs/utils.py', sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c'),
-            dict(path='bytes/queues.py', sha1='0b6e9de9fc1ec723fd66c59a9e1d2bf510a2f719'),
+            dict(path='bytes/queues.py', sha1='91a359d8bfd7a45badbf0933b00fc41e6e36e222'),
             dict(path='handlers/flatmap.py', sha1='221fb097b9f93fcff167a8aed30a909c9ca45b01'),
             dict(path='../streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
             dict(path='../streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
@@ -72,9 +72,9 @@ def __om_amalg__():  # noqa
             dict(path='../streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='../../logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
-            dict(path='bytes/decoders.py', sha1='63326429eebabf82ba525a885c49f4f8941eb0c4'),
+            dict(path='bytes/decoders.py', sha1='95cfd81b143427f3dbe12777a728208c3a4daafa'),
             dict(path='../../logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='drivers/asyncio.py', sha1='f8eaa5cb1154e763c757e8e768da8908061b228a'),
+            dict(path='drivers/asyncio.py', sha1='f1d51bca9dbcda1edd0fd76a32b2b60a7683bf63'),
             dict(path='_amalg.py', sha1='41c208295c50c3d65bc0576ff49203cedf4e3773'),
         ],
     )
@@ -1439,6 +1439,17 @@ class IoPipelineMessages(NamespaceClass):
 
     #
 
+    class AfterFinalInput(Abstract):
+        """
+        These may be fed inbound at the pipeline boundary after FinalInput has been seen.
+
+        FinalInput is only an *input* half-close - output may still flow until FinalOutput - so transport-originated
+        control signals which concern output (notably writability) must remain deliverable afterwards. Ordinary input
+        messages must not, and remain rejected.
+        """
+
+    #
+
     class Pinning(Abstract):
         @property
         @abc.abstractmethod
@@ -2786,7 +2797,8 @@ class IoPipeline:
         try:
             for msg in msgs:
                 if self._saw_final_input:
-                    raise SawFinalInputIoPipelineError
+                    if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
+                        raise SawFinalInputIoPipelineError
                 elif isinstance(msg, IoPipelineMessages.FinalInput):
                     self._saw_final_input = True
 
@@ -2939,14 +2951,16 @@ class IoPipeline:
             handler: IoPipelineHandler,
             *,
             name: ta.Optional[str] = None,
+            ignore_name_of: ta.Optional[IoPipelineHandlerContext] = None,
     ) -> IoPipelineHandler:
         check.state(self._state == IoPipeline.State.READY)  # noqa
 
         if not isinstance(handler, ShareableIoPipelineHandler):
             check.not_in(handler, self._unique_contexts)
 
-        if name is not None:
-            check.not_in(name, self._contexts_by_name)
+        if name is not None and (ctx := self._contexts_by_name.get(name)) is not None:
+            # A replace() may reuse the name of the handler it is about to remove.
+            check.is_(ctx, check.not_none(ignore_name_of))
 
         return handler
 
@@ -3122,7 +3136,7 @@ class IoPipeline:
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
         self._check_can_remove(old_handler_ref)
-        self._check_can_add(new_handler, name=name)
+        self._check_can_add(new_handler, name=name, ignore_name_of=old_handler_ref._context)  # noqa
 
         inner_to = old_handler_ref._context._next_out  # noqa
         self._remove(old_handler_ref)
@@ -4345,6 +4359,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class ReadyForOutput(  # ~ Netty `ChannelInboundInvoker::fireChannelWritabilityChanged` # noqa
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverOutbound,
+        IoPipelineMessages.AfterFinalInput,
     ):
         pass
 
@@ -4353,6 +4368,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class PauseOutput(  # ~ Netty `ChannelInboundInvoker::fireChannelWritabilityChanged` # noqa
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverOutbound,
+        IoPipelineMessages.AfterFinalInput,
     ):
         pass
 
@@ -5194,7 +5210,7 @@ class InboundBytesBufferingQueueIoPipelineHandler(
             self,
             *,
             filter: ta.Union[IoPipelineHandlerFn[ta.Any, bool], ta.Literal[True], None] = None,  # noqa
-            passthrough: bool = False,
+            passthrough: ta.Union[bool, ta.Literal['must_propagate']] = 'must_propagate',
     ) -> None:
         if filter is True:
             filter = IoPipelineHandlerFns.no_context(ByteStreamBuffers.can_bytes)  # noqa
@@ -8499,23 +8515,23 @@ class BytesToMessageDecoderIoPipelineHandler(IoPipelineHandler, Abstract):
                 self._decode(ctx, data, out, final=final)
                 doq.extend(out)
 
-                if not doq:
-                    return
+                if doq:
+                    self._produced_messages = True
 
-                self._produced_messages = True
-
-                while doq:
-                    out_msg = doq.popleft()
-                    ctx.feed_in(out_msg)
+                    while doq:
+                        out_msg = doq.popleft()
+                        ctx.feed_in(out_msg)
 
             finally:
                 self._decode_output = None
                 self._decode_pending_input = None
                 self._decode_state = 'ready'
 
-                while diq:
-                    in_msg = diq.popleft()
-                    self.inbound(ctx, in_msg)
+            # Replay only on success: running flush / final processing mid-unwind would drive the decoder against a
+            # pipeline already handling the error, and any exception it raised would replace the original one.
+            while diq:
+                in_msg = diq.popleft()
+                self.inbound(ctx, in_msg)
 
         elif self._decode_state == 'decoding':
             if not self._allow_decode_reentrance:
@@ -8666,10 +8682,20 @@ class BufferedBytesToMessageDecoderIoPipelineHandler(
         if final:
             check.arg(len(data) == 0)
 
-            if not isinstance(data, ByteStreamBuffer):
-                data = DirectByteStreamBuffer(b'')
+            # ~ Netty `decodeLast`: the cumulation is presented, not an empty sentinel, so subclasses can flush or
+            # reject a truncated trailing frame. Anything left afterwards is stranded by definition.
+            final_buf: ByteStreamBuffer
+            if (cum := self._buf) is not None:
+                final_buf = cum
+            elif isinstance(data, ByteStreamBuffer):
+                final_buf = data
+            else:
+                final_buf = DirectByteStreamBuffer(b'')
 
-            self._decode_buffer(ctx, data, out, final=final)
+            self._decode_buffer(ctx, final_buf, out, final=final)
+
+            if cum is not None and not len(cum):
+                self._buf = None
 
             return
 
@@ -9790,6 +9816,11 @@ class PollAsyncioStreamIoPipelineDriver:
                     else:
                         raise RuntimeError(f'Unknown handled value: {handled!r}')
 
+            # Handling pipeline output (notably a Defer) can schedule timers just as handling a command can, so flush
+            # before any wait - otherwise a timer scheduled from a deferred callback never gets its sleeping task and
+            # the wait below never wakes.
+            await self._sched._flush_pending()  # noqa
+
             try:
                 cmd = self._command_queue.get_nowait()
             except asyncio.QueueEmpty:
@@ -9808,8 +9839,6 @@ class PollAsyncioStreamIoPipelineDriver:
                 break
 
             await self._handle_command(cmd)
-
-            await self._sched._flush_pending()  # noqa
 
         try:
             pipeline.destroy()

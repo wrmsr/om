@@ -9,6 +9,7 @@ from ...lite.abstract import Abstract
 from ...lite.check import check
 from ..headers import HttpHeaders
 from ..parsing import ParsedHttpMessage
+from ..parsing import ParsedHttpTrailers
 from ..versions import HttpVersion
 
 
@@ -53,6 +54,13 @@ class FullIoPipelineHttpMessage(IoPipelineHttpMessageObject, Abstract):
     def body(self) -> CanByteStreamBuffer:
         raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def trailers(self) -> HttpHeaders:
+        """Kept out of `head.headers` - see IoPipelineHttpMessageChunkedTrailers."""
+
+        raise NotImplementedError
+
 
 #
 
@@ -88,9 +96,17 @@ class IoPipelineHttpMessageLastChunk(IoPipelineHttpMessageObject, Abstract):
 
 @dc.dataclass(frozen=True)
 class IoPipelineHttpMessageChunkedTrailers(IoPipelineHttpMessageObject, Abstract):
-    # trailers: HttpHeaders
-    # parsed_trailers: ta.Optional[ParsedHttpMessage] = None
-    pass
+    """
+    The trailer section following the last chunk.
+
+    Trailers are deliberately kept distinct from the head's headers all the way through. RFC 9110 §6.5.1 only permits
+    merging them into the header section for fields a recipient actually understands, so merging is left to whoever
+    knows the field semantics.
+    """
+
+    trailers: HttpHeaders = dc.field(default_factory=HttpHeaders.empty)
+
+    parsed_trailers: ta.Optional[ParsedHttpTrailers] = None
 
 
 #
@@ -167,7 +183,12 @@ class IoPipelineHttpMessageObjects(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpMessage:
+    def _make_full(
+            self,
+            head: IoPipelineHttpMessageHead,
+            body: CanByteStreamBuffer,
+            trailers: ta.Optional[HttpHeaders] = None,
+    ) -> FullIoPipelineHttpMessage:
         raise NotImplementedError
 
     #
@@ -211,7 +232,11 @@ class IoPipelineHttpMessageObjects(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _make_chunked_trailers(self) -> IoPipelineHttpMessageChunkedTrailers:
+    def _make_chunked_trailers(
+            self,
+            trailers: ta.Optional[HttpHeaders] = None,
+            parsed_trailers: ta.Optional[ParsedHttpTrailers] = None,
+    ) -> IoPipelineHttpMessageChunkedTrailers:
         raise NotImplementedError
 
     #

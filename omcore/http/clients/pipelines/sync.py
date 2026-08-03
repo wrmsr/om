@@ -69,7 +69,16 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                 return pending
 
             while True:
-                out = check.not_none(self._drv.next())
+                # Transport failures mid-body are raised by the driver rather than returned as output, and must be
+                # normalized like the pre-head ones in _stream_request - callers only know HttpClientError.
+                try:
+                    out = check.not_none(self._drv.next())
+                except HttpClientError:
+                    self._state.feed_end()
+                    raise
+                except Exception as e:
+                    self._state.feed_end()
+                    raise HttpClientError from e
 
                 if isinstance(out, IoPipelineHttpClientMessages.Output):
                     msg = out.msg

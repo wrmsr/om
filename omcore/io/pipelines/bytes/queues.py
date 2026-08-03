@@ -1,4 +1,4 @@
-# ruff: noqa: FURB188 UP045
+# ruff: noqa: FURB188 UP007 UP045
 # @om-lite
 import typing as ta
 
@@ -20,7 +20,7 @@ class InboundBytesBufferingQueueIoPipelineHandler(
             self,
             *,
             filter: ta.Union[IoPipelineHandlerFn[ta.Any, bool], ta.Literal[True], None] = None,  # noqa
-            passthrough: bool = False,
+            passthrough: ta.Union[bool, ta.Literal['must_propagate']] = 'must_propagate',
     ) -> None:
         if filter is True:
             filter = IoPipelineHandlerFns.no_context(ByteStreamBuffers.can_bytes)  # noqa

@@ -91,7 +91,15 @@ class IoPipelineHttpObjectEncoder(
     #
 
     def _handle_chunked_trailers(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageChunkedTrailers) -> None:  # noqa
-        ctx.feed_out(b'\r\n')
+        if not (trailers := msg.trailers):
+            ctx.feed_out(b'\r\n')
+            return
+
+        buf = io.BytesIO()
+        for hl in self._encode_headers(trailers):
+            buf.write(hl)
+        buf.write(b'\r\n')
+        ctx.feed_out(buf.getvalue())
 
     #
 
@@ -99,9 +107,10 @@ class IoPipelineHttpObjectEncoder(
         if not self._streaming:
             # Not in streaming mode - pass through unchanged
             ctx.feed_out(msg)
+            return
 
         if len(msg.data) < 1:
-            pass
+            return
 
         ctx.feed_out(msg.data)
 
@@ -135,8 +144,9 @@ class IoPipelineHttpObjectEncoder(
 
         # HttpHeaders stores entries as list of (name, value) tuples
         for name, value in headers.raw:
-            # Header names and values should be ASCII-safe in practice
-            line = f'{name}: {value}\r\n'.encode('ascii')
+            # latin-1, not ascii: the parser decodes field values as latin-1 and permits obs-text by default, so a
+            # header which parsed fine must be re-encodable.
+            line = f'{name}: {value}\r\n'.encode('latin-1')
             lines.append(line)
 
         return lines

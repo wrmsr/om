@@ -276,6 +276,30 @@ class HttpHeaders(ta.Mapping[str, ta.Sequence[str]]):
             return False
         return value in vs
 
+    def contains_list_value(self, key: str, value: str, *, ignore_case: bool = False) -> bool:
+        """
+        Whether `value` appears as an element of a comma-separated list-valued header.
+
+        Fields like `Connection` and `Transfer-Encoding` are `#`-lists (RFC 9110 §5.6.1): they may be split across
+        repeated header lines *and* carry multiple comma-separated elements per line, with optional surrounding
+        whitespace. `contains_value` matches whole field values and so misses `keep-alive, Upgrade` and friends.
+        """
+
+        try:
+            if ignore_case:
+                vs = self.lower[key.lower()]
+                value = value.lower()
+            else:
+                vs = self._dct[key.lower()]
+        except KeyError:
+            return False
+
+        for v in vs:
+            for e in v.split(','):
+                if e.strip() == value:
+                    return True
+        return False
+
     def update(
             self,
             *items: ta.Tuple[str, ta.Union[str, ta.Callable[[], ta.Optional[str]], None]],

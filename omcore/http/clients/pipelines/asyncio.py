@@ -66,7 +66,18 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                 return pending
 
             while True:
-                out = check.not_none(await self._drv.next())
+                # Transport failures mid-body are raised by the driver rather than returned as output, and must be
+                # normalized like the pre-head ones in _stream_request - callers only know HttpClientError.
+                try:
+                    out = check.not_none(await self._drv.next())
+                except asyncio.CancelledError:
+                    raise
+                except HttpClientError:
+                    self._state.feed_end()
+                    raise
+                except Exception as e:
+                    self._state.feed_end()
+                    raise HttpClientError from e
 
                 if isinstance(out, IoPipelineHttpClientMessages.Output):
                     msg = out.msg
@@ -212,11 +223,17 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                     response_reader = self._DriverResponseReader(drv)
 
                     async def close() -> None:
+                        # Best-effort: close() runs from __aexit__, so raising here would replace whatever exception
+                        # is already propagating. A peer reset in particular leaves the error on the transport's
+                        # close-waiter, which the driver already consumed and ignored.
                         try:
                             await drv.close()
                         finally:
                             writer.close()
-                            await writer.wait_closed()
+                            try:
+                                await writer.wait_closed()
+                            except Exception:  # noqa
+                                pass
 
                 else:
                     raise TypeError(response)  # noqa
@@ -233,12 +250,16 @@ class AsyncioIoPipelineAsyncHttpClient(AsyncHttpClient, BaseIoPipelineHttpClient
                 )
 
             except BaseException:
+                # Cleanup must not replace the exception being propagated.
                 try:
                     if drv is not None:
                         await drv.close()
                 finally:
                     writer.close()
-                    await writer.wait_closed()
+                    try:
+                        await writer.wait_closed()
+                    except Exception:  # noqa
+                        pass
 
                 raise
 

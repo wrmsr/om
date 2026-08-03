@@ -1,4 +1,4 @@
-# ruff: noqa: SLF001 UP045
+# ruff: noqa: SLF001 UP006 UP045
 # @om-lite
 import gc
 import socket
@@ -868,3 +868,55 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
             drv.close()
 
         self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+
+    def test_output_watermarks_survive_final_input(self) -> None:
+        # A half-closed peer (request sent, write side shut down) followed by a response crossing the high watermark.
+        # Writability concerns output, which outlives input completion, so the edges must still reach the pipeline.
+
+        class RespondOnEofIoPipelineHandler(IoPipelineHandler):
+            def __init__(self) -> None:
+                super().__init__()
+
+                self.writability: ta.List[ta.Any] = []
+
+            def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+                if isinstance(msg, IoPipelineMessages.FinalInput):
+                    ctx.feed_out(b'abcdef')
+                elif isinstance(msg, (
+                        IoPipelineFlowMessages.PauseOutput,
+                        IoPipelineFlowMessages.ReadyForOutput,
+                )):
+                    self.writability.append(msg)
+
+                ctx.feed_in(msg)
+
+        sock, peer = socket.socketpair()
+        handler = RespondOnEofIoPipelineHandler()
+        drv = SyncSocketIoPipelineDriver(
+            IoPipeline.Spec(
+                [handler],
+                services=[StubIoPipelineFlowService()],
+            ),
+            sock,
+            SyncSocketIoPipelineDriver.Config(
+                write_high_watermark=4,
+                write_low_watermark=2,
+            ),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+
+            peer.shutdown(socket.SHUT_WR)
+            self.assertIsNone(drv.next(read=True, raise_on_stall=False))
+
+            self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
+            self.assertEqual(
+                [type(msg) for msg in handler.writability],
+                [IoPipelineFlowMessages.PauseOutput, IoPipelineFlowMessages.ReadyForOutput],
+            )
+            self.assertEqual(peer.recv(64), b'abcdef')
+
+        finally:
+            drv.close()
+            sock.close()
+            peer.close()

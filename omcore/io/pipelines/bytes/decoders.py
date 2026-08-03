@@ -232,23 +232,23 @@ class BytesToMessageDecoderIoPipelineHandler(IoPipelineHandler, Abstract):
                 self._decode(ctx, data, out, final=final)
                 doq.extend(out)
 
-                if not doq:
-                    return
+                if doq:
+                    self._produced_messages = True
 
-                self._produced_messages = True
-
-                while doq:
-                    out_msg = doq.popleft()
-                    ctx.feed_in(out_msg)
+                    while doq:
+                        out_msg = doq.popleft()
+                        ctx.feed_in(out_msg)
 
             finally:
                 self._decode_output = None
                 self._decode_pending_input = None
                 self._decode_state = 'ready'
 
-                while diq:
-                    in_msg = diq.popleft()
-                    self.inbound(ctx, in_msg)
+            # Replay only on success: running flush / final processing mid-unwind would drive the decoder against a
+            # pipeline already handling the error, and any exception it raised would replace the original one.
+            while diq:
+                in_msg = diq.popleft()
+                self.inbound(ctx, in_msg)
 
         elif self._decode_state == 'decoding':
             if not self._allow_decode_reentrance:
@@ -399,10 +399,20 @@ class BufferedBytesToMessageDecoderIoPipelineHandler(
         if final:
             check.arg(len(data) == 0)
 
-            if not isinstance(data, ByteStreamBuffer):
-                data = DirectByteStreamBuffer(b'')
+            # ~ Netty `decodeLast`: the cumulation is presented, not an empty sentinel, so subclasses can flush or
+            # reject a truncated trailing frame. Anything left afterwards is stranded by definition.
+            final_buf: ByteStreamBuffer
+            if (cum := self._buf) is not None:
+                final_buf = cum
+            elif isinstance(data, ByteStreamBuffer):
+                final_buf = data
+            else:
+                final_buf = DirectByteStreamBuffer(b'')
 
-            self._decode_buffer(ctx, data, out, final=final)
+            self._decode_buffer(ctx, final_buf, out, final=final)
+
+            if cum is not None and not len(cum):
+                self._buf = None
 
             return
 

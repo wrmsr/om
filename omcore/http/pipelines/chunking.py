@@ -11,6 +11,7 @@ from ...io.pipelines.flow.types import IoPipelineFlowMessages
 from ...io.pipelines.handlers.decoders import MessageToMessageDecoderIoPipelineHandler
 from ...io.streambufs.utils import CanByteStreamBuffer
 from ...lite.abstract import Abstract
+from .bodymodes import is_chunked_transfer_encoding
 from .objects import IoPipelineHttpMessageObjects
 
 
@@ -134,12 +135,12 @@ class IoPipelineHttpObjectChunker(
 
     def _outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, self._head_type):
-            self._active = msg.headers.contains_value('transfer-encoding', 'chunked', ignore_case=True)
+            self._active = is_chunked_transfer_encoding(msg.headers)
             ctx.feed_out(msg)
             return
 
         if isinstance(msg, self._full_type):
-            if msg.head.headers.contains_value('transfer-encoding', 'chunked', ignore_case=True):
+            if is_chunked_transfer_encoding(msg.head.headers):
                 ctx.feed_out(msg.head)
 
                 if len(msg.body) > 0:
@@ -204,15 +205,19 @@ class IoPipelineHttpObjectDechunker(
     Abstract,
 ):
     """
-    Inbound handler that strips chunked transfer encoding framing messages (Chunk, EndChunk, LastChunk,
+    Inbound handler that strips chunked transfer encoding framing messages (Chunk, EndChunk, LastChunk, and by default
     ChunkedTrailers), leaving only Head + BodyData* + End for downstream handlers.
 
     Sits between the Decoder and Decompressor in the pipeline so that the decompressor sees only content-level messages
     without stale chunk sizes.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, keep_trailers: bool = False) -> None:
         super().__init__()
+
+        # Trailers carry fields, not just framing, so a consumer that wants them can keep them. Off by default:
+        # downstream readers written against the stripped Head + BodyData* + End stream reject anything else.
+        self._keep_trailers = keep_trailers
 
         self._active = False
 
@@ -235,15 +240,18 @@ class IoPipelineHttpObjectDechunker(
             out: ta.List[ta.Any],
     ) -> None:
         if isinstance(msg, self._head_type):
-            self._active = msg.headers.contains_value('transfer-encoding', 'chunked', ignore_case=True)
+            self._active = is_chunked_transfer_encoding(msg.headers)
             out.append(msg)
             return
 
-        if self._active and isinstance(msg, (
+        if self._active and isinstance(msg, self._chunked_trailers_type):
+            if not self._keep_trailers:
+                return
+
+        elif self._active and isinstance(msg, (
                 self._chunk_type,
                 self._end_chunk_type,
                 self._last_chunk_type,
-                self._chunked_trailers_type,
         )):
             return
 

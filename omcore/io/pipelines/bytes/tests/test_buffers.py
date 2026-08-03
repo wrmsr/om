@@ -278,3 +278,42 @@ class TestOutboundBytesBuffer(unittest.TestCase):
             IoPipelineFlowMessages.PauseOutput,
             IoPipelineFlowMessages.ReadyForOutput,
         ]
+
+    def test_final_output_does_not_announce_writability(self):
+        # Draining for FinalOutput can leave the buffer writable again, but announcing that invites a reentrant write
+        # which could only land after FinalOutput - where the terminal would reject it, or the buffer silently strand
+        # it.
+
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        ch = IoPipeline.new(
+            [
+                PauseOutputOnBytesIoPipelineHandler(),
+                OutboundBytesBufferIoPipelineHandler(
+                    OutboundBytesBufferIoPipelineHandler.Config(
+                        flush_threshold=None,
+                        write_high_watermark=4,
+                        write_low_watermark=2,
+                    ),
+                ),
+                capture,
+                fbi := FeedbackInboundIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+
+        ch.feed_in(fbi.wrap(b'abcde'))
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+        ]
+
+        final_output = IoPipelineMessages.FinalOutput()
+        ch.feed_in(fbi.wrap(final_output))
+
+        drained = ch.output.drain()
+        assert len(drained) == 2
+        assert drained[0].tobytes() == b'abcde'
+        assert drained[1] is final_output
+
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+        ]

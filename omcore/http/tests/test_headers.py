@@ -136,3 +136,27 @@ def test_headers_contains_value():
     assert headers.contains_value('tRANSFER-encoding', 'FoO')
     assert not headers.contains_value('tRANSFER-encoding', 'foo')
     assert headers.contains_value('tRANSFER-encoding', 'foo', ignore_case=True)
+
+
+def test_headers_contains_list_value():
+    headers = HttpHeaders([('Connection', 'keep-alive, Upgrade')])
+    assert headers.contains_list_value('connection', 'Upgrade')
+    assert headers.contains_list_value('connection', 'keep-alive')
+    assert not headers.contains_list_value('connection', 'close')
+
+    # Whole-value matching misses list elements - which is exactly why this exists.
+    assert not headers.contains_value('connection', 'Upgrade')
+
+    assert not headers.contains_list_value('connection', 'upgrade')
+    assert headers.contains_list_value('connection', 'upgrade', ignore_case=True)
+
+    # A `#`-list may also be split across repeated header lines.
+    split = HttpHeaders([('Connection', 'Upgrade'), ('Connection', 'keep-alive')])
+    assert split.contains_list_value('connection', 'Upgrade')
+    assert split.contains_list_value('connection', 'keep-alive')
+
+    assert not HttpHeaders([]).contains_list_value('connection', 'Upgrade')
+
+    # Elements are OWS-delimited, and a partial element must not match.
+    assert HttpHeaders([('Transfer-Encoding', '  gzip ,  chunked  ')]).contains_list_value('transfer-encoding', 'chunked')  # noqa
+    assert not HttpHeaders([('Connection', 'keep-alive')]).contains_list_value('connection', 'alive')

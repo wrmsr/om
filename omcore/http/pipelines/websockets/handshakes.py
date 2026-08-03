@@ -71,14 +71,15 @@ class IoPipelineWebsocketServerUpgradeHandler(IoPipelineHandler):
 
             chosen_proto: ta.Optional[str] = None
             if self._subprotocols:
-                # Simple selection: first matching requested subprotocol (if present)
-                req_subp = msg.headers.single.get('Sec-Websocket-Protocol')
-                if req_subp is not None:
-                    requested = [s.strip() for s in req_subp.split(',')]
-                    for s in requested:
-                        if s in self._subprotocols:
+                # Simple selection: first matching requested subprotocol (if present). Per RFC 6455 §4.1 the client may
+                # split its requested subprotocols across multiple header lines as well as comma-separating them.
+                for req_subp in msg.headers.get('Sec-Websocket-Protocol', ()):
+                    for s in req_subp.split(','):
+                        if (s := s.strip()) and s in self._subprotocols:
                             chosen_proto = s
                             break
+                    if chosen_proto is not None:
+                        break
 
             hdrs = HttpHeaders.of(None).update(
                 ('Upgrade', 'websocket'),
@@ -101,16 +102,22 @@ class IoPipelineWebsocketServerUpgradeHandler(IoPipelineHandler):
             return
 
         elif isinstance(msg, FullIoPipelineHttpRequest):
-            # If a handler up the chain aggregates into Full, treat the same as head
-            self.inbound(ctx, msg.head)
+            # If a handler up the chain aggregates into Full, treat the same as head - but *only* when it actually is an
+            # upgrade, as unwrapping a non-upgrade Full would drop its body and its end.
+            if self._is_ws_upgrade_request(msg.head.headers):
+                self.inbound(ctx, msg.head)
+            else:
+                ctx.feed_in(msg)
             return
 
         ctx.feed_in(msg)
 
     def _is_ws_upgrade_request(self, headers: HttpHeaders) -> bool:
-        if not headers.contains_value('Upgrade', 'websocket', ignore_case=True):
+        # Both Upgrade and Connection are comma-separated `#`-lists - `Connection: keep-alive, Upgrade` is both legal
+        # and common.
+        if not headers.contains_list_value('Upgrade', 'websocket', ignore_case=True):
             return False
-        if not headers.contains_value('Connection', 'upgrade', ignore_case=True):
+        if not headers.contains_list_value('Connection', 'upgrade', ignore_case=True):
             return False
         ver = headers.single.get('Sec-Websocket-Version')
         if ver != '13':
@@ -192,25 +199,37 @@ class IoPipelineWebsocketClientUpgradeHandler(IoPipelineHandler):
             return
 
         elif isinstance(msg, FullIoPipelineHttpResponse):
-            self.inbound(ctx, msg.head)
-            self._awaiting_upgrade_end = False
+            # Only unwrap to the head when it actually is the upgrade response - anything else (a 403 rejection with an
+            # error body, say) must be forwarded intact.
+            if msg.head.status == 101:
+                self.inbound(ctx, msg.head)
+                # The aggregated Full message subsumes the response end - there will be no separate one to consume.
+                self._awaiting_upgrade_end = False
+            else:
+                ctx.feed_in(msg)
             return
 
         ctx.feed_in(msg)
 
     def _with_ws_upgrade_headers(self, head: IoPipelineHttpRequestHead) -> IoPipelineHttpRequestHead:
-        # Generate a new random key
-        key = base64.b64encode(os.urandom(16)).decode('ascii')
+        # Reuse any key already present on the head - the recorded key must match what actually goes on the wire or the
+        # accept check will reject a successful handshake.
+        if (key := head.headers.single.get('Sec-Websocket-Key')) is None:
+            key = base64.b64encode(os.urandom(16)).decode('ascii')
         self._key_b64 = key
 
         hdrs = HttpHeaders.of(head.headers).update(
             ('Host', self._host),
-            ('Upgrade', 'websocket'),
-            ('Connection', 'Upgrade'),
             ('Sec-Websocket-Version', '13'),
             ('Sec-Websocket-Key', key),
             ('Sec-Websocket-Protocol', ', '.join(self._subprotocols)) if self._subprotocols else ('', None),
             if_present='skip',
+        ).update(
+            # These must take effect regardless of what the head already carried - a pre-existing `Connection:
+            # keep-alive` would otherwise be left un-upgraded.
+            ('Upgrade', 'websocket'),
+            ('Connection', 'Upgrade'),
+            if_present='override',
         )
 
         return IoPipelineHttpRequestHead(

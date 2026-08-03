@@ -39,6 +39,22 @@ class IoPipelineHttpDecompressionConfig:
     # CPU Bounding: how many decompress steps to perform before yielding to the driver
     max_steps_per_call: ta.Optional[int] = None
 
+    # What to do with bytes following a complete compressed stream.
+    #
+    # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes
+    # them as such. They may however also be junk, in which case 'member' surfaces the resulting decode failure -
+    # urllib3 instead tolerates trailing bytes and silently stops at the first member's end. That leniency is exactly
+    # what makes a truncated-to-one-member body indistinguishable from a complete one, so it is not the default.
+    trailing_data: ta.Literal['member', 'ignore'] = 'member'
+
+    def __post_init__(self) -> None:
+        # A zero step budget would defer before ever taking a step - an infinite defer loop.
+        if (msc := self.max_steps_per_call) is not None and msc < 1:
+            raise ValueError(f'max_steps_per_call must be positive: {msc!r}')
+
+        if self.trailing_data not in ('member', 'ignore'):
+            raise ValueError(f'unknown trailing_data mode: {self.trailing_data!r}')
+
 
 IoPipelineHttpDecompressionConfig.DEFAULT = IoPipelineHttpDecompressionConfig()
 
@@ -63,6 +79,7 @@ class IoPipelineHttpObjectDecompressor(
             codings = DefaultIoPiplineHttpCompressionCodings.DECOMPRESSOR
         self._codings = codings
 
+        self._coding: ta.Optional[ta.Callable[[], IoPiplineHttpDecompressorCoding]] = None
         self._decompressor: ta.Optional[IoPiplineHttpDecompressorCoding] = None
 
         # Statistics for budget checks
@@ -89,6 +106,7 @@ class IoPipelineHttpObjectDecompressor(
     #
 
     def _reset(self, *, preserve_pending_final_input: bool = False) -> None:
+        self._coding = None
         self._decompressor = None
 
         self._in_total_bytes = 0
@@ -113,6 +131,11 @@ class IoPipelineHttpObjectDecompressor(
             slack = self._config.max_decomp_chunk
             if self._out_total_bytes > (max(1, self._in_total_bytes) * mer + slack):
                 raise ValueError('decompressor expansion ratio exceeds limit (possible zip bomb)')
+
+    def _new_decompressor(self) -> IoPiplineHttpDecompressorCoding:
+        if (coding := self._coding) is None:
+            raise RuntimeError('no coding')
+        return coding()
 
     def _is_auto_read(self, ctx: IoPipelineHandlerContext) -> bool:
         if (flow := ctx.services.find(IoPipelineFlow)) is None:
@@ -188,8 +211,26 @@ class IoPipelineHttpObjectDecompressor(
                     if not self._is_auto_read(ctx):
                         return True  # Satisfied!
 
-            ut = z.unconsumed_tail()
-            if ut:
+            if z.eof():
+                # The current decompressor is spent: everything past its trailer lands in unused_data and it would
+                # silently return nothing forever. Note that eof must be checked *before* unconsumed_tail - zlib
+                # mirrors the leftover into both when the output limit was hit on the same call that ended the stream.
+                if (ud := z.unused_data()):
+                    self._in_pending.appendleft(ud)
+                    self._in_pending_bytes += len(ud)
+
+                if self._config.trailing_data == 'ignore':
+                    self._in_pending.clear()
+                    self._in_pending_bytes = 0
+                    break
+
+                if not self._in_pending:
+                    break
+
+                # A following member, concatenated either within this chunk or starting at the next one.
+                z = self._decompressor = self._new_decompressor()
+
+            elif (ut := z.unconsumed_tail()):
                 self._in_pending.appendleft(ut)
                 self._in_pending_bytes += len(ut)
                 if not out:
@@ -204,6 +245,15 @@ class IoPipelineHttpObjectDecompressor(
 
                 out = z.finish()
                 self._finished = True
+
+                if not z.eof() and self._in_total_bytes:
+                    # `finish` does not fail on an incomplete stream, so nothing else would notice a body truncated
+                    # mid-stream - including gzip's own crc/length check, which lives in the trailer.
+                    aborted = self._make_aborted('truncated compressed message body')
+                    self._reset(preserve_pending_final_input=True)
+                    ctx.feed_in(aborted)
+                    return True
+
                 if out:
                     ol = len(out)
                     self._out_total_bytes += ol
@@ -228,9 +278,14 @@ class IoPipelineHttpObjectDecompressor(
 
     def _defer_resume(self, ctx: IoPipelineHandlerContext) -> None:
         def resume(c: IoPipelineHandlerContext) -> None:
-            # If a deferred pump satisfies a read, it must provide the FlushInput
-            if self._pump(c) and not self._is_auto_read(c):
-                c.feed_in(IoPipelineFlowMessages.FlushInput())
+            if self._pump(c):
+                # If a deferred pump satisfies a read, it must provide the FlushInput
+                if not self._is_auto_read(c):
+                    c.feed_in(IoPipelineFlowMessages.FlushInput())
+
+                # A parked FinalInput has had its must-propagate tracking disarmed - if it is not released here the
+                # connection's eof is simply lost. This is reached in auto-read too, where the pump only completes via
+                # deferral.
                 self._release_pending_final_input(c)
 
         ctx.defer(resume)
@@ -276,6 +331,7 @@ class IoPipelineHttpObjectDecompressor(
         # TODO: spec is actually an ordered stack lol
         for coding_name, coding in self._codings.items():
             if coding_name.lower() in enc:
+                self._coding = coding
                 self._decompressor = coding()
                 break
 

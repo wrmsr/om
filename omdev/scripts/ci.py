@@ -132,10 +132,10 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/compression.py', sha1='427ff583b6df669b826228baa273193a83af5e17'),
             dict(path='../../omcore/argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
             dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
-            dict(path='../../omcore/http/headers.py', sha1='28c986b43cb6d3283d5df0249d80f8770522c9de'),
+            dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
-            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='18baac5a24e320417b94316439bf873302c2dc32'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='7070af81082d854f68323a85cf34b61e23215254'),
+            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='0a249bfaede012e18fea8cd3b0f239c985a6cfec'),  # noqa
+            dict(path='../../omcore/io/pipelines/core.py', sha1='8b13702756070e8b5faae0ff14e62c5d745de857'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -158,11 +158,11 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/asyncs/asyncio/sockets.py', sha1='57bfaf9aaf1cc8263dc3292d9b1397de9e81ce5d'),
             dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='79905340353b28e51bcd02a62026787f41b731b9'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
-            dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fd4ceb8a60ebc33776c0ff8a916ee570afcedafb'),
+            dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='eb1590d53ede29d56920d35847c1ea05bc2f4173'),
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
-            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='1b6fe098a89265acec7335ab561bbce902e0ebbb'),
+            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='d7182502ec64e84607e4f9cacb32472072307752'),
             dict(path='../../omcore/io/pipelines/sched/types.py', sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f'),
             dict(path='../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
             dict(path='../../omcore/io/streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
@@ -182,7 +182,7 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/tars.py', sha1='2a143153b5b727fa46a83a325b42f6dc28734359'),
             dict(path='../../omcore/formats/yaml/goyaml/ast.py', sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631'),
             dict(path='../../omcore/formats/yaml/goyaml/scanning.py', sha1='58956f9159780d5532d2d61fb6f11c8ac946003d'),
-            dict(path='../../omcore/http/pipelines/objects.py', sha1='24e4c33d5568cfe7e1227c8574ba4ec79e3dbda9'),
+            dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
             dict(path='../../omcore/http/simple/handlers.py', sha1='43502a58069673135882066ba939c99ea2f8dfc1'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
             dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
@@ -198,12 +198,12 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/media.py', sha1='803842842e9b3f1d51ccb48c41c7fb7df9d833b3'),
             dict(path='../specs/oci/pack/packing.py', sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad'),
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
-            dict(path='../../omcore/http/pipelines/chunking.py', sha1='610cfbdbcafd85e9b5dacc88e5b60dde64a3409a'),
+            dict(path='../../omcore/http/pipelines/chunking.py', sha1='3f75ab95c0a1db6e8e39cb27bd9cdb0a28a96069'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='a91dd573b851f5dec9f74308bfddaef0ea9db9a2'),  # noqa
-            dict(path='../../omcore/http/pipelines/encoders.py', sha1='339afab8253286438f275d10a3625900552bb702'),
-            dict(path='../../omcore/http/pipelines/requests.py', sha1='c9a703c66cbe3f0a60a630c2a90ee97258d9e72a'),
-            dict(path='../../omcore/http/pipelines/responses.py', sha1='12987dd87b9dc3a6cb3b7fbfe461f6c2d24955f5'),
+            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='df00c8612dcddab5a6f16cc221faacad6393ec16'),  # noqa
+            dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
+            dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
+            dict(path='../../omcore/http/pipelines/responses.py', sha1='ae664753451a32b654f52a51101e177d339a3064'),
             dict(path='../../omcore/io/streambufs/framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
             dict(path='../../omcore/io/streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
@@ -216,13 +216,13 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/loading.py', sha1='2fe11d2ab1446a57e9d5f508575ed455cfe0fd23'),
             dict(path='../../omcore/asyncs/asyncio/subprocesses.py', sha1='901e82ac03fb6ce967728a715f1785e6e591ff8b'),
             dict(path='../../omcore/formats/yaml/goyaml/decoding.py', sha1='73e387af353d56ed6c3f817e490038aa1ba940c8'),
-            dict(path='../../omcore/http/pipelines/aggregators.py', sha1='17b015789f6ffbea43ccde91b83083536d90c3e1'),
-            dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='2c0be02c7a0510348e93cea96c4376d531b6a19c'),  # noqa
-            dict(path='../../omcore/io/pipelines/bytes/decoders.py', sha1='63326429eebabf82ba525a885c49f4f8941eb0c4'),
+            dict(path='../../omcore/http/pipelines/aggregators.py', sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1'),
+            dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5'),  # noqa
+            dict(path='../../omcore/io/pipelines/bytes/decoders.py', sha1='95cfd81b143427f3dbe12777a728208c3a4daafa'),
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
-            dict(path='../../omcore/http/pipelines/decoders.py', sha1='f658935dd1e8dd4ec73a99d6e8957a1545807aae'),
+            dict(path='../../omcore/http/pipelines/decoders.py', sha1='fc6e866d9bbab3790afc185fba6699e72d7dca66'),
             dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='6b6c29eca0d1679ac4219d81cbeb1f1e549a772e'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
@@ -4643,6 +4643,30 @@ class HttpHeaders(ta.Mapping[str, ta.Sequence[str]]):
             return False
         return value in vs
 
+    def contains_list_value(self, key: str, value: str, *, ignore_case: bool = False) -> bool:
+        """
+        Whether `value` appears as an element of a comma-separated list-valued header.
+
+        Fields like `Connection` and `Transfer-Encoding` are `#`-lists (RFC 9110 §5.6.1): they may be split across
+        repeated header lines *and* carry multiple comma-separated elements per line, with optional surrounding
+        whitespace. `contains_value` matches whole field values and so misses `keep-alive, Upgrade` and friends.
+        """
+
+        try:
+            if ignore_case:
+                vs = self.lower[key.lower()]
+                value = value.lower()
+            else:
+                vs = self._dct[key.lower()]
+        except KeyError:
+            return False
+
+        for v in vs:
+            for e in v.split(','):
+                if e.strip() == value:
+                    return True
+        return False
+
     def update(
             self,
             *items: ta.Tuple[str, ta.Union[str, ta.Callable[[], ta.Optional[str]], None]],
@@ -6654,6 +6678,21 @@ class IoPiplineHttpDecompressorCoding(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def eof(self) -> bool:
+        """Whether the end of the compressed stream has been reached."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def unused_data(self) -> ta.Optional[BytesLike]:
+        """
+        Bytes found past the end of the compressed stream. Only meaningful once `eof` - for codings whose streams are
+        concatenable (notably gzip, per RFC 1952 §2.2) these are the start of the following member.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def finish(self) -> ta.Optional[BytesLike]:
         raise NotImplementedError
 
@@ -6704,6 +6743,12 @@ class ZlibIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
     def unconsumed_tail(self) -> ta.Optional[BytesLike]:
         return self._z.unconsumed_tail
 
+    def eof(self) -> bool:
+        return self._z.eof
+
+    def unused_data(self) -> ta.Optional[BytesLike]:
+        return self._z.unused_data
+
     def finish(self) -> ta.Optional[BytesLike]:
         return self._z.flush()
 
@@ -6753,6 +6798,17 @@ class IoPipelineMessages(NamespaceClass):
         These *must* be propagated all the way through the pipeline when sent in either direction. This is enforced via
         object identity - the same *instance* of the message must be seen at the end of the pipeline to be considered
         caught. This is intentional.
+        """
+
+    #
+
+    class AfterFinalInput(Abstract):
+        """
+        These may be fed inbound at the pipeline boundary after FinalInput has been seen.
+
+        FinalInput is only an *input* half-close - output may still flow until FinalOutput - so transport-originated
+        control signals which concern output (notably writability) must remain deliverable afterwards. Ordinary input
+        messages must not, and remain rejected.
         """
 
     #
@@ -8104,7 +8160,8 @@ class IoPipeline:
         try:
             for msg in msgs:
                 if self._saw_final_input:
-                    raise SawFinalInputIoPipelineError
+                    if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
+                        raise SawFinalInputIoPipelineError
                 elif isinstance(msg, IoPipelineMessages.FinalInput):
                     self._saw_final_input = True
 
@@ -8257,14 +8314,16 @@ class IoPipeline:
             handler: IoPipelineHandler,
             *,
             name: ta.Optional[str] = None,
+            ignore_name_of: ta.Optional[IoPipelineHandlerContext] = None,
     ) -> IoPipelineHandler:
         check.state(self._state == IoPipeline.State.READY)  # noqa
 
         if not isinstance(handler, ShareableIoPipelineHandler):
             check.not_in(handler, self._unique_contexts)
 
-        if name is not None:
-            check.not_in(name, self._contexts_by_name)
+        if name is not None and (ctx := self._contexts_by_name.get(name)) is not None:
+            # A replace() may reuse the name of the handler it is about to remove.
+            check.is_(ctx, check.not_none(ignore_name_of))
 
         return handler
 
@@ -8440,7 +8499,7 @@ class IoPipeline:
             name: ta.Optional[str] = None,
     ) -> IoPipelineHandlerRef:
         self._check_can_remove(old_handler_ref)
-        self._check_can_add(new_handler, name=name)
+        self._check_can_add(new_handler, name=name, ignore_name_of=old_handler_ref._context)  # noqa
 
         inner_to = old_handler_ref._context._next_out  # noqa
         self._remove(old_handler_ref)
@@ -13249,6 +13308,31 @@ def yaml_detect_line_break_char(src: str) -> str:
 ##
 
 
+def is_chunked_transfer_encoding(headers: HttpHeaders) -> bool:
+    """
+    Whether a message is framed with the chunked transfer-coding.
+
+    Transfer-Encoding is a `#`-list, so `gzip, chunked` is chunked-framed - but RFC 9112 §6.1 requires `chunked` to be
+    the final coding, so `chunked, gzip` is not (the parser rejects such messages outright, but these headers are also
+    built by hand outbound).
+    """
+
+    if not headers.contains_list_value('transfer-encoding', 'chunked', ignore_case=True):
+        return False
+
+    last = ''
+    for v in headers.lower['transfer-encoding']:
+        for e in v.split(','):
+            e = e.strip()
+            if e:
+                last = e
+
+    return last == 'chunked'
+
+
+##
+
+
 @dc.dataclass()
 class IoPipelineHttpBodyModeError(Exception):
     reason: str
@@ -13270,7 +13354,7 @@ class IoPipelineHttpBodyMode:
         if 'transfer-encoding' in headers and 'content-length' in headers:
             raise IoPipelineHttpBodyModeError('both Transfer-Encoding and Content-Length are present')
 
-        if headers.contains_value('transfer-encoding', 'chunked', ignore_case=True):
+        if is_chunked_transfer_encoding(headers):
             return cls('chunked', None)
 
         cl = headers.single.get('content-length')
@@ -13492,6 +13576,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class ReadyForOutput(  # ~ Netty `ChannelInboundInvoker::fireChannelWritabilityChanged` # noqa
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverOutbound,
+        IoPipelineMessages.AfterFinalInput,
     ):
         pass
 
@@ -13500,6 +13585,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class PauseOutput(  # ~ Netty `ChannelInboundInvoker::fireChannelWritabilityChanged` # noqa
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverOutbound,
+        IoPipelineMessages.AfterFinalInput,
     ):
         pass
 
@@ -20531,6 +20617,13 @@ class FullIoPipelineHttpMessage(IoPipelineHttpMessageObject, Abstract):
     def body(self) -> CanByteStreamBuffer:
         raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def trailers(self) -> HttpHeaders:
+        """Kept out of `head.headers` - see IoPipelineHttpMessageChunkedTrailers."""
+
+        raise NotImplementedError
+
 
 #
 
@@ -20566,9 +20659,17 @@ class IoPipelineHttpMessageLastChunk(IoPipelineHttpMessageObject, Abstract):
 
 @dc.dataclass(frozen=True)
 class IoPipelineHttpMessageChunkedTrailers(IoPipelineHttpMessageObject, Abstract):
-    # trailers: HttpHeaders
-    # parsed_trailers: ta.Optional[ParsedHttpMessage] = None
-    pass
+    """
+    The trailer section following the last chunk.
+
+    Trailers are deliberately kept distinct from the head's headers all the way through. RFC 9110 §6.5.1 only permits
+    merging them into the header section for fields a recipient actually understands, so merging is left to whoever
+    knows the field semantics.
+    """
+
+    trailers: HttpHeaders = dc.field(default_factory=HttpHeaders.empty)
+
+    parsed_trailers: ta.Optional[ParsedHttpTrailers] = None
 
 
 #
@@ -20645,7 +20746,12 @@ class IoPipelineHttpMessageObjects(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpMessage:
+    def _make_full(
+            self,
+            head: IoPipelineHttpMessageHead,
+            body: CanByteStreamBuffer,
+            trailers: ta.Optional[HttpHeaders] = None,
+    ) -> FullIoPipelineHttpMessage:
         raise NotImplementedError
 
     #
@@ -20689,7 +20795,11 @@ class IoPipelineHttpMessageObjects(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _make_chunked_trailers(self) -> IoPipelineHttpMessageChunkedTrailers:
+    def _make_chunked_trailers(
+            self,
+            trailers: ta.Optional[HttpHeaders] = None,
+            parsed_trailers: ta.Optional[ParsedHttpTrailers] = None,
+    ) -> IoPipelineHttpMessageChunkedTrailers:
         raise NotImplementedError
 
     #
@@ -25884,12 +25994,12 @@ class IoPipelineHttpObjectChunker(
 
     def _outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, self._head_type):
-            self._active = msg.headers.contains_value('transfer-encoding', 'chunked', ignore_case=True)
+            self._active = is_chunked_transfer_encoding(msg.headers)
             ctx.feed_out(msg)
             return
 
         if isinstance(msg, self._full_type):
-            if msg.head.headers.contains_value('transfer-encoding', 'chunked', ignore_case=True):
+            if is_chunked_transfer_encoding(msg.head.headers):
                 ctx.feed_out(msg.head)
 
                 if len(msg.body) > 0:
@@ -25954,15 +26064,19 @@ class IoPipelineHttpObjectDechunker(
     Abstract,
 ):
     """
-    Inbound handler that strips chunked transfer encoding framing messages (Chunk, EndChunk, LastChunk,
+    Inbound handler that strips chunked transfer encoding framing messages (Chunk, EndChunk, LastChunk, and by default
     ChunkedTrailers), leaving only Head + BodyData* + End for downstream handlers.
 
     Sits between the Decoder and Decompressor in the pipeline so that the decompressor sees only content-level messages
     without stale chunk sizes.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, keep_trailers: bool = False) -> None:
         super().__init__()
+
+        # Trailers carry fields, not just framing, so a consumer that wants them can keep them. Off by default:
+        # downstream readers written against the stripped Head + BodyData* + End stream reject anything else.
+        self._keep_trailers = keep_trailers
 
         self._active = False
 
@@ -25985,15 +26099,18 @@ class IoPipelineHttpObjectDechunker(
             out: ta.List[ta.Any],
     ) -> None:
         if isinstance(msg, self._head_type):
-            self._active = msg.headers.contains_value('transfer-encoding', 'chunked', ignore_case=True)
+            self._active = is_chunked_transfer_encoding(msg.headers)
             out.append(msg)
             return
 
-        if self._active and isinstance(msg, (
+        if self._active and isinstance(msg, self._chunked_trailers_type):
+            if not self._keep_trailers:
+                return
+
+        elif self._active and isinstance(msg, (
                 self._chunk_type,
                 self._end_chunk_type,
                 self._last_chunk_type,
-                self._chunked_trailers_type,
         )):
             return
 
@@ -26144,6 +26261,22 @@ class IoPipelineHttpDecompressionConfig:
     # CPU Bounding: how many decompress steps to perform before yielding to the driver
     max_steps_per_call: ta.Optional[int] = None
 
+    # What to do with bytes following a complete compressed stream.
+    #
+    # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes
+    # them as such. They may however also be junk, in which case 'member' surfaces the resulting decode failure -
+    # urllib3 instead tolerates trailing bytes and silently stops at the first member's end. That leniency is exactly
+    # what makes a truncated-to-one-member body indistinguishable from a complete one, so it is not the default.
+    trailing_data: ta.Literal['member', 'ignore'] = 'member'
+
+    def __post_init__(self) -> None:
+        # A zero step budget would defer before ever taking a step - an infinite defer loop.
+        if (msc := self.max_steps_per_call) is not None and msc < 1:
+            raise ValueError(f'max_steps_per_call must be positive: {msc!r}')
+
+        if self.trailing_data not in ('member', 'ignore'):
+            raise ValueError(f'unknown trailing_data mode: {self.trailing_data!r}')
+
 
 IoPipelineHttpDecompressionConfig.DEFAULT = IoPipelineHttpDecompressionConfig()
 
@@ -26168,6 +26301,7 @@ class IoPipelineHttpObjectDecompressor(
             codings = DefaultIoPiplineHttpCompressionCodings.DECOMPRESSOR
         self._codings = codings
 
+        self._coding: ta.Optional[ta.Callable[[], IoPiplineHttpDecompressorCoding]] = None
         self._decompressor: ta.Optional[IoPiplineHttpDecompressorCoding] = None
 
         # Statistics for budget checks
@@ -26194,6 +26328,7 @@ class IoPipelineHttpObjectDecompressor(
     #
 
     def _reset(self, *, preserve_pending_final_input: bool = False) -> None:
+        self._coding = None
         self._decompressor = None
 
         self._in_total_bytes = 0
@@ -26218,6 +26353,11 @@ class IoPipelineHttpObjectDecompressor(
             slack = self._config.max_decomp_chunk
             if self._out_total_bytes > (max(1, self._in_total_bytes) * mer + slack):
                 raise ValueError('decompressor expansion ratio exceeds limit (possible zip bomb)')
+
+    def _new_decompressor(self) -> IoPiplineHttpDecompressorCoding:
+        if (coding := self._coding) is None:
+            raise RuntimeError('no coding')
+        return coding()
 
     def _is_auto_read(self, ctx: IoPipelineHandlerContext) -> bool:
         if (flow := ctx.services.find(IoPipelineFlow)) is None:
@@ -26293,8 +26433,26 @@ class IoPipelineHttpObjectDecompressor(
                     if not self._is_auto_read(ctx):
                         return True  # Satisfied!
 
-            ut = z.unconsumed_tail()
-            if ut:
+            if z.eof():
+                # The current decompressor is spent: everything past its trailer lands in unused_data and it would
+                # silently return nothing forever. Note that eof must be checked *before* unconsumed_tail - zlib
+                # mirrors the leftover into both when the output limit was hit on the same call that ended the stream.
+                if (ud := z.unused_data()):
+                    self._in_pending.appendleft(ud)
+                    self._in_pending_bytes += len(ud)
+
+                if self._config.trailing_data == 'ignore':
+                    self._in_pending.clear()
+                    self._in_pending_bytes = 0
+                    break
+
+                if not self._in_pending:
+                    break
+
+                # A following member, concatenated either within this chunk or starting at the next one.
+                z = self._decompressor = self._new_decompressor()
+
+            elif (ut := z.unconsumed_tail()):
                 self._in_pending.appendleft(ut)
                 self._in_pending_bytes += len(ut)
                 if not out:
@@ -26309,6 +26467,15 @@ class IoPipelineHttpObjectDecompressor(
 
                 out = z.finish()
                 self._finished = True
+
+                if not z.eof() and self._in_total_bytes:
+                    # `finish` does not fail on an incomplete stream, so nothing else would notice a body truncated
+                    # mid-stream - including gzip's own crc/length check, which lives in the trailer.
+                    aborted = self._make_aborted('truncated compressed message body')
+                    self._reset(preserve_pending_final_input=True)
+                    ctx.feed_in(aborted)
+                    return True
+
                 if out:
                     ol = len(out)
                     self._out_total_bytes += ol
@@ -26333,9 +26500,14 @@ class IoPipelineHttpObjectDecompressor(
 
     def _defer_resume(self, ctx: IoPipelineHandlerContext) -> None:
         def resume(c: IoPipelineHandlerContext) -> None:
-            # If a deferred pump satisfies a read, it must provide the FlushInput
-            if self._pump(c) and not self._is_auto_read(c):
-                c.feed_in(IoPipelineFlowMessages.FlushInput())
+            if self._pump(c):
+                # If a deferred pump satisfies a read, it must provide the FlushInput
+                if not self._is_auto_read(c):
+                    c.feed_in(IoPipelineFlowMessages.FlushInput())
+
+                # A parked FinalInput has had its must-propagate tracking disarmed - if it is not released here the
+                # connection's eof is simply lost. This is reached in auto-read too, where the pump only completes via
+                # deferral.
                 self._release_pending_final_input(c)
 
         ctx.defer(resume)
@@ -26381,6 +26553,7 @@ class IoPipelineHttpObjectDecompressor(
         # TODO: spec is actually an ordered stack lol
         for coding_name, coding in self._codings.items():
             if coding_name.lower() in enc:
+                self._coding = coding
                 self._decompressor = coding()
                 break
 
@@ -26532,7 +26705,15 @@ class IoPipelineHttpObjectEncoder(
     #
 
     def _handle_chunked_trailers(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageChunkedTrailers) -> None:  # noqa
-        ctx.feed_out(b'\r\n')
+        if not (trailers := msg.trailers):
+            ctx.feed_out(b'\r\n')
+            return
+
+        buf = io.BytesIO()
+        for hl in self._encode_headers(trailers):
+            buf.write(hl)
+        buf.write(b'\r\n')
+        ctx.feed_out(buf.getvalue())
 
     #
 
@@ -26540,9 +26721,10 @@ class IoPipelineHttpObjectEncoder(
         if not self._streaming:
             # Not in streaming mode - pass through unchanged
             ctx.feed_out(msg)
+            return
 
         if len(msg.data) < 1:
-            pass
+            return
 
         ctx.feed_out(msg.data)
 
@@ -26576,8 +26758,9 @@ class IoPipelineHttpObjectEncoder(
 
         # HttpHeaders stores entries as list of (name, value) tuples
         for name, value in headers.raw:
-            # Header names and values should be ASCII-safe in practice
-            line = f'{name}: {value}\r\n'.encode('ascii')
+            # latin-1, not ascii: the parser decodes field values as latin-1 and permits obs-text by default, so a
+            # header which parsed fine must be re-encodable.
+            line = f'{name}: {value}\r\n'.encode('latin-1')
             lines.append(line)
 
         return lines
@@ -26618,6 +26801,8 @@ class IoPipelineHttpRequestHead(IoPipelineHttpMessageHead, IoPipelineHttpRequest
 class FullIoPipelineHttpRequest(FullIoPipelineHttpMessage, IoPipelineHttpRequestObject):
     head: IoPipelineHttpRequestHead
     body: CanByteStreamBuffer
+
+    trailers: HttpHeaders = dc.field(default_factory=HttpHeaders.empty)
 
     @classmethod
     def simple(
@@ -26727,7 +26912,9 @@ class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
 
         return IoPipelineHttpRequestHead(
             method=request.method,
-            target=check.not_none(request.request_target).decode('utf-8'),  # type: ignore[attr-defined]
+            # latin-1, like the parser's field value decoding: it is total (the parser accepts non-ascii targets by
+            # default) and round-trips byte-for-byte back out through the encoder.
+            target=check.not_none(request.request_target).decode('latin-1'),  # type: ignore[attr-defined]
             version=request.http_version,
             headers=HttpHeaders(parsed.headers.entries),
             parsed=parsed,
@@ -26737,8 +26924,17 @@ class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
 
     _full_type: ta.Final = FullIoPipelineHttpRequest
 
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpRequest:
-        return FullIoPipelineHttpRequest(check.isinstance(head, IoPipelineHttpRequestHead), body)
+    def _make_full(
+            self,
+            head: IoPipelineHttpMessageHead,
+            body: CanByteStreamBuffer,
+            trailers: ta.Optional[HttpHeaders] = None,
+    ) -> FullIoPipelineHttpRequest:
+        return FullIoPipelineHttpRequest(
+            check.isinstance(head, IoPipelineHttpRequestHead),
+            body,
+            HttpHeaders.of(trailers),
+        )
 
     #
 
@@ -26765,8 +26961,15 @@ class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
 
     _chunked_trailers_type: ta.Final = IoPipelineHttpRequestChunkedTrailers
 
-    def _make_chunked_trailers(self) -> IoPipelineHttpRequestChunkedTrailers:
-        return IoPipelineHttpRequestChunkedTrailers()
+    def _make_chunked_trailers(
+            self,
+            trailers: ta.Optional[HttpHeaders] = None,
+            parsed_trailers: ta.Optional[ParsedHttpTrailers] = None,
+    ) -> IoPipelineHttpRequestChunkedTrailers:
+        return IoPipelineHttpRequestChunkedTrailers(
+            HttpHeaders.of(trailers),
+            parsed_trailers,
+        )
 
     #
 
@@ -26836,6 +27039,8 @@ class IoPipelineHttpResponseHead(IoPipelineHttpMessageHead, IoPipelineHttpRespon
 class FullIoPipelineHttpResponse(FullIoPipelineHttpMessage, IoPipelineHttpResponseObject):
     head: IoPipelineHttpResponseHead
     body: CanByteStreamBuffer
+
+    trailers: HttpHeaders = dc.field(default_factory=HttpHeaders.empty)
 
     @classmethod
     def simple(
@@ -26951,8 +27156,17 @@ class IoPipelineHttpResponseObjects(IoPipelineHttpMessageObjects):
 
     _full_type: ta.Final = FullIoPipelineHttpResponse
 
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpResponse:
-        return FullIoPipelineHttpResponse(check.isinstance(head, IoPipelineHttpResponseHead), body)
+    def _make_full(
+            self,
+            head: IoPipelineHttpMessageHead,
+            body: CanByteStreamBuffer,
+            trailers: ta.Optional[HttpHeaders] = None,
+    ) -> FullIoPipelineHttpResponse:
+        return FullIoPipelineHttpResponse(
+            check.isinstance(head, IoPipelineHttpResponseHead),
+            body,
+            HttpHeaders.of(trailers),
+        )
 
     #
 
@@ -26979,8 +27193,15 @@ class IoPipelineHttpResponseObjects(IoPipelineHttpMessageObjects):
 
     _chunked_trailers_type: ta.Final = IoPipelineHttpResponseChunkedTrailers
 
-    def _make_chunked_trailers(self) -> IoPipelineHttpResponseChunkedTrailers:
-        return IoPipelineHttpResponseChunkedTrailers()
+    def _make_chunked_trailers(
+            self,
+            trailers: ta.Optional[HttpHeaders] = None,
+            parsed_trailers: ta.Optional[ParsedHttpTrailers] = None,
+    ) -> IoPipelineHttpResponseChunkedTrailers:
+        return IoPipelineHttpResponseChunkedTrailers(
+            HttpHeaders.of(trailers),
+            parsed_trailers,
+        )
 
     #
 
@@ -30612,6 +30833,8 @@ class IoPipelineHttpObjectAggregator(
 
         _buf: ta.Optional[MutableByteStreamBuffer] = None
 
+        _trailers: ta.Optional[HttpHeaders] = None
+
         @property
         def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
             return self._buf
@@ -30629,16 +30852,32 @@ class IoPipelineHttpObjectAggregator(
                         chunk_size=self._a._config.body_buffer.chunk_size,  # noqa
                     )
 
+                # Only Content-Length bodies are pre-checked against max_size in _HeadState - a chunked (or eof-framed)
+                # body must be checked as it arrives, and must abort rather than let buf.write raise and leave a
+                # partial body behind to be emitted as a truncated Full message.
+                if (max_body := self._a._config.body_buffer.max_size) is not None:  # noqa
+                    if len(buf) + len(msg.data) > max_body:
+                        self._buf = None
+                        return self._abort(
+                            out,
+                            FrameTooLargeByteStreamBufferError('aggregation body exceeded max_body'),
+                        )
+
                 for mv in ByteStreamBuffers.iter_segments(msg.data):
                     buf.write(mv)
 
+                return None
+
+            elif isinstance(msg, self._a._chunked_trailers_type):  # noqa
+                # The framing itself is absorbed, but the trailer fields are carried onto the Full message rather than
+                # dropped - and deliberately not merged into the head's headers.
+                self._trailers = msg.trailers
                 return None
 
             elif isinstance(msg, (
                     self._a._chunk_type,  # noqa
                     self._a._end_chunk_type,  # noqa
                     self._a._last_chunk_type,  # noqa
-                    self._a._chunked_trailers_type,  # noqa
             )):
                 return None
 
@@ -30649,7 +30888,7 @@ class IoPipelineHttpObjectAggregator(
                 else:
                     body = b''
 
-                full = self._a._make_full(self._head, body)  # noqa
+                full = self._a._make_full(self._head, body, self._trailers)  # noqa
                 out.append(full)
                 return (self._a._init_state(), None)  # noqa
 
@@ -30748,6 +30987,13 @@ class IoPipelineHttpObjectAggregator(
     #
 
     class _AbortedState(_State):
+        """
+        Terminal state - all further input but MustPropagate is discarded.
+
+        Aborts are a normal consequence of peer garbage, and further input is guaranteed: an upstream decoder keeps
+        streaming the remainder of the message it already decoded from the same read.
+        """
+
         def handle(
                 self,
                 ctx: IoPipelineHandlerContext,
@@ -30756,9 +31002,8 @@ class IoPipelineHttpObjectAggregator(
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectAggregator._State', ta.Optional[ta.Any]]]:
             if isinstance(msg, IoPipelineMessages.MustPropagate):
                 out.append(msg)
-                return None
 
-            raise NotImplementedError
+            return None
 
 
 #
@@ -30802,7 +31047,8 @@ class IoPipelineHttpResponseEncoder(IoPipelineHttpResponseObjects, IoPipelineHtt
     def _encode_head_line(self, head: IoPipelineHttpMessageHead) -> bytes:
         head = check.isinstance(head, IoPipelineHttpResponseHead)
         version_str = f'HTTP/{head.version.major}.{head.version.minor}'
-        return f'{version_str} {head.status} {head.reason}\r\n'.encode('ascii')
+        # latin-1, matching the parser's decoding of the reason phrase - see the encoder's _encode_headers
+        return f'{version_str} {head.status} {head.reason}\r\n'.encode('latin-1')
 
 
 ##
@@ -31031,23 +31277,23 @@ class BytesToMessageDecoderIoPipelineHandler(IoPipelineHandler, Abstract):
                 self._decode(ctx, data, out, final=final)
                 doq.extend(out)
 
-                if not doq:
-                    return
+                if doq:
+                    self._produced_messages = True
 
-                self._produced_messages = True
-
-                while doq:
-                    out_msg = doq.popleft()
-                    ctx.feed_in(out_msg)
+                    while doq:
+                        out_msg = doq.popleft()
+                        ctx.feed_in(out_msg)
 
             finally:
                 self._decode_output = None
                 self._decode_pending_input = None
                 self._decode_state = 'ready'
 
-                while diq:
-                    in_msg = diq.popleft()
-                    self.inbound(ctx, in_msg)
+            # Replay only on success: running flush / final processing mid-unwind would drive the decoder against a
+            # pipeline already handling the error, and any exception it raised would replace the original one.
+            while diq:
+                in_msg = diq.popleft()
+                self.inbound(ctx, in_msg)
 
         elif self._decode_state == 'decoding':
             if not self._allow_decode_reentrance:
@@ -31198,10 +31444,20 @@ class BufferedBytesToMessageDecoderIoPipelineHandler(
         if final:
             check.arg(len(data) == 0)
 
-            if not isinstance(data, ByteStreamBuffer):
-                data = DirectByteStreamBuffer(b'')
+            # ~ Netty `decodeLast`: the cumulation is presented, not an empty sentinel, so subclasses can flush or
+            # reject a truncated trailing frame. Anything left afterwards is stranded by definition.
+            final_buf: ByteStreamBuffer
+            if (cum := self._buf) is not None:
+                final_buf = cum
+            elif isinstance(data, ByteStreamBuffer):
+                final_buf = data
+            else:
+                final_buf = DirectByteStreamBuffer(b'')
 
-            self._decode_buffer(ctx, data, out, final=final)
+            self._decode_buffer(ctx, final_buf, out, final=final)
+
+            if cum is not None and not len(cum):
+                self._buf = None
 
             return
 
@@ -31431,8 +31687,16 @@ class IoPipelineHttpDecodingConfig:
     max_chunk_size: ta.Optional[int] = None
     chunk_header_buffer: BufferConfig = BufferConfig(max_size=1024, chunk_size=1024)
 
+    trailer_buffer: BufferConfig = BufferConfig(max_size=4 * 1024, chunk_size=4 * 1024)
+
 
 IoPipelineHttpDecodingConfig.DEFAULT = IoPipelineHttpDecodingConfig()
+
+
+#
+
+
+_HTTP_CHUNK_SIZE_DIGITS: ta.FrozenSet[int] = frozenset(b'0123456789abcdefABCDEF')
 
 
 #
@@ -31557,7 +31821,12 @@ class IoPipelineHttpObjectDecoder(
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
             if final:
-                return self._abort(out, 'EOF before HTTP head complete')
+                if (buf := self._buf) is not None and len(buf):
+                    return self._abort(out, 'EOF before HTTP head complete')
+
+                # A clean EOF with nothing buffered is not an error - it is just a peer which opened a connection and
+                # sent nothing (or which closed cleanly between keepalive messages).
+                return None
 
             done = False
             next_mvs: ta.List[memoryview]
@@ -31584,6 +31853,9 @@ class IoPipelineHttpObjectDecoder(
                     else:
                         buf.write(mv)
 
+                else:
+                    buf.write(mv)
+
                 # Look for end of head
                 i = buf.find(b'\r\n\r\n')
                 if i < 0:
@@ -31597,11 +31869,16 @@ class IoPipelineHttpObjectDecoder(
 
                 # Parse and emit head
                 raw = head_view.tobytes()
-                parsed = parse_http_message(
-                    raw,
-                    mode=self._d._parse_mode,  # noqa
-                    config=self._d._config.parser_config,  # noqa
-                )
+                try:
+                    parsed = parse_http_message(
+                        raw,
+                        mode=self._d._parse_mode,  # noqa
+                        config=self._d._config.parser_config,  # noqa
+                    )
+                except HttpParseError as e:
+                    # Peer garbage is a normal, expected condition - it must abort the message, not raise out of the
+                    # decoder (which would discard any messages already decoded from this same read).
+                    return self._abort(out, e)
 
                 head = self._d._make_head(parsed)  # noqa
                 out.append(head)
@@ -31835,7 +32112,10 @@ class IoPipelineHttpObjectDecoder(
                     else:
                         buf.write(mv)
 
-                # Parse chunk size line: <hex-size>\r\n
+                else:
+                    buf.write(mv)
+
+                # Parse chunk size line: <hex-size>[ chunk-ext ]\r\n
                 i = buf.find(b'\r\n')
                 if i < 0:
                     if rem_mv is not None:
@@ -31846,10 +32126,16 @@ class IoPipelineHttpObjectDecoder(
                 size_line = buf.split_to(i + 2)
 
                 size_bytes = size_line.tobytes()[:-2]  # Strip \r\n
-                try:
-                    chunk_size = int(size_bytes, 16)
-                except ValueError:
+
+                # Chunk extensions are ignored - https://datatracker.ietf.org/doc/html/rfc9112#name-chunk-extensions
+                if (semi := size_bytes.find(b';')) >= 0:
+                    size_bytes = size_bytes[:semi]
+
+                # chunk-size is strictly 1*HEXDIG - int() would otherwise accept '0x5', '1_0', '+5', and even '-5'.
+                if not size_bytes or not all(c in _HTTP_CHUNK_SIZE_DIGITS for c in size_bytes):
                     return self._abort(out, f'Invalid chunk size: {size_bytes!r}')
+
+                chunk_size = int(size_bytes, 16)
 
                 if (mcs := self._d._config.max_chunk_size) is not None and chunk_size > mcs:  # noqa
                     return self._abort(out, f'Content chunk size {chunk_size} exceeds maximum content chunk size: {mcs}')  # noqa
@@ -31978,7 +32264,19 @@ class IoPipelineHttpObjectDecoder(
     #
 
     class _TrailerChunkedContentState(_ChunkedContentState):
-        _got_cr = False
+        """
+        Consumes the trailer section following the last chunk.
+
+        The section is either a bare CRLF or one or more field-lines terminated by an empty line. Parsed fields are
+        carried on the emitted ChunkedTrailers message, kept separate from the head's headers - RFC 9110 §6.5.1 only
+        permits merging them for fields a recipient understands.
+        """
+
+        _buf: ta.Optional[MutableByteStreamBuffer] = None
+
+        @property
+        def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
+            return self._buf
 
         def decode(
                 self,
@@ -31988,43 +32286,80 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
-            next_mvs: ta.Optional[ta.List[memoryview]] = None
+            done = False
+            next_mvs: ta.List[memoryview]
 
             for mv in ByteStreamBuffers.iter_segments(data):
-                if next_mvs is not None:
-                    next_mvs.append(mv)
+                if done:
+                    next_mvs.append(mv)  # noqa
                     continue
 
-                mvl = len(mv)
-                if mvl < 1:
-                    continue
+                if (buf := self._buf) is None:
+                    buf = self._buf = ScanningByteStreamBuffer(SegmentedByteStreamBuffer(
+                        max_size=self._d._config.trailer_buffer.max_size,  # noqa
+                        chunk_size=self._d._config.trailer_buffer.chunk_size,  # noqa
+                    ))
 
-                if not self._got_cr:
-                    if mv[0] != 0x0d:
-                        return self._abort(out, f'Expected \\r\\n after final chunk, got {bytes([mv[0]])!r}')
-                    self._got_cr = True
-                    mv = mv[1:]
-                    mvl -= 1
-                    if mvl < 1:
+                rem_mv: ta.Optional[memoryview] = None
+
+                if (max_buf := buf.max_size) is not None:
+                    rem_buf = max_buf - len(buf)
+
+                    if len(mv) > rem_buf:
+                        buf.write(mv[:rem_buf])
+                        rem_mv = mv[rem_buf:]
+                    else:
+                        buf.write(mv)
+
+                else:
+                    buf.write(mv)
+
+                # An empty trailer section is just the terminating CRLF, otherwise it ends with an empty line.
+                if buf.find(b'\r\n') == 0:
+                    end = 2
+                else:
+                    i = buf.find(b'\r\n\r\n')
+                    if i < 0:
+                        if rem_mv is not None:
+                            return self._abort(out, 'Trailers exceeded max buffer size')
+
                         continue
 
-                if mv[0] != 0x0a:
-                    return self._abort(out, f'Expected \\r\\n after final chunk, got {bytes([mv[0]])!r}')
-                mv = mv[1:]
-                mvl -= 1
+                    end = i + 4
 
-                out.append(self._d._make_chunked_trailers())  # noqa
+                trailer_view = buf.split_to(end)
+
+                parsed_trailers: ta.Optional[ParsedHttpTrailers] = None
+                if end > 2:
+                    try:
+                        parsed_trailers = parse_http_trailers(
+                            trailer_view.tobytes(),
+                            config=self._d._config.parser_config,  # noqa
+                        )
+                    except HttpParseError as e:
+                        return self._abort(out, e)
+
+                self._buf = None
+
+                out.append(self._d._make_chunked_trailers(  # noqa
+                    HttpHeaders(parsed_trailers.headers.entries) if parsed_trailers is not None else None,
+                    parsed_trailers,
+                ))
                 out.append(self._d._make_end())  # noqa
 
+                done = True
                 next_mvs = []
 
-                if mvl > 0:
-                    next_mvs.append(mv)
+                if len(buf):
+                    next_mvs.extend(buf.split_to(len(buf)).segments())
 
-            if next_mvs is not None:
+                if rem_mv is not None:
+                    next_mvs.append(rem_mv)
+
+            if done:
                 return (
                     self._d._DoneState(self._d, self._head),  # noqa
-                    SegmentedByteStreamBufferView.of_opt(next_mvs),
+                    SegmentedByteStreamBufferView.or_else(next_mvs, b''),
                 )
             elif final:
                 return self._abort(out, 'EOF before HTTP trailer complete')
@@ -32059,6 +32394,13 @@ class IoPipelineHttpObjectDecoder(
     #
 
     class _AbortedState(_State):
+        """
+        Terminal state - all further input is discarded.
+
+        Aborts are a normal consequence of peer garbage, and further input is guaranteed: the peer's remaining bytes are
+        already in flight, and the transport is torn down out of band.
+        """
+
         def decode(
                 self,
                 ctx: IoPipelineHandlerContext,
@@ -32067,7 +32409,7 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
-            raise NotImplementedError
+            return None
 
 
 ########################################

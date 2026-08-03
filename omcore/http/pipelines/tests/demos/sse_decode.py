@@ -5,9 +5,13 @@ import typing as ta
 from .....io.pipelines.bytes.decoders import DelimiterFrameDecoderIoPipelineHandler
 from .....io.pipelines.bytes.decoders import UnicodeDecoderIoPipelineHandler
 from .....io.pipelines.core import IoPipeline
+from .....io.pipelines.handlers.flatmap import FlatMapIoPipelineHandlerFns
 from .....io.pipelines.handlers.flatmap import FlatMapIoPipelineHandlers
 from ...clients.responses import IoPipelineHttpResponseDecoder
 from ...clients.responses import IoPipelineHttpResponseDecompressor
+from ...responses import IoPipelineHttpResponseBodyData
+from ...responses import IoPipelineHttpResponseEnd
+from ...responses import IoPipelineHttpResponseHead
 from ...sse import IoPipelineSseDecoder
 
 
@@ -20,6 +24,21 @@ def build_http_sse_spec() -> IoPipeline:
     return IoPipeline.new([
         IoPipelineHttpResponseDecoder(),
         IoPipelineHttpResponseDecompressor(),
+
+        # The decoder emits framed body objects, but the line framer below consumes raw bytes - unwrap them, dropping
+        # the head / end objects the Sse layer has no use for.
+        FlatMapIoPipelineHandlers.new(
+            'inbound',
+            FlatMapIoPipelineHandlers.add_filters(
+                FlatMapIoPipelineHandlerFns.map(lambda ctx, msg: msg.data),
+                filter_type=IoPipelineHttpResponseBodyData,
+            ),
+        ),
+        FlatMapIoPipelineHandlers.drop(
+            'inbound',
+            filter_type=(IoPipelineHttpResponseHead, IoPipelineHttpResponseEnd),
+        ),
+
         DelimiterFrameDecoderIoPipelineHandler([b'\r\n', b'\n'], keep_ends=True, max_size=1 << 20),
         UnicodeDecoderIoPipelineHandler(),
         IoPipelineSseDecoder(),

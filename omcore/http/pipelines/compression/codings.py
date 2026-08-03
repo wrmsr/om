@@ -53,6 +53,21 @@ class IoPiplineHttpDecompressorCoding(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def eof(self) -> bool:
+        """Whether the end of the compressed stream has been reached."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def unused_data(self) -> ta.Optional[BytesLike]:
+        """
+        Bytes found past the end of the compressed stream. Only meaningful once `eof` - for codings whose streams are
+        concatenable (notably gzip, per RFC 1952 §2.2) these are the start of the following member.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def finish(self) -> ta.Optional[BytesLike]:
         raise NotImplementedError
 
@@ -102,6 +117,12 @@ class ZlibIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
 
     def unconsumed_tail(self) -> ta.Optional[BytesLike]:
         return self._z.unconsumed_tail
+
+    def eof(self) -> bool:
+        return self._z.eof
+
+    def unused_data(self) -> ta.Optional[BytesLike]:
+        return self._z.unused_data
 
     def finish(self) -> ta.Optional[BytesLike]:
         return self._z.flush()

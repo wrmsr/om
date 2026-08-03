@@ -74,6 +74,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class ReadyForOutput(  # ~ Netty `ChannelInboundInvoker::fireChannelWritabilityChanged` # noqa
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverOutbound,
+        IoPipelineMessages.AfterFinalInput,
     ):
         pass
 
@@ -82,6 +83,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class PauseOutput(  # ~ Netty `ChannelInboundInvoker::fireChannelWritabilityChanged` # noqa
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverOutbound,
+        IoPipelineMessages.AfterFinalInput,
     ):
         pass
 

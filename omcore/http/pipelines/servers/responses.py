@@ -16,7 +16,8 @@ class IoPipelineHttpResponseEncoder(IoPipelineHttpResponseObjects, IoPipelineHtt
     def _encode_head_line(self, head: IoPipelineHttpMessageHead) -> bytes:
         head = check.isinstance(head, IoPipelineHttpResponseHead)
         version_str = f'HTTP/{head.version.major}.{head.version.minor}'
-        return f'{version_str} {head.status} {head.reason}\r\n'.encode('ascii')
+        # latin-1, matching the parser's decoding of the reason phrase - see the encoder's _encode_headers
+        return f'{version_str} {head.status} {head.reason}\r\n'.encode('latin-1')
 
 
 ##

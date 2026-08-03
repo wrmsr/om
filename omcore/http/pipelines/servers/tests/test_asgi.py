@@ -1,4 +1,4 @@
-# ruff: noqa: UP006 UP007 UP045
+# ruff: noqa: SLF001 UP006 UP007 UP045
 # @om-lite
 import asyncio
 import typing as ta
@@ -13,7 +13,10 @@ from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from ....headers import HttpHeaders
 from ...requests import FullIoPipelineHttpRequest
+from ...requests import IoPipelineHttpRequestBodyData
+from ...requests import IoPipelineHttpRequestHead
 from ...responses import IoPipelineHttpResponseBodyData
 from ...responses import IoPipelineHttpResponseEnd
 from ...responses import IoPipelineHttpResponseHead
@@ -341,6 +344,194 @@ class TestAsgiIoPipelineHandler(unittest.TestCase):
             ],
         )
         self.assertEqual(completed, ['start', 'body'])
+
+
+class TestAsgiDisconnect(unittest.TestCase):
+    @staticmethod
+    def _head(target: str = '/upload', method: str = 'POST') -> IoPipelineHttpRequestHead:
+        return IoPipelineHttpRequestHead(
+            method=method,
+            target=target,
+            headers=HttpHeaders([('Host', 'test')]),
+        )
+
+    @staticmethod
+    def _new_channel(app: ta.Any) -> IoPipeline:
+        return IoPipeline.new(
+            [AsgiIoPipelineHandler(app)],
+            services=[StubIoPipelineFlowService()],
+        )
+
+    def _drain(self, channel: IoPipeline) -> ta.List[ta.Any]:
+        out: ta.List[ta.Any] = []
+        while True:
+            msgs = channel.output.drain()
+            if not msgs:
+                return out
+            for msg in msgs:
+                if isinstance(msg, IoPipelineMessages.Defer):
+                    channel.run_deferred(msg)
+                else:
+                    out.append(msg)
+
+    def test_final_input_delivers_disconnect_to_pending_receive(self) -> None:
+        events: ta.List[str] = []
+
+        async def app(scope, receive, send):  # noqa
+            while True:
+                event = await receive()
+                events.append(event['type'])
+                if event['type'] == 'http.disconnect':
+                    return
+                if not event.get('more_body', False):
+                    break
+
+        channel = self._new_channel(app)
+        try:
+            channel.feed_in(self._head())
+            self.assertEqual(self._drain(channel), [])
+            self.assertEqual(events, [])
+
+            channel.feed_in(IoPipelineHttpRequestBodyData(b'partial'))
+            self.assertEqual(self._drain(channel), [])
+            self.assertEqual(events, ['http.request'])
+
+            channel.feed_final_input()
+            out = self._drain(channel)
+
+            self.assertEqual(events, ['http.request', 'http.disconnect'])
+            self.assertEqual([type(msg) for msg in out], [IoPipelineMessages.FinalOutput])
+        finally:
+            channel.destroy()
+
+    def test_receive_after_disconnect_reports_disconnect(self) -> None:
+        events: ta.List[str] = []
+
+        async def app(scope, receive, send):  # noqa
+            for _ in range(3):
+                events.append((await receive())['type'])
+
+        channel = self._new_channel(app)
+        try:
+            channel.feed_in(self._head())
+            self.assertEqual(self._drain(channel), [])
+
+            channel.feed_final_input()
+            out = self._drain(channel)
+
+            self.assertEqual(events, ['http.disconnect'] * 3)
+            self.assertEqual([type(msg) for msg in out], [IoPipelineMessages.FinalOutput])
+        finally:
+            channel.destroy()
+
+    def test_receive_after_response_finished_reports_disconnect(self) -> None:
+        events: ta.List[str] = []
+
+        async def app(scope, receive, send):  # noqa
+            await send({
+                'type': 'http.response.start',
+                'status': 200,
+                'headers': [],
+            })
+            await send({
+                'type': 'http.response.body',
+                'body': b'ok',
+            })
+
+            events.append((await receive())['type'])
+
+        channel = self._new_channel(app)
+        try:
+            channel.feed_in(FullIoPipelineHttpRequest.simple('localhost', '/'))
+            out = self._drain(channel)
+
+            self.assertEqual(events, ['http.disconnect'])
+            self.assertEqual(
+                [type(msg) for msg in out],
+                [
+                    IoPipelineHttpResponseHead,
+                    IoPipelineFlowMessages.FlushOutput,
+                    IoPipelineHttpResponseBodyData,
+                    IoPipelineHttpResponseEnd,
+                    IoPipelineFlowMessages.FlushOutput,
+                    IoPipelineMessages.FinalOutput,
+                ],
+            )
+        finally:
+            channel.destroy()
+
+    def test_removal_closes_in_flight_app(self) -> None:
+        closed: ta.List[str] = []
+
+        async def app(scope, receive, send):  # noqa
+            try:
+                await receive()
+            except GeneratorExit:
+                closed.append('closed')
+                raise
+
+        channel = self._new_channel(app)
+        try:
+            channel.feed_in(self._head())
+            self.assertEqual(self._drain(channel), [])
+            self.assertEqual(closed, [])
+        finally:
+            channel.destroy()
+
+        self.assertEqual(closed, ['closed'])
+
+
+class TestAsgiRequestScope(unittest.TestCase):
+    def _run(self, target: str) -> ta.Mapping[str, ta.Any]:
+        scopes: ta.List[ta.Mapping[str, ta.Any]] = []
+
+        async def app(scope, receive, send):  # noqa
+            scopes.append(scope)
+
+            await send({
+                'type': 'http.response.start',
+                'status': 204,
+                'headers': [],
+            })
+            await send({
+                'type': 'http.response.body',
+            })
+
+        channel = IoPipeline.new(
+            [AsgiIoPipelineHandler(app)],
+            services=[StubIoPipelineFlowService()],
+        )
+        try:
+            channel.feed_in(FullIoPipelineHttpRequest.simple('localhost', target))
+            while (msgs := channel.output.drain()):
+                for msg in msgs:
+                    if isinstance(msg, IoPipelineMessages.Defer):
+                        channel.run_deferred(msg)
+        finally:
+            channel.destroy()
+
+        self.assertEqual(len(scopes), 1)
+        return scopes[0]
+
+    def test_path_excludes_query_string(self) -> None:
+        scope = self._run('/ping?x=1&y=2')
+
+        self.assertEqual(scope['path'], '/ping')
+        self.assertEqual(scope['raw_path'], b'/ping')
+        self.assertEqual(scope['query_string'], b'x=1&y=2')
+
+    def test_path_is_percent_decoded(self) -> None:
+        scope = self._run('/pi%20ng/%C3%A9?q=a%20b')
+
+        self.assertEqual(scope['path'], '/pi ng/é')
+        self.assertEqual(scope['raw_path'], b'/pi%20ng/%C3%A9')
+        self.assertEqual(scope['query_string'], b'q=a%20b')
+
+    def test_no_query_string(self) -> None:
+        scope = self._run('/ping')
+
+        self.assertEqual(scope['path'], '/ping')
+        self.assertEqual(scope['query_string'], b'')
 
 
 class TestAsgiIoPipelineDriverBackpressure(AsyncioIsolatedAsyncTestCase):

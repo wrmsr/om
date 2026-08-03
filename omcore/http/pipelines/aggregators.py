@@ -19,6 +19,7 @@ from ...io.streambufs.types import MutableByteStreamBuffer
 from ...io.streambufs.utils import ByteStreamBuffers
 from ...io.streambufs.utils import CanByteStreamBuffer
 from ...lite.abstract import Abstract
+from ..headers import HttpHeaders
 from .bodymodes import IoPipelineHttpBodyMode
 from .bodymodes import IoPipelineHttpBodyModeError
 from .objects import IoPipelineHttpMessageHead
@@ -223,6 +224,8 @@ class IoPipelineHttpObjectAggregator(
 
         _buf: ta.Optional[MutableByteStreamBuffer] = None
 
+        _trailers: ta.Optional[HttpHeaders] = None
+
         @property
         def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
             return self._buf
@@ -240,16 +243,32 @@ class IoPipelineHttpObjectAggregator(
                         chunk_size=self._a._config.body_buffer.chunk_size,  # noqa
                     )
 
+                # Only Content-Length bodies are pre-checked against max_size in _HeadState - a chunked (or eof-framed)
+                # body must be checked as it arrives, and must abort rather than let buf.write raise and leave a
+                # partial body behind to be emitted as a truncated Full message.
+                if (max_body := self._a._config.body_buffer.max_size) is not None:  # noqa
+                    if len(buf) + len(msg.data) > max_body:
+                        self._buf = None
+                        return self._abort(
+                            out,
+                            FrameTooLargeByteStreamBufferError('aggregation body exceeded max_body'),
+                        )
+
                 for mv in ByteStreamBuffers.iter_segments(msg.data):
                     buf.write(mv)
 
+                return None
+
+            elif isinstance(msg, self._a._chunked_trailers_type):  # noqa
+                # The framing itself is absorbed, but the trailer fields are carried onto the Full message rather than
+                # dropped - and deliberately not merged into the head's headers.
+                self._trailers = msg.trailers
                 return None
 
             elif isinstance(msg, (
                     self._a._chunk_type,  # noqa
                     self._a._end_chunk_type,  # noqa
                     self._a._last_chunk_type,  # noqa
-                    self._a._chunked_trailers_type,  # noqa
             )):
                 return None
 
@@ -260,7 +279,7 @@ class IoPipelineHttpObjectAggregator(
                 else:
                     body = b''
 
-                full = self._a._make_full(self._head, body)  # noqa
+                full = self._a._make_full(self._head, body, self._trailers)  # noqa
                 out.append(full)
                 return (self._a._init_state(), None)  # noqa
 
@@ -359,6 +378,13 @@ class IoPipelineHttpObjectAggregator(
     #
 
     class _AbortedState(_State):
+        """
+        Terminal state - all further input but MustPropagate is discarded.
+
+        Aborts are a normal consequence of peer garbage, and further input is guaranteed: an upstream decoder keeps
+        streaming the remainder of the message it already decoded from the same read.
+        """
+
         def handle(
                 self,
                 ctx: IoPipelineHandlerContext,
@@ -367,9 +393,8 @@ class IoPipelineHttpObjectAggregator(
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectAggregator._State', ta.Optional[ta.Any]]]:
             if isinstance(msg, IoPipelineMessages.MustPropagate):
                 out.append(msg)
-                return None
 
-            raise NotImplementedError
+            return None
 
 
 #

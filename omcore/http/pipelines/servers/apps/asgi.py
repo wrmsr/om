@@ -6,10 +6,13 @@ import enum
 import functools
 import types
 import typing as ta
+import urllib.parse
 
 from .....io.pipelines.asyncs import AsyncIoPipelineMessages
 from .....io.pipelines.core import IoPipelineHandler
 from .....io.pipelines.core import IoPipelineHandlerContext
+from .....io.pipelines.core import IoPipelineHandlerNotification
+from .....io.pipelines.core import IoPipelineHandlerNotifications
 from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.flow.types import IoPipelineFlow
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
@@ -141,6 +144,7 @@ class _IoPipelineAsgiDriver:
 
         self._read_q: collections.deque[BytesLike] = collections.deque()
         self._receiving_fut: ta.Optional[_IoPipelineAsgiFuture] = None
+        self._disconnected = False
 
         self._output_writable = output_writable
         self._announced_output_writable = output_writable
@@ -200,6 +204,9 @@ class _IoPipelineAsgiDriver:
     #
 
     def _build_request_scope(self) -> ta.Dict[str, ta.Any]:
+        # ASGI `path` is the percent-decoded path *without* the query string, which is carried separately as raw bytes.
+        raw_path, _, query_string = self._head.target.partition('?')
+
         return {
             'asgi': {
                 'spec_version': '2.3',
@@ -212,9 +219,9 @@ class _IoPipelineAsgiDriver:
             ],
             'http_version': '1.1',
             'method': self._head.method,
-            'path': self._head.target,
-            # 'query_string': b'',
-            # 'raw_path': b'/ping',
+            'path': urllib.parse.unquote(raw_path),
+            'query_string': query_string.encode('utf-8'),
+            'raw_path': raw_path.encode('utf-8'),
             # 'root_path': '',
             'scheme': 'http',
             # 'server': ('127.0.0.1', 8087),
@@ -309,9 +316,36 @@ class _IoPipelineAsgiDriver:
 
     #
 
+    @staticmethod
+    def _disconnect_event() -> ta.Dict[str, ta.Any]:
+        return {'type': 'http.disconnect'}
+
+    def _resume_receive(self, event: ta.Dict[str, ta.Any]) -> None:
+        f = check.not_none(self._receiving_fut)
+        self._receiving_fut = None
+
+        f.result = event
+        f.done = True
+
+        self._state = _IoPipelineAsgiDriver.State.RUNNING
+
+        self._ctx.defer_no_context(self.step)
+
     def feed_in(self, msg: ta.Any) -> None:
         if isinstance(msg, (IoPipelineFlowMessages.ReadyForOutput, IoPipelineFlowMessages.PauseOutput)):
             self._on_output_writability(msg)
+            return
+
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            self._disconnected = True
+
+            # FinalInput is MustPropagate - forward it before resuming the app so it is fully accounted for by the time
+            # any deferred step runs.
+            self._ctx.feed_in(msg)
+
+            if self._state == _IoPipelineAsgiDriver.State.RECEIVING:
+                self._resume_receive(self._disconnect_event())
+
             return
 
         if isinstance(msg, (IoPipelineHttpRequestBodyData, IoPipelineHttpRequestEnd)):
@@ -324,19 +358,11 @@ class _IoPipelineAsgiDriver:
                 d = b''
 
             if self._state == _IoPipelineAsgiDriver.State.RECEIVING:
-                f = check.not_none(self._receiving_fut)
-                self._receiving_fut = None
-
-                f.result = {
+                self._resume_receive({
                     'type': 'http.request',
                     'body': d,
                     'more_body': len(d) > 0,
-                }
-                f.done = True
-
-                self._state = _IoPipelineAsgiDriver.State.RUNNING
-
-                self._ctx.defer_no_context(self.step)
+                })
 
             else:
                 # raise RuntimeError(f'Invalid state: {self._state!r}')
@@ -408,6 +434,22 @@ class _IoPipelineAsgiDriver:
                 self._accept_send(f, out)
                 return 'defer' if self._has_flow() else 'continue'
 
+        if gv.k == 'r' and self._state in (
+                _IoPipelineAsgiDriver.State.RUNNING,
+                _IoPipelineAsgiDriver.State.RESPONSE_STARTED,
+        ):
+            # An app returning without a complete response is only tolerable once the peer is gone - the exchange is
+            # unsalvageable either way, so close rather than leaving the connection wedged.
+            if not self._disconnected:
+                raise RuntimeError(f'ASGI app returned without completing a response: {self._state!r}')
+            check.state(gv.v is None)
+
+            out.append(IoPipelineMessages.FinalOutput())
+
+            self.close()
+
+            return 'stop'
+
         if self._state == _IoPipelineAsgiDriver.State.RUNNING:
             check.state(gv.k == 'y')
             f = check.isinstance(gv.v, _IoPipelineAsgiFuture)
@@ -427,6 +469,12 @@ class _IoPipelineAsgiDriver:
 
                     return 'continue'
 
+                elif self._disconnected:
+                    f.result = self._disconnect_event()
+                    f.done = True
+
+                    return 'continue'
+
                 else:
                     self._receiving_fut = f
 
@@ -440,7 +488,18 @@ class _IoPipelineAsgiDriver:
                 raise TypeError(f.arg)
 
         elif self._state == _IoPipelineAsgiDriver.State.RESPONSE_FINISHED:
-            check.state(gv.k == 'r')
+            if gv.k == 'y':
+                f = check.isinstance(gv.v, _IoPipelineAsgiFuture)
+                if not isinstance(f.arg, _IoPipelineAsgiOps.Receive):
+                    raise TypeError(f.arg)
+
+                # Awaiting receive() after the response is finished is the standard way for an app to wait for peer
+                # disconnect - the exchange is over, so report it immediately rather than blocking forever.
+                f.result = self._disconnect_event()
+                f.done = True
+
+                return 'continue'
+
             check.state(gv.v is None)
 
             out.append(IoPipelineMessages.FinalOutput())
@@ -469,6 +528,12 @@ class AsgiIoPipelineHandler(IoPipelineHandler):
             return
         if drv.state == _IoPipelineAsgiDriver.State.CLOSED:
             self._drv = None
+
+    def notify(self, ctx: IoPipelineHandlerContext, no: IoPipelineHandlerNotification) -> None:
+        if isinstance(no, IoPipelineHandlerNotifications.Removed):
+            if (drv := self._drv) is not None:
+                self._drv = None
+                drv.close()
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, (IoPipelineFlowMessages.ReadyForOutput, IoPipelineFlowMessages.PauseOutput)):

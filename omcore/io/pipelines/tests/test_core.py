@@ -208,6 +208,33 @@ class TestCore(unittest.TestCase):
         ch.feed_in(fbi.wrap('24'))
         assert ch.output.drain() == [24]
 
+    def test_replace_reuses_name(self):
+        ch = IoPipeline.new([
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        ch.add_outermost(IntIncInboundHandler(), name='int_op')
+
+        ch.feed_in(42)
+        assert ibq.drain() == [43]
+
+        ch.replace(ch.handlers_by_name()['int_op'], IntMulThreeInboundHandler(), name='int_op')
+
+        ch.feed_in(42)
+        assert ibq.drain() == [126]
+        assert set(ch.handlers_by_name()) == {'int_op'}
+
+    def test_replace_rejects_another_handlers_name(self):
+        ch = IoPipeline.new([
+            InboundQueueIoPipelineHandler(),
+        ])
+
+        ch.add_outermost(IntIncInboundHandler(), name='int_inc')
+        ch.add_outermost(IntMulThreeInboundHandler(), name='int_mul')
+
+        with self.assertRaises(Exception):  # noqa
+            ch.replace(ch.handlers_by_name()['int_inc'], IntStrDuplexHandler(), name='int_mul')
+
 
 class TestMetadata(unittest.TestCase):
     @dc.dataclass(frozen=True)

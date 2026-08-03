@@ -2,6 +2,7 @@
 import unittest
 
 from ...core import IoPipeline
+from ...core import IoPipelineMessages
 from ...handlers.fns import FnIoPipelineHandler
 from ...handlers.queues import InboundQueueIoPipelineHandler
 from ..queues import InboundBytesBufferingQueueIoPipelineHandler
@@ -38,4 +39,31 @@ class TestQueues(unittest.TestCase):
         assert h.inbound_buffered_bytes() == 0
         assert not h.poll()
         assert ibq.drain() == [420]
+        assert h.inbound_buffered_bytes() == 0
+
+    def test_default_does_not_trap_must_propagate(self):
+        # The unfiltered default enqueues everything, so it must still forward the identity-tracked lifecycle
+        # messages - swallowing them fails the pipeline's propagation check.
+
+        ch = IoPipeline.new([
+            h := InboundBytesBufferingQueueIoPipelineHandler(),
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        ch.feed_initial_input()
+        ch.feed_in(b'abc')
+        ch.feed_final_input()
+
+        assert [type(m) for m in ibq.drain()] == [
+            IoPipelineMessages.InitialInput,
+            IoPipelineMessages.FinalInput,
+        ]
+        assert [
+            m if isinstance(m, bytes) else type(m)
+            for m in h.drain()
+        ] == [
+            IoPipelineMessages.InitialInput,
+            b'abc',
+            IoPipelineMessages.FinalInput,
+        ]
         assert h.inbound_buffered_bytes() == 0

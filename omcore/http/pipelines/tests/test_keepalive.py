@@ -4,6 +4,7 @@ import asyncio
 import unittest
 
 from ....io.pipelines.core import IoPipeline
+from ....io.pipelines.core import IoPipelineHandler
 from ....io.pipelines.core import IoPipelineMessages
 from ....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from ....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
@@ -13,9 +14,12 @@ from ....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ...headers import HttpHeaders
 from ...versions import HttpVersions
 from ..requests import FullIoPipelineHttpRequest
+from ..requests import IoPipelineHttpRequestAborted
 from ..requests import IoPipelineHttpRequestEnd
 from ..requests import IoPipelineHttpRequestHead
 from ..responses import FullIoPipelineHttpResponse
+from ..responses import IoPipelineHttpResponseAborted
+from ..responses import IoPipelineHttpResponseEnd
 from ..responses import IoPipelineHttpResponseHead
 from ..servers.keepalive import IoPipelineHttpServerKeepAliveHandler
 from ..servers.requests import IoPipelineHttpRequestAggregatorDecoder
@@ -78,6 +82,24 @@ class TestKeepAliveDecision(unittest.TestCase):
         )
         self.assertFalse(IoPipelineHttpServerKeepAliveHandler.is_request_keep_alive(head))
 
+    def test_http11_connection_list_close(self) -> None:
+        head = IoPipelineHttpRequestHead(
+            method='GET',
+            target='/test',
+            headers=HttpHeaders([('Host', 'test'), ('Connection', 'TE, Close')]),
+            version=HttpVersions.HTTP_1_1,
+        )
+        self.assertFalse(IoPipelineHttpServerKeepAliveHandler.is_request_keep_alive(head))
+
+    def test_http10_connection_list_keep_alive(self) -> None:
+        head = IoPipelineHttpRequestHead(
+            method='GET',
+            target='/test',
+            headers=HttpHeaders([('Host', 'test'), ('Connection', 'Keep-Alive, Upgrade')]),
+            version=HttpVersions.HTTP_1_0,
+        )
+        self.assertTrue(IoPipelineHttpServerKeepAliveHandler.is_request_keep_alive(head))
+
 
 ##
 
@@ -103,6 +125,82 @@ class _SimpleEchoHandler:
                 return
 
             ctx.feed_in(msg)
+
+
+_INTERIM_RESPONSE = object()
+_RESPONSE_HEAD = object()
+_RESPONSE_END = object()
+_RESPONSE_ABORTED = object()
+
+
+def _make_response_head(status, **kwargs):
+    return IoPipelineHttpResponseHead(
+        status=status,
+        reason=IoPipelineHttpResponseHead.get_reason_phrase(status),
+        headers=HttpHeaders([]),
+        **kwargs,
+    )
+
+
+class _ResponseControlHandler(IoPipelineHandler):
+    """Emits controlled response objects in reply to sentinel inbound messages."""
+
+    def __init__(self, *, abort_response_status=None, respond_on_final_input=False) -> None:
+        super().__init__()
+
+        self._abort_response_status = abort_response_status
+        self._respond_on_final_input = respond_on_final_input
+
+    def inbound(self, ctx, msg):
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            ctx.feed_in(msg)
+            if self._respond_on_final_input:
+                ctx.feed_out(_make_response_head(200))
+                ctx.feed_out(IoPipelineHttpResponseEnd())
+
+        elif msg is _INTERIM_RESPONSE:
+            ctx.feed_out(_make_response_head(100))
+            ctx.feed_out(IoPipelineHttpResponseEnd())
+
+        elif msg is _RESPONSE_HEAD:
+            ctx.feed_out(_make_response_head(200))
+
+        elif msg is _RESPONSE_END:
+            ctx.feed_out(IoPipelineHttpResponseEnd())
+
+        elif msg is _RESPONSE_ABORTED:
+            ctx.feed_out(IoPipelineHttpResponseAborted('aborted'))
+
+        elif isinstance(msg, IoPipelineHttpRequestAborted) and self._abort_response_status is not None:
+            ctx.feed_out(FullIoPipelineHttpResponse(
+                head=_make_response_head(self._abort_response_status),
+                body=b'',
+            ))
+
+        elif isinstance(msg, IoPipelineMessages.MustPropagate):
+            ctx.feed_in(msg)
+
+
+def _make_control_channel(*, idle_timeout_s=None, **kwargs):
+    ka = IoPipelineHttpServerKeepAliveHandler(idle_timeout_s)
+    control = _ResponseControlHandler(**kwargs)
+    channel = IoPipeline.new([
+        ka,
+        control,
+    ], IoPipeline.Config(inbound_terminal='drop'))
+    return ka, channel
+
+
+def _feed_request_head(channel, *, version=HttpVersions.HTTP_1_1, connection=None):
+    channel.feed_in(IoPipelineHttpRequestHead(
+        method='POST',
+        target='/upload',
+        headers=HttpHeaders([
+            ('Host', 'test'),
+            *([('Connection', connection)] if connection is not None else []),
+        ]),
+        version=version,
+    ))
 
 
 def _make_ka_channel():
@@ -283,6 +381,206 @@ class TestKeepAliveHandler(unittest.TestCase):
         self.assertEqual(len(out), 2)
         self.assertIsInstance(out[0], FullIoPipelineHttpResponse)
         self.assertIsInstance(out[1], IoPipelineMessages.FinalOutput)
+
+
+class TestKeepAliveInterimResponses(unittest.TestCase):
+    def test_interim_response_is_not_exchange_completion(self) -> None:
+        """A 100 Continue must not complete the exchange - the real response must still get through."""
+
+        ka, channel = _make_control_channel()
+
+        _feed_request_head(channel, connection='close')
+        channel.output.drain()
+
+        channel.feed_in(_INTERIM_RESPONSE)
+        interim = channel.output.drain()
+        self.assertEqual(
+            [type(msg) for msg in interim],
+            [IoPipelineHttpResponseHead, IoPipelineHttpResponseEnd],
+        )
+        self.assertEqual(interim[0].status, 100)
+        self.assertFalse(interim[0].headers.lower.get('connection'))
+        self.assertFalse(ka._idle)
+
+        channel.feed_in(_RESPONSE_HEAD)
+        channel.feed_in(_RESPONSE_END)
+        final = channel.output.drain()
+        self.assertEqual(
+            [type(msg) for msg in final],
+            [IoPipelineHttpResponseHead, IoPipelineHttpResponseEnd, IoPipelineMessages.FinalOutput],
+        )
+        self.assertEqual(final[0].status, 200)
+        self.assertTrue(final[0].headers.contains_value('connection', 'close', ignore_case=True))
+
+    def test_final_input_during_interim_does_not_take_idle_path(self) -> None:
+        """Peer EOF while an interim response is outstanding must let the real response finish, not close outright."""
+
+        ka, channel = _make_control_channel()
+
+        _feed_request_head(channel)
+        channel.output.drain()
+
+        channel.feed_in(_INTERIM_RESPONSE)
+        channel.output.drain()
+        self.assertFalse(ka._idle)
+
+        channel.feed_final_input()
+
+        self.assertFalse(ka._closing)
+        self.assertFalse(ka._keep_alive)
+        self.assertEqual(channel.output.drain(), [])
+
+    def test_response_after_final_input_during_interim_completes(self) -> None:
+        ka, channel = _make_control_channel(respond_on_final_input=True)
+
+        _feed_request_head(channel)
+        channel.output.drain()
+
+        channel.feed_in(_INTERIM_RESPONSE)
+        channel.output.drain()
+
+        channel.feed_final_input()
+        final = channel.output.drain()
+
+        self.assertEqual(
+            [type(msg) for msg in final],
+            [IoPipelineHttpResponseHead, IoPipelineHttpResponseEnd, IoPipelineMessages.FinalOutput],
+        )
+        self.assertEqual(final[0].status, 200)
+        self.assertTrue(ka._closing)
+
+    def test_interim_response_does_not_rearm_idle_timer(self) -> None:
+        keep_alive = IoPipelineHttpServerKeepAliveHandler(60.)
+        drv = SyncSocketIoPipelineDriver(
+            _make_timed_ka_spec(keep_alive, _ResponseControlHandler()),
+            object(),
+        )
+        try:
+            self.assertIsNone(drv.next(read=False))
+            self.assertIsNotNone(keep_alive._handle)
+
+            drv.enqueue(IoPipelineHttpRequestHead(
+                method='POST',
+                target='/upload',
+                headers=HttpHeaders([('Host', 'test'), ('Expect', '100-continue')]),
+                version=HttpVersions.HTTP_1_1,
+            ))
+            self.assertIsNone(drv.next(read=False))
+            self.assertIsNone(keep_alive._handle)
+
+            drv.enqueue(_INTERIM_RESPONSE)
+            self.assertIsInstance(drv.next(read=False), IoPipelineHttpResponseHead)
+            self.assertIsInstance(drv.next(read=False), IoPipelineHttpResponseEnd)
+
+            self.assertFalse(keep_alive._idle)
+            self.assertIsNone(keep_alive._handle)
+
+            drv.enqueue(_RESPONSE_HEAD, _RESPONSE_END)
+            self.assertIsInstance(drv.next(read=False), IoPipelineHttpResponseHead)
+            self.assertIsInstance(drv.next(read=False), IoPipelineHttpResponseEnd)
+
+            self.assertTrue(keep_alive._idle)
+            self.assertIsNotNone(keep_alive._handle)
+        finally:
+            drv.close()
+
+
+class TestKeepAliveAborts(unittest.TestCase):
+    def test_response_aborted_closes_connection(self) -> None:
+        ka, channel = _make_control_channel()
+
+        _feed_request_head(channel)
+        channel.output.drain()
+
+        channel.feed_in(_RESPONSE_ABORTED)
+        out = channel.output.drain()
+        self.assertEqual(
+            [type(msg) for msg in out],
+            [IoPipelineHttpResponseAborted, IoPipelineMessages.FinalOutput],
+        )
+        self.assertTrue(ka._closing)
+
+    def test_request_aborted_closes_connection(self) -> None:
+        _, channel = _make_control_channel()
+
+        _feed_request_head(channel)
+        channel.output.drain()
+
+        channel.feed_in(IoPipelineHttpRequestAborted('bad chunk'))
+        out = channel.output.drain()
+        self.assertEqual([type(msg) for msg in out], [IoPipelineMessages.FinalOutput])
+
+    def test_request_aborted_error_response_closes_connection(self) -> None:
+        _, channel = _make_control_channel(abort_response_status=400)
+
+        _feed_request_head(channel)
+        channel.output.drain()
+
+        channel.feed_in(IoPipelineHttpRequestAborted('bad chunk'))
+        out = channel.output.drain()
+        self.assertEqual(
+            [type(msg) for msg in out],
+            [FullIoPipelineHttpResponse, IoPipelineMessages.FinalOutput],
+        )
+        self.assertTrue(out[0].head.headers.contains_value('connection', 'close', ignore_case=True))
+
+
+class TestKeepAliveConnectionHeaderVersion(unittest.TestCase):
+    def test_http10_keep_alive_is_echoed(self) -> None:
+        """An HTTP/1.0 keep-alive request must get `Connection: keep-alive` back on an HTTP/1.1-built response."""
+
+        channel = _make_ka_channel()
+
+        channel.feed_in(FullIoPipelineHttpRequest(
+            head=IoPipelineHttpRequestHead(
+                method='GET',
+                target='/x',
+                headers=HttpHeaders([('Host', 'test'), ('Connection', 'keep-alive')]),
+                version=HttpVersions.HTTP_1_0,
+            ),
+            body=b'',
+        ))
+
+        out = channel.output.drain()
+        self.assertEqual([type(msg) for msg in out], [FullIoPipelineHttpResponse])
+        self.assertTrue(out[0].head.headers.contains_value('connection', 'keep-alive', ignore_case=True))
+
+    def test_http11_keep_alive_is_not_stamped(self) -> None:
+        channel = _make_ka_channel()
+
+        channel.feed_in(FullIoPipelineHttpRequest(
+            head=IoPipelineHttpRequestHead(
+                method='GET',
+                target='/x',
+                headers=HttpHeaders([('Host', 'test')]),
+                version=HttpVersions.HTTP_1_1,
+            ),
+            body=b'',
+        ))
+
+        out = channel.output.drain()
+        self.assertEqual(len(out), 1)
+        self.assertFalse(out[0].head.headers.lower.get('connection'))
+
+    def test_http10_close_is_stated_explicitly(self) -> None:
+        channel = _make_ka_channel()
+
+        channel.feed_in(FullIoPipelineHttpRequest(
+            head=IoPipelineHttpRequestHead(
+                method='GET',
+                target='/x',
+                headers=HttpHeaders([('Host', 'test')]),
+                version=HttpVersions.HTTP_1_0,
+            ),
+            body=b'',
+        ))
+
+        out = channel.output.drain()
+        self.assertEqual(
+            [type(msg) for msg in out],
+            [FullIoPipelineHttpResponse, IoPipelineMessages.FinalOutput],
+        )
+        self.assertTrue(out[0].head.headers.contains_value('connection', 'close', ignore_case=True))
 
 
 class TestSyncKeepAliveIdleTimeout(unittest.TestCase):

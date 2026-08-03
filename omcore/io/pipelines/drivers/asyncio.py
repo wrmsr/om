@@ -1065,6 +1065,11 @@ class PollAsyncioStreamIoPipelineDriver:
                     else:
                         raise RuntimeError(f'Unknown handled value: {handled!r}')
 
+            # Handling pipeline output (notably a Defer) can schedule timers just as handling a command can, so flush
+            # before any wait - otherwise a timer scheduled from a deferred callback never gets its sleeping task and
+            # the wait below never wakes.
+            await self._sched._flush_pending()  # noqa
+
             try:
                 cmd = self._command_queue.get_nowait()
             except asyncio.QueueEmpty:
@@ -1083,8 +1088,6 @@ class PollAsyncioStreamIoPipelineDriver:
                 break
 
             await self._handle_command(cmd)
-
-            await self._sched._flush_pending()  # noqa
 
         try:
             pipeline.destroy()

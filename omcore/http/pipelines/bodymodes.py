@@ -9,6 +9,31 @@ from ..headers import HttpHeaders
 ##
 
 
+def is_chunked_transfer_encoding(headers: HttpHeaders) -> bool:
+    """
+    Whether a message is framed with the chunked transfer-coding.
+
+    Transfer-Encoding is a `#`-list, so `gzip, chunked` is chunked-framed - but RFC 9112 §6.1 requires `chunked` to be
+    the final coding, so `chunked, gzip` is not (the parser rejects such messages outright, but these headers are also
+    built by hand outbound).
+    """
+
+    if not headers.contains_list_value('transfer-encoding', 'chunked', ignore_case=True):
+        return False
+
+    last = ''
+    for v in headers.lower['transfer-encoding']:
+        for e in v.split(','):
+            e = e.strip()
+            if e:
+                last = e
+
+    return last == 'chunked'
+
+
+##
+
+
 @dc.dataclass()
 class IoPipelineHttpBodyModeError(Exception):
     reason: str
@@ -30,7 +55,7 @@ class IoPipelineHttpBodyMode:
         if 'transfer-encoding' in headers and 'content-length' in headers:
             raise IoPipelineHttpBodyModeError('both Transfer-Encoding and Content-Length are present')
 
-        if headers.contains_value('transfer-encoding', 'chunked', ignore_case=True):
+        if is_chunked_transfer_encoding(headers):
             return cls('chunked', None)
 
         cl = headers.single.get('content-length')

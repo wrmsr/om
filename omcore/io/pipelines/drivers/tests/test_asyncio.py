@@ -2,7 +2,6 @@
 # @om-lite
 import asyncio
 import typing as ta
-import unittest
 
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ....streambufs.types import ByteStreamBuffer
@@ -431,12 +430,10 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
         finally:
             await drv.close()
 
-    @unittest.expectedFailure
     async def test_timer_scheduled_from_deferred_runs(self):
-        # next() only calls _sched._flush_pending() after handling a queued command. A Defer is drained from pipeline
-        # output rather than the command queue, so a timer scheduled inside the deferred callback never gets its
-        # sleeping task created and next() blocks forever waiting on the command queue. A due-on-arrival deadline is
-        # rescued by _enqueue_due at the top of next(); only a future one strands.
+        # A Defer is drained from pipeline output rather than the command queue, so its scheduled timers must also be
+        # flushed before waiting. A due-on-arrival deadline is rescued by _enqueue_due at the top of next(); only a
+        # future one exercises the flush.
 
         drv = await self.make_driver(DeferredTimerIoPipelineHandler(.01, 'timer'))
         try:

@@ -16,6 +16,7 @@ from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
 from ...compression.decompressors import IoPipelineHttpDecompressionConfig
+from ...responses import IoPipelineHttpResponseAborted
 from ...responses import IoPipelineHttpResponseBodyData
 from ...responses import IoPipelineHttpResponseEnd
 from ...responses import IoPipelineHttpResponseHead
@@ -41,6 +42,20 @@ def request_read(channel: IoPipeline, capture: CaptureReadsIoPipelineHandler) ->
 
     with channel.enter():
         ref._context.feed_out(IoPipelineFlowMessages.ReadyForInput())  # noqa
+
+
+def gzip_bytes(data: bytes) -> bytes:
+    compressor = zlib.compressobj(wbits=16 + zlib.MAX_WBITS)
+    return compressor.compress(data) + compressor.flush()
+
+
+def run_deferred_work(channel: IoPipeline, max_steps: int = 100) -> None:
+    count = 0
+    while (out := channel.output.poll()) is not None:
+        count += 1
+        if count > max_steps:
+            raise AssertionError('Infinite defer loop')
+        channel.run_deferred(check.isinstance(out, IoPipelineMessages.Defer))
 
 
 class TestGzipDecompressorSimple(unittest.TestCase):
@@ -415,3 +430,237 @@ class TestGzipDecompressorFlow(unittest.TestCase):
     #
     #     # Now one chunk should be present
     #     self.assertGreater(len(self.ctx.inbound_results), 0)
+
+
+class TestGzipDecompressorStreamIntegrity(unittest.TestCase):
+    head = IoPipelineHttpResponseHead(
+        status=200,
+        reason='OK',
+        headers=HttpHeaders({'content-encoding': 'gzip'}),
+    )
+
+    def _new(self, config=IoPipelineHttpDecompressionConfig.DEFAULT):
+        channel = IoPipeline.new([
+            IoPipelineHttpResponseDecompressor(config=config),
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+        return channel, ibq
+
+    def _body_bytes(self, msgs) -> bytes:
+        return b''.join(
+            ByteStreamBuffers.to_bytes(m.data, strict=True)
+            for m in msgs
+            if isinstance(m, IoPipelineHttpResponseBodyData)
+        )
+
+    def test_multi_member_gzip(self):
+        # Concatenated gzip members are valid (RFC 1952 §2.2) and are what urllib3 and browsers accept.
+        channel, ibq = self._new()
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'first-member-') + gzip_bytes(b'second-member')))
+        channel.feed_in(end)
+
+        messages = ibq.drain()
+        self.assertIs(messages[0], self.head)
+        self.assertIs(messages[-1], end)
+        self.assertEqual(self._body_bytes(messages), b'first-member-second-member')
+
+    def test_multi_member_gzip_split_across_body_data(self):
+        channel, ibq = self._new()
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'first-member-')))
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'second-member')))
+        channel.feed_in(end)
+
+        messages = ibq.drain()
+        self.assertIs(messages[0], self.head)
+        self.assertIs(messages[-1], end)
+        self.assertEqual(self._body_bytes(messages), b'first-member-second-member')
+
+    def test_multi_member_gzip_with_deferral(self):
+        config = dc.replace(
+            IoPipelineHttpDecompressionConfig.DEFAULT,
+            max_steps_per_call=2,
+            max_decomp_chunk=8,
+        )
+        channel, ibq = self._new(config)
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'first-member-') + gzip_bytes(b'second-member')))
+        run_deferred_work(channel)
+        channel.feed_in(end)
+        run_deferred_work(channel)
+
+        messages = ibq.drain()
+        self.assertIs(messages[0], self.head)
+        self.assertIs(messages[-1], end)
+        self.assertEqual(self._body_bytes(messages), b'first-member-second-member')
+
+    def test_truncated_gzip_aborts(self):
+        # zlib's flush() does not fail on an incomplete stream, and gzip's crc/length check lives in the trailer that
+        # was never received - nothing else would notice.
+        raw_data = b'a truncated body must not look like a complete one' * 8
+        compressed_data = gzip_bytes(raw_data)
+        channel, ibq = self._new()
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data[:len(compressed_data) // 2]))
+        channel.feed_in(end)
+
+        messages = ibq.drain()
+        self.assertIs(messages[0], self.head)
+        self.assertNotIn(end, messages)
+        aborted = check.isinstance(messages[-1], IoPipelineHttpResponseAborted)
+        self.assertIn('truncated', aborted.reason_str)
+
+    def test_truncated_gzip_aborts_with_deferral(self):
+        raw_data = b'a truncated body must not look like a complete one' * 8
+        compressed_data = gzip_bytes(raw_data)
+        config = dc.replace(
+            IoPipelineHttpDecompressionConfig.DEFAULT,
+            max_steps_per_call=2,
+            max_decomp_chunk=8,
+        )
+        channel, ibq = self._new(config)
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data[:len(compressed_data) // 2]))
+        run_deferred_work(channel)
+        channel.feed_in(end)
+        run_deferred_work(channel)
+
+        messages = ibq.drain()
+        self.assertNotIn(end, messages)
+        aborted = check.isinstance(messages[-1], IoPipelineHttpResponseAborted)
+        self.assertIn('truncated', aborted.reason_str)
+
+    def test_empty_body_is_not_truncated(self):
+        # An encoded message with no body at all (304, HEAD, ...) is not a truncated stream.
+        channel, ibq = self._new()
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(end)
+
+        self.assertEqual(ibq.drain(), [self.head, end])
+
+    def test_non_positive_max_steps_per_call_rejected(self):
+        # A zero step budget defers before ever taking a step - an infinite defer loop.
+        with self.assertRaises(ValueError):
+            IoPipelineHttpDecompressionConfig(max_steps_per_call=0)
+        with self.assertRaises(ValueError):
+            IoPipelineHttpDecompressionConfig(max_steps_per_call=-1)
+
+    def test_unknown_trailing_data_mode_rejected(self):
+        with self.assertRaises(ValueError):
+            IoPipelineHttpDecompressionConfig(trailing_data='barf')  # type: ignore[arg-type]
+
+    def test_trailing_junk_surfaces_by_default(self):
+        # Default 'member' cannot tell a following member from junk, and says so rather than silently truncating.
+        channel, ibq = self._new()
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'first-member-') + b'JUNKJUNKJUNK'))
+        channel.feed_in(end)
+
+        messages = ibq.drain()
+        self.assertNotIn(end, messages)
+        check.isinstance(messages[-1], IoPipelineHttpResponseAborted)
+
+    _IGNORE_TRAILING: ta.ClassVar[IoPipelineHttpDecompressionConfig] = dc.replace(
+        IoPipelineHttpDecompressionConfig.DEFAULT,
+        trailing_data='ignore',
+    )
+
+    def test_ignore_trailing_data_stops_at_first_member(self):
+        # urllib3's behavior: stop at the first complete member and drop whatever follows.
+        channel, ibq = self._new(self._IGNORE_TRAILING)
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'first-member-') + gzip_bytes(b'second-member')))
+        channel.feed_in(end)
+
+        messages = ibq.drain()
+        self.assertIs(messages[-1], end)
+        self.assertEqual(self._body_bytes(messages), b'first-member-')
+
+    def test_ignore_trailing_data_tolerates_junk(self):
+        channel, ibq = self._new(self._IGNORE_TRAILING)
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'first-member-') + b'JUNKJUNKJUNK'))
+        channel.feed_in(end)
+
+        messages = ibq.drain()
+        self.assertIs(messages[-1], end)
+        self.assertEqual(self._body_bytes(messages), b'first-member-')
+
+    def test_ignore_trailing_data_still_detects_truncation(self):
+        # Leniency about what follows a *complete* stream must not extend to an incomplete one.
+        compressed_data = gzip_bytes(b'a truncated body must not look like a complete one' * 8)
+        channel, ibq = self._new(self._IGNORE_TRAILING)
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data[:len(compressed_data) // 2]))
+        channel.feed_in(end)
+
+        messages = ibq.drain()
+        self.assertNotIn(end, messages)
+        aborted = check.isinstance(messages[-1], IoPipelineHttpResponseAborted)
+        self.assertIn('truncated', aborted.reason_str)
+
+
+class TestGzipDecompressorAutoReadFinalInput(unittest.TestCase):
+    head = IoPipelineHttpResponseHead(
+        status=200,
+        reason='OK',
+        headers=HttpHeaders({'content-encoding': 'gzip'}),
+    )
+
+    def test_auto_read_releases_parked_final_input(self):
+        # In auto-read the parked FinalInput has had its must-propagate tracking disarmed, so losing it is silent -
+        # and anything keyed on connection-inactive then hangs.
+        raw_data = b'the connection eof must survive a cpu-bounded deferred decompression'
+        config = IoPipelineHttpDecompressionConfig(
+            max_steps_per_call=2,
+            max_decomp_chunk=10,
+            max_expansion_ratio=1000,
+        )
+        handler = IoPipelineHttpResponseDecompressor(config=config)
+        channel = IoPipeline.new([
+            handler,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+        end = IoPipelineHttpResponseEnd()
+        final_input = IoPipelineMessages.FinalInput()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(raw_data)))
+        channel.feed_in(end)
+        channel.feed_in(final_input)
+        run_deferred_work(channel)
+
+        messages = ibq.drain()
+        self.assertIs(messages[0], self.head)
+        self.assertIn(end, messages)
+        self.assertIn(final_input, messages)
+        self.assertIs(messages[-1], final_input)
+        self.assertIsNone(handler._pending_final_input)
+
+        body = b''.join(
+            ByteStreamBuffers.to_bytes(m.data, strict=True)
+            for m in messages
+            if isinstance(m, IoPipelineHttpResponseBodyData)
+        )
+        self.assertEqual(body, raw_data)

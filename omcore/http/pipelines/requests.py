@@ -10,6 +10,7 @@ from ...lite.dataclasses import install_dataclass_kw_only_init
 from ..headers import CanHttpHeaders
 from ..headers import HttpHeaders
 from ..parsing import ParsedHttpMessage
+from ..parsing import ParsedHttpTrailers
 from ..versions import HttpVersion
 from ..versions import HttpVersions
 from .objects import FullIoPipelineHttpMessage
@@ -56,6 +57,8 @@ class IoPipelineHttpRequestHead(IoPipelineHttpMessageHead, IoPipelineHttpRequest
 class FullIoPipelineHttpRequest(FullIoPipelineHttpMessage, IoPipelineHttpRequestObject):
     head: IoPipelineHttpRequestHead
     body: CanByteStreamBuffer
+
+    trailers: HttpHeaders = dc.field(default_factory=HttpHeaders.empty)
 
     @classmethod
     def simple(
@@ -165,7 +168,9 @@ class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
 
         return IoPipelineHttpRequestHead(
             method=request.method,
-            target=check.not_none(request.request_target).decode('utf-8'),  # type: ignore[attr-defined]
+            # latin-1, like the parser's field value decoding: it is total (the parser accepts non-ascii targets by
+            # default) and round-trips byte-for-byte back out through the encoder.
+            target=check.not_none(request.request_target).decode('latin-1'),  # type: ignore[attr-defined]
             version=request.http_version,
             headers=HttpHeaders(parsed.headers.entries),
             parsed=parsed,
@@ -175,8 +180,17 @@ class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
 
     _full_type: ta.Final = FullIoPipelineHttpRequest
 
-    def _make_full(self, head: IoPipelineHttpMessageHead, body: CanByteStreamBuffer) -> FullIoPipelineHttpRequest:
-        return FullIoPipelineHttpRequest(check.isinstance(head, IoPipelineHttpRequestHead), body)
+    def _make_full(
+            self,
+            head: IoPipelineHttpMessageHead,
+            body: CanByteStreamBuffer,
+            trailers: ta.Optional[HttpHeaders] = None,
+    ) -> FullIoPipelineHttpRequest:
+        return FullIoPipelineHttpRequest(
+            check.isinstance(head, IoPipelineHttpRequestHead),
+            body,
+            HttpHeaders.of(trailers),
+        )
 
     #
 
@@ -203,8 +217,15 @@ class IoPipelineHttpRequestObjects(IoPipelineHttpMessageObjects):
 
     _chunked_trailers_type: ta.Final = IoPipelineHttpRequestChunkedTrailers
 
-    def _make_chunked_trailers(self) -> IoPipelineHttpRequestChunkedTrailers:
-        return IoPipelineHttpRequestChunkedTrailers()
+    def _make_chunked_trailers(
+            self,
+            trailers: ta.Optional[HttpHeaders] = None,
+            parsed_trailers: ta.Optional[ParsedHttpTrailers] = None,
+    ) -> IoPipelineHttpRequestChunkedTrailers:
+        return IoPipelineHttpRequestChunkedTrailers(
+            HttpHeaders.of(trailers),
+            parsed_trailers,
+        )
 
     #
 

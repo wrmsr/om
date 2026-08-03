@@ -22,8 +22,12 @@ from ...io.streambufs.utils import ByteStreamBuffers
 from ...io.streambufs.utils import CanByteStreamBuffer
 from ...lite.abstract import Abstract
 from ...lite.check import check
+from ..headers import HttpHeaders
+from ..parsing import HttpParseError
 from ..parsing import HttpParser
+from ..parsing import ParsedHttpTrailers
 from ..parsing import parse_http_message
+from ..parsing import parse_http_trailers
 from .bodymodes import IoPipelineHttpBodyMode
 from .bodymodes import IoPipelineHttpBodyModeError
 from .objects import IoPipelineHttpMessageHead
@@ -49,8 +53,16 @@ class IoPipelineHttpDecodingConfig:
     max_chunk_size: ta.Optional[int] = None
     chunk_header_buffer: BufferConfig = BufferConfig(max_size=1024, chunk_size=1024)
 
+    trailer_buffer: BufferConfig = BufferConfig(max_size=4 * 1024, chunk_size=4 * 1024)
+
 
 IoPipelineHttpDecodingConfig.DEFAULT = IoPipelineHttpDecodingConfig()
+
+
+#
+
+
+_HTTP_CHUNK_SIZE_DIGITS: ta.FrozenSet[int] = frozenset(b'0123456789abcdefABCDEF')
 
 
 #
@@ -175,7 +187,12 @@ class IoPipelineHttpObjectDecoder(
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
             if final:
-                return self._abort(out, 'EOF before HTTP head complete')
+                if (buf := self._buf) is not None and len(buf):
+                    return self._abort(out, 'EOF before HTTP head complete')
+
+                # A clean EOF with nothing buffered is not an error - it is just a peer which opened a connection and
+                # sent nothing (or which closed cleanly between keepalive messages).
+                return None
 
             done = False
             next_mvs: ta.List[memoryview]
@@ -202,6 +219,9 @@ class IoPipelineHttpObjectDecoder(
                     else:
                         buf.write(mv)
 
+                else:
+                    buf.write(mv)
+
                 # Look for end of head
                 i = buf.find(b'\r\n\r\n')
                 if i < 0:
@@ -215,11 +235,16 @@ class IoPipelineHttpObjectDecoder(
 
                 # Parse and emit head
                 raw = head_view.tobytes()
-                parsed = parse_http_message(
-                    raw,
-                    mode=self._d._parse_mode,  # noqa
-                    config=self._d._config.parser_config,  # noqa
-                )
+                try:
+                    parsed = parse_http_message(
+                        raw,
+                        mode=self._d._parse_mode,  # noqa
+                        config=self._d._config.parser_config,  # noqa
+                    )
+                except HttpParseError as e:
+                    # Peer garbage is a normal, expected condition - it must abort the message, not raise out of the
+                    # decoder (which would discard any messages already decoded from this same read).
+                    return self._abort(out, e)
 
                 head = self._d._make_head(parsed)  # noqa
                 out.append(head)
@@ -453,7 +478,10 @@ class IoPipelineHttpObjectDecoder(
                     else:
                         buf.write(mv)
 
-                # Parse chunk size line: <hex-size>\r\n
+                else:
+                    buf.write(mv)
+
+                # Parse chunk size line: <hex-size>[ chunk-ext ]\r\n
                 i = buf.find(b'\r\n')
                 if i < 0:
                     if rem_mv is not None:
@@ -464,10 +492,16 @@ class IoPipelineHttpObjectDecoder(
                 size_line = buf.split_to(i + 2)
 
                 size_bytes = size_line.tobytes()[:-2]  # Strip \r\n
-                try:
-                    chunk_size = int(size_bytes, 16)
-                except ValueError:
+
+                # Chunk extensions are ignored - https://datatracker.ietf.org/doc/html/rfc9112#name-chunk-extensions
+                if (semi := size_bytes.find(b';')) >= 0:
+                    size_bytes = size_bytes[:semi]
+
+                # chunk-size is strictly 1*HEXDIG - int() would otherwise accept '0x5', '1_0', '+5', and even '-5'.
+                if not size_bytes or not all(c in _HTTP_CHUNK_SIZE_DIGITS for c in size_bytes):
                     return self._abort(out, f'Invalid chunk size: {size_bytes!r}')
+
+                chunk_size = int(size_bytes, 16)
 
                 if (mcs := self._d._config.max_chunk_size) is not None and chunk_size > mcs:  # noqa
                     return self._abort(out, f'Content chunk size {chunk_size} exceeds maximum content chunk size: {mcs}')  # noqa
@@ -596,7 +630,19 @@ class IoPipelineHttpObjectDecoder(
     #
 
     class _TrailerChunkedContentState(_ChunkedContentState):
-        _got_cr = False
+        """
+        Consumes the trailer section following the last chunk.
+
+        The section is either a bare CRLF or one or more field-lines terminated by an empty line. Parsed fields are
+        carried on the emitted ChunkedTrailers message, kept separate from the head's headers - RFC 9110 §6.5.1 only
+        permits merging them for fields a recipient understands.
+        """
+
+        _buf: ta.Optional[MutableByteStreamBuffer] = None
+
+        @property
+        def buf(self) -> ta.Optional[MutableByteStreamBuffer]:
+            return self._buf
 
         def decode(
                 self,
@@ -606,43 +652,80 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
-            next_mvs: ta.Optional[ta.List[memoryview]] = None
+            done = False
+            next_mvs: ta.List[memoryview]
 
             for mv in ByteStreamBuffers.iter_segments(data):
-                if next_mvs is not None:
-                    next_mvs.append(mv)
+                if done:
+                    next_mvs.append(mv)  # noqa
                     continue
 
-                mvl = len(mv)
-                if mvl < 1:
-                    continue
+                if (buf := self._buf) is None:
+                    buf = self._buf = ScanningByteStreamBuffer(SegmentedByteStreamBuffer(
+                        max_size=self._d._config.trailer_buffer.max_size,  # noqa
+                        chunk_size=self._d._config.trailer_buffer.chunk_size,  # noqa
+                    ))
 
-                if not self._got_cr:
-                    if mv[0] != 0x0d:
-                        return self._abort(out, f'Expected \\r\\n after final chunk, got {bytes([mv[0]])!r}')
-                    self._got_cr = True
-                    mv = mv[1:]
-                    mvl -= 1
-                    if mvl < 1:
+                rem_mv: ta.Optional[memoryview] = None
+
+                if (max_buf := buf.max_size) is not None:
+                    rem_buf = max_buf - len(buf)
+
+                    if len(mv) > rem_buf:
+                        buf.write(mv[:rem_buf])
+                        rem_mv = mv[rem_buf:]
+                    else:
+                        buf.write(mv)
+
+                else:
+                    buf.write(mv)
+
+                # An empty trailer section is just the terminating CRLF, otherwise it ends with an empty line.
+                if buf.find(b'\r\n') == 0:
+                    end = 2
+                else:
+                    i = buf.find(b'\r\n\r\n')
+                    if i < 0:
+                        if rem_mv is not None:
+                            return self._abort(out, 'Trailers exceeded max buffer size')
+
                         continue
 
-                if mv[0] != 0x0a:
-                    return self._abort(out, f'Expected \\r\\n after final chunk, got {bytes([mv[0]])!r}')
-                mv = mv[1:]
-                mvl -= 1
+                    end = i + 4
 
-                out.append(self._d._make_chunked_trailers())  # noqa
+                trailer_view = buf.split_to(end)
+
+                parsed_trailers: ta.Optional[ParsedHttpTrailers] = None
+                if end > 2:
+                    try:
+                        parsed_trailers = parse_http_trailers(
+                            trailer_view.tobytes(),
+                            config=self._d._config.parser_config,  # noqa
+                        )
+                    except HttpParseError as e:
+                        return self._abort(out, e)
+
+                self._buf = None
+
+                out.append(self._d._make_chunked_trailers(  # noqa
+                    HttpHeaders(parsed_trailers.headers.entries) if parsed_trailers is not None else None,
+                    parsed_trailers,
+                ))
                 out.append(self._d._make_end())  # noqa
 
+                done = True
                 next_mvs = []
 
-                if mvl > 0:
-                    next_mvs.append(mv)
+                if len(buf):
+                    next_mvs.extend(buf.split_to(len(buf)).segments())
 
-            if next_mvs is not None:
+                if rem_mv is not None:
+                    next_mvs.append(rem_mv)
+
+            if done:
                 return (
                     self._d._DoneState(self._d, self._head),  # noqa
-                    SegmentedByteStreamBufferView.of_opt(next_mvs),
+                    SegmentedByteStreamBufferView.or_else(next_mvs, b''),
                 )
             elif final:
                 return self._abort(out, 'EOF before HTTP trailer complete')
@@ -677,6 +760,13 @@ class IoPipelineHttpObjectDecoder(
     #
 
     class _AbortedState(_State):
+        """
+        Terminal state - all further input is discarded.
+
+        Aborts are a normal consequence of peer garbage, and further input is guaranteed: the peer's remaining bytes are
+        already in flight, and the transport is torn down out of band.
+        """
+
         def decode(
                 self,
                 ctx: IoPipelineHandlerContext,
@@ -685,4 +775,4 @@ class IoPipelineHttpObjectDecoder(
                 *,
                 final: bool = False,
         ) -> ta.Optional[ta.Tuple['IoPipelineHttpObjectDecoder._State', ta.Optional[CanByteStreamBuffer]]]:
-            raise NotImplementedError
+            return None

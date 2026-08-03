@@ -81,6 +81,11 @@ class DumbBytesMessage:
 
 
 class ByteTripletsToMessageDecoder(BufferedBytesToMessageDecoderIoPipelineHandler):
+    def __init__(self, **kwargs: ta.Any) -> None:
+        super().__init__(**kwargs)
+
+        self.final_remainders: ta.List[ta.Any] = []
+
     def _decode_buffer(
             self,
             ctx: IoPipelineHandlerContext,
@@ -90,7 +95,9 @@ class ByteTripletsToMessageDecoder(BufferedBytesToMessageDecoderIoPipelineHandle
             final: bool = False,
     ) -> None:
         if final:
-            check.state(len(inb) == 0)
+            # A trailing partial triplet is truncation - record it rather than emitting it.
+            if len(inb):
+                self.final_remainders.append(inb.split_to(len(inb)).tobytes())
             return
 
         check.state(len(inb) > 0)
@@ -185,3 +192,38 @@ class TestBufferedBytesToMessageDecoderIoPipelineHandler(unittest.TestCase):
         self.assertIsNot(decoder._buf, buf)
         self.assertEqual(ByteStreamBuffers.to_bytes(check.not_none(decoder._buf)), b'd')
         self.assertEqual(ibq.drain(), [DumbBytesMessage(b'abc')])
+
+    def test_final_input_presents_the_cumulation(self) -> None:
+        # Without the cumulation a subclass cannot flush or even detect a truncated trailing frame.
+
+        decoder = ByteTripletsToMessageDecoder()
+        ch = IoPipeline.new([
+            decoder,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        ch.feed_in(b'abcd')
+        self.assertEqual(ibq.drain(), [DumbBytesMessage(b'abc')])
+        self.assertEqual(decoder.inbound_buffered_bytes(), 1)
+
+        ch.feed_final_input()
+
+        self.assertEqual(decoder.final_remainders, [b'd'])
+        self.assertEqual(decoder.inbound_buffered_bytes(), 0)
+        self.assertEqual([type(m) for m in ibq.drain()], [IoPipelineMessages.FinalInput])
+
+    def test_final_input_with_no_cumulation(self) -> None:
+        decoder = ByteTripletsToMessageDecoder()
+        ch = IoPipeline.new([
+            decoder,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+
+        ch.feed_in(b'abc')
+        self.assertEqual(ibq.drain(), [DumbBytesMessage(b'abc')])
+
+        ch.feed_final_input()
+
+        self.assertEqual(decoder.final_remainders, [])
+        self.assertEqual(decoder.inbound_buffered_bytes(), 0)
+        self.assertEqual([type(m) for m in ibq.drain()], [IoPipelineMessages.FinalInput])
