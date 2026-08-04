@@ -184,7 +184,7 @@ def pipe_pager(text: str, cmd: str, title: str = '') -> None:
         ' (press h for help or q to quit)'
     )
 
-    env['LESS'] = f'-RmPm{prompt_string}$PM{prompt_string}$'
+    env['LESS'] = f'-RcmPm{prompt_string}$PM{prompt_string}$'
 
     proc = subprocess.Popen(
         cmd,

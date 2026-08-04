@@ -258,7 +258,6 @@ class HistoricalReader(Reader):
             isearch_end,
             isearch_add_character,
             isearch_cancel,
-            isearch_add_character,
             isearch_backspace,
             isearch_forwards,
             isearch_backwards,

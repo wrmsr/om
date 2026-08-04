@@ -31,9 +31,11 @@ from omcore import check
 from .commands import Command
 from .console import CONSOLE_ERROR_TYPES
 from .readers.completing import CompletingReader
+from .readers.completing import strip_color
 from .readers.historical import HistoricalReader
 from .types import CommandName
 from .types import Completer
+from .types import CompletionAction
 from .types import KeySpec
 from .unix.console import UnixConsole as Console
 
@@ -90,7 +92,7 @@ class ReadlineAlikeReader(
             p -= 1
         return ''.join(b[p + 1 : self.pos])
 
-    def get_completions(self, stem: str) -> list[str]:
+    def get_completions(self, stem: str) -> tuple[list[str], CompletionAction | None]:
         module_completions = self.get_module_completions()
         if module_completions is not None:
             return module_completions
@@ -101,7 +103,7 @@ class ReadlineAlikeReader(
             while p > 0 and b[p - 1] != '\n':
                 p -= 1
             num_spaces = 4 - ((self.pos - p) % 4)
-            return [' ' * num_spaces]
+            return [' ' * num_spaces], None
 
         result = []
         function = self.config.readline_completer
@@ -123,15 +125,16 @@ class ReadlineAlikeReader(
                 result.append(nxt)
                 state += 1
 
-            # emulate the behavior of the standard readline that sorts the completions before displaying them.
-            result.sort()
+            # Emulate readline's sorting using the visible text rather than
+            # the raw ANSI escape sequences used for colorized matches.
+            result.sort(key=strip_color)
 
-        return result
+        return result, None
 
-    def get_module_completions(self) -> list[str] | None:
+    def get_module_completions(self) -> tuple[list[str], CompletionAction | None] | None:
         line = self.get_line()  # noqa
         # return self.config.module_completer.get_completions(line)
-        return []
+        return [], None
 
     def get_trimmed_history(self, maxlength: int) -> list[str]:
         if maxlength >= 0:
