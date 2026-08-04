@@ -61,27 +61,22 @@ def test_deserialize_garbage_raises():
         ctx.deserialize(bytes([blob[0] ^ 0xff]) + blob[1:])  # corrupt the BC_VERSION byte
 
 
-# Upstream bug, present through quickjs-ng 0.16.1: the writer registers every object - RegExps included - in its
-# reference table before dispatch, but JS_ReadRegExp never registers the rebuilt RegExp on the read side. Every
-# back-reference to an object that follows a RegExp in the stream therefore resolves against a shifted index space:
-# silently the wrong object, or 'invalid object reference'. Once fixed locally in _quickjs (or upstream), the strict
-# xfails below will XPASS-error and must be unmarked.
-
-_REGEXP_REF_XFAIL = pytest.mark.xfail(
-    strict=True,
-    reason='upstream JS_ReadRegExp does not BC_add_object_ref the rebuilt RegExp, desyncing reference indices',
-)
+# Regression tests for an upstream bug (present through quickjs-ng 0.16.1, patched locally in _quickjs - see the
+# @om-local-patch in JS_ReadRegExp): the writer registers every object - RegExps included - in its reference table
+# before dispatch, but JS_ReadRegExp did not register the rebuilt RegExp on the read side, so back-references to
+# objects following a RegExp in the stream resolved against a shifted index space - silently yielding the wrong
+# object, or erroring with 'invalid object reference'.
 
 
-@_REGEXP_REF_XFAIL
 def test_shared_ref_after_regexp():
     ctx = quickjs.Context()
     _roundtrip(ctx, '(function() { var s = {v: 1}; return {re: /a/, x: s, y: {v: 2}, x2: s}; })()')
-    assert ctx.eval('r.x2 === r.x') is True  # today: r.x2 === r.y
+    assert ctx.eval('r.x2 === r.x') is True
+    assert ctx.eval('r.x2 !== r.y') is True
 
 
-@_REGEXP_REF_XFAIL
 def test_aliased_regexp():
     ctx = quickjs.Context()
-    _roundtrip(ctx, '(function() { var re = /a/; return {re: re, re2: re}; })()')  # today: 'invalid object reference'
+    _roundtrip(ctx, '(function() { var re = /a/; return {re: re, re2: re}; })()')
     assert ctx.eval('r.re2 === r.re') is True
+    assert ctx.eval('r.re2 instanceof RegExp') is True
