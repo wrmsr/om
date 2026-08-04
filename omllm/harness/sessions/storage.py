@@ -25,6 +25,9 @@ class InMemorySessionStorage(SessionStorage):
         self._entries: list[SessionEntry] = []
 
     async def add_entry(self, *entries: SessionEntry) -> None:
+        if not entries:
+            return
+
         self._entries.extend(entries)
 
 
@@ -42,4 +45,7 @@ class JsonlSessionStorage(SessionStorage):
         self._file_path = file_path
 
     async def add_entry(self, *entries: SessionEntry) -> None:
+        if not entries:
+            return
+
         raise NotImplementedError

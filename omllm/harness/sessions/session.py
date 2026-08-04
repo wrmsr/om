@@ -30,6 +30,12 @@ class Session(
     async def _on_agent_event(self, agn_event: agn.Event) -> None:
         await self._publish(AgentSessionEvent(agn_event))
 
+        # if isinstance(agn_event, agn.AgentEndEvent):
+        #     await self._storage.add_entry(*[
+        #         MessageSessionEntry(m)
+        #         for m in agn_event.new_messages or []
+        #     ])
+
     async def prompt(
             self,
             input: str,  # noqa

@@ -140,6 +140,8 @@ async def _a_main() -> None:
     parser.add_argument('--fs', action='store_true')
     parser.add_argument('--bash', action='store_true')
 
+    parser.add_argument('-X', '--autoexec', action='append')
+
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -295,6 +297,9 @@ async def _a_main() -> None:
     )
 
     #
+
+    for ax in args.autoexec or []:
+        await session.prompt(ax)
 
     if sys.stdin.isatty():
         try:
