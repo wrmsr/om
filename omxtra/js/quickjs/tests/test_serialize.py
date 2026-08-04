@@ -1,0 +1,87 @@
+import pytest
+
+from ... import quickjs
+
+
+##
+
+
+def _roundtrip(ctx, code):
+    blob = ctx.eval(code).serialize()
+    assert isinstance(blob, bytes)
+    ctx.set('r', ctx.deserialize(blob))
+
+
+def test_roundtrip_basics():
+    ctx = quickjs.Context()
+    _roundtrip(ctx, '({a: 1, s: "x", f: 1.5, n: null, arr: [1, 2, 3], big: 2n ** 70n})')
+    assert ctx.eval('r.a === 1 && r.s === "x" && r.f === 1.5 && r.n === null') is True
+    assert ctx.eval('Array.isArray(r.arr) && r.arr.length === 3 && r.arr[2] === 3') is True
+    assert ctx.eval('r.big === 2n ** 70n') is True
+
+
+def test_roundtrip_shared_refs_and_cycles():
+    ctx = quickjs.Context()
+    _roundtrip(ctx, '(function() { var s = {v: 1}; var o = {x: s, y: {v: 2}, x2: s}; o.self = o; return o; })()')
+    assert ctx.eval('r.x2 === r.x') is True
+    assert ctx.eval('r.x2 !== r.y') is True
+    assert ctx.eval('r.self === r') is True
+
+
+def test_roundtrip_builtins():
+    ctx = quickjs.Context()
+    _roundtrip(ctx, '({m: new Map([[1, "a"]]), s: new Set([1, 2]), d: new Date(1234567890123)})')
+    assert ctx.eval('r.m instanceof Map && r.m.get(1) === "a"') is True
+    assert ctx.eval('r.s instanceof Set && r.s.has(2)') is True
+    assert ctx.eval('r.d instanceof Date && r.d.getTime() === 1234567890123') is True
+
+
+def test_roundtrip_regexp_alone():
+    ctx = quickjs.Context()
+    _roundtrip(ctx, '({re: /ab+c/gi})')
+    assert ctx.eval('r.re instanceof RegExp && r.re.source === "ab+c" && r.re.flags === "gi"') is True
+    assert ctx.eval('r.re.test("xABBc")') is True
+
+
+def test_unserializable_raises():
+    ctx = quickjs.Context()
+    with pytest.raises(quickjs.JsError):
+        ctx.eval('(function f() { return 1; })').serialize()
+    with pytest.raises(quickjs.JsError):
+        ctx.eval('Promise.resolve(1)').serialize()
+
+
+def test_deserialize_garbage_raises():
+    ctx = quickjs.Context()
+    with pytest.raises(quickjs.JsError):
+        ctx.deserialize(b'\xffgarbage')
+
+    blob = ctx.eval('({a: 1})').serialize()
+    with pytest.raises(quickjs.JsError):
+        ctx.deserialize(bytes([blob[0] ^ 0xff]) + blob[1:])  # corrupt the BC_VERSION byte
+
+
+# Upstream bug, present through quickjs-ng 0.16.1: the writer registers every object - RegExps included - in its
+# reference table before dispatch, but JS_ReadRegExp never registers the rebuilt RegExp on the read side. Every
+# back-reference to an object that follows a RegExp in the stream therefore resolves against a shifted index space:
+# silently the wrong object, or 'invalid object reference'. Once fixed locally in _quickjs (or upstream), the strict
+# xfails below will XPASS-error and must be unmarked.
+
+_REGEXP_REF_XFAIL = pytest.mark.xfail(
+    strict=True,
+    reason='upstream JS_ReadRegExp does not BC_add_object_ref the rebuilt RegExp, desyncing reference indices',
+)
+
+
+@_REGEXP_REF_XFAIL
+def test_shared_ref_after_regexp():
+    ctx = quickjs.Context()
+    _roundtrip(ctx, '(function() { var s = {v: 1}; return {re: /a/, x: s, y: {v: 2}, x2: s}; })()')
+    assert ctx.eval('r.x2 === r.x') is True  # today: r.x2 === r.y
+
+
+@_REGEXP_REF_XFAIL
+def test_aliased_regexp():
+    ctx = quickjs.Context()
+    _roundtrip(ctx, '(function() { var re = /a/; return {re: re, re2: re}; })()')  # today: 'invalid object reference'
+    assert ctx.eval('r.re2 === r.re') is True

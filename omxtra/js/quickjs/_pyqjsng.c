@@ -858,6 +858,38 @@ static PyObject * object_json(PyObject *op, PyObject *ignored)
 }
 
 PyDoc_STRVAR(
+    object_serialize_doc,
+    "serialize()\n"
+    "\n"
+    "Serializes this object's value graph to the engine's binary format as bytes, preserving shared\n"
+    "references and cycles. Data only: plain objects, arrays, primitives, Date, RegExp, Map, Set, typed\n"
+    "arrays, and the like - functions, promises, class instances, and other live objects raise JsError.\n"
+    "The format is specific to the exact vendored engine build - blobs are caches, not archives.");
+
+static PyObject * object_serialize(PyObject *op, PyObject *ignored)
+{
+    (void)ignored;
+    ObjectObject *self = (ObjectObject *)op;
+    ContextObject *ctx = object_ctx(self);
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    ctx_lock(ctx);
+    size_t size;
+    uint8_t *buf = JS_WriteObject(ctx->context, &size, self->value, JS_WRITE_OBJ_REFERENCE);
+    PyObject *result;
+    if (buf == NULL) {
+        result = raise_js_error(ctx);
+    } else {
+        result = PyBytes_FromStringAndSize((const char *)buf, (Py_ssize_t)size);
+        js_free(ctx->context, buf);
+    }
+    ctx_unlock(ctx);
+    return result;
+}
+
+PyDoc_STRVAR(
     object_keys_doc,
     "keys()\n"
     "\n"
@@ -1120,6 +1152,7 @@ static PyObject * object_str(PyObject *op)
 static PyMethodDef object_methods[] = {
     {"invoke", (PyCFunction)object_invoke, METH_VARARGS, object_invoke_doc},
     {"json", (PyCFunction)object_json, METH_NOARGS, object_json_doc},
+    {"serialize", (PyCFunction)object_serialize, METH_NOARGS, object_serialize_doc},
     {"keys", (PyCFunction)object_keys, METH_NOARGS, object_keys_doc},
     {"to_bytes", (PyCFunction)object_to_bytes, METH_NOARGS, object_to_bytes_doc},
     {"promise_state", (PyCFunction)object_promise_state, METH_NOARGS, object_promise_state_doc},
@@ -1367,6 +1400,30 @@ static PyObject * context_parse_json(PyObject *op, PyObject *args)
 
     ctx_lock(self);
     JSValue value = JS_ParseJSON(self->context, text, (size_t)text_len, "<json>");
+    PyObject *result = return_js_value(self, value);
+    ctx_unlock(self);
+    return result;
+}
+
+PyDoc_STRVAR(
+    context_deserialize_doc,
+    "deserialize(blob)\n"
+    "\n"
+    "Reconstructs a value serialized by Object.serialize(). Raises JsError on malformed or\n"
+    "version-mismatched input - blobs are only valid for the exact engine build that wrote them. Not\n"
+    "hardened against adversarial input; do not feed untrusted blobs.");
+
+static PyObject * context_deserialize(PyObject *op, PyObject *args)
+{
+    ContextObject *self = (ContextObject *)op;
+    Py_buffer view;
+    if (!PyArg_ParseTuple(args, "y*", &view)) {
+        return NULL;
+    }
+
+    ctx_lock(self);
+    JSValue value = JS_ReadObject(self->context, (const uint8_t *)view.buf, (size_t)view.len, JS_READ_OBJ_REFERENCE);
+    PyBuffer_Release(&view);
     PyObject *result = return_js_value(self, value);
     ctx_unlock(self);
     return result;
@@ -1657,6 +1714,7 @@ static PyMethodDef context_methods[] = {
     {"get", (PyCFunction)context_get, METH_VARARGS, context_get_doc},
     {"set", (PyCFunction)context_set, METH_VARARGS, context_set_doc},
     {"parse_json", (PyCFunction)context_parse_json, METH_VARARGS, context_parse_json_doc},
+    {"deserialize", (PyCFunction)context_deserialize, METH_VARARGS, context_deserialize_doc},
     {"execute_pending_job", (PyCFunction)context_execute_pending_job, METH_NOARGS, context_execute_pending_job_doc},
     {"execute_pending_jobs", (PyCFunction)context_execute_pending_jobs, METH_NOARGS, context_execute_pending_jobs_doc},
     {"has_pending_jobs", (PyCFunction)context_has_pending_jobs, METH_NOARGS, context_has_pending_jobs_doc},
