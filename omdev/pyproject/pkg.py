@@ -537,7 +537,7 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
 
         if fc.manifest_in:
             with open(os.path.join(self._pkg_dir(), 'MANIFEST.in'), 'w') as f:
-                f.write('\n'.join(fc.manifest_in))  # noqa
+                f.write('\n'.join([*fc.manifest_in, '']))  # noqa
 
 
 class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
