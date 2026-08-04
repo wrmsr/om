@@ -1,12 +1,20 @@
 import typing as ta
 
 
-KeySpec: ta.TypeAlias = str  # like r"\C-c"
+type KeySpec = str  # like r"\C-c"
+type Keymap = tuple[tuple[KeySpec, CommandName], ...]
 
-CommandName: ta.TypeAlias = str  # like "interrupt"
+type CommandName = str  # like "interrupt"
 
-Completer: ta.TypeAlias = ta.Callable[[str, int], str | None]
-CompletionAction: ta.TypeAlias = tuple[str, ta.Callable[[], str | None]]
+type Completer = ta.Callable[[str, int], str | None]
+type CompletionAction = tuple[str, ta.Callable[[], str | None]]
 
-CharBuffer: ta.TypeAlias = list[str]
-CharWidths: ta.TypeAlias = list[int]
+type CharBuffer = list[str]
+type CharWidths = list[int]
+
+type EventData = list[str]
+type EventTuple = tuple[CommandName, EventData]
+
+type CursorXY = tuple[int, int]
+type Dimensions = tuple[int, int]
+type ScreenInfoRow = tuple[int, list[int]]

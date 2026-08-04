@@ -1,3 +1,5 @@
+import collections
+import dataclasses as dc
 import functools
 import re
 import typing as ta
@@ -14,6 +16,21 @@ ANSI_ESCAPE_SEQUENCE = re.compile(r'\x1b\[[ -@]*[A-~]')
 
 
 ##
+
+
+class StyledChar(ta.NamedTuple):
+    text: str
+    width: int
+    tag: str | None = None
+
+
+def _ascii_control_repr(c: str) -> str | None:
+    code = ord(c)
+    if code < 32:
+        return "^" + chr(code + 64)
+    if code == 127:
+        return "^?"
+    return None
 
 
 @functools.cache
@@ -121,6 +138,62 @@ def color_codes() -> ColorCodes:
 ##
 
 
+
+def iter_display_chars(
+    buffer: str,
+    colors: list[ColorSpan] | None = None,
+    start_index: int = 0,
+) -> ta.Iterator[StyledChar]:
+    """
+    Yield visible display characters with widths and semantic color tags.
+
+    Note: ``colors`` is consumed in place as spans are processed -- callers that split a buffer across multiple calls
+    rely on this mutation to track which spans have already been handled.
+    """
+
+    if not buffer:
+        return
+
+    color_idx = 0
+    if colors:
+        while color_idx < len(colors) and colors[color_idx].span.end < start_index:
+            color_idx += 1
+
+    active_tag = None
+    if colors and color_idx < len(colors) and colors[color_idx].span.start < start_index:
+        active_tag = colors[color_idx].tag
+
+    for i, c in enumerate(buffer, start_index):
+        if colors and color_idx < len(colors) and colors[color_idx].span.start == i:
+            active_tag = colors[color_idx].tag
+
+        if control := _ascii_control_repr(c):
+            text = control
+            width = len(control)
+        elif ord(c) < 128:
+            text = c
+            width = 1
+        elif unicodedata.category(c).startswith("C"):
+            text = r"\u%04x" % ord(c)
+            width = len(text)
+        else:
+            text = c
+            width = str_width(c)
+
+        yield StyledChar(text, width, active_tag)
+
+        if colors and color_idx < len(colors) and colors[color_idx].span.end == i:
+            color_idx += 1
+            active_tag = None
+            # Check if the next span starts at the same position
+            if color_idx < len(colors) and colors[color_idx].span.start == i:
+                active_tag = colors[color_idx].tag
+
+    # Remove consumed spans so callers see the mutation
+    if color_idx > 0 and colors:
+        del colors[:color_idx]
+
+
 def disp_str(
         buffer: str,
         colors: list[ColorSpan] | None = None,
@@ -153,54 +226,64 @@ def disp_str(
     (['\x1b[1;34mw', 'h', 'i', 'l', 'e\x1b[0m', ' ', '1', ':'], [1, 1, 1, 1, 1, 1, 1, 1])
 
     """
+
+    styled_chars = list(iter_display_chars(buffer, colors, start_index))
     chars: CharBuffer = []
     char_widths: CharWidths = []
 
-    if not buffer:
-        return chars, char_widths
-
-    while colors and colors[0].span.end < start_index:
-        # move past irrelevant spans
-        colors.pop(0)
-
-    pre_color = ''
-    post_color = ''
-    if colors and colors[0].span.start < start_index:
-        # looks like we're continuing a previous color (e.g. a multiline str)
-        pre_color = color_codes[colors[0].tag]
-
-    for i, c in enumerate(buffer, start_index):
-        if colors and colors[0].span.start == i:  # new color starts now
-            pre_color = color_codes[colors[0].tag]
-
-        if c == '\x1a':  # CTRL-Z on Windows
-            chars.append(c)
-            char_widths.append(2)
-
-        elif ord(c) < 128:
-            chars.append(c)
-            char_widths.append(1)
-
-        elif unicodedata.category(c).startswith('C'):
-            c = fr'\u{ord(c):04x}'
-            chars.append(c)
-            char_widths.append(len(c))
-
-        else:
-            chars.append(c)
-            char_widths.append(str_width(c))
-
-        if colors and colors[0].span.end == i:  # current color ends now
-            post_color = color_codes.reset
-            colors.pop(0)
-
-        chars[-1] = pre_color + chars[-1] + post_color
-        pre_color = ''
-        post_color = ''
-
-    if colors and colors[0].span.start < i and colors[0].span.end > i:
-        # Even though the current color should be continued, reset it for now. The next call to `disp_str()` will revive
-        # it.
-        chars[-1] += color_codes.reset
+    for index, styled_char in enumerate(styled_chars):
+        previous_tag = styled_chars[index - 1].tag if index else None
+        next_tag = styled_chars[index + 1].tag if index + 1 < len(styled_chars) else None
+        prefix = color_codes[styled_char.tag] if styled_char.tag and styled_char.tag != previous_tag else ""
+        suffix = color_codes.reset if styled_char.tag and styled_char.tag != next_tag else ""
+        chars.append(prefix + styled_char.text + suffix)
+        char_widths.append(styled_char.width)
 
     return chars, char_widths
+
+
+def prev_next_window[T](
+    iterable: ta.Iterable[T]
+) -> ta.Iterator[tuple[T | None, ...]]:
+    """
+    Generates three-tuples of (previous, current, next) items.
+
+    On the first iteration previous is None. On the last iteration next is None. In case of exception next is None and
+    the exception is re-raised on a subsequent next() call.
+
+    Inspired by `sliding_window` from `itertools` recipes.
+    """
+
+    iterator = iter(iterable)
+    try:
+        first = next(iterator)
+    except StopIteration:
+        return
+    window = collections.deque((None, first), maxlen=3)
+    try:
+        for x in iterator:
+            window.append(x)
+            yield tuple(window)
+    finally:
+        window.append(None)
+        yield tuple(window)
+
+
+@dc.dataclass(frozen=True, slots=True)
+class StyleRef:
+    tag: str | None = None  # From THEME().syntax, e.g. "keyword", "builtin"
+    sgr: str = ""
+
+    @classmethod
+    def from_tag(cls, tag: str, sgr: str = "") -> ta.Self:
+        return cls(tag=tag, sgr=sgr)
+
+    @classmethod
+    def from_sgr(cls, sgr: str) -> ta.Self:
+        if not sgr:
+            return cls()
+        return cls(sgr=sgr)
+
+    @property
+    def is_plain(self) -> bool:
+        return self.tag is None and not self.sgr
