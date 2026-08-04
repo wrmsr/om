@@ -359,7 +359,7 @@ class self_insert(EditCommand):  # noqa
         r.insert(text)
         if r.paste_mode:
             data = ''
-            ev = r.console.getpending()
+            ev = r.console.get_pending()
             data += ev.data or ''
             if data:
                 r.insert(data)
@@ -437,7 +437,7 @@ class help(Command):  # noqa
 
 class invalid_key(Command):  # noqa
     def do(self) -> None:
-        pending = self.reader.console.getpending()
+        pending = self.reader.console.get_pending()
         s = ''.join(self.event) + (pending.data or '')
         self.reader.error(f"`{s!r}' not bound")
 
@@ -474,7 +474,7 @@ class perform_bracketed_paste(Command):  # noqa
         data = ''
         start = time.time()  # noqa
         while done not in data:
-            ev = self.reader.console.getpending()
+            ev = self.reader.console.get_pending()
             data += ev.data or ''
         # trace(
         #     'bracketed pasting of {l} chars done in {s:.2f}s',

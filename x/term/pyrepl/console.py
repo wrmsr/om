@@ -94,6 +94,10 @@ class Console(lang.Abstract):
     def width(self) -> int:
         return self._width
 
+    def set_height_width(self, height: int, width: int) -> None:
+        self._height = height
+        self._width = width
+
     @property
     def posxy(self) -> tuple[int, int]:
         return self._posxy
@@ -131,7 +135,7 @@ class Console(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def getheightwidth(self) -> tuple[int, int]:
+    def get_height_width(self) -> tuple[int, int]:
         """
         Return (height, width) where height and width are the height and width of the terminal window in characters.
         """
@@ -174,7 +178,7 @@ class Console(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def flushoutput(self) -> None:
+    def flush_output(self) -> None:
         """Flush all output to the screen (assuming there's some buffering going on somewhere)."""
 
         raise NotImplementedError
@@ -186,7 +190,7 @@ class Console(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def getpending(self) -> ConsoleEvent:
+    def get_pending(self) -> ConsoleEvent:
         """Return the characters that have been typed but not yet processed."""
 
         raise NotImplementedError

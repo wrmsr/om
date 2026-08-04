@@ -321,7 +321,7 @@ class UnixConsole(Console):
 
         self._screen = screen.copy()
         self.move_cursor(cx, cy)
-        self.flushoutput()
+        self.flush_output()
 
     def move_cursor(self, x, y):
         """
@@ -337,7 +337,7 @@ class UnixConsole(Console):
         else:
             self.__move(x, y)
             self._posxy = x, y
-            self.flushoutput()
+            self.flush_output()
 
     __offset: int
 
@@ -364,7 +364,7 @@ class UnixConsole(Console):
             os.write(self._output_fd, b'\033[?7l')
 
         self._screen = []
-        self._height, self._width = self.getheightwidth()
+        self._height, self._width = self.get_height_width()
 
         self._posxy = 0, 0
         self.__gone_tall = False
@@ -385,7 +385,7 @@ class UnixConsole(Console):
 
         self.__disable_bracketed_paste()
         self.__maybe_write_code(self._rmkx)
-        self.flushoutput()
+        self.flush_output()
         self.__input_fd_set(self.__svtermstate)
 
         if self._is_apple_terminal:
@@ -456,7 +456,7 @@ class UnixConsole(Console):
             self.__hide_cursor()
 
     if TIOCGWINSZ:
-        def getheightwidth(self):
+        def get_height_width(self):
             """
             Get the height and width of the console.
 
@@ -477,7 +477,7 @@ class UnixConsole(Console):
                 return height, width
 
     else:
-        def getheightwidth(self):
+        def get_height_width(self):
             """
             Get the height and width of the console.
 
@@ -495,7 +495,7 @@ class UnixConsole(Console):
 
         termios.tcflush(self._input_fd, termios.TCIFLUSH)
 
-    def flushoutput(self):
+    def flush_output(self):
         """Flush the output buffer."""
 
         for text, iscode in self.__buffer:
@@ -513,16 +513,16 @@ class UnixConsole(Console):
             y -= 1
         self.__move(0, min(y, self.height + self.__offset - 1))
         self.__write('\n\r')
-        self.flushoutput()
+        self.flush_output()
 
     def beep(self):
         """Emit a beep sound."""
 
         self.__maybe_write_code(self._bel)
-        self.flushoutput()
+        self.flush_output()
 
     if FIONREAD:
-        def getpending(self):
+        def get_pending(self):
             """
             Get pending events from the console event queue.
 
@@ -538,7 +538,7 @@ class UnixConsole(Console):
                 e.raw += e.raw
 
             amount = struct.unpack('i', fcntl.ioctl(self._input_fd, FIONREAD, b'\0\0\0\0'))[0]  # type: ignore  # noqa
-            # trace('getpending({a})', a=amount)
+            # trace('get_pending({a})', a=amount)
             raw = self.__read(amount)
             data = str(raw, self._encoding, 'replace')
             e.data += data  # type: ignore[operator]
@@ -546,7 +546,7 @@ class UnixConsole(Console):
             return e
 
     else:
-        def getpending(self):
+        def get_pending(self):
             """
             Get pending events from the console event queue.
 
@@ -769,7 +769,6 @@ class UnixConsole(Console):
         self.__write_code(self._cup, y - self.__offset, x)
 
     def __sigwinch(self, signum, frame):
-        self._height, self._width = self.getheightwidth()
         self._event_queue.insert(ConsoleEvent('resize', None))
 
     def __hide_cursor(self):
