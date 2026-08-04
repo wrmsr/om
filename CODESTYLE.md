@@ -207,7 +207,8 @@
       - `T_contra = ta.TypeVar('T_contra', contravariant=True)`
     - TypeAliases, like the following:
       - `IntOrStr: ta.TypeAlias = int | str`
-      - `FooOrBarOrStr: ta.TypeAlias = ta.Union['Foo', 'Bar']` (must quote forward refs here)
+      - `type ModernFooOrBarOrStr = Foo | Bar | str` - standard code may use new style type statements
+      - `FooOrBarOrStr: ta.TypeAlias = ta.Union['Foo', 'Bar']` - lite code must use old style, must quote forward refs
     - These should generally be grouped semantically, and may or may not be separated by blank lines.
   - **TWO blank lines, always**
   - A divider line of specifically `##`
@@ -249,8 +250,8 @@ def make_it_a_tuple(t: T) -> tuple[T]:
   named one (to allow it to be destructured by callers as before), or as a cache key, but in general almost always
   prefer dataclasses.
 - If a number of related functions are passing around a growing number of the common args/kwargs, don't be shy about
-  refactoring them into methods on a common class with shared immutable and mutable state - if the class is considered
-  private implementation detail and not part of any public api.
+  refactoring them into methods on a common class with shared immutable and mutable state - even if the class is
+  considered private implementation detail and not part of any public api.
 - For any necessary global state involving multiple interrelated variables, consider encapsulating it in a class, even
   if it's only a private singleton.
 - If appropriate, lean towards stateless classes, taking dependencies as constructor arguments and not mutating them
@@ -354,13 +355,12 @@ def make_it_a_tuple(t: T) -> tuple[T]:
     going to wind up quoting anything defined in the module.
 - In standard code, use PEP-585 and PEP-604 style annotations for builtin types - use `list[int]` instead of
   `ta.List[int]`, and `int | None` instead of `ta.Optional[int]`.
-  - However, portions of type annotations quoted for forward refs must **ONLY** be simple identifiers, not 'type
-    expressions' - any annotation involving a forward ref must fallback to 'older-style', pre-PEP-604 style. For
-    example, use `ta.Optional['Foo']` instead of `'Foo | None'`, and use `ta.Union['Foo', int]` instead of `'Foo |
-    int'`.
   - Note that \[**lite**\] code must still use pre-PEP-585 annotations like `ta.List[int]` and `ta.Optional[int]` due to
     PEP-585 not being supported in python 3.8. Note that when doing this source files must `# ruff: noqa: ...` any
     relevant lint errors - usually things like UP006, UP007, UP045, ...
+  - Portions of type annotations which must be quoted for any reason (such as for forward refs in lite code) should
+    **ONLY** be simple identifiers, not 'type expressions'. For example, use `ta.Optional['Foo']` instead of
+    `'ta.Optional[Foo]'`.
 - Use `typing` aliases for non-builtin types - use `ta.Sequence[int]` instead of `collections.abc.Sequence[int]`.
 - Prefer to accept immutable, less-specific types - a function should likely use a `ta.Sequence[int]` parameter rather
   than a `list[int]`. Use `ta.AbstractSet` over `set` and `frozenset`, and use `ta.Mapping` over `dict`, accordingly.
@@ -394,7 +394,7 @@ def make_it_a_tuple(t: T) -> tuple[T]:
     integration with it, use what's available in it (accounting for lite's 3.8 mandate), but generally try to isolate
     asyncio-specifics to injectable interfaces passed down to underlying machinery.
     - A common pattern is `class Fooer(lang.Abstract): ...` -> `class AsyncioFooer(Fooer): ...`.
-- Test for async code that don't actually need any asyncio- or other- real async machinery should *not* be async tests -
+- Tests for async code that don't actually need any asyncio- or other- real async machinery should *not* be async tests:
   they should be sync tests, driven by `lang.sync_await` / `lang.sync_async_with` / `lang.sync_aiter` (or lite
   equivalents).
 
