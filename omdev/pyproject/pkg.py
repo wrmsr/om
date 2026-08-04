@@ -591,7 +591,9 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         needs_sys = False
 
-        for ext_src in self.find_cext_srcs():
+        ext_srcs = self.find_cext_srcs()
+
+        for ext_src in ext_srcs:
             ext_cfg = self._get_ext_file_config(ext_src)
 
             ext_lang = ext_src.rpartition('.')[2]
@@ -658,6 +660,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
                 )
 
             ext_lines.extend([
+                '',
                 'st.Extension(',
                 *['    ' + l for l in ext_arg_lines],
                 '),',
@@ -673,7 +676,8 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
             '',
             'st.setup(',
             '    ext_modules=[',
-            *['        ' + l for l in ext_lines],
+            *[('        ' + l) if l else '' for l in ext_lines],
+            *([''] if ext_srcs else []),
             '    ],',
             ')',
             '',

@@ -6,6 +6,13 @@
 //     "quickjs.h",
 //     "quickjs-libc.h"
 //   ],
+//   "extra_compile_args": [
+//     "-Wno-sign-compare",
+//     "-Wno-unreachable-code",
+//     "-Wno-unused-but-set-variable",
+//     "-Wno-unused-const-variable",
+//     "-Wno-unused-function"
+//   ],
 //   "define_macros": {
 //     "_GNU_SOURCE": "1"
 //   },

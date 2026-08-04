@@ -155,7 +155,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='624905d1b0e12b74a86394ac02e8e52564d3fe16'),
+            dict(path='pkg.py', sha1='2cdb64bf3d48e56ac85c42636e6806425b5689ad'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -13184,7 +13184,9 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         needs_sys = False
 
-        for ext_src in self.find_cext_srcs():
+        ext_srcs = self.find_cext_srcs()
+
+        for ext_src in ext_srcs:
             ext_cfg = self._get_ext_file_config(ext_src)
 
             ext_lang = ext_src.rpartition('.')[2]
@@ -13251,6 +13253,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
                 )
 
             ext_lines.extend([
+                '',
                 'st.Extension(',
                 *['    ' + l for l in ext_arg_lines],
                 '),',
@@ -13266,7 +13269,8 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
             '',
             'st.setup(',
             '    ext_modules=[',
-            *['        ' + l for l in ext_lines],
+            *[('        ' + l) if l else '' for l in ext_lines],
+            *([''] if ext_srcs else []),
             '    ],',
             ')',
             '',

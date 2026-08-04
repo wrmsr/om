@@ -99,5 +99,5 @@ def module_register(
     regex_register(
         pm,
         [rf'{re.escape(m.replace(".", "/"))}(/.*)?\.py' for m in mods],
-        [rf'{re.escape(m.replace(".", "/"))}(\..*)?' for m in imp_mods],
+        [rf'{re.escape(m)}(\..*)?' for m in imp_mods],
     )

@@ -57,7 +57,7 @@ def test_execute_pending_job_single():
 
 def test_promise_then_python_callback():
     ctx = quickjs.Context()
-    results = []
+    results: list = []
     ctx.set('report', results.append)
     ctx.eval('Promise.resolve("done").then(report)')
     ctx.execute_pending_jobs()

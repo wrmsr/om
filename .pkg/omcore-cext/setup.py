@@ -3,6 +3,7 @@ import setuptools as st
 
 st.setup(
     ext_modules=[
+
         st.Extension(
             name='omcore._check',
             sources=[
@@ -12,6 +13,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.collections.btreemap._btreemap',
             sources=[
@@ -21,6 +23,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.collections.btreeseq._btreeseq',
             sources=[
@@ -30,6 +33,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.collections.fixedmap._fixedmap',
             sources=[
@@ -39,6 +43,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.collections.hamt._hamt',
             sources=[
@@ -48,6 +53,7 @@ st.setup(
                 '-std=c11',
             ],
         ),
+
         st.Extension(
             name='omcore.collections.treap._treap',
             sources=[
@@ -57,6 +63,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.dispatch._dispatch',
             sources=[
@@ -66,6 +73,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.dispatch._methods',
             sources=[
@@ -75,6 +83,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.lang._asyncs',
             sources=[
@@ -84,6 +93,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.lang._comparison',
             sources=[
@@ -93,6 +103,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.lang._functions',
             sources=[
@@ -102,6 +113,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.lang.imports._capture',
             sources=[
@@ -111,6 +123,7 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
         st.Extension(
             name='omcore.typedvalues._collection',
             sources=[
@@ -120,5 +133,6 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
     ],
 )

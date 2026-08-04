@@ -111,7 +111,7 @@ def test_cross_context_object_rejected():
 
 def test_nesting_depth_limit():
     ctx = quickjs.Context()
-    deep = []
+    deep: list = []
     for _ in range(100):
         deep = [deep]
     with pytest.raises(ValueError):  # noqa

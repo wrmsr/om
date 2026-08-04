@@ -15,7 +15,7 @@ class _Sentinel:
 
 
 def test_context_callable_cycle_collected():
-    log = []
+    log: list = []
     sentinel = _Sentinel(log)
     ctx = quickjs.Context()
     # Context -> callables -> closure -> (ctx, sentinel): a cycle only the GC can break.
@@ -29,7 +29,7 @@ def test_context_callable_cycle_collected():
 
 
 def test_context_object_cycle_collected():
-    log = []
+    log: list = []
     sentinel = _Sentinel(log)
     ctx = quickjs.Context()
     obj = ctx.eval('({})')

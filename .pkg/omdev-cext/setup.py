@@ -3,6 +3,7 @@ import setuptools as st
 
 st.setup(
     ext_modules=[
+
         st.Extension(
             name='omdev.cexts._boilerplate',
             sources=[
@@ -12,5 +13,6 @@ st.setup(
                 '-std=c++20',
             ],
         ),
+
     ],
 )
