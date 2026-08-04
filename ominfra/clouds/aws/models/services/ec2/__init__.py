@@ -2086,6 +2086,7 @@ class ResourceType(_base.Enum):
     VPN_CONCENTRATOR = 'vpn-concentrator'
     IPAM_POOL_ALLOCATION = 'ipam-pool-allocation'
     CAPACITY_RESERVATION_CANCELLATION_QUOTE = 'capacity-reservation-cancellation-quote'
+    APPLICATION_STATUS_CHECK = 'application-status-check'
 
 
 class RootDeviceType(_base.Enum):
