@@ -43,12 +43,41 @@ def test_roundtrip_regexp_alone():
     assert ctx.eval('r.re.test("xABBc")') is True
 
 
+def test_roundtrip_typed_arrays():
+    ctx = quickjs.Context()
+    _roundtrip(
+        ctx,
+        '({buf: new Uint8Array([1, 2, 3]).buffer, u8: new Uint8Array([4, 5]), f64: new Float64Array([1.5, -2.5])})',
+    )
+    assert ctx.eval('r.buf instanceof ArrayBuffer && r.buf.byteLength === 3') is True
+    assert ctx.eval('r.u8 instanceof Uint8Array && r.u8.length === 2') is True
+    assert ctx.eval('r.f64 instanceof Float64Array && r.f64[0] === 1.5 && r.f64[1] === -2.5') is True
+    assert ctx.eval('r.u8').to_bytes() == b'\x04\x05'
+
+
+def test_roundtrip_aliased_views():
+    ctx = quickjs.Context()
+    _roundtrip(
+        ctx,
+        '(function() { var b = new Uint8Array([1, 2, 3, 4]).buffer; return {u8: new Uint8Array(b), u16: new Uint16Array(b)}; })()',  # noqa: E501
+    )
+    assert ctx.eval('r.u8.buffer === r.u16.buffer') is True
+    # A write through one view is visible through the other - the backing buffer is genuinely shared.
+    assert ctx.eval('(function() { var before = r.u16[0]; r.u8[0] = 99; return r.u16[0] !== before; })()') is True
+
+
 def test_unserializable_raises():
     ctx = quickjs.Context()
     with pytest.raises(quickjs.JsError):
         ctx.eval('(function f() { return 1; })').serialize()
     with pytest.raises(quickjs.JsError):
         ctx.eval('Promise.resolve(1)').serialize()
+
+
+def test_accessor_property_raises():
+    ctx = quickjs.Context()
+    with pytest.raises(quickjs.JsError):
+        ctx.eval('({get x() { return 1; }})').serialize()
 
 
 def test_deserialize_garbage_raises():
