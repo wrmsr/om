@@ -37,6 +37,7 @@ from omcore.formats.yaml import all as yaml
 from omcore.logs import all as logs
 from omcore.subprocesses.sync import subprocesses
 
+from ... import magic
 from ...git.status import GitStatusItem
 from ...git.status import get_git_status
 from ...home.paths import get_home_paths
@@ -560,6 +561,81 @@ class Cli(ap.Cli):
 
         finally:
             print(out_dir)
+
+    #
+
+    @ap.cmd(
+        ap.arg('src-roots', nargs='*'),
+    )
+    def update_generated(self) -> None:
+        check.state(os.path.isdir('.git'))
+
+        gen_files: set[str] = set()
+
+        for mg_style in [
+            magic.PY_MAGIC_STYLE,
+            magic.C_MAGIC_STYLE,
+        ]:
+            for fp in magic.find_magic_files(
+                mg_style,
+                self.args.src_roots,
+                keys=['@om-generated'],
+            ):
+                log.info('Found generated file %s', fp)
+                gen_files.add(fp)
+
+        begin_line, end_line = \
+            [f'#### {a} @om-generated ####' for a in ['begin', 'end']]
+
+        gen_lines = [
+            begin_line,
+            '',
+            *([
+                *([
+                    f'{fp} linguist-generated'
+                    for fp in sorted(gen_files)
+                ]),
+                '',
+            ] if gen_files else []),
+            end_line,
+        ]
+
+        if not os.path.isfile('.gitattributes'):
+            out_lines = gen_lines
+
+        else:
+            with open('.gitattributes') as f:
+                src = f.read()
+
+            in_lines = src.splitlines()
+
+            begin_pos_lst, end_pos_lst = \
+                [[i for i, il in enumerate(in_lines) if il == tl] for tl in [begin_line, end_line]]
+
+            if not begin_pos_lst:
+                check.empty(end_pos_lst)
+                out_lines = [
+                    *in_lines,
+                    '',
+                    *gen_lines,
+                ]
+
+            else:
+                begin_pos = check.single(begin_pos_lst)
+                end_pos = check.single(end_pos_lst)
+                check.state(begin_pos < end_pos)
+
+                out_lines = [
+                    *in_lines[:begin_pos],
+                    *gen_lines,
+                    *in_lines[end_pos + 1:],
+                ]
+
+        with open('.gitattributes', 'w') as f:
+            f.write('\n'.join([
+                *out_lines,
+                *([''] if not out_lines or out_lines[-1] else []),
+            ]))
 
 
 ##

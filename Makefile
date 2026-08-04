@@ -156,7 +156,7 @@ dep-about: venv
 ### Gen
 
 .PHONY: gen
-gen: gen-amalg gen-dockerdev gen-cmake gen-aws gen-manifest gen-dataclass gen-pkg
+gen: gen-amalg gen-dockerdev gen-cmake gen-aws gen-manifest gen-dataclass gen-pkg gen-gitattributes
 
 .PHONY: gen-online
 gen-online: gen-aws-instance-types gen-modeldb
@@ -206,6 +206,10 @@ clean-dataclass:
 .PHONY: gen-pkg
 gen-pkg:
 	PYTHONPATH=. ${PYPROJECT} pkg gen
+
+.PHONY: gen-gitattributes
+gen-gitattributes: venv
+	${PYTHON} -m omdev.tools.git update-generated ${SRCS} x
 
 .PHONY: gen-antlr
 gen-antlr: venv
