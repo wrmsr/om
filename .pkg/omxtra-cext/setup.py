@@ -20,7 +20,10 @@ st.setup(
             name='omxtra.js.quickjs._pyqjsng',
             sources=[
                 'omxtra/js/quickjs/_pyqjsng.c',
-                'omxtra/js/quickjs/_quickjs/quickjs-amalgam.c',
+                'omxtra/js/quickjs/_quickjs/dtoa.c',
+                'omxtra/js/quickjs/_quickjs/libregexp.c',
+                'omxtra/js/quickjs/_quickjs/libunicode.c',
+                'omxtra/js/quickjs/_quickjs/quickjs.c',
             ],
             extra_compile_args=[
                 '-std=c11',

@@ -40,6 +40,14 @@ from omcore.subprocesses.sync import subprocesses
 from ... import magic
 from ...git.status import GitStatusItem
 from ...git.status import get_git_status
+from ...git.vendor.aborting import GitVendorAborter
+from ...git.vendor.diffing import GitVendorDiffer
+from ...git.vendor.journals import CHANGING_GIT_VENDOR_FILE_DISPOSITIONS
+from ...git.vendor.journals import GitVendorFileDisposition
+from ...git.vendor.journals import load_live_vendor_journal
+from ...git.vendor.pulling import GitVendorPuller
+from ...git.vendor.runners import GitRunner
+from ...git.vendor.specs import load_vendor_spec
 from ...home.paths import get_home_paths
 from ...home.shadow import get_shadow_configs
 from . import consts
@@ -508,6 +516,98 @@ class Cli(ap.Cli):
             'commit',
             *args,
             *self.unknown_args,
+        )
+
+    # Vendored sources
+
+    def _vendor_dirs(self) -> tuple[str, str]:
+        repo_dir = subprocesses.check_output('git', 'rev-parse', '--show-toplevel').decode().strip()
+        vendor_dir = os.path.relpath(os.path.realpath(self.args.dir), repo_dir)
+        check.state(not vendor_dir.startswith('..'))
+        return repo_dir, vendor_dir
+
+    @ap.cmd(
+        ap.arg('dir'),
+        ap.arg('-r', '--rev'),
+        ap.arg('-f', '--from', dest='from_path'),
+        ap.arg('--allow-dirty', action='store_true'),
+    )
+    def vendor_pull(self) -> None:
+        repo_dir, vendor_dir = self._vendor_dirs()
+
+        journal = GitVendorPuller(
+            repo_dir,
+            vendor_dir,
+            rev=self.args.rev,
+            from_path=self.args.from_path,
+            allow_dirty=self.args.allow_dirty,
+        ).pull()
+
+        for e in journal.entries:
+            if e.disposition is not GitVendorFileDisposition.UNCHANGED:
+                print(f'{e.disposition.value:<17} {e.path}')
+
+        if (
+                not any(e.disposition in CHANGING_GIT_VENDOR_FILE_DISPOSITIONS for e in journal.entries) and
+                journal.new_rev == journal.old_rev
+        ):
+            print('Already up to date.')
+        else:
+            old = journal.old_rev[:12] if journal.old_rev is not None else '(none)'
+            print(f'Pulled {vendor_dir}: {old} -> {journal.new_rev[:12]}')
+            if (cn := len(journal.conflicted_entries)):
+                print(
+                    f'{cn} conflict(s) - resolve and `git add` them, then commit; or run '
+                    f'`om git vendor-abort {self.args.dir}` to roll back.',
+                )
+            else:
+                print('Review the staged changes and commit.')
+
+    @ap.cmd(
+        ap.arg('dir'),
+    )
+    def vendor_abort(self) -> None:
+        repo_dir, vendor_dir = self._vendor_dirs()
+
+        journal = GitVendorAborter(
+            repo_dir,
+            vendor_dir,
+        ).abort()
+
+        print(f'Aborted pull of {vendor_dir} to {journal.new_rev[:12]} - restored to {journal.pre_head[:12]}.')
+
+    @ap.cmd(
+        ap.arg('dir'),
+    )
+    def vendor_status(self) -> None:
+        repo_dir, vendor_dir = self._vendor_dirs()
+
+        spec = load_vendor_spec(os.path.join(repo_dir, vendor_dir))
+        print(json.dumps_pretty(msh.marshal(spec)))
+
+        repo = GitRunner(repo_dir)
+        git_dir = repo.output_str('rev-parse', '--absolute-git-dir')
+        if (journal := load_live_vendor_journal(repo, git_dir, vendor_dir)) is not None:
+            old = journal.old_rev[:12] if journal.old_rev is not None else '(none)'
+            print()
+            print(f'Pull in progress: {old} -> {journal.new_rev[:12]}')
+            for e in journal.conflicted_entries:
+                print(f'  {e.disposition.value:<17} {e.path}')
+
+    @ap.cmd(
+        ap.arg('dir'),
+        ap.arg('-f', '--from', dest='from_path'),
+    )
+    def vendor_diff(self) -> None:
+        repo_dir, vendor_dir = self._vendor_dirs()
+
+        print(
+            GitVendorDiffer(
+                repo_dir,
+                vendor_dir,
+                from_path=self.args.from_path,
+            ).diff(),
+            end='',
         )
 
     #
