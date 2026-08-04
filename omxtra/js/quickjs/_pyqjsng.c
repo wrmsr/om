@@ -1,10 +1,9 @@
 // @om-cext {
 //   "extra_sources": [
-//     "quickjs-amalgam.c"
+//     "_quickjs/*.c"
 //   ],
 //   "extra_headers": [
-//     "quickjs.h",
-//     "quickjs-libc.h"
+//     "_quickjs/*.h"
 //   ],
 //   "extra_compile_args": [
 //     "-Wno-sign-compare",
@@ -28,7 +27,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "quickjs.h"
+#include "_quickjs/quickjs.h"
 
 //
 

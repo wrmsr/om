@@ -1,2 +1,2 @@
-include omxtra/js/quickjs/quickjs-libc.h
-include omxtra/js/quickjs/quickjs.h
+include omxtra/js/quickjs/_quickjs/quickjs-libc.h
+include omxtra/js/quickjs/_quickjs/quickjs.h
