@@ -667,6 +667,15 @@ class Reader:
                 setattr(self, k, v)
             self.prepare()
 
+    @contextlib.contextmanager
+    def suspend_colorization(self) -> ta.Iterator[None]:
+        try:
+            old_can_colorize = self.can_colorize
+            self.can_colorize = False
+            yield
+        finally:
+            self.can_colorize = old_can_colorize
+
     def finish(self) -> None:
         """Called when a command signals that we're finished."""
 

@@ -250,8 +250,9 @@ class UnixConsole(Console):
         if not self.__gone_tall:
             while len(self._screen) < min(len(screen), self.height):
                 self.__hide_cursor()
-                self.__move(0, len(self._screen) - 1)
-                self.__write('\n')
+                if self.screen:
+                    self.__move(0, len(self.screen) - 1)
+                    self.__write('\n')
                 self._posxy = 0, len(self._screen)
                 self._screen.append('')
         else:
@@ -801,7 +802,7 @@ class UnixConsole(Console):
         """
 
         # using .get() means that things will blow up only if the bps is actually needed (which I'm betting is pretty
-        # unlkely)
+        # unlikely)
         bps = _BAUD_RATES.get(self.__svtermstate.ospeed)
         while True:
             m = prog.search(fmt)
