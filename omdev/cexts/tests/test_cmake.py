@@ -39,8 +39,8 @@ def test_cmake_project_gen_cext_config(tmp_path):
     platform_library = 'm' if sys.platform == 'linux' else 'z'
     with open(ext_src, 'w') as f:
         f.write(f"""// @om-cext {{
-//   "extra_sources": ["foo-amalg.c"],
-//   "extra_headers": ["foo.h"],
+//   "extra_sources": ["*.c", "./*.c", "src/**/*.c", "src/a.c"],
+//   "extra_headers": ["include/**/*.h", "include/foo.h"],
 //   "extra_compile_args": ["-Wextra"],
 //   "extra_link_args": ["-g"],
 //   "define_macros": {{"_GNU_SOURCE": "1"}},
@@ -50,7 +50,7 @@ def test_cmake_project_gen_cext_config(tmp_path):
 //     ["other-platform", "not-{sys.platform}"]
 //   ]
 // }}
-#include "foo.h"
+#include "include/foo.h"
 
 #ifndef _GNU_SOURCE
 #error _GNU_SOURCE is not defined
@@ -64,10 +64,19 @@ int configured_value(void)
 }}
 """)
 
-    with open(os.path.join(ext_dir, 'foo-amalg.c'), 'w') as f:
+    extra_src_dir = os.path.join(ext_dir, 'src')
+    os.makedirs(os.path.join(extra_src_dir, 'nested'))
+    with open(os.path.join(extra_src_dir, 'a.c'), 'w') as f:
         f.write('int extra_value(void) { return 1; }\n')
-    with open(os.path.join(ext_dir, 'foo.h'), 'w') as f:
+    with open(os.path.join(extra_src_dir, 'nested', 'b.c'), 'w') as f:
+        f.write('int nested_value(void) { return 2; }\n')
+
+    extra_header_dir = os.path.join(ext_dir, 'include')
+    os.makedirs(os.path.join(extra_header_dir, 'nested'))
+    with open(os.path.join(extra_header_dir, 'foo.h'), 'w') as f:
         f.write('#define FOO_VALUE 2\n')
+    with open(os.path.join(extra_header_dir, 'nested', 'bar.h'), 'w') as f:
+        f.write('')
 
     gen = CmakeProjectGen([package_dir], prj_root)
     gen.run()
@@ -75,8 +84,10 @@ int configured_value(void)
     cmake_dir = os.path.join(prj_root, 'cmake', os.path.basename(prj_root))
     linked_files = [
         os.path.join('sample', 'foo', '_foo.c'),
-        os.path.join('sample', 'foo', 'foo-amalg.c'),
-        os.path.join('sample', 'foo', 'foo.h'),
+        os.path.join('sample', 'foo', 'src', 'a.c'),
+        os.path.join('sample', 'foo', 'src', 'nested', 'b.c'),
+        os.path.join('sample', 'foo', 'include', 'foo.h'),
+        os.path.join('sample', 'foo', 'include', 'nested', 'bar.h'),
     ]
     for linked_file in linked_files:
         link_file = os.path.join(cmake_dir, linked_file)
@@ -86,8 +97,13 @@ int configured_value(void)
     with open(os.path.join(cmake_dir, 'CMakeLists.txt')) as f:
         cmake_lists = f.read()
 
+    cmake_lines = cmake_lists.splitlines()
     for linked_file in linked_files:
-        assert os.path.join(cmake_dir, linked_file) in cmake_lists
+        assert cmake_lines.count(f'    {linked_file}') == 1
+
+    linked_file_positions = [cmake_lines.index(f'    {linked_file}') for linked_file in linked_files]
+    assert linked_file_positions == sorted(linked_file_positions)
+    assert '**' not in cmake_lists
 
     assert 'target_compile_definitions(sample__foo___foo PRIVATE\n    _GNU_SOURCE=1\n)' in cmake_lists
     assert '    -Wextra\n' in cmake_lists

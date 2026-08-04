@@ -1,7 +1,6 @@
 """
 FIXME:
  - debug tables don't handle symlinks
- - use relapths in cml.txt
 
 TODO:
  - point / copy output to dst dirs
@@ -46,7 +45,7 @@ from .. import cmake
 from .. import magic
 from ..cli import CliModule
 from .configs import CextConfig
-from .configs import resolve_cext_config_file
+from .configs import expand_cext_config_files
 from .magic import CextMagic
 
 
@@ -232,9 +231,19 @@ class CmakeProjectGen:
 
             return unmarshal_obj(cext_magic.prepared, CextConfig)
 
-        @staticmethod
-        def _resolve_ext_config_file(ext_src: str, config_file: str) -> str:
-            return resolve_cext_config_file(ext_src, config_file)
+        def _expand_ext_config_files(
+                self,
+                ext_src: str,
+                config_files: ta.Sequence[str],
+                *,
+                exclude_files: ta.Sequence[str] = (),
+        ) -> list[str]:
+            return expand_cext_config_files(
+                ext_src,
+                config_files,
+                exclude_files=exclude_files,
+                root_dir=self.p.prj_root,
+            )
 
         def _symlink_source_file(self, src_file: str) -> str:
             source_file = os.path.abspath(os.path.join(self.p.prj_root, src_file))
@@ -251,7 +260,7 @@ class CmakeProjectGen:
             else:
                 os.symlink(os.path.relpath(source_file, link_dir), link_file)
 
-            return link_file
+            return src_file
 
         @staticmethod
         def _get_ext_libraries(ext_cfg: CextConfig) -> list[str]:
@@ -279,14 +288,12 @@ class CmakeProjectGen:
                 sysconfig.get_config_var('SHLIB_SUFFIX'),
             ])
 
-            extra_sources = [
-                self._resolve_ext_config_file(ext_src, src_file)
-                for src_file in ext_cfg.extra_sources or ()
-            ]
-            extra_headers = [
-                self._resolve_ext_config_file(ext_src, header_file)
-                for header_file in ext_cfg.extra_headers or ()
-            ]
+            extra_sources = self._expand_ext_config_files(
+                ext_src,
+                ext_cfg.extra_sources or (),
+                exclude_files=[ext_src],
+            )
+            extra_headers = self._expand_ext_config_files(ext_src, ext_cfg.extra_headers or ())
 
             src_files = [
                 self._symlink_source_file(src_file)

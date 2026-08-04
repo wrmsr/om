@@ -1,6 +1,7 @@
-# ruff: noqa: UP045
+# ruff: noqa: UP006 UP045
 # @om-lite
 import dataclasses as dc
+import glob
 import os.path
 import typing as ta
 
@@ -32,3 +33,32 @@ def resolve_cext_config_file(ext_src: str, config_file: str) -> str:
         raise ValueError(config_file)
 
     return resolved_file
+
+
+def expand_cext_config_files(
+        ext_src: str,
+        config_files: ta.Sequence[str],
+        *,
+        exclude_files: ta.Sequence[str] = (),
+        root_dir: ta.Optional[str] = None,
+) -> ta.List[str]:
+    if root_dir is None:
+        root_dir = os.getcwd()
+    root_dir = os.path.abspath(root_dir)
+
+    out: ta.Set[str] = set()
+    for config_file in config_files:
+        resolved_pattern = resolve_cext_config_file(ext_src, config_file)
+        matched_files = [
+            matched_file
+            for matched_file in glob.glob(os.path.join(root_dir, resolved_pattern), recursive=True)
+            if os.path.isfile(matched_file)
+        ]
+        if not matched_files:
+            raise FileNotFoundError(resolved_pattern)
+
+        out.update(os.path.relpath(matched_file, root_dir) for matched_file in matched_files)
+
+    out.difference_update(os.path.normpath(exclude_file) for exclude_file in exclude_files)
+
+    return sorted(out)

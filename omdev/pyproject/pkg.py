@@ -47,7 +47,7 @@ from omcore.logs.modules import get_module_logger
 from omcore.subprocesses.sync import subprocesses
 
 from ..cexts.configs import CextConfig
-from ..cexts.configs import resolve_cext_config_file
+from ..cexts.configs import expand_cext_config_files
 from ..cexts.magic import CextMagic
 from ..magic.find import find_magic
 from ..magic.find import find_magic_files
@@ -434,7 +434,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         if fc.manifest_in:
             with open(os.path.join(self._pkg_dir(), 'MANIFEST.in'), 'w') as f:
-                f.write('\n'.join(fc.manifest_in))  # noqa
+                f.write('\n'.join([*fc.manifest_in, '']))  # noqa
 
     #
 
@@ -602,6 +602,12 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         for ext_src in ext_srcs:
             ext_cfg = self._get_ext_file_config(ext_src)
+            extra_sources = expand_cext_config_files(
+                ext_src,
+                ext_cfg.extra_sources or (),
+                exclude_files=[ext_src],
+            )
+            extra_headers = expand_cext_config_files(ext_src, ext_cfg.extra_headers or ())
 
             ext_lang = ext_src.rpartition('.')[2]
 
@@ -619,17 +625,14 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
                 'sources=[',
                 *[f'    {sf!r},' for sf in [
                     ext_src,
-                    *[
-                        resolve_cext_config_file(ext_src, extra_source)
-                        for extra_source in ext_cfg.extra_sources or ()
-                    ],
+                    *extra_sources,
                 ]],
                 '],',
             ])
 
             manifest_in.extend([
-                f'include {resolve_cext_config_file(ext_src, extra_header)}'
-                for extra_header in ext_cfg.extra_headers or ()
+                f'include {extra_header}'
+                for extra_header in extra_headers
             ])
 
             ext_arg_lines.extend([
@@ -700,7 +703,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
         return self.FileContents(
             pyp_dct,
             src,
-            manifest_in or None,
+            sorted(set(manifest_in)) or None,
         )
 
 

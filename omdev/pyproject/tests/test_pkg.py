@@ -13,20 +13,25 @@ class _TestCextPackageGenerator(_PyprojectCextPackageGenerator):
         )
 
     def find_cext_srcs(self):
-        return ['sample/foo/_foo.c']
+        return ['omxtra/js/quickjs/_pyqjsng.c']
 
     def _get_ext_file_config(self, src_file):
         return CextConfig(
-            extra_sources=['foo-amalg.c'],
-            extra_headers=['foo.h'],
+            extra_sources=['*.c', './*.c', 'quickjs-amalgam.c'],
+            extra_headers=['**/quickjs*.h'],
         )
 
 
 def test_cext_package_extra_source_paths():
-    gen = _TestCextPackageGenerator('sample', '.pkg-test', pkg_suffix='-cext')
+    gen = _TestCextPackageGenerator('omxtra', '.pkg-test', pkg_suffix='-cext')
 
     assert """sources=[
-                'sample/foo/_foo.c',
-                'sample/foo/foo-amalg.c',
+                'omxtra/js/quickjs/_pyqjsng.c',
+                'omxtra/js/quickjs/quickjs-amalgam.c',
             ],""" in gen.file_contents().setup_py
-    assert 'foo.h' not in gen.file_contents().setup_py
+    assert gen.file_contents().setup_py.count("'omxtra/js/quickjs/_pyqjsng.c',") == 1
+    assert 'quickjs*' not in gen.file_contents().setup_py
+    assert gen.file_contents().manifest_in == [
+        'include omxtra/js/quickjs/quickjs-libc.h',
+        'include omxtra/js/quickjs/quickjs.h',
+    ]
