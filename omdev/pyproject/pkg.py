@@ -518,6 +518,7 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
     class FileContents:
         pyproject_dct: ta.Mapping[str, ta.Any]
         setup_py: str
+        manifest_in: ta.Optional[ta.Sequence[str]] = None
 
     @abc.abstractmethod
     def file_contents(self) -> FileContents:
@@ -533,6 +534,10 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
 
         with open(os.path.join(self._pkg_dir(), 'setup.py'), 'w') as f:
             f.write(fc.setup_py)
+
+        if fc.manifest_in:
+            with open(os.path.join(self._pkg_dir(), 'MANIFEST.in'), 'w') as f:
+                f.write('\n'.join(fc.manifest_in))  # noqa
 
 
 class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
@@ -593,6 +598,8 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         ext_srcs = self.find_cext_srcs()
 
+        manifest_in: ta.List[str] = []
+
         for ext_src in ext_srcs:
             ext_cfg = self._get_ext_file_config(ext_src)
 
@@ -618,6 +625,11 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
                     ],
                 ]],
                 '],',
+            ])
+
+            manifest_in.extend([
+                f'include {resolve_cext_config_file(ext_src, extra_header)}'
+                for extra_header in ext_cfg.extra_headers or ()
             ])
 
             ext_arg_lines.extend([
@@ -688,6 +700,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
         return self.FileContents(
             pyp_dct,
             src,
+            manifest_in or None,
         )
 
 

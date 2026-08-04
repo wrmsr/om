@@ -155,7 +155,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='2cdb64bf3d48e56ac85c42636e6806425b5689ad'),
+            dict(path='pkg.py', sha1='27d65ac3861f4197b841a7ae177b6ad53967a3fd'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -13111,6 +13111,7 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
     class FileContents:
         pyproject_dct: ta.Mapping[str, ta.Any]
         setup_py: str
+        manifest_in: ta.Optional[ta.Sequence[str]] = None
 
     @abc.abstractmethod
     def file_contents(self) -> FileContents:
@@ -13126,6 +13127,10 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
 
         with open(os.path.join(self._pkg_dir(), 'setup.py'), 'w') as f:
             f.write(fc.setup_py)
+
+        if fc.manifest_in:
+            with open(os.path.join(self._pkg_dir(), 'MANIFEST.in'), 'w') as f:
+                f.write('\n'.join(fc.manifest_in))  # noqa
 
 
 class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
@@ -13186,6 +13191,8 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         ext_srcs = self.find_cext_srcs()
 
+        manifest_in: ta.List[str] = []
+
         for ext_src in ext_srcs:
             ext_cfg = self._get_ext_file_config(ext_src)
 
@@ -13211,6 +13218,11 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
                     ],
                 ]],
                 '],',
+            ])
+
+            manifest_in.extend([
+                f'include {resolve_cext_config_file(ext_src, extra_header)}'
+                for extra_header in ext_cfg.extra_headers or ()
             ])
 
             ext_arg_lines.extend([
@@ -13281,6 +13293,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
         return self.FileContents(
             pyp_dct,
             src,
+            manifest_in or None,
         )
 
 
