@@ -5,15 +5,15 @@ import contextlib
 import typing as ta
 import unittest
 
-from ..bench import BenchmarkResult
-from ..bench import _latency_stats_ms
-from ..bench import _make_curl_command
-from ..bench import _make_result
-from ..bench import _parse_names
-from ..bench import _parse_size
-from ..bench import _partition
-from ..bench import _percentile
-from ..bench import _run_client_suite
+from ..suite import BenchmarkResult
+from ..suite import _latency_stats_ms
+from ..suite import _make_curl_command
+from ..suite import _make_result
+from ..suite import _parse_names
+from ..suite import _parse_size
+from ..suite import _partition
+from ..suite import _percentile
+from ..suite import _run_client_suite
 
 
 ##

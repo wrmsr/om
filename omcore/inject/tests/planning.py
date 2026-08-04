@@ -11,6 +11,11 @@ listener-bearing injectors always interpret.
 import typing as ta
 
 from ... import inject as inj
+from .bench.suite import SEED_KEY
+from .bench.suite import _time_batch  # noqa
+from .bench.suite import chain_elements
+from .bench.suite import handler_elements
+from .bench.suite import service_elements
 
 
 ##
@@ -21,10 +26,6 @@ async def _passthrough_listener(injector: ta.Any, key: ta.Any, binding: ta.Any, 
 
 
 def _request_elements(ss: inj.DelimitedScope) -> tuple[ta.Any, list]:
-    from .bench.bench import SEED_KEY
-    from .bench.bench import handler_elements
-    from .bench.bench import service_elements
-
     hels, keys = handler_elements(10, n_svcs=20, in_=ss)
     es = inj.as_elements(
         *service_elements(20),
@@ -36,10 +37,6 @@ def _request_elements(ss: inj.DelimitedScope) -> tuple[ta.Any, list]:
 
 
 def _main() -> None:
-    from .bench.bench import SEED_KEY
-    from .bench.bench import _time_batch  # noqa
-    from .bench.bench import chain_elements
-
     def rate(op: ta.Callable[[], ta.Any]) -> float:
         n = 1
         while _time_batch(op, n) < 20_000_000 and n < (1 << 20):
