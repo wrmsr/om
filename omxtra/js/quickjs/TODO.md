@@ -10,35 +10,40 @@ clone/fan-out tests live in `tests/test_serialize.py` and `tests/test_clone.py`,
 freethreaded builds. `_quickjs/quickjs.c` carries one local patch (`@om-local-patch` in `JS_ReadRegExp`) fixing the
 upstream reference-desync bug; `tests/test_serialize.py` holds its regression tests.
 
+`snapshots.py` provides data snapshots of a context's user globals on top of that. Contexts are capability-free by
+default, with opt-in `with_std=True` (qjs:std / qjs:os) and `with_bjson=True` (JS-side serializer) modules.
+
 Blobs are version-locked: valid only for the exact vendored engine build that wrote them (the format's `BC_VERSION`
 byte plus build invariants the byte does not cover - opcode numbering, the predefined-atom table, the libregexp
 bytecode format). They are caches and transfer envelopes, not archives.
 
-## Context.snapshot() / Context.restore() - data snapshots of user globals
+## ~~Context.snapshot() / Context.restore()~~ - DONE, see `snapshots.py`
 
-Convenience pair capturing the *user-defined* globals of a context and grafting them onto another (usually fresh)
-context. Together with code images (below) this is the template-clone story: template = code image + data snapshot.
+Implemented as `snapshots.take_snapshot(ctx, *, skip_unsupported=False) -> Snapshot` and
+`snapshots.restore_snapshot(ctx, snapshot) -> Sequence[str]` - pure Python over `Object.serialize()` /
+`Context.deserialize()`, no new C. Strict by default (`UnsupportedGlobalsError` naming the offending globals), with
+opt-in skip mode reporting them in `Snapshot.skipped`. The pristine baseline is one cached throwaway `Context` (on
+0.16.1 it is exactly `{'performance'}`).
 
-- Semantics: snapshot = own enumerable string-keyed properties of `globalThis`, minus a pristine-context baseline
-  key set, packed into a plain object and serialized. Restore = deserialize + `Object.assign(globalThis, obj)`.
-  - On a fresh context the engine's own globals are non-enumerable, so `Object.keys(globalThis)` is already almost
-    exactly the user set - but diff against a baseline anyway rather than assuming.
-  - Baseline: computed from a throwaway `Context()`, cached process-wide (`lang.cached_function`, not module-body
-    work).
-- Suggested implementation: pure Python over the existing primitives, in a new `snapshots.py` module in this package
-  (functions taking a `Context`; no new C). Build the diff object JS-side via one `eval`, serialize it, done.
-- Policy decision needed for non-serializable globals (functions, promises, class instances - and every Python
-  callable registered via `set()`, which are host objects):
-  - Proposed: strict by default (raise, naming the offending keys), with an opt-in skip mode that returns the
-    skipped names alongside the blob. Functions-as-state is exactly what the engine cannot express - user code
-    should persist as a code image and be re-run, and Python callables must be re-registered after restore.
-- Known limits to document (inherited from the engine serializer): prototypes/class identity not preserved
-  (everything rehydrates as plain objects), unique `Symbol()` identity lost (only `Symbol.for()` re-interns),
-  non-enumerable and symbol-keyed properties silently dropped, accessors throw. Mutations *to* builtins (e.g. a
-  patched `Math.random`) are invisible to the diff and will not be captured.
-- Tests: round trip incl. shared refs across separate globals; strict-mode raise on a function/host callable;
-  skip-mode reporting; restore onto a non-fresh context (collision policy: last-write-wins via assign - assert it);
-  compose with a code image once those exist.
+Every limitation below is now demonstrated and locked in by `tests/test_snapshots.py`. Two entries in the original
+plan turned out to be wrong when probed, and are corrected here:
+
+- Symbol-keyed properties are **not** dropped - they are carried. But a *unique* symbol key deserializes as a fresh
+  symbol, so the property becomes unreachable via any separately-restored reference to 'the same' symbol.
+- Prototype loss is as described (class instances rehydrate as plain objects, methods gone), but `Object.create(p)`
+  with a method-bearing prototype fails outright, since the prototype object is itself an unsupported global.
+
+Also-real limitations not in the original plan: object integrity (`freeze`/`seal`/`preventExtensions`) is lost,
+property attributes are normalized to writable/enumerable/configurable, array holes are filled in and non-index
+array properties dropped, and `let`/`const` globals are invisible (they live in the lexical scope, not
+`globalThis`).
+
+Possible follow-ups, none blocking:
+
+- A `Context.snapshot()` / `Context.restore()` method pair as sugar over the module functions, if the free-function
+  form proves awkward in practice.
+- Capturing `let`/`const` is not possible through `globalThis`; if it ever matters, the answer is a code image
+  (below) re-running the declarations, not a data snapshot.
 
 ## Context.compile() / Context.load() - code images
 

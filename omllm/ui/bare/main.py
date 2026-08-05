@@ -298,8 +298,14 @@ async def _a_main() -> None:
 
     #
 
+    async def prompt(s: str) -> None:
+        if s == '/quit':
+            raise SystemExit(0)
+
+        await session.prompt(s)
+
     for ax in args.autoexec or []:
-        await session.prompt(ax)
+        await prompt(ax)
 
     if sys.stdin.isatty():
         try:
@@ -313,10 +319,7 @@ async def _a_main() -> None:
         except EOFError:
             break
 
-        if entry == '/quit':
-            break
-
-        await session.prompt(entry)
+        await prompt(entry)
 
 
 def _main() -> None:
