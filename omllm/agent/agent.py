@@ -57,20 +57,12 @@ class Agent(
 
         in_state = self._state
 
-        context = dc.replace(
-            in_state.context,
-
-            messages=[
-                *(self._state.context.messages or []),
-                *new_messages,
-            ],
-        )
-
         llm_backend = self._backends.get_backend(llm.ImmediateBackend, in_state.model)  # type: ignore[type-abstract]
 
         loop = TurnLoop(
+            new_messages=new_messages,
             config=in_state.turn_config,
-            context=context,
+            context=in_state.context,
             subscriber=self._publish,
             llm_backend=llm_backend,
             tool_env=in_state.tool_env,

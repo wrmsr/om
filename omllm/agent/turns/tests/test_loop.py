@@ -27,12 +27,10 @@ async def _test_loop(
     )
 
     loop = TurnLoop(
+        new_messages=[
+            llm.UserMessage('Hi there!'),
+        ],
         llm_backend=svc,
-        context=Context(
-            messages=[
-                llm.UserMessage('Hi there!'),
-            ],
-        ),
     )
 
     loop_res = await loop.run()
@@ -68,11 +66,11 @@ async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
     )
 
     loop = TurnLoop(
+        new_messages=[
+            llm.UserMessage('What is the weather in Edinburgh, Scotland?'),
+        ],
         llm_backend=svc,
         context=Context(
-            messages=[
-                llm.UserMessage('What is the weather in Edinburgh, Scotland?'),
-            ],
             tools=ToolSet([
                 GetWeatherTool().tool(),
             ]),

@@ -1,3 +1,5 @@
+import typing as ta
+
 from omcore import check
 from omcore import dataclasses as dc
 
@@ -24,6 +26,7 @@ class TurnLoop:
     def __init__(
             self,
             *,
+            new_messages: ta.Sequence[llm.Message],
             config: TurnConfig | None = None,
             context: Context | None = None,
             subscriber: EventSubscriber[Event] | None = None,
@@ -32,6 +35,7 @@ class TurnLoop:
     ) -> None:
         super().__init__()
 
+        self._initial_new_messages = list(new_messages)
         if config is None:
             config = TurnConfig()
         self._initial_config = config
@@ -49,13 +53,18 @@ class TurnLoop:
 
         self._new_messages: list[Message] = []
 
+        self._add_new_message(*new_messages)
+
     #
 
     def _add_new_message(self, *messages: Message) -> None:
         self._context = dc.replace(
             self._context,
 
-            messages=[*(self._context.messages or []), *messages],
+            messages=[
+                *(self._context.messages or []),
+                *messages,
+            ],
         )
 
         self._new_messages.extend(messages)
