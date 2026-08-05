@@ -23,7 +23,7 @@ def test_stack_attribute():
     ctx = quickjs.Context()
     with pytest.raises(quickjs.JsError) as exc_info:
         ctx.eval('function inner() { throw new TypeError("t"); }\ninner()')
-    assert 'inner' in exc_info.value.js_stack
+    assert 'inner' in (exc_info.value.js_stack or '')
 
 
 def test_throw_non_error():

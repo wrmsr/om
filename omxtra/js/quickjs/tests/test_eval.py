@@ -56,7 +56,7 @@ def test_eval_filename():
     ctx = quickjs.Context()
     with pytest.raises(quickjs.JsError) as exc_info:
         ctx.eval('throw new Error("nope")', filename='myfile.js')
-    assert 'myfile.js' in exc_info.value.js_stack
+    assert 'myfile.js' in (exc_info.value.js_stack or '')
 
 
 def test_eval_state_persists():

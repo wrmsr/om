@@ -83,13 +83,13 @@ def test_to_bytes():
 def test_set_dict_key_type():
     ctx = quickjs.Context()
     with pytest.raises(TypeError):
-        ctx.set('x', {1: 'a'})
+        ctx.set('x', {1: 'a'})  # type: ignore[dict-item]  # deliberately invalid
 
 
 def test_set_unsupported_type():
     ctx = quickjs.Context()
     with pytest.raises(TypeError):
-        ctx.set('x', object())
+        ctx.set('x', object())  # type: ignore[arg-type]  # deliberately invalid
 
 
 def test_set_object_roundtrip():
