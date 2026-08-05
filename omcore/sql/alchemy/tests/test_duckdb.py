@@ -18,7 +18,6 @@ def _patch_for_trio_asyncio_fixture():
 ##
 
 
-@pytest.mark.xfail(reason='https://github.com/Mause/duckdb_engine/issues/1338')
 @ptu.skip.if_cant_import('duckdb')
 def test_duckdb():
     url = _duckdb.DuckdbDialect.name + '://'
