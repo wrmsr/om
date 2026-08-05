@@ -341,7 +341,7 @@ class JsonrpcConnection:
             await self.send_message(req)
 
             timeout_val = lang.Timeout.of(timeout, self._default_timeout)
-            timeout_s = timeout_val.or_(None)
+            timeout_s = timeout_val.remaining_or(None)
 
             try:
                 if timeout_s is None:

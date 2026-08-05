@@ -25,7 +25,7 @@ class AnyioSubprocesses(AbstractAsyncSubprocesses):
             kwargs.setdefault('stdout', subprocess.PIPE)
             kwargs.setdefault('stderr', subprocess.PIPE)
 
-        with anyio.fail_after(Timeout.of(run.timeout).or_(None)):
+        with anyio.fail_after(Timeout.of(run.timeout).remaining_or(None)):
             async with await anyio.open_process(
                     run.cmd,
                     **kwargs,

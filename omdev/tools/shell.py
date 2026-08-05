@@ -1,11 +1,20 @@
+import itertools
+import os
 import shlex
 import typing as ta
 
 from omcore import check
+from omcore import lang
 from omcore.argparse import all as ap
 from omcore.formats.json import all as json
 
 from ..cli.types import CliModule
+
+
+with lang.auto_proxy_import(globals()):
+    import concurrent.futures as cf
+    import re
+    import subprocess
 
 
 ##
@@ -102,6 +111,117 @@ class ShellCli(ap.Cli):
     @ap.cmd(accepts_unknown=True)
     def argv(self) -> None:
         print(json.dumps_pretty(self.unknown_args))
+
+    #
+
+    class _DoAllCmd(ta.NamedTuple):
+        cmd: str
+        env: ta.Mapping[str, str] | None
+
+    @ap.cmd(
+        ap.arg('-e', '--env', action='append'),
+        ap.arg('-p', '--placeholder', action='append'),
+
+        ap.arg('-j', '--jobs', type=int),
+
+        ap.arg('--cmd-timeout', type=float),
+        ap.arg('--total-timeout', type=float),
+
+        ap.arg('cmd', nargs=ap.REMAINDER),
+    )
+    def doall(self) -> None:
+        # TODO:
+        #  - shared list of live subprocesses
+        #  - configurable cancel policy
+        #  - --shell toggle
+        #  - interleave / tag / prepend / somehow multiplex stdout/err
+
+        def collect_axis(raw_lst: ta.Sequence[str] | None) -> dict[str, list[str]]:
+            if not raw_lst:
+                return {}
+
+            out: dict[str, list[str]] = {}
+            for s in raw_lst:
+                k, v = s.split('=')
+                out.setdefault(check.non_empty_str(k), []).append(v)
+
+            return out
+
+        envs = collect_axis(self.args.env)  # noqa
+        phs = collect_axis(self.args.placeholder)  # noqa
+
+        #
+
+        all_axes = [
+            ((tag, k), vs)
+            for tag, dct in [
+                ('e', envs),
+                ('p', phs),
+            ]
+            for k, vs in dct.items()
+        ]
+        all_axis_ks, all_axis_vs = zip(*all_axes)
+
+        all_cfgs = [
+            list(zip(all_axis_ks, prod_vs, strict=True))
+            for prod_vs in itertools.product(*all_axis_vs)
+        ]
+
+        for ph in phs:
+            check.not_none(re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_\-]*', ph))
+        ph_ranks = {ph: i for i, ph in enumerate(sorted(phs, key=lambda ph: (-len(ph), ph)))}
+
+        cmd_args = self.args.cmd
+        if cmd_args and cmd_args[0] == '--':
+            cmd_args = cmd_args[1:]
+        base_cmd = check.non_empty_str(' '.join(cmd_args)).replace('%%', '%')
+
+        def prep_cfg(cfg: ta.Sequence[tuple[tuple[str, str], str]]) -> ShellCli._DoAllCmd:
+            cmd = base_cmd
+            env: dict[str, str] = {}
+            ph_vs: dict[str, str] = {}
+
+            for (tag, k), v in cfg:
+                if tag == 'e':
+                    env[k] = v
+                elif tag == 'p':
+                    ph_vs[k] = v
+                else:
+                    raise ValueError(tag)
+
+            for ph_k in sorted(ph_vs, key=ph_ranks.__getitem__):
+                cmd = cmd.replace(f'%{ph_k}', ph_vs[ph_k])
+
+            return ShellCli._DoAllCmd(
+                cmd,
+                env=env or None,
+            )
+
+        all_cmds = list(map(prep_cfg, all_cfgs))
+
+        #
+
+        def run_cmd(cmd: ShellCli._DoAllCmd) -> None:
+            subprocess.check_call(  # noqa
+                cmd.cmd,
+                env={**os.environ, **(cmd.env or {})},
+                shell=True,
+                stdin=subprocess.DEVNULL,
+                timeout=self.args.cmd_timeout,
+            )
+
+        if (jobs := self.args.jobs) is None:
+            jobs = os.process_cpu_count()
+
+        with cf.ThreadPoolExecutor(max_workers=jobs) as exe:
+            futs: list[cf.Future] = [
+                exe.submit(run_cmd, cmd)
+                for cmd in all_cmds
+            ]
+
+            total_timeout = lang.Timeout.of(self.args.total_timeout)
+            for fut in futs:
+                fut.result(timeout=total_timeout.remaining_or(None))
 
 
 ##

@@ -142,7 +142,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../omcore/lite/maybes.py', sha1='5ac5f92e5610c6795b0a228c38e7bcd272bf6305'),
             dict(path='../../omcore/lite/runtime.py', sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70'),
-            dict(path='../../omcore/lite/timeouts.py', sha1='e7b2d3b364e7b99aba287f0f97f4dc8a5492bd94'),
+            dict(path='../../omcore/lite/timeouts.py', sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072'),
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
@@ -156,7 +156,7 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/datarefs.py', sha1='19c6cf61c96efe6f667608a8eda120a0ad1ef466'),
             dict(path='../specs/oci/pack/unpacking.py', sha1='6cc7a1a64a91b96144c150ac4e0006bfe2caa3e0'),
             dict(path='../../omcore/argparse/cli.py', sha1='643ea018c916268b80efe227a13979c84c59be3c'),
-            dict(path='../../omcore/asyncs/asyncio/sockets.py', sha1='57bfaf9aaf1cc8263dc3292d9b1397de9e81ce5d'),
+            dict(path='../../omcore/asyncs/asyncio/sockets.py', sha1='2e3ccc17b95307033f4d7980850a463617d3c357'),
             dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='79905340353b28e51bcd02a62026787f41b731b9'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
@@ -193,7 +193,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
             dict(path='../../omcore/secrets/tempssl.py', sha1='bbf47f864752f318f4122e539523ad5e6ed0a3b9'),
-            dict(path='../../omcore/subprocesses/base.py', sha1='902de24f7135858a9f539fab378cacb96f5cc672'),
+            dict(path='../../omcore/subprocesses/base.py', sha1='9c2f2d0a7627a255953315ae429224822407c597'),
             dict(path='../dataserver/handlers.py', sha1='f290d30b0e286d9152b9e7ff8135f2fdd222ceca'),
             dict(path='../dataserver/routes.py', sha1='f65920d9104c79ab186d4d04f0d52f2c6ad185b6'),
             dict(path='../specs/oci/media.py', sha1='803842842e9b3f1d51ccb48c41c7fb7df9d833b3'),
@@ -10299,7 +10299,7 @@ class Timeout(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         """Evaluates time remaining via remaining() if this timeout can expire, otherwise returns `o`."""
 
         raise NotImplementedError
@@ -10398,7 +10398,7 @@ class DeadlineTimeout(Timeout):
             return rem
         raise self.exc
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         return self()
 
 
@@ -10419,7 +10419,7 @@ class InfiniteTimeout(Timeout):
     def __call__(self) -> float:
         return float('inf')
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         return o
 
 
@@ -10445,7 +10445,7 @@ class CompositeTimeout(Timeout):
     def __call__(self) -> float:
         return min((c() for c in self.children), default=float('inf'))
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         if self.can_expire:
             return self()
         return o
@@ -10480,8 +10480,10 @@ class PredicateTimeout(Timeout):
             return float('inf')
         raise self.exc
 
-    def or_(self, o: ta.Any) -> ta.Any:
-        return self()
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
+        if not math.isinf(f := self()):
+            return f
+        return o
 
 
 ########################################
@@ -12282,7 +12284,7 @@ async def asyncio_wait_until_can_connect(
 
             else:
                 writer.close()
-                await asyncio.wait_for(writer.wait_closed(), timeout=timeout.or_(None))
+                await asyncio.wait_for(writer.wait_closed(), timeout=timeout.remaining_or(None))
                 break
 
             await asyncio.sleep(min(sleep_s, timeout.remaining()))
@@ -22857,7 +22859,7 @@ class BaseSubprocesses(Abstract):
         #
 
         if 'timeout' in kwargs:
-            kwargs['timeout'] = Timeout.of(kwargs['timeout']).or_(None)
+            kwargs['timeout'] = Timeout.of(kwargs['timeout']).remaining_or(None)
 
         #
 

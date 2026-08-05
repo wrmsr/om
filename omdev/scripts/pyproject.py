@@ -52,6 +52,7 @@ import io
 import itertools
 import json
 import logging
+import math
 import multiprocessing as mp
 import operator
 import os
@@ -116,7 +117,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../omcore/lite/maybes.py', sha1='5ac5f92e5610c6795b0a228c38e7bcd272bf6305'),
             dict(path='../../omcore/lite/runtime.py', sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70'),
-            dict(path='../../omcore/lite/timeouts.py', sha1='e7b2d3b364e7b99aba287f0f97f4dc8a5492bd94'),
+            dict(path='../../omcore/lite/timeouts.py', sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072'),
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
@@ -136,7 +137,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='../../omcore/subprocesses/base.py', sha1='902de24f7135858a9f539fab378cacb96f5cc672'),
+            dict(path='../../omcore/subprocesses/base.py', sha1='9c2f2d0a7627a255953315ae429224822407c597'),
             dict(path='../interp/providers/base.py', sha1='bb952ac8a8c2ceeac41a777753a1a4e60439f3d4'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
@@ -5620,7 +5621,7 @@ class Timeout(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         """Evaluates time remaining via remaining() if this timeout can expire, otherwise returns `o`."""
 
         raise NotImplementedError
@@ -5719,7 +5720,7 @@ class DeadlineTimeout(Timeout):
             return rem
         raise self.exc
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         return self()
 
 
@@ -5740,7 +5741,7 @@ class InfiniteTimeout(Timeout):
     def __call__(self) -> float:
         return float('inf')
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         return o
 
 
@@ -5766,7 +5767,7 @@ class CompositeTimeout(Timeout):
     def __call__(self) -> float:
         return min((c() for c in self.children), default=float('inf'))
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         if self.can_expire:
             return self()
         return o
@@ -5801,8 +5802,10 @@ class PredicateTimeout(Timeout):
             return float('inf')
         raise self.exc
 
-    def or_(self, o: ta.Any) -> ta.Any:
-        return self()
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
+        if not math.isinf(f := self()):
+            return f
+        return o
 
 
 ########################################
@@ -10808,7 +10811,7 @@ class BaseSubprocesses(Abstract):
         #
 
         if 'timeout' in kwargs:
-            kwargs['timeout'] = Timeout.of(kwargs['timeout']).or_(None)
+            kwargs['timeout'] = Timeout.of(kwargs['timeout']).remaining_or(None)
 
         #
 

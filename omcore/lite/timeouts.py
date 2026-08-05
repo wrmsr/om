@@ -4,12 +4,15 @@ TODO:
  - Event (/ Predicate)
 """
 import abc
+import math
 import time
 import typing as ta
 
 from .abstract import Abstract
 from .typing import CanFloat
 
+
+T = ta.TypeVar('T')
 
 TimeoutLike = ta.Union['Timeout', ta.Type['Timeout.DEFAULT'], ta.Iterable['TimeoutLike'], 'CanFloat', float, int, bool, None]  # ta.TypeAlias  # noqa
 
@@ -44,7 +47,7 @@ class Timeout(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         """Evaluates time remaining via remaining() if this timeout can expire, otherwise returns `o`."""
 
         raise NotImplementedError
@@ -143,7 +146,7 @@ class DeadlineTimeout(Timeout):
             return rem
         raise self.exc
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         return self()
 
 
@@ -164,7 +167,7 @@ class InfiniteTimeout(Timeout):
     def __call__(self) -> float:
         return float('inf')
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         return o
 
 
@@ -190,7 +193,7 @@ class CompositeTimeout(Timeout):
     def __call__(self) -> float:
         return min((c() for c in self.children), default=float('inf'))
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         if self.can_expire:
             return self()
         return o
@@ -225,5 +228,7 @@ class PredicateTimeout(Timeout):
             return float('inf')
         raise self.exc
 
-    def or_(self, o: ta.Any) -> ta.Any:
-        return self()
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
+        if not math.isinf(f := self()):
+            return f
+        return o

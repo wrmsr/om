@@ -27,6 +27,7 @@ import functools
 import inspect
 import json
 import logging
+import math
 import operator
 import os
 import os.path
@@ -68,7 +69,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../lite/maybes.py', sha1='5ac5f92e5610c6795b0a228c38e7bcd272bf6305'),
             dict(path='../../lite/runtime.py', sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70'),
-            dict(path='../../lite/timeouts.py', sha1='e7b2d3b364e7b99aba287f0f97f4dc8a5492bd94'),
+            dict(path='../../lite/timeouts.py', sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072'),
             dict(path='../../logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
             dict(path='../../argparse/cli.py', sha1='643ea018c916268b80efe227a13979c84c59be3c'),
             dict(path='../../lite/args.py', sha1='ae96b0baeb376617a63c0e64632ab2c5ff4171a8'),
@@ -76,7 +77,7 @@ def __om_amalg__():  # noqa
             dict(path='../../subprocesses/wrap.py', sha1='12d94dc2357951cd0fed1c50a46817d30d628927'),
             dict(path='../../diag/cmds/lslocks.py', sha1='46725d80fd8e016d2d13a4b5c1ad1352b982841e'),
             dict(path='../../diag/cmds/lsof.py', sha1='cdb2aaaed6f7c6fbddbd8cc165fd82c1f8f2ebb3'),
-            dict(path='../../subprocesses/base.py', sha1='902de24f7135858a9f539fab378cacb96f5cc672'),
+            dict(path='../../subprocesses/base.py', sha1='9c2f2d0a7627a255953315ae429224822407c597'),
             dict(path='../../subprocesses/sync.py', sha1='df383531e888c4652a285defb522dd90ce916b6a'),
             dict(path='pinning.py', sha1='436eb3fc76ae7106605c8c26de60e36899ad0b8a'),
             dict(path='cli.py', sha1='fb926284e3a92c28573c91a69295ea8d99f6f134'),
@@ -3314,7 +3315,7 @@ class Timeout(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         """Evaluates time remaining via remaining() if this timeout can expire, otherwise returns `o`."""
 
         raise NotImplementedError
@@ -3413,7 +3414,7 @@ class DeadlineTimeout(Timeout):
             return rem
         raise self.exc
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         return self()
 
 
@@ -3434,7 +3435,7 @@ class InfiniteTimeout(Timeout):
     def __call__(self) -> float:
         return float('inf')
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         return o
 
 
@@ -3460,7 +3461,7 @@ class CompositeTimeout(Timeout):
     def __call__(self) -> float:
         return min((c() for c in self.children), default=float('inf'))
 
-    def or_(self, o: ta.Any) -> ta.Any:
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
         if self.can_expire:
             return self()
         return o
@@ -3495,8 +3496,10 @@ class PredicateTimeout(Timeout):
             return float('inf')
         raise self.exc
 
-    def or_(self, o: ta.Any) -> ta.Any:
-        return self()
+    def remaining_or(self, o: T) -> ta.Union[float, T]:
+        if not math.isinf(f := self()):
+            return f
+        return o
 
 
 ########################################
@@ -4243,7 +4246,7 @@ class BaseSubprocesses(Abstract):
         #
 
         if 'timeout' in kwargs:
-            kwargs['timeout'] = Timeout.of(kwargs['timeout']).or_(None)
+            kwargs['timeout'] = Timeout.of(kwargs['timeout']).remaining_or(None)
 
         #
 

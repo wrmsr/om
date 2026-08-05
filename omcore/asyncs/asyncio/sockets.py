@@ -37,7 +37,7 @@ async def asyncio_wait_until_can_connect(
 
             else:
                 writer.close()
-                await asyncio.wait_for(writer.wait_closed(), timeout=timeout.or_(None))
+                await asyncio.wait_for(writer.wait_closed(), timeout=timeout.remaining_or(None))
                 break
 
             await asyncio.sleep(min(sleep_s, timeout.remaining()))

@@ -118,7 +118,7 @@ class BaseSubprocesses(Abstract):
         #
 
         if 'timeout' in kwargs:
-            kwargs['timeout'] = Timeout.of(kwargs['timeout']).or_(None)
+            kwargs['timeout'] = Timeout.of(kwargs['timeout']).remaining_or(None)
 
         #
 

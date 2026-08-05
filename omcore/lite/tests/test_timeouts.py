@@ -30,7 +30,7 @@ class TestTimeouts(unittest.TestCase):
         self.assertFalse(t.expired())
         self.assertEqual(t.remaining(), float('inf'))
         self.assertEqual(t(), float('inf'))
-        self.assertEqual(t.or_('x'), 'x')
+        self.assertEqual(t.remaining_or('x'), 'x')
 
     def test_composite(self):
         t = Timeout.of([Timeout.of(5), Timeout.of(None)])

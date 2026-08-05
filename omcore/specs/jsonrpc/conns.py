@@ -226,7 +226,7 @@ class JsonrpcConnection:
 
             timeout_val = lang.Timeout.of(timeout, self._default_timeout)
             try:
-                with anyio.fail_after(timeout_val.or_(None)):
+                with anyio.fail_after(timeout_val.remaining_or(None)):
                     await fut
             except TimeoutError as e:
                 raise JsonrpcConnection.TimeoutError(f'Request timed out after {timeout_val} seconds') from e

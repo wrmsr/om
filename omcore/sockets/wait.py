@@ -21,7 +21,7 @@ def socket_can_connect(
     timeout = Timeout.of(timeout)
 
     try:
-        conn = socket.create_connection(address, timeout=timeout.or_(None))
+        conn = socket.create_connection(address, timeout=timeout.remaining_or(None))
 
     except exception as e:  # noqa
         if on_fail is not None:
