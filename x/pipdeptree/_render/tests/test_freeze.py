@@ -71,7 +71,7 @@ def patch_pip_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
                 '    d==2.35',
                 '      e==0.12.1',
                 '    e==0.12.1',
-                'g==6.8.3rc1',
+                'g==6.8.3rc1',  # noqa
                 '  e==0.12.1',
                 '  f==3.1',
                 '    b==2.3.1',
@@ -83,7 +83,7 @@ def patch_pip_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
 )
 @pytest.mark.usefixtures('patch_pip_adapter')
 def test_render_freeze(
-    example_dag: PackageDAG,
+    example_dag: PackageDAG,  # noqa
     capsys: pytest.CaptureFixture[str],
     list_all: bool,
     expected_output: list[str],
@@ -140,7 +140,7 @@ def test_render_freeze(
 )
 @pytest.mark.usefixtures('patch_pip_adapter')
 def test_render_freeze_given_depth(
-    example_dag: PackageDAG,
+    example_dag: PackageDAG,  # noqa
     capsys: pytest.CaptureFixture[str],
     depth: int,
     expected_output: list[str],

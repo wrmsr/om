@@ -51,7 +51,7 @@ def render_json_tree(
         if cur_chain is None:
             cur_chain = [node.project_name]
 
-        d: dict[str, str | list[ta.Any] | None] = node.as_dict(mode=mode)  # ty: ignore[invalid-assignment]
+        d: dict[str, str | list[ta.Any] | None] = node.as_dict(mode=mode)  # type: ignore
         if mode == 'default':
             if parent:
                 d['required_version'] = (
@@ -61,9 +61,9 @@ def render_json_tree(
                 d['required_version'] = d['installed_version']
 
         if context and context.metadata:
-            d['metadata'] = node.get_metadata_dict(list(context.metadata))  # ty: ignore[invalid-assignment]
+            d['metadata'] = node.get_metadata_dict(list(context.metadata))  # type: ignore  # noqa
         if context and context.computed:
-            d['computed'] = ComputedValues(node.key, tree, context.full_tree).as_dict(context.computed)  # ty: ignore[invalid-assignment]
+            d['computed'] = ComputedValues(node.key, tree, context.full_tree).as_dict(context.computed)  # type: ignore  # noqa
 
         d['dependencies'] = [
             aux(c, parent=node, cur_chain=[*cur_chain, c.project_name])

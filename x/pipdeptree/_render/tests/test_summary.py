@@ -74,7 +74,7 @@ def _summary_json(
 def test_structural_metrics(
     graph: MockGraph,
     expected: dict[str, int],
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
@@ -85,7 +85,7 @@ def test_structural_metrics(
 
 
 def test_resolved_json_drops_installed_tier(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],  # noqa
 ) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs({('a', '1.0.0'): [('b', [])], ('b', '2.0.0'): []})))
 
@@ -99,7 +99,7 @@ def test_resolved_json_drops_installed_tier(
 
 
 def test_resolved_text_marks_metadata_unavailable(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],  # noqa
 ) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs({('a', '1.0.0'): []})))
 
@@ -231,7 +231,7 @@ def test_rich_style(
     assert needle in out
 
 
-def test_rich_style_missing_import(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
+def test_rich_style_missing_import(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:  # noqa
     mocker.patch.dict(sys.modules, {'rich': None, 'rich.console': None, 'rich.table': None})
     dag = PackageDAG.from_pkgs(list(mock_pkgs({('a', '1.0.0'): []})))
 
@@ -241,7 +241,7 @@ def test_rich_style_missing_import(mock_pkgs: Callable[[MockGraph], Iterator[Moc
     assert exc_info.value.code == 1
 
 
-def test_summary_html_table(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:
+def test_summary_html_table(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:  # noqa
     dag = PackageDAG.from_pkgs(list(mock_pkgs({('a', '1.0.0'): [('b', [])], ('b', '2.0.0'): []})))
 
     html = summary_html(dag, mode='resolved')

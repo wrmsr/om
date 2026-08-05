@@ -5,10 +5,11 @@ import inspect
 import typing as ta
 from importlib import import_module
 
-from omdev.packaging.names import canonicalize_name
-from omdev.packaging.requirements import InvalidRequirementError as _InvalidRequirementError
-from omdev.packaging.requirements import Requirement
+from omcore import check
 
+from ...packaging.names import canonicalize_name
+from ...packaging.requirements import InvalidRequirementError as _InvalidRequirementError
+from ...packaging.requirements import Requirement
 from .._parser import distribution_to_specifier
 
 
@@ -206,13 +207,13 @@ class DistPackage(Package):
     def render_as_branch(self, *, frozen: bool, mode: RenderMode = 'default') -> str:  # noqa: ARG002
         # resolved mode only relabels ReqPackage branches; a DistPackage branch appears in reverse mode
         # where the "[requires: parent]" label describes the parent edge, so it is left unchanged.
-        assert self.req is not None
+        req = check.not_none(self.req)
         if not frozen:
-            parent_ver_spec = self.req.version_spec
-            parent_str = self.req.project_name
+            parent_ver_spec = req.version_spec
+            parent_str = req.project_name
             if parent_ver_spec:
                 parent_str += parent_ver_spec
-            extra_str = f', extra: {self.req.extra}' if self.req.extra else ''
+            extra_str = f', extra: {req.extra}' if req.extra else ''
             return f'{self.project_name}=={self.version} [requires: {parent_str}{extra_str}]'
         return self.render_as_root(frozen=frozen)
 

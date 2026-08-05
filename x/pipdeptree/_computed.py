@@ -69,7 +69,7 @@ class ComputedValues:
         for unit in ('B', 'KB', 'MB', 'GB'):
             if size_bytes < 1024 or unit == 'GB':
                 return f'{size_bytes:.1f} {unit}' if unit != 'B' else f'{size_bytes} B'
-            size_bytes /= 1024  # ty: ignore[invalid-assignment]
+            size_bytes /= 1024  # type: ignore
         return f'{size_bytes:.1f} GB'  # pragma: no cover
 
     @functools.cached_property

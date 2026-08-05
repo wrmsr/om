@@ -17,11 +17,10 @@ import json
 import sys
 import typing as ta
 
-from omdev.packaging.specifiers import InvalidSpecifierError
-from omdev.packaging.specifiers import SpecifierSet
-from omdev.packaging.versions import InvalidVersion
-from omdev.packaging.versions import Version
-
+from ...packaging.specifiers import InvalidSpecifierError
+from ...packaging.specifiers import SpecifierSet
+from ...packaging.versions import InvalidVersion
+from ...packaging.versions import Version
 from .._computed import ComputedValues
 from .._models.package import Package
 from .._validate import conflicting_deps
@@ -210,7 +209,10 @@ def _as_rich(summary: _Summary) -> None:
 
 
 def _as_html(summary: _Summary) -> str:
-    body = ''.join(f'<tr><td>{html.escape(label)}</td><td>{html.escape(value)}</td></tr>' for label, value in _rows(summary))
+    body = ''.join(
+        f'<tr><td>{html.escape(label)}</td><td>{html.escape(value)}</td></tr>'
+        for label, value in _rows(summary)
+    )
     return f'<table>\n<tr><th>metric</th><th>value</th></tr>\n{body}\n</table>'
 
 

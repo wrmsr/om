@@ -96,7 +96,7 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
         )
     elif options.command == 'from-lock':
         # A PEP 751 lock is already resolved, so it is read straight off disk -- no interpreter, network, or index.
-        pkgs = load_lock(pathlib.Path(options.lock))  # ty: ignore[invalid-argument-type]
+        pkgs = load_lock(pathlib.Path(options.lock))  # type: ignore
     else:
         options.python = _resolve_python(options.python, log_resolved=log_resolved)
         pkgs = get_installed_distributions(
@@ -118,10 +118,10 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
     if options.reverse:
         tree = tree.reverse()
 
-    include = include or None
+    include = include or None  # type: ignore
     exclude = set(options.exclude.split(',')) if options.exclude else None
 
-    if include is not None or exclude is not None:
+    if include is not None or exclude is not None:  # type: ignore
         try:
             tree = tree.filter_nodes(include, exclude, exclude_deps=options.exclude_dependencies)
         except IncludeExcludeOverlapError as e:

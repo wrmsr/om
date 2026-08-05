@@ -16,9 +16,8 @@ import pathlib
 import tomllib
 import typing as ta
 
-from omdev.packaging.names import NormalizedName
-from omdev.packaging.names import canonicalize_name
-
+from ..packaging.names import NormalizedName
+from ..packaging.names import canonicalize_name
 from ._synthetic_dist import SyntheticDistribution
 
 

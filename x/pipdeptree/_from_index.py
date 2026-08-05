@@ -34,6 +34,8 @@ import string
 import tempfile
 import typing as ta
 
+from omcore import check
+
 from ._synthetic_dist import SyntheticDistribution
 
 
@@ -115,16 +117,18 @@ def resolve_from_index(
         # local/VCS deps there are the user's own [tool.nab] concern, so this path is left untranslated.
         result = _resolve_pyproject_path(_require_existing(pathlib.Path(pyproject_files[0])), indexes)
     else:
-        # Mixed/multiple sources lose native fidelity: fold every pyproject's [project].dependencies into the
-        # merged requirement list and resolve them all through one temporary pyproject.
+        # Mixed/multiple sources lose native fidelity: fold every pyproject's [project].dependencies into the merged
+        # requirement list and resolve them all through one temporary pyproject.
         inputs = _ParsedInputs(
             requirements=[
-                dep for path in pyproject_files for dep in _read_pyproject_dependencies(_require_existing(pathlib.Path(path)))
+                dep
+                for path in pyproject_files
+                for dep in _read_pyproject_dependencies(_require_existing(pathlib.Path(path)))
             ],
             indexes=indexes,
         )
-        # A merged --pyproject keeps its [project].dependencies but NOT its own [tool.nab].constraints; only
-        # constraints declared via --requirements (-c) files flow into the resolve. Acceptable known gap.
+        # A merged --pyproject keeps its [project].dependencies but NOT its own [tool.nab].constraints; only constraints
+        # declared via --requirements (-c) files flow into the resolve. Acceptable known gap.
         for path in requirement_files:
             _parse_requirements_file(_require_existing(pathlib.Path(path)), inputs)
         # Inline positional requirements are scanned for the same editable/local/VCS forms a file would carry.
@@ -192,16 +196,16 @@ def _parse_requirements_file(path: pathlib.Path, inputs: _ParsedInputs) -> None:
             continue
         # The parser routes comment/option-only lines to its ``options``/``comments``; everything left here that is
         # not editable/link-backed carries a parsed PEP 508 ``req``.
-        assert entry.req is not None
+        entry_req = check.not_none(entry.req)
         if entry.is_constraint:
-            if entry.req.extras:
+            if entry_req.extras:
                 msg = f'the index resolver cannot constrain extras: {location}'
                 raise FromIndexInputError(msg)
-            inputs.constraints.append(str(entry.req))
+            inputs.constraints.append(str(entry_req))
         else:
             # pip-requirements-parser moves the marker off ``req`` onto ``entry.marker``; reattach it so the
             # resolver still sees marker-gated requirements.
-            text = str(entry.req)
+            text = str(entry_req)
             inputs.requirements.append(f'{text}; {entry.marker}' if entry.marker is not None else text)
 
 
@@ -314,12 +318,7 @@ def _adapt(result: ta.Any) -> list[importlib.metadata.Distribution]:
 def _read_pyproject_dependencies(path: pathlib.Path) -> list[str]:
     # Reading TOML only happens on the mixed-sources path, which already requires nab installed; nab-python
     # depends on tomli, so it is available on 3.10 where stdlib tomllib does not yet exist.
-    import sys  # noqa: PLC0415
-
-    if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
-        import tomllib  # noqa: PLC0415
-    else:  # pragma: <3.11 cover
-        import tomli as tomllib  # noqa: PLC0415
+    import tomllib  # noqa: PLC0415
 
     data = tomllib.loads(path.read_text(encoding='utf-8'))
     dependencies = data.get('project', {}).get('dependencies', [])
@@ -388,8 +387,8 @@ def _render_pyproject(inputs: _ParsedInputs) -> str:
             f"path = {_toml_quote(source.path)}\n"
             f"editable = {'true' if source.editable else 'false'}\n"
         )
-    for source in inputs.vcs_sources:
-        rendered += f'[[tool.nab.vcs-sources]]\nname = {_toml_quote(source.name)}\nurl = {_toml_quote(source.url)}\n'
+    for source_lp in inputs.vcs_sources:
+        rendered += f'[[tool.nab.vcs-sources]]\nname = {_toml_quote(source_lp.name)}\nurl = {_toml_quote(source_lp.url)}\n'  # noqa
     # An override replaces nab's default PyPI index; with no override the default applies, so nothing is emitted.
     for name, url in inputs.indexes or ():
         rendered += f'[[tool.nab.indexes]]\nname = {_toml_quote(name)}\nurl = {_toml_quote(url)}\n'

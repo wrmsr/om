@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from ...tests.our_types import MockGraph
 
 
-def test_render_rich_text_missing_import(mocker: MockerFixture, example_dag: PackageDAG) -> None:
+def test_render_rich_text_missing_import(mocker: MockerFixture, example_dag: PackageDAG) -> None:  # noqa
     mocker.patch.dict(sys.modules, {'rich': None, 'rich.console': None, 'rich.tree': None})
     with pytest.raises(SystemExit) as exc_info:
         render_rich_text(example_dag, max_depth=float('inf'))
@@ -40,7 +40,7 @@ def test_render_rich_text_missing_import(mocker: MockerFixture, example_dag: Pac
     ],
 )
 def test_render_rich_text_list_all(
-    example_dag: PackageDAG, capsys: pytest.CaptureFixture[str], list_all: bool, expected: list[str],
+    example_dag: PackageDAG, capsys: pytest.CaptureFixture[str], list_all: bool, expected: list[str],  # noqa
 ) -> None:
     pytest.importorskip('rich')
     render_rich_text(example_dag, max_depth=float('inf'), list_all=list_all)
@@ -57,7 +57,7 @@ def test_render_rich_text_list_all(
     ],
 )
 def test_render_rich_text_with_max_depth(
-    example_dag: PackageDAG, capsys: pytest.CaptureFixture[str], max_depth: int,
+    example_dag: PackageDAG, capsys: pytest.CaptureFixture[str], max_depth: int,  # noqa
 ) -> None:
     pytest.importorskip('rich')
     render_rich_text(example_dag, max_depth=max_depth)
@@ -66,7 +66,7 @@ def test_render_rich_text_with_max_depth(
 
 
 def test_render_rich_text_with_license_info(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -106,7 +106,7 @@ def test_render_rich_text_with_extras(capsys: pytest.CaptureFixture[str], make_m
 
 
 def test_render_rich_text_reversed(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],  # noqa
 ) -> None:
     pytest.importorskip('rich')
     graph: MockGraph = {
@@ -124,7 +124,7 @@ def test_render_rich_text_reversed(
 
 
 def test_render_rich_text_with_circular_deps(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],  # noqa
 ) -> None:
     pytest.importorskip('rich')
     graph: MockGraph = {
@@ -166,7 +166,7 @@ def test_render_rich_text_with_circular_deps(
     ],
 )
 def test_render_rich_text_dependency_status(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     graph: MockGraph,
     expected: list[str],
@@ -180,7 +180,7 @@ def test_render_rich_text_dependency_status(
 
 
 def test_render_rich_text_multi_value_metadata(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
 ) -> None:
@@ -200,7 +200,7 @@ def test_render_rich_text_multi_value_metadata(
 
 
 def test_render_rich_text_multiline_metadata(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
 ) -> None:
@@ -219,7 +219,7 @@ def test_render_rich_text_multiline_metadata(
 
 
 def test_render_rich_text_unique_dep_icon(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
 ) -> None:

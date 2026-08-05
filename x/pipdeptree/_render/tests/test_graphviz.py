@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 def test_render_dot(
     capsys: pytest.CaptureFixture[str],
-    example_dag: PackageDAG,
+    example_dag: PackageDAG,  # noqa
     randomized_example_dag: PackageDAG,
 ) -> None:
     # Check both the sorted and randomized package tree produces the same sorted graphviz output.
@@ -60,7 +60,7 @@ def test_render_dot(
         )
 
 
-def test_render_pdf(tmp_path: Path, mocker: MockerFixture, example_dag: PackageDAG) -> None:
+def test_render_pdf(tmp_path: Path, mocker: MockerFixture, example_dag: PackageDAG) -> None:  # noqa
     output = dump_graphviz(example_dag, output_format='pdf')
     res = tmp_path / 'file'
     with pytest.raises(OSError, match='Bad file'):  # noqa: PT012, SIM117 # because we reopen the file
@@ -70,7 +70,7 @@ def test_render_pdf(tmp_path: Path, mocker: MockerFixture, example_dag: PackageD
     assert res.read_bytes()[:4] == b'%PDF'
 
 
-def test_render_svg(capsys: pytest.CaptureFixture[str], example_dag: PackageDAG) -> None:
+def test_render_svg(capsys: pytest.CaptureFixture[str], example_dag: PackageDAG) -> None:  # noqa
     output = dump_graphviz(example_dag, output_format='svg')
     print_graphviz(output)
     out, _ = capsys.readouterr()
@@ -79,7 +79,7 @@ def test_render_svg(capsys: pytest.CaptureFixture[str], example_dag: PackageDAG)
     assert out.strip().endswith('</svg>')
 
 
-def test_render_dot_with_depth(example_dag: PackageDAG) -> None:
+def test_render_dot_with_depth(example_dag: PackageDAG) -> None:  # noqa
     output = dump_graphviz(example_dag, output_format='dot', max_depth=1)
     assert isinstance(output, str)
     # Roots are a and g (depth 0), their direct deps are at depth 1
@@ -94,7 +94,7 @@ def test_render_dot_with_depth(example_dag: PackageDAG) -> None:
     assert 'f [label="f' in output
 
 
-def test_render_dot_reverse_with_depth(example_dag: PackageDAG) -> None:
+def test_render_dot_reverse_with_depth(example_dag: PackageDAG) -> None:  # noqa
     reversed_dag = example_dag.reverse()
     output = dump_graphviz(reversed_dag, output_format='dot', is_reverse=True, max_depth=1)
     assert isinstance(output, str)
@@ -114,7 +114,7 @@ def test_render_dot_reverse_with_depth(example_dag: PackageDAG) -> None:
     assert 'e -> g' in output
 
 
-def test_render_dot_reverse_infinite_depth(example_dag: PackageDAG) -> None:
+def test_render_dot_reverse_infinite_depth(example_dag: PackageDAG) -> None:  # noqa
     reversed_dag = example_dag.reverse()
     output = dump_graphviz(reversed_dag, output_format='dot', is_reverse=True)
     assert isinstance(output, str)
@@ -128,7 +128,7 @@ def test_render_dot_reverse_infinite_depth(example_dag: PackageDAG) -> None:
     assert 'f -> g' in output
 
 
-def test_render_dot_with_depth_zero(example_dag: PackageDAG) -> None:
+def test_render_dot_with_depth_zero(example_dag: PackageDAG) -> None:  # noqa
     output = dump_graphviz(example_dag, output_format='dot', max_depth=0)
     assert isinstance(output, str)
     # Depth 0 means only root nodes, no edges
@@ -137,7 +137,7 @@ def test_render_dot_with_depth_zero(example_dag: PackageDAG) -> None:
     assert '->' not in output
 
 
-def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:
+def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:  # noqa
     """Test that binary output is written to a temp file when stdout is a tty."""
 
     output = dump_graphviz(example_dag, output_format='pdf')
@@ -179,7 +179,7 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
     mock_open.assert_called_once_with('/tmp/pipdeptree_test_output.pdf')  # noqa: S108  # Mock path for testing
 
 
-def test_print_graphviz_binary_non_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:
+def test_print_graphviz_binary_non_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:  # noqa
     """Test that binary output is written directly to stdout when stdout is not a tty."""
 
     output = dump_graphviz(example_dag, output_format='pdf')
@@ -203,7 +203,7 @@ def test_print_graphviz_binary_non_tty_handling(mocker: MockerFixture, example_d
 
 
 def test_render_graphviz_with_metadata(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -217,7 +217,7 @@ def test_render_graphviz_with_metadata(
 
 
 def test_render_graphviz_reversed_with_metadata(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

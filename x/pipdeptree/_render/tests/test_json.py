@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from ...tests.our_types import MockGraph
 
 
-def test_render_json(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str]) -> None:
+def test_render_json(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str]) -> None:  # noqa
     graph: MockGraph = {
         ('a', '1.2.3'): [('b', [('>=', '4.0.0')])],
         ('b', '4.5.6'): [],
@@ -74,7 +74,7 @@ def test_render_json_with_extras(capsys: pytest.CaptureFixture[str], make_mock_d
 
 
 def test_render_json_with_metadata(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -88,7 +88,7 @@ def test_render_json_with_metadata(
 
 
 def test_render_json_with_computed(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
 ) -> None:

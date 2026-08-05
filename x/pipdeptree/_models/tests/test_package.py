@@ -7,8 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from omdev.packaging.specifiers import SpecifierSet
-
+from ....packaging.specifiers import SpecifierSet
 from ..._models import DistPackage
 from ..._models import ReqPackage
 from ..._models.package import Package

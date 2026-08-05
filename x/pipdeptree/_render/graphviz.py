@@ -6,12 +6,14 @@ import tempfile
 import typing as ta
 import webbrowser
 
+from omcore import check
+
 from .._models import DistPackage
 from .._models import ReqPackage
 
 
 if ta.TYPE_CHECKING:
-    from graphviz import Digraph
+    from graphviz import Digraph  # type: ignore
 
     from .._cli import RenderContext
     from .._models import PackageDAG
@@ -137,17 +139,17 @@ def _build_reverse_graph(
     for dep_rev, parents in tree.items():
         if visited is not None and dep_rev.key not in visited:
             continue
-        assert isinstance(dep_rev, ReqPackage)
-        label = f'{dep_rev.project_name}\\n{dep_rev.installed_version}'
-        if context and (extra := context.build_node_extra_label(dep_rev.key, tree, '\\n')):
+        dep_rev_rp = check.isinstance(dep_rev, ReqPackage)
+        label = f'{dep_rev_rp.project_name}\\n{dep_rev_rp.installed_version}'
+        if context and (extra := context.build_node_extra_label(dep_rev_rp.key, tree, '\\n')):
             label += f'\\n{extra}'
-        graph.node(dep_rev.key, label=label)
-        if visited is None or visited[dep_rev.key] < max_depth:
+        graph.node(dep_rev_rp.key, label=label)
+        if visited is None or visited[dep_rev_rp.key] < max_depth:
             for parent in parents:
-                assert isinstance(parent, DistPackage)
-                if visited is not None and parent.key not in visited:
+                parent_dp = check.isinstance(parent, DistPackage)
+                if visited is not None and parent_dp.key not in visited:
                     continue
-                graph.edge(dep_rev.key, parent.key, label=parent.edge_label)
+                graph.edge(dep_rev_rp.key, parent_dp.key, label=parent_dp.edge_label)
 
 
 def _build_forward_graph(

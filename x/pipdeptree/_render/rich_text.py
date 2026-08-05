@@ -2,6 +2,8 @@ import re
 import sys
 import typing as ta
 
+from omcore import check
+
 from .._computed import ComputedValues
 from .._models.package import DistPackage
 from .._models.package import ReqPackage
@@ -154,7 +156,7 @@ def _format_root_node(node_str: str, suffix: str = '') -> str:
     """Format a root node (package at top level)."""
 
     match = re.match(r'^(.+?)==(.+?)$', node_str)
-    assert match, f'Unexpected root node format: {node_str}'
+    match = check.not_none(match, f'Unexpected root node format: {node_str}')
     name, version = match.groups()
     suffix_str = f' [dim blue]{suffix.strip()}[/dim blue]' if suffix else ''
     return f'[bold cyan]{name}[/bold cyan][dim]==[/dim][bold green]{version}[/bold green]{suffix_str}'
@@ -173,7 +175,7 @@ def _format_branch_node(
     suffix_str = f' [dim blue]{suffix.strip()}[/dim blue]' if suffix else ''
     if mode == 'resolved' and isinstance(node, ReqPackage):
         match = re.match(r'^(.+?)\s+\[candidate:\s*(.+?)(?:,\s+extra:\s*(.+?))?\]$', node_str)
-        assert match, f'Unexpected candidate branch node format: {node_str}'
+        match = check.not_none(match, f'Unexpected candidate branch node format: {node_str}')
         name, version, extra = match.groups()
         status_icon = _get_status_icon(node, is_unique=is_unique)
         extra_str = f' [magenta]\\[extra: {extra}][/magenta]' if extra else ''
@@ -205,7 +207,7 @@ def _format_branch_node(
         )
 
     match = re.match(r'^(.+?)==(.+?)\s+\[requires:\s*(.+?)\]$', node_str)
-    assert match, f'Unexpected branch node format: {node_str}'
+    match = check.not_none(match, f'Unexpected branch node format: {node_str}')
     pkg_name, pkg_version, requires = match.groups()
     return (
         f'[bold cyan]{pkg_name}[/bold cyan][dim]==[/dim][bold green]{pkg_version}[/bold green] '

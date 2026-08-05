@@ -168,7 +168,12 @@ class _RenderResult(str):  # noqa: FURB189  # Must stay a real ``str`` so isinst
 
     _mermaid: str
 
-    def __new__(cls, text: str, *, mermaid: str) -> _RenderResult:  # noqa: PYI034  # str subclass, concrete type is fine.
+    def __new__(  # noqa: PYI034  # str subclass, concrete type is fine.
+            cls,
+            text: str,
+            *,
+            mermaid: str,
+    ) -> _RenderResult:
         self = super().__new__(cls, text)
         self._mermaid = mermaid
         return self

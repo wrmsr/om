@@ -1,6 +1,8 @@
 import itertools
 import typing as ta
 
+from omcore import check
+
 from .._models import DistPackage
 from .._models import ReqPackage
 from .._models import ReversedPackageDAG
@@ -78,19 +80,19 @@ def _build_reversed_mermaid(
     context: RenderContext | None,
 ) -> None:
     for package, reverse_dependencies in tree.items():
-        assert isinstance(package, ReqPackage)
+        package_rp = check.isinstance(package, ReqPackage)
         label_parts = [
-            package.project_name,
-            '(missing)' if package.is_missing else package.installed_version,
+            package_rp.project_name,
+            '(missing)' if package_rp.is_missing else package_rp.installed_version,
         ]
-        if context and (extra := context.build_node_extra_label(package.key, tree, '<br/>')):
+        if context and (extra := context.build_node_extra_label(package_rp.key, tree, '<br/>')):
             label_parts.append(extra)
-        package_key = _mermaid_id(package.key, node_ids_map)
+        package_key = _mermaid_id(package_rp.key, node_ids_map)
         nodes.add(f'{package_key}["{"<br/>".join(label_parts)}"]')
         for reverse_dependency in reverse_dependencies:
-            assert isinstance(reverse_dependency, DistPackage)
-            rev_key = _mermaid_id(reverse_dependency.key, node_ids_map)
-            edges.add(f'{package_key} -- "{reverse_dependency.edge_label}" --> {rev_key}')
+            reverse_dependency_dp = check.isinstance(reverse_dependency, DistPackage)
+            rev_key = _mermaid_id(reverse_dependency_dp.key, node_ids_map)
+            edges.add(f'{package_key} -- "{reverse_dependency_dp.edge_label}" --> {rev_key}')
 
 
 def _build_forward_mermaid(

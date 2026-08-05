@@ -90,7 +90,7 @@ def _parse_info_block(data: dict) -> VcsInfo | ArchiveInfo | DirInfo:
     if len(infos) > 1:
         msg = 'More than one of vcs_info, archive_info, or dir_info specified'
         raise DirectUrlValidationError(msg)
-    return infos[0]
+    return infos[0]  # type: ignore
 
 
 def _parse_vcs_info(vcs_data: dict) -> VcsInfo:

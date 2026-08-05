@@ -64,7 +64,8 @@ def determine_bin_dir() -> str:
 
 
 def detect_conda_env_interpreter() -> pathlib.Path | None:
-    # Env var mentioned in https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables.
+    # Env var mentioned in
+    # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables.
     env_var = os.environ.get('CONDA_PREFIX')
     if not env_var:
         return None

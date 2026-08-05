@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     ],
 )
 def test_json_tree_given_req_package_with_version_spec(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     version_spec_tuple: tuple[str, str],
     expected_version_spec: str,
     capsys: pytest.CaptureFixture[str],
@@ -46,7 +46,7 @@ def test_json_tree_given_req_package_with_version_spec(
 
 
 def test_json_tree_with_metadata(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -60,7 +60,7 @@ def test_json_tree_with_metadata(
 
 
 def test_json_tree_with_computed(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
 ) -> None:

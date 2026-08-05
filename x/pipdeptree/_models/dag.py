@@ -7,9 +7,10 @@ import itertools
 import sys
 import typing as ta
 
-from omdev.packaging.names import canonicalize_name
-from omdev.packaging.requirements import Requirement
+from omcore import check
 
+from ...packaging.names import canonicalize_name
+from ...packaging.requirements import Requirement
 from .._warning import get_warning_printer
 from .package import DistPackage
 from .package import InvalidRequirementError
@@ -43,7 +44,7 @@ class PackageDAG(ta.Mapping[DistPackage, list[ReqPackage]]):
      e: [],
      f: [b],
      g: [e, f]}
-0j
+
     Here, node `a` has 2 children nodes `b` and `c`. Consider edge direction from `a` -> `b` and `a` -> `c`
     respectively.
 
@@ -257,7 +258,11 @@ class PackageDAG(ta.Mapping[DistPackage, list[ReqPackage]]):
         # used by fnmatch (or the exclusion may not even exist in the graph)
         resolved_exclude: set[str] = set()
 
-        resolved_exclude.update(node.key for node in self._obj if any(fnmatch.fnmatch(node.key, e) for e in old_exclude))
+        resolved_exclude.update(
+            node.key
+            for node in self._obj
+            if any(fnmatch.fnmatch(node.key, e) for e in old_exclude)
+        )
 
         # Find all possible candidate nodes for exclusion using DFS
         candidates: set[str] = set()
@@ -327,7 +332,7 @@ class PackageDAG(ta.Mapping[DistPackage, list[ReqPackage]]):
                 reversed_dag.setdefault(node, []).append(parent.as_parent_of(dep))
             if parent.key not in child_keys:
                 reversed_dag[parent.as_requirement()] = []
-        return ReversedPackageDAG(dict(reversed_dag))  # ty: ignore[invalid-argument-type]
+        return ReversedPackageDAG(dict(reversed_dag))  # type: ignore
 
     def sort(self, *, in_place: bool = False) -> PackageDAG:
         """
@@ -371,7 +376,7 @@ class ReversedPackageDAG(PackageDAG):
     Typically, this object will be obtained by calling `PackageDAG.reverse`.
     """
 
-    def reverse(self) -> PackageDAG:  # ty: ignore[invalid-method-override]
+    def reverse(self) -> PackageDAG:  # type: ignore
         """
         Reverse the already reversed DAG to get the PackageDAG again.
 
@@ -383,13 +388,13 @@ class ReversedPackageDAG(PackageDAG):
         child_keys = {r.key for r in itertools.chain.from_iterable(self._obj.values())}
         for req_node, parents in self._obj.items():
             for parent in parents:
-                assert isinstance(parent, DistPackage)
-                node = key_index.setdefault(parent.key, parent.as_parent_of(None))
-                forward_dag.setdefault(node, []).append(req_node)  # ty: ignore[invalid-argument-type]  # runtime: ReqPackage
+                parent_dp = check.isinstance(parent, DistPackage)
+                node = key_index.setdefault(parent_dp.key, parent_dp.as_parent_of(None))
+                forward_dag.setdefault(node, []).append(req_node)  # type: ignore
             if req_node.key not in child_keys:
-                assert isinstance(req_node, ReqPackage)
-                assert req_node.dist is not None
-                forward_dag.setdefault(key_index.setdefault(req_node.dist.key, req_node.dist), [])
+                req_node_rp = check.isinstance(req_node, ReqPackage)
+                req_node_dist = check.not_none(req_node_rp.dist)
+                forward_dag.setdefault(key_index.setdefault(req_node_dist.key, req_node_dist), [])
         return PackageDAG(dict(forward_dag))
 
 
@@ -411,7 +416,7 @@ def _gate_dependents(children: list[ReqPackage], extra: str) -> list[ReqPackage]
     return [
         c
         for c in children
-        if not isinstance(c, DistPackage)
+        if not isinstance(c, DistPackage)  # type: ignore
         or c.req is None
         or wanted in {canonicalize_name(e) for e in c.req.requested_extras}
     ]
@@ -609,8 +614,7 @@ class _ExtrasResolver:
                     continue
             pending = self._advance(frame, stack)
 
-        assert pending is not None
-        return pending
+        return check.not_none(pending)
 
     def _fold_pending(
         self,

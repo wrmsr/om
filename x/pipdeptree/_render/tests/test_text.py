@@ -246,7 +246,7 @@ if TYPE_CHECKING:
     ],
 )
 def test_render_text(
-    example_dag: PackageDAG,
+    example_dag: PackageDAG,  # noqa
     capsys: pytest.CaptureFixture[str],
     list_all: bool,
     reverse: bool,
@@ -354,7 +354,7 @@ def test_render_text_given_depth(
     unicode: str,
     level: int,
     expected_output: list[str],
-    example_dag: PackageDAG,
+    example_dag: PackageDAG,  # noqa
 ) -> None:
     render_text(example_dag, max_depth=level, encoding='utf-8' if unicode else 'ascii')
     captured = capsys.readouterr()
@@ -442,7 +442,7 @@ def test_render_text_encoding(
     level: int,
     encoding: str,
     expected_output: list[str],
-    example_dag: PackageDAG,
+    example_dag: PackageDAG,  # noqa
 ) -> None:
     render_text(example_dag, max_depth=level, encoding=encoding, list_all=True)
     captured = capsys.readouterr()
@@ -451,7 +451,7 @@ def test_render_text_encoding(
 
 def test_render_text_list_all_and_packages_options_used(
     capsys: pytest.CaptureFixture[str],
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
 ) -> None:
     graph: MockGraph = {
         ('examplePy', '1.2.3'): [('hellopy', [('>=', '2.0.0')]), ('worldpy', [('>=', '0.0.2')])],
@@ -504,7 +504,7 @@ def test_render_text_list_all_and_packages_options_used(
 def test_render_text_with_license_info(
     encoding: str,
     expected_output: str,
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -553,7 +553,7 @@ def test_render_text_with_license_info(
 def test_render_text_with_license_info_and_reversed_tree(
     encoding: str,
     expected_output: str,
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -572,7 +572,7 @@ def test_render_text_with_license_info_and_reversed_tree(
 
 
 def test_render_text_with_computed(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     mocker: MockerFixture,
 ) -> None:

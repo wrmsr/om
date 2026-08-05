@@ -1,9 +1,8 @@
 import importlib.metadata
 import typing as ta
 
-from omdev.packaging.versions import InvalidVersion
-from omdev.packaging.versions import Version
-
+from ...packaging.versions import InvalidVersion
+from ...packaging.versions import Version
 from .direct_url import ArchiveInfo
 from .direct_url import VcsInfo
 from .direct_url import get_direct_url

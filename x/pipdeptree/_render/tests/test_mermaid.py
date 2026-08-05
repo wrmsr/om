@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 def test_render_mermaid(
-    example_dag: PackageDAG, randomized_example_dag: PackageDAG, capsys: pytest.CaptureFixture[str],
+    example_dag: PackageDAG, randomized_example_dag: PackageDAG, capsys: pytest.CaptureFixture[str],  # noqa
 ) -> None:
     """
     Check both the sorted and randomized package tree produces the same sorted Mermaid output.
@@ -89,7 +89,7 @@ def test_render_mermaid(
 
 
 def test_mermaid_reserved_ids(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]], capsys: pytest.CaptureFixture[str],  # noqa
 ) -> None:
     graph = {('click', '3.4.0'): [('click-extra', [('>=', '2.0.0')])]}
     package_tree = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
@@ -112,7 +112,7 @@ def test_mermaid_reserved_ids(
 
 
 def test_mermaid_with_metadata(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -126,7 +126,7 @@ def test_mermaid_with_metadata(
 
 
 def test_mermaid_reversed_with_metadata(
-    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],
+    mock_pkgs: Callable[[MockGraph], Iterator[Mock]],  # noqa
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -28,7 +28,7 @@ class SyntheticDistribution(importlib.metadata.Distribution):
             self._metadata['Requires-Dist'] = child
 
     @property
-    def metadata(self) -> email.message.Message:
+    def metadata(self) -> email.message.Message:  # type: ignore
         return self._metadata
 
     @property
