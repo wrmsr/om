@@ -4,6 +4,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore import marshal as msh
 
 from .content import TextContent
 from .content import TextContentBuilder
@@ -20,7 +21,8 @@ MessageT = ta.TypeVar('MessageT', bound='Message')
 
 
 @dc.dataclass(frozen=True)
-class Message(lang.Abstract):
+@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
+class Message(lang.Abstract, lang.Sealed):
     pass
 
 

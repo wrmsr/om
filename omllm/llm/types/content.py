@@ -5,6 +5,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore import marshal as msh
 from omcore.formats.json import all as json
 
 
@@ -15,7 +16,8 @@ ContentT = ta.TypeVar('ContentT', bound='Content')
 
 
 @dc.dataclass(frozen=True)
-class Content(lang.Abstract):
+@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
+class Content(lang.Abstract, lang.Sealed):
     pass
 
 

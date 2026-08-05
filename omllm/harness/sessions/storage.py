@@ -2,6 +2,7 @@ import abc
 import typing as ta
 
 from omcore import lang
+from omcore import marshal as msh
 
 from .entries import SessionEntry
 
@@ -47,5 +48,10 @@ class JsonlSessionStorage(SessionStorage):
     async def add_entry(self, *entries: SessionEntry) -> None:
         if not entries:
             return
+
+        mvs = [  # noqa
+            msh.marshal(e, SessionEntry)
+            for e in entries
+        ]
 
         raise NotImplementedError

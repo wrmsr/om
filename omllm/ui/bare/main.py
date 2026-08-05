@@ -279,15 +279,16 @@ async def _a_main() -> None:
         text_displayer=text_displayer,
     )
 
-    session_id = uuid.uuid7()
+    session_id = uuid.uuid7()  # noqa
 
     state_dir_path = os.path.join(get_home_paths().state_dir, 'llm', 'sessions')
     os.makedirs(state_dir_path, exist_ok=True)
 
-    state_file_path = os.path.join(state_dir_path, f'{session_id.hex}.jsonl')
-
-    session_storage = har.JsonlSessionStorage(
-        file_path=state_file_path,
+    session_storage = (
+        har.InMemorySessionStorage()
+        # har.JsonlSessionStorage(
+        #     file_path=os.path.join(state_dir_path, f'{session_id.hex}.jsonl')<
+        # ),
     )
 
     session = har.Session(
