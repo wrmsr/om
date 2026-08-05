@@ -23,6 +23,7 @@ st.setup(
                 'omxtra/js/quickjs/_quickjs/dtoa.c',
                 'omxtra/js/quickjs/_quickjs/libregexp.c',
                 'omxtra/js/quickjs/_quickjs/libunicode.c',
+                'omxtra/js/quickjs/_quickjs/quickjs-libc.c',
                 'omxtra/js/quickjs/_quickjs/quickjs.c',
             ],
             extra_compile_args=[

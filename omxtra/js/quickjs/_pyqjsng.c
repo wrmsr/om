@@ -28,6 +28,7 @@
 #include <time.h>
 
 #include "_quickjs/quickjs.h"
+#include "_quickjs/quickjs-libc.h"
 
 //
 
@@ -65,6 +66,9 @@ typedef struct ContextObject {
 
     JSRuntime *runtime;
     JSContext *context;
+
+    // Whether js_std_init_handlers was run (and so js_std_free_handlers must run at teardown).
+    int with_std;
 
     // A QuickJS runtime is strictly single-threaded, so every use of it is serialized through this recursive
     // (owner-tracked) mutex. This is load-bearing on freethreaded builds, where multiple Python threads may call
@@ -1202,17 +1206,30 @@ static PyObject * wrap_js_value(ContextObject *self, JSValue value)
 
 PyDoc_STRVAR(
     context_doc,
-    "Context()\n"
+    "Context(*, with_std=False, with_bjson=False)\n"
     "\n"
     "A self-contained JS runtime plus context (realm).\n"
+    "\n"
+    "By default a Context contains only the ECMAScript intrinsics: no file, network, process, or import\n"
+    "access exists, and the only capabilities available to JS code are those explicitly passed in via\n"
+    "set(). With with_std=True the quickjs-libc 'qjs:std' and 'qjs:os' modules are installed (importable,\n"
+    "not global), granting file/process/environment access - only do this for trusted code. Note the os\n"
+    "module's event loop is not driven by this binding, so its timers and workers should not be relied on,\n"
+    "and the print/console helpers are never installed.\n"
+    "\n"
+    "With with_bjson=True the 'qjs:bjson' module is installed, giving JS code the engine serializer\n"
+    "underlying Object.serialize() / deserialize(). It grants no ambient authority, but does expose the\n"
+    "bytecode reader, which is not hardened against hostile input - trusted code only.\n"
     "\n"
     "Contexts are safe to share between threads: all use of the underlying runtime is serialized on an\n"
     "internal per-context lock. Distinct Contexts are fully independent and can run in parallel.");
 
 static PyObject * context_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
-    if ((args != NULL && PyTuple_GET_SIZE(args) != 0) || (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0)) {
-        PyErr_SetString(PyExc_TypeError, "Context() takes no arguments");
+    static char *kwlist[] = {"with_std", "with_bjson", NULL};
+    int with_std = 0;
+    int with_bjson = 0;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|$pp", kwlist, &with_std, &with_bjson)) {
         return NULL;
     }
 
@@ -1250,6 +1267,26 @@ static PyObject * context_new(PyTypeObject *type, PyObject *args, PyObject *kwar
     JS_SetContextOpaque(self->context, self);
     JS_SetInterruptHandler(self->runtime, qjs_interrupt_handler, self);
 
+    if (with_std) {
+        // quickjs-libc keeps its state in a dedicated runtime slot (via js_std_cmd), so this does not
+        // disturb the runtime opaque set above.
+        js_std_init_handlers(self->runtime);
+        self->with_std = 1;
+        if (js_init_module_std(self->context, "qjs:std") == NULL ||
+            js_init_module_os(self->context, "qjs:os") == NULL) {
+            Py_DECREF(self);
+            PyErr_SetString(PyExc_RuntimeError, "failed to initialize qjs:std / qjs:os modules");
+            return NULL;
+        }
+    }
+
+    // Needs no libc handler state, so it is independent of with_std.
+    if (with_bjson && js_init_module_bjson(self->context, "qjs:bjson") == NULL) {
+        Py_DECREF(self);
+        PyErr_SetString(PyExc_RuntimeError, "failed to initialize qjs:bjson module");
+        return NULL;
+    }
+
     return (PyObject *)self;
 }
 
@@ -1279,6 +1316,10 @@ static void context_dealloc(PyObject *op)
     PyObject_GC_UnTrack(op);
     // Any Object wrapper holds a strong reference to the context, so by now all wrapped values have been
     // freed and the runtime can be torn down. JS-side finalizers never touch Python state.
+    if (self->with_std) {
+        // Frees libc handler state (pending timers etc.) - must run while the runtime is still alive.
+        js_std_free_handlers(self->runtime);
+    }
     if (self->context != NULL) {
         JS_FreeContext(self->context);
     }

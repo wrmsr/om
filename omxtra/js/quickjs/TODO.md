@@ -65,6 +65,10 @@ Bytecode caching / fast startup / shipping code across processes. Real C work in
 
 ## Misc
 
+- `Context(with_std=True)` installs `qjs:std`/`qjs:os` but nothing drives the libc event loop (`js_std_loop`), so
+  `os.setTimeout` callbacks never fire and `os.Worker` is untested. If a real need appears, add an explicit
+  `Context.run_std_loop()`-style entry point (with the interrupt/deadline machinery applied) rather than driving it
+  implicitly.
 - Upstream the `JS_ReadRegExp` / `BC_add_object_ref` fix (the patch is PR-shaped; reproducer distills from
   `tests/test_serialize.py`). When a future vendor-pull brings the upstream fix, resolve the conflict by dropping
   the local patch - the regression tests keep guarding either way.

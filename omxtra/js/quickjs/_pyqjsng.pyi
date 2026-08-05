@@ -63,7 +63,7 @@ class Object:
 
 @ta.final
 class Context:
-    def __init__(self) -> None: ...
+    def __init__(self, *, with_std: bool = False, with_bjson: bool = False) -> None: ...
 
     def eval(
             self,

@@ -19,6 +19,8 @@
     "list.h",
     "quickjs-atom.h",
     "quickjs-c-atomics.h",
+    "quickjs-libc.c",
+    "quickjs-libc.h",
     "quickjs-opcode.h",
     "quickjs.c",
     "quickjs.h"

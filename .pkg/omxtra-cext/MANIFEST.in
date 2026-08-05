@@ -10,5 +10,6 @@ include omxtra/js/quickjs/_quickjs/libunicode.h
 include omxtra/js/quickjs/_quickjs/list.h
 include omxtra/js/quickjs/_quickjs/quickjs-atom.h
 include omxtra/js/quickjs/_quickjs/quickjs-c-atomics.h
+include omxtra/js/quickjs/_quickjs/quickjs-libc.h
 include omxtra/js/quickjs/_quickjs/quickjs-opcode.h
 include omxtra/js/quickjs/_quickjs/quickjs.h
