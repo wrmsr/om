@@ -78,10 +78,10 @@ markupsafe==3.0.3
 asgiref==3.12.1
 uvicorn==0.52.1
 
-sqlean.py==3.50.4.5
+sqlean.py==3.50.4.5  # @om-venv !14t !15t  # SLOW COMPILE
 # git+https://github.com/wrmsr/sqlean.py.git
 
-duckdb==1.5.5
+duckdb==1.5.5  # @om-venv !14t !15t  # SLOW COMPILE
 
 pycparser==3.0
 pcpp==1.30
