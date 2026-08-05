@@ -13,7 +13,7 @@ class _TestCextPackageGenerator(_PyprojectCextPackageGenerator):
         )
 
     def find_cext_srcs(self):
-        return ['omxtra/js/quickjs/_pyqjsng.c']
+        return ['omdev/js/quickjs/_pyqjsng.c']
 
     def _get_ext_file_config(self, src_file):
         return CextConfig(
@@ -23,12 +23,12 @@ class _TestCextPackageGenerator(_PyprojectCextPackageGenerator):
 
 
 def test_cext_package_extra_source_paths():
-    gen = _TestCextPackageGenerator('omxtra', '.pkg-test', pkg_suffix='-cext')
+    gen = _TestCextPackageGenerator('omdev', '.pkg-test', pkg_suffix='-cext')
 
     assert """sources=[
-                'omxtra/js/quickjs/_pyqjsng.c',
-                'omxtra/js/quickjs/_quickjs/quickjs.c',
+                'omdev/js/quickjs/_pyqjsng.c',
+                'omdev/js/quickjs/_quickjs/quickjs.c',
             ],""" in gen.file_contents().setup_py
-    assert gen.file_contents().setup_py.count("'omxtra/js/quickjs/_pyqjsng.c',") == 1
+    assert gen.file_contents().setup_py.count("'omdev/js/quickjs/_pyqjsng.c',") == 1
     assert 'quickjs*' not in gen.file_contents().setup_py
-    assert 'include omxtra/js/quickjs/_quickjs/quickjs.h' in (gen.file_contents().manifest_in or [])
+    assert 'include omdev/js/quickjs/_quickjs/quickjs.h' in (gen.file_contents().manifest_in or [])

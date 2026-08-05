@@ -33,7 +33,7 @@
 //
 
 #define _MODULE_NAME "_pyqjsng"
-#define _PACKAGE_NAME "pyqjsng"
+#define _PACKAGE_NAME "omdev.js.quickjs"
 #define _MODULE_FULL_NAME _PACKAGE_NAME "." _MODULE_NAME
 
 typedef struct pyqjsng_state {
