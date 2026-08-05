@@ -2,6 +2,7 @@ import enum
 import typing as ta
 
 from .... import dataclasses as dc
+from ...utils import make_map
 from .interfaces import BenchmarkContext
 
 
@@ -27,6 +28,10 @@ class Workload:
     operation: Operation | None
     operation_count: OperationCount
     comparison: bool = False
+
+    @property
+    def key(self) -> str:
+        return f'{self.suite}/{self.name}'
 
     @property
     def setup_per_cycle(self) -> bool:
@@ -589,7 +594,7 @@ def _persistent_mapping_default_miss(context: BenchmarkContext, obj: ta.Any) -> 
 ##
 
 
-WORKLOADS: tuple[Workload, ...] = (
+WORKLOADS: ta.Final[ta.Sequence[Workload]] = (
     Workload('collection', 'construct', WorkloadMode.BUILD, None, _size),
     Workload('collection', 'len', WorkloadMode.READ, _collection_len, _one),
     Workload('collection', 'contains_hit', WorkloadMode.READ, _collection_contains_hit, _queries),
@@ -687,3 +692,6 @@ WORKLOADS: tuple[Workload, ...] = (
     Workload('persistent_mapping', 'default_hit', WorkloadMode.READ, _persistent_mapping_default_hit, _queries),
     Workload('persistent_mapping', 'default_miss', WorkloadMode.READ, _persistent_mapping_default_miss, _queries),
 )
+
+
+WORKLOADS_BY_KEY: ta.Final[ta.Mapping[str, Workload]] = make_map(((w.key, w) for w in WORKLOADS), strict=True)

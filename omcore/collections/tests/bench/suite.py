@@ -45,18 +45,19 @@ class BenchmarkResult:
         return dc.asdict(self)
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass(frozen=True, kw_only=True)
 class RunConfig:
     sizes: tuple[int, ...]
     suites: tuple[str, ...]
     implementations: tuple[str, ...]
-    name_filter: str
+    name_filter: str | None = None
     repeats: int
     target_operations: int
     max_cycles: int
     max_setup_items: int
-    runtime: bool
-    memory: bool
+    runtime: bool = False
+    memory: bool = False
+    interleave: bool = False
 
 
 ##
@@ -180,10 +181,11 @@ def _matches_filter(
 @dc.dataclass(frozen=True)
 class _BenchmarkParams:
     config: RunConfig
-    implementation: Implementation
-    size: int
     context: BenchmarkContext
+
+    implementation: Implementation
     workload: Workload
+    size: int
 
 
 def _run_benchmark(params: _BenchmarkParams) -> BenchmarkResult:
@@ -240,26 +242,35 @@ def _run_benchmark(params: _BenchmarkParams) -> BenchmarkResult:
 
 
 def run(config: RunConfig) -> ta.Iterator[BenchmarkResult]:
-    runs: list[_BenchmarkParams] = []
+    implementations = _select_implementations(config)
 
-    for implementation in _select_implementations(config):
+    all_params: list[_BenchmarkParams] = []
+
+    for implementation in implementations:
         workloads = _select_workloads(implementation, config)
         for size in config.sizes:
             context = BenchmarkContext(implementation, BenchmarkData.make(size))
             for workload in workloads:
-                if not _matches_filter(implementation, workload, size, config.name_filter):
+                if (nf := config.name_filter) is not None and not _matches_filter(implementation, workload, size, nf):
                     continue
 
-                runs.append(_BenchmarkParams(
+                all_params.append(_BenchmarkParams(
                     config,
-                    implementation,
-                    size,
                     context,
+
+                    implementation,
                     workload,
+                    size,
                 ))
 
-    for params in runs:
-        yield _run_benchmark(params)
+    if config.interleave:
+        grouped_params: dict[Workload, dict[int, list[_BenchmarkParams]]] = {}
+        for p in all_params:
+            grouped_params.setdefault(p.workload, {}).setdefault(p.size, []).append(p)
+        all_params = [p for d2 in grouped_params.values() for ps in d2.values() for p in ps]
+
+    for p in all_params:
+        yield _run_benchmark(p)
 
 
 ##
@@ -367,6 +378,7 @@ def _build_parser() -> argparse.ArgumentParser:
     output = parser.add_mutually_exclusive_group()
     output.add_argument('-j', '--json', action='store_true', dest='as_json')
     output.add_argument('--csv', action='store_true', dest='as_csv')
+    output.add_argument('-I', '--interleave', action='store_true')
     parser.add_argument('-l', '--list', action='store_true', dest='list_implementations')
     return parser
 
@@ -392,6 +404,7 @@ def main() -> None:
         max_setup_items=max_setup_items,
         runtime=not args.memory_only,
         memory=not args.runtime_only,
+        interleave=bool(args.interleave),
     )
 
     if not args.as_json and not args.as_csv:
