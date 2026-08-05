@@ -177,7 +177,71 @@ def _matches_filter(
     return name_filter in name
 
 
+@dc.dataclass(frozen=True)
+class _BenchmarkParams:
+    config: RunConfig
+    implementation: Implementation
+    size: int
+    context: BenchmarkContext
+    workload: Workload
+
+
+def _run_benchmark(params: _BenchmarkParams) -> BenchmarkResult:
+    cycles = _choose_cycles(
+        params.workload,
+        params.size,
+        params.config,
+    )
+
+    runtime_min: float | None = None
+    runtime_median: float | None = None
+    runtime_spread: float | None = None
+    operations = params.workload.operation_count(params.size)
+    if params.config.runtime:
+        (
+            runtime_min,
+            runtime_median,
+            runtime_spread,
+            operations,
+        ) = _measure_runtime(
+            params.context,
+            params.workload,
+            cycles,
+            params.config.repeats,
+        )
+
+    memory_retained: int | None = None
+    memory_peak: int | None = None
+    memory_retained_per_op: float | None = None
+    memory_peak_per_op: float | None = None
+    if params.config.memory:
+        (
+            memory_retained,
+            memory_peak,
+            memory_retained_per_op,
+            memory_peak_per_op,
+        ) = _measure_memory(params.context, params.workload)
+
+    return BenchmarkResult(
+        implementation=params.implementation.name,
+        suite=params.workload.suite,
+        operation=params.workload.name,
+        size=params.size,
+        cycles=cycles,
+        operations=operations,
+        runtime_min_ns_per_op=runtime_min,
+        runtime_median_ns_per_op=runtime_median,
+        runtime_spread=runtime_spread,
+        memory_retained_bytes=memory_retained,
+        memory_peak_bytes=memory_peak,
+        memory_retained_bytes_per_op=memory_retained_per_op,
+        memory_peak_bytes_per_op=memory_peak_per_op,
+    )
+
+
 def run(config: RunConfig) -> ta.Iterator[BenchmarkResult]:
+    runs: list[_BenchmarkParams] = []
+
     for implementation in _select_implementations(config):
         workloads = _select_workloads(implementation, config)
         for size in config.sizes:
@@ -186,47 +250,16 @@ def run(config: RunConfig) -> ta.Iterator[BenchmarkResult]:
                 if not _matches_filter(implementation, workload, size, config.name_filter):
                     continue
 
-                cycles = _choose_cycles(workload, size, config)
+                runs.append(_BenchmarkParams(
+                    config,
+                    implementation,
+                    size,
+                    context,
+                    workload,
+                ))
 
-                runtime_min: float | None = None
-                runtime_median: float | None = None
-                runtime_spread: float | None = None
-                operations = workload.operation_count(size)
-                if config.runtime:
-                    runtime_min, runtime_median, runtime_spread, operations = _measure_runtime(
-                        context,
-                        workload,
-                        cycles,
-                        config.repeats,
-                    )
-
-                memory_retained: int | None = None
-                memory_peak: int | None = None
-                memory_retained_per_op: float | None = None
-                memory_peak_per_op: float | None = None
-                if config.memory:
-                    (
-                        memory_retained,
-                        memory_peak,
-                        memory_retained_per_op,
-                        memory_peak_per_op,
-                    ) = _measure_memory(context, workload)
-
-                yield BenchmarkResult(
-                    implementation=implementation.name,
-                    suite=workload.suite,
-                    operation=workload.name,
-                    size=size,
-                    cycles=cycles,
-                    operations=operations,
-                    runtime_min_ns_per_op=runtime_min,
-                    runtime_median_ns_per_op=runtime_median,
-                    runtime_spread=runtime_spread,
-                    memory_retained_bytes=memory_retained,
-                    memory_peak_bytes=memory_peak,
-                    memory_retained_bytes_per_op=memory_retained_per_op,
-                    memory_peak_bytes_per_op=memory_peak_per_op,
-                )
+    for params in runs:
+        yield _run_benchmark(params)
 
 
 ##
@@ -254,9 +287,10 @@ def _format_bytes(value: int | None) -> str:
 
 def _print_human_result(result: BenchmarkResult) -> None:
     noisy = ' !' if result.runtime_spread is not None and result.runtime_spread > 1.5 else ''
+    name = f'{result.suite}/{result.operation}'
     print(
         f'{result.implementation:30} '
-        f'{result.suite}/{result.operation:30} '
+        f'{name:42} '
         f'n={result.size:<6} '
         f'min={_format_ns(result.runtime_min_ns_per_op):>10} '
         f'median={_format_ns(result.runtime_median_ns_per_op):>10} '
@@ -320,8 +354,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Benchmark omcore collection implementations by interface.')
     parser.add_argument('-k', '--filter', default='', help='substring filter over implementation/suite/operation/size')
     parser.add_argument('--sizes', type=_parse_sizes, default=(10, 100, 1000, 10_000))
-    parser.add_argument('--suite', action='append', choices=tuple(SUITES), default=[])
-    parser.add_argument('--implementation', action='append', default=[], help='implementation-name substring')
+    parser.add_argument('-s', '--suite', action='append', choices=tuple(SUITES), default=[])
+    parser.add_argument('-i', '--implementation', action='append', default=[], help='implementation-name substring')
     parser.add_argument('--repeats', type=_positive_int, default=5)
     parser.add_argument('--target-operations', type=_positive_int, default=2048)
     parser.add_argument('--max-cycles', type=_positive_int, default=256)
@@ -331,9 +365,9 @@ def _build_parser() -> argparse.ArgumentParser:
     measurement.add_argument('--runtime-only', action='store_true')
     measurement.add_argument('--memory-only', action='store_true')
     output = parser.add_mutually_exclusive_group()
-    output.add_argument('--json', action='store_true', dest='as_json')
+    output.add_argument('-j', '--json', action='store_true', dest='as_json')
     output.add_argument('--csv', action='store_true', dest='as_csv')
-    parser.add_argument('--list', action='store_true', dest='list_implementations')
+    parser.add_argument('-l', '--list', action='store_true', dest='list_implementations')
     return parser
 
 

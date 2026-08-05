@@ -8,6 +8,8 @@ from .... import collections as col
 from ...btreemap import _btreemap_py
 from ...btreeseq import _btreeseq_py
 from ...fixedmap import _fixedmap_py
+from ...persistent import DictPersistentMapping
+from ...persistent import TuplePersistentSequence
 from .interfaces import DataKind
 from .interfaces import Implementation
 from .interfaces import KeyKind
@@ -120,6 +122,7 @@ IMPLEMENTATIONS: tuple[Implementation, ...] = (
     Implementation('builtin/tuple', ('sequence',), DataKind.SEQUENCE, tuple),
     Implementation('om/frozen-list', ('sequence',), DataKind.SEQUENCE, col.frozenlist),
     Implementation('om/ranked-seq', ('sequence',), DataKind.SEQUENCE, col.RankedSeq),
+    Implementation('om/tuple-persistent-seq', ('persistent_sequence',), DataKind.SEQUENCE, TuplePersistentSequence),
     Implementation('om/btree-seq/python', ('persistent_sequence',), DataKind.SEQUENCE, _new_py_btree_seq),
     Implementation(
         'om/btree-seq/cext',
@@ -168,6 +171,7 @@ IMPLEMENTATIONS: tuple[Implementation, ...] = (
     ),
     Implementation('om/hash-eq-map', ('mutable_mapping',), DataKind.MAPPING, _new_hash_eq_map),
     Implementation('om/skip-list-dict', ('sorted_mutable_mapping',), DataKind.MAPPING, col.SkipListDict),
+    Implementation('om/dict-persistent-map', ('persistent_mapping',), DataKind.MAPPING, DictPersistentMapping),
     Implementation(
         'om/hamt-map',
         ('persistent_mapping',),
