@@ -25,150 +25,6 @@ def _register(**kwargs):
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('context', 'model', 'turn_config', 'tool_env')), EqPlan(fields=('context', 'model'"
-        ", 'turn_config', 'tool_env')), FrozenPlan(fields=('context', 'model', 'turn_config', 'tool_env'), allow_dynami"
-        "c_dunder_attrs=False), HashPlan(action='add', fields=('context', 'model', 'turn_config', 'tool_env'), cache=Fa"
-        "lse), InitPlan(fields=(InitPlan.Field(name='context', annotation=OpRef(name='init.fields.0.annotation'), defau"
-        "lt=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType."
-        "INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='model', annotation=OpRef(name='in"
-        "it.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, overri"
-        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='tu"
-        "rn_config', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), de"
-        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, chec"
-        "k_type=None), InitPlan.Field(name='tool_env', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef"
-        "(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE"
-        ", coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('context', "
-        "'model', 'turn_config', 'tool_env'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fn"
-        "s=()), ReprPlan(fields=(ReprPlan.Field(name='context', kw_only=True, fn=None), ReprPlan.Field(name='model', kw"
-        "_only=True, fn=None), ReprPlan.Field(name='turn_config', kw_only=True, fn=None), ReprPlan.Field(name='tool_env"
-        "', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
-    ),
-    plan_repr_sha1='01ef4d3f3788221fddb1f45ffdbf5c8b67e38b12',
-    cls_names=(
-        ('omllm.agent.agent', 'State'),
-    ),
-)
-def _process_dataclass__01ef4d3f3788221fddb1f45ffdbf5c8b67e38b12():
-    def _process_dataclass(
-        *,
-        __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__0__default,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__repr__default_fn,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
-    ):
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                context=self.context,
-                model=self.model,
-                turn_config=self.turn_config,
-                tool_env=self.tool_env,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.context == other.context and
-                self.model == other.model and
-                self.turn_config == other.turn_config and
-                self.tool_env == other.tool_env
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'context',
-            'model',
-            'turn_config',
-            'tool_env',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.context,
-                self.model,
-                self.turn_config,
-                self.tool_env,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            *,
-            context: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
-            model: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            turn_config: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            tool_env: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'context', context)
-            __dataclass__object_setattr(self, 'model', model)
-            __dataclass__object_setattr(self, 'turn_config', turn_config)
-            __dataclass__object_setattr(self, 'tool_env', tool_env)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            if (s := __dataclass__repr__default_fn(self.context)) is not None:
-                parts.append(f"context={s}")
-            if (s := __dataclass__repr__default_fn(self.model)) is not None:
-                parts.append(f"model={s}")
-            if (s := __dataclass__repr__default_fn(self.turn_config)) is not None:
-                parts.append(f"turn_config={s}")
-            if (s := __dataclass__repr__default_fn(self.tool_env)) is not None:
-                parts.append(f"tool_env={s}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('location',)), EqPlan(fields=('location',)), FrozenPlan(fields=('location',), allo"
         "w_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('location',), cache=False), InitPlan(fields=(Ini"
         "tPlan.Field(name='location', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory="
@@ -2514,6 +2370,118 @@ def _process_dataclass__d7593c07dc232d34c599b6859cdfde9d9a747ba2():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('new_state', 'old_state')), EqPlan(fields=('new_state', 'old_state')), FrozenPlan("
+        "fields=('new_state', 'old_state'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('new_stat"
+        "e', 'old_state'), cache=False), InitPlan(fields=(InitPlan.Field(name='new_state', annotation=OpRef(name='init."
+        "fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INS"
+        "TANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='old_state', annotation=OpRef(name='i"
+        "nit.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType"
+        ".INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('n"
+        "ew_state', 'old_state'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprP"
+        "lan(fields=(ReprPlan.Field(name='new_state', kw_only=True, fn=None), ReprPlan.Field(name='old_state', kw_only="
+        "True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='0834e5230a51f618f90306ba72fdddbb21826d0c',
+    cls_names=(
+        ('omllm.agent.types.events', 'StateUpdateEvent'),
+    ),
+)
+def _process_dataclass__0834e5230a51f618f90306ba72fdddbb21826d0c():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                new_state=self.new_state,
+                old_state=self.old_state,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.new_state == other.new_state and
+                self.old_state == other.old_state
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'new_state',
+            'old_state',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.new_state,
+                self.old_state,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            new_state: __dataclass__init__fields__0__annotation,
+            old_state: __dataclass__init__fields__1__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'new_state', new_state)
+            __dataclass__object_setattr(self, 'old_state', old_state)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"new_state={self.new_state!r}")
+            parts.append(f"old_state={self.old_state!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('message',)), EqPlan(fields=('message',)), FrozenPlan(fields=('message',), allow_d"
         "ynamic_dunder_attrs=False), HashPlan(action='add', fields=('message',), cache=False), InitPlan(fields=(InitPla"
         "n.Field(name='message', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None,"
@@ -2602,6 +2570,150 @@ def _process_dataclass__9834b5a9f1e654cfde6833f7af012abdb39241e4():
         def __repr__(self):
             parts = []
             parts.append(f"message={self.message!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('context', 'model', 'turn_config', 'tool_env')), EqPlan(fields=('context', 'model'"
+        ", 'turn_config', 'tool_env')), FrozenPlan(fields=('context', 'model', 'turn_config', 'tool_env'), allow_dynami"
+        "c_dunder_attrs=False), HashPlan(action='add', fields=('context', 'model', 'turn_config', 'tool_env'), cache=Fa"
+        "lse), InitPlan(fields=(InitPlan.Field(name='context', annotation=OpRef(name='init.fields.0.annotation'), defau"
+        "lt=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType."
+        "INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='model', annotation=OpRef(name='in"
+        "it.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, overri"
+        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='tu"
+        "rn_config', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), de"
+        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, chec"
+        "k_type=None), InitPlan.Field(name='tool_env', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef"
+        "(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE"
+        ", coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('context', "
+        "'model', 'turn_config', 'tool_env'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fn"
+        "s=()), ReprPlan(fields=(ReprPlan.Field(name='context', kw_only=True, fn=None), ReprPlan.Field(name='model', kw"
+        "_only=True, fn=None), ReprPlan.Field(name='turn_config', kw_only=True, fn=None), ReprPlan.Field(name='tool_env"
+        "', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='01ef4d3f3788221fddb1f45ffdbf5c8b67e38b12',
+    cls_names=(
+        ('omllm.agent.types.states', 'State'),
+    ),
+)
+def _process_dataclass__01ef4d3f3788221fddb1f45ffdbf5c8b67e38b12():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                context=self.context,
+                model=self.model,
+                turn_config=self.turn_config,
+                tool_env=self.tool_env,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.context == other.context and
+                self.model == other.model and
+                self.turn_config == other.turn_config and
+                self.tool_env == other.tool_env
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'context',
+            'model',
+            'turn_config',
+            'tool_env',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.context,
+                self.model,
+                self.turn_config,
+                self.tool_env,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            context: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            model: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            turn_config: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            tool_env: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'context', context)
+            __dataclass__object_setattr(self, 'model', model)
+            __dataclass__object_setattr(self, 'turn_config', turn_config)
+            __dataclass__object_setattr(self, 'tool_env', tool_env)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.context)) is not None:
+                parts.append(f"context={s}")
+            if (s := __dataclass__repr__default_fn(self.model)) is not None:
+                parts.append(f"model={s}")
+            if (s := __dataclass__repr__default_fn(self.turn_config)) is not None:
+                parts.append(f"turn_config={s}")
+            if (s := __dataclass__repr__default_fn(self.tool_env)) is not None:
+                parts.append(f"tool_env={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

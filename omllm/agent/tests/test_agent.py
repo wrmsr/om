@@ -67,7 +67,7 @@ async def _test_agent_with_tool(harness: Harness, model: ModelForTest) -> None:
         backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
     )
 
-    await agent.modify_state(
+    await agent.update_state(
         lambda state: dc.replace(
             state,
             context=dc.replace(

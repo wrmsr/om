@@ -101,6 +101,10 @@ with _lang.auto_proxy_init(globals()):
         Message,
     )
 
+    from .types.states import (  # noqa
+        State,
+    )
+
     from .types.tools import (  # noqa
         ToolExecutor,
 
@@ -121,7 +125,6 @@ with _lang.auto_proxy_init(globals()):
     ##
 
     from .agent import (  # noqa
-        State,
         Agent,
     )
 

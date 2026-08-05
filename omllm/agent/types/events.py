@@ -6,6 +6,7 @@ from omcore import lang
 from ... import llm
 from .contexts import Context
 from .messages import Message
+from .states import State
 
 
 ##
@@ -55,3 +56,13 @@ class TurnStartEvent(Event):
 @dc.dataclass(frozen=True, kw_only=True)
 class TurnEndEvent(Event):
     message: Message
+
+
+##
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+class StateUpdateEvent(Event):
+    new_state: State
+    old_state: State

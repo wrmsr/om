@@ -2,33 +2,18 @@ import typing as ta
 
 from omcore import check
 from omcore import dataclasses as dc
-from omcore import lang
 
 from .. import llm
 from ..core.eventbus import EventPublisher
 from .backends import BackendManager
 from .turns.loop import TurnLoop
-from .types.contexts import Context
 from .types.events import Event
+from .types.events import StateUpdateEvent
 from .types.messages import Message
-from .types.tools import ToolEnvironment
-from .types.turns import TurnConfig
+from .types.states import State
 
 
 ##
-
-
-@ta.final
-@dc.dataclass(frozen=True, kw_only=True)
-@dc.extra_class_params(default_repr_fn=lang.opt_repr)
-class State:
-    context: Context = Context()
-
-    model: llm.Model | None = None
-
-    turn_config: TurnConfig | None = None
-
-    tool_env: ToolEnvironment | None = None
 
 
 class Agent(
@@ -45,11 +30,19 @@ class Agent(
 
         self._state = State()
 
-    async def modify_state(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> None:
-        out = fn(self._state)
+    async def update_state(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> None:
+        old_state = self._state
+        out = fn(old_state)
         if isinstance(out, ta.Awaitable):
             out = await out
-        self._state = check.isinstance(out, State)
+        new_state = check.isinstance(out, State)
+
+        self._state = new_state
+
+        await self._publish(StateUpdateEvent(
+            new_state=new_state,
+            old_state=old_state,
+        ))
 
     async def prompt(
             self,
@@ -62,8 +55,10 @@ class Agent(
         else:
             new_messages = [check.isinstance(m, llm.Message) for m in input]
 
+        in_state = self._state
+
         context = dc.replace(
-            self._state.context,
+            in_state.context,
 
             messages=[
                 *(self._state.context.messages or []),
@@ -71,21 +66,21 @@ class Agent(
             ],
         )
 
-        llm_backend = self._backends.get_backend(llm.ImmediateBackend, self._state.model)  # type: ignore[type-abstract]
+        llm_backend = self._backends.get_backend(llm.ImmediateBackend, in_state.model)  # type: ignore[type-abstract]
 
         loop = TurnLoop(
-            config=self._state.turn_config,
+            config=in_state.turn_config,
             context=context,
             subscriber=self._publish,
             llm_backend=llm_backend,
-            tool_env=self._state.tool_env,
+            tool_env=in_state.tool_env,
         )
 
         result = await loop.run()
 
-        self._state = dc.replace(
-            self._state,
+        await self.update_state(lambda old_state: dc.replace(
+            old_state,
 
             turn_config=result.config,
             context=result.context,
-        )
+        ))

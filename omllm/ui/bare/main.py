@@ -152,10 +152,10 @@ async def _a_main() -> None:
     api_key_name: ta.Any
 
     model_key, api_key_name = (
-        # (llm.ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key')
+        (llm.ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key')
         # (llm.ModelKey('groq', 'openai/gpt-oss-120b'), 'groq_api_key')
         # (llm.ModelKey('cerebras', 'gpt-oss-120b'), 'cerebras_api_key')
-        (llm.ModelKey('ollama', 'qwen3.6:27b'), None)
+        # (llm.ModelKey('ollama', 'qwen3.6:27b'), None)
     )
 
     backend_cls = (
@@ -244,7 +244,7 @@ async def _a_main() -> None:
 
     ])
 
-    await agent.modify_state(
+    await agent.update_state(
         lambda state: dc.replace(
             state,
             context=dc.replace(
