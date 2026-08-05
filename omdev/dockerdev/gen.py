@@ -139,6 +139,11 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     ))
 
     ##
+    # self
+
+    ops.append(fragment_section('om'))
+
+    ##
     # ownership
 
     if cfg.workdir is not None:
