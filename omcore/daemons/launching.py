@@ -5,7 +5,6 @@ TODO:
 """
 import contextlib
 import functools
-import threading
 import typing as ta
 
 from .. import check
@@ -16,9 +15,12 @@ from ..os.pidfiles.pidfile import Pidfile
 from .reparent import reparent_process
 from .spawning import InProcessSpawner
 from .spawning import Spawn
+from .spawning import Spawned
 from .spawning import Spawner
 from .spawning import Spawning
 from .spawning import spawner_for
+from .startup import LaunchError
+from .startup import launch_monitor
 from .targets import Target
 from .targets import target_runner_for
 
@@ -53,31 +55,22 @@ class Launcher:
             self,
             *,
             pidfile_manager: ta.ContextManager | None,
-            callback: ta.Callable[[], None] | None = None,
+            launched: ta.Callable[[], None],
     ) -> None:
-        callback_called = False
+        if self._reparent_process:
+            log.info('Reparenting')
+            reparent_process()
 
-        try:
-            if self._reparent_process:
-                log.info('Reparenting')
-                reparent_process()
+        with contextlib.ExitStack() as es:
+            pidfile: Pidfile | None = None  # noqa
+            if pidfile_manager is not None:
+                pidfile = check.isinstance(es.enter_context(pidfile_manager), Pidfile)
+                pidfile.write()
 
-            with contextlib.ExitStack() as es:
-                pidfile: Pidfile | None = None  # noqa
-                if pidfile_manager is not None:
-                    pidfile = check.isinstance(es.enter_context(pidfile_manager), Pidfile)
-                    pidfile.write()
+            runner = target_runner_for(self._target)
 
-                if callback is not None:
-                    callback_called = True
-                    callback()
-
-                runner = target_runner_for(self._target)
-                runner.run()
-
-        finally:
-            if callback is not None and not callback_called:
-                callback()
+            launched()
+            runner.run()
 
     def launch(self) -> bool:
         with contextlib.ExitStack() as es:
@@ -86,8 +79,6 @@ class Launcher:
             #
 
             inherit_fds: set[int] = set()
-            launched_event: threading.Event | None = None
-
             pidfile: Pidfile | None = None  # noqa
             pidfile_manager: ta.ContextManager | None = None
 
@@ -100,7 +91,6 @@ class Launcher:
                     check.state(not self._reparent_process)
                     pidfile = es.enter_context(Pidfile(pid_file))
                     pidfile_manager = pidfile.dup()
-                    launched_event = threading.Event()
 
                 if not pidfile.try_acquire_lock():
                     return False
@@ -109,17 +99,25 @@ class Launcher:
 
             #
 
-            spawner.spawn(Spawn(
+            monitor = launch_monitor(in_process=isinstance(spawner, InProcessSpawner))
+            es.callback(monitor.close)
+            inherit_fds.update(monitor.inherit_fds)
+
+            spawned: Spawned = spawner.spawn(Spawn(
                 functools.partial(
                     self._inner_launch,
                     pidfile_manager=pidfile_manager,
-                    callback=launched_event.set if launched_event is not None else None,
+                    launched=monitor.reporter.started,
                 ),
                 target=self._target,
                 inherit_fds=inherit_fds,
+                on_error=monitor.reporter.failed,
             ))
+            monitor.after_spawn()
 
-            if launched_event is not None:
-                check.state(launched_event.wait(timeout=self._launched_timeout_s))
+            report = monitor.wait(self._launched_timeout_s)
+            if report.error is not None:
+                spawned.join(self._launched_timeout_s)
+                raise LaunchError(report.error)
 
             return True

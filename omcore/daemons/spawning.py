@@ -3,6 +3,7 @@ import enum
 import functools
 import os
 import threading
+import time
 import typing as ta
 
 from .. import check
@@ -42,10 +43,23 @@ class Spawn(dc.Frozen, final=True):
 
     inherit_fds: ta.Collection[int] | None = None
 
+    on_error: ta.Callable[[BaseException], bool] | None = None
+
+
+class Spawned(lang.Abstract):
+    @property
+    @abc.abstractmethod
+    def pid(self) -> int:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def join(self, timeout_s: float | None = None) -> bool:
+        raise NotImplementedError
+
 
 class Spawner(lang.SelfContextManaged, lang.Abstract):
     @abc.abstractmethod
-    def spawn(self, spawn: Spawn) -> None:
+    def spawn(self, spawn: Spawn) -> Spawned:
         raise NotImplementedError
 
 
@@ -56,6 +70,27 @@ class InProcessSpawner(Spawner, lang.Abstract):
 @functools.singledispatch
 def spawner_for(spawning: Spawning) -> Spawner:
     raise TypeError(spawning)
+
+
+def _notify_spawn_error(spawn: Spawn, exc: BaseException) -> bool:
+    if isinstance(exc, SystemExit) and exc.code in (None, 0):
+        return False
+
+    if (on_error := spawn.on_error) is not None:
+        try:
+            return on_error(exc)
+        except BaseException:  # noqa
+            pass
+
+    return False
+
+
+def _run_spawn(spawn: Spawn) -> None:
+    try:
+        spawn.fn()
+    except BaseException as exc:
+        if not _notify_spawn_error(spawn, exc):
+            raise
 
 
 ##
@@ -123,24 +158,57 @@ class MultiprocessingSpawner(Spawner):
 
         return ctx.Process  # type: ignore
 
-    def spawn(self, spawn: Spawn) -> None:
+    @staticmethod
+    def _run(
+            spawning: MultiprocessingSpawning,
+            spawn: Spawn,
+            start_method: MultiprocessingSpawning.StartMethod,
+    ) -> None:
+        try:
+            if (entrypoint := spawning.entrypoint) is not None:
+                entrypoint(MultiprocessingSpawning.EntrypointArgs(
+                    spawning=spawning,
+                    spawn=spawn,
+                    start_method=start_method,
+                ))
+            else:
+                spawn.fn()
+        except BaseException as exc:
+            _notify_spawn_error(spawn, exc)
+            raise
+
+    def spawn(self, spawn: Spawn) -> Spawned:
         check.none(self._process)
 
-        target: ta.Callable[[], None]
-        if (ep := self._spawning.entrypoint) is not None:
-            target = functools.partial(ep, MultiprocessingSpawning.EntrypointArgs(
-                spawning=self._spawning,
-                spawn=spawn,
-                start_method=self._determine_start_method(),
-            ))
-        else:
-            target = spawn.fn
+        start_method = self._determine_start_method()
 
         self._process = self._process_cls(spawn)(
-            target=target,
+            target=functools.partial(
+                self._run,
+                self._spawning,
+                spawn,
+                start_method,
+            ),
             daemon=self._spawning.no_linger,
         )
         self._process.start()
+
+        return MultiprocessingSpawned(self._process)
+
+
+class MultiprocessingSpawned(Spawned):
+    def __init__(self, process: mp.process.BaseProcess) -> None:
+        super().__init__()
+
+        self._process = process
+
+    @property
+    def pid(self) -> int:
+        return check.isinstance(self._process.pid, int)
+
+    def join(self, timeout_s: float | None = None) -> bool:
+        self._process.join(timeout_s)
+        return not self._process.is_alive()
 
 
 @spawner_for.register
@@ -151,20 +219,72 @@ def _(spawning: MultiprocessingSpawning) -> MultiprocessingSpawner:
 ##
 
 
-class ForkSpawning(Spawning):
-    pass
+class ForkSpawning(Spawning, kw_only=True):
+    @dc.dataclass(frozen=True, kw_only=True)
+    class PostForkArgs:
+        spawning: ForkSpawning
+        spawn: Spawn
+
+    post_fork: ta.Callable[[PostForkArgs], None] | None = None
+
+
+class ForkSpawned(Spawned):
+    def __init__(self, pid: int) -> None:
+        super().__init__()
+
+        self._pid = pid
+        self._reaped = False
+
+    @property
+    def pid(self) -> int:
+        return self._pid
+
+    def join(self, timeout_s: float | None = None) -> bool:
+        if self._reaped:
+            return True
+
+        if timeout_s is None:
+            try:
+                os.waitpid(self._pid, 0)
+            except ChildProcessError:
+                pass
+            self._reaped = True
+            return True
+
+        deadline = time.monotonic() + timeout_s
+        while True:
+            try:
+                pid, _ = os.waitpid(self._pid, os.WNOHANG)
+            except ChildProcessError:
+                self._reaped = True
+                return True
+            if pid:
+                self._reaped = True
+                return True
+
+            remaining_s = deadline - time.monotonic()
+            if remaining_s <= 0.:
+                return False
+            time.sleep(min(remaining_s, .01))
 
 
 class ForkSpawner(Spawner, dc.Frozen):
     spawning: ForkSpawning
 
-    def spawn(self, spawn: Spawn) -> None:
+    def spawn(self, spawn: Spawn) -> Spawned:
         if (pid := os.fork()):  # noqa
-            return
+            return ForkSpawned(pid)
 
         try:
+            if (post_fork := self.spawning.post_fork) is not None:
+                post_fork(ForkSpawning.PostForkArgs(
+                    spawning=self.spawning,
+                    spawn=spawn,
+                ))
+
             spawn.fn()
-        except BaseException:  # noqa
+        except BaseException as exc:  # noqa
+            _notify_spawn_error(spawn, exc)
             raise SystemExit(1) from None
         else:
             raise SystemExit(0)
@@ -184,6 +304,18 @@ class ThreadSpawning(Spawning, kw_only=True):
     linger: bool = False
 
 
+class ThreadSpawned(Spawned, dc.Frozen):
+    thread: threading.Thread
+
+    @property
+    def pid(self) -> int:
+        return os.getpid()
+
+    def join(self, timeout_s: float | None = None) -> bool:
+        self.thread.join(timeout_s)
+        return not self.thread.is_alive()
+
+
 class ThreadSpawner(InProcessSpawner):
     def __init__(self, spawning: ThreadSpawning) -> None:
         super().__init__()
@@ -191,13 +323,15 @@ class ThreadSpawner(InProcessSpawner):
         self._spawning = spawning
         self._thread: threading.Thread | None = None
 
-    def spawn(self, spawn: Spawn) -> None:
+    def spawn(self, spawn: Spawn) -> Spawned:
         check.none(self._thread)
         self._thread = threading.Thread(
-            target=spawn.fn,
+            target=functools.partial(_run_spawn, spawn),
             daemon=not self._spawning.linger,
         )
         self._thread.start()
+
+        return ThreadSpawned(self._thread)
 
 
 @spawner_for.register

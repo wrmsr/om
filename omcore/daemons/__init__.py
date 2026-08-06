@@ -12,6 +12,12 @@ with _lang.auto_proxy_init(globals()):
         Launcher,
     )
 
+    from .startup import (  # noqa
+        LaunchErrorInfo,
+        LaunchReport,
+        LaunchError,
+    )
+
     from .services import (  # noqa
         Service,
 
@@ -25,17 +31,21 @@ with _lang.auto_proxy_init(globals()):
     from .spawning import (  # noqa
         Spawning,
         Spawn,
+        Spawned,
         Spawner,
         InProcessSpawner,
         spawner_for,
 
         MultiprocessingSpawning,
+        MultiprocessingSpawned,
         MultiprocessingSpawner,
 
         ForkSpawning,
+        ForkSpawned,
         ForkSpawner,
 
         ThreadSpawning,
+        ThreadSpawned,
         ThreadSpawner,
     )
 
