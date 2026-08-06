@@ -245,6 +245,8 @@ class ObjectStorageClass(_base.Enum):
     EXPRESS_ONEZONE = 'EXPRESS_ONEZONE'
     FSX_OPENZFS = 'FSX_OPENZFS'
     FSX_ONTAP = 'FSX_ONTAP'
+    AWS_BACKUP_WARM = 'AWS_BACKUP_WARM'
+    AWS_BACKUP_LOW_COST_WARM = 'AWS_BACKUP_LOW_COST_WARM'
 
 
 ObjectVersionId = _ta.NewType('ObjectVersionId', str)
@@ -311,6 +313,7 @@ SSEKMSKeyId = _ta.NewType('SSEKMSKeyId', str)
 class ServerSideEncryption(_base.Enum):
     AES256 = 'AES256'
     AWS_FSX = 'aws:fsx'
+    AWS_BACKUP = 'aws:backup'
     AWS_KMS = 'aws:kms'
     AWS_KMS_DSSE = 'aws:kms:dsse'
 
@@ -334,6 +337,8 @@ class StorageClass(_base.Enum):
     EXPRESS_ONEZONE = 'EXPRESS_ONEZONE'
     FSX_OPENZFS = 'FSX_OPENZFS'
     FSX_ONTAP = 'FSX_ONTAP'
+    AWS_BACKUP_WARM = 'AWS_BACKUP_WARM'
+    AWS_BACKUP_LOW_COST_WARM = 'AWS_BACKUP_LOW_COST_WARM'
 
 
 TagCount = _ta.NewType('TagCount', int)
