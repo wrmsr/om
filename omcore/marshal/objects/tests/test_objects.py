@@ -5,9 +5,9 @@ from .... import dataclasses as dc
 from .... import lang
 from ....lite import marshal as lmsh
 from ...api.contexts import MarshalContext
-from ...api.contexts import MarshalFactoryContext
 from ...api.contexts import UnmarshalContext
 from ...api.contexts import UnmarshalFactoryContext
+from ...api.runtime import Runtime
 from ...globals import marshal
 from ...globals import unmarshal
 from ...standard.factories import StandardUnmarshalerFactory
@@ -51,7 +51,7 @@ def test_unknown_fields():
         {fi.name: (fi, NOP_MARSHALER_UNMARSHALER) for fi in fis},
         specials=ObjectSpecials(unknown='x'),
     )
-    uc = UnmarshalContext(unmarshal_factory_context=UnmarshalFactoryContext())
+    uc = UnmarshalContext(runtime=Runtime())
     c = ou.unmarshal(uc, {'i': 420, 's': 'foo', 'qqq': 'huh'})
     assert c == C(i=420, s='foo', x={'qqq': 'huh'})
 
@@ -59,7 +59,7 @@ def test_unknown_fields():
         [(fi, NOP_MARSHALER_UNMARSHALER) for fi in fis],
         specials=ObjectSpecials(unknown='x'),
     )
-    mc = MarshalContext(marshal_factory_context=MarshalFactoryContext())
+    mc = MarshalContext(runtime=Runtime())
     o = om.marshal(mc, c)
     assert o == {'i': 420, 's': 'foo', 'qqq': 'huh'}
 
@@ -80,10 +80,10 @@ def test_decorated_unknown_field():
         'frab': False,
     }
 
-    ufc = UnmarshalFactoryContext(unmarshaler_factory=StandardUnmarshalerFactory())
+    ufc = UnmarshalFactoryContext(runtime=Runtime(unmarshaler_factory=StandardUnmarshalerFactory()))
     u = ufc.make_unmarshaler(ImageUploadResponse)
 
-    uc = UnmarshalContext(unmarshal_factory_context=ufc)
+    uc = UnmarshalContext(runtime=Runtime())
     o = u.unmarshal(uc, d)
 
     assert o == ImageUploadResponse(
@@ -118,7 +118,7 @@ def test_source_fields():
         specials=ObjectSpecials(source='x'),
         ignore_unknown=True,
     )
-    uc = UnmarshalContext(unmarshal_factory_context=UnmarshalFactoryContext())
+    uc = UnmarshalContext(runtime=Runtime())
     c = ou.unmarshal(uc, {'i': 420, 's': 'foo', 'qqq': 'huh'})
     assert c == C(i=420, s='foo', x={'i': 420, 's': 'foo', 'qqq': 'huh'})
 
@@ -126,7 +126,7 @@ def test_source_fields():
         [(fi, NOP_MARSHALER_UNMARSHALER) for fi in fis],
         specials=ObjectSpecials(source='x'),
     )
-    mc = MarshalContext(marshal_factory_context=MarshalFactoryContext())
+    mc = MarshalContext(runtime=Runtime())
     o = om.marshal(mc, c)
     assert o == {'i': 420, 's': 'foo'}
 

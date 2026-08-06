@@ -7,17 +7,17 @@ from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.errors import ForbiddenError
 from ..api.errors import ForbiddenTypeError
+from ..api.types import FactoryPair
+from ..api.types import HandlerPair
 from ..api.types import Marshaler
-from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
-from ..api.types import UnmarshalerFactory
 from ..api.values import Value
 
 
 ##
 
 
-class ForbiddenMarshalerUnmarshaler(Marshaler, Unmarshaler):
+class ForbiddenMarshalerUnmarshaler(HandlerPair):
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         raise ForbiddenError
 
@@ -28,7 +28,7 @@ class ForbiddenMarshalerUnmarshaler(Marshaler, Unmarshaler):
 #
 
 
-class ForbiddenTypeMarshalerFactoryUnmarshalerFactory(MarshalerFactory, UnmarshalerFactory):
+class ForbiddenTypeMarshalerFactoryUnmarshalerFactory(FactoryPair):
     def __init__(self, tys: ta.AbstractSet[ta.Any]) -> None:
         super().__init__()
 

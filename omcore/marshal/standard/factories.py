@@ -1,125 +1,72 @@
 """
-TODO:
- - update to InternalState
+These factories are deliberately stateless: the configured factory list is read through the construction context on
+every make call, which both keeps them shareable and lets the Runtime's footprint-keyed handler caching notice
+`install_standard_factories` updates - a changed StandardMarshalerFactories config invalidates exactly the handlers
+whose construction consulted it. Construction is the cached cold path, so the per-call list assembly is irrelevant.
 """
-import abc
 import typing as ta
 
-from ... import check
 from ... import reflect as rfl
-from ..api.configs import ConfigRegistry
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
 from ..api.types import UnmarshalerFactory
-from ..factories.lazyinit import LazyInitRunningMarshalerFactory
-from ..factories.lazyinit import LazyInitRunningUnmarshalerFactory
-from ..factories.multi import MultiMarshalerFactory
-from ..factories.multi import MultiUnmarshalerFactory
-from ..factories.recursive import RecursiveMarshalerFactory
-from ..factories.recursive import RecursiveUnmarshalerFactory
-from ..factories.typecache import TypeCacheMarshalerFactory
-from ..factories.typecache import TypeCacheUnmarshalerFactory
 from .api import StandardMarshalerFactories
 from .api import StandardUnmarshalerFactories
 from .defaults import DEFAULT_STANDARD_FACTORIES
 
 
-FactoryT = ta.TypeVar('FactoryT', bound=MarshalerFactory | UnmarshalerFactory)
-FactoriesT = ta.TypeVar('FactoriesT', bound=StandardMarshalerFactories | StandardUnmarshalerFactories)
-
-
 ##
 
 
-class _StandardFactory(ta.Generic[FactoryT, FactoriesT]):
+class StandardMarshalerFactory(MarshalerFactory):
     def __init__(
             self,
             *,
-            first: ta.Iterable[FactoryT] | None = None,
-            last: ta.Iterable[FactoryT] | None = None,
+            first: ta.Iterable[MarshalerFactory] | None = None,
+            last: ta.Iterable[MarshalerFactory] | None = None,
     ) -> None:
         super().__init__()
 
         self._first = tuple(first or ())
         self._last = tuple(last or ())
 
-        self._state: tuple[FactoriesT, FactoryT] | None = None
-
-    def invalidate(self) -> None:
-        self._state = None
-
-    _cfg_cls: ta.ClassVar[type[FactoriesT]]  # noqa
-    _default_facs: ta.ClassVar[ta.Sequence[FactoryT]]  # noqa
-
-    def _get_fac(self, cfgs: ConfigRegistry) -> FactoryT:
-        st: ta.Any = self._state
-        cfg: ta.Any = cfgs.get().get(self._cfg_cls)
-        if st is not None and cfg is not None and st[0] is cfg:
-            return st[1]
-
-        with cfgs._lock:  # noqa
-            st = self._state
-            cfg = cfgs.get().get(self._cfg_cls)
-            if st is not None and cfg is not None and st[0] is cfg:
-                return st[1]
-
-            if cfg is None:
-                cfg = self._cfg_cls(self._default_facs)  # type: ignore[arg-type]
-                cfgs.update(None, cfg)
-
-            fac = self._make_fac(cfgs, cfg)
-
-            st = (cfg, fac)
-            self._state = st
-
-            return fac
-
-    @abc.abstractmethod
-    def _make_fac(self, cfgs: ConfigRegistry, cfg: FactoriesT) -> FactoryT:
-        raise NotImplementedError
-
-
-class StandardMarshalerFactory(_StandardFactory[MarshalerFactory, StandardMarshalerFactories], MarshalerFactory):
-    _cfg_cls = StandardMarshalerFactories
-    _default_facs = DEFAULT_STANDARD_FACTORIES.marshaler_factories
-
-    def _make_fac(self, cfgs: ConfigRegistry, cfg: StandardMarshalerFactories) -> MarshalerFactory:
-        fac: MarshalerFactory = MultiMarshalerFactory(
-            *self._first,
-            *cfg.lst,
-            *self._last,
-        )
-
-        fac = RecursiveMarshalerFactory(fac)
-        fac = TypeCacheMarshalerFactory(fac)
-
-        return fac
-
     def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
-        return self._get_fac(check.isinstance(ctx.configs, ConfigRegistry)).make_marshaler(ctx, rty)
+        # TODO: audit? bypasses config access recorder
+        cfg = ctx.runtime.config_registry.get().get(StandardMarshalerFactories)
+        facs: ta.Sequence[MarshalerFactory] = cfg.lst if cfg is not None else DEFAULT_STANDARD_FACTORIES.marshaler_factories  # noqa
+
+        for f in (*self._first, *facs, *self._last):
+            if (m := f.make_marshaler(ctx, rty)) is not None:
+                return m
+
+        return None
 
 
-class StandardUnmarshalerFactory(_StandardFactory[UnmarshalerFactory, StandardUnmarshalerFactories], UnmarshalerFactory):  # noqa
-    _cfg_cls = StandardUnmarshalerFactories
-    _default_facs = DEFAULT_STANDARD_FACTORIES.unmarshaler_factories
+class StandardUnmarshalerFactory(UnmarshalerFactory):
+    def __init__(
+            self,
+            *,
+            first: ta.Iterable[UnmarshalerFactory] | None = None,
+            last: ta.Iterable[UnmarshalerFactory] | None = None,
+    ) -> None:
+        super().__init__()
 
-    def _make_fac(self, cfgs: ConfigRegistry, cfg: StandardUnmarshalerFactories) -> UnmarshalerFactory:
-        fac: UnmarshalerFactory = MultiUnmarshalerFactory(
-            *self._first,
-            *cfg.lst,
-            *self._last,
-        )
-
-        fac = RecursiveUnmarshalerFactory(fac)
-        fac = TypeCacheUnmarshalerFactory(fac)
-
-        return fac
+        self._first = tuple(first or ())
+        self._last = tuple(last or ())
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
-        return self._get_fac(check.isinstance(ctx.configs, ConfigRegistry)).make_unmarshaler(ctx, rty)
+        # TODO: audit? bypasses config access recorder
+        cfg = ctx.runtime.config_registry.get().get(StandardUnmarshalerFactories)
+        facs: ta.Sequence[UnmarshalerFactory] = cfg.lst if cfg is not None else DEFAULT_STANDARD_FACTORIES.unmarshaler_factories  # noqa
+
+        for f in (*self._first, *facs, *self._last):
+            if (u := f.make_unmarshaler(ctx, rty)) is not None:
+                return u
+
+        return None
 
 
 ##
@@ -130,14 +77,10 @@ def new_standard_marshaler_factory(
         first: ta.Iterable[MarshalerFactory] | None = None,
         last: ta.Iterable[MarshalerFactory] | None = None,
 ) -> MarshalerFactory:
-    sf = StandardMarshalerFactory(
+    return StandardMarshalerFactory(
         first=first,
         last=last,
     )
-
-    lir = LazyInitRunningMarshalerFactory(sf, sf.invalidate)
-
-    return lir
 
 
 def new_standard_unmarshaler_factory(
@@ -145,11 +88,7 @@ def new_standard_unmarshaler_factory(
         first: ta.Iterable[UnmarshalerFactory] | None = None,
         last: ta.Iterable[UnmarshalerFactory] | None = None,
 ) -> UnmarshalerFactory:
-    sf = StandardUnmarshalerFactory(
+    return StandardUnmarshalerFactory(
         first=first,
         last=last,
     )
-
-    lir = LazyInitRunningUnmarshalerFactory(sf, sf.invalidate)
-
-    return lir

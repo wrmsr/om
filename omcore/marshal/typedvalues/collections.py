@@ -40,7 +40,9 @@ def _is_bare_typed_values(rty: rfl.Type) -> bool:
 
 
 def build_typed_values_marshaler(ctx: MarshalFactoryContext, rty: rfl.Type) -> Marshaler:
-    ety = check.not_none(_get_typed_values_element(ctx._reflect(rty) if not isinstance(rty, rfl.Type) else rty))  # noqa
+    ety = check.not_none(_get_typed_values_element(
+        ctx.get_mirror().reflect_type(rty) if not isinstance(rty, rfl.Type) else rty,
+    ))
 
     return IterableMarshaler(
         ctx.make_marshaler(ety),
@@ -62,7 +64,9 @@ class TypedValuesMarshalerFactory(MarshalerFactoryMethodClass):
 
 
 def build_typed_values_unmarshaler(ctx: UnmarshalFactoryContext, rty: rfl.Type) -> Unmarshaler:
-    ety = check.not_none(_get_typed_values_element(ctx._reflect(rty) if not isinstance(rty, rfl.Type) else rty))  # noqa
+    ety = check.not_none(_get_typed_values_element(
+        ctx.get_mirror().reflect_type(rty) if not isinstance(rty, rfl.Type) else rty,
+    ))
 
     return IterableUnmarshaler(
         tv.TypedValues,

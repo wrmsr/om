@@ -65,7 +65,7 @@ def make_marshaler_via(ctx: MarshalFactoryContext, ty: ta.Any, via: MarshalVia) 
         return o
 
     if isinstance(o, MarshalerFactory):
-        rty = ctx._reflect(ty)
+        rty = ctx.get_mirror().reflect_type(ty)
         if (m := o.make_marshaler(ctx, rty)) is None:
             raise UnhandledTypeError(rty)
         return m()
@@ -80,7 +80,7 @@ def make_unmarshaler_via(ctx: UnmarshalFactoryContext, ty: ta.Any, via: Unmarsha
         return o
 
     if isinstance(o, UnmarshalerFactory):
-        rty = ctx._reflect(ty)
+        rty = ctx.get_mirror().reflect_type(ty)
         if (m := o.make_unmarshaler(ctx, rty)) is None:
             raise UnhandledTypeError(rty)
         return m()

@@ -3,8 +3,9 @@ FIXME?: lol do we cache everything it ever sees by identity?
  - yes, but, only keyed by rty - we don't really 'do' temp / weakref classes
   - maybe: still merge and cache, but only via identity IFF there's actually any identity keys in there for the thing
 """
-import abc
 import dataclasses as dc
+import importlib
+import sys
 import threading
 import typing as ta
 
@@ -17,6 +18,8 @@ T = ta.TypeVar('T')
 
 ConfigT = ta.TypeVar('ConfigT', bound='Config')
 
+type LazyInitFn = ta.Callable[[ConfigRegistry], None]
+
 
 ##
 
@@ -28,23 +31,18 @@ class Config(tv.TypedValue, lang.Abstract):
 #
 
 
-ConfigValues: ta.TypeAlias = tv.TypedValues[Config]
+ConfigValues: ta.TypeAlias = tv.TypedValuesAccessor[Config]
 
-_EMPTY_CONFIG_VALUES = ConfigValues()
-
-
-##
+_EMPTY_CONFIG_VALUES = tv.TypedValues[Config]()
 
 
-class Configs(lang.Abstract):
-    @abc.abstractmethod
-    def get(
-            self,
-            key: ta.Any = None,
-            *,
-            identity: bool | None = None,
-    ) -> ConfigValues:
-        raise NotImplementedError
+class ConfigsGetter(ta.Protocol):
+    def __call__(
+        self,
+        key: ta.Any = None,
+        *,
+        identity: bool | None = None,
+    ) -> ConfigValues: ...
 
 
 ##
@@ -54,7 +52,7 @@ class ConfigRegistrySealedError(Exception):
     pass
 
 
-class ConfigRegistry(Configs):
+class ConfigRegistry:
     def __init__(
             self,
             *,
@@ -102,7 +100,7 @@ class ConfigRegistry(Configs):
 
     @dc.dataclass(frozen=True, kw_only=True)
     class _Snapshot:
-        dct: ta.Mapping[ta.Any, ConfigValues] = dc.field(default_factory=dict)
+        dct: ta.Mapping[ta.Any, tv.TypedValues[Config]] = dc.field(default_factory=dict)
         version: int = 0
         token: ConfigRegistry.Token = dc.field(default_factory=lambda: ConfigRegistry.Token())
 
@@ -146,14 +144,14 @@ class ConfigRegistry(Configs):
 
         #
 
-        _get_merged_cache: dict[ta.Any, ConfigValues] = dc.field(default_factory=dict)
+        _get_merged_cache: dict[ta.Any, tv.TypedValues[Config]] = dc.field(default_factory=dict)
 
         def get(
                 self,
                 key: ta.Any = None,
                 *,
                 identity: bool | None = None,
-        ) -> ConfigValues:
+        ) -> tv.TypedValues[Config]:
             if key is None:
                 check.state(identity is not True)
                 identity = False
@@ -165,7 +163,7 @@ class ConfigRegistry(Configs):
                     pass
 
                 if (idc := self.get(key, identity=True)):
-                    ret = self._get_merged_cache[key] = ConfigValues(
+                    ret = self._get_merged_cache[key] = tv.TypedValues[Config](
                         *self.get(key, identity=False),
                         *idc,
                         override=True,
@@ -245,3 +243,25 @@ class ConfigRegistry(Configs):
 
         with self._lock:
             return fn(self)
+
+
+##
+
+
+@dc.dataclass(frozen=True, eq=False)
+class LazyInit(Config, lang.Final):
+    fn: LazyInitFn
+
+
+@dc.dataclass(frozen=True, eq=False)
+class ModuleImport(lang.Final):
+    name: str
+    package: str | None = None
+
+    def __call__(self, cr: ConfigRegistry) -> None:  # noqa
+        mn = lang.resolve_import_name(self.name, self.package)
+
+        if mn in sys.modules:
+            return
+
+        importlib.import_module(mn)

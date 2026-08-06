@@ -4,8 +4,7 @@ import uuid
 from ... import check
 from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import Marshaler
-from ..api.types import Unmarshaler
+from ..api.types import HandlerPair
 from ..api.values import Value
 from ..factories.typemap import TypeMapMarshalerFactory
 from ..factories.typemap import TypeMapUnmarshalerFactory
@@ -17,7 +16,7 @@ from ..factories.typemap import TypeMapUnmarshalerFactory
 PATTERN = re.compile(r'([0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12})|([0-9A-Fa-f]{32})')
 
 
-class UuidMarshalerUnmarshaler(Marshaler, Unmarshaler):
+class UuidMarshalerUnmarshaler(HandlerPair):
     def marshal(self, ctx: MarshalContext, o: uuid.UUID) -> Value:
         return str(o)
 

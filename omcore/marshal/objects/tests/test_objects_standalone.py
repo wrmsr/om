@@ -4,6 +4,7 @@ from ...api.contexts import MarshalContext
 from ...api.contexts import MarshalFactoryContext
 from ...api.contexts import UnmarshalContext
 from ...api.contexts import UnmarshalFactoryContext
+from ...api.runtime import Runtime
 from ...composite.iterables import IterableMarshalerFactory
 from ...composite.iterables import IterableUnmarshalerFactory
 from ...composite.mappings import MappingMarshalerFactory
@@ -12,10 +13,6 @@ from ...composite.optionals import OptionalMarshalerFactory
 from ...composite.optionals import OptionalUnmarshalerFactory
 from ...factories.multi import MultiMarshalerFactory
 from ...factories.multi import MultiUnmarshalerFactory
-from ...factories.recursive import RecursiveMarshalerFactory
-from ...factories.recursive import RecursiveUnmarshalerFactory
-from ...factories.typecache import TypeCacheMarshalerFactory
-from ...factories.typecache import TypeCacheUnmarshalerFactory
 from ...singular.enums import EnumMarshalerFactory
 from ...singular.enums import EnumUnmarshalerFactory
 from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY
@@ -28,34 +25,25 @@ from ..namedtuples import NamedtupleMarshalerFactory
 from ..namedtuples import NamedtupleUnmarshalerFactory
 
 
-def _make_test_marshaler_factory():
-    return TypeCacheMarshalerFactory(
-        RecursiveMarshalerFactory(
-            MultiMarshalerFactory(
-                PRIMITIVE_MARSHALER_FACTORY,
-                OptionalMarshalerFactory(),
-                DataclassMarshalerFactory(),
-                NamedtupleMarshalerFactory(),
-                EnumMarshalerFactory(),
-                MappingMarshalerFactory(),
-                IterableMarshalerFactory(),
-            ),
+def _make_test_runtime():
+    return Runtime(
+        marshaler_factory=MultiMarshalerFactory(
+            PRIMITIVE_MARSHALER_FACTORY,
+            OptionalMarshalerFactory(),
+            DataclassMarshalerFactory(),
+            NamedtupleMarshalerFactory(),
+            EnumMarshalerFactory(),
+            MappingMarshalerFactory(),
+            IterableMarshalerFactory(),
         ),
-    )
-
-
-def _make_test_unmarshaler_factory():
-    return TypeCacheUnmarshalerFactory(
-        RecursiveUnmarshalerFactory(
-            MultiUnmarshalerFactory(
-                PRIMITIVE_UNMARSHALER_FACTORY,
-                OptionalUnmarshalerFactory(),
-                DataclassUnmarshalerFactory(),
-                NamedtupleUnmarshalerFactory(),
-                EnumUnmarshalerFactory(),
-                MappingUnmarshalerFactory(),
-                IterableUnmarshalerFactory(),
-            ),
+        unmarshaler_factory=MultiUnmarshalerFactory(
+            PRIMITIVE_UNMARSHALER_FACTORY,
+            OptionalUnmarshalerFactory(),
+            DataclassUnmarshalerFactory(),
+            NamedtupleUnmarshalerFactory(),
+            EnumUnmarshalerFactory(),
+            MappingUnmarshalerFactory(),
+            IterableUnmarshalerFactory(),
         ),
     )
 
@@ -95,8 +83,8 @@ def test_omit_if():
             FieldOptions: FieldOptions(omit_if=lang.is_none),
         }))
 
-    mfc = MarshalFactoryContext(marshaler_factory=_make_test_marshaler_factory())
-    mc = MarshalContext(marshal_factory_context=mfc)
+    mfc = MarshalFactoryContext(runtime=(rt := _make_test_runtime()))
+    mc = MarshalContext(runtime=rt)
 
     # With value - should be included
     m1 = mfc.make_marshaler(Opts).marshal(mc, Opts('a', 'b'))
@@ -121,8 +109,8 @@ def test_field_defaults():
         b: int | None = None
         c: float | None = None
 
-    mfc = MarshalFactoryContext(marshaler_factory=_make_test_marshaler_factory())
-    mc = MarshalContext(marshal_factory_context=mfc)
+    mfc = MarshalFactoryContext(runtime=(rt := _make_test_runtime()))
+    mc = MarshalContext(runtime=rt)
 
     # All None - all should be omitted
     m1 = mfc.make_marshaler(AllOptional).marshal(mc, AllOptional())
@@ -142,14 +130,14 @@ def test_custom_field_name():
             FieldOptions: FieldOptions(name='jsonName'),
         }))
 
-    mfc = MarshalFactoryContext(marshaler_factory=_make_test_marshaler_factory())
-    mc = MarshalContext(marshal_factory_context=mfc)
+    mfc = MarshalFactoryContext(runtime=(rt := _make_test_runtime()))
+    mc = MarshalContext(runtime=rt)
 
     m = mfc.make_marshaler(CustomNames).marshal(mc, CustomNames('value'))
     assert m == {'jsonName': 'value'}
 
-    ufc = UnmarshalFactoryContext(unmarshaler_factory=_make_test_unmarshaler_factory())
-    uc = UnmarshalContext(unmarshal_factory_context=ufc)
+    ufc = UnmarshalFactoryContext(runtime=(rt := _make_test_runtime()))
+    uc = UnmarshalContext(runtime=rt)
     u = ufc.make_unmarshaler(CustomNames).unmarshal(uc, {'jsonName': 'value'})
 
     assert u.py_name == 'value'
@@ -164,8 +152,8 @@ def test_field_alts():
             FieldOptions: FieldOptions(name='value', alts=['v', 'val_alt']),
         }))
 
-    ufc = UnmarshalFactoryContext(unmarshaler_factory=_make_test_unmarshaler_factory())
-    uc = UnmarshalContext(unmarshal_factory_context=ufc)
+    ufc = UnmarshalFactoryContext(runtime=(rt := _make_test_runtime()))
+    uc = UnmarshalContext(runtime=rt)
 
     # Should accept primary name
     u1 = ufc.make_unmarshaler(WithAlts).unmarshal(uc, {'value': 'x'})

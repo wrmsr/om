@@ -3,15 +3,13 @@ import typing as ta
 
 from .. import lang
 from .api.configs import ConfigRegistry
-from .api.internalstate import InternalState
+from .api.configs import LazyInit
+from .api.configs import LazyInitFn
+from .api.configs import ModuleImport
+from .api.marshaling import Marshaling
 from .api.options import Option
-from .api.types import MarshalerFactory
-from .api.types import Marshaling
-from .api.types import UnmarshalerFactory
+from .api.runtime import Runtime
 from .api.values import Value
-from .factories.api import LazyInit
-from .factories.api import LazyInitFn
-from .factories.api import ModuleImport
 
 
 if ta.TYPE_CHECKING:
@@ -35,32 +33,18 @@ def global_config_registry() -> ConfigRegistry:
 
 
 @lang.cached_function(lock=_GLOBAL_LOCK)
-def global_internal_state() -> InternalState:
-    return InternalState()
+def global_runtime() -> Runtime:
+    return Runtime(
+        config_registry=global_config_registry(),
 
-
-@lang.cached_function(lock=_GLOBAL_LOCK)
-def global_marshaler_factory() -> MarshalerFactory:
-    return _sf.new_standard_marshaler_factory()
-
-
-@lang.cached_function(lock=_GLOBAL_LOCK)
-def global_unmarshaler_factory() -> UnmarshalerFactory:
-    return _sf.new_standard_unmarshaler_factory()
+        marshaler_factory=_sf.new_standard_marshaler_factory(),
+        unmarshaler_factory=_sf.new_standard_unmarshaler_factory(),
+    )
 
 
 class _GlobalMarshaling(Marshaling, lang.Final):
-    def get_config_registry(self) -> ConfigRegistry:
-        return global_config_registry()
-
-    def get_internal_state(self) -> InternalState:
-        return global_internal_state()
-
-    def get_marshaler_factory(self) -> MarshalerFactory:
-        return global_marshaler_factory()
-
-    def get_unmarshaler_factory(self) -> UnmarshalerFactory:
-        return global_unmarshaler_factory()
+    def get_runtime(self) -> Runtime:
+        return global_runtime()
 
 
 @lang.cached_function(lock=_GLOBAL_LOCK)

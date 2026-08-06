@@ -53,7 +53,7 @@ def _build_typed_value_union_poly(ctx: BaseContext, rty: rfl.Type) -> Impls:
         rty,
         find_abstract_subclasses=True,
         get_unsealed_subclasses=gus,
-        mirror=ctx.mirror,
+        mirror=ctx.get_mirror(),
     )
 
     return Impls([

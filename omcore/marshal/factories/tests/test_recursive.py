@@ -2,7 +2,7 @@ import threading
 import typing as ta
 
 from .... import dataclasses as dc
-from ...api.types import SimpleMarshaling
+from ...api.marshaling import SimpleMarshaling
 from ...standard.factories import StandardMarshalerFactory
 from ...standard.factories import StandardUnmarshalerFactory
 

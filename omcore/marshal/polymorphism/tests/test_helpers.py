@@ -1,18 +1,12 @@
 import dataclasses as dc
 
-from ...api.configs import ConfigRegistry
 from ...api.contexts import MarshalContext
 from ...api.contexts import MarshalFactoryContext
 from ...api.contexts import UnmarshalContext
 from ...api.contexts import UnmarshalFactoryContext
-from ...api.types import MarshalerFactory
-from ...api.types import UnmarshalerFactory
+from ...api.runtime import Runtime
 from ...factories.multi import MultiMarshalerFactory
 from ...factories.multi import MultiUnmarshalerFactory
-from ...factories.recursive import RecursiveMarshalerFactory
-from ...factories.recursive import RecursiveUnmarshalerFactory
-from ...factories.typecache import TypeCacheMarshalerFactory
-from ...factories.typecache import TypeCacheUnmarshalerFactory
 from ...objects.dataclasses import DataclassMarshalerFactory
 from ...objects.dataclasses import DataclassUnmarshalerFactory
 from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY
@@ -46,38 +40,29 @@ def test_polymorphism_helper():
     for _ in range(3):
         pmf, puf = make_polymorphism_metadata_factories()
 
-        mf: MarshalerFactory = TypeCacheMarshalerFactory(
-            RecursiveMarshalerFactory(
-                MultiMarshalerFactory(
-                    pmf,
-                    DataclassMarshalerFactory(),
-                    PRIMITIVE_MARSHALER_FACTORY,
-                ),
+        rt = Runtime(
+            marshaler_factory=MultiMarshalerFactory(
+                pmf,
+                DataclassMarshalerFactory(),
+                PRIMITIVE_MARSHALER_FACTORY,
             ),
-        )
-
-        uf: UnmarshalerFactory = TypeCacheUnmarshalerFactory(
-            RecursiveUnmarshalerFactory(
-                MultiUnmarshalerFactory(
-                    puf,
-                    DataclassUnmarshalerFactory(),
-                    PRIMITIVE_UNMARSHALER_FACTORY,
-                ),
+            unmarshaler_factory=MultiUnmarshalerFactory(
+                puf,
+                DataclassUnmarshalerFactory(),
+                PRIMITIVE_UNMARSHALER_FACTORY,
             ),
         )
 
         o = PS2('0', PS1('1', 420))
 
-        reg = ConfigRegistry()
-
         for _ in range(3):
-            mfc = MarshalFactoryContext(configs=reg, marshaler_factory=mf)
-            mc = MarshalContext(marshal_factory_context=mfc)
+            mfc = MarshalFactoryContext(runtime=rt)
+            mc = MarshalContext(runtime=rt)
             v = mfc.make_marshaler(PB).marshal(mc, o)
             print(v)
 
-            ufc = UnmarshalFactoryContext(configs=reg, unmarshaler_factory=uf)
-            uc = UnmarshalContext(unmarshal_factory_context=ufc)
+            ufc = UnmarshalFactoryContext(runtime=rt)
+            uc = UnmarshalContext(runtime=rt)
             o2 = ufc.make_unmarshaler(PB).unmarshal(uc, v)
             print(o2)
 

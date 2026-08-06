@@ -5,6 +5,8 @@ with _lang.auto_proxy_init(globals()):
     ##
 
     from .accessor import (  # noqa
+        TypedValuesGetter,
+
         TypedValuesAccessor,
     )
 

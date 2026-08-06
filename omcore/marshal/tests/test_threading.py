@@ -4,8 +4,8 @@ import typing as ta
 
 from ... import dataclasses as dc
 from ..api.configs import ConfigRegistry
+from ..api.marshaling import SimpleMarshaling
 from ..api.naming import Naming
-from ..api.types import SimpleMarshaling
 from ..standard.factories import new_standard_marshaler_factory
 from ..standard.factories import new_standard_unmarshaler_factory
 

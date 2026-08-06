@@ -27,7 +27,7 @@ class ViaConfigMarshalerFactory(MarshalerFactory):
         if (key := rty.runtime_object) is None:
             return None
 
-        if (via := ctx.configs.get(key).get(MarshalVia)) is None:
+        if (via := ctx.get_configs(key).get(MarshalVia)) is None:
             return None
 
         return lambda: make_marshaler_via(ctx, rty, via)
@@ -38,7 +38,7 @@ class ViaConfigUnmarshalerFactory(UnmarshalerFactory):
         if (key := rty.runtime_object) is None:
             return None
 
-        if (via := ctx.configs.get(key).get(UnmarshalVia)) is None:
+        if (via := ctx.get_configs(key).get(UnmarshalVia)) is None:
             return None
 
         return lambda: make_unmarshaler_via(ctx, rty, via)

@@ -23,6 +23,47 @@ UniqueTypedValueU = ta.TypeVar('UniqueTypedValueU', bound='UniqueTypedValue')
 ##
 
 
+class TypedValuesGetter(ta.Protocol):
+    """Maps to `TypedValuesAccessor.get`"""
+
+    @ta.overload
+    def __call__(
+            self,
+            tv: UniqueTypedValueU,
+    ) -> UniqueTypedValueU:
+        ...
+
+    @ta.overload
+    def __call__(
+            self,
+            cls: type[UniqueTypedValueU],
+            /,
+            default: UniqueTypedValueU,
+    ) -> UniqueTypedValueU:
+        ...
+
+    @ta.overload
+    def __call__(  # type: ignore[overload-overlap]
+            self,
+            cls: type[UniqueTypedValueU],
+            /,
+            default: None = None,
+    ) -> UniqueTypedValueU | None:
+        ...
+
+    @ta.overload
+    def __call__(
+            self,
+            cls: type[TypedValueU],
+            /,
+            default: ta.Iterable[TypedValueU] | None = None,
+    ) -> ta.Sequence[TypedValueU]:
+        ...
+
+
+##
+
+
 class _NOT_SET(lang.Marker):  # noqa
     pass
 

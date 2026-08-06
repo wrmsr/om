@@ -7,18 +7,16 @@ TODO:
  - manifest interop
 """
 import abc
+import threading
 import typing as ta
 
-from ... import check
 from ... import dataclasses as dc
 from ... import lang
 from ... import reflect as rfl
-from ..api.configs import ConfigRegistry
 from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
-from ..api.internalstate import InternalState
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
@@ -50,42 +48,45 @@ class _OpenPolymorphismBase(lang.Abstract, ta.Generic[HandlerContextT, HandlerT]
         self._ty = ty
         self._opts = opts
 
+        # Handler instances are cached per (runtime, type) by the Runtime, so plain instance state suffices here.
+        self._state_lock = threading.Lock()
+        self._tup: _OpenPolymorphismBase._StateTup | None = None
+
     class _StateTup(ta.NamedTuple):
         config_impls: ta.Any
         impls: Impls
         handler: ta.Any
 
-    @dc.dataclass()
-    class _State(InternalState.ByConfig.ByHandler.Entry):
-        tup: _OpenPolymorphismBase._StateTup | None = None
-
     def _get_handler(self, ctx: HandlerContextT) -> HandlerT:
-        cr = check.isinstance(ctx.configs, ConfigRegistry)
+        cr = ctx.runtime.config_registry  # FIXME: untracked
 
-        sbh: InternalState.ByConfig.ByHandler = ctx.internal_state_by_config.by_handler(self)  # type: ignore[arg-type]
-        stx = sbh.get(_OpenPolymorphismBase._State)
-        st = stx.tup
+        st = self._tup
 
         config_impls: ta.Any = cr.get(self._ty).get(OpenPolymorphismImpl)
         if st is not None and config_impls is not None and st.config_impls is config_impls:
             return st.handler
 
-        impls = polymorphism_from_impls(
-            self._ty,
-            [ic.impl_ty for ic in config_impls],
-            naming=self._opts.naming,
-            strip_suffix=self._opts.strip_suffix,
-        ).impls
+        with self._state_lock:
+            st = self._tup
+            config_impls = cr.get(self._ty).get(OpenPolymorphismImpl)
+            if st is not None and config_impls is not None and st.config_impls is config_impls:
+                return st.handler
 
-        h = self._make_handler(ctx, impls)
+            impls = polymorphism_from_impls(
+                self._ty,
+                [ic.impl_ty for ic in config_impls],
+                naming=self._opts.naming,
+                strip_suffix=self._opts.strip_suffix,
+            ).impls
 
-        st = self._StateTup(
-            config_impls,
-            impls,
-            h,
-        )
+            h = self._make_handler(ctx, impls)
 
-        stx.tup = st
+            self._tup = self._StateTup(
+                config_impls,
+                impls,
+                h,
+            )
+
         return h
 
     @abc.abstractmethod
@@ -103,10 +104,12 @@ class OpenPolymorphismMarshaler(_OpenPolymorphismBase[MarshalContext, Marshaler]
             ctx: MarshalContext,
             impls: Impls,
     ) -> Marshaler:
+        # FIXME: naughty
+        mfc = MarshalFactoryContext(runtime=ctx.runtime)
         return make_polymorphism_marshaler(
             impls,
             self._opts.type_tagging,
-            ctx.marshal_factory_context,
+            mfc,
         )
 
     def marshal(self, ctx: MarshalContext, o: ta.Any | None) -> Value:
@@ -119,10 +122,12 @@ class OpenPolymorphismUnmarshaler(_OpenPolymorphismBase[UnmarshalContext, Unmars
             ctx: UnmarshalContext,
             impls: Impls,
     ) -> Unmarshaler:
+        # FIXME: naughty
+        ufc = UnmarshalFactoryContext(runtime=ctx.runtime)
         return make_polymorphism_unmarshaler(
             impls,
             self._opts.type_tagging,
-            ctx.unmarshal_factory_context,
+            ufc,
         )
 
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any | None:

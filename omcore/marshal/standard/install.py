@@ -1,21 +1,22 @@
 from ..api.configs import ConfigRegistry
 from ..api.types import MarshalerFactory
 from ..api.types import UnmarshalerFactory
+from .api import StandardMarshalerFactories
+from .api import StandardUnmarshalerFactories
 from .defaults import DEFAULT_STANDARD_FACTORIES
-from .factories import StandardMarshalerFactories
-from .factories import StandardUnmarshalerFactories
 
 
 ##
 
 
 def install_standard_factories(
-        cfgs: ConfigRegistry,
+        cr: ConfigRegistry,
         *factories: MarshalerFactory | UnmarshalerFactory,
 ) -> None:
-    with cfgs._lock:  # noqa
-        m_cfg = cfgs.get().get(StandardMarshalerFactories)
-        u_cfg = cfgs.get().get(StandardUnmarshalerFactories)
+    # FIXME: private lock access! bad coder!
+    with cr._lock:  # noqa
+        m_cfg = cr.get().get(StandardMarshalerFactories)
+        u_cfg = cr.get().get(StandardUnmarshalerFactories)
 
         m_lst: list[MarshalerFactory] = list(
             m_cfg.lst if m_cfg is not None else DEFAULT_STANDARD_FACTORIES.marshaler_factories,
@@ -44,6 +45,6 @@ def install_standard_factories(
                 raise TypeError(f)
 
         if m_new:
-            cfgs.update(None, StandardMarshalerFactories(m_lst), mode='override')
+            cr.update(None, StandardMarshalerFactories(m_lst), mode='override')
         if u_new:
-            cfgs.update(None, StandardUnmarshalerFactories(u_lst), mode='override')
+            cr.update(None, StandardUnmarshalerFactories(u_lst), mode='override')

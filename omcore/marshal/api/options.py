@@ -12,7 +12,7 @@ from ... import lang
 from ... import typedvalues as tv
 from .configs import Config
 from .configs import ConfigRegistry
-from .configs import Configs
+from .configs import ConfigsGetter
 
 
 ##
@@ -54,7 +54,7 @@ class IgnoreDefaultOptions(tv.UniqueTypedValue, Option, lang.Final):
 
 
 def update_default_options(
-        configs: ConfigRegistry,
+        cr: ConfigRegistry,
         *options: Option,
         discard: ta.Literal['all'] | ta.Iterable[type] | None = None,
         mode: ta.Literal['append', 'prepend', 'override', 'default'] = 'append',
@@ -62,18 +62,18 @@ def update_default_options(
     given = Options(*options)
 
     def inner(_: ConfigRegistry) -> None:
-        if (defaults := configs.get().get(DefaultOptions)) is not None:
+        if (defaults := cr.get().get(DefaultOptions)) is not None:
             new = defaults.v.update(*given, discard=discard, mode=mode)
         else:
             new = Options(*given)
 
-        configs.update(None, DefaultOptions(new), mode='override')
+        cr.update(None, DefaultOptions(new), mode='override')
 
-    configs.call_atomically(inner)
-    return configs
+    cr.call_atomically(inner)
+    return cr
 
 
-def build_effective_options(configs: Configs, options: ta.Iterable[Option] | None = None) -> Options:
+def build_effective_options(configs: ConfigsGetter, options: ta.Iterable[Option] | None = None) -> Options:
     if options:
         given = Options(*options)
     else:
@@ -82,7 +82,7 @@ def build_effective_options(configs: Configs, options: ta.Iterable[Option] | Non
     if IgnoreDefaultOptions in given:
         return given
 
-    if (defaults := configs.get().get(DefaultOptions)) is None:
+    if (defaults := configs().get(DefaultOptions)) is None:
         return given
 
     return defaults.v.update(

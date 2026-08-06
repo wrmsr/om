@@ -4,8 +4,7 @@ from ... import check
 from ... import lang
 from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import Marshaler
-from ..api.types import Unmarshaler
+from ..api.types import HandlerPair
 from ..api.values import Value
 from ..factories.typemap import TypeMapMarshalerFactory
 from ..factories.typemap import TypeMapUnmarshalerFactory
@@ -14,7 +13,7 @@ from ..factories.typemap import TypeMapUnmarshalerFactory
 ##
 
 
-class OpaqueReprMarshalerUnmarshaler(Marshaler, Unmarshaler):
+class OpaqueReprMarshalerUnmarshaler(HandlerPair):
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         if not isinstance(o, lang.OpaqueRepr):
             o = lang.OpaqueRepr(repr(o))

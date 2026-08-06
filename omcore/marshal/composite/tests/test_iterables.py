@@ -5,19 +5,19 @@ import pytest
 from ...api.contexts import UnmarshalContext
 from ...api.contexts import UnmarshalFactoryContext
 from ...api.options import Options
+from ...api.runtime import Runtime
 from ...standard.factories import StandardUnmarshalerFactory
 from ..api import DefaultIterableConstructors
 
 
 def test_ctor_option():
-    uf = StandardUnmarshalerFactory()
-    ufc = UnmarshalFactoryContext(unmarshaler_factory=uf)
+    ufc = UnmarshalFactoryContext(runtime=(rt := Runtime(unmarshaler_factory=StandardUnmarshalerFactory())))
 
-    uc = UnmarshalContext(unmarshal_factory_context=ufc)
+    uc = UnmarshalContext(runtime=rt)
     u = ufc.make_unmarshaler(ta.Sequence[int]).unmarshal(uc, [1, 2, 3])
     assert u == (1, 2, 3)
 
-    uc = UnmarshalContext(unmarshal_factory_context=ufc, options=Options(
+    uc = UnmarshalContext(runtime=rt, options=Options(
         DefaultIterableConstructors(sequence=list),
     ))
     u = ufc.make_unmarshaler(ta.Sequence[int]).unmarshal(uc, [1, 2, 3])
@@ -26,9 +26,8 @@ def test_ctor_option():
 
 def test_str_not_iterable_input():
     # A str is iterable but must not be silently exploded into characters.
-    uf = StandardUnmarshalerFactory()
-    ufc = UnmarshalFactoryContext(unmarshaler_factory=uf)
-    uc = UnmarshalContext(unmarshal_factory_context=ufc)
+    ufc = UnmarshalFactoryContext(runtime=(rt := Runtime(unmarshaler_factory=StandardUnmarshalerFactory())))
+    uc = UnmarshalContext(runtime=rt)
 
     with pytest.raises(TypeError):
         ufc.make_unmarshaler(ta.Sequence[str]).unmarshal(uc, 'abc')

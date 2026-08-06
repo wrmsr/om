@@ -46,18 +46,18 @@ class Processor:
         self._jmespath_expr: ta.Any | None = jmespath_expr
 
     @lang.cached_function
-    def _marshaler_factory(self) -> msh.MarshalerFactory:
-        return msh.new_standard_marshaler_factory(
-            first=[msh.BASE64_MARSHALER_FACTORY],
+    def _marshaling(self) -> msh.Marshaling:
+        return msh.RuntimeMarshaling(
+            msh.Runtime(
+                config_registry=msh.global_config_registry(),
+                marshaler_factory=msh.new_standard_marshaler_factory(
+                    first=[msh.BASE64_MARSHALER_FACTORY],
+                ),
+            ),
         )
 
     def _marshal(self, v: ta.Any) -> ta.Any:
-        return msh.MarshalContext(
-            marshal_factory_context=msh.MarshalFactoryContext(
-                configs=msh.global_config_registry(),
-                marshaler_factory=self._marshaler_factory(),
-            ),
-        ).marshal(v)
+        return self._marshaling().marshal(v)
 
     def process(self, v: ta.Any) -> ta.Iterator[ta.Any]:
         if self._jmespath_expr is not None:

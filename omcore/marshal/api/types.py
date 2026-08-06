@@ -1,180 +1,102 @@
 import abc
-import dataclasses as dc
 import typing as ta
 
-from ... import check
 from ... import lang
 from ... import reflect as rfl
-from ...funcs import guard as gfs
-from .configs import ConfigRegistry
-from .contexts import MarshalContext
-from .contexts import MarshalFactoryContext
-from .contexts import UnmarshalContext
-from .contexts import UnmarshalFactoryContext
-from .internalstate import InternalState
-from .options import Option
-from .options import build_effective_options
-from .values import Value
 
 
-T = ta.TypeVar('T')
+if ta.TYPE_CHECKING:
+    from .contexts import MarshalContext
+    from .contexts import MarshalFactoryContext
+    from .contexts import UnmarshalContext
+    from .contexts import UnmarshalFactoryContext
+    from .values import Value
 
 
-type Handler = BoundHandler | FactoryHandler
-type BoundHandler = Marshaler | Unmarshaler
-type FactoryHandler = MarshalerFactory | UnmarshalerFactory
+type Handler = Marshaler | Unmarshaler
+type Factory = MarshalerFactory | UnmarshalerFactory
+
+
+##
+
+
+def _check_pair_subclass(cls: type, l: type, r: type, pair: type) -> None:
+    if issubclass(cls, l) and issubclass(cls, r) and not issubclass(cls, pair):
+        raise TypeError(
+            f'{cls!r} subclasses both {l.__name__} and {r.__name__} and must therefore subclass {pair.__name__}',
+        )
 
 
 ##
 
 
 class Marshaler(lang.Abstract):
+    def __init_subclass__(cls, **kwargs: ta.Any) -> None:
+        super().__init_subclass__(**kwargs)
+
+        try:
+            _check_pair_subclass(cls, Marshaler, Unmarshaler, HandlerPair)
+        except NameError:
+            pass
+
     @abc.abstractmethod
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         raise NotImplementedError
 
 
 class Unmarshaler(lang.Abstract):
+    def __init_subclass__(cls, **kwargs: ta.Any) -> None:
+        super().__init_subclass__(**kwargs)
+
+        try:
+            _check_pair_subclass(cls, Marshaler, Unmarshaler, HandlerPair)
+        except NameError:
+            pass
+
     @abc.abstractmethod
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any:
         raise NotImplementedError
 
 
+class HandlerPair(Marshaler, Unmarshaler, lang.Abstract):
+    """
+    The mandatory (and mro-order-fixing) base class of anything subclassing both Marshaler and Unmarshaler - enforced by
+    those classes themselves. This makes dual-role handlers a nominal concept: an `isinstance(h, HandlerPair)` check is
+    always sufficient, there is no such thing as an object which is both a Marshaler and an Unmarshaler but not a
+    HandlerPair.
+    """
+
+
 ##
 
 
-MarshalerMaker: ta.TypeAlias = gfs.GuardFn[[MarshalFactoryContext, rfl.Type], Marshaler]
-UnmarshalerMaker: ta.TypeAlias = gfs.GuardFn[[UnmarshalFactoryContext, rfl.Type], Unmarshaler]
-
-
 class MarshalerFactory(lang.Abstract):
+    def __init_subclass__(cls, **kwargs: ta.Any) -> None:
+        super().__init_subclass__(**kwargs)
+
+        try:
+            _check_pair_subclass(cls, MarshalerFactory, UnmarshalerFactory, FactoryPair)
+        except NameError:
+            pass
+
     @abc.abstractmethod
     def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
         raise NotImplementedError
 
 
 class UnmarshalerFactory(lang.Abstract):
+    def __init_subclass__(cls, **kwargs: ta.Any) -> None:
+        super().__init_subclass__(**kwargs)
+
+        try:
+            _check_pair_subclass(cls, MarshalerFactory, UnmarshalerFactory, FactoryPair)
+        except NameError:
+            pass
+
     @abc.abstractmethod
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
         raise NotImplementedError
 
 
-##
-
-
-class Marshaling(lang.Abstract):
-    @abc.abstractmethod
-    def get_config_registry(self) -> ConfigRegistry:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_internal_state(self) -> InternalState:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_marshaler_factory(self) -> MarshalerFactory:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_unmarshaler_factory(self) -> UnmarshalerFactory:
-        raise NotImplementedError
-
-    ##
-
-    def new_marshal_factory_context(self) -> MarshalFactoryContext:
-        return MarshalFactoryContext(
-            configs=self.get_config_registry(),
-            internal_state=self.get_internal_state(),
-
-            marshaler_factory=self.get_marshaler_factory(),
-        )
-
-    def new_unmarshal_factory_context(self) -> UnmarshalFactoryContext:
-        return UnmarshalFactoryContext(
-            configs=self.get_config_registry(),
-            internal_state=self.get_internal_state(),
-
-            unmarshaler_factory=self.get_unmarshaler_factory(),
-        )
-
-    ##
-
-    def new_marshal_context(self, options: ta.Iterable[Option] | None = None) -> MarshalContext:
-        return MarshalContext(
-            marshal_factory_context=self.new_marshal_factory_context(),
-
-            options=build_effective_options(self.get_config_registry(), options),
-        )
-
-    def new_unmarshal_context(self, options: ta.Iterable[Option] | None = None) -> UnmarshalContext:
-        return UnmarshalContext(
-            unmarshal_factory_context=self.new_unmarshal_factory_context(),
-
-            options=build_effective_options(self.get_config_registry(), options),
-        )
-
-    #
-
-    @ta.final
-    def marshal(
-            self,
-            obj: ta.Any,
-            ty: ta.Any | None = None,
-            *options: Option,
-    ) -> Value:
-        return self.new_marshal_context(options).marshal(obj, ty)
-
-    @ta.overload
-    def unmarshal(
-            self,
-            v: Value,
-            ty: type[T],
-            *options: Option,
-    ) -> T:
-        ...
-
-    @ta.overload
-    def unmarshal(
-            self,
-            v: Value,
-            ty: ta.Any,
-            *options: Option,
-    ) -> ta.Any:
-        ...
-
-    @ta.final
-    def unmarshal(self, v, ty, *options):
-        return self.new_unmarshal_context(options).unmarshal(v, ty)
-
-
-#
-
-
-@dc.dataclass(frozen=True)
-class SimpleMarshaling(Marshaling):
-    config_registry: ConfigRegistry = dc.field(default_factory=ConfigRegistry)
-    internal_state: InternalState = dc.field(default_factory=InternalState)
-
-    marshaler_factory: MarshalerFactory | None = None
-    unmarshaler_factory: UnmarshalerFactory | None = None
-
-    def get_config_registry(self) -> ConfigRegistry:
-        return self.config_registry
-
-    def get_internal_state(self) -> InternalState:
-        return self.internal_state
-
-    def get_internal_state_by_config(self) -> InternalState.ByConfig:
-        try:
-            return self._internal_state_by_config  # type: ignore[attr-defined]
-        except AttributeError:
-            pass
-        ret = self.internal_state.by_config(self.config_registry)
-        object.__setattr__(self, '_internal_state_by_config', ret)
-        return ret
-
-    def get_marshaler_factory(self) -> MarshalerFactory:
-        return check.not_none(self.marshaler_factory)
-
-    def get_unmarshaler_factory(self) -> UnmarshalerFactory:
-        return check.not_none(self.unmarshaler_factory)
+class FactoryPair(MarshalerFactory, UnmarshalerFactory, lang.Abstract):
+    """The factory equivalent of HandlerPair, under the same enforcement."""

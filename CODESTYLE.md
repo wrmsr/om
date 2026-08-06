@@ -286,6 +286,10 @@ def make_it_a_tuple(t: T) -> tuple[T]:
   *unless* it's likely they will be involved in `super()` calls through multiple layers of inheritance (which should be
   fairly rare as composition is preferred to inheritance).
 - Properties should be free of side-effects.
+  - They must *never* do IO under any circumstance, and they should *strongly avoid* making any mutation or acquiring
+    locks. If one needs to do these things, it should be a method.
+    - Harmless, idempotent, lock-free, and otherwise sideeffect-free caching via mutation is permitted in properties,
+      but the threshold for 'just make it a method' is very low.
   - Rationale: Many utilities eagerly inspect properties at runtime, even private (underscore-prefixed) ones, so they
     cannot alter state.
 - Outside of rare, specific instances, **DO NOT** expose mutable internal class state.

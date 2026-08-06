@@ -1,6 +1,6 @@
 import enum
 
-from ...api.types import SimpleMarshaling
+from ...api.marshaling import SimpleMarshaling
 from ...factories.multi import MultiMarshalerFactory
 from ...factories.multi import MultiUnmarshalerFactory
 from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY

@@ -2,6 +2,7 @@
 Top-level parsing facade: routes through the default (interpreter) engine, compiling grammars on first use and caching
 the compiled artifact per grammar instance.
 """
+import threading
 import typing as ta
 import weakref
 
@@ -25,15 +26,22 @@ class _EngineCache:
 
         self._engine = engine
         self._compiled: ta.MutableMapping[Grammar, CompiledGrammar] = weakref.WeakKeyDictionary()
+        self._mtx = threading.RLock()
 
     def compile(self, grammar: Grammar) -> CompiledGrammar:
-        # Benign race: compilation is pure, so concurrent compiles of the same grammar just waste a little work.
         try:
             return self._compiled[grammar]
         except KeyError:
             pass
-        cg = self._compiled[grammar] = self._engine.compile(grammar)
-        return cg
+
+        with self._mtx:
+            try:
+                return self._compiled[grammar]
+            except KeyError:
+                pass
+
+            cg = self._compiled[grammar] = self._engine.compile(grammar)
+            return cg
 
 
 # FIXME: NO, NO GLOBALS!!

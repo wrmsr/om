@@ -1,9 +1,9 @@
 import typing as ta
 
 from ..api.contexts import MarshalContext
+from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import Marshaler
-from ..api.types import Unmarshaler
+from ..api.types import HandlerPair
 from ..api.values import Value
 from ..factories.typemap import TypeMapMarshalerFactory
 from ..factories.typemap import TypeMapUnmarshalerFactory
@@ -12,9 +12,11 @@ from ..factories.typemap import TypeMapUnmarshalerFactory
 ##
 
 
-class AnyMarshalerUnmarshaler(Marshaler, Unmarshaler):
+class AnyMarshalerUnmarshaler(HandlerPair):
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
-        return ctx.marshal_factory_context.make_marshaler(type(o)).marshal(ctx, o)
+        # FIXME: naughty
+        mfc = MarshalFactoryContext(runtime=(rt := ctx.runtime))
+        return rt.make_marshaler(mfc, type(o)).marshal(ctx, o)
 
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any:
         return v

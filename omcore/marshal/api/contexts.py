@@ -1,32 +1,17 @@
-"""
-TODO:
- - caches?
-  - generalized BaseContext cache?
-  - or at least config / metadata caches?
-   - auto-invalidated by ConfigRegistry.token
-"""
-import abc
 import dataclasses as dc
 import typing as ta
 
-from ... import check
 from ... import lang
 from ... import reflect as rfl
-from .configs import ConfigRegistry
-from .configs import Configs
-from .errors import UnhandledTypeError
-from .internalstate import InternalState
+from .configs import ConfigValues
 from .options import _EMPTY_OPTIONS
 from .options import Options
-from .reflect import ContextMirrorState
 
 
 if ta.TYPE_CHECKING:
+    from .runtime import Runtime
     from .types import Marshaler
-    from .types import MarshalerFactory
     from .types import Unmarshaler
-    from .types import UnmarshalerFactory
-    from .values import Value
 
 
 T = ta.TypeVar('T')
@@ -42,134 +27,54 @@ type FactoryContext = MarshalFactoryContext | UnmarshalFactoryContext
 
 @dc.dataclass(frozen=True, kw_only=True)
 class BaseContext(lang.Abstract, lang.Sealed):
-    @property
-    @abc.abstractmethod
-    def configs(self) -> Configs:
-        raise NotImplementedError
+    runtime: Runtime
 
-    @property
-    @abc.abstractmethod
-    def internal_state(self) -> InternalState:
-        raise NotImplementedError
-
-    @property
-    def internal_state_by_config(self) -> InternalState.ByConfig:
-        try:
-            return self._internal_state_by_config  # type: ignore[attr-defined]
-        except AttributeError:
-            pass
-        ret = self.internal_state.by_config(check.isinstance(self.configs, ConfigRegistry))
-        object.__setattr__(self, '_internal_state_by_config', ret)
-        return ret
-
-    @property
-    def mirror(self) -> rfl.Mirror:
-        return self.internal_state_by_config.get(ContextMirrorState).get_mirror(self.configs)
-
-    def _reflect(self, o: ta.Any) -> rfl.Type:
-        return self.mirror.reflect_type(o)
-
-
-# Regrettable, but we want to forbid non-factory contexts from having different configs than their factory context.
-
-del BaseContext.configs  # noqa
-del BaseContext.internal_state  # noqa
-BaseContext.__abstractmethods__ -= {'configs', 'internal_state'}
+    def get_mirror(self) -> rfl.Mirror:
+        return self.runtime.get_mirror()
 
 
 ##
 
 
-class _PreReflectFactory(lang.Abstract):
-    """Internal hook primarily for ReflectOverride."""
-
-    @abc.abstractmethod
-    def _pre_reflect(self, ctx: BaseContext) -> None:
-        raise NotImplementedError
+@dc.dataclass(frozen=True, kw_only=True)
+class BaseFactoryContext(BaseContext, lang.Abstract):
+    def get_configs(
+            self,
+            key: ta.Any = None,
+            *,
+            identity: bool | None = None,
+    ) -> ConfigValues:
+        return self.runtime.get_factory_configs(
+            key,
+            identity=identity,
+        )
 
 
 @dc.dataclass(frozen=True, kw_only=True)
-class MarshalFactoryContext(BaseContext, lang.Final):
-    configs: Configs = dc.field(default_factory=ConfigRegistry)
-    internal_state: InternalState = dc.field(default_factory=InternalState)
-
-    marshaler_factory: MarshalerFactory | None = None
-
+class MarshalFactoryContext(BaseFactoryContext, lang.Final):
     def make_marshaler(self, o: ta.Any) -> Marshaler:
-        fac = check.not_none(self.marshaler_factory)
-
-        if isinstance(fac, _PreReflectFactory):
-            fac._pre_reflect(self)  # noqa
-
-        rty = self._reflect(o)
-
-        if (m := fac.make_marshaler(self, rty)) is None:
-            raise UnhandledTypeError(rty)  # noqa
-
-        return m()
+        return self.runtime.make_marshaler(self, o)
 
 
 @dc.dataclass(frozen=True, kw_only=True)
-class UnmarshalFactoryContext(BaseContext, lang.Final):
-    configs: Configs = dc.field(default_factory=ConfigRegistry)
-    internal_state: InternalState = dc.field(default_factory=InternalState)
-
-    unmarshaler_factory: UnmarshalerFactory | None = None
-
+class UnmarshalFactoryContext(BaseFactoryContext, lang.Final):
     def make_unmarshaler(self, o: ta.Any) -> Unmarshaler:
-        fac = check.not_none(self.unmarshaler_factory)
-
-        if isinstance(fac, _PreReflectFactory):
-            fac._pre_reflect(self)  # noqa
-
-        rty = self._reflect(o)
-
-        if (m := fac.make_unmarshaler(self, rty)) is None:
-            raise UnhandledTypeError(rty)  # noqa
-
-        return m()
+        return self.runtime.make_unmarshaler(self, o)
 
 
 ##
 
 
 @dc.dataclass(frozen=True, kw_only=True)
-class MarshalContext(BaseContext, lang.Final):
-    options: Options = _EMPTY_OPTIONS
-
-    marshal_factory_context: MarshalFactoryContext
-
-    @property
-    def configs(self) -> Configs:
-        return self.marshal_factory_context.configs
-
-    @property
-    def internal_state(self) -> InternalState:
-        return self.marshal_factory_context.internal_state
-
-    def marshal(self, obj: ta.Any, ty: ta.Any | None = None) -> Value:
-        return self.marshal_factory_context.make_marshaler(ty if ty is not None else type(obj)).marshal(self, obj)
+class BaseHandlerContext(BaseContext, lang.Abstract):
+    pass
 
 
 @dc.dataclass(frozen=True, kw_only=True)
-class UnmarshalContext(BaseContext, lang.Final):
+class MarshalContext(BaseHandlerContext, lang.Final):
     options: Options = _EMPTY_OPTIONS
 
-    unmarshal_factory_context: UnmarshalFactoryContext
 
-    @property
-    def configs(self) -> Configs:
-        return self.unmarshal_factory_context.configs
-
-    @property
-    def internal_state(self) -> InternalState:
-        return self.unmarshal_factory_context.internal_state
-
-    @ta.overload
-    def unmarshal(self, v: Value, ty: type[T]) -> T: ...
-
-    @ta.overload
-    def unmarshal(self, v: Value, ty: ta.Any) -> ta.Any: ...
-
-    def unmarshal(self, v, ty):
-        return self.unmarshal_factory_context.make_unmarshaler(ty).unmarshal(self, v)
+@dc.dataclass(frozen=True, kw_only=True)
+class UnmarshalContext(BaseHandlerContext, lang.Final):
+    options: Options = _EMPTY_OPTIONS

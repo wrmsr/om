@@ -2,12 +2,10 @@ import dataclasses as dc
 
 import pytest
 
+from ...api.marshaling import SimpleMarshaling
 from ...api.naming import Naming
-from ...api.types import SimpleMarshaling
 from ...factories.multi import MultiMarshalerFactory
 from ...factories.multi import MultiUnmarshalerFactory
-from ...factories.typecache import TypeCacheMarshalerFactory
-from ...factories.typecache import TypeCacheUnmarshalerFactory
 from ...objects.dataclasses import DataclassMarshalerFactory
 from ...objects.dataclasses import DataclassUnmarshalerFactory
 from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY
@@ -40,22 +38,18 @@ class BoolFoo(Foo):
 
 def test_open():
     msh = SimpleMarshaling(
-        marshaler_factory=TypeCacheMarshalerFactory(
-            MultiMarshalerFactory(
-                OpenPolymorphismMarshalerFactory(Foo, opo := PolymorphismOptions(
-                    naming=Naming.SNAKE,
-                    strip_suffix=True,
-                )),
-                DataclassMarshalerFactory(),
-                PRIMITIVE_MARSHALER_FACTORY,
-            ),
+        marshaler_factory=MultiMarshalerFactory(
+            OpenPolymorphismMarshalerFactory(Foo, opo := PolymorphismOptions(
+                naming=Naming.SNAKE,
+                strip_suffix=True,
+            )),
+            DataclassMarshalerFactory(),
+            PRIMITIVE_MARSHALER_FACTORY,
         ),
-        unmarshaler_factory=TypeCacheUnmarshalerFactory(
-            MultiUnmarshalerFactory(
-                OpenPolymorphismUnmarshalerFactory(Foo, opo),
-                DataclassUnmarshalerFactory(),
-                PRIMITIVE_UNMARSHALER_FACTORY,
-            ),
+        unmarshaler_factory=MultiUnmarshalerFactory(
+            OpenPolymorphismUnmarshalerFactory(Foo, opo),
+            DataclassUnmarshalerFactory(),
+            PRIMITIVE_UNMARSHALER_FACTORY,
         ),
     )
 

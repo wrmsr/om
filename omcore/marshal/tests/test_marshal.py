@@ -10,7 +10,8 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
-from ..api.types import SimpleMarshaling
+from ..api.marshaling import SimpleMarshaling
+from ..api.runtime import Runtime
 from ..standard.factories import StandardMarshalerFactory
 from ..standard.factories import StandardUnmarshalerFactory
 from .foox import Foox
@@ -35,12 +36,13 @@ class Foo(Foox):
 
 
 def test_marshal():
-    # reg = Registry()
-    # reg.register(spec_of(int), SetType(marshaler=PrimitiveMarshaler()))
-
-    mf = StandardMarshalerFactory()
-
     reg = ConfigRegistry()
+
+    rt = Runtime(
+        config_registry=reg,
+        marshaler_factory=StandardMarshalerFactory(),
+        unmarshaler_factory=StandardUnmarshalerFactory(),
+    )
 
     print()
 
@@ -48,17 +50,15 @@ def test_marshal():
     print(obj)
     print()
 
-    mfc = MarshalFactoryContext(configs=reg, marshaler_factory=mf)
-    mc = MarshalContext(marshal_factory_context=mfc)
+    mfc = MarshalFactoryContext(runtime=rt)
+    mc = MarshalContext(runtime=rt)
     for _ in range(2):
         mobj = mfc.make_marshaler(type(obj)).marshal(mc, obj)
         print(mobj)
     print()
 
-    uf = StandardUnmarshalerFactory()
-
-    ufc = UnmarshalFactoryContext(configs=reg, unmarshaler_factory=uf)
-    uc = UnmarshalContext(unmarshal_factory_context=ufc)
+    ufc = UnmarshalFactoryContext(runtime=rt)
+    uc = UnmarshalContext(runtime=rt)
     for _ in range(2):
         uobj = ufc.make_unmarshaler(type(obj)).unmarshal(uc, mobj)  # noqa
         print(uobj)

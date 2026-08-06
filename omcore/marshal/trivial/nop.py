@@ -2,15 +2,14 @@ import typing as ta
 
 from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import Marshaler
-from ..api.types import Unmarshaler
+from ..api.types import HandlerPair
 from ..api.values import Value
 
 
 ##
 
 
-class NopMarshalerUnmarshaler(Marshaler, Unmarshaler):
+class NopMarshalerUnmarshaler(HandlerPair):
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         return o  # noqa
 

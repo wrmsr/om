@@ -68,7 +68,7 @@ class _RequestResponseMarshaler(msh.Marshaler):
         tv_v = check.isinstance(tv_m.marshal(ctx, o._typed_values), ta.Sequence)  # noqa
 
         if self.v_m is None:
-            orty = check.isinstance(ctx.mirror.reflect_type(rfl.get_orig_class(o)), rfl.Instance)
+            orty = check.isinstance(ctx.get_mirror().reflect_type(rfl.get_orig_class(o)), rfl.Instance)
             check.state(orty.type.runtime_object in (Request, Response))
             v_rty, tv_rty = orty.args
             v_v = ctx.marshal_factory_context.make_marshaler(v_rty).marshal(ctx, o.v)  # FIXME
@@ -77,7 +77,7 @@ class _RequestResponseMarshaler(msh.Marshaler):
 
         md_fmd = self.rr_flds.md.metadata[msh.FieldOptions]
         md_mf = check.isinstance(check.not_none(md_fmd.marshal_via).o, msh.MarshalerFactory)
-        md_m = md_mf.make_marshaler(ctx.marshal_factory_context, ctx.mirror.reflect_type(self.rr_flds.md.type))()  # FIXME  # noqa
+        md_m = md_mf.make_marshaler(ctx.marshal_factory_context, ctx.get_mirror().reflect_type(self.rr_flds.md.type))()  # FIXME  # noqa
         md_v = md_m.marshal(ctx, o._metadata)  # noqa
 
         return {
@@ -161,7 +161,7 @@ class _RequestResponseUnmarshalerFactory(msh.UnmarshalerFactory):
 
             md_fmd = rr_flds.md.metadata[msh.FieldOptions]
             md_uf = check.isinstance(check.not_none(md_fmd.unmarshal_via).o, msh.UnmarshalerFactory)
-            md_u = md_uf.make_unmarshaler(ctx, ctx.mirror.reflect_type(rr_flds.md.type))()  # FIXME
+            md_u = md_uf.make_unmarshaler(ctx, ctx.get_mirror().reflect_type(rr_flds.md.type))()  # FIXME
 
             return _RequestResponseUnmarshaler(
                 rty,
