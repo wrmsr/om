@@ -6,6 +6,7 @@ from ... import reflect as rfl
 from ... import typedvalues as tv
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from ..composite.iterables import IterableMarshaler
@@ -51,13 +52,21 @@ def build_typed_values_marshaler(ctx: MarshalFactoryContext, rty: rfl.Type) -> M
 
 class TypedValuesMarshalerFactory(MarshalerFactoryMethodClass):
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_generic(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_generic(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if _get_typed_values_element(rty) is None:
             return None
         return lambda: build_typed_values_marshaler(ctx, rty)
 
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_concrete(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_concrete(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not _is_bare_typed_values(rty):
             return None
         return lambda: lang.raise_(NotImplementedError)
@@ -77,13 +86,21 @@ def build_typed_values_unmarshaler(ctx: UnmarshalFactoryContext, rty: rfl.Type) 
 
 class TypedValuesUnmarshalerFactory(UnmarshalerFactoryMethodClass):
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _build(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def _build(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if _get_typed_values_element(rty) is None:
             return None
         return lambda: build_typed_values_unmarshaler(ctx, rty)
 
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _build_concrete(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:  # noqa
+    def _build_concrete(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not _is_bare_typed_values(rty):
             return None
         return lambda: lang.raise_(NotImplementedError)

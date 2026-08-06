@@ -1165,197 +1165,6 @@ def _process_dataclass__9412a133cbc3c08550c26c6f21a5b8c6db14a745():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('ctx', 'rty')), EqPlan(fields=('ctx', 'rty')), HashPlan(action='set_none', fields="
-        "None, cache=None), InitPlan(fields=(InitPlan.Field(name='ctx', annotation=OpRef(name='init.fields.0.annotation"
-        "'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None), InitPlan.Field(name='rty', annotation=OpRef(name='init.fields.1.annotation')"
-        ", default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, v"
-        "alidate=None, check_type=None)), self_param='self', std_params=('ctx', 'rty'), kw_only_params=(), frozen=False"
-        ", slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='ctx"
-        "', kw_only=False, fn=None), ReprPlan.Field(name='rty', kw_only=False, fn=None)), id=False, terse=False, defaul"
-        "t_fn=None)))"
-    ),
-    plan_repr_sha1='35f016ce203e8213abc42b9333cca4a0902d0a62',
-    cls_names=(
-        ('omcore.marshal.objects.dataclasses', '_DataclassMarshalerBuilder'),
-    ),
-)
-def _process_dataclass__35f016ce203e8213abc42b9333cca4a0902d0a62():
-    def _process_dataclass(
-        *,
-        __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__set_cls_attr,
-    ):
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                ctx=self.ctx,
-                rty=self.rty,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.ctx == other.ctx and
-                self.rty == other.rty
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
-
-        def __init__(
-            self,
-            ctx: __dataclass__init__fields__0__annotation,
-            rty: __dataclass__init__fields__1__annotation,
-        ) -> __dataclass__None:
-            self.ctx = ctx
-            self.rty = rty
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"ctx={self.ctx!r}")
-            parts.append(f"rty={self.rty!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('ctx', 'rty', '_fields_dct', '_defaults', '_embeds', '_embeds_by_unmarshal_name'))"
-        ", EqPlan(fields=('ctx', 'rty', '_fields_dct', '_defaults', '_embeds', '_embeds_by_unmarshal_name')), HashPlan("
-        "action='set_none', fields=None, cache=None), InitPlan(fields=(InitPlan.Field(name='ctx', annotation=OpRef(name"
-        "='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldT"
-        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='rty', annotation=OpRef(name='"
-        "init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTyp"
-        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='_fields_dct', annotation=OpRef("
-        "name='init.fields.2.annotation'), default=None, default_factory=OpRef(name='init.fields.2.default_factory'), i"
-        "nit=False, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPl"
-        "an.Field(name='_defaults', annotation=OpRef(name='init.fields.3.annotation'), default=None, default_factory=Op"
-        "Ref(name='init.fields.3.default_factory'), init=False, override=False, field_type=FieldType.INSTANCE, coerce=N"
-        "one, validate=None, check_type=None), InitPlan.Field(name='_embeds', annotation=OpRef(name='init.fields.4.anno"
-        "tation'), default=None, default_factory=OpRef(name='init.fields.4.default_factory'), init=False, override=Fals"
-        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='_embeds_b"
-        "y_unmarshal_name', annotation=OpRef(name='init.fields.5.annotation'), default=None, default_factory=OpRef(name"
-        "='init.fields.5.default_factory'), init=False, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
-        "idate=None, check_type=None)), self_param='self', std_params=('ctx', 'rty'), kw_only_params=(), frozen=False, "
-        "slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='ctx',"
-        " kw_only=False, fn=None), ReprPlan.Field(name='rty', kw_only=False, fn=None), ReprPlan.Field(name='_fields_dct"
-        "', kw_only=False, fn=None), ReprPlan.Field(name='_defaults', kw_only=False, fn=None), ReprPlan.Field(name='_em"
-        "beds', kw_only=False, fn=None), ReprPlan.Field(name='_embeds_by_unmarshal_name', kw_only=False, fn=None)), id="
-        "False, terse=False, default_fn=None)))"
-    ),
-    plan_repr_sha1='4bfadfa5296b12af16efea03373079c9e7c1a7e9',
-    cls_names=(
-        ('omcore.marshal.objects.dataclasses', '_DataclassUnmarshalerBuilder'),
-    ),
-)
-def _process_dataclass__4bfadfa5296b12af16efea03373079c9e7c1a7e9():
-    def _process_dataclass(
-        *,
-        __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__default_factory,
-        __dataclass__init__fields__3__default_factory,
-        __dataclass__init__fields__4__default_factory,
-        __dataclass__init__fields__5__default_factory,
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__set_cls_attr,
-    ):
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                ctx=self.ctx,
-                rty=self.rty,
-                _fields_dct=self._fields_dct,
-                _defaults=self._defaults,
-                _embeds=self._embeds,
-                _embeds_by_unmarshal_name=self._embeds_by_unmarshal_name,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.ctx == other.ctx and
-                self.rty == other.rty and
-                self._fields_dct == other._fields_dct and
-                self._defaults == other._defaults and
-                self._embeds == other._embeds and
-                self._embeds_by_unmarshal_name == other._embeds_by_unmarshal_name
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
-
-        def __init__(
-            self,
-            ctx: __dataclass__init__fields__0__annotation,
-            rty: __dataclass__init__fields__1__annotation,
-        ) -> __dataclass__None:
-            _fields_dct = __dataclass__init__fields__2__default_factory()
-            _defaults = __dataclass__init__fields__3__default_factory()
-            _embeds = __dataclass__init__fields__4__default_factory()
-            _embeds_by_unmarshal_name = __dataclass__init__fields__5__default_factory()
-            self.ctx = ctx
-            self.rty = rty
-            self._fields_dct = _fields_dct
-            self._defaults = _defaults
-            self._embeds = _embeds
-            self._embeds_by_unmarshal_name = _embeds_by_unmarshal_name
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"ctx={self.ctx!r}")
-            parts.append(f"rty={self.rty!r}")
-            parts.append(f"_fields_dct={self._fields_dct!r}")
-            parts.append(f"_defaults={self._defaults!r}")
-            parts.append(f"_embeds={self._embeds!r}")
-            parts.append(f"_embeds_by_unmarshal_name={self._embeds_by_unmarshal_name!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('name', 'type', 'marshal_name', 'unmarshal_names', 'options')), EqPlan(fields=('na"
         "me', 'type', 'marshal_name', 'unmarshal_names', 'options')), FrozenPlan(fields=('name', 'type', 'marshal_name'"
         ", 'unmarshal_names', 'options'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('name', 'ty"
@@ -1508,21 +1317,23 @@ def _process_dataclass__2acf7487ade791d943a3c00b3fc998dbcd14c628():
         "Plans(tup=(CopyPlan(fields=('lst',)), EqPlan(fields=('lst',)), FrozenPlan(fields=('lst',), allow_dynamic_dunde"
         "r_attrs=False), HashPlan(action='add', fields=('lst',), cache=False), InitPlan(fields=(InitPlan.Field(name='ls"
         "t', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override"
-        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_"
-        "params=('lst',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(OpRef(name='ini"
-        "t.init_fns.0'), OpRef(name='init.init_fns.1'), OpRef(name='init.init_fns.2')), validate_fns=()), ReprPlan(fiel"
-        "ds=(ReprPlan.Field(name='lst', kw_only=False, fn=None),), id=False, terse=False, default_fn=None)))"
+        "=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0.coerce'), validate=None, check_type=No"
+        "ne),), self_param='self', std_params=('lst',), kw_only_params=(), frozen=True, slots=False, post_init_params=N"
+        "one, init_fns=(OpRef(name='init.init_fns.0'), OpRef(name='init.init_fns.1'), OpRef(name='init.init_fns.2')), v"
+        "alidate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='lst', kw_only=False, fn=None),), id=False, terse=False,"
+        " default_fn=None)))"
     ),
-    plan_repr_sha1='d79af82ecd003199ceaa4594c2592f2dbb8ba386',
+    plan_repr_sha1='a1e50f527639319a4d3a5e71e6708fa8509ad77f',
     cls_names=(
         ('omcore.marshal.objects.infos', 'FieldInfos'),
     ),
 )
-def _process_dataclass__d79af82ecd003199ceaa4594c2592f2dbb8ba386():
+def _process_dataclass__a1e50f527639319a4d3a5e71e6708fa8509ad77f():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__coerce,
         __dataclass__init__init_fns__0,
         __dataclass__init__init_fns__1,
         __dataclass__init__init_fns__2,
@@ -1587,6 +1398,7 @@ def _process_dataclass__d79af82ecd003199ceaa4594c2592f2dbb8ba386():
             self,
             lst: __dataclass__init__fields__0__annotation,
         ) -> __dataclass__None:
+            lst = __dataclass__init__fields__0__coerce(lst)
             __dataclass__object_setattr(self, 'lst', lst)
             __dataclass__init__init_fns__0(self)
             __dataclass__init__init_fns__1(self)
@@ -1851,6 +1663,171 @@ def _process_dataclass__1be8e124c66f00c82a764169ffbcb93f04b0b647():
             parts = []
             parts.append(f"dct={self.dct!r}")
             parts.append(f"specials={self.specials!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('ty', 'fields', 'specials', 'ignore_unknown', 'unwrap_if_single_field', 'embeds'))"
+        ", EqPlan(fields=('ty', 'fields', 'specials', 'ignore_unknown', 'unwrap_if_single_field', 'embeds')), FrozenPla"
+        "n(fields=('ty', 'fields', 'specials', 'ignore_unknown', 'unwrap_if_single_field', 'embeds'), allow_dynamic_dun"
+        "der_attrs=False), HashPlan(action='add', fields=('ty', 'fields', 'specials', 'ignore_unknown', 'unwrap_if_sing"
+        "le_field', 'embeds'), cache=False), InitPlan(fields=(InitPlan.Field(name='ty', annotation=OpRef(name='init.fie"
+        "lds.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTAN"
+        "CE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='fields', annotation=OpRef(name='init.fi"
+        "elds.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
+        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='specials', annotation=OpRef(name='init"
+        ".fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override"
+        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='igno"
+        "re_unknown', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), d"
+        "efault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, che"
+        "ck_type=None), InitPlan.Field(name='unwrap_if_single_field', annotation=OpRef(name='init.fields.4.annotation')"
+        ", default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_type=Fie"
+        "ldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='embeds', annotation=OpRef("
+        "name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factory=None, init=True"
+        ", override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.5.coerce'), validate=None, che"
+        "ck_type=None)), self_param='self', std_params=(), kw_only_params=('ty', 'fields', 'specials', 'ignore_unknown'"
+        ", 'unwrap_if_single_field', 'embeds'), frozen=True, slots=False, post_init_params=(), init_fns=(), validate_fn"
+        "s=()), ReprPlan(fields=(ReprPlan.Field(name='ty', kw_only=True, fn=None), ReprPlan.Field(name='fields', kw_onl"
+        "y=True, fn=None), ReprPlan.Field(name='specials', kw_only=True, fn=None), ReprPlan.Field(name='ignore_unknown'"
+        ", kw_only=True, fn=None), ReprPlan.Field(name='unwrap_if_single_field', kw_only=True, fn=None), ReprPlan.Field"
+        "(name='embeds', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='8047f2cd401ffc04bd344704c475986a68be9701',
+    cls_names=(
+        ('omcore.marshal.objects.specs', 'ObjectSpec'),
+    ),
+)
+def _process_dataclass__8047f2cd401ffc04bd344704c475986a68be9701():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__coerce,
+        __dataclass__init__fields__5__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                ty=self.ty,
+                fields=self.fields,
+                specials=self.specials,
+                ignore_unknown=self.ignore_unknown,
+                unwrap_if_single_field=self.unwrap_if_single_field,
+                embeds=self.embeds,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.ty == other.ty and
+                self.fields == other.fields and
+                self.specials == other.specials and
+                self.ignore_unknown == other.ignore_unknown and
+                self.unwrap_if_single_field == other.unwrap_if_single_field and
+                self.embeds == other.embeds
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'ty',
+            'fields',
+            'specials',
+            'ignore_unknown',
+            'unwrap_if_single_field',
+            'embeds',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.ty,
+                self.fields,
+                self.specials,
+                self.ignore_unknown,
+                self.unwrap_if_single_field,
+                self.embeds,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            ty: __dataclass__init__fields__0__annotation,
+            fields: __dataclass__init__fields__1__annotation,
+            specials: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            ignore_unknown: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            unwrap_if_single_field: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            embeds: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+        ) -> __dataclass__None:
+            embeds = __dataclass__init__fields__5__coerce(embeds)
+            __dataclass__object_setattr(self, 'ty', ty)
+            __dataclass__object_setattr(self, 'fields', fields)
+            __dataclass__object_setattr(self, 'specials', specials)
+            __dataclass__object_setattr(self, 'ignore_unknown', ignore_unknown)
+            __dataclass__object_setattr(self, 'unwrap_if_single_field', unwrap_if_single_field)
+            __dataclass__object_setattr(self, 'embeds', embeds)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"ty={self.ty!r}")
+            parts.append(f"fields={self.fields!r}")
+            parts.append(f"specials={self.specials!r}")
+            parts.append(f"ignore_unknown={self.ignore_unknown!r}")
+            parts.append(f"unwrap_if_single_field={self.unwrap_if_single_field!r}")
+            parts.append(f"embeds={self.embeds!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

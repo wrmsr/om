@@ -9,6 +9,8 @@ from ...factories.multi import MultiMarshalerFactory
 from ...factories.multi import MultiUnmarshalerFactory
 from ...objects.dataclasses import DataclassMarshalerFactory
 from ...objects.dataclasses import DataclassUnmarshalerFactory
+from ...objects.marshal import ObjectMarshalerFactory
+from ...objects.unmarshal import ObjectUnmarshalerFactory
 from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY
 from ...singular.primitives import PRIMITIVE_UNMARSHALER_FACTORY
 from ..api import set_polymorphic_from_subclasses
@@ -43,11 +45,13 @@ def test_polymorphism_helper():
         rt = Runtime(
             marshaler_factory=MultiMarshalerFactory(
                 pmf,
+                ObjectMarshalerFactory(),
                 DataclassMarshalerFactory(),
                 PRIMITIVE_MARSHALER_FACTORY,
             ),
             unmarshaler_factory=MultiUnmarshalerFactory(
                 puf,
+                ObjectUnmarshalerFactory(),
                 DataclassUnmarshalerFactory(),
                 PRIMITIVE_UNMARSHALER_FACTORY,
             ),

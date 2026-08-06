@@ -14,14 +14,22 @@ from .base import ShapeInfo
 
 
 class _EnumMarshalerFactory(msh.MarshalerFactory):
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (ety := rfl.get_runtime_type_or_none(rty)) is None or not issubclass(ety, Enum):
             return None
         return lambda: msh.EnumValueMarshaler(ety)
 
 
 class _EnumUnmarshalerFactory(msh.UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (ety := rfl.get_runtime_type_or_none(rty)) is None or not issubclass(ety, Enum):
             return None
         return lambda: msh.EnumValueUnmarshaler(ety)
@@ -51,7 +59,11 @@ def _build_shape_filed_infos(si: ShapeInfo) -> msh.FieldInfos:
 
 
 class _ShapeMarshalerFactory(msh.MarshalerFactory):
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (sty := rfl.get_runtime_type_or_none(rty)) is None or not issubclass(sty, Shape):
             return None
 
@@ -68,7 +80,11 @@ class _ShapeMarshalerFactory(msh.MarshalerFactory):
 
 
 class _ShapeUnmarshalerFactory(msh.UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (sty := rfl.get_runtime_type_or_none(rty)) is None or not issubclass(sty, Shape):
             return None
 

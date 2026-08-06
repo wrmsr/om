@@ -1,4 +1,4 @@
-from ... import reflect as rfl
+import typing as ta
 
 
 ##
@@ -10,7 +10,7 @@ class MarshalError(Exception):
 
 class UnhandledTypeError(MarshalError):
     @property
-    def rty(self) -> rfl.Type:
+    def spec(self) -> ta.Any:
         return self.args[0]
 
 
@@ -20,5 +20,5 @@ class ForbiddenError(MarshalError):
 
 class ForbiddenTypeError(MarshalError):
     @property
-    def rty(self) -> rfl.Type:
+    def spec(self) -> ta.Any:
         return self.args[0]

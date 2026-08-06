@@ -88,7 +88,11 @@ class _RequestResponseMarshaler(msh.Marshaler):
 
 
 class _RequestResponseMarshalerFactory(msh.MarshalerFactory):
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if _get_rr_cls(rty) is None:
             return None
 
@@ -143,7 +147,11 @@ class _RequestResponseUnmarshaler(msh.Unmarshaler):
 
 
 class _RequestResponseUnmarshalerFactory(msh.UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if _get_rr_cls(rty) is None:
             return None
 
@@ -218,7 +226,11 @@ class _MetadataMarshalerUnmarshalerFactory(msh.MarshalerFactory, msh.Unmarshaler
 
         return impls
 
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not self._matches(rty):
             return None
 
@@ -228,7 +240,11 @@ class _MetadataMarshalerUnmarshalerFactory(msh.MarshalerFactory, msh.Unmarshaler
             ctx,
         )
 
-    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not self._matches(rty):
             return None
 

@@ -6,12 +6,15 @@ from ... import dataclasses as dc
 from ... import reflect as rfl
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Unmarshaler
 from ..api.types import UnmarshalerFactory
 from ..api.values import Value
+from ..api.vias import make_unmarshaler_via
 from .api import ObjectSpecials
 from .infos import FieldInfo
 from .infos import FieldInfos
+from .specs import ObjectSpec
 
 
 ##
@@ -135,6 +138,109 @@ class ObjectUnmarshaler(Unmarshaler):
 ##
 
 
+class _ObjectUnmarshalerBuilder:
+    def __init__(self, ctx: UnmarshalFactoryContext, spec: ObjectSpec) -> None:
+        super().__init__()
+
+        self.ctx = ctx
+        self.spec = spec
+
+        self._fields_dct: dict[str, tuple[FieldInfo, Unmarshaler]] = {}
+
+        self._defaults: dict[str, ta.Any] = {}
+        self._embeds: dict[str, type] = {}
+        self._embeds_by_unmarshal_name: dict[str, tuple[str, str]] = {}
+
+    def _make_field_unmarshaler(self, fi: FieldInfo) -> Unmarshaler:
+        if (via := fi.options.unmarshal_via) is not None:
+            return make_unmarshaler_via(self.ctx, fi.type, via)
+
+        return self.ctx.make_unmarshaler(fi.type)
+
+    def _add_field(
+            self,
+            spec: ObjectSpec,
+            fi: FieldInfo,
+            *,
+            prefixes: ta.Iterable[str] = ('',),
+    ) -> ta.Iterable[str]:
+        if fi.options.no_unmarshal:
+            return []
+
+        ret: list[str] = []
+
+        if fi.options.embed:
+            e_spec = spec.embeds[fi.name]
+            if e_spec.specials.set:
+                raise Exception(f'Embedded fields cannot have specials: {e_spec.ty}')
+
+            self._embeds[fi.name] = e_spec.ty
+            for e_fi in e_spec.fields:
+                e_ns = self._add_field(e_spec, e_fi, prefixes=[p + ep for p in prefixes for ep in fi.unmarshal_names])
+                self._embeds_by_unmarshal_name.update({e_f: (fi.name, e_fi.name) for e_f in e_ns})
+                ret.extend(e_ns)
+
+        else:
+            tup = (fi, self._make_field_unmarshaler(fi))
+
+            for pfx in prefixes:
+                for un in fi.unmarshal_names:
+                    un = pfx + un
+                    if un in self._fields_dct:
+                        raise KeyError(f'Duplicate fields for name {un!r}: {fi.name!r}, {self._fields_dct[un][0].name!r}')  # noqa
+                    self._fields_dct[un] = tup
+                    ret.append(un)
+
+            if (dfl := fi.options.default) is not None and dfl.present:
+                self._defaults[fi.name] = dfl.must()
+
+        return ret
+
+    def build(self) -> Unmarshaler:
+        spec = self.spec
+
+        for fi in spec.fields:
+            if fi.name in spec.specials.set:
+                continue
+            self._add_field(spec, fi)
+
+        unwrap_if_single_field: FieldInfo | None = None
+        if spec.unwrap_if_single_field in ('unmarshal', True):
+            unwrap_if_single_field = next(iter(self._fields_dct.values()))[0]
+
+        return ObjectUnmarshaler(
+            spec.ty,
+            self._fields_dct,
+            specials=spec.specials,
+            defaults=self._defaults,
+            embeds=self._embeds,
+            embeds_by_unmarshal_name=self._embeds_by_unmarshal_name,
+            ignore_unknown=spec.ignore_unknown,
+            unwrap_if_single_field=unwrap_if_single_field,
+            # Must mirror the marshaler's participating-field count (which excludes no_marshal fields and specials) or
+            # unwrapped output won't roundtrip.
+            is_single_field=len([
+                fi
+                for fi in spec.fields
+                if not fi.options.no_unmarshal
+                and fi.name not in spec.specials.set
+            ]) < 2,
+        )
+
+
+class ObjectUnmarshalerFactory(UnmarshalerFactory):
+    """Consumes ObjectSpecs. Spec consumption is config-free - everything is baked into the spec."""
+
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, ObjectSpec):
+            return None
+
+        return lambda: _ObjectUnmarshalerBuilder(ctx, spec).build()
+
+
+##
+
+
 @dc.dataclass(frozen=True)
 class SimpleObjectUnmarshalerFactory(UnmarshalerFactory):
     dct: ta.Mapping[type, ta.Sequence[FieldInfo]]
@@ -143,18 +249,17 @@ class SimpleObjectUnmarshalerFactory(UnmarshalerFactory):
 
     specials: ObjectSpecials = ObjectSpecials()
 
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
-        if (ty := rfl.get_runtime_type_or_none(rty)) is None or ty not in self.dct:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
             return None
 
-        def inner() -> Unmarshaler:
-            fis = FieldInfos(self.dct[check.not_none(ty)])
+        if (ty := rfl.get_runtime_type_or_none(spec)) is None or ty not in self.dct:
+            return None
 
-            return ObjectUnmarshaler.make(
-                ctx,
-                check.not_none(ty),
-                fis,
-                specials=self.specials,
-            )
+        osp = ObjectSpec(
+            ty=check.not_none(ty),
+            fields=FieldInfos(self.dct[ty]),
+            specials=self.specials,
+        )
 
-        return inner
+        return lambda: ctx.make_unmarshaler(osp)

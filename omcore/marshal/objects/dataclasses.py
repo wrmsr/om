@@ -12,16 +12,15 @@ from ... import metadata as md
 from ... import reflect as rfl
 from ...lite import marshal as lm
 from ..api.configs import ConfigsGetter
+from ..api.contexts import BaseFactoryContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.naming import Naming
 from ..api.naming import translate_name
+from ..api.specs import Spec
+from ..api.types import FactoryPair
 from ..api.types import Marshaler
-from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
-from ..api.types import UnmarshalerFactory
-from ..api.vias import make_marshaler_via
-from ..api.vias import make_unmarshaler_via
 from .api import DEFAULT_FIELD_OPTIONS
 from .api import DEFAULT_OBJECT_OPTIONS
 from .api import FieldOptions
@@ -29,8 +28,7 @@ from .api import ObjectOptions
 from .api import _ObjectOptionsMetadata
 from .infos import FieldInfo
 from .infos import FieldInfos
-from .marshal import ObjectMarshaler
-from .unmarshal import ObjectUnmarshaler
+from .specs import ObjectSpec
 
 
 ##
@@ -233,166 +231,73 @@ def _type_or_generic_base(rty: rfl.Type) -> type | None:
 ##
 
 
-@dc.dataclass()
-class _DataclassMarshalerBuilder:
-    ctx: MarshalFactoryContext
-    rty: rfl.Type
+def get_dataclass_object_spec(
+        ty: type,
+        cfgs: ConfigsGetter | None = None,
+) -> ObjectSpec:
+    check.state(dc.is_dataclass(ty))
+    check.state(not lang.is_abstract_class(ty))
 
-    def build_marshaler(self) -> Marshaler:
-        ty = check.isinstance(_type_or_generic_base(self.rty), type)
-        check.state(dc.is_dataclass(ty))
-        check.state(not lang.is_abstract_class(ty))
+    obj_opts = get_dataclass_options(ty, cfgs)
+    dc_rfl = dc.reflect(ty)
+    fib = _FieldInfoBuilder(ty, cfgs, dc_rfl=dc_rfl, obj_opts=obj_opts)
+    fis = fib.build_field_infos()
 
-        obj_opts = get_dataclass_options(ty, self.ctx.get_configs)
-        dc_rfl = dc.reflect(ty)
-        fib = _FieldInfoBuilder(ty, self.ctx.get_configs, dc_rfl=dc_rfl, obj_opts=obj_opts)
-        fis = fib.build_field_infos()
+    # Embedded fields' specs are pre-resolved here so spec consumption stays config-free.
+    embeds: dict[str, ObjectSpec] = {}
+    for fi in fis:
+        if not fi.options.embed:
+            continue
 
-        fields = [
-            (fi, self._make_field_marshal_obj(fi))
-            for fi in fis
-            if not fi.options.no_marshal
-            and fi.name not in obj_opts.specials.set
-        ]
+        e_ty = check.isinstance(fi.type, type)
+        check.state(dc.is_dataclass(e_ty))
+        e_spec = get_dataclass_object_spec(e_ty, cfgs)
+        if e_spec.specials.set:
+            raise Exception(f'Embedded fields cannot have specials: {e_ty}')
 
-        unwrap_if_single_field: FieldInfo | None = None
-        if obj_opts.unwrap_if_single_field in ('marshal', True):
-            unwrap_if_single_field = fields[0][0]
+        embeds[fi.name] = e_spec
 
-        return ObjectMarshaler(
-            fields,
-            specials=obj_opts.specials,
-            unwrap_if_single_field=unwrap_if_single_field,
-        )
-
-    def _make_field_marshal_obj(self, fi: FieldInfo) -> Marshaler:
-        if (via := fi.options.marshal_via) is not None:
-            return make_marshaler_via(self.ctx, fi.type, via)
-
-        return self.ctx.make_marshaler(fi.type)
+    return ObjectSpec(
+        ty=ty,
+        fields=fis,
+        specials=obj_opts.specials,
+        ignore_unknown=bool(obj_opts.ignore_unknown),
+        unwrap_if_single_field=obj_opts.unwrap_if_single_field,
+        embeds=embeds,
+    )
 
 
-class DataclassMarshalerFactory(MarshalerFactory):
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+class DataclassFactory(FactoryPair):
+    """
+    Sniffs concrete dataclass types, resolves them to ObjectSpecs (reading any registered configs - the reads land in
+    this reflected type's cache footprint), and re-enters construction with the spec.
+    """
+
+    def _sniff_spec(self, ctx: BaseFactoryContext, spec: Spec) -> ObjectSpec | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+
         if not (
-            (ty := _type_or_generic_base(rty)) is not None and
+            (ty := _type_or_generic_base(spec)) is not None and
             dc.is_dataclass(ty) and
             not lang.is_abstract_class(ty)
         ):
             return None
 
-        def inner() -> Marshaler:
-            return _DataclassMarshalerBuilder(ctx, rty).build_marshaler()
+        return get_dataclass_object_spec(ty, ctx.get_configs)
 
-        return inner
-
-
-##
-
-
-@dc.dataclass()
-class _DataclassUnmarshalerBuilder:
-    ctx: UnmarshalFactoryContext
-    rty: rfl.Type
-
-    #
-
-    _fields_dct: dict[str, tuple[FieldInfo, Unmarshaler]] = dc.field(init=False, default_factory=dict)
-
-    _defaults: dict[str, ta.Any] = dc.field(init=False, default_factory=dict)
-    _embeds: dict[str, type] = dc.field(init=False, default_factory=dict)
-    _embeds_by_unmarshal_name: dict[str, tuple[str, str]] = dc.field(init=False, default_factory=dict)
-
-    def build_unmarshaler(self) -> Unmarshaler:
-        ty = check.isinstance(_type_or_generic_base(self.rty), type)
-        check.state(dc.is_dataclass(ty))
-        check.state(not lang.is_abstract_class(ty))
-
-        obj_opts = get_dataclass_options(ty, self.ctx.get_configs)
-        dc_rfl = dc.reflect(ty)
-        fib = _FieldInfoBuilder(ty, self.ctx.get_configs, dc_rfl=dc_rfl, obj_opts=obj_opts)
-        fis = fib.build_field_infos()
-
-        for fi in fis:
-            if fi.name in obj_opts.specials.set:
-                continue
-            self._add_field(fi)
-
-        unwrap_if_single_field: FieldInfo | None = None
-        if obj_opts.unwrap_if_single_field in ('unmarshal', True):
-            unwrap_if_single_field = next(iter(self._fields_dct.values()))[0]
-
-        return ObjectUnmarshaler(
-            ty,
-            self._fields_dct,
-            specials=obj_opts.specials,
-            defaults=self._defaults,
-            embeds=self._embeds,
-            embeds_by_unmarshal_name=self._embeds_by_unmarshal_name,
-            ignore_unknown=bool(obj_opts.ignore_unknown),
-            unwrap_if_single_field=unwrap_if_single_field,
-            # Must mirror the marshaler's participating-field count (which excludes no_marshal fields and specials) or
-            # unwrapped output won't roundtrip.
-            is_single_field=len([
-                fi
-                for fi in fis
-                if not fi.options.no_unmarshal
-                and fi.name not in obj_opts.specials.set
-            ]) < 2,
-        )
-
-    def _add_field(self, fi: FieldInfo, *, prefixes: ta.Iterable[str] = ('',)) -> ta.Iterable[str]:
-        if fi.options.no_unmarshal:
-            return []
-
-        ret: list[str] = []
-
-        if fi.options.embed:
-            e_ty = check.isinstance(fi.type, type)
-            check.state(dc.is_dataclass(e_ty))
-            e_obj_opts = get_dataclass_options(e_ty, self.ctx.get_configs)
-            if e_obj_opts.specials.set:
-                raise Exception(f'Embedded fields cannot have specials: {e_ty}')
-
-            self._embeds[fi.name] = e_ty
-            for e_fi in _FieldInfoBuilder(e_ty, self.ctx.get_configs).build_field_infos():
-                e_ns = self._add_field(e_fi, prefixes=[p + ep for p in prefixes for ep in fi.unmarshal_names])
-                self._embeds_by_unmarshal_name.update({e_f: (fi.name, e_fi.name) for e_f in e_ns})
-                ret.extend(e_ns)
-
-        else:
-            tup = (fi, self._make_field_unmarshal_obj(fi))
-
-            for pfx in prefixes:
-                for un in fi.unmarshal_names:
-                    un = pfx + un
-                    if un in self._fields_dct:
-                        raise KeyError(f'Duplicate fields for name {un!r}: {fi.name!r}, {self._fields_dct[un][0].name!r}')  # noqa
-                    self._fields_dct[un] = tup
-                    ret.append(un)
-
-            if (dfl := fi.options.default) is not None and dfl.present:
-                self._defaults[fi.name] = dfl.must()
-
-        return ret
-
-    def _make_field_unmarshal_obj(self, fi: FieldInfo) -> Unmarshaler:
-        if (via := fi.options.unmarshal_via) is not None:
-            return make_unmarshaler_via(self.ctx, fi.type, via)
-
-        return self.ctx.make_unmarshaler(fi.type)
-
-
-class DataclassUnmarshalerFactory(UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
-        if not (
-            (ty := _type_or_generic_base(rty)) is not None and
-            dc.is_dataclass(ty) and
-            not lang.is_abstract_class(ty)
-        ):
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if (osp := self._sniff_spec(ctx, spec)) is None:
             return None
 
-        def inner() -> Unmarshaler:
-            return _DataclassUnmarshalerBuilder(ctx, rty).build_unmarshaler()
+        return lambda: ctx.make_marshaler(osp)
 
-        return inner
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if (osp := self._sniff_spec(ctx, spec)) is None:
+            return None
+
+        return lambda: ctx.make_unmarshaler(osp)
+
+
+DataclassMarshalerFactory = DataclassFactory
+DataclassUnmarshalerFactory = DataclassFactory

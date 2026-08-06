@@ -23,7 +23,8 @@ class FieldInfo:
     type: ta.Any
 
     marshal_name: str | None
-    unmarshal_names: ta.Sequence[str] = dc.xfield(coerce=check.of_not_isinstance(str))
+    # Tuple-coerced: FieldInfos participate in value-hashable ObjectSpecs.
+    unmarshal_names: ta.Sequence[str] = dc.xfield(coerce=lambda v: tuple(check.not_isinstance(v, str)))
 
     options: FieldOptions = DEFAULT_FIELD_OPTIONS
 
@@ -32,7 +33,7 @@ class FieldInfo:
 class FieldInfos:
     """Collection of field infos with convenient lookups."""
 
-    lst: ta.Sequence[FieldInfo]
+    lst: ta.Sequence[FieldInfo] = dc.xfield(coerce=tuple)
 
     def __iter__(self) -> ta.Iterator[FieldInfo]:
         return iter(self.lst)

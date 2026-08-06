@@ -8,6 +8,7 @@ from ... import typedvalues as tv
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.naming import Naming
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from ..composite.wrapped import WrappedMarshaler
@@ -59,7 +60,11 @@ def _build_typed_value_poly(cls: type) -> Polymorphism:
 
 class TypedValueMarshalerFactory(MarshalerFactoryMethodClass):
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_scalar(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_scalar(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (cls := _get_scalar_typed_value_cls(rty)) is None:
             return None
 
@@ -72,7 +77,11 @@ class TypedValueMarshalerFactory(MarshalerFactoryMethodClass):
         return inner
 
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_abstract(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_abstract(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (cls := _get_abstract_typed_value_cls(rty)) is None:
             return None
 
@@ -85,7 +94,11 @@ class TypedValueMarshalerFactory(MarshalerFactoryMethodClass):
 
 class TypedValueUnmarshalerFactory(UnmarshalerFactoryMethodClass):
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _make_scalar(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def _make_scalar(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (cls := _get_scalar_typed_value_cls(rty)) is None:
             return None
 
@@ -99,7 +112,11 @@ class TypedValueUnmarshalerFactory(UnmarshalerFactoryMethodClass):
         return inner
 
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _make_abstract(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:  # noqa
+    def _make_abstract(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (cls := _get_abstract_typed_value_cls(rty)) is None:
             return None
 

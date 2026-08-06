@@ -39,7 +39,11 @@ class _ReferenceUnionMarshaler(msh.Marshaler):
 
 
 class _ReferenceUnionMarshalerFactory(msh.MarshalerFactory):
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (rua := _reference_union_arg(rty)) is None:
             return None
         return lambda: _ReferenceUnionMarshaler(
@@ -66,7 +70,11 @@ class _ReferenceUnionUnmarshaler(msh.Unmarshaler):
 
 
 class _ReferenceUnionUnmarshalerFactory(msh.UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (rua := _reference_union_arg(rty)) is None:
             return None
         return lambda: _ReferenceUnionUnmarshaler(
@@ -97,7 +105,11 @@ class _SchemaMarshaler(msh.Marshaler):
 
 
 class _SchemaMarshalerFactory(msh.MarshalerFactory):
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if rfl.get_runtime_type_or_none(rty) is not Schema:
             return None
         return lambda: _SchemaMarshaler(
@@ -133,7 +145,11 @@ class _SchemaUnmarshaler(msh.Unmarshaler):
 
 
 class _SchemaUnmarshalerFactory(msh.UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if rfl.get_runtime_type_or_none(rty) is not Schema:
             return None
         return lambda: _SchemaUnmarshaler(

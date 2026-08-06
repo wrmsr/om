@@ -6,9 +6,9 @@ whose construction consulted it. Construction is the cached cold path, so the pe
 """
 import typing as ta
 
-from ... import reflect as rfl
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
@@ -33,12 +33,12 @@ class StandardMarshalerFactory(MarshalerFactory):
         self._first = tuple(first or ())
         self._last = tuple(last or ())
 
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
         cfg = ctx.get_configs().get(StandardMarshalerFactories)
         facs: ta.Sequence[MarshalerFactory] = cfg.lst if cfg is not None else DEFAULT_STANDARD_FACTORIES.marshaler_factories  # noqa
 
         for f in (*self._first, *facs, *self._last):
-            if (m := f.make_marshaler(ctx, rty)) is not None:
+            if (m := f.make_marshaler(ctx, spec)) is not None:
                 return m
 
         return None
@@ -56,12 +56,12 @@ class StandardUnmarshalerFactory(UnmarshalerFactory):
         self._first = tuple(first or ())
         self._last = tuple(last or ())
 
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
         cfg = ctx.get_configs().get(StandardUnmarshalerFactories)
         facs: ta.Sequence[UnmarshalerFactory] = cfg.lst if cfg is not None else DEFAULT_STANDARD_FACTORIES.unmarshaler_factories  # noqa
 
         for f in (*self._first, *facs, *self._last):
-            if (u := f.make_unmarshaler(ctx, rty)) is not None:
+            if (u := f.make_unmarshaler(ctx, spec)) is not None:
                 return u
 
         return None

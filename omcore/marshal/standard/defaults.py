@@ -31,10 +31,10 @@ from ..factories.vias import ViaConfigMarshalerFactory
 from ..factories.vias import ViaConfigUnmarshalerFactory
 from ..factories.vias import ViaMetadataMarshalerFactory
 from ..factories.vias import ViaMetadataUnmarshalerFactory
-from ..objects.dataclasses import DataclassMarshalerFactory
-from ..objects.dataclasses import DataclassUnmarshalerFactory
-from ..objects.namedtuples import NamedtupleMarshalerFactory
-from ..objects.namedtuples import NamedtupleUnmarshalerFactory
+from ..objects.dataclasses import DataclassFactory
+from ..objects.marshal import ObjectMarshalerFactory
+from ..objects.namedtuples import NamedtupleFactory
+from ..objects.unmarshal import ObjectUnmarshalerFactory
 from ..polymorphism.metadata import make_polymorphism_metadata_factories
 from ..singular.datetimes import DATETIME_MARSHALER_FACTORY
 from ..singular.datetimes import DATETIME_UNMARSHALER_FACTORY
@@ -98,8 +98,10 @@ DEFAULT_STANDARD_FACTORIES: ta.Final = DefaultStandardFactories.of_pairs([
     (TypedValuesMarshalerFactory(),          TypedValuesUnmarshalerFactory()),
     (PrimitiveUnionMarshalerFactory(),       PrimitiveUnionUnmarshalerFactory()),
     make_polymorphism_metadata_factories(),
-    (DataclassMarshalerFactory(),            DataclassUnmarshalerFactory()),
-    (NamedtupleMarshalerFactory(),           NamedtupleUnmarshalerFactory()),
+    (ObjectMarshalerFactory(),               ObjectUnmarshalerFactory()),
+    # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
+    (DataclassFactory(),                     DataclassFactory()),
+    (NamedtupleFactory(),                    NamedtupleFactory()),
     (EnumMarshalerFactory(),                 EnumUnmarshalerFactory()),
     (LiteralMarshalerFactory(),              LiteralUnmarshalerFactory()),
     (NUMBERS_MARSHALER_FACTORY,              NUMBERS_UNMARSHALER_FACTORY),

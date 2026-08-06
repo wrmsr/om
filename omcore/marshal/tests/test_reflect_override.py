@@ -27,15 +27,19 @@ class MarshalJsonValue(lang.NotInstantiable, lang.Final):
 
 
 class _JsonValueMarshalerFactory(msh.MarshalerFactory):
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
-        if rfl.get_runtime_type_or_none(rty) is not MarshalJsonValue:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        if rfl.get_runtime_type_or_none(spec) is not MarshalJsonValue:
             return None
         return lambda: msh.NopMarshalerUnmarshaler()
 
 
 class _JsonValueUnmarshalerFactory(msh.UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
-        if rfl.get_runtime_type_or_none(rty) is not MarshalJsonValue:
+    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        if rfl.get_runtime_type_or_none(spec) is not MarshalJsonValue:
             return None
         return lambda: msh.NopMarshalerUnmarshaler()
 

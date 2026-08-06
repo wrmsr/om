@@ -67,6 +67,10 @@ class FieldOptions(lang.Final):
         check.isinstance(self.marshal_via, (MarshalVia, None))
         check.isinstance(self.unmarshal_via, (UnmarshalVia, None))
 
+        # Tuple-coerced: FieldOptions participate in value-hashable ObjectSpecs (via FieldInfo).
+        if self.alts is not None and not isinstance(self.alts, tuple):
+            object.__setattr__(self, 'alts', tuple(check.not_isinstance(self.alts, str)))
+
     ##
     # Merging
 

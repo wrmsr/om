@@ -6,12 +6,15 @@ from ... import dataclasses as dc
 from ... import reflect as rfl
 from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.values import Value
+from ..api.vias import make_marshaler_via
 from .api import ObjectSpecials
 from .infos import FieldInfo
 from .infos import FieldInfos
+from .specs import ObjectSpec
 
 
 ##
@@ -93,6 +96,44 @@ class ObjectMarshaler(Marshaler):
 ##
 
 
+def _make_field_marshaler(ctx: MarshalFactoryContext, fi: FieldInfo) -> Marshaler:
+    if (via := fi.options.marshal_via) is not None:
+        return make_marshaler_via(ctx, fi.type, via)
+
+    return ctx.make_marshaler(fi.type)
+
+
+class ObjectMarshalerFactory(MarshalerFactory):
+    """Consumes ObjectSpecs. Spec consumption is config-free - everything is baked into the spec."""
+
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, ObjectSpec):
+            return None
+
+        def inner() -> Marshaler:
+            fields = [
+                (fi, _make_field_marshaler(ctx, fi))
+                for fi in spec.fields
+                if not fi.options.no_marshal
+                and fi.name not in spec.specials.set
+            ]
+
+            unwrap_if_single_field: FieldInfo | None = None
+            if spec.unwrap_if_single_field in ('marshal', True):
+                unwrap_if_single_field = fields[0][0]
+
+            return ObjectMarshaler(
+                fields,
+                specials=spec.specials,
+                unwrap_if_single_field=unwrap_if_single_field,
+            )
+
+        return inner
+
+
+##
+
+
 @dc.dataclass(frozen=True)
 class SimpleObjectMarshalerFactory(MarshalerFactory):
     dct: ta.Mapping[type, ta.Sequence[FieldInfo]]
@@ -101,17 +142,17 @@ class SimpleObjectMarshalerFactory(MarshalerFactory):
 
     specials: ObjectSpecials = ObjectSpecials()
 
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
-        if (ty := rfl.get_runtime_type_or_none(rty)) is None or ty not in self.dct:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
             return None
 
-        def inner() -> Marshaler:
-            fis = FieldInfos(self.dct[check.not_none(ty)])
+        if (ty := rfl.get_runtime_type_or_none(spec)) is None or ty not in self.dct:
+            return None
 
-            return ObjectMarshaler.make(
-                ctx,
-                fis,
-                specials=self.specials,
-            )
+        osp = ObjectSpec(
+            ty=check.not_none(ty),
+            fields=FieldInfos(self.dct[ty]),
+            specials=self.specials,
+        )
 
-        return inner
+        return lambda: ctx.make_marshaler(osp)

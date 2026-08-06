@@ -2,9 +2,9 @@
 import threading
 import typing as ta
 
-from ... import reflect as rfl
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
@@ -54,10 +54,10 @@ class _LazyFactory(ta.Generic[FactoryT]):
 
 
 class LazyMarshalerFactory(_LazyFactory[MarshalerFactory], MarshalerFactory):
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
-        return self._fac().make_marshaler(ctx, rty)
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        return self._fac().make_marshaler(ctx, spec)
 
 
 class LazyUnmarshalerFactory(_LazyFactory[UnmarshalerFactory], UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
-        return self._fac().make_unmarshaler(ctx, rty)
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        return self._fac().make_unmarshaler(ctx, spec)

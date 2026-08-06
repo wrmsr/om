@@ -54,7 +54,7 @@ with _lang.auto_proxy_init(globals()):
 
     from .api.funcs import (  # noqa
         MarshalerFactoryFn,
-        UnmarshalerMakerFn,
+        UnmarshalerFactoryFn,
 
         FuncMarshaler,
         FuncUnmarshaler,
@@ -93,6 +93,11 @@ with _lang.auto_proxy_init(globals()):
 
     from .api.runtime import (  # noqa
         Runtime,
+    )
+
+    from .api.specs import (  # noqa
+        InternalSpec,
+        Spec,
     )
 
     from .api.types import (  # noqa
@@ -216,9 +221,12 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .objects.dataclasses import (  # noqa
+        DataclassFactory,
         DataclassMarshalerFactory,
         DataclassUnmarshalerFactory,
+
         get_dataclass_field_infos,
+        get_dataclass_object_spec,
         get_dataclass_options,
     )
 
@@ -241,11 +249,25 @@ with _lang.auto_proxy_init(globals()):
 
     from .objects.marshal import (  # noqa
         ObjectMarshaler,
+        ObjectMarshalerFactory,
         SimpleObjectMarshalerFactory,
+    )
+
+    from .objects.namedtuples import (  # noqa
+        NamedtupleFactory,
+        NamedtupleMarshalerFactory,
+        NamedtupleUnmarshalerFactory,
+
+        get_namedtuple_field_infos,
+    )
+
+    from .objects.specs import (  # noqa
+        ObjectSpec,
     )
 
     from .objects.unmarshal import (  # noqa
         ObjectUnmarshaler,
+        ObjectUnmarshalerFactory,
         SimpleObjectUnmarshalerFactory,
     )
 

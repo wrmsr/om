@@ -8,6 +8,7 @@ from ... import lang
 from ... import reflect as rfl
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Unmarshaler
 from ..api.types import UnmarshalerFactory
 from ..api.values import Value
@@ -108,7 +109,11 @@ class PolymorphismUnmarshalerFactory(UnmarshalerFactory):
     p: Polymorphism
     tt: TypeTagging = WrapperTypeTagging()
 
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (impls := get_polymorphism_impls(rty, self.p)) is None:
             return None
         return lambda: make_polymorphism_unmarshaler(impls, self.tt, ctx)

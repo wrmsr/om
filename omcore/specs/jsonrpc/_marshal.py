@@ -40,7 +40,11 @@ class NotSpecifiedUnionMarshaler(msh.Marshaler):
 
 
 class NotSpecifiedUnionMarshalerFactory(msh.MarshalerFactory):
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (nty := _split_not_specified_union(rty)) is None:
             return None
 
@@ -52,7 +56,11 @@ class NotSpecifiedUnionMarshalerFactory(msh.MarshalerFactory):
 
 
 class NotSpecifiedUnionUnmarshalerFactory(msh.UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+    def make_unmarshaler(self, ctx: msh.UnmarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Unmarshaler] | None:  # noqa
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (nty := _split_not_specified_union(rty)) is None:
             return None
 

@@ -13,6 +13,7 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
@@ -63,7 +64,11 @@ def _get_ipaddress_types() -> set[type] | None:
 
 
 class IpaddressMarshalerFactory(MarshalerFactory):
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not (
                 (cls := rfl.get_runtime_type_or_none(rty)) is not None and
                 (ts := _get_ipaddress_types()) is not None and
@@ -75,7 +80,11 @@ class IpaddressMarshalerFactory(MarshalerFactory):
 
 
 class IpaddressUnmarshalerFactory(UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not (
                 (cls := rfl.get_runtime_type_or_none(rty)) is not None and
                 (ts := _get_ipaddress_types()) is not None and

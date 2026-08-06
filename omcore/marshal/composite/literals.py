@@ -7,6 +7,7 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
@@ -61,7 +62,11 @@ class LiteralMarshaler(Marshaler):
 
 
 class LiteralMarshalerFactory(MarshalerFactory):
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (lits := get_literal_types(rty)) is None or (ety := _single_literal_value_type(lits)) is None:
             return None
         return lambda: LiteralMarshaler(ctx.make_marshaler(ety), frozenset(lit.value for lit in lits))
@@ -77,7 +82,11 @@ class LiteralUnmarshaler(Unmarshaler):
 
 
 class LiteralUnmarshalerFactory(UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (lits := get_literal_types(rty)) is None or (ety := _single_literal_value_type(lits)) is None:
             return None
         return lambda: LiteralUnmarshaler(ctx.make_unmarshaler(ety), frozenset(lit.value for lit in lits))

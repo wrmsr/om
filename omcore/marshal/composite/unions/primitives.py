@@ -8,6 +8,7 @@ from ...api.contexts import MarshalContext
 from ...api.contexts import MarshalFactoryContext
 from ...api.contexts import UnmarshalContext
 from ...api.contexts import UnmarshalFactoryContext
+from ...api.specs import Spec
 from ...api.types import Marshaler
 from ...api.types import MarshalerFactory
 from ...api.types import Unmarshaler
@@ -61,7 +62,11 @@ class PrimitiveUnionMarshaler(Marshaler):
 class PrimitiveUnionMarshalerFactory(MarshalerFactory):
     tys: ta.Sequence[type] = PRIMITIVE_UNION_TYPES
 
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (ds := _destructure_primitive_union_type(rty, self.tys)) is None:
             return None
         return lambda: PrimitiveUnionMarshaler(
@@ -90,7 +95,11 @@ class PrimitiveUnionUnmarshaler(Unmarshaler):
 class PrimitiveUnionUnmarshalerFactory(UnmarshalerFactory):
     tys: ta.Sequence[type] = PRIMITIVE_UNION_TYPES
 
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (ds := _destructure_primitive_union_type(rty, self.tys)) is None:
             return None
         return lambda: PrimitiveUnionUnmarshaler(

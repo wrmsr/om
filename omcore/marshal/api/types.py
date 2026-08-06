@@ -2,7 +2,7 @@ import abc
 import typing as ta
 
 from ... import lang
-from ... import reflect as rfl
+from .specs import Spec
 
 
 if ta.TYPE_CHECKING:
@@ -80,7 +80,7 @@ class MarshalerFactory(lang.Abstract):
             pass
 
     @abc.abstractmethod
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
         raise NotImplementedError
 
 
@@ -94,7 +94,7 @@ class UnmarshalerFactory(lang.Abstract):
             pass
 
     @abc.abstractmethod
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
         raise NotImplementedError
 
 

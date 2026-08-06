@@ -32,6 +32,8 @@ from .contexts import UnmarshalContext
 from .contexts import UnmarshalFactoryContext
 from .errors import UnhandledTypeError
 from .reflect import _make_context_mirror
+from .specs import InternalSpec
+from .specs import Spec
 from .types import Factory
 from .types import Handler
 from .types import Marshaler
@@ -64,7 +66,7 @@ class _ConfigDep(ta.NamedTuple):
     @property
     def map_key(self) -> _ConfigDepMapKey:
         return (
-            id(self),
+            id(self.key),
             self.identity,
             self.cls,
         )
@@ -280,9 +282,9 @@ class Runtime(lang.Final):
         ] = Runtime._Side(  # noqa
             marshaler_factory,
             _ProxyMarshaler._new,  # noqa
-            lambda fac, ctx, rty: fac.make_marshaler(
+            lambda fac, ctx, spec: fac.make_marshaler(
                 check.isinstance(ctx, MarshalFactoryContext),
-                rty,
+                spec,
             ),
         )
 
@@ -293,9 +295,9 @@ class Runtime(lang.Final):
         ] = Runtime._Side(  # noqa
             unmarshaler_factory,
             _ProxyUnmarshaler._new,  # noqa
-            lambda fac, ctx, rty: fac.make_unmarshaler(
+            lambda fac, ctx, spec: fac.make_unmarshaler(
                 check.isinstance(ctx, UnmarshalFactoryContext),
-                rty,
+                spec,
             ),
         )
 
@@ -344,7 +346,7 @@ class Runtime(lang.Final):
                 self,
                 factory: FactoryT | None,
                 new_proxy: ta.Callable[[], tuple[HandlerT, ta.Callable[[HandlerT], None]]],
-                call: ta.Callable[[FactoryT, FactoryContextT, rfl.Type], ta.Callable[[], HandlerT] | None],
+                call: ta.Callable[[FactoryT, FactoryContextT, Spec], ta.Callable[[], HandlerT] | None],
         ) -> None:
             super().__init__()
 
@@ -370,7 +372,11 @@ class Runtime(lang.Final):
         """The construction-time view: reads made through this while a handler is being built are footprinted."""
 
         if not (frames := self._tl.frames):
-            raise RuntimeError('Cannot access factory_configs without an active factory frame.')
+            raise RuntimeError(
+                'Cannot access factory_configs without an active factory frame. '
+                'This can happen when calling `factory.make_` methods directly, rather than the preferred '
+                'equivalent `factory_context.make_` methods.',
+            )
         return _RecordingConfigValues(
             cr := self._config_registry,
             frames[-1],
@@ -441,30 +447,30 @@ class Runtime(lang.Final):
 
     #
 
-    def _hit(self, e: _Entry, rty: rfl.Type) -> ta.Any:
+    def _hit(self, e: _Entry, spec: Spec) -> ta.Any:
         if (frames := self._tl.frames):
             frames[-1].fold(e.deps)
 
         if e.handler is None:
-            raise UnhandledTypeError(rty)
+            raise UnhandledTypeError(spec)
         return e.handler
 
     def _make_locked(
             self,
             side: _Side[FactoryT, FactoryContextT, HandlerT],
             ctx: FactoryContextT,
-            rty: rfl.Type,
-            tk: ta.Any,
+            spec: Spec,
+            ek: ta.Any,
     ) -> HandlerT:
         gen = self._config_registry.version
 
-        if (e := side.entries.get(tk)) is not None:
+        if (e := side.entries.get(ek)) is not None:
             if e.generation == gen or _validate_deps(self._config_registry, e.deps):
                 e.generation = gen
-                return self._hit(e, rty)
-            del side.entries[tk]
+                return self._hit(e, spec)
+            del side.entries[ek]
 
-        if (px := side.building.get(tk)) is not None:
+        if (px := side.building.get(ek)) is not None:
             # Recursive knot: this can only be the lock-holding thread re-entering for a type already under
             # construction - other threads are blocked on the lock and never observe in-progress state.
             return px[0]
@@ -476,24 +482,24 @@ class Runtime(lang.Final):
         frames.append(frame)
 
         px = side.new_proxy()
-        side.building[tk] = px
+        side.building[ek] = px
 
         h: ta.Any
         try:
-            thunk = side.call(fac, ctx, rty)
+            thunk = side.call(fac, ctx, spec)
             h = thunk() if thunk is not None else None
         finally:
             frames.pop()
-            del side.building[tk]
+            del side.building[ek]
 
         deps = tuple(frame.deps.values())
-        side.entries[tk] = Runtime._Entry(h, deps, gen)
+        side.entries[ek] = Runtime._Entry(h, deps, gen)
 
         if frames:
             frames[-1].fold(deps)
 
         if h is None:
-            raise UnhandledTypeError(rty)
+            raise UnhandledTypeError(spec)
 
         px[1](h)
         return h
@@ -506,18 +512,20 @@ class Runtime(lang.Final):
     ) -> HandlerT:
         self.ensure_warm()
 
-        rty = o if isinstance(o, rfl.Type) else self.get_mirror().reflect_type(o)
-        tk = rty.type_key()
+        # A Spec passes through as-is; anything else is an annotation-ish object sent to the mirror. InternalSpecs are
+        # value-keyed by themselves; reflected types are keyed by their TypeKey.
+        spec: Spec = o if isinstance(o, (rfl.Type, InternalSpec)) else self.get_mirror().reflect_type(o)
+        ek = spec.type_key() if isinstance(spec, rfl.Type) else spec
 
-        if (e := side.entries.get(tk)) is not None and e.generation == self._config_registry.version:
-            return self._hit(e, rty)
+        if (e := side.entries.get(ek)) is not None and e.generation == self._config_registry.version:
+            return self._hit(e, spec)
 
         with self._lock:
             return self._make_locked(
                 side,
                 ctx,
-                rty,
-                tk,
+                spec,
+                ek,
             )
 
     #

@@ -44,7 +44,11 @@ class RequirementMarkerListMarshaler(msh.Marshaler):
 
 
 class RequirementMarkerListMarshalerFactory(msh.MarshalerFactory):
-    def make_marshaler(self, ctx: msh.MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], msh.Marshaler] | None:
+    def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if rty.runtime_object is not MarshalRequirementMarkerList:
             return None
         return lambda: RequirementMarkerListMarshaler(

@@ -1,9 +1,9 @@
 import typing as ta
 
-from ... import reflect as rfl
 from ...funcs import guard as gfs
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
@@ -24,8 +24,8 @@ class MultiMarshalerFactory(MarshalerFactory):
         self._facs = facs
         self._mgf = gfs.multi(*[f.make_marshaler for f in self._facs], strict=strict)
 
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
-        return self._mgf(ctx, rty)
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        return self._mgf(ctx, spec)
 
 
 class MultiUnmarshalerFactory(UnmarshalerFactory):
@@ -39,5 +39,5 @@ class MultiUnmarshalerFactory(UnmarshalerFactory):
         self._facs = facs
         self._mgf = gfs.multi(*[f.make_unmarshaler for f in self._facs], strict=strict)
 
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
-        return self._mgf(ctx, rty)
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        return self._mgf(ctx, spec)

@@ -12,6 +12,7 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from ..api.values import Value
@@ -50,13 +51,21 @@ def _get_maybe_cls(rty: rfl.Type) -> type | None:
 
 class MaybeMarshalerFactory(MarshalerFactoryMethodClass):
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_generic(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_generic(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (ety := _get_maybe_element(rty)) is None:
             return None
         return lambda: MaybeMarshaler(ctx.make_marshaler(ety))
 
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_concrete(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_concrete(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if _get_maybe_cls(rty) is None:
             return None
         return lambda: MaybeMarshaler(ctx.make_marshaler(ta.Any))
@@ -78,13 +87,21 @@ class MaybeUnmarshaler(Unmarshaler):
 
 class MaybeUnmarshalerFactory(UnmarshalerFactoryMethodClass):
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _make_generic(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def _make_generic(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (ety := _get_maybe_element(rty)) is None:
             return None
         return lambda: MaybeUnmarshaler(ctx.make_unmarshaler(ety))
 
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _make_concrete(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def _make_concrete(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if _get_maybe_cls(rty) is None:
             return None
         return lambda: MaybeUnmarshaler(ctx.make_unmarshaler(ta.Any))

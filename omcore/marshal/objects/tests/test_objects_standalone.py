@@ -21,8 +21,10 @@ from ..api import FieldOptions
 from ..dataclasses import DataclassMarshalerFactory
 from ..dataclasses import DataclassUnmarshalerFactory
 from ..helpers import update_object_options
+from ..marshal import ObjectMarshalerFactory
 from ..namedtuples import NamedtupleMarshalerFactory
 from ..namedtuples import NamedtupleUnmarshalerFactory
+from ..unmarshal import ObjectUnmarshalerFactory
 
 
 def _make_test_runtime():
@@ -30,6 +32,7 @@ def _make_test_runtime():
         marshaler_factory=MultiMarshalerFactory(
             PRIMITIVE_MARSHALER_FACTORY,
             OptionalMarshalerFactory(),
+            ObjectMarshalerFactory(),
             DataclassMarshalerFactory(),
             NamedtupleMarshalerFactory(),
             EnumMarshalerFactory(),
@@ -39,6 +42,7 @@ def _make_test_runtime():
         unmarshaler_factory=MultiUnmarshalerFactory(
             PRIMITIVE_UNMARSHALER_FACTORY,
             OptionalUnmarshalerFactory(),
+            ObjectUnmarshalerFactory(),
             DataclassUnmarshalerFactory(),
             NamedtupleUnmarshalerFactory(),
             EnumUnmarshalerFactory(),

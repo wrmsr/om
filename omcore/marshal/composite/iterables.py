@@ -14,6 +14,7 @@ from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.options import Options
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from ..api.values import Value
@@ -66,13 +67,21 @@ def _get_iterable_cls(rty: rfl.Type) -> type | None:
 
 class IterableMarshalerFactory(MarshalerFactoryMethodClass):
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_generic(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_generic(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if _get_iterable_cls(rty) is None or len(check.isinstance(rty, rfl.Instance).args) != 1:
             return None
         return lambda: IterableMarshaler(ctx.make_marshaler(check.single(check.isinstance(rty, rfl.Instance).args)))
 
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_concrete(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_concrete(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if _get_iterable_cls(rty) is None:
             return None
         return lambda: IterableMarshaler(ctx.make_marshaler(ta.Any))
@@ -98,13 +107,21 @@ class IterableUnmarshaler(Unmarshaler):
 
 class IterableUnmarshalerFactory(UnmarshalerFactoryMethodClass):
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _make_generic(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def _make_generic(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (cls := _get_iterable_cls(rty)) is None or len(check.isinstance(rty, rfl.Instance).args) != 1:
             return None
         return lambda: IterableUnmarshaler(cls, ctx.make_unmarshaler(check.single(check.isinstance(rty, rfl.Instance).args)))  # noqa
 
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _make_concrete(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def _make_concrete(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (cls := _get_iterable_cls(rty)) is None:
             return None
         return lambda: IterableUnmarshaler(cls, ctx.make_unmarshaler(ta.Any))

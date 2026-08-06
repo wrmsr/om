@@ -7,6 +7,7 @@ from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.errors import ForbiddenError
 from ..api.errors import ForbiddenTypeError
+from ..api.specs import Spec
 from ..api.types import FactoryPair
 from ..api.types import HandlerPair
 from ..api.types import Marshaler
@@ -38,7 +39,11 @@ class ForbiddenTypeMarshalerFactoryUnmarshalerFactory(FactoryPair):
             for t in tys
         ])
 
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if rty.type_key() not in self._tks:
             return None
 
@@ -47,7 +52,11 @@ class ForbiddenTypeMarshalerFactoryUnmarshalerFactory(FactoryPair):
 
         return inner
 
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if rty.type_key() not in self._tks:
             return None
 

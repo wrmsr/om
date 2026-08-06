@@ -2,12 +2,12 @@ import dataclasses as dc
 import typing as ta
 
 from ... import lang
-from ... import reflect as rfl
 from ...funcs import guard as gfs
 from .contexts import MarshalContext
 from .contexts import MarshalFactoryContext
 from .contexts import UnmarshalContext
 from .contexts import UnmarshalFactoryContext
+from .specs import Spec
 from .types import Marshaler
 from .types import MarshalerFactory
 from .types import Unmarshaler
@@ -15,8 +15,8 @@ from .types import UnmarshalerFactory
 from .values import Value
 
 
-MarshalerFactoryFn: ta.TypeAlias = gfs.GuardFn[[MarshalFactoryContext, rfl.Type], Marshaler]
-UnmarshalerMakerFn: ta.TypeAlias = gfs.GuardFn[[UnmarshalFactoryContext, rfl.Type], Unmarshaler]
+MarshalerFactoryFn: ta.TypeAlias = gfs.GuardFn[[MarshalFactoryContext, Spec], Marshaler]
+UnmarshalerFactoryFn: ta.TypeAlias = gfs.GuardFn[[UnmarshalFactoryContext, Spec], Unmarshaler]
 
 
 ##
@@ -45,13 +45,13 @@ class FuncUnmarshaler(Unmarshaler, lang.Final):
 class FuncMarshalerFactory(MarshalerFactory):  # noqa
     gf: MarshalerFactoryFn
 
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
-        return self.gf(ctx, rty)
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        return self.gf(ctx, spec)
 
 
 @dc.dataclass(frozen=True)
 class FuncUnmarshalerFactory(UnmarshalerFactory):  # noqa
-    gf: UnmarshalerMakerFn
+    gf: UnmarshalerFactoryFn
 
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
-        return self.gf(ctx, rty)
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        return self.gf(ctx, spec)

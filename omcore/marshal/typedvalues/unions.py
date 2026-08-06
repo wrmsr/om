@@ -8,6 +8,7 @@ from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.naming import Naming
 from ..api.naming import translate_name
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from ..factories.method import MarshalerFactoryMethodClass
@@ -67,7 +68,11 @@ def _build_typed_value_union_poly(ctx: BaseContext, rty: rfl.Type) -> Impls:
 
 class TypedValueUnionMarshalerFactory(MarshalerFactoryMethodClass):
     @MarshalerFactoryMethodClass.make_marshaler.register
-    def _make_union(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def _make_union(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not _is_typed_values_union(rty):
             return None
 
@@ -80,7 +85,11 @@ class TypedValueUnionMarshalerFactory(MarshalerFactoryMethodClass):
 
 class TypedValueUnionUnmarshalerFactory(UnmarshalerFactoryMethodClass):
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
-    def _make_union(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def _make_union(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not _is_typed_values_union(rty):
             return None
 

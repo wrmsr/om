@@ -6,6 +6,7 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
@@ -27,7 +28,11 @@ class OptionalMarshaler(Marshaler):
 
 
 class OptionalMarshalerFactory(MarshalerFactory):
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not rfl.is_optional(rty):
             return None
         return lambda: OptionalMarshaler(ctx.make_marshaler(rfl.strip_optional(rty)))
@@ -44,7 +49,11 @@ class OptionalUnmarshaler(Unmarshaler):
 
 
 class OptionalUnmarshalerFactory(UnmarshalerFactory):
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if not rfl.is_optional(rty):
             return None
         return lambda: OptionalUnmarshaler(ctx.make_unmarshaler(rfl.strip_optional(rty)))

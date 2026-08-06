@@ -7,6 +7,7 @@ from ... import lang
 from ... import reflect as rfl
 from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
+from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.values import Value
@@ -103,7 +104,11 @@ class PolymorphismMarshalerFactory(MarshalerFactory):
     p: Polymorphism
     tt: TypeTagging = WrapperTypeTagging()
 
-    def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+        rty = spec
+
         if (impls := get_polymorphism_impls(rty, self.p)) is None:
             return None
         return lambda: make_polymorphism_marshaler(impls, self.tt, ctx)
