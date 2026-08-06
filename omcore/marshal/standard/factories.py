@@ -34,8 +34,7 @@ class StandardMarshalerFactory(MarshalerFactory):
         self._last = tuple(last or ())
 
     def make_marshaler(self, ctx: MarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Marshaler] | None:
-        # TODO: audit? bypasses config access recorder
-        cfg = ctx.runtime.config_registry.get().get(StandardMarshalerFactories)
+        cfg = ctx.get_configs().get(StandardMarshalerFactories)
         facs: ta.Sequence[MarshalerFactory] = cfg.lst if cfg is not None else DEFAULT_STANDARD_FACTORIES.marshaler_factories  # noqa
 
         for f in (*self._first, *facs, *self._last):
@@ -58,8 +57,7 @@ class StandardUnmarshalerFactory(UnmarshalerFactory):
         self._last = tuple(last or ())
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, rty: rfl.Type) -> ta.Callable[[], Unmarshaler] | None:
-        # TODO: audit? bypasses config access recorder
-        cfg = ctx.runtime.config_registry.get().get(StandardUnmarshalerFactories)
+        cfg = ctx.get_configs().get(StandardUnmarshalerFactories)
         facs: ta.Sequence[UnmarshalerFactory] = cfg.lst if cfg is not None else DEFAULT_STANDARD_FACTORIES.unmarshaler_factories  # noqa
 
         for f in (*self._first, *facs, *self._last):
