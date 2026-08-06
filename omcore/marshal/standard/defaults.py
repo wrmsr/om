@@ -35,7 +35,10 @@ from ..objects.dataclasses import DataclassFactory
 from ..objects.marshal import ObjectMarshalerFactory
 from ..objects.namedtuples import NamedtupleFactory
 from ..objects.unmarshal import ObjectUnmarshalerFactory
-from ..polymorphism.metadata import make_polymorphism_metadata_factories
+from ..polymorphism.marshal import PolymorphismSpecMarshalerFactory
+from ..polymorphism.metadata import PolymorphismMetadataFactory
+from ..polymorphism.metadata import PolymorphismUnionFactory
+from ..polymorphism.unmarshal import PolymorphismSpecUnmarshalerFactory
 from ..singular.datetimes import DATETIME_MARSHALER_FACTORY
 from ..singular.datetimes import DATETIME_UNMARSHALER_FACTORY
 from ..singular.enums import EnumMarshalerFactory
@@ -97,7 +100,10 @@ DEFAULT_STANDARD_FACTORIES: ta.Final = DefaultStandardFactories.of_pairs([
     (TypedValueUnionMarshalerFactory(),      TypedValueUnionUnmarshalerFactory()),
     (TypedValuesMarshalerFactory(),          TypedValuesUnmarshalerFactory()),
     (PrimitiveUnionMarshalerFactory(),       PrimitiveUnionUnmarshalerFactory()),
-    make_polymorphism_metadata_factories(),
+    # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
+    (PolymorphismMetadataFactory(),          PolymorphismMetadataFactory()),
+    (PolymorphismUnionFactory(),             PolymorphismUnionFactory()),
+    (PolymorphismSpecMarshalerFactory(),     PolymorphismSpecUnmarshalerFactory()),
     (ObjectMarshalerFactory(),               ObjectUnmarshalerFactory()),
     # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
     (DataclassFactory(),                     DataclassFactory()),

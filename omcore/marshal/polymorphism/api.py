@@ -31,6 +31,8 @@ class TypeTagging(Config, lang.Abstract, lang.Sealed):
     pass
 
 
+# Fieldless frozen dataclass so tagging values compare by value - they participate in value-keyed PolymorphismSpecs.
+@dc.dataclass(frozen=True)
 class WrapperTypeTagging(TypeTagging, lang.Final):
     pass
 
@@ -285,8 +287,25 @@ class PolymorphismOptions(lang.Final):
 
 
 @dc.dataclass(frozen=True)
-class OpenPolymorphismImpl(Config, lang.Final):
+class PolymorphismImpl(Config, lang.Final):
+    """
+    Registers a class as an impl of a polymorphic root by updating a config registry under the root's key. Resolved by
+    ConfigImplSource - late registrations invalidate affected handlers through the config footprint mechanism.
+    """
+
     impl_ty: type
+
+    _: dc.KW_ONLY
+
+    tag: str | None = None
+    alts: ta.Sequence[str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.alts is not None and not isinstance(self.alts, tuple):
+            object.__setattr__(self, 'alts', tuple(check.not_isinstance(self.alts, str)))
+
+
+OpenPolymorphismImpl = PolymorphismImpl
 
 
 ##

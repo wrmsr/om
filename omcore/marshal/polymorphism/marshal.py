@@ -18,6 +18,8 @@ from .api import PolymorphismImplError
 from .api import TypeTagging
 from .api import WrapperTypeTagging
 from .impls import get_polymorphism_impls
+from .resolving import resolve_polymorphism
+from .specs import PolymorphismSpec
 
 
 ##
@@ -28,23 +30,13 @@ class PolymorphismMarshaler(Marshaler, lang.Abstract):
     def get_marshaler_map(self) -> ta.Mapping[type, tuple[str, Marshaler]]:
         raise NotImplementedError
 
-    def get_impls(self) -> Impls | None:
-        return None
-
 
 @dc.dataclass(frozen=True)
 class WrapperPolymorphismMarshaler(PolymorphismMarshaler):
     m: ta.Mapping[type, tuple[str, Marshaler]]
 
-    _: dc.KW_ONLY
-
-    impls: Impls | None = None
-
     def get_marshaler_map(self) -> ta.Mapping[type, tuple[str, Marshaler]]:
         return self.m
-
-    def get_impls(self) -> Impls | None:
-        return self.impls
 
     def marshal(self, ctx: MarshalContext, o: ta.Any | None) -> Value:
         ot = type(o)
@@ -60,15 +52,8 @@ class FieldPolymorphismMarshaler(PolymorphismMarshaler):
     m: ta.Mapping[type, tuple[str, Marshaler]]
     tf: str
 
-    _: dc.KW_ONLY
-
-    impls: Impls | None = None
-
     def get_marshaler_map(self) -> ta.Mapping[type, tuple[str, Marshaler]]:
         return self.m
-
-    def get_impls(self) -> Impls | None:
-        return self.impls
 
     def marshal(self, ctx: MarshalContext, o: ta.Any | None) -> Value:
         ot = type(o)
@@ -92,9 +77,9 @@ def make_polymorphism_marshaler(
     }
 
     if isinstance(tt, WrapperTypeTagging):
-        return WrapperPolymorphismMarshaler(m, impls=impls)
+        return WrapperPolymorphismMarshaler(m)
     elif isinstance(tt, FieldTypeTagging):
-        return FieldPolymorphismMarshaler(m, tt.field, impls=impls)
+        return FieldPolymorphismMarshaler(m, tt.field)
     else:
         raise TypeError(tt)
 
@@ -112,3 +97,17 @@ class PolymorphismMarshalerFactory(MarshalerFactory):
         if (impls := get_polymorphism_impls(rty, self.p)) is None:
             return None
         return lambda: make_polymorphism_marshaler(impls, self.tt, ctx)
+
+
+##
+
+
+class PolymorphismSpecMarshalerFactory(MarshalerFactory):
+    """Consumes PolymorphismSpecs: resolves the spec's impl sources and hands off to the trivial handlers."""
+
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if not isinstance(spec, PolymorphismSpec):
+            return None
+
+        poly = resolve_polymorphism(ctx, spec)
+        return lambda: make_polymorphism_marshaler(poly.impls, spec.tagging, ctx)

@@ -291,29 +291,40 @@ with _lang.auto_proxy_init(globals()):
         polymorphism_from_subclasses,
 
         PolymorphismOptions,
+        PolymorphismImpl,
         OpenPolymorphismImpl,
 
         set_polymorphic_from_subclasses,
     )
 
+    from .polymorphism.manifests import (  # noqa
+        ImplForManifest,
+    )
+
     from .polymorphism.marshal import (  # noqa
         PolymorphismMarshaler,
         PolymorphismMarshalerFactory,
+        PolymorphismSpecMarshalerFactory,
         make_polymorphism_marshaler,
     )
 
     from .polymorphism.metadata import (  # noqa
-        PolymorphismMetadataCache,
-
-        PolymorphismMetadataMarshalerFactory,
-        PolymorphismMetadataUnmarshalerFactory,
-
-        make_polymorphism_metadata_factories,
+        PolymorphismMetadataFactory,
+        PolymorphismUnionFactory,
     )
 
-    from .polymorphism.open import (  # noqa
-        OpenPolymorphismMarshalerFactory,
-        OpenPolymorphismUnmarshalerFactory,
+    from .polymorphism.resolving import (  # noqa
+        resolve_polymorphism,
+    )
+
+    from .polymorphism.specs import (  # noqa
+        ImplSource,
+        ExplicitImplSource,
+        SubclassesImplSource,
+        ConfigImplSource,
+        ManifestImplSource,
+
+        PolymorphismSpec,
     )
 
     from .polymorphism.standard import (  # noqa
@@ -323,6 +334,7 @@ with _lang.auto_proxy_init(globals()):
     from .polymorphism.unmarshal import (  # noqa
         PolymorphismUnmarshaler,
         PolymorphismUnmarshalerFactory,
+        PolymorphismSpecUnmarshalerFactory,
         make_polymorphism_unmarshaler,
     )
 
