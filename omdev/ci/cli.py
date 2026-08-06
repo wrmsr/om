@@ -113,6 +113,8 @@ class CiCli(ArgparseCli):
         argparse_arg('-e', '--env', action='append'),
         argparse_arg('-v', '--volume', action='append'),
 
+        argparse_arg('--pre-cmd', action='append'),
+
         argparse_arg('cmd', nargs=argparse.REMAINDER),
     )
     async def run(self) -> None:
@@ -126,8 +128,10 @@ class CiCli(ArgparseCli):
 
         #
 
-        cmd = ' '.join(self.args.cmd)
-        check.non_empty_str(cmd)
+        cmd = ' && '.join([
+            *[check.non_empty_str(pc) for pc in (self.args.pre_cmd or [])],
+            check.non_empty_str(' '.join(self.args.cmd)),
+        ])
 
         #
 

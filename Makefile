@@ -305,6 +305,15 @@ build-cext: venv
 		(cd "$$d" && ${PYTHON_ABS} setup.py build_ext --inplace) || exit 1 ; \
 	done
 
+# FIXME: even grosser
+.PHONY: _ci-build-cext
+_ci-build-cext:
+	for d in $$(find .pkg -maxdepth 1 -name '*-cext' | sort) ; do \
+		echo ; \
+		echo "$$d" ; \
+		(cd "$$d" && python3 setup.py build_ext --inplace) || exit 1 ; \
+	done
+
 # FIXME: ... also pyproject lol
 .PHONY: build-mypyc
 build-mypyc: venv
@@ -570,6 +579,7 @@ ci-setup:
 ci:
 	${CI_RUN} \
 		${CI_PROJECT_DIR} \
+		--pre-cmd 'make _ci-build-cext' \
 		${CI_SERVICE} \
 		-- \
 		python3 \

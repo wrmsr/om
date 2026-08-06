@@ -252,7 +252,7 @@ def __om_amalg__():  # noqa
             dict(path='docker/cacheserved/cache.py', sha1='a1e3481bd93412a2c572fc306786d52e06406eee'),
             dict(path='docker/inject.py', sha1='4755881c4f90bfa7508c4e8aa03d9f030a9123d8'),
             dict(path='inject.py', sha1='277c5529fd72cc023f136da599e10f9547ef9d60'),
-            dict(path='cli.py', sha1='457b154c601f8cfe7387fefc0be85c2a03b300d3'),
+            dict(path='cli.py', sha1='37fe9aeb930875a4b13fc0ff694fea6aa3c16962'),
         ],
     )
 
@@ -36453,6 +36453,8 @@ class CiCli(ArgparseCli):
         argparse_arg('-e', '--env', action='append'),
         argparse_arg('-v', '--volume', action='append'),
 
+        argparse_arg('--pre-cmd', action='append'),
+
         argparse_arg('cmd', nargs=argparse.REMAINDER),
     )
     async def run(self) -> None:
@@ -36466,8 +36468,10 @@ class CiCli(ArgparseCli):
 
         #
 
-        cmd = ' '.join(self.args.cmd)
-        check.non_empty_str(cmd)
+        cmd = ' && '.join([
+            *[check.non_empty_str(pc) for pc in (self.args.pre_cmd or [])],
+            check.non_empty_str(' '.join(self.args.cmd)),
+        ])
 
         #
 
