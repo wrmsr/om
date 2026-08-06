@@ -507,6 +507,8 @@ def make_it_a_tuple(t: T) -> tuple[T]:
   - All defined types must be heap types via `PyType_FromModuleAndSpec`, never static `PyTypeObject`'s (PEP-573).
 - Modules should mark themselves `Py_MOD_GIL_NOT_USED` and `Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED` as applicable.
   Modules should strive to be written to support both if at all possible.
+- Always enclose the bodies of control-flow statements (`if`, `else`, `for`, `while`, `do`) in braces, even for a single
+  statement.
 - See `omdev/cexts/_boilerplate.cc` for a simple C++ extension template.
 
 
