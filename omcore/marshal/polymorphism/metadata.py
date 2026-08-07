@@ -95,7 +95,7 @@ class PolymorphismMetadataFactory(DuplexFactory):
 ##
 
 
-class PolymorphismUnionFactory(DuplexFactory):
+class PolymorphismMetadataUnionFactory(DuplexFactory):
     """
     Derives PolymorphismSpecs from unions whose members all share a single nearest metadata-decorated ancestor,
     resolving to that root's PolymorphismSpec restricted to the members. A member equal to the root lifts the

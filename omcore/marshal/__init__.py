@@ -310,7 +310,7 @@ with _lang.auto_proxy_init(globals()):
 
     from .polymorphism.metadata import (  # noqa
         PolymorphismMetadataFactory,
-        PolymorphismUnionFactory,
+        PolymorphismMetadataUnionFactory,
     )
 
     from .polymorphism.resolving import (  # noqa

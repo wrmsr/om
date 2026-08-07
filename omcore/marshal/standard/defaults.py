@@ -37,7 +37,7 @@ from ..objects.namedtuples import NamedtupleFactory
 from ..objects.unmarshal import ObjectUnmarshalerFactory
 from ..polymorphism.marshal import PolymorphismSpecMarshalerFactory
 from ..polymorphism.metadata import PolymorphismMetadataFactory
-from ..polymorphism.metadata import PolymorphismUnionFactory
+from ..polymorphism.metadata import PolymorphismMetadataUnionFactory
 from ..polymorphism.unmarshal import PolymorphismSpecUnmarshalerFactory
 from ..singular.datetimes import DATETIME_MARSHALER_FACTORY
 from ..singular.datetimes import DATETIME_UNMARSHALER_FACTORY
@@ -102,7 +102,7 @@ DEFAULT_STANDARD_FACTORIES: ta.Final = DefaultStandardFactories.of_pairs([
     (PrimitiveUnionMarshalerFactory(),       PrimitiveUnionUnmarshalerFactory()),
     # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
     (PolymorphismMetadataFactory(),          PolymorphismMetadataFactory()),
-    (PolymorphismUnionFactory(),             PolymorphismUnionFactory()),
+    (PolymorphismMetadataUnionFactory(), PolymorphismMetadataUnionFactory()),
     (PolymorphismSpecMarshalerFactory(),     PolymorphismSpecUnmarshalerFactory()),
     (ObjectMarshalerFactory(),               ObjectUnmarshalerFactory()),
     # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
