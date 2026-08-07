@@ -3,8 +3,6 @@ import os.path
 import sys
 import tempfile
 
-import pytest
-
 from ...diag._pycharm import runhack as pycharm_runhack
 from ..launching import Launcher
 from ..spawning import ForkSpawning
@@ -64,12 +62,9 @@ def test_fn_target_runs_in_background_thread():
             release_worker(conn)
 
 
-@pytest.mark.xfail(reason="""\
-Error while finding module specification for 'omcore.daemons.tests.helpers' \
-(ModuleNotFoundError: No module named 'omcore')\
-""")
 def test_exec_target_replaces_forked_process_and_honors_cwd():
     with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = os.path.abspath(os.path.realpath(temp_dir))
         control_path = os.path.join(temp_dir, 'control.sock')
 
         with make_unix_listener(control_path) as listener:
@@ -95,7 +90,6 @@ def test_exec_target_replaces_forked_process_and_honors_cwd():
                     },
                 ),
                 spawning=ForkSpawning(),
-                # launched_timeout_s=9999,
             ))
 
             conn, info = accept_worker(listener)
