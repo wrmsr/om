@@ -31,7 +31,7 @@ def make_unix_listener(path: str, *, backlog: int = 16) -> socket.socket:
 def receive_json_line(sock: socket.socket) -> ta.Mapping[str, ta.Any]:
     buf = bytearray()
     while not buf.endswith(b'\n'):
-        chunk = sock.recv(4096)
+        chunk = sock.recv(1)
         if not chunk:
             raise RuntimeError('Connection closed before JSON line')
         buf.extend(chunk)

@@ -15,6 +15,8 @@ from .. import dataclasses as dc
 from .. import lang
 from ..configs.classes import Configurable
 from .daemon import Daemon
+from .runtime import DrainTimeoutError
+from .runtime import ServiceRuntime
 from .targets import Target
 from .targets import TargetRunner
 from .targets import target_runner_for
@@ -22,6 +24,7 @@ from .targets import target_runner_for
 
 ServiceT = ta.TypeVar('ServiceT', bound='Service')
 ServiceConfigT = ta.TypeVar('ServiceConfigT', bound='Service.Config')
+RuntimeServiceConfigT = ta.TypeVar('RuntimeServiceConfigT', bound='RuntimeService.Config')
 
 
 ##
@@ -47,6 +50,26 @@ class Service(Configurable[ServiceConfigT], lang.Abstract):
     @classmethod
     def run_config(cls, config: Config) -> None:
         return cls.from_config(config).run()
+
+
+class RuntimeService(Service[RuntimeServiceConfigT], lang.Abstract):
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config(Service.Config, lang.Abstract):
+        runtime: ServiceRuntime.Config = ServiceRuntime.Config()
+
+    @abc.abstractmethod
+    def _run_runtime(self, runtime: ServiceRuntime) -> None:
+        raise NotImplementedError
+
+    @ta.final
+    def _run(self) -> None:
+        with ServiceRuntime(self.config.runtime) as runtime:
+            self._run_runtime(runtime)
+
+            if not runtime.activity.wait_inactive(runtime.config.drain_timeout_s):
+                raise DrainTimeoutError(
+                    f'Service still has {runtime.activity.active_count} active operation(s) after drain timeout',
+                )
 
 
 ##

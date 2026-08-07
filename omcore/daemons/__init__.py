@@ -20,12 +20,28 @@ with _lang.auto_proxy_init(globals()):
 
     from .services import (  # noqa
         Service,
+        RuntimeService,
 
         ServiceTarget,
         ServiceTargetRunner,
 
         ServiceConfigTarget,
         ServiceConfigTargetRunner,
+
+        ServiceDaemon,
+    )
+
+    from .runtime import (  # noqa
+        ShutdownReason,
+        ShutdownRequest,
+        ShutdownController,
+
+        ActivityRejectedError,
+        Activity,
+        ActivityLease,
+
+        DrainTimeoutError,
+        ServiceRuntime,
     )
 
     from .spawning import (  # noqa
