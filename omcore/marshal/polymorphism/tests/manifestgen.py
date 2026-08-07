@@ -1,13 +1,12 @@
 """
-Reusable test helpers for real, end-to-end manifest generation against checked-in fixture packages whose
-`@om-manifest` magics are mangled (so the repo's own manifest gen never picks them up): copy the fixture to a temp
-dir, unmangle the magics, run the actual omdev manifest builder on it (dump subprocess and all), and load the
-resulting `.om-manifests.json` back through the real loader.
+Reusable test helpers for real, end-to-end manifest generation against checked-in fixture packages whose `@om-manifest`
+magics are mangled (so the repo's own manifest gen never picks them up): copy the fixture to a temp dir, unmangle the
+magics, run the actual omdev manifest builder on it (dump subprocess and all), and load the resulting
+`.om-manifests.json` back through the real loader.
 
 Deliberately self-contained so it can be lifted wholesale into omdev.
 """
 import asyncio
-import contextlib
 import os.path
 import shutil
 import sys
@@ -71,15 +70,6 @@ def gen_mangled_manifest_package(
     return pkg_dir
 
 
-@contextlib.contextmanager
-def added_sys_path(dir: str) -> ta.Iterator[None]:  # noqa
-    sys.path.insert(0, dir)
-    try:
-        yield
-    finally:
-        sys.path.remove(dir)
-
-
 def load_package_manifest_values(
         root_dir: str,
         package_name: str,
@@ -92,5 +82,4 @@ def load_package_manifest_values(
         value_instantiator=lambda value_cls, **kwargs: unmarshal_obj(kwargs, value_cls),
     ))
 
-    with added_sys_path(root_dir):
-        return loader.load_values_of(cls, packages=[package_name])
+    return loader.load_values_of(cls, packages=[package_name])
