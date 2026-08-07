@@ -595,6 +595,11 @@ struct HashedObjectTraits {
 // value that cannot be represented in the container's dtype at all is simply treated as absent - mirroring how a dict
 // lookup of a never-insertable key just misses - so only representation errors (TypeError, OverflowError in raise
 // mode) are swallowed. Object dtypes propagate everything (an unhashable probe raises, exactly as with dict / set).
+//
+// Callers brace-initialize their Slot locals (`Slot s{};`) even though every read is dominated by a success check on
+// the returned status: gcc's late -Wmaybe-uninitialized pass (at -O3, after inlining and jump threading) loses the
+// correlation between the status and the store to *out and emits false positives otherwise. The zero-init is a single
+// dead store the optimizer routinely deletes, and makes any future unguarded read deterministic rather than garbage.
 template <typename Tr>
 static int unbox_probe(PyObject *o, Ovf ovf, typename Tr::Slot *out) {
     if (Tr::unbox(o, ovf, out)) {
@@ -877,7 +882,7 @@ struct SortedSetImpl final : SetLikeImpl {
     }
 
     int contains_(PyObject *o) override {
-        typename K::Slot s;
+        typename K::Slot s{};
         int r = unbox_probe<K>(o, key_ovf, &s);
         if (r <= 0) {
             return r;
@@ -886,7 +891,7 @@ struct SortedSetImpl final : SetLikeImpl {
     }
 
     int add_(PyObject *o) override {
-        typename K::Slot s;
+        typename K::Slot s{};
         if (!K::unbox(o, key_ovf, &s)) {
             return -1;
         }
@@ -900,7 +905,7 @@ struct SortedSetImpl final : SetLikeImpl {
     }
 
     int discard_(PyObject *o, Bin &bin) override {
-        typename K::Slot s;
+        typename K::Slot s{};
         int r = unbox_probe<K>(o, key_ovf, &s);
         if (r <= 0) {
             return r;
@@ -1080,7 +1085,7 @@ struct HashSetImpl final : SetLikeImpl {
     }
 
     int contains_(PyObject *o) override {
-        typename K::Slot s;
+        typename K::Slot s{};
         int r = unbox_probe<K>(o, key_ovf, &s);
         if (r <= 0) {
             return r;
@@ -1089,7 +1094,7 @@ struct HashSetImpl final : SetLikeImpl {
     }
 
     int add_(PyObject *o) override {
-        typename K::Slot s;
+        typename K::Slot s{};
         if (!K::unbox(o, key_ovf, &s)) {
             return -1;
         }
@@ -1103,7 +1108,7 @@ struct HashSetImpl final : SetLikeImpl {
     }
 
     int discard_(PyObject *o, Bin &bin) override {
-        typename K::Slot s;
+        typename K::Slot s{};
         int r = unbox_probe<K>(o, key_ovf, &s);
         if (r <= 0) {
             return r;
@@ -1268,7 +1273,7 @@ struct SortedMapImpl final : MapLikeImpl {
     }
 
     int contains_(PyObject *k) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         int r = unbox_probe<K>(k, key_ovf, &ks);
         if (r <= 0) {
             return r;
@@ -1277,7 +1282,7 @@ struct SortedMapImpl final : MapLikeImpl {
     }
 
     int lookup(PyObject *k, PyObject **out) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         int r = unbox_probe<K>(k, key_ovf, &ks);
         if (r <= 0) {
             return r;
@@ -1295,11 +1300,11 @@ struct SortedMapImpl final : MapLikeImpl {
     }
 
     int assign(PyObject *k, PyObject *v, Bin &bin) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         if (!K::unbox(k, key_ovf, &ks)) {
             return -1;
         }
-        typename V::Slot vs;
+        typename V::Slot vs{};
         if (!V::unbox(v, val_ovf, &vs)) {
             return -1;
         }
@@ -1318,7 +1323,7 @@ struct SortedMapImpl final : MapLikeImpl {
     }
 
     int remove_(PyObject *k, PyObject **out_opt, Bin &bin) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         int r = unbox_probe<K>(k, key_ovf, &ks);
         if (r <= 0) {
             return r;
@@ -1367,14 +1372,14 @@ struct SortedMapImpl final : MapLikeImpl {
 
     int set_default(PyObject *k, PyObject *d, PyObject **out) override {
         // Insertion may occur, so the key gets full (non-probe) unboxing, like dict.setdefault.
-        typename K::Slot ks;
+        typename K::Slot ks{};
         if (!K::unbox(k, key_ovf, &ks)) {
             return -1;
         }
         auto it = map_.find(ks);
         if (it == map_.end()) {
             // The default is unboxed only if it is actually going to be inserted, dict-style.
-            typename V::Slot vs;
+            typename V::Slot vs{};
             if (!V::unbox(d, val_ovf, &vs)) {
                 return -1;
             }
@@ -1580,7 +1585,7 @@ struct HashMapImpl final : MapLikeImpl {
     }
 
     int contains_(PyObject *k) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         int r = unbox_probe<K>(k, key_ovf, &ks);
         if (r <= 0) {
             return r;
@@ -1589,7 +1594,7 @@ struct HashMapImpl final : MapLikeImpl {
     }
 
     int lookup(PyObject *k, PyObject **out) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         int r = unbox_probe<K>(k, key_ovf, &ks);
         if (r <= 0) {
             return r;
@@ -1607,11 +1612,11 @@ struct HashMapImpl final : MapLikeImpl {
     }
 
     int assign(PyObject *k, PyObject *v, Bin &bin) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         if (!K::unbox(k, key_ovf, &ks)) {
             return -1;
         }
-        typename V::Slot vs;
+        typename V::Slot vs{};
         if (!V::unbox(v, val_ovf, &vs)) {
             return -1;
         }
@@ -1630,7 +1635,7 @@ struct HashMapImpl final : MapLikeImpl {
     }
 
     int remove_(PyObject *k, PyObject **out_opt, Bin &bin) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         int r = unbox_probe<K>(k, key_ovf, &ks);
         if (r <= 0) {
             return r;
@@ -1677,13 +1682,13 @@ struct HashMapImpl final : MapLikeImpl {
     }
 
     int set_default(PyObject *k, PyObject *d, PyObject **out) override {
-        typename K::Slot ks;
+        typename K::Slot ks{};
         if (!K::unbox(k, key_ovf, &ks)) {
             return -1;
         }
         auto it = map_.find(ks);
         if (it == map_.end()) {
-            typename V::Slot vs;
+            typename V::Slot vs{};
             if (!V::unbox(d, val_ovf, &vs)) {
                 return -1;
             }
@@ -1885,7 +1890,7 @@ struct VectorImpl final : VecLikeImpl {
     }
 
     int set_at(Py_ssize_t i, PyObject *v, Bin &bin) override {
-        typename E::Slot s;
+        typename E::Slot s{};
         if (!E::unbox(v, key_ovf, &s)) {
             return -1;
         }
@@ -1896,7 +1901,7 @@ struct VectorImpl final : VecLikeImpl {
     }
 
     int insert_at(Py_ssize_t i, PyObject *v) override {
-        typename E::Slot s;
+        typename E::Slot s{};
         if (!E::unbox(v, key_ovf, &s)) {
             return -1;
         }
@@ -1921,7 +1926,7 @@ struct VectorImpl final : VecLikeImpl {
     }
 
     int append_(PyObject *v) override {
-        typename E::Slot s;
+        typename E::Slot s{};
         if (!E::unbox(v, key_ovf, &s)) {
             return -1;
         }
@@ -1932,7 +1937,7 @@ struct VectorImpl final : VecLikeImpl {
     }
 
     int find_(PyObject *probe, Py_ssize_t start, Py_ssize_t stop, Py_ssize_t *at) override {
-        typename E::Slot s;
+        typename E::Slot s{};
         int r = unbox_probe<E>(probe, key_ovf, &s);
         if (r <= 0) {
             return r;
@@ -1947,7 +1952,7 @@ struct VectorImpl final : VecLikeImpl {
     }
 
     Py_ssize_t count_(PyObject *probe) override {
-        typename E::Slot s;
+        typename E::Slot s{};
         int r = unbox_probe<E>(probe, key_ovf, &s);
         if (r < 0) {
             return -1;
