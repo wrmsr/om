@@ -12,6 +12,10 @@ with _lang.auto_proxy_init(globals()):
         Launcher,
     )
 
+    from .lazy import (  # noqa
+        LazyDaemon,
+    )
+
     from .startup import (  # noqa
         LaunchErrorInfo,
         LaunchReport,
