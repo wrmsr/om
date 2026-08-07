@@ -182,14 +182,14 @@ def _main() -> None:
     args = parser.parse_args()
 
     match args:
-        case argparse.Namespace(command='worker'):
+        case argparse.Namespace(command='worker'):  # noqa
             run_controlled_worker(
                 args.control_path,
                 label=args.label,
                 fail=args.fail,
             )
 
-        case argparse.Namespace(command='contend'):
+        case argparse.Namespace(command='contend'):  # noqa
             _run_contender(
                 args.contender,
                 args.barrier_path,

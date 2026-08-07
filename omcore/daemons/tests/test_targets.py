@@ -88,7 +88,7 @@ def test_exec_target_replaces_forked_process_and_honors_cwd():
                     cwd=temp_dir,
                     env={
                         pycharm_runhack.ENABLED_ENV_VAR: '0',
-                        'PYTHONPATH': ':'.join([
+                        'PYTHONPATH': os.pathsep.join([
                             os.path.abspath(os.getcwd()),
                             *([xpp] if (xpp := os.environ.get('PYTHONPATH')) else []),
                         ]),
