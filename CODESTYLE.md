@@ -485,6 +485,8 @@ def make_it_a_tuple(t: T) -> tuple[T]:
   to never be realistically hit in practice (think 5m for interactive work, 1h for background work).
   - By default all pytests already run with a standard timeout.
 - In non-lite code use `uuid.uuid7()` by default for uuid generation. In lite code use `uuid.uuid4()`.
+- Do **NOT** programmatically modify `sys.path`, EVEN TEMPORARILY. If you're thinking about doing this for a test, you
+  should be spawning a temporary subprocess with a modified `PYTHONPATH` env var.
 
 
 ### C Extensions
