@@ -1,7 +1,7 @@
 """
 The direction-agnostic 'what' of object marshaling: a resolved set of field infos plus the object-level behaviors,
-divorced from how it was discovered (dataclass reflection, namedtuple inspection, hand construction). Sniffing factories
-(dataclasses, namedtuples) resolve reflected types to ObjectSpecs and re-enter; the ObjectMarshalerFactory /
+divorced from how it was discovered (dataclass reflection, namedtuple inspection, hand construction). Spec-deriving
+factories (dataclasses, namedtuples) resolve reflected types to ObjectSpecs and re-enter; the ObjectMarshalerFactory /
 ObjectUnmarshalerFactory pair consumes them.
 
 Per the InternalSpec contract these are values - hashable and compared by value, serving as their own handler cache
@@ -23,6 +23,7 @@ from .infos import FieldInfos
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(cache_hash=True)
 class ObjectSpec(InternalSpec, lang.Final):
     ty: type
     fields: FieldInfos
@@ -34,7 +35,7 @@ class ObjectSpec(InternalSpec, lang.Final):
     unwrap_if_single_field: ta.Literal['marshal', 'unmarshal', True, None] = None
 
     # Pre-resolved specs for embedded fields, keyed by field name - present iff the corresponding FieldInfo has
-    # `options.embed` set. Resolved at sniff time so spec consumption stays config-free. Coerced to a (hashable)
+    # `options.embed` set. Resolved at derivation time so spec consumption stays config-free. Coerced to a (hashable)
     # FrozenDict.
     embeds: ta.Mapping[str, ObjectSpec] = dc.xfield(
         default=col.frozendict(),

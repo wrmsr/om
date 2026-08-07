@@ -24,7 +24,7 @@ from .unary import UnaryOps
 
 
 @dc.dataclass(frozen=True)
-class OpMarshalerUnmarshaler(msh.HandlerPair):
+class OpMarshalerUnmarshaler(msh.DuplexHandler):
     ty: type
     ns: type[lang.Namespace]
 
@@ -41,7 +41,7 @@ class OpMarshalerUnmarshaler(msh.HandlerPair):
 
 
 @dc.dataclass(frozen=True)
-class LowerEnumMarshaler(msh.HandlerPair):
+class LowerEnumMarshaler(msh.DuplexHandler):
     ty: type[enum.Enum]
 
     @cached.property

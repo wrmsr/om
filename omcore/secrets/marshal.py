@@ -17,7 +17,7 @@ from .secrets import SecretRefOrStr
 ##
 
 
-class StrOrSecretRefMarshalerUnmarshaler(msh.HandlerPair):
+class StrOrSecretRefMarshalerUnmarshaler(msh.DuplexHandler):
     def marshal(self, ctx: msh.MarshalContext, o: ta.Any) -> msh.Value:
         if isinstance(o, str):
             return o

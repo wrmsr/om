@@ -106,11 +106,11 @@ with _lang.auto_proxy_init(globals()):
 
         Marshaler,
         Unmarshaler,
-        HandlerPair,
+        DuplexHandler,
 
         MarshalerFactory,
         UnmarshalerFactory,
-        FactoryPair,
+        DuplexFactory,
     )
 
     from .api.values import (  # noqa

@@ -1,7 +1,7 @@
 """
-The metadata-driven sniffers: classes decorated `set_polymorphic_from_subclasses` (and unions of their impl subtypes)
-resolve to PolymorphismSpecs and re-enter construction. The spec's sources unify the collection flavors - subclass
-scanning, config-registered impls, and manifest-declared impls all contribute, deduped by the resolver.
+The metadata-driven spec derivers: classes decorated `set_polymorphic_from_subclasses` (and unions of their impl
+subtypes) resolve to PolymorphismSpecs and re-enter construction. The spec's sources unify the collection flavors -
+subclass scanning, config-registered impls, and manifest-declared impls all contribute, deduped by the resolver.
 
 There is no cache here: spec resolution happens at (runtime-cached, footprint-invalidated) handler construction, so -
 unlike the old permanently-baked global PolymorphismMetadataCache - a Runtime.flush() genuinely resets
@@ -14,7 +14,7 @@ from ... import reflect as rfl
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.specs import Spec
-from ..api.types import FactoryPair
+from ..api.types import DuplexFactory
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from .api import _PolymorphismMetadata
@@ -64,10 +64,10 @@ def _make_metadata_spec(
 ##
 
 
-class PolymorphismMetadataFactory(FactoryPair):
-    """Sniffs classes bearing polymorphism metadata, resolving them to PolymorphismSpecs and re-entering."""
+class PolymorphismMetadataFactory(DuplexFactory):
+    """Derives PolymorphismSpecs from classes bearing polymorphism metadata."""
 
-    def _sniff_spec(self, spec: Spec) -> PolymorphismSpec | None:
+    def _derive_spec(self, spec: Spec) -> PolymorphismSpec | None:
         if not isinstance(spec, rfl.Type):
             return None
 
@@ -80,13 +80,13 @@ class PolymorphismMetadataFactory(FactoryPair):
         return _make_metadata_spec(cls, pmd)
 
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
-        if (psp := self._sniff_spec(spec)) is None:
+        if (psp := self._derive_spec(spec)) is None:
             return None
 
         return lambda: ctx.make_marshaler(psp)
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
-        if (psp := self._sniff_spec(spec)) is None:
+        if (psp := self._derive_spec(spec)) is None:
             return None
 
         return lambda: ctx.make_unmarshaler(psp)
@@ -95,11 +95,11 @@ class PolymorphismMetadataFactory(FactoryPair):
 ##
 
 
-class PolymorphismUnionFactory(FactoryPair):
+class PolymorphismUnionFactory(DuplexFactory):
     """
-    Sniffs unions whose members all share a single nearest metadata-decorated ancestor, resolving to that root's
-    PolymorphismSpec restricted to the members. A member equal to the root lifts the restriction (the union
-    degenerates to the full polymorphism).
+    Derives PolymorphismSpecs from unions whose members all share a single nearest metadata-decorated ancestor,
+    resolving to that root's PolymorphismSpec restricted to the members. A member equal to the root lifts the
+    restriction (the union degenerates to the full polymorphism).
     """
 
     def _find_metadata_root(self, cls: type) -> type | None:
@@ -108,7 +108,7 @@ class PolymorphismUnionFactory(FactoryPair):
                 return mro_cls
         return None
 
-    def _sniff_spec(self, spec: Spec) -> PolymorphismSpec | None:
+    def _derive_spec(self, spec: Spec) -> PolymorphismSpec | None:
         if not isinstance(spec, rfl.UnionType):
             return None
 
@@ -132,13 +132,13 @@ class PolymorphismUnionFactory(FactoryPair):
         )
 
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
-        if (psp := self._sniff_spec(spec)) is None:
+        if (psp := self._derive_spec(spec)) is None:
             return None
 
         return lambda: ctx.make_marshaler(psp)
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
-        if (psp := self._sniff_spec(spec)) is None:
+        if (psp := self._derive_spec(spec)) is None:
             return None
 
         return lambda: ctx.make_unmarshaler(psp)

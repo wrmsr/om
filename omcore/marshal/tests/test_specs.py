@@ -53,7 +53,7 @@ def test_spec_as_direct_target():
     assert m.unmarshal({'ex': 1, 'why': 2}, spec) == Point(1, 2)
     assert m.unmarshal({'ex': 1, 'y2': 2}, spec) == Point(1, 2)
 
-    # The sniffed default shape is unaffected by the spec-keyed entries.
+    # The derived default shape is unaffected by the spec-keyed entries.
     assert m.marshal(Point(1, 2)) == {'x': 1, 'y': 2}
 
 
@@ -102,7 +102,7 @@ class KwThing:
         return hash((KwThing, self.a))
 
 
-def test_simple_object_factories_resniff_through_specs():
+def test_simple_object_factories_rederive_through_specs():
     fis = [FieldInfo(name='a', type=int, marshal_name='a', unmarshal_names=['a'])]
 
     m = SimpleMarshaling(

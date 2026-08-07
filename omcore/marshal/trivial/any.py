@@ -3,7 +3,7 @@ import typing as ta
 from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import HandlerPair
+from ..api.types import DuplexHandler
 from ..api.values import Value
 from ..factories.typemap import TypeMapMarshalerFactory
 from ..factories.typemap import TypeMapUnmarshalerFactory
@@ -12,7 +12,7 @@ from ..factories.typemap import TypeMapUnmarshalerFactory
 ##
 
 
-class AnyMarshalerUnmarshaler(HandlerPair):
+class AnyMarshalerUnmarshaler(DuplexHandler):
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         # FIXME: naughty
         mfc = MarshalFactoryContext(runtime=(rt := ctx.runtime))

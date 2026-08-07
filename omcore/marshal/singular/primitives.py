@@ -8,7 +8,7 @@ import typing as ta
 from ... import dataclasses as dc
 from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import HandlerPair
+from ..api.types import DuplexHandler
 from ..api.values import Value
 from ..factories.typemap import TypeMapMarshalerFactory
 from ..factories.typemap import TypeMapUnmarshalerFactory
@@ -19,7 +19,7 @@ from .api import PRIMITIVE_TYPES
 
 
 @dc.dataclass(frozen=True)
-class PrimitiveMarshalerUnmarshaler(HandlerPair):
+class PrimitiveMarshalerUnmarshaler(DuplexHandler):
     ty: type
 
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:

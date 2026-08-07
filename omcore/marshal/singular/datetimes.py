@@ -6,7 +6,7 @@ from ... import dataclasses as dc
 from ... import datetimes as dts
 from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import HandlerPair
+from ..api.types import DuplexHandler
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from ..api.values import Value
@@ -113,7 +113,7 @@ class DatetimeUnmarshaler(Unmarshaler, ta.Generic[DatetimeLikeT]):
 ##
 
 
-class IsoDatetimeMarshalerUnmarshaler(HandlerPair, ta.Generic[DatetimeLikeT]):
+class IsoDatetimeMarshalerUnmarshaler(DuplexHandler, ta.Generic[DatetimeLikeT]):
     cls: type[DatetimeLikeT]
 
     def marshal(self, ctx: MarshalContext, o: DatetimeLikeT) -> Value:
@@ -126,7 +126,7 @@ class IsoDatetimeMarshalerUnmarshaler(HandlerPair, ta.Generic[DatetimeLikeT]):
 ##
 
 
-class TimedeltaMarshalerUnmarshaler(HandlerPair):
+class TimedeltaMarshalerUnmarshaler(DuplexHandler):
     def marshal(self, ctx: MarshalContext, o: datetime.timedelta) -> Value:
         return str(o)
 

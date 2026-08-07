@@ -1680,33 +1680,33 @@ def _process_dataclass__1be8e124c66f00c82a764169ffbcb93f04b0b647():
         ", EqPlan(fields=('ty', 'fields', 'specials', 'ignore_unknown', 'unwrap_if_single_field', 'embeds')), FrozenPla"
         "n(fields=('ty', 'fields', 'specials', 'ignore_unknown', 'unwrap_if_single_field', 'embeds'), allow_dynamic_dun"
         "der_attrs=False), HashPlan(action='add', fields=('ty', 'fields', 'specials', 'ignore_unknown', 'unwrap_if_sing"
-        "le_field', 'embeds'), cache=False), InitPlan(fields=(InitPlan.Field(name='ty', annotation=OpRef(name='init.fie"
-        "lds.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTAN"
-        "CE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='fields', annotation=OpRef(name='init.fi"
-        "elds.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
-        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='specials', annotation=OpRef(name='init"
-        ".fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override"
-        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='igno"
-        "re_unknown', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), d"
-        "efault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, che"
-        "ck_type=None), InitPlan.Field(name='unwrap_if_single_field', annotation=OpRef(name='init.fields.4.annotation')"
-        ", default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_type=Fie"
-        "ldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='embeds', annotation=OpRef("
-        "name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factory=None, init=True"
-        ", override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.5.coerce'), validate=None, che"
-        "ck_type=None)), self_param='self', std_params=(), kw_only_params=('ty', 'fields', 'specials', 'ignore_unknown'"
-        ", 'unwrap_if_single_field', 'embeds'), frozen=True, slots=False, post_init_params=(), init_fns=(), validate_fn"
-        "s=()), ReprPlan(fields=(ReprPlan.Field(name='ty', kw_only=True, fn=None), ReprPlan.Field(name='fields', kw_onl"
-        "y=True, fn=None), ReprPlan.Field(name='specials', kw_only=True, fn=None), ReprPlan.Field(name='ignore_unknown'"
-        ", kw_only=True, fn=None), ReprPlan.Field(name='unwrap_if_single_field', kw_only=True, fn=None), ReprPlan.Field"
-        "(name='embeds', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+        "le_field', 'embeds'), cache=True), InitPlan(fields=(InitPlan.Field(name='ty', annotation=OpRef(name='init.fiel"
+        "ds.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANC"
+        "E, coerce=None, validate=None, check_type=None), InitPlan.Field(name='fields', annotation=OpRef(name='init.fie"
+        "lds.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTAN"
+        "CE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='specials', annotation=OpRef(name='init."
+        "fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override="
+        "False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ignor"
+        "e_unknown', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), de"
+        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, chec"
+        "k_type=None), InitPlan.Field(name='unwrap_if_single_field', annotation=OpRef(name='init.fields.4.annotation'),"
+        " default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_type=Fiel"
+        "dType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='embeds', annotation=OpRef(n"
+        "ame='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factory=None, init=True,"
+        " override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.5.coerce'), validate=None, chec"
+        "k_type=None)), self_param='self', std_params=(), kw_only_params=('ty', 'fields', 'specials', 'ignore_unknown',"
+        " 'unwrap_if_single_field', 'embeds'), frozen=True, slots=False, post_init_params=(), init_fns=(), validate_fns"
+        "=()), ReprPlan(fields=(ReprPlan.Field(name='ty', kw_only=True, fn=None), ReprPlan.Field(name='fields', kw_only"
+        "=True, fn=None), ReprPlan.Field(name='specials', kw_only=True, fn=None), ReprPlan.Field(name='ignore_unknown',"
+        " kw_only=True, fn=None), ReprPlan.Field(name='unwrap_if_single_field', kw_only=True, fn=None), ReprPlan.Field("
+        "name='embeds', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='8047f2cd401ffc04bd344704c475986a68be9701',
+    plan_repr_sha1='a13dee16634d419faa756388d71a92ad6c8c2892',
     cls_names=(
         ('omcore.marshal.objects.specs', 'ObjectSpec'),
     ),
 )
-def _process_dataclass__8047f2cd401ffc04bd344704c475986a68be9701():
+def _process_dataclass__a13dee16634d419faa756388d71a92ad6c8c2892():
     def _process_dataclass(
         *,
         __class__,
@@ -1787,14 +1787,23 @@ def _process_dataclass__8047f2cd401ffc04bd344704c475986a68be9701():
         __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
 
         def __hash__(self):
-            return hash((
-                self.ty,
-                self.fields,
-                self.specials,
-                self.ignore_unknown,
-                self.unwrap_if_single_field,
-                self.embeds,
-            ))
+            try:
+                return self.__dataclass_hash__
+            except AttributeError:
+                pass
+            object.__setattr__(
+                self,
+                '__dataclass_hash__',
+                h := hash((
+                    self.ty,
+                    self.fields,
+                    self.specials,
+                    self.ignore_unknown,
+                    self.unwrap_if_single_field,
+                    self.embeds,
+                ))
+            )
+            return h
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
 

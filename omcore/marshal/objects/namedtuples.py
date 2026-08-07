@@ -7,7 +7,7 @@ from ... import reflect as rfl
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.specs import Spec
-from ..api.types import FactoryPair
+from ..api.types import DuplexFactory
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from .infos import FieldInfo
@@ -54,10 +54,10 @@ def get_namedtuple_field_infos(ty: type) -> FieldInfos:
 ##
 
 
-class NamedtupleFactory(FactoryPair):
-    """Sniffs typed namedtuple types, resolves them to ObjectSpecs, and re-enters construction with the spec."""
+class NamedtupleFactory(DuplexFactory):
+    """Derives ObjectSpecs for typed namedtuple types."""
 
-    def _sniff_spec(self, spec: Spec) -> ObjectSpec | None:
+    def _derive_spec(self, spec: Spec) -> ObjectSpec | None:
         if not isinstance(spec, rfl.Type):
             return None
 
@@ -72,13 +72,13 @@ class NamedtupleFactory(FactoryPair):
         )
 
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
-        if (osp := self._sniff_spec(spec)) is None:
+        if (osp := self._derive_spec(spec)) is None:
             return None
 
         return lambda: ctx.make_marshaler(osp)
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
-        if (osp := self._sniff_spec(spec)) is None:
+        if (osp := self._derive_spec(spec)) is None:
             return None
 
         return lambda: ctx.make_unmarshaler(osp)

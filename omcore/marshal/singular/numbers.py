@@ -5,7 +5,7 @@ import typing as ta
 from ... import check
 from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import HandlerPair
+from ..api.types import DuplexHandler
 from ..api.values import Value
 from ..factories.typemap import TypeMapMarshalerFactory
 from ..factories.typemap import TypeMapUnmarshalerFactory
@@ -14,7 +14,7 @@ from ..factories.typemap import TypeMapUnmarshalerFactory
 ##
 
 
-class ComplexMarshalerUnmarshaler(HandlerPair):
+class ComplexMarshalerUnmarshaler(DuplexHandler):
     def marshal(self, ctx: MarshalContext, o: complex) -> Value:
         return [o.real, o.imag]
 
@@ -23,7 +23,7 @@ class ComplexMarshalerUnmarshaler(HandlerPair):
         return complex(real, imag)
 
 
-class DecimalMarshalerUnmarshaler(HandlerPair):
+class DecimalMarshalerUnmarshaler(DuplexHandler):
     def marshal(self, ctx: MarshalContext, o: decimal.Decimal) -> Value:
         return str(o)
 
@@ -31,7 +31,7 @@ class DecimalMarshalerUnmarshaler(HandlerPair):
         return decimal.Decimal(check.isinstance(v, str))
 
 
-class FractionMarshalerUnmarshaler(HandlerPair):
+class FractionMarshalerUnmarshaler(DuplexHandler):
     def marshal(self, ctx: MarshalContext, o: fractions.Fraction) -> Value:
         return [o.numerator, o.denominator]
 
