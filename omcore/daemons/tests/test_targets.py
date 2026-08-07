@@ -1,10 +1,11 @@
 import functools
-import os
+import os.path
 import sys
 import tempfile
 
 import pytest
 
+from ...diag._pycharm import runhack as pycharm_runhack
 from ..launching import Launcher
 from ..spawning import ForkSpawning
 from ..spawning import ThreadSpawning
@@ -78,15 +79,23 @@ def test_exec_target_replaces_forked_process_and_honors_cwd():
                         sys.executable,
                         sys.executable,
                         '-m',
-                        'omcore.daemons.tests.helpers',
+                        f'{__package__}.helpers',
                         'worker',
                         control_path,
                         '--label',
                         'exec-target',
                     ],
                     cwd=temp_dir,
+                    env={
+                        pycharm_runhack.ENABLED_ENV_VAR: '0',
+                        'PYTHONPATH': ':'.join([
+                            os.path.abspath(os.getcwd()),
+                            *([xpp] if (xpp := os.environ.get('PYTHONPATH')) else []),
+                        ]),
+                    },
                 ),
                 spawning=ForkSpawning(),
+                # launched_timeout_s=9999,
             ))
 
             conn, info = accept_worker(listener)

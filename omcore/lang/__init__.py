@@ -437,6 +437,7 @@ with _auto_proxy_init(globals(), update_exports=True):
         Identity,
 
         OpaqueRepr,
+        LiteralRepr,
     )
 
     from .outcomes import (  # noqa

@@ -16,7 +16,7 @@ from ..factories.typemap import TypeMapUnmarshalerFactory
 class OpaqueReprMarshalerUnmarshaler(HandlerPair):
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         if not isinstance(o, lang.OpaqueRepr):
-            o = lang.OpaqueRepr(repr(o))
+            o = repr(o)
         return o
 
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any:

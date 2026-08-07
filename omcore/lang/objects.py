@@ -271,10 +271,39 @@ class Identity(ta.Generic[T]):
 ##
 
 
-class OpaqueRepr(str):
-    """Represents a non-roundtrippable repr of some other complex / non-picklable / non-marshalable object."""
+class _ReprBox:
+    __slots__ = ('_s',)
+
+    def __init__(self, s: str) -> None:
+        self._s = s
+
+    def __str__(self) -> str:
+        return self._s
+
+    def __hash__(self) -> int:
+        return hash((self.__class__, self._s))
+
+    def __eq__(self, value: object, /) -> bool:
+        if value.__class__ is not self.__class__:
+            return NotImplemented
+        return value._s == self._s   # noqa
+
+
+@ta.final
+class OpaqueRepr(_ReprBox):
+    """A non-roundtrippable repr of some other complex / non-picklable / non-marshalable object."""
 
     __slots__ = ()
 
     def __repr__(self) -> str:
         return f'OpaqueRepr({super().__repr__()})'
+
+
+@ta.final
+class LiteralRepr(_ReprBox):
+    """An object that will repr literally to the given stringvalue."""
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return self._s

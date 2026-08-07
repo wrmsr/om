@@ -127,7 +127,13 @@ def _(target: NameTarget) -> NameTargetRunner:
 class ExecTarget(Target):
     cmd: ta.Sequence[str] = dc.xfield(coerce=check.of_not_isinstance(str))
 
+    _: dc.KW_ONLY
+
     cwd: str | None = None
+
+    env: ta.Mapping[str, str | None] | None = dc.xfield(None, repr_fn=lambda env: (
+        repr({k: lang.LiteralRepr('...') if v is not None else None for k, v in env.items()}) if env is not None else None  # noqa
+    ))
 
 
 class ExecTargetRunner(TargetRunner, dc.Frozen):
@@ -137,7 +143,11 @@ class ExecTargetRunner(TargetRunner, dc.Frozen):
         if (cwd := self.target.cwd) is not None:
             os.chdir(os.path.expanduser(cwd))
 
-        os.execl(*self.target.cmd)
+        env = dict(os.environ)
+        if (tgt_env := self.target.env):
+            env = {k: v for k, v in {**env, **tgt_env}.items() if v is not None}
+
+        os.execle(*self.target.cmd, env)
 
 
 @target_runner_for.register

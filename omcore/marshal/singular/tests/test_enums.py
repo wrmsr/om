@@ -3,11 +3,11 @@ import enum
 from ...api.marshaling import SimpleMarshaling
 from ...factories.multi import MultiMarshalerFactory
 from ...factories.multi import MultiUnmarshalerFactory
-from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY
-from ...singular.primitives import PRIMITIVE_UNMARSHALER_FACTORY
 from ..enums import EnumMarshalerFactory
 from ..enums import EnumMode
 from ..enums import EnumUnmarshalerFactory
+from ..primitives import PRIMITIVE_MARSHALER_FACTORY
+from ..primitives import PRIMITIVE_UNMARSHALER_FACTORY
 
 
 class FooEnum(enum.Enum):
