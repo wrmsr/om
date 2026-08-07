@@ -9,7 +9,7 @@ from ... import check
 from ... import dataclasses as dc
 from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
-from ..api.types import HandlerPair
+from ..api.types import DuplexHandler
 from ..api.values import Value
 from ..factories.typemap import TypeMapMarshalerFactory
 from ..factories.typemap import TypeMapUnmarshalerFactory
@@ -22,7 +22,7 @@ T = ta.TypeVar('T')
 
 
 @dc.dataclass(frozen=True)
-class Base64MarshalerUnmarshaler(HandlerPair, ta.Generic[T]):
+class Base64MarshalerUnmarshaler(DuplexHandler, ta.Generic[T]):
     ty: type[T]
 
     def marshal(self, ctx: MarshalContext, o: bytes) -> str:

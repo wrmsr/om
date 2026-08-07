@@ -18,7 +18,7 @@ from ..api.contexts import UnmarshalFactoryContext
 from ..api.naming import Naming
 from ..api.naming import translate_name
 from ..api.specs import Spec
-from ..api.types import FactoryPair
+from ..api.types import DuplexFactory
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from .api import DEFAULT_FIELD_OPTIONS
@@ -267,13 +267,13 @@ def get_dataclass_object_spec(
     )
 
 
-class DataclassFactory(FactoryPair):
+class DataclassFactory(DuplexFactory):
     """
-    Sniffs concrete dataclass types, resolves them to ObjectSpecs (reading any registered configs - the reads land in
-    this reflected type's cache footprint), and re-enters construction with the spec.
+    Derives ObjectSpecs from concrete dataclass types (reading any registered configs - the reads land in this reflected
+    type's cache footprint).
     """
 
-    def _sniff_spec(self, ctx: BaseFactoryContext, spec: Spec) -> ObjectSpec | None:
+    def _derive_spec(self, ctx: BaseFactoryContext, spec: Spec) -> ObjectSpec | None:
         if not isinstance(spec, rfl.Type):
             return None
 
@@ -287,13 +287,13 @@ class DataclassFactory(FactoryPair):
         return get_dataclass_object_spec(ty, ctx.get_configs)
 
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
-        if (osp := self._sniff_spec(ctx, spec)) is None:
+        if (osp := self._derive_spec(ctx, spec)) is None:
             return None
 
         return lambda: ctx.make_marshaler(osp)
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
-        if (osp := self._sniff_spec(ctx, spec)) is None:
+        if (osp := self._derive_spec(ctx, spec)) is None:
             return None
 
         return lambda: ctx.make_unmarshaler(osp)

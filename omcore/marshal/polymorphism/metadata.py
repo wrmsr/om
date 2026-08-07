@@ -1,14 +1,12 @@
 """
-TODO:
- - metadata *is* permanent, but we still have a global, permanent, non-weak type keyed cache here.. move to
-   ConfigRegistry like typecache?
-  - same pattern as typecache, generalize?
-  - _TransientConfig, purgeable?
-  - or stop abusing ConfigRegistry for this?
-  - or a more formal generalized 'State' store?
-   - but where? currently ConfigRegistry is, nicely the only thing shared
+The metadata-driven spec derivers: classes decorated `set_polymorphic_from_subclasses` (and unions of their
+subtypes) resolve to PolymorphismSpecs and re-enter construction. The spec's sources unify the collection flavors -
+subclass scanning, config-registered subtypes, and manifest-declared subtypes all contribute, deduped by the resolver.
+
+There is no cache here: spec resolution happens at (runtime-cached, footprint-invalidated) handler construction, so -
+unlike the old permanently-baked global PolymorphismMetadataCache - a Runtime.flush() genuinely resets
+subclass-derived polymorphisms, and late config-registered impls invalidate precisely.
 """
-import threading
 import typing as ta
 
 from ... import metadata as md
@@ -16,182 +14,131 @@ from ... import reflect as rfl
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.specs import Spec
+from ..api.types import DuplexFactory
 from ..api.types import Marshaler
-from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
-from ..api.types import UnmarshalerFactory
-from .api import Polymorphism
-from .api import PolymorphismOptions
 from .api import _PolymorphismMetadata
-from .api import polymorphism_from_subclasses
-from .marshal import PolymorphismMarshalerFactory
-from .unmarshal import PolymorphismUnmarshalerFactory
-
-
-FactoryT = ta.TypeVar('FactoryT', bound=MarshalerFactory | UnmarshalerFactory)
-FactoryContextT = ta.TypeVar('FactoryContextT', bound=MarshalFactoryContext | UnmarshalFactoryContext)
+from .specs import ConfigSubtypeSource
+from .specs import ManifestSubtypeSource
+from .specs import PolymorphismSpec
+from .specs import SubclassesSubtypeSource
+from .specs import SubtypeSource
 
 
 ##
 
 
-def _get_polymorphism_metadata(rty: rfl.Type) -> _PolymorphismMetadata | None:
-    if (cls := rfl.get_runtime_type_or_none(rty)) is None:
+_DEFAULT_METADATA_SUBTYPE_SOURCES: tuple[SubtypeSource, ...] = (
+    SubclassesSubtypeSource(),
+    ConfigSubtypeSource(),
+    ManifestSubtypeSource(),
+)
+
+
+def _get_polymorphism_metadata(cls: type) -> _PolymorphismMetadata | None:
+    if not md.has_object_metadata(cls):
         return None
 
-    if not (mds := md.get_object_metadata(cls, type=_PolymorphismMetadata)):
+    return md.get_single_object_metadata(cls, type=_PolymorphismMetadata)
+
+
+def _make_metadata_spec(
+        cls: type,
+        pmd: _PolymorphismMetadata,
+        *,
+        only: ta.Sequence[type] | None = None,
+) -> PolymorphismSpec:
+    if pmd.mode != 'subclasses':
+        raise RuntimeError(f'Unsupported polymorphism mode: {pmd.mode}')
+
+    return PolymorphismSpec(
+        root=cls,
+        sources=_DEFAULT_METADATA_SUBTYPE_SOURCES,
+        tagging=pmd.type_tagging,
+        naming=pmd.naming,
+        strip_suffix=pmd.strip_suffix,
+        only=only,
+    )
+
+
+##
+
+
+class PolymorphismMetadataFactory(DuplexFactory):
+    """Derives PolymorphismSpecs from classes bearing polymorphism metadata."""
+
+    def _derive_spec(self, spec: Spec) -> PolymorphismSpec | None:
+        if not isinstance(spec, rfl.Type):
+            return None
+
+        if (cls := rfl.get_runtime_type_or_none(spec)) is None:
+            return None
+
+        if (pmd := _get_polymorphism_metadata(cls)) is None:
+            return None
+
+        return _make_metadata_spec(cls, pmd)
+
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if (psp := self._derive_spec(spec)) is None:
+            return None
+
+        return lambda: ctx.make_marshaler(psp)
+
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if (psp := self._derive_spec(spec)) is None:
+            return None
+
+        return lambda: ctx.make_unmarshaler(psp)
+
+
+##
+
+
+class PolymorphismMetadataUnionFactory(DuplexFactory):
+    """
+    Derives PolymorphismSpecs from unions whose members all share a single nearest metadata-decorated ancestor,
+    resolving to that root's PolymorphismSpec restricted to the members. A member equal to the root lifts the
+    restriction (the union degenerates to the full polymorphism).
+    """
+
+    def _find_metadata_root(self, cls: type) -> type | None:
+        for mro_cls in cls.__mro__[:-1]:
+            if _get_polymorphism_metadata(mro_cls) is not None:
+                return mro_cls
         return None
 
-    return mds[-1]
-
-
-class PolymorphismMetadataCache:
-    def __init__(self) -> None:
-        super().__init__()
-
-        self._lock = threading.Lock()
-
-        self._type_cache: dict[type, PolymorphismMetadataCache._TypeCacheEntry] = {}
-
-    class _TypeCacheEntry(ta.NamedTuple):
-        md: _PolymorphismMetadata
-        poly: Polymorphism
-
-    #
-
-    def _make_poly(self, ty: type, pmd: _PolymorphismMetadata) -> Polymorphism:
-        if pmd.mode == 'subclasses':
-            return polymorphism_from_subclasses(
-                ty,
-                naming=pmd.opts.naming,
-                strip_suffix=pmd.opts.strip_suffix,
-            )
-
-        else:
-            raise RuntimeError(f'Unsupported polymorphism mode: {pmd.mode}')
-
-    #
-
-    class Lookup(ta.NamedTuple):
-        poly: Polymorphism
-        opts: PolymorphismOptions
-
-    def _lookup_type(self, ty: type) -> Lookup | None:
-        try:
-            tce = self._type_cache[ty]
-        except KeyError:
-            pass
-        else:
-            return self.Lookup(tce.poly, tce.md.opts)
-
-        if not md.has_object_metadata(ty):
+    def _derive_spec(self, spec: Spec) -> PolymorphismSpec | None:
+        if not isinstance(spec, rfl.UnionType):
             return None
 
-        if (pmd := md.get_single_object_metadata(ty, type=_PolymorphismMetadata)) is None:
-            return None
-
-        with self._lock:
-            try:
-                tce = self._type_cache[ty]
-            except KeyError:
-                pass
-            else:
-                return self.Lookup(tce.poly, tce.md.opts)
-
-            poly = self._make_poly(ty, pmd)
-
-            self._type_cache[ty] = self._TypeCacheEntry(pmd, poly)
-
-        return self.Lookup(poly, pmd.opts)
-
-    def _lookup_union(self, rty: rfl.UnionType) -> Lookup | None:
-        tys = [rfl.get_runtime_type_or_none(it) for it in rty.items]
+        tys = [rfl.get_runtime_type_or_none(it) for it in spec.items]
         if any(t is None for t in tys):
             return None
-        args = ta.cast('list[type]', tys)
+        members = ta.cast('list[type]', tys)
 
-        if not (has_mds := [a for a in args if md.has_object_metadata(a)]):  # noqa
+        roots = {self._find_metadata_root(m) for m in members}
+        if len(roots) != 1 or (root := roots.pop()) is None:
             return None
 
-        if not (pmd_tups := [  # noqa
-            (a, pmd)
-            for a in args
-            if (pmd := md.get_single_object_metadata(a, type=_PolymorphismMetadata)) is not None
-        ]):
+        pmd = _get_polymorphism_metadata(root)
+        if pmd is None:
             return None
 
-        if len(pmd_tups) != 1:
-            return None
+        return _make_metadata_spec(
+            root,
+            pmd,
+            only=None if root in members else members,
+        )
 
-        [(pty, pmd)] = pmd_tups
-        if not all(issubclass(a, pty) for a in args):
-            return None
-
-        raise NotImplementedError
-
-    def lookup(self, rty: rfl.Type) -> Lookup | None:
-        if isinstance(rty, rfl.UnionType):
-            return self._lookup_union(rty)
-        elif (cls := rfl.get_runtime_type_or_none(rty)) is not None:
-            return self._lookup_type(cls)
-        else:
-            return None
-
-
-##
-
-
-class _PolymorphismMetadataFactory(ta.Generic[FactoryContextT, FactoryT]):
-    def __init__(self, cache: PolymorphismMetadataCache) -> None:
-        super().__init__()
-
-        self._cache = cache
-
-
-class PolymorphismMetadataMarshalerFactory(
-    _PolymorphismMetadataFactory[MarshalFactoryContext, MarshalerFactory],
-    MarshalerFactory,
-):
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
-        if not isinstance(spec, rfl.Type):
-            return None
-        rty = spec
-
-        if (lu := self._cache.lookup(rty)) is None:
+        if (psp := self._derive_spec(spec)) is None:
             return None
 
-        return PolymorphismMarshalerFactory(
-            lu.poly,
-            lu.opts.type_tagging,
-        ).make_marshaler(ctx, rty)
+        return lambda: ctx.make_marshaler(psp)
 
-
-class PolymorphismMetadataUnmarshalerFactory(
-    _PolymorphismMetadataFactory[UnmarshalFactoryContext, UnmarshalerFactory],
-    UnmarshalerFactory,
-):
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
-        if not isinstance(spec, rfl.Type):
-            return None
-        rty = spec
-
-        if (lu := self._cache.lookup(rty)) is None:
+        if (psp := self._derive_spec(spec)) is None:
             return None
 
-        return PolymorphismUnmarshalerFactory(
-            lu.poly,
-            lu.opts.type_tagging,
-        ).make_unmarshaler(ctx, rty)
-
-
-##
-
-
-def make_polymorphism_metadata_factories() -> tuple[
-    PolymorphismMetadataMarshalerFactory,
-    PolymorphismMetadataUnmarshalerFactory,
-]:
-    return (
-        PolymorphismMetadataMarshalerFactory(cache := PolymorphismMetadataCache()),
-        PolymorphismMetadataUnmarshalerFactory(cache),
-    )
+        return lambda: ctx.make_unmarshaler(psp)

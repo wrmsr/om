@@ -20,7 +20,7 @@ class PolymorphismTagError(MarshalError):
     pass
 
 
-class PolymorphismImplError(MarshalError):
+class PolymorphismSubtypeError(MarshalError):
     pass
 
 
@@ -31,6 +31,8 @@ class TypeTagging(Config, lang.Abstract, lang.Sealed):
     pass
 
 
+# Fieldless frozen dataclass so tagging values compare by value - they participate in value-keyed PolymorphismSpecs.
+@dc.dataclass(frozen=True)
 class WrapperTypeTagging(TypeTagging, lang.Final):
     pass
 
@@ -51,170 +53,111 @@ class AUTO_STRIP_SUFFIX(lang.Marker):  # noqa
 
 
 @dc.dataclass(frozen=True)
-class Impl(lang.Final):
+class SubtypeInfo(lang.Final):
+    """One concrete participant in a polymorphism, bound to its wire tag."""
+
     ty: type
     tag: str
     alts: ta.AbstractSet[str] = frozenset()
 
     def __post_init__(self) -> None:
         check.state(not lang.is_abstract(self.ty))
+        check.non_empty_str(self.tag)
 
-
-class Impls(ta.Sequence[Impl], lang.Final):
-    def __init__(self, impls: ta.Iterable[Impl]) -> None:
-        super().__init__()
-
-        self._impls = list(impls)
-
-        by_ty: dict[type, Impl] = {}
-        by_tag: dict[str, Impl] = {}
-        for i in self._impls:
-            if i.ty in by_ty:
-                raise TypeError(i.ty)
-            if i.tag in by_tag:
-                raise NameError(i.tag)
-            for a in i.alts:
-                if a in by_tag:
-                    raise NameError(a)
-            by_ty[i.ty] = i
-            by_tag[i.tag] = i
-            for a in i.alts:
-                by_tag[a] = i
-        self._by_ty = by_ty
-        self._by_tag = by_tag
-
-    def __iter__(self) -> ta.Iterator[Impl]:
-        return iter(self._impls)
-
-    def __len__(self) -> int:
-        return len(self._impls)
-
-    @ta.overload
-    def __getitem__(self, index: int) -> Impl: ...
-
-    @ta.overload
-    def __getitem__(self, index: slice) -> ta.Sequence[Impl]: ...
-
-    def __getitem__(self, index):
-        return self._impls[index]
-
-    @property
-    def by_ty(self) -> ta.Mapping[type, Impl]:
-        return self._by_ty
-
-    @property
-    def by_tag(self) -> ta.Mapping[str, Impl]:
-        return self._by_tag
+        if not isinstance(self.alts, frozenset):
+            object.__setattr__(self, 'alts', frozenset(check.not_isinstance(self.alts, str)))
 
 
 @dc.dataclass(frozen=True)
-class ImplBase(lang.Final):
-    ty: type
-    impl_tys: ta.AbstractSet[type]
+class SubtypeInfos(lang.Final):
+    """Collection of subtype infos with cached lookups."""
+
+    lst: ta.Sequence[SubtypeInfo]
 
     def __post_init__(self) -> None:
-        check.not_empty(self.impl_tys)
-        for i in self.impl_tys:
-            check.issubclass(i, self.ty)
-            check.state(not lang.is_abstract(i))
+        if not isinstance(self.lst, tuple):
+            object.__setattr__(self, 'lst', tuple(self.lst))
+        for i in self.lst:
+            check.isinstance(i, SubtypeInfo)
 
-
-class ImplBases(ta.Sequence[ImplBase], lang.Final):
-    def __init__(self, bases: ta.Iterable[ImplBase]) -> None:
-        super().__init__()
-
-        self._bases = list(bases)
-
-        by_ty: dict[type, ImplBase] = {}
-        for i in self._bases:
-            if i.ty in by_ty:
-                raise TypeError(i.ty)
-            by_ty[i.ty] = i
-        self._by_ty = by_ty
-
-    def __iter__(self) -> ta.Iterator[ImplBase]:
-        return iter(self._bases)
+    def __iter__(self) -> ta.Iterator[SubtypeInfo]:
+        return iter(self.lst)
 
     def __len__(self) -> int:
-        return len(self._bases)
+        return len(self.lst)
 
-    @ta.overload
-    def __getitem__(self, index: int) -> ImplBase: ...
+    def __bool__(self) -> bool:
+        return bool(self.lst)
 
-    @ta.overload
-    def __getitem__(self, index: slice) -> ta.Sequence[ImplBase]: ...
-
-    def __getitem__(self, index):
-        return self._bases[index]
+    # The index properties are lazily built and cached - this module is api-light and cannot afford the heavy
+    # dataclass/caching machinery the analogous objects FieldInfos uses.
 
     @property
-    def by_ty(self) -> ta.Mapping[type, ImplBase]:
-        return self._by_ty
+    def by_ty(self) -> ta.Mapping[type, SubtypeInfo]:
+        try:
+            return self._by_ty  # type: ignore[attr-defined]
+        except AttributeError:
+            pass
 
+        dct: dict[type, SubtypeInfo] = {}
+        for i in self.lst:
+            if i.ty in dct:
+                raise PolymorphismSubtypeError(f'Duplicate subtype: {i.ty!r}')
+            dct[i.ty] = i
 
-class Polymorphism:
-    def __init__(
-            self,
-            root: ta.Any,
-            impls: Impls | ta.Iterable[Impl],
-            *,
-            bases: ImplBases | ta.Iterable[ImplBase] | None = None,
-    ) -> None:
-        super().__init__()
-
-        # `root` is a runtime object (usually the polymorphic base class), or a reflected `rfl.Type` of one.
-        self._root = root
-        self._impls = impls if isinstance(impls, Impls) else Impls(impls)
-        self._bases = bases if isinstance(bases, ImplBases) else ImplBases(bases) if bases is not None else None
-
-        if isinstance(ty := root, type):
-            for i in self._impls:
-                check.issubclass(i.ty, ty)  # noqa
-
-            if self._bases is not None:
-                for b in self._bases:
-                    check.issubclass(b.ty, ty)
+        object.__setattr__(self, '_by_ty', dct)
+        return dct
 
     @property
-    def root(self) -> ta.Any:
-        return self._root
+    def by_tag(self) -> ta.Mapping[str, SubtypeInfo]:
+        try:
+            return self._by_tag  # type: ignore[attr-defined]
+        except AttributeError:
+            pass
 
-    @property
-    def impls(self) -> Impls:
-        return self._impls
+        dct: dict[str, SubtypeInfo] = {}
+        for i in self.lst:
+            for t in (i.tag, *i.alts):
+                if t in dct:
+                    raise PolymorphismSubtypeError(f'Duplicate subtype tag {t!r}: {dct[t].ty!r}, {i.ty!r}')
+                dct[t] = i
 
-    @property
-    def bases(self) -> ImplBases | None:
-        return self._bases
+        object.__setattr__(self, '_by_tag', dct)
+        return dct
+
+
+@dc.dataclass(frozen=True)
+class Polymorphism(lang.Final):
+    """The resolved product: a root and its tagged subtypes."""
+
+    # Usually the root class, but reflected types (aliases and the like) remain legal for explicit-flavor matching.
+    root: ta.Any
+
+    subtypes: SubtypeInfos
+
+    def __post_init__(self) -> None:
+        check.isinstance(self.subtypes, SubtypeInfos)
+
+        if isinstance(ty := self.root, type):
+            for i in self.subtypes:
+                check.issubclass(i.ty, ty)
 
 
 ##
 
 
-def polymorphism_from_impls(
+def polymorphism_from_subtypes(
         ty: type,
-        impl_tys: ta.Iterable[type],
+        subtype_tys: ta.Iterable[type],
         *,
-        base_tys: ta.Mapping[type, ta.Iterable[type]] | None = None,
-
         naming: Naming | None = None,
         strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False,
 ) -> Polymorphism:
-    impl_tys = set(impl_tys)
-
-    bases: ta.Sequence[ImplBase] | None = None
-    if base_tys is not None:
-        bases = [
-            ImplBase(
-                b_ty,
-                frozenset(b_sub_tys),
-            )
-            for b_ty, b_sub_tys in base_tys.items()
-        ]
+    subtype_tys = set(subtype_tys)
 
     ssx: str | None
     if strip_suffix is AUTO_STRIP_SUFFIX:
-        strip_suffix = all(c.__name__.endswith(ty.__name__) for c in impl_tys)
+        strip_suffix = all(c.__name__.endswith(ty.__name__) for c in subtype_tys)
     if isinstance(strip_suffix, bool):
         ssx = ty.__name__ if strip_suffix else None
     elif isinstance(strip_suffix, str):
@@ -222,50 +165,36 @@ def polymorphism_from_impls(
     else:
         raise TypeError(strip_suffix)
 
-    dct: dict[str, Impl] = {}
-    for cur in impl_tys:
+    dct: dict[str, SubtypeInfo] = {}
+    for cur in subtype_tys:
         name = cur.__name__
         if ssx is not None:
             name = lang.must_remove_suffix(name, ssx)
         if naming is not None:
             name = translate_name(name, naming)
         if name in dct:
-            raise KeyError(f'Duplicate name: {name}')
+            raise PolymorphismSubtypeError(f'Duplicate subtype tag {name!r}: {dct[name].ty!r}, {cur!r}')
 
-        dct[name] = Impl(
+        dct[name] = SubtypeInfo(
             cur,
             name,
         )
 
     return Polymorphism(
         ty,
-        dct.values(),
-        bases=bases,
+        SubtypeInfos(list(dct.values())),
     )
 
 
 def polymorphism_from_subclasses(
         ty: type,
         *,
-        include_bases: bool = False,
-
         naming: Naming | None = None,
         strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False,
 ) -> Polymorphism:
-    impl_tys: set[type]
-    base_tys: dict[type, set[type]] | None
-    if include_bases:
-        dct: dict = lang.deep_subclass_tree(ty, total=True, concrete_only=True)
-        base_tys = {bt: bts for bt, bts in dct.items() if bts}
-        impl_tys = {sub_ty for sub_ty in dct if not lang.is_abstract(sub_ty)}
-    else:
-        impl_tys = set(lang.deep_subclasses(ty, concrete_only=True))
-        base_tys = None
-
-    return polymorphism_from_impls(
+    return polymorphism_from_subtypes(
         ty,
-        impl_tys,
-        base_tys=base_tys,
+        set(lang.deep_subclasses(ty, concrete_only=True)),
         naming=naming,
         strip_suffix=strip_suffix,
     )
@@ -274,19 +203,23 @@ def polymorphism_from_subclasses(
 ##
 
 
-@dc.dataclass(frozen=True, kw_only=True)
-class PolymorphismOptions(lang.Final):
-    type_tagging: TypeTagging = WrapperTypeTagging()
-    naming: Naming | None = None
-    strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False
-
-
-##
-
-
 @dc.dataclass(frozen=True)
-class OpenPolymorphismImpl(Config, lang.Final):
-    impl_ty: type
+class SubtypeConfig(Config, lang.Final):
+    """
+    Registers a class as a subtype of a polymorphic root by updating a config registry under the root's key. Resolved
+    by ConfigSubtypeSource - late registrations invalidate affected handlers through the config footprint mechanism.
+    """
+
+    ty: type
+
+    _: dc.KW_ONLY
+
+    tag: str | None = None
+    alts: ta.Sequence[str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.alts is not None and not isinstance(self.alts, tuple):
+            object.__setattr__(self, 'alts', tuple(check.not_isinstance(self.alts, str)))
 
 
 ##
@@ -295,7 +228,10 @@ class OpenPolymorphismImpl(Config, lang.Final):
 @dc.dataclass(frozen=True, kw_only=True)
 class _PolymorphismMetadata(md.ClassDecoratorObjectMetadata, lang.Final):
     mode: ta.Literal['subclasses'] = 'subclasses'
-    opts: PolymorphismOptions = PolymorphismOptions()
+
+    type_tagging: TypeTagging = WrapperTypeTagging()
+    naming: Naming | None = None
+    strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False
 
 
 def set_polymorphic_from_subclasses(
@@ -304,16 +240,12 @@ def set_polymorphic_from_subclasses(
         naming: Naming | None = None,
         strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False,
 ) -> ta.Callable[[type[T]], type[T]]:
-    opts = PolymorphismOptions(
-        type_tagging=type_tagging,
-        naming=naming,
-        strip_suffix=strip_suffix,
-    )
-
     def inner(cls):
         _PolymorphismMetadata(
             mode='subclasses',
-            opts=opts,
+            type_tagging=type_tagging,
+            naming=naming,
+            strip_suffix=strip_suffix,
         )(cls)
 
         return cls

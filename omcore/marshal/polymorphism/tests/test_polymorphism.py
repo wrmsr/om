@@ -14,8 +14,9 @@ from ...objects.unmarshal import ObjectUnmarshalerFactory
 from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY
 from ...singular.primitives import PRIMITIVE_UNMARSHALER_FACTORY
 from ..api import FieldTypeTagging
-from ..api import Impl
 from ..api import Polymorphism
+from ..api import SubtypeInfo
+from ..api import SubtypeInfos
 from ..api import WrapperTypeTagging
 from ..marshal import PolymorphismMarshalerFactory
 from ..unmarshal import PolymorphismUnmarshalerFactory
@@ -43,11 +44,11 @@ class PS2(PB):
 
 P_POLYMORPHISM = Polymorphism(
     PB,
-    [
-        Impl(PS0, 's0'),
-        Impl(PS1, 's1'),
-        Impl(PS2, 's2'),
-    ],
+    SubtypeInfos([
+        SubtypeInfo(PS0, 's0'),
+        SubtypeInfo(PS1, 's1'),
+        SubtypeInfo(PS2, 's2'),
+    ]),
 )
 
 

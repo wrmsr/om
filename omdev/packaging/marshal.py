@@ -64,11 +64,11 @@ class RequirementMarkerListMarshalerFactory(msh.MarshalerFactory):
 def _install_standard_marshaling(cfgs: msh.ConfigRegistry) -> None:
     requires_node_poly = msh.Polymorphism(
         RequirementNode,
-        [
-            msh.Impl(RequirementVariable, 'variable'),
-            msh.Impl(RequirementValue, 'value'),
-            msh.Impl(RequirementOp, 'op'),
-        ],
+        msh.SubtypeInfos([
+            msh.SubtypeInfo(RequirementVariable, 'variable'),
+            msh.SubtypeInfo(RequirementValue, 'value'),
+            msh.SubtypeInfo(RequirementOp, 'op'),
+        ]),
     )
     msh.install_standard_factories(
         cfgs,

@@ -8,8 +8,8 @@ from ..api.contexts import UnmarshalFactoryContext
 from ..api.errors import ForbiddenError
 from ..api.errors import ForbiddenTypeError
 from ..api.specs import Spec
-from ..api.types import FactoryPair
-from ..api.types import HandlerPair
+from ..api.types import DuplexFactory
+from ..api.types import DuplexHandler
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from ..api.values import Value
@@ -18,7 +18,7 @@ from ..api.values import Value
 ##
 
 
-class ForbiddenMarshalerUnmarshaler(HandlerPair):
+class ForbiddenMarshalerUnmarshaler(DuplexHandler):
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         raise ForbiddenError
 
@@ -29,7 +29,7 @@ class ForbiddenMarshalerUnmarshaler(HandlerPair):
 #
 
 
-class ForbiddenTypeMarshalerFactoryUnmarshalerFactory(FactoryPair):
+class ForbiddenTypeMarshalerFactoryUnmarshalerFactory(DuplexFactory):
     def __init__(self, tys: ta.AbstractSet[ta.Any]) -> None:
         super().__init__()
 

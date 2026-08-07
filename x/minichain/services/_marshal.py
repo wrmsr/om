@@ -205,12 +205,12 @@ class _MetadataMarshalerUnmarshalerFactory(msh.MarshalerFactory, msh.Unmarshaler
     def _matches(self, rty: rfl.Type) -> bool:
         return rfl.get_runtime_type_or_none(rty) is self._md_cls or self._is_mdu_rty(rty)
 
-    def _build_impls(self, rty: rfl.Type) -> list[msh.Impl]:
-        impls: list[msh.Impl] = []
+    def _build_subtypes(self, rty: rfl.Type) -> list[msh.SubtypeInfo]:
+        sts: list[msh.SubtypeInfo] = []
 
         rt = get_global_registry().get_type(self._md_cls)
         for rte in rt.entries.values():
-            impls.append(msh.Impl(
+            sts.append(msh.SubtypeInfo(
                 mdi_cls := rte.resolve(),
                 msh.translate_name(
                     lang.must_remove_suffix(mdi_cls.__name__, self._md_cls.__name__),
@@ -219,12 +219,12 @@ class _MetadataMarshalerUnmarshalerFactory(msh.MarshalerFactory, msh.Unmarshaler
             ))
 
         if self._is_mdu_rty(rty):
-            impls.extend(msh.polymorphism_from_subclasses(
+            sts.extend(msh.polymorphism_from_subclasses(
                 CommonMetadata,
                 naming=msh.Naming.SNAKE,
-            ).impls)
+            ).subtypes)
 
-        return impls
+        return sts
 
     def make_marshaler(self, ctx: msh.MarshalFactoryContext, spec: msh.Spec) -> ta.Callable[[], msh.Marshaler] | None:
         if not isinstance(spec, rfl.Type):
@@ -235,7 +235,7 @@ class _MetadataMarshalerUnmarshalerFactory(msh.MarshalerFactory, msh.Unmarshaler
             return None
 
         return lambda: msh.make_polymorphism_marshaler(
-            msh.Impls(self._build_impls(rty)),
+            msh.SubtypeInfos(self._build_subtypes(rty)),
             msh.WrapperTypeTagging(),
             ctx,
         )
@@ -249,7 +249,7 @@ class _MetadataMarshalerUnmarshalerFactory(msh.MarshalerFactory, msh.Unmarshaler
             return None
 
         return lambda: msh.make_polymorphism_unmarshaler(
-            msh.Impls(self._build_impls(rty)),
+            msh.SubtypeInfos(self._build_subtypes(rty)),
             msh.WrapperTypeTagging(),
             ctx,
         )

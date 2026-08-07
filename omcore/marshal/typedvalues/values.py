@@ -86,7 +86,7 @@ class TypedValueMarshalerFactory(MarshalerFactoryMethodClass):
             return None
 
         return lambda: make_polymorphism_marshaler(
-            _build_typed_value_poly(check.not_none(cls)).impls,
+            _build_typed_value_poly(check.not_none(cls)).subtypes,
             WrapperTypeTagging(),
             ctx,
         )
@@ -121,7 +121,7 @@ class TypedValueUnmarshalerFactory(UnmarshalerFactoryMethodClass):
             return None
 
         return lambda: make_polymorphism_unmarshaler(
-            _build_typed_value_poly(check.not_none(cls)).impls,
+            _build_typed_value_poly(check.not_none(cls)).subtypes,
             WrapperTypeTagging(),
             ctx,
         )

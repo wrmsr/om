@@ -106,11 +106,11 @@ with _lang.auto_proxy_init(globals()):
 
         Marshaler,
         Unmarshaler,
-        HandlerPair,
+        DuplexHandler,
 
         MarshalerFactory,
         UnmarshalerFactory,
-        FactoryPair,
+        DuplexFactory,
     )
 
     from .api.values import (  # noqa
@@ -273,7 +273,7 @@ with _lang.auto_proxy_init(globals()):
 
     from .polymorphism.api import (  # noqa
         PolymorphismTagError,
-        PolymorphismImplError,
+        PolymorphismSubtypeError,
 
         AUTO_STRIP_SUFFIX,
 
@@ -281,39 +281,46 @@ with _lang.auto_proxy_init(globals()):
         WrapperTypeTagging,
         FieldTypeTagging,
 
-        Impl,
-        Impls,
-        ImplBase,
-        ImplBases,
+        SubtypeInfo,
+        SubtypeInfos,
         Polymorphism,
 
-        polymorphism_from_impls,
+        polymorphism_from_subtypes,
         polymorphism_from_subclasses,
 
-        PolymorphismOptions,
-        OpenPolymorphismImpl,
+        SubtypeConfig,
 
         set_polymorphic_from_subclasses,
+    )
+
+    from .polymorphism.manifests import (  # noqa
+        SubtypeManifest,
     )
 
     from .polymorphism.marshal import (  # noqa
         PolymorphismMarshaler,
         PolymorphismMarshalerFactory,
+        PolymorphismSpecMarshalerFactory,
         make_polymorphism_marshaler,
     )
 
     from .polymorphism.metadata import (  # noqa
-        PolymorphismMetadataCache,
-
-        PolymorphismMetadataMarshalerFactory,
-        PolymorphismMetadataUnmarshalerFactory,
-
-        make_polymorphism_metadata_factories,
+        PolymorphismMetadataFactory,
+        PolymorphismMetadataUnionFactory,
     )
 
-    from .polymorphism.open import (  # noqa
-        OpenPolymorphismMarshalerFactory,
-        OpenPolymorphismUnmarshalerFactory,
+    from .polymorphism.resolving import (  # noqa
+        resolve_polymorphism,
+    )
+
+    from .polymorphism.specs import (  # noqa
+        SubtypeSource,
+        ExplicitSubtypeSource,
+        SubclassesSubtypeSource,
+        ConfigSubtypeSource,
+        ManifestSubtypeSource,
+
+        PolymorphismSpec,
     )
 
     from .polymorphism.standard import (  # noqa
@@ -323,6 +330,7 @@ with _lang.auto_proxy_init(globals()):
     from .polymorphism.unmarshal import (  # noqa
         PolymorphismUnmarshaler,
         PolymorphismUnmarshalerFactory,
+        PolymorphismSpecUnmarshalerFactory,
         make_polymorphism_unmarshaler,
     )
 

@@ -1,14 +1,14 @@
 import pytest
 
-from ..api.types import FactoryPair
-from ..api.types import HandlerPair
+from ..api.types import DuplexFactory
+from ..api.types import DuplexHandler
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
 from ..api.types import UnmarshalerFactory
 
 
-def test_handler_pair_enforced():
+def test_duplex_handler_enforced():
     with pytest.raises(TypeError):
         class Bad(Marshaler, Unmarshaler):  # noqa
             def marshal(self, ctx, o):
@@ -17,7 +17,7 @@ def test_handler_pair_enforced():
             def unmarshal(self, ctx, v):
                 return v
 
-    class Good(HandlerPair):
+    class Good(DuplexHandler):
         def marshal(self, ctx, o):
             return o
 
@@ -27,18 +27,18 @@ def test_handler_pair_enforced():
     g = Good()
     assert isinstance(g, Marshaler)
     assert isinstance(g, Unmarshaler)
-    assert isinstance(g, HandlerPair)
+    assert isinstance(g, DuplexHandler)
 
 
-def test_handler_pair_fixes_mro():
-    # The pair base fixes the mro order (Marshaler then Unmarshaler) - conflicting base orders are rejected by python
+def test_duplex_handler_fixes_mro():
+    # The duplex base fixes the mro order (Marshaler then Unmarshaler) - conflicting base orders are rejected by python
     # itself.
     with pytest.raises(TypeError):
-        class Bad(Unmarshaler, HandlerPair):  # type: ignore[misc]  # noqa
+        class Bad(Unmarshaler, DuplexHandler):  # type: ignore[misc]  # noqa
             pass
 
 
-def test_factory_pair_enforced():
+def test_duplex_factory_enforced():
     with pytest.raises(TypeError):
         class Bad(MarshalerFactory, UnmarshalerFactory):  # noqa
             def make_marshaler(self, ctx, rty):
@@ -47,7 +47,7 @@ def test_factory_pair_enforced():
             def make_unmarshaler(self, ctx, rty):
                 return None
 
-    class Good(FactoryPair):
+    class Good(DuplexFactory):
         def make_marshaler(self, ctx, rty):
             return None
 
@@ -57,7 +57,7 @@ def test_factory_pair_enforced():
     g = Good()
     assert isinstance(g, MarshalerFactory)
     assert isinstance(g, UnmarshalerFactory)
-    assert isinstance(g, FactoryPair)
+    assert isinstance(g, DuplexFactory)
 
 
 def test_single_role_unaffected():
@@ -69,5 +69,5 @@ def test_single_role_unaffected():
         def unmarshal(self, ctx, v):
             return v
 
-    assert not isinstance(M(), HandlerPair)
-    assert not isinstance(U(), HandlerPair)
+    assert not isinstance(M(), DuplexHandler)
+    assert not isinstance(U(), DuplexHandler)

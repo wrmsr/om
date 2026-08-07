@@ -10,7 +10,7 @@ from .harness import BOOTSTRAP_TYPES_BY_NAME
 def _install_standard_marshaling(cfgs: msh.ConfigRegistry) -> None:
     cfgs_poly = msh.Polymorphism(
         Bootstrap.Config,
-        [msh.Impl(b.Config, n) for n, b in BOOTSTRAP_TYPES_BY_NAME.items()],
+        msh.SubtypeInfos([msh.SubtypeInfo(b.Config, n) for n, b in BOOTSTRAP_TYPES_BY_NAME.items()]),
     )
     msh.install_standard_factories(
         cfgs,

@@ -14,7 +14,9 @@ from ...objects.unmarshal import ObjectUnmarshalerFactory
 from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY
 from ...singular.primitives import PRIMITIVE_UNMARSHALER_FACTORY
 from ..api import set_polymorphic_from_subclasses
-from ..metadata import make_polymorphism_metadata_factories
+from ..marshal import PolymorphismSpecMarshalerFactory
+from ..metadata import PolymorphismMetadataFactory
+from ..unmarshal import PolymorphismSpecUnmarshalerFactory
 
 
 @set_polymorphic_from_subclasses()
@@ -40,17 +42,17 @@ class PS2(PB):
 
 def test_polymorphism_helper():
     for _ in range(3):
-        pmf, puf = make_polymorphism_metadata_factories()
-
         rt = Runtime(
             marshaler_factory=MultiMarshalerFactory(
-                pmf,
+                PolymorphismMetadataFactory(),
+                PolymorphismSpecMarshalerFactory(),
                 ObjectMarshalerFactory(),
                 DataclassMarshalerFactory(),
                 PRIMITIVE_MARSHALER_FACTORY,
             ),
             unmarshaler_factory=MultiUnmarshalerFactory(
-                puf,
+                PolymorphismMetadataFactory(),
+                PolymorphismSpecUnmarshalerFactory(),
                 ObjectUnmarshalerFactory(),
                 DataclassUnmarshalerFactory(),
                 PRIMITIVE_UNMARSHALER_FACTORY,

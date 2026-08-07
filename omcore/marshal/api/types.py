@@ -20,10 +20,10 @@ type Factory = MarshalerFactory | UnmarshalerFactory
 ##
 
 
-def _check_pair_subclass(cls: type, l: type, r: type, pair: type) -> None:
-    if issubclass(cls, l) and issubclass(cls, r) and not issubclass(cls, pair):
+def _check_duplex_subclass(cls: type, l: type, r: type, dup: type) -> None:
+    if issubclass(cls, l) and issubclass(cls, r) and not issubclass(cls, dup):
         raise TypeError(
-            f'{cls!r} subclasses both {l.__name__} and {r.__name__} and must therefore subclass {pair.__name__}',
+            f'{cls!r} subclasses both {l.__name__} and {r.__name__} and must therefore subclass {dup.__name__}',
         )
 
 
@@ -35,7 +35,7 @@ class Marshaler(lang.Abstract):
         super().__init_subclass__(**kwargs)
 
         try:
-            _check_pair_subclass(cls, Marshaler, Unmarshaler, HandlerPair)
+            _check_duplex_subclass(cls, Marshaler, Unmarshaler, DuplexHandler)
         except NameError:
             pass
 
@@ -49,7 +49,7 @@ class Unmarshaler(lang.Abstract):
         super().__init_subclass__(**kwargs)
 
         try:
-            _check_pair_subclass(cls, Marshaler, Unmarshaler, HandlerPair)
+            _check_duplex_subclass(cls, Marshaler, Unmarshaler, DuplexHandler)
         except NameError:
             pass
 
@@ -58,12 +58,12 @@ class Unmarshaler(lang.Abstract):
         raise NotImplementedError
 
 
-class HandlerPair(Marshaler, Unmarshaler, lang.Abstract):
+class DuplexHandler(Marshaler, Unmarshaler, lang.Abstract):
     """
     The mandatory (and mro-order-fixing) base class of anything subclassing both Marshaler and Unmarshaler - enforced by
     those classes themselves. This makes dual-role handlers a nominal concept: an `isinstance(h, HandlerPair)` check is
     always sufficient, there is no such thing as an object which is both a Marshaler and an Unmarshaler but not a
-    HandlerPair.
+    DuplexHandler.
     """
 
 
@@ -75,7 +75,7 @@ class MarshalerFactory(lang.Abstract):
         super().__init_subclass__(**kwargs)
 
         try:
-            _check_pair_subclass(cls, MarshalerFactory, UnmarshalerFactory, FactoryPair)
+            _check_duplex_subclass(cls, MarshalerFactory, UnmarshalerFactory, DuplexFactory)
         except NameError:
             pass
 
@@ -89,7 +89,7 @@ class UnmarshalerFactory(lang.Abstract):
         super().__init_subclass__(**kwargs)
 
         try:
-            _check_pair_subclass(cls, MarshalerFactory, UnmarshalerFactory, FactoryPair)
+            _check_duplex_subclass(cls, MarshalerFactory, UnmarshalerFactory, DuplexFactory)
         except NameError:
             pass
 
@@ -98,5 +98,5 @@ class UnmarshalerFactory(lang.Abstract):
         raise NotImplementedError
 
 
-class FactoryPair(MarshalerFactory, UnmarshalerFactory, lang.Abstract):
-    """The factory equivalent of HandlerPair, under the same enforcement."""
+class DuplexFactory(MarshalerFactory, UnmarshalerFactory, lang.Abstract):
+    """The factory equivalent of DuplexHandler, under the same enforcement."""
