@@ -102,7 +102,7 @@ DEFAULT_STANDARD_FACTORIES: ta.Final = DefaultStandardFactories.of_pairs([
     (PrimitiveUnionMarshalerFactory(),       PrimitiveUnionUnmarshalerFactory()),
     # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
     (PolymorphismMetadataFactory(),          PolymorphismMetadataFactory()),
-    (PolymorphismMetadataUnionFactory(), PolymorphismMetadataUnionFactory()),
+    (PolymorphismMetadataUnionFactory(),     PolymorphismMetadataUnionFactory()),
     (PolymorphismSpecMarshalerFactory(),     PolymorphismSpecUnmarshalerFactory()),
     (ObjectMarshalerFactory(),               ObjectUnmarshalerFactory()),
     # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
