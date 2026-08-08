@@ -2079,6 +2079,7 @@ class ResourceType(_base.Enum):
     IPAM_PREFIX_LIST_RESOLVER = 'ipam-prefix-list-resolver'
     IPAM_POLICY = 'ipam-policy'
     IPAM_PREFIX_LIST_RESOLVER_TARGET = 'ipam-prefix-list-resolver-target'
+    IPAM_INTERNET_REGISTRY_ASSOCIATION = 'ipam-internet-registry-association'
     SECONDARY_INTERFACE = 'secondary-interface'
     SECONDARY_NETWORK = 'secondary-network'
     SECONDARY_SUBNET = 'secondary-subnet'
