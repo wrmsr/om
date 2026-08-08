@@ -11,7 +11,7 @@ Source semantics:
    needn't import anything to know the tag map.
 
 Tag derivation is a spec-level decision applied uniformly across the merged entry set: explicit tags (from
-SubtypeInfo, SubtypeConfig, or SubtypeManifest overrides) always win; the rest get the spec's strip_suffix (AUTO
+SubtypeInfo, SubtypeConfig, or SubtypeManifest overrides) always win; the rest get the spec's suffix_stripping (auto
 evaluated over the merged derived-name set) and naming translation, exactly mirroring `polymorphism_from_subtypes`.
 """
 import typing as ta
@@ -20,12 +20,12 @@ from ... import check
 from ... import lang
 from ..api.contexts import BaseFactoryContext
 from ..api.naming import translate_name
-from .api import AUTO_STRIP_SUFFIX
 from .api import Polymorphism
 from .api import PolymorphismSubtypeError
 from .api import SubtypeConfig
 from .api import SubtypeInfo
 from .api import SubtypeInfos
+from .api import _suffix_stripper
 from .manifests import SubtypeManifest
 from .specs import ConfigSubtypeSource
 from .specs import ExplicitSubtypeSource
@@ -156,23 +156,16 @@ class _PolymorphismResolver:
 
         derived = [r for r in raws if r.tag is None]
 
-        ssx: str | None
-        strip_suffix: ta.Any = spec.strip_suffix
-        if strip_suffix is AUTO_STRIP_SUFFIX:
-            strip_suffix = all(r.name.endswith(spec.root.__name__) for r in derived)
-        if isinstance(strip_suffix, bool):
-            ssx = spec.root.__name__ if strip_suffix else None
-        elif isinstance(strip_suffix, str):
-            ssx = strip_suffix
-        else:
-            raise TypeError(strip_suffix)
+        strip_suffix = _suffix_stripper(
+            spec.suffix_stripping,
+            spec.root.__name__,
+            {r.name for r in derived},
+        )
 
         out: list[SubtypeInfo] = []
         for r in raws:
             if (tag := r.tag) is None:
-                tag = r.name
-                if ssx is not None:
-                    tag = lang.must_remove_suffix(tag, ssx)
+                tag = strip_suffix(r.name)
                 if spec.naming is not None:
                     tag = translate_name(tag, spec.naming)
 

@@ -7,7 +7,6 @@ from ..entries import MessageSessionEntry
 from ..entries import SessionEntry
 
 
-@pytest.mark.xfail
 def test_marshal():
     se: SessionEntry = MessageSessionEntry(
         llm.UserMessage('hi!'),

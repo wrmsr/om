@@ -2553,36 +2553,37 @@ def _process_dataclass__9c3bcc8021de5324a28d0ac1da7c20885dcc03c6():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('root', 'sources', 'tagging', 'naming', 'strip_suffix', 'only')), EqPlan(fields=('"
-        "root', 'sources', 'tagging', 'naming', 'strip_suffix', 'only')), FrozenPlan(fields=('root', 'sources', 'taggin"
-        "g', 'naming', 'strip_suffix', 'only'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('root"
-        "', 'sources', 'tagging', 'naming', 'strip_suffix', 'only'), cache=True), InitPlan(fields=(InitPlan.Field(name="
-        "'root', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, over"
-        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='"
-        "sources', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, ov"
-        "erride=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.1.coerce'), validate=None, check_t"
-        "ype=None), InitPlan.Field(name='tagging', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(nam"
-        "e='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, co"
-        "erce=None, validate=None, check_type=None), InitPlan.Field(name='naming', annotation=OpRef(name='init.fields.3"
-        ".annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, f"
-        "ield_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='strip_suffix'"
-        ", annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_fact"
-        "ory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=Non"
-        "e), InitPlan.Field(name='only', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fi"
-        "elds.5.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef"
-        "(name='init.fields.5.coerce'), validate=None, check_type=None)), self_param='self', std_params=(), kw_only_par"
-        "ams=('root', 'sources', 'tagging', 'naming', 'strip_suffix', 'only'), frozen=True, slots=False, post_init_para"
-        "ms=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='root', kw_only=True, fn=None), Rep"
-        "rPlan.Field(name='sources', kw_only=True, fn=None), ReprPlan.Field(name='tagging', kw_only=True, fn=None), Rep"
-        "rPlan.Field(name='naming', kw_only=True, fn=None), ReprPlan.Field(name='strip_suffix', kw_only=True, fn=None),"
-        " ReprPlan.Field(name='only', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('root', 'sources', 'tagging', 'naming', 'suffix_stripping', 'only')), EqPlan(field"
+        "s=('root', 'sources', 'tagging', 'naming', 'suffix_stripping', 'only')), FrozenPlan(fields=('root', 'sources',"
+        " 'tagging', 'naming', 'suffix_stripping', 'only'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', f"
+        "ields=('root', 'sources', 'tagging', 'naming', 'suffix_stripping', 'only'), cache=True), InitPlan(fields=(Init"
+        "Plan.Field(name='root', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None,"
+        " init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitP"
+        "lan.Field(name='sources', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=Non"
+        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.1.coerce'), valida"
+        "te=None, check_type=None), InitPlan.Field(name='tagging', annotation=OpRef(name='init.fields.2.annotation'), d"
+        "efault=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldT"
+        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='naming', annotation=OpRef(nam"
+        "e='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, o"
+        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(nam"
+        "e='suffix_stripping', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.def"
+        "ault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate="
+        "None, check_type=None), InitPlan.Field(name='only', annotation=OpRef(name='init.fields.5.annotation'), default"
+        "=OpRef(name='init.fields.5.default'), default_factory=None, init=True, override=False, field_type=FieldType.IN"
+        "STANCE, coerce=OpRef(name='init.fields.5.coerce'), validate=None, check_type=None)), self_param='self', std_pa"
+        "rams=(), kw_only_params=('root', 'sources', 'tagging', 'naming', 'suffix_stripping', 'only'), frozen=True, slo"
+        "ts=False, post_init_params=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='root', kw_"
+        "only=True, fn=None), ReprPlan.Field(name='sources', kw_only=True, fn=None), ReprPlan.Field(name='tagging', kw_"
+        "only=True, fn=None), ReprPlan.Field(name='naming', kw_only=True, fn=None), ReprPlan.Field(name='suffix_strippi"
+        "ng', kw_only=True, fn=None), ReprPlan.Field(name='only', kw_only=True, fn=None)), id=False, terse=False, defau"
+        "lt_fn=None)))"
     ),
-    plan_repr_sha1='6f968ef747025393256bc7a690aac311710c72f0',
+    plan_repr_sha1='1c9710f44c675be2b57fdb9eb95a135adec69375',
     cls_names=(
         ('omcore.marshal.polymorphism.specs', 'PolymorphismSpec'),
     ),
 )
-def _process_dataclass__6f968ef747025393256bc7a690aac311710c72f0():
+def _process_dataclass__1c9710f44c675be2b57fdb9eb95a135adec69375():
     def _process_dataclass(
         *,
         __class__,
@@ -2612,7 +2613,7 @@ def _process_dataclass__6f968ef747025393256bc7a690aac311710c72f0():
                 sources=self.sources,
                 tagging=self.tagging,
                 naming=self.naming,
-                strip_suffix=self.strip_suffix,
+                suffix_stripping=self.suffix_stripping,
                 only=self.only,
             )
 
@@ -2628,7 +2629,7 @@ def _process_dataclass__6f968ef747025393256bc7a690aac311710c72f0():
                 self.sources == other.sources and
                 self.tagging == other.tagging and
                 self.naming == other.naming and
-                self.strip_suffix == other.strip_suffix and
+                self.suffix_stripping == other.suffix_stripping and
                 self.only == other.only
             )
 
@@ -2639,7 +2640,7 @@ def _process_dataclass__6f968ef747025393256bc7a690aac311710c72f0():
             'sources',
             'tagging',
             'naming',
-            'strip_suffix',
+            'suffix_stripping',
             'only',
         }
 
@@ -2676,7 +2677,7 @@ def _process_dataclass__6f968ef747025393256bc7a690aac311710c72f0():
                     self.sources,
                     self.tagging,
                     self.naming,
-                    self.strip_suffix,
+                    self.suffix_stripping,
                     self.only,
                 ))
             )
@@ -2691,7 +2692,7 @@ def _process_dataclass__6f968ef747025393256bc7a690aac311710c72f0():
             sources: __dataclass__init__fields__1__annotation,
             tagging: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             naming: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            strip_suffix: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            suffix_stripping: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
             only: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             sources = __dataclass__init__fields__1__coerce(sources)
@@ -2700,7 +2701,7 @@ def _process_dataclass__6f968ef747025393256bc7a690aac311710c72f0():
             __dataclass__object_setattr(self, 'sources', sources)
             __dataclass__object_setattr(self, 'tagging', tagging)
             __dataclass__object_setattr(self, 'naming', naming)
-            __dataclass__object_setattr(self, 'strip_suffix', strip_suffix)
+            __dataclass__object_setattr(self, 'suffix_stripping', suffix_stripping)
             __dataclass__object_setattr(self, 'only', only)
             self.__post_init__()
 
@@ -2713,7 +2714,7 @@ def _process_dataclass__6f968ef747025393256bc7a690aac311710c72f0():
             parts.append(f"sources={self.sources!r}")
             parts.append(f"tagging={self.tagging!r}")
             parts.append(f"naming={self.naming!r}")
-            parts.append(f"strip_suffix={self.strip_suffix!r}")
+            parts.append(f"suffix_stripping={self.suffix_stripping!r}")
             parts.append(f"only={self.only!r}")
             return (
                 f"{self.__class__.__qualname__}("

@@ -31,7 +31,7 @@ def _set_class_marshal_options(*, field_naming=msh.Naming.LOW_CAMEL, ignore_unkn
 @msh.set_polymorphic_from_subclasses(
     type_tagging=msh.FieldTypeTagging('type'),
     naming=msh.Naming.SNAKE,
-    strip_suffix=msh.AUTO_STRIP_SUFFIX,
+    suffix_stripping=msh.SuffixStripping.IF_ALL,
 )
 class ContentBlock(lang.Abstract, lang.Sealed):
     pass
@@ -40,7 +40,7 @@ class ContentBlock(lang.Abstract, lang.Sealed):
 @msh.set_polymorphic_from_subclasses(
     type_tagging=msh.FieldTypeTagging('outcome'),
     naming=msh.Naming.SNAKE,
-    strip_suffix=msh.AUTO_STRIP_SUFFIX,
+    suffix_stripping=msh.SuffixStripping.IF_ALL,
 )
 class RequestPermissionOutcome(lang.Abstract, lang.Sealed):
     pass
@@ -49,7 +49,7 @@ class RequestPermissionOutcome(lang.Abstract, lang.Sealed):
 @msh.set_polymorphic_from_subclasses(
     type_tagging=msh.FieldTypeTagging('type'),
     naming=msh.Naming.SNAKE,
-    strip_suffix=msh.AUTO_STRIP_SUFFIX,
+    suffix_stripping=msh.SuffixStripping.IF_ALL,
 )
 class SessionConfigOption(lang.Abstract, lang.Sealed):
     pass
@@ -58,7 +58,7 @@ class SessionConfigOption(lang.Abstract, lang.Sealed):
 @msh.set_polymorphic_from_subclasses(
     type_tagging=msh.FieldTypeTagging('sessionUpdate'),
     naming=msh.Naming.SNAKE,
-    strip_suffix=msh.AUTO_STRIP_SUFFIX,
+    suffix_stripping=msh.SuffixStripping.IF_ALL,
 )
 class SessionUpdate(lang.Abstract, lang.Sealed):
     pass
@@ -67,7 +67,7 @@ class SessionUpdate(lang.Abstract, lang.Sealed):
 @msh.set_polymorphic_from_subclasses(
     type_tagging=msh.FieldTypeTagging('type'),
     naming=msh.Naming.SNAKE,
-    strip_suffix=msh.AUTO_STRIP_SUFFIX,
+    suffix_stripping=msh.SuffixStripping.IF_ALL,
 )
 class ToolCallContent(lang.Abstract, lang.Sealed):
     pass

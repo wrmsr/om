@@ -20,6 +20,10 @@ class PolymorphismTagError(MarshalError):
     pass
 
 
+class PolymorphismSuffixError(MarshalError):
+    pass
+
+
 class PolymorphismSubtypeError(MarshalError):
     pass
 
@@ -27,11 +31,11 @@ class PolymorphismSubtypeError(MarshalError):
 ##
 
 
+@dc.dataclass(frozen=True)
 class TypeTagging(Config, lang.Abstract, lang.Sealed):
     pass
 
 
-# Fieldless frozen dataclass so tagging values compare by value - they participate in value-keyed PolymorphismSpecs.
 @dc.dataclass(frozen=True)
 class WrapperTypeTagging(TypeTagging, lang.Final):
     pass
@@ -45,8 +49,24 @@ class FieldTypeTagging(TypeTagging, lang.Final):
 ##
 
 
-class AUTO_STRIP_SUFFIX(lang.Marker):  # noqa
-    pass
+@dc.dataclass(frozen=True)
+class SuffixStripping(Config, lang.Final):
+    suffix: str | None = None  # If `None` then the suffix will implicitly be the full base name
+
+    _: dc.KW_ONLY
+
+    mode: ta.Literal['required', 'if_all', 'if_present'] = 'if_all'  # Matches previous 'auto' behavior
+
+    #
+
+    REQUIRED: ta.ClassVar[SuffixStripping]
+    IF_ALL: ta.ClassVar[SuffixStripping]
+    IF_PRESENT: ta.ClassVar[SuffixStripping]
+
+
+SuffixStripping.REQUIRED = SuffixStripping(mode='required')
+SuffixStripping.IF_ALL = SuffixStripping(mode='if_all')
+SuffixStripping.IF_PRESENT = SuffixStripping(mode='if_present')
 
 
 ##
@@ -146,30 +166,60 @@ class Polymorphism(lang.Final):
 ##
 
 
+def _strip_suffixes(
+        suffix_stripping: SuffixStripping,
+        parent_name: str,
+        child_names: ta.Iterable[str],
+) -> dict[str, str]:
+    child_names = set(check.not_isinstance(child_names, str))
+    suffix = check.non_empty_str(lang.coalesce(suffix_stripping.suffix, parent_name))
+
+    if child_names_without := {cn for cn in child_names if not cn.endswith(suffix)}:
+        match suffix_stripping.mode:
+            case 'required':
+                raise PolymorphismSuffixError(suffix, child_names_without)  # noqa
+            case 'if_all':
+                return {cn: cn for cn in child_names}
+
+    return {cn: cn.removesuffix(suffix) for cn in child_names}
+
+
+def _suffix_stripper(
+        suffix_stripping: SuffixStripping | None,
+        parent_name: str,
+        child_names: ta.Iterable[str],
+) -> ta.Callable[[str], str]:
+    if suffix_stripping is None:
+        return lang.identity
+
+    return _strip_suffixes(
+        suffix_stripping,
+        parent_name,
+        child_names,
+    ).__getitem__
+
+
+##
+
+
 def polymorphism_from_subtypes(
         ty: type,
         subtype_tys: ta.Iterable[type],
         *,
         naming: Naming | None = None,
-        strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False,
+        suffix_stripping: SuffixStripping | None = None,
 ) -> Polymorphism:
     subtype_tys = set(subtype_tys)
 
-    ssx: str | None
-    if strip_suffix is AUTO_STRIP_SUFFIX:
-        strip_suffix = all(c.__name__.endswith(ty.__name__) for c in subtype_tys)
-    if isinstance(strip_suffix, bool):
-        ssx = ty.__name__ if strip_suffix else None
-    elif isinstance(strip_suffix, str):
-        ssx = strip_suffix
-    else:
-        raise TypeError(strip_suffix)
+    strip_suffix = _suffix_stripper(
+        suffix_stripping,
+        ty.__name__,
+        {c.__name__ for c in subtype_tys},
+    )
 
     dct: dict[str, SubtypeInfo] = {}
     for cur in subtype_tys:
-        name = cur.__name__
-        if ssx is not None:
-            name = lang.must_remove_suffix(name, ssx)
+        name = strip_suffix(cur.__name__)
         if naming is not None:
             name = translate_name(name, naming)
         if name in dct:
@@ -190,13 +240,13 @@ def polymorphism_from_subclasses(
         ty: type,
         *,
         naming: Naming | None = None,
-        strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False,
+        suffix_stripping: SuffixStripping | None = None,
 ) -> Polymorphism:
     return polymorphism_from_subtypes(
         ty,
         set(lang.deep_subclasses(ty, concrete_only=True)),
         naming=naming,
-        strip_suffix=strip_suffix,
+        suffix_stripping=suffix_stripping,
     )
 
 
@@ -231,21 +281,21 @@ class _PolymorphismMetadata(md.ClassDecoratorObjectMetadata, lang.Final):
 
     type_tagging: TypeTagging = WrapperTypeTagging()
     naming: Naming | None = None
-    strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False
+    suffix_stripping: SuffixStripping | None = None
 
 
 def set_polymorphic_from_subclasses(
         *,
         type_tagging: TypeTagging = WrapperTypeTagging(),
         naming: Naming | None = None,
-        strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False,
+        suffix_stripping: SuffixStripping | None = None,
 ) -> ta.Callable[[type[T]], type[T]]:
     def inner(cls):
         _PolymorphismMetadata(
             mode='subclasses',
             type_tagging=type_tagging,
             naming=naming,
-            strip_suffix=strip_suffix,
+            suffix_stripping=suffix_stripping,
         )(cls)
 
         return cls

@@ -11,7 +11,7 @@ from ... import agent as agn
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
+@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, suffix_stripping=msh.SuffixStripping.REQUIRED)
 class SessionEntry(lang.Abstract, lang.Sealed):
     pass
 

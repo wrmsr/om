@@ -9,6 +9,7 @@ from ..api import PolymorphismSubtypeError
 from ..api import SubtypeConfig
 from ..api import SubtypeInfo
 from ..api import SubtypeInfos
+from ..api import SuffixStripping
 from ..api import set_polymorphic_from_subclasses
 from ..manifests import SubtypeManifest
 from ..resolving import match_subtype_manifests
@@ -23,7 +24,7 @@ from ..specs import SubclassesSubtypeSource
 
 @set_polymorphic_from_subclasses(
     naming=Naming.SNAKE,
-    strip_suffix=True,
+    suffix_stripping=SuffixStripping.REQUIRED,
 )
 class Event:
     pass
@@ -113,7 +114,7 @@ def test_source_merge_and_conflicts():
             ExplicitSubtypeSource(SubtypeInfos([SubtypeInfo(MessageSentEvent, 'ms')])),
         ],
         naming=Naming.SNAKE,
-        strip_suffix=True,
+        suffix_stripping=SuffixStripping.REQUIRED,
     )
 
     assert m.marshal(MessageSentEvent('hi'), spec) == {'ms': {'msg': 'hi'}}

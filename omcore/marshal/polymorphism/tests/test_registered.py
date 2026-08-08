@@ -8,6 +8,7 @@ from ...standard.factories import new_standard_marshaler_factory
 from ...standard.factories import new_standard_unmarshaler_factory
 from ..api import PolymorphismSubtypeError
 from ..api import SubtypeConfig
+from ..api import SuffixStripping
 from ..api import set_polymorphic_from_subclasses
 from ..specs import ConfigSubtypeSource
 from ..specs import PolymorphismSpec
@@ -15,7 +16,7 @@ from ..specs import PolymorphismSpec
 
 @set_polymorphic_from_subclasses(
     naming=Naming.SNAKE,
-    strip_suffix=True,
+    suffix_stripping=SuffixStripping.REQUIRED,
 )
 class Foo:
     pass
@@ -70,7 +71,7 @@ def test_config_only_spec():
         root=Foo,
         sources=[ConfigSubtypeSource()],
         naming=Naming.SNAKE,
-        strip_suffix=True,
+        suffix_stripping=SuffixStripping.REQUIRED,
     )
 
     # No impls registered yet - resolution fails loudly at construction.

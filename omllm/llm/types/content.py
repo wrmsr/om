@@ -16,7 +16,7 @@ ContentT = ta.TypeVar('ContentT', bound='Content')
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
+@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, suffix_stripping=msh.SuffixStripping.IF_PRESENT)
 class Content(lang.Abstract, lang.Sealed):
     pass
 

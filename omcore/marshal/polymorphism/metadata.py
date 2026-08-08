@@ -56,7 +56,7 @@ def _make_metadata_spec(
         sources=_DEFAULT_METADATA_SUBTYPE_SOURCES,
         tagging=pmd.type_tagging,
         naming=pmd.naming,
-        strip_suffix=pmd.strip_suffix,
+        suffix_stripping=pmd.suffix_stripping,
         only=only,
     )
 

@@ -12,9 +12,9 @@ from ..api.types import Marshaler
 from ..api.types import Unmarshaler
 from ..factories.method import MarshalerFactoryMethodClass
 from ..factories.method import UnmarshalerFactoryMethodClass
-from ..polymorphism.api import AUTO_STRIP_SUFFIX
 from ..polymorphism.api import SubtypeInfo
 from ..polymorphism.api import SubtypeInfos
+from ..polymorphism.api import SuffixStripping
 from ..polymorphism.api import WrapperTypeTagging
 from ..polymorphism.api import polymorphism_from_subclasses
 from ..polymorphism.marshal import make_polymorphism_marshaler
@@ -43,7 +43,7 @@ def _build_typed_value_union_poly(ctx: BaseContext, rty: rfl.Type) -> SubtypeInf
             for i in polymorphism_from_subclasses(
                 sty,
                 naming=Naming.SNAKE,
-                strip_suffix=AUTO_STRIP_SUFFIX,
+                suffix_stripping=SuffixStripping.IF_ALL,
             ).subtypes
         ]
 

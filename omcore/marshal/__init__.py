@@ -273,13 +273,14 @@ with _lang.auto_proxy_init(globals()):
 
     from .polymorphism.api import (  # noqa
         PolymorphismTagError,
+        PolymorphismSuffixError,
         PolymorphismSubtypeError,
-
-        AUTO_STRIP_SUFFIX,
 
         TypeTagging,
         WrapperTypeTagging,
         FieldTypeTagging,
+
+        SuffixStripping,
 
         SubtypeInfo,
         SubtypeInfos,

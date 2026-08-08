@@ -241,7 +241,7 @@ class ListToolsResult(CursorClientResult[ListToolsRequest], WithMeta):
 @msh.set_polymorphic_from_subclasses(
     type_tagging=msh.FieldTypeTagging('type'),
     naming=msh.Naming.SNAKE,
-    strip_suffix=msh.AUTO_STRIP_SUFFIX,
+    suffix_stripping=msh.SuffixStripping.IF_ALL,
 )
 class ContentBlock(lang.Abstract):
     pass

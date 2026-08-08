@@ -17,8 +17,8 @@ from ... import dataclasses as dc
 from ... import lang
 from ..api.naming import Naming
 from ..api.specs import InternalSpec
-from .api import AUTO_STRIP_SUFFIX
 from .api import SubtypeInfos
+from .api import SuffixStripping
 from .api import TypeTagging
 from .api import WrapperTypeTagging
 
@@ -82,7 +82,7 @@ class PolymorphismSpec(InternalSpec, lang.Final):
     tagging: TypeTagging = WrapperTypeTagging()
 
     naming: Naming | None = None
-    strip_suffix: bool | type[AUTO_STRIP_SUFFIX] | str = False
+    suffix_stripping: SuffixStripping | None = None
 
     # Restricts the resolved subtype set to these member types (expanding abstract intermediates) - the union case. A
     # member equal to the root lifts the restriction entirely.
