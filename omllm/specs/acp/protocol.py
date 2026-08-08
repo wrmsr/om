@@ -10,7 +10,7 @@ from omcore import marshal as msh
 ##
 
 
-def _set_class_marshal_options(*, field_naming=msh.Naming.LOW_CAMEL, ignore_unknown=False):
+def _set_class_marshal_options(*, field_naming='low_camel', ignore_unknown=False):
     def inner(cls):
         msh.update_object_options(
             field_naming=field_naming,
@@ -30,7 +30,7 @@ def _set_class_marshal_options(*, field_naming=msh.Naming.LOW_CAMEL, ignore_unkn
 
 @msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('type'),
-    naming=msh.Naming.SNAKE,
+    naming='snake',
     suffix_stripping='if_all',
 )
 class ContentBlock(lang.Abstract, lang.Sealed):
@@ -39,7 +39,7 @@ class ContentBlock(lang.Abstract, lang.Sealed):
 
 @msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('outcome'),
-    naming=msh.Naming.SNAKE,
+    naming='snake',
     suffix_stripping='if_all',
 )
 class RequestPermissionOutcome(lang.Abstract, lang.Sealed):
@@ -48,7 +48,7 @@ class RequestPermissionOutcome(lang.Abstract, lang.Sealed):
 
 @msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('type'),
-    naming=msh.Naming.SNAKE,
+    naming='snake',
     suffix_stripping='if_all',
 )
 class SessionConfigOption(lang.Abstract, lang.Sealed):
@@ -57,7 +57,7 @@ class SessionConfigOption(lang.Abstract, lang.Sealed):
 
 @msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('sessionUpdate'),
-    naming=msh.Naming.SNAKE,
+    naming='snake',
     suffix_stripping='if_all',
 )
 class SessionUpdate(lang.Abstract, lang.Sealed):
@@ -66,7 +66,7 @@ class SessionUpdate(lang.Abstract, lang.Sealed):
 
 @msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('type'),
-    naming=msh.Naming.SNAKE,
+    naming='snake',
     suffix_stripping='if_all',
 )
 class ToolCallContent(lang.Abstract, lang.Sealed):

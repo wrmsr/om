@@ -138,7 +138,7 @@ class ObjectOptions(Config, lang.Final):
     ##
     # Naming
 
-    field_naming: Naming | None = None
+    field_naming: Naming | lang.NamedStringCasing | None = None
 
     ##
     # Behavior options

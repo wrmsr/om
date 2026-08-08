@@ -75,6 +75,9 @@ with _auto_proxy_init(globals(), update_exports=True):
         kebab_case,
         up_kebab_case,
 
+        NamedStringCasing,
+        as_string_casing,
+
         camel_to_snake,
         snake_to_camel,
 

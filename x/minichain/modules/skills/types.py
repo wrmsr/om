@@ -11,7 +11,7 @@ from omcore import marshal as msh
 
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.truthy_repr)
-@msh.update_object_options(field_naming=msh.Naming.KEBAB, field_defaults=msh.FieldOptions(omit_if=operator.not_))
+@msh.update_object_options(field_naming='kebab', field_defaults=msh.FieldOptions(omit_if=operator.not_))
 class SkillHeader:
     # Max 64 characters. Lowercase letters, numbers, and hyphens only. Must not start or end with a hyphen.
     name: str

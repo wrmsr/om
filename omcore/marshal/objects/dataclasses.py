@@ -16,6 +16,7 @@ from ..api.contexts import BaseFactoryContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.naming import Naming
+from ..api.naming import as_naming
 from ..api.naming import translate_name
 from ..api.specs import Spec
 from ..api.types import DuplexFactory
@@ -68,7 +69,9 @@ class _FieldInfoBuilder:
             obj_opts = get_dataclass_options(ty, configs)
         self.obj_opts = obj_opts
 
-        fn = self.obj_opts.field_naming
+        fn: Naming | None = None
+        if (oo_fn := self.obj_opts.field_naming) is not None:
+            fn = as_naming(oo_fn)
         if fn is None and configs is not None:
             if (cn := configs(ty).get(Naming)) is None:
                 cn = configs().get(Naming)

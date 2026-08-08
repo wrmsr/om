@@ -115,7 +115,7 @@ def _install_standard_marshaling(cfgs: msh.ConfigRegistry) -> None:
             *msh.standard_polymorphism_factories(
                 msh.polymorphism_from_subclasses(
                     cls,
-                    naming=msh.Naming.SNAKE,
+                    naming='snake',
                     suffix_stripping=msh.SuffixStripping(mode='required'),
                 ),
             ),

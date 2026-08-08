@@ -43,6 +43,10 @@ def _check_all_lowercase(*ps: str) -> None:
 
 
 class StringCasing(Abstract):
+    @property
+    def name(self) -> NamedStringCasing | None:
+        return None
+
     @abc.abstractmethod
     def match(self, s: str) -> bool:
         raise NotImplementedError
@@ -103,6 +107,8 @@ def casing_converter(src: StringCasing, dst: StringCasing) -> ta.Callable[[str],
 class CamelCase(StaticStringCasing, Final):
     """FooBarBaz"""
 
+    name: ta.Final = 'camel'
+
     _PAT: ta.ClassVar[re.Pattern] = re.compile(r'[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*')
     _SPLIT_PAT: ta.ClassVar[re.Pattern] = re.compile(r'[A-Z][a-z0-9]*')
 
@@ -125,6 +131,8 @@ class CamelCase(StaticStringCasing, Final):
 @ta.final
 class LowCamelCase(StaticStringCasing, Final):
     """fooBarBaz"""
+
+    name: ta.Final = 'low_camel'
 
     _MATCH_PAT: ta.ClassVar[re.Pattern] = re.compile(r'[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*')
     _FIRST_PAT: ta.ClassVar[re.Pattern] = re.compile(r'^[a-z0-9]+')
@@ -200,6 +208,8 @@ class _SepStringCasing(StaticStringCasing, Abstract):
 class SnakeCase(_SepStringCasing, Final):
     """foo_bar_baz"""
 
+    name: ta.Final = 'snake'
+
     _SEP = '_'
     _EXAMPLE = 'snake_case'
 
@@ -207,6 +217,8 @@ class SnakeCase(_SepStringCasing, Final):
 @ta.final
 class UpSnakeCase(_SepStringCasing, Final):
     """FOO_BAR_BAZ"""
+
+    name: ta.Final = 'up_snake'
 
     _SEP = '_'
     _UP = True
@@ -220,6 +232,8 @@ class UpSnakeCase(_SepStringCasing, Final):
 class KebabCase(_SepStringCasing, Final):
     """foo-bar-baz"""
 
+    name: ta.Final = 'kebab'
+
     _SEP = '-'
     _EXAMPLE = 'kebab-case'
 
@@ -227,6 +241,8 @@ class KebabCase(_SepStringCasing, Final):
 @ta.final
 class UpKebabCase(_SepStringCasing, Final):
     """FOO-BAR-BAZ"""
+
+    name: ta.Final = 'up_kebab'
 
     _SEP = '-'
     _UP = True
@@ -256,6 +272,41 @@ up_kebab_case = UP_KEBAB_CASE.join
 
 camel_to_snake = CAMEL_CASE.to(SNAKE_CASE)
 snake_to_camel = SNAKE_CASE.to(CAMEL_CASE)
+
+
+##
+
+
+NamedStringCasing: ta.TypeAlias = ta.Literal[
+    'camel',
+    'low_camel',
+    'snake',
+    'up_snake',
+    'kebab',
+    'up_kebab',
+]
+
+
+_NAMED_STRING_CASING_MAP: ta.Mapping[NamedStringCasing, StringCasing] = {
+    ta.cast(NamedStringCasing, sc.name): sc for sc in STRING_CASINGS
+}
+
+
+@ta.overload
+def as_string_casing(sc: StringCasing | NamedStringCasing) -> StringCasing: ...
+
+
+@ta.overload
+def as_string_casing(sc: StringCasing | NamedStringCasing | None) -> StringCasing | None: ...
+
+
+def as_string_casing(sc):
+    if sc is None:
+        return None
+    elif isinstance(sc, StringCasing):
+        return sc
+    else:
+        return _NAMED_STRING_CASING_MAP[sc]
 
 
 ##

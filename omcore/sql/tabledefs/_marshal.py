@@ -7,7 +7,7 @@ from .values import SpecialValue
 
 
 def _install_poly(cfgs: msh.ConfigRegistry, cls: type) -> None:
-    p = msh.polymorphism_from_subclasses(cls, naming=msh.Naming.SNAKE)
+    p = msh.polymorphism_from_subclasses(cls, naming='snake')
     msh.install_standard_factories(
         cfgs,
         msh.PolymorphismMarshalerFactory(p),

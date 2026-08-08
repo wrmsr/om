@@ -2,8 +2,6 @@ import re
 import typing as ta
 
 from omcore import lang
-from omcore.lang.casing import StringCasingError
-from omcore.marshal.api.naming import Naming
 
 
 ##
@@ -19,7 +17,7 @@ _WORD_PAT: ta.Final = re.compile(r'[A-Za-z0-9]+')
 def split_loose_words(s: str) -> list[str]:
     try:
         return lang.split_string_casing(s)
-    except StringCasingError:
+    except lang.StringCasingError:
         pass
 
     words = [m.group(0).lower() for m in _WORD_PAT.finditer(s)]
@@ -40,7 +38,7 @@ def ref_name(ref_str: str) -> str:
 def python_class_name(json_name: str) -> str:
     try:
         return _SNAKE_TO_CAMEL(_LOW_CAMEL_TO_SNAKE(json_name))
-    except StringCasingError:
+    except lang.StringCasingError:
         pass
 
     try:
@@ -56,7 +54,7 @@ def python_field_name(json_name: str) -> str:
 
     try:
         return _LOW_CAMEL_TO_SNAKE(json_name)
-    except StringCasingError:
+    except lang.StringCasingError:
         pass
 
     try:
@@ -69,21 +67,21 @@ def tag_to_camel(tag: str) -> str:
     return lang.CAMEL_CASE.join(*split_loose_words(tag))
 
 
-def infer_naming(names: ta.Iterable[str]) -> Naming | None:
-    counts: dict[Naming, int] = {}
+def infer_naming(names: ta.Iterable[str]) -> lang.StringCasing | None:
+    counts: dict[lang.StringCasing, int] = {}
     for name in names:
         if name.startswith('_'):
             continue
-        for naming, casing in [
-            (Naming.CAMEL, lang.CAMEL_CASE),
-            (Naming.LOW_CAMEL, lang.LOW_CAMEL_CASE),
-            (Naming.SNAKE, lang.SNAKE_CASE),
-            (Naming.UP_SNAKE, lang.UP_SNAKE_CASE),
-            (Naming.KEBAB, lang.KEBAB_CASE),
-            (Naming.UP_KEBAB, lang.UP_KEBAB_CASE),
+        for casing in [
+            lang.CAMEL_CASE,
+            lang.LOW_CAMEL_CASE,
+            lang.SNAKE_CASE,
+            lang.UP_SNAKE_CASE,
+            lang.KEBAB_CASE,
+            lang.UP_KEBAB_CASE,
         ]:
             if casing.match(name):
-                counts[naming] = counts.get(naming, 0) + 1
+                counts[casing] = counts.get(casing, 0) + 1
 
     if not counts:
         return None

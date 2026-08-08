@@ -10,7 +10,7 @@ from omcore import marshal as msh
 ##
 
 
-def _set_class_marshal_options(*, field_naming=msh.Naming.LOW_CAMEL, ignore_unknown=False):
+def _set_class_marshal_options(*, field_naming='low_camel', ignore_unknown=False):
     def inner(cls):
         msh.update_object_options(
             field_naming=field_naming,

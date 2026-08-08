@@ -1,11 +1,12 @@
 import typing as ta
 
+from ... import lang
 from ... import reflect as rfl
 from ... import typedvalues as tv
 from ..api.contexts import BaseContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
-from ..api.naming import Naming
+from ..api.naming import CasingNaming
 from ..api.naming import translate_name
 from ..api.specs import Spec
 from ..api.types import Marshaler
@@ -42,7 +43,7 @@ def _build_typed_value_union_poly(ctx: BaseContext, rty: rfl.Type) -> SubtypeInf
             i.ty
             for i in polymorphism_from_subclasses(
                 sty,
-                naming=Naming.SNAKE,
+                naming=CasingNaming(lang.SNAKE_CASE),
                 suffix_stripping=SuffixStripping(mode='if_all'),
             ).subtypes
         ]
@@ -57,7 +58,7 @@ def _build_typed_value_union_poly(ctx: BaseContext, rty: rfl.Type) -> SubtypeInf
     return SubtypeInfos([
         SubtypeInfo(
             tv_cls,
-            translate_name(tv_cls.__name__, Naming.SNAKE),
+            translate_name(tv_cls.__name__, CasingNaming(lang.SNAKE_CASE)),
         )
         for tv_cls in tv_cls_set
     ])

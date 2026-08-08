@@ -36,7 +36,7 @@ class MediaTypes(lang.Namespace):
 
 
 @dc.dataclass(frozen=True, kw_only=True)
-@msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='low_camel', unknown_field='x')
 @msh.update_field_options('os_version', name='os.version')
 @msh.update_field_options('os_features', name='os.features')
 class Platform(lang.Final):
@@ -65,7 +65,7 @@ class Platform(lang.Final):
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='low_camel', unknown_field='x')
 class Manifest(lang.Final):
     # The MIME type of the referenced object. This will generally be
     # application/vnd.docker.distribution.manifest.v2+json, but it could also be
@@ -88,7 +88,7 @@ class Manifest(lang.Final):
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='low_camel', unknown_field='x')
 class ManifestList(lang.Final):
     # This field specifies the image manifest schema version as an integer. This schema uses the version 2.
     schema_version: int
@@ -106,7 +106,7 @@ class ManifestList(lang.Final):
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='low_camel', unknown_field='x')
 class ImageManifest(lang.Final):
     # This field specifies the image manifest schema version as an integer. This schema uses version 2.
     schema_version: int
@@ -117,7 +117,7 @@ class ImageManifest(lang.Final):
     dc.validate(lambda self: self.media_type == MediaTypes.MANIFEST_V2)
 
     @dc.dataclass(frozen=True)
-    @msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+    @msh.update_object_options(field_naming='low_camel', unknown_field='x')
     class Config(lang.Final):
         # The MIME type of the referenced object. This should generally be
         # application/vnd.docker.container.image.v1+json.
@@ -139,7 +139,7 @@ class ImageManifest(lang.Final):
     config: Config | None = None
 
     @dc.dataclass(frozen=True)
-    @msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+    @msh.update_object_options(field_naming='low_camel', unknown_field='x')
     class Layer(lang.Final):
         # The MIME type of the referenced object. This should generally be
         # application/vnd.docker.image.rootfs.diff.tar.gzip. Layers of type

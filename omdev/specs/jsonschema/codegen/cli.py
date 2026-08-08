@@ -4,7 +4,7 @@ import typing as ta
 
 from omcore.argparse import all as ap
 from omcore.formats.json import all as json
-from omcore.logs.std.standard import configure_standard_logging
+from omcore.logs import all as logs
 from omcore.specs import jsonschema as jsch
 
 from .generator import JsonSchemaCodeGen
@@ -51,7 +51,7 @@ class Cli(ap.Cli):
 
 
 def _main() -> None:
-    configure_standard_logging()
+    logs.configure_standard_logging()
 
     Cli().cli_run_and_exit()
 

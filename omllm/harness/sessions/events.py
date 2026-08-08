@@ -11,8 +11,8 @@ from ... import agent as agn
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic(source='manifests', naming=msh.Naming.SNAKE, suffix_stripping='required')
-class SessionEvent(lang.Abstract):
+@msh.set_polymorphic(source='manifests', naming='snake', suffix_stripping='required')
+class SessionEvent(lang.Abstract, lang.PackageSealed, sealed_package='.'.join(__package__.split('.')[:2])):
     pass
 
 

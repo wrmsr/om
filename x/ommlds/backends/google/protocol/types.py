@@ -192,7 +192,7 @@ class Value(lang.Abstract, lang.Sealed):
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL)
+@msh.update_object_options(field_naming='low_camel')
 class NullValue(Value, lang.Final):
     null_value: None = None
 

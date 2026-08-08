@@ -1,8 +1,9 @@
 import pytest
 
 from .... import dataclasses as dc
+from .... import lang
 from ...api.marshaling import SimpleMarshaling
-from ...api.naming import Naming
+from ...api.naming import CasingNaming
 from ...standard.factories import new_standard_marshaler_factory
 from ...standard.factories import new_standard_unmarshaler_factory
 from ..api import ConfigsSubtypeSource
@@ -23,7 +24,7 @@ from ..specs import PolymorphismSpec
 
 
 @set_polymorphic(
-    naming=Naming.SNAKE,
+    naming='snake',
     suffix_stripping='required',
 )
 class Event:
@@ -113,7 +114,7 @@ def test_source_merge_and_conflicts():
             SubclassesSubtypeSource(),
             ExplicitSubtypeSource(SubtypeInfos([SubtypeInfo(MessageSentEvent, 'ms')])),
         ],
-        naming=Naming.SNAKE,
+        naming=CasingNaming(lang.SNAKE_CASE),
         suffix_stripping=SuffixStripping(mode='required'),
     )
 

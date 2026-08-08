@@ -121,7 +121,7 @@ def _update_object_options(
 
 def update_object_options(
         *,
-        field_naming: Naming | None = None,
+        field_naming: Naming | lang.NamedStringCasing | None = None,
 
         ignore_unknown: bool | None = None,
         unwrap_if_single_field: ta.Literal['marshal', 'unmarshal', True, None] = None,

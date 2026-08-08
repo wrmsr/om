@@ -11,7 +11,7 @@ from omcore import marshal as msh
 @dc.dataclass(frozen=True)
 class Device:
     dc.metadata(msh.ObjectOptions(
-        field_naming=msh.Naming.LOW_CAMEL,
+        field_naming='low_camel',
         unknown_field='x',
     ))
 
@@ -42,7 +42,7 @@ class Device:
 @dc.dataclass(frozen=True)
 class CreatedKey:
     dc.metadata(msh.ObjectOptions(
-        field_naming=msh.Naming.LOW_CAMEL,
+        field_naming='low_camel',
         unknown_field='x',
     ))
 
@@ -59,7 +59,7 @@ class CreatedKey:
 @dc.dataclass(frozen=True)
 class ListedKey:
     dc.metadata(msh.ObjectOptions(
-        field_naming=msh.Naming.LOW_CAMEL,
+        field_naming='low_camel',
         unknown_field='x',
     ))
 

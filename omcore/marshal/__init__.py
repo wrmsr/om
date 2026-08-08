@@ -73,6 +73,9 @@ with _lang.auto_proxy_init(globals()):
 
     from .api.naming import (  # noqa
         Naming,
+        CasingNaming,
+        as_naming,
+
         translate_name,
     )
 
@@ -281,11 +284,13 @@ with _lang.auto_proxy_init(globals()):
         FieldTypeTagging,
 
         SimpleTypeTagging,
+        as_type_tagging,
 
         SuffixStrippingMode,
         SuffixStripping,
 
         SimpleSuffixStripping,
+        as_suffix_stripping,
 
         SubtypeInfo,
         SubtypeInfos,
@@ -303,6 +308,7 @@ with _lang.auto_proxy_init(globals()):
         ManifestsSubtypeSource,
 
         SimpleSubtypeSource,
+        as_subtype_sources,
 
         set_polymorphic,
     )

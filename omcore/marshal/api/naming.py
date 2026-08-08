@@ -3,7 +3,7 @@ TODO:
  - Namer: ta.TypeAlias = ta.Callable[[str], str] ?
   - this interface is ~intentionally~ limited, but custom overrides would be useful
 """
-import enum
+import dataclasses as dc
 import typing as ta
 
 from ... import check
@@ -15,39 +15,33 @@ from .configs import Config
 ##
 
 
-class Naming(Config, tv.UniqueTypedValue, enum.Enum):
-    CAMEL = 'camel'
-    LOW_CAMEL = 'low_camel'
-    SNAKE = 'snake'
-    UP_SNAKE = 'up_snake'
-    KEBAB = 'kebab'
-    UP_KEBAB = 'up_kebab'
-
-    #
-
-    @staticmethod
-    def from_casing(casing: lang.StringCasing) -> Naming:
-        return _NAMING_BY_CASING[casing]
-
-    @property
-    def casing(self) -> lang.StringCasing:
-        return _CASING_BY_NAMING[self]
+class Naming(Config, tv.UniqueTypedValue, lang.Abstract, lang.Sealed):
+    pass
 
 
-##
+@dc.dataclass(frozen=True)
+class CasingNaming(Naming, lang.Final):
+    casing: lang.StringCasing | lang.NamedStringCasing
 
 
-_CASING_BY_NAMING: ta.Mapping[Naming, lang.StringCasing] = {
-    Naming.CAMEL: lang.CAMEL_CASE,
-    Naming.LOW_CAMEL: lang.LOW_CAMEL_CASE,
-    Naming.SNAKE: lang.SNAKE_CASE,
-    Naming.UP_SNAKE: lang.UP_SNAKE_CASE,
-    Naming.KEBAB: lang.KEBAB_CASE,
-    Naming.UP_KEBAB: lang.UP_KEBAB_CASE,
-}
+#
 
 
-_NAMING_BY_CASING: ta.Mapping[lang.StringCasing, Naming] = {v: k for k, v in _CASING_BY_NAMING.items()}
+@ta.overload
+def as_naming(naming: Naming | lang.NamedStringCasing) -> Naming: ...
+
+
+@ta.overload
+def as_naming(naming: Naming | lang.NamedStringCasing | None) -> Naming | None: ...
+
+
+def as_naming(naming):
+    if naming is None:
+        return None
+    elif isinstance(naming, Naming):
+        return naming
+    else:
+        return CasingNaming(lang.as_string_casing(naming))
 
 
 ##
@@ -63,7 +57,11 @@ def translate_name(n: str, e: Naming) -> str:
     sfx = '_' * (len(n1) - len(n2))
     ps = lang.split_string_casing(n2)
 
-    cs = _CASING_BY_NAMING[e]
+    if isinstance(e, CasingNaming):
+        cs = lang.as_string_casing(e.casing)
+    else:
+        raise TypeError(e)
+
     r = cs.join(*ps)
 
     return pfx + r + sfx

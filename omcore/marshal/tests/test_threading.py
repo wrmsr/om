@@ -3,9 +3,10 @@ import threading
 import typing as ta
 
 from ... import dataclasses as dc
+from ... import lang
 from ..api.configs import ConfigRegistry
 from ..api.marshaling import SimpleMarshaling
-from ..api.naming import Naming
+from ..api.naming import CasingNaming
 from ..standard.factories import new_standard_marshaler_factory
 from ..standard.factories import new_standard_unmarshaler_factory
 
@@ -70,7 +71,7 @@ def test_concurrent_marshaling_with_config_updates():
         barrier.wait()
         try:
             for _ in range(iters):
-                cfgs.update(_Unused, Naming.CAMEL, mode='override')
+                cfgs.update(_Unused, CasingNaming(lang.CAMEL_CASE), mode='override')
         except Exception as e:  # noqa
             errors.append(e)
 

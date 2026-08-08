@@ -21,7 +21,7 @@ MessageT = ta.TypeVar('MessageT', bound='Message')
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic(naming=msh.Naming.SNAKE, suffix_stripping='required')
+@msh.set_polymorphic(naming='snake', suffix_stripping='required')
 class Message(lang.Abstract, lang.Sealed):
     pass
 

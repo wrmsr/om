@@ -3,8 +3,8 @@
 Deliberately dumb, static manifest data: a `SubtypeManifest` names its polymorphic base (as a dotted path string,
 optionally `$.`-prefixed as package-root-relative) and rides the stock ModAttrManifest machinery for its own
 module/attr. It knows nothing about naming or tagging - tags are derived at runtime from the base's current
-configuration using the manifest's `attr` (the impl class name); the optional `tag`/`alts` overrides are the
-exception, not the rule.
+configuration using the manifest's `attr` (the impl class name); the optional `tag`/`alts` overrides are the exception,
+not the rule.
 
 Usage - a hot comment above the impl class def:
 

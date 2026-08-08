@@ -36,7 +36,7 @@ TimelineItemId = ta.NewType('TimelineItemId', uuid.UUID)
 
 
 @dc.dataclass(frozen=True, kw_only=True)
-@msh.set_polymorphic(naming=msh.Naming.SNAKE, strip_suffix=True)
+@msh.set_polymorphic(naming='snake', suffix_stripping='required')
 class TimelineItem(lang.Abstract, lang.Sealed):
     id: TimelineItemId = dc.field(default_factory=lambda: TimelineItemId(uuid.uuid7()))
     revision: int = 0

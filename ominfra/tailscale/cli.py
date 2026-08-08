@@ -21,7 +21,7 @@ _IP_V4_PAT = re.compile(r'\d{1,3}(\.\d{1,3}){3}')
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='camel', unknown_field='x')
 class CliNode:
     id: str = dc.xfield() | msh.dc_field_options(name='ID')
     public_key: str = dc.xfield()
@@ -39,7 +39,7 @@ class CliNode:
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='camel', unknown_field='x')
 class CliStatus:
     version: str | None = None
     backend_state: str | None = None

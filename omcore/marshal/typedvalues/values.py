@@ -7,7 +7,7 @@ from ... import reflect as rfl
 from ... import typedvalues as tv
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
-from ..api.naming import Naming
+from ..api.naming import CasingNaming
 from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
@@ -53,7 +53,7 @@ def _build_typed_value_poly(cls: type) -> Polymorphism:
 
     return polymorphism_from_subclasses(
         ty,
-        naming=Naming.SNAKE,
+        naming=CasingNaming(lang.SNAKE_CASE),
         suffix_stripping=SuffixStripping(mode='if_all'),
     )
 

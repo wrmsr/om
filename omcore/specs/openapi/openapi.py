@@ -14,7 +14,7 @@ from .. import jsonschema as jsch
 
 def _set_class_marshal_options(
         *,
-        field_naming=msh.Naming.LOW_CAMEL,
+        field_naming='low_camel',
         **kwargs,
 ):
     return lambda cls: msh.update_object_options(

@@ -20,7 +20,7 @@ from .consts import SERIALIZATION_VERSION
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic(naming=msh.Naming.SNAKE, suffix_stripping='required')
+@msh.set_polymorphic(naming='snake', suffix_stripping='required')
 class Spec(lang.Abstract, lang.Sealed):
     serialization_version: int = dc.field(default=SERIALIZATION_VERSION, kw_only=True)
 

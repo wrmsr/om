@@ -111,8 +111,8 @@ class ModuleRenderer:
             f'{ind}@dc.dataclass(frozen=True, kw_only=True)',
         ]
         opts: list[str] = []
-        if field_naming is not None and field_naming != 'LOW_CAMEL':
-            opts.append(f'field_naming=msh.Naming.{field_naming}')
+        if field_naming is not None and field_naming != 'low_camel':
+            opts.append(f'field_naming={field_naming!r}')
         if ignore_unknown:
             opts.append('ignore_unknown=True')
         if not opts:
@@ -178,7 +178,7 @@ class ModuleRenderer:
         w('##')
         w()
         w()
-        w('def _set_class_marshal_options(*, field_naming=msh.Naming.LOW_CAMEL, ignore_unknown=False):')
+        w("def _set_class_marshal_options(*, field_naming='low_camel', ignore_unknown=False):")
         w('    def inner(cls):')
         w('        msh.update_object_options(')
         w('            field_naming=field_naming,')
@@ -203,7 +203,7 @@ class ModuleRenderer:
             w()
             w(f'@msh.set_polymorphic(')
             w(f'    type_tagging=msh.FieldTypeTagging({union_td.discriminator_field!r}),')
-            w(f'    naming=msh.Naming.SNAKE,')
+            w(f"    naming='snake',")
             w(f"    suffix_stripping='if_all',")
             w(f')')
             w(f'class {name}(lang.Abstract, lang.Sealed):')

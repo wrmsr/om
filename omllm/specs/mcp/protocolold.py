@@ -35,7 +35,7 @@ CursorClientResultT = ta.TypeVar('CursorClientResultT', bound='CursorClientResul
 
 def _set_class_marshal_options(cls):
     msh.update_object_options(
-        field_naming=msh.Naming.LOW_CAMEL,
+        field_naming='low_camel',
         field_defaults=msh.FieldOptions(
             omit_if=lang.is_none,
         ),
@@ -240,7 +240,7 @@ class ListToolsResult(CursorClientResult[ListToolsRequest], WithMeta):
 
 @msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('type'),
-    naming=msh.Naming.SNAKE,
+    naming='snake',
     suffix_stripping='if_all',
 )
 class ContentBlock(lang.Abstract):

@@ -7,6 +7,7 @@ from ... import metadata as md
 from ..api.configs import Config
 from ..api.errors import MarshalError
 from ..api.naming import Naming
+from ..api.naming import as_naming
 from ..api.naming import translate_name
 
 
@@ -59,6 +60,23 @@ _SIMPLE_TYPE_TAGGING_MAP: ta.Mapping[SimpleTypeTagging, TypeTagging] = {
 }
 
 
+@ta.overload
+def as_type_tagging(type_tagging: TypeTagging | SimpleTypeTagging) -> TypeTagging: ...
+
+
+@ta.overload
+def as_type_tagging(type_tagging: TypeTagging | SimpleTypeTagging | None) -> TypeTagging | None: ...
+
+
+def as_type_tagging(type_tagging):
+    if type_tagging is None:
+        return None
+    elif isinstance(type_tagging, TypeTagging):
+        return type_tagging
+    else:
+        return _SIMPLE_TYPE_TAGGING_MAP[type_tagging]
+
+
 ##
 
 
@@ -87,11 +105,29 @@ SimpleSuffixStripping: ta.TypeAlias = ta.Literal[
     'if_present',
 ]
 
+
 _SIMPLE_SUFFIX_STRIPPING_MAP: ta.Mapping[SimpleSuffixStripping, SuffixStripping] = {
     'required': SuffixStripping(mode='required'),
     'if_all': SuffixStripping(mode='if_all'),
     'if_present': SuffixStripping(mode='if_present'),
 }
+
+
+@ta.overload
+def as_suffix_stripping(suffix_stripping: SuffixStripping | SimpleSuffixStripping) -> SuffixStripping: ...
+
+
+@ta.overload
+def as_suffix_stripping(suffix_stripping: SuffixStripping | SimpleSuffixStripping | None) -> SuffixStripping | None: ...
+
+
+def as_suffix_stripping(suffix_stripping):
+    if suffix_stripping is None:
+        return None
+    elif isinstance(suffix_stripping, SuffixStripping):
+        return suffix_stripping
+    else:
+        return _SIMPLE_SUFFIX_STRIPPING_MAP[suffix_stripping]
 
 
 ##
@@ -264,14 +300,14 @@ def polymorphism_from_subtypes(
 def polymorphism_from_subclasses(
         ty: type,
         *,
-        naming: Naming | None = None,
-        suffix_stripping: SuffixStripping | None = None,
+        naming: Naming | lang.NamedStringCasing | None = None,
+        suffix_stripping: SuffixStripping | SimpleSuffixStripping | None = None,
 ) -> Polymorphism:
     return polymorphism_from_subtypes(
         ty,
         set(lang.deep_subclasses(ty, concrete_only=True)),
-        naming=naming,
-        suffix_stripping=suffix_stripping,
+        naming=as_naming(naming),
+        suffix_stripping=as_suffix_stripping(suffix_stripping),
     )
 
 
@@ -359,6 +395,23 @@ _SIMPLE_SUBTYPE_SOURCE_MAP: ta.Mapping[SimpleSubtypeSource, SubtypeSource] = {
 }
 
 
+def as_subtype_sources(
+        *,
+        source: SubtypeSource | SimpleSubtypeSource | None = None,
+        sources: ta.Sequence[SubtypeSource | SimpleSubtypeSource] | None = None,
+) -> ta.Sequence[SubtypeSource] | None:
+    if source is not None and sources is not None:
+        raise ValueError('Must not specify both `source` and `sources')
+    elif source is not None:
+        sources = [source]
+    elif sources is None:
+        return None
+
+    return check.not_empty(tuple(
+        sts if isinstance(sts, SubtypeSource) else _SIMPLE_SUBTYPE_SOURCE_MAP[sts] for sts in sources
+    ))
+
+
 ##
 
 
@@ -371,7 +424,11 @@ class _PolymorphismMetadata(md.ClassDecoratorObjectMetadata, lang.Final):
     suffix_stripping: SuffixStripping | None = None
 
 
+#
+
+
 DEFAULT_POLYMORPHIC_SOURCE: ta.Final[SubtypeSource] = SubclassesSubtypeSource()
+DEFAULT_POLYMORPHIC_TYPE_TAGGING: ta.Final[TypeTagging] = WrapperTypeTagging()
 
 
 def set_polymorphic(
@@ -379,31 +436,30 @@ def set_polymorphic(
         source: SubtypeSource | SimpleSubtypeSource | None = None,
         sources: ta.Sequence[SubtypeSource | SimpleSubtypeSource] | None = None,
 
-        type_tagging: TypeTagging | SimpleTypeTagging = 'wrapper',
-        naming: Naming | None = None,
+        type_tagging: TypeTagging | SimpleTypeTagging | None = None,
+        naming: Naming | lang.NamedStringCasing | None = None,
         suffix_stripping: SuffixStripping | SimpleSuffixStripping | None = None,
 ) -> ta.Callable[[type[T]], type[T]]:
-    if source is not None and sources is not None:
-        raise ValueError('Must not specify both `source` and `sources')
-    elif source is not None:
-        sources = [source]
-    elif sources is None:
-        sources = [DEFAULT_POLYMORPHIC_SOURCE]
-    sources_ = check.not_empty(tuple(
-        sts if isinstance(sts, SubtypeSource) else _SIMPLE_SUBTYPE_SOURCE_MAP[sts] for sts in sources
-    ))
+    sources_ = lang.coalesce(
+        as_subtype_sources(source=source, sources=sources),
+        (DEFAULT_POLYMORPHIC_SOURCE,),
+    )
 
-    if not isinstance(type_tagging, TypeTagging):
-        type_tagging = _SIMPLE_TYPE_TAGGING_MAP[type_tagging]
-    if suffix_stripping is not None and not isinstance(suffix_stripping, SuffixStripping):
-        suffix_stripping = _SIMPLE_SUFFIX_STRIPPING_MAP[suffix_stripping]
+    type_tagging_ = lang.coalesce(
+        as_type_tagging(type_tagging),
+        DEFAULT_POLYMORPHIC_TYPE_TAGGING,
+    )
+
+    naming_ = as_naming(naming)
+
+    suffix_stripping_ = as_suffix_stripping(suffix_stripping)
 
     def inner(cls):
         _PolymorphismMetadata(
             sources=sources_,
-            type_tagging=check.isinstance(type_tagging, TypeTagging),
-            naming=naming,
-            suffix_stripping=check.isinstance(suffix_stripping, (SuffixStripping, None)),
+            type_tagging=type_tagging_,
+            naming=naming_,
+            suffix_stripping=suffix_stripping_,
         )(cls)
 
         return cls

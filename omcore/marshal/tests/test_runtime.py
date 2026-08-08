@@ -3,12 +3,13 @@ import typing as ta
 import pytest
 
 from ... import dataclasses as dc
+from ... import lang
 from ..api.configs import ConfigRegistry
 from ..api.configs import LazyInit
 from ..api.errors import UnhandledTypeError
 from ..api.funcs import FuncMarshaler
 from ..api.marshaling import SimpleMarshaling
-from ..api.naming import Naming
+from ..api.naming import CasingNaming
 from ..api.options import update_default_options
 from ..api.vias import MarshalVia
 from ..composite.api import DefaultIterableConstructors
@@ -57,7 +58,7 @@ def test_footprint_invalidation_is_precise():
     point_h = mfc.make_marshaler(Point)
 
     # Registering config for Point invalidates Point's cached handler - its construction read Point's config key...
-    m.config_registry.update(Point, Naming.LOW_CAMEL)
+    m.config_registry.update(Point, CasingNaming(lang.LOW_CAMEL_CASE))
     assert m.marshal(Point(1, 2)) == {'xVal': 1, 'yVal': 2}
     assert mfc.make_marshaler(Point) is not point_h
 
@@ -104,7 +105,7 @@ def test_late_lazy_init_runs_once():
 
     def init(cr: ConfigRegistry) -> None:
         ran.append(1)
-        cr.update(Point, Naming.LOW_CAMEL)
+        cr.update(Point, CasingNaming(lang.LOW_CAMEL_CASE))
 
     m.config_registry.update(None, LazyInit(init))
 

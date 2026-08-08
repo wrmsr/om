@@ -63,7 +63,7 @@ TextStyle.DEFAULT = TextStyle()
 ##
 
 
-@msh.set_polymorphic(naming=msh.Naming.SNAKE, suffix_stripping='required')
+@msh.set_polymorphic(naming='snake', suffix_stripping='required')
 @dc.dataclass(frozen=True)
 class Text(lang.Abstract, lang.Sealed):
     """

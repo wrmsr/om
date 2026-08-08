@@ -24,7 +24,7 @@ from ...search import static_check_is_search_service
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='low_camel', unknown_field='x')
 class CseSearchResult(lang.Final):
     kind: str | None = None
 
@@ -49,7 +49,7 @@ class CseSearchResult(lang.Final):
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='low_camel', unknown_field='x')
 class CseSearchInfo(lang.Final):
     search_time: float | None = None
     total_results: int | None = None
@@ -58,7 +58,7 @@ class CseSearchInfo(lang.Final):
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.LOW_CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='low_camel', unknown_field='x')
 class CseSearchResponse(lang.Final):
     kind: str | None = None
     info: CseSearchInfo | None = dc.xfield(None) | msh.dc_field_options(name='searchInformation')

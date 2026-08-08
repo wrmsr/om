@@ -23,7 +23,7 @@ from ..formats.json import all as json
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='camel', unknown_field='x')
 @msh.update_field_options('id', name='ID')
 class PsItem(lang.Final):
     command: str
@@ -83,7 +83,7 @@ def cli_ps() -> list[PsItem]:
 
 
 @dc.dataclass(frozen=True)
-@msh.update_object_options(field_naming=msh.Naming.CAMEL, unknown_field='x')
+@msh.update_object_options(field_naming='camel', unknown_field='x')
 class Inspect(lang.Final):
     id: str
     created: datetime.datetime

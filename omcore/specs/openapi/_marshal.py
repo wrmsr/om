@@ -2,6 +2,7 @@ import typing as ta
 
 from ... import check
 from ... import dataclasses as dc
+from ... import lang
 from ... import marshal as msh
 from ... import reflect as rfl
 from .. import jsonschema as jsch
@@ -114,7 +115,7 @@ class _SchemaMarshalerFactory(msh.MarshalerFactory):
             return None
         return lambda: _SchemaMarshaler(
             {
-                f: (msh.translate_name(f, msh.Naming.LOW_CAMEL), ctx.make_marshaler(a))
+                f: (msh.translate_name(f, msh.CasingNaming(lang.LOW_CAMEL_CASE)), ctx.make_marshaler(a))
                 for f, a in dc.reflect(Schema).field_annotations.items()
                 if f != 'keywords'
             },
@@ -154,7 +155,7 @@ class _SchemaUnmarshalerFactory(msh.UnmarshalerFactory):
             return None
         return lambda: _SchemaUnmarshaler(
             {
-                msh.translate_name(f, msh.Naming.LOW_CAMEL): (f, ctx.make_unmarshaler(a))
+                msh.translate_name(f, msh.CasingNaming(lang.LOW_CAMEL_CASE)): (f, ctx.make_unmarshaler(a))
                 for f, a in dc.reflect(Schema).field_annotations.items()
                 if f != 'keywords'
             },
