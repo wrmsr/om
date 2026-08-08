@@ -464,34 +464,6 @@ curl -LsSf 'https://raw.githubusercontent.com/wrmsr/om/master/omdev/cli/install.
 )
 
 
-## workdir
-
-RUN (\
-export WORKDIR='/work' ;\
-\
-set -ex ;\
-umask 0002 ;\
-\
-sudo mkdir -p "$WORKDIR" ;\
-sudo chown -R $(id -un) "$WORKDIR" ;\
-sudo chgrp -R $(id -gn) "$WORKDIR" ;\
-)
-
-
-## chgrp
-
-RUN (\
-export CHGRP_ROOTS='/om /work' ;\
-\
-set -ex ;\
-umask 0002 ;\
-\
-for D in ${CHGRP_ROOTS} ; do\
-  chgrp -R $(id -g) "$D" && chmod -R g=u "$D" ;\
-done ;\
-)
-
-
 ## sshd
 
 RUN (\
@@ -607,3 +579,31 @@ CMD [ \
   "-c", \
   "echo \"Ready\" && sleep infinity" \
 ]
+
+
+## workdir
+
+RUN (\
+export WORKDIR='/work' ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+sudo mkdir -p "$WORKDIR" ;\
+sudo chown -R $(id -un) "$WORKDIR" ;\
+sudo chgrp -R $(id -gn) "$WORKDIR" ;\
+)
+
+
+## chgrp
+
+RUN (\
+export CHGRP_ROOTS='/om /work' ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+for D in ${CHGRP_ROOTS} ; do\
+  chgrp -R $(id -g) "$D" && chmod -R g=u "$D" ;\
+done ;\
+)

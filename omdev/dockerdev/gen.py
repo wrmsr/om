@@ -144,27 +144,6 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     ops.append(fragment_section('om'))
 
     ##
-    # ownership
-
-    if cfg.workdir is not None:
-        ops.append(fragment_section(
-            'workdir',
-            static_env={
-                'WORKDIR': cfg.workdir,
-            },
-        ))
-
-    ops.append(fragment_section(
-        'chgrp',
-        static_env={
-            'CHGRP_ROOTS': [
-                home,
-                *([cfg.workdir] if cfg.workdir is not None else []),
-            ],
-        },
-    ))
-
-    ##
     # config
 
     ops.append(fragment_section('sshd'))
@@ -191,6 +170,27 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
         Entrypoint(['dumb-init', '--']),
         Cmd(['sh', '-c', 'echo "Ready" && sleep infinity']),
     ]))
+
+    ##
+    # ownership
+
+    if cfg.workdir is not None:
+        ops.append(fragment_section(
+            'workdir',
+            static_env={
+                'WORKDIR': cfg.workdir,
+            },
+        ))
+
+    ops.append(fragment_section(
+        'chgrp',
+        static_env={
+            'CHGRP_ROOTS': [
+                home,
+                *([cfg.workdir] if cfg.workdir is not None else []),
+            ],
+        },
+    ))
 
     return ops
 
