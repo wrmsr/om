@@ -13,7 +13,7 @@ urls = {source = 'https://github.com/wrmsr/om'}
 license = 'BSD-3-Clause'
 readme = 'README.md'
 requires-python = '>=3.14'
-version = '0.0.40'
+version = '0.0.41'
 classifiers = [
     'Intended Audience :: Developers',
     'Operating System :: OS Independent',
@@ -23,12 +23,12 @@ classifiers = [
 ]
 description = 'omllm'
 dependencies = [
-    'omcore == 0.0.40',
+    'omcore == 0.0.41',
 ]
 
 [project.optional-dependencies]
 all = [
-    'omdev == 0.0.40',
+    'omdev == 0.0.41',
     'huggingface-hub ~= 1.26',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
@@ -38,7 +38,7 @@ all = [
     'transformers ~= 5.11',
 ]
 omdev = [
-    'omdev == 0.0.40',
+    'omdev == 0.0.41',
 ]
 interop = [
     'huggingface-hub ~= 1.26',
