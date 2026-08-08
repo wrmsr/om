@@ -28,46 +28,46 @@ def _set_class_marshal_options(*, field_naming=msh.Naming.LOW_CAMEL, ignore_unkn
 ##
 
 
-@msh.set_polymorphic_from_subclasses(
+@msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('type'),
     naming=msh.Naming.SNAKE,
-    suffix_stripping=msh.SuffixStripping.IF_ALL,
+    suffix_stripping='if_all',
 )
 class ContentBlock(lang.Abstract, lang.Sealed):
     pass
 
 
-@msh.set_polymorphic_from_subclasses(
+@msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('outcome'),
     naming=msh.Naming.SNAKE,
-    suffix_stripping=msh.SuffixStripping.IF_ALL,
+    suffix_stripping='if_all',
 )
 class RequestPermissionOutcome(lang.Abstract, lang.Sealed):
     pass
 
 
-@msh.set_polymorphic_from_subclasses(
+@msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('type'),
     naming=msh.Naming.SNAKE,
-    suffix_stripping=msh.SuffixStripping.IF_ALL,
+    suffix_stripping='if_all',
 )
 class SessionConfigOption(lang.Abstract, lang.Sealed):
     pass
 
 
-@msh.set_polymorphic_from_subclasses(
+@msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('sessionUpdate'),
     naming=msh.Naming.SNAKE,
-    suffix_stripping=msh.SuffixStripping.IF_ALL,
+    suffix_stripping='if_all',
 )
 class SessionUpdate(lang.Abstract, lang.Sealed):
     pass
 
 
-@msh.set_polymorphic_from_subclasses(
+@msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('type'),
     naming=msh.Naming.SNAKE,
-    suffix_stripping=msh.SuffixStripping.IF_ALL,
+    suffix_stripping='if_all',
 )
 class ToolCallContent(lang.Abstract, lang.Sealed):
     pass

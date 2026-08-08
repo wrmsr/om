@@ -238,10 +238,10 @@ class ListToolsResult(CursorClientResult[ListToolsRequest], WithMeta):
 ##
 
 
-@msh.set_polymorphic_from_subclasses(
+@msh.set_polymorphic(
     type_tagging=msh.FieldTypeTagging('type'),
     naming=msh.Naming.SNAKE,
-    suffix_stripping=msh.SuffixStripping.IF_ALL,
+    suffix_stripping='if_all',
 )
 class ContentBlock(lang.Abstract):
     pass

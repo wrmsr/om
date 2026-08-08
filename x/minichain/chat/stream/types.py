@@ -65,7 +65,7 @@ class ChatStreamResult:
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE)
 class AiDelta(MetadataContainerDataclass[AiDeltaMetadatas], lang.Abstract, lang.Sealed):
     _metadata: ta.Sequence[AiDeltaMetadatas] = dc.field(default=(), kw_only=True, repr=False)
 

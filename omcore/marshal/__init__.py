@@ -280,7 +280,12 @@ with _lang.auto_proxy_init(globals()):
         WrapperTypeTagging,
         FieldTypeTagging,
 
+        SimpleTypeTagging,
+
+        SuffixStrippingMode,
         SuffixStripping,
+
+        SimpleSuffixStripping,
 
         SubtypeInfo,
         SubtypeInfos,
@@ -291,7 +296,15 @@ with _lang.auto_proxy_init(globals()):
 
         SubtypeConfig,
 
-        set_polymorphic_from_subclasses,
+        SubtypeSource,
+        ExplicitSubtypeSource,
+        SubclassesSubtypeSource,
+        ConfigsSubtypeSource,
+        ManifestsSubtypeSource,
+
+        SimpleSubtypeSource,
+
+        set_polymorphic,
     )
 
     from .polymorphism.manifests import (  # noqa
@@ -315,12 +328,6 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .polymorphism.specs import (  # noqa
-        SubtypeSource,
-        ExplicitSubtypeSource,
-        SubclassesSubtypeSource,
-        ConfigSubtypeSource,
-        ManifestSubtypeSource,
-
         PolymorphismSpec,
     )
 

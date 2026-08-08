@@ -81,7 +81,7 @@ def _install_standard_marshaling(cfgs: msh.ConfigRegistry) -> None:
     node_poly = msh.polymorphism_from_subclasses(
         Node,
         naming=msh.Naming.SNAKE,
-        suffix_stripping=msh.SuffixStripping.IF_ALL,
+        suffix_stripping=msh.SuffixStripping(mode='if_all'),
     )
     msh.install_standard_factories(
         cfgs,

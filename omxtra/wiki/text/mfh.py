@@ -25,13 +25,13 @@ Wikicode: ta.TypeAlias = 'mfh.wikicode.Wikicode'
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE)
 class Node(lang.Abstract):
     pass
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE)
 class ContentNode(Node, lang.Abstract):
     pass
 

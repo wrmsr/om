@@ -18,7 +18,7 @@ from omcore import typedvalues as tv
 ##
 
 
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE)
 class ModelAttribute(tv.TypedValue, lang.Abstract, lang.Sealed):
     pass
 

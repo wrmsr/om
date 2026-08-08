@@ -1,5 +1,3 @@
-import pytest
-
 from omcore import marshal as msh
 
 from .... import llm

@@ -20,18 +20,18 @@ from ... import check
 from ... import lang
 from ..api.contexts import BaseFactoryContext
 from ..api.naming import translate_name
+from .api import ConfigsSubtypeSource
+from .api import ExplicitSubtypeSource
+from .api import ManifestsSubtypeSource
 from .api import Polymorphism
 from .api import PolymorphismSubtypeError
+from .api import SubclassesSubtypeSource
 from .api import SubtypeConfig
 from .api import SubtypeInfo
 from .api import SubtypeInfos
 from .api import _suffix_stripper
 from .manifests import SubtypeManifest
-from .specs import ConfigSubtypeSource
-from .specs import ExplicitSubtypeSource
-from .specs import ManifestSubtypeSource
 from .specs import PolymorphismSpec
-from .specs import SubclassesSubtypeSource
 from .specs import SubtypeSource
 
 
@@ -110,11 +110,11 @@ class _PolymorphismResolver:
             for sub_ty in lang.deep_subclasses(self._spec.root, concrete_only=True):
                 raws.append(_RawSubtype(sub_ty, sub_ty.__name__, None, ()))
 
-        elif isinstance(source, ConfigSubtypeSource):
+        elif isinstance(source, ConfigsSubtypeSource):
             for sc in self._ctx.get_configs(self._spec.root).get(SubtypeConfig) or ():
                 raws.append(_RawSubtype(sc.ty, sc.ty.__name__, sc.tag, tuple(sc.alts or ())))
 
-        elif isinstance(source, ManifestSubtypeSource):
+        elif isinstance(source, ManifestsSubtypeSource):
             for v in _subtype_manifests_by_base_path().get(_cls_path(self._spec.root), ()):
                 raws.append(_manifest_raw_subtype(v))
 

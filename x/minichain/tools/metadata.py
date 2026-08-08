@@ -12,7 +12,7 @@ from ..metadata import Metadata
 ##
 
 
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE)
 class ToolUseMetadata(Metadata, lang.Abstract, lang.Sealed):
     pass
 
@@ -30,7 +30,7 @@ class ToolUseUuid(tv.UniqueScalarTypedValue[uuid.UUID], ToolUseMetadata, lang.Fi
 ##
 
 
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE)
 class ToolUseResultMetadata(Metadata, lang.Abstract, lang.Sealed):
     pass
 

@@ -54,7 +54,7 @@ def _build_typed_value_poly(cls: type) -> Polymorphism:
     return polymorphism_from_subclasses(
         ty,
         naming=Naming.SNAKE,
-        suffix_stripping=SuffixStripping.IF_ALL,
+        suffix_stripping=SuffixStripping(mode='if_all'),
     )
 
 

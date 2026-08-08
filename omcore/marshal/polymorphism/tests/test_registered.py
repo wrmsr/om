@@ -6,17 +6,18 @@ from ...api.marshaling import SimpleMarshaling
 from ...api.naming import Naming
 from ...standard.factories import new_standard_marshaler_factory
 from ...standard.factories import new_standard_unmarshaler_factory
+from ..api import ConfigsSubtypeSource
 from ..api import PolymorphismSubtypeError
 from ..api import SubtypeConfig
 from ..api import SuffixStripping
-from ..api import set_polymorphic_from_subclasses
-from ..specs import ConfigSubtypeSource
+from ..api import set_polymorphic
 from ..specs import PolymorphismSpec
 
 
-@set_polymorphic_from_subclasses(
+@set_polymorphic(
+    sources=['subclasses', 'configs'],
     naming=Naming.SNAKE,
-    suffix_stripping=SuffixStripping.REQUIRED,
+    suffix_stripping='required',
 )
 class Foo:
     pass
@@ -69,9 +70,9 @@ def test_config_only_spec():
 
     spec = PolymorphismSpec(
         root=Foo,
-        sources=[ConfigSubtypeSource()],
+        sources=[ConfigsSubtypeSource()],
         naming=Naming.SNAKE,
-        suffix_stripping=SuffixStripping.REQUIRED,
+        suffix_stripping=SuffixStripping(mode='required'),
     )
 
     # No impls registered yet - resolution fails loudly at construction.

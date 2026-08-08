@@ -160,6 +160,10 @@ def isinstance(v: ta.Any, spec: type[T], msg: Message = None, /) -> T: ...  # no
 
 
 @ta.overload
+def isinstance(v: ta.Any, spec: tuple[type[T], None], msg: Message = None, /) -> T | None: ...  # noqa
+
+
+@ta.overload
 def isinstance(v: ta.Any, spec: ta.Any, msg: Message = None, /) -> ta.Any: ...  # noqa
 
 

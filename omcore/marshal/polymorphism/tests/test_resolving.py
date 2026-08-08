@@ -5,26 +5,26 @@ from ...api.marshaling import SimpleMarshaling
 from ...api.naming import Naming
 from ...standard.factories import new_standard_marshaler_factory
 from ...standard.factories import new_standard_unmarshaler_factory
+from ..api import ConfigsSubtypeSource
+from ..api import ExplicitSubtypeSource
 from ..api import PolymorphismSubtypeError
+from ..api import SubclassesSubtypeSource
 from ..api import SubtypeConfig
 from ..api import SubtypeInfo
 from ..api import SubtypeInfos
 from ..api import SuffixStripping
-from ..api import set_polymorphic_from_subclasses
+from ..api import set_polymorphic
 from ..manifests import SubtypeManifest
 from ..resolving import match_subtype_manifests
-from ..specs import ConfigSubtypeSource
-from ..specs import ExplicitSubtypeSource
 from ..specs import PolymorphismSpec
-from ..specs import SubclassesSubtypeSource
 
 
 ##
 
 
-@set_polymorphic_from_subclasses(
+@set_polymorphic(
     naming=Naming.SNAKE,
-    suffix_stripping=SuffixStripping.REQUIRED,
+    suffix_stripping='required',
 )
 class Event:
     pass
@@ -114,7 +114,7 @@ def test_source_merge_and_conflicts():
             ExplicitSubtypeSource(SubtypeInfos([SubtypeInfo(MessageSentEvent, 'ms')])),
         ],
         naming=Naming.SNAKE,
-        suffix_stripping=SuffixStripping.REQUIRED,
+        suffix_stripping=SuffixStripping(mode='required'),
     )
 
     assert m.marshal(MessageSentEvent('hi'), spec) == {'ms': {'msg': 'hi'}}
@@ -154,7 +154,7 @@ def test_config_tag_conflict():
 
     spec = PolymorphismSpec(
         root=Event,
-        sources=[ConfigSubtypeSource()],
+        sources=[ConfigsSubtypeSource()],
     )
     with pytest.raises(PolymorphismSubtypeError):
         m.marshal(MessageSentEvent('x'), spec)

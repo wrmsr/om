@@ -14,6 +14,36 @@
     }
   },
   {
+    "module": ".harness.sessions.entries",
+    "attr": null,
+    "file": "omllm/harness/sessions/entries.py",
+    "line": 22,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.harness.sessions.entries",
+        "attr": "MessageSessionEntry",
+        "base": "$.harness.sessions.entries.SessionEntry",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".harness.sessions.events",
+    "attr": null,
+    "file": "omllm/harness/sessions/events.py",
+    "line": 22,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.harness.sessions.events",
+        "attr": "AgentSessionEvent",
+        "base": "$.harness.sessions.events.SessionEvent",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
     "module": ".interop.huggingface.cli",
     "attr": "_CLI_MODULE",
     "file": "omllm/interop/huggingface/cli.py",

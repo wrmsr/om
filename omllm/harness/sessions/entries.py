@@ -11,7 +11,7 @@ from ... import agent as agn
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, suffix_stripping=msh.SuffixStripping.REQUIRED)
+@msh.set_polymorphic(source='manifests', naming=msh.Naming.SNAKE, suffix_stripping='required')
 class SessionEntry(lang.Abstract, lang.Sealed):
     pass
 
@@ -19,6 +19,7 @@ class SessionEntry(lang.Abstract, lang.Sealed):
 ##
 
 
+# @om-manifest omcore.marshal.SubtypeManifest(base='$.harness.sessions.entries.SessionEntry')
 @ta.final
 @dc.dataclass(frozen=True)
 class MessageSessionEntry(SessionEntry):

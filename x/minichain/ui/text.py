@@ -46,7 +46,7 @@ UiTextStyle.DEFAULT = UiTextStyle()
 ##
 
 
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE, strip_suffix=True)
 @dc.dataclass(frozen=True)
 class UiText(lang.Abstract, lang.Sealed):
     _BLANK: ta.ClassVar[StrUiText]

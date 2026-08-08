@@ -17,22 +17,22 @@ from ..api.specs import Spec
 from ..api.types import DuplexFactory
 from ..api.types import Marshaler
 from ..api.types import Unmarshaler
+from .api import ConfigsSubtypeSource
+from .api import ManifestsSubtypeSource
+from .api import SubclassesSubtypeSource
+from .api import SubtypeSource
 from .api import _PolymorphismMetadata
-from .specs import ConfigSubtypeSource
-from .specs import ManifestSubtypeSource
 from .specs import PolymorphismSpec
-from .specs import SubclassesSubtypeSource
-from .specs import SubtypeSource
 
 
 ##
 
 
-_DEFAULT_METADATA_SUBTYPE_SOURCES: tuple[SubtypeSource, ...] = (
-    SubclassesSubtypeSource(),
-    ConfigSubtypeSource(),
-    ManifestSubtypeSource(),
-)
+_DEFAULT_METADATA_SUBTYPE_SOURCES: ta.Mapping[str, SubtypeSource] = {
+    'subclasses': SubclassesSubtypeSource(),
+    'configs': ConfigsSubtypeSource(),
+    'manifests': ManifestsSubtypeSource(),
+}
 
 
 def _get_polymorphism_metadata(cls: type) -> _PolymorphismMetadata | None:
@@ -48,12 +48,9 @@ def _make_metadata_spec(
         *,
         only: ta.Sequence[type] | None = None,
 ) -> PolymorphismSpec:
-    if pmd.mode != 'subclasses':
-        raise RuntimeError(f'Unsupported polymorphism mode: {pmd.mode}')
-
     return PolymorphismSpec(
         root=cls,
-        sources=_DEFAULT_METADATA_SUBTYPE_SOURCES,
+        sources=pmd.sources,
         tagging=pmd.type_tagging,
         naming=pmd.naming,
         suffix_stripping=pmd.suffix_stripping,

@@ -27,7 +27,7 @@ msh.register_global_module_import('._marshal', __package__)
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE, strip_suffix=True)
 class Message(MetadataContainerDataclass[MessageMetadatas], lang.Abstract, lang.Sealed):
     _metadata: ta.Sequence[MessageMetadatas] = dc.field(default=(), kw_only=True, repr=False)
 
@@ -41,7 +41,7 @@ Chat: ta.TypeAlias = ta.Sequence[Message]
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix='Message')
+@msh.set_polymorphic(naming=msh.Naming.SNAKE, strip_suffix='Message')
 class AnyUserMessage(Message, lang.Abstract):
     pass
 
@@ -59,7 +59,7 @@ def check_user_chat(chat: Chat) -> UserChat:
 
 
 @dc.dataclass(frozen=True)
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix='Message')
+@msh.set_polymorphic(naming=msh.Naming.SNAKE, strip_suffix='Message')
 class AnyAiMessage(Message, lang.Abstract):
     pass
 

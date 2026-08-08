@@ -201,10 +201,10 @@ class ModuleRenderer:
             union_td = module.disc_unions[name]
             w()
             w()
-            w(f'@msh.set_polymorphic_from_subclasses(')
+            w(f'@msh.set_polymorphic(')
             w(f'    type_tagging=msh.FieldTypeTagging({union_td.discriminator_field!r}),')
             w(f'    naming=msh.Naming.SNAKE,')
-            w(f'    suffix_stripping=msh.SuffixStripping.IF_ALL,')
+            w(f"    suffix_stripping='if_all',")
             w(f')')
             w(f'class {name}(lang.Abstract, lang.Sealed):')
             w('    pass')

@@ -10,6 +10,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore import marshal as msh
 
 from ...core import fieldhash as fh
 
@@ -98,3 +99,24 @@ class PermissionAsker(lang.Abstract):
             rule: PermissionRule,
     ) -> ta.Awaitable[DecidedPermissionState]:
         raise NotImplementedError
+
+
+##
+
+
+@msh.register_global_lazy_init
+def _install_standard_marshaling(cfgs: msh.ConfigRegistry) -> None:
+    for cls in [
+        PermissionMatcher,
+        PermissionTarget,
+    ]:
+        msh.install_standard_factories(
+            cfgs,
+            *msh.standard_polymorphism_factories(
+                msh.polymorphism_from_subclasses(
+                    cls,
+                    naming=msh.Naming.SNAKE,
+                    suffix_stripping=msh.SuffixStripping(mode='required'),
+                ),
+            ),
+        )

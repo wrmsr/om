@@ -6,7 +6,7 @@ from omcore import marshal as msh
 ##
 
 
-@msh.set_polymorphic_from_subclasses(naming=msh.Naming.SNAKE, strip_suffix=True)
+@msh.set_polymorphic(naming=msh.Naming.SNAKE, strip_suffix=True)
 class StopReason(lang.Abstract, lang.Sealed):
     """
     Why a generation segment stopped. A closed sum (classes-as-ADT), mapped from each backend's vendor finish/stop

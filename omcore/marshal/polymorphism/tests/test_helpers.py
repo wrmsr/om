@@ -13,13 +13,13 @@ from ...objects.marshal import ObjectMarshalerFactory
 from ...objects.unmarshal import ObjectUnmarshalerFactory
 from ...singular.primitives import PRIMITIVE_MARSHALER_FACTORY
 from ...singular.primitives import PRIMITIVE_UNMARSHALER_FACTORY
-from ..api import set_polymorphic_from_subclasses
+from ..api import set_polymorphic
 from ..marshal import PolymorphismSpecMarshalerFactory
 from ..metadata import PolymorphismMetadataFactory
 from ..unmarshal import PolymorphismSpecUnmarshalerFactory
 
 
-@set_polymorphic_from_subclasses()
+@set_polymorphic()
 @dc.dataclass(frozen=True)
 class PB:
     a: str

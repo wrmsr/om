@@ -43,7 +43,7 @@ def _build_typed_value_union_poly(ctx: BaseContext, rty: rfl.Type) -> SubtypeInf
             for i in polymorphism_from_subclasses(
                 sty,
                 naming=Naming.SNAKE,
-                suffix_stripping=SuffixStripping.IF_ALL,
+                suffix_stripping=SuffixStripping(mode='if_all'),
             ).subtypes
         ]
 
