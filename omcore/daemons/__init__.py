@@ -48,6 +48,30 @@ with _lang.auto_proxy_init(globals()):
         ServiceRuntime,
     )
 
+    from .rpc import (  # noqa
+        RPC_PROTOCOL_NAME,
+        RPC_PROTOCOL_VERSION,
+        RPC_DEFAULT_MAX_FRAME_BYTES,
+
+        RpcError,
+        RpcProtocolError,
+        RpcUnavailableError,
+        RpcRemoteError,
+        RpcCallIndeterminateError,
+
+        RpcRequest,
+        RpcHandler,
+
+        RpcClientConnection,
+        RpcClient,
+        LazyRpcClient,
+
+        RpcWait,
+        RpcWaiter,
+
+        RpcService,
+    )
+
     from .spawning import (  # noqa
         Spawning,
         Spawn,
