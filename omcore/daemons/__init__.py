@@ -16,6 +16,21 @@ with _lang.auto_proxy_init(globals()):
         LazyDaemon,
     )
 
+    from .pidfiles import (  # noqa
+        DAEMON_PIDFILE_FORMAT,
+        DAEMON_PIDFILE_FORMAT_VERSION,
+
+        DaemonPidfileInfo,
+        DaemonPidfileInfoError,
+
+        make_daemon_pidfile_info,
+        dumps_daemon_pidfile_info,
+        loads_daemon_pidfile_info,
+        parse_daemon_pidfile_info,
+        read_daemon_pidfile_info,
+        current_daemon_pidfile_info,
+    )
+
     from .startup import (  # noqa
         LaunchErrorInfo,
         LaunchReport,

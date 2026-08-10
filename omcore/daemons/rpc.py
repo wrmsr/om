@@ -17,6 +17,7 @@ from .. import lang
 from ..logs import all as logs
 from ..sockets.io import close_socket_immediately
 from .lazy import LazyDaemon
+from .pidfiles import current_daemon_pidfile_info
 from .runtime import ActivityRejectedError
 from .runtime import DrainTimeoutError
 from .runtime import ServiceRuntime
@@ -865,7 +866,10 @@ class RpcService(RuntimeService['RpcService.Config']):
         listener.bind(self.config.socket_path)
 
     def _run_runtime(self, runtime: ServiceRuntime) -> None:
-        instance_id = uuid.uuid4().hex
+        if (pidfile_info := current_daemon_pidfile_info()) is not None:
+            instance_id = pidfile_info.instance_id
+        else:
+            instance_id = uuid.uuid4().hex
         responses = _RpcResponseCache(
             self.config.handler,
             max_entries=self.config.response_cache_size,

@@ -8,6 +8,8 @@ import warnings
 
 from ... import check
 from ...os.pidfiles.pidfile import Pidfile
+from ..pidfiles import DaemonPidfileInfo
+from ..pidfiles import read_daemon_pidfile_info
 
 
 ##
@@ -67,6 +69,15 @@ def read_locked_pidfile(path: str) -> int:
             no_create=True,
     ) as pidfile:
         return check.not_none(pidfile.read())
+
+
+def read_locked_daemon_pidfile_info(path: str) -> DaemonPidfileInfo:
+    with Pidfile(
+            path,
+            inheritable=False,
+            no_create=True,
+    ) as pidfile:
+        return check.not_none(read_daemon_pidfile_info(pidfile))
 
 
 def wait_pidfile_unlocked(path: str) -> None:

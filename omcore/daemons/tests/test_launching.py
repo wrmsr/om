@@ -1,3 +1,4 @@
+import datetime
 import json
 import multiprocessing as mp
 import os
@@ -24,6 +25,7 @@ from .testing import accept_worker
 from .testing import find_multiprocessing_child
 from .testing import join_multiprocessing_child
 from .testing import make_unix_listener
+from .testing import read_locked_daemon_pidfile_info
 from .testing import read_locked_pidfile
 from .testing import receive_json_line
 from .testing import release_worker
@@ -113,6 +115,7 @@ def test_launcher_pidfile_single_instance_and_lifecycle(kind):
                     process = find_multiprocessing_child(worker_pid)
 
                 locked_pid = read_locked_pidfile(pid_file)
+                pidfile_info = read_locked_daemon_pidfile_info(pid_file)
                 second_launched = _launch(Launcher(
                     target=target,
                     spawning=spawning,
@@ -135,6 +138,9 @@ def test_launcher_pidfile_single_instance_and_lifecycle(kind):
                     exit_code = wait_fork_child(worker_pid)
 
         assert locked_pid == worker_pid
+        assert pidfile_info.pid == worker_pid
+        assert pidfile_info.instance_id == info['instance_id']
+        assert pidfile_info.started_at.utcoffset() == datetime.timedelta()
         assert not second_launched
         assert info['label'] == kind
 

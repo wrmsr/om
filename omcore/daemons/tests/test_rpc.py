@@ -30,6 +30,7 @@ from .testing import accept_worker
 from .testing import find_multiprocessing_child
 from .testing import join_multiprocessing_child
 from .testing import make_unix_listener
+from .testing import read_locked_daemon_pidfile_info
 from .testing import read_locked_pidfile
 from .testing import wait_pidfile_unlocked
 
@@ -215,7 +216,7 @@ def test_lazy_rpc_concurrent_calls_remote_error_and_idle_exit():
     prior_child_pids = {check.isinstance(process.pid, int) for process in mp.active_children()}
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        lazy_client, _, _, pid_file, execution_log = _make_rpc_clients(temp_dir)
+        lazy_client, client, _, pid_file, execution_log = _make_rpc_clients(temp_dir)
 
         try:
             num_callers = 8
@@ -233,6 +234,9 @@ def test_lazy_rpc_concurrent_calls_remote_error_and_idle_exit():
 
             worker_pid = check.isinstance(responses[0]['pid'], int)
             process = find_multiprocessing_child(worker_pid)
+            pidfile_info = read_locked_daemon_pidfile_info(pid_file)
+            assert pidfile_info.pid == worker_pid
+            assert client.ping() == pidfile_info.instance_id
 
             with pytest.raises(RpcRemoteError) as exc_info:
                 lazy_client.call('fail', 'boom')

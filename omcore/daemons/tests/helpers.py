@@ -8,6 +8,7 @@ from ... import check
 from ... import dataclasses as dc
 from ...logs import all as logs
 from ..launching import Launcher
+from ..pidfiles import current_daemon_pidfile_info
 from ..services import Service
 from ..spawning import ForkSpawning
 from ..spawning import MultiprocessingSpawning
@@ -92,6 +93,7 @@ def run_controlled_worker(
         probe_fd: int | None = None,
 ) -> None:
     probe_fd_open = _is_fd_open(probe_fd) if probe_fd is not None else None
+    pidfile_info = current_daemon_pidfile_info()
 
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
         sock.connect(control_path)
@@ -102,6 +104,7 @@ def run_controlled_worker(
             'ppid': os.getppid(),
             'probe_fd_open': probe_fd_open,
             'sid': os.getsid(0),
+            'instance_id': pidfile_info.instance_id if pidfile_info is not None else None,
         }).encode('utf-8') + b'\n')
 
         if sock.recv(1) != b'X':

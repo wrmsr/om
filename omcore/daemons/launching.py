@@ -12,6 +12,9 @@ from .. import lang
 from ..logs import all as logs
 from ..os.pidfiles.manager import open_inheritable_pidfile
 from ..os.pidfiles.pidfile import Pidfile
+from .pidfiles import daemon_pidfile_info_context
+from .pidfiles import dumps_daemon_pidfile_info
+from .pidfiles import make_daemon_pidfile_info
 from .reparent import reparent_process
 from .spawning import InProcessSpawner
 from .spawning import Spawn
@@ -65,7 +68,9 @@ class Launcher:
             pidfile: Pidfile | None = None  # noqa
             if pidfile_manager is not None:
                 pidfile = check.isinstance(es.enter_context(pidfile_manager), Pidfile)
-                pidfile.write()
+                pidfile_info = make_daemon_pidfile_info()
+                pidfile.write(suffix=dumps_daemon_pidfile_info(pidfile_info))
+                es.enter_context(daemon_pidfile_info_context(pidfile_info))
 
             runner = target_runner_for(self._target)
 
