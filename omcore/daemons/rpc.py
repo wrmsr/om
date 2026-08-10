@@ -32,7 +32,7 @@ log = logs.get_module_logger(globals())
 ##
 
 
-RPC_PROTOCOL_NAME = 'omcore.daemons.rpc'
+RPC_PROTOCOL_NAME = f'{__package__}.rpc'
 RPC_PROTOCOL_VERSION = 1
 RPC_DEFAULT_MAX_FRAME_BYTES = 16 * 1024 * 1024
 
@@ -620,7 +620,7 @@ class _RpcResponseCache:
                     return _error_message(
                         request,
                         code='protocol',
-                        remote_type='omcore.daemons.rpc.RpcProtocolError',
+                        remote_type=f'{__package__}.rpc.RpcProtocolError',
                         message='RPC request id was reused with different request data',
                     )
                 response = self._wait_locked(entry)
@@ -631,7 +631,7 @@ class _RpcResponseCache:
                 return _error_message(
                     request,
                     code='remote',
-                    remote_type='omcore.daemons.rpc.RpcRequestCacheFullError',
+                    remote_type=f'{__package__}.rpc.RpcRequestCacheFullError',
                     message='RPC request cache is full',
                 )
 

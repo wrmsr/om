@@ -36,7 +36,7 @@ class LaunchErrorInfo:
     def startup_channel_closed(cls) -> LaunchErrorInfo:
         return cls(
             pid=None,
-            exception_type='omcore.daemons.startup.StartupChannelClosedError',
+            exception_type=f'{__package__}.startup.StartupChannelClosedError',
             message='Worker exited without reporting startup',
         )
 
@@ -44,7 +44,7 @@ class LaunchErrorInfo:
     def invalid_startup_report(cls, exc: BaseException) -> LaunchErrorInfo:
         return cls(
             pid=None,
-            exception_type='omcore.daemons.startup.InvalidStartupReportError',
+            exception_type=f'{__package__}.startup.InvalidStartupReportError',
             message=str(exc)[:1_000],
         )
 

@@ -330,7 +330,7 @@ def test_concurrent_launcher_processes_start_one_detached_worker():
                             [
                                 sys.executable,
                                 '-m',
-                                'omcore.daemons.tests.helpers',
+                                f'{__package__}.helpers',
                                 'contend',
                                 str(i),
                                 barrier_path,
