@@ -17,7 +17,7 @@
     "module": ".harness.sessions.entries",
     "attr": null,
     "file": "omllm/harness/sessions/entries.py",
-    "line": 22,
+    "line": 25,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.harness.sessions.entries",
