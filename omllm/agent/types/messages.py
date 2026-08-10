@@ -1,3 +1,8 @@
+# ruff: noqa: UP007
+import typing as ta
+
+from omcore import dataclasses as dc
+from omcore import lang
 from omcore import marshal as msh
 
 from ... import llm
@@ -6,23 +11,32 @@ from ... import llm
 ##
 
 
-type Message = llm.Message
+@dc.dataclass(frozen=True)
+@msh.set_polymorphic(naming='snake', suffix_stripping='required')
+class AgentMessage(lang.Abstract, lang.Sealed):
+    pass
 
 
 ##
 
 
-@msh.register_global_lazy_init
-def _install_standard_marshaling(cfgs: msh.ConfigRegistry) -> None:
-    llm_message_subtypes = msh.polymorphism_from_subclasses(llm.Message).subtypes
+type Message = ta.Union[
+    llm.Message,
+    AgentMessage,
+]
 
-    msh.install_standard_factories(
-        cfgs,
-        *msh.standard_polymorphism_factories(
-            msh.Polymorphism(
-                Message,
-                llm_message_subtypes,
-            ),
-            msh.WrapperTypeTagging(),
-        ),
-    )
+
+MESSAGE_TYPES: ta.Final[tuple[type[Message], ...]] = (
+    llm.Message,
+    AgentMessage,
+)
+
+
+##
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(cache_hash=True, terse_repr=True)
+class InfoAgentMessage(AgentMessage):
+    info: str

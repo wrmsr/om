@@ -26,7 +26,7 @@ class TurnLoop:
     def __init__(
             self,
             *,
-            new_messages: ta.Sequence[llm.Message],
+            new_messages: ta.Sequence[Message],
             config: TurnConfig | None = None,
             context: Context | None = None,
             subscriber: EventSubscriber[Event] | None = None,
@@ -86,6 +86,7 @@ class TurnLoop:
             messages=[  # noqa
                 m
                 for m in self._context.messages
+                if isinstance(m, llm.Message)
             ] if self._context.messages is not None else None,
 
             tools=[

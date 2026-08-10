@@ -115,6 +115,7 @@ class PolymorphismMetadataUnionFactory(DuplexFactory):
         members = ta.cast('list[type]', tys)
 
         roots = {self._find_metadata_root(m) for m in members}
+        # FIXME: *allow* multiple roots *iff* no naming conflicts
         if len(roots) != 1 or (root := roots.pop()) is None:
             return None
 

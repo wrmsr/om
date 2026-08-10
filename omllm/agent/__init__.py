@@ -98,7 +98,12 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .types.messages import (  # noqa
+        AgentMessage,
+
         Message,
+        MESSAGE_TYPES,
+
+        InfoAgentMessage,
     )
 
     from .types.states import (  # noqa

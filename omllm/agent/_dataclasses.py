@@ -1063,6 +1063,7 @@ def _process_dataclass__9361562d73fccc08c989ef1ca23e3893b758987d():
         ('omllm.agent.types.events', 'AgentStartEvent'),
         ('omllm.agent.types.events', 'Event'),
         ('omllm.agent.types.events', 'TurnStartEvent'),
+        ('omllm.agent.types.messages', 'AgentMessage'),
     ),
 )
 def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
@@ -2570,6 +2571,115 @@ def _process_dataclass__9834b5a9f1e654cfde6833f7af012abdb39241e4():
         def __repr__(self):
             parts = []
             parts.append(f"message={self.message!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('info',)), EqPlan(fields=('info',)), FrozenPlan(fields=('info',), allow_dynamic_du"
+        "nder_attrs=False), HashPlan(action='add', fields=('info',), cache=True), InitPlan(fields=(InitPlan.Field(name="
+        "'info', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, over"
+        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', "
+        "std_params=('info',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validat"
+        "e_fns=()), ReprPlan(fields=(ReprPlan.Field(name='info', kw_only=False, fn=None),), id=False, terse=True, defau"
+        "lt_fn=None)))"
+    ),
+    plan_repr_sha1='31e66d9ee4a5d49096b00ddbcd8858e8d92f0a5d',
+    cls_names=(
+        ('omllm.agent.types.messages', 'InfoAgentMessage'),
+    ),
+)
+def _process_dataclass__31e66d9ee4a5d49096b00ddbcd8858e8d92f0a5d():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                info=self.info,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.info == other.info
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'info',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            try:
+                return self.__dataclass_hash__
+            except AttributeError:
+                pass
+            object.__setattr__(
+                self,
+                '__dataclass_hash__',
+                h := hash((
+                    self.info,
+                ))
+            )
+            return h
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            info: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'info', info)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"{self.info!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

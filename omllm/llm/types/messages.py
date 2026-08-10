@@ -69,6 +69,7 @@ type StopReason = ta.Literal[
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(cache_hash=True, default_repr_fn=lang.truthy_repr)
+@msh.update_field_options(omit_if=lang.is_none)
 class TokenUsage:
     # Inclusive input total. Cache reads and writes are overlapping details within this value.
     input: int | None = None

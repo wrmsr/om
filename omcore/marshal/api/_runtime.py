@@ -1,14 +1,14 @@
 """
 The Runtime is the state-owning heart of a marshaling universe: one config registry, one reflection mirror, one pair of
-root factories, and all handler caches, under one lock. Factories and handlers remain stateless and shareable;
-contexts remain ephemeral per-op views; the Runtime is the one thing with a lifetime.
+root factories, and all handler caches, under one lock. Factories and handlers remain stateless and shareable; contexts
+remain ephemeral per-op views; the Runtime is the one thing with a lifetime.
 
 Handler caching is footprint-keyed: while a handler is being constructed, every config read made through the
-construction context is recorded (including misses, and transitively through recursively-constructed child handlers)
-as that cache entry's config footprint. The registry's snapshot version is the fast-path fence - an entry built at the
-current version is served without further checks - and on version mismatch the footprint is revalidated against the
-live registry, either restamping the entry in place (nothing it read has changed) or discarding it for rebuild. Late
-config registrations therefore invalidate exactly the handlers whose construction observed the touched keys.
+construction context is recorded (including misses, and transitively through recursively-constructed child handlers) as
+that cache entry's config footprint. The registry's snapshot version is the fast-path fence - an entry built at the
+current version is served without further checks - and on version mismatch the footprint is revalidated against the live
+registry, either restamping the entry in place (nothing it read has changed) or discarding it for rebuild. Late config
+registrations therefore invalidate exactly the handlers whose construction observed the touched keys.
 
 The registry is the only mutable config source and thus the only footprinted one - object metadata, dataclass field
 metadata, and manifests are append-only and deliberately outside the invalidation model. Reflection-time config reads
@@ -80,10 +80,23 @@ _ConfigDepMapKey: ta.TypeAlias = tuple[
 
 
 class _Frame:
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            *,
+            spec: Spec | None = None,
+    ) -> None:
         super().__init__()
 
+        self.spec = spec
+
         self.deps: dict[_ConfigDepMapKey, _ConfigDep] = {}
+
+    def __repr__(self) -> str:
+        return ''.join([
+            f'{self.__class__.__name__}@{id(self):x}(',
+            *([f'spec={self.spec!r}'] if self.spec is not None else ()),
+            ')',
+        ])
 
     def record(
             self,
@@ -475,14 +488,14 @@ class RuntimeImpl(Runtime):
             del side.entries[ek]
 
         if (px := side.building.get(ek)) is not None:
-            # Recursive knot: this can only be the lock-holding thread re-entering for a type already under
-            # construction - other threads are blocked on the lock and never observe in-progress state.
+            # Recursive knot: this can only be the lock-holding thread re-entering for a type already under construction
+            # - other threads are blocked on the lock and never observe in-progress state.
             return px[0]
 
         fac = check.not_none(side.factory)
 
         frames = self._tl.frames
-        frame = _Frame()
+        frame = _Frame(spec=spec)
         frames.append(frame)
 
         px = side.new_proxy()

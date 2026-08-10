@@ -1,7 +1,8 @@
+# ruff: noqa: UP007
 import typing as ta
 
 
-Value: ta.TypeAlias = ta.Union[  # noqa
+Value: ta.TypeAlias = ta.Union[
     None,
 
     bool,

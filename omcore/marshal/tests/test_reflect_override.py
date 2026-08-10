@@ -1,3 +1,4 @@
+# ruff: noqa: UP007
 import typing as ta
 
 from ... import dataclasses as dc
@@ -6,7 +7,7 @@ from ... import marshal as msh
 from ... import reflect as rfl
 
 
-JsonValue: ta.TypeAlias = ta.Union[  # noqa
+JsonValue: ta.TypeAlias = ta.Union[
     ta.Mapping[str, 'JsonValue'],
 
     ta.Sequence['JsonValue'],

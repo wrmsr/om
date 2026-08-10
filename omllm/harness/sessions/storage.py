@@ -1,8 +1,10 @@
 import abc
+import io
 import typing as ta
 
 from omcore import lang
 from omcore import marshal as msh
+from omcore.formats.json import all as json
 
 from .entries import SessionEntry
 
@@ -54,4 +56,10 @@ class JsonlSessionStorage(SessionStorage):
             for e in entries
         ]
 
-        raise NotImplementedError
+        out = io.StringIO()
+        for mv in mvs:
+            out.write(json.dumps_compact(mv))
+            out.write('\n')
+
+        with open(self._file_path, 'a') as f:  # noqa
+            f.write(out.getvalue())

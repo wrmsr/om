@@ -12,3 +12,6 @@ def test_marshal():
 
     mv = msh.marshal(se, SessionEntry)
     print(mv)
+
+    se2 = msh.unmarshal(mv, SessionEntry)
+    print(se2)

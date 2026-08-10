@@ -140,6 +140,8 @@ async def _a_main() -> None:
     parser.add_argument('--fs', action='store_true')
     parser.add_argument('--bash', action='store_true')
 
+    parser.add_argument('-J', '--jsonl-storage', action='store_true')
+
     parser.add_argument('-X', '--autoexec', action='append')
 
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -279,17 +281,20 @@ async def _a_main() -> None:
         text_displayer=text_displayer,
     )
 
+    #
+
     session_id = uuid.uuid7()  # noqa
 
     state_dir_path = os.path.join(get_home_paths().state_dir, 'llm', 'sessions')
     os.makedirs(state_dir_path, exist_ok=True)
 
-    session_storage = (
-        har.InMemorySessionStorage()
-        # har.JsonlSessionStorage(
-        #     file_path=os.path.join(state_dir_path, f'{session_id.hex}.jsonl')<
-        # ),
-    )
+    session_storage: har.SessionStorage
+    if args.jsonl_storage:
+        session_storage = har.JsonlSessionStorage(
+            file_path=os.path.join(state_dir_path, f'{session_id.hex}.jsonl'),
+        )
+    else:
+        session_storage = har.InMemorySessionStorage()
 
     session = har.Session(
         agent=agent,

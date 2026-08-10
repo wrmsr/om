@@ -9,6 +9,7 @@ from .backends import BackendManager
 from .turns.loop import TurnLoop
 from .types.events import Event
 from .types.events import StateUpdateEvent
+from .types.messages import MESSAGE_TYPES
 from .types.messages import Message
 from .types.states import State
 
@@ -50,10 +51,10 @@ class Agent(
     ) -> None:
         if isinstance(input, str):
             new_messages: list[Message] = [llm.UserMessage(input)]
-        elif isinstance(input, llm.Message):
+        elif isinstance(input, MESSAGE_TYPES):
             new_messages = [input]
         else:
-            new_messages = [check.isinstance(m, llm.Message) for m in input]
+            new_messages = [check.isinstance(m, MESSAGE_TYPES) for m in check.isinstance(input, ta.Sequence)]
 
         in_state = self._state
 
