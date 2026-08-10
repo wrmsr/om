@@ -11,7 +11,7 @@ def test_marshal():
     )
 
     mv = msh.marshal(se, SessionEntry)
-    print(mv)
+    assert mv == {'message': {'message': {'user': {'content': 'hi!'}}}}
 
     se2 = msh.unmarshal(mv, SessionEntry)
-    print(se2)
+    assert se2 == se

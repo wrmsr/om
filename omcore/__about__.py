@@ -55,7 +55,7 @@ class Project(ProjectBase):
 
             'psutil ~= 7.2',
 
-            'memray ~= 1.19',
+            'memray ~= 1.20',
         ],
 
         'formats': [
@@ -74,7 +74,7 @@ class Project(ProjectBase):
         ],
 
         'secrets': [
-            'cryptography ~= 49.0',
+            'cryptography ~= 50.0',
         ],
 
         'sqlalchemy': [
