@@ -12,14 +12,17 @@ from ..api.specs import Spec
 from ..api.types import Unmarshaler
 from ..api.types import UnmarshalerFactory
 from ..api.values import Value
+from .api import DisjointPolymorphism
 from .api import FieldTypeTagging
 from .api import Polymorphism
 from .api import PolymorphismTagError
 from .api import SubtypeInfos
 from .api import TypeTagging
 from .api import WrapperTypeTagging
+from .matching import get_disjoint_polymorphism_subtypes
 from .matching import get_polymorphism_subtypes
 from .resolving import resolve_polymorphism
+from .specs import DisjointPolymorphismSpec
 from .specs import PolymorphismSpec
 
 
@@ -91,7 +94,7 @@ def make_polymorphism_unmarshaler(
 
 @dc.dataclass(frozen=True)
 class PolymorphismUnmarshalerFactory(UnmarshalerFactory):
-    p: Polymorphism
+    p: Polymorphism | DisjointPolymorphism
     tt: TypeTagging = WrapperTypeTagging()
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
@@ -99,7 +102,13 @@ class PolymorphismUnmarshalerFactory(UnmarshalerFactory):
             return None
         rty = spec
 
-        if (sts := get_polymorphism_subtypes(rty, self.p)) is None:
+        sts: SubtypeInfos | None
+        if isinstance(self.p, DisjointPolymorphism):
+            sts = get_disjoint_polymorphism_subtypes(rty, self.p)
+        else:
+            sts = get_polymorphism_subtypes(rty, self.p)
+
+        if sts is None:
             return None
         return lambda: make_polymorphism_unmarshaler(sts, self.tt, ctx)
 
@@ -108,9 +117,17 @@ class PolymorphismUnmarshalerFactory(UnmarshalerFactory):
 
 
 class PolymorphismSpecUnmarshalerFactory(UnmarshalerFactory):
-    """Consumes PolymorphismSpecs: resolves the spec's subtype sources and hands off to the trivial handlers."""
+    """
+    Consumes PolymorphismSpecs (and DisjointPolymorphismSpecs): resolves the spec's subtype sources and hands off to
+    the trivial handlers.
+    """
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if isinstance(spec, DisjointPolymorphismSpec):
+            dp = DisjointPolymorphism([resolve_polymorphism(ctx, s) for s in spec.specs])
+            sts = dp.merge_subtypes()
+            return lambda: make_polymorphism_unmarshaler(sts, spec.tagging, ctx)
+
         if not isinstance(spec, PolymorphismSpec):
             return None
 

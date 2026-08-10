@@ -174,6 +174,7 @@ with _lang.auto_proxy_init(globals()):
         PolymorphismTagError,
         PolymorphismSuffixError,
         PolymorphismSubtypeError,
+        PolymorphismTaggingError,
 
         TypeTagging,
         WrapperTypeTagging,
@@ -191,6 +192,7 @@ with _lang.auto_proxy_init(globals()):
         SubtypeInfo,
         SubtypeInfos,
         Polymorphism,
+        DisjointPolymorphism,
 
         polymorphism_from_subtypes,
         polymorphism_from_subclasses,
@@ -352,6 +354,7 @@ with _lang.auto_proxy_init(globals()):
 
     from .polymorphism.specs import (  # noqa
         PolymorphismSpec,
+        DisjointPolymorphismSpec,
     )
 
     from .polymorphism.standard import (  # noqa

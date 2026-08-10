@@ -29,6 +29,10 @@ class PolymorphismSubtypeError(MarshalError):
     pass
 
 
+class PolymorphismTaggingError(MarshalError):
+    pass
+
+
 ##
 
 
@@ -222,6 +226,44 @@ class Polymorphism(lang.Final):
         if isinstance(ty := self.root, type):
             for i in self.subtypes:
                 check.issubclass(i.ty, ty)
+
+
+@dc.dataclass(frozen=True)
+class DisjointPolymorphism(lang.Final):
+    """
+    A merger of polymorphisms with unrelated roots, presenting their combined subtype and tag spaces as one - the
+    `llm.Message | AgentMessage`-style union case. Constituent subtype resolution (and thus tag derivation) is
+    entirely per-root, so a subtype's wire form is identical whether marshaled through its own root or through the
+    merger. Root distinctness is lightly enforced here; the deep invariants - disjoint subtype sets and a
+    collision-free combined tag space - are enforced by `merge_subtypes`.
+    """
+
+    polymorphisms: ta.Sequence[Polymorphism]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.polymorphisms, tuple):
+            object.__setattr__(self, 'polymorphisms', tuple(self.polymorphisms))
+        for p in self.polymorphisms:
+            check.isinstance(p, Polymorphism)
+        check.arg(len(self.polymorphisms) > 1)
+
+        if len({id(p.root) for p in self.polymorphisms}) != len(self.polymorphisms):
+            raise PolymorphismSubtypeError(f'Duplicate roots: {[p.root for p in self.polymorphisms]!r}')
+
+    def merge_subtypes(self) -> SubtypeInfos:
+        # Identical entries arriving through multiple constituents (possible with subclass-related roots) collapse
+        # silently; a subtype claimed with differing tags is a real conflict.
+        by_ty: dict[type, SubtypeInfo] = {}
+        for p in self.polymorphisms:
+            for i in p.subtypes:
+                if (x := by_ty.get(i.ty)) is None:
+                    by_ty[i.ty] = i
+                elif x != i:
+                    raise PolymorphismSubtypeError(f'Conflicting subtype merger for {i.ty!r}: {x!r}, {i!r}')
+
+        sts = SubtypeInfos(list(by_ty.values()))
+        sts.by_tag  # noqa  # Eagerly force cross-constituent tag collision detection.
+        return sts
 
 
 ##

@@ -17,6 +17,8 @@ from ... import dataclasses as dc
 from ... import lang
 from ..api.naming import Naming
 from ..api.specs import InternalSpec
+from .api import PolymorphismSubtypeError
+from .api import PolymorphismTaggingError
 from .api import SubtypeSource
 from .api import SuffixStripping
 from .api import TypeTagging
@@ -45,3 +47,37 @@ class PolymorphismSpec(InternalSpec, lang.Final):
 
     def __post_init__(self) -> None:
         check.not_empty(self.sources)
+
+
+##
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(cache_hash=True)
+class DisjointPolymorphismSpec(InternalSpec, lang.Final):
+    """
+    The multi-root union case - `llm.Message | AgentMessage` - as a merger of ordinary per-root specs. There is
+    deliberately no merger-level naming or restriction: each constituent resolves entirely under its own root's
+    configuration (so subtypes keep their exact single-root wire tags), and union restrictions distribute into the
+    constituents' `only`s. All constituents must agree on tagging - wrapper and field tagging cannot mix.
+    """
+
+    specs: ta.Sequence[PolymorphismSpec] = dc.xfield(coerce=tuple)
+
+    def __post_init__(self) -> None:
+        check.arg(len(self.specs) > 1)
+        for s in self.specs:
+            check.isinstance(s, PolymorphismSpec)
+
+        if len({id(s.root) for s in self.specs}) != len(self.specs):
+            raise PolymorphismSubtypeError(f'Duplicate roots: {[s.root for s in self.specs]!r}')
+
+        if len({s.tagging for s in self.specs}) != 1:
+            raise PolymorphismTaggingError(
+                f'Constituent specs must agree on tagging: {[s.tagging for s in self.specs]!r}',
+            )
+
+    @property
+    def tagging(self) -> TypeTagging:
+        return self.specs[0].tagging

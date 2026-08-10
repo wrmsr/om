@@ -2,6 +2,7 @@ import typing as ta
 
 from ... import lang
 from ... import reflect as rfl
+from .api import DisjointPolymorphism
 from .api import Polymorphism
 from .api import SubtypeInfo
 from .api import SubtypeInfos
@@ -69,3 +70,49 @@ def get_polymorphism_union_subtypes(
             return None
 
     return SubtypeInfos(list(out.values()))
+
+
+##
+
+
+def _member_subtypes(p: Polymorphism, t: type) -> ta.Sequence[SubtypeInfo] | None:
+    """
+    The subtypes a single union member claims of a polymorphism - the member may be the root, a concrete subtype,
+    or a covering abstract intermediate.
+    """
+
+    if t is p.root:
+        return list(p.subtypes)
+
+    if (i := p.subtypes.by_ty.get(t)) is not None:
+        return [i]
+
+    return _covered_subtypes(p, t)
+
+
+def get_disjoint_polymorphism_subtypes(
+        rty: rfl.Type,
+        dp: DisjointPolymorphism,
+) -> SubtypeInfos | None:
+    if not isinstance(rty, rfl.UnionType):
+        for p in dp.polymorphisms:
+            if (sts := get_polymorphism_subtypes(rty, p)) is not None:
+                return sts
+        return None
+
+    tys = [rfl.get_runtime_type_or_none(it) for it in rty.items]
+    if any(t is None for t in tys):
+        return None
+
+    out: dict[type, SubtypeInfo] = {}
+    for t in ta.cast('set[type]', set(tys)):
+        for p in dp.polymorphisms:
+            if (m_sts := _member_subtypes(p, t)) is not None:
+                out.update({i.ty: i for i in m_sts})
+                break
+        else:
+            return None
+
+    sts = SubtypeInfos(list(out.values()))
+    sts.by_tag  # noqa  # A recognized-but-conflicting merger is a real error, not a pass.
+    return sts

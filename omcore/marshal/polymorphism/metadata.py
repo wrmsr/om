@@ -9,6 +9,7 @@ subclass-derived polymorphisms, and late config-registered impls invalidate prec
 """
 import typing as ta
 
+from ... import check
 from ... import metadata as md
 from ... import reflect as rfl
 from ..api.contexts import MarshalFactoryContext
@@ -22,6 +23,7 @@ from .api import ManifestsSubtypeSource
 from .api import SubclassesSubtypeSource
 from .api import SubtypeSource
 from .api import _PolymorphismMetadata
+from .specs import DisjointPolymorphismSpec
 from .specs import PolymorphismSpec
 
 
@@ -94,9 +96,11 @@ class PolymorphismMetadataFactory(DuplexFactory):
 
 class PolymorphismMetadataUnionFactory(DuplexFactory):
     """
-    Derives PolymorphismSpecs from unions whose members all share a single nearest metadata-decorated ancestor,
-    resolving to that root's PolymorphismSpec restricted to the members. A member equal to the root lifts the
-    restriction (the union degenerates to the full polymorphism).
+    Derives specs from unions whose members each have a nearest metadata-decorated ancestor: a single shared root
+    resolves to that root's PolymorphismSpec restricted to the members, while members spanning multiple roots
+    resolve to a DisjointPolymorphismSpec of per-root specs (each with its own member restriction, each resolving
+    entirely under its own root's configuration - constituents must agree on tagging). A member equal to its root
+    lifts that root's restriction.
     """
 
     def _find_metadata_root(self, cls: type) -> type | None:
@@ -105,7 +109,7 @@ class PolymorphismMetadataUnionFactory(DuplexFactory):
                 return mro_cls
         return None
 
-    def _derive_spec(self, spec: Spec) -> PolymorphismSpec | None:
+    def _derive_spec(self, spec: Spec) -> PolymorphismSpec | DisjointPolymorphismSpec | None:
         if not isinstance(spec, rfl.UnionType):
             return None
 
@@ -114,20 +118,27 @@ class PolymorphismMetadataUnionFactory(DuplexFactory):
             return None
         members = ta.cast('list[type]', tys)
 
-        roots = {self._find_metadata_root(m) for m in members}
-        # FIXME: *allow* multiple roots *iff* no naming conflicts
-        if len(roots) != 1 or (root := roots.pop()) is None:
-            return None
+        by_root: dict[type, list[type]] = {}
+        for m in members:
+            if (root := self._find_metadata_root(m)) is None:
+                return None
+            by_root.setdefault(root, []).append(m)
 
-        pmd = _get_polymorphism_metadata(root)
-        if pmd is None:
-            return None
+        # Canonically ordered so differently-ordered union annotations (distinct reflected types) converge on the
+        # same value-keyed spec and share one handler.
+        specs = [
+            _make_metadata_spec(
+                root,
+                check.not_none(_get_polymorphism_metadata(root)),
+                only=None if root in ms else ms,
+            )
+            for root, ms in sorted(by_root.items(), key=lambda kv: (kv[0].__module__, kv[0].__qualname__))
+        ]
 
-        return _make_metadata_spec(
-            root,
-            pmd,
-            only=None if root in members else members,
-        )
+        if len(specs) == 1:
+            return specs[0]
+
+        return DisjointPolymorphismSpec(specs)
 
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
         if (psp := self._derive_spec(spec)) is None:

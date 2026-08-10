@@ -11,14 +11,17 @@ from ..api.specs import Spec
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.values import Value
+from .api import DisjointPolymorphism
 from .api import FieldTypeTagging
 from .api import Polymorphism
 from .api import PolymorphismSubtypeError
 from .api import SubtypeInfos
 from .api import TypeTagging
 from .api import WrapperTypeTagging
+from .matching import get_disjoint_polymorphism_subtypes
 from .matching import get_polymorphism_subtypes
 from .resolving import resolve_polymorphism
+from .specs import DisjointPolymorphismSpec
 from .specs import PolymorphismSpec
 
 
@@ -86,7 +89,7 @@ def make_polymorphism_marshaler(
 
 @dc.dataclass(frozen=True)
 class PolymorphismMarshalerFactory(MarshalerFactory):
-    p: Polymorphism
+    p: Polymorphism | DisjointPolymorphism
     tt: TypeTagging = WrapperTypeTagging()
 
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
@@ -94,7 +97,13 @@ class PolymorphismMarshalerFactory(MarshalerFactory):
             return None
         rty = spec
 
-        if (sts := get_polymorphism_subtypes(rty, self.p)) is None:
+        sts: SubtypeInfos | None
+        if isinstance(self.p, DisjointPolymorphism):
+            sts = get_disjoint_polymorphism_subtypes(rty, self.p)
+        else:
+            sts = get_polymorphism_subtypes(rty, self.p)
+
+        if sts is None:
             return None
         return lambda: make_polymorphism_marshaler(sts, self.tt, ctx)
 
@@ -103,9 +112,17 @@ class PolymorphismMarshalerFactory(MarshalerFactory):
 
 
 class PolymorphismSpecMarshalerFactory(MarshalerFactory):
-    """Consumes PolymorphismSpecs: resolves the spec's subtype sources and hands off to the trivial handlers."""
+    """
+    Consumes PolymorphismSpecs (and DisjointPolymorphismSpecs): resolves the spec's subtype sources and hands off to
+    the trivial handlers.
+    """
 
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if isinstance(spec, DisjointPolymorphismSpec):
+            dp = DisjointPolymorphism([resolve_polymorphism(ctx, s) for s in spec.specs])
+            sts = dp.merge_subtypes()
+            return lambda: make_polymorphism_marshaler(sts, spec.tagging, ctx)
+
         if not isinstance(spec, PolymorphismSpec):
             return None
 
