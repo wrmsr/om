@@ -113,8 +113,8 @@ class PolymorphismMarshalerFactory(MarshalerFactory):
 
 class PolymorphismSpecMarshalerFactory(MarshalerFactory):
     """
-    Consumes PolymorphismSpecs (and DisjointPolymorphismSpecs): resolves the spec's subtype sources and hands off to
-    the trivial handlers.
+    Consumes PolymorphismSpecs (and DisjointPolymorphismSpecs): resolves the spec's subtype sources and hands off to the
+    trivial handlers.
     """
 
     def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:

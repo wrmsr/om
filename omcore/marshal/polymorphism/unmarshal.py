@@ -118,8 +118,8 @@ class PolymorphismUnmarshalerFactory(UnmarshalerFactory):
 
 class PolymorphismSpecUnmarshalerFactory(UnmarshalerFactory):
     """
-    Consumes PolymorphismSpecs (and DisjointPolymorphismSpecs): resolves the spec's subtype sources and hands off to
-    the trivial handlers.
+    Consumes PolymorphismSpecs (and DisjointPolymorphismSpecs): resolves the spec's subtype sources and hands off to the
+    trivial handlers.
     """
 
     def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:

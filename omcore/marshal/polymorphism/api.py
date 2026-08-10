@@ -232,10 +232,10 @@ class Polymorphism(lang.Final):
 class DisjointPolymorphism(lang.Final):
     """
     A merger of polymorphisms with unrelated roots, presenting their combined subtype and tag spaces as one - the
-    `llm.Message | AgentMessage`-style union case. Constituent subtype resolution (and thus tag derivation) is
-    entirely per-root, so a subtype's wire form is identical whether marshaled through its own root or through the
-    merger. Root distinctness is lightly enforced here; the deep invariants - disjoint subtype sets and a
-    collision-free combined tag space - are enforced by `merge_subtypes`.
+    `llm.Message | AgentMessage`-style union case. Constituent subtype resolution (and thus tag derivation) is entirely
+    per-root, so a subtype's wire form is identical whether marshaled through its own root or through the merger. Root
+    distinctness is lightly enforced here; the deep invariants - disjoint subtype sets and a collision-free combined tag
+    space - are enforced by `merge_subtypes`.
     """
 
     polymorphisms: ta.Sequence[Polymorphism]
