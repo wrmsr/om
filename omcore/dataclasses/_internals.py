@@ -12,6 +12,12 @@ import typing as ta
 ##
 
 
+_IS_15 = getattr(sys, 'version_info') >= (3, 15)
+
+
+##
+
+
 STD_HAS_DEFAULT_FACTORY = dc._HAS_DEFAULT_FACTORY  # type: ignore  # noqa
 
 STD_FIELDS_ATTR = dc._FIELDS  # type: ignore  # noqa
@@ -102,37 +108,66 @@ def _self_module():
     return _SELF_MODULE
 
 
-def std_is_classvar(cls: type, ty: ta.Any) -> bool:
-    return (
-        dc._is_classvar(ty, ta)  # type: ignore  # noqa
-        or (
-            isinstance(ty, str) and
-            dc._is_type(ty, cls, ta, ta.ClassVar, dc._is_classvar)  # type: ignore  # noqa
+if _IS_15:
+    # https://github.com/python/cpython/commit/414406238707e24a800938c690d1b7db3b302aae
+
+    def std_is_classvar(cls: type, ty: ta.Any) -> bool:
+        if isinstance(ty, str):
+            a_type_annotation = dc._get_type_from_annotation(ty, cls)  # type: ignore  # noqa
+        else:
+            a_type_annotation = ty
+        return dc._is_classvar(a_type_annotation, ta)  # type: ignore  # noqa
+
+    def std_is_initvar(cls: type, ty: ta.Any) -> bool:
+        if isinstance(ty, str):
+            a_type_annotation = dc._get_type_from_annotation(ty, cls)  # type: ignore  # noqa
+        else:
+            a_type_annotation = ty
+        return any(
+            dc._is_initvar(a_type_annotation, mod)  # type: ignore  # noqa
+            for mod in (dc, _self_module())
         )
-    )
 
+    def std_is_kw_only(cls: type, ty: ta.Any) -> bool:
+        if isinstance(ty, str):
+            a_type_annotation = dc._get_type_from_annotation(ty, cls)  # type: ignore  # noqa
+        else:
+            a_type_annotation = ty
+        return any(
+            dc._is_kw_only(a_type_annotation, mod)  # type: ignore  # noqa
+            for mod in (dc, _self_module())
+        )
 
-def std_is_initvar(cls: type, ty: ta.Any) -> bool:
-    return (
-        dc._is_initvar(ty, dc)  # type: ignore  # noqa
-        or (
-            isinstance(ty, str) and
-            any(
-                dc._is_type(ty, cls, mod, dc.InitVar, dc._is_initvar)  # type: ignore  # noqa
-                for mod in (dc, _self_module())
+else:
+    def std_is_classvar(cls: type, ty: ta.Any) -> bool:
+        return (
+            dc._is_classvar(ty, ta)  # type: ignore  # noqa
+            or (
+                isinstance(ty, str) and
+                dc._is_type(ty, cls, ta, ta.ClassVar, dc._is_classvar)  # type: ignore  # noqa
             )
         )
-    )
 
-
-def std_is_kw_only(cls: type, ty: ta.Any) -> bool:
-    return (
-        dc._is_kw_only(ty, dc)  # type: ignore  # noqa
-        or (
-            isinstance(ty, str) and
-            any(
-                dc._is_type(ty, cls, mod, dc.KW_ONLY, dc._is_kw_only)  # type: ignore  # noqa
-                for mod in (dc, _self_module())
+    def std_is_initvar(cls: type, ty: ta.Any) -> bool:
+        return (
+            dc._is_initvar(ty, dc)  # type: ignore  # noqa
+            or (
+                isinstance(ty, str) and
+                any(
+                    dc._is_type(ty, cls, mod, dc.InitVar, dc._is_initvar)  # type: ignore  # noqa
+                    for mod in (dc, _self_module())
+                )
             )
         )
-    )
+
+    def std_is_kw_only(cls: type, ty: ta.Any) -> bool:
+        return (
+            dc._is_kw_only(ty, dc)  # type: ignore  # noqa
+            or (
+                isinstance(ty, str) and
+                any(
+                    dc._is_type(ty, cls, mod, dc.KW_ONLY, dc._is_kw_only)  # type: ignore  # noqa
+                    for mod in (dc, _self_module())
+                )
+            )
+        )

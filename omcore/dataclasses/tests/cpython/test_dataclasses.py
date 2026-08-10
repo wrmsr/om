@@ -1004,7 +1004,10 @@ class TestCase(unittest.TestCase):
         self.assertNotIn('x', D.__dict__)
 
     def test_missing_repr(self):
-        self.assertIn('MISSING_TYPE object', repr(MISSING))
+        if sys.version_info >= (3, 15):
+            self.assertEqual(repr(MISSING), 'MISSING')
+        else:
+            self.assertIn('MISSING_TYPE object', repr(MISSING))
 
     def test_dont_include_other_annotations(self):
         @dataclass
@@ -4055,7 +4058,7 @@ class TestStringAnnotations(unittest.TestCase):
                 'typing.ClassVar [str]',
                 'typing.ClassVar [ str]',
 
-                # Not syntactically valid, but these will
+                # Not syntactically valid, but these will49
                 #  be treated as ClassVars.
                 'typing.ClassVar.[int]',
                 'typing.ClassVar+',
