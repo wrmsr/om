@@ -23,6 +23,29 @@
 - xml
 - TaggedJson
 - ta.AnyStr
+- streaming?
+
+- Demand-driven config-module discovery (planned, parked):
+  - `msh.ConfigModuleManifest(modules=['.requirements'])` - manifest comment in the non-lite bridge module (e.g.
+    `omdev/packaging/marshal.py`) declaring which origin modules it serves. Not a ModAttrManifest - no anchor def;
+    loaded via `GlobalManifestLoader.load(classes=...)` so `LoadedManifest.module` gives the bridge's own module,
+    against whose package the '.'-relative names resolve.
+  - Runtime gains one optional seam: `config_module_imports: ConfigModuleImports | None`, checked in `_make` before
+    reflection - near-free when the pending map (built lazily from the cached global manifests) is empty. Wired for the
+    global runtime only; private registries stay isolated.
+  - Ordering makes a separate ReflectOverrideManifest unnecessary: the demand trigger fires on the *containing class*
+    (e.g. `ParsedRequirement`) before its first reflection, so the imported bridge's lazy init registers the
+    ReflectOverride (and factories) traditionally, and the opaque field alias is never reflected/cached un-substituted
+    (the mirror substitutor reads configs live).
+  - Nested (under-runtime-lock) triggers are required for correctness - a container-nested encounter must not cache an
+    incurable negative entry. Constrained path: import under the main lock, then run the just-registered lazy inits
+    inline with the warm lock deliberately untouched (no lock-order inversion). This is the hairy bit.
+  - Known edge (documented, accepted): a foreign module's class embedding a bare legacy alias doesn't trigger the
+    foreign module declares its own manifest or imports the bridge explicitly.
+  - Tests: subprocess-fresh acceptance for packaging (direct entry + nested-in-container), a manifesttest fixture
+    config-module leg against a hand-wired private runtime via tests/manifestgen.py, isolation test.
+  - Still zero omcore/manifests / omdev/manifests changes; IgnoredInGeneratedManifest still unneeded (the comment lives
+    in non-lite code).
 
 Audit:
 - _StandardFactory._state is per-factory, not per-config (standard/factories.py, TODO already says "update to
