@@ -48,7 +48,7 @@ class Processor:
     @lang.cached_function
     def _marshaling(self) -> msh.Marshaling:
         return msh.RuntimeMarshaling(
-            msh.Runtime(
+            msh.make_runtime(
                 config_registry=msh.global_config_registry(),
                 marshaler_factory=msh.new_standard_marshaler_factory(
                     first=[msh.BASE64_MARSHALER_FACTORY],

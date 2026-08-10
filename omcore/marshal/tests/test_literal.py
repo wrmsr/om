@@ -1,10 +1,10 @@
 import typing as ta
 
+from ..api._runtime import make_runtime
 from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
-from ..api.runtime import Runtime
 from ..standard.factories import StandardMarshalerFactory
 from ..standard.factories import StandardUnmarshalerFactory
 
@@ -13,7 +13,7 @@ Foo: ta.TypeAlias = ta.Literal['a', 'b', 'c']
 
 
 def test_literal():
-    rt = Runtime(
+    rt = make_runtime(
         marshaler_factory=StandardMarshalerFactory(),
         unmarshaler_factory=StandardUnmarshalerFactory(),
     )

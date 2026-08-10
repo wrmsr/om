@@ -99,7 +99,7 @@ pygments==2.20.0
 mwparserfromhell==0.7.2  # @om-venv !14t !15t
 wikitextparser==1.0.3  # !! GPL
 
-numpy==2.5.1
+numpy==2.5.2
 
 # must be kept in sync
 textual==8.2.8
@@ -109,7 +109,7 @@ rich==15.0.0
 textual-dev==1.8.0
 textual-speedups==0.2.1  # @om-venv !15 !15t
 
-snowflake-connector-python[secure-local-storage]==4.7.1  # @om-venv !15t
+snowflake-connector-python[secure-local-storage]==4.7.2  # @om-venv !15t
 # snowflake-sqlalchemy==1.7.7
 
 trino==0.338.0  # @om-venv !14t !14dt !15t  # orjson
@@ -133,9 +133,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.67
-botocore==1.43.67
-types-boto3==1.43.67
+boto3==1.43.68
+botocore==1.43.68
+types-boto3==1.43.68
 botocore-stubs==1.43.14
 
 antlr4-python3-runtime==4.13.2

@@ -1,10 +1,10 @@
 from .... import dataclasses as dc
 from .... import lang
+from ...api._runtime import make_runtime
 from ...api.contexts import MarshalContext
 from ...api.contexts import MarshalFactoryContext
 from ...api.contexts import UnmarshalContext
 from ...api.contexts import UnmarshalFactoryContext
-from ...api.runtime import Runtime
 from ...composite.iterables import IterableMarshalerFactory
 from ...composite.iterables import IterableUnmarshalerFactory
 from ...composite.mappings import MappingMarshalerFactory
@@ -28,7 +28,7 @@ from ..unmarshal import ObjectUnmarshalerFactory
 
 
 def _make_test_runtime():
-    return Runtime(
+    return make_runtime(
         marshaler_factory=MultiMarshalerFactory(
             PRIMITIVE_MARSHALER_FACTORY,
             OptionalMarshalerFactory(),

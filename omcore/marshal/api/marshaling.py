@@ -3,6 +3,7 @@ import threading
 import typing as ta
 
 from ... import lang
+from ..api._runtime import make_runtime
 from .configs import ConfigRegistry
 from .contexts import MarshalContext
 from .contexts import MarshalFactoryContext
@@ -178,7 +179,7 @@ class SimpleMarshaling(Marshaling):
             except AttributeError:
                 pass
 
-            rt = self._runtime = Runtime(
+            rt = self._runtime = make_runtime(
                 config_registry=self._config_registry,
                 marshaler_factory=self._marshaler_factory,
                 unmarshaler_factory=self._unmarshaler_factory,

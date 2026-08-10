@@ -16,6 +16,11 @@ from .. import lang as _lang  # noqa
 
 with _lang.auto_proxy_init(globals()):
     ##
+    # api / lightweight imports
+
+    from .api._runtime import (  # noqa
+        make_runtime,
+    )
 
     from .api.configs import (  # noqa
         Config,
@@ -147,6 +152,79 @@ with _lang.auto_proxy_init(globals()):
         DefaultPersistentConstructors,
     )
 
+    from .composite.unions.api import (  # noqa
+        LITERAL_UNION_TYPES,
+
+        PRIMITIVE_UNION_TYPES,
+    )
+
+    from .objects.api import (  # noqa
+        FieldOptions,
+        ObjectOptions,
+        ObjectSpecials,
+    )
+
+    from .objects.helpers import (  # noqa
+        update_field_options,
+        update_object_options,
+        dc_field_options,
+    )
+
+    from .polymorphism.api import (  # noqa
+        PolymorphismTagError,
+        PolymorphismSuffixError,
+        PolymorphismSubtypeError,
+
+        TypeTagging,
+        WrapperTypeTagging,
+        FieldTypeTagging,
+
+        SimpleTypeTagging,
+        as_type_tagging,
+
+        SuffixStrippingMode,
+        SuffixStripping,
+
+        SimpleSuffixStripping,
+        as_suffix_stripping,
+
+        SubtypeInfo,
+        SubtypeInfos,
+        Polymorphism,
+
+        polymorphism_from_subtypes,
+        polymorphism_from_subclasses,
+
+        SubtypeConfig,
+
+        SubtypeSource,
+        ExplicitSubtypeSource,
+        SubclassesSubtypeSource,
+        ConfigsSubtypeSource,
+        ManifestsSubtypeSource,
+
+        SimpleSubtypeSource,
+        as_subtype_sources,
+
+        set_polymorphic,
+    )
+
+    from .polymorphism.manifests import (  # noqa
+        SubtypeManifest,
+    )
+
+    from .singular.api import (  # noqa
+        PRIMITIVE_TYPES,
+    )
+
+    from .standard.api import (  # noqa
+        StandardMarshalerFactories,
+        StandardUnmarshalerFactories,
+    )
+
+    ##
+    # full imports
+
     from .composite.iterables import (  # noqa
         IterableMarshaler,
         IterableUnmarshaler,
@@ -163,12 +241,6 @@ with _lang.auto_proxy_init(globals()):
 
         PersistentMappingMarshaler,
         PersistentMappingUnmarshaler,
-    )
-
-    from .composite.unions.api import (  # noqa
-        LITERAL_UNION_TYPES,
-
-        PRIMITIVE_UNION_TYPES,
     )
 
     from .composite.unions.literals import (  # noqa
@@ -233,18 +305,6 @@ with _lang.auto_proxy_init(globals()):
         get_dataclass_options,
     )
 
-    from .objects.api import (  # noqa
-        FieldOptions,
-        ObjectOptions,
-        ObjectSpecials,
-    )
-
-    from .objects.helpers import (  # noqa
-        update_field_options,
-        update_object_options,
-        dc_field_options,
-    )
-
     from .objects.infos import (  # noqa
         FieldInfo,
         FieldInfos,
@@ -272,49 +332,6 @@ with _lang.auto_proxy_init(globals()):
         ObjectUnmarshaler,
         ObjectUnmarshalerFactory,
         SimpleObjectUnmarshalerFactory,
-    )
-
-    from .polymorphism.api import (  # noqa
-        PolymorphismTagError,
-        PolymorphismSuffixError,
-        PolymorphismSubtypeError,
-
-        TypeTagging,
-        WrapperTypeTagging,
-        FieldTypeTagging,
-
-        SimpleTypeTagging,
-        as_type_tagging,
-
-        SuffixStrippingMode,
-        SuffixStripping,
-
-        SimpleSuffixStripping,
-        as_suffix_stripping,
-
-        SubtypeInfo,
-        SubtypeInfos,
-        Polymorphism,
-
-        polymorphism_from_subtypes,
-        polymorphism_from_subclasses,
-
-        SubtypeConfig,
-
-        SubtypeSource,
-        ExplicitSubtypeSource,
-        SubclassesSubtypeSource,
-        ConfigsSubtypeSource,
-        ManifestsSubtypeSource,
-
-        SimpleSubtypeSource,
-        as_subtype_sources,
-
-        set_polymorphic,
-    )
-
-    from .polymorphism.manifests import (  # noqa
-        SubtypeManifest,
     )
 
     from .polymorphism.marshal import (  # noqa
@@ -348,10 +365,6 @@ with _lang.auto_proxy_init(globals()):
         make_polymorphism_unmarshaler,
     )
 
-    from .singular.api import (  # noqa
-        PRIMITIVE_TYPES,
-    )
-
     from .singular.base64 import (  # noqa
         Base64MarshalerUnmarshaler,
 
@@ -375,11 +388,6 @@ with _lang.auto_proxy_init(globals()):
         PrimitiveMarshalerUnmarshaler,
         PRIMITIVE_MARSHALER_FACTORY,
         PRIMITIVE_UNMARSHALER_FACTORY,
-    )
-
-    from .standard.api import (  # noqa
-        StandardMarshalerFactories,
-        StandardUnmarshalerFactories,
     )
 
     from .standard.defaults import (  # noqa

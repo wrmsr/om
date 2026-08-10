@@ -1,10 +1,10 @@
 import dataclasses as dc
 
+from ...api._runtime import make_runtime
 from ...api.contexts import MarshalContext
 from ...api.contexts import MarshalFactoryContext
 from ...api.contexts import UnmarshalContext
 from ...api.contexts import UnmarshalFactoryContext
-from ...api.runtime import Runtime
 from ...factories.multi import MultiMarshalerFactory
 from ...factories.multi import MultiUnmarshalerFactory
 from ...objects.dataclasses import DataclassMarshalerFactory
@@ -53,7 +53,7 @@ P_POLYMORPHISM = Polymorphism(
 
 
 def _test_polymorphism(tt):
-    rt = Runtime(
+    rt = make_runtime(
         marshaler_factory=MultiMarshalerFactory(
             PolymorphismMarshalerFactory(P_POLYMORPHISM, tt),
             ObjectMarshalerFactory(),

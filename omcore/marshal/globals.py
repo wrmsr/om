@@ -2,6 +2,7 @@ import threading
 import typing as ta
 
 from .. import lang
+from .api._runtime import make_runtime
 from .api.configs import ConfigRegistry
 from .api.configs import LazyInit
 from .api.configs import LazyInitFn
@@ -34,7 +35,7 @@ def global_config_registry() -> ConfigRegistry:
 
 @lang.cached_function(lock=_GLOBAL_LOCK)
 def global_runtime() -> Runtime:
-    return Runtime(
+    return make_runtime(
         config_registry=global_config_registry(),
 
         marshaler_factory=_sf.new_standard_marshaler_factory(),

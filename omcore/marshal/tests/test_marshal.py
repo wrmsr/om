@@ -5,13 +5,13 @@ import enum
 import fractions
 import typing as ta
 
+from ..api._runtime import make_runtime
 from ..api.configs import ConfigRegistry
 from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.marshaling import SimpleMarshaling
-from ..api.runtime import Runtime
 from ..standard.factories import StandardMarshalerFactory
 from ..standard.factories import StandardUnmarshalerFactory
 from .foox import Foox
@@ -38,7 +38,7 @@ class Foo(Foox):
 def test_marshal():
     reg = ConfigRegistry()
 
-    rt = Runtime(
+    rt = make_runtime(
         config_registry=reg,
         marshaler_factory=StandardMarshalerFactory(),
         unmarshaler_factory=StandardUnmarshalerFactory(),
