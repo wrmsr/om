@@ -49,7 +49,7 @@ def _validate_daemon_pidfile_info(info: DaemonPidfileInfo) -> DaemonPidfileInfo:
 def make_daemon_pidfile_info() -> DaemonPidfileInfo:
     return DaemonPidfileInfo(
         pid=os.getpid(),
-        instance_id=uuid.uuid4().hex,
+        instance_id=uuid.uuid7().hex,
         started_at=datetime.datetime.now(datetime.UTC),
     )
 

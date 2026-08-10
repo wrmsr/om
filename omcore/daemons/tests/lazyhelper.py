@@ -63,7 +63,7 @@ class LazySocketService(RuntimeService['LazySocketService.Config']):
             os.close(fd)
 
     def _run_runtime(self, runtime: ServiceRuntime) -> None:
-        instance = uuid.uuid4().hex
+        instance = uuid.uuid7().hex
 
         try:
             os.unlink(self.config.socket_path)

@@ -21,7 +21,7 @@ def test_build_fn():
 
 
 def test_debug_fn_builder_sys_path_ownership():
-    mod_name_prefix = f'_test_debug_fn_builder_{uuid.uuid4().hex}_'
+    mod_name_prefix = f'_test_debug_fn_builder_{uuid.uuid7().hex}_'
 
     with tempfile.TemporaryDirectory() as src_dir:
         builder = DebugFnBuilder(

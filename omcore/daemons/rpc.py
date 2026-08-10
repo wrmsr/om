@@ -410,7 +410,7 @@ class RpcClient(lang.Final):
         super().__init__()
 
         self._config = config
-        self._client_id = client_id or uuid.uuid4().hex
+        self._client_id = client_id or uuid.uuid7().hex
 
     @property
     def config(self) -> Config:
@@ -429,7 +429,7 @@ class RpcClient(lang.Final):
     ) -> RpcRequest:
         return RpcRequest(
             client_id=self._client_id,
-            request_id=request_id or uuid.uuid4().hex,
+            request_id=request_id or uuid.uuid7().hex,
             method=method,
             params=params,
         )
@@ -869,7 +869,7 @@ class RpcService(RuntimeService['RpcService.Config']):
         if (pidfile_info := current_daemon_pidfile_info()) is not None:
             instance_id = pidfile_info.instance_id
         else:
-            instance_id = uuid.uuid4().hex
+            instance_id = uuid.uuid7().hex
         responses = _RpcResponseCache(
             self.config.handler,
             max_entries=self.config.response_cache_size,
