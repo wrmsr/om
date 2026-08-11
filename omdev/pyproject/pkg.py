@@ -775,7 +775,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
                 raise ValueError(f'Unsupported exclude pattern: {p!r}')
 
             name = p[2:]
-            lines.append(f'recursive-exclude */{name} *.py')
+            lines.append(f'recursive-exclude **/{name} *.py')
 
         if excludes - consumed_excludes:
             raise ValueError(f'Unsupported exclude patterns: {sorted(excludes - consumed_excludes)!r}')

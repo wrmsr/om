@@ -7,5 +7,4 @@ structural parity with mypy proper.
 In general, when the core's capability needs to grow, it will continue to attempt to mimic mypy proper to the degree
 possible.
 
-The core remains mypyc compatible (and is in practice used compiled through it) but that isn't currently wired into any
-build or deployment process.
+The core remains optionally mypyc accelerated.

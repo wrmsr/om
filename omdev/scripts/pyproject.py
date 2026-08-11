@@ -156,7 +156,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='420e8cdfd57168c7c2a523b5770c5e3e727d20f4'),
+            dict(path='pkg.py', sha1='b45143bec5fbc9b4f9c6424601e37e348c29ea9f'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -13398,7 +13398,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
                 raise ValueError(f'Unsupported exclude pattern: {p!r}')
 
             name = p[2:]
-            lines.append(f'recursive-exclude */{name} *.py')
+            lines.append(f'recursive-exclude **/{name} *.py')
 
         if excludes - consumed_excludes:
             raise ValueError(f'Unsupported exclude patterns: {sorted(excludes - consumed_excludes)!r}')

@@ -3,5 +3,5 @@ recursive-include omcore/lite *.py
 recursive-include omcore/reflect/core *.py
 include omcore/*.py
 include omcore/reflect/*.py
-recursive-exclude */tests *.py
+recursive-exclude **/tests *.py
 global-exclude **/conftest.py
