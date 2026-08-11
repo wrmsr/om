@@ -46,7 +46,7 @@ import fractions
 import functools
 import glob
 import hashlib
-import importlib
+import importlib.util
 import inspect
 import io
 import itertools
@@ -156,7 +156,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='f9515352f541c1940863ec1b2797c01004245ad7'),
+            dict(path='pkg.py', sha1='499daf96c6a590dba1f412fc616ce2db5ef47441'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -13130,7 +13130,6 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
             'mypyc',
             'rs',
 
-            'find-packages',
             'package-data',
             'manifest-in',
         ]:
@@ -13199,6 +13198,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
+        st.pop('find-packages', None)
 
         #
 
@@ -13340,7 +13340,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             dp
             for dp, dns, fns in os.walk(self._dir_name)
             for fn in fns
-            if fn == '.om-mypyc-ext'
+            if fn == '.om-mypyc-ext.json'
         )
 
     #
@@ -13356,10 +13356,15 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
     #
 
+    @dc.dataclass(frozen=True)
+    class MypycExtConfig:
+        include: ta.Optional[ta.Sequence[str]] = None
+
     @cached_nullary
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
+        st_fp = st.pop('find-packages', None)
 
         #
 
@@ -13384,7 +13389,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             'requires': [
                 'setuptools',
                 mypy_dep,
-                f'{project_cls.name} == {prj["version"]}',
+                # f'{project_cls.name} == {prj["version"]}',
             ],
             'build-backend': 'setuptools.build_meta',
         }
@@ -13396,18 +13401,26 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         ext_dirs = sorted(self.find_mypyc_dirs())
 
-        pyp_dct['tool.setuptools.packages.find'] = {
-            'include': [
-                # ext_dir.replace(os.sep, '.')
-                # for ext_dir in ext_dirs
-            ],
-        }
+        pkg_includes: ta.Set[str] = set()
 
         #
 
         ext_lines: list = []
 
         for ext_dir in ext_dirs:  # noqa
+            ext_name = ext_dir.replace(os.sep, '.')
+            pkg_includes.add(ext_name)
+
+            with open(os.path.join(ext_dir, '.om-mypyc-ext.json')) as f:
+                ext_cfg_src = f.read().strip()
+            if ext_cfg_src:
+                ext_cfg: _PyprojectMypycPackageGenerator.MypycExtConfig = unmarshal_obj(
+                    json.loads(ext_cfg_src),
+                    _PyprojectMypycPackageGenerator.MypycExtConfig,
+                )
+                for ext_inc in ext_cfg.include or []:
+                    pkg_includes.add(importlib.util.resolve_name(ext_inc, ext_name))
+
             ext_files = [
                 fp
                 for fn in sorted(os.listdir(ext_dir))
@@ -13435,6 +13448,18 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             ')',
             '',
         ])
+
+        for pkg_inc in list(pkg_includes):
+            if pkg_inc.endswith('*'):
+                continue
+            pkg_includes.add(pkg_inc + '.*')
+            for i in range(pkg_inc.count('.')):
+                pkg_includes.add('.'.join(pkg_inc.split('.')[:i + 1]))
+        pkg_excl = (st_fp or {}).get('exclude')
+        pyp_dct['tool.setuptools.packages.find'] = {
+            'include': sorted(pkg_includes),
+            **({'exclude': pkg_excl} if pkg_excl else {}),
+        }
 
         #
 
@@ -13500,6 +13525,7 @@ class _PyprojectRsPackageGenerator(_PyprojectExtensionPackageGenerator):
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
+        st.pop('find-packages', None)
 
         #
 

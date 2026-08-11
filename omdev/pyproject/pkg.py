@@ -28,8 +28,9 @@ vcs+protocol://repo_url/#egg=pkg&subdirectory=pkg_dir
 import abc
 import dataclasses as dc
 import glob
-import importlib
+import importlib.util
 import inspect
+import json
 import os.path
 import shutil
 import sys
@@ -506,7 +507,6 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
             'mypyc',
             'rs',
 
-            'find-packages',
             'package-data',
             'manifest-in',
         ]:
@@ -575,6 +575,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
+        st.pop('find-packages', None)
 
         #
 
@@ -716,7 +717,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             dp
             for dp, dns, fns in os.walk(self._dir_name)
             for fn in fns
-            if fn == '.om-mypyc-ext'
+            if fn == '.om-mypyc-ext.json'
         )
 
     #
@@ -732,10 +733,15 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
     #
 
+    @dc.dataclass(frozen=True)
+    class MypycExtConfig:
+        include: ta.Optional[ta.Sequence[str]] = None
+
     @cached_nullary
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
+        st_fp = st.pop('find-packages', None)
 
         #
 
@@ -760,7 +766,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             'requires': [
                 'setuptools',
                 mypy_dep,
-                f'{project_cls.name} == {prj["version"]}',
+                # f'{project_cls.name} == {prj["version"]}',
             ],
             'build-backend': 'setuptools.build_meta',
         }
@@ -772,18 +778,26 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         ext_dirs = sorted(self.find_mypyc_dirs())
 
-        pyp_dct['tool.setuptools.packages.find'] = {
-            'include': [
-                # ext_dir.replace(os.sep, '.')
-                # for ext_dir in ext_dirs
-            ],
-        }
+        pkg_includes: ta.Set[str] = set()
 
         #
 
         ext_lines: list = []
 
         for ext_dir in ext_dirs:  # noqa
+            ext_name = ext_dir.replace(os.sep, '.')
+            pkg_includes.add(ext_name)
+
+            with open(os.path.join(ext_dir, '.om-mypyc-ext.json')) as f:
+                ext_cfg_src = f.read().strip()
+            if ext_cfg_src:
+                ext_cfg: _PyprojectMypycPackageGenerator.MypycExtConfig = unmarshal_obj(
+                    json.loads(ext_cfg_src),
+                    _PyprojectMypycPackageGenerator.MypycExtConfig,
+                )
+                for ext_inc in ext_cfg.include or []:
+                    pkg_includes.add(importlib.util.resolve_name(ext_inc, ext_name))
+
             ext_files = [
                 fp
                 for fn in sorted(os.listdir(ext_dir))
@@ -811,6 +825,18 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             ')',
             '',
         ])
+
+        for pkg_inc in list(pkg_includes):
+            if pkg_inc.endswith('*'):
+                continue
+            pkg_includes.add(pkg_inc + '.*')
+            for i in range(pkg_inc.count('.')):
+                pkg_includes.add('.'.join(pkg_inc.split('.')[:i + 1]))
+        pkg_excl = (st_fp or {}).get('exclude')
+        pyp_dct['tool.setuptools.packages.find'] = {
+            'include': sorted(pkg_includes),
+            **({'exclude': pkg_excl} if pkg_excl else {}),
+        }
 
         #
 
@@ -876,6 +902,7 @@ class _PyprojectRsPackageGenerator(_PyprojectExtensionPackageGenerator):
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
+        st.pop('find-packages', None)
 
         #
 

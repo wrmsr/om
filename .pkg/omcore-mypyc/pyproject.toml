@@ -2,7 +2,6 @@
 requires = [
     'setuptools',
     'mypy ~= 2.3',
-    'omcore == 0.0.42',
 ]
 build-backend = 'setuptools.build_meta'
 
@@ -32,7 +31,20 @@ dependencies = [
 [tool.setuptools]
 
 [tool.setuptools.packages.find]
-include = []
+include = [
+    'omcore',
+    'omcore.lang',
+    'omcore.lang.*',
+    'omcore.lite',
+    'omcore.lite.*',
+    'omcore.reflect',
+    'omcore.reflect.core',
+    'omcore.reflect.core.*',
+]
+exclude = [
+    '*.tests',
+    '*.tests.*',
+]
 
 [tool.mypy]
 no_implicit_optional = true
