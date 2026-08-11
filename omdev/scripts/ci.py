@@ -238,7 +238,7 @@ def __om_amalg__():  # noqa
             dict(path='github/api/v2/azure.py', sha1='ffabbc96e9a1430672e1887d51bee02b47fb09fb'),
             dict(path='requirements.py', sha1='17c373b4ee89986867c151d5a5ed06ecf58292d1'),
             dict(path='../specs/oci/pack/repositories.py', sha1='d1d5d82a1109bdf2ccdbf06e378a8cc642c183b0'),
-            dict(path='../../omcore/http/simple/pipelines/handlers.py', sha1='9cce204b067dcf740b10146abe3b3cc5b0d58d6c'),  # noqa
+            dict(path='../../omcore/http/simple/pipelines/handlers.py', sha1='fe8d0578153d9ed3af60a851f999dbe44e966b2f'),  # noqa
             dict(path='docker/buildcaching.py', sha1='4e96fde302b6850a9b71f301ed470a134fdb50a1'),
             dict(path='docker/imagepulling.py', sha1='7a738fd4ad7f182e43ed8c0111160fa65b69ea8f'),
             dict(path='github/api/v1/client.py', sha1='0cbbde48aea78269331af5e3168f7d28cd678fc7'),
@@ -34825,6 +34825,11 @@ class SimpleHttpHandlerServerIoPipelineHandler(IoPipelineHandler):
 
             IoPipelineFlow.maybe_ready_for_input(ctx)
 
+            return
+
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            ctx.feed_in(msg)
+            ctx.feed_out(IoPipelineMessages.FinalOutput())
             return
 
         if not isinstance(msg, FullIoPipelineHttpRequest):
