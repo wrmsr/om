@@ -19,7 +19,6 @@ from .api import PolymorphismSubtypeError
 from .api import SubtypeInfos
 from .api import TypeTagging
 from .api import WrapperTypeTagging
-from .api import opt_cls_fqcn
 from .matching import get_disjoint_polymorphism_subtypes
 from .matching import get_polymorphism_subtypes
 from .resolving import resolve_polymorphism
@@ -49,7 +48,7 @@ def _marshal_lazy_subtype(
 
     if (
             lz and
-            (of := opt_cls_fqcn(ot)) is not None and
+            (of := lang.get_cls_fqcn(ot, optional=True)) is not None and
             (lt := lz.get(of)) is not None
     ):
         tag, lst = lt

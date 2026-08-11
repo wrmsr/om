@@ -10,27 +10,97 @@ class ResolvableClassNameError(NameError):
     pass
 
 
-def get_cls_fqcn(cls: type, *, nocheck: bool = False) -> str:
+@ta.overload
+def get_cls_fqcn(
+    cls: type,
+    *,
+    nocheck: bool = False,
+    optional: ta.Literal[True],
+) -> str | None: ...
+
+
+@ta.overload
+def get_cls_fqcn(
+    cls: type,
+    *,
+    nocheck: bool = False,
+    optional: ta.Literal[False] = False,
+) -> str: ...
+
+
+def get_cls_fqcn(
+    cls,
+    *,
+    nocheck=False,
+    optional=False,
+):
     if not isinstance(cls, type):
         raise TypeError(cls)
 
-    mn = cls.__module__
+    try:
+        mn = cls.__module__
+    except AttributeError:
+        if optional:
+            return None
+        raise
     if set(mn) - set(string.ascii_lowercase + string.digits + '_.'):
+        if optional:
+            return None
         raise ResolvableClassNameError(cls)
 
-    qn = cls.__qualname__
-    if not all(qp[0].isupper() for qp in qn.split('.')) or (set(qn) - set(string.ascii_letters + string.digits + '.')):
+    try:
+        qn = cls.__qualname__
+    except AttributeError:
+        if optional:
+            return None
+        raise
+    if (
+            not all(qp[0].isupper() for qp in qn.split('.')) or
+            (set(qn) - set(string.ascii_letters + string.digits + '.'))
+    ):
+        if optional:
+            return None
         raise ResolvableClassNameError(cls)
 
-    fqcn = '.'.join([cls.__module__, cls.__qualname__])
+    fqcn = '.'.join([mn, qn])
     if not nocheck:
-        if get_fqcn_cls(fqcn, nocheck=True) is not cls:
+        checked = get_fqcn_cls(  # noqa
+            fqcn,
+            nocheck=True,
+            optional=optional,
+        )
+        if checked is not cls:
+            if optional:
+                return None
             raise ResolvableClassNameError(cls, fqcn)
 
     return fqcn
 
 
-def get_fqcn_cls(fqcn: str, *, nocheck: bool = False) -> type:
+@ta.overload
+def get_fqcn_cls(
+    fqcn: str,
+    *,
+    nocheck: bool = False,
+    optional: ta.Literal[True],
+) -> type | None: ...
+
+
+@ta.overload
+def get_fqcn_cls(
+    fqcn: str,
+    *,
+    nocheck: bool = False,
+    optional: ta.Literal[False] = False,
+) -> type: ...
+
+
+def get_fqcn_cls(
+    fqcn,
+    *,
+    nocheck=False,
+    optional=False,
+):
     if not isinstance(fqcn, str) or not fqcn:
         raise TypeError(fqcn)
 
@@ -43,7 +113,12 @@ def get_fqcn_cls(fqcn: str, *, nocheck: bool = False) -> type:
 
     o: ta.Any = mod
     for qp in qps:
-        o = getattr(o, qp)
+        try:
+            o = getattr(o, qp)
+        except AttributeError:
+            if optional:
+                return None
+            raise
         if not isinstance(o, type):
             raise TypeError(o)
 
@@ -52,7 +127,14 @@ def get_fqcn_cls(fqcn: str, *, nocheck: bool = False) -> type:
         raise TypeError(cls)
 
     if not nocheck:
-        if not get_cls_fqcn(cls, nocheck=True) == fqcn:
+        checked = get_cls_fqcn(  # noqa
+            cls,
+            nocheck=True,
+            optional=optional,
+        )
+        if optional and checked is None:
+            return None
+        if checked != fqcn:
             raise ResolvableClassNameError(cls, fqcn)
 
     return o

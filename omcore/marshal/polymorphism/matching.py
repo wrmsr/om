@@ -6,7 +6,6 @@ from .api import DisjointPolymorphism
 from .api import Polymorphism
 from .api import SubtypeInfo
 from .api import SubtypeInfos
-from .api import opt_cls_fqcn
 
 
 ##
@@ -47,7 +46,10 @@ def _member_subtypes(p: Polymorphism, t: type) -> ta.Sequence[SubtypeInfo] | Non
         return [i]
 
     # A loaded member class may have been resolved as a lazy declaration - unify by fqcn.
-    if (tf := opt_cls_fqcn(t)) is not None and (i := p.subtypes.lazy_by_fqcn.get(tf)) is not None:
+    if (
+            (tf := lang.get_cls_fqcn(t, optional=True)) is not None and
+            (i := p.subtypes.lazy_by_fqcn.get(tf)) is not None
+    ):
         return [i]
 
     return _covered_subtypes(p, t)

@@ -23,3 +23,7 @@ def test_resolvable():
 def test_get_fqcn_cls_no_class_part():
     with pytest.raises(ResolvableClassNameError):
         get_fqcn_cls('os.path')
+
+
+def test_try_get_cls_fqcn_weird_classes():
+    assert get_cls_fqcn(type(None), optional=True) is None

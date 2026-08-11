@@ -14,7 +14,6 @@ from ..api import PolymorphismSubtypeError
 from ..api import SubclassesSubtypeSource
 from ..api import SubtypeInfo
 from ..api import SubtypeInfos
-from ..api import opt_cls_fqcn
 from ..marshal import PolymorphismMarshalerFactory
 from ..specs import PolymorphismSpec
 from ..unmarshal import PolymorphismUnmarshalerFactory
@@ -189,8 +188,8 @@ def test_imposter_class_conflicts():
     ImposterLz.__module__ = OneLz.__module__
     ImposterLz.__qualname__ = OneLz.__qualname__
 
-    assert opt_cls_fqcn(ImposterLz) is None
-    assert opt_cls_fqcn(OneLz) is not None
+    assert lang.get_cls_fqcn(ImposterLz, optional=True) is None
+    assert lang.get_cls_fqcn(OneLz, optional=True) is not None
 
     m = _new_marshaling()
 
@@ -204,12 +203,6 @@ def test_imposter_class_conflicts():
 
     with pytest.raises(PolymorphismSubtypeError):
         m.marshal(OneLz(1), spec)
-
-
-def test_opt_cls_fqcn_weird_classes():
-    # The round-trip probe raises AttributeError for builtins.NoneType - it must degrade to None, not propagate:
-    # union matching probes arbitrary member types, including NoneType from `X | None` annotations.
-    assert opt_cls_fqcn(type(None)) is None
 
 
 def test_optional_union_through_explicit_factory():
@@ -242,7 +235,7 @@ def _make_dynamic_subtype() -> type:
 
 def test_dynamic_class_participates_without_fqcn():
     dyn = _make_dynamic_subtype()
-    assert opt_cls_fqcn(dyn) is None
+    assert lang.get_cls_fqcn(dyn, optional=True) is None
 
     m = _new_marshaling()
 

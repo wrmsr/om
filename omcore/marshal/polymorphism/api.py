@@ -152,19 +152,6 @@ class LazySubtype(lang.Final):
         check.non_empty_str(self.fqcn)
 
 
-def opt_cls_fqcn(cls: type) -> str | None:
-    """
-    Best-effort fqcn derivation - None for dynamic/local/otherwise-unresolvable classes. `get_cls_fqcn` round-trip
-    verifies resolvability, so a returned fqcn is canonical - but the probe can raise nearly anything for
-    non-canonical classes (e.g. AttributeError for `builtins.NoneType`), all of which simply mean 'no fqcn'.
-    """
-
-    try:
-        return lang.get_cls_fqcn(cls)
-    except Exception:  # noqa
-        return None
-
-
 @dc.dataclass(frozen=True)
 class SubtypeInfo(lang.Final):
     """One participant in a polymorphism - loaded or lazily declared - bound to its wire tag."""
@@ -191,7 +178,7 @@ class SubtypeInfo(lang.Final):
     def fqcn(self) -> str | None:
         if isinstance(self.ty, LazySubtype):
             return self.ty.fqcn
-        return opt_cls_fqcn(self.ty)
+        return lang.get_cls_fqcn(self.ty, optional=True)
 
     def resolve(self) -> type:
         if isinstance(self.ty, type):

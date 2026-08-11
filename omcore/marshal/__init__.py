@@ -190,7 +190,6 @@ with _lang.auto_proxy_init(globals()):
         as_suffix_stripping,
 
         LazySubtype,
-        opt_cls_fqcn,
 
         SubtypeInfo,
         SubtypeInfos,

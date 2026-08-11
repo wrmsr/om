@@ -30,7 +30,6 @@ from .api import SubtypeConfig
 from .api import SubtypeInfo
 from .api import SubtypeInfos
 from .api import _suffix_stripper
-from .api import opt_cls_fqcn
 from .manifests import SubtypeManifest
 from .specs import PolymorphismSpec
 from .specs import SubtypeSource
@@ -148,7 +147,7 @@ class _PolymorphismResolver:
             if isinstance(r.ty, LazySubtype):
                 k: str | lang.Identity = r.ty.fqcn
             else:
-                k = opt_cls_fqcn(r.ty) or lang.Identity(r.ty)
+                k = lang.get_cls_fqcn(r.ty, optional=True) or lang.Identity(r.ty)
 
             if (x := merged.get(k)) is None:
                 merged[k] = r
@@ -226,7 +225,7 @@ class _PolymorphismResolver:
             if (i := poly.subtypes.by_ty.get(m)) is not None:
                 out[i.fqcn or lang.Identity(i.ty)] = i
             elif (
-                    (mf := opt_cls_fqcn(m)) is not None and
+                    (mf := lang.get_cls_fqcn(m, optional=True)) is not None and
                     (i := poly.subtypes.lazy_by_fqcn.get(mf)) is not None
             ):
                 # The member class is loaded (it appeared in an annotation) but was resolved as a lazy declaration.
