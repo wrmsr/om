@@ -67,11 +67,13 @@ class PermissionDecider(lang.Abstract):
 
 
 @dc.dataclass(frozen=True)
+@msh.set_polymorphic(source='manifests', naming='snake', suffix_stripping='required')
 class PermissionTarget(fh.FieldHashable, lang.Abstract, lang.PackageSealed):
     pass
 
 
-class PermissionMatcher(fh.FieldHashable, lang.Abstract):
+@msh.set_polymorphic(source='manifests', naming='snake', suffix_stripping='required')
+class PermissionMatcher(fh.FieldHashable, lang.Abstract, lang.PackageSealed):
     @abc.abstractmethod
     def match(self, target: PermissionTarget) -> bool:
         raise NotImplementedError
@@ -99,24 +101,3 @@ class PermissionAsker(lang.Abstract):
             rule: PermissionRule,
     ) -> ta.Awaitable[DecidedPermissionState]:
         raise NotImplementedError
-
-
-##
-
-
-@msh.register_global_lazy_init
-def _install_standard_marshaling(cfgs: msh.ConfigRegistry) -> None:
-    for cls in [
-        PermissionMatcher,
-        PermissionTarget,
-    ]:
-        msh.install_standard_factories(
-            cfgs,
-            *msh.standard_polymorphism_factories(
-                msh.polymorphism_from_subclasses(
-                    cls,
-                    naming='snake',
-                    suffix_stripping=msh.SuffixStripping(mode='required'),
-                ),
-            ),
-        )

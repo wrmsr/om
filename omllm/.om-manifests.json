@@ -1,5 +1,95 @@
 [
   {
+    "module": ".agent.permissions.fs",
+    "attr": null,
+    "file": "omllm/agent/permissions/fs.py",
+    "line": 23,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.fs",
+        "attr": "FsPermissionTarget",
+        "base": "$.agent.permissions.types.PermissionTarget",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.permissions.fs",
+    "attr": null,
+    "file": "omllm/agent/permissions/fs.py",
+    "line": 43,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.fs",
+        "attr": "GlobFsPermissionMatcher",
+        "base": "$.agent.permissions.types.PermissionMatcher",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.permissions.shell",
+    "attr": null,
+    "file": "omllm/agent/permissions/shell.py",
+    "line": 14,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.shell",
+        "attr": "ShellPermissionTarget",
+        "base": "$.agent.permissions.types.PermissionTarget",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.permissions.shell",
+    "attr": null,
+    "file": "omllm/agent/permissions/shell.py",
+    "line": 27,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.shell",
+        "attr": "ShellPermissionMatcher",
+        "base": "$.agent.permissions.types.PermissionMatcher",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.permissions.url",
+    "attr": null,
+    "file": "omllm/agent/permissions/url.py",
+    "line": 17,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.url",
+        "attr": "UrlPermissionTarget",
+        "base": "$.agent.permissions.types.PermissionTarget",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.permissions.url",
+    "attr": null,
+    "file": "omllm/agent/permissions/url.py",
+    "line": 39,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.url",
+        "attr": "RegexUrlPermissionMatcher",
+        "base": "$.agent.permissions.types.PermissionMatcher",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
     "module": ".dev.git",
     "attr": null,
     "file": "omllm/dev/git.py",

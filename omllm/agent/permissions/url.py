@@ -14,6 +14,7 @@ from .types import PermissionTarget
 ##
 
 
+# @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionTarget')
 @ta.final
 @dc.dataclass(frozen=True)
 class UrlPermissionTarget(PermissionTarget, lang.Final):
@@ -35,6 +36,7 @@ class UrlPermissionTarget(PermissionTarget, lang.Final):
         ))
 
 
+# @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionMatcher')
 @ta.final
 @dc.dataclass(frozen=True)
 class RegexUrlPermissionMatcher(PermissionMatcher, lang.Final):

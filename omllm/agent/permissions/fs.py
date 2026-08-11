@@ -20,6 +20,7 @@ FsPermissionMode: ta.TypeAlias = ta.Literal['r', 'w']
 FS_TOOL_PERMISSION_MODES: ta.Sequence[FsPermissionMode] = ('r', 'w')
 
 
+# @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionTarget')
 @ta.final
 @dc.dataclass(frozen=True)
 class FsPermissionTarget(PermissionTarget, lang.Final):
@@ -39,6 +40,7 @@ class FsPermissionTarget(PermissionTarget, lang.Final):
         ))
 
 
+# @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionMatcher')
 @ta.final
 @dc.dataclass(frozen=True)
 class GlobFsPermissionMatcher(PermissionMatcher, lang.Final):

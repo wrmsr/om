@@ -11,6 +11,7 @@ from .types import PermissionTarget
 ##
 
 
+# @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionTarget')
 @ta.final
 @dc.dataclass(frozen=True)
 class ShellPermissionTarget(PermissionTarget, lang.Final):
@@ -23,6 +24,7 @@ class ShellPermissionTarget(PermissionTarget, lang.Final):
         ))
 
 
+# @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionMatcher')
 @ta.final
 @dc.dataclass(frozen=True)
 class ShellPermissionMatcher(PermissionMatcher, lang.Final):
