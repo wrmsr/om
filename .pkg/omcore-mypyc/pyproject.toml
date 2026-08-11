@@ -30,22 +30,6 @@ dependencies = [
 
 [tool.setuptools]
 
-[tool.setuptools.packages.find]
-include = [
-    'omcore',
-    'omcore.lang',
-    'omcore.lang.*',
-    'omcore.lite',
-    'omcore.lite.*',
-    'omcore.reflect',
-    'omcore.reflect.core',
-    'omcore.reflect.core.*',
-]
-exclude = [
-    '*.tests',
-    '*.tests.*',
-]
-
 [tool.mypy]
 no_implicit_optional = true
 warn_redundant_casts = true

@@ -508,7 +508,6 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
             'rs',
 
             'package-data',
-            'manifest-in',
         ]:
             st.pop(k, None)
 
@@ -576,6 +575,7 @@ class _PyprojectCextPackageGenerator(_PyprojectExtensionPackageGenerator):
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
         st.pop('find-packages', None)
+        st.pop('manifest-in', None)
 
         #
 
@@ -733,6 +733,57 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
     #
 
+    @classmethod
+    def _package_patterns_to_manifest(
+            cls,
+            includes: ta.Iterable[str],
+            excludes: ta.Iterable[str],
+    ) -> ta.List[str]:
+        includes = set(includes)
+        excludes = set(excludes)
+
+        lines: ta.List[str] = []
+
+        # Collapse "foo" + "foo.*" into recursive-include.
+        recursive_includes = {
+            p
+            for p in includes
+            if '*' not in p and f'{p}.*' in includes
+        }
+
+        consumed_includes = recursive_includes | {f'{p}.*' for p in recursive_includes}
+
+        for p in sorted(recursive_includes):
+            lines.append(f'recursive-include {p.replace(".", "/")} *.py')
+
+        for p in sorted(includes - consumed_includes):
+            if '*' in p:
+                raise ValueError(f'Unsupported include pattern: {p!r}')
+            lines.append(f'include {p.replace(".", "/")}/*.py')
+
+        # Collapse "*.foo" + "*.foo.*" into excluding every foo package subtree.
+        recursive_excludes = {
+            p[:-2]
+            for p in excludes
+            if p.endswith('.*') and p[:-2] in excludes
+        }
+
+        consumed_excludes = recursive_excludes | {f'{p}.*' for p in recursive_excludes}
+
+        for p in sorted(recursive_excludes):
+            if not p.startswith('*.'):
+                raise ValueError(f'Unsupported exclude pattern: {p!r}')
+
+            name = p[2:]
+            lines.append(f'recursive-exclude */{name} *.py')
+
+        if excludes - consumed_excludes:
+            raise ValueError(f'Unsupported exclude patterns: {sorted(excludes - consumed_excludes)!r}')
+
+        return lines
+
+    #
+
     @dc.dataclass(frozen=True)
     class MypycExtConfig:
         include: ta.Optional[ta.Sequence[str]] = None
@@ -742,6 +793,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
         st_fp = st.pop('find-packages', None)
+        mani_in = st.pop('manifest-in', None)
 
         #
 
@@ -778,7 +830,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         ext_dirs = sorted(self.find_mypyc_dirs())
 
-        pkg_includes: ta.Set[str] = set()
+        pkg_incs: ta.Set[str] = set()
 
         #
 
@@ -786,7 +838,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         for ext_dir in ext_dirs:  # noqa
             ext_name = ext_dir.replace(os.sep, '.')
-            pkg_includes.add(ext_name)
+            pkg_incs.add(ext_name)
 
             with open(os.path.join(ext_dir, '.om-mypyc-ext.json')) as f:
                 ext_cfg_src = f.read().strip()
@@ -796,7 +848,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
                     _PyprojectMypycPackageGenerator.MypycExtConfig,
                 )
                 for ext_inc in ext_cfg.include or []:
-                    pkg_includes.add(importlib.util.resolve_name(ext_inc, ext_name))
+                    pkg_incs.add(importlib.util.resolve_name(ext_inc, ext_name))
 
             ext_files = [
                 fp
@@ -826,17 +878,22 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             '',
         ])
 
-        for pkg_inc in list(pkg_includes):
+        for pkg_inc in list(pkg_incs):
             if pkg_inc.endswith('*'):
                 continue
-            pkg_includes.add(pkg_inc + '.*')
+            pkg_incs.add(pkg_inc + '.*')
             for i in range(pkg_inc.count('.')):
-                pkg_includes.add('.'.join(pkg_inc.split('.')[:i + 1]))
-        pkg_excl = (st_fp or {}).get('exclude')
-        pyp_dct['tool.setuptools.packages.find'] = {
-            'include': sorted(pkg_includes),
-            **({'exclude': pkg_excl} if pkg_excl else {}),
-        }
+                pkg_incs.add('.'.join(pkg_inc.split('.')[:i + 1]))
+
+        pkg_excs = (st_fp or {}).get('exclude')
+
+        mani_in = [
+            *self._package_patterns_to_manifest(
+                pkg_incs or [],
+                pkg_excs or [],
+            ),
+            *(mani_in or []),
+        ]
 
         #
 
@@ -848,6 +905,7 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
         return self.FileContents(
             pyp_dct,
             src,
+            manifest_in=mani_in,
         )
 
 
@@ -903,6 +961,7 @@ class _PyprojectRsPackageGenerator(_PyprojectExtensionPackageGenerator):
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
         st.pop('find-packages', None)
+        st.pop('manifest-in', None)
 
         #
 
