@@ -36,42 +36,50 @@ class PolymorphismUnmarshaler(Unmarshaler, lang.Abstract):
         raise NotImplementedError
 
 
-@dc.dataclass(frozen=True)
-class WrapperPolymorphismUnmarshaler(PolymorphismUnmarshaler):
-    m: ta.Mapping[str, Unmarshaler]
+class _BasePolymorphismUnmarshaler(PolymorphismUnmarshaler, lang.Abstract):
+    def __init__(
+            self,
+            m: ta.Mapping[str, Unmarshaler],
+    ) -> None:
+        super().__init__()
+
+        self._m = m
 
     def get_unmarshaler_map(self) -> ta.Mapping[str, Unmarshaler]:
-        return self.m
+        return self._m
 
-    def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any | None:
-        ma = check.isinstance(v, collections.abc.Mapping)
-        [(tag, iv)] = ma.items()
+    def _do_unmarshal(self, ctx: UnmarshalContext, tag: str, iv: Value) -> ta.Any | None:
         try:
-            u = self.m[tag]
+            u = self._m[tag]
         except KeyError:
             raise PolymorphismTagError(tag) from None
         return u.unmarshal(ctx, iv)
 
 
-@dc.dataclass(frozen=True)
-class FieldPolymorphismUnmarshaler(PolymorphismUnmarshaler):
-    m: ta.Mapping[str, Unmarshaler]
-    tf: str
+class WrapperPolymorphismUnmarshaler(_BasePolymorphismUnmarshaler):
+    def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any | None:
+        ma = check.isinstance(v, collections.abc.Mapping)
+        [(tag, iv)] = ma.items()
+        return self._do_unmarshal(ctx, tag, iv)
 
-    def get_unmarshaler_map(self) -> ta.Mapping[str, Unmarshaler]:
-        return self.m
+
+class FieldPolymorphismUnmarshaler(_BasePolymorphismUnmarshaler):
+    def __init__(
+            self,
+            m: ta.Mapping[str, Unmarshaler],
+            tf: str,
+    ) -> None:
+        super().__init__(m)
+
+        self._tf = tf
 
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any | None:
         ma = dict(check.isinstance(v, collections.abc.Mapping))
-        tag = ma.pop(self.tf)
-        try:
-            u = self.m[tag]
-        except KeyError:
-            raise PolymorphismTagError(tag) from None
-        return u.unmarshal(ctx, ma)
+        tag = ma.pop(self._tf)
+        return self._do_unmarshal(ctx, tag, ma)
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass()
 class _LazySubtypeUnmarshaler(Unmarshaler):
     """
     Stands in for a lazily-declared subtype's unmarshaler: the first hit of its tag imports the class - and nothing
@@ -80,8 +88,13 @@ class _LazySubtypeUnmarshaler(Unmarshaler):
 
     lz: LazySubtype
 
+    ty: ta.Any = dc.field(init=False)
+
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any:
-        ty = self.lz.resolve()
+        try:
+            ty = self.ty
+        except AttributeError:
+            ty = self.ty = self.lz.resolve()
 
         # FIXME: naughty - see AnyMarshalerUnmarshaler. Deliberately unmemoized: the runtime's cache makes the re-entry
         # near-free and keeps this invalidation-correct (the lazily-imported module may itself register configs).

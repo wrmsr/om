@@ -94,4 +94,6 @@ def test_unmarshal():
 
 
 if __name__ == '__main__':
-    test_unmarshal()
+    for _ in range(2):
+        test_unmarshal()
+        test_marshal()
