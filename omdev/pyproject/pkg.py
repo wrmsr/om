@@ -895,6 +895,10 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             *(mani_in or []),
         ]
 
+        pyp_dct['tool.setuptools.packages.find'] = {
+            'include': [],
+        }
+
         #
 
         if mypyc_cfg := self._get_mypyc_config():
