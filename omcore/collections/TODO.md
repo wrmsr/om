@@ -1,4 +1,4 @@
-- resolve None-ness in mappings
+- resolve None-ness in interfaces
 - factories.py? not impls.py? move dict_factory there?
 - i hate intersections.py
 

@@ -73,6 +73,10 @@ class Project(ProjectBase):
             'httpx[http2] ~= 0.28',
         ],
 
+        'mypy': [
+            'mypy ~= 2.3',
+        ],
+
         'secrets': [
             'cryptography ~= 50.0',
         ],

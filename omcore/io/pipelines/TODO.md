@@ -15,6 +15,12 @@
   - also removing in flight might mess stuff up (STARTTLS?)
 - timeslice-based 'should defer' service (not iteration counting like in decompress)
 - all.py
+- ssl.OP_ENABLE_KTLS
+- sendfile fast path
+  - bounded reads only?
+  - still need timeouts
+  - Accept-Encoding: identity
+  - no chunking, no ssl (or KTLS)
 
 ### http
 

@@ -82,7 +82,7 @@ class SkipList(SortedCollection[T]):
             result += 1
         return result
 
-    def add(self, value: T) -> bool:
+    def add(self, value: T) -> None:
         if value is None:
             raise TypeError(value)
 
@@ -97,7 +97,7 @@ class SkipList(SortedCollection[T]):
 
         target = cur.next[0]
         if target is not None and self._compare(value, target.value) == 0:  # type: ignore
-            return False
+            return
 
         node = SkipList._Node(value, self._random_level())
 
@@ -116,7 +116,6 @@ class SkipList(SortedCollection[T]):
             self._tail = node  # New node is at the end
 
         self._length += 1
-        return True
 
     #
 
@@ -142,7 +141,7 @@ class SkipList(SortedCollection[T]):
 
     #
 
-    def remove(self, value: T) -> bool:
+    def remove(self, value: T) -> None:
         if value is None:
             raise TypeError(value)
 
@@ -156,7 +155,7 @@ class SkipList(SortedCollection[T]):
 
         target = cur.next[0]
         if target is None or self._compare(value, target.value) != 0:  # type: ignore
-            return False
+            raise KeyError(value)
 
         # Update next pointers and height
         for i in range(self._height):
@@ -174,7 +173,6 @@ class SkipList(SortedCollection[T]):
             self._height -= 1
 
         self._length -= 1
-        return True
 
     #
 

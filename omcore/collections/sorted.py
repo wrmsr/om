@@ -66,7 +66,7 @@ class SortedCollection(
         raise NotImplementedError
 
     @abc.abstractmethod
-    def add(self, value: T) -> bool:
+    def add(self, value: T) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -74,7 +74,7 @@ class SortedCollection(
         raise NotImplementedError
 
     @abc.abstractmethod
-    def remove(self, value: T) -> bool:
+    def remove(self, value: T) -> None:
         raise NotImplementedError
 
 
@@ -219,12 +219,14 @@ class SortedListDict(
         return item[1]
 
     def __setitem__(self, key: K, value: V) -> None:
-        self._impl.remove((key, None))
+        try:
+            self._impl.remove((key, None))
+        except KeyError:
+            pass
         self._impl.add((key, value))
 
     def __delitem__(self, key: K) -> None:
-        if not self._impl.remove((key, None)):
-            raise KeyError(key)
+        self._impl.remove((key, None))
 
     def __len__(self) -> int:
         return len(self._impl)

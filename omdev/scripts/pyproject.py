@@ -89,7 +89,7 @@ def __om_amalg__():  # noqa
     return dict(
         src_files=[
             dict(path='../../omcore/formats/toml/parser.py', sha1='e2562aaa4d8bf0a3bee0e96e38908bc2f060b41a'),
-            dict(path='../../omcore/formats/toml/writer.py', sha1='0091ad73e098694861c006960c6b7b7bf07a7b69'),
+            dict(path='../../omcore/formats/toml/writer.py', sha1='0182c14f859a75d01812721522f6204e7679a5d6'),
             dict(path='../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../omcore/lite/asyncs.py', sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5'),
             dict(path='../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
@@ -156,7 +156,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='16c0bda51b41026ee24938dab787c0b0d0b7f33a'),
+            dict(path='pkg.py', sha1='f9515352f541c1940863ec1b2797c01004245ad7'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -1278,7 +1278,7 @@ class TomlWriter:
         if isinstance(obj, TomlWriter.Literal):
             self._w(obj.s)
         elif isinstance(obj, str):
-            self._w(self._maybe_quote(obj.replace('_', '-')))
+            self._w(self._maybe_quote(obj))
         elif isinstance(obj, int):
             self._w(repr(str(obj)))
         else:
@@ -12748,12 +12748,14 @@ class BasePyprojectPackageGenerator(Abstract):
         return self.about().Setuptools
 
     @staticmethod
-    def _build_cls_dct(cls: type) -> ta.Dict[str, ta.Any]:  # noqa
+    def _build_cls_dct(cls: type, *, hyphenate: bool = False) -> ta.Dict[str, ta.Any]:  # noqa
         dct = {}
         for b in reversed(cls.__mro__):
             for k, v in b.__dict__.items():
                 if k.startswith('_'):
                     continue
+                if hyphenate:
+                    k = k.replace('_', '-')
                 dct[k] = v
         return dct
 
@@ -12774,8 +12776,8 @@ class BasePyprojectPackageGenerator(Abstract):
 
     def build_specs(self) -> Specs:
         return self.Specs(
-            self._build_cls_dct(self.project_cls()),
-            self._build_cls_dct(self.setuptools_cls()),
+            self._build_cls_dct(self.project_cls(), hyphenate=True),
+            self._build_cls_dct(self.setuptools_cls(), hyphenate=True),
         )
 
     #
@@ -12963,7 +12965,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         pyp_dct['project'] = prj
 
-        self._move_dict_key(prj, 'optional_dependencies', pyp_dct, extrask := 'project.optional-dependencies')
+        self._move_dict_key(prj, 'optional-dependencies', pyp_dct, extrask := 'project.optional-dependencies')
         if (extras := pyp_dct.get(extrask)):
             pyp_dct[extrask] = {
                 'all': [
@@ -12974,13 +12976,13 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
                 **extras,
             }
 
-        if (eps := prj.pop('entry_points', None)):
+        if (eps := prj.pop('entry-points', None)):
             pyp_dct['project.entry-points'] = {TomlWriter.Literal(f"'{k}'"): v for k, v in eps.items()}  # type: ignore  # noqa
 
         if (scs := prj.pop('scripts', None)):
             pyp_dct['project.scripts'] = scs
 
-        prj.pop('cli_scripts', None)
+        prj.pop('cli-scripts', None)
 
         ##
 
@@ -13002,7 +13004,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
         #     'exclude': [*SetuptoolsBase.find_packages['exclude']],
         # }
 
-        fp = dict(st.pop('find_packages', {}))
+        fp = dict(st.pop('find-packages', {}))
 
         pyp_dct['tool.setuptools.packages.find'] = fp
 
@@ -13019,8 +13021,8 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
         #     ],
         # }
 
-        pd = dict(st.pop('package_data', {}))
-        epd = dict(st.pop('exclude_package_data', {}))
+        pd = dict(st.pop('package-data', {}))
+        epd = dict(st.pop('exclude-package-data', {}))
 
         cpd = self._collect_pkg_data()
         for pdk, pdv in sorted(cpd.items(), key=lambda kv: kv[0]):
@@ -13042,7 +13044,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
         #     'global-exclude **/conftest.py',
         # ]
 
-        mani_in = st.pop('manifest_in', None)
+        mani_in = st.pop('manifest-in', None)
 
         #
 
@@ -13074,13 +13076,12 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
                 pkg_suffix='-cext',
             ))
 
-        # FIXME:
-        # if self.build_specs().setuptools.get('mypyc'):
-        #     out.append(_PyprojectMypycPackageGenerator(
-        #         self._dir_name,
-        #         self._pkgs_root,
-        #         pkg_suffix='-mypyc',
-        #     ))
+        if self.build_specs().setuptools.get('mypyc'):
+            out.append(_PyprojectMypycPackageGenerator(
+                self._dir_name,
+                self._pkgs_root,
+                pkg_suffix='-mypyc',
+            ))
 
         if self.build_specs().setuptools.get('rs'):
             out.append(_PyprojectRsPackageGenerator(
@@ -13089,7 +13090,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
                 pkg_suffix='-rs',
             ))
 
-        if self.build_specs().pyproject.get('cli_scripts'):
+        if self.build_specs().pyproject.get('cli-scripts'):
             out.append(_PyprojectCliPackageGenerator(
                 self._dir_name,
                 self._pkgs_root,
@@ -13112,10 +13113,10 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
         prj['name'] += self._pkg_suffix
 
         for k in [
-            'optional_dependencies',
-            'entry_points',
+            'optional-dependencies',
+            'entry-points',
             'scripts',
-            'cli_scripts',
+            'cli-scripts',
         ]:
             prj.pop(k, None)
 
@@ -13129,9 +13130,9 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
             'mypyc',
             'rs',
 
-            'find_packages',
-            'package_data',
-            'manifest_in',
+            'find-packages',
+            'package-data',
+            'manifest-in',
         ]:
             st.pop(k, None)
 
@@ -13345,6 +13346,17 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
     #
 
     @cached_nullary
+    def _get_mypyc_config(self) -> ta.Mapping[str, ta.Any]:
+        with open('pyproject.toml') as f:
+            src = f.read()
+        pyp_dct = toml_loads(src)
+        mypy_dct = pyp_dct.get('tool', {}).get('mypy', {})
+        mypy_dct.pop('overrides', None)
+        return mypy_dct
+
+    #
+
+    @cached_nullary
     def file_contents(self) -> _PyprojectExtensionPackageGenerator.FileContents:
         prj = self._build_project_dict()
         st = self._build_setuptools_dict()
@@ -13358,13 +13370,21 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         #
 
-        pyp_dct = {}
+        pyp_dct: dict = {}
+
+        project_cls = ta.cast(ta.Any, self.project_cls())
+
+        mypy_dep = check.single(
+            d
+            for d in project_cls.optional_dependencies['mypy']
+            if d.split()[0] == 'mypy'
+        )
 
         pyp_dct['build-system'] = {
             'requires': [
                 'setuptools',
-                'mypy',
-                f'{prj["name"]} == {prj["version"]}',
+                mypy_dep,
+                f'{project_cls.name} == {prj["version"]}',
             ],
             'build-backend': 'setuptools.build_meta',
         }
@@ -13376,12 +13396,12 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
 
         ext_dirs = sorted(self.find_mypyc_dirs())
 
-        # pyp_dct['tool.setuptools.packages.find'] = {
-        #     'include': [
-        #         ext_dir.replace(os.sep, '.')
-        #         for ext_dir in ext_dirs
-        #     ],
-        # }
+        pyp_dct['tool.setuptools.packages.find'] = {
+            'include': [
+                # ext_dir.replace(os.sep, '.')
+                # for ext_dir in ext_dirs
+            ],
+        }
 
         #
 
@@ -13415,6 +13435,11 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
             ')',
             '',
         ])
+
+        #
+
+        if mypyc_cfg := self._get_mypyc_config():
+            pyp_dct['tool.mypy'] = mypyc_cfg
 
         #
 
@@ -13554,15 +13579,15 @@ class _PyprojectCliPackageGenerator(BasePyprojectPackageGenerator):
         prj['dependencies'] = [f'{prj["name"]} == {prj["version"]}']
         prj['name'] += self._pkg_suffix
         for k in [
-            'optional_dependencies',
-            'entry_points',
+            'optional-dependencies',
+            'entry-points',
             'scripts',
         ]:
             prj.pop(k, None)
 
         pyp_dct['project'] = prj
 
-        if (scs := prj.pop('cli_scripts', None)):
+        if (scs := prj.pop('cli-scripts', None)):
             pyp_dct['project.scripts'] = scs
 
         #
@@ -13575,9 +13600,9 @@ class _PyprojectCliPackageGenerator(BasePyprojectPackageGenerator):
             'mypyc',
             'rs',
 
-            'find_packages',
-            'package_data',
-            'manifest_in',
+            'find-packages',
+            'package-data',
+            'manifest-in',
         ]:
             st.pop(k, None)
 

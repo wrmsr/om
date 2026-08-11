@@ -1,0 +1,47 @@
+[build-system]
+requires = [
+    'setuptools',
+    'mypy ~= 2.3',
+    'omcore == 0.0.42',
+]
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'omcore-mypyc'
+authors = [
+    {name = 'wrmsr'},
+]
+urls = {source = 'https://github.com/wrmsr/om'}
+license = 'BSD-3-Clause'
+readme = 'README.md'
+requires-python = '>=3.14'
+version = '0.0.42'
+classifiers = [
+    'Intended Audience :: Developers',
+    'Operating System :: OS Independent',
+    'Operating System :: POSIX',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.14',
+]
+description = 'omcore'
+dependencies = [
+    'omcore == 0.0.42',
+    'librt',
+]
+
+[tool.setuptools]
+
+[tool.setuptools.packages.find]
+include = []
+
+[tool.mypy]
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_ignores = true
+pretty = true
+show_column_numbers = true
+show_error_codes = true
+show_error_context = true
+show_traceback = true
+check_untyped_defs = true

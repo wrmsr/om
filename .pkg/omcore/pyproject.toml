@@ -42,6 +42,7 @@ all = [
     'cbor2 ~= 6.1',
     'cloudpickle ~= 3.1',
     'httpx[http2] ~= 0.28',
+    'mypy ~= 2.3',
     'cryptography ~= 50.0',
     'sqlalchemy[asyncio] ~= 2.0',
     'pg8000 ~= 1.31',
@@ -91,6 +92,9 @@ formats = [
 ]
 http = [
     'httpx[http2] ~= 0.28',
+]
+mypy = [
+    'mypy ~= 2.3',
 ]
 secrets = [
     'cryptography ~= 50.0',

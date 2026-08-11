@@ -74,7 +74,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/configs/types.py', sha1='6abb34596a340c3804dc53a813473739047b1c7d'),
             dict(path='../../omcore/formats/ini/sections.py', sha1='66a0b99ffe63766420ec18d25341699dabcfa55e'),
             dict(path='../../omcore/formats/toml/parser.py', sha1='e2562aaa4d8bf0a3bee0e96e38908bc2f060b41a'),
-            dict(path='../../omcore/formats/toml/writer.py', sha1='0091ad73e098694861c006960c6b7b7bf07a7b69'),
+            dict(path='../../omcore/formats/toml/writer.py', sha1='0182c14f859a75d01812721522f6204e7679a5d6'),
             dict(path='../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../omcore/lite/asyncs.py', sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5'),
             dict(path='../../omcore/lite/attrops.py', sha1='536474f5dfc9375c8fcb7e0ad1066ac0727a7d1b'),
@@ -1442,7 +1442,7 @@ class TomlWriter:
         if isinstance(obj, TomlWriter.Literal):
             self._w(obj.s)
         elif isinstance(obj, str):
-            self._w(self._maybe_quote(obj.replace('_', '-')))
+            self._w(self._maybe_quote(obj))
         elif isinstance(obj, int):
             self._w(repr(str(obj)))
         else:

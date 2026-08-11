@@ -98,7 +98,7 @@ class TomlWriter:
         if isinstance(obj, TomlWriter.Literal):
             self._w(obj.s)
         elif isinstance(obj, str):
-            self._w(self._maybe_quote(obj.replace('_', '-')))
+            self._w(self._maybe_quote(obj))
         elif isinstance(obj, int):
             self._w(repr(str(obj)))
         else:
