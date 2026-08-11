@@ -111,7 +111,7 @@ matplotlib-inline==0.2.2
 mccabe==0.7.0
 mdit-py-plugins==0.6.1
 mdurl==0.1.2
-memray==1.19.3
+memray==1.20.0
 mlx==0.32.0
 mlx-lm==0.31.3
 mlx-metal==0.32.0

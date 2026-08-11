@@ -14,7 +14,7 @@ from .states import State
 
 @dc.dataclass(frozen=True)
 class Event(lang.Abstract):
-    pass
+    """Explicitly *not* a marshal polymorphism."""
 
 
 ##
