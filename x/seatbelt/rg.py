@@ -47,8 +47,6 @@ log stream --style compact --predicate 'sender=="Sandbox"'
 ;; (allow file-read* (literal (param "ROOT_0")))
 ;; (allow file-read* (subpath (param "ROOT_0")))
 """
-from __future__ import annotations
-
 import os
 import pathlib
 import shutil
@@ -79,9 +77,7 @@ def sandboxed_rg(
     rg_args: ta.Sequence[str] = (),
     timeout: float = 30.0,
 ) -> subprocess.CompletedProcess[str]:
-    """
-    rg_args should be your own allowlisted flags, not arbitrary model-supplied text.
-    """
+    """rg_args should be your own allowlisted flags, not arbitrary model-supplied text."""
 
     if not roots:
         raise ValueError("at least one allowed root is required")
