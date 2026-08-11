@@ -17,7 +17,11 @@ V = ta.TypeVar('V')
 ##
 
 
-class SortedIter(lang.Abstract, ta.Generic[T]):
+class SortedIter(
+    lang.Abstract,
+    abc.ABC,
+    ta.Generic[T],
+):
     __slots__ = ()
 
     @abc.abstractmethod
@@ -41,6 +45,7 @@ class SortedCollection(
     SortedIter[T],
     ta.Collection[T],
     lang.Abstract,
+    abc.ABC,
     ta.Generic[T],
 ):
     __slots__ = ()
@@ -81,7 +86,11 @@ class SortedCollection(
 #
 
 
-class SortedItems(lang.Abstract, ta.Generic[K, V]):
+class SortedItems(
+    lang.Abstract,
+    abc.ABC,
+    ta.Generic[K, V],
+):
     __slots__ = ()
 
     @abc.abstractmethod
@@ -105,6 +114,7 @@ class SortedMapping(
     SortedItems[K, V],
     ta.Mapping[K, V],
     lang.Abstract,
+    abc.ABC,
     ta.Generic[K, V],
 ):
     __slots__ = ()
@@ -114,6 +124,7 @@ class SortedMutableMapping(
     ta.MutableMapping[K, V],
     SortedMapping[K, V],
     lang.Abstract,
+    abc.ABC,
     ta.Generic[K, V],
 ):
     __slots__ = ()

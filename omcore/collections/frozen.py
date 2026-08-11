@@ -26,7 +26,7 @@ class FrozenDict(
     Frozen,
     lang.Final,
 ):
-    def __new__(cls, *args: ta.Any, **kwargs: ta.Any) -> 'FrozenDict[K, V]':  # noqa
+    def __new__(cls, *args: ta.Any, **kwargs: ta.Any) -> FrozenDict[K, V]:  # noqa
         if len(args) == 1 and not kwargs and type(args[0]) is cls:
             return args[0]
         return super().__new__(cls)

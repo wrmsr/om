@@ -73,7 +73,6 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .floats import (  # noqa
-        isclose,
         float_to_bytes,
         bytes_to_float,
     )
