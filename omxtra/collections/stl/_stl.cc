@@ -624,11 +624,12 @@ static int unbox_probe(PyObject *o, Ovf ovf, typename Tr::Slot *out) {
 // std::bad_alloc; entry points translate via py_shield.
 //
 
+// What an iterator yields; direction is an orthogonal flag on make_iter / make_iter_from ("desc"), so kinds compose
+// with both directions (e.g. reversed keys for __reversed__, descending items for items_desc).
 enum class IterKind : uint8_t {
     KEYS,
     VALUES,
     ITEMS,
-    ELEMS_REVERSED,
 };
 
 
@@ -667,7 +668,16 @@ struct AnyImpl {
     virtual void clear_collect(Bin &bin) = 0;
 
     virtual AnyImpl *clone() const = 0;
-    virtual AnyIter *make_iter(IterKind ik) = 0;
+    virtual AnyIter *make_iter(IterKind ik, bool desc) = 0;
+
+    // Iteration seeded at a key bound, for the sorted interfaces: ascending starts at lower_bound(base) (first element
+    // >= base), descending starts walking down from upper_bound(base) (so the first element yielded is the greatest <=
+    // base) - the exact bisect_left / bisect_right semantics. The bound is unboxed strictly (same acceptance as an
+    // insert would have), and only the sorted impls override this.
+    virtual AnyIter *make_iter_from(IterKind, bool, PyObject *) {
+        PyErr_SetString(PyExc_TypeError, "container does not support ordered iteration");
+        return nullptr;
+    }
 
     // Typed fast paths; preconditions: other has the same kind / key_dt / val_dt (overflow mode may differ).
     virtual int equals_same(AnyImpl *other) = 0;            // 1 / 0 / -1
@@ -686,6 +696,10 @@ struct SetLikeImpl : AnyImpl {
     virtual int add_(PyObject *o) = 0;                 // 1 added / 0 already present / -1
     virtual int discard_(PyObject *o, Bin &bin) = 0;   // 1 removed / 0 absent / -1
     virtual int pop_(PyObject **out, Bin &bin) = 0;    // 1 / 0 empty / -1
+
+    // Boxes the *stored* element equal to the probe (probe semantics like contains_): for primitives that is just the
+    // value back, but for object dtypes it returns the canonical stored instance - an interning-style lookup.
+    virtual int find_elem(PyObject *probe, PyObject **out) = 0;   // 1 (new ref) / 0 / -1
 };
 
 
@@ -890,6 +904,24 @@ struct SortedSetImpl final : SetLikeImpl {
         return set_.find(s) != set_.end() ? 1 : 0;
     }
 
+    int find_elem(PyObject *probe, PyObject **out) override {
+        typename K::Slot s{};
+        int r = unbox_probe<K>(probe, key_ovf, &s);
+        if (r <= 0) {
+            return r;
+        }
+        auto it = set_.find(s);
+        if (it == set_.end()) {
+            return 0;
+        }
+        PyObject *o = K::box(*it);
+        if (o == nullptr) {
+            return -1;
+        }
+        *out = o;
+        return 1;
+    }
+
     int add_(PyObject *o) override {
         typename K::Slot s{};
         if (!K::unbox(o, key_ovf, &s)) {
@@ -975,7 +1007,8 @@ struct SortedSetImpl final : SetLikeImpl {
         return n;
     }
 
-    AnyIter *make_iter(IterKind) override;
+    AnyIter *make_iter(IterKind, bool desc) override;
+    AnyIter *make_iter_from(IterKind ik, bool desc, PyObject *base) override;
 
     int equals_same(AnyImpl *other) override {
         auto *o = static_cast<SortedSetImpl *>(other);
@@ -1048,11 +1081,28 @@ struct SortedSetIter final : AnyIter {
 
 
 template <typename K>
-AnyIter *SortedSetImpl<K>::make_iter(IterKind ik) {
+AnyIter *SortedSetImpl<K>::make_iter(IterKind, bool desc) {
     auto *r = new SortedSetIter<K>();
     r->impl = this;
-    r->rev = ik == IterKind::ELEMS_REVERSED;
-    r->it = r->rev ? set_.cend() : set_.cbegin();
+    r->rev = desc;
+    r->it = desc ? set_.cend() : set_.cbegin();
+    r->expect = version;
+    return r;
+}
+
+
+template <typename K>
+AnyIter *SortedSetImpl<K>::make_iter_from(IterKind, bool desc, PyObject *base) {
+    typename K::Slot s{};
+    if (!K::unbox(base, key_ovf, &s)) {
+        return nullptr;
+    }
+    // Object-dtype bounds run Less (richcompare) here, so this can throw py_err_set; seek before allocating.
+    auto it = desc ? set_.upper_bound(s) : set_.lower_bound(s);
+    auto *r = new SortedSetIter<K>();
+    r->impl = this;
+    r->rev = desc;
+    r->it = it;
     r->expect = version;
     return r;
 }
@@ -1091,6 +1141,24 @@ struct HashSetImpl final : SetLikeImpl {
             return r;
         }
         return set_.find(s) != set_.end() ? 1 : 0;
+    }
+
+    int find_elem(PyObject *probe, PyObject **out) override {
+        typename K::Slot s{};
+        int r = unbox_probe<K>(probe, key_ovf, &s);
+        if (r <= 0) {
+            return r;
+        }
+        auto it = set_.find(s);
+        if (it == set_.end()) {
+            return 0;
+        }
+        PyObject *o = K::box(*it);
+        if (o == nullptr) {
+            return -1;
+        }
+        *out = o;
+        return 1;
     }
 
     int add_(PyObject *o) override {
@@ -1178,7 +1246,7 @@ struct HashSetImpl final : SetLikeImpl {
         return n;
     }
 
-    AnyIter *make_iter(IterKind) override;
+    AnyIter *make_iter(IterKind, bool) override;
 
     int equals_same(AnyImpl *other) override {
         auto *o = static_cast<HashSetImpl *>(other);
@@ -1236,8 +1304,9 @@ struct HashSetIter final : AnyIter {
 };
 
 
+// desc is ignored: hashed containers have no meaningful order, and no descending entry point is exposed for them.
 template <typename K>
-AnyIter *HashSetImpl<K>::make_iter(IterKind) {
+AnyIter *HashSetImpl<K>::make_iter(IterKind, bool) {
     auto *r = new HashSetIter<K>();
     r->impl = this;
     r->it = set_.cbegin();
@@ -1441,7 +1510,8 @@ struct SortedMapImpl final : MapLikeImpl {
         return n;
     }
 
-    AnyIter *make_iter(IterKind ik) override;
+    AnyIter *make_iter(IterKind ik, bool desc) override;
+    AnyIter *make_iter_from(IterKind ik, bool desc, PyObject *base) override;
 
     int equals_same(AnyImpl *other) override {
         auto *o = static_cast<SortedMapImpl *>(other);
@@ -1492,6 +1562,7 @@ struct SortedMapIter final : AnyIter {
     typename SortedMapImpl<K, V>::Cont::const_iterator it;
     uint64_t expect;
     IterKind ik;
+    bool rev;
 
     int next(PyObject **out) override {
         if (impl->version != expect) {
@@ -1499,7 +1570,6 @@ struct SortedMapIter final : AnyIter {
             return -1;
         }
         typename SortedMapImpl<K, V>::Cont::const_iterator cur;
-        bool rev = ik == IterKind::ELEMS_REVERSED;
         if (rev) {
             if (it == impl->map_.begin()) {
                 return 0;
@@ -1532,7 +1602,7 @@ struct SortedMapIter final : AnyIter {
                 Py_DECREF(vo);
                 break;
             }
-            default:  // KEYS, ELEMS_REVERSED (reversed key order)
+            default:  // KEYS
                 o = K::box(cur->first);
                 break;
         }
@@ -1547,12 +1617,31 @@ struct SortedMapIter final : AnyIter {
 
 
 template <typename K, typename V>
-AnyIter *SortedMapImpl<K, V>::make_iter(IterKind ik) {
+AnyIter *SortedMapImpl<K, V>::make_iter(IterKind ik, bool desc) {
     auto *r = new SortedMapIter<K, V>();
     r->impl = this;
-    r->it = ik == IterKind::ELEMS_REVERSED ? map_.cend() : map_.cbegin();
+    r->it = desc ? map_.cend() : map_.cbegin();
     r->expect = version;
     r->ik = ik;
+    r->rev = desc;
+    return r;
+}
+
+
+template <typename K, typename V>
+AnyIter *SortedMapImpl<K, V>::make_iter_from(IterKind ik, bool desc, PyObject *base) {
+    typename K::Slot ks{};
+    if (!K::unbox(base, key_ovf, &ks)) {
+        return nullptr;
+    }
+    // Object-dtype bounds run Less (richcompare) here, so this can throw py_err_set; seek before allocating.
+    auto it = desc ? map_.upper_bound(ks) : map_.lower_bound(ks);
+    auto *r = new SortedMapIter<K, V>();
+    r->impl = this;
+    r->it = it;
+    r->expect = version;
+    r->ik = ik;
+    r->rev = desc;
     return r;
 }
 
@@ -1750,7 +1839,7 @@ struct HashMapImpl final : MapLikeImpl {
         return n;
     }
 
-    AnyIter *make_iter(IterKind ik) override;
+    AnyIter *make_iter(IterKind ik, bool) override;
 
     int equals_same(AnyImpl *other) override {
         auto *o = static_cast<HashMapImpl *>(other);
@@ -1846,7 +1935,7 @@ struct HashMapIter final : AnyIter {
 
 
 template <typename K, typename V>
-AnyIter *HashMapImpl<K, V>::make_iter(IterKind ik) {
+AnyIter *HashMapImpl<K, V>::make_iter(IterKind ik, bool) {
     auto *r = new HashMapIter<K, V>();
     r->impl = this;
     r->it = map_.cbegin();
@@ -2159,7 +2248,7 @@ struct VectorImpl final : VecLikeImpl {
         return n;
     }
 
-    AnyIter *make_iter(IterKind ik) override;
+    AnyIter *make_iter(IterKind ik, bool desc) override;
 
     int equals_same(AnyImpl *other) override {
         auto *o = static_cast<VectorImpl *>(other);
@@ -2222,10 +2311,10 @@ struct VectorIter final : AnyIter {
 
 
 template <typename E>
-AnyIter *VectorImpl<E>::make_iter(IterKind ik) {
+AnyIter *VectorImpl<E>::make_iter(IterKind, bool desc) {
     auto *r = new VectorIter<E>();
     r->impl = this;
-    r->rev = ik == IterKind::ELEMS_REVERSED;
+    r->rev = desc;
     r->idx = r->rev ? (Py_ssize_t)vec_.size() - 1 : 0;
     return r;
 }
@@ -2604,7 +2693,7 @@ static PyType_Spec iter_spec = {
 };
 
 
-static PyObject *col_make_iter(PyObject *self, IterKind ik) {
+static PyObject *col_make_iter(PyObject *self, IterKind ik, bool desc) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
@@ -2620,7 +2709,7 @@ static PyObject *col_make_iter(PyObject *self, IterKind ik) {
             return nullptr;
         }
         try {
-            it = co->impl->make_iter(ik);
+            it = co->impl->make_iter(ik, desc);
         }
         catch (std::bad_alloc &) {
             g.release();
@@ -2640,12 +2729,63 @@ static PyObject *col_make_iter(PyObject *self, IterKind ik) {
 
 
 static PyObject *col_iter(PyObject *self) {
-    return col_make_iter(self, IterKind::KEYS);
+    return col_make_iter(self, IterKind::KEYS, false);
+}
+
+
+static PyObject *col_iter_meth(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    return col_make_iter(self, IterKind::KEYS, false);
 }
 
 
 static PyObject *col_reversed_meth(PyObject *self, PyObject *Py_UNUSED(ignored)) {
-    return col_make_iter(self, IterKind::ELEMS_REVERSED);
+    return col_make_iter(self, IterKind::KEYS, true);
+}
+
+
+// Backs iter_from / iter_from_desc / items_from / items_from_desc: seeks under the container lock (object-dtype
+// bounds run user comparators there, hence the py_err_set catch) and hands the seeded impl iterator to the shared
+// iterator object, which re-locks per next() and version-checks like any other iterator.
+static PyObject *col_make_iter_from(PyObject *self, IterKind ik, bool desc, PyObject *base) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    AnyIter *it = nullptr;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        try {
+            it = co->impl->make_iter_from(ik, desc, base);
+        }
+        catch (py_err_set &) {
+            g.release();
+            return nullptr;
+        }
+        catch (std::bad_alloc &) {
+            g.release();
+            PyErr_NoMemory();
+            return nullptr;
+        }
+        if (it == nullptr) {
+            g.release();
+            return nullptr;
+        }
+    }
+    IterObject *io = (IterObject *)st->iter_type->tp_alloc(st->iter_type, 0);
+    if (io == nullptr) {
+        delete it;
+        return nullptr;
+    }
+    io->owner = Py_NewRef(self);
+    io->it = it;
+    return (PyObject *)io;
 }
 
 
@@ -3429,6 +3569,43 @@ static PyGetSetDef set_getset[] = {
 };
 
 
+
+// SortedCollection surface (sorted variant only): iter / iter_desc are just the existing iterators under the interface
+// names; the seeded and find forms ride the new impl primitives.
+static PyObject *set_iter_from(PyObject *self, PyObject *base) {
+    return col_make_iter_from(self, IterKind::KEYS, false, base);
+}
+
+
+static PyObject *set_iter_from_desc(PyObject *self, PyObject *base) {
+    return col_make_iter_from(self, IterKind::KEYS, true, base);
+}
+
+
+static PyObject *set_find(PyObject *self, PyObject *probe) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return static_cast<SetLikeImpl *>(co->impl)->find_elem(probe, &out); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        Py_RETURN_NONE;
+    }
+    return out;
+}
+
+
 static PyMethodDef set_methods[] = {
     {"add", set_add, METH_O, PyDoc_STR("Add an element.")},
     {"discard", set_discard, METH_O, PyDoc_STR("Remove an element if present.")},
@@ -3439,6 +3616,8 @@ static PyMethodDef set_methods[] = {
     {"copy", set_copy, METH_NOARGS, PyDoc_STR("Return a shallow copy with the same dtype.")},
     {"update", set_update, METH_VARARGS, PyDoc_STR("Add elements from each iterable argument.")},
     {"isdisjoint", set_isdisjoint, METH_O, PyDoc_STR("Return True if the iterable shares no elements with this set.")},
+    {"__class_getitem__", Py_GenericAlias, METH_O | METH_CLASS,
+     PyDoc_STR("See PEP 585: parameterized generic alias support (e.g. Set[int]).")},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -3455,6 +3634,16 @@ static PyMethodDef sorted_set_methods[] = {
     {"update", set_update, METH_VARARGS, PyDoc_STR("Add elements from each iterable argument.")},
     {"isdisjoint", set_isdisjoint, METH_O, PyDoc_STR("Return True if the iterable shares no elements with this set.")},
     {"__reversed__", col_reversed_meth, METH_NOARGS, PyDoc_STR("Return a reverse (descending) iterator.")},
+    {"iter", col_iter_meth, METH_NOARGS, PyDoc_STR("Return an ascending iterator (SortedIter interface).")},
+    {"iter_desc", col_reversed_meth, METH_NOARGS, PyDoc_STR("Return a descending iterator (SortedIter interface).")},
+    {"iter_from", set_iter_from, METH_O,
+     PyDoc_STR("Return an ascending iterator over elements >= base (SortedIter interface).")},
+    {"iter_from_desc", set_iter_from_desc, METH_O,
+     PyDoc_STR("Return a descending iterator over elements <= base (SortedIter interface).")},
+    {"find", set_find, METH_O,
+     PyDoc_STR("Return the stored element equal to the argument, or None (SortedCollection interface).")},
+    {"__class_getitem__", Py_GenericAlias, METH_O | METH_CLASS,
+     PyDoc_STR("See PEP 585: parameterized generic alias support (e.g. Set[int]).")},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -4031,7 +4220,7 @@ static PyObject *map_richcompare(PyObject *self, PyObject *other, int op) {
         eq = 0;
     }
     else {
-        PyObject *it = col_make_iter(self, IterKind::ITEMS);
+        PyObject *it = col_make_iter(self, IterKind::ITEMS, false);
         if (it == nullptr) {
             return nullptr;
         }
@@ -4077,7 +4266,7 @@ static PyObject *map_repr(PyObject *self) {
     if (rc != 0) {
         return rc > 0 ? PyUnicode_FromFormat("%s(...)", col_short_name(self)) : nullptr;
     }
-    PyObject *it = col_make_iter(self, IterKind::ITEMS);
+    PyObject *it = col_make_iter(self, IterKind::ITEMS, false);
     if (it == nullptr) {
         Py_ReprLeave(self);
         return nullptr;
@@ -4125,6 +4314,28 @@ static PyGetSetDef map_getset[] = {
 };
 
 
+
+// SortedItems surface (sorted variant only).
+static PyObject *map_iteritems(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    return col_make_iter(self, IterKind::ITEMS, false);
+}
+
+
+static PyObject *map_items_desc(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    return col_make_iter(self, IterKind::ITEMS, true);
+}
+
+
+static PyObject *map_items_from(PyObject *self, PyObject *key) {
+    return col_make_iter_from(self, IterKind::ITEMS, false, key);
+}
+
+
+static PyObject *map_items_from_desc(PyObject *self, PyObject *key) {
+    return col_make_iter_from(self, IterKind::ITEMS, true, key);
+}
+
+
 static PyMethodDef map_methods[] = {
     {"get", map_get, METH_VARARGS, PyDoc_STR("Return the value for key, or default (None) if absent.")},
     {"pop", map_pop, METH_VARARGS,
@@ -4140,6 +4351,8 @@ static PyMethodDef map_methods[] = {
     {"items", map_items, METH_NOARGS, PyDoc_STR("Return a collections.abc.ItemsView of the map.")},
     {"clear", col_clear_meth, METH_NOARGS, PyDoc_STR("Remove all items.")},
     {"copy", map_copy, METH_NOARGS, PyDoc_STR("Return a shallow copy with the same dtypes.")},
+    {"__class_getitem__", Py_GenericAlias, METH_O | METH_CLASS,
+     PyDoc_STR("See PEP 585: parameterized generic alias support (e.g. Set[int]).")},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -4161,6 +4374,16 @@ static PyMethodDef sorted_map_methods[] = {
     {"clear", col_clear_meth, METH_NOARGS, PyDoc_STR("Remove all items.")},
     {"copy", map_copy, METH_NOARGS, PyDoc_STR("Return a shallow copy with the same dtypes.")},
     {"__reversed__", col_reversed_meth, METH_NOARGS, PyDoc_STR("Return a reverse (descending) key iterator.")},
+    {"iteritems", map_iteritems, METH_NOARGS,
+     PyDoc_STR("Return an ascending (key, value) iterator (SortedItems interface).")},
+    {"items_desc", map_items_desc, METH_NOARGS,
+     PyDoc_STR("Return a descending (key, value) iterator (SortedItems interface).")},
+    {"items_from", map_items_from, METH_O,
+     PyDoc_STR("Return an ascending (key, value) iterator over keys >= key (SortedItems interface).")},
+    {"items_from_desc", map_items_from_desc, METH_O,
+     PyDoc_STR("Return a descending (key, value) iterator over keys <= key (SortedItems interface).")},
+    {"__class_getitem__", Py_GenericAlias, METH_O | METH_CLASS,
+     PyDoc_STR("See PEP 585: parameterized generic alias support (e.g. Set[int]).")},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -4935,6 +5158,8 @@ static PyMethodDef vector_methods[] = {
     {"clear", col_clear_meth, METH_NOARGS, PyDoc_STR("Remove all elements.")},
     {"copy", vec_copy, METH_NOARGS, PyDoc_STR("Return a shallow copy with the same dtype.")},
     {"__reversed__", col_reversed_meth, METH_NOARGS, PyDoc_STR("Return a reverse iterator.")},
+    {"__class_getitem__", Py_GenericAlias, METH_O | METH_CLASS,
+     PyDoc_STR("See PEP 585: parameterized generic alias support (e.g. Set[int]).")},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -5036,6 +5261,26 @@ static int stl_exec(PyObject *mod) {
     rc = rc < 0 ? rc : reg_abc(abc, "MutableMapping", st->map_type);
     rc = rc < 0 ? rc : reg_abc(abc, "MutableMapping", st->unordered_map_type);
     rc = rc < 0 ? rc : reg_abc(abc, "MutableSequence", st->vector_type);
+
+    // sorted interfaces registration (soft): inside the om tree this registers the sorted variants with the
+    // sorted-container ABCs, so isinstance checks pass with no Python-side wiring at all; registering with the most
+    // derived interface covers its real ancestors (SortedIter / SortedItems / Mapping / ...) transitively.
+    if (rc == 0) {
+        PyObject *som = PyImport_ImportModule("omcore.collections.sorted");
+        if (som == nullptr) {
+            if (PyErr_ExceptionMatches(PyExc_ModuleNotFoundError)) {
+                PyErr_Clear();
+            }
+            else {
+                rc = -1;
+            }
+        }
+        else {
+            rc = reg_abc(som, "SortedCollection", st->set_type);
+            rc = rc < 0 ? rc : reg_abc(som, "SortedMutableMapping", st->map_type);
+            Py_DECREF(som);
+        }
+    }
     Py_DECREF(abc);
     if (rc < 0) {
         return -1;
