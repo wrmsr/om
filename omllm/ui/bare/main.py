@@ -144,6 +144,8 @@ async def _a_main() -> None:
 
     parser.add_argument('-X', '--autoexec', action='append')
 
+    parser.add_argument('-S', '--stream', action='store_true')
+
     parser.add_argument('-v', '--verbose', action='store_true')
 
     args = parser.parse_args()
@@ -165,6 +167,9 @@ async def _a_main() -> None:
         llm.OpenaiCompletionsStreamBackend
     )
 
+    if args.stream:
+        check.issubclass(backend_cls, llm.StreamBackend)
+
     cwd = os.path.abspath(os.path.realpath(os.getcwd()))
 
     #
@@ -184,12 +189,24 @@ async def _a_main() -> None:
         if args.verbose:
             print(ev)
 
+        if isinstance(ev, agn.LlmAiStreamEvent):
+            lev = ev.event
+
+            if isinstance(lev, llm.TextDeltaAiStreamEvent):
+                if args.stream:
+                    print(lev.text, end='')
+
+            elif isinstance(lev, llm.TextEndAiStreamEvent):
+                if args.stream:
+                    print()
+
         if isinstance(ev, agn.TurnEndEvent):
             if isinstance(msg := ev.message, llm.AiMessage):
-                for c in msg.content:
-                    if isinstance(c, llm.TextContent):
-                        if (s := c.text.strip()):
-                            await text_displayer.display_text(ui.MarkdownText(s))
+                if not args.stream:
+                    for c in msg.content:
+                        if isinstance(c, llm.TextContent):
+                            if (s := c.text.strip()):
+                                await text_displayer.display_text(ui.MarkdownText(s))
 
     agent = agn.Agent(
         backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore
