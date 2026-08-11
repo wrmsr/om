@@ -64,11 +64,11 @@ A typical lazy RPC application assembles these pieces as follows:
 ```text
 LazyRpcClient
     -> RpcClient + LazyDaemon
-                      -> Daemon
-                           -> Launcher
-                                -> spawning backend
-                                -> locked pidfile
-                                -> ServiceTarget(RpcService)
+        -> Daemon
+            -> Launcher
+                -> spawning backend
+                -> locked pidfile
+                -> ServiceTarget(RpcService)
 ```
 
 `ServiceDaemon` is a convenience value which ties a `Service` or service config to a `Daemon` or daemon config. It
