@@ -54,6 +54,11 @@ class SimpleHttpHandlerServerIoPipelineHandler(IoPipelineHandler):
 
             return
 
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            ctx.feed_in(msg)
+            ctx.feed_out(IoPipelineMessages.FinalOutput())
+            return
+
         if not isinstance(msg, FullIoPipelineHttpRequest):
             ctx.feed_in(msg)
             return
