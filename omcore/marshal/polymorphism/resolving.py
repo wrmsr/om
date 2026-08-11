@@ -78,10 +78,10 @@ def match_subtype_manifests(
 
 def _manifest_raw_subtype(v: SubtypeManifest) -> _RawSubtype:
     return _RawSubtype(
-        None,
-        v.attr,
-        v.tag,
-        tuple(v.alts or ()),
+        ty=None,
+        name=v.attr,
+        tag=v.tag,
+        alts=tuple(v.alts or ()),
         resolve=v.resolve,
     )
 
@@ -103,16 +103,31 @@ class _PolymorphismResolver:
 
         if isinstance(source, ExplicitSubtypeSource):
             for i in source.subtypes:
-                raws.append(_RawSubtype(i.ty, i.ty.__name__, i.tag, tuple(i.alts)))
+                raws.append(_RawSubtype(
+                    ty=i.ty,
+                    name=i.ty.__name__,
+                    tag=i.tag,
+                    alts=tuple(i.alts),
+                ))
 
         elif isinstance(source, SubclassesSubtypeSource):
             sub_ty: type
             for sub_ty in lang.deep_subclasses(self._spec.root, concrete_only=True):
-                raws.append(_RawSubtype(sub_ty, sub_ty.__name__, None, ()))
+                raws.append(_RawSubtype(
+                    ty=sub_ty,
+                    name=sub_ty.__name__,
+                    tag=None,
+                    alts=(),
+                ))
 
         elif isinstance(source, ConfigsSubtypeSource):
             for sc in self._ctx.get_configs(self._spec.root).get(SubtypeConfig) or ():
-                raws.append(_RawSubtype(sc.ty, sc.ty.__name__, sc.tag, tuple(sc.alts or ())))
+                raws.append(_RawSubtype(
+                    ty=sc.ty,
+                    name=sc.ty.__name__,
+                    tag=sc.tag,
+                    alts=tuple(sc.alts or ()),
+                ))
 
         elif isinstance(source, ManifestsSubtypeSource):
             for v in _subtype_manifests_by_base_path().get(_cls_path(self._spec.root), ()):
