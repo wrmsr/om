@@ -13,11 +13,13 @@ from ..api.types import MarshalerFactory
 from ..api.values import Value
 from .api import DisjointPolymorphism
 from .api import FieldTypeTagging
+from .api import LazySubtype
 from .api import Polymorphism
 from .api import PolymorphismSubtypeError
 from .api import SubtypeInfos
 from .api import TypeTagging
 from .api import WrapperTypeTagging
+from .api import opt_cls_fqcn
 from .matching import get_disjoint_polymorphism_subtypes
 from .matching import get_polymorphism_subtypes
 from .resolving import resolve_polymorphism
@@ -34,9 +36,41 @@ class PolymorphismMarshaler(Marshaler, lang.Abstract):
         raise NotImplementedError
 
 
+def _marshal_lazy_subtype(
+        ctx: MarshalContext,
+        o: ta.Any,
+        ot: type,
+        lz: ta.Mapping[str, tuple[str, LazySubtype]],
+) -> tuple[str, Value]:
+    """
+    The fqcn fallback: an instance of a lazily-declared subtype loaded after its handler's construction misses the
+    (deliberately import-free) type map, but its class - being demonstrably loaded - resolves for free.
+    """
+
+    if (
+            lz and
+            (of := opt_cls_fqcn(ot)) is not None and
+            (lt := lz.get(of)) is not None
+    ):
+        tag, lst = lt
+        ty = lst.resolve()
+
+        # FIXME: naughty - see AnyMarshalerUnmarshaler. Deliberately unmemoized: the runtime's cache makes the
+        # re-entry near-free and keeps this invalidation-correct.
+        m = ctx.runtime.make_marshaler(MarshalFactoryContext(runtime=ctx.runtime), ty)
+
+        return tag, m.marshal(ctx, o)
+
+    raise PolymorphismSubtypeError(ot)
+
+
 @dc.dataclass(frozen=True)
 class WrapperPolymorphismMarshaler(PolymorphismMarshaler):
     m: ta.Mapping[type, tuple[str, Marshaler]]
+
+    _: dc.KW_ONLY
+
+    lz: ta.Mapping[str, tuple[str, LazySubtype]] = dc.field(default_factory=dict)
 
     def get_marshaler_map(self) -> ta.Mapping[type, tuple[str, Marshaler]]:
         return self.m
@@ -46,7 +80,8 @@ class WrapperPolymorphismMarshaler(PolymorphismMarshaler):
         try:
             tag, m = self.m[ot]
         except KeyError:
-            raise PolymorphismSubtypeError(ot) from None
+            tag, mv = _marshal_lazy_subtype(ctx, o, ot, self.lz)
+            return {tag: mv}
         return {tag: m.marshal(ctx, o)}
 
 
@@ -55,6 +90,10 @@ class FieldPolymorphismMarshaler(PolymorphismMarshaler):
     m: ta.Mapping[type, tuple[str, Marshaler]]
     tf: str
 
+    _: dc.KW_ONLY
+
+    lz: ta.Mapping[str, tuple[str, LazySubtype]] = dc.field(default_factory=dict)
+
     def get_marshaler_map(self) -> ta.Mapping[type, tuple[str, Marshaler]]:
         return self.m
 
@@ -63,7 +102,8 @@ class FieldPolymorphismMarshaler(PolymorphismMarshaler):
         try:
             tag, m = self.m[ot]
         except KeyError:
-            raise PolymorphismSubtypeError(ot) from None
+            tag, mv = _marshal_lazy_subtype(ctx, o, ot, self.lz)
+            return {self.tf: tag, **mv}  # type: ignore
         return {self.tf: tag, **m.marshal(ctx, o)}  # type: ignore
 
 
@@ -74,15 +114,19 @@ def make_polymorphism_marshaler(
 ) -> Marshaler:
     check.not_empty(subtypes)
 
-    m = {
-        i.ty: (i.tag, ctx.make_marshaler(i.ty))
-        for i in subtypes
-    }
+    m: dict[type, tuple[str, Marshaler]] = {}
+    lz: dict[str, tuple[str, LazySubtype]] = {}
+    for i in subtypes:
+        if (c := i.cls) is not None:
+            m[c] = (i.tag, ctx.make_marshaler(c))
+        else:
+            lst = check.isinstance(i.ty, LazySubtype)
+            lz[lst.fqcn] = (i.tag, lst)
 
     if isinstance(tt, WrapperTypeTagging):
-        return WrapperPolymorphismMarshaler(m)
+        return WrapperPolymorphismMarshaler(m, lz=lz)
     elif isinstance(tt, FieldTypeTagging):
-        return FieldPolymorphismMarshaler(m, tt.field)
+        return FieldPolymorphismMarshaler(m, tt.field, lz=lz)
     else:
         raise TypeError(tt)
 

@@ -189,6 +189,9 @@ with _lang.auto_proxy_init(globals()):
         SimpleSuffixStripping,
         as_suffix_stripping,
 
+        LazySubtype,
+        opt_cls_fqcn,
+
         SubtypeInfo,
         SubtypeInfos,
         Polymorphism,

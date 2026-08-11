@@ -138,19 +138,65 @@ def as_suffix_stripping(suffix_stripping):
 
 
 @dc.dataclass(frozen=True)
-class SubtypeInfo(lang.Final):
-    """One concrete participant in a polymorphism, bound to its wire tag."""
+class LazySubtype(lang.Final):
+    """
+    A not-yet-imported subtype: its fqcn (statically known, e.g. from its manifest) plus the thunk that loads it.
+    Resolution is deferred all the way to first use of its wire tag - carrying one of these must never trigger an
+    import.
+    """
 
-    ty: type
+    fqcn: str
+    resolve: ta.Callable[[], type]
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.fqcn)
+
+
+def opt_cls_fqcn(cls: type) -> str | None:
+    """
+    Best-effort fqcn derivation - None for dynamic/local/otherwise-unresolvable classes. `get_cls_fqcn` round-trip
+    verifies resolvability, so a returned fqcn is canonical - but the probe can raise nearly anything for
+    non-canonical classes (e.g. AttributeError for `builtins.NoneType`), all of which simply mean 'no fqcn'.
+    """
+
+    try:
+        return lang.get_cls_fqcn(cls)
+    except Exception:  # noqa
+        return None
+
+
+@dc.dataclass(frozen=True)
+class SubtypeInfo(lang.Final):
+    """One participant in a polymorphism - loaded or lazily declared - bound to its wire tag."""
+
+    ty: type | LazySubtype
     tag: str
     alts: ta.AbstractSet[str] = frozenset()
 
     def __post_init__(self) -> None:
-        check.state(not lang.is_abstract(self.ty))
+        if isinstance(self.ty, type):
+            check.state(not lang.is_abstract(self.ty))
+        else:
+            check.isinstance(self.ty, LazySubtype)
         check.non_empty_str(self.tag)
 
         if not isinstance(self.alts, frozenset):
             object.__setattr__(self, 'alts', frozenset(check.not_isinstance(self.alts, str)))
+
+    @property
+    def cls(self) -> type | None:
+        return self.ty if isinstance(self.ty, type) else None
+
+    @property
+    def fqcn(self) -> str | None:
+        if isinstance(self.ty, LazySubtype):
+            return self.ty.fqcn
+        return opt_cls_fqcn(self.ty)
+
+    def resolve(self) -> type:
+        if isinstance(self.ty, type):
+            return self.ty
+        return check.isinstance(self.ty.resolve(), type)
 
 
 @dc.dataclass(frozen=True)
@@ -179,6 +225,8 @@ class SubtypeInfos(lang.Final):
 
     @property
     def by_ty(self) -> ta.Mapping[type, SubtypeInfo]:
+        """Concrete entries only - lazy entries have no type until resolved; see `lazy_by_fqcn`."""
+
         try:
             return self._by_ty  # type: ignore[attr-defined]
         except AttributeError:
@@ -186,11 +234,36 @@ class SubtypeInfos(lang.Final):
 
         dct: dict[type, SubtypeInfo] = {}
         for i in self.lst:
-            if i.ty in dct:
-                raise PolymorphismSubtypeError(f'Duplicate subtype: {i.ty!r}')
-            dct[i.ty] = i
+            if (c := i.cls) is None:
+                continue
+            if c in dct:
+                raise PolymorphismSubtypeError(f'Duplicate subtype: {c!r}')
+            dct[c] = i
 
         object.__setattr__(self, '_by_ty', dct)
+        return dct
+
+    @property
+    def lazy_by_fqcn(self) -> ta.Mapping[str, SubtypeInfo]:
+        """Lazy entries only, by fqcn - concrete entries sharing a declared fqcn are a collection error."""
+
+        try:
+            return self._lazy_by_fqcn  # type: ignore[attr-defined]
+        except AttributeError:
+            pass
+
+        cfs = {f for i in self.lst if i.cls is not None and (f := i.fqcn) is not None}
+
+        dct: dict[str, SubtypeInfo] = {}
+        for i in self.lst:
+            if i.cls is not None:
+                continue
+            f = check.not_none(i.fqcn)
+            if f in dct or f in cfs:
+                raise PolymorphismSubtypeError(f'Duplicate subtype fqcn: {f!r}')
+            dct[f] = i
+
+        object.__setattr__(self, '_lazy_by_fqcn', dct)
         return dct
 
     @property
@@ -224,8 +297,10 @@ class Polymorphism(lang.Final):
         check.isinstance(self.subtypes, SubtypeInfos)
 
         if isinstance(ty := self.root, type):
+            # Lazy entries are necessarily unverifiable here - their targets are checked at resolve time.
             for i in self.subtypes:
-                check.issubclass(i.ty, ty)
+                if (c := i.cls) is not None:
+                    check.issubclass(c, ty)
 
 
 @dc.dataclass(frozen=True)
@@ -251,17 +326,27 @@ class DisjointPolymorphism(lang.Final):
             raise PolymorphismSubtypeError(f'Duplicate roots: {[p.root for p in self.polymorphisms]!r}')
 
     def merge_subtypes(self) -> SubtypeInfos:
-        # Identical entries arriving through multiple constituents (possible with subclass-related roots) collapse
-        # silently; a subtype claimed with differing tags is a real conflict.
-        by_ty: dict[type, SubtypeInfo] = {}
+        # Entries unify best-effort by fqcn when one is available (letting a lazy declaration collapse with its
+        # already-loaded class - preferring the concrete side, and *never* resolving) and by type identity otherwise.
+        # Identical claims arriving through multiple constituents collapse silently; a subtype claimed with differing
+        # tags - including two distinct concrete classes sharing an fqcn - is a real conflict.
+        merged: dict[str | lang.Identity, SubtypeInfo] = {}
         for p in self.polymorphisms:
             for i in p.subtypes:
-                if (x := by_ty.get(i.ty)) is None:
-                    by_ty[i.ty] = i
-                elif x != i:
-                    raise PolymorphismSubtypeError(f'Conflicting subtype merger for {i.ty!r}: {x!r}, {i!r}')
+                k: str | lang.Identity = i.fqcn or lang.Identity(i.ty)
+                if (x := merged.get(k)) is None:
+                    merged[k] = i
+                    continue
 
-        sts = SubtypeInfos(list(by_ty.values()))
+                if (x.tag, x.alts) != (i.tag, i.alts) or (
+                        x.cls is not None and i.cls is not None and x.cls is not i.cls
+                ):
+                    raise PolymorphismSubtypeError(f'Conflicting subtype merger for {k!r}: {x!r}, {i!r}')
+
+                if x.cls is None and i.cls is not None:
+                    merged[k] = i
+
+        sts = SubtypeInfos(list(merged.values()))
         sts.by_tag  # noqa  # Eagerly force cross-constituent tag collision detection.
         return sts
 

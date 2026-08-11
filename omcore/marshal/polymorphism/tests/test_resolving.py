@@ -8,6 +8,7 @@ from ...standard.factories import new_standard_marshaler_factory
 from ...standard.factories import new_standard_unmarshaler_factory
 from ..api import ConfigsSubtypeSource
 from ..api import ExplicitSubtypeSource
+from ..api import LazySubtype
 from ..api import PolymorphismSubtypeError
 from ..api import SubclassesSubtypeSource
 from ..api import SubtypeConfig
@@ -196,3 +197,16 @@ def test_impl_for_manifest_matching():
     OtherRoot.__qualname__ = 'Event'
 
     assert match_subtype_manifests(OtherRoot, vs) == []
+
+
+def test_manifest_lazy_construction():
+    # Mirrors the resolver's _manifest_raw_subtype: a manifest entry becomes a LazySubtype from static data alone -
+    # the fqcn is assembled without any import.
+    v = SubtypeManifest(
+        module='omfoo.agent.events',
+        attr='MessageSentEvent',
+        base='$.agent.types.Event',
+    )
+
+    lz = LazySubtype(f'{v.module}.{v.attr}', v.resolve)
+    assert lz.fqcn == 'omfoo.agent.events.MessageSentEvent'

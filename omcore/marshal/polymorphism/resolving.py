@@ -16,12 +16,12 @@ evaluated over the merged derived-name set) and naming translation, exactly mirr
 """
 import typing as ta
 
-from ... import check
 from ... import lang
 from ..api.contexts import BaseFactoryContext
 from ..api.naming import translate_name
 from .api import ConfigsSubtypeSource
 from .api import ExplicitSubtypeSource
+from .api import LazySubtype
 from .api import ManifestsSubtypeSource
 from .api import Polymorphism
 from .api import PolymorphismSubtypeError
@@ -30,6 +30,7 @@ from .api import SubtypeConfig
 from .api import SubtypeInfo
 from .api import SubtypeInfos
 from .api import _suffix_stripper
+from .api import opt_cls_fqcn
 from .manifests import SubtypeManifest
 from .specs import PolymorphismSpec
 from .specs import SubtypeSource
@@ -45,12 +46,10 @@ else:
 
 
 class _RawSubtype(ta.NamedTuple):
-    ty: type | None       # None until the manifest entry is resolved
-    name: str             # the derivation input - the subtype class name
-    tag: str | None       # explicit tag - skips derivation
+    ty: type | LazySubtype  # Never resolved during resolution - laziness survives all the way into the handlers.
+    name: str               # the derivation input - the subtype class name
+    tag: str | None         # explicit tag - skips derivation
     alts: tuple[str, ...]
-
-    resolve: ta.Callable[[], type] | None = None
 
 
 ##
@@ -78,11 +77,10 @@ def match_subtype_manifests(
 
 def _manifest_raw_subtype(v: SubtypeManifest) -> _RawSubtype:
     return _RawSubtype(
-        ty=None,
+        ty=LazySubtype(f'{v.module}.{v.attr}', v.resolve),
         name=v.attr,
         tag=v.tag,
         alts=tuple(v.alts or ()),
-        resolve=v.resolve,
     )
 
 
@@ -105,7 +103,7 @@ class _PolymorphismResolver:
             for i in source.subtypes:
                 raws.append(_RawSubtype(
                     ty=i.ty,
-                    name=i.ty.__name__,
+                    name=i.ty.fqcn.rsplit('.', 1)[-1] if isinstance(i.ty, LazySubtype) else i.ty.__name__,
                     tag=i.tag,
                     alts=tuple(i.alts),
                 ))
@@ -141,30 +139,42 @@ class _PolymorphismResolver:
     #
 
     def _merge_raws(self, raws: ta.Iterable[_RawSubtype]) -> list[_RawSubtype]:
-        # Eagerly resolve manifest entries (importing their modules), then dedupe by ty - the same class may arrive
-        # from several sources (a manifest-declared subtype is also found by the subclass scan once imported).
-        by_ty: dict[type, _RawSubtype] = {}
+        # Dedupe best-effort by fqcn when one is available (a manifest-declared subtype unifies with its class as
+        # found by the subclass scan once imported - preferring the concrete side and *never* resolving) and by type
+        # identity otherwise. Two distinct concrete classes sharing an fqcn are a real ambiguity.
+        merged: dict[str | lang.Identity, _RawSubtype] = {}
 
         for r in raws:
-            if (ty := r.ty) is None:
-                ty = check.isinstance(check.not_none(r.resolve)(), type)
-                r = r._replace(ty=ty, resolve=None)
+            if isinstance(r.ty, LazySubtype):
+                k: str | lang.Identity = r.ty.fqcn
+            else:
+                k = opt_cls_fqcn(r.ty) or lang.Identity(r.ty)
 
-            if (x := by_ty.get(ty)) is None:
-                by_ty[ty] = r
+            if (x := merged.get(k)) is None:
+                merged[k] = r
                 continue
+
+            if (
+                    isinstance(x.ty, type) and
+                    isinstance(r.ty, type) and
+                    x.ty is not r.ty
+            ):
+                raise PolymorphismSubtypeError(
+                    f'Distinct subtype classes sharing fqcn {k!r} for {self._spec.root!r}: {x.ty!r}, {r.ty!r}',
+                )
 
             if x.tag is not None and r.tag is not None and x.tag != r.tag:
                 raise PolymorphismSubtypeError(
-                    f'Conflicting explicit tags for subtype {ty!r} of {self._spec.root!r}: {x.tag!r}, {r.tag!r}',
+                    f'Conflicting explicit tags for subtype {k!r} of {self._spec.root!r}: {x.tag!r}, {r.tag!r}',
                 )
 
-            by_ty[ty] = x._replace(
+            merged[k] = x._replace(
+                ty=x.ty if isinstance(x.ty, type) else r.ty,
                 tag=x.tag if x.tag is not None else r.tag,
                 alts=(*x.alts, *(a for a in r.alts if a not in x.alts)),
             )
 
-        return list(by_ty.values())
+        return list(merged.values())
 
     def _derive_tags(self, raws: ta.Sequence[_RawSubtype]) -> list[SubtypeInfo]:
         spec = self._spec
@@ -185,7 +195,7 @@ class _PolymorphismResolver:
                     tag = translate_name(tag, spec.naming)
 
             out.append(SubtypeInfo(
-                check.not_none(r.ty),
+                r.ty,
                 tag,
                 frozenset(r.alts),
             ))
@@ -211,16 +221,24 @@ class _PolymorphismResolver:
         if any(m is self._spec.root for m in only):
             return poly
 
-        out: dict[type, SubtypeInfo] = {}
+        out: dict[str | lang.Identity, SubtypeInfo] = {}
         for m in only:
             if (i := poly.subtypes.by_ty.get(m)) is not None:
-                out[m] = i
+                out[i.fqcn or lang.Identity(i.ty)] = i
+            elif (
+                    (mf := opt_cls_fqcn(m)) is not None and
+                    (i := poly.subtypes.lazy_by_fqcn.get(mf)) is not None
+            ):
+                # The member class is loaded (it appeared in an annotation) but was resolved as a lazy declaration.
+                out[mf] = i
             elif (
                     lang.is_abstract(m) and
                     issubclass(m, self._spec.root) and
-                    (covered := [c for c in poly.subtypes if issubclass(c.ty, m)])
+                    # Abstract-intermediate expansion covers concrete entries only - lazy entries cannot be
+                    # subclass-tested without importing.
+                    (covered := [c for c in poly.subtypes if c.cls is not None and issubclass(c.cls, m)])
             ):
-                out.update({c.ty: c for c in covered})
+                out.update({(c.fqcn or lang.Identity(c.ty)): c for c in covered})
             else:
                 raise PolymorphismSubtypeError(
                     f'Union member {m!r} is not a resolved subtype (or covering base) of {self._spec.root!r}',

@@ -14,6 +14,7 @@ from ..api.types import UnmarshalerFactory
 from ..api.values import Value
 from .api import DisjointPolymorphism
 from .api import FieldTypeTagging
+from .api import LazySubtype
 from .api import Polymorphism
 from .api import PolymorphismTagError
 from .api import SubtypeInfos
@@ -70,6 +71,26 @@ class FieldPolymorphismUnmarshaler(PolymorphismUnmarshaler):
         return u.unmarshal(ctx, ma)
 
 
+@dc.dataclass(frozen=True)
+class _LazySubtypeUnmarshaler(Unmarshaler):
+    """
+    Stands in for a lazily-declared subtype's unmarshaler: the first hit of its tag imports the class - and nothing
+    else's.
+    """
+
+    lz: LazySubtype
+
+    def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any:
+        ty = self.lz.resolve()
+
+        # FIXME: naughty - see AnyMarshalerUnmarshaler. Deliberately unmemoized: the runtime's cache makes the
+        # re-entry near-free and keeps this invalidation-correct (the lazily-imported module may itself register
+        # configs).
+        u = ctx.runtime.make_unmarshaler(UnmarshalFactoryContext(runtime=ctx.runtime), ty)
+
+        return u.unmarshal(ctx, v)
+
+
 def make_polymorphism_unmarshaler(
         subtypes: SubtypeInfos,
         tt: TypeTagging,
@@ -77,12 +98,15 @@ def make_polymorphism_unmarshaler(
 ) -> Unmarshaler:
     check.not_empty(subtypes)
 
-    m = {
-        t: u
-        for i in subtypes
-        for u in [ctx.make_unmarshaler(i.ty)]
-        for t in [i.tag, *i.alts]
-    }
+    m: dict[str, Unmarshaler] = {}
+    for i in subtypes:
+        u: Unmarshaler
+        if (c := i.cls) is not None:
+            u = ctx.make_unmarshaler(c)
+        else:
+            u = _LazySubtypeUnmarshaler(check.isinstance(i.ty, LazySubtype))
+        for t in (i.tag, *i.alts):
+            m[t] = u
 
     if isinstance(tt, WrapperTypeTagging):
         return WrapperPolymorphismUnmarshaler(m)

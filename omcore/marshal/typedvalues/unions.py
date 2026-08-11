@@ -40,7 +40,7 @@ def _build_typed_value_union_poly(ctx: BaseContext, rty: rfl.Type) -> SubtypeInf
         # Mirrors how TypedValueMarshalerFactory builds abstract tv polymorphisms - computed directly rather than
         # scraped off a constructed handler.
         return [
-            i.ty
+            i.resolve()  # From-subclasses entries are always concrete - this never imports.
             for i in polymorphism_from_subclasses(
                 sty,
                 naming=CasingNaming(lang.SNAKE_CASE),

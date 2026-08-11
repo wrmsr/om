@@ -6,6 +6,7 @@ from .api import DisjointPolymorphism
 from .api import Polymorphism
 from .api import SubtypeInfo
 from .api import SubtypeInfos
+from .api import opt_cls_fqcn
 
 
 ##
@@ -19,15 +20,40 @@ def _root_matches(rty: rfl.Type, key: ta.Any) -> bool:
 
 
 def _covered_subtypes(p: Polymorphism, cls: type) -> ta.Sequence[SubtypeInfo] | None:
-    """The subtypes an abstract intermediate covers - computed on demand rather than recorded at scan time."""
+    """
+    The subtypes an abstract intermediate covers - computed on demand rather than recorded at scan time. Covers
+    concrete entries only: lazy entries cannot be subclass-tested without importing.
+    """
 
     if not (isinstance(p.root, type) and lang.is_abstract(cls) and issubclass(cls, p.root)):
         return None
 
-    if not (covered := [i for i in p.subtypes if issubclass(i.ty, cls)]):
+    if not (covered := [i for i in p.subtypes if (c := i.cls) is not None and issubclass(c, cls)]):
         return None
 
     return covered
+
+
+def _member_subtypes(p: Polymorphism, t: type) -> ta.Sequence[SubtypeInfo] | None:
+    """
+    The subtypes a single union member claims of a polymorphism - the member may be the root, a concrete subtype, or
+    a covering abstract intermediate.
+    """
+
+    if t is p.root:
+        return list(p.subtypes)
+
+    if (i := p.subtypes.by_ty.get(t)) is not None:
+        return [i]
+
+    # A loaded member class may have been resolved as a lazy declaration - unify by fqcn.
+    if (tf := opt_cls_fqcn(t)) is not None and (i := p.subtypes.lazy_by_fqcn.get(tf)) is not None:
+        return [i]
+
+    return _covered_subtypes(p, t)
+
+
+##
 
 
 def get_polymorphism_subtypes(
@@ -60,34 +86,16 @@ def get_polymorphism_union_subtypes(
     if any(t is None for t in tys):
         return None
 
-    out: dict[type, SubtypeInfo] = {}
+    out: dict[int, SubtypeInfo] = {}
     for t in ta.cast('set[type]', set(tys)):
-        if (i := p.subtypes.by_ty.get(t)) is not None:
-            out[t] = i
-        elif (covered := _covered_subtypes(p, t)) is not None:
-            out.update({c.ty: c for c in covered})
-        else:
+        if (ms := _member_subtypes(p, t)) is None:
             return None
+        out.update({id(i): i for i in ms})
 
     return SubtypeInfos(list(out.values()))
 
 
 ##
-
-
-def _member_subtypes(p: Polymorphism, t: type) -> ta.Sequence[SubtypeInfo] | None:
-    """
-    The subtypes a single union member claims of a polymorphism - the member may be the root, a concrete subtype,
-    or a covering abstract intermediate.
-    """
-
-    if t is p.root:
-        return list(p.subtypes)
-
-    if (i := p.subtypes.by_ty.get(t)) is not None:
-        return [i]
-
-    return _covered_subtypes(p, t)
 
 
 def get_disjoint_polymorphism_subtypes(
@@ -104,11 +112,11 @@ def get_disjoint_polymorphism_subtypes(
     if any(t is None for t in tys):
         return None
 
-    out: dict[type, SubtypeInfo] = {}
+    out: dict[int, SubtypeInfo] = {}
     for t in ta.cast('set[type]', set(tys)):
         for p in dp.polymorphisms:
             if (m_sts := _member_subtypes(p, t)) is not None:
-                out.update({i.ty: i for i in m_sts})
+                out.update({id(i): i for i in m_sts})
                 break
         else:
             return None
