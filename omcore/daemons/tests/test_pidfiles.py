@@ -1,4 +1,5 @@
 import datetime
+import uuid
 
 import pytest
 
@@ -19,7 +20,7 @@ from ..pidfiles import parse_daemon_pidfile_info
 def _info() -> DaemonPidfileInfo:
     return DaemonPidfileInfo(
         pid=12345,
-        instance_id='0123456789abcdef',
+        instance_id=uuid.UUID('01234567-89ab-cdef-0123-456789abcdef'),
         started_at=datetime.datetime(2026, 8, 10, 12, 34, 56, 789, tzinfo=datetime.UTC),
     )
 
@@ -36,7 +37,7 @@ def test_daemon_pidfile_info_is_lite_marshal_compatible_compact_json():
     assert '\r' not in suffix
     assert json.loads(suffix) == {
         'pid': 12345,
-        'instance_id': '0123456789abcdef',
+        'instance_id': '01234567-89ab-cdef-0123-456789abcdef',
         'started_at': '2026-08-10T12:34:56.000789+00:00',
         'format': DAEMON_PIDFILE_FORMAT,
         'format_version': DAEMON_PIDFILE_FORMAT_VERSION,
@@ -51,6 +52,14 @@ def test_daemon_pidfile_info_parser_supports_legacy_and_future_optional_fields()
 
     assert parse_daemon_pidfile_info('12345\n') is None
     assert parse_daemon_pidfile_info(f'12345\n{json.dumps_compact(suffix_obj)}\n') == info
+
+
+def test_daemon_pidfile_info_parser_rejects_invalid_uuid():
+    suffix_obj = json.loads(dumps_daemon_pidfile_info(_info()))
+    suffix_obj['instance_id'] = 'not-a-uuid'
+
+    with pytest.raises(DaemonPidfileInfoError, match='Invalid daemon pidfile info'):
+        parse_daemon_pidfile_info(f'12345\n{json.dumps_compact(suffix_obj)}\n')
 
 
 @pytest.mark.parametrize(('raw', 'match'), [
@@ -68,6 +77,6 @@ def test_daemon_pidfile_info_requires_aware_utc_start_time():
     with pytest.raises(DaemonPidfileInfoError, match='aware UTC'):
         dumps_daemon_pidfile_info(DaemonPidfileInfo(
             pid=12345,
-            instance_id='0123456789abcdef',
+            instance_id=uuid.UUID('01234567-89ab-cdef-0123-456789abcdef'),
             started_at=datetime.datetime(2026, 8, 10),  # noqa: DTZ001
         ))

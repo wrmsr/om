@@ -3,6 +3,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import uuid
 
 from .testing import TEST_TIMEOUT_S
 from .testing import read_locked_daemon_pidfile_info
@@ -43,6 +44,7 @@ def test_llm_demo_cli_lazily_spawns_then_connects_to_same_service():
             assert first.stdout.strip() == 'Fascintating! Tell me more about background workers'
 
             first_info = read_locked_daemon_pidfile_info(pid_file)
+            assert isinstance(first_info.instance_id, uuid.UUID)
             worker_pid = first_info.pid
 
             second = run('Unix sockets')

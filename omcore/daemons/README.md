@@ -111,7 +111,7 @@ passes the same open file description into the worker. The final worker writes:
 
 ```jsonl
 54821
-{"pid":54821,"instance_id":"a782...","started_at":"2026-08-10T22:45:12.123456+00:00","format":"omcore.daemon.pidfile","format_version":1}
+{"pid":54821,"instance_id":"019c4c5e-8654-7f8f-8d8d-706715fd1d08","started_at":"2026-08-10T22:45:12.123456+00:00","format":"omcore.daemon.pidfile","format_version":1}
 ```
 
 The first line remains a bare integer for existing `Pidfile` APIs and Unix tooling. The second line is compact JSON
@@ -119,8 +119,8 @@ produced from the `omcore.lite.marshal`-compatible `DaemonPidfileInfo` dataclass
 first line. Old one-line pidfiles remain readable.
 
 The file is not a heartbeat. Its record is authoritative only while the file is locked; stale contents may remain
-after exit. Each successful launch receives a new `instance_id`, and an RPC service launched under that daemon exposes
-the same ID in its protocol handshake.
+after exit. Each successful launch receives a new `uuid.UUID` `instance_id`, and an RPC service launched under that
+daemon exposes the same UUID in its protocol handshake.
 
 ## Lazy service behavior
 

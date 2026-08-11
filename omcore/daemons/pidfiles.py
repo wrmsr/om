@@ -21,7 +21,7 @@ DAEMON_PIDFILE_FORMAT_VERSION: ta.Final = 1
 @dc.dataclass(frozen=True)
 class DaemonPidfileInfo:
     pid: int
-    instance_id: str
+    instance_id: uuid.UUID
     started_at: datetime.datetime
 
     format: ta.Literal['omcore.daemon.pidfile'] = DAEMON_PIDFILE_FORMAT
@@ -35,7 +35,7 @@ class DaemonPidfileInfoError(ValueError):
 def _validate_daemon_pidfile_info(info: DaemonPidfileInfo) -> DaemonPidfileInfo:
     if not isinstance(info.pid, int) or isinstance(info.pid, bool) or info.pid <= 0:
         raise DaemonPidfileInfoError(f'Invalid daemon pid: {info.pid!r}')
-    if not isinstance(info.instance_id, str) or not info.instance_id:
+    if not isinstance(info.instance_id, uuid.UUID):
         raise DaemonPidfileInfoError(f'Invalid daemon instance id: {info.instance_id!r}')
     if not isinstance(info.started_at, datetime.datetime) or info.started_at.utcoffset() != datetime.timedelta():
         raise DaemonPidfileInfoError(f'Daemon start time is not an aware UTC datetime: {info.started_at!r}')
@@ -49,7 +49,7 @@ def _validate_daemon_pidfile_info(info: DaemonPidfileInfo) -> DaemonPidfileInfo:
 def make_daemon_pidfile_info() -> DaemonPidfileInfo:
     return DaemonPidfileInfo(
         pid=os.getpid(),
-        instance_id=uuid.uuid7().hex,
+        instance_id=uuid.uuid7(),
         started_at=datetime.datetime.now(datetime.UTC),
     )
 

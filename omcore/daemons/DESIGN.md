@@ -134,7 +134,7 @@ A current daemon pidfile has two JSONL-compatible lines:
 `DaemonPidfileInfo` contains:
 
 - `pid`: duplicate, self-contained PID which must match line one;
-- `instance_id`: a random identifier unique to this launch;
+- `instance_id`: a `uuid.UUID` unique to this launch and marshaled in canonical hyphenated form;
 - `started_at`: an aware UTC datetime created after final reparenting;
 - `format`: `omcore.daemon.pidfile`; and
 - `format_version`: currently `1`.

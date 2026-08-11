@@ -45,9 +45,9 @@ class LazySocketService(RuntimeService['LazySocketService.Config']):
     def __init__(self, config: Config) -> None:
         super().__init__(config)
 
-    def _record_launch(self, instance: str) -> None:
+    def _record_launch(self, instance: uuid.UUID) -> None:
         data = json.dumps({
-            'instance': instance,
+            'instance': str(instance),
             'pid': os.getpid(),
         }).encode('utf-8') + b'\n'
 
@@ -63,7 +63,7 @@ class LazySocketService(RuntimeService['LazySocketService.Config']):
             os.close(fd)
 
     def _run_runtime(self, runtime: ServiceRuntime) -> None:
-        instance = uuid.uuid7().hex
+        instance = uuid.uuid7()
 
         try:
             os.unlink(self.config.socket_path)
@@ -122,7 +122,7 @@ class LazySocketService(RuntimeService['LazySocketService.Config']):
 
                                         _send_json(conn, {
                                             'command': command,
-                                            'instance': instance,
+                                            'instance': str(instance),
                                             'pid': os.getpid(),
                                             'value': request.get('value'),
                                         })

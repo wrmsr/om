@@ -7,6 +7,7 @@ import socket
 import tempfile
 import threading
 import typing as ta
+import uuid
 
 import pytest
 
@@ -236,6 +237,7 @@ def test_lazy_rpc_concurrent_calls_remote_error_and_idle_exit():
             process = find_multiprocessing_child(worker_pid)
             pidfile_info = read_locked_daemon_pidfile_info(pid_file)
             assert pidfile_info.pid == worker_pid
+            assert isinstance(pidfile_info.instance_id, uuid.UUID)
             assert client.ping() == pidfile_info.instance_id
 
             with pytest.raises(RpcRemoteError) as exc_info:
@@ -270,6 +272,7 @@ def test_rpc_same_request_is_executed_once_after_response_is_abandoned():
             )
             with client.connect() as conn:
                 instance_id = conn.instance_id
+                assert isinstance(instance_id, uuid.UUID)
                 conn.send(request)
 
             result = client.call_request(

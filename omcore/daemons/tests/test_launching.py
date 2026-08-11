@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import uuid
 import warnings
 
 import pytest
@@ -139,7 +140,7 @@ def test_launcher_pidfile_single_instance_and_lifecycle(kind):
 
         assert locked_pid == worker_pid
         assert pidfile_info.pid == worker_pid
-        assert pidfile_info.instance_id == info['instance_id']
+        assert pidfile_info.instance_id == uuid.UUID(info['instance_id'])
         assert pidfile_info.started_at.utcoffset() == datetime.timedelta()
         assert not second_launched
         assert info['label'] == kind

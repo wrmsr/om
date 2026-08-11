@@ -80,8 +80,8 @@ class RpcCallIndeterminateError(RpcError):
             self,
             request: RpcRequest,
             *,
-            instance_id: str,
-            actual_instance_id: str | None = None,
+            instance_id: uuid.UUID,
+            actual_instance_id: uuid.UUID | None = None,
     ) -> None:
         if actual_instance_id is None:
             detail = f'response from service instance {instance_id!r} was lost'
@@ -101,11 +101,11 @@ class RpcCallIndeterminateError(RpcError):
         return self._request
 
     @property
-    def instance_id(self) -> str:
+    def instance_id(self) -> uuid.UUID:
         return self._instance_id
 
     @property
-    def actual_instance_id(self) -> str | None:
+    def actual_instance_id(self) -> uuid.UUID | None:
         return self._actual_instance_id
 
 
@@ -199,12 +199,12 @@ def _exception_type_name(exc: BaseException) -> str:
     return f'{cls.__module__}.{cls.__qualname__}'
 
 
-def _hello_message(*, version: int, instance_id: str | None = None) -> ta.Mapping[str, ta.Any]:
+def _hello_message(*, version: int, instance_id: uuid.UUID | None = None) -> ta.Mapping[str, ta.Any]:
     return {
         'type': 'hello',
         'protocol': RPC_PROTOCOL_NAME,
         'version': version,
-        **({'instance_id': instance_id} if instance_id is not None else {}),
+        **({'instance_id': str(instance_id)} if instance_id is not None else {}),
     }
 
 
@@ -256,7 +256,7 @@ class RpcClientConnection(lang.Final):
             self,
             sock: socket.socket,
             *,
-            instance_id: str,
+            instance_id: uuid.UUID,
             max_frame_bytes: int,
     ) -> None:
         super().__init__()
@@ -269,7 +269,7 @@ class RpcClientConnection(lang.Final):
         self._response_received = False
 
     @property
-    def instance_id(self) -> str:
+    def instance_id(self) -> uuid.UUID:
         return self._instance_id
 
     @property
@@ -457,9 +457,13 @@ class RpcClient(lang.Final):
                     f'RPC protocol version mismatch: '
                     f'client={self._config.protocol_version}, server={hello.get("version")!r}',
                 )
-            instance_id = hello.get('instance_id')
-            if not isinstance(instance_id, str) or not instance_id:
-                raise RpcProtocolError(f'Invalid RPC service instance id: {instance_id!r}')
+            raw_instance_id = hello.get('instance_id')
+            if not isinstance(raw_instance_id, str) or not raw_instance_id:
+                raise RpcProtocolError(f'Invalid RPC service instance id: {raw_instance_id!r}')
+            try:
+                instance_id = uuid.UUID(raw_instance_id)
+            except ValueError as exc:
+                raise RpcProtocolError(f'Invalid RPC service instance id: {raw_instance_id!r}') from exc
 
             return RpcClientConnection(
                 sock,
@@ -474,7 +478,7 @@ class RpcClient(lang.Final):
             close_socket_immediately(sock)
             raise RpcUnavailableError(str(exc)) from exc
 
-    def ping(self) -> str:
+    def ping(self) -> uuid.UUID:
         with self.connect() as conn:
             return conn.instance_id
 
@@ -482,7 +486,7 @@ class RpcClient(lang.Final):
             self,
             request: RpcRequest,
             *,
-            expected_instance_id: str | None = None,
+            expected_instance_id: uuid.UUID | None = None,
     ) -> ta.Any:
         with self.connect() as conn:
             if expected_instance_id is not None and conn.instance_id != expected_instance_id:
@@ -530,7 +534,7 @@ class LazyRpcClient(lang.Final):
             timeout: lang.TimeoutLike = lang.Timeout.DEFAULT,
     ) -> ta.Any:
         request = self._client.new_request(method, params)
-        expected_instance_id: str | None = None
+        expected_instance_id: uuid.UUID | None = None
 
         def attempt() -> ta.Any:
             nonlocal expected_instance_id
@@ -789,7 +793,7 @@ class RpcService(RuntimeService['RpcService.Config']):
             self,
             conn: socket.socket,
             *,
-            instance_id: str,
+            instance_id: uuid.UUID,
             runtime: ServiceRuntime,
             responses: _RpcResponseCache,
     ) -> None:
@@ -869,7 +873,7 @@ class RpcService(RuntimeService['RpcService.Config']):
         if (pidfile_info := current_daemon_pidfile_info()) is not None:
             instance_id = pidfile_info.instance_id
         else:
-            instance_id = uuid.uuid7().hex
+            instance_id = uuid.uuid7()
         responses = _RpcResponseCache(
             self.config.handler,
             max_entries=self.config.response_cache_size,

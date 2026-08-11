@@ -104,7 +104,7 @@ def run_controlled_worker(
             'ppid': os.getppid(),
             'probe_fd_open': probe_fd_open,
             'sid': os.getsid(0),
-            'instance_id': pidfile_info.instance_id if pidfile_info is not None else None,
+            'instance_id': str(pidfile_info.instance_id) if pidfile_info is not None else None,
         }).encode('utf-8') + b'\n')
 
         if sock.recv(1) != b'X':
