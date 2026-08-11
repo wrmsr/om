@@ -54,8 +54,8 @@ def _marshal_lazy_subtype(
         tag, lst = lt
         ty = lst.resolve()
 
-        # FIXME: naughty - see AnyMarshalerUnmarshaler. Deliberately unmemoized: the runtime's cache makes the
-        # re-entry near-free and keeps this invalidation-correct.
+        # FIXME: naughty - see AnyMarshalerUnmarshaler. Deliberately unmemoized: the runtime's cache makes the re-entry
+        # near-free and keeps this invalidation-correct.
         m = ctx.runtime.make_marshaler(MarshalFactoryContext(runtime=ctx.runtime), ty)
 
         return tag, m.marshal(ctx, o)

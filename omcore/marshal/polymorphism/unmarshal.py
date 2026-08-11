@@ -83,9 +83,8 @@ class _LazySubtypeUnmarshaler(Unmarshaler):
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any:
         ty = self.lz.resolve()
 
-        # FIXME: naughty - see AnyMarshalerUnmarshaler. Deliberately unmemoized: the runtime's cache makes the
-        # re-entry near-free and keeps this invalidation-correct (the lazily-imported module may itself register
-        # configs).
+        # FIXME: naughty - see AnyMarshalerUnmarshaler. Deliberately unmemoized: the runtime's cache makes the re-entry
+        # near-free and keeps this invalidation-correct (the lazily-imported module may itself register configs).
         u = ctx.runtime.make_unmarshaler(UnmarshalFactoryContext(runtime=ctx.runtime), ty)
 
         return u.unmarshal(ctx, v)
