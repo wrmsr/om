@@ -8,7 +8,10 @@ Run:  python3 demo_tty.py [file]      Quit: Ctrl-Q
 import curses
 import sys
 
-from mini_vim import ESC, Engine, ListBuffer, Mode
+from mini_vim import Engine
+from mini_vim import ListBuffer
+from mini_vim import Mode
+
 
 SAMPLE = """def greet(name, punct):
     message = "hello, " + name
@@ -23,15 +26,15 @@ Try: dw ciw di( f( ; 2dd yy p >> u . ve V"""
 def decode(wch) -> str:
     """Map curses keys to the engine's key alphabet (plain chars + ESC)."""
     if isinstance(wch, str):
-        return "\x7f" if wch == "\x08" else wch          # unify backspace
-    return {curses.KEY_BACKSPACE: "\x7f", curses.KEY_ENTER: "\n",
-            curses.KEY_LEFT: "h", curses.KEY_RIGHT: "l",
-            curses.KEY_UP: "k", curses.KEY_DOWN: "j"}.get(wch, "")
+        return '\x7f' if wch == '\x08' else wch          # unify backspace
+    return {curses.KEY_BACKSPACE: '\x7f', curses.KEY_ENTER: '\n',
+            curses.KEY_LEFT: 'h', curses.KEY_RIGHT: 'l',
+            curses.KEY_UP: 'k', curses.KEY_DOWN: 'j'}.get(wch, '')
 
 
 def main(stdscr):
     text = open(sys.argv[1]).read() if len(sys.argv) > 1 else SAMPLE
-    eng = Engine(ListBuffer(text.rstrip("\n")))
+    eng = Engine(ListBuffer(text.rstrip('\n')))
     curses.raw()
     stdscr.keypad(True)
     curses.set_escdelay(25)  # make ESC feel instant
@@ -50,14 +53,14 @@ def main(stdscr):
         for y in range(view_h):
             r = top + y
             if r >= eng.buf.line_count():
-                stdscr.addstr(y, 0, "~", curses.A_DIM)
+                stdscr.addstr(y, 0, '~', curses.A_DIM)
             else:
                 stdscr.addnstr(y, 0, eng.buf.get_line(r), w - 1)
-        mode = {Mode.NORMAL: "", Mode.INSERT: "-- INSERT --",
-                Mode.VISUAL: "-- VISUAL --",
-                Mode.VISUAL_LINE: "-- VISUAL LINE --"}[eng.mode]
-        pos = f"{eng.cursor.row + 1},{eng.cursor.col + 1}"
-        stdscr.addnstr(h - 1, 0, f"{mode:<20}{pos:>{max(0, w - 22)}}",
+        mode = {Mode.NORMAL: '', Mode.INSERT: '-- INSERT --',
+                Mode.VISUAL: '-- VISUAL --',
+                Mode.VISUAL_LINE: '-- VISUAL LINE --'}[eng.mode]
+        pos = f'{eng.cursor.row + 1},{eng.cursor.col + 1}'
+        stdscr.addnstr(h - 1, 0, f'{mode:<20}{pos:>{max(0, w - 22)}}',
                        w - 1, curses.A_REVERSE)
         col = eng.cursor.col
         if eng.mode is not Mode.INSERT:  # normal cursor can't pass last char
@@ -66,12 +69,12 @@ def main(stdscr):
         stdscr.refresh()
 
         wch = stdscr.get_wch()
-        if wch == "\x11":                                # Ctrl-Q quits
+        if wch == '\x11':                                # Ctrl-Q quits
             return
         key = decode(wch)
         if key:
             eng.feed(key)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     curses.wrapper(main)

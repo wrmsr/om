@@ -79,7 +79,7 @@ def guard(ok: bool) -> ListM[None]:
 def list_do(fn: ta.Callable[P, ta.Coroutine[ta.Any, ta.Any, R]]) -> ta.Callable[P, ListM[R]]:
     @functools.wraps(fn)
     def inner(*args: P.args, **kwargs: P.kwargs) -> ListM[R]:
-        return ta.cast(ListM[R], run_do(ListM.pure, fn, *args, **kwargs))
+        return ta.cast('ListM[R]', run_do(ListM.pure, fn, *args, **kwargs))
 
     return inner
 
@@ -129,7 +129,7 @@ def condition(ok: bool) -> DistM[None]:
 def dist_do(fn: ta.Callable[P, ta.Coroutine[ta.Any, ta.Any, R]]) -> ta.Callable[P, DistM[R]]:
     @functools.wraps(fn)
     def inner(*args: P.args, **kwargs: P.kwargs) -> DistM[R]:
-        return ta.cast(DistM[R], run_do(DistM.pure, fn, *args, **kwargs))
+        return ta.cast('DistM[R]', run_do(DistM.pure, fn, *args, **kwargs))
 
     return inner
 
