@@ -456,11 +456,11 @@ curl -LsSf 'https://raw.githubusercontent.com/wrmsr/om/master/omdev/cli/install.
   orjson \
   pyyaml \
   \
-  textual \
-  textual-speedups \
-  \
   pg8000 \
   pymysql \
+  \
+  textual \
+  textual-speedups \
 ;\
 )
 
