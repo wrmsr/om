@@ -1,8 +1,9 @@
 """
 TODO:
  - rename 'shell', include user shell in tool desc
+ - safe env subset
 """
-import asyncio
+import os
 import shutil
 import typing as ta
 
@@ -14,6 +15,8 @@ from ...permissions.types import PermissionDecider
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
+from ..ops import ShellExecuteParams
+from ..ops import ShellOps
 
 
 ##
@@ -45,10 +48,12 @@ class BashTool(ToolClass[BashParams]):
             self,
             *,
             permissions: PermissionDecider,
+            shell: ShellOps,
     ) -> None:
         super().__init__()
 
         self._permissions = permissions
+        self._shell = shell
 
     async def execute(self, ctx: ToolContext, params: BashParams) -> str:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
@@ -56,25 +61,14 @@ class BashTool(ToolClass[BashParams]):
 
         await self._permissions.check_allowed(ctx, ShellPermissionTarget(params.command))
 
-        proc = await asyncio.create_subprocess_exec(
-            check.not_none(shutil.which('bash')),
-            '-c',
-            params.command,
+        result = await self._shell.shell_execute(ShellExecuteParams(
+            [
+                check.not_none(shutil.which('bash')),
+                '-c',
+                params.command,
+            ],
             cwd=cwd,
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            start_new_session=True,
-        )
+            env=dict(os.environ),
+        ))
 
-        try:
-            stdout, stderr = await asyncio.wait_for(  # noqa
-                proc.communicate(),
-                timeout=params.timeout_s,
-            )
-        except TimeoutError:
-            proc.kill()
-            await proc.wait()
-            raise
-
-        return check.not_none(stdout).decode('utf-8')
+        return check.not_none(result.stdout).decode('utf-8')

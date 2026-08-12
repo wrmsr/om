@@ -18,6 +18,14 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
+    from .fs.ops import (  # noqa
+        FsOps,
+
+        LocalFsOps,
+    )
+
+    ##
+
     from .permissions.collection import (  # noqa
         PermissionRules,
     )
@@ -64,6 +72,16 @@ with _lang.auto_proxy_init(globals()):
     from .permissions.url import (  # noqa
         UrlPermissionTarget,
         RegexUrlPermissionMatcher,
+    )
+
+    ##
+
+    from .shell.ops import (  # noqa
+        ShellExecuteParams,
+        ShellExecuteResult,
+        ShellOps,
+
+        LocalShellOps,
     )
 
     ##

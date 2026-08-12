@@ -212,4 +212,4 @@ class RichTextDisplayer(TextDisplayer):
         self._renderer = renderer if renderer is not None else RichTextRenderer()
 
     async def display_text(self, text: CanText) -> None:
-        self._console.print(self._renderer.render(text))
+        self._console.print(self._renderer.render(text), end='')

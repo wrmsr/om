@@ -213,3 +213,14 @@ class SequenceNotStr(ta.Protocol[T_co]):
     def count(self, value: ta.Any, /) -> int: ...
 
     def __reversed__(self) -> ta.Iterator[T_co]: ...
+
+
+##
+
+
+class SupportsRead(ta.Protocol[T_co]):
+    def read(self, length: int = ..., /) -> T_co: ...
+
+
+class SupportsWrite(ta.Protocol[T_contra]):
+    def write(self, s: T_contra, /) -> object: ...

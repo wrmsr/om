@@ -1,3 +1,4 @@
+import abc
 import argparse
 import asyncio
 import functools
@@ -8,6 +9,7 @@ import uuid
 
 from omcore import check
 from omcore import dataclasses as dc
+from omcore import inject as inj
 from omcore import lang
 from omdev.home.paths import get_home_paths
 from omdev.home.secrets import load_secrets
@@ -23,6 +25,7 @@ from ...agent.fs.tools.read import ReadTool
 from ...agent.fs.tools.write import WriteTool
 from ...agent.shell.tools.bash import BashTool
 from ...core import ui
+from ...core.eventbus import EventSubscriber
 from ...harness.commands.permissions import PermissionsCommand
 from ...harness.commands.simple import EchoCommand
 from ...harness.commands.simple import QuitCommand
@@ -134,6 +137,71 @@ def build_rich_text_displayer() -> ui.RichTextDisplayer:
 ##
 
 
+class AgentEventDisplayer(lang.Abstract):
+    def __init__(self, text_displayer: ui.TextDisplayer) -> None:
+        super().__init__()
+
+        self._text_displayer = text_displayer
+
+    @abc.abstractmethod
+    def on_event(self, ev: agn.Event) -> ta.Awaitable[None]:
+        raise NotImplementedError
+
+
+class VerbosePrinter(AgentEventDisplayer):
+    async def on_event(self, ev: agn.Event) -> None:
+        print(ev)
+
+
+class ImmediateResponsePrinter(AgentEventDisplayer):
+    async def on_event(self, ev: agn.Event) -> None:
+        if isinstance(ev, agn.TurnEndEvent):
+            if isinstance(msg := ev.message, llm.AiMessage):
+                for c in msg.content:
+                    if isinstance(c, llm.TextContent):
+                        if (s := c.text.strip()):
+                            await self._text_displayer.display_text(ui.MarkdownText(s))
+
+
+class StreamResponsePrinter(AgentEventDisplayer):
+    async def on_event(self, ev: agn.Event) -> None:
+        if isinstance(ev, agn.LlmAiStreamEvent):
+            lev = ev.event
+
+            if isinstance(lev, llm.TextDeltaAiStreamEvent):
+                await self._text_displayer.display_text(lev.text)
+
+            elif isinstance(lev, llm.TextEndAiStreamEvent):
+                await self._text_displayer.display_text('\n')
+
+
+##
+
+
+AgentEventSubscribers = ta.NewType('AgentEventSubscribers', ta.Sequence[EventSubscriber[agn.Event]])
+
+
+@lang.cached_function
+def agent_event_subscribers() -> inj.ItemsBinderHelper[EventSubscriber[agn.Event]]:
+    return inj.items_binder_helper[EventSubscriber[agn.Event]](AgentEventSubscribers)
+
+
+AgentTools = ta.NewType('AgentTools', ta.Sequence[agn.Tool])
+
+
+@lang.cached_function
+def agent_tools() -> inj.ItemsBinderHelper[agn.Tool]:
+    return inj.items_binder_helper[agn.Tool](AgentTools)
+
+
+@lang.cached_function
+def harness_commands() -> inj.ItemsBinderHelper[har.Command]:
+    return inj.items_binder_helper[har.Command](har.Commands)
+
+
+##
+
+
 async def _a_main() -> None:
     parser = argparse.ArgumentParser()
 
@@ -174,7 +242,9 @@ async def _a_main() -> None:
 
     #
 
-    input_manager = InputManager()
+    bindings: list[inj.Elemental] = []
+
+    bindings.append(inj.bind(InputManager, singleton=True))
 
     #
 
@@ -183,38 +253,43 @@ async def _a_main() -> None:
         **(dict(api_key=load_secrets().get(api_key_name)) if api_key_name is not None else {}),  # type: ignore  # noqa
     )
 
-    text_displayer = build_rich_text_displayer()
+    bindings.extend([
+        inj.bind(build_rich_text_displayer, singleton=True),
+        inj.bind(ui.TextDisplayer, to_key=ui.RichTextDisplayer),
+    ])
 
-    async def on_event(ev: agn.Event) -> None:
-        if args.verbose:
-            print(ev)
+    if args.verbose:
+        bindings.extend([
+            inj.bind(VerbosePrinter, singleton=True),
+            agent_event_subscribers().bind_item(to_fn=inj.target(o=VerbosePrinter)(lambda o: o.on_event)),
+        ])
 
-        if isinstance(ev, agn.LlmAiStreamEvent):
-            lev = ev.event
+    if args.stream:
+        bindings.extend([
+            inj.bind(StreamResponsePrinter, singleton=True),
+            agent_event_subscribers().bind_item(to_fn=inj.target(o=StreamResponsePrinter)(lambda o: o.on_event)),
+        ])
 
-            if isinstance(lev, llm.TextDeltaAiStreamEvent):
-                if args.stream:
-                    print(lev.text, end='')
+    else:
+        bindings.extend([
+            inj.bind(ImmediateResponsePrinter, singleton=True),
+            agent_event_subscribers().bind_item(to_fn=inj.target(o=ImmediateResponsePrinter)(lambda o: o.on_event)),
+        ])
 
-            elif isinstance(lev, llm.TextEndAiStreamEvent):
-                if args.stream:
-                    print()
+    bindings.append(inj.bind(
+        agn.BackendManager,
+        to_const=agn.DictBackendManager({
+            llm.ImmediateBackend: {None: backend},  # type: ignore[type-abstract]
+        }),
+    ))
 
-        if isinstance(ev, agn.TurnEndEvent):
-            if isinstance(msg := ev.message, llm.AiMessage):
-                if not args.stream:
-                    for c in msg.content:
-                        if isinstance(c, llm.TextContent):
-                            if (s := c.text.strip()):
-                                await text_displayer.display_text(ui.MarkdownText(s))
+    bindings.extend([
+        agent_event_subscribers().bind_items_provider(singleton=True),
 
-    agent = agn.Agent(
-        backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore
-    )
+        inj.bind(agn.Agent, singleton=True),
+    ])
 
-    agent.subscribe(on_event)
-
-    permissions_manager = agn.StandardPermissionsManager([  # noqa
+    permission_rules = [  # noqa
         *([
             agn.PermissionRule(
                 agn.GlobFsPermissionMatcher(os.path.join(cwd, '**'), ['r', 'w']),
@@ -226,77 +301,78 @@ async def _a_main() -> None:
             agn.PermissionRule(
                 agn.ShellPermissionMatcher(),
                 agn.PermissionState.ASK,
-
             ),
         ] if args.bash else []),
+    ]
+
+    bindings.append(inj.bind(
+        agn.PermissionsManager,
+        to_const=agn.StandardPermissionsManager(permission_rules),
+    ))
+
+    bindings.extend([
+        inj.bind(InputPermissionAsker, singleton=True),
+        inj.bind(agn.PermissionAsker, to_key=InputPermissionAsker),
+
+        inj.bind(agn.StandardPermissionDecider, singleton=True),
+        inj.bind(agn.PermissionDecider, to_key=agn.StandardPermissionDecider),
     ])
 
-    permission_decider = agn.StandardPermissionDecider(
-        manager=permissions_manager,
-        asker=InputPermissionAsker(
-            input_manager=input_manager,
+    if args.bash:
+        bindings.extend([
+            inj.bind(BashTool, singleton=True),
+            agent_tools().bind_item(to_fn=inj.target(o=BashTool)(lambda o: o.llm_tool())),
+        ])
+
+    if args.fs:
+        bindings.extend([
+            inj.bind(EditTool, singleton=True),
+            agent_tools().bind_item(to_fn=inj.target(o=EditTool)(lambda o: o.llm_tool())),
+
+            inj.bind(LsTool, singleton=True),
+            agent_tools().bind_item(to_fn=inj.target(o=LsTool)(lambda o: o.llm_tool())),
+
+            inj.bind(ReadTool, singleton=True),
+            agent_tools().bind_item(to_fn=inj.target(o=ReadTool)(lambda o: o.llm_tool())),
+
+            inj.bind(WriteTool, singleton=True),
+            agent_tools().bind_item(to_fn=inj.target(o=WriteTool)(lambda o: o.llm_tool())),
+
+        ])
+
+    bindings.extend([
+        agent_tools().bind_items_provider(singleton=True),
+
+        inj.bind(
+            agn.ToolSet,
+            to_fn=inj.target(ats=AgentTools)(lambda ats: agn.ToolSet(ats)),
+            singleton=True,
         ),
-    )
-
-    tools = agn.ToolSet([
-
-        *([
-            BashTool(
-                permissions=permission_decider,
-            ).tool(),
-        ] if args.bash else []),
-
-        *([
-            EditTool(
-                permissions=permission_decider,
-            ).tool(),
-            LsTool(
-                permissions=permission_decider,
-            ).tool(),
-            ReadTool(
-                permissions=permission_decider,
-            ).tool(),
-            WriteTool(
-                permissions=permission_decider,
-            ).tool(),
-        ] if args.fs else []),
-
     ])
-
-    await agent.update_state(
-        lambda state: dc.replace(
-            state,
-            context=dc.replace(
-                state.context,
-                system_prompt='\n\n'.join([
-                    f'Current working directory: {cwd}',
-                ]),
-                tools=tools,
-            ),
-            tool_env=agn.ToolEnvironment(
-                cwd=cwd,
-            ),
-        ),
-    )
 
     #
 
-    commands_manager = har.CommandsManager(
-        commands=har.Commands([
+    bindings.extend([
+        inj.bind(ui.RaiseQuitSignal(KeyboardInterrupt)),
+        inj.bind(ui.QuitSignal, to_key=ui.RaiseQuitSignal),
+    ])
 
-            EchoCommand(),
+    bindings.extend([
+        inj.bind(EchoCommand, singleton=True),
+        harness_commands().bind_item(to_key=EchoCommand),
 
-            QuitCommand(
-                quit_signal=ui.RaiseQuitSignal(KeyboardInterrupt),
-            ),
+        inj.bind(QuitCommand, singleton=True),
+        harness_commands().bind_item(to_key=QuitCommand),
 
-            PermissionsCommand(
-                permissions=permissions_manager,
-            ),
+        inj.bind(PermissionsCommand, singleton=True),
+        harness_commands().bind_item(to_key=PermissionsCommand),
+    ])
 
-        ]),
-        text_displayer=text_displayer,
-    )
+    bindings.extend([
+        harness_commands().bind_items_provider(singleton=True),
+
+        inj.bind(har.CommandsManager, singleton=True),
+    ])
 
     #
 
@@ -305,44 +381,78 @@ async def _a_main() -> None:
     state_dir_path = os.path.join(get_home_paths().state_dir, 'llm', 'sessions')
     os.makedirs(state_dir_path, exist_ok=True)
 
-    session_storage: har.SessionStorage
     if args.jsonl_storage:
-        session_storage = har.JsonlSessionStorage(
-            file_path=os.path.join(state_dir_path, f'{session_id.hex}.jsonl'),
-        )
-    else:
-        session_storage = har.InMemorySessionStorage()
+        bindings.extend([
+            inj.bind(har.JsonlSessionStorage(
+                file_path=os.path.join(state_dir_path, f'{session_id.hex}.jsonl'),
+            )),
+            inj.bind(har.SessionStorage, to_key=har.JsonlSessionStorage),
+        ])
 
-    session = har.Session(
-        agent=agent,
-        storage=session_storage,
-        commands_manager=commands_manager,
-    )
+    else:
+        bindings.extend([
+            inj.bind(har.InMemorySessionStorage()),
+            inj.bind(har.SessionStorage, to_key=har.InMemorySessionStorage),
+        ])
+
+    bindings.extend([
+        inj.bind(har.Session, singleton=True),
+    ])
 
     #
 
-    async def prompt(s: str) -> None:
-        if s == '/quit':
-            raise SystemExit(0)
+    async with inj.create_async_managed_injector(
+        *bindings,
+        factory=inj.create_asyncio_injector,
+    ) as injector:
+        agent = await injector[agn.Agent]
+        tool_set = await injector[agn.ToolSet]
+        session = await injector[har.Session]
+        input_manager = await injector[InputManager]
 
-        await session.prompt(s)
+        for el in await injector[AgentEventSubscribers]:
+            agent.subscribe(el)
 
-    for ax in args.autoexec or []:
-        await prompt(ax)
+        await agent.update_state(
+            lambda state: dc.replace(
+                state,
+                context=dc.replace(
+                    state.context,
+                    system_prompt='\n\n'.join([
+                        f'Current working directory: {cwd}',
+                    ]),
+                    tools=tool_set,
+                ),
+                tool_env=agn.ToolEnvironment(
+                    cwd=cwd,
+                ),
+            ),
+        )
 
-    if sys.stdin.isatty():
-        try:
-            import readline  # noqa
-        except ImportError:
-            pass
+        #
 
-    while True:
-        try:
-            entry = await input_manager.input('> ')
-        except EOFError:
-            break
+        async def prompt(s: str) -> None:
+            if s == '/quit':
+                raise SystemExit(0)
 
-        await prompt(entry)
+            await session.prompt(s)
+
+        for ax in args.autoexec or []:
+            await prompt(ax)
+
+        if sys.stdin.isatty():
+            try:
+                import readline  # noqa
+            except ImportError:
+                pass
+
+        while True:
+            try:
+                entry = await input_manager.input('> ')
+            except EOFError:
+                break
+
+            await prompt(entry)
 
 
 def _main() -> None:

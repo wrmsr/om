@@ -22,5 +22,14 @@ class NopTextDisplayer(TextDisplayer):
 
 
 class PrintTextDisplayer(TextDisplayer):
+    def __init__(
+            self,
+            *,
+            file: lang.SupportsWrite[str] | None = None,
+    ) -> None:
+        super().__init__()
+
+        self._file = file
+
     async def display_text(self, text: CanText) -> None:
-        print(Text.str_of(text))
+        print(Text.str_of(text), end='', file=self._file)

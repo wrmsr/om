@@ -16,6 +16,7 @@ from ...permissions.types import PermissionDecider
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
+from ..ops import FsOps
 
 
 ##
@@ -71,10 +72,12 @@ class EditTool(ToolClass[EditParams]):
             self,
             *,
             permissions: PermissionDecider,
+            fs: FsOps,
     ) -> None:
         super().__init__()
 
         self._permissions = permissions
+        self._fs = fs
 
     async def execute(self, ctx: ToolContext, params: EditParams) -> str:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
