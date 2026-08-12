@@ -1,11 +1,12 @@
 """Behavioral tests for mini_vim -- each case mirrors what real vim does."""
-from mini_vim import ESC
-from mini_vim import Engine
-from mini_vim import ListBuffer
-from mini_vim import Pos
+from ..minivim import ESC
+from ..minivim import Engine
+from ..minivim import ListBuffer
+from ..minivim import Pos
 
 
 PASS = 0
+
 
 def make(text, keys='', cursor=(0, 0)):
     e = Engine(ListBuffer(text))
@@ -25,10 +26,12 @@ def check(name, e, text=None, cursor=None, mode=None):
     PASS += 1
     print(f'  ok  {name}')
 
-# ── word motions ─────────────────────────────────────────────────────────
+
+# word motions
+
 s = 'foo bar_baz, qux'
 check('w over word',      make(s, 'w'),   cursor=(0, 4))
-check('w to punct',       make(s, 'ww'),  cursor=(0, 11))   # comma is its own word
+check('w to punct',       make(s, 'ww'),  cursor=(0, 11))  # comma is its own word
 check('w past punct',     make(s, 'www'), cursor=(0, 13))
 check('3w = www',         make(s, '3w'),  cursor=(0, 13))
 check('W big word',       make(s, 'W'),   cursor=(0, 4))
@@ -41,7 +44,8 @@ check('w lands on empty line', make('foo\n\nbar', 'w'),  cursor=(1, 0))
 check('w off empty line',      make('foo\n\nbar', 'ww'), cursor=(2, 0))
 check('w crosses lines',       make('foo\nbar', 'w'),    cursor=(1, 0))
 
-# ── line motions, curswant, gg/G ─────────────────────────────────────────
+# line motions, curswant, gg/G
+
 e = make('a long line here\nab\nanother long line', '', (0, 10))
 e.send('j');  check('j clamps col',      e, cursor=(1, 1))
 e.send('j');  check('j restores curswant', e, cursor=(2, 10))
@@ -54,13 +58,14 @@ check('G first non-blank', make('a\n   xb', 'G'), cursor=(1, 3))
 check('0 and ^', make('   abc', '$0'), cursor=(0, 0))
 check('^ first non-blank', make('   abc', '^'), cursor=(0, 3))
 
-# ── the exclusive-rule payoffs: dw family ────────────────────────────────
+# the exclusive-rule payoffs: dw family
+
 check('dw mid-line',  make('foo bar baz', 'dw', (0, 4)), text='foo baz')
-check("dw last word doesn't join lines",           # :help exclusive rule 1
+check("dw last word doesn't join lines",  # :help exclusive rule 1
       make('foo bar\nbaz', 'dw', (0, 4)), text='foo \nbaz', cursor=(0, 3))
-check('d2w at col0 goes linewise',                 # :help exclusive rule 2
+check('d2w at col0 goes linewise',  # :help exclusive rule 2
       make('foo bar\nbaz qux', 'd2w'), text='baz qux')
-check("db at col0 doesn't join",                   # rule 1, backward motion
+check("db at col0 doesn't join",  # rule 1, backward motion
       make('foo bar\nbaz', 'db', (1, 0)), text='foo \nbaz')
 check('de inclusive', make('foo bar', 'de'), text=' bar')
 check('d$ / D',  make('foo bar', 'D', (0, 3)), text='foo')
@@ -69,10 +74,10 @@ check('dG linewise', make('a\nb\nc\nd', 'dG', (1, 0)), text='a')
 check('dj deletes 2 lines', make('a\nb\nc', 'dj'), text='c')
 check('dgg', make('a\nb\nc', 'dgg', (1, 0)), text='c')
 
-# ── counts multiply ──────────────────────────────────────────────────────
+#  counts multiply
 check('2d3w == d6w', make('a b c d e f g h', '2d3w'), text='g h')
 
-# ── synonyms: x X D C s S Y ─────────────────────────────────────────────
+#  synonyms: x X D C s S Y
 check('x',        make('abc', 'x'), text='bc', cursor=(0, 0))
 check('3x',       make('abcdef', '3x'), text='def')
 check('x at EOL clamps', make('ab', '5x'), text='')
@@ -80,7 +85,7 @@ check('X',        make('abc', 'X', (0, 1)), text='bc')
 check('s enters insert', make('abc', 'sZ' + ESC), text='Zbc')
 check('S clears line',   make('  foo\nbar', 'SZ' + ESC), text='Z\nbar')
 
-# ── operators doubled ────────────────────────────────────────────────────
+#  operators doubled
 check('dd',  make('a\nb\nc', 'dd'), text='b\nc')
 check('2dd', make('a\nb\nc', '2dd'), text='c')
 check('dd last line leaves empty buffer line', make('only', 'dd'), text='')
@@ -89,7 +94,7 @@ check('>> indents', make('foo\nbar', '>j' if False else '>>'), text='    foo\nba
 check('> with motion is linewise', make('foo\nbar', '>j'), text='    foo\n    bar')
 check('<< dedents', make('        foo', '<<'), text='    foo')
 
-# ── registers, yank/put with kinds ───────────────────────────────────────
+#  registers, yank/put with kinds
 check('yy p duplicates line', make('aaa\nbbb', 'yyp'), text='aaa\naaa\nbbb', cursor=(1, 0))
 check('dd p moves line down', make('aaa\nbbb\nccc', 'ddp'), text='bbb\naaa\nccc')
 check('dd P puts above',      make('aaa\nbbb', 'ddP'), text='aaa\nbbb')
@@ -102,16 +107,16 @@ e = make('aaa\nbbb\nccc', '"ayyj"Ayyj"ap')
 check('uppercase appends', e, text='aaa\nbbb\nccc\naaa\nbbb')
 check('y0 cursor to start', make('foobar', 'y0', (0, 3)), cursor=(0, 0))
 # multi-line charwise put (from visual yank)
-e = make('abXY\nZWcd', 'llvjhy')                 # select "XY\nZW" charwise
+e = make('abXY\nZWcd', 'llvjhy')  # select "XY\nZW" charwise
 e.send('P')
 check('multi-line charwise put', e, text='abXY\nZWXY\nZWcd', cursor=(1, 1))
 
-# ── cw special case ──────────────────────────────────────────────────────
+# cw special case
 check('cw acts like ce (no trailing space)',
       make('hello world', 'cwhey' + ESC), text='hey world', cursor=(0, 2))
 check('cw on blank behaves like dw', make('a   b', 'cwX' + ESC, (0, 1)), text='aXb')
 
-# ── f t F T ; , ─────────────────────────────────────────────────────────
+# f t F T ; ,
 s2 = 'a.b.c.d'
 check('f finds',   make(s2, 'f.'),  cursor=(0, 1))
 check('2f',        make(s2, '2f.'), cursor=(0, 3))
@@ -124,7 +129,7 @@ check('df.', make('abc.def', 'df.'), text='def')
 check('dF backward exclusive', make('abc.def', 'dF.', (0, 5)), text='abcef')
 check('f miss aborts whole op', make('abc', 'dfz'), text='abc')
 
-# ── text objects ─────────────────────────────────────────────────────────
+# text objects
 check('diw', make('foo bar baz', 'diw', (0, 5)), text='foo  baz')
 check('daw', make('foo bar baz', 'daw', (0, 5)), text='foo baz')
 check('2diw = word+space', make('foo bar baz', '2diw'), text='bar baz')
@@ -140,7 +145,7 @@ check('ci"', make('say "hi" now', 'ci"yo' + ESC, (0, 5)), text='say "yo" now')
 check('di" from before pair', make('say "hi" now', 'di"'), text='say "" now')
 check('dib alias', make('f(a)b', 'dib', (0, 2)), text='f()b')
 
-# ── insert-mode editing ─────────────────────────────────────────────────
+# insert-mode editing
 check('i inserts', make('bc', 'ia' + ESC), text='abc')
 check('a appends', make('ac', 'ab' + ESC), text='abc')
 check('A end of line', make('ab', 'Ac' + ESC), text='abc')
@@ -151,14 +156,14 @@ check('Esc moves cursor left', make('xyz', 'ix' + ESC), cursor=(0, 0))
 check('enter splits line', make('abcd', 'a\n' + ESC, (0, 1)), text='ab\ncd')
 check('backspace joins', make('ab\ncd', 'i\x7f' + ESC, (1, 0)), text='abcd')
 
-# ── r and J ─────────────────────────────────────────────────────────────
+# r and J
 check('r replaces', make('abc', 'rx'), text='xbc')
 check('3r', make('abcdef', '3rx'), text='xxxdef', cursor=(0, 2))
 check('r past EOL fails', make('ab', '5rx'), text='ab')
 check('J joins with space', make('foo\n  bar', 'J'), text='foo bar', cursor=(0, 3))
 check('3J', make('a\nb\nc\nd', '3J'), text='a b c\nd')
 
-# ── visual mode ─────────────────────────────────────────────────────────
+# visual mode
 check('v-select + d', make('hello world', 'vey' if False else 'ved'), text=' world')
 check('visual y then p', make('hello world', 'veyP'), text='hellohello world')
 check('V linewise d', make('a\nb\nc', 'Vjd'), text='c')
@@ -166,7 +171,7 @@ check('visual o swaps ends', make('abcdef', '3lvlohd'), text='abf')
 check('visual esc cancels, cursor stays', make('abc', 'vl' + ESC + 'x'), text='ac')
 check('v with f', make('a.b.c', 'vf.d' if False else 'vt.d'), text='.b.c')
 
-# ── dot repeat (keystroke replay, like vim's redo buffer) ───────────────
+# dot repeat (keystroke replay, like vim's redo buffer)
 check('dw then .', make('aaa bbb ccc', 'dw.'), text='ccc')
 check('x then . .', make('abcdef', 'x..'), text='def')
 e = make('foo foo foo', 'ciwbar' + ESC + 'ww.')
@@ -174,18 +179,18 @@ check('. repeats change incl. typed text', e, text='bar foo bar')
 e = make('abc', 'ohi' + ESC + '.')
 check('. repeats o with text', e, text='abc\nhi\nhi')
 
-# ── undo ────────────────────────────────────────────────────────────────
+# undo
 check('u undoes dd', make('a\nb', 'ddu'), text='a\nb')
 check('cw+typing is one undo unit', make('foo bar', 'cwqux' + ESC + 'u'), text='foo bar')
 check('uu walks back', make('ab', 'xxuu'), text='ab')
 check('u then redo-less state', make('abc', 'xu'), text='abc')
 
-# ── register indirection through ops ─────────────────────────────────────
+# register indirection through ops
 check('c writes register too', make('foo bar', 'cwX' + ESC + '$p'), text='X barfoo')
 
-# ── parser robustness ───────────────────────────────────────────────────
+# parser robustness
 check('Esc aborts pending op', make('abc', 'd' + ESC + 'x'), text='bc')
-check('mismatched op aborts', make('abc', 'dyx'), text='bc')   # dy invalid, x runs
+check('mismatched op aborts', make('abc', 'dyx'), text='bc')  # dy invalid, x runs
 check('unknown key aborts cleanly', make('abc', 'dqx'), text='bc')
 
 print(f'\n{PASS} checks passed')

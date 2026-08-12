@@ -60,8 +60,8 @@ class Kind(enum.Enum):
     """How a motion characterizes the text it covers (vim: :help inclusive)."""
 
     EXCLUSIVE = enum.auto()  # charwise, target char NOT covered (w, b, h, 0, F, T)
-    INCLUSIVE = enum.auto()  # charwise, target char covered      (e, f, t, $)
-    LINEWISE = enum.auto()   # whole lines                        (j, k, G, gg, dd)
+    INCLUSIVE = enum.auto()  # charwise, target char covered     (e, f, t, $)
+    LINEWISE = enum.auto()   # whole lines                       (j, k, G, gg, dd)
 
 
 ##
@@ -70,8 +70,10 @@ class Kind(enum.Enum):
 
 class Buffer(ta.Protocol):
     def line_count(self) -> int: ...
+
     def get_line(self, row: int) -> str: ...
     def set_line(self, row: int, text: str) -> None: ...
+
     def insert_line(self, row: int, text: str) -> None: ...
     def delete_line(self, row: int) -> None: ...
 
@@ -82,22 +84,35 @@ class ListBuffer:
     def __init__(self, text: str = '') -> None:
         self._lines = text.split('\n') if text else ['']
 
-    def line_count(self) -> int: return len(self._lines)
-    def get_line(self, row: int) -> str: return self._lines[row]
-    def set_line(self, row: int, text: str) -> None: self._lines[row] = text
-    def insert_line(self, row: int, text: str) -> None: self._lines.insert(row, text)
-    def delete_line(self, row: int) -> None: del self._lines[row]
+    def line_count(self) -> int:
+        return len(self._lines)
+
+    def get_line(self, row: int) -> str:
+        return self._lines[row]
+
+    def set_line(self, row: int, text: str) -> None:
+        self._lines[row] = text
+
+    def insert_line(self, row: int, text: str) -> None:
+        self._lines.insert(row, text)
+
+    def delete_line(self, row: int) -> None:
+        del self._lines[row]
 
     # convenience for tests/undo (not part of the protocol)
-    def snapshot(self): return list(self._lines)
-    def restore(self, lines): self._lines = list(lines)
-    def text(self): return '\n'.join(self._lines)
+    def snapshot(self) -> list[str]:
+        return list(self._lines)
+
+    def restore(self, lines: ta.Iterable[str]) -> None:
+        self._lines = list(lines)
+
+    def text(self) -> str:
+        return '\n'.join(self._lines)
 
 
 ##
-# Scan space: iterate a buffer as if lines ended in a virtual "newline slot"
-# at col == len(line). That slot is blank-class, which is exactly why word
-# runs never merge across lines. Empty lines are a single newline slot.
+# Scan space: iterate a buffer as if lines ended in a virtual "newline slot" at col == len(line). That slot is
+# blank-class, which is exactly why word runs never merge across lines. Empty lines are a single newline slot.
 
 
 def _llen(buf: Buffer, row: int) -> int:
@@ -133,6 +148,7 @@ def _first_nonblank(buf: Buffer, row: int) -> int:
 
 def _clamp_col(buf: Buffer, p: Pos) -> Pos:
     """Normal-mode cursor may not rest on the newline slot."""
+
     return Pos(p.row, min(p.col, max(0, _llen(buf, p.row) - 1)))
 
 
@@ -169,7 +185,7 @@ def word_fwd(buf: Buffer, p: Pos, count: int, big: bool) -> Pos:
                 return q
             q = nq
         while _cls(_char(buf, q), big) == 0:  # skip blanks...
-            if _llen(buf, q.row) == 0:        # ...but an empty line is a word
+            if _llen(buf, q.row) == 0:  # ...but an empty line is a word
                 break
             nq = _advance(buf, q)
             if nq is None:
@@ -392,6 +408,7 @@ def _obj_word(buf, p, around, big, count):
     line = buf.get_line(p.row)
     if not line:
         return None
+
     col = min(p.col, len(line) - 1)
 
     def run(c):  # (start, end_exclusive) of the class run containing col c
@@ -405,6 +422,7 @@ def _obj_word(buf, p, around, big, count):
         return a, b
 
     a, b = run(col)
+
     if around:
         # word + trailing blanks (or leading blanks if none trail) -- per word
         for _ in range(count):
@@ -414,10 +432,12 @@ def _obj_word(buf, p, around, big, count):
                 a, _ = run(a - 1)
             if count > 1 and b < len(line):  # extend over next word too
                 _, b = run(b)
+
     else:
         for _ in range(count - 1):  # 2iw = word + space = 2 runs
             if b < len(line):
                 _, b = run(b)
+
     return Span(Kind.EXCLUSIVE, Pos(p.row, a), Pos(p.row, b))
 
 
@@ -435,8 +455,10 @@ def _obj_pair(buf, p, around, open_ch, close_ch):
                 break
             depth -= 1
         q = _retreat(buf, q)
+
     if open_pos is None:
         return None
+
     depth, q, close_pos = 0, p, None
     while q is not None:
         ch = _char(buf, q)
@@ -448,11 +470,14 @@ def _obj_pair(buf, p, around, open_ch, close_ch):
                 break
             depth -= 1
         q = _advance(buf, q)
+
     if close_pos is None:
         return None
+
     if around:
         end = _advance(buf, close_pos) or Pos(close_pos.row, close_pos.col + 1)
         return Span(Kind.EXCLUSIVE, open_pos, end)
+
     # vim promotes the *inner* object to linewise when the open bracket ends its line and only whitespace precedes the
     # close bracket on its line -- this is why `di{` on a code block keeps the braces on their own lines.
     if (
@@ -461,6 +486,7 @@ def _obj_pair(buf, p, around, open_ch, close_ch):
             close_pos.row > open_pos.row + 1
     ):
         return Span(Kind.LINEWISE, Pos(open_pos.row + 1, 0), Pos(close_pos.row - 1, 0))
+
     inner = _advance(buf, open_pos)
     return Span(Kind.EXCLUSIVE, inner, close_pos)
 
@@ -471,13 +497,17 @@ def _obj_quote(buf, p, around, q):
     line = buf.get_line(p.row)
     idx = [i for i, ch in enumerate(line) if ch == q]
     pairs = list(zip(idx[0::2], idx[1::2]))
-    chosen = next((ab for ab in pairs if ab[0] <= p.col <= ab[1]), None) \
-        or next((ab for ab in pairs if ab[0] > p.col), None)
+    chosen = (
+            next((ab for ab in pairs if ab[0] <= p.col <= ab[1]), None) or
+            next((ab for ab in pairs if ab[0] > p.col), None)
+    )
     if not chosen:
         return None
     a, b = chosen
+
     if around:  # (vim also swallows trailing whitespace here; omitted)
         return Span(Kind.EXCLUSIVE, Pos(p.row, a), Pos(p.row, b + 1))
+
     return Span(Kind.EXCLUSIVE, Pos(p.row, a + 1), Pos(p.row, b))
 
 
@@ -546,23 +576,28 @@ class Parser:
     def feed(self, key: str):
         if self.wait:
             tag = self.wait[0]
+
             if tag == 'reg':
                 self.wait = None
                 self.register = key
                 return ('more', None)
+
             if tag == 'char':
                 mkey = self.wait[1]
                 self.wait = None
                 return ('cmd', self._cmd(motion_key=mkey, motion_arg=key))
+
             if tag == 'achar':
                 akey = self.wait[1]
                 self.wait = None
                 return ('cmd', self._cmd(action=akey, action_arg=key))
+
             if tag == 'g':
                 self.wait = None
                 if key == 'g':
                     return ('cmd', self._cmd(motion_key='gg'))
                 return self._abort()  # (real vim: gU gu g~ g_ ge ... omitted)
+
             if tag == 'obj':
                 around = self.wait[1] == 'a'
                 self.wait = None
@@ -575,12 +610,15 @@ class Parser:
 
         if key.isdigit():
             active = self.count2 if self.op else self.count1
+
             if key == '0' and active == 0:
                 return ('cmd', self._cmd(motion_key='0'))
+
             if self.op:
                 self.count2 = self.count2 * 10 + int(key)
             else:
                 self.count1 = self.count1 * 10 + int(key)
+
             return ('more', None)
 
         if key == '"' and self.register is None and self.op is None:
@@ -595,11 +633,14 @@ class Parser:
             if self.visual:
                 self.op = key
                 return ('cmd', self._cmd())
+
             if self.op is None:
                 self.op = key
                 return ('more', None)
+
             if key == self.op:
                 return ('cmd', self._cmd(doubled=True))
+
             return self._abort()
 
         if (self.op or self.visual) and key in ('i', 'a'):
@@ -610,12 +651,14 @@ class Parser:
             if key in MOTION_NEEDS_ARG:
                 self.wait = ('char', key)
                 return ('more', None)
+
             return ('cmd', self._cmd(motion_key=key))
 
         if self.op is None and key in ACTIONS:
             if key in ACTION_NEEDS_ARG:
                 self.wait = ('achar', key)
                 return ('more', None)
+
             return ('cmd', self._cmd(action=key))
 
         return self._abort()
@@ -686,22 +729,28 @@ class Engine:
     def _feed_normal(self, key: str):
         if not self._replaying:
             self._keys.append(key)
+
         state, cmd = self.parser.feed(key)
+
         if state == 'more':
             return
+
         if state == 'abort':
             self._keys.clear()
             return
+
         self._no_record = False
         changed = self._exec(cmd)
         if self._replaying:
             return
+
         if changed and not self._no_record:
             if self.mode is Mode.INSERT:
                 self._rec_insert = True  # keep taping until Esc
             else:
                 self._last_change = self._keys.copy()
                 self._keys.clear()
+
         else:
             self._keys.clear()
 
@@ -710,7 +759,9 @@ class Engine:
     def _feed_insert(self, key: str):
         if self._rec_insert and not self._replaying:
             self._keys.append(key)
+
         buf, cur = self.buf, self.cursor
+
         if key == ESC:
             self.mode = Mode.NORMAL
             self.cursor = Pos(cur.row, max(0, cur.col - 1))
@@ -720,23 +771,28 @@ class Engine:
                 self._keys.clear()
                 self._rec_insert = False
             return
+
         if key in ('\r', '\n'):
             line = buf.get_line(cur.row)
             buf.set_line(cur.row, line[:cur.col])
             buf.insert_line(cur.row + 1, line[cur.col:])
             self.cursor = Pos(cur.row + 1, 0)
             return
+
         if key in BACKSPACES:
             if cur.col > 0:
                 line = buf.get_line(cur.row)
                 buf.set_line(cur.row, line[:cur.col - 1] + line[cur.col:])
                 self.cursor = Pos(cur.row, cur.col - 1)
+
             elif cur.row > 0:
                 prev = buf.get_line(cur.row - 1)
                 buf.set_line(cur.row - 1, prev + buf.get_line(cur.row))
                 buf.delete_line(cur.row)
                 self.cursor = Pos(cur.row - 1, len(prev))
+
             return
+
         line = buf.get_line(cur.row)
         buf.set_line(cur.row, line[:cur.col] + key + line[cur.col:])
         self.cursor = Pos(cur.row, cur.col + 1)
@@ -747,35 +803,45 @@ class Engine:
 
     def _feed_visual(self, key: str):
         state, cmd = self.parser.feed(key)
+
         if state == 'more':
             return
+
         if state == 'abort':
             if key == ESC:
                 self._leave_visual()
             return
+
         # exits / toggles
         if cmd.action == 'v':
             self._leave_visual() if self.mode is Mode.VISUAL else self._set_visual(Mode.VISUAL)
             return
+
         if cmd.action == 'V':
             self._leave_visual() if self.mode is Mode.VISUAL_LINE else self._set_visual(Mode.VISUAL_LINE)
             return
+
         if cmd.action == 'o':
             self.visual_anchor, self.cursor = self.cursor, self.visual_anchor
             return
+
         # operator (or synonym) applies to the selection
         opkey = cmd.op
+
         if cmd.action in ('x', 'd'):
             opkey = 'd'
         elif cmd.action == 's':
             opkey = 'c'
+
         if cmd.action in SYNONYMS and opkey is None:
             opkey = SYNONYMS[cmd.action][0]
+
         if opkey:
             span = self._visual_span()
             self._leave_visual()
             self._apply_op(opkey, span, cmd.register)
             return
+
         # text object extends the selection
         if cmd.tobj:
             sp = textobj(self.buf, self.cursor, *cmd.tobj, cmd.count)
@@ -783,6 +849,7 @@ class Engine:
                 self.visual_anchor = sp.start
                 self.cursor = _clamp_col(self.buf, _retreat(self.buf, sp.end) or sp.end)
             return
+
         # motion moves the free end
         if cmd.motion_key:
             mr = self._eval_motion(cmd, op_pending=False)
@@ -868,34 +935,43 @@ class Engine:
         if k == 'h':
             t = Pos(p.row, max(0, p.col - n))
             return None if t == p else MotionResult(t, EX)
+
         if k == 'l':
             t = Pos(p.row, min(p.col + n, _llen(buf, p.row)))
             return None if t == p else MotionResult(t, EX)
+
         if k in ('j', 'k'):
             d = n if k == 'j' else -n
             t = Pos(max(0, min(p.row + d, buf.line_count() - 1)), p.col)
             return None if t.row == p.row else MotionResult(t, LI, keeps_curswant=True)
+
         if k == '0':
             return MotionResult(Pos(p.row, 0), EX)
+
         if k == '^':
             return MotionResult(Pos(p.row, _first_nonblank(buf, p.row)), EX)
+
         if k == '$':
             row = min(p.row + n - 1, buf.line_count() - 1)
-            return MotionResult(Pos(row, max(0, _llen(buf, row) - 1)), IN,
-                                curswant_eol=True)
+            return MotionResult(Pos(row, max(0, _llen(buf, row) - 1)), IN, curswant_eol=True)
+
         if k in 'wW':
             return MotionResult(word_fwd(buf, p, n, k == 'W'), EX)
+
         if k in 'bB':
             return MotionResult(word_back(buf, p, n, k == 'B'), EX)
+
         if k in 'eE':
             return MotionResult(word_end(buf, p, n, k == 'E'), IN)
+
         if k == 'G':
-            row = min(cmd.count - 1, buf.line_count() - 1) if cmd.has_count \
-                else buf.line_count() - 1
+            row = min(cmd.count - 1, buf.line_count() - 1) if cmd.has_count else buf.line_count() - 1
             return MotionResult(Pos(row, 0), LI, to_first_nonblank=True)
+
         if k == 'gg':
             row = min(cmd.count - 1, buf.line_count() - 1) if cmd.has_count else 0
             return MotionResult(Pos(row, 0), LI, to_first_nonblank=True)
+
         if k in MOTION_NEEDS_ARG:                         # f t F T
             fwd, till = k in 'ft', k in 'tT'
             t = find_char(buf, p, arg, n, fwd, till)
@@ -903,6 +979,7 @@ class Engine:
                 return None
             self.last_ft = (k, arg)
             return MotionResult(t, IN if fwd else EX)
+
         if k in (';', ','):
             if not self.last_ft:
                 return None
@@ -914,6 +991,7 @@ class Engine:
             if t is None:
                 return None
             return MotionResult(t, IN if fwd else EX)
+
         return None
 
     def _move_to(self, mr: MotionResult):
@@ -936,12 +1014,14 @@ class Engine:
     def _apply_op(self, op: str, span: Span, reg: str | None) -> bool:
         if op != 'y':
             self._snapshot()
+
         if op == 'y':
             pieces, kind = self._extract(span)
             self.regs.set(reg or '"', RegValue(pieces, kind), is_yank=True)
             if span.kind is not Kind.LINEWISE:
                 self.cursor = _clamp_col(self.buf, span.start)
             return False
+
         if op in '><':
             for r in range(span.start.row, span.end.row + 1):
                 line = self.buf.get_line(r)
@@ -953,11 +1033,13 @@ class Engine:
                     self.buf.set_line(r, line[min(SHIFTWIDTH, lead):])
             self.cursor = Pos(span.start.row, _first_nonblank(self.buf, span.start.row))
             return True
+
         if op == 'd':
             pieces, kind = self._extract(span)
             self.regs.set(reg or '"', RegValue(pieces, kind), is_yank=False)
             self._delete_span(span)
             return True
+
         if op == 'c':
             pieces, kind = self._extract(span)
             self.regs.set(reg or '"', RegValue(pieces, kind), is_yank=False)
@@ -971,6 +1053,7 @@ class Engine:
                 self.cursor = Pos(span.start.row, min(span.start.col, _llen(self.buf, span.start.row)))
             self.mode = Mode.INSERT
             return True
+
         return False
 
     def _extract(self, span: Span):
@@ -1107,13 +1190,16 @@ class Engine:
                 buf.insert_line(row + i, ln)
             self.cursor = Pos(row, _first_nonblank(buf, row))
             return
+
         pieces = _pieces_repeat(rv.pieces, count)
         line = buf.get_line(cur.row)
         col = cur.col + 1 if (after and line) else cur.col
         left, right = line[:col], line[col:]
+
         if len(pieces) == 1:
             buf.set_line(cur.row, left + pieces[0] + right)
             self.cursor = Pos(cur.row, max(col, col + len(pieces[0]) - 1))
+
         else:
             buf.set_line(cur.row, left + pieces[0])
             for i, mid in enumerate(pieces[1:-1], start=1):

@@ -1,35 +1,45 @@
 """
-A real terminal frontend for mini_vim in ~60 lines, proving the adapter claim:
-the engine never rendered anything and never read a keyboard -- a frontend
-just (1) pumps decoded keys into Engine.feed() and (2) redraws from state.
+A real terminal frontend for mini_vim in ~60 lines, proving the adapter claim: the engine never rendered anything and
+never read a keyboard -- a frontend just (1) pumps decoded keys into Engine.feed() and (2) redraws from state.
 
 Run:  python3 demo_tty.py [file]      Quit: Ctrl-Q
 """
 import curses
 import sys
 
-from mini_vim import Engine
-from mini_vim import ListBuffer
-from mini_vim import Mode
+from ..minivim import Engine
+from ..minivim import ListBuffer
+from ..minivim import Mode
 
 
-SAMPLE = """def greet(name, punct):
+##
+
+
+SAMPLE = """\
+def greet(name, punct):
     message = "hello, " + name
     return message + punct
 
 words = [greet(w, "!") for w in ("world", "vim", "python")]
 print(words)
 
-Try: dw ciw di( f( ; 2dd yy p >> u . ve V"""
+Try: dw ciw di( f( ; 2dd yy p >> u . ve V\
+"""
 
 
 def decode(wch) -> str:
     """Map curses keys to the engine's key alphabet (plain chars + ESC)."""
+
     if isinstance(wch, str):
-        return '\x7f' if wch == '\x08' else wch          # unify backspace
-    return {curses.KEY_BACKSPACE: '\x7f', curses.KEY_ENTER: '\n',
-            curses.KEY_LEFT: 'h', curses.KEY_RIGHT: 'l',
-            curses.KEY_UP: 'k', curses.KEY_DOWN: 'j'}.get(wch, '')
+        return '\x7f' if wch == '\x08' else wch  # unify backspace
+    return {
+        curses.KEY_BACKSPACE: '\x7f',
+        curses.KEY_ENTER: '\n',
+        curses.KEY_LEFT: 'h',
+        curses.KEY_RIGHT: 'l',
+        curses.KEY_UP: 'k',
+        curses.KEY_DOWN: 'j',
+    }.get(wch, '')
 
 
 def main(stdscr):
@@ -56,12 +66,20 @@ def main(stdscr):
                 stdscr.addstr(y, 0, '~', curses.A_DIM)
             else:
                 stdscr.addnstr(y, 0, eng.buf.get_line(r), w - 1)
-        mode = {Mode.NORMAL: '', Mode.INSERT: '-- INSERT --',
-                Mode.VISUAL: '-- VISUAL --',
-                Mode.VISUAL_LINE: '-- VISUAL LINE --'}[eng.mode]
+        mode = {
+            Mode.NORMAL: '',
+            Mode.INSERT: '-- INSERT --',
+            Mode.VISUAL: '-- VISUAL --',
+            Mode.VISUAL_LINE: '-- VISUAL LINE --',
+        }[eng.mode]
         pos = f'{eng.cursor.row + 1},{eng.cursor.col + 1}'
-        stdscr.addnstr(h - 1, 0, f'{mode:<20}{pos:>{max(0, w - 22)}}',
-                       w - 1, curses.A_REVERSE)
+        stdscr.addnstr(
+            h - 1,
+            0,
+            f'{mode:<20}{pos:>{max(0, w - 22)}}',
+            w - 1,
+            curses.A_REVERSE,
+        )
         col = eng.cursor.col
         if eng.mode is not Mode.INSERT:  # normal cursor can't pass last char
             col = min(col, max(0, len(eng.buf.get_line(eng.cursor.row)) - 1))
@@ -69,7 +87,7 @@ def main(stdscr):
         stdscr.refresh()
 
         wch = stdscr.get_wch()
-        if wch == '\x11':                                # Ctrl-Q quits
+        if wch == '\x11':  # Ctrl-Q quits
             return
         key = decode(wch)
         if key:
