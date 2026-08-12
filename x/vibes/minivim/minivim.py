@@ -82,6 +82,8 @@ class ListBuffer:
     """Reference Buffer: a plain list of lines. Swap in anything you like."""
 
     def __init__(self, text: str = '') -> None:
+        super().__init__()
+
         self._lines = text.split('\n') if text else ['']
 
     def line_count(self) -> int:
@@ -339,6 +341,8 @@ class RegValue:
 
 class Registers:
     def __init__(self) -> None:
+        super().__init__()
+
         self._regs: dict[str, RegValue] = {}
 
     def get(self, name: str) -> RegValue | None:
@@ -543,6 +547,8 @@ class Command:
 
 class Parser:
     def __init__(self) -> None:
+        super().__init__()
+
         # in visual mode the grammar inverts: the range already exists, so an operator key *terminates*
         self.visual = False
         self.reset()
@@ -689,6 +695,8 @@ SYNONYMS = {
 
 class Engine:
     def __init__(self, buf: Buffer, text: str | None = None) -> None:
+        super().__init__()
+
         self.buf: Buffer = buf if text is None else ListBuffer(text)
         self.cursor = Pos(0, 0)
         self.mode = Mode.NORMAL
