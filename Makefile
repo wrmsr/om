@@ -274,6 +274,10 @@ mypy-nocache: venv
 mypy-stats: venv
 	${PYTHON} -m omdev.mypy.report ${MYPY_OPTS} ${SRCS}
 
+.PHONY: pyright
+pyright: venv
+	${PYTHON} -m basedpyright ${SRCS}
+
 .PHONY: precheck
 precheck: venv
 	${PYTHON} -m omdev.precheck check ${SRCS}
