@@ -57,7 +57,9 @@ The package is intentionally composable rather than presenting one mandatory dae
 | Service | `Service`, `RuntimeService`, `ServiceDaemon` | Package configured long-running behavior as a target. |
 | Runtime | `ServiceRuntime`, `Activity`, `ShutdownController` | Track activity, idle lifetime, signals, and graceful drain. |
 | Lazy access | `LazyDaemon` | Connect first; coordinate launch and relaunch only when explicitly unavailable. |
-| RPC | `RpcService`, `RpcClient`, `LazyRpcClient`, `RpcWait` | Provide versioned local JSON request/response calls with explicit retry semantics. |
+| Readiness | `ConnectWait`, `HttpWait`, `RpcWait` | Supply pluggable transport- or application-level health checks. |
+| RPC core | `RpcServer`, `RpcClient`, `RpcObjectHandler`, `RpcObjectProxy` | Provide independently usable JSON calls and an opt-in typed-object facade. |
+| RPC adapters | `RpcService`, `LazyRpcClient`, `RpcWait` | Compose RPC with service runtime, lazy daemon launch, and readiness. |
 
 A typical lazy RPC application assembles these pieces as follows:
 
@@ -73,6 +75,11 @@ LazyRpcClient
 
 `ServiceDaemon` is a convenience value which ties a `Service` or service config to a `Daemon` or daemon config. It
 does not introduce another runtime layer.
+
+The RPC implementation is a subpackage rather than a single lifecycle component. `rpc.protocol`, `rpc.client`,
+`rpc.server`, and `rpc.objects` have no dependency on daemon launching or service runtime. `rpc.services`,
+`rpc.lazy`, and `rpc.waiting` are explicit composition adapters. A daemon may serve HTTP or run entirely in-process,
+and an RPC server may be run by a thread, a remote host's supervisor, or any other lifecycle owner.
 
 ## Process choices
 
@@ -133,8 +140,10 @@ exception classified as explicitly unavailable permits launch or relaunch. It th
 4. waits for the configured readiness probe.
 
 The pidfile lock coordinates independent processes; the local lock coalesces threads in one caller. Readiness is
-separate from process existence. `RpcWait`, for example, completes a full protocol handshake rather than checking only
-whether a socket pathname exists.
+separate from process existence. The `Wait`/`Waiter` interface makes health checks independently pluggable:
+`ConnectWait` performs the inexpensive connect-and-disconnect door knock, `HttpWait` can require a dedicated
+endpoint's status and exact body, and `RpcWait` completes a full protocol handshake. Applications can register their
+own `Wait` implementations without changing daemon launch policy.
 
 ## Runtime and graceful exit
 
@@ -152,7 +161,7 @@ work after shutdown begins and waits for connection threads which already own ac
 
 ## RPC scope
 
-The current RPC layer is intentionally small:
+The RPC transport is intentionally small:
 
 - Unix-domain stream sockets;
 - four-byte big-endian length framing;
@@ -163,14 +172,32 @@ The current RPC layer is intentionally small:
 - stable client/request IDs and same-instance response replay; and
 - remote, unavailable, protocol, and indeterminate outcome errors.
 
-It does not currently provide streaming, authentication beyond local filesystem permissions, arbitrary object
-marshaling, generated method proxies, or pickle transport. In particular, it never assumes a failed connection means a
-request was not executed. See the retry contract in [DESIGN.md](DESIGN.md).
+`RpcObjectHandler` and `RpcObjectProxy` form an optional interface facade over that transport. Only methods explicitly
+marked with `@rpc_method` are exposed; the handler never performs request-controlled attribute lookup. The same
+interface supplies local argument binding on the proxy and authoritative binding on the server:
+
+```python
+class Greeter(abc.ABC):
+    @rpc_method
+    @abc.abstractmethod
+    def greet(self, name: str) -> str:
+        raise NotImplementedError
+
+
+handler = RpcObjectHandler(Greeter, GreeterImpl())
+greeter: Greeter = RpcObjectProxy.of(Greeter, client)
+```
+
+This facade does not change the JSON boundary: parameters and return values must still be JSON-representable. The
+layer does not currently provide streaming, authentication beyond local filesystem permissions, arbitrary object
+marshaling, or pickle transport. In particular, it never assumes a failed connection means a request was not executed.
+See the retry contract in [DESIGN.md](DESIGN.md).
 
 ## Testing
 
-The suite uses real files, locks, Unix sockets, subprocesses, multiprocessing children, raw forks, signals, and execs.
-The daemon tests do not mock or patch those boundaries.
+The suite uses real files, locks, Unix sockets, HTTP servers, subprocesses, multiprocessing children, raw forks,
+signals, and execs. It also verifies a thread-backed service through shared in-process state and exercises the RPC core
+without a daemon. The daemon tests do not mock or patch those boundaries.
 
 ```shell
 ./python -m pytest omcore/daemons/tests

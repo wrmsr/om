@@ -13,9 +13,11 @@ from ...lazy import LazyDaemon
 from ...rpc import LazyRpcClient
 from ...rpc import RpcClient
 from ...rpc import RpcHandler
-from ...rpc import RpcRequest
+from ...rpc import RpcObjectHandler
+from ...rpc import RpcObjectProxy
 from ...rpc import RpcService
 from ...rpc import RpcWait
+from ...rpc import rpc_method
 from ...runtime import ServiceRuntime
 from ...services import ServiceDaemon
 from ...services import ServiceTarget
@@ -28,22 +30,28 @@ log = logs.get_module_logger(globals())
 ##
 
 
-@dc.dataclass(frozen=True)
-class DummyLlmHandler:
-    def __call__(self, request: RpcRequest) -> ta.Any:
-        if request.method != 'chat':
-            raise ValueError(f'Unknown LLM method: {request.method!r}')
+class Llm:
+    @rpc_method
+    def chat(self, user_message: str) -> str:
+        raise NotImplementedError
 
-        user_message = check.isinstance(request.params, str)
+
+@dc.dataclass(frozen=True)
+class DummyLlm(Llm):
+    def chat(self, user_message: str) -> str:
         log.info('Answering mock LLM request: %r', user_message)
         time.sleep(1.)
         return f'Fascintating! Tell me more about {user_message}'
 
 
+def _llm_handler() -> RpcHandler:
+    return RpcObjectHandler(Llm, DummyLlm())
+
+
 class LlmService(RpcService):
     @dc.dataclass(frozen=True, kw_only=True)
     class Config(RpcService.Config):
-        handler: RpcHandler = dc.field(default_factory=DummyLlmHandler)
+        handler: RpcHandler = dc.field(default_factory=_llm_handler)
         log_file: str
 
     def __init__(self, config: Config) -> None:
@@ -64,12 +72,12 @@ def _llm_service_entrypoint(args: MultiprocessingSpawning.EntrypointArgs) -> Non
     args.spawn.fn()
 
 
-def build_lazy_llm_client(
+def build_llm(
         state_dir: str,
         *,
         linger_s: float,
         timeout_s: float,
-) -> LazyRpcClient:
+) -> Llm:
     state_dir = os.path.abspath(os.path.expanduser(state_dir))
     os.makedirs(state_dir, mode=0o700, exist_ok=True)
 
@@ -105,10 +113,11 @@ def build_lazy_llm_client(
         ),
     )
 
-    return LazyRpcClient(
+    lazy_client = LazyRpcClient(
         LazyDaemon(service_daemon.daemon_()),
         RpcClient(client_config),
     )
+    return RpcObjectProxy.of(Llm, lazy_client)
 
 
 def _positive_float(value: str) -> float:
@@ -154,11 +163,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _chat(client: LazyRpcClient, user_message: str, *, timeout_s: float) -> str:
-    return check.isinstance(client.call('chat', user_message, timeout=timeout_s), str)
-
-
-def _run_repl(client: LazyRpcClient, *, timeout_s: float) -> None:
+def _run_repl(llm: Llm) -> None:
     print('Mock LLM REPL. Enter /quit to exit.')
     while True:
         try:
@@ -172,12 +177,12 @@ def _run_repl(client: LazyRpcClient, *, timeout_s: float) -> None:
         if not user_message:
             continue
 
-        print(f'llm> {_chat(client, user_message, timeout_s=timeout_s)}')
+        print(f'llm> {llm.chat(user_message)}')
 
 
 def main(argv: ta.Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    client = build_lazy_llm_client(
+    llm = build_llm(
         args.state_dir,
         linger_s=args.linger,
         timeout_s=args.timeout,
@@ -185,9 +190,9 @@ def main(argv: ta.Sequence[str] | None = None) -> int:
 
     if args.message:
         for user_message in args.message:
-            print(_chat(client, user_message, timeout_s=args.timeout))
+            print(llm.chat(user_message))
     else:
-        _run_repl(client, timeout_s=args.timeout)
+        _run_repl(llm)
 
     return 0
 

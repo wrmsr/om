@@ -16,6 +16,11 @@ with _lang.auto_proxy_init(globals()):
         LazyDaemon,
     )
 
+    from .httpwaiting import (  # noqa
+        HttpWait,
+        HttpWaiter,
+    )
+
     from .pidfiles import (  # noqa
         DAEMON_PIDFILE_FORMAT,
         DAEMON_PIDFILE_FORMAT_VERSION,
@@ -79,6 +84,19 @@ with _lang.auto_proxy_init(globals()):
 
         RpcClientConnection,
         RpcClient,
+
+        RpcServerRuntime,
+        RpcServerDrainTimeoutError,
+        RpcServerConfig,
+        RpcServer,
+        SimpleRpcServerRuntime,
+
+        RpcCaller,
+        RpcObjectMethod,
+        rpc_method,
+        RpcObjectHandler,
+        RpcObjectProxy,
+
         LazyRpcClient,
 
         RpcWait,

@@ -70,6 +70,20 @@ Targets describe work. Spawners create an execution context. Launchers coordinat
 readiness. Services package configuration and execution. Runtime supplies activity and shutdown state. Lazy controllers
 connect these into an on-demand policy.
 
+### RPC dependency boundary
+
+RPC is colocated under `omcore.daemons` for now, but it is not part of the daemon lifecycle abstraction. Its modules
+make the boundary explicit:
+
+- `rpc.protocol`, `rpc.client`, `rpc.server`, and `rpc.objects` are lifecycle-independent RPC pieces;
+- `rpc.services` adapts `RpcServer` to `ServiceRuntime`;
+- `rpc.lazy` composes `RpcClient` with `LazyDaemon`; and
+- `rpc.waiting` adapts an RPC handshake to the general readiness interface.
+
+`RpcServer` depends on the small `RpcServerRuntime` interface rather than on `ServiceRuntime`. Consequently it can run
+under a thread, a different supervisor, or an eventual remote-host runtime. In the other direction, daemon code does
+not require RPC: targets can be ordinary functions, in-process services, HTTP servers, or other protocols.
+
 ---
 
 ## 3. Launch ownership and startup
@@ -154,8 +168,11 @@ handshake. A directly run RPC service without a daemon pidfile creates its own i
 ## 5. Readiness and lazy launch
 
 Readiness is an application predicate represented by `Wait`/`Waiter`. It is separate from PID ownership, socket path
-existence, successful bind, and launch-channel success. Composite waits can be built with `SequentialWait`. `RpcWait`
-performs a complete handshake and verifies protocol name, version, and instance identity.
+existence, successful bind, and launch-channel success. Composite waits can be built with `SequentialWait`.
+`ConnectWait` provides the weak but useful connect-and-disconnect probe, `HttpWait` can require an application health
+endpoint's status and exact response body, and `RpcWait` performs a complete handshake and verifies protocol name,
+version, and instance identity. New probes register through the same `waiter_for` dispatch rather than modifying
+`Daemon`.
 
 `LazyDaemon` requires both a pidfile and a readiness wait. Its call policy first attempts the caller's operation. It may
 enter launch logic only when the operation raises an exception which the caller explicitly classifies as unavailable.
@@ -202,6 +219,11 @@ RPC currently uses an `AF_UNIX`/`SOCK_STREAM` socket. Each message is encoded as
 four-byte big-endian byte count. Frame size is checked before allocating or decoding, and JSON encoding rejects data
 which cannot be represented by the configured bound.
 
+`RpcServer` owns this transport, concurrent connection handling, and response replay independently of daemon services.
+It is driven by `RpcServerRuntime`, the narrow interface for shutdown, drain timeout, and optional activity acquisition.
+`SimpleRpcServerRuntime` supplies explicit shutdown for standalone use; `RpcService` is the adapter which maps
+`ServiceRuntime` onto that interface.
+
 Each connection carries:
 
 1. a client hello containing protocol name and requested version;
@@ -217,6 +239,19 @@ The server accepts connections concurrently in tracked daemon threads. Shutdown 
 connections to drain, and closes their sockets on drain timeout. Socket cleanup compares device/inode identity before
 unlinking so an old instance cannot remove a replacement's socket. Bind refuses to replace a non-socket path, probes an
 existing socket for a live owner, and only removes a stale socket.
+
+### Object interface facade
+
+The object facade is an optional layer above method-and-parameters RPC. `@rpc_method` marks the methods which form an
+interface's explicit remote allowlist. `RpcObjectHandler` binds calls against those interface signatures and invokes
+the corresponding pre-resolved implementation methods; it never uses a request value in `getattr`. `RpcObjectProxy`
+creates an implementation of the same interface and binds arguments locally before passing `args` and `kwargs` to an
+arbitrary `RpcCaller`.
+
+An optional namespace and per-method wire name let independently defined interfaces share a server method namespace.
+Undecorated methods, properties, and arbitrary attributes remain local and unexposed. The facade is not a new serializer:
+its values must still fit the bounded JSON protocol. The handler and proxy depend only on the RPC request/caller
+interfaces, not on daemon launch or service runtime.
 
 ### Request identity and replay
 
@@ -286,8 +321,10 @@ handshake, fail closed on mismatch, and require an explicit development override
 ## 10. Testing contract
 
 Behavior at OS boundaries is covered by integration tests without mocks or patches. Tests use real `flock` locks,
-Unix sockets, threads, multiprocessing spawn/fork, raw fork, double-fork reparenting, signals, exec replacement,
-concurrent launchers, response loss, and process replacement.
+Unix sockets, HTTP servers, threads, multiprocessing spawn/fork, raw fork, double-fork reparenting, signals, exec
+replacement, concurrent launchers, response loss, and process replacement. A shared-state integration test verifies
+that `ThreadSpawning` truly remains in-process, while a standalone server test verifies that the RPC core runs without
+daemon or service-runtime adapters.
 
 The LLM demo test invokes the real argparse CLI twice. It verifies that the first process starts a detached service,
 the second connects to the same PID and instance ID, both calls traverse RPC, and signal shutdown releases the pidfile.
