@@ -105,7 +105,7 @@ def test_rich_text_displayer():
 
     lang.sync_await(d.display_text(Text.of('hi ', JsonText({'a': 1}))))
 
-    assert buf.getvalue() == 'hi {"a": 1}\n'
+    assert buf.getvalue() == 'hi {"a": 1}'
 
 
 def test_json_node_style():

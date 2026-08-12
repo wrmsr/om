@@ -320,23 +320,29 @@ async def _a_main() -> None:
 
     if args.bash:
         bindings.extend([
+            inj.bind(agn.LocalShellOps, singleton=True),
+            inj.bind(agn.ShellOps, to_key=agn.LocalShellOps),
+
             inj.bind(BashTool, singleton=True),
-            agent_tools().bind_item(to_fn=inj.target(o=BashTool)(lambda o: o.llm_tool())),
+            agent_tools().bind_item(to_fn=inj.target(o=BashTool)(lambda o: o.tool())),
         ])
 
     if args.fs:
         bindings.extend([
+            inj.bind(agn.LocalFsOps, singleton=True),
+            inj.bind(agn.FsOps, to_key=agn.LocalFsOps),
+
             inj.bind(EditTool, singleton=True),
-            agent_tools().bind_item(to_fn=inj.target(o=EditTool)(lambda o: o.llm_tool())),
+            agent_tools().bind_item(to_fn=inj.target(o=EditTool)(lambda o: o.tool())),
 
             inj.bind(LsTool, singleton=True),
-            agent_tools().bind_item(to_fn=inj.target(o=LsTool)(lambda o: o.llm_tool())),
+            agent_tools().bind_item(to_fn=inj.target(o=LsTool)(lambda o: o.tool())),
 
             inj.bind(ReadTool, singleton=True),
-            agent_tools().bind_item(to_fn=inj.target(o=ReadTool)(lambda o: o.llm_tool())),
+            agent_tools().bind_item(to_fn=inj.target(o=ReadTool)(lambda o: o.tool())),
 
             inj.bind(WriteTool, singleton=True),
-            agent_tools().bind_item(to_fn=inj.target(o=WriteTool)(lambda o: o.llm_tool())),
+            agent_tools().bind_item(to_fn=inj.target(o=WriteTool)(lambda o: o.tool())),
 
         ])
 
