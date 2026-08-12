@@ -64,7 +64,7 @@ def _clear_screen() -> None:
 
 REPL_COMMANDS: ta.Mapping[str, ta.Any] = {
     'exit': _sitebuiltins.Quitter('exit', ''),
-    'quit': _sitebuiltins.Quitter('quit' ,''),
+    'quit': _sitebuiltins.Quitter('quit', ''),
     'copyright': _sitebuiltins._Printer('copyright', sys.copyright),  # noqa
     'help': _sitebuiltins._Helper(),  # noqa
     'clear': _clear_screen,
@@ -72,7 +72,7 @@ REPL_COMMANDS: ta.Mapping[str, ta.Any] = {
 }
 
 
-def _more_lines(console: 'InteractiveConsole', unicodetext: str) -> bool:
+def _more_lines(console: InteractiveConsole, unicodetext: str) -> bool:
     src = _strip_final_indent(unicodetext)
     if src.startswith('/') and '\n' not in src:
         return False
@@ -243,7 +243,7 @@ def run_multiline_interactive_console(console: InteractiveConsole) -> None:
             if r.input_trans is r.isearch_trans:
                 r.do_cmd(('isearch-end', ['']))
             r.set_pos(len(r.get_unicode()))
-            r.set_dirty()
+            r.invalidate_full()
             r.refresh()
             console.write('\nKeyboardInterrupt\n')
             console.resetbuffer()

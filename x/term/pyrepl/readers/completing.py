@@ -18,11 +18,13 @@ import typing as ta
 from ..commands import Command
 from ..commands import self_insert as base_self_insert
 from ..console import Console
+from ..render import RenderLine
+from ..render import ScreenOverlay
 from ..types import CommandName
 from ..types import CompletionAction
 from ..types import KeySpec
-from .reader import Reader
 from .reader import SYNTAX_WORD
+from .reader import Reader
 
 
 ##
@@ -60,7 +62,7 @@ def left_align(s: str, maxlen: int) -> str:
         # too bad, we remove the color
         return stripped[:maxlen]
     padding = maxlen - len(stripped)
-    return s + ' '*padding
+    return s + ' ' * padding
 
 
 def build_menu(
@@ -80,7 +82,7 @@ def build_menu(
     maxlen = min(max(map(real_len, wordlist)), cons.width - padding)
 
     cols = int(cons.width / (maxlen + padding))
-    rows = int((len(wordlist) - 1)/cols + 1)
+    rows = int((len(wordlist) - 1) / cols + 1)
 
     if sort_in_column:
         # sort_in_column=False (default)     sort_in_column=True
@@ -90,8 +92,8 @@ def build_menu(
         #
         # "fill" the table with empty words, so we always have the same amount
         # of rows for each column
-        missing = cols*rows - len(wordlist)
-        wordlist = wordlist + ['']*missing
+        missing = cols * rows - len(wordlist)
+        wordlist = wordlist + [''] * missing
         indexes = [(i % cols) * rows + i // cols for i in range(len(wordlist))]
         wordlist = [wordlist[i] for i in indexes]
 
@@ -126,7 +128,8 @@ def build_menu(
 #  To summarise the summary of the summary:- people are a problem.
 #                  -- The Hitch-Hikers Guide to the Galaxy, Episode 12
 #
-#### Desired behaviour of the completions commands.
+##
+# Desired behaviour of the completions commands.
 #
 # the considerations are:
 # (1) how many completions are possible
@@ -173,6 +176,8 @@ class complete(Command):  # noqa
                 r.cmpltn_action = None  # consumed
                 if msg:
                     r.msg = msg
+                    r.cmpltn_message_visible = True
+                    r.invalidate_message()
             else:  # other input since last tab: cancel action
                 r.cmpltn_action = None
 
@@ -185,13 +190,14 @@ class complete(Command):  # noqa
         completions = r.cmpltn_menu_choices
         if not completions:
             if not r.cmpltn_action:
-                r.error("no matches")
+                r.error('no matches')
 
         elif len(completions) == 1:
             completion = strip_color(completions[0])
             if completions_unchangable and len(completion) == len(stem):
                 r.msg = '[ sole completion ]'
-                r.set_dirty()
+                r.cmpltn_message_visible = True
+                r.invalidate_message()
             r.insert(completion[len(stem):])
 
         else:
@@ -202,7 +208,6 @@ class complete(Command):  # noqa
 
             if last_is_completer:
                 r.cmpltn_menu_visible = True
-                r.cmpltn_message_visible = False
                 r.cmpltn_menu, r.cmpltn_menu_end = build_menu(
                     r.console,
                     completions,
@@ -210,17 +215,21 @@ class complete(Command):  # noqa
                     r.use_brackets,
                     r.sort_in_column,
                 )
-                r.set_dirty()
+                if r.msg:
+                    r.msg = ''
+                    r.cmpltn_message_visible = False
+                    r.invalidate_message()
+                r.invalidate_overlay()
 
             elif not r.cmpltn_menu_visible:
-                r.cmpltn_message_visible = True
-
                 if stem + p in clean_completions:
                     r.msg = '[ complete but not unique ]'
-                    r.set_dirty()
+                    r.cmpltn_message_visible = True
+                    r.invalidate_message()
                 else:
                     r.msg = '[ not unique ]'
-                    r.set_dirty()
+                    r.cmpltn_message_visible = True
+                    r.invalidate_message()
 
         if r.cmpltn_action:
             if r.msg and r.cmpltn_message_visible:
@@ -230,7 +239,7 @@ class complete(Command):  # noqa
             else:
                 r.msg = r.cmpltn_action[0]
                 r.cmpltn_message_visible = True
-                r.dirty = True
+                r.invalidate_message()
 
 
 class self_insert(base_self_insert):  # noqa
@@ -256,6 +265,7 @@ class self_insert(base_self_insert):  # noqa
                         r.use_brackets,
                         r.sort_in_column,
                     )
+                    r.invalidate_overlay()
 
                 else:
                     r.cmpltn_reset()
@@ -275,6 +285,10 @@ class CompletingReader(Reader):
         self.use_brackets = True  # display completions inside []
         self.sort_in_column = False
 
+        # cmpltn_reset checks this to decide whether it must invalidate the overlay, so it must exist before the first
+        # call.
+        self.cmpltn_menu_visible = False
+
         self.cmpltn_reset()
 
         for c in (complete, self_insert):
@@ -293,22 +307,18 @@ class CompletingReader(Reader):
         if not isinstance(cmd, (complete, self_insert)):
             self.cmpltn_reset()
 
-    def calc_screen(self) -> list[str]:
-        screen = super().calc_screen()
+    def get_screen_overlays(self) -> tuple[ScreenOverlay, ...]:
+        if not self.cmpltn_menu_visible:
+            return ()
 
-        if self.cmpltn_menu_visible:
-            # We display the completions menu below the current prompt
-            ly = self.lxy[1] + 1
-
-            screen[ly:ly] = self.cmpltn_menu
-
-            # If we're not in the middle of multiline edit, don't append to screeninfo since that screws up the position
-            # calculation in pos2xy function. This is a hack to prevent the cursor jumping into the completions menu
-            # when pressing left or down arrow.
-            if self.pos != len(self.buffer):
-                self.screeninfo[ly:ly] = [(0, [])]*len(self.cmpltn_menu)
-
-        return screen
+        # We display the completions menu below the current prompt
+        return (
+            ScreenOverlay(
+                self.lxy[1] + 1,
+                tuple(RenderLine.from_rendered_text(line) for line in self.cmpltn_menu),
+                insert=True,
+            ),
+        )
 
     def finish(self) -> None:
         super().finish()
@@ -323,6 +333,8 @@ class CompletingReader(Reader):
     cmpltn_action: CompletionAction | None
 
     def cmpltn_reset(self) -> None:
+        if self.cmpltn_menu_visible:
+            self.invalidate_overlay()
         self.cmpltn_menu = []
         self.cmpltn_menu_visible = False
         self.cmpltn_message_visible = False
@@ -337,7 +349,7 @@ class CompletingReader(Reader):
         p = self.pos - 1
         while p >= 0 and st.get(b[p], sw) == sw:
             p -= 1
-        return ''.join(b[p+1:self.pos])
+        return ''.join(b[p + 1:self.pos])
 
     def get_completions(self, stem: str) -> tuple[list[str], CompletionAction | None]:
         return [], None

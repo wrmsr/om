@@ -1,31 +1,27 @@
 import dataclasses as dc
 import typing as ta
 
+from omcore import check
+
 from .types import CursorXY
 from .utils import ANSI_ESCAPE_SEQUENCE
 from .utils import StyleRef
-from .utils import THEME
+from .utils import color_codes
 from .utils import str_width
 
 
 type RenderStyle = StyleRef | str | None
 
 type LineUpdateKind = ta.Literal[
-    "insert_char",
-    "replace_char",
-    "replace_span",
-    "delete_then_insert",
-    "rewrite_suffix",
+    'insert_char',
+    'replace_char',
+    'replace_span',
+    'delete_then_insert',
+    'rewrite_suffix',
 ]
 
 
 ##
-
-
-class _ThemeSyntax(ta.Protocol):
-    """Protocol for theme objects that map tag names to SGR escape strings."""
-
-    def __getitem__(self, key: str, /) -> str: ...
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -49,21 +45,17 @@ class RenderCell:
         return render_cells((self,))
 
 
-def _theme_style(theme: _ThemeSyntax, tag: str) -> str:
-    return theme[tag]
-
-
 def _style_escape(style: StyleRef) -> str:
     if style.sgr:
         return style.sgr
     if style.tag is None:
-        return ""
-    return _theme_style(THEME(), style.tag)
+        return ''
+    return color_codes()[style.tag]
 
 
 def _update_terminal_state(state: str, escape: str) -> str:
-    if escape in {"\x1b[0m", "\x1b[m"}:
-        return ""
+    if escape in {'\x1b[0m', '\x1b[m'}:
+        return ''
     return state + escape
 
 
@@ -73,7 +65,7 @@ def _cells_from_rendered_text(text: str) -> tuple[RenderCell, ...]:
 
     cells: list[RenderCell] = []
     pending_controls: list[str] = []
-    active_sgr = ""
+    active_sgr = ''
     index = 0
 
     def append_plain_text(segment: str) -> None:
@@ -81,7 +73,7 @@ def _cells_from_rendered_text(text: str) -> tuple[RenderCell, ...]:
         if not segment:
             return
         if pending_controls:
-            cells.append(RenderCell("", 0, controls=tuple(pending_controls)))
+            cells.append(RenderCell('', 0, controls=tuple(pending_controls)))
             pending_controls = []
         for char in segment:
             cells.append(
@@ -89,13 +81,13 @@ def _cells_from_rendered_text(text: str) -> tuple[RenderCell, ...]:
                     char,
                     str_width(char),
                     style=StyleRef.from_sgr(active_sgr),
-                )
+                ),
             )
 
     for match in ANSI_ESCAPE_SEQUENCE.finditer(text):
-        append_plain_text(text[index : match.start()])
+        append_plain_text(text[index: match.start()])
         escape = match.group(0)
-        if escape.endswith("m"):
+        if escape.endswith('m'):
             active_sgr = _update_terminal_state(active_sgr, escape)
         else:
             pending_controls.append(escape)
@@ -103,7 +95,7 @@ def _cells_from_rendered_text(text: str) -> tuple[RenderCell, ...]:
 
     append_plain_text(text[index:])
     if pending_controls:
-        cells.append(RenderCell("", 0, controls=tuple(pending_controls)))
+        cells.append(RenderCell('', 0, controls=tuple(pending_controls)))
 
     return tuple(cells)
 
@@ -202,7 +194,7 @@ class RenderedScreen:
     composed_lines: tuple[RenderLine, ...] = dc.field(init=False, default=())
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "composed_lines", self._compose())
+        object.__setattr__(self, 'composed_lines', self._compose())
 
     def _compose(self) -> tuple[RenderLine, ...]:
         """Apply overlays in tuple order; inserts shift subsequent positions."""
@@ -214,10 +206,8 @@ class RenderedScreen:
         y_offset = 0
         for overlay in self.overlays:
             adjusted_y = overlay.y + y_offset
-            assert adjusted_y >= 0, (
-                f"Overlay y={overlay.y} with offset={y_offset} is negative; "
-                "overlays must be sorted by ascending y"
-            )
+            # Overlays must be sorted by ascending y.
+            check.state(adjusted_y >= 0)
             if overlay.insert:
                 # Splice overlay lines in, pushing existing content down.
                 lines[adjusted_y:adjusted_y] = overlay.lines
@@ -255,7 +245,7 @@ class RenderedScreen:
         return type(self)(
             self.lines,
             self.cursor,
-            self.overlays + (ScreenOverlay(y, tuple(lines)),),
+            (*self.overlays, ScreenOverlay(y, tuple(lines))),
         )
 
     @property
@@ -300,7 +290,7 @@ class LineDiff:
         return sum(cell.width for cell in self.new_cells)
 
 
-EMPTY_RENDER_LINE = RenderLine(cells=(), text="", width=0)
+EMPTY_RENDER_LINE = RenderLine(cells=(), text='', width=0)
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -316,15 +306,15 @@ class LineUpdate:
     # If True, the console must resync the cursor position after writing (needed when cells contain non-SGR escape
     # sequences that may move the cursor).
     reset_to_margin: bool = False
-    text: str = dc.field(init=False, default="")
+    text: str = dc.field(init=False, default='')
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "text", render_cells(self.cells))
+        object.__setattr__(self, 'text', render_cells(self.cells))
 
 
 def _controls_require_cursor_resync(controls: ta.Sequence[str]) -> bool:
     # Anything beyond SGR means the cursor may no longer be where we left it.
-    return any(not control.endswith("m") for control in controls)
+    return any(not control.endswith('m') for control in controls)
 
 
 def requires_cursor_resync(cells: ta.Sequence[RenderCell]) -> bool:
@@ -344,7 +334,7 @@ def render_cells(
     """
 
     rendered: list[str] = []
-    active_escape = ""
+    active_escape = ''
     for cell in cells:
         if cell.controls:
             rendered.extend(cell.controls)
@@ -356,15 +346,15 @@ def render_cells(
             target_escape += visual_style
         if target_escape != active_escape:
             if active_escape:
-                rendered.append("\x1b[0m")
+                rendered.append('\x1b[0m')
             if target_escape:
                 rendered.append(target_escape)
             active_escape = target_escape
         rendered.append(cell.text)
 
     if active_escape:
-        rendered.append("\x1b[0m")
-    return "".join(rendered)
+        rendered.append('\x1b[0m')
+    return ''.join(rendered)
 
 
 def diff_render_lines(old: RenderLine, new: RenderLine) -> LineDiff | None:

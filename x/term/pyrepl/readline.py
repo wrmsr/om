@@ -30,6 +30,7 @@ from omcore import check
 
 from .commands import Command
 from .console import CONSOLE_ERROR_TYPES
+from .console import Console
 from .readers.completing import CompletingReader
 from .readers.completing import strip_color
 from .readers.historical import HistoricalReader
@@ -37,7 +38,7 @@ from .types import CommandName
 from .types import Completer
 from .types import CompletionAction
 from .types import KeySpec
-from .unix.console import UnixConsole as Console
+from .unix.console import UnixConsole
 
 
 MoreLinesCallable: ta.TypeAlias = ta.Callable[[str], bool]
@@ -46,7 +47,7 @@ MoreLinesCallable: ta.TypeAlias = ta.Callable[[str], bool]
 ##
 
 
-ENCODING = sys.getdefaultencoding() or 'latin1'
+ENCODING = sys.getdefaultencoding()
 
 
 @dc.dataclass()
@@ -90,7 +91,7 @@ class ReadlineAlikeReader(
         completer_delims = self.config.completer_delims
         while p >= 0 and b[p] not in completer_delims:
             p -= 1
-        return ''.join(b[p + 1 : self.pos])
+        return ''.join(b[p + 1: self.pos])
 
     def get_completions(self, stem: str) -> tuple[list[str], CompletionAction | None]:
         module_completions = self.get_module_completions()
@@ -134,7 +135,7 @@ class ReadlineAlikeReader(
     def get_module_completions(self) -> tuple[list[str], CompletionAction | None] | None:
         line = self.get_line()  # noqa
         # return self.config.module_completer.get_completions(line)
-        return [], None
+        return None
 
     def get_trimmed_history(self, maxlength: int) -> list[str]:
         if maxlength >= 0:
@@ -218,7 +219,7 @@ def _get_first_indentation(buffer: list[str]) -> str | None:
         ):
             indented_line_start = i + 1
         elif indented_line_start is not None and buffer[i] not in ' \t\n':
-            return ''.join(buffer[indented_line_start : i])
+            return ''.join(buffer[indented_line_start: i])
     return None
 
 
@@ -244,17 +245,17 @@ class maybe_accept(Command):  # noqa
     def do(self) -> None:
         r: ReadlineAlikeReader
         r = self.reader  # type: ignore[assignment]
-        r.set_dirty()  # this is needed to hide the completion menu, if visible
+        r.invalidate_overlay()  # hide completion menu, if visible
 
         # if there are already several lines and the cursor is not on the last one, always insert a new \n.
         text = r.get_unicode()
 
-        if '\n' in r.buffer[r.pos :] or (r.more_lines is not None and r.more_lines(text)):
+        if '\n' in r.buffer[r.pos:] or (r.more_lines is not None and r.more_lines(text)):
             def _newline_before_pos():
                 before_idx = r.pos - 1
                 while before_idx > 0 and text[before_idx].isspace():
                     before_idx -= 1
-                return text[before_idx : r.pos].count('\n') > 0
+                return text[before_idx: r.pos].count('\n') > 0
 
             # if there's already a new line before the cursor then even if the cursor is followed by whitespace, we
             # assume the user is trying to terminate the block
@@ -306,8 +307,8 @@ class backspace_dedent(Command):  # noqa
                             break
 
             r.set_pos(r.pos - repeat)
-            del b[r.pos : r.pos + repeat]
-            r.set_dirty()
+            del b[r.pos: r.pos + repeat]
+            r.invalidate_buffer(r.pos)
 
         else:
             self.reader.error("can't backspace at start")
@@ -334,7 +335,7 @@ class _ReadlineWrapper:
 
     def get_reader(self) -> ReadlineAlikeReader:
         if self.reader is None:
-            console = Console(self.f_in, self.f_out, encoding=ENCODING)
+            console = UnixConsole(self.f_in, self.f_out, encoding=ENCODING)
             self.reader = ReadlineAlikeReader(console=console, config=self.config)
         return self.reader
 
@@ -423,7 +424,7 @@ class _ReadlineWrapper:
 
             for line in lines:
                 if line.endswith('\r'):
-                    buffer.append(line+'\n')
+                    buffer.append(line + '\n')
 
                 else:
                     line = self._histline(line)

@@ -27,9 +27,9 @@ class StyledChar(ta.NamedTuple):
 def _ascii_control_repr(c: str) -> str | None:
     code = ord(c)
     if code < 32:
-        return "^" + chr(code + 64)
+        return '^' + chr(code + 64)
     if code == 127:
-        return "^?"
+        return '^?'
     return None
 
 
@@ -41,7 +41,7 @@ def str_width(c: str) -> int:
     if unicodedata.combining(c):
         return 0
     category = unicodedata.category(c)
-    if category == "Cf" and c != "\u00ad":
+    if category == 'Cf' and c != '\u00ad':
         return 0
     w = unicodedata.east_asian_width(c)
     if w in ('N', 'Na', 'H', 'A'):
@@ -138,7 +138,6 @@ def color_codes() -> ColorCodes:
 ##
 
 
-
 def iter_display_chars(
     buffer: str,
     colors: list[ColorSpan] | None = None,
@@ -173,8 +172,8 @@ def iter_display_chars(
         elif ord(c) < 128:
             text = c
             width = 1
-        elif unicodedata.category(c).startswith("C"):
-            text = r"\u%04x" % ord(c)
+        elif unicodedata.category(c).startswith('C'):
+            text = rf'\u{ord(c):04x}'
             width = len(text)
         else:
             text = c
@@ -234,8 +233,8 @@ def disp_str(
     for index, styled_char in enumerate(styled_chars):
         previous_tag = styled_chars[index - 1].tag if index else None
         next_tag = styled_chars[index + 1].tag if index + 1 < len(styled_chars) else None
-        prefix = color_codes[styled_char.tag] if styled_char.tag and styled_char.tag != previous_tag else ""
-        suffix = color_codes.reset if styled_char.tag and styled_char.tag != next_tag else ""
+        prefix = color_codes[styled_char.tag] if styled_char.tag and styled_char.tag != previous_tag else ''
+        suffix = color_codes.reset if styled_char.tag and styled_char.tag != next_tag else ''
         chars.append(prefix + styled_char.text + suffix)
         char_widths.append(styled_char.width)
 
@@ -243,7 +242,7 @@ def disp_str(
 
 
 def prev_next_window[T](
-    iterable: ta.Iterable[T]
+    iterable: ta.Iterable[T],
 ) -> ta.Iterator[tuple[T | None, ...]]:
     """
     Generates three-tuples of (previous, current, next) items.
@@ -272,10 +271,10 @@ def prev_next_window[T](
 @dc.dataclass(frozen=True, slots=True)
 class StyleRef:
     tag: str | None = None  # From THEME().syntax, e.g. "keyword", "builtin"
-    sgr: str = ""
+    sgr: str = ''
 
     @classmethod
-    def from_tag(cls, tag: str, sgr: str = "") -> ta.Self:
+    def from_tag(cls, tag: str, sgr: str = '') -> ta.Self:
         return cls(tag=tag, sgr=sgr)
 
     @classmethod

@@ -2,7 +2,7 @@ import dataclasses as dc
 
 from .utils import ColorSpan
 from .utils import StyleRef
-from .utils import THEME
+from .utils import color_codes
 from .utils import iter_display_chars
 from .utils import unbracket
 from .utils import wlen
@@ -106,9 +106,9 @@ def process_prompt(prompt: str) -> PromptContent:
     visible_prompt = unbracket(prompt, including_content=True)
     leading_lines: list[ContentFragment] = []
 
-    while "\n" in prompt_text:
-        leading_text, _, prompt_text = prompt_text.partition("\n")
-        visible_leading, _, visible_prompt = visible_prompt.partition("\n")
+    while '\n' in prompt_text:
+        leading_text, _, prompt_text = prompt_text.partition('\n')
+        visible_leading, _, visible_prompt = visible_prompt.partition('\n')
         leading_lines.append(ContentFragment(leading_text, wlen(visible_leading)))
 
     return PromptContent(tuple(leading_lines), prompt_text, wlen(visible_prompt))
@@ -121,7 +121,7 @@ def build_body_fragments(
 ) -> tuple[ContentFragment, ...]:
     """Convert a line's text into styled content fragments."""
 
-    # Two separate loops to avoid the THEME() call in the common uncolored path.
+    # Two separate loops to avoid the color_codes() call in the common uncolored path.
     if colors is None:
         return tuple(
             ContentFragment(
@@ -132,12 +132,12 @@ def build_body_fragments(
             for styled_char in iter_display_chars(buffer, colors, start_index)
         )
 
-    theme = THEME()
+    codes = color_codes()
     return tuple(
         ContentFragment(
             styled_char.text,
             styled_char.width,
-            StyleRef.from_tag(styled_char.tag, theme[styled_char.tag])
+            StyleRef.from_tag(styled_char.tag, codes[styled_char.tag])
             if styled_char.tag
             else StyleRef(),
         )

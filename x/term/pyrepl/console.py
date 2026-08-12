@@ -20,6 +20,9 @@ import typing as ta
 
 from omcore import lang
 
+from .render import RenderedScreen
+from .types import CursorXY
+
 
 ##
 
@@ -41,7 +44,7 @@ CONSOLE_ERROR_TYPES: tuple[type[BaseException], ...] = (
 @dc.dataclass()
 class ConsoleEvent(lang.Final):
     evt: str
-    data: str | None
+    data: str
     raw: bytes = b''
 
 
@@ -52,6 +55,8 @@ class Console(lang.Abstract):
             f_out: ta.IO[bytes] | int = 1,
             term: str = '',
             encoding: str = '',
+            *,
+            visualize_redraws: bool = False,
     ) -> None:
         super().__init__()
 
@@ -72,7 +77,10 @@ class Console(lang.Abstract):
 
         self._posxy: tuple[int, int] = (0, 0)
 
-        self._screen: list[str] = []
+        self._rendered_screen: RenderedScreen = RenderedScreen.empty()
+
+        self._visualize_redraws = visualize_redraws
+        self._redraw_visual_cycle = 0
 
     @property
     def encoding(self) -> str:
@@ -106,16 +114,55 @@ class Console(lang.Abstract):
         self._posxy = (x, y)
 
     @property
-    def screen(self) -> list[str]:
-        return self._screen
+    def rendered_screen(self) -> RenderedScreen:
+        return self._rendered_screen
 
-    def set_screen(self, screen: list[str]) -> None:
-        self._screen = screen
+    @property
+    def screen(self) -> list[str]:
+        return list(self._rendered_screen.screen_lines)
+
+    def sync_rendered_screen(
+            self,
+            rendered_screen: RenderedScreen,
+            posxy: CursorXY | None = None,
+    ) -> None:
+        if posxy is None:
+            posxy = rendered_screen.cursor
+        self._posxy = posxy
+        self._rendered_screen = rendered_screen
+
+    def invalidate_render_state(self) -> None:
+        self._rendered_screen = RenderedScreen.empty()
+
+    #
+
+    _REDRAW_DEBUG_PALETTE: ta.ClassVar[ta.Sequence[str]] = (
+        '\x1b[41m',
+        '\x1b[42m',
+        '\x1b[43m',
+        '\x1b[44m',
+        '\x1b[45m',
+        '\x1b[46m',
+    )
+
+    def begin_redraw_visualization(self) -> str | None:
+        """
+        When redraw visualization is enabled, return a background SGR style (cycling through a palette per refresh) to
+        apply to every cell written during this refresh, making redrawn regions visible for debugging.
+        """
+
+        if not self._visualize_redraws:
+            return None
+
+        palette = self._REDRAW_DEBUG_PALETTE
+        cycle = self._redraw_visual_cycle
+        self._redraw_visual_cycle = cycle + 1
+        return palette[cycle % len(palette)]
 
     #
 
     @abc.abstractmethod
-    def refresh(self, screen: list[str], xy: tuple[int, int]) -> None:
+    def refresh(self, rendered_screen: RenderedScreen) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod

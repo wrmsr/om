@@ -26,13 +26,37 @@ from ..commands import Command
 from ..commands import digit_arg
 from ..commands import invalid_command
 from ..console import Console
+from ..content import ContentFragment
+from ..content import ContentLine
+from ..content import SourceLine
+from ..content import build_body_fragments
+from ..content import process_prompt as build_prompt_content
+from ..input import InputEvent
 from ..input import KeymapTranslator
+from ..layout import LayoutMap
+from ..layout import LayoutResult
+from ..layout import LayoutRow
+from ..layout import WrappedRow
+from ..layout import layout_content_lines
+from ..render import RenderCell
+from ..render import RenderedScreen
+from ..render import RenderLine
+from ..render import ScreenOverlay
 from ..types import CommandName
+from ..types import CursorXY
+from ..types import Dimensions
+from ..types import EventData
 from ..types import KeySpec
+from ..types import ScreenInfoRow
+from ..utils import ANSI_ESCAPE_SEQUENCE
+from ..utils import StyleRef
 from ..utils import color_codes
-from ..utils import disp_str
-from ..utils import unbracket
-from ..utils import wlen
+
+
+CommandClass: ta.TypeAlias = type[Command]
+CommandInput: ta.TypeAlias = tuple[CommandName | CommandClass, EventData]
+
+PromptCellCacheKey: ta.TypeAlias = tuple[str, bool]
 
 
 ##
@@ -137,50 +161,145 @@ DEFAULT_KEYMAP: ta.Sequence[tuple[KeySpec, CommandName]] = (
 ##
 
 
+@dc.dataclass(frozen=True, slots=True)
+class RefreshInvalidation:
+    """Which parts of the screen need to be recomputed on the next refresh."""
+
+    cursor_only: bool = False
+    buffer_from_pos: int | None = None
+    prompt: bool = False
+    layout: bool = False
+    theme: bool = False
+    message: bool = False
+    overlay: bool = False
+    full: bool = False
+
+    @classmethod
+    def empty(cls) -> ta.Self:
+        return cls()
+
+    @property
+    def needs_screen_refresh(self) -> bool:
+        return any((
+            self.buffer_from_pos is not None,
+            self.prompt,
+            self.layout,
+            self.theme,
+            self.message,
+            self.overlay,
+            self.full,
+        ))
+
+    @property
+    def is_cursor_only(self) -> bool:
+        return self.cursor_only and not self.needs_screen_refresh
+
+    @property
+    def buffer_rebuild_from_pos(self) -> int | None:
+        if self.full or self.prompt or self.layout or self.theme:
+            return 0
+        return self.buffer_from_pos
+
+    def with_cursor(self) -> ta.Self:
+        if self.needs_screen_refresh:
+            return self
+        return dc.replace(self, cursor_only=True)
+
+    def with_buffer(self, from_pos: int) -> ta.Self:
+        current = from_pos
+        if self.buffer_from_pos is not None:
+            current = min(current, self.buffer_from_pos)
+        return dc.replace(self, cursor_only=False, buffer_from_pos=current)
+
+    def with_prompt(self) -> ta.Self:
+        return dc.replace(self, cursor_only=False, prompt=True)
+
+    def with_layout(self) -> ta.Self:
+        return dc.replace(self, cursor_only=False, layout=True)
+
+    def with_theme(self) -> ta.Self:
+        return dc.replace(self, cursor_only=False, theme=True)
+
+    def with_message(self) -> ta.Self:
+        return dc.replace(self, cursor_only=False, message=True)
+
+    def with_overlay(self) -> ta.Self:
+        return dc.replace(self, cursor_only=False, overlay=True)
+
+    def with_full(self) -> ta.Self:
+        return dc.replace(self, cursor_only=False, full=True)
+
+
 @dc.dataclass(kw_only=True)
 class RefreshCache:
-    """Cached metadata to speed up screen refreshes"""
+    """Previously computed render/layout data for incremental refresh."""
 
-    screen: list[str] = dc.field(default_factory=list)
-    screeninfo: list[tuple[int, list[int]]]
+    render_lines: list[RenderLine] = dc.field(default_factory=list)
+    layout_rows: list[LayoutRow] = dc.field(default_factory=list)
     line_end_offsets: list[int] = dc.field(default_factory=list)
-    pos: int
-    cxy: tuple[int, int]
-    dimensions: tuple[int, int]
-    invalidated: bool = False
+    pos: int = 0
+    dimensions: Dimensions = (0, 0)
 
     def update_cache(
             self,
-            reader: 'Reader',
-            screen: list[str],
-            screeninfo: list[tuple[int, list[int]]],
+            reader: Reader,
+            render_lines: list[RenderLine],
+            layout_rows: list[LayoutRow],
+            line_end_offsets: list[int],
     ) -> None:
-        self.screen = screen.copy()
-        self.screeninfo = screeninfo.copy()
+        self.render_lines = render_lines.copy()
+        self.layout_rows = layout_rows.copy()
+        self.line_end_offsets = line_end_offsets.copy()
         self.pos = reader.pos
-        self.cxy = reader.cxy
         self.dimensions = reader.console.width, reader.console.height
-        self.invalidated = False
 
-    def valid(self, reader: 'Reader') -> bool:
-        if self.invalidated:
-            return False
+    def valid(self, reader: Reader) -> bool:
         dimensions = reader.console.width, reader.console.height
         dimensions_changed = dimensions != self.dimensions
         return not dimensions_changed
 
-    def get_cached_location(self, reader: 'Reader') -> tuple[int, int]:
-        if self.invalidated:
-            raise ValueError('Cache is invalidated')
-        earliest_common_pos = min(reader.pos, self.pos)
+    def get_cached_location(
+            self,
+            reader: Reader,
+            buffer_from_pos: int | None = None,
+            *,
+            reuse_full: bool = False,
+    ) -> tuple[int, int]:
+        """
+        Return (buffer_offset, num_reusable_lines) for incremental refresh.
+
+        Three paths:
+        - reuse_full (overlay/message-only): reuse all cached lines.
+        - buffer_from_pos=None (full rebuild): rewind to common cursor pos.
+        - explicit buffer_from_pos: reuse lines before that position.
+        """
+
+        if reuse_full:
+            if self.line_end_offsets:
+                last_offset = self.line_end_offsets[-1]
+                if last_offset >= len(reader.buffer):
+                    return last_offset, len(self.line_end_offsets)
+            return 0, 0
+
+        if buffer_from_pos is None:
+            buffer_from_pos = min(reader.pos, self.pos)
+
         num_common_lines = len(self.line_end_offsets)
         while num_common_lines > 0:
-            offset = self.line_end_offsets[num_common_lines - 1]
-            if earliest_common_pos > offset:
+            candidate = self.line_end_offsets[num_common_lines - 1]
+            if buffer_from_pos > candidate:
                 break
             num_common_lines -= 1
-        else:
-            offset = 0
+
+        # Prompt-only leading rows consume no buffer content. Reusing them in isolation causes the next incremental
+        # rebuild to emit them a second time.
+        while (
+                num_common_lines > 0 and
+                self.layout_rows[num_common_lines - 1].buffer_advance == 0
+        ):
+            num_common_lines -= 1
+
+        offset = self.line_end_offsets[num_common_lines - 1] if num_common_lines else 0
         return offset, num_common_lines
 
 
@@ -231,24 +350,19 @@ class Reader:
         # The emacs-style prefix argument. It will be None if no such argument has been provided.
         self.arg: int | None = None
 
-        # True if we need to refresh the display.
-        self.dirty: bool = False
-
         # handle1 will set this to a true value if a command signals that we're done.
         self.finished: bool = False
 
         self.paste_mode: bool = False
 
         # Dictionary mapping command names to command classes.
-        self.commands: dict[str, type[Command]] = make_default_commands()
-        self.last_command: type[Command] | None = None
+        self.commands: dict[CommandName, CommandClass] = make_default_commands()
+        self.last_command: CommandClass | None = None
 
         # Dictionary mapping characters to 'syntax class'; read the emacs docs to see what this means :-)
         self.syntax_table: dict[str, int] = make_default_syntax_table()
 
-        self.screen: list[str] = []
-
-        self.scheduled_commands: list[str] = []
+        self.scheduled_commands: list[CommandName] = []
 
         self.threading_hook: ta.Callable[[], None] | None = None
 
@@ -262,162 +376,294 @@ class Reader:
         )
         self.input_trans_stack: list[KeymapTranslator] = []
 
-        # A list of screen position tuples. Each list element is a tuple representing information on visible line length
-        # for a given line. Allows for efficient skipping of color escape sequences.
-        self.screeninfo: list[tuple[int, list[int]]] = [(0, [])]
-
         # A 0-based index into 'buffer' for where the insertion point is.
         self._pos: int = 0
 
+        # A mapping between buffer positions and rendered rows/columns. It is the internal source of truth for cursor
+        # placement.
+        self._layout: LayoutMap = LayoutMap.empty()
+
         # the position of the insertion point in screen ...
-        self.cxy: tuple[int, int] = self.pos2xy()
-        self.lxy: tuple[int, int] = (self.pos, 0)
+        self.cxy: CursorXY = self.pos2xy()
+        self.lxy: CursorXY = (self.pos, 0)
+
+        self._rendered_screen: RenderedScreen = RenderedScreen.empty()
 
         self.can_colorize = can_colorize()
 
+        self._invalidation: RefreshInvalidation = RefreshInvalidation.empty()
+
+        self._prompt_cell_cache: dict[PromptCellCacheKey, tuple[RenderCell, ...]] = {}
+
         self.last_refresh_cache = RefreshCache(
-            screeninfo=self.screeninfo,
+            layout_rows=list(self._layout.rows),
             pos=self.pos,
-            cxy=self.cxy,
             dimensions=(0, 0),
         )
+
+    @property
+    def rendered_screen(self) -> RenderedScreen:
+        return self._rendered_screen
+
+    @property
+    def screen(self) -> list[str]:
+        return list(self._rendered_screen.screen_lines)
+
+    @property
+    def layout(self) -> LayoutMap:
+        return self._layout
+
+    @property
+    def screeninfo(self) -> list[ScreenInfoRow]:
+        return self._layout.screeninfo
+
+    @property
+    def invalidation(self) -> RefreshInvalidation:
+        return self._invalidation
 
     def collect_keymap(self) -> ta.Sequence[tuple[KeySpec, CommandName]]:
         return DEFAULT_KEYMAP
 
-    def calc_screen(self) -> list[str]:
-        """Translate changes in self.buffer into changes in self.console.screen."""
+    def calc_screen(self) -> RenderedScreen:
+        """Translate the editable buffer into a base rendered screen."""
 
-        # Since the last call to calc_screen: screen and screeninfo may differ due to a completion menu being shown pos
-        # and cxy may differ due to edits, cursor movements, or completion menus.
-        #
-        # Lines that are above both the old and new cursor position can't have changed, unless the terminal has been
-        # resized (which might cause reflowing) or we've entered or left paste mode (which changes prompts, causing
-        # reflowing).
         num_common_lines = 0
         offset = 0
         if self.last_refresh_cache.valid(self):
-            offset, num_common_lines = self.last_refresh_cache.get_cached_location(self)
+            if (
+                    self._invalidation.buffer_from_pos is None and
+                    not (
+                        self._invalidation.full or
+                        self._invalidation.prompt or
+                        self._invalidation.layout or
+                        self._invalidation.theme
+                    ) and
+                    (self._invalidation.message or self._invalidation.overlay)
+            ):
+                # Fast path: only overlays or messages changed.
+                offset, num_common_lines = self.last_refresh_cache.get_cached_location(
+                    self,
+                    reuse_full=True,
+                )
+                # Buffer must not have been modified without an invalidate_buffer() call.
+                check.state(
+                    not self.last_refresh_cache.line_end_offsets or
+                    (self.last_refresh_cache.line_end_offsets[-1] >= len(self.buffer)),
+                )
+            else:
+                offset, num_common_lines = self.last_refresh_cache.get_cached_location(
+                    self,
+                    self._buffer_refresh_from_pos(),
+                )
 
-        screen = self.last_refresh_cache.screen
-        del screen[num_common_lines:]
+        base_render_lines = self.last_refresh_cache.render_lines[:num_common_lines]
+        layout_rows = self.last_refresh_cache.layout_rows[:num_common_lines]
+        last_refresh_line_end_offsets = self.last_refresh_cache.line_end_offsets[:num_common_lines]
 
-        screeninfo = self.last_refresh_cache.screeninfo
-        del screeninfo[num_common_lines:]
+        source_lines = self._build_source_lines(offset, num_common_lines)
+        content_lines = self._build_content_lines(
+            source_lines,
+            prompt_from_cache=bool(offset and self.buffer[offset - 1] != '\n'),
+        )
+        layout_result = self._layout_content(content_lines, offset)
+        base_render_lines.extend(self._render_wrapped_rows(layout_result.wrapped_rows))
+        layout_rows.extend(layout_result.layout_map.rows)
+        last_refresh_line_end_offsets.extend(layout_result.line_end_offsets)
 
-        last_refresh_line_end_offsets = self.last_refresh_cache.line_end_offsets
-        del last_refresh_line_end_offsets[num_common_lines:]
+        self._layout = LayoutMap(tuple(layout_rows))
+        self.cxy = self.pos2xy()
+        if not source_lines:
+            # reuse_full path: _build_source_lines didn't run, so lxy wasn't updated. Derive it from the buffer.
+            self.lxy = self._compute_lxy()
+        self.last_refresh_cache.update_cache(
+            self,
+            base_render_lines,
+            layout_rows,
+            last_refresh_line_end_offsets,
+        )
+        return RenderedScreen(tuple(base_render_lines), self.cxy)
 
-        pos = self._pos
-        pos -= offset
+    def _buffer_refresh_from_pos(self) -> int:
+        """
+        Return buffer position from which to rebuild content.
 
-        prompt_from_cache = (offset and self.buffer[offset - 1] != '\n')
+        Returns 0 (full rebuild) when no incremental position is known.
+        """
 
-        if self.can_colorize:
-            # from .utils import gen_colors
-            colors: list | None = []  # list(gen_colors(self.get_unicode()))
+        buffer_from_pos = self._invalidation.buffer_rebuild_from_pos
+        if buffer_from_pos is not None:
+            return buffer_from_pos
+        return 0
+
+    def _compute_lxy(self) -> CursorXY:
+        """Derive logical cursor (col, lineno) from the buffer and pos."""
+
+        text = ''.join(self.buffer[:self._pos])
+        lineno = text.count('\n')
+        if lineno:
+            col = self._pos - text.rindex('\n') - 1
         else:
-            colors = None
+            col = self._pos
+        return col, lineno
 
-        # trace('colors = {colors}', colors=colors)
+    def _build_source_lines(
+            self,
+            offset: int,
+            first_lineno: int,
+    ) -> tuple[SourceLine, ...]:
+        if offset == len(self.buffer) and (offset > 0 or first_lineno > 0):
+            return ()
 
+        pos = self._pos - offset
         lines = ''.join(self.buffer[offset:]).split('\n')
         cursor_found = False
         lines_beyond_cursor = 0
+        source_lines: list[SourceLine] = []
+        current_offset = offset
 
-        for ln, line in enumerate(lines, num_common_lines):
+        for line_index, line in enumerate(lines):
+            lineno = first_lineno + line_index
+            has_newline = line_index < len(lines) - 1
             line_len = len(line)
-
+            cursor_index: int | None = None
             if 0 <= pos <= line_len:
-                self.lxy = pos, ln
+                cursor_index = pos
+                self.lxy = pos, lineno
                 cursor_found = True
-
             elif cursor_found:
                 lines_beyond_cursor += 1
                 if lines_beyond_cursor > self.console.height:
                     # No need to keep formatting lines. The console can't show them.
                     break
 
+            source_lines.append(SourceLine(
+                lineno=lineno,
+                text=line,
+                start_offset=current_offset,
+                has_newline=has_newline,
+                cursor_index=cursor_index,
+            ))
+            pos -= line_len + 1
+            current_offset += line_len + (1 if has_newline else 0)
+
+        return tuple(source_lines)
+
+    def _build_content_lines(
+            self,
+            source_lines: tuple[SourceLine, ...],
+            *,
+            prompt_from_cache: bool,
+    ) -> tuple[ContentLine, ...]:
+        if self.can_colorize:
+            # from ..utils import gen_colors
+            colors: list | None = []  # list(gen_colors(self.get_unicode()))
+        else:
+            colors = None
+
+        content_lines: list[ContentLine] = []
+        for source_line in source_lines:
             if prompt_from_cache:
                 # Only the first line's prompt can come from the cache
                 prompt_from_cache = False
                 prompt = ''
             else:
-                prompt = self.get_prompt(ln, line_len >= pos >= 0)
+                prompt = self.get_prompt(source_line.lineno, source_line.cursor_on_line)
+            content_lines.append(ContentLine(
+                source=source_line,
+                prompt=build_prompt_content(prompt),
+                body=build_body_fragments(
+                    source_line.text,
+                    colors,
+                    source_line.start_offset,
+                ),
+            ))
+        return tuple(content_lines)
 
-            while '\n' in prompt:
-                pre_prompt, _, prompt = prompt.partition('\n')
-                last_refresh_line_end_offsets.append(offset)
-                screen.append(pre_prompt)
-                screeninfo.append((0, []))
+    def _layout_content(
+            self,
+            content_lines: tuple[ContentLine, ...],
+            offset: int,
+    ) -> LayoutResult:
+        return layout_content_lines(content_lines, self.console.width, offset)
 
-            pos -= line_len + 1
+    def _render_wrapped_rows(
+            self,
+            wrapped_rows: tuple[WrappedRow, ...],
+    ) -> list[RenderLine]:
+        return [
+            self._render_line(
+                row.prompt_text,
+                row.fragments,
+                row.suffix,
+            )
+            for row in wrapped_rows
+        ]
 
-            prompt, prompt_len = self.process_prompt(prompt)
+    def _render_message_lines(self) -> tuple[RenderLine, ...]:
+        if not self.msg:
+            return ()
 
-            chars, char_widths = disp_str(line, colors, offset)
+        width = self.console.width
+        render_lines: list[RenderLine] = []
+        for message_line in self.msg.split('\n'):
+            # If self.msg is larger than console width, make it fit.
+            # TODO: try to split between words?
+            if not message_line:
+                render_lines.append(RenderLine.from_rendered_text(''))
+                continue
+            for offset in range(0, len(message_line), width):
+                render_lines.append(RenderLine.from_rendered_text(message_line[offset: offset + width]))
+        return tuple(render_lines)
 
-            wrapcount = (sum(char_widths) + prompt_len) // self.console.width
-            if wrapcount == 0 or not char_widths:
-                offset += line_len + 1  # Takes all of the line plus the newline
-                last_refresh_line_end_offsets.append(offset)
-                screen.append(prompt + ''.join(chars))
-                screeninfo.append((prompt_len, char_widths))
+    def get_screen_overlays(self) -> tuple[ScreenOverlay, ...]:
+        return ()
 
-            else:
-                pre = prompt
-                prelen = prompt_len
+    def compose_rendered_screen(self, base_screen: RenderedScreen) -> RenderedScreen:
+        overlays = list(self.get_screen_overlays())
+        message_lines = self._render_message_lines()
+        if message_lines:
+            overlays.append(ScreenOverlay(len(base_screen.lines), message_lines))
+        if not overlays:
+            return base_screen
+        return RenderedScreen(base_screen.lines, base_screen.cursor, tuple(overlays))
 
-                for _ in range(wrapcount + 1):
-                    index_to_wrap_before = 0
-                    column = 0
+    def _render_line(
+            self,
+            prefix: str,
+            fragments: tuple[ContentFragment, ...],
+            suffix: str = '',
+    ) -> RenderLine:
+        cells: list[RenderCell] = []
 
-                    for char_width in char_widths:
-                        if column + char_width + prelen >= self.console.width:
-                            break
-                        index_to_wrap_before += 1
-                        column += char_width
+        if prefix:
+            cache_key = (prefix, self.can_colorize)
+            cached = self._prompt_cell_cache.get(cache_key)
+            if cached is None:
+                prompt_cells = RenderLine.from_rendered_text(prefix).cells
+                if self.can_colorize and prompt_cells and not ANSI_ESCAPE_SEQUENCE.search(prefix):
+                    prompt_style = StyleRef.from_tag('prompt', color_codes()['prompt'])
+                    prompt_cells = tuple(
+                        RenderCell(
+                            cell.text,
+                            cell.width,
+                            style=prompt_style if cell.text else cell.style,
+                            controls=cell.controls,
+                        )
+                        for cell in prompt_cells
+                    )
+                self._prompt_cell_cache[cache_key] = prompt_cells
+                cached = prompt_cells
+            cells.extend(cached)
 
-                    if len(chars) > index_to_wrap_before:
-                        offset += index_to_wrap_before
-                        post = '\\'
-                        after = [1]
-                    else:
-                        offset += index_to_wrap_before + 1  # Takes the newline
-                        post = ''
-                        after = []
+        cells.extend(
+            RenderCell(fragment.text, fragment.width, style=fragment.style)
+            for fragment in fragments
+        )
 
-                    last_refresh_line_end_offsets.append(offset)
+        if suffix:
+            cells.extend(RenderLine.from_rendered_text(suffix).cells)
 
-                    render = pre + ''.join(chars[:index_to_wrap_before]) + post
-                    render_widths = char_widths[:index_to_wrap_before] + after
-
-                    screen.append(render)
-                    screeninfo.append((prelen, render_widths))
-
-                    chars = chars[index_to_wrap_before:]
-                    char_widths = char_widths[index_to_wrap_before:]
-
-                    pre = ''
-                    prelen = 0
-
-        self.screeninfo = screeninfo
-        self.cxy = self.pos2xy()
-        if self.msg:
-            width = self.console.width
-            for mline in self.msg.split('\n'):
-                # If self.msg is larger than console width, make it fit
-                # TODO: try to split between words?
-                if not mline:
-                    screen.append("")
-                    screeninfo.append((0, []))
-                    continue
-                for r in range((len(mline) - 1) // width + 1):
-                    screen.append(mline[r * width : (r + 1) * width])
-                    screeninfo.append((0, []))
-
-        self.last_refresh_cache.update_cache(self, screen, screeninfo)
-        return screen
+        return RenderLine.from_cells(cells)
 
     @staticmethod
     def process_prompt(prompt: str) -> tuple[str, int]:
@@ -428,9 +674,8 @@ class Reader:
         anything between those brackets as well as any ANSI escape sequences.
         """
 
-        out_prompt = unbracket(prompt, including_content=False)
-        visible_prompt = unbracket(prompt, including_content=True)
-        return out_prompt, wlen(visible_prompt)
+        prompt_content = build_prompt_content(prompt)
+        return prompt_content.text, prompt_content.width
 
     def bow(self, p: int | None = None) -> int:
         """
@@ -499,10 +744,10 @@ class Reader:
     def max_column(self, y: int) -> int:
         """Return the last x-offset for line y"""
 
-        return self.screeninfo[y][0] + sum(self.screeninfo[y][1])
+        return self._layout.max_column(y)
 
     def max_row(self) -> int:
-        return len(self.screeninfo) - 1
+        return self._layout.max_row()
 
     def get_arg(self, default: int = 1) -> int:
         """
@@ -529,10 +774,6 @@ class Reader:
                 prompt = self.prompts.ps3
         else:
             prompt = self.prompts.ps1
-
-        if self.can_colorize:
-            t = color_codes()
-            prompt = f'{t["prompt"]}{prompt}{t.reset}'
         return prompt
 
     def push_input_trans(self, itrans: KeymapTranslator) -> None:
@@ -545,66 +786,50 @@ class Reader:
     def setpos_from_xy(self, x: int, y: int) -> None:
         """Set pos according to coordinates x, y"""
 
-        pos = 0
-        i = 0
-        while i < y:
-            prompt_len, char_widths = self.screeninfo[i]
-            offset = len(char_widths)
-            in_wrapped_line = prompt_len + sum(char_widths) >= self.console.width
-            if in_wrapped_line:
-                pos += offset - 1  # -1 cause backslash is not in buffer
-            else:
-                pos += offset + 1  # +1 cause newline is in buffer
-            i += 1
+        self.set_pos(self._layout.xy_to_pos(x, y))
 
-        j = 0
-        cur_x = self.screeninfo[i][0]
-        while cur_x < x:
-            if self.screeninfo[i][1][j] == 0:
-                j += 1  # prevent potential future infinite loop
-                continue
-            cur_x += self.screeninfo[i][1][j]
-            j += 1
-            pos += 1
-
-        self._pos = pos
-
-    def pos2xy(self) -> tuple[int, int]:
+    def pos2xy(self) -> CursorXY:
         """Return the x, y coordinates of position 'pos'."""
 
-        prompt_len, y = 0, 0
-        char_widths: list[int] = []
-        pos = self._pos
-        check.state(0 <= pos <= len(self.buffer))
-
-        # optimize for the common case: typing at the end of the buffer
-        if pos == len(self.buffer) and len(self.screeninfo) > 0:
-            y = len(self.screeninfo) - 1
-            prompt_len, char_widths = self.screeninfo[y]
-            return prompt_len + sum(char_widths), y
-
-        for prompt_len, char_widths in self.screeninfo:
-            offset = len(char_widths)
-            in_wrapped_line = prompt_len + sum(char_widths) >= self.console.width
-            if in_wrapped_line:
-                offset -= 1  # need to remove line-wrapping backslash
-
-            if offset >= pos:
-                break
-
-            if not in_wrapped_line:
-                offset += 1  # there's a newline in buffer
-
-            pos -= offset
-            y += 1
-        return prompt_len + sum(char_widths[:pos]), y
+        check.state(0 <= self._pos <= len(self.buffer))
+        return self._layout.pos_to_xy(self._pos)
 
     def insert(self, text: str | list[str]) -> None:
         """Insert 'text' at the insertion point."""
 
-        self.buffer[self._pos : self._pos] = list(text)
+        start = self._pos
+        self.buffer[self._pos: self._pos] = list(text)
         self.set_pos(self._pos + len(text))
-        self.dirty = True
+        self.invalidate_buffer(start)
+
+    def invalidate_cursor(self) -> None:
+        self._invalidation = self._invalidation.with_cursor()
+
+    def invalidate_buffer(self, from_pos: int) -> None:
+        self._invalidation = self._invalidation.with_buffer(from_pos)
+
+    def invalidate_prompt(self) -> None:
+        self._prompt_cell_cache.clear()
+        self._invalidation = self._invalidation.with_prompt()
+
+    def invalidate_layout(self) -> None:
+        self._invalidation = self._invalidation.with_layout()
+
+    def invalidate_theme(self) -> None:
+        self._prompt_cell_cache.clear()
+        self._invalidation = self._invalidation.with_theme()
+
+    def invalidate_message(self) -> None:
+        self._invalidation = self._invalidation.with_message()
+
+    def invalidate_overlay(self) -> None:
+        self._invalidation = self._invalidation.with_overlay()
+
+    def invalidate_full(self) -> None:
+        self._invalidation = self._invalidation.with_full()
+
+    def clear_invalidation(self) -> None:
+        self._invalidation = RefreshInvalidation.empty()
 
     def update_cursor(self) -> None:
         """Move the cursor to reflect changes in self.pos"""
@@ -618,7 +843,7 @@ class Reader:
 
         if getattr(cmd, 'kills_digit_arg', True):
             if self.arg is not None:
-                self.dirty = True
+                self.invalidate_prompt()
             self.arg = None
 
     def prepare(self) -> None:
@@ -633,9 +858,15 @@ class Reader:
             self.finished = False
             del self.buffer[:]
             self._pos = 0
-            self.dirty = True
+            self._layout = LayoutMap.empty()
+            self.cxy = self.pos2xy()
+            self.lxy = (self._pos, 0)
+            self._rendered_screen = RenderedScreen.empty()
+            self.invalidate_full()
             self.last_command = None
-            self.calc_screen()
+            base_screen = self.calc_screen()
+            self._rendered_screen = self.compose_rendered_screen(base_screen)
+            self.clear_invalidation()
         except BaseException:
             self.restore()
             raise
@@ -644,7 +875,7 @@ class Reader:
             cmd = self.scheduled_commands.pop()
             self.do_cmd((cmd, []))
 
-    def last_command_is(self, cls: type) -> bool:
+    def last_command_is(self, cls: CommandClass) -> bool:
         if not self.last_command:
             return False
         return issubclass(cls, self.last_command)
@@ -689,11 +920,14 @@ class Reader:
 
     def error(self, msg: str = 'none') -> None:
         self.msg = '! ' + msg + ' '
-        self.dirty = True
+        self.invalidate_message()
         self.console.beep()
 
     def update_screen(self) -> None:
-        if self.dirty:
+        if self._invalidation.is_cursor_only:
+            self.update_cursor()
+            self.clear_invalidation()
+        elif self._invalidation.needs_screen_refresh:
             self.refresh()
 
     def refresh(self) -> None:
@@ -701,12 +935,11 @@ class Reader:
 
         self.console.set_height_width(*self.console.get_height_width())
         # this call sets up self.cxy, so call it first.
-        self.screen = self.calc_screen()
-        self.console.refresh(self.screen, self.cxy)
-        self.dirty = False
-
-    def set_dirty(self) -> None:
-        self.dirty = True
+        base_screen = self.calc_screen()
+        rendered_screen = self.compose_rendered_screen(base_screen)
+        self._rendered_screen = rendered_screen
+        self.console.refresh(rendered_screen)
+        self.clear_invalidation()
 
     @property
     def pos(self) -> int:
@@ -715,7 +948,7 @@ class Reader:
     def set_pos(self, pos: int) -> None:
         self._pos = pos
 
-    def do_cmd(self, cmd: tuple[str, list[str]]) -> None:
+    def do_cmd(self, cmd: CommandInput | InputEvent) -> None:
         """
         `cmd` is a tuple of "event_name" and "event", which in the current implementation is always just the "buffer"
         which happens to be a list of single-character strings.
@@ -724,7 +957,7 @@ class Reader:
         # trace('received command {cmd}', cmd=cmd)
         if isinstance(cmd[0], str):
             command_type = self.commands.get(cmd[0], invalid_command)
-        elif isinstance(cmd[0], type):  # type: ignore[unreachable]
+        elif isinstance(cmd[0], type):
             command_type = cmd[0]
         else:
             return  # nothing to do
@@ -734,12 +967,14 @@ class Reader:
 
         self.after_command(command)
 
-        if self.dirty:
-            self.refresh()
-        else:
-            self.update_cursor()
+        if (
+                not self._invalidation.needs_screen_refresh and
+                not self._invalidation.is_cursor_only
+        ):
+            self.invalidate_cursor()
+        self.update_screen()
 
-        if not isinstance(cmd, digit_arg):
+        if command_type is not digit_arg:
             self.last_command = command_type
 
         self.finished = bool(command.finish)
@@ -774,7 +1009,7 @@ class Reader:
 
         if self.msg:
             self.msg = ''
-            self.dirty = True
+            self.invalidate_message()
 
         while True:
             # We use the same timeout as in readline.c: 100ms
@@ -791,16 +1026,20 @@ class Reader:
             if event.evt == 'key':
                 self.input_trans.push(event)
             elif event.evt == 'scroll':
+                self.invalidate_full()
                 self.refresh()
+                return True
             elif event.evt == 'resize':
+                self.invalidate_full()
                 self.refresh()
+                return True
             else:
                 translate = False
 
             if translate:
                 cmd = self.input_trans.get()
             else:
-                cmd = [event.evt, event.data]
+                cmd = InputEvent(event.evt, event.data)
 
             if cmd is None:
                 if block:

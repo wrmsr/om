@@ -31,6 +31,8 @@ import typing as ta
 
 from omcore.term.pager import get_pager  # noqa
 
+from .render import RenderedScreen
+
 
 if ta.TYPE_CHECKING:
     from .readers.historical import HistoricalReader
@@ -43,7 +45,7 @@ class Command:
     finish: bool = False
     kills_digit_arg: bool = True
 
-    def __init__(self, reader: 'HistoricalReader', event_name: str, event: list[str]) -> None:
+    def __init__(self, reader: HistoricalReader, event_name: str, event: list[str]) -> None:
         # Reader should really be "any reader" but there's too much usage of HistoricalReader methods and fields in the
         # code below for us to refactor at the moment.
 
@@ -71,7 +73,7 @@ class KillCommand(Command):
         else:
             r.kill_ring.append(text)
         r.set_pos(start)
-        r.set_dirty()
+        r.invalidate_buffer(start)
 
 
 class YankCommand(Command):
@@ -123,24 +125,24 @@ class digit_arg(Command):  # noqa
             else:
                 r.arg = 10 * r.arg + d
 
-        r.set_dirty()
+        r.invalidate_prompt()
 
 
 class clear_screen(Command):  # noqa
     def do(self) -> None:
         r = self.reader
         r.console.clear()
-        r.set_dirty()
+        r.invalidate_full()
 
 
 class refresh(Command):  # noqa
     def do(self) -> None:
-        self.reader.set_dirty()
+        self.reader.invalidate_full()
 
 
 class repaint(Command):  # noqa
     def do(self) -> None:
-        self.reader.set_dirty()
+        self.reader.invalidate_full()
         self.reader.console.repaint()
 
 
@@ -149,7 +151,7 @@ class kill_line(KillCommand):  # noqa
         r = self.reader
         b = r.buffer
         eol = r.eol()
-        for c in b[r.pos : eol]:
+        for c in b[r.pos: eol]:
             if not c.isspace():
                 self.kill_range(r.pos, eol)
                 return
@@ -205,9 +207,10 @@ class yank_pop(YankCommand):  # noqa
         repl = len(r.kill_ring[-1])
         r.kill_ring.insert(0, r.kill_ring.pop())
         t = r.kill_ring[-1]
-        b[r.pos - repl : r.pos] = t
+        start = r.pos - repl
+        b[r.pos - repl: r.pos] = t
         r.set_pos(r.pos - repl + len(t))
-        r.set_dirty()
+        r.invalidate_buffer(start)
 
 
 class interrupt(FinishCommand):  # noqa
@@ -235,8 +238,8 @@ class suspend(Command):  # noqa
         r.console.prepare()
         r.set_pos(p)
         # r.posxy = 0, 0  # XXX this is invalid
-        r.set_dirty()
-        r.console.set_screen([])
+        r.invalidate_full()
+        r.console.sync_rendered_screen(RenderedScreen.empty(), r.console.posxy)
 
 
 class up(MotionCommand):  # noqa
@@ -258,7 +261,7 @@ class up(MotionCommand):  # noqa
                 x > (new_x := r.max_column(new_y)) or  # we're past the end of the previous line
                 (
                     x == r.max_column(y) and
-                    any(not i.isspace() for i in r.buffer[r.bol() :])  # move between eols
+                    any(not i.isspace() for i in r.buffer[r.bol():])  # move between eols
                 )
             ):
                 x = new_x
@@ -356,14 +359,15 @@ class self_insert(EditCommand):  # noqa
     def do(self) -> None:
         r = self.reader
         text = self.event * r.get_arg()
+        start = r.pos
         r.insert(text)
         if r.paste_mode:
             data = ''
             ev = r.console.get_pending()
-            data += ev.data or ''
+            data += ev.data
             if data:
                 r.insert(data)
-                r.last_refresh_cache.invalidated = True
+                r.invalidate_buffer(start)
 
 
 class insert_nl(EditCommand):  # noqa
@@ -387,20 +391,23 @@ class transpose_characters(EditCommand):  # noqa
             del b[s]
             b.insert(t, c)
             r.set_pos(t)
-            r.set_dirty()
+            r.invalidate_buffer(s)
 
 
 class backspace(EditCommand):  # noqa
     def do(self) -> None:
         r = self.reader
         b = r.buffer
+        changed_from: int | None = None
         for _ in range(r.get_arg()):
             if r.pos > 0:
                 r.set_pos(r.pos - 1)
                 del b[r.pos]
-                r.set_dirty()
+                changed_from = r.pos if changed_from is None else min(changed_from, r.pos)
             else:
                 self.reader.error("can't backspace at start")
+        if changed_from is not None:
+            r.invalidate_buffer(changed_from)
 
 
 class delete(EditCommand):  # noqa
@@ -415,12 +422,15 @@ class delete(EditCommand):  # noqa
                 r.console.finish()
                 raise EOFError
 
+        changed_from: int | None = None
         for _ in range(r.get_arg()):
             if r.pos != len(b):
                 del b[r.pos]
-                r.set_dirty()
+                changed_from = r.pos if changed_from is None else min(changed_from, r.pos)
             else:
                 self.reader.error('end of buffer')
+        if changed_from is not None:
+            r.invalidate_buffer(changed_from)
 
 
 class accept(FinishCommand):  # noqa
@@ -433,6 +443,7 @@ class help(Command):  # noqa
         import _sitebuiltins  # noqa
         with self.reader.suspend():
             self.reader.msg = _sitebuiltins._Helper()()  # type: ignore  # noqa
+        self.reader.invalidate_prompt()
 
 
 class invalid_key(Command):  # noqa
@@ -450,22 +461,23 @@ class invalid_command(Command):  # noqa
 
 class show_history(Command):  # noqa
     def do(self) -> None:
+        # After the pager exits, the screen state is unknown (the pager may or may not restore via the alternate
+        # screen). Clear and force a full redraw at the end for consistency.
+        self.reader.console.clear()
+
         history = os.linesep.join(self.reader.history[:])
         self.reader.console.restore()
         pager = get_pager()
         pager(history, site.gethistoryfile())
         self.reader.console.prepare()
 
-        # We need to copy over the state so that it's consistent between console and reader, and console does not
-        # overwrite/append stuff
-        self.reader.console.set_screen(self.reader.screen.copy())
-        self.reader.console.set_posxy(*self.reader.cxy)
+        self.reader.invalidate_full()
 
 
 class paste_mode(Command):  # noqa
     def do(self) -> None:
         self.reader.paste_mode = not self.reader.paste_mode
-        self.reader.set_dirty()
+        self.reader.invalidate_prompt()
 
 
 class perform_bracketed_paste(Command):  # noqa
@@ -475,11 +487,10 @@ class perform_bracketed_paste(Command):  # noqa
         start = time.time()  # noqa
         while done not in data:
             ev = self.reader.console.get_pending()
-            data += ev.data or ''
+            data += ev.data
         # trace(
         #     'bracketed pasting of {l} chars done in {s:.2f}s',
         #     l=len(data),
         #     s=time.time() - start,
         # )
         self.reader.insert(data.replace(done, ''))
-        self.reader.last_refresh_cache.invalidated = True

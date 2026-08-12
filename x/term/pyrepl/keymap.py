@@ -144,12 +144,12 @@ def _parse_single_key_sequence(key: str, s: int) -> tuple[list[str], int]:
                 s += 3
 
             elif c.isdigit():
-                n = key[s + 1 : s + 4]
+                n = key[s + 1: s + 4]
                 ret = chr(int(n, 8))
                 s += 4
 
             elif c == 'x':
-                n = key[s + 2 : s + 4]
+                n = key[s + 2: s + 4]
                 ret = chr(int(n, 16))
                 s += 4
 
@@ -157,7 +157,7 @@ def _parse_single_key_sequence(key: str, s: int) -> tuple[list[str], int]:
                 t = key.find('>', s)
                 if t == -1:
                     raise KeySpecError(f'unterminated \\< starting at char {s + 1:d} of {key!r}')
-                ret = key[s + 2 : t].lower()
+                ret = key[s + 2: t].lower()
                 if ret not in _KEYNAMES:
                     raise KeySpecError(f"unrecognised keyname `{ret}' at char {s + 2:d} of {key!r}")
                 ret = _KEYNAMES[ret]

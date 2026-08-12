@@ -99,8 +99,9 @@ class KeymapTranslator(InputTranslator):
                 if self._stack or len(key) > 1 or unicodedata.category(key) == 'C':
                     self._results.append(InputEvent(self._invalid_cls, [*self._stack, key]))
                 else:
-                    # small optimization:
-                    self._k[key] = self._character_cls
+                    if (character_cls := self._character_cls) is not None:
+                        # small optimization:
+                        self._k[key] = character_cls
                     self._results.append(InputEvent(self._character_cls, [key]))
 
             else:

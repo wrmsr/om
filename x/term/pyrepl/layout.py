@@ -131,11 +131,11 @@ class WrappedRow:
         ne that wraps"              ← prompt_text="" (continuation)
     """
 
-    prompt_text: str = ""
+    prompt_text: str = ''
     prompt_width: int = 0
     fragments: tuple[ContentFragment, ...] = ()
     layout_widths: tuple[int, ...] = ()
-    suffix: str = ""
+    suffix: str = ''
     suffix_width: int = 0
     buffer_advance: int = 0
 
@@ -177,7 +177,7 @@ def layout_content_lines(
             wrapped_rows.append(
                 WrappedRow(
                     fragments=(leading,),
-                )
+                ),
             )
             layout_rows.append(LayoutRow(0, (), buffer_advance=0))
 
@@ -197,14 +197,14 @@ def layout_content_lines(
                     fragments=body,
                     layout_widths=body_widths,
                     buffer_advance=len(body) + newline_advance,
-                )
+                ),
             )
             layout_rows.append(
                 LayoutRow(
                     prompt_width,
                     body_widths,
                     buffer_advance=len(body) + newline_advance,
-                )
+                ),
             )
             continue
 
@@ -229,12 +229,12 @@ def layout_content_lines(
             at_line_end = (start + index_to_wrap_before) >= total
             if at_line_end:
                 offset += index_to_wrap_before + newline_advance
-                suffix = ""
+                suffix = ''
                 suffix_width = 0
                 buffer_advance = index_to_wrap_before + newline_advance
             else:
                 offset += index_to_wrap_before
-                suffix = "\\"
+                suffix = '\\'
                 suffix_width = 1
                 buffer_advance = index_to_wrap_before
 
@@ -251,7 +251,7 @@ def layout_content_lines(
                     suffix=suffix,
                     suffix_width=suffix_width,
                     buffer_advance=buffer_advance,
-                )
+                ),
             )
             layout_rows.append(
                 LayoutRow(
@@ -259,11 +259,11 @@ def layout_content_lines(
                     row_widths,
                     suffix_width=suffix_width,
                     buffer_advance=buffer_advance,
-                )
+                ),
             )
 
             start = end
-            current_prompt = ""
+            current_prompt = ''
             current_prompt_width = 0
             if at_line_end:
                 break

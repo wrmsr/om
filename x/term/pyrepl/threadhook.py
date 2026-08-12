@@ -33,7 +33,7 @@ class ShowExceptions(ta.Protocol):
 
 @ta.final
 class _ExceptHookHandler:
-    def __init__(self, reader: 'Reader') -> None:
+    def __init__(self, reader: Reader) -> None:
         self._reader = reader
 
         self._lock: threading.Lock = threading.Lock()
@@ -80,7 +80,7 @@ class _ExceptHookHandler:
         self.show()
 
 
-def install_threading_hook(reader: 'Reader') -> None:
+def install_threading_hook(reader: Reader) -> None:
     handler = _ExceptHookHandler(reader)
     reader.threading_hook = handler
     threading.excepthook = handler.exception
