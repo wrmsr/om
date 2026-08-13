@@ -1,5 +1,8 @@
-"""
-cargo test dump_flag_schema -- --ignored --nocapture
+# flake8: noqa: E122
+r"""
+(cd ~/src/burntsushi/ripgrep && cargo test dump_flag_schema -- --ignored --nocapture) | \
+  ./python -m omllm.agent.exec.ripgrep.args.dumped | \
+  pbcopy
 
 ----
 
@@ -9,15 +12,27 @@ fn dump_flag_schema() {
     let schema = FLAGS
         .iter()
         .map(|flag| {
-            serde_json::json!({
-                "long": flag.name_long(),
-                "short": flag
-                    .name_short()
-                    .map(|b| char::from(b).to_string()),
-                "aliases": flag.aliases(),
-                "negated": flag.name_negated(),
-                "is_switch": flag.is_switch(),
-            })
+            let mut obj = serde_json::Map::new();
+
+            obj.insert("long".into(), serde_json::json!(flag.name_long()));
+            obj.insert("is_switch".into(), serde_json::json!(flag.is_switch()));
+
+            if let Some(short) = flag.name_short() {
+                obj.insert(
+                    "short".into(),
+                    serde_json::json!(char::from(short).to_string()),
+                );
+            }
+
+            if !flag.aliases().is_empty() {
+                obj.insert("aliases".into(), serde_json::json!(flag.aliases()));
+            }
+
+            if let Some(negated) = flag.name_negated() {
+                obj.insert("negated".into(), serde_json::json!(negated));
+            }
+
+            serde_json::Value::Object(obj)
         })
         .collect::<Vec<_>>();
 
@@ -35,527 +50,568 @@ from .parsing import RgFlagSpec
 ##
 
 
-DUMPED_FLAGS: ta.Final[ta.Sequence[RgFlagSpec]] = [
+DUMPED_FLAGS: ta.Final[ta.Sequence[RgFlagSpec]] = \
+[
     RgFlagSpec(
-        is_switch=False,
         long='regexp',
+        is_switch=False,
         short='e',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='file',
+        is_switch=False,
         short='f',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='after-context',
+        is_switch=False,
         short='A',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='before-context',
+        is_switch=False,
         short='B',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='binary',
+        is_switch=True,
         negated='no-binary',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='block-buffered',
+        is_switch=True,
         negated='no-block-buffered',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='byte-offset',
-        negated='no-byte-offset',
+        is_switch=True,
         short='b',
+        negated='no-byte-offset',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='case-sensitive',
+        is_switch=True,
         short='s',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='color',
-    ),
-    RgFlagSpec(
         is_switch=False,
-        long='colors',
     ),
     RgFlagSpec(
-        is_switch=True,
+        long='colors',
+        is_switch=False,
+    ),
+    RgFlagSpec(
         long='column',
+        is_switch=True,
         negated='no-column',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='context',
+        is_switch=False,
         short='C',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='context-separator',
+        is_switch=False,
         negated='no-context-separator',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='count',
+        is_switch=True,
         short='c',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='count-matches',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='crlf',
+        is_switch=True,
         negated='no-crlf',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='debug',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=False,
         long='dfa-size-limit',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=False,
         long='encoding',
-        negated='no-encoding',
+        is_switch=False,
         short='E',
+        negated='no-encoding',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='engine',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=False,
         long='field-context-separator',
-    ),
-    RgFlagSpec(
         is_switch=False,
+    ),
+    RgFlagSpec(
         long='field-match-separator',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='files',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='files-with-matches',
+        is_switch=True,
         short='l',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='files-without-match',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='fixed-strings',
-        negated='no-fixed-strings',
-        short='F',
-    ),
-    RgFlagSpec(
         is_switch=True,
+        short='F',
+        negated='no-fixed-strings',
+    ),
+    RgFlagSpec(
         long='follow',
-        negated='no-follow',
+        is_switch=True,
         short='L',
+        negated='no-follow',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='generate',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=False,
         long='glob',
+        is_switch=False,
         short='g',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='glob-case-insensitive',
+        is_switch=True,
         negated='no-glob-case-insensitive',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='heading',
+        is_switch=True,
         negated='no-heading',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='help',
+        is_switch=True,
         short='h',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='hidden',
-        negated='no-hidden',
-        short='.',
-    ),
-    RgFlagSpec(
-        is_switch=False,
-        long='hostname-bin',
-    ),
-    RgFlagSpec(
-        is_switch=False,
-        long='hyperlink-format',
-    ),
-    RgFlagSpec(
-        is_switch=False,
-        long='iglob',
-    ),
-    RgFlagSpec(
         is_switch=True,
+        short='.',
+        negated='no-hidden',
+    ),
+    RgFlagSpec(
+        long='hostname-bin',
+        is_switch=False,
+    ),
+    RgFlagSpec(
+        long='hyperlink-format',
+        is_switch=False,
+    ),
+    RgFlagSpec(
+        long='iglob',
+        is_switch=False,
+    ),
+    RgFlagSpec(
         long='ignore-case',
+        is_switch=True,
         short='i',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='ignore-file',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='ignore-file-case-insensitive',
+        is_switch=True,
         negated='no-ignore-file-case-insensitive',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='include-zero',
+        is_switch=True,
         negated='no-include-zero',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='index',
+        is_switch=True,
         short='X',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='x-crud',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='x-force',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=False,
         long='x-path',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='invert-match',
-        negated='no-invert-match',
+        is_switch=True,
         short='v',
+        negated='no-invert-match',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='json',
+        is_switch=True,
         negated='no-json',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='line-buffered',
+        is_switch=True,
         negated='no-line-buffered',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='line-number',
+        is_switch=True,
         short='n',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-line-number',
+        is_switch=True,
         short='N',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='line-regexp',
+        is_switch=True,
         short='x',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='max-columns',
+        is_switch=False,
         short='M',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='max-columns-preview',
+        is_switch=True,
         negated='no-max-columns-preview',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='max-count',
+        is_switch=False,
         short='m',
     ),
     RgFlagSpec(
-        aliases=[
-            'maxdepth',
-        ],
-        is_switch=False,
         long='max-depth',
-        short='d',
-    ),
-    RgFlagSpec(
         is_switch=False,
-        long='max-filesize',
+        short='d',
+        aliases=(
+            'maxdepth',
+        ),
     ),
     RgFlagSpec(
-        is_switch=True,
+        long='max-filesize',
+        is_switch=False,
+    ),
+    RgFlagSpec(
         long='mmap',
+        is_switch=True,
         negated='no-mmap',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='multiline',
-        negated='no-multiline',
+        is_switch=True,
         short='U',
+        negated='no-multiline',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='multiline-dotall',
+        is_switch=True,
         negated='no-multiline-dotall',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-config',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-ignore',
+        is_switch=True,
         negated='ignore',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-ignore-dot',
+        is_switch=True,
         negated='ignore-dot',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-ignore-exclude',
+        is_switch=True,
         negated='ignore-exclude',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-ignore-files',
+        is_switch=True,
         negated='ignore-files',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-ignore-global',
+        is_switch=True,
         negated='ignore-global',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-ignore-messages',
+        is_switch=True,
         negated='ignore-messages',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-ignore-parent',
+        is_switch=True,
         negated='ignore-parent',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-ignore-vcs',
+        is_switch=True,
         negated='ignore-vcs',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-messages',
+        is_switch=True,
         negated='messages',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-require-git',
+        is_switch=True,
         negated='require-git',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-unicode',
+        is_switch=True,
         negated='unicode',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='null',
+        is_switch=True,
         short='0',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='null-data',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='one-file-system',
+        is_switch=True,
         negated='no-one-file-system',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='only-matching',
+        is_switch=True,
         short='o',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='path-separator',
-    ),
-    RgFlagSpec(
-        aliases=[
-            'passthrough',
-        ],
-        is_switch=True,
-        long='passthru',
-    ),
-    RgFlagSpec(
-        is_switch=True,
-        long='pcre2',
-        negated='no-pcre2',
-        short='P',
-    ),
-    RgFlagSpec(
-        is_switch=True,
-        long='pcre2-version',
-    ),
-    RgFlagSpec(
         is_switch=False,
+    ),
+    RgFlagSpec(
+        long='passthru',
+        is_switch=True,
+        aliases=(
+            'passthrough',
+        ),
+    ),
+    RgFlagSpec(
+        long='pcre2',
+        is_switch=True,
+        short='P',
+        negated='no-pcre2',
+    ),
+    RgFlagSpec(
+        long='pcre2-version',
+        is_switch=True,
+    ),
+    RgFlagSpec(
         long='pre',
+        is_switch=False,
         negated='no-pre',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='pre-glob',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='pretty',
+        is_switch=True,
         short='p',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='quiet',
+        is_switch=True,
         short='q',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='regex-size-limit',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=False,
         long='replace',
+        is_switch=False,
         short='r',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='search-zip',
-        negated='no-search-zip',
+        is_switch=True,
         short='z',
+        negated='no-search-zip',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='smart-case',
+        is_switch=True,
         short='S',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='sort',
-    ),
-    RgFlagSpec(
         is_switch=False,
-        long='sortr',
     ),
     RgFlagSpec(
-        is_switch=True,
+        long='sortr',
+        is_switch=False,
+    ),
+    RgFlagSpec(
         long='stats',
+        is_switch=True,
         negated='no-stats',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='stop-on-nonmatch',
-    ),
-    RgFlagSpec(
         is_switch=True,
-        long='text',
-        negated='no-text',
-        short='a',
     ),
     RgFlagSpec(
-        is_switch=False,
+        long='text',
+        is_switch=True,
+        short='a',
+        negated='no-text',
+    ),
+    RgFlagSpec(
         long='threads',
+        is_switch=False,
         short='j',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='trace',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='trim',
+        is_switch=True,
         negated='no-trim',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='type',
+        is_switch=False,
         short='t',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='type-not',
+        is_switch=False,
         short='T',
     ),
     RgFlagSpec(
-        is_switch=False,
         long='type-add',
-    ),
-    RgFlagSpec(
         is_switch=False,
+    ),
+    RgFlagSpec(
         long='type-clear',
+        is_switch=False,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='type-list',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='unrestricted',
+        is_switch=True,
         short='u',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='version',
+        is_switch=True,
         short='V',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='vimgrep',
+        is_switch=True,
     ),
     RgFlagSpec(
-        is_switch=True,
         long='with-filename',
+        is_switch=True,
         short='H',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-filename',
+        is_switch=True,
         short='I',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='word-regexp',
+        is_switch=True,
         short='w',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='auto-hybrid-regex',
+        is_switch=True,
         negated='no-auto-hybrid-regex',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='no-pcre2-unicode',
+        is_switch=True,
         negated='pcre2-unicode',
     ),
     RgFlagSpec(
-        is_switch=True,
         long='sort-files',
+        is_switch=True,
         negated='no-sort-files',
     ),
 ]
+
+
+##
+
+
+def _main() -> None:
+    import io
+    import json
+    import sys
+
+    all_lines = sys.stdin.read().splitlines()
+    start_pos = all_lines.index('[')
+    end_pos = all_lines.index(']', start_pos)
+    json_lines = all_lines[start_pos:end_pos + 1]
+    json_src = '\n'.join(json_lines)
+    dct_lst = json.loads(json_src)
+
+    out = io.StringIO()
+    out.write('[\n')
+    for dct in dct_lst:
+        out.write(f'    RgFlagSpec(\n')
+        out.write(f'        long={dct["long"]!r},\n')
+        out.write(f'        is_switch={dct["is_switch"]!r},\n')
+        if short := dct.get('short'):
+            out.write(f'        short={short!r},\n')
+        if aliases := dct.get('aliases'):
+            out.write(f'        aliases=(\n')
+            for alias in aliases:
+                out.write(f'            {alias!r},\n')
+            out.write(f'        ),\n')
+        if negated := dct.get('negated'):
+            out.write(f'        negated={negated!r},\n')
+        out.write('    ),\n')
+    out.write(']\n')
+
+    print(out.getvalue(), end='')
+
+
+if __name__ == '__main__':
+    _main()
