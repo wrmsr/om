@@ -30,6 +30,8 @@ fn dump_flag_schema() {
 import dataclasses as dc
 import typing as ta
 
+from omcore import lang
+
 
 FlagForm: ta.TypeAlias = ta.Literal['standard', 'alias', 'negated']
 
@@ -53,7 +55,7 @@ class RgFlagSpec:
     short: str | None = None
 
     # Long aliases without "--".
-    aliases: tuple[str, ...] = ()
+    aliases: lang.SequenceNotStr[str] = ()
 
     # Explicit negated long spelling without "--", if any.
     negated: str | None = None
@@ -68,20 +70,17 @@ class RgOption:
 
     form: FlagForm
 
-    # True for an ordinary switch, False for an explicit negation,
-    # and str for a value-taking option.
+    # True for an ordinary switch, False for an explicit negation, and str for a value-taking option.
     value: bool | str
 
     # Index of the argv element containing the option.
     argv_index: int
 
-    # For a detached value, the index of the next argv element.
-    # For an attached value, the same index as argv_index.
+    # For a detached value, the index of the next argv element. For an attached value, the same index as argv_index.
     # None for switches.
     value_argv_index: int | None
 
-    # True for --foo=x / -fx, False for --foo x / -f x,
-    # and None for switches.
+    # True for --foo=x / -fx, False for --foo x / -f x, and None for switches.
     attached: bool | None
 
 
@@ -108,17 +107,13 @@ class RgArgvParser:
             if spec.short is not None:
                 short = spec.short
                 if not (
-                        len(short) == 1
-                        and short.isascii()
-                        and (short.isalnum() or short == '.')
+                        len(short) == 1 and
+                        short.isascii() and
+                        (short.isalnum() or short == '.')
                 ):
-                    raise ValueError(
-                        f'invalid ripgrep short flag name: {short!r}',
-                    )
+                    raise ValueError(f'invalid ripgrep short flag name: {short!r}')
                 if short in self._short:
-                    raise ValueError(
-                        f'duplicate ripgrep short flag name: -{short}',
-                    )
+                    raise ValueError(f'duplicate ripgrep short flag name: -{short}')
                 self._short[short] = spec
 
     def _put_long(
@@ -128,17 +123,13 @@ class RgArgvParser:
             form: FlagForm,
     ) -> None:
         if not (
-                len(name) >= 2
-                and name.isascii()
-                and all(c.isalnum() or c == '-' for c in name)
+                len(name) >= 2 and
+                name.isascii() and
+                all(c.isalnum() or c == '-' for c in name)
         ):
-            raise ValueError(
-                f'invalid ripgrep long flag name: {name!r}',
-            )
+            raise ValueError(f'invalid ripgrep long flag name: {name!r}')
         if name in self._long:
-            raise ValueError(
-                f'duplicate ripgrep long flag name: --{name}',
-            )
+            raise ValueError(f'duplicate ripgrep long flag name: --{name}')
         self._long[name] = (spec, form)
 
     def parse(
@@ -150,13 +141,9 @@ class RgArgvParser:
         # Python cannot eventually pass NUL through execve anyway.
         for i, token in enumerate(argv):
             if not isinstance(token, str):
-                raise TypeError(
-                    f'ripgrep argv[{i}] is not a string: {token!r}',
-                )
+                raise TypeError(f'ripgrep argv[{i}] is not a string: {token!r}')
             if '\0' in token:
-                raise RgArgvError(
-                    f'ripgrep argv[{i}] contains a NUL byte',
-                )
+                raise RgArgvError(f'ripgrep argv[{i}] contains a NUL byte')
 
         parsed: list[RgOption | RgPositional] = []
         parsing_options = True
@@ -182,19 +169,14 @@ class RgArgvParser:
                 try:
                     spec, form = self._long[name]
                 except KeyError:
-                    raise RgArgvError(
-                        f'unrecognized ripgrep flag --{name}',
-                    ) from None
+                    raise RgArgvError(f'unrecognized ripgrep flag --{name}') from None
 
                 spelling = f'--{name}'
 
-                # Explicit negations are always switches, including
-                # negations of value-taking flags.
+                # Explicit negations are always switches, including negations of value-taking flags.
                 if form == 'negated' or spec.is_switch:
                     if equals:
-                        raise RgArgvError(
-                            f'{spelling} does not take a value',
-                        )
+                        raise RgArgvError(f'{spelling} does not take a value')
 
                     parsed.append(RgOption(
                         flag=spec,
@@ -209,20 +191,16 @@ class RgArgvParser:
                     continue
 
                 if equals:
-                    # Empty attached values are valid lexically:
-                    # --hostname-bin=
+                    # Empty attached values are valid lexically: --hostname-bin=
                     value = joined_value
                     value_i = option_i
                     attached = True
                 else:
                     i += 1
                     if i == len(argv):
-                        raise RgArgvError(
-                            f'missing value for {spelling}',
-                        )
+                        raise RgArgvError(f'missing value for {spelling}')
 
-                    # Deliberately consume this even when it is "--" or
-                    # begins with "-".
+                    # Deliberately consume this even when it is "--" or begins with "-".
                     value = argv[i]
                     value_i = i
                     attached = False
@@ -248,16 +226,12 @@ class RgArgvParser:
                     name = cluster[j]
 
                     if not name.isascii():
-                        raise RgArgvError(
-                            f'unrecognized ripgrep flag -{name}',
-                        )
+                        raise RgArgvError(f'unrecognized ripgrep flag -{name}')
 
                     try:
                         spec = self._short[name]
                     except KeyError:
-                        raise RgArgvError(
-                            f'unrecognized ripgrep flag -{name}',
-                        ) from None
+                        raise RgArgvError(f'unrecognized ripgrep flag -{name}') from None
 
                     spelling = f'-{name}'
 
@@ -273,32 +247,22 @@ class RgArgvParser:
                         ))
                         j += 1
 
-                        # lexopt treats this as an unexpected attached
-                        # value for the preceding switch, rather than as
-                        # a short option named "=".
+                        # lexopt treats this as an unexpected attached value for the preceding switch, rather than as a
+                        # short option named "=".
                         if j < len(cluster) and cluster[j] == '=':
-                            raise RgArgvError(
-                                f'{spelling} does not take an '
-                                f'attached value',
-                            )
+                            raise RgArgvError(f'{spelling} does not take an attached value')
                         continue
 
                     remainder = cluster[j + 1:]
                     if remainder:
                         # lexopt strips exactly one syntactic "=".
-                        value = (
-                            remainder[1:]
-                            if remainder.startswith('=')
-                            else remainder
-                        )
+                        value = remainder[1:] if remainder.startswith('=') else remainder
                         value_i = option_i
                         attached = True
                     else:
                         i += 1
                         if i == len(argv):
-                            raise RgArgvError(
-                                f'missing value for {spelling}',
-                            )
+                            raise RgArgvError(f'missing value for {spelling}')
 
                         # Again, consume option-looking values.
                         value = argv[i]
@@ -315,8 +279,7 @@ class RgArgvParser:
                         attached=attached,
                     ))
 
-                    # A value-taking short option consumes the entire
-                    # remainder of this cluster.
+                    # A value-taking short option consumes the entire remainder of this cluster.
                     break
 
                 i += 1
