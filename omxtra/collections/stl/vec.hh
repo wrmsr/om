@@ -429,3 +429,697 @@ inline VecLikeImpl *new_vec_impl(Dt dt, Ovf ovf) {
     }
 }
 
+
+//
+// Python interface
+//
+
+
+inline VecLikeImpl *vec_impl(ColObject *co) {
+    return static_cast<VecLikeImpl *>(co->impl);
+}
+
+
+// Builds a private (unshared, unlocked) same-spec VectorImpl holding the elements of src. Used as the right-hand side
+// of slice assignment and generic extend, so the actual splice can run as one no-throw step under self's lock.
+inline VecLikeImpl *vec_materialize(stl_state *st, ColObject *co, PyObject *src) {
+    VecLikeImpl *temp;
+    try {
+        temp = new_vec_impl(co->impl->key_dt, co->impl->key_ovf);
+    }
+    catch (std::bad_alloc &) {
+        PyErr_NoMemory();
+        return nullptr;
+    }
+
+    if (PyObject_TypeCheck(src, st->vector_type)) {
+        ColObject *oc = (ColObject *)src;
+        if (oc->impl != nullptr && temp->same_shape(oc->impl)) {
+            int r;
+            Bin bin;
+            {
+                ColGuard g(oc->impl);  // only the source needs locking; temp is private
+                if (!g.held()) {
+                    delete temp;
+                    return nullptr;
+                }
+                r = py_shield_int([&] { return temp->merge_same(oc->impl, bin); });
+            }
+            if (r < 0) {
+                delete temp;
+                return nullptr;
+            }
+            return temp;
+        }
+    }
+
+    PyObject *it = PyObject_GetIter(src);
+    if (it == nullptr) {
+        delete temp;
+        return nullptr;
+    }
+    PyObject *o;
+    while ((o = PyIter_Next(it)) != nullptr) {
+        int r = py_shield_int([&] { return temp->append_(o); });
+        Py_DECREF(o);
+        if (r < 0) {
+            Py_DECREF(it);
+            delete temp;
+            return nullptr;
+        }
+    }
+    Py_DECREF(it);
+    if (PyErr_Occurred() != nullptr) {
+        delete temp;
+        return nullptr;
+    }
+    return temp;
+}
+
+
+inline int vec_extend_from(stl_state *st, ColObject *co, PyObject *src) {
+    if (PyObject_TypeCheck(src, st->vector_type)) {
+        ColObject *oc = (ColObject *)src;
+        if (oc->impl != nullptr && co->impl->same_shape(oc->impl)) {
+            Bin bin;
+            ColGuard2 g(co->impl, oc->impl);
+            if (!g.held()) {
+                return -1;
+            }
+            return py_shield_int([&] { return co->impl->merge_same(oc->impl, bin); });
+        }
+    }
+    VecLikeImpl *temp = vec_materialize(st, co, src);
+    if (temp == nullptr) {
+        return -1;
+    }
+    int r;
+    {
+        Bin bin;
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            delete temp;
+            return -1;
+        }
+        r = py_shield_int([&] { return co->impl->merge_same(temp, bin); });
+    }
+    delete temp;
+    return r;
+}
+
+
+inline int vec_init(PyObject *self, PyObject *args, PyObject *kwds) {
+    ColObject *co = (ColObject *)self;
+    if (co->impl != nullptr) {
+        PyErr_SetString(PyExc_TypeError, "container is already initialized");
+        return -1;
+    }
+
+    static const char *KWLIST[] = {"dtype", "items", nullptr};
+    PyObject *dtype_o = nullptr;
+    PyObject *items = nullptr;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", (char **)KWLIST, &dtype_o, &items)) {
+        return -1;
+    }
+
+    DtypeSpec ds{Dt::OBJ, Ovf::RAISE};
+    if (dtype_o != nullptr && dtype_o != Py_None && parse_dtype(dtype_o, &ds) < 0) {
+        return -1;
+    }
+
+    try {
+        co->impl = new_vec_impl(ds.dt, ds.ovf);
+    }
+    catch (std::bad_alloc &) {
+        PyErr_NoMemory();
+        return -1;
+    }
+
+    if (items != nullptr && items != Py_None) {
+        stl_state *st = find_state(Py_TYPE(self));
+        if (st == nullptr) {
+            return -1;
+        }
+        if (vec_extend_from(st, co, items) < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+
+inline PyObject *vec_get_index(ColObject *co, PyObject *self, Py_ssize_t i, bool adjust_negative) {
+    PyObject *out = nullptr;
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        Py_ssize_t n = co->impl->size();
+        if (adjust_negative && i < 0) {
+            i += n;
+        }
+        if (i < 0 || i >= n) {
+            g.release();
+            PyErr_Format(PyExc_IndexError, "%s index out of range", col_short_name(self));
+            return nullptr;
+        }
+        r = py_shield_int([&] { return vec_impl(co)->get_at(i, &out); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    return out;
+}
+
+
+inline PyObject *vec_sq_item(PyObject *self, Py_ssize_t i) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    return vec_get_index(co, self, i, false);
+}
+
+
+inline PyObject *vec_subscript(PyObject *self, PyObject *key) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+
+    if (PyIndex_Check(key)) {
+        Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
+        if (i == -1 && PyErr_Occurred() != nullptr) {
+            return nullptr;
+        }
+        return vec_get_index(co, self, i, true);
+    }
+
+    if (PySlice_Check(key)) {
+        stl_state *st = find_state(Py_TYPE(self));
+        if (st == nullptr) {
+            return nullptr;
+        }
+        Py_ssize_t start, stop, step;
+        if (PySlice_Unpack(key, &start, &stop, &step) < 0) {
+            return nullptr;
+        }
+        VecLikeImpl *sl = nullptr;
+        {
+            ColGuard g(co->impl);
+            if (!g.held()) {
+                return nullptr;
+            }
+            Py_ssize_t slen = PySlice_AdjustIndices(co->impl->size(), &start, &stop, step);
+            try {
+                sl = vec_impl(co)->slice_(start, step, slen);
+            }
+            catch (std::bad_alloc &) {
+                g.release();
+                PyErr_NoMemory();
+                return nullptr;
+            }
+        }
+        return col_wrap(st->vector_type, sl);
+    }
+
+    PyErr_Format(
+        PyExc_TypeError, "%s indices must be integers or slices, not %.200s", col_short_name(self),
+        Py_TYPE(key)->tp_name);
+    return nullptr;
+}
+
+
+inline int vec_ass_subscript(PyObject *self, PyObject *key, PyObject *v) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return -1;
+    }
+
+    if (PyIndex_Check(key)) {
+        Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
+        if (i == -1 && PyErr_Occurred() != nullptr) {
+            return -1;
+        }
+        Bin bin;
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return -1;
+        }
+        Py_ssize_t n = co->impl->size();
+        if (i < 0) {
+            i += n;
+        }
+        if (i < 0 || i >= n) {
+            g.release();
+            PyErr_Format(PyExc_IndexError, "%s assignment index out of range", col_short_name(self));
+            return -1;
+        }
+        if (v == nullptr) {
+            return py_shield_int([&] { return vec_impl(co)->pop_at(i, nullptr, bin); });
+        }
+        return py_shield_int([&] { return vec_impl(co)->set_at(i, v, bin); });
+    }
+
+    if (PySlice_Check(key)) {
+        Py_ssize_t start, stop, step;
+        if (PySlice_Unpack(key, &start, &stop, &step) < 0) {
+            return -1;
+        }
+
+        if (v == nullptr) {
+            Bin bin;
+            ColGuard g(co->impl);
+            if (!g.held()) {
+                return -1;
+            }
+            Py_ssize_t slen = PySlice_AdjustIndices(co->impl->size(), &start, &stop, step);
+            return py_shield_int([&] { return vec_impl(co)->del_slice(start, stop, step, slen, bin); });
+        }
+
+        stl_state *st = find_state(Py_TYPE(self));
+        if (st == nullptr) {
+            return -1;
+        }
+        VecLikeImpl *temp = vec_materialize(st, co, v);
+        if (temp == nullptr) {
+            return -1;
+        }
+        int r;
+        {
+            Bin bin;
+            ColGuard g(co->impl);
+            if (!g.held()) {
+                delete temp;
+                return -1;
+            }
+            // Indices are computed under the same lock as the splice; the length seen here is authoritative.
+            Py_ssize_t slen = PySlice_AdjustIndices(co->impl->size(), &start, &stop, step);
+            if (step == 1 && stop < start) {
+                // AdjustIndices leaves stop < start for an empty forward slice like v[5:2]; list assignment
+                // treats that as a pure insertion at start.
+                stop = start;
+            }
+            if (step != 1 && temp->size() != slen) {
+                g.release();
+                PyErr_Format(
+                    PyExc_ValueError,
+                    "attempt to assign sequence of size %zd to extended slice of size %zd",
+                    temp->size(),
+                    slen);
+                delete temp;
+                return -1;
+            }
+            r = py_shield_int([&] { return vec_impl(co)->set_slice(start, stop, step, slen, temp, bin); });
+        }
+        delete temp;
+        return r;
+    }
+
+    PyErr_Format(
+        PyExc_TypeError, "%s indices must be integers or slices, not %.200s", col_short_name(self),
+        Py_TYPE(key)->tp_name);
+    return -1;
+}
+
+
+inline int vec_sq_contains(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return -1;
+    }
+    ColGuard g(co->impl);
+    if (!g.held()) {
+        return -1;
+    }
+    Py_ssize_t at;
+    return py_shield_int([&] { return vec_impl(co)->find_(o, 0, co->impl->size(), &at); });
+}
+
+
+inline PyObject *vec_append(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return vec_impl(co)->append_(o); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *vec_extend(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    if (vec_extend_from(st, co, o) < 0) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *vec_nb_iadd(PyObject *v, PyObject *w) {
+    stl_state *st = find_state_2(v, w);
+    if (st == nullptr || !PyObject_TypeCheck(v, st->vector_type)) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+    ColObject *co = (ColObject *)v;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    if (vec_extend_from(st, co, w) < 0) {
+        return nullptr;
+    }
+    return Py_NewRef(v);
+}
+
+
+inline PyObject *vec_insert(PyObject *self, PyObject *args) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    Py_ssize_t i;
+    PyObject *v;
+    if (!PyArg_ParseTuple(args, "nO:insert", &i, &v)) {
+        return nullptr;
+    }
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        Py_ssize_t n = co->impl->size();
+        if (i < 0) {
+            i += n;
+            if (i < 0) {
+                i = 0;
+            }
+        }
+        if (i > n) {
+            i = n;
+        }
+        r = py_shield_int([&] { return vec_impl(co)->insert_at(i, v); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *vec_pop(PyObject *self, PyObject *args) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    Py_ssize_t i = -1;
+    if (!PyArg_ParseTuple(args, "|n:pop", &i)) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r;
+    Bin bin;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        Py_ssize_t n = co->impl->size();
+        if (n == 0) {
+            g.release();
+            PyErr_Format(PyExc_IndexError, "pop from empty %s", col_short_name(self));
+            return nullptr;
+        }
+        if (i < 0) {
+            i += n;
+        }
+        if (i < 0 || i >= n) {
+            g.release();
+            PyErr_SetString(PyExc_IndexError, "pop index out of range");
+            return nullptr;
+        }
+        r = py_shield_int([&] { return vec_impl(co)->pop_at(i, &out, bin); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    return out;
+}
+
+
+inline PyObject *vec_remove(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    int r;
+    Bin bin;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] {
+            Py_ssize_t at;
+            int f = vec_impl(co)->find_(o, 0, co->impl->size(), &at);
+            if (f <= 0) {
+                return f;
+            }
+            int p = vec_impl(co)->pop_at(at, nullptr, bin);
+            return p < 0 ? p : 1;
+        });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        PyErr_Format(PyExc_ValueError, "%s.remove(x): x not in %s", col_short_name(self), col_short_name(self));
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *vec_index_meth(PyObject *self, PyObject *args) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *v;
+    Py_ssize_t start = 0;
+    Py_ssize_t stop = PY_SSIZE_T_MAX;
+    if (!PyArg_ParseTuple(args, "O|nn:index", &v, &start, &stop)) {
+        return nullptr;
+    }
+    Py_ssize_t at = -1;
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        Py_ssize_t n = co->impl->size();
+        if (start < 0) {
+            start += n;
+            if (start < 0) {
+                start = 0;
+            }
+        }
+        if (start > n) {
+            start = n;
+        }
+        if (stop < 0) {
+            stop += n;
+            if (stop < 0) {
+                stop = 0;
+            }
+        }
+        if (stop > n) {
+            stop = n;
+        }
+        r = py_shield_int([&] { return vec_impl(co)->find_(v, start, stop, &at); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        PyErr_Format(PyExc_ValueError, "%R is not in %s", v, col_short_name(self));
+        return nullptr;
+    }
+    return PyLong_FromSsize_t(at);
+}
+
+
+inline PyObject *vec_count(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    Py_ssize_t c;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        try {
+            c = vec_impl(co)->count_(o);
+        }
+        catch (py_err_set &) {
+            c = -1;
+        }
+        catch (std::bad_alloc &) {
+            g.release();
+            PyErr_NoMemory();
+            return nullptr;
+        }
+    }
+    if (c < 0) {
+        return nullptr;
+    }
+    return PyLong_FromSsize_t(c);
+}
+
+
+inline PyObject *vec_reverse(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        vec_impl(co)->reverse_();
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *vec_sort(PyObject *self, PyObject *args, PyObject *kwds) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    static const char *KWLIST[] = {"reverse", nullptr};
+    int reverse = 0;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p:sort", (char **)KWLIST, &reverse)) {
+        return nullptr;
+    }
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return vec_impl(co)->sort_(reverse); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *vec_copy(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    return col_copy_as(st->vector_type, co);
+}
+
+
+inline PyObject *vec_richcompare(PyObject *self, PyObject *other, int op) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+
+    bool other_ours = PyObject_TypeCheck(other, st->vector_type);
+    if ((op == Py_EQ || op == Py_NE) && other_ours) {
+        ColObject *oc = (ColObject *)other;
+        if (oc->impl != nullptr && co->impl->same_shape(oc->impl)) {
+            int r;
+            {
+                ColGuard2 g(co->impl, oc->impl);
+                if (!g.held()) {
+                    return nullptr;
+                }
+                r = py_shield_int([&] { return co->impl->equals_same(oc->impl); });
+            }
+            if (r < 0) {
+                return nullptr;
+            }
+            return PyBool_FromLong(op == Py_EQ ? r : !r);
+        }
+    }
+
+    if (!other_ours && !PyList_Check(other)) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+
+    // Cross-dtype / ordering comparisons: snapshot both sides and delegate to list comparison.
+    PyObject *a = PySequence_List(self);
+    if (a == nullptr) {
+        return nullptr;
+    }
+    PyObject *b = PySequence_List(other);
+    if (b == nullptr) {
+        Py_DECREF(a);
+        return nullptr;
+    }
+    PyObject *r = PyObject_RichCompare(a, b, op);
+    Py_DECREF(a);
+    Py_DECREF(b);
+    return r;
+}
+
+
+inline PyObject *vec_repr(PyObject *self) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    int rc = Py_ReprEnter(self);
+    if (rc != 0) {
+        return rc > 0 ? PyUnicode_FromFormat("%s(...)", col_short_name(self)) : nullptr;
+    }
+    PyObject *lst = PySequence_List(self);
+    if (lst == nullptr) {
+        Py_ReprLeave(self);
+        return nullptr;
+    }
+    PyObject *r = PyUnicode_FromFormat(
+        "%s('%s', %R)", col_short_name(self), dtype_name(co->impl->key_dt, co->impl->key_ovf), lst);
+    Py_DECREF(lst);
+    Py_ReprLeave(self);
+    return r;
+}

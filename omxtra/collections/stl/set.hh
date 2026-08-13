@@ -502,3 +502,811 @@ inline SetLikeImpl *new_set_impl(ColKind kind, Dt dt, Ovf ovf) {
             return new HashSetImpl<Float64Traits>(ovf);
     }
 }
+
+
+//
+// Python interface
+//
+
+
+inline bool is_our_set(stl_state *st, PyObject *o) {
+    return PyObject_TypeCheck(o, st->set_type) || PyObject_TypeCheck(o, st->unordered_set_type);
+}
+
+
+inline int set_contains_obj(ColObject *co, PyObject *o) {
+    ColGuard g(co->impl);
+    if (!g.held()) {
+        return -1;
+    }
+    return py_shield_int([&] { return static_cast<SetLikeImpl *>(co->impl)->contains_(o); });
+}
+
+
+inline int set_add_obj(ColObject *co, PyObject *o) {
+    ColGuard g(co->impl);
+    if (!g.held()) {
+        return -1;
+    }
+    return py_shield_int([&] { return static_cast<SetLikeImpl *>(co->impl)->add_(o); });
+}
+
+
+// 1 removed / 0 absent / -1.
+inline int set_discard_obj(ColObject *co, PyObject *o) {
+    Bin bin;
+    ColGuard g(co->impl);
+    if (!g.held()) {
+        return -1;
+    }
+    return py_shield_int([&] { return static_cast<SetLikeImpl *>(co->impl)->discard_(o, bin); });
+}
+
+
+inline int set_extend_from(stl_state *st, ColObject *co, PyObject *items) {
+    if (is_our_set(st, items)) {
+        ColObject *oc = (ColObject *)items;
+        if (oc->impl != nullptr && co->impl->same_shape(oc->impl)) {
+            Bin bin;
+            ColGuard2 g(co->impl, oc->impl);
+            if (!g.held()) {
+                return -1;
+            }
+            return py_shield_int([&] { return co->impl->merge_same(oc->impl, bin); });
+        }
+    }
+
+    PyObject *it = PyObject_GetIter(items);
+    if (it == nullptr) {
+        return -1;
+    }
+    PyObject *o;
+    while ((o = PyIter_Next(it)) != nullptr) {
+        int r = set_add_obj(co, o);
+        Py_DECREF(o);
+        if (r < 0) {
+            Py_DECREF(it);
+            return -1;
+        }
+    }
+    Py_DECREF(it);
+    return PyErr_Occurred() != nullptr ? -1 : 0;
+}
+
+
+inline PyObject *set_new_like(stl_state *st, ColObject *like) {
+    PyTypeObject *tp = like->impl->kind == ColKind::SORTED_SET ? st->set_type : st->unordered_set_type;
+    SetLikeImpl *impl;
+    try {
+        impl = new_set_impl(like->impl->kind, like->impl->key_dt, like->impl->key_ovf);
+    }
+    catch (std::bad_alloc &) {
+        PyErr_NoMemory();
+        return nullptr;
+    }
+    return col_wrap(tp, impl);
+}
+
+
+inline int set_init_impl(PyObject *self, PyObject *args, PyObject *kwds, ColKind kind) {
+    ColObject *co = (ColObject *)self;
+    if (co->impl != nullptr) {
+        // Refusing re-init keeps live iterators (which point into the current impl) valid.
+        PyErr_SetString(PyExc_TypeError, "container is already initialized");
+        return -1;
+    }
+
+    static const char *KWLIST[] = {"dtype", "items", nullptr};
+    PyObject *dtype_o = nullptr;
+    PyObject *items = nullptr;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", (char **)KWLIST, &dtype_o, &items)) {
+        return -1;
+    }
+
+    DtypeSpec ds{Dt::OBJ, Ovf::RAISE};
+    if (dtype_o != nullptr && dtype_o != Py_None && parse_dtype(dtype_o, &ds) < 0) {
+        return -1;
+    }
+
+    try {
+        co->impl = new_set_impl(kind, ds.dt, ds.ovf);
+    }
+    catch (std::bad_alloc &) {
+        PyErr_NoMemory();
+        return -1;
+    }
+
+    if (items != nullptr && items != Py_None) {
+        stl_state *st = find_state(Py_TYPE(self));
+        if (st == nullptr) {
+            return -1;
+        }
+        if (set_extend_from(st, co, items) < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+
+inline int set_init(PyObject *self, PyObject *args, PyObject *kwds) {
+    return set_init_impl(self, args, kwds, ColKind::SORTED_SET);
+}
+
+
+inline int unordered_set_init(PyObject *self, PyObject *args, PyObject *kwds) {
+    return set_init_impl(self, args, kwds, ColKind::HASH_SET);
+}
+
+
+inline int set_sq_contains(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return -1;
+    }
+    return set_contains_obj(co, o);
+}
+
+
+inline PyObject *set_add(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    if (set_add_obj(co, o) < 0) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *set_discard(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    if (set_discard_obj(co, o) < 0) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *set_remove(PyObject *self, PyObject *o) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    int r = set_discard_obj(co, o);
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        raise_key_error(o);
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *set_pop(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r;
+    Bin bin;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return static_cast<SetLikeImpl *>(co->impl)->pop_(&out, bin); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        PyErr_SetString(PyExc_KeyError, "pop from an empty set");
+        return nullptr;
+    }
+    return out;
+}
+
+
+inline PyObject *set_copy(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    PyTypeObject *tp = co->impl->kind == ColKind::SORTED_SET ? st->set_type : st->unordered_set_type;
+    return col_copy_as(tp, co);
+}
+
+
+inline PyObject *set_update(PyObject *self, PyObject *args) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    Py_ssize_t n = PyTuple_GET_SIZE(args);
+    for (Py_ssize_t i = 0; i < n; ++i) {
+        if (set_extend_from(st, co, PyTuple_GET_ITEM(args, i)) < 0) {
+            return nullptr;
+        }
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *set_isdisjoint(PyObject *self, PyObject *other) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *it = PyObject_GetIter(other);
+    if (it == nullptr) {
+        return nullptr;
+    }
+    PyObject *o;
+    while ((o = PyIter_Next(it)) != nullptr) {
+        int c = set_contains_obj(co, o);
+        Py_DECREF(o);
+        if (c < 0) {
+            Py_DECREF(it);
+            return nullptr;
+        }
+        if (c) {
+            Py_DECREF(it);
+            Py_RETURN_FALSE;
+        }
+    }
+    Py_DECREF(it);
+    if (PyErr_Occurred() != nullptr) {
+        return nullptr;
+    }
+    Py_RETURN_TRUE;
+}
+
+
+// Generic subset walk: 1 / 0 / -1. Iterates sub, membership-testing each element against sup; locking (where either
+// side is ours) is per element and never nested.
+inline int set_issubset_of(PyObject *sub, PyObject *sup) {
+    PyObject *it = PyObject_GetIter(sub);
+    if (it == nullptr) {
+        return -1;
+    }
+    PyObject *o;
+    while ((o = PyIter_Next(it)) != nullptr) {
+        int c = PySequence_Contains(sup, o);
+        Py_DECREF(o);
+        if (c < 0) {
+            Py_DECREF(it);
+            return -1;
+        }
+        if (!c) {
+            Py_DECREF(it);
+            return 0;
+        }
+    }
+    Py_DECREF(it);
+    return PyErr_Occurred() != nullptr ? -1 : 1;
+}
+
+
+inline PyObject *set_richcompare(PyObject *self, PyObject *other, int op) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+
+    if ((op == Py_EQ || op == Py_NE) && is_our_set(st, other)) {
+        ColObject *oc = (ColObject *)other;
+        if (oc->impl != nullptr && co->impl->same_shape(oc->impl)) {
+            int r;
+            {
+                ColGuard2 g(co->impl, oc->impl);
+                if (!g.held()) {
+                    return nullptr;
+                }
+                r = py_shield_int([&] { return co->impl->equals_same(oc->impl); });
+            }
+            if (r < 0) {
+                return nullptr;
+            }
+            return PyBool_FromLong(op == Py_EQ ? r : !r);
+        }
+    }
+
+    bool setlike = is_our_set(st, other) || PyAnySet_Check(other);
+    if (!setlike) {
+        int r = PyObject_IsInstance(other, st->abc_set);
+        if (r < 0) {
+            return nullptr;
+        }
+        setlike = r != 0;
+    }
+    if (!setlike) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+
+    Py_ssize_t ls = PyObject_Length(self);
+    if (ls < 0) {
+        return nullptr;
+    }
+    Py_ssize_t lo = PyObject_Length(other);
+    if (lo < 0) {
+        return nullptr;
+    }
+
+    int r;
+    switch (op) {
+        case Py_EQ:
+        case Py_NE:
+            r = ls == lo ? set_issubset_of(self, other) : 0;
+            if (r >= 0 && op == Py_NE) {
+                r = !r;
+            }
+            break;
+        case Py_LE:
+            r = ls <= lo ? set_issubset_of(self, other) : 0;
+            break;
+        case Py_LT:
+            r = ls < lo ? set_issubset_of(self, other) : 0;
+            break;
+        case Py_GE:
+            r = lo <= ls ? set_issubset_of(other, self) : 0;
+            break;
+        default:  // Py_GT
+            r = lo < ls ? set_issubset_of(other, self) : 0;
+            break;
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    return PyBool_FromLong(r);
+}
+
+
+// Binary set operators, abc.Set-style: the non-set operand may be any iterable, and the result takes its concrete
+// type, dtype, and overflow mode from whichever operand is ours (the left one if both are).
+inline PyObject *set_binop(PyObject *v, PyObject *w, char op) {
+    stl_state *st = find_state_2(v, w);
+    if (st == nullptr) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+
+    ColObject *ours;
+    bool ours_is_left;
+    if (is_our_set(st, v)) {
+        ours = (ColObject *)v;
+        ours_is_left = true;
+    }
+    else if (is_our_set(st, w)) {
+        ours = (ColObject *)w;
+        ours_is_left = false;
+    }
+    else {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+    if (!col_ready(ours)) {
+        return nullptr;
+    }
+    PyObject *other = ours_is_left ? w : v;
+
+    // abc.Set returns NotImplemented for non-iterable operands.
+    PyObject *probe_it = PyObject_GetIter(other);
+    if (probe_it == nullptr) {
+        if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+            PyErr_Clear();
+            Py_RETURN_NOTIMPLEMENTED;
+        }
+        return nullptr;
+    }
+
+    PyObject *result = nullptr;
+
+    switch (op) {
+        case '|': {
+            Py_DECREF(probe_it);
+            PyTypeObject *tp = ours->impl->kind == ColKind::SORTED_SET ? st->set_type : st->unordered_set_type;
+            result = col_copy_as(tp, ours);
+            if (result == nullptr) {
+                return nullptr;
+            }
+            if (set_extend_from(st, (ColObject *)result, other) < 0) {
+                Py_DECREF(result);
+                return nullptr;
+            }
+            return result;
+        }
+
+        case '&': {
+            result = set_new_like(st, ours);
+            if (result == nullptr) {
+                Py_DECREF(probe_it);
+                return nullptr;
+            }
+            PyObject *o;
+            while ((o = PyIter_Next(probe_it)) != nullptr) {
+                int c = set_contains_obj(ours, o);
+                if (c > 0) {
+                    c = set_add_obj((ColObject *)result, o) < 0 ? -1 : 0;
+                }
+                Py_DECREF(o);
+                if (c < 0) {
+                    goto fail;
+                }
+            }
+            break;
+        }
+
+        case '-': {
+            if (ours_is_left) {
+                Py_DECREF(probe_it);
+                probe_it = nullptr;
+                PyTypeObject *tp = ours->impl->kind == ColKind::SORTED_SET ? st->set_type : st->unordered_set_type;
+                result = col_copy_as(tp, ours);
+                if (result == nullptr) {
+                    return nullptr;
+                }
+                PyObject *it2 = PyObject_GetIter(other);
+                if (it2 == nullptr) {
+                    Py_DECREF(result);
+                    return nullptr;
+                }
+                PyObject *o;
+                while ((o = PyIter_Next(it2)) != nullptr) {
+                    int r = set_discard_obj((ColObject *)result, o);
+                    Py_DECREF(o);
+                    if (r < 0) {
+                        Py_DECREF(it2);
+                        Py_DECREF(result);
+                        return nullptr;
+                    }
+                }
+                Py_DECREF(it2);
+                if (PyErr_Occurred() != nullptr) {
+                    Py_DECREF(result);
+                    return nullptr;
+                }
+                return result;
+            }
+            // iterable - ours: keep the left operand's elements not contained in ours.
+            result = set_new_like(st, ours);
+            if (result == nullptr) {
+                Py_DECREF(probe_it);
+                return nullptr;
+            }
+            PyObject *o;
+            while ((o = PyIter_Next(probe_it)) != nullptr) {
+                int c = set_contains_obj(ours, o);
+                if (c == 0) {
+                    c = set_add_obj((ColObject *)result, o) < 0 ? -1 : 0;
+                }
+                Py_DECREF(o);
+                if (c < 0) {
+                    goto fail;
+                }
+            }
+            break;
+        }
+
+        default: {  // '^'
+            // Materialize the other operand into a same-spec temp first, so duplicates in it cannot double-toggle.
+            Py_DECREF(probe_it);
+            probe_it = nullptr;
+            PyObject *temp = set_new_like(st, ours);
+            if (temp == nullptr) {
+                return nullptr;
+            }
+            if (set_extend_from(st, (ColObject *)temp, other) < 0) {
+                Py_DECREF(temp);
+                return nullptr;
+            }
+            PyTypeObject *tp = ours->impl->kind == ColKind::SORTED_SET ? st->set_type : st->unordered_set_type;
+            result = col_copy_as(tp, ours);
+            if (result == nullptr) {
+                Py_DECREF(temp);
+                return nullptr;
+            }
+            PyObject *it2 = PyObject_GetIter(temp);
+            if (it2 == nullptr) {
+                Py_DECREF(temp);
+                Py_DECREF(result);
+                return nullptr;
+            }
+            PyObject *o;
+            int r = 0;
+            while ((o = PyIter_Next(it2)) != nullptr) {
+                r = set_discard_obj((ColObject *)result, o);
+                if (r == 0) {
+                    r = set_add_obj((ColObject *)result, o);
+                }
+                Py_DECREF(o);
+                if (r < 0) {
+                    break;
+                }
+            }
+            Py_DECREF(it2);
+            Py_DECREF(temp);
+            if (r < 0 || PyErr_Occurred() != nullptr) {
+                Py_DECREF(result);
+                return nullptr;
+            }
+            return result;
+        }
+    }
+
+    Py_DECREF(probe_it);
+    if (PyErr_Occurred() != nullptr) {
+        Py_DECREF(result);
+        return nullptr;
+    }
+    return result;
+
+fail:
+    Py_XDECREF(probe_it);
+    Py_XDECREF(result);
+    return nullptr;
+}
+
+
+inline PyObject *set_nb_or(PyObject *v, PyObject *w) {
+    return set_binop(v, w, '|');
+}
+
+
+inline PyObject *set_nb_and(PyObject *v, PyObject *w) {
+    return set_binop(v, w, '&');
+}
+
+
+inline PyObject *set_nb_sub(PyObject *v, PyObject *w) {
+    return set_binop(v, w, '-');
+}
+
+
+inline PyObject *set_nb_xor(PyObject *v, PyObject *w) {
+    return set_binop(v, w, '^');
+}
+
+
+inline PyObject *set_inplace(PyObject *v, PyObject *w, char op) {
+    stl_state *st = find_state_2(v, w);
+    if (st == nullptr || !is_our_set(st, v)) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+    ColObject *co = (ColObject *)v;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+
+    // Self-application shortcuts, matching builtin set semantics (s -= s clears, s ^= s clears, s |= s and
+    // s &= s are no-ops).
+    if (v == w) {
+        if (op == '-' || op == '^') {
+            PyObject *r = col_clear_meth(v, nullptr);
+            if (r == nullptr) {
+                return nullptr;
+            }
+            Py_DECREF(r);
+        }
+        return Py_NewRef(v);
+    }
+
+    switch (op) {
+        case '|':
+            if (set_extend_from(st, co, w) < 0) {
+                if (PyErr_ExceptionMatches(PyExc_TypeError) && PyObject_GetIter(w) == nullptr) {
+                    PyErr_Clear();
+                    Py_RETURN_NOTIMPLEMENTED;
+                }
+                return nullptr;
+            }
+            break;
+
+        case '-': {
+            PyObject *it = PyObject_GetIter(w);
+            if (it == nullptr) {
+                if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+                    PyErr_Clear();
+                    Py_RETURN_NOTIMPLEMENTED;
+                }
+                return nullptr;
+            }
+            PyObject *o;
+            while ((o = PyIter_Next(it)) != nullptr) {
+                int r = set_discard_obj(co, o);
+                Py_DECREF(o);
+                if (r < 0) {
+                    Py_DECREF(it);
+                    return nullptr;
+                }
+            }
+            Py_DECREF(it);
+            if (PyErr_Occurred() != nullptr) {
+                return nullptr;
+            }
+            break;
+        }
+
+        case '&': {
+            // abc.MutableSet style: materialize (self - w), then discard those elements.
+            PyObject *gone = set_binop(v, w, '-');
+            if (gone == nullptr) {
+                return nullptr;
+            }
+            if (gone == Py_NotImplemented) {
+                return gone;
+            }
+            PyObject *it = PyObject_GetIter(gone);
+            if (it == nullptr) {
+                Py_DECREF(gone);
+                return nullptr;
+            }
+            PyObject *o;
+            while ((o = PyIter_Next(it)) != nullptr) {
+                int r = set_discard_obj(co, o);
+                Py_DECREF(o);
+                if (r < 0) {
+                    Py_DECREF(it);
+                    Py_DECREF(gone);
+                    return nullptr;
+                }
+            }
+            Py_DECREF(it);
+            Py_DECREF(gone);
+            if (PyErr_Occurred() != nullptr) {
+                return nullptr;
+            }
+            break;
+        }
+
+        default: {  // '^'
+            PyObject *temp = set_new_like(st, co);
+            if (temp == nullptr) {
+                return nullptr;
+            }
+            if (set_extend_from(st, (ColObject *)temp, w) < 0) {
+                Py_DECREF(temp);
+                if (PyErr_ExceptionMatches(PyExc_TypeError) && PyObject_GetIter(w) == nullptr) {
+                    PyErr_Clear();
+                    Py_RETURN_NOTIMPLEMENTED;
+                }
+                return nullptr;
+            }
+            PyObject *it = PyObject_GetIter(temp);
+            if (it == nullptr) {
+                Py_DECREF(temp);
+                return nullptr;
+            }
+            PyObject *o;
+            int r = 0;
+            while ((o = PyIter_Next(it)) != nullptr) {
+                r = set_discard_obj(co, o);
+                if (r == 0) {
+                    r = set_add_obj(co, o);
+                }
+                Py_DECREF(o);
+                if (r < 0) {
+                    break;
+                }
+            }
+            Py_DECREF(it);
+            Py_DECREF(temp);
+            if (r < 0 || PyErr_Occurred() != nullptr) {
+                return nullptr;
+            }
+            break;
+        }
+    }
+
+    return Py_NewRef(v);
+}
+
+
+inline PyObject *set_nb_ior(PyObject *v, PyObject *w) {
+    return set_inplace(v, w, '|');
+}
+
+
+inline PyObject *set_nb_iand(PyObject *v, PyObject *w) {
+    return set_inplace(v, w, '&');
+}
+
+
+inline PyObject *set_nb_isub(PyObject *v, PyObject *w) {
+    return set_inplace(v, w, '-');
+}
+
+
+inline PyObject *set_nb_ixor(PyObject *v, PyObject *w) {
+    return set_inplace(v, w, '^');
+}
+
+
+inline PyObject *set_repr(PyObject *self) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    int rc = Py_ReprEnter(self);
+    if (rc != 0) {
+        return rc > 0 ? PyUnicode_FromFormat("%s(...)", col_short_name(self)) : nullptr;
+    }
+    PyObject *lst = PySequence_List(self);
+    if (lst == nullptr) {
+        Py_ReprLeave(self);
+        return nullptr;
+    }
+    PyObject *r = PyUnicode_FromFormat(
+        "%s('%s', %R)", col_short_name(self), dtype_name(co->impl->key_dt, co->impl->key_ovf), lst);
+    Py_DECREF(lst);
+    Py_ReprLeave(self);
+    return r;
+}
+
+
+inline PyObject *col_get_dtype(PyObject *self, void *) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    return PyUnicode_FromString(dtype_name(co->impl->key_dt, co->impl->key_ovf));
+}
+
+
+inline PyGetSetDef set_getset[] = {
+    {"dtype", col_get_dtype, nullptr, PyDoc_STR("Canonical element dtype string."), nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr},
+};
+
+
+// SortedCollection surface (sorted variant only): iter / iter_desc are just the existing iterators under the interface
+// names; the seeded and find forms ride the new impl primitives.
+inline PyObject *set_iter_from(PyObject *self, PyObject *base) {
+    return col_make_iter_from(self, IterKind::KEYS, false, base);
+}
+
+
+inline PyObject *set_iter_from_desc(PyObject *self, PyObject *base) {
+    return col_make_iter_from(self, IterKind::KEYS, true, base);
+}
+
+
+inline PyObject *set_find(PyObject *self, PyObject *probe) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return static_cast<SetLikeImpl *>(co->impl)->find_elem(probe, &out); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        Py_RETURN_NONE;
+    }
+    return out;
+}

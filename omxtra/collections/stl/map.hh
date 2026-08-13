@@ -716,3 +716,611 @@ inline MapLikeImpl *new_map_impl(ColKind kind, Dt kd, Ovf kovf, Dt vd, Ovf vovf)
     }
 }
 
+
+//
+// Python interface
+//
+
+
+inline bool is_our_map(stl_state *st, PyObject *o) {
+    return PyObject_TypeCheck(o, st->map_type) || PyObject_TypeCheck(o, st->unordered_map_type);
+}
+
+
+inline int map_assign_obj(ColObject *co, PyObject *k, PyObject *v) {
+    Bin bin;
+    ColGuard g(co->impl);
+    if (!g.held()) {
+        return -1;
+    }
+    return py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->assign(k, v, bin); });
+}
+
+
+// Update from an iterable of key/value pairs.
+inline int map_update_pairs(ColObject *co, PyObject *pairs) {
+    PyObject *it = PyObject_GetIter(pairs);
+    if (it == nullptr) {
+        return -1;
+    }
+    PyObject *pair;
+    while ((pair = PyIter_Next(it)) != nullptr) {
+        PyObject *fast = PySequence_Fast(pair, "map update sequence element is not iterable");
+        Py_DECREF(pair);
+        if (fast == nullptr) {
+            Py_DECREF(it);
+            return -1;
+        }
+        if (PySequence_Fast_GET_SIZE(fast) != 2) {
+            PyErr_Format(
+                PyExc_ValueError,
+                "map update sequence element has length %zd; 2 is required",
+                PySequence_Fast_GET_SIZE(fast));
+            Py_DECREF(fast);
+            Py_DECREF(it);
+            return -1;
+        }
+        int r = map_assign_obj(co, PySequence_Fast_GET_ITEM(fast, 0), PySequence_Fast_GET_ITEM(fast, 1));
+        Py_DECREF(fast);
+        if (r < 0) {
+            Py_DECREF(it);
+            return -1;
+        }
+    }
+    Py_DECREF(it);
+    return PyErr_Occurred() != nullptr ? -1 : 0;
+}
+
+
+inline int map_update_from(stl_state *st, ColObject *co, PyObject *src) {
+    if (is_our_map(st, src)) {
+        ColObject *oc = (ColObject *)src;
+        if (oc->impl != nullptr && co->impl->same_shape(oc->impl)) {
+            Bin bin;
+            ColGuard2 g(co->impl, oc->impl);
+            if (!g.held()) {
+                return -1;
+            }
+            return py_shield_int([&] { return co->impl->merge_same(oc->impl, bin); });
+        }
+        // Different shape: fall through to the generic mapping walk below (our maps have keys()).
+    }
+
+    if (PyDict_Check(src)) {
+        PyObject *items = PyDict_Items(src);  // snapshot, safe against concurrent dict mutation
+        if (items == nullptr) {
+            return -1;
+        }
+        int r = map_update_pairs(co, items);
+        Py_DECREF(items);
+        return r;
+    }
+
+    // dict.update semantics: anything with a keys() method is treated as a mapping, else as an iterable of pairs.
+    PyObject *keys_meth = PyObject_GetAttrString(src, "keys");
+    if (keys_meth == nullptr) {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            return -1;
+        }
+        PyErr_Clear();
+        return map_update_pairs(co, src);
+    }
+    PyObject *keys = PyObject_CallNoArgs(keys_meth);
+    Py_DECREF(keys_meth);
+    if (keys == nullptr) {
+        return -1;
+    }
+    PyObject *it = PyObject_GetIter(keys);
+    Py_DECREF(keys);
+    if (it == nullptr) {
+        return -1;
+    }
+    PyObject *k;
+    while ((k = PyIter_Next(it)) != nullptr) {
+        PyObject *v = PyObject_GetItem(src, k);
+        if (v == nullptr) {
+            Py_DECREF(k);
+            Py_DECREF(it);
+            return -1;
+        }
+        int r = map_assign_obj(co, k, v);
+        Py_DECREF(v);
+        Py_DECREF(k);
+        if (r < 0) {
+            Py_DECREF(it);
+            return -1;
+        }
+    }
+    Py_DECREF(it);
+    return PyErr_Occurred() != nullptr ? -1 : 0;
+}
+
+
+inline int map_init_impl(PyObject *self, PyObject *args, PyObject *kwds, ColKind kind) {
+    ColObject *co = (ColObject *)self;
+    if (co->impl != nullptr) {
+        PyErr_SetString(PyExc_TypeError, "container is already initialized");
+        return -1;
+    }
+
+    static const char *KWLIST[] = {"key_type", "value_type", "items", nullptr};
+    PyObject *kd_o = nullptr;
+    PyObject *vd_o = nullptr;
+    PyObject *items = nullptr;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", (char **)KWLIST, &kd_o, &vd_o, &items)) {
+        return -1;
+    }
+
+    DtypeSpec kd{Dt::OBJ, Ovf::RAISE};
+    DtypeSpec vd{Dt::OBJ, Ovf::RAISE};
+    if (kd_o != nullptr && kd_o != Py_None && parse_dtype(kd_o, &kd) < 0) {
+        return -1;
+    }
+    if (vd_o != nullptr && vd_o != Py_None && parse_dtype(vd_o, &vd) < 0) {
+        return -1;
+    }
+
+    try {
+        co->impl = new_map_impl(kind, kd.dt, kd.ovf, vd.dt, vd.ovf);
+    }
+    catch (std::bad_alloc &) {
+        PyErr_NoMemory();
+        return -1;
+    }
+
+    if (items != nullptr && items != Py_None) {
+        stl_state *st = find_state(Py_TYPE(self));
+        if (st == nullptr) {
+            return -1;
+        }
+        if (map_update_from(st, co, items) < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+
+inline int map_init(PyObject *self, PyObject *args, PyObject *kwds) {
+    return map_init_impl(self, args, kwds, ColKind::SORTED_MAP);
+}
+
+
+inline int unordered_map_init(PyObject *self, PyObject *args, PyObject *kwds) {
+    return map_init_impl(self, args, kwds, ColKind::HASH_MAP);
+}
+
+
+inline PyObject *map_subscript(PyObject *self, PyObject *k) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->lookup(k, &out); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        raise_key_error(k);
+        return nullptr;
+    }
+    return out;
+}
+
+
+inline int map_ass_subscript(PyObject *self, PyObject *k, PyObject *v) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return -1;
+    }
+    Bin bin;
+    if (v == nullptr) {
+        int r;
+        {
+            ColGuard g(co->impl);
+            if (!g.held()) {
+                return -1;
+            }
+            r = py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->remove_(k, nullptr, bin); });
+        }
+        if (r < 0) {
+            return -1;
+        }
+        if (r == 0) {
+            raise_key_error(k);
+            return -1;
+        }
+        return 0;
+    }
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return -1;
+        }
+        return py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->assign(k, v, bin); });
+    }
+}
+
+
+inline int map_sq_contains(PyObject *self, PyObject *k) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return -1;
+    }
+    ColGuard g(co->impl);
+    if (!g.held()) {
+        return -1;
+    }
+    return py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->contains_(k); });
+}
+
+
+inline PyObject *map_get(PyObject *self, PyObject *args) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *k;
+    PyObject *dflt = Py_None;
+    if (!PyArg_ParseTuple(args, "O|O:get", &k, &dflt)) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->lookup(k, &out); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    return r == 0 ? Py_NewRef(dflt) : out;
+}
+
+
+inline PyObject *map_pop(PyObject *self, PyObject *args) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *k;
+    PyObject *dflt = nullptr;
+    if (!PyArg_ParseTuple(args, "O|O:pop", &k, &dflt)) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r;
+    Bin bin;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->remove_(k, &out, bin); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        if (dflt != nullptr) {
+            return Py_NewRef(dflt);
+        }
+        raise_key_error(k);
+        return nullptr;
+    }
+    return out;
+}
+
+
+inline PyObject *map_popitem(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *ko = nullptr;
+    PyObject *vo = nullptr;
+    int r;
+    Bin bin;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->pop_item(&ko, &vo, bin); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    if (r == 0) {
+        PyErr_SetString(PyExc_KeyError, "popitem(): container is empty");
+        return nullptr;
+    }
+    PyObject *t = PyTuple_Pack(2, ko, vo);
+    Py_DECREF(ko);
+    Py_DECREF(vo);
+    return t;
+}
+
+
+inline PyObject *map_setdefault(PyObject *self, PyObject *args) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *k;
+    PyObject *dflt = Py_None;
+    if (!PyArg_ParseTuple(args, "O|O:setdefault", &k, &dflt)) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        r = py_shield_int([&] { return static_cast<MapLikeImpl *>(co->impl)->set_default(k, dflt, &out); });
+    }
+    if (r < 0) {
+        return nullptr;
+    }
+    return out;
+}
+
+
+inline PyObject *map_update(PyObject *self, PyObject *args, PyObject *kwds) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    Py_ssize_t n = PyTuple_GET_SIZE(args);
+    if (n > 1) {
+        PyErr_Format(PyExc_TypeError, "update expected at most 1 argument, got %zd", n);
+        return nullptr;
+    }
+    if (n == 1) {
+        if (map_update_from(st, co, PyTuple_GET_ITEM(args, 0)) < 0) {
+            return nullptr;
+        }
+    }
+    if (kwds != nullptr && PyDict_GET_SIZE(kwds) > 0) {
+        PyObject *items = PyDict_Items(kwds);
+        if (items == nullptr) {
+            return nullptr;
+        }
+        int r = map_update_pairs(co, items);
+        Py_DECREF(items);
+        if (r < 0) {
+            return nullptr;
+        }
+    }
+    Py_RETURN_NONE;
+}
+
+
+inline PyObject *map_copy(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    PyTypeObject *tp = co->impl->kind == ColKind::SORTED_MAP ? st->map_type : st->unordered_map_type;
+    return col_copy_as(tp, co);
+}
+
+
+inline PyObject *map_view(PyObject *self, PyObject *view_cls) {
+    // The collections.abc view classes are the documented, protocol-driven implementation here: they wrap the
+    // mapping and route everything through __iter__ / __getitem__ / __len__, and bring the Set mixin along for
+    // keys() and items().
+    return PyObject_CallOneArg(view_cls, self);
+}
+
+
+inline PyObject *map_keys(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    return map_view(self, st->abc_keys_view);
+}
+
+
+inline PyObject *map_values(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    return map_view(self, st->abc_values_view);
+}
+
+
+inline PyObject *map_items(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    return map_view(self, st->abc_items_view);
+}
+
+
+inline PyObject *map_richcompare(PyObject *self, PyObject *other, int op) {
+    if (op != Py_EQ && op != Py_NE) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+
+    if (is_our_map(st, other)) {
+        ColObject *oc = (ColObject *)other;
+        if (oc->impl != nullptr && co->impl->same_shape(oc->impl)) {
+            int r;
+            {
+                ColGuard2 g(co->impl, oc->impl);
+                if (!g.held()) {
+                    return nullptr;
+                }
+                r = py_shield_int([&] { return co->impl->equals_same(oc->impl); });
+            }
+            if (r < 0) {
+                return nullptr;
+            }
+            return PyBool_FromLong(op == Py_EQ ? r : !r);
+        }
+    }
+
+    bool maplike = is_our_map(st, other) || PyDict_Check(other);
+    if (!maplike) {
+        int r = PyObject_IsInstance(other, st->abc_mapping);
+        if (r < 0) {
+            return nullptr;
+        }
+        maplike = r != 0;
+    }
+    if (!maplike) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+
+    int eq = 1;
+    Py_ssize_t ls = PyObject_Length(self);
+    if (ls < 0) {
+        return nullptr;
+    }
+    Py_ssize_t lo = PyObject_Length(other);
+    if (lo < 0) {
+        return nullptr;
+    }
+    if (ls != lo) {
+        eq = 0;
+    }
+    else {
+        PyObject *it = col_make_iter(self, IterKind::ITEMS, false);
+        if (it == nullptr) {
+            return nullptr;
+        }
+        PyObject *item;
+        while (eq && (item = PyIter_Next(it)) != nullptr) {
+            PyObject *ov = PyObject_GetItem(other, PyTuple_GET_ITEM(item, 0));
+            if (ov == nullptr) {
+                if (!PyErr_ExceptionMatches(PyExc_KeyError)) {
+                    Py_DECREF(item);
+                    Py_DECREF(it);
+                    return nullptr;
+                }
+                PyErr_Clear();
+                eq = 0;
+            }
+            else {
+                int r = PyObject_RichCompareBool(PyTuple_GET_ITEM(item, 1), ov, Py_EQ);
+                Py_DECREF(ov);
+                if (r < 0) {
+                    Py_DECREF(item);
+                    Py_DECREF(it);
+                    return nullptr;
+                }
+                eq = r;
+            }
+            Py_DECREF(item);
+        }
+        Py_DECREF(it);
+        if (PyErr_Occurred() != nullptr) {
+            return nullptr;
+        }
+    }
+    return PyBool_FromLong(op == Py_EQ ? eq : !eq);
+}
+
+
+inline PyObject *map_repr(PyObject *self) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    int rc = Py_ReprEnter(self);
+    if (rc != 0) {
+        return rc > 0 ? PyUnicode_FromFormat("%s(...)", col_short_name(self)) : nullptr;
+    }
+    PyObject *it = col_make_iter(self, IterKind::ITEMS, false);
+    if (it == nullptr) {
+        Py_ReprLeave(self);
+        return nullptr;
+    }
+    PyObject *lst = PySequence_List(it);
+    Py_DECREF(it);
+    if (lst == nullptr) {
+        Py_ReprLeave(self);
+        return nullptr;
+    }
+    PyObject *r = PyUnicode_FromFormat(
+        "%s('%s', '%s', %R)",
+        col_short_name(self),
+        dtype_name(co->impl->key_dt, co->impl->key_ovf),
+        dtype_name(co->impl->val_dt, co->impl->val_ovf),
+        lst);
+    Py_DECREF(lst);
+    Py_ReprLeave(self);
+    return r;
+}
+
+
+inline PyObject *map_get_key_type(PyObject *self, void *) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    return PyUnicode_FromString(dtype_name(co->impl->key_dt, co->impl->key_ovf));
+}
+
+
+inline PyObject *map_get_value_type(PyObject *self, void *) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    return PyUnicode_FromString(dtype_name(co->impl->val_dt, co->impl->val_ovf));
+}
+
+
+// SortedItems surface (sorted variant only).
+inline PyObject *map_iteritems(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    return col_make_iter(self, IterKind::ITEMS, false);
+}
+
+
+inline PyObject *map_items_desc(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    return col_make_iter(self, IterKind::ITEMS, true);
+}
+
+
+inline PyObject *map_items_from(PyObject *self, PyObject *key) {
+    return col_make_iter_from(self, IterKind::ITEMS, false, key);
+}
+
+
+inline PyObject *map_items_from_desc(PyObject *self, PyObject *key) {
+    return col_make_iter_from(self, IterKind::ITEMS, true, key);
+}

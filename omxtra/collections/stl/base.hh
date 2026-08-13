@@ -862,3 +862,316 @@ private:
     AnyImpl *lo_ = nullptr;
     AnyImpl *hi_ = nullptr;
 };
+
+
+//
+// Container / iterator objects
+//
+
+
+struct ColObject {
+    PyObject_HEAD
+    AnyImpl *impl;
+};
+
+
+struct IterObject {
+    PyObject_HEAD
+    PyObject *owner;  // strong reference to the ColObject; keeps impl alive while the iterator lives
+    AnyIter *it;
+};
+
+
+inline int col_ready(ColObject *co) {
+    if (co->impl == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "container is not initialized");
+        return 0;
+    }
+    return 1;
+}
+
+
+// KeyError's args must be the key itself, wrapped in a 1-tuple so that tuple keys don't splat.
+inline void raise_key_error(PyObject *k) {
+    PyObject *t = PyTuple_Pack(1, k);
+    if (t == nullptr) {
+        return;
+    }
+    PyErr_SetObject(PyExc_KeyError, t);
+    Py_DECREF(t);
+}
+
+
+// Takes ownership of impl (deleting it on allocation failure).
+inline PyObject *col_wrap(PyTypeObject *tp, AnyImpl *impl) {
+    ColObject *co = (ColObject *)tp->tp_alloc(tp, 0);
+    if (co == nullptr) {
+        delete impl;
+        return nullptr;
+    }
+    co->impl = impl;
+    return (PyObject *)co;
+}
+
+
+inline void col_dealloc(PyObject *self) {
+    PyTypeObject *tp = Py_TYPE(self);
+    PyObject_GC_UnTrack(self);
+    ColObject *co = (ColObject *)self;
+    AnyImpl *impl = co->impl;
+    co->impl = nullptr;
+    // No lock and no bin: the object is unreachable, so nothing else can hold the lock, and the impl destructor's
+    // direct DECREFs may run arbitrary __del__ code safely here.
+    delete impl;
+    tp->tp_free(self);
+    Py_DECREF((PyObject *)tp);
+}
+
+
+inline int col_traverse(PyObject *self, visitproc visit, void *arg) {
+    Py_VISIT(Py_TYPE(self));
+    ColObject *co = (ColObject *)self;
+    if (co->impl != nullptr) {
+        // Deliberately unlocked - see the locking discipline comment.
+        int r = co->impl->traverse(visit, arg);
+        if (r != 0) {
+            return r;
+        }
+    }
+    return 0;
+}
+
+
+inline int col_clear_slot(PyObject *self) {
+    ColObject *co = (ColObject *)self;
+    if (co->impl != nullptr) {
+        // Unlocked by design - tp_clear only runs on objects GC has proven unreachable.
+        try {
+            Bin bin;
+            co->impl->clear_collect(bin);
+        }
+        catch (...) {
+            // Only a bin allocation failure lands here; leaving the elements in place is safe.
+        }
+    }
+    return 0;
+}
+
+
+inline Py_ssize_t col_len(PyObject *self) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return -1;
+    }
+    ColGuard g(co->impl);
+    if (!g.held()) {
+        return -1;
+    }
+    return co->impl->size();
+}
+
+
+inline PyObject *col_clear_meth(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    Bin bin;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        int r = py_shield_int([&] {
+            co->impl->clear_collect(bin);
+            return 0;
+        });
+        if (r < 0) {
+            return nullptr;
+        }
+    }
+    Py_RETURN_NONE;
+}
+
+
+// Clones under the lock and wraps the clone in the given (plain, module-owned) type.
+inline PyObject *col_copy_as(PyTypeObject *tp, ColObject *co) {
+    AnyImpl *n = nullptr;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        try {
+            n = co->impl->clone();
+        }
+        catch (std::bad_alloc &) {
+            g.release();
+            PyErr_NoMemory();
+            return nullptr;
+        }
+    }
+    return col_wrap(tp, n);
+}
+
+
+//
+// Iterator type
+//
+
+
+inline void iter_dealloc(PyObject *self) {
+    PyTypeObject *tp = Py_TYPE(self);
+    PyObject_GC_UnTrack(self);
+    IterObject *io = (IterObject *)self;
+    AnyIter *it = io->it;
+    io->it = nullptr;
+    delete it;
+    Py_CLEAR(io->owner);
+    tp->tp_free(self);
+    Py_DECREF((PyObject *)tp);
+}
+
+
+inline int iter_traverse(PyObject *self, visitproc visit, void *arg) {
+    Py_VISIT(Py_TYPE(self));
+    IterObject *io = (IterObject *)self;
+    Py_VISIT(io->owner);
+    return 0;
+}
+
+
+inline int iter_clear(PyObject *self) {
+    IterObject *io = (IterObject *)self;
+    // The AnyIter points into the owner's impl, so it must die before the owner reference does.
+    AnyIter *it = io->it;
+    io->it = nullptr;
+    delete it;
+    Py_CLEAR(io->owner);
+    return 0;
+}
+
+
+inline PyObject *iter_next(PyObject *self) {
+    IterObject *io = (IterObject *)self;
+    if (io->owner == nullptr || io->it == nullptr) {
+        return nullptr;  // exhausted / cleared - bare null means StopIteration
+    }
+    ColObject *co = (ColObject *)io->owner;
+    ColGuard g(co->impl);
+    if (!g.held()) {
+        return nullptr;
+    }
+    PyObject *out = nullptr;
+    int r = py_shield_int([&] { return io->it->next(&out); });
+    g.release();
+    if (r <= 0) {
+        return nullptr;
+    }
+    return out;
+}
+
+
+inline PyObject *col_make_iter(PyObject *self, IterKind ik, bool desc) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    AnyIter *it = nullptr;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        try {
+            it = co->impl->make_iter(ik, desc);
+        }
+        catch (std::bad_alloc &) {
+            g.release();
+            PyErr_NoMemory();
+            return nullptr;
+        }
+    }
+    IterObject *io = (IterObject *)st->iter_type->tp_alloc(st->iter_type, 0);
+    if (io == nullptr) {
+        delete it;
+        return nullptr;
+    }
+    io->owner = Py_NewRef(self);
+    io->it = it;
+    return (PyObject *)io;
+}
+
+
+inline PyObject *col_iter(PyObject *self) {
+    return col_make_iter(self, IterKind::KEYS, false);
+}
+
+
+inline PyObject *col_iter_meth(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    return col_make_iter(self, IterKind::KEYS, false);
+}
+
+
+inline PyObject *col_reversed_meth(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    return col_make_iter(self, IterKind::KEYS, true);
+}
+
+
+// Backs iter_from / iter_from_desc / items_from / items_from_desc: seeks under the container lock (object-dtype
+// bounds run user comparators there, hence the py_err_set catch) and hands the seeded impl iterator to the shared
+// iterator object, which re-locks per next() and version-checks like any other iterator.
+inline PyObject *col_make_iter_from(PyObject *self, IterKind ik, bool desc, PyObject *base) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    stl_state *st = find_state(Py_TYPE(self));
+    if (st == nullptr) {
+        return nullptr;
+    }
+    AnyIter *it = nullptr;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            return nullptr;
+        }
+        try {
+            it = co->impl->make_iter_from(ik, desc, base);
+        }
+        catch (py_err_set &) {
+            g.release();
+            return nullptr;
+        }
+        catch (std::bad_alloc &) {
+            g.release();
+            PyErr_NoMemory();
+            return nullptr;
+        }
+        if (it == nullptr) {
+            g.release();
+            return nullptr;
+        }
+    }
+    IterObject *io = (IterObject *)st->iter_type->tp_alloc(st->iter_type, 0);
+    if (io == nullptr) {
+        delete it;
+        return nullptr;
+    }
+    io->owner = Py_NewRef(self);
+    io->it = it;
+    return (PyObject *)io;
+}
+
+
+// Extracts the short class name ("Set") out of the heap type's qualified tp_name ("_stl.Set"), for reprs and
+// error messages.
+inline const char *col_short_name(PyObject *self) {
+    const char *tn = Py_TYPE(self)->tp_name;
+    const char *dot = std::strrchr(tn, '.');
+    return dot != nullptr ? dot + 1 : tn;
+}
