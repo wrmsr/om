@@ -199,6 +199,39 @@ def test_set_update_multi(cls):
     s = cls('int64')
     s.update([1, 2], (3,), cls('int64', [4]))
     assert sorted(s) == [1, 2, 3, 4]
+    s.update()
+    assert sorted(s) == [1, 2, 3, 4]
+
+
+@pytest.mark.parametrize('cls', SET_CLASSES)
+def test_set_update_batch_partial_application(cls):
+    # The list/tuple batch path keeps the per-element error semantics: elements before the failing one stay added.
+    s = cls('int64')
+    with pytest.raises(TypeError):
+        s.update([1, 'x', 3])
+    assert list(s) == [1]
+    with pytest.raises(TypeError):
+        s.update((2, 'x'))
+    assert sorted(s) == [1, 2]
+
+
+def test_set_update_source_mutation_during_batch_is_safe():
+    # The batch path holds the container lock across the whole run, and element __lt__ runs under it; element code
+    # that reaches back and mutates the source list must not affect the (snapshotted) batch.
+    lst: list = []
+
+    class Evil:
+        def __lt__(self, o):
+            lst.clear()
+            return id(self) < id(o)
+
+        def __gt__(self, o):
+            return id(self) > id(o)
+
+    lst[:] = [Evil() for _ in range(20)]
+    s = fc.Set('object')
+    s.update(lst)
+    assert len(s) == 20
 
 
 ##
@@ -408,6 +441,42 @@ def test_map_init_forms():
     assert dict(fc.Map('int64', 'int64', src).items()) == {1: 2}
 
 
+@pytest.mark.parametrize('cls', MAP_CLASSES)
+def test_map_update_batch_and_fallback(cls):
+    m = cls('int64', 'int64')
+    m.update([(1, 2), (3, 4)])
+    m.update(((5, 6),))
+    assert dict(m.items()) == {1: 2, 3: 4, 5: 6}
+    # Malformed elements drop to the generic walk, with its usual errors and partial application.
+    with pytest.raises(ValueError):  # noqa
+        m.update([(7, 8), (9,)])
+    assert m[7] == 8
+    with pytest.raises(TypeError):
+        m.update([(10, 11), ('x', 1)])
+    assert m[10] == 11
+    m.update([[12, 13]])  # non-tuple pairs also take the generic walk
+    assert m[12] == 13
+
+
+def test_map_update_source_mutation_during_batch_is_safe():
+    # Same guarantee as the set batch path: key __hash__ runs under the container lock and can reach back and mutate
+    # the source list mid-run; the snapshotted batch must be unaffected.
+    lst: list = []
+
+    class EvilK:
+        def __hash__(self):
+            lst.clear()
+            return id(self)
+
+        def __eq__(self, o):
+            return self is o
+
+    lst[:] = [(EvilK(), i) for i in range(10)]
+    m = fc.UnorderedMap('object', 'int64')
+    m.update(lst)
+    assert len(m) == 10
+
+
 def test_map_comparisons():
     m = fc.Map('int64', 'object', [(1, 'a')])
     assert m == {1: 'a'}
@@ -568,6 +637,42 @@ def test_vector_errors():
         v[0] = 'x'
     with pytest.raises(TypeError):
         hash(v)
+
+
+def test_fastcall_method_arity_and_kwargs():
+    m = fc.Map('int64', 'int64', [(1, 2)])
+    with pytest.raises(TypeError):
+        m.get()
+    with pytest.raises(TypeError):
+        m.get(1, 2, 3)
+    with pytest.raises(TypeError):
+        m.pop()
+    with pytest.raises(TypeError):
+        m.setdefault(1, 2, 3)
+    with pytest.raises(TypeError):
+        m.get(1, default=2)  # no keyword support, as before
+    v = fc.Vector('int64', [1, 2])
+    with pytest.raises(TypeError):
+        v.insert(1)
+    with pytest.raises(TypeError):
+        v.insert(1, 2, 3)
+    with pytest.raises(TypeError):
+        v.pop(0, 0)
+    with pytest.raises(TypeError):
+        v.index()
+    with pytest.raises(TypeError):
+        v.sort(True)  # reverse is keyword-only
+    with pytest.raises(TypeError):
+        v.sort(bad=True)
+    # index-argument conversion still raises OverflowError for values out of Py_ssize_t range
+    with pytest.raises(OverflowError):
+        v.insert(2 ** 100, 0)
+    with pytest.raises(OverflowError):
+        v.pop(2 ** 100)
+    with pytest.raises(OverflowError):
+        v.index(1, 2 ** 100)
+    with pytest.raises(TypeError):
+        v.pop('x')
 
 
 def test_vector_index_range_args():

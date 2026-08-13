@@ -388,6 +388,10 @@ struct HashSetImpl final : SetLikeImpl {
         ++version;
     }
 
+    void reserve_extra(size_t n) override {
+        set_.reserve(set_.size() + n);
+    }
+
     AnyImpl *clone() const override {
         auto *n = new HashSetImpl(key_ovf);
         try {
@@ -421,6 +425,11 @@ struct HashSetImpl final : SetLikeImpl {
 
     int merge_same(AnyImpl *other, Bin &) override {
         auto *o = static_cast<HashSetImpl *>(other);
+        if (o != this) {
+            // Presize once instead of paying incremental rehashes across the bulk insert; safe pre-mutation, and
+            // skipped for self-merge (which inserts nothing).
+            set_.reserve(set_.size() + o->set_.size());
+        }
         bool changed = false;
         for (const auto &s : o->set_) {
             auto [it, inserted] = set_.insert(s);
@@ -543,6 +552,47 @@ inline int set_discard_obj(ColObject *co, PyObject *o) {
 }
 
 
+// Batch path for exact list / tuple sources: one lock acquisition for the whole run instead of one per element.
+// Element code runs under the held lock exactly as it would per-element (object dtypes call __hash__ / __lt__ /
+// __eq__, primitive unboxing may call __index__), and such code can reach back and mutate a plain list source
+// mid-loop - so lists are snapshotted into a private tuple (a C-level copy, no user hooks) first. Tuples are
+// immutable and are used as-is. Error semantics match the per-element path: elements before the failing one stay
+// added.
+inline int set_extend_from_fast_seq(ColObject *co, PyObject *items) {
+    PyObject *seq;
+    if (PyTuple_CheckExact(items)) {
+        seq = Py_NewRef(items);
+    }
+    else {
+        seq = PyList_AsTuple(items);
+        if (seq == nullptr) {
+            return -1;
+        }
+    }
+    int r;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            Py_DECREF(seq);
+            return -1;
+        }
+        r = py_shield_int([&] {
+            SetLikeImpl *impl = static_cast<SetLikeImpl *>(co->impl);
+            Py_ssize_t sn = PyTuple_GET_SIZE(seq);
+            impl->reserve_extra((size_t)sn);
+            for (Py_ssize_t i = 0; i < sn; ++i) {
+                if (impl->add_(PyTuple_GET_ITEM(seq, i)) < 0) {
+                    return -1;
+                }
+            }
+            return 0;
+        });
+    }
+    Py_DECREF(seq);
+    return r;
+}
+
+
 inline int set_extend_from(stl_state *st, ColObject *co, PyObject *items) {
     if (is_our_set(st, items)) {
         ColObject *oc = (ColObject *)items;
@@ -554,6 +604,10 @@ inline int set_extend_from(stl_state *st, ColObject *co, PyObject *items) {
             }
             return py_shield_int([&] { return co->impl->merge_same(oc->impl, bin); });
         }
+    }
+
+    if (PyList_CheckExact(items) || PyTuple_CheckExact(items)) {
+        return set_extend_from_fast_seq(co, items);
     }
 
     PyObject *it = PyObject_GetIter(items);
@@ -733,7 +787,7 @@ inline PyObject *set_copy(PyObject *self, PyObject *Py_UNUSED(ignored)) {
 }
 
 
-inline PyObject *set_update(PyObject *self, PyObject *args) {
+inline PyObject *set_update(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
@@ -742,9 +796,8 @@ inline PyObject *set_update(PyObject *self, PyObject *args) {
     if (st == nullptr) {
         return nullptr;
     }
-    Py_ssize_t n = PyTuple_GET_SIZE(args);
-    for (Py_ssize_t i = 0; i < n; ++i) {
-        if (set_extend_from(st, co, PyTuple_GET_ITEM(args, i)) < 0) {
+    for (Py_ssize_t i = 0; i < nargs; ++i) {
+        if (set_extend_from(st, co, args[i]) < 0) {
             return nullptr;
         }
     }

@@ -285,7 +285,42 @@ struct Bin {
 //
 
 
+// idx is a borrowed PyLong that overflowed int64 in the direction of `of`.
+inline bool unbox_int64_overflow(PyObject *idx, int of, Ovf ovf, int64_t *out) {
+    switch (ovf) {
+        case Ovf::RAISE:
+            PyErr_SetString(PyExc_OverflowError, "int out of range for int64");
+            return false;
+
+        case Ovf::CLAMP:
+            *out = of > 0 ? INT64_MAX : INT64_MIN;
+            return true;
+
+        default: {
+            unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
+            if (u == (unsigned long long)-1 && PyErr_Occurred()) {
+                return false;
+            }
+            *out = (int64_t)u;
+            return true;
+        }
+    }
+}
+
+
 inline bool unbox_int64(PyObject *o, Ovf ovf, int64_t *out) {
+    if (PyLong_CheckExact(o)) {
+        // Fast path: PyNumber_Index on an exact int is just an incref, so skip the call and the ref traffic. An
+        // exact int cannot fail conversion except by overflow.
+        int of = 0;
+        long long v = PyLong_AsLongLongAndOverflow(o, &of);
+        if (of == 0) {
+            *out = (int64_t)v;
+            return true;
+        }
+        return unbox_int64_overflow(o, of, ovf, out);
+    }
+
     PyObject *idx = PyNumber_Index(o);
     if (idx == nullptr) {
         return false;
@@ -304,24 +339,36 @@ inline bool unbox_int64(PyObject *o, Ovf ovf, int64_t *out) {
         return true;
     }
 
+    bool r = unbox_int64_overflow(idx, of, ovf, out);
+    Py_DECREF(idx);
+    return r;
+}
+
+
+// idx is a borrowed PyLong that failed PyLong_AsUnsignedLongLong with OverflowError (negative, or > UINT64_MAX).
+inline bool unbox_uint64_overflow(PyObject *idx, Ovf ovf, uint64_t *out) {
     switch (ovf) {
         case Ovf::RAISE:
-            Py_DECREF(idx);
-            PyErr_SetString(PyExc_OverflowError, "int out of range for int64");
+            PyErr_SetString(PyExc_OverflowError, "int out of range for uint64");
             return false;
 
-        case Ovf::CLAMP:
-            Py_DECREF(idx);
-            *out = of > 0 ? INT64_MAX : INT64_MIN;
+        case Ovf::CLAMP: {
+            int of = 0;
+            long long sv = PyLong_AsLongLongAndOverflow(idx, &of);
+            if (sv == -1 && of == 0 && PyErr_Occurred()) {
+                return false;
+            }
+            // AsUnsignedLongLong overflowed, so of == 0 here implies sv < 0.
+            *out = of > 0 ? UINT64_MAX : 0;
             return true;
+        }
 
         default: {
             unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
-            Py_DECREF(idx);
             if (u == (unsigned long long)-1 && PyErr_Occurred()) {
                 return false;
             }
-            *out = (int64_t)u;
+            *out = (uint64_t)u;
             return true;
         }
     }
@@ -329,6 +376,20 @@ inline bool unbox_int64(PyObject *o, Ovf ovf, int64_t *out) {
 
 
 inline bool unbox_uint64(PyObject *o, Ovf ovf, uint64_t *out) {
+    if (PyLong_CheckExact(o)) {
+        // Fast path, as in unbox_int64: an exact int cannot fail conversion except by overflow.
+        unsigned long long v = PyLong_AsUnsignedLongLong(o);
+        if (v != (unsigned long long)-1 || !PyErr_Occurred()) {
+            *out = (uint64_t)v;
+            return true;
+        }
+        if (!PyErr_ExceptionMatches(PyExc_OverflowError)) {
+            return false;
+        }
+        PyErr_Clear();
+        return unbox_uint64_overflow(o, ovf, out);
+    }
+
     PyObject *idx = PyNumber_Index(o);
     if (idx == nullptr) {
         return false;
@@ -347,34 +408,9 @@ inline bool unbox_uint64(PyObject *o, Ovf ovf, uint64_t *out) {
     }
     PyErr_Clear();
 
-    switch (ovf) {
-        case Ovf::RAISE:
-            Py_DECREF(idx);
-            PyErr_SetString(PyExc_OverflowError, "int out of range for uint64");
-            return false;
-
-        case Ovf::CLAMP: {
-            int of = 0;
-            long long sv = PyLong_AsLongLongAndOverflow(idx, &of);
-            Py_DECREF(idx);
-            if (sv == -1 && of == 0 && PyErr_Occurred()) {
-                return false;
-            }
-            // AsUnsignedLongLong overflowed, so of == 0 here implies sv < 0.
-            *out = of > 0 ? UINT64_MAX : 0;
-            return true;
-        }
-
-        default: {
-            unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
-            Py_DECREF(idx);
-            if (u == (unsigned long long)-1 && PyErr_Occurred()) {
-                return false;
-            }
-            *out = (uint64_t)u;
-            return true;
-        }
-    }
+    bool r = unbox_uint64_overflow(idx, ovf, out);
+    Py_DECREF(idx);
+    return r;
 }
 
 
@@ -716,6 +752,11 @@ struct AnyImpl {
 
     // Moves every owned reference into bin and empties the structure.
     virtual void clear_collect(Bin &bin) = 0;
+
+    // Best-effort presizing ahead of a bulk insert of up to n additional elements; hashed impls override to grow
+    // their bucket arrays once up front instead of rehashing incrementally. May throw bad_alloc, so callers must
+    // invoke it before any mutation.
+    virtual void reserve_extra(size_t) {}
 
     virtual AnyImpl *clone() const = 0;
     virtual AnyIter *make_iter(IterKind ik, bool desc) = 0;

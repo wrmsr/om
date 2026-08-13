@@ -543,6 +543,10 @@ struct HashMapImpl final : MapLikeImpl {
         ++version;
     }
 
+    void reserve_extra(size_t n) override {
+        map_.reserve(map_.size() + n);
+    }
+
     AnyImpl *clone() const override {
         auto *n = new HashMapImpl(key_ovf, val_ovf);
         try {
@@ -583,6 +587,11 @@ struct HashMapImpl final : MapLikeImpl {
         auto *o = static_cast<HashMapImpl *>(other);
         if constexpr (V::IS_OBJ) {
             bin.reserve_rest(o->map_.size());
+        }
+        if (o != this) {
+            // Presize once instead of paying incremental rehashes across the bulk insert; safe pre-mutation, and
+            // skipped for self-merge (which inserts nothing).
+            map_.reserve(map_.size() + o->map_.size());
         }
         bool changed = false;
         for (const auto &e : o->map_) {
@@ -747,8 +756,69 @@ inline int map_assign_obj(ColObject *co, PyObject *k, PyObject *v) {
 }
 
 
+// Batch path for pair sources that are an exact list / tuple of exact 2-tuples (notably PyDict_Items snapshots and
+// literal pair lists): one lock acquisition for the whole run instead of one per pair. As with the set batch path,
+// element code (unboxing / hashing / comparators) runs under the held lock and could mutate a plain list source, so
+// lists are snapshotted into a private tuple first; the exact-2-tuple pre-scan means no user code runs when pairs
+// are pulled apart under the lock. Returns 1 handled, 0 not applicable (caller falls back to the generic walk,
+// which also reproduces the malformed-element errors), -1 error.
+inline int map_update_pairs_fast_seq(ColObject *co, PyObject *pairs) {
+    PyObject *seq;
+    if (PyTuple_CheckExact(pairs)) {
+        seq = Py_NewRef(pairs);
+    }
+    else if (PyList_CheckExact(pairs)) {
+        seq = PyList_AsTuple(pairs);
+        if (seq == nullptr) {
+            return -1;
+        }
+    }
+    else {
+        return 0;
+    }
+    Py_ssize_t sn = PyTuple_GET_SIZE(seq);
+    for (Py_ssize_t i = 0; i < sn; ++i) {
+        PyObject *pair = PyTuple_GET_ITEM(seq, i);
+        if (!PyTuple_CheckExact(pair) || PyTuple_GET_SIZE(pair) != 2) {
+            Py_DECREF(seq);
+            return 0;
+        }
+    }
+    int r;
+    Bin bin;
+    {
+        ColGuard g(co->impl);
+        if (!g.held()) {
+            Py_DECREF(seq);
+            return -1;
+        }
+        r = py_shield_int([&] {
+            MapLikeImpl *impl = static_cast<MapLikeImpl *>(co->impl);
+            impl->reserve_extra((size_t)sn);
+            if (impl->val_dt == Dt::OBJ) {
+                bin.reserve_rest((size_t)sn);
+            }
+            for (Py_ssize_t i = 0; i < sn; ++i) {
+                PyObject *pair = PyTuple_GET_ITEM(seq, i);
+                if (impl->assign(PyTuple_GET_ITEM(pair, 0), PyTuple_GET_ITEM(pair, 1), bin) < 0) {
+                    return -1;
+                }
+            }
+            return 0;
+        });
+    }
+    Py_DECREF(seq);
+    return r < 0 ? -1 : 1;
+}
+
+
 // Update from an iterable of key/value pairs.
 inline int map_update_pairs(ColObject *co, PyObject *pairs) {
+    int fr = map_update_pairs_fast_seq(co, pairs);
+    if (fr != 0) {
+        return fr < 0 ? -1 : 0;
+    }
+
     PyObject *it = PyObject_GetIter(pairs);
     if (it == nullptr) {
         return -1;
@@ -977,14 +1047,33 @@ inline int map_sq_contains(PyObject *self, PyObject *k) {
 }
 
 
-inline PyObject *map_get(PyObject *self, PyObject *args) {
+// FASTCALL argument extraction for the (key, optional default) methods; *dflt is left untouched when absent so
+// callers pick their own default (Py_None for get / setdefault, a raise sentinel for pop).
+inline bool map_parse_key_opt(const char *name, PyObject *const *args, Py_ssize_t nargs, PyObject **k, PyObject **dflt) {
+    if (nargs < 1) {
+        PyErr_Format(PyExc_TypeError, "%s expected at least 1 argument, got %zd", name, nargs);
+        return false;
+    }
+    if (nargs > 2) {
+        PyErr_Format(PyExc_TypeError, "%s expected at most 2 arguments, got %zd", name, nargs);
+        return false;
+    }
+    *k = args[0];
+    if (nargs == 2) {
+        *dflt = args[1];
+    }
+    return true;
+}
+
+
+inline PyObject *map_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
     }
     PyObject *k;
     PyObject *dflt = Py_None;
-    if (!PyArg_ParseTuple(args, "O|O:get", &k, &dflt)) {
+    if (!map_parse_key_opt("get", args, nargs, &k, &dflt)) {
         return nullptr;
     }
     PyObject *out = nullptr;
@@ -1003,14 +1092,14 @@ inline PyObject *map_get(PyObject *self, PyObject *args) {
 }
 
 
-inline PyObject *map_pop(PyObject *self, PyObject *args) {
+inline PyObject *map_pop(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
     }
     PyObject *k;
     PyObject *dflt = nullptr;
-    if (!PyArg_ParseTuple(args, "O|O:pop", &k, &dflt)) {
+    if (!map_parse_key_opt("pop", args, nargs, &k, &dflt)) {
         return nullptr;
     }
     PyObject *out = nullptr;
@@ -1067,14 +1156,14 @@ inline PyObject *map_popitem(PyObject *self, PyObject *Py_UNUSED(ignored)) {
 }
 
 
-inline PyObject *map_setdefault(PyObject *self, PyObject *args) {
+inline PyObject *map_setdefault(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
     }
     PyObject *k;
     PyObject *dflt = Py_None;
-    if (!PyArg_ParseTuple(args, "O|O:setdefault", &k, &dflt)) {
+    if (!map_parse_key_opt("setdefault", args, nargs, &k, &dflt)) {
         return nullptr;
     }
     PyObject *out = nullptr;
@@ -1093,7 +1182,7 @@ inline PyObject *map_setdefault(PyObject *self, PyObject *args) {
 }
 
 
-inline PyObject *map_update(PyObject *self, PyObject *args, PyObject *kwds) {
+inline PyObject *map_update(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
@@ -1102,25 +1191,21 @@ inline PyObject *map_update(PyObject *self, PyObject *args, PyObject *kwds) {
     if (st == nullptr) {
         return nullptr;
     }
-    Py_ssize_t n = PyTuple_GET_SIZE(args);
-    if (n > 1) {
-        PyErr_Format(PyExc_TypeError, "update expected at most 1 argument, got %zd", n);
+    if (nargs > 1) {
+        PyErr_Format(PyExc_TypeError, "update expected at most 1 argument, got %zd", nargs);
         return nullptr;
     }
-    if (n == 1) {
-        if (map_update_from(st, co, PyTuple_GET_ITEM(args, 0)) < 0) {
+    if (nargs == 1) {
+        if (map_update_from(st, co, args[0]) < 0) {
             return nullptr;
         }
     }
-    if (kwds != nullptr && PyDict_GET_SIZE(kwds) > 0) {
-        PyObject *items = PyDict_Items(kwds);
-        if (items == nullptr) {
-            return nullptr;
-        }
-        int r = map_update_pairs(co, items);
-        Py_DECREF(items);
-        if (r < 0) {
-            return nullptr;
+    if (kwnames != nullptr) {
+        Py_ssize_t nk = PyTuple_GET_SIZE(kwnames);
+        for (Py_ssize_t i = 0; i < nk; ++i) {
+            if (map_assign_obj(co, PyTuple_GET_ITEM(kwnames, i), args[nargs + i]) < 0) {
+                return nullptr;
+            }
         }
     }
     Py_RETURN_NONE;

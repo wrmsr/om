@@ -831,16 +831,20 @@ inline PyObject *vec_nb_iadd(PyObject *v, PyObject *w) {
 }
 
 
-inline PyObject *vec_insert(PyObject *self, PyObject *args) {
+inline PyObject *vec_insert(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
     }
-    Py_ssize_t i;
-    PyObject *v;
-    if (!PyArg_ParseTuple(args, "nO:insert", &i, &v)) {
+    if (nargs != 2) {
+        PyErr_Format(PyExc_TypeError, "insert expected 2 arguments, got %zd", nargs);
         return nullptr;
     }
+    Py_ssize_t i = PyNumber_AsSsize_t(args[0], PyExc_OverflowError);
+    if (i == -1 && PyErr_Occurred() != nullptr) {
+        return nullptr;
+    }
+    PyObject *v = args[1];
     int r;
     {
         ColGuard g(co->impl);
@@ -866,14 +870,21 @@ inline PyObject *vec_insert(PyObject *self, PyObject *args) {
 }
 
 
-inline PyObject *vec_pop(PyObject *self, PyObject *args) {
+inline PyObject *vec_pop(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
     }
-    Py_ssize_t i = -1;
-    if (!PyArg_ParseTuple(args, "|n:pop", &i)) {
+    if (nargs > 1) {
+        PyErr_Format(PyExc_TypeError, "pop expected at most 1 argument, got %zd", nargs);
         return nullptr;
+    }
+    Py_ssize_t i = -1;
+    if (nargs == 1) {
+        i = PyNumber_AsSsize_t(args[0], PyExc_OverflowError);
+        if (i == -1 && PyErr_Occurred() != nullptr) {
+            return nullptr;
+        }
     }
     PyObject *out = nullptr;
     int r;
@@ -939,16 +950,29 @@ inline PyObject *vec_remove(PyObject *self, PyObject *o) {
 }
 
 
-inline PyObject *vec_index_meth(PyObject *self, PyObject *args) {
+inline PyObject *vec_index_meth(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
     }
-    PyObject *v;
+    if (nargs < 1 || nargs > 3) {
+        PyErr_Format(PyExc_TypeError, "index expected 1 to 3 arguments, got %zd", nargs);
+        return nullptr;
+    }
+    PyObject *v = args[0];
     Py_ssize_t start = 0;
     Py_ssize_t stop = PY_SSIZE_T_MAX;
-    if (!PyArg_ParseTuple(args, "O|nn:index", &v, &start, &stop)) {
-        return nullptr;
+    if (nargs > 1) {
+        start = PyNumber_AsSsize_t(args[1], PyExc_OverflowError);
+        if (start == -1 && PyErr_Occurred() != nullptr) {
+            return nullptr;
+        }
+    }
+    if (nargs > 2) {
+        stop = PyNumber_AsSsize_t(args[2], PyExc_OverflowError);
+        if (stop == -1 && PyErr_Occurred() != nullptr) {
+            return nullptr;
+        }
     }
     Py_ssize_t at = -1;
     int r;
@@ -1035,15 +1059,29 @@ inline PyObject *vec_reverse(PyObject *self, PyObject *Py_UNUSED(ignored)) {
 }
 
 
-inline PyObject *vec_sort(PyObject *self, PyObject *args, PyObject *kwds) {
+inline PyObject *vec_sort(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {
         return nullptr;
     }
-    static const char *KWLIST[] = {"reverse", nullptr};
-    int reverse = 0;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p:sort", (char **)KWLIST, &reverse)) {
+    if (nargs > 0) {
+        PyErr_Format(PyExc_TypeError, "sort takes no positional arguments (%zd given)", nargs);
         return nullptr;
+    }
+    int reverse = 0;
+    if (kwnames != nullptr) {
+        Py_ssize_t nk = PyTuple_GET_SIZE(kwnames);
+        for (Py_ssize_t i = 0; i < nk; ++i) {
+            PyObject *name = PyTuple_GET_ITEM(kwnames, i);
+            if (PyUnicode_EqualToUTF8(name, "reverse") != 1) {
+                PyErr_Format(PyExc_TypeError, "sort got an unexpected keyword argument %R", name);
+                return nullptr;
+            }
+            reverse = PyObject_IsTrue(args[i]);
+            if (reverse < 0) {
+                return nullptr;
+            }
+        }
     }
     int r;
     {
