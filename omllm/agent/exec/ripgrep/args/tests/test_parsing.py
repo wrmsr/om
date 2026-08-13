@@ -3,7 +3,7 @@ import typing as ta
 
 import pytest
 
-from ..dumped import DUMPED_FLAGS
+from ..dumped import DUMPED_RG_FLAG_SPECS
 from ..parsing import FlagForm
 from ..parsing import RgArgvError
 from ..parsing import RgArgvParser
@@ -40,14 +40,14 @@ _PARSER = RgArgvParser([
     _DOT_SPEC,
 ])
 
-_DUMPED_PARSER = RgArgvParser(DUMPED_FLAGS)
+_DUMPED_PARSER = RgArgvParser(DUMPED_RG_FLAG_SPECS)
 _DUMPED_ALIASES = [
     (spec, alias)
-    for spec in DUMPED_FLAGS
+    for spec in DUMPED_RG_FLAG_SPECS
     for alias in spec.aliases
 ]
-_DUMPED_NEGATED = [spec for spec in DUMPED_FLAGS if spec.negated is not None]
-_DUMPED_SHORT = [spec for spec in DUMPED_FLAGS if spec.short is not None]
+_DUMPED_NEGATED = [spec for spec in DUMPED_RG_FLAG_SPECS if spec.negated is not None]
+_DUMPED_SHORT = [spec for spec in DUMPED_RG_FLAG_SPECS if spec.short is not None]
 
 
 ##
@@ -330,7 +330,7 @@ def test_rejects_duplicate_short_names() -> None:
         ])
 
 
-@pytest.mark.parametrize('spec', DUMPED_FLAGS, ids=[spec.long for spec in DUMPED_FLAGS])
+@pytest.mark.parametrize('spec', DUMPED_RG_FLAG_SPECS, ids=[spec.long for spec in DUMPED_RG_FLAG_SPECS])
 def test_all_dumped_standard_long_forms(spec) -> None:
     if spec.is_switch:
         argv = [f'--{spec.long}']

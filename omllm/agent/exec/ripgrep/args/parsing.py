@@ -4,6 +4,10 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 
+with lang.auto_proxy_import(globals()):
+    from . import dumped
+
+
 FlagForm: ta.TypeAlias = ta.Literal[
     'standard',
     'alias',
@@ -66,8 +70,11 @@ class RgPositional:
 
 
 class RgArgvParser:
-    def __init__(self, specs: ta.Sequence[RgFlagSpec]) -> None:
+    def __init__(self, specs: ta.Sequence[RgFlagSpec] | None = None) -> None:
         super().__init__()
+
+        if specs is None:
+            specs = dumped.DUMPED_RG_FLAG_SPECS
 
         self._long: dict[str, tuple[RgFlagSpec, FlagForm]] = {}
         self._short: dict[str, RgFlagSpec] = {}
@@ -112,7 +119,7 @@ class RgArgvParser:
     def parse(
             self,
             argv: ta.Sequence[str],
-    ) -> tuple[RgOption | RgPositional, ...]:
+    ) -> ta.Sequence[RgOption | RgPositional]:
         argv = tuple(argv)
 
         # Python cannot eventually pass NUL through execve anyway.

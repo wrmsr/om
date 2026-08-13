@@ -50,7 +50,7 @@ from .parsing import RgFlagSpec
 ##
 
 
-DUMPED_FLAGS: ta.Final[ta.Sequence[RgFlagSpec]] = \
+DUMPED_RG_FLAG_SPECS: ta.Final[ta.Sequence[RgFlagSpec]] = \
 [
     RgFlagSpec(
         long='regexp',
