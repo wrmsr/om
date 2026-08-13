@@ -51,7 +51,7 @@ def render_param_spec_def(
         params: lang.ParamSpec,
         nsb: NamespaceBuilder,
         *,
-        return_ann: lang.Maybe[ta.Any] = lang.empty(),
+        return_ann: lang.Maybe[ta.Any] = lang.nothing(),
 ) -> str:
     src = ['(']
 

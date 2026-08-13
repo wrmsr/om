@@ -638,7 +638,7 @@ class _Injector(Injector):
             if key in self._seen_keys:
                 raise CyclicDependencyInjectorKeyError(key)
             self._seen_keys.add(key)
-            return Maybe.empty()
+            return Maybe.nothing()
 
         def handle_provision(self, key: InjectorKey, mv: Maybe) -> Maybe:
             check.in_(key, self._seen_keys)
@@ -679,7 +679,7 @@ class _Injector(Injector):
                 if pv.present:
                     return cr.handle_provision(key, pv)
 
-            return cr.handle_provision(key, Maybe.empty())
+            return cr.handle_provision(key, Maybe.nothing())
 
     def provide(self, key: ta.Any) -> ta.Any:
         v = self.try_provide(key)

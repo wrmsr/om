@@ -54,7 +54,7 @@ class PeekIterator(ta.Iterator[T]):
         try:
             v = self.peek()
         except StopIteration:
-            return lang.empty()
+            return lang.nothing()
         else:
             return lang.just(v)
 

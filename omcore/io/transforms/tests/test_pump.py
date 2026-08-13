@@ -20,7 +20,7 @@ def test_echo():
     assert t.feed(b'abc') == [b'abc']
     assert t.feed(b'') == []
     assert t.feed(b'de') == [b'de']
-    assert t.result == lang.empty()
+    assert t.result == lang.nothing()
     assert t.finish() == []
     assert t.eof
     assert t.result == lang.just(None)

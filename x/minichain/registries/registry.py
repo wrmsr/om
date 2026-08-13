@@ -136,7 +136,7 @@ class Registry:
 
         #
 
-        __cls: lang.Maybe[ta.Any] = lang.empty()
+        __cls: lang.Maybe[ta.Any] = lang.nothing()
         __named_cls: ta.Any
         __rty: rfl.Type
         __named_rty: rfl.Type

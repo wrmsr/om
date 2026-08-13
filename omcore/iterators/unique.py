@@ -67,5 +67,5 @@ class UniqueIterator(ta.Iterator[UniqueItem[T]]):
                 idx,
                 item,
                 stats,
-                lang.empty(),
+                lang.nothing(),
             )

@@ -44,7 +44,7 @@ class _AsyncGeneratorWithReturn(AsyncGeneratorWithReturn[O, I, R]):
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self._ag!r})'
 
-    _v: Maybe[R] = Maybe.empty()
+    _v: Maybe[R] = Maybe.nothing()
 
     @property
     def value(self) -> Maybe[R]:

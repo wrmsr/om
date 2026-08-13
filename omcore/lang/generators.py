@@ -204,7 +204,7 @@ class GeneratorMappedIterator(ta.Generic[O, I, R]):
 
         self._g = g
         self._it = it
-        self._value: Maybe[R] = Maybe.empty()
+        self._value: Maybe[R] = Maybe.nothing()
 
     @property
     def g(self) -> ta.Generator[O, I, R]:

@@ -54,7 +54,7 @@ class KeyTransformedKv(ShrinkwrapKv2[KA, V, KB, V], ta.Generic[KA, KB, V]):
 
     def sorted_items(
             self,
-            start: lang.Maybe[KA] = lang.empty(),
+            start: lang.Maybe[KA] = lang.nothing(),
             direction: SortDirection = 'asc',
     ) -> ta.Iterator[tuple[KA, V]]:
         a_to_b = check.not_none(self._a_to_b)
@@ -113,7 +113,7 @@ class ValueTransformedKv(ShrinkwrapKv2[K, VA, K, VB], ta.Generic[K, VA, VB]):
 
     def sorted_items(
             self,
-            start: lang.Maybe[K] = lang.empty(),
+            start: lang.Maybe[K] = lang.nothing(),
             direction: SortDirection = 'asc',
     ) -> ta.Iterator[tuple[K, VA]]:
         b_to_a = check.not_none(self._b_to_a)

@@ -85,12 +85,12 @@ class AttrRegistry(ta.Generic[K, V]):
             try:
                 hash(obj)
             except TypeError:
-                return lang.empty()
+                return lang.nothing()
 
         try:
             val = self._objs[obj]
         except KeyError:
-            return lang.empty()
+            return lang.nothing()
         else:
             return lang.just(val)
 

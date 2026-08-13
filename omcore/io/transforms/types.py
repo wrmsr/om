@@ -117,7 +117,7 @@ class BaseStreamTransform(StreamTransform[I_contra, O_co, R], lang.Abstract):
     _finished = False
     _eof = False
 
-    _result: lang.Maybe[R] = lang.empty()
+    _result: lang.Maybe[R] = lang.nothing()
 
     @property
     def eof(self) -> bool:

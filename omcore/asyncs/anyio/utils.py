@@ -22,7 +22,7 @@ async def eof_to_empty(fn: ta.Callable[..., ta.Awaitable[T]], *args: ta.Any, **k
 
 
 async def gather(*fns: ta.Callable[..., ta.Awaitable[T]], take_first: bool = False) -> list[lang.Maybe[T]]:
-    results: list[lang.Maybe[T]] = [lang.empty()] * len(fns)
+    results: list[lang.Maybe[T]] = [lang.nothing()] * len(fns)
 
     async def inner(fn, i):
         results[i] = lang.just(await fn())

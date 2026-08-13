@@ -68,14 +68,14 @@ def __om_amalg__():  # noqa
             dict(path='../packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='../../omcore/argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
-            dict(path='../../omcore/lite/maybes.py', sha1='5ac5f92e5610c6795b0a228c38e7bcd272bf6305'),
+            dict(path='../../omcore/lite/maybes.py', sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f'),
             dict(path='../../omcore/lite/runtime.py', sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70'),
             dict(path='../../omcore/lite/timeouts.py', sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
             dict(path='../packaging/specifiers.py', sha1='baec4e53b7187f99e8d8b36bdf48bf61af82c252'),
             dict(path='../../omcore/argparse/cli.py', sha1='643ea018c916268b80efe227a13979c84c59be3c'),
             dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='79905340353b28e51bcd02a62026787f41b731b9'),
-            dict(path='../../omcore/lite/inject.py', sha1='7dd6067b626c4c6a371b7a0e50eac54e320fcf3a'),
+            dict(path='../../omcore/lite/inject.py', sha1='863e777b377faeeacd8061532d009cc1f23e4a07'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='../../omcore/subprocesses/run.py', sha1='425596d73f3b5cbe1ab936718c77e39a88283350'),
             dict(path='../../omcore/subprocesses/wrap.py', sha1='12d94dc2357951cd0fed1c50a46817d30d628927'),
@@ -2463,14 +2463,14 @@ class Maybe(ta.Generic[T]):
         if self.present and predicate(self.must()):
             return self
         else:
-            return Maybe.empty()
+            return Maybe.nothing()
 
     @ta.final
     def map(self, mapper: ta.Callable[[T], U]) -> 'Maybe[U]':
         if self.present:
             return Maybe.just(mapper(self.must()))
         else:
-            return Maybe.empty()
+            return Maybe.nothing()
 
     @ta.final
     def flat_map(self, mapper: ta.Callable[[T], 'Maybe[U]']) -> 'Maybe[U]':
@@ -2479,7 +2479,7 @@ class Maybe(ta.Generic[T]):
                 raise TypeError(v)
             return v
         else:
-            return Maybe.empty()
+            return Maybe.nothing()
 
     @ta.final
     def or_else(self, other: ta.Union[T, U]) -> ta.Union[T, U]:
@@ -2516,17 +2516,17 @@ class Maybe(ta.Generic[T]):
         if v is not None:
             return cls.just(v)
         else:
-            return cls.empty()
+            return cls.nothing()
 
     @classmethod
     def just(cls, v: T) -> 'Maybe[T]':
         return _JustMaybe(v)
 
-    _empty: ta.ClassVar['Maybe']
+    _nothing: ta.ClassVar['Maybe']
 
     @classmethod
-    def empty(cls) -> 'Maybe[T]':
-        return Maybe._empty
+    def nothing(cls) -> 'Maybe[T]':
+        return Maybe._nothing
 
 
 ##
@@ -2581,7 +2581,7 @@ class _JustMaybe(_Maybe[T]):
 
 
 @ta.final
-class _EmptyMaybe(_Maybe[T]):
+class _NothingMaybe(_Maybe[T]):
     __slots__ = ()
 
     @property
@@ -2594,23 +2594,23 @@ class _EmptyMaybe(_Maybe[T]):
     #
 
     def __repr__(self) -> str:
-        return 'empty()'
+        return 'nothing()'
 
     def __hash__(self) -> int:
-        return hash(_EmptyMaybe)
+        return hash(_NothingMaybe)
 
     def __eq__(self, other):
         return self.__class__ is other.__class__
 
 
-Maybe._empty = _EmptyMaybe()  # noqa
+Maybe._nothing = _NothingMaybe()  # noqa
 
 
 ##
 
 
 setattr(Maybe, 'just', _JustMaybe)  # noqa
-setattr(Maybe, 'empty', functools.partial(operator.attrgetter('_empty'), Maybe))
+setattr(Maybe, 'nothing', functools.partial(operator.attrgetter('_nothing'), Maybe))
 
 
 ########################################
@@ -4150,7 +4150,7 @@ class _Injector(Injector):
             if key in self._seen_keys:
                 raise CyclicDependencyInjectorKeyError(key)
             self._seen_keys.add(key)
-            return Maybe.empty()
+            return Maybe.nothing()
 
         def handle_provision(self, key: InjectorKey, mv: Maybe) -> Maybe:
             check.in_(key, self._seen_keys)
@@ -4191,7 +4191,7 @@ class _Injector(Injector):
                 if pv.present:
                     return cr.handle_provision(key, pv)
 
-            return cr.handle_provision(key, Maybe.empty())
+            return cr.handle_provision(key, Maybe.nothing())
 
     def provide(self, key: ta.Any) -> ta.Any:
         v = self.try_provide(key)

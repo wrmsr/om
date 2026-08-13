@@ -130,7 +130,7 @@ class ThreadDumpBootstrap(ContextBootstrap['ThreadDumpBootstrap.Config']):
 
             prev_sq = lang.just(signal.signal(signal.SIGQUIT, handler))
         else:
-            prev_sq = lang.empty()
+            prev_sq = lang.nothing()
 
         try:
             yield

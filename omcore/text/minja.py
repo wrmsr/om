@@ -26,7 +26,7 @@ MinjaTemplateFragmentKind = ta.Literal['expr', 'stmt', 'for', 'if', 'elif']  # t
 @dc.dataclass(frozen=True)
 class MinjaTemplateParam:
     name: str
-    default: Maybe[ta.Any] = Maybe.empty()
+    default: Maybe[ta.Any] = Maybe.nothing()
 
     def __post_init__(self) -> None:
         check.arg(self.name.isidentifier())
@@ -47,7 +47,7 @@ class MinjaTemplateParam:
             [dv] = defaults
             dfl = Maybe.just(dv)
         else:
-            dfl = Maybe.empty()
+            dfl = Maybe.nothing()
         return cls(name, dfl)
 
 

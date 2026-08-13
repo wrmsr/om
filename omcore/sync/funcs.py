@@ -37,7 +37,7 @@ class SyncLazy(ta.Generic[T]):
         super().__init__()
 
         self._once = SyncOnce()
-        self._v: Maybe[T] = Maybe.empty()
+        self._v: Maybe[T] = Maybe.nothing()
 
     def peek(self) -> Maybe[T]:
         return self._v
@@ -58,7 +58,7 @@ class SyncLazyFn(ta.Generic[T]):
 
         self._fn = fn
         self._once = SyncOnce()
-        self._v: Maybe[T] = Maybe.empty()
+        self._v: Maybe[T] = Maybe.nothing()
 
     def peek(self) -> Maybe[T]:
         return self._v

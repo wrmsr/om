@@ -118,7 +118,7 @@ class ShrinkwrapSortedKv(ShrinkwrapKv[K, V], lang.Abstract):
 
     def sorted_items(
             self,
-            start: lang.Maybe[K] = lang.empty(),
+            start: lang.Maybe[K] = lang.nothing(),
             direction: SortDirection = 'asc',
     ) -> ta.Iterator[tuple[K, V]]:
         return self._u.sorted_items(start, direction)

@@ -39,7 +39,7 @@ def std_to_spec_field_default(
     elif default_factory is not dc.MISSING:
         return lang.just(DefaultFactory(default_factory))
     else:
-        return lang.empty()
+        return lang.nothing()
 
 
 def std_field_to_spec_field_default(f: dc.Field) -> lang.Maybe[ta.Any]:

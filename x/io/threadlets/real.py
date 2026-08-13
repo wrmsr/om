@@ -53,7 +53,7 @@ class RealThreadlet(Threadlet, lang.Abstract):
 
         self._paused = paused
 
-        self._in_value: lang.Maybe[lang.Args | Exception] = lang.empty()
+        self._in_value: lang.Maybe[lang.Args | Exception] = lang.nothing()
         self._in_event = threading.Event()
 
     def __repr__(self) -> str:
@@ -74,7 +74,7 @@ class RealThreadlet(Threadlet, lang.Abstract):
             self._in_event.clear()
 
             in_value = self._in_value.must()
-            self._in_value = lang.empty()
+            self._in_value = lang.nothing()
 
             self._paused = False
 

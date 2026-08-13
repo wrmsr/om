@@ -414,8 +414,8 @@ with _auto_proxy_init(globals(), update_exports=True):
     )
 
     from .maybes import (  # noqa
-        empty,
         just,
+        nothing,
     )
 
     from .objects import (  # noqa

@@ -31,7 +31,7 @@ CanParamSpec: ta.TypeAlias = ta.Union[
 class Param(Abstract, Sealed):
     name: str
 
-    annotation: Maybe = Maybe.empty()
+    annotation: Maybe = Maybe.nothing()
 
     prefix: ta.ClassVar[str] = ''
 
@@ -63,7 +63,7 @@ class KwargsParam(VarParam, Final):
 
 @dc.dataclass(frozen=True, unsafe_hash=True)
 class ValParam(Param):
-    default: Maybe = Maybe.empty()
+    default: Maybe = Maybe.nothing()
 
 
 @dc.dataclass(frozen=True, unsafe_hash=True)
@@ -89,7 +89,7 @@ class ParamSeparator(enum.Enum):
 
 def _inspect_empty_to_maybe(o: T) -> Maybe[T]:
     if o is inspect.Parameter.empty:
-        return Maybe.empty()
+        return Maybe.nothing()
     else:
         return Maybe.just(o)
 
@@ -134,8 +134,8 @@ class ParamSpec(ta.Sequence[Param], Final):
             if i < offset:
                 continue
 
-            ann = _inspect_empty_to_maybe(ip.annotation) if not strip_annotations else Maybe.empty()
-            dfl = _inspect_empty_to_maybe(ip.default) if not strip_defaults else Maybe.empty()
+            ann = _inspect_empty_to_maybe(ip.annotation) if not strip_annotations else Maybe.nothing()
+            dfl = _inspect_empty_to_maybe(ip.default) if not strip_defaults else Maybe.nothing()
 
             if ip.kind == inspect.Parameter.POSITIONAL_ONLY:
                 ps.append(PosOnlyParam(ip.name, ann, dfl))

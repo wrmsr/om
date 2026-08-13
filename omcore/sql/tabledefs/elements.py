@@ -31,7 +31,7 @@ class Column(Element, lang.Final):
     _: dc.KW_ONLY
 
     nullable: bool = False
-    default: lang.Maybe[SimpleValue] = lang.empty()
+    default: lang.Maybe[SimpleValue] = lang.nothing()
 
     # TODO: marshal once concrete (backend) option types exist - open families have no poly impls yet.
     options: ColumnOptions = (

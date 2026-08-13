@@ -55,7 +55,7 @@ class _FutureImpl(Future[T]):
     def __init__(self, *, event: anyio.Event | None = None) -> None:
         super().__init__()
 
-        self._outcome: lang.Maybe[lang.Outcome[T]] = lang.empty()
+        self._outcome: lang.Maybe[lang.Outcome[T]] = lang.nothing()
 
         if event is None:
             event = anyio.Event()

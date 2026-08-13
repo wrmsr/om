@@ -84,7 +84,7 @@ class SortedKv(Kv[K, V], lang.Abstract):
     @abc.abstractmethod
     def sorted_items(
             self,
-            start: lang.Maybe[K] = lang.empty(),
+            start: lang.Maybe[K] = lang.nothing(),
             direction: SortDirection = 'asc',
     ) -> ta.Iterator[tuple[K, V]]:
         raise NotImplementedError

@@ -56,7 +56,7 @@ class Value(lang.Final, ta.Generic[T]):
 
     #
 
-    _v: lang.Maybe[T] = lang.empty()
+    _v: lang.Maybe[T] = lang.nothing()
 
     def is_set(self) -> bool:
         for fn in self._current_access_listeners():

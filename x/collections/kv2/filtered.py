@@ -40,7 +40,7 @@ class KeyFilteredKv(ShrinkwrapFullKv[K, V]):
 
     def sorted_items(
             self,
-            start: lang.Maybe[K] = lang.empty(),
+            start: lang.Maybe[K] = lang.nothing(),
             direction: SortDirection = 'asc',
     ) -> ta.Iterator[tuple[K, V]]:
         fn = self._fn
@@ -93,7 +93,7 @@ class ValueFilteredKv(ShrinkwrapFullKv[K, V]):
 
     def sorted_items(
             self,
-            start: lang.Maybe[K] = lang.empty(),
+            start: lang.Maybe[K] = lang.nothing(),
             direction: SortDirection = 'asc',
     ) -> ta.Iterator[tuple[K, V]]:
         fn = self._fn

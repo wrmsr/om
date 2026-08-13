@@ -56,7 +56,7 @@ class EventAsynclitePromise(AsynclitePromise[T]):
 
     def poll(self) -> Maybe[T]:
         if not self._has_out:
-            return Maybe.empty()
+            return Maybe.nothing()
         return Maybe.just(self._result())
 
     def _set(self, val: ta.Optional[T], exc: ta.Optional[BaseException]) -> None:

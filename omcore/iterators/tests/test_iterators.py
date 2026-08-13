@@ -19,7 +19,7 @@ def test_peek_iterator():
     assert it.next_peek() == 5
     assert next(it) == 5
     assert it.done
-    assert it.maybe_peek() == lang.empty()
+    assert it.maybe_peek() == lang.nothing()
 
 
 def test_peek_iterator_take_and_skip_through_exhaustion():

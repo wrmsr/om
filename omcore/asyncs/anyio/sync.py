@@ -39,7 +39,7 @@ class Lazy(ta.Generic[T]):
         super().__init__()
 
         self._once = Once()
-        self._v: lang.Maybe[T] = lang.empty()
+        self._v: lang.Maybe[T] = lang.nothing()
 
     def peek(self) -> lang.Maybe[T]:
         return self._v
@@ -60,7 +60,7 @@ class LazyFn(ta.Generic[T]):
 
         self._fn = fn
         self._once = Once()
-        self._v: lang.Maybe[T] = lang.empty()
+        self._v: lang.Maybe[T] = lang.nothing()
 
     def peek(self) -> lang.Maybe[T]:
         return self._v

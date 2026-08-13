@@ -69,7 +69,7 @@ def patch_method_context(
             check.is_(cls.__dict__[name], old)
             rpl = lang.just(old)
         else:
-            rpl = lang.empty()
+            rpl = lang.nothing()
 
     dsc = _PatchedMethodDescriptor(old, new, mode=mode)
     setattr(tgt, name, dsc)

@@ -67,7 +67,7 @@ class FieldSpec(_SpecBase, lang.Final):
     name: str
     annotation: ta.Any
 
-    default: lang.Maybe[DefaultFactory | ta.Any] = lang.empty()
+    default: lang.Maybe[DefaultFactory | ta.Any] = lang.nothing()
 
     ##
     # std

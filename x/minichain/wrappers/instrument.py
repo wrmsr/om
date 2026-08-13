@@ -38,7 +38,7 @@ class InstrumentedServiceEvent:
     resp: Response | None = None
     exc: BaseException | None = None
 
-    stream_v: lang.Maybe[ta.Any] = lang.empty()
+    stream_v: lang.Maybe[ta.Any] = lang.nothing()
 
 
 class InstrumentedServiceEventSink(ta.Protocol):

@@ -167,7 +167,7 @@ class _StreamServiceResponse(StreamResponseIterator[EV, RV]):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return await self._aexit(exc_type, exc_val, exc_tb)
 
-    _result: lang.Maybe[RV] = lang.empty()
+    _result: lang.Maybe[RV] = lang.nothing()
 
     @property
     def result(self) -> lang.Maybe[RV]:

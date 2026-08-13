@@ -53,7 +53,7 @@ class GraphvizVisitor:
         elif isinstance(node, Literal):
             return lang.just(node.literal_value)
         else:
-            return lang.empty()
+            return lang.nothing()
 
     def _visit(self, node: Node, current: str) -> None:
         self._lines.append(

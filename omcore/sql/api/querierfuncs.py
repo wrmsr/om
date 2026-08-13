@@ -480,7 +480,7 @@ def sync_query_maybe_scalar(
     if row is not None:
         return lang.just(check.single(row.values))
     else:
-        return lang.empty()
+        return lang.nothing()
 
 
 async def async_query_maybe_scalar(
@@ -492,7 +492,7 @@ async def async_query_maybe_scalar(
     if row is not None:
         return lang.just(check.single(row.values))
     else:
-        return lang.empty()
+        return lang.nothing()
 
 
 @ta.overload

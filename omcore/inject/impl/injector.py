@@ -285,7 +285,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
             if key in self._seen_keys:
                 raise CyclicDependencyError(key)
             self._seen_keys.add(key)
-            return lang.empty()
+            return lang.nothing()
 
         def handle_provision(self, key: Key, mv: lang.Maybe) -> lang.Maybe:
             check.in_(key, self._seen_keys)
@@ -406,7 +406,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
                 if pv.present:
                     return cr.handle_provision(key, pv)
 
-            return cr.handle_provision(key, lang.empty())
+            return cr.handle_provision(key, lang.nothing())
 
         finally:
             try:

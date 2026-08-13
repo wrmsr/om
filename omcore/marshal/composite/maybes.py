@@ -82,7 +82,7 @@ class MaybeUnmarshaler(Unmarshaler):
         if v:
             return lang.just(self.e.unmarshal(ctx, check.single(v)))  # type: ignore
         else:
-            return lang.empty()
+            return lang.nothing()
 
 
 class MaybeUnmarshalerFactory(UnmarshalerFactoryMethodClass):

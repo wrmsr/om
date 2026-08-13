@@ -99,4 +99,4 @@ def test_opt_or_just_repr():
     assert opt_or_just_repr(None) is None
     assert opt_or_just_repr(5) == '5'
     assert opt_or_just_repr(Maybe.just(5)) == '5'
-    assert opt_or_just_repr(Maybe.empty()) is None
+    assert opt_or_just_repr(Maybe.nothing()) is None
