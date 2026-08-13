@@ -39,6 +39,9 @@ import typing as ta
 from omcore import check
 
 
+T = ta.TypeVar('T')
+
+
 ##
 
 
@@ -370,10 +373,10 @@ def _reg_append(old: RegValue, new: RegValue) -> RegValue:
     return RegValue(joined, Kind.EXCLUSIVE)
 
 
-def _pieces_repeat(pieces: list, count: int) -> list:
-    out = list(pieces)
+def _pieces_repeat(pieces: list[T], count: int) -> list[T]:
+    out: list[T] = list(pieces)
     for _ in range(count - 1):
-        out = out[:-1] + [out[-1] + pieces[0]] + pieces[1:]
+        out = out[:-1] + [out[-1] + pieces[0]] + pieces[1:]  # type: ignore[operator]
     return out
 
 
@@ -410,7 +413,7 @@ def textobj(buf: Buffer, p: Pos, around: bool, obj: str, count: int) -> Span | N
     return None
 
 
-def _obj_word(buf, p, around, big, count):
+def _obj_word(buf: Buffer, p: Pos, around: bool, big: bool, count: int) -> Span | None:
     line = buf.get_line(p.row)
     if not line:
         return None
@@ -447,9 +450,10 @@ def _obj_word(buf, p, around, big, count):
     return Span(Kind.EXCLUSIVE, Pos(p.row, a), Pos(p.row, b))
 
 
-def _obj_pair(buf, p, around, open_ch, close_ch):
+def _obj_pair(buf: Buffer, p: Pos, around: bool, open_ch: str, close_ch: str) -> Span | None:
     # Backward for the unmatched open (cursor sitting ON open matches itself), forward for the unmatched close.
     # Multi-line.
+    q: Pos | None
     depth, q, open_pos = 0, p, None
     while q is not None:
         ch = _char(buf, q)
@@ -497,7 +501,7 @@ def _obj_pair(buf, p, around, open_ch, close_ch):
     return Span(Kind.EXCLUSIVE, inner, close_pos)
 
 
-def _obj_quote(buf, p, around, q):
+def _obj_quote(buf: Buffer, p: Pos, around: bool, q: str) -> Span | None:
     # Current line only, like vim. Pair quotes left-to-right; take the pair containing the cursor, else the next pair
     # to the right.
     line = buf.get_line(p.row)
@@ -1082,7 +1086,7 @@ class Engine:
 
         return False
 
-    def _extract(self, span: Span):
+    def _extract(self, span: Span) -> tuple[list[str], Kind]:
         buf = self.buf
         if span.kind is Kind.LINEWISE:
             return ([buf.get_line(r) for r in range(span.start.row, span.end.row + 1)], Kind.LINEWISE)
