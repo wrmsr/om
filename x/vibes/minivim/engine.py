@@ -555,12 +555,18 @@ class Parser:
         self.visual = False
         self.reset()
 
+    register: str | None
+    count1: int
+    count2: int
+    op: str | None
+    wait: tuple | None  # ("reg",) ("char",key) ("obj",ia) ("g",) ("achar",key)
+
     def reset(self) -> None:
-        self.register: str | None = None
+        self.register = None
         self.count1 = 0
         self.count2 = 0
-        self.op: str | None = None
-        self.wait: tuple | None = None  # ("reg",) ("char",key) ("obj",ia) ("g",) ("achar",key)
+        self.op = None
+        self.wait = None
 
     # helpers
 
@@ -825,11 +831,17 @@ class Engine:
 
         # exits / toggles
         if cmd.action == 'v':
-            self._leave_visual() if self.mode is Mode.VISUAL else self._set_visual(Mode.VISUAL)
+            if self.mode is Mode.VISUAL:
+                self._leave_visual()
+            else:
+                self._set_visual(Mode.VISUAL)
             return
 
         if cmd.action == 'V':
-            self._leave_visual() if self.mode is Mode.VISUAL_LINE else self._set_visual(Mode.VISUAL_LINE)
+            if self.mode is Mode.VISUAL_LINE:
+                self._leave_visual()
+            else:
+                self._set_visual(Mode.VISUAL_LINE)
             return
 
         if cmd.action == 'o':
@@ -943,55 +955,56 @@ class Engine:
     def _eval_motion(self, cmd: Command, op_pending: bool) -> MotionResult | None:
         buf, p, n = self.buf, self.cursor, cmd.count
         k, arg = cmd.motion_key, cmd.motion_arg
-        EX, IN, LI = Kind.EXCLUSIVE, Kind.INCLUSIVE, Kind.LINEWISE
+        exc, inc, lnw = Kind.EXCLUSIVE, Kind.INCLUSIVE, Kind.LINEWISE
 
         if k == 'h':
             t = Pos(p.row, max(0, p.col - n))
-            return None if t == p else MotionResult(t, EX)
+            return None if t == p else MotionResult(t, exc)
 
         if k == 'l':
             t = Pos(p.row, min(p.col + n, _llen(buf, p.row)))
-            return None if t == p else MotionResult(t, EX)
+            return None if t == p else MotionResult(t, exc)
 
         if k in ('j', 'k'):
             d = n if k == 'j' else -n
             t = Pos(max(0, min(p.row + d, buf.line_count() - 1)), p.col)
-            return None if t.row == p.row else MotionResult(t, LI, keeps_curswant=True)
+            return None if t.row == p.row else MotionResult(t, lnw, keeps_curswant=True)
 
         if k == '0':
-            return MotionResult(Pos(p.row, 0), EX)
+            return MotionResult(Pos(p.row, 0), exc)
 
         if k == '^':
-            return MotionResult(Pos(p.row, _first_nonblank(buf, p.row)), EX)
+            return MotionResult(Pos(p.row, _first_nonblank(buf, p.row)), exc)
 
         if k == '$':
             row = min(p.row + n - 1, buf.line_count() - 1)
-            return MotionResult(Pos(row, max(0, _llen(buf, row) - 1)), IN, curswant_eol=True)
+            return MotionResult(Pos(row, max(0, _llen(buf, row) - 1)), inc, curswant_eol=True)
 
         if k and k in 'wW':
-            return MotionResult(word_fwd(buf, p, n, k == 'W'), EX)
+            return MotionResult(word_fwd(buf, p, n, k == 'W'), exc)
 
         if k and k in 'bB':
-            return MotionResult(word_back(buf, p, n, k == 'B'), EX)
+            return MotionResult(word_back(buf, p, n, k == 'B'), exc)
 
         if k and k in 'eE':
-            return MotionResult(word_end(buf, p, n, k == 'E'), IN)
+            return MotionResult(word_end(buf, p, n, k == 'E'), inc)
 
         if k == 'G':
             row = min(cmd.count - 1, buf.line_count() - 1) if cmd.has_count else buf.line_count() - 1
-            return MotionResult(Pos(row, 0), LI, to_first_nonblank=True)
+            return MotionResult(Pos(row, 0), lnw, to_first_nonblank=True)
 
         if k == 'gg':
             row = min(cmd.count - 1, buf.line_count() - 1) if cmd.has_count else 0
-            return MotionResult(Pos(row, 0), LI, to_first_nonblank=True)
+            return MotionResult(Pos(row, 0), lnw, to_first_nonblank=True)
 
-        if k in MOTION_NEEDS_ARG:  # f t F T
-            fwd, till = k in 'ft', k in 'tT'
+        if k and k in MOTION_NEEDS_ARG:  # f t F T
+            fwd = k in 'ft'
+            till = k in 'tT'
             t_ = find_char(buf, p, check.not_none(arg), n, fwd, till)
             if t_ is None:
                 return None
             self.last_ft = (k, arg)
-            return MotionResult(t_, IN if fwd else EX)
+            return MotionResult(t_, inc if fwd else exc)
 
         if k in (';', ','):
             if not self.last_ft:
@@ -1003,7 +1016,7 @@ class Engine:
             t_ = find_char(buf, p, ch, n, fwd, till, repeat=True)
             if t_ is None:
                 return None
-            return MotionResult(t_, IN if fwd else EX)
+            return MotionResult(t_, inc if fwd else exc)
 
         return None
 
