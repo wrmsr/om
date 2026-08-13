@@ -63,7 +63,7 @@ class AsyncConnection:
 
     @contextlib.asynccontextmanager
     @au.mark_asyncio
-    async def begin(self) -> ta.AsyncIterator[AsyncTransaction]:
+    async def begin(self) -> ta.AsyncGenerator[AsyncTransaction]:
         async with au.from_asyncio_context(self._underlying.begin()) as u:
             yield AsyncTransaction(u)
 
@@ -100,7 +100,7 @@ class AsyncEngine:
 
     @contextlib.asynccontextmanager
     @au.mark_asyncio
-    async def connect(self) -> ta.AsyncIterator[AsyncConnection]:
+    async def connect(self) -> ta.AsyncGenerator[AsyncConnection]:
         async with au.from_asyncio_context(self._underlying.connect()) as u:
             yield AsyncConnection(u)
 

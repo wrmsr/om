@@ -36,7 +36,7 @@ class CwdBootstrap(ContextBootstrap['CwdBootstrap.Config']):
         path: ta.Optional[str] = None
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if self._config.path is not None:
             prev = os.getcwd()
             os.chdir(self._config.path)
@@ -83,7 +83,7 @@ class GcBootstrap(ContextBootstrap['GcBootstrap.Config']):
         debug: ta.Optional[int] = None
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         prev_enabled = gc.isenabled()
         if self._config.disable:
             gc.disable()
@@ -128,7 +128,7 @@ class LogBootstrap(ContextBootstrap['LogBootstrap.Config']):
         json: bool = False
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if self._config.level is None:
             yield
             return
@@ -155,7 +155,7 @@ class FaulthandlerBootstrap(ContextBootstrap['FaulthandlerBootstrap.Config']):
         enabled: ta.Optional[bool] = None
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if self._config.enabled is None:
             yield
             return
@@ -229,7 +229,7 @@ class RlimitBootstrap(ContextBootstrap['RlimitBootstrap.Config']):
         limits: ta.Optional[ta.Mapping[str, ta.Tuple[ta.Optional[int], ta.Optional[int]]]] = None
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if not self._config.limits:
             yield
             return
@@ -274,7 +274,7 @@ class EnvBootstrap(ContextBootstrap['EnvBootstrap.Config']):
         files: ta.Optional[ta.Sequence[str]] = None
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if not (self._config.vars or self._config.files):
             yield
             return
@@ -311,7 +311,7 @@ class PidfileBootstrap(ContextBootstrap['PidfileBootstrap.Config']):
         path: ta.Optional[str] = None
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if self._config.path is None:
             yield
             return

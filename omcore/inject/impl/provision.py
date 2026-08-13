@@ -73,7 +73,7 @@ class _ProvisionWaitRegistry(lang.Final):
             key: Key,
             promise: asl.Promise,
             target_owner: ConcurrencyIdentity,
-    ) -> ta.Iterator[None]:
+    ) -> ta.Generator[None]:
         with self._mtx:
             self._detect(owner, key, target_owner)
             check.not_in(owner, self._waits)  # an owner blocks on at most one wait at a time

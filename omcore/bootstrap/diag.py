@@ -49,7 +49,7 @@ class CheckBootstrap(ContextBootstrap['CheckBootstrap.Config']):
         breakpoint()  # noqa
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if not self._config.breakpoint:
             return
 
@@ -76,7 +76,7 @@ class CprofileBootstrap(ContextBootstrap['CprofileBootstrap.Config']):
         topn: int = 100
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if not self._config.enable:
             yield
             return
@@ -112,7 +112,7 @@ class ThreadDumpBootstrap(ContextBootstrap['ThreadDumpBootstrap.Config']):
         on_sigquit: bool = False
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if self._config.interval_s:
             tdt = d_threads.create_thread_dump_thread(
                 interval_s=self._config.interval_s,
@@ -152,7 +152,7 @@ class TimebombBootstrap(ContextBootstrap['TimebombBootstrap.Config']):
         delay_s: ta.Optional[float] = None
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if not self._config.delay_s:
             yield
             return
@@ -190,7 +190,7 @@ class ReplServerBootstrap(ContextBootstrap['ReplServerBootstrap.Config']):
         path: str | None = None
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if self._config.path is None:
             return
 
@@ -212,7 +212,7 @@ class DebugBootstrap(ContextBootstrap['DebugBootstrap.Config']):
         enable: bool = False
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if not self._config.enable:
             return
 
@@ -229,7 +229,7 @@ class MemrayBootstrap(ContextBootstrap['MemrayBootstrap.Config']):
         dump: bool = False
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if not self._config.dump:
             yield
 
@@ -274,7 +274,7 @@ class ExecstatBootstrap(ContextBootstrap['ExecstatBootstrap.Config']):
         dump: bool = False
 
     @contextlib.contextmanager
-    def enter(self) -> ta.Iterator[None]:
+    def enter(self) -> ta.Generator[None]:
         if not self._config.dump:
             yield
 

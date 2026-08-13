@@ -55,7 +55,7 @@ class McpServerConnection:
             **kwargs: ta.Any,
     ) -> ta.AsyncContextManager[tuple[asyncio.subprocess.Process, McpServerConnection]]:
         @contextlib.asynccontextmanager
-        async def inner() -> ta.AsyncIterator[tuple[asyncio.subprocess.Process, McpServerConnection]]:
+        async def inner() -> ta.AsyncGenerator[tuple[asyncio.subprocess.Process, McpServerConnection]]:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdin=subprocess.PIPE,

@@ -174,7 +174,7 @@ def open_compressed_reader(
         fp: str,
         *,
         use_subprocess: bool = False,
-) -> ta.Iterator[tuple[ta.IO, FileProgressReporter | None]]:
+) -> ta.Generator[tuple[ta.IO, FileProgressReporter | None]]:
     bs: ta.IO
     fpr: FileProgressReporter | None
     with contextlib.ExitStack() as es:

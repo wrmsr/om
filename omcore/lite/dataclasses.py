@@ -4,6 +4,9 @@ import functools
 import typing as ta
 
 
+T = ta.TypeVar('T')
+
+
 ##
 
 
@@ -29,7 +32,7 @@ def is_immediate_dataclass(cls: type) -> bool:
 
 def _install_dataclass_fn(cls: type, fn: ta.Any, fn_name: ta.Optional[str] = None) -> None:
     if fn_name is None:
-        fn_name = fn.__name__
+        fn_name = str(fn.__name__)
     setattr(cls, fn_name, fn)
     fn.__qualname__ = f'{cls.__qualname__}.{fn_name}'
 
@@ -40,8 +43,8 @@ def _install_dataclass_fn(cls: type, fn: ta.Any, fn_name: ta.Optional[str] = Non
 def install_dataclass_cache_hash(
         *,
         cached_hash_attr: str = '__dataclass_hash__',
-):
-    def inner(cls):
+) -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
         if not (isinstance(cls, type) and dc.is_dataclass(cls)):
             raise TypeError(cls)
 
@@ -144,8 +147,8 @@ def install_dataclass_repr(
             ta.Literal['omit_none', 'omit_falsey'],
             None,
         ] = None,
-):
-    def inner(cls):
+) -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
         if not (isinstance(cls, type) and dc.is_dataclass(cls)):
             raise TypeError(cls)
 
@@ -196,8 +199,8 @@ def dataclass_descriptor_method(*bind_attrs: str, bind_owner: bool = False) -> t
 ##
 
 
-def install_dataclass_kw_only_init():
-    def inner(cls):
+def install_dataclass_kw_only_init() -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
         if not (isinstance(cls, type) and dc.is_dataclass(cls)):
             raise TypeError(cls)
 

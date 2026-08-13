@@ -53,7 +53,7 @@ class LimitedRecursionError(RecursionError):
 
 
 @contextlib.contextmanager
-def recursion_limiting_context(key: ta.Any, limit: int | None) -> ta.Iterator[int | None]:
+def recursion_limiting_context(key: ta.Any, limit: int | None) -> ta.Generator[int | None]:
     if limit is None:
         yield None
         return

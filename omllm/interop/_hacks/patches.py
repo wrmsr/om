@@ -46,7 +46,7 @@ def patch_method_context(
         *,
         find_mro: bool = False,
         mode: ta.Literal['partial', 'inner'] = 'partial',
-) -> ta.Iterator[None]:
+) -> ta.Generator[None]:
     check.isinstance(cls, type)
 
     get: ta.Callable[[], tuple[type, ta.Any]]

@@ -159,7 +159,7 @@ class AsyncContextManager(Abstract, ta.Generic[T]):
 
 
 @contextlib.contextmanager
-def maybe_managing(obj: T) -> ta.Iterator[T]:
+def maybe_managing(obj: T) -> ta.Generator[T]:
     if isinstance(obj, ta.ContextManager):
         with obj:
             yield obj
@@ -192,7 +192,7 @@ async def async_or_sync_maybe_managing(obj: T) -> ta.AsyncGenerator[T]:
 
 
 @contextlib.contextmanager
-def disposing(obj: T, attr: str = 'dispose') -> ta.Iterator[T]:
+def disposing(obj: T, attr: str = 'dispose') -> ta.Generator[T]:
     try:
         yield obj
     finally:

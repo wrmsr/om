@@ -26,7 +26,7 @@ _OPTIONS_CONTEXT_VAR: contextvars.ContextVar[ta.Sequence[ProcessingOption]] = co
 
 
 @contextlib.contextmanager
-def processing_options_context(*opts: ProcessingOption) -> ta.Iterator[None]:
+def processing_options_context(*opts: ProcessingOption) -> ta.Generator[None]:
     with lang.context_var_setting(
             _OPTIONS_CONTEXT_VAR,
             (*_OPTIONS_CONTEXT_VAR.get(), *opts),

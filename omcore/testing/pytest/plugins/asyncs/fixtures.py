@@ -131,7 +131,7 @@ class AsyncsFixture:
         return deps
 
     @contextlib.asynccontextmanager
-    async def _fixture_manager(self, test_ctx: AsyncsTestContext) -> ta.AsyncIterator[anyio.abc.TaskGroup]:
+    async def _fixture_manager(self, test_ctx: AsyncsTestContext) -> ta.AsyncGenerator[anyio.abc.TaskGroup]:
         __tracebackhide__ = True
 
         try:

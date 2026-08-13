@@ -21,7 +21,7 @@ SubprocessFileInputMethod: ta.TypeAlias = ta.Callable[[bytes], ta.ContextManager
 
 
 @contextlib.contextmanager
-def temp_subprocess_file_input(buf: bytes) -> ta.Iterator[SubprocessFileInput]:
+def temp_subprocess_file_input(buf: bytes) -> ta.Generator[SubprocessFileInput]:
     with tempfile.NamedTemporaryFile(delete=True) as kf:
         kf.write(buf)
         kf.flush()
@@ -29,7 +29,7 @@ def temp_subprocess_file_input(buf: bytes) -> ta.Iterator[SubprocessFileInput]:
 
 
 @contextlib.contextmanager
-def pipe_fd_subprocess_file_input(buf: bytes) -> ta.Iterator[SubprocessFileInput]:
+def pipe_fd_subprocess_file_input(buf: bytes) -> ta.Generator[SubprocessFileInput]:
     rfd, wfd = os.pipe()
     closed_wfd = False
     try:

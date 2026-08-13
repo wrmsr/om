@@ -38,7 +38,7 @@ def __om_amalg__():  # noqa
             dict(path='gostd.py', sha1='34b51b06f942650ae8528eea69af9202a007065e'),
             dict(path='../../../lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../../lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
-            dict(path='../../../lite/dataclasses.py', sha1='3b669fb919a91a6d5dd21c4dbf5ab63650e1bac7'),
+            dict(path='../../../lite/dataclasses.py', sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e'),
             dict(path='errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
             dict(path='tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
             dict(path='ast.py', sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631'),
@@ -1160,7 +1160,7 @@ def is_immediate_dataclass(cls: type) -> bool:
 
 def _install_dataclass_fn(cls: type, fn: ta.Any, fn_name: ta.Optional[str] = None) -> None:
     if fn_name is None:
-        fn_name = fn.__name__
+        fn_name = str(fn.__name__)
     setattr(cls, fn_name, fn)
     fn.__qualname__ = f'{cls.__qualname__}.{fn_name}'
 
@@ -1171,8 +1171,8 @@ def _install_dataclass_fn(cls: type, fn: ta.Any, fn_name: ta.Optional[str] = Non
 def install_dataclass_cache_hash(
         *,
         cached_hash_attr: str = '__dataclass_hash__',
-):
-    def inner(cls):
+) -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
         if not (isinstance(cls, type) and dc.is_dataclass(cls)):
             raise TypeError(cls)
 
@@ -1275,8 +1275,8 @@ def install_dataclass_repr(
             ta.Literal['omit_none', 'omit_falsey'],
             None,
         ] = None,
-):
-    def inner(cls):
+) -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
         if not (isinstance(cls, type) and dc.is_dataclass(cls)):
             raise TypeError(cls)
 
@@ -1327,8 +1327,8 @@ def dataclass_descriptor_method(*bind_attrs: str, bind_owner: bool = False) -> t
 ##
 
 
-def install_dataclass_kw_only_init():
-    def inner(cls):
+def install_dataclass_kw_only_init() -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
         if not (isinstance(cls, type) and dc.is_dataclass(cls)):
             raise TypeError(cls)
 

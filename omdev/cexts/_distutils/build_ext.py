@@ -305,7 +305,7 @@ class BuildExt:
             return self._build_extension(ext)
 
     @contextlib.contextmanager
-    def _filter_build_errors(self, ext: extension.Extension) -> ta.Iterator[None]:
+    def _filter_build_errors(self, ext: extension.Extension) -> ta.Generator[None]:
         try:
             yield
         except (

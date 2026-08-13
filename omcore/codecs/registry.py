@@ -45,7 +45,7 @@ class CodecRegistry:
             self._late_load_callbacks = None
 
     @contextlib.contextmanager
-    def _lock_and_load(self) -> ta.Iterator[None]:
+    def _lock_and_load(self) -> ta.Generator[None]:
         with self._lock:
             self._late_load()
             yield

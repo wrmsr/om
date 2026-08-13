@@ -25,7 +25,7 @@ def close(root: Kv) -> None:
 
 
 @contextlib.contextmanager
-def closing(kv: KvT) -> ta.Iterator[KvT]:
+def closing(kv: KvT) -> ta.Generator[KvT]:
     try:
         yield kv
     finally:

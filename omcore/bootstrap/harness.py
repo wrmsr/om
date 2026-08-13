@@ -55,7 +55,7 @@ class BootstrapHarness:
         self._lst = lst
 
     @contextlib.contextmanager
-    def __call__(self) -> ta.Iterator[None]:
+    def __call__(self) -> ta.Generator[None]:
         with contextlib.ExitStack() as es:
             for c in self._lst:
                 if isinstance(c, SimpleBootstrap):
@@ -72,7 +72,7 @@ class BootstrapHarness:
 
 
 @contextlib.contextmanager
-def bootstrap(*cfgs: Bootstrap.Config) -> ta.Iterator[None]:
+def bootstrap(*cfgs: Bootstrap.Config) -> ta.Generator[None]:
     with BootstrapHarness([
         BOOTSTRAP_TYPES_BY_CONFIG_TYPE[type(c)](c)
         for c in cfgs

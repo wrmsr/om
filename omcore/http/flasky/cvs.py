@@ -38,7 +38,7 @@ class Cv(ta.Generic[T]):
             raise CvLookupError(self) from None
 
     @contextlib.contextmanager
-    def set(self, new: T) -> ta.Iterator[None]:
+    def set(self, new: T) -> ta.Generator[None]:
         tok = self._var.set(new)
         try:
             yield

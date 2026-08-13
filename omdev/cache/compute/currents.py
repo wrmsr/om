@@ -25,7 +25,7 @@ _CURRENT_CACHE: Cache | None = None
 
 
 @contextlib.contextmanager
-def setting_current_cache(cache: CacheT) -> ta.Iterator[CacheT]:
+def setting_current_cache(cache: CacheT) -> ta.Generator[CacheT]:
     global _CURRENT_CACHE
     prev = _CURRENT_CACHE
 
@@ -53,7 +53,7 @@ def setting_current_context(
         obj: Object,
         key: CacheKey | None = None,
         **kwargs: ta.Any,
-) -> ta.Iterator[Context]:
+) -> ta.Generator[Context]:
     global _CURRENT_CONTEXT
     prev = _CURRENT_CONTEXT
 

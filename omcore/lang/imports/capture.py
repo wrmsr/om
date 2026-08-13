@@ -258,7 +258,7 @@ class _ImportCaptureHook:
     def hook_context(
             self,
             mod_globals: ta.MutableMapping[str, ta.Any],  # noqa
-    ) -> ta.Iterator[None]:
+    ) -> ta.Generator[None]:
         if self._MOD_SELF_ATTR in mod_globals:
             raise ImportCaptureErrors.HookError
 
@@ -466,7 +466,7 @@ class _UnsafeGlobalBuiltinsImportCaptureHook(_AbstractBuiltinsImportCaptureHook)
     def _hook_context(
             self,
             mod_globals: ta.MutableMapping[str, ta.Any],  # noqa
-    ) -> ta.Iterator[None]:
+    ) -> ta.Generator[None]:
         old_import = builtins.__import__
         new_import = functools.partial(self._new_import, old_import)
 
@@ -568,7 +568,7 @@ class _SomewhatThreadSafeGlobalBuiltinsImportCaptureHook(_AbstractBuiltinsImport
     def _hook_context(
             self,
             mod_globals: ta.MutableMapping[str, ta.Any],  # noqa
-    ) -> ta.Iterator[None]:
+    ) -> ta.Generator[None]:
         patch = _SomewhatThreadSafeGlobalBuiltinsImportCaptureHook._Patch._add_hook(mod_globals, self._new_import)  # noqa
 
         try:
@@ -624,7 +624,7 @@ class _FrameBuiltinsImportCaptureHook(_AbstractBuiltinsImportCaptureHook):
     def _hook_context(
             self,
             mod_globals: ta.MutableMapping[str, ta.Any],  # noqa
-    ) -> ta.Iterator[None]:
+    ) -> ta.Generator[None]:
         old_builtins = self._frame.f_builtins
         old_import = old_builtins['__import__']
         new_import = functools.partial(self._new_import, old_import)
@@ -848,7 +848,7 @@ class ImportCapture:
             *,
             unreferenced_callback: ta.Callable[[ta.Sequence[str]], None] | None = None,
             raise_unreferenced: bool = False,
-    ) -> ta.Iterator[ta.Self]:
+    ) -> ta.Generator[ta.Self]:
         if self._result_ is not None:
             raise ImportCaptureError('capture already complete')
 

@@ -205,7 +205,7 @@ class TestKwOnlyInit(unittest.TestCase):
             install_dataclass_kw_only_init()(int)
 
         with self.assertRaises(TypeError):
-            install_dataclass_kw_only_init()(42)
+            install_dataclass_kw_only_init()(42)  # type: ignore[arg-type]
 
 
 ##

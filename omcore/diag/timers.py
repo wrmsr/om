@@ -61,7 +61,7 @@ class _GlobalTimer:
         )
 
     @contextlib.contextmanager
-    def __call__(self) -> ta.Iterator[None]:
+    def __call__(self) -> ta.Generator[None]:
         start = self._clock()
 
         try:
@@ -140,7 +140,7 @@ def global_timer_context(
         globals: ta.MutableMapping[str, ta.Any],  # noqa
         name: str,
         **kwargs: ta.Any,
-) -> ta.Iterator[None]:
+) -> ta.Generator[None]:
     reg = _get_global_registry(globals)
     timer = reg.get_timer(name, **kwargs)
     with timer():

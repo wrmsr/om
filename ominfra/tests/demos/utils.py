@@ -36,7 +36,7 @@ def build_docker_image(img_name: str, cur_dir: str, dockerfile: str | None = Non
 def launch_docker_container(
         *args: str,
         timebomb_delay_s: float | None = None,
-) -> ta.Iterator[str]:
+) -> ta.Generator[str]:
     ctr_id = check_output([
         'docker', 'run',
         '-d',

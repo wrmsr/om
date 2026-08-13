@@ -15,7 +15,7 @@ def git_upstream_source(
         *,
         from_path: str | None = None,
         timeout: float = 15. * 60.,
-) -> ta.Iterator[GitRunner]:
+) -> ta.Generator[GitRunner]:
     """
     Yields a GitRunner for the upstream repo - either an existing local clone (used strictly read-only) or a temporary
     bare clone of `url` which is removed afterward.
