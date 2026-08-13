@@ -25,7 +25,7 @@ lxml-stubs==0.5.1
 types-awscrt==0.36.2
 types-docutils==0.22.3.20260724
 types-greenlet==3.5.0.20260518
-types-paramiko==5.0.0.20260724  # @om-venv !15t
+types-paramiko==5.0.0.20260724
 types-psutil==7.2.2.20260518
 types-pygments==2.20.0.20260728
 types-pymysql==1.2.0.20260807
@@ -115,14 +115,14 @@ snowflake-connector-python[secure-local-storage]==4.7.2  # @om-venv !15t
 
 trino==0.338.0  # @om-venv !14t !14dt !15t  # orjson
 
-huggingface-hub==1.27.0  # @om-venv !15t
-hf-xet==1.6.0  # @om-venv !15t
+huggingface-hub==1.27.0
+hf-xet==1.6.0
 
 ## NOTE: the following add a full minute to CI just setting up the deps..
 
 datasets==5.0.1  # @om-venv !15 !15t  # !! includes arrow and pandas and shit
 
-transformers==5.11.0  # @om-venv !14t !14dt !15 !15t
+transformers==5.11.0  # @om-venv !14t !14dt !15t
 sentence-transformers==5.6.0  # @om-venv !14t !14dt !15 !15t
 
 sentencepiece==0.2.2
