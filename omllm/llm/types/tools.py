@@ -11,13 +11,19 @@ from omcore import lang
 ##
 
 
+type ToolParamType = ta.Union[  # noqa
+    str,
+    ta.Mapping[str, ToolParamType],
+]
+
+
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class ToolParam:
     name: str = dc.xfield(coerce=check.non_empty_str)
     description: str | None = None
-    type: str = dc.xfield(coerce=check.non_empty_str)
+    type: ToolParamType
     optional: bool = dc.xfield(False, repr_fn=lang.truthy_repr)
 
 
@@ -28,7 +34,7 @@ class Tool:
     name: str = dc.xfield(coerce=check.non_empty_str)
     description: str | None = None
     params: ta.Sequence[ToolParam] = ()
-    type: str | None = dc.xfield(None, validate=lambda s: s is None or (isinstance(s, str) and bool(s)))
+    type: ToolParamType | None = None
 
     @cached.property
     @dc.init

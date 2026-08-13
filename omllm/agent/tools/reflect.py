@@ -6,6 +6,7 @@ import weakref
 from omcore import check
 from omcore import contextual as cxl
 from omcore import dataclasses as dc
+from omcore import reflect as rfl
 from omcore.lite.reflect import get_optional_alias_arg
 from omcore.lite.reflect import is_generic_alias
 from omcore.lite.reflect import is_optional_alias
@@ -92,9 +93,46 @@ _JSONSCHEMA_TYPES: ta.Mapping[type, str] = {
     bool: 'boolean',
 }
 
+_JSONSCHEMA_SEQUENCE_TYPES: ta.Container[type] = frozenset([
+    collections.abc.Sequence,
+    list,
+])
 
-def _reflect_type(ty: ta.Any) -> str:
-    return _JSONSCHEMA_TYPES[ty]
+_JSONSCHEMA_MAPPING_TYPES: ta.Container[type] = frozenset([
+    collections.abc.Mapping,
+    dict,
+])
+
+
+def _reflect_type(ty: ta.Any) -> llm.ToolParamType:
+    rty = rfl.reflect_type(ty)
+
+    if not isinstance(rty, rfl.Instance):
+        raise TypeError(rty)
+
+    if not rty.args:
+        try:
+            return _JSONSCHEMA_TYPES[ty]
+        except KeyError:
+            raise TypeError(ty) from None
+
+    g_cls = check.isinstance(rty.type.runtime_object, type)
+
+    if g_cls in _JSONSCHEMA_SEQUENCE_TYPES:
+        a_rty = check.single(rty.args)
+        return {
+            'type': 'array',
+            'items': _reflect_type(a_rty),
+        }
+
+    if g_cls in _JSONSCHEMA_MAPPING_TYPES:
+        k_rty, v_rty = rty.args
+        return {
+            'type': 'object',
+            'additionalProperties': _reflect_type(v_rty),  # FIXME: k_rty
+        }
+
+    raise TypeError(ty)
 
 
 #
@@ -192,7 +230,7 @@ def reflect_tool_fn(
         description=description,
     )
 
-    return_type: str | None = None
+    return_type: llm.ToolParamType | None = None
     if 'return' in fn_th:
         ret_ty = fn_th['return']
         if is_generic_alias(ret_ty) and ta.get_origin(ret_ty) is collections.abc.Awaitable:

@@ -1,5 +1,6 @@
 import typing as ta
 
+from omcore import check
 from omcore import lang
 
 from ....types.content import TextContent
@@ -160,7 +161,7 @@ class RequestPreparer:
                 raw_required: list[str] = []
                 for param in tool.params or []:
                     raw_properties[param.name] = {
-                        **({'type': param.type.upper()} if param.type else {}),
+                        **({'type': check.isinstance(param.type, str).upper()} if param.type else {}),
                         **({'description': param.description} if param.description else {}),
                     }
                     if not param.optional:

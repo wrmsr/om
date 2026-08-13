@@ -161,6 +161,7 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .types.tools import (  # noqa
-        Tool,
+        ToolParamType,
         ToolParam,
+        Tool,
     )

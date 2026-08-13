@@ -17,6 +17,7 @@ class Config:
 
     fs: bool | None = None
     exec: bool | None = None
+    web: bool | None = None
 
     jsonl_storage: bool | None = None
 
@@ -33,8 +34,11 @@ class Config:
 def make_config_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('-m', '--model')
+
     parser.add_argument('--fs', action='store_true')
     parser.add_argument('--exec', action='store_true')
+    parser.add_argument('--web', action='store_true')
 
     parser.add_argument('-J', '--jsonl-storage', action='store_true')
 
@@ -53,8 +57,11 @@ def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
     args = parser.parse_args(argv)
 
     return Config(
+        model=args.model,
+
         fs=args.fs,
         exec=args.exec,
+        web=args.web,
 
         jsonl_storage=args.jsonl_storage,
 

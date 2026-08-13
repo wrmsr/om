@@ -4314,20 +4314,19 @@ def _process_dataclass__2f297aff3600bf09ca74d5106118f3c78a4c2890():
         "f(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=Tr"
         "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
         "d(name='type', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'),"
-        " default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=OpRef(n"
-        "ame='init.fields.3.validate'), check_type=None)), self_param='self', std_params=(), kw_only_params=('name', 'd"
-        "escription', 'params', 'type'), frozen=True, slots=False, post_init_params=None, init_fns=(OpRef(name='init.in"
-        "it_fns.0'),), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='name', kw_only=True, fn=None), ReprPlan."
-        "Field(name='description', kw_only=True, fn=None), ReprPlan.Field(name='params', kw_only=True, fn=None), ReprPl"
-        "an.Field(name='type', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn')"
-        ")))"
+        " default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, c"
+        "heck_type=None)), self_param='self', std_params=(), kw_only_params=('name', 'description', 'params', 'type'), "
+        "frozen=True, slots=False, post_init_params=None, init_fns=(OpRef(name='init.init_fns.0'),), validate_fns=()), "
+        "ReprPlan(fields=(ReprPlan.Field(name='name', kw_only=True, fn=None), ReprPlan.Field(name='description', kw_onl"
+        "y=True, fn=None), ReprPlan.Field(name='params', kw_only=True, fn=None), ReprPlan.Field(name='type', kw_only=Tr"
+        "ue, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='024ecef31c77bde4a57d78cbfe682974cde3e2d0',
+    plan_repr_sha1='c63d3e4ad0339acbeca1ddcebbaa1d77bab87faf',
     cls_names=(
         ('omllm.llm.types.tools', 'Tool'),
     ),
 )
-def _process_dataclass__024ecef31c77bde4a57d78cbfe682974cde3e2d0():
+def _process_dataclass__c63d3e4ad0339acbeca1ddcebbaa1d77bab87faf():
     def _process_dataclass(
         *,
         __class__,
@@ -4339,10 +4338,8 @@ def _process_dataclass__024ecef31c77bde4a57d78cbfe682974cde3e2d0():
         __dataclass__init__fields__2__default,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
-        __dataclass__init__fields__3__validate,
         __dataclass__init__init_fns__0,
         __dataclass__repr__default_fn,
-        __dataclass__FieldFnValidationError,  # noqa
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -4421,13 +4418,6 @@ def _process_dataclass__024ecef31c77bde4a57d78cbfe682974cde3e2d0():
             type: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             name = __dataclass__init__fields__0__coerce(name)
-            if not __dataclass__init__fields__3__validate(type): 
-                raise __dataclass__FieldFnValidationError(
-                    obj=self,
-                    fn=__dataclass__init__fields__3__validate,
-                    field='type',
-                    value=type,
-                )
             __dataclass__object_setattr(self, 'name', name)
             __dataclass__object_setattr(self, 'description', description)
             __dataclass__object_setattr(self, 'params', params)
@@ -4469,21 +4459,21 @@ def _process_dataclass__024ecef31c77bde4a57d78cbfe682974cde3e2d0():
         "notation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, fiel"
         "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='type', annotatio"
         "n=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field"
-        "_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.2.coerce'), validate=None, check_type=None), InitPlan"
-        ".Field(name='optional', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.d"
-        "efault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validat"
-        "e=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('name', 'description', 'type', 'o"
-        "ptional'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Re"
-        "prPlan.Field(name='name', kw_only=True, fn=None), ReprPlan.Field(name='description', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='type', kw_only=True, fn=None), ReprPlan.Field(name='optional', kw_only=True, fn=OpRef(name"
-        "='repr.fns.3.fn'))), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='optional', annota"
+        "tion=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None"
+        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), sel"
+        "f_param='self', std_params=(), kw_only_params=('name', 'description', 'type', 'optional'), frozen=True, slots="
+        "False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='name', kw_o"
+        "nly=True, fn=None), ReprPlan.Field(name='description', kw_only=True, fn=None), ReprPlan.Field(name='type', kw_"
+        "only=True, fn=None), ReprPlan.Field(name='optional', kw_only=True, fn=OpRef(name='repr.fns.3.fn'))), id=False,"
+        " terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='eab120fc86654066169ee1c4f646f3a6509d553d',
+    plan_repr_sha1='1a1a12f7a96aaaec9e65285fcb70f4b9d2d7b570',
     cls_names=(
         ('omllm.llm.types.tools', 'ToolParam'),
     ),
 )
-def _process_dataclass__eab120fc86654066169ee1c4f646f3a6509d553d():
+def _process_dataclass__1a1a12f7a96aaaec9e65285fcb70f4b9d2d7b570():
     def _process_dataclass(
         *,
         __class__,
@@ -4492,7 +4482,6 @@ def _process_dataclass__eab120fc86654066169ee1c4f646f3a6509d553d():
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__default,
         __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__coerce,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
         __dataclass__repr__default_fn,
@@ -4575,7 +4564,6 @@ def _process_dataclass__eab120fc86654066169ee1c4f646f3a6509d553d():
             optional: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             name = __dataclass__init__fields__0__coerce(name)
-            type = __dataclass__init__fields__2__coerce(type)
             __dataclass__object_setattr(self, 'name', name)
             __dataclass__object_setattr(self, 'description', description)
             __dataclass__object_setattr(self, 'type', type)

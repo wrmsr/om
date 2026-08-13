@@ -61,6 +61,15 @@ def bind_tools(config: Config) -> inj.Elements:
             bind_agent_tool_class(agn.RipgrepTool),
         ])
 
+    if config.web:
+        lst.extend([
+            inj.bind(agn.WebFetchTool, singleton=True),
+            bind_agent_tool_class(agn.WebFetchTool),
+
+            inj.bind(agn.WebSearchTool, singleton=True),
+            bind_agent_tool_class(agn.WebSearchTool),
+        ])
+
     lst.extend([
         agent_tools().bind_items_provider(singleton=True),
 
