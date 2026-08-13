@@ -104,28 +104,28 @@ _JSONSCHEMA_MAPPING_TYPES: ta.Container[type] = frozenset([
 ])
 
 
-def _reflect_type(ty: ta.Any) -> llm.ToolParamType:
+def _reflect_type(ty: object) -> llm.ToolParamType:
     rty = rfl.reflect_type(ty)
 
     if not isinstance(rty, rfl.Instance):
         raise TypeError(rty)
 
+    rt_ty = check.isinstance(rty.type.runtime_object, type)
+
     if not rty.args:
         try:
-            return _JSONSCHEMA_TYPES[ty]
+            return _JSONSCHEMA_TYPES[rt_ty]
         except KeyError:
             raise TypeError(ty) from None
 
-    g_cls = check.isinstance(rty.type.runtime_object, type)
-
-    if g_cls in _JSONSCHEMA_SEQUENCE_TYPES:
+    if rt_ty in _JSONSCHEMA_SEQUENCE_TYPES:
         a_rty = check.single(rty.args)
         return {
             'type': 'array',
             'items': _reflect_type(a_rty),
         }
 
-    if g_cls in _JSONSCHEMA_MAPPING_TYPES:
+    if rt_ty in _JSONSCHEMA_MAPPING_TYPES:
         k_rty, v_rty = rty.args
         return {
             'type': 'object',
