@@ -825,22 +825,30 @@ inline int map_update_pairs(ColObject *co, PyObject *pairs) {
     }
     PyObject *pair;
     while ((pair = PyIter_Next(it)) != nullptr) {
-        PyObject *fast = PySequence_Fast(pair, "map update sequence element is not iterable");
+        // Snapshot each pair into an owned tuple rather than borrowing its items PySequence_Fast-style: a list pair
+        // can be shared, and the assign below both runs user code (__hash__ / __lt__ / __index__) and can block on
+        // the container lock with the thread state released - windows in which other code can drop the pair's items
+        // and free them out from under an unretained borrowed pointer. The snapshot pins the items (and freezes the
+        // length check); for tuple pairs it is just an incref, exactly as PySequence_Fast was.
+        PyObject *fast = PySequence_Tuple(pair);
         Py_DECREF(pair);
         if (fast == nullptr) {
+            if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+                PyErr_SetString(PyExc_TypeError, "map update sequence element is not iterable");
+            }
             Py_DECREF(it);
             return -1;
         }
-        if (PySequence_Fast_GET_SIZE(fast) != 2) {
+        if (PyTuple_GET_SIZE(fast) != 2) {
             PyErr_Format(
                 PyExc_ValueError,
                 "map update sequence element has length %zd; 2 is required",
-                PySequence_Fast_GET_SIZE(fast));
+                PyTuple_GET_SIZE(fast));
             Py_DECREF(fast);
             Py_DECREF(it);
             return -1;
         }
-        int r = map_assign_obj(co, PySequence_Fast_GET_ITEM(fast, 0), PySequence_Fast_GET_ITEM(fast, 1));
+        int r = map_assign_obj(co, PyTuple_GET_ITEM(fast, 0), PyTuple_GET_ITEM(fast, 1));
         Py_DECREF(fast);
         if (r < 0) {
             Py_DECREF(it);

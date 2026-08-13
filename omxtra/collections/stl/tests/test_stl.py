@@ -458,6 +458,34 @@ def test_map_update_batch_and_fallback(cls):
     assert m[12] == 13
 
 
+def test_map_update_list_pair_items_pinned_against_mutation():
+    # Regression: the generic pair walk borrowed a list pair's items without retaining them, then ran user code
+    # (and possibly blocked on the container lock) - so code that dropped the pair's items in that window left the
+    # update working with dangling pointers. The pair must be snapshotted so its items are pinned.
+    pair: list = []
+
+    class EvilKey:
+        def __hash__(self):
+            pair.clear()  # drops the pair's own refs to key and value mid-assign
+            return 1
+
+        def __eq__(self, o):
+            return self is o
+
+    class Val:
+        pass
+
+    pair[:] = [EvilKey(), Val()]  # only the pair list holds references to the elements
+    wk, wv = weakref.ref(pair[0]), weakref.ref(pair[1])
+    m = fc.UnorderedMap('object', 'object')
+    m.update([pair])
+    gc.collect()
+    assert wk() is not None
+    assert wv() is not None
+    ((k, v),) = m.items()
+    assert k is wk() and v is wv()
+
+
 def test_map_update_source_mutation_during_batch_is_safe():
     # Same guarantee as the set batch path: key __hash__ runs under the container lock and can reach back and mutate
     # the source list mid-run; the snapshotted batch must be unaffected.
@@ -1195,6 +1223,37 @@ def test_threaded_object_map_with_gc():
         gt.join()
     for k, v in m.items():
         assert v == [k]
+
+
+def test_threaded_map_update_shared_list_pair():
+    # Threaded shape of the pinned-pair regression above: updaters snapshot a shared two-element list pair while a
+    # mutator concurrently replaces and clears its contents. Every stored entry must be a real (pinned) object pair;
+    # a racing length change may surface as the usual malformed-element ValueError.
+    class P:
+        pass
+
+    m = fc.UnorderedMap('object', 'object')
+    pair: list = [P(), P()]
+    stop = threading.Event()
+
+    def work(i):
+        if i == 0:
+            for j in range(2000):
+                pair[:] = [P(), P()]
+                if j % 5 == 0:
+                    pair.clear()
+                    pair[:] = [P(), P()]
+            stop.set()
+        else:
+            while not stop.is_set():
+                try:
+                    m.update([pair])
+                except ValueError:
+                    pass
+
+    _run_threads(4, work)
+    for k, v in m.items():
+        assert isinstance(k, P) and isinstance(v, P)
 
 
 def test_threaded_vector_counted_invariants():
