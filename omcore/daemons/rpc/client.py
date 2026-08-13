@@ -80,9 +80,7 @@ class RpcClientConnection(lang.Final):
 
         payload = encode_rpc_wire_message_payload(RpcWireRequest(request=request))
         if len(payload) > self._max_frame_bytes:
-            raise RpcProtocolError(
-                f'RPC frame is {len(payload)} bytes, exceeding limit {self._max_frame_bytes}',
-            )
+            raise RpcProtocolError(f'RPC frame is {len(payload)} bytes, exceeding limit {self._max_frame_bytes}')
 
         driver = self._pipeline_driver()
         self._request = request

@@ -41,9 +41,7 @@ def validate_rpc_response(
     try:
         payload = encode_rpc_wire_message_payload(response)
         if len(payload) > max_frame_bytes:
-            raise RpcProtocolError(
-                f'RPC frame is {len(payload)} bytes, exceeding limit {max_frame_bytes}',
-            )
+            raise RpcProtocolError(f'RPC frame is {len(payload)} bytes, exceeding limit {max_frame_bytes}')
         return response
     except RpcProtocolError as exc:
         fallback = rpc_remote_error_response(request, exc)

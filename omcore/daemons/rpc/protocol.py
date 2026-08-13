@@ -129,9 +129,7 @@ def encode_rpc_message(obj: ta.Mapping[str, ta.Any], max_frame_bytes: int) -> by
         raise RpcProtocolError(f'RPC message is not JSON-compatible: {exc}') from exc
 
     if len(payload) > max_frame_bytes:
-        raise RpcProtocolError(
-            f'RPC frame is {len(payload)} bytes, exceeding limit {max_frame_bytes}',
-        )
+        raise RpcProtocolError(f'RPC frame is {len(payload)} bytes, exceeding limit {max_frame_bytes}')
 
     return _FRAME_HEADER.pack(len(payload)) + payload
 
@@ -160,9 +158,7 @@ def recv_rpc_message(sock: socket.socket, max_frame_bytes: int) -> ta.Mapping[st
     header = _recv_exact(sock, _FRAME_HEADER.size)
     size = _FRAME_HEADER.unpack(header)[0]
     if size > max_frame_bytes:
-        raise RpcProtocolError(
-            f'RPC frame is {size} bytes, exceeding limit {max_frame_bytes}',
-        )
+        raise RpcProtocolError(f'RPC frame is {size} bytes, exceeding limit {max_frame_bytes}')
 
     payload = _recv_exact(sock, size)
     try:

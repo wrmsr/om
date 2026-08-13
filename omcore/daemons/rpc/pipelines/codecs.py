@@ -54,9 +54,7 @@ class RpcFrameCodecIoPipelineHandler(BufferedBytesToMessageDecoderIoPipelineHand
                 self._frame_size = size = _FRAME_HEADER.unpack(buf.coalesce(_FRAME_HEADER.size))[0]
                 buf.advance(_FRAME_HEADER.size)
                 if size > self._max_frame_bytes:
-                    raise RpcProtocolError(
-                        f'RPC frame is {size} bytes, exceeding limit {self._max_frame_bytes}',
-                    )
+                    raise RpcProtocolError(f'RPC frame is {size} bytes, exceeding limit {self._max_frame_bytes}')
 
             size = self._frame_size
             if len(buf) < size:
@@ -76,9 +74,7 @@ class RpcFrameCodecIoPipelineHandler(BufferedBytesToMessageDecoderIoPipelineHand
         if isinstance(msg, RpcFrame):
             size = len(msg.data)
             if size > self._max_frame_bytes:
-                raise RpcProtocolError(
-                    f'RPC frame is {size} bytes, exceeding limit {self._max_frame_bytes}',
-                )
+                raise RpcProtocolError(f'RPC frame is {size} bytes, exceeding limit {self._max_frame_bytes}')
             msg = _FRAME_HEADER.pack(size) + msg.data
 
         ctx.feed_out(msg)
