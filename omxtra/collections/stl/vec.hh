@@ -1161,6 +1161,42 @@ inline PyObject *vec_richcompare(PyObject *self, PyObject *other, int op) {
 }
 
 
+// Pickle / copy support: (cls, (dtype,), state, elements_iterator, None). Contents go through pickle's listitems
+// protocol - applied element-wise via append after the empty vector is created and memoized - so self-referential
+// vectors round-trip.
+inline PyObject *vec_reduce(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *dt = PyUnicode_FromString(dtype_name(co->impl->key_dt, co->impl->key_ovf));
+    if (dt == nullptr) {
+        return nullptr;
+    }
+    PyObject *args = PyTuple_Pack(1, dt);
+    Py_DECREF(dt);
+    if (args == nullptr) {
+        return nullptr;
+    }
+    PyObject *state = col_reduce_state(self);
+    if (state == nullptr) {
+        Py_DECREF(args);
+        return nullptr;
+    }
+    PyObject *it = col_iter(self);
+    if (it == nullptr) {
+        Py_DECREF(args);
+        Py_DECREF(state);
+        return nullptr;
+    }
+    PyObject *r = PyTuple_Pack(5, (PyObject *)Py_TYPE(self), args, state, it, Py_None);
+    Py_DECREF(args);
+    Py_DECREF(state);
+    Py_DECREF(it);
+    return r;
+}
+
+
 inline PyObject *vec_repr(PyObject *self) {
     ColObject *co = (ColObject *)self;
     if (!col_ready(co)) {

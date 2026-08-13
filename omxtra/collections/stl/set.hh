@@ -1352,6 +1352,42 @@ inline PyGetSetDef set_getset[] = {
 };
 
 
+// Pickle / copy support: reduce to the public constructor form - (cls, (dtype, [elements]), state) - the same shape
+// as the repr. Elements are inlined into the constructor args because pickle's listitems protocol needs an append /
+// extend method, which sets do not have; a (degenerate) self-containing set therefore cannot be pickled - the
+// pickler recurses on the args and raises rather than anything worse.
+inline PyObject *set_reduce(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *items = PySequence_List(self);
+    if (items == nullptr) {
+        return nullptr;
+    }
+    PyObject *dt = PyUnicode_FromString(dtype_name(co->impl->key_dt, co->impl->key_ovf));
+    if (dt == nullptr) {
+        Py_DECREF(items);
+        return nullptr;
+    }
+    PyObject *args = PyTuple_Pack(2, dt, items);
+    Py_DECREF(dt);
+    Py_DECREF(items);
+    if (args == nullptr) {
+        return nullptr;
+    }
+    PyObject *state = col_reduce_state(self);
+    if (state == nullptr) {
+        Py_DECREF(args);
+        return nullptr;
+    }
+    PyObject *r = PyTuple_Pack(3, (PyObject *)Py_TYPE(self), args, state);
+    Py_DECREF(args);
+    Py_DECREF(state);
+    return r;
+}
+
+
 // SortedCollection surface (sorted variant only): iter / iter_desc are just the existing iterators under the interface
 // names; the seeded and find forms ride the new impl primitives.
 inline PyObject *set_iter_from(PyObject *self, PyObject *base) {

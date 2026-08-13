@@ -1233,6 +1233,24 @@ inline PyObject *col_make_iter_from(PyObject *self, IterKind ik, bool desc, PyOb
 }
 
 
+// The state element for __reduce__ tuples: a non-empty instance __dict__ (Python subclasses carrying attributes)
+// rides along and is applied by pickle via __dict__.update; base instances have no __dict__ at all and get None.
+inline PyObject *col_reduce_state(PyObject *self) {
+    PyObject *d = nullptr;
+    if (PyObject_GetOptionalAttrString(self, "__dict__", &d) < 0) {
+        return nullptr;
+    }
+    if (d == nullptr) {
+        Py_RETURN_NONE;
+    }
+    if (PyDict_Check(d) && PyDict_GET_SIZE(d) == 0) {
+        Py_DECREF(d);
+        Py_RETURN_NONE;
+    }
+    return d;
+}
+
+
 // Extracts the short class name ("Set") out of the heap type's qualified tp_name ("_stl.Set"), for reprs and
 // error messages.
 inline const char *col_short_name(PyObject *self) {

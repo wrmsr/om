@@ -1,5 +1,7 @@
 import collections.abc as cabc
+import copy
 import gc
+import pickle
 import random
 import sys
 import threading
@@ -1005,6 +1007,118 @@ def test_same_spec_fast_paths():
     w = v.copy()
     w.extend(v)
     assert list(w) == [1, 2, 1, 2]
+
+
+##
+# pickling
+
+
+class TaggedSet(fc.Set):
+    pass
+
+
+class TaggedVector(fc.Vector):
+    pass
+
+
+def _pickle_cases():
+    nan = float('nan')
+    return [
+        fc.Set('int64', [3, 1, 2]),
+        fc.Set('object', ['b', 'a']),
+        fc.Set('float64', [nan, -0.0, 1.5]),
+        fc.Set('uint64-wrap'),
+        fc.UnorderedSet('int64-clamp', [1, 2]),
+        fc.UnorderedSet('object', ['a']),
+        fc.Map('int64', 'object', [(1, 'a'), (2, ['b'])]),
+        fc.Map('object', 'float64', [('k', 1.5), ('n', nan)]),
+        fc.Map('float64', 'int64'),
+        fc.UnorderedMap('object', 'object', [('k', 'v')]),
+        fc.UnorderedMap('uint64-wrap', 'int64-clamp', [(1, 2)]),
+        fc.Vector('int64', [3, 1, 2, 1]),
+        fc.Vector('object', ['a', 1, None, ['x']]),
+        fc.Vector('float64', [nan, -0.0, 2.5]),
+        fc.Vector('uint64-raise'),
+    ]
+
+
+@pytest.mark.parametrize('proto', range(pickle.HIGHEST_PROTOCOL + 1))
+def test_pickle_round_trip(proto):
+    for c in _pickle_cases():
+        c2 = pickle.loads(pickle.dumps(c, proto))  # noqa
+        assert type(c2) is type(c)
+        assert c2 == c
+        assert len(c2) == len(c)
+        if hasattr(c, 'key_type'):
+            assert c2.key_type == c.key_type
+            assert c2.value_type == c.value_type
+        else:
+            assert c2.dtype == c.dtype
+        if isinstance(c, fc.Vector):
+            assert repr(list(c2)) == repr(list(c))  # order (and nan) preserved
+
+
+def test_pickle_recursive_containers():
+    v = fc.Vector('object')
+    v.append(v)
+    v.append(1)
+    v2 = pickle.loads(pickle.dumps(v))  # noqa
+    assert len(v2) == 2
+    assert v2[0] is v2
+    assert v2[1] == 1
+
+    m = fc.UnorderedMap('object', 'object')
+    m['self'] = m
+    m2 = pickle.loads(pickle.dumps(m))  # noqa
+    assert m2['self'] is m2
+
+    sm = fc.Map('object', 'object')
+    sm['self'] = sm
+    sm2 = pickle.loads(pickle.dumps(sm))  # noqa
+    assert sm2['self'] is sm2
+
+    # Sets inline their elements into the constructor args (no pickle-appendable method), so a (degenerate)
+    # self-containing sorted set fails to pickle rather than round-tripping - but must fail cleanly.
+    s = fc.Set('object')
+    s.add(s)
+    with pytest.raises((RecursionError, pickle.PicklingError)):
+        pickle.dumps(s)
+
+
+def test_pickle_subclass_with_state():
+    s = TaggedSet('int64', [1, 2])
+    s.tag = 'hello'
+    s2 = pickle.loads(pickle.dumps(s))  # noqa
+    assert type(s2) is TaggedSet
+    assert sorted(s2) == [1, 2]
+    assert s2.tag == 'hello'
+
+    v = TaggedVector('object', ['a'])
+    v2 = pickle.loads(pickle.dumps(v))  # noqa
+    assert type(v2) is TaggedVector
+    assert list(v2) == ['a']
+    assert not hasattr(v2, 'tag')
+
+
+def test_pickle_uninitialized_raises():
+    with pytest.raises(RuntimeError, match='not initialized'):
+        pickle.dumps(fc.Set.__new__(fc.Set))
+
+
+def test_copy_module_support():
+    v = fc.Vector('object', [['inner']])
+    cv = copy.copy(v)
+    assert type(cv) is fc.Vector
+    assert cv is not v
+    assert cv == v
+    assert cv[0] is v[0]  # shallow
+    dv = copy.deepcopy(v)
+    assert dv == v
+    assert dv[0] is not v[0]  # deep
+    m = fc.Map('int64', 'object', [(1, 'a')])
+    dm = copy.deepcopy(m)
+    assert dm == m
+    assert dm.key_type == m.key_type
 
 
 ##

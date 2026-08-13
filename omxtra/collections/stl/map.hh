@@ -1412,6 +1412,48 @@ inline PyObject *map_get_value_type(PyObject *self, void *) {
 }
 
 
+// Pickle / copy support: (cls, (key_type, value_type), state, None, items_iterator). Contents go through pickle's
+// dictitems protocol - applied pair-wise via obj[k] = v after the empty map is created and memoized - so
+// self-referential maps round-trip.
+inline PyObject *map_reduce(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    ColObject *co = (ColObject *)self;
+    if (!col_ready(co)) {
+        return nullptr;
+    }
+    PyObject *kt = PyUnicode_FromString(dtype_name(co->impl->key_dt, co->impl->key_ovf));
+    if (kt == nullptr) {
+        return nullptr;
+    }
+    PyObject *vt = PyUnicode_FromString(dtype_name(co->impl->val_dt, co->impl->val_ovf));
+    if (vt == nullptr) {
+        Py_DECREF(kt);
+        return nullptr;
+    }
+    PyObject *args = PyTuple_Pack(2, kt, vt);
+    Py_DECREF(kt);
+    Py_DECREF(vt);
+    if (args == nullptr) {
+        return nullptr;
+    }
+    PyObject *state = col_reduce_state(self);
+    if (state == nullptr) {
+        Py_DECREF(args);
+        return nullptr;
+    }
+    PyObject *items_it = col_make_iter(self, IterKind::ITEMS, false);
+    if (items_it == nullptr) {
+        Py_DECREF(args);
+        Py_DECREF(state);
+        return nullptr;
+    }
+    PyObject *r = PyTuple_Pack(5, (PyObject *)Py_TYPE(self), args, state, Py_None, items_it);
+    Py_DECREF(args);
+    Py_DECREF(state);
+    Py_DECREF(items_it);
+    return r;
+}
+
+
 // SortedItems surface (sorted variant only).
 inline PyObject *map_iteritems(PyObject *self, PyObject *Py_UNUSED(ignored)) {
     return col_make_iter(self, IterKind::ITEMS, false);
