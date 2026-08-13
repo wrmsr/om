@@ -68,7 +68,7 @@ class PermissionsCommand(ParserCommandClass):
             await ctx.print('No permissions set')
             return
 
-        await ctx.print(self._render_rules(rules.by_min_digest.items()))
+        await ctx.print(self._render_rules(rules.by_min_digest.items()), '\n')
 
     #
 
@@ -87,4 +87,4 @@ class PermissionsCommand(ParserCommandClass):
         self._permissions.add_rule(rule)
 
         rmd = self._permissions.get_rules().min_digests[rule]
-        await ctx.print(self._render_rule(rmd, rule))
+        await ctx.print(self._render_rule(rmd, rule), '\n')

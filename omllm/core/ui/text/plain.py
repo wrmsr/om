@@ -29,8 +29,8 @@ class PlainTextRenderer(TextRenderer[str]):
 
     #
 
-    def render(self, t: CanText) -> str:
-        root = Text.of(t)
+    def render(self, *ts: CanText) -> str:
+        root = Text.of(*ts)
 
         compact = self._options.density == 'compact'
 

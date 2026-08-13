@@ -33,7 +33,12 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
     params_cls: ta.Final = RipgrepToolParams
 
     description: ta.Final = ToolDescription(
-        'Executes ripgrep with the given arguments in current working directory. Returns stdout and stderr.',
+        """\
+        Executes ripgrep with the given arguments in current working directory. Returns stdout and stderr.
+
+        If you are familiar with ripgrep, prefer to use this over invoking regular 'grep' or similar tools via shell
+        execution.
+        """,
         dict(
             args='The arguments to pass to ripgrep.',
             timeout_s='An optional timeout in seconds.',
@@ -58,7 +63,7 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
         await self._permissions.check_allowed(ctx, FsPermissionTarget(cwd, 'r'))
 
         cmd = [
-            check.not_none(shutil.which('ripgrep')),
+            check.not_none(shutil.which('rg')),
             *params.args,
         ]
 

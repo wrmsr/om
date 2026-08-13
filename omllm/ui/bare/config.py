@@ -16,6 +16,7 @@ class Config:
     cwd: str | None = None
 
     fs: bool | None = None
+    allow_fs_reads: bool | None = None
     exec: bool | None = None
     web: bool | None = None
 
@@ -37,6 +38,7 @@ def make_config_parser() -> argparse.ArgumentParser:
     parser.add_argument('-m', '--model')
 
     parser.add_argument('--fs', action='store_true')
+    parser.add_argument('--allow-fs-reads', action='store_true')
     parser.add_argument('--exec', action='store_true')
     parser.add_argument('--web', action='store_true')
 
@@ -60,6 +62,7 @@ def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
         model=args.model,
 
         fs=args.fs,
+        allow_fs_reads=args.allow_fs_reads,
         exec=args.exec,
         web=args.web,
 

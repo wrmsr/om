@@ -27,9 +27,13 @@ class ArgsCommandError(CommandError):
 ##
 
 
+class CommandContextPrinter(ta.Protocol):
+    def __call__(self, *texts: ui.CanText) -> ta.Awaitable[None]: ...
+
+
 @dc.dataclass(frozen=True, kw_only=True)
 class CommandContext:
-    print: ta.Callable[[ui.CanText], ta.Awaitable[None]]
+    print: CommandContextPrinter
 
 
 class Command(lang.Abstract):

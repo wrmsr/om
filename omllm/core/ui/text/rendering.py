@@ -25,7 +25,7 @@ class TextRenderingOptions:
 
 class TextRenderer(lang.Abstract, ta.Generic[O]):
     @abc.abstractmethod
-    def render(self, t: CanText) -> O:
+    def render(self, *ts: CanText) -> O:
         raise NotImplementedError
 
 
@@ -38,7 +38,11 @@ def resolve_json_text_style(
 ) -> JsonTextStyle:
     """Layers, least to most specific: the options density, the options json_style, the given (node) style."""
 
-    return JsonTextStyle(mode=options.density).merge(options.json_style).merge(style)
+    return (
+        JsonTextStyle(mode=options.density)
+        .merge(options.json_style)
+        .merge(style)
+    )
 
 
 ##

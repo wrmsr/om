@@ -22,6 +22,8 @@ with _lang.auto_proxy_init(globals()):
         CommandError,
         ArgsCommandError,
 
+        CommandContextPrinter,
+        CommandContext,
         Command,
         Commands,
     )

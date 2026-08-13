@@ -131,8 +131,8 @@ class RichTextRenderer(TextRenderer[ta.Any]):
 
         out.append(s, style=sty)
 
-    def render(self, t: CanText) -> ta.Any:
-        root = Text.of(t)
+    def render(self, *ts: CanText) -> ta.Any:
+        root = Text.of(*ts)
 
         compact = self._options.density == 'compact'
 
@@ -211,5 +211,5 @@ class RichTextDisplayer(TextDisplayer):
         self._console = console if console is not None else rich.Console()
         self._renderer = renderer if renderer is not None else RichTextRenderer()
 
-    async def display_text(self, text: CanText) -> None:
-        self._console.print(self._renderer.render(text), end='')
+    async def display_text(self, *texts: CanText) -> None:
+        self._console.print(self._renderer.render(*texts), end='')

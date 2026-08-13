@@ -13,21 +13,35 @@ from .config import Config
 def bind_permissions(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
-    permission_rules = [  # noqa
-        *([
-            agn.PermissionRule(
-                agn.GlobFsPermissionMatcher(os.path.join(check.non_empty_str(config.cwd), '**'), ['r', 'w']),
-                agn.PermissionState.ASK,
-            ),
-        ] if config.fs else []),
+    permission_rules: list[agn.PermissionRule] = []
 
-        *([
+    if config.fs:
+        if config.allow_fs_reads:
+            permission_rules.extend([
+                agn.PermissionRule(
+                    agn.GlobFsPermissionMatcher(os.path.join(check.non_empty_str(config.cwd), '**'), ['r']),
+                    agn.PermissionState.ALLOW,
+                ),
+                agn.PermissionRule(
+                    agn.GlobFsPermissionMatcher(os.path.join(check.non_empty_str(config.cwd), '**'), ['w']),
+                    agn.PermissionState.ASK,
+                ),
+            ])
+        else:
+            permission_rules.extend([
+                agn.PermissionRule(
+                    agn.GlobFsPermissionMatcher(os.path.join(check.non_empty_str(config.cwd), '**'), ['r', 'w']),
+                    agn.PermissionState.ASK,
+                ),
+            ])
+
+    if config.exec:
+        permission_rules.extend([
             agn.PermissionRule(
                 agn.ExecPermissionMatcher(),
                 agn.PermissionState.ASK,
             ),
-        ] if config.exec else []),
-    ]
+        ])
 
     lst.append(inj.bind(
         agn.PermissionsManager,

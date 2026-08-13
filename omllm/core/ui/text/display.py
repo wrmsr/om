@@ -12,12 +12,12 @@ from .types import Text
 
 class TextDisplayer(lang.Abstract):
     @abc.abstractmethod
-    def display_text(self, text: CanText) -> ta.Awaitable[None]:
+    def display_text(self, *texts: CanText) -> ta.Awaitable[None]:
         raise NotImplementedError
 
 
 class NopTextDisplayer(TextDisplayer):
-    async def display_text(self, text: CanText) -> None:
+    async def display_text(self, *texts: CanText) -> None:
         pass
 
 
@@ -31,5 +31,5 @@ class PrintTextDisplayer(TextDisplayer):
 
         self._file = file
 
-    async def display_text(self, text: CanText) -> None:
-        print(Text.str_of(text), end='', file=self._file)
+    async def display_text(self, *texts: CanText) -> None:
+        print(Text.str_of(*texts), end='', file=self._file)

@@ -64,14 +64,29 @@ class GlobFsPermissionMatcher(PermissionMatcher, lang.Final):
         ))
 
     @lang.cached_function
-    def compiled_glob_pat(self) -> re.Pattern:
-        return re.compile(glob.translate(self.glob, recursive=True, include_hidden=True))
+    def compiled_glob_pats(self) -> ta.Sequence[re.Pattern]:
+        pats = [
+            re.compile(glob.translate(
+                self.glob,
+                recursive=True,
+                include_hidden=True,
+            )),
+        ]
+
+        if self.glob.endswith('/**'):
+            pats.append(re.compile(glob.translate(
+                self.glob[:-3],
+                recursive=True,
+                include_hidden=True,
+            )))
+
+        return tuple(pats)
 
     def match(self, target: PermissionTarget) -> bool:
         if not isinstance(target, FsPermissionTarget):
             return False
 
         return (
-            self.compiled_glob_pat().fullmatch(target.path) is not None and
+            any(p.fullmatch(target.path) is not None for p in self.compiled_glob_pats()) and
             (self.modes is None or target.mode in self.modes)
         )
