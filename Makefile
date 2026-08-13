@@ -278,6 +278,10 @@ mypy-stats: venv
 pyright: venv
 	${PYTHON} -m basedpyright ${SRCS}
 
+.PHONY: pyright-stats
+pyright-stats: venv
+	${PYTHON} -m omdev.pyright.report --top-files=10 ${SRCS}
+
 .PHONY: precheck
 precheck: venv
 	${PYTHON} -m omdev.precheck check ${SRCS}
