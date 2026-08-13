@@ -4,6 +4,7 @@ from omcore import check
 from omcore import lang
 from omcore.formats.json import all as json
 
+from ....tools.jsonschema import build_tool_json_schema
 from ....types.compat import OpenaiCompat
 from ....types.content import TextContent
 from ....types.content import ThinkingContent
@@ -189,15 +190,7 @@ class RequestPreparer:
 
                 raw_tools.append({
                     'type': 'function',
-                    'function': {
-                        'name': tool.name,
-                        **({'description': tool.description} if tool.description else {}),
-                        'parameters': {
-                            'type': 'object',
-                            **({'properties': raw_properties} if raw_properties else {}),
-                            **({'required': raw_required} if raw_required else {}),
-                        },
-                    },
+                    'function': build_tool_json_schema(tool),
                 })
 
             raw_request['tools'] = raw_tools

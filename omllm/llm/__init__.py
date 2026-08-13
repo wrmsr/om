@@ -77,6 +77,22 @@ with _lang.auto_proxy_init(globals()):
 
     ##
 
+    from .tools.jsonschema import (  # noqa
+        ToolJsonschemaBuilder,
+
+        build_tool_dtype_json_schema,
+        build_tool_params_json_schema,
+        build_tool_json_schema,
+    )
+
+    from .tools.reflect import (  # noqa
+        ToolDtypeReflector,
+
+        reflect_tool_dtype,
+    )
+
+    ##
+
     from .types.backends import (  # noqa
         Backend,
 
@@ -161,7 +177,19 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .types.tools import (  # noqa
-        ToolParamType,
+        ToolDtype,
+        PrimitiveToolDtype,
+        OBJECT_PRIMITIVE_TOOL_DTYPE,
+        NULL_PRIMITIVE_TOOL_DTYPE,
+        PRIMITIVE_TOOL_DTYPE_MAP,
+        UnionToolDtype,
+        NullableToolDtype,
+        SequenceToolDtype,
+        MappingToolDtype,
+        TupleToolDtype,
+        EnumToolDtype,
+        ObjectToolDtype,
+
         ToolParam,
         Tool,
     )

@@ -3,6 +3,7 @@ import typing as ta
 from omcore import check
 from omcore import lang
 
+from ....tools.jsonschema import build_tool_params_json_schema
 from ....types.compat import OpenaiCompat
 from ....types.content import TextContent
 from ....types.content import ThinkingContent
@@ -199,11 +200,7 @@ class RequestPreparer:
                 raw_tools.append({
                     'name': tool.name,
                     **({'description': tool.description} if tool.description else {}),
-                    'input_schema': {
-                        'type': 'object',
-                        **({'properties': raw_properties} if raw_properties else {}),
-                        **({'required': raw_required} if raw_required else {}),
-                    },
+                    'input_schema': build_tool_params_json_schema(tool),
                 })
 
             raw_request['tools'] = raw_tools

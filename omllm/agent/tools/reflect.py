@@ -6,7 +6,6 @@ import weakref
 from omcore import check
 from omcore import contextual as cxl
 from omcore import dataclasses as dc
-from omcore import reflect as rfl
 from omcore.lite.reflect import get_optional_alias_arg
 from omcore.lite.reflect import is_generic_alias
 from omcore.lite.reflect import is_optional_alias
@@ -86,58 +85,6 @@ class _ReflectedToolExecutor:
 ##
 
 
-_JSONSCHEMA_TYPES: ta.Mapping[type, str] = {
-    int: 'integer',
-    float: 'number',
-    str: 'string',
-    bool: 'boolean',
-}
-
-_JSONSCHEMA_SEQUENCE_TYPES: ta.Container[type] = frozenset([
-    collections.abc.Sequence,
-    list,
-])
-
-_JSONSCHEMA_MAPPING_TYPES: ta.Container[type] = frozenset([
-    collections.abc.Mapping,
-    dict,
-])
-
-
-def _reflect_type(ty: object) -> llm.ToolParamType:
-    rty = rfl.reflect_type(ty)
-
-    if not isinstance(rty, rfl.Instance):
-        raise TypeError(rty)
-
-    rt_ty = check.isinstance(rty.type.runtime_object, type)
-
-    if not rty.args:
-        try:
-            return _JSONSCHEMA_TYPES[rt_ty]
-        except KeyError:
-            raise TypeError(ty) from None
-
-    if rt_ty in _JSONSCHEMA_SEQUENCE_TYPES:
-        a_rty = check.single(rty.args)
-        return {
-            'type': 'array',
-            'items': _reflect_type(a_rty),
-        }
-
-    if rt_ty in _JSONSCHEMA_MAPPING_TYPES:
-        k_rty, v_rty = rty.args
-        return {
-            'type': 'object',
-            'additionalProperties': _reflect_type(v_rty),  # FIXME: k_rty
-        }
-
-    raise TypeError(ty)
-
-
-#
-
-
 _TOOL_PARAMS_DC_RFL_CACHE: ta.MutableMapping[type, dc.ClassReflection] = weakref.WeakKeyDictionary()
 
 
@@ -171,10 +118,12 @@ def reflect_tool_params(
 
         tp_desc = param_descs.pop(dc_fld.name, None)
 
+        dty = llm.reflect_tool_dtype(ty)
+
         tps.append(llm.ToolParam(
             name=dc_fld.name,
             description=tp_desc,
-            type=_reflect_type(ty),
+            type=dty,
             optional=optional,
         ))
 
@@ -230,19 +179,19 @@ def reflect_tool_fn(
         description=description,
     )
 
-    return_type: llm.ToolParamType | None = None
+    return_type: llm.ToolDtype | None = None
     if 'return' in fn_th:
         ret_ty = fn_th['return']
         if is_generic_alias(ret_ty) and ta.get_origin(ret_ty) is collections.abc.Awaitable:
             [ret_ty] = ta.get_args(ret_ty)
-        return_type = _reflect_type(ret_ty)
+        return_type = llm.reflect_tool_dtype(ret_ty)
 
     return Tool(
         llm_tool=(llm_tool := llm.Tool(
             name=name,
             description=description.description,
             params=tps,
-            type=return_type,
+            return_type=return_type,
         )),
         executor=_ReflectedToolExecutor(
             fn=fn,

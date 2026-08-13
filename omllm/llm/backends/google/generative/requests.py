@@ -1,6 +1,5 @@
 import typing as ta
 
-from omcore import check
 from omcore import lang
 
 from ....types.content import TextContent
@@ -12,6 +11,7 @@ from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
 from ....types.options import Options
+from .tools import build_tool_spec_schema
 
 
 ##
@@ -157,26 +157,7 @@ class RequestPreparer:
             raw_decls: list[dict] = []
 
             for tool in self._context.tools:
-                raw_properties: dict = {}
-                raw_required: list[str] = []
-                for param in tool.params or []:
-                    raw_properties[param.name] = {
-                        **({'type': check.isinstance(param.type, str).upper()} if param.type else {}),
-                        **({'description': param.description} if param.description else {}),
-                    }
-                    if not param.optional:
-                        raw_required.append(param.name)
-
-                raw_decls.append({
-                    'name': tool.name,
-                    **({'description': tool.description} if tool.description else {}),
-                    # A parameterless declaration must omit its schema entirely - google rejects empty OBJECT schemas.
-                    **({'parameters': {
-                        'type': 'OBJECT',
-                        'properties': raw_properties,
-                        **({'required': raw_required} if raw_required else {}),
-                    }} if raw_properties else {}),
-                })
+                raw_decls.append(build_tool_spec_schema(tool))
 
             raw_request['tools'] = [{
                 'functionDeclarations': raw_decls,

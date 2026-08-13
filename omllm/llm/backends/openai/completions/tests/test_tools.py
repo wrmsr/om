@@ -13,6 +13,7 @@ from .....types.messages import ToolResultMessage
 from .....types.messages import UserMessage
 from .....types.models import ModelKey
 from .....types.tools import Tool
+from .....types.tools import ToolDtype
 from .....types.tools import ToolParam
 from ..immediate import OpenaiCompletionsImmediateBackend
 from ..stream import OpenaiCompletionsStreamBackend
@@ -48,7 +49,7 @@ async def test_openai_tools(
                     ToolParam(
                         name='location',
                         description='The city and state, e.g. San Francisco, CA',
-                        type='string',
+                        type=ToolDtype.of(str),
                     ),
                 ],
             ),

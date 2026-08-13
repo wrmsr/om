@@ -43,7 +43,7 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
                 self.params_cls,
                 description=description,
             ),
-            type='string',
+            return_type=llm.ToolDtype.of(str),
         )
 
     @lang.cached_function
