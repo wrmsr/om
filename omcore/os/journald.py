@@ -13,11 +13,11 @@ from ..lite.cached import cached_nullary
 ##
 
 
-class sd_iovec(ct.Structure):  # noqa
+class journald_iovec(ct.Structure):  # noqa
     pass
 
 
-sd_iovec._fields_ = [
+journald_iovec._fields_ = [
     ('iov_base', ct.c_void_p),  # Pointer to data.
     ('iov_len', ct.c_size_t),  # Length of data.
 ]
@@ -27,19 +27,19 @@ sd_iovec._fields_ = [
 
 
 @cached_nullary
-def sd_libsystemd() -> ta.Any:
+def journald_libsystemd() -> ta.Any:
     lib = ct.CDLL('libsystemd.so.0')
 
     lib.sd_journal_sendv.restype = ct.c_int
-    lib.sd_journal_sendv.argtypes = [ct.POINTER(sd_iovec), ct.c_int]
+    lib.sd_journal_sendv.argtypes = [ct.POINTER(journald_iovec), ct.c_int]
 
     return lib
 
 
 @cached_nullary
-def sd_try_libsystemd() -> ta.Optional[ta.Any]:
+def journald_try_libsystemd() -> ta.Optional[ta.Any]:
     try:
-        return sd_libsystemd()
+        return journald_libsystemd()
     except OSError:  # noqa
         return None
 
@@ -47,15 +47,15 @@ def sd_try_libsystemd() -> ta.Optional[ta.Any]:
 ##
 
 
-def sd_journald_send(**fields: str) -> int:
-    lib = sd_libsystemd()
+def journald_journald_send(**fields: str) -> int:
+    lib = journald_libsystemd()
 
     msgs = [
         f'{k.upper()}={v}\0'.encode('utf-8')
         for k, v in fields.items()
     ]
 
-    vec = (sd_iovec * len(msgs))()
+    vec = (journald_iovec * len(msgs))()
     cl = (ct.c_char_p * len(msgs))()  # noqa
     for i in range(len(msgs)):
         vec[i].iov_base = ct.cast(ct.c_char_p(msgs[i]), ct.c_void_p)
@@ -92,7 +92,7 @@ class JournaldLoggingHandler(logging.Handler):
     ) -> None:
         super().__init__()
 
-        sd_libsystemd()
+        journald_libsystemd()
 
         self._use_formatter_output = use_formatter_output
 
@@ -138,7 +138,7 @@ class JournaldLoggingHandler(logging.Handler):
         try:
             fields = self.make_fields(record)
 
-            if rc := sd_journald_send(**fields):
+            if rc := journald_journald_send(**fields):
                 raise RuntimeError(f'{self.__class__.__name__}.emit failed: {rc=}')  # noqa
 
         except RecursionError:  # See issue 36272
@@ -156,7 +156,7 @@ def journald_logging_handler_factory(
     if (
             sys.platform == 'linux' and
             (no_tty_check or not sys.stderr.isatty()) and
-            (no_fallback or sd_try_libsystemd() is not None)
+            (no_fallback or journald_try_libsystemd() is not None)
     ):
         return JournaldLoggingHandler()
 

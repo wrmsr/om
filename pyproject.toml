@@ -509,45 +509,45 @@ reportUntypedNamedTuple = false
 ##
 # Codebase-convention conflicts.
 
-reportCallInDefaultInitializer = false      # ruff B008 deliberately ignored
+reportCallInDefaultInitializer = false       # ruff B008 deliberately ignored
 reportConstantRedefinition = false
-reportIgnoreCommentWithoutRule = false      # bare `# type: ignore` is allowed (ruff PGH003 deliberately ignored)
-reportImplicitAbstractClass = false         # lang.Abstract / lite.abstract.Abstract, not abc.ABC, by policy
-reportImplicitOverride = false              # @override not used (lite targets 3.8)
-reportImplicitRelativeImport = false        # quarantine modules shadow the libs they wrap (e.g. asyncs/trio_asyncio.py)
+reportIgnoreCommentWithoutRule = false       # bare `# type: ignore` is allowed (ruff PGH003 deliberately ignored)
+reportImplicitAbstractClass = false          # lang.Abstract / lite.abstract.Abstract, not abc.ABC, by policy
+reportImplicitOverride = false               # @override not used (lite targets 3.8)
+reportImplicitRelativeImport = false         # quarantine modules shadow the libs they wrap (e.g. asyncs/trio_asyncio.py)
 reportImplicitStringConcatenation = false
-reportImportCycles = false                  # intentional lazy-import cycles
-reportInvalidAbstractMethod = false         # lang.Abstract again
+reportImportCycles = false                   # intentional lazy-import cycles
+reportInvalidAbstractMethod = false          # lang.Abstract again
 reportMissingSuperCall = false
-reportPrivateLocalImportUsage = false       # no `__all__` by policy - re-exports are implicit
-reportPrivateUsage = false                  # package-internal underscore access is allowed (and tests use it)
-reportTypeCommentUsage = false              # lite code uses `# type:` comments
+reportPrivateLocalImportUsage = false        # no `__all__` by policy - re-exports are implicit
+reportPrivateUsage = false                   # package-internal underscore access is allowed (and tests use it)
+reportTypeCommentUsage = false               # lite code uses `# type:` comments
 reportUnannotatedClassAttribute = false
 reportUninitializedInstanceVariable = false
-reportUnnecessaryComparison = false         # deliberate defensive checks
-reportUnnecessaryIsInstance = false         # deliberate defensive checks
-reportUnreachable = false                   # mypy warn_unreachable owns this - pyright disagrees on version/platform gates
+reportUnnecessaryComparison = false          # deliberate defensive checks
+reportUnnecessaryIsInstance = false          # deliberate defensive checks
+reportUnreachable = false                    # mypy warn_unreachable owns this - pyright disagrees on version/platform gates
 reportUnsafeMultipleInheritance = false
-reportUnnecessaryTypeIgnoreComment = false  # `# type: ignore`s are mypy's, validated by its warn_unused_ignores
+reportUnnecessaryTypeIgnoreComment = false   # `# type: ignore`s are mypy's, validated by its warn_unused_ignores
 reportUnusedCallResult = false
 
 ##
 # Redundant with ruff (which is authoritative for these).
 
-reportUnusedClass = false                   # registration / manifest patterns
-reportUnusedFunction = false                # registration / manifest patterns
-reportUnusedImport = false                  # ruff F401 (with per-file ignores pyright can't express)
-reportUnusedParameter = false               # ruff ARG* deliberately ignored
-reportUnusedVariable = false                # ruff F841
+reportUnusedClass = false      # registration / manifest patterns
+reportUnusedFunction = false   # registration / manifest patterns
+reportUnusedImport = false     # ruff F401 (with per-file ignores pyright can't express)
+reportUnusedParameter = false  # ruff ARG* deliberately ignored
+reportUnusedVariable = false   # ruff F841
 
 ##
 # Quarantined optional-dep integration packages - the wrapped libraries (tinygrad, mlx, llama_cpp, pydevd, ...) are not
 # installed in the dev venv. Mirrors the mypy per-module ignore_missing_imports overrides.
 
 [[tool.pyright.executionEnvironments]]
-root = 'omllm/interop'
+root = 'omcore/diag'
 reportMissingImports = false
 
 [[tool.pyright.executionEnvironments]]
-root = 'omcore/diag'
+root = 'omllm/interop'
 reportMissingImports = false
