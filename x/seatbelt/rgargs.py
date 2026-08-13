@@ -294,7 +294,7 @@ class RgArgvParser:
 ##
 
 
-DUMPED_ARGS = [
+_DUMPED_FLAG_DICTS = [
   {
     'aliases': [],
     'is_switch': False,
@@ -1056,3 +1056,5 @@ DUMPED_ARGS = [
     'short': None,
   },
 ]
+
+DUMPED_FLAGS = [RgFlagSpec(**dct) for dct in _DUMPED_FLAG_DICTS]

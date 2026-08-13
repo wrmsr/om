@@ -1,57 +1,14 @@
-"""
-log stream --style compact --predicate 'sender=="Sandbox"'
-
-====
-
-(version 1)
-
-(deny default)
-
-;; argv/env/process/runtime basics
-(allow sysctl-read)
-(allow process-info*)
-(allow signal (target self))
-
-;; Only allow exec of rg itself.
-(allow process-exec
-  (literal (param "RG_BIN")))
-
-;; macOS runtime lookups that many CLI tools may touch indirectly.
-;; Keep this list small; add only from sandboxd logs.
-(allow mach-lookup
-  (global-name "com.apple.system.opendirectoryd.libinfo")
-  (global-name "com.apple.coreservices.launchservicesd"))
-
-;; Metadata generally leaks much less than data, and avoids tons of
-;; path-resolution / stat failures. If this is too broad for your taste,
-;; narrow it later after the thing works.
-(allow file-read-metadata)
-
-;; Dynamic loader / system runtime reads.
-(allow file-read-data
-  (subpath "/System/Library")
-  (subpath "/usr/lib")
-  (subpath "/usr/share")
-  (subpath "/private/var/db")
-  (literal "/dev/null")
-  (literal (param "RG_BIN"))
-  (subpath (param "RG_DIR")))
-
-;; Homebrew case, if applicable.
-;; For first debug pass, allow the rg prefix; later narrow to exact dylib dirs.
-(allow file-read-data
-  (subpath "/opt/homebrew")
-  (subpath "/usr/local"))
-
-;; Allowed search roots. Generate these.
-;; (allow file-read* (literal (param "ROOT_0")))
-;; (allow file-read* (subpath (param "ROOT_0")))
-"""
+import io
 import os
 import pathlib
 import shutil
 import subprocess
 import typing as ta
+
+from . import sexp as sx
+
+
+##
 
 
 def _realpath(p: str | os.PathLike[str]) -> str:
@@ -112,14 +69,15 @@ def sandboxed_rg(
     elif rg.startswith('/opt/local/'):
         tool_read_roots.append('/opt/local')
 
-    profile_lines = [
-        '(version 1)',
-        '(deny default)',
-        '(allow process-exec (literal (param "RG_BIN")))',
-        '(allow sysctl-read)',
-        '(allow file-read* file-test-existence (literal "/"))',
-        '(allow file-read*',
+    profile_lines: list[sx.Sexp] = [
+        ['version', 1],
+        ['deny', 'default'],
+        ['allow', 'process-exec', ['literal', ['param', sx.quote('RG_BIN')]]],
+        ['allow', 'sysctl-read'],
+        ['allow', 'file-read*', 'file-test-existence', ['literal', sx.quote('/')]],
     ]
+
+    allow_read_lines: list[sx.Sexp] = []
 
     param_defs: list[str] = [
         f'RG_BIN={rg}',
@@ -130,9 +88,9 @@ def sandboxed_rg(
         if os.path.exists(tr):
             key = f'TOOL_READ_{i}'
             param_defs.append(f'{key}={tr}')
-            profile_lines.append(f'  (subpath (param "{key}"))')
+            allow_read_lines.append(['subpath', ['param', sx.quote(key)]])
 
-    profile_lines.append(')')
+    profile_lines.append(['allow', 'file-read*', *allow_read_lines])
 
     # Allow ancestor metadata for path resolution, but not directory contents.
     ancestor_params: list[str] = []
@@ -146,26 +104,28 @@ def sandboxed_rg(
                 param_defs.append(f'{key}={a}')
 
     if ancestor_params:
-        profile_lines.append('(allow file-read-metadata')
+        ancestor_param_lines: list[sx.Sexp] = []
         for key in ancestor_params:
-            profile_lines.append(f'  (literal (param "{key}"))')
-        profile_lines.append(')')
+            ancestor_param_lines.append(['literal', ['param', sx.quote(key)]])
+        profile_lines.append(['allow', 'file-read-metadata', *ancestor_param_lines])
 
     # Allow the actual requested roots.
     for i, r in enumerate(roots_real):
         key = f'ROOT_{i}'
         param_defs.append(f'{key}={r}')
-        profile_lines.append(f'(allow file-read* (literal (param "{key}")))')
-        profile_lines.append(f'(allow file-read* (subpath (param "{key}")))')
+        profile_lines.append(['allow', 'file-read*', ['literal', ['param', sx.quote(key)]]])
+        profile_lines.append(['allow', 'file-read*', ['subpath', ['param', sx.quote(key)]]])
 
-    profile = '\n'.join(profile_lines) + '\n'
+    out = io.StringIO()
+    sx.render_to(out, *profile_lines)
+    out.write('\n')
+    profile = out.getvalue()
 
     defs: list[str] = []
     for d in param_defs:
         defs.extend(['-D', d])
 
-    # These are defense-in-depth against rg features that read surprising places
-    # or spawn helper programs.
+    # These are defense-in-depth against rg features that read surprising places or spawn helper programs.
     safety_rg_args = [
         '--no-config',
         '--no-pre',
@@ -179,15 +139,12 @@ def sandboxed_rg(
     cmd = [
         '/usr/bin/sandbox-exec',
         *defs,
-        '-p',
-        profile,
+        '-p', profile,
         rg,
         *rg_args,
         *safety_rg_args,
-        '-e',
-        pattern,
-        '--',
-        *roots_real,
+        '-e', pattern,
+        '--', *roots_real,
     ]
 
     env = {
