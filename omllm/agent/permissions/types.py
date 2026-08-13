@@ -68,12 +68,22 @@ class PermissionDecider(lang.Abstract):
 
 @dc.dataclass(frozen=True)
 @msh.set_polymorphic(source='manifests', naming='snake', suffix_stripping='required')
-class PermissionTarget(fh.FieldHashable, lang.Abstract, lang.PackageSealed):
+class PermissionTarget(
+    fh.FieldHashable,
+    lang.Abstract,
+    lang.PackageSealed,
+    sealed_package='.'.join(__package__.split('.')[:2]),
+):
     pass
 
 
 @msh.set_polymorphic(source='manifests', naming='snake', suffix_stripping='required')
-class PermissionMatcher(fh.FieldHashable, lang.Abstract, lang.PackageSealed):
+class PermissionMatcher(
+    fh.FieldHashable,
+    lang.Abstract,
+    lang.PackageSealed,
+    sealed_package='.'.join(__package__.split('.')[:2]),
+):
     @abc.abstractmethod
     def match(self, target: PermissionTarget) -> bool:
         raise NotImplementedError

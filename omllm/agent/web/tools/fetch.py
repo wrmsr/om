@@ -5,12 +5,12 @@ from omcore import check
 from omcore import dataclasses as dc
 
 from ...permissions.types import PermissionDecider
-from ...permissions.url import UrlPermissionTarget
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ..fetching import WebFetcher
 from ..fetching import page_to_text
+from ..permissions import UrlPermissionTarget
 
 
 ##

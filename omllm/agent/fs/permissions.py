@@ -8,8 +8,8 @@ from omcore import lang
 from omcore import marshal as msh
 
 from ...core import fieldhash as fh
-from .types import PermissionMatcher
-from .types import PermissionTarget
+from ..permissions.types import PermissionMatcher
+from ..permissions.types import PermissionTarget
 
 
 ##

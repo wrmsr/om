@@ -5,14 +5,14 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
-from ....permissions.exec import ExecPermissionTarget
-from ....permissions.fs import FsPermissionTarget
+from ....fs.permissions import FsPermissionTarget
 from ....permissions.types import PermissionDecider
 from ....tools.classes import ToolClass
 from ....types.tools import ToolContext
 from ....types.tools import ToolDescription
 from ...ops import ExecOps
 from ...ops import ExecParams
+from ...permissions import ExecPermissionTarget
 
 
 ##

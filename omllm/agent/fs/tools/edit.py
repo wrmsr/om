@@ -11,12 +11,12 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
-from ...permissions.fs import FsPermissionTarget
 from ...permissions.types import PermissionDecider
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ..ops import FsOps
+from ..permissions import FsPermissionTarget
 
 
 ##

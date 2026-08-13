@@ -5,11 +5,11 @@ import json
 import pytest
 
 from ....core import fieldhash as fh
+from ...fs.permissions import GlobFsPermissionMatcher
+from ...web.permissions import RegexUrlPermissionMatcher
 from ..collection import PermissionRules
-from ..fs import GlobFsPermissionMatcher
 from ..types import PermissionRule
 from ..types import PermissionState
-from ..url import RegexUrlPermissionMatcher
 
 
 def test_field_hash():

@@ -8,8 +8,8 @@ from ..types import PermissionState
 
 
 with lang.auto_proxy_import(globals()):
-    from .. import fs
-    from .. import url
+    from ...fs import permissions as fs
+    from ...web import permissions as url
 
 
 def make_rules() -> PermissionRules:

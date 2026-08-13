@@ -1,12 +1,12 @@
 [
   {
-    "module": ".agent.permissions.exec",
+    "module": ".agent.exec.permissions",
     "attr": null,
-    "file": "omllm/agent/permissions/exec.py",
+    "file": "omllm/agent/exec/permissions.py",
     "line": 14,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
-        "module": "omllm.agent.permissions.exec",
+        "module": "omllm.agent.exec.permissions",
         "attr": "ExecPermissionTarget",
         "base": "$.agent.permissions.types.PermissionTarget",
         "tag": null,
@@ -15,13 +15,13 @@
     }
   },
   {
-    "module": ".agent.permissions.exec",
+    "module": ".agent.exec.permissions",
     "attr": null,
-    "file": "omllm/agent/permissions/exec.py",
+    "file": "omllm/agent/exec/permissions.py",
     "line": 27,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
-        "module": "omllm.agent.permissions.exec",
+        "module": "omllm.agent.exec.permissions",
         "attr": "ExecPermissionMatcher",
         "base": "$.agent.permissions.types.PermissionMatcher",
         "tag": null,
@@ -30,13 +30,13 @@
     }
   },
   {
-    "module": ".agent.permissions.fs",
+    "module": ".agent.fs.permissions",
     "attr": null,
-    "file": "omllm/agent/permissions/fs.py",
+    "file": "omllm/agent/fs/permissions.py",
     "line": 23,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
-        "module": "omllm.agent.permissions.fs",
+        "module": "omllm.agent.fs.permissions",
         "attr": "FsPermissionTarget",
         "base": "$.agent.permissions.types.PermissionTarget",
         "tag": null,
@@ -45,13 +45,13 @@
     }
   },
   {
-    "module": ".agent.permissions.fs",
+    "module": ".agent.fs.permissions",
     "attr": null,
-    "file": "omllm/agent/permissions/fs.py",
+    "file": "omllm/agent/fs/permissions.py",
     "line": 43,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
-        "module": "omllm.agent.permissions.fs",
+        "module": "omllm.agent.fs.permissions",
         "attr": "GlobFsPermissionMatcher",
         "base": "$.agent.permissions.types.PermissionMatcher",
         "tag": null,
@@ -60,13 +60,13 @@
     }
   },
   {
-    "module": ".agent.permissions.url",
+    "module": ".agent.web.permissions",
     "attr": null,
-    "file": "omllm/agent/permissions/url.py",
+    "file": "omllm/agent/web/permissions.py",
     "line": 17,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
-        "module": "omllm.agent.permissions.url",
+        "module": "omllm.agent.web.permissions",
         "attr": "UrlPermissionTarget",
         "base": "$.agent.permissions.types.PermissionTarget",
         "tag": null,
@@ -75,13 +75,13 @@
     }
   },
   {
-    "module": ".agent.permissions.url",
+    "module": ".agent.web.permissions",
     "attr": null,
-    "file": "omllm/agent/permissions/url.py",
+    "file": "omllm/agent/web/permissions.py",
     "line": 39,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
-        "module": "omllm.agent.permissions.url",
+        "module": "omllm.agent.web.permissions",
         "attr": "RegexUrlPermissionMatcher",
         "base": "$.agent.permissions.types.PermissionMatcher",
         "tag": null,

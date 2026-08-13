@@ -18,6 +18,31 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
+    from .exec.grep.tools.ripgrep import (  # noqa
+        RipgrepToolParams,
+        RipgrepTool,
+    )
+
+    from .exec.tools.bash import (  # noqa
+        BashToolParams,
+        BashTool,
+    )
+
+    from .exec.permissions import (  # noqa
+        ExecPermissionTarget,
+        ExecPermissionMatcher,
+    )
+
+    from .exec.ops import (  # noqa
+        ExecParams,
+        ExecResult,
+        ExecOps,
+
+        LocalExecOps,
+    )
+
+    ##
+
     from .fs.tools.edit import (  # noqa
         EditToolParams,
         EditTool,
@@ -44,6 +69,13 @@ with _lang.auto_proxy_init(globals()):
         LocalFsOps,
     )
 
+    from .fs.permissions import (  # noqa
+        FsPermissionMode,
+        FS_TOOL_PERMISSION_MODES,
+        FsPermissionTarget,
+        GlobFsPermissionMatcher,
+    )
+
     ##
 
     from .permissions.collection import (  # noqa
@@ -55,18 +87,6 @@ with _lang.auto_proxy_init(globals()):
         DENY_TOOL_PERMISSION_DECIDER,
 
         StandardPermissionDecider,
-    )
-
-    from .permissions.exec import (  # noqa
-        ExecPermissionTarget,
-        ExecPermissionMatcher,
-    )
-
-    from .permissions.fs import (  # noqa
-        FsPermissionMode,
-        FS_TOOL_PERMISSION_MODES,
-        FsPermissionTarget,
-        GlobFsPermissionMatcher,
     )
 
     from .permissions.managers import (  # noqa
@@ -87,31 +107,6 @@ with _lang.auto_proxy_init(globals()):
         PermissionMatcher,
         PermissionRule,
         PermissionAsker,
-    )
-
-    from .permissions.url import (  # noqa
-        UrlPermissionTarget,
-        RegexUrlPermissionMatcher,
-    )
-
-    ##
-
-    from .exec.grep.tools.ripgrep import (  # noqa
-        RipgrepToolParams,
-        RipgrepTool,
-    )
-
-    from .exec.tools.bash import (  # noqa
-        BashToolParams,
-        BashTool,
-    )
-
-    from .exec.ops import (  # noqa
-        ExecParams,
-        ExecResult,
-        ExecOps,
-
-        LocalExecOps,
     )
 
     ##
@@ -194,6 +189,11 @@ with _lang.auto_proxy_init(globals()):
         HttpWebFetcher,
 
         DictWebFetcher,
+    )
+
+    from .web.permissions import (  # noqa
+        UrlPermissionTarget,
+        RegexUrlPermissionMatcher,
     )
 
     from .web.search import (  # noqa

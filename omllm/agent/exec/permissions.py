@@ -4,8 +4,8 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ...core import fieldhash as fh
-from .types import PermissionMatcher
-from .types import PermissionTarget
+from ..permissions.types import PermissionMatcher
+from ..permissions.types import PermissionTarget
 
 
 ##
