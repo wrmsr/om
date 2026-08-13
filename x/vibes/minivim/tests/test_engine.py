@@ -1,4 +1,3 @@
-"""Behavioral tests for mini_vim -- each case mirrors what real vim does."""
 from ..engine import ESC
 from ..engine import Engine
 from ..engine import ListBuffer

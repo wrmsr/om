@@ -2,7 +2,6 @@
 A real terminal frontend for mini_vim in ~60 lines, proving the adapter claim: the engine never rendered anything and
 never read a keyboard -- a frontend just (1) pumps decoded keys into Engine.feed() and (2) redraws from state.
 
-Run:  python3 demo_tty.py [file]
 Quit: Ctrl-Q
 """
 import curses
