@@ -5,13 +5,20 @@ Monadic programs are written as async function bodies whose binds are awaits. Th
 frame: to invoke a continuation it re-executes the whole body from scratch, fast-forwarding through a recorded trace of
 previously bound values, and forks at the frontier. Continuations may therefore be invoked zero, one, or many times, at
 the cost of O(paths) re-execution - and bodies must be deterministic, with all effects confined to the monad.
+
+Monads whose extra type parameters are erased by the coroutine type (an error type E, a state type S) get their do
+fronts and effect vocabularies as generic classes pinned by explicit specialization - ResultDo[str](), SearchOps[str]()
+- since without higher-kinded types those parameters cannot be inferred from the decorated body.
 """
+import dataclasses as dc
 import functools
 import typing as ta
 
 
+E = ta.TypeVar('E')
 P = ta.ParamSpec('P')
 R = ta.TypeVar('R')
+S = ta.TypeVar('S')
 T = ta.TypeVar('T')
 U = ta.TypeVar('U')
 
@@ -134,6 +141,168 @@ def dist_do(fn: ta.Callable[P, ta.Coroutine[ta.Any, ta.Any, R]]) -> ta.Callable[
     return inner
 
 
+## Maybes
+
+
+class MaybeM(ta.Generic[T]):
+    """Zero-or-one: absence short-circuits the remainder of the body."""
+
+    def __init__(self, xs: ta.Iterable[T] = ()) -> None:
+        super().__init__()
+
+        self._xs = tuple(xs)
+        if len(self._xs) > 1:
+            raise ValueError(self._xs)
+
+    @property
+    def xs(self) -> ta.Sequence[T]:
+        return self._xs
+
+    @staticmethod
+    def pure(x: U) -> MaybeM[U]:
+        return MaybeM((x,))
+
+    def bind(self, f: ta.Callable[[T], MaybeM[U]]) -> MaybeM[U]:
+        if self._xs:
+            return f(self._xs[0])
+        return MaybeM(())
+
+    def __await__(self) -> ta.Generator[MaybeM[T], ta.Any, T]:
+        return ta.cast(T, (yield self))
+
+
+def just(x: T) -> MaybeM[T]:
+    return MaybeM((x,))
+
+
+def nothing() -> MaybeM[ta.Any]:
+    return MaybeM(())
+
+
+def lookup(m: ta.Mapping[T, U], k: T) -> MaybeM[U]:
+    return just(m[k]) if k in m else nothing()
+
+
+def maybe_do(fn: ta.Callable[P, ta.Coroutine[ta.Any, ta.Any, R]]) -> ta.Callable[P, MaybeM[R]]:
+    @functools.wraps(fn)
+    def inner(*args: P.args, **kwargs: P.kwargs) -> MaybeM[R]:
+        return ta.cast('MaybeM[R]', run_do(MaybeM.pure, fn, *args, **kwargs))
+
+    return inner
+
+
+## Results
+
+
+class ResultM(ta.Generic[E, T]):
+    """Ok-or-err: the first error short-circuits the remainder of the body ('railway' style)."""
+
+    def __init__(self, *, oks: ta.Iterable[T] = (), errs: ta.Iterable[E] = ()) -> None:
+        super().__init__()
+
+        self._oks = tuple(oks)
+        self._errs = tuple(errs)
+        if len(self._oks) + len(self._errs) != 1:
+            raise ValueError((self._oks, self._errs))
+
+    @property
+    def oks(self) -> ta.Sequence[T]:
+        return self._oks
+
+    @property
+    def errs(self) -> ta.Sequence[E]:
+        return self._errs
+
+    @staticmethod
+    def pure(x: U) -> ResultM[ta.Any, U]:
+        return ResultM(oks=(x,))
+
+    def bind(self, f: ta.Callable[[T], ResultM[E, U]]) -> ResultM[E, U]:
+        if self._oks:
+            return f(self._oks[0])
+        return ResultM(errs=self._errs)
+
+    def __await__(self) -> ta.Generator[ResultM[E, T], ta.Any, T]:
+        return ta.cast(T, (yield self))
+
+
+def err(e: E) -> ResultM[E, ta.Any]:
+    return ResultM(errs=(e,))
+
+
+class ResultDo(ta.Generic[E]):
+    """
+    A typed do front for ResultM. E is erased from the decorated body's Coroutine type, so it cannot be inferred - it is
+    pinned instead by explicit specialization: @ResultDo[str]().
+    """
+
+    def __call__(self, fn: ta.Callable[P, ta.Coroutine[ta.Any, ta.Any, R]]) -> ta.Callable[P, ResultM[E, R]]:
+        @functools.wraps(fn)
+        def inner(*args: P.args, **kwargs: P.kwargs) -> ResultM[E, R]:
+            return ta.cast('ResultM[E, R]', run_do(ResultM.pure, fn, *args, **kwargs))
+
+        return inner
+
+
+## Searches
+
+
+class SearchM(ta.Generic[S, T]):
+    """
+    StateT over ListM, fused: a stateful nondeterministic computation S -> [(T, S)]. Each alternative evolves its own
+    copy of the state. Specialized to S=str this is the classic combinator-parser monad.
+    """
+
+    def __init__(self, run: ta.Callable[[S], ta.Iterable[tuple[T, S]]]) -> None:
+        super().__init__()
+
+        self._run = run
+
+    def run(self, s: S) -> ta.Sequence[tuple[T, S]]:
+        return tuple(self._run(s))
+
+    @staticmethod
+    def pure(x: U) -> SearchM[ta.Any, U]:
+        return SearchM(lambda s: ((x, s),))
+
+    def bind(self, f: ta.Callable[[T], SearchM[S, U]]) -> SearchM[S, U]:
+        return SearchM(lambda s: [r for x, s2 in self._run(s) for r in f(x)._run(s2)])
+
+    def __await__(self) -> ta.Generator[SearchM[S, T], ta.Any, T]:
+        return ta.cast(T, (yield self))
+
+
+class SearchOps(ta.Generic[S]):
+    """
+    A typed effect vocabulary for a SearchM stack with S pinned by explicit specialization - the role mtl type classes
+    play in Haskell. Methods pin S through self, letting call sites infer types a free function could not (a bare get()
+    would solve S to Never).
+    """
+
+    def do(self, fn: ta.Callable[P, ta.Coroutine[ta.Any, ta.Any, R]]) -> ta.Callable[P, SearchM[S, R]]:
+        @functools.wraps(fn)
+        def inner(*args: P.args, **kwargs: P.kwargs) -> SearchM[S, R]:
+            return ta.cast('SearchM[S, R]', run_do(SearchM.pure, fn, *args, **kwargs))
+
+        return inner
+
+    def get(self) -> SearchM[S, S]:
+        return SearchM(lambda s: ((s, s),))
+
+    def put(self, s2: S) -> SearchM[S, None]:
+        return SearchM(lambda s: ((None, s2),))
+
+    def choose(self, xs: ta.Iterable[T]) -> SearchM[S, T]:
+        xt = tuple(xs)
+        return SearchM(lambda s: tuple((x, s) for x in xt))
+
+    def guard(self, ok: bool) -> SearchM[S, None]:
+        return SearchM(lambda s: ((None, s),) if ok else ())
+
+    def alt(self, *ms: SearchM[S, T]) -> SearchM[S, T]:
+        return SearchM(lambda s: [r for m in ms for r in m._run(s)])  # noqa: SLF001
+
+
 ## Demos
 
 
@@ -153,6 +322,9 @@ async def queens(n: int) -> tuple[int, ...]:
     return tuple(cols)
 
 
+#
+
+
 @dist_do
 async def diagnosis() -> tuple[bool, bool]:
     flu = await flip(.1)
@@ -166,16 +338,125 @@ async def diagnosis() -> tuple[bool, bool]:
     return (flu, covid)
 
 
+#
+
+
+@maybe_do
+async def grandboss(reports_to: ta.Mapping[str, str], who: str) -> str:
+    boss = await lookup(reports_to, who)
+    return await lookup(reports_to, boss)
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class Server:
+    host: str
+    port: int
+
+
+@ResultDo[str]()
+async def parse_port(s: str) -> int:
+    if not s.isdigit():
+        await err(f'bad port: {s!r}')
+    return int(s)
+
+
+@ResultDo[str]()
+async def parse_server(spec: str) -> Server:
+    host, _, port_s = spec.partition(':')
+    if not host:
+        await err(f'missing host: {spec!r}')
+
+    port = await parse_port(port_s)
+    if not 0 < port < 65536:
+        await err(f'port out of range: {port}')
+
+    return Server(host, port)
+
+
+#
+
+
+ps = SearchOps[str]()
+
+
+def item() -> SearchM[str, str]:
+    return SearchM(lambda s: ((s[0], s[1:]),) if s else ())
+
+
+@ps.do
+async def sat(pred: ta.Callable[[str], bool]) -> str:
+    c = await item()
+    await ps.guard(pred(c))
+    return c
+
+
+def char(c: str) -> SearchM[str, str]:
+    return sat(lambda c2: c2 == c)
+
+
+@ps.do
+async def number() -> int:
+    return int(await sat(str.isdigit))
+
+
+@ps.do
+async def parens() -> int:
+    await char('(')
+    v = await expr()
+    await char(')')
+    return v
+
+
+@ps.do
+async def factor() -> int:
+    return await ps.alt(number(), parens())
+
+
+@ps.do
+async def term() -> int:
+    v = await factor()
+    while await ps.choose((True, False)):  # nondeterministically extend or stop
+        await char('*')
+        v *= await factor()
+    return v
+
+
+@ps.do
+async def expr() -> int:
+    v = await term()
+    while await ps.choose((True, False)):
+        await char('+')
+        v += await term()
+    return v
+
+
+def parse(src: str) -> ta.Sequence[int]:
+    return [v for v, rest in expr().run(src) if not rest]
+
+
 ##
 
 
 def _main() -> None:
     qs = queens(8)
-    print(f'{len(qs.xs)} solutions, first: {qs.xs[0]}')
+    print(f'{len(qs.xs)} queens solutions, first: {qs.xs[0]}')
 
     post = diagnosis().norm()
     for (flu, covid), w in sorted(post.ws.items(), key=lambda kv: -kv[1]):
         print(f'flu={flu!s:<5} covid={covid!s:<5} {w:.3f}')
+
+    rt = {'ann': 'bob', 'bob': 'cat'}
+    print(f'grandboss: {grandboss(rt, "ann").xs} {grandboss(rt, "bob").xs}')
+
+    for spec in ('db.internal:5432', 'db.internal:x', ':80'):
+        r = parse_server(spec)
+        print(f'{spec!r} -> {r.oks or r.errs}')
+
+    for src in ('2*3+4', '(1+2)*3', '2*3+'):
+        print(f'{src!r} -> {parse(src)}')
 
 
 if __name__ == '__main__':
