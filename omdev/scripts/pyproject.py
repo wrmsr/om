@@ -166,7 +166,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/venvs.py', sha1='9042c733bff897c3390b1886de115f1bbaaaa9d0'),
             dict(path='configs.py', sha1='e938253bc84400f27e3e0ddab644158441442d3f'),
             dict(path='venvs.py', sha1='3c4688c71f5345b199cf29aaa6dd7871b40a8959'),
-            dict(path='cli.py', sha1='76d354dc31b8b9fc4fc71cf3a0227b181ad0859f'),
+            dict(path='cli.py', sha1='325e4685fe2d3b7e4695e9e81f4ed92f4a859d20'),
         ],
     )
 
@@ -14327,23 +14327,26 @@ class Run:
     @cached_nullary
     def venvs(self) -> ta.Mapping[str, Venv]:
         real_cfgs: ta.Dict[str, VenvConfig] = {}
-        aliases: ta.Dict[str, ta.List[str]] = {}
+        alias_set: ta.Set[str] = set()
+        alias_map: ta.Dict[str, ta.List[str]] = {}
 
         for n, c in self.cfg().venvs.items():
             if n.startswith('_'):
                 continue
 
             check.not_in(n, real_cfgs)
-            check.not_in(n, aliases)
+            check.not_in(n, alias_set)
 
             if (af := c.alias_for):
-                aliases.setdefault(af, []).append(n)
+                alias_set.add(n)
+                alias_map.setdefault(af, []).append(n)
                 continue
 
             for a in c.aliases or []:
                 check.not_in(a, real_cfgs)
-                check.not_in(a, aliases)
-                aliases.setdefault(a, []).append(n)
+                check.not_in(a, alias_set)
+                alias_set.add(n)
+                alias_map.setdefault(a, []).append(n)
 
             real_cfgs[n] = c
 
@@ -14351,13 +14354,13 @@ class Run:
         for n, c in real_cfgs.items():
             cal = [
                 *(c.aliases or []),
-                *aliases.get(n, []),
+                *alias_map.get(n, []),
             ]
             c = dc.replace(c, aliases=cal or None)
 
             venvs[n] = Venv(n, c)
 
-        for n, afs in aliases.items():
+        for n, afs in alias_map.items():
             v = venvs[n]
             for af in afs:
                 venvs[af] = v

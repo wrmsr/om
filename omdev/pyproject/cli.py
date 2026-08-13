@@ -96,23 +96,26 @@ class Run:
     @cached_nullary
     def venvs(self) -> ta.Mapping[str, Venv]:
         real_cfgs: ta.Dict[str, VenvConfig] = {}
-        aliases: ta.Dict[str, ta.List[str]] = {}
+        alias_set: ta.Set[str] = set()
+        alias_map: ta.Dict[str, ta.List[str]] = {}
 
         for n, c in self.cfg().venvs.items():
             if n.startswith('_'):
                 continue
 
             check.not_in(n, real_cfgs)
-            check.not_in(n, aliases)
+            check.not_in(n, alias_set)
 
             if (af := c.alias_for):
-                aliases.setdefault(af, []).append(n)
+                alias_set.add(n)
+                alias_map.setdefault(af, []).append(n)
                 continue
 
             for a in c.aliases or []:
                 check.not_in(a, real_cfgs)
-                check.not_in(a, aliases)
-                aliases.setdefault(a, []).append(n)
+                check.not_in(a, alias_set)
+                alias_set.add(n)
+                alias_map.setdefault(a, []).append(n)
 
             real_cfgs[n] = c
 
@@ -120,13 +123,13 @@ class Run:
         for n, c in real_cfgs.items():
             cal = [
                 *(c.aliases or []),
-                *aliases.get(n, []),
+                *alias_map.get(n, []),
             ]
             c = dc.replace(c, aliases=cal or None)
 
             venvs[n] = Venv(n, c)
 
-        for n, afs in aliases.items():
+        for n, afs in alias_map.items():
             v = venvs[n]
             for af in afs:
                 venvs[af] = v

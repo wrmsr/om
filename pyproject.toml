@@ -27,50 +27,41 @@ all = [
 
 #
 
-[tool.om.pyproject.venvs._default]
-interp = '@14'
+[tool.om.pyproject.venvs._defaults]
 requires = ['-rrequirements-dev.txt']
 srcs = ['@main']
 use_uv = true
 
 [tool.om.pyproject.venvs.default]
-inherits = ['_default']
-requires = ['-rrequirements-ext.txt']
+alias_for = '14'
 
 [tool.om.pyproject.venvs.debug]
-interp = '@14d'
-inherits = ['_default']
-
-[tool.om.pyproject.venvs.check]
-inherits = ['_default']
-requires_pats = [
-    'flake8(-.*)?',
-    'ruff',
-    'mypy',
-]
+alias_for = '14d'
 
 [tool.om.pyproject.venvs.'14']
-alias_for = 'default'
+inherits = ['_defaults']
+interp = '@14'
+requires = ['-rrequirements-ext.txt']
 
 [tool.om.pyproject.venvs.'14d']
-inherits = ['_default']
+inherits = ['_defaults']
 interp = '@14d'
 requires = ['-rrequirements-ext.txt']
 
 [tool.om.pyproject.venvs.'14t']
-inherits = ['_default']
+inherits = ['_defaults']
 interp = '@14t'
 
 [tool.om.pyproject.venvs.'14dt']
-inherits = ['_default']
+inherits = ['_defaults']
 interp = '@14dt'
 
 [tool.om.pyproject.venvs.'15']
-inherits = ['_default']
+inherits = ['_defaults']
 interp = '@15'
 
 [tool.om.pyproject.venvs.'15t']
-inherits = ['_default']
+inherits = ['_defaults']
 interp = '@15t'
 
 
@@ -80,39 +71,52 @@ interp = '@15t'
 requires = []
 srcs = []
 
-[tool.om.pyproject.venvs.'13']
+[tool.om.pyproject.venvs.'8']
 inherits = ['_lite']
-interp = '@13'
-
-[tool.om.pyproject.venvs.'12']
-inherits = ['_lite']
-interp = '@12'
-
-[tool.om.pyproject.venvs.'11']
-inherits = ['_lite']
-interp = '@11'
-
-[tool.om.pyproject.venvs.'10']
-inherits = ['_lite']
-interp = '@10'
+interp = '@8'
 
 [tool.om.pyproject.venvs.'9']
 inherits = ['_lite']
 interp = '@9'
 
-[tool.om.pyproject.venvs.'8']
+[tool.om.pyproject.venvs.'10']
 inherits = ['_lite']
-interp = '@8'
+interp = '@10'
+
+[tool.om.pyproject.venvs.'11']
+inherits = ['_lite']
+interp = '@11'
+
+[tool.om.pyproject.venvs.'12']
+inherits = ['_lite']
+interp = '@12'
+
+[tool.om.pyproject.venvs.'13']
+inherits = ['_lite']
+interp = '@13'
 
 #
 
 [tool.om.pyproject.venvs.docker]
-inherits = ['_default']
+inherits = ['_defaults']
+interp = '@14'
 docker_service = 'om-dev'
 
 [tool.om.pyproject.venvs.docker-amd64]
-inherits = ['_default']
+inherits = ['_defaults']
+interp = '@14'
 docker_service = 'om-dev-amd64'
+
+#
+
+[tool.om.pyproject.venvs.check]
+inherits = ['_defaults']
+interp = '@14'
+requires_pats = [
+    'flake8(-.*)?',
+    'ruff',
+    'mypy',
+]
 
 #
 
