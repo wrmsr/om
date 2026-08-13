@@ -26,58 +26,6 @@
 // type-specialized - the only per-element indirection anywhere is the unavoidable one at the Python boundary itself.
 
 
-static struct PyModuleDef *stl_module_def();
-
-
-//
-// Module state
-//
-
-
-struct stl_state {
-    PyTypeObject *set_type;
-    PyTypeObject *unordered_set_type;
-    PyTypeObject *map_type;
-    PyTypeObject *unordered_map_type;
-    PyTypeObject *vector_type;
-    PyTypeObject *iter_type;
-
-    PyObject *abc_set;
-    PyObject *abc_mapping;
-    PyObject *abc_keys_view;
-    PyObject *abc_values_view;
-    PyObject *abc_items_view;
-};
-
-
-static stl_state *get_state(PyObject *mod) {
-    return (stl_state *)PyModule_GetState(mod);
-}
-
-
-static stl_state *find_state(PyTypeObject *tp) {
-    PyObject *mod = PyType_GetModuleByDef(tp, stl_module_def());
-    if (mod == nullptr) {
-        return nullptr;
-    }
-    return get_state(mod);
-}
-
-
-// For binary operator slots, where either operand (but at least one) is one of our types.
-static stl_state *find_state_2(PyObject *v, PyObject *w) {
-    stl_state *st = find_state(Py_TYPE(v));
-    if (st == nullptr) {
-        PyErr_Clear();
-        st = find_state(Py_TYPE(w));
-        if (st == nullptr) {
-            PyErr_Clear();
-        }
-    }
-    return st;
-}
-
-
 //
 // Container / iterator objects
 //
@@ -2986,7 +2934,7 @@ static struct PyModuleDef stl_module = {
 };
 
 
-static struct PyModuleDef *stl_module_def() {
+struct PyModuleDef *stl_module_def() {
     return &stl_module;
 }
 
