@@ -1,5 +1,35 @@
 [
   {
+    "module": ".agent.permissions.exec",
+    "attr": null,
+    "file": "omllm/agent/permissions/exec.py",
+    "line": 14,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.exec",
+        "attr": "ExecPermissionTarget",
+        "base": "$.agent.permissions.types.PermissionTarget",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.permissions.exec",
+    "attr": null,
+    "file": "omllm/agent/permissions/exec.py",
+    "line": 27,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.exec",
+        "attr": "ExecPermissionMatcher",
+        "base": "$.agent.permissions.types.PermissionMatcher",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
     "module": ".agent.permissions.fs",
     "attr": null,
     "file": "omllm/agent/permissions/fs.py",
@@ -23,36 +53,6 @@
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.permissions.fs",
         "attr": "GlobFsPermissionMatcher",
-        "base": "$.agent.permissions.types.PermissionMatcher",
-        "tag": null,
-        "alts": null
-      }
-    }
-  },
-  {
-    "module": ".agent.permissions.shell",
-    "attr": null,
-    "file": "omllm/agent/permissions/shell.py",
-    "line": 14,
-    "value": {
-      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
-        "module": "omllm.agent.permissions.shell",
-        "attr": "ShellPermissionTarget",
-        "base": "$.agent.permissions.types.PermissionTarget",
-        "tag": null,
-        "alts": null
-      }
-    }
-  },
-  {
-    "module": ".agent.permissions.shell",
-    "attr": null,
-    "file": "omllm/agent/permissions/shell.py",
-    "line": 27,
-    "value": {
-      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
-        "module": "omllm.agent.permissions.shell",
-        "attr": "ShellPermissionMatcher",
         "base": "$.agent.permissions.types.PermissionMatcher",
         "tag": null,
         "alts": null

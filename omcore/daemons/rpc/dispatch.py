@@ -1,4 +1,3 @@
-
 from ... import check
 from .pipelines.codecs import encode_rpc_wire_message_payload
 from .pipelines.messages import RpcWireError

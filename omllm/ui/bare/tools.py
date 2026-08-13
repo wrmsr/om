@@ -28,15 +28,6 @@ def bind_agent_tool_class(tool_cls: type[agn.ToolClass]) -> inj.Elements:
 def bind_tools(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
-    if config.bash:
-        lst.extend([
-            inj.bind(agn.LocalShellOps, singleton=True),
-            inj.bind(agn.ShellOps, to_key=agn.LocalShellOps),
-
-            inj.bind(agn.BashTool, singleton=True),
-            bind_agent_tool_class(agn.BashTool),
-        ])
-
     if config.fs:
         lst.extend([
             inj.bind(agn.LocalFsOps, singleton=True),
@@ -53,7 +44,21 @@ def bind_tools(config: Config) -> inj.Elements:
 
             inj.bind(agn.WriteTool, singleton=True),
             bind_agent_tool_class(agn.WriteTool),
+        ])
 
+    if config.exec:
+        lst.extend([
+            inj.bind(agn.LocalExecOps, singleton=True),
+            inj.bind(agn.ExecOps, to_key=agn.LocalExecOps),
+
+            inj.bind(agn.BashTool, singleton=True),
+            bind_agent_tool_class(agn.BashTool),
+        ])
+
+    if config.exec and config.fs:
+        lst.extend([
+            inj.bind(agn.RipgrepTool, singleton=True),
+            bind_agent_tool_class(agn.RipgrepTool),
         ])
 
     lst.extend([

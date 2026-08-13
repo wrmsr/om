@@ -19,22 +19,22 @@ with _lang.auto_proxy_init(globals()):
     ##
 
     from .fs.tools.edit import (  # noqa
-        EditParams,
+        EditToolParams,
         EditTool,
     )
 
     from .fs.tools.ls import (  # noqa
-        LsParams,
+        LsToolParams,
         LsTool,
     )
 
     from .fs.tools.read import (  # noqa
-        ReadParams,
+        ReadToolParams,
         ReadTool,
     )
 
     from .fs.tools.write import (  # noqa
-        WriteParams,
+        WriteToolParams,
         WriteTool,
     )
 
@@ -57,6 +57,11 @@ with _lang.auto_proxy_init(globals()):
         StandardPermissionDecider,
     )
 
+    from .permissions.exec import (  # noqa
+        ExecPermissionTarget,
+        ExecPermissionMatcher,
+    )
+
     from .permissions.fs import (  # noqa
         FsPermissionMode,
         FS_TOOL_PERMISSION_MODES,
@@ -68,11 +73,6 @@ with _lang.auto_proxy_init(globals()):
         PermissionsManager,
 
         StandardPermissionsManager,
-    )
-
-    from .permissions.shell import (  # noqa
-        ShellPermissionTarget,
-        ShellPermissionMatcher,
     )
 
     from .permissions.types import (  # noqa
@@ -96,22 +96,22 @@ with _lang.auto_proxy_init(globals()):
 
     ##
 
-    from .shell.grep.tools.ripgrep import (  # noqa
-        RipgrepParams,
+    from .exec.grep.tools.ripgrep import (  # noqa
+        RipgrepToolParams,
         RipgrepTool,
     )
 
-    from .shell.tools.bash import (  # noqa
-        BashParams,
+    from .exec.tools.bash import (  # noqa
+        BashToolParams,
         BashTool,
     )
 
-    from .shell.ops import (  # noqa
-        ShellExecuteParams,
-        ShellExecuteResult,
-        ShellOps,
+    from .exec.ops import (  # noqa
+        ExecParams,
+        ExecResult,
+        ExecOps,
 
-        LocalShellOps,
+        LocalExecOps,
     )
 
     ##
@@ -173,6 +173,33 @@ with _lang.auto_proxy_init(globals()):
     from .types.turns import (  # noqa
         TurnConfig,
         TurnResult,
+    )
+
+    ##
+
+    from .web.tools.fetch import (  # noqa
+        WebFetchToolParams,
+        WebFetchTool,
+    )
+
+    from .web.tools.search import (  # noqa
+        WebSearchToolParams,
+        WebSearchTool,
+    )
+
+    from .web.fetching import (  # noqa
+        WebFetchedPage,
+        WebFetcher,
+
+        HttpWebFetcher,
+
+        DictWebFetcher,
+    )
+
+    from .web.search import (  # noqa
+        WebSearchHit,
+        WebSearchResult,
+        WebSearcher,
     )
 
     ##

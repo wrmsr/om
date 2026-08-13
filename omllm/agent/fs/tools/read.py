@@ -23,7 +23,7 @@ MAX_LINE_LENGTH: ta.Final = 2_000
 
 
 @dc.dataclass(frozen=True)
-class ReadParams:
+class ReadToolParams:
     file_path: str
 
     _: dc.KW_ONLY
@@ -32,10 +32,10 @@ class ReadParams:
     num_lines: int = DEFAULT_MAX_NUM_LINES
 
 
-class ReadTool(ToolClass[ReadParams]):
+class ReadTool(ToolClass[ReadToolParams]):
     name: ta.Final = 'read'
 
-    params_cls: ta.Final = ReadParams
+    params_cls: ta.Final = ReadToolParams
 
     description: ta.Final = ToolDescription(
         """
@@ -73,7 +73,7 @@ class ReadTool(ToolClass[ReadParams]):
         self._permissions = permissions
         self._fs = fs
 
-    async def execute(self, ctx: ToolContext, params: ReadParams) -> str:
+    async def execute(self, ctx: ToolContext, params: ReadToolParams) -> str:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:

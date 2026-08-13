@@ -19,7 +19,7 @@ from omcore import lang
 
 @ta.final
 @dc.dataclass(frozen=True)
-class ShellExecuteParams:
+class ExecParams:
     cmd: lang.SequenceNotStr[str] = dc.xfield(coerce=tuple)
 
     _: dc.KW_ONLY
@@ -41,24 +41,24 @@ class ShellExecuteParams:
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
-class ShellExecuteResult:
+class ExecResult:
     rc: int
 
     stdout: bytes | None = None
     stderr: bytes | None = None
 
 
-class ShellOps(lang.Abstract):
+class ExecOps(lang.Abstract):
     @abc.abstractmethod
-    def shell_execute(self, params: ShellExecuteParams) -> ta.Awaitable[ShellExecuteResult]:
+    def exec(self, params: ExecParams) -> ta.Awaitable[ExecResult]:
         raise NotImplementedError
 
 
 ##
 
 
-class LocalShellOps(ShellOps):
-    async def shell_execute(self, params: ShellExecuteParams) -> ShellExecuteResult:
+class LocalExecOps(ExecOps):
+    async def exec(self, params: ExecParams) -> ExecResult:
         proc = await asyncio.create_subprocess_exec(
             *params.cmd,
 
@@ -83,7 +83,7 @@ class LocalShellOps(ShellOps):
             await proc.wait()
             raise
 
-        return ShellExecuteResult(
+        return ExecResult(
             rc=check.isinstance(proc.returncode, int),
 
             stdout=check.not_none(stdout),

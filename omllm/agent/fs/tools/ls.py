@@ -16,14 +16,14 @@ from ..ops import FsOps
 
 
 @dc.dataclass(frozen=True)
-class LsParams:
+class LsToolParams:
     dir_path: str
 
 
-class LsTool(ToolClass[LsParams]):
+class LsTool(ToolClass[LsToolParams]):
     name: ta.Final = 'ls'
 
-    params_cls: ta.Final = LsParams
+    params_cls: ta.Final = LsToolParams
 
     description: ta.Final = ToolDescription(
         'Lists the contents of the specified dir.',
@@ -43,7 +43,7 @@ class LsTool(ToolClass[LsParams]):
         self._permissions = permissions
         self._fs = fs
 
-    async def execute(self, ctx: ToolContext, params: LsParams) -> str:
+    async def execute(self, ctx: ToolContext, params: LsToolParams) -> str:
         if os.path.abspath(os.path.realpath(params.dir_path)) != params.dir_path:
             raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:

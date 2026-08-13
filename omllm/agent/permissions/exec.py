@@ -14,23 +14,23 @@ from .types import PermissionTarget
 # @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionTarget')
 @ta.final
 @dc.dataclass(frozen=True)
-class ShellPermissionTarget(PermissionTarget, lang.Final):
-    cmd: str
+class ExecPermissionTarget(PermissionTarget, lang.Final):
+    cmd: lang.SequenceNotStr[str]
 
     @lang.cached_function
     def _field_hash(self) -> fh.FieldHashValue:
-        return fh.FieldHashObject('shell', (
-            fh.FieldHashField('cmd', self.cmd),
+        return fh.FieldHashObject('exec', (
+            fh.FieldHashField('cmd', tuple(self.cmd)),
         ))
 
 
 # @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionMatcher')
 @ta.final
 @dc.dataclass(frozen=True)
-class ShellPermissionMatcher(PermissionMatcher, lang.Final):
+class ExecPermissionMatcher(PermissionMatcher, lang.Final):
     @lang.cached_function
     def _field_hash(self) -> fh.FieldHashValue:
-        return fh.FieldHashObject('shell', ())
+        return fh.FieldHashObject('exec', ())
 
     def match(self, target: PermissionTarget) -> bool:
-        return isinstance(target, ShellPermissionTarget)
+        return isinstance(target, ExecPermissionTarget)

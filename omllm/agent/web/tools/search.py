@@ -17,14 +17,14 @@ MAX_SEARCH_RESULTS: ta.Final = 10
 
 
 @dc.dataclass(frozen=True)
-class WebSearchParams:
+class WebSearchToolParams:
     query: str
 
 
-class WebSearchTool(ToolClass[WebSearchParams]):
+class WebSearchTool(ToolClass[WebSearchToolParams]):
     name: ta.Final = 'web_search'
 
-    params_cls: ta.Final = WebSearchParams
+    params_cls: ta.Final = WebSearchToolParams
 
     description: ta.Final = ToolDescription(
         'Searches the web and returns a list of result titles, urls, and snippets.',
@@ -44,7 +44,7 @@ class WebSearchTool(ToolClass[WebSearchParams]):
         self._permissions = permissions
         self._searcher = searcher
 
-    async def execute(self, ctx: ToolContext, params: WebSearchParams) -> str:
+    async def execute(self, ctx: ToolContext, params: WebSearchToolParams) -> str:
         # TODO: permission lol
 
         result = await self._searcher.search(params.query)

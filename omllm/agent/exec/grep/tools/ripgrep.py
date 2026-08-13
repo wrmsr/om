@@ -5,21 +5,21 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
+from ....permissions.exec import ExecPermissionTarget
 from ....permissions.fs import FsPermissionTarget
-from ....permissions.shell import ShellPermissionTarget
 from ....permissions.types import PermissionDecider
 from ....tools.classes import ToolClass
 from ....types.tools import ToolContext
 from ....types.tools import ToolDescription
-from ...ops import ShellExecuteParams
-from ...ops import ShellOps
+from ...ops import ExecOps
+from ...ops import ExecParams
 
 
 ##
 
 
 @dc.dataclass(frozen=True)
-class RipgrepParams:
+class RipgrepToolParams:
     args: ta.Sequence[str]
 
     _: dc.KW_ONLY
@@ -27,10 +27,10 @@ class RipgrepParams:
     timeout_s: float | None = None
 
 
-class RipgrepTool(ToolClass[RipgrepParams]):
+class RipgrepTool(ToolClass[RipgrepToolParams]):
     name: ta.Final = 'ripgrep'
 
-    params_cls: ta.Final = RipgrepParams
+    params_cls: ta.Final = RipgrepToolParams
 
     description: ta.Final = ToolDescription(
         'Executes ripgrep with the given arguments in current working directory. Returns stdout and stderr.',
@@ -44,14 +44,14 @@ class RipgrepTool(ToolClass[RipgrepParams]):
             self,
             *,
             permissions: PermissionDecider,
-            shell: ShellOps,
+            exec: ExecOps,  # noqa
     ) -> None:
         super().__init__()
 
         self._permissions = permissions
-        self._shell = shell
+        self._exec = exec
 
-    async def execute(self, ctx: ToolContext, params: RipgrepParams) -> str:
+    async def execute(self, ctx: ToolContext, params: RipgrepToolParams) -> str:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
 
@@ -62,9 +62,9 @@ class RipgrepTool(ToolClass[RipgrepParams]):
             *params.args,
         ]
 
-        await self._permissions.check_allowed(ctx, ShellPermissionTarget(' '.join(cmd)))  # FIXME: lol
+        await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
 
-        result = await self._shell.shell_execute(ShellExecuteParams(
+        result = await self._exec.exec(ExecParams(
             cmd,
             cwd=cwd,
             env=dict(os.environ),

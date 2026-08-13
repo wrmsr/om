@@ -20,14 +20,14 @@ MAX_CHARS: ta.Final = 50_000
 
 
 @dc.dataclass(frozen=True)
-class WebFetchParams:
+class WebFetchToolParams:
     url: str
 
 
-class WebFetchTool(ToolClass[WebFetchParams]):
+class WebFetchTool(ToolClass[WebFetchToolParams]):
     name: ta.Final = 'web_fetch'
 
-    params_cls: ta.Final = WebFetchParams
+    params_cls: ta.Final = WebFetchToolParams
 
     description: ta.Final = ToolDescription(
         'Fetches a web page and returns its content as text (HTML is reduced to readable text).',
@@ -47,7 +47,7 @@ class WebFetchTool(ToolClass[WebFetchParams]):
         self._permissions = permissions
         self._fetcher = fetcher
 
-    async def execute(self, ctx: ToolContext, params: WebFetchParams) -> str:
+    async def execute(self, ctx: ToolContext, params: WebFetchToolParams) -> str:
         parsed_url = urllib.parse.urlparse(params.url)
         url = check.non_empty_str(urllib.parse.urlunparse(parsed_url))  # noqa
 

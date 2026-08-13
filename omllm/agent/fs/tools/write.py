@@ -15,7 +15,7 @@ from ..ops import FsOps
 
 
 @dc.dataclass(frozen=True)
-class WriteParams:
+class WriteToolParams:
     file_path: str
     contents: str
 
@@ -24,10 +24,10 @@ class WriteParams:
     overwrite: bool = False
 
 
-class WriteTool(ToolClass[WriteParams]):
+class WriteTool(ToolClass[WriteToolParams]):
     name: ta.Final = 'write'
 
-    params_cls: ta.Final = WriteParams
+    params_cls: ta.Final = WriteToolParams
 
     description: ta.Final = ToolDescription(
         """
@@ -54,7 +54,7 @@ class WriteTool(ToolClass[WriteParams]):
         self._permissions = permissions
         self._fs = fs
 
-    async def execute(self, ctx: ToolContext, params: WriteParams) -> str:
+    async def execute(self, ctx: ToolContext, params: WriteToolParams) -> str:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:

@@ -23,7 +23,7 @@ from ..ops import FsOps
 
 
 @dc.dataclass(frozen=True)
-class EditParams:
+class EditToolParams:
     file_path: str
     old_string: str
     new_string: str
@@ -33,10 +33,10 @@ class EditParams:
     replace_all: bool = False
 
 
-class EditTool(ToolClass[EditParams]):
+class EditTool(ToolClass[EditToolParams]):
     name: ta.Final = 'edit'
 
-    params_cls: ta.Final = EditParams
+    params_cls: ta.Final = EditToolParams
 
     description: ta.Final = ToolDescription(
         """
@@ -79,7 +79,7 @@ class EditTool(ToolClass[EditParams]):
         self._permissions = permissions
         self._fs = fs
 
-    async def execute(self, ctx: ToolContext, params: EditParams) -> str:
+    async def execute(self, ctx: ToolContext, params: EditToolParams) -> str:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:

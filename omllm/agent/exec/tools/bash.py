@@ -11,20 +11,20 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
-from ...permissions.shell import ShellPermissionTarget
+from ...permissions.exec import ExecPermissionTarget
 from ...permissions.types import PermissionDecider
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
-from ..ops import ShellExecuteParams
-from ..ops import ShellOps
+from ..ops import ExecOps
+from ..ops import ExecParams
 
 
 ##
 
 
 @dc.dataclass(frozen=True)
-class BashParams:
+class BashToolParams:
     command: str
 
     _: dc.KW_ONLY
@@ -32,10 +32,10 @@ class BashParams:
     timeout_s: float | None = None
 
 
-class BashTool(ToolClass[BashParams]):
+class BashTool(ToolClass[BashToolParams]):
     name: ta.Final = 'bash'
 
-    params_cls: ta.Final = BashParams
+    params_cls: ta.Final = BashToolParams
 
     description: ta.Final = ToolDescription(
         'Executes a bash command in the current working directory. Returns stdout and stderr.',
@@ -49,25 +49,27 @@ class BashTool(ToolClass[BashParams]):
             self,
             *,
             permissions: PermissionDecider,
-            shell: ShellOps,
+            exec: ExecOps,  # noqa
     ) -> None:
         super().__init__()
 
         self._permissions = permissions
-        self._shell = shell
+        self._exec = exec
 
-    async def execute(self, ctx: ToolContext, params: BashParams) -> str:
+    async def execute(self, ctx: ToolContext, params: BashToolParams) -> str:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
 
-        await self._permissions.check_allowed(ctx, ShellPermissionTarget(params.command))
+        cmd = [
+            check.not_none(shutil.which('bash')),
+            '-c',
+            params.command,
+        ]
 
-        result = await self._shell.shell_execute(ShellExecuteParams(
-            [
-                check.not_none(shutil.which('bash')),
-                '-c',
-                params.command,
-            ],
+        await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
+
+        result = await self._exec.exec(ExecParams(
+            cmd,
             cwd=cwd,
             env=dict(os.environ),
         ))

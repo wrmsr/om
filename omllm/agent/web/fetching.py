@@ -12,7 +12,7 @@ from omcore.http import all as http
 
 
 @dc.dataclass(frozen=True)
-class FetchedPage(lang.Final):
+class WebFetchedPage(lang.Final):
     url: str
     status: int
     body: bytes
@@ -20,7 +20,7 @@ class FetchedPage(lang.Final):
 
 class WebFetcher(lang.Abstract):
     @abc.abstractmethod
-    def fetch(self, url: str) -> ta.Awaitable[FetchedPage]:
+    def fetch(self, url: str) -> ta.Awaitable[WebFetchedPage]:
         raise NotImplementedError
 
 
@@ -39,7 +39,7 @@ class HttpWebFetcher(WebFetcher):
         self._http_client = http_client
         self._timeout_s = timeout_s
 
-    async def fetch(self, url: str) -> FetchedPage:
+    async def fetch(self, url: str) -> WebFetchedPage:
         resp = await http.async_request(
             url,
             client=self._http_client,
@@ -47,7 +47,7 @@ class HttpWebFetcher(WebFetcher):
         )
         data = resp.data
         body = data.encode('utf-8') if isinstance(data, str) else (data or b'')
-        return FetchedPage(url, resp.status, body)
+        return WebFetchedPage(url, resp.status, body)
 
 
 ##
@@ -56,16 +56,16 @@ class HttpWebFetcher(WebFetcher):
 class DictWebFetcher(WebFetcher):
     """A canned fetcher (URL -> page) - the no-network test impl, and a useful cache/fixture in its own right."""
 
-    def __init__(self, pages: ta.Mapping[str, FetchedPage]) -> None:
+    def __init__(self, pages: ta.Mapping[str, WebFetchedPage]) -> None:
         super().__init__()
 
         self._pages = dict(pages)
 
-    async def fetch(self, url: str) -> FetchedPage:
+    async def fetch(self, url: str) -> WebFetchedPage:
         try:
             return self._pages[url]
         except KeyError:
-            return FetchedPage(url, 404, b'')
+            return WebFetchedPage(url, 404, b'')
 
 
 ##
@@ -108,7 +108,7 @@ def html_to_text(html_str: str) -> str:
     return ex.text()
 
 
-def page_to_text(page: FetchedPage) -> str:
+def page_to_text(page: WebFetchedPage) -> str:
     text = check.isinstance(page.body, bytes).decode('utf-8', 'replace')
     if looks_like_html(text):
         return html_to_text(text)

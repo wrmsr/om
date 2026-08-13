@@ -23,10 +23,10 @@ def bind_permissions(config: Config) -> inj.Elements:
 
         *([
             agn.PermissionRule(
-                agn.ShellPermissionMatcher(),
+                agn.ExecPermissionMatcher(),
                 agn.PermissionState.ASK,
             ),
-        ] if config.bash else []),
+        ] if config.exec else []),
     ]
 
     lst.append(inj.bind(
