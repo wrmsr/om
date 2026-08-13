@@ -15,6 +15,22 @@ def bind_permissions(config: Config) -> inj.Elements:
 
     permission_rules: list[agn.PermissionRule] = []
 
+    if config.eval:
+        permission_rules.extend([
+            agn.PermissionRule(
+                agn.EvalPermissionMatcher(),
+                agn.PermissionState.ASK,
+            ),
+        ])
+
+    if config.exec:
+        permission_rules.extend([
+            agn.PermissionRule(
+                agn.ExecPermissionMatcher(),
+                agn.PermissionState.ASK,
+            ),
+        ])
+
     if config.fs:
         if config.allow_fs_reads:
             permission_rules.extend([
@@ -34,14 +50,6 @@ def bind_permissions(config: Config) -> inj.Elements:
                     agn.PermissionState.ASK,
                 ),
             ])
-
-    if config.exec:
-        permission_rules.extend([
-            agn.PermissionRule(
-                agn.ExecPermissionMatcher(),
-                agn.PermissionState.ASK,
-            ),
-        ])
 
     lst.append(inj.bind(
         agn.PermissionsManager,

@@ -6,6 +6,8 @@ from ...permissions.types import PermissionDecider
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
+from ..permissions import EvalLanguage
+from ..permissions import EvalPermissionTarget
 
 
 ##
@@ -13,7 +15,7 @@ from ...types.tools import ToolDescription
 
 @dc.dataclass(frozen=True)
 class JsToolParams:
-    src: str
+    code: str
 
     _: dc.KW_ONLY
 
@@ -28,7 +30,7 @@ class JsTool(ToolClass[JsToolParams]):
     description: ta.Final = ToolDescription(
         'Evaluates javascript code.',
         dict(
-            src='The js code to evaluate.',
+            code='The js code to evaluate.',
             timeout_s='An optional timeout in seconds.',
         ),
     )
@@ -43,4 +45,9 @@ class JsTool(ToolClass[JsToolParams]):
         self._permissions = permissions
 
     async def execute(self, ctx: ToolContext, params: JsToolParams) -> str:
+        await self._permissions.check_allowed(ctx, EvalPermissionTarget(
+            language=EvalLanguage.JS,
+            code=params.code,
+        ))
+
         raise NotImplementedError

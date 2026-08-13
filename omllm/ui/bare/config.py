@@ -15,9 +15,10 @@ class Config:
 
     cwd: str | None = None
 
+    eval: bool | None = None
+    exec: bool | None = None
     fs: bool | None = None
     allow_fs_reads: bool | None = None
-    exec: bool | None = None
     web: bool | None = None
 
     jsonl_storage: bool | None = None
@@ -37,9 +38,10 @@ def make_config_parser() -> argparse.ArgumentParser:
 
     parser.add_argument('-m', '--model')
 
+    parser.add_argument('--eval', action='store_true')
+    parser.add_argument('--exec', action='store_true')
     parser.add_argument('--fs', action='store_true')
     parser.add_argument('--allow-fs-reads', action='store_true')
-    parser.add_argument('--exec', action='store_true')
     parser.add_argument('--web', action='store_true')
 
     parser.add_argument('-J', '--jsonl-storage', action='store_true')
@@ -61,9 +63,10 @@ def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
     return Config(
         model=args.model,
 
+        eval=args.eval,
+        exec=args.exec,
         fs=args.fs,
         allow_fs_reads=args.allow_fs_reads,
-        exec=args.exec,
         web=args.web,
 
         jsonl_storage=args.jsonl_storage,

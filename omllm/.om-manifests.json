@@ -1,5 +1,35 @@
 [
   {
+    "module": ".agent.eval.permissions",
+    "attr": null,
+    "file": "omllm/agent/eval/permissions.py",
+    "line": 19,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.eval.permissions",
+        "attr": "EvalPermissionTarget",
+        "base": "$.agent.permissions.types.PermissionTarget",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.eval.permissions",
+    "attr": null,
+    "file": "omllm/agent/eval/permissions.py",
+    "line": 34,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.eval.permissions",
+        "attr": "EvalPermissionMatcher",
+        "base": "$.agent.permissions.types.PermissionMatcher",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
     "module": ".agent.exec.permissions",
     "attr": null,
     "file": "omllm/agent/exec/permissions.py",

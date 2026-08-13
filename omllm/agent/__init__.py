@@ -18,7 +18,20 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
-    from .exec.grep.tools.ripgrep import (  # noqa
+    from .eval.tools.js import (  # noqa
+        JsToolParams,
+        JsTool,
+    )
+
+    from .eval.permissions import (  # noqa
+        EvalLanguage,
+        EvalPermissionTarget,
+        EvalPermissionMatcher,
+    )
+
+    ##
+
+    from .exec.ripgrep.tools.ripgrep import (  # noqa
         RipgrepToolParams,
         RipgrepTool,
     )
