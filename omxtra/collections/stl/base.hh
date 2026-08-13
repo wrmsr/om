@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <cstring>
 #include <exception>
 #include <iterator>
 #include <mutex>
@@ -115,8 +114,14 @@ inline int parse_dtype(PyObject *o, DtypeSpec *out) {
         return -1;
     }
 
-    const char *s = PyUnicode_AsUTF8(o);
+    Py_ssize_t sn;
+    const char *s = PyUnicode_AsUTF8AndSize(o, &sn);
     if (s == nullptr) {
+        return -1;
+    }
+    if (std::strlen(s) != (size_t)sn) {
+        // Embedded NUL: the strcmp below would happily match its prefix.
+        PyErr_Format(PyExc_ValueError, "unknown dtype: %.200s", s);
         return -1;
     }
 
@@ -749,6 +754,11 @@ struct AnyImpl {
 //    operations cannot be run any other way. The classic cross-thread lock-order deadlock is excluded by the acquire
 //    protocol above; same-thread reentrancy (user comparison or finalizer code calling back into the same container)
 //    is detected via lock_owner and refused with RuntimeError rather than deadlocking.
+//    Note the exclusion covers only the locks the guards themselves take: user code running under one (or, in the
+//    typed two-container fast paths, two) container locks can still operate on *other* containers, and two threads
+//    doing that in inverted roles can deadlock through the user code's lock edges. That hazard is accepted as
+//    inherent - plain per-container mutexes, unlike CPython's free-threaded critical sections, cannot be suspended
+//    while their holder blocks.
 //
 //  - Displaced references are never DECREFed under the lock - they go through a Bin (declared before the guard, see
 //    above) and are drained after release.
@@ -888,6 +898,20 @@ inline int col_ready(ColObject *co) {
         return 0;
     }
     return 1;
+}
+
+
+// Publishes a freshly-constructed impl into co->impl iff it is still null, taking ownership either way. tp_init has
+// no lock to take (the impl IS the lock), so two threads can race the first __init__ of a shared uninitialized
+// object; the CAS lets exactly one publish, and the loser's impl is deleted and the usual re-init error raised.
+inline int col_publish_impl(ColObject *co, AnyImpl *impl) {
+    AnyImpl *expected = nullptr;
+    if (!std::atomic_ref<AnyImpl *>(co->impl).compare_exchange_strong(expected, impl)) {
+        delete impl;
+        PyErr_SetString(PyExc_TypeError, "container is already initialized");
+        return -1;
+    }
+    return 0;
 }
 
 

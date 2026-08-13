@@ -1,12 +1,11 @@
 import collections.abc as cabc
 import gc
 import random
+import sys
 import threading
 import weakref
 
 import pytest
-
-from omcore import lang
 
 from .. import _stl as fc  # type: ignore
 
@@ -73,7 +72,7 @@ def test_dtype_aliases(alias, canon):
     assert m.value_type == canon
 
 
-@pytest.mark.parametrize('bad', ['int32', 'Object', 'object ', '', 'float'])
+@pytest.mark.parametrize('bad', ['int32', 'Object', 'object ', '', 'float', 'object\x00junk', 'int64\x00'])
 def test_bad_dtype(bad):
     with pytest.raises(ValueError):  # noqa
         fc.Set(bad)
@@ -154,6 +153,24 @@ def test_set_inplace_ops(cls):
     b = cls('int64', [1])
     b -= b
     assert len(b) == 0
+
+
+@pytest.mark.parametrize('cls', SET_CLASSES)
+def test_set_inplace_failed_update_does_not_leak_rhs_iterator(cls):
+    w = ['x']
+    s = cls('int64', [1])
+    base = sys.getrefcount(w)
+    for _ in range(10):
+        with pytest.raises(TypeError):
+            s |= w
+        with pytest.raises(TypeError):
+            s ^= w
+    assert sys.getrefcount(w) == base
+    assert sorted(s) == [1]
+    with pytest.raises(TypeError):
+        s |= 5
+    with pytest.raises(TypeError):
+        s ^= 5
 
 
 @pytest.mark.parametrize('cls', SET_CLASSES)
@@ -477,6 +494,60 @@ def test_vector_object_sort():
     assert list(v) == sorted(xs, reverse=True)
 
 
+def test_vector_object_sort_inconsistent_comparator_is_memory_safe():
+    # Regression: a __lt__ that is not a strict weak order fed into std::sort is undefined behavior (observed as a
+    # hard segfault via out-of-bounds accesses in libstdc++'s introsort). The sort must stay memory-safe and keep the
+    # same elements, however garbage the order.
+    class AlwaysLess:
+        def __lt__(self, o):
+            return True
+
+    class Coin:
+        def __lt__(self, o):
+            return random.random() < 0.5
+
+    for i in range(50):
+        v = fc.Vector('object', [AlwaysLess() for _ in range(100)])
+        before = sorted(map(id, v))
+        v.sort()
+        assert sorted(map(id, v)) == before
+        v2 = fc.Vector('object', [Coin() for _ in range(100)])
+        v2.sort(reverse=bool(i % 2))
+        assert len(v2) == 100
+
+
+def test_vector_object_sort_raising_comparator_leaves_vector_unchanged():
+    class Boom:
+        def __init__(self, n):
+            self.n = n
+
+        def __lt__(self, o):
+            raise ValueError('boom')
+
+    v = fc.Vector('object', [Boom(i) for i in range(10)])
+    with pytest.raises(ValueError):  # noqa
+        v.sort()
+    assert [x.n for x in v] == list(range(10))
+
+
+def test_vector_object_sort_is_stable_like_list_sort():
+    class E:
+        def __init__(self, k, seq):
+            self.k = k
+            self.seq = seq
+
+        def __lt__(self, o):
+            return self.k < o.k
+
+    xs = [E(k, i) for i, k in enumerate([3, 1, 2, 1, 3, 1, 2])]
+    for reverse in (False, True):
+        v = fc.Vector('object', xs)
+        v.sort(reverse=reverse)
+        model = list(xs)
+        model.sort(key=lambda e: e.k, reverse=reverse)
+        assert [(e.k, e.seq) for e in v] == [(e.k, e.seq) for e in model]
+
+
 def test_vector_errors():
     v = fc.Vector('int64', [1, 2, 3])
     with pytest.raises(IndexError):
@@ -666,7 +737,34 @@ def test_comparator_exception_leaves_container_consistent():
     assert len(u) == 1
 
 
-def test_reentrancy_raises_not_deadlocks():
+def test_setdefault_inconsistent_comparator_does_not_leak():
+    # Regression: an inconsistent __lt__ can make setdefault's find() miss while its try_emplace still lands on the
+    # existing node; the existing entry must not be re-retained (a refcount leak). The script below reproduces that
+    # split under libstdc++'s walk order (find: k1<k2, k2<k1; emplace: k2<k1, k1<k2); on other STLs the path may not
+    # trigger, in which case the assertions hold trivially.
+    script: list = []
+
+    class SK:
+        def __lt__(self, o):
+            if script:
+                return script.pop(0)
+            return False
+
+        def __gt__(self, o):
+            return False
+
+    k1 = SK()
+    k2 = SK()
+    val = ['v']
+    m = fc.Map('object', 'object')
+    m[k1] = val
+    base = sys.getrefcount(val)
+    script[:] = [False, True, False, False]
+    ret = m.setdefault(k2, None)
+    assert ret is val or ret is None
+    del ret
+    assert len(m) <= 2
+    assert sys.getrefcount(val) == base
     s = fc.Set('object')
 
     class Evil:
@@ -889,6 +987,39 @@ def _run_threads(n, fn):
         raise errs[0]
 
 
+@pytest.mark.parametrize(('cls', 'init_args'), [
+    (fc.Set, lambda i: ('int64', [i])),
+    (fc.UnorderedSet, lambda i: ('int64', [i])),
+    (fc.Map, lambda i: ('int64', 'int64', [(i, i)])),
+    (fc.Vector, lambda i: ('int64', [i])),
+])
+def test_threaded_first_init_race_single_winner(cls, init_args):
+    # Racing the first __init__ of a shared uninitialized object must let exactly one thread publish an impl (the
+    # losers raise the re-init TypeError) rather than leaking the losers' impls.
+    for _ in range(20):
+        o = cls.__new__(cls)
+        wins, errs = [], []
+        barrier = threading.Barrier(4)
+
+        def work(i):
+            barrier.wait()
+            try:
+                o.__init__(*init_args(i))
+            except TypeError:
+                errs.append(i)
+            else:
+                wins.append(i)
+
+        ts = [threading.Thread(target=work, args=(i,)) for i in range(4)]
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
+        assert len(wins) == 1
+        assert len(errs) == 3
+        assert len(o) == 1
+
+
 def test_threaded_int_map_stress():
     m = fc.UnorderedMap('int64', 'int64')
 
@@ -915,14 +1046,6 @@ def test_threaded_int_map_stress():
         assert v in (k, k * 10)
 
 
-@pytest.mark.skipif(not lang.is_gil_enabled(), reason="""
-omxtra/collections/stl/tests/test_stl.py:942: in work
-    dict(m.items()) if rnd.random() < 0.2 else (k in m)
-    ^^^^^^^^^^^^^^^
-<frozen _collections_abc>:882: in __iter__
-    ???
-E   RuntimeError: container mutated during iteration
-""")
 def test_threaded_object_map_with_gc():
     m = fc.Map('object', 'object')
     stop = threading.Event()
@@ -948,8 +1071,18 @@ def test_threaded_object_map_with_gc():
                     _ = m == other
                 elif op == 3:
                     m.copy()
+                elif rnd.random() < 0.2:
+                    # Iteration racing structural mutation legitimately raises, dict-style; on free-threaded builds
+                    # it does so routinely. RuntimeError comes from the key iterator's version check; KeyError comes
+                    # from the abc ItemsView looking a yielded key back up after a concurrent pop.
+                    try:
+                        dict(m.items())
+                    except RuntimeError as e:
+                        assert 'mutated during iteration' in str(e)  # noqa
+                    except KeyError:
+                        pass
                 else:
-                    dict(m.items()) if rnd.random() < 0.2 else (k in m)
+                    _ = k in m
 
         _run_threads(6, work)
     finally:

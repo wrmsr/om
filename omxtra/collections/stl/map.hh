@@ -162,10 +162,15 @@ struct SortedMapImpl final : MapLikeImpl {
             if (!V::unbox(d, val_ovf, &vs)) {
                 return -1;
             }
-            it = map_.try_emplace(ks, vs).first;
-            K::retain(it->first);
-            V::retain(it->second);
-            ++version;
+            auto er = map_.try_emplace(ks, vs);
+            it = er.first;
+            // An inconsistent user comparator can make the find above miss while this emplace still lands on an
+            // existing node - only take ownership of what was actually inserted.
+            if (er.second) {
+                K::retain(it->first);
+                V::retain(it->second);
+                ++version;
+            }
         }
         PyObject *o = V::box(it->second);
         if (o == nullptr) {
@@ -492,10 +497,15 @@ struct HashMapImpl final : MapLikeImpl {
             if (!V::unbox(d, val_ovf, &vs)) {
                 return -1;
             }
-            it = map_.try_emplace(ks, vs).first;
-            K::retain(it->first);
-            V::retain(it->second);
-            ++version;
+            auto er = map_.try_emplace(ks, vs);
+            it = er.first;
+            // An inconsistent user __eq__ can make the find above miss while this emplace still lands on an existing
+            // node - only take ownership of what was actually inserted.
+            if (er.second) {
+                K::retain(it->first);
+                V::retain(it->second);
+                ++version;
+            }
         }
         PyObject *o = V::box(it->second);
         if (o == nullptr) {
@@ -860,11 +870,15 @@ inline int map_init_impl(PyObject *self, PyObject *args, PyObject *kwds, ColKind
         return -1;
     }
 
+    MapLikeImpl *impl;
     try {
-        co->impl = new_map_impl(kind, kd.dt, kd.ovf, vd.dt, vd.ovf);
+        impl = new_map_impl(kind, kd.dt, kd.ovf, vd.dt, vd.ovf);
     }
     catch (std::bad_alloc &) {
         PyErr_NoMemory();
+        return -1;
+    }
+    if (col_publish_impl(co, impl) < 0) {
         return -1;
     }
 

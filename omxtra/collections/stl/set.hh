@@ -608,11 +608,15 @@ inline int set_init_impl(PyObject *self, PyObject *args, PyObject *kwds, ColKind
         return -1;
     }
 
+    SetLikeImpl *impl;
     try {
-        co->impl = new_set_impl(kind, ds.dt, ds.ovf);
+        impl = new_set_impl(kind, ds.dt, ds.ovf);
     }
     catch (std::bad_alloc &) {
         PyErr_NoMemory();
+        return -1;
+    }
+    if (col_publish_impl(co, impl) < 0) {
         return -1;
     }
 
@@ -1085,6 +1089,27 @@ inline PyObject *set_nb_xor(PyObject *v, PyObject *w) {
 }
 
 
+// A failed inplace update should degrade to NotImplemented only when the right operand is not iterable at all
+// (abc.MutableSet semantics); a TypeError raised by an *element* must propagate. The pending exception is stashed
+// around the iterability probe - calling into the API with the error indicator set is illegal - and a successful
+// probe's iterator is released rather than leaked.
+inline bool set_inplace_rhs_not_iterable(PyObject *w) {
+    if (!PyErr_ExceptionMatches(PyExc_TypeError)) {
+        return false;
+    }
+    PyObject *exc = PyErr_GetRaisedException();
+    PyObject *probe = PyObject_GetIter(w);
+    if (probe == nullptr) {
+        PyErr_Clear();
+        Py_DECREF(exc);
+        return true;
+    }
+    Py_DECREF(probe);
+    PyErr_SetRaisedException(exc);
+    return false;
+}
+
+
 inline PyObject *set_inplace(PyObject *v, PyObject *w, char op) {
     stl_state *st = find_state_2(v, w);
     if (st == nullptr || !is_our_set(st, v)) {
@@ -1111,8 +1136,7 @@ inline PyObject *set_inplace(PyObject *v, PyObject *w, char op) {
     switch (op) {
         case '|':
             if (set_extend_from(st, co, w) < 0) {
-                if (PyErr_ExceptionMatches(PyExc_TypeError) && PyObject_GetIter(w) == nullptr) {
-                    PyErr_Clear();
+                if (set_inplace_rhs_not_iterable(w)) {
                     Py_RETURN_NOTIMPLEMENTED;
                 }
                 return nullptr;
@@ -1183,8 +1207,7 @@ inline PyObject *set_inplace(PyObject *v, PyObject *w, char op) {
             }
             if (set_extend_from(st, (ColObject *)temp, w) < 0) {
                 Py_DECREF(temp);
-                if (PyErr_ExceptionMatches(PyExc_TypeError) && PyObject_GetIter(w) == nullptr) {
-                    PyErr_Clear();
+                if (set_inplace_rhs_not_iterable(w)) {
                     Py_RETURN_NOTIMPLEMENTED;
                 }
                 return nullptr;

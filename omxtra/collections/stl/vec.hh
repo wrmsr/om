@@ -159,29 +159,45 @@ struct VectorImpl final : VecLikeImpl {
         if (n < 2) {
             return 0;
         }
-        typename E::Less less;
         if constexpr (E::IS_OBJ) {
-            // Sorting object slots in place with a comparator that can throw would lose the reference held in the
-            // sort's temporary mid-swap. Sort an index permutation instead - a throw scrambles only the indices - and
-            // gather into a fresh vector only on success.
-            std::vector<size_t> idx(n);
+            // Object sorts deliberately do NOT use std::sort. They round-trip through a temporary list and CPython's
+            // listsort instead, which is INEFFICIENT - an extra O(n) list allocation plus a refcount round-trip per
+            // element, per sort - and that cost is accepted on purpose: std::sort (like every STL ordering algorithm)
+            // is undefined behavior whenever its comparator is not a strict weak ordering - concretely, out-of-bounds
+            // reads *and writes* inside libstdc++'s introsort, i.e. native heap corruption - and an arbitrary Python
+            // __lt__ can return anything at all, including inconsistent answers. Pure Python code must never be able
+            // to corrupt native memory. CPython's listsort is engineered to stay memory-safe (merely producing a
+            // garbage order) under arbitrary, even adversarial, comparators, so it does the comparing. A side
+            // benefit: object sorts are stable, exactly like list.sort.
+            PyObject *lst = PyList_New((Py_ssize_t)n);
+            if (lst == nullptr) {
+                return -1;
+            }
             for (size_t i = 0; i < n; ++i) {
-                idx[i] = i;
+                PyList_SET_ITEM(lst, (Py_ssize_t)i, Py_NewRef(vec_[i]));
             }
-            if (reverse) {
-                std::sort(idx.begin(), idx.end(), [&](size_t a, size_t b) { return less(vec_[b], vec_[a]); });
+            // reverse-sort-reverse is exactly list.sort(reverse=True): with a stable sort the two reversals preserve
+            // the original relative order of equal elements while ordering the groups descending.
+            int rc = reverse ? PyList_Reverse(lst) : 0;
+            if (rc == 0) {
+                rc = PyList_Sort(lst);
             }
-            else {
-                std::sort(idx.begin(), idx.end(), [&](size_t a, size_t b) { return less(vec_[a], vec_[b]); });
+            if (rc == 0 && reverse) {
+                rc = PyList_Reverse(lst);
             }
-            std::vector<typename E::Slot> out;
-            out.reserve(n);
+            if (rc < 0) {
+                Py_DECREF(lst);
+                return -1;  // vec_ untouched: a raising comparator leaves the vector unchanged
+            }
+            // The list holds the same multiset of pointers, permuted: vec_'s own references simply move to their new
+            // positions, and the list's extra references die with it.
             for (size_t i = 0; i < n; ++i) {
-                out.push_back(vec_[idx[i]]);
+                vec_[i] = PyList_GET_ITEM(lst, (Py_ssize_t)i);
             }
-            vec_.swap(out);
+            Py_DECREF(lst);
         }
         else {
+            typename E::Less less;
             if (reverse) {
                 std::sort(vec_.begin(), vec_.end(), [&](const auto &a, const auto &b) { return less(b, a); });
             }
@@ -547,11 +563,15 @@ inline int vec_init(PyObject *self, PyObject *args, PyObject *kwds) {
         return -1;
     }
 
+    VecLikeImpl *impl;
     try {
-        co->impl = new_vec_impl(ds.dt, ds.ovf);
+        impl = new_vec_impl(ds.dt, ds.ovf);
     }
     catch (std::bad_alloc &) {
         PyErr_NoMemory();
+        return -1;
+    }
+    if (col_publish_impl(co, impl) < 0) {
         return -1;
     }
 
