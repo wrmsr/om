@@ -457,8 +457,8 @@ exclude = [
     '.venvs',
     'x',
 
-    # Generated code (`@om-generated`). Note that basedpyright (unlike pyright/mypy) does not honor whole-file
-    # `# type: ignore` header comments, and pyright has no per-file rule config, so generated files must be
+    # Generated code (`@om-generated`). Note that basedpyright (unlike pyright/mypy) does not honor whole-file `# type:
+    # ignore` header comments, and pyright has no per-file rule config, so generated files must be
     # path-excluded.
     '**/_dataclasses.py',
     '**/_antlr',
@@ -473,8 +473,8 @@ exclude = [
 venvPath = '.'
 venv = '.venv'
 
-# venvPath/venv only drive import resolution - without this pyright infers the language version from whatever python3
-# it finds on PATH (observed: system 3.12), breaking pep-649 deferred annotations among much else.
+# venvPath/venv only drive import resolution - without this pyright infers the language version from whatever python3 it
+# finds on PATH (observed: system 3.12), breaking pep-649 deferred annotations among much else.
 pythonVersion = '3.14'
 
 # basedpyright defaults this off - the codebase's `# type: ignore` comments (including whole-file headers on generated
@@ -537,8 +537,8 @@ reportUnusedParameter = false               # ruff ARG* deliberately ignored
 reportUnusedVariable = false                # ruff F841
 
 ##
-# Quarantined optional-dep integration packages - the wrapped libraries (tinygrad, mlx, llama_cpp, pydevd, ...) are
-# not installed in the dev venv. Mirrors the mypy per-module ignore_missing_imports overrides.
+# Quarantined optional-dep integration packages - the wrapped libraries (tinygrad, mlx, llama_cpp, pydevd, ...) are not
+# installed in the dev venv. Mirrors the mypy per-module ignore_missing_imports overrides.
 
 [[tool.pyright.executionEnvironments]]
 root = 'omllm/interop'
