@@ -9,6 +9,7 @@
 // Vecs
 //
 
+
 struct VecLikeImpl : AnyImpl {
     using AnyImpl::AnyImpl;
 
@@ -37,6 +38,7 @@ struct VecLikeImpl : AnyImpl {
 //
 // Vector
 //
+
 
 template <typename E>
 struct VectorImpl final : VecLikeImpl {
@@ -407,3 +409,23 @@ AnyIter *VectorImpl<E>::make_iter(IterKind, bool desc) {
     r->idx = r->rev ? (Py_ssize_t)vec_.size() - 1 : 0;
     return r;
 }
+
+
+//
+// Impl factories
+//
+
+
+inline VecLikeImpl *new_vec_impl(Dt dt, Ovf ovf) {
+    switch (dt) {
+        case Dt::OBJ:
+            return new VectorImpl<ObjectTraits>(ovf);
+        case Dt::I64:
+            return new VectorImpl<Int64Traits>(ovf);
+        case Dt::U64:
+            return new VectorImpl<UInt64Traits>(ovf);
+        default:
+            return new VectorImpl<Float64Traits>(ovf);
+    }
+}
+

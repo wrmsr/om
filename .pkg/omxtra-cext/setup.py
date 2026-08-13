@@ -11,6 +11,7 @@ st.setup(
             ],
             extra_compile_args=[
                 '-std=c++20',
+                '-fvisibility=hidden',
             ],
         ),
 

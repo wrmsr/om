@@ -10,6 +10,7 @@
 // Maps
 //
 
+
 struct MapLikeImpl : AnyImpl {
     using AnyImpl::AnyImpl;
 
@@ -25,6 +26,7 @@ struct MapLikeImpl : AnyImpl {
 //
 // Sorted map
 //
+
 
 template <typename K, typename V>
 struct SortedMapImpl final : MapLikeImpl {
@@ -358,6 +360,7 @@ AnyIter *SortedMapImpl<K, V>::make_iter_from(IterKind ik, bool desc, PyObject *b
 // Hash map
 //
 
+
 template <typename K, typename V>
 struct HashMapImpl final : MapLikeImpl {
     using Cont = std::unordered_map<typename K::Slot, typename V::Slot, typename K::Hash, typename K::Eq>;
@@ -651,3 +654,65 @@ AnyIter *HashMapImpl<K, V>::make_iter(IterKind ik, bool) {
     r->ik = ik;
     return r;
 }
+
+
+//
+// Impl factories
+//
+
+
+template <typename K>
+static MapLikeImpl *new_sorted_map_impl(Ovf kovf, Dt vd, Ovf vovf) {
+    switch (vd) {
+        case Dt::OBJ:
+            return new SortedMapImpl<K, ObjectTraits>(kovf, vovf);
+        case Dt::I64:
+            return new SortedMapImpl<K, Int64Traits>(kovf, vovf);
+        case Dt::U64:
+            return new SortedMapImpl<K, UInt64Traits>(kovf, vovf);
+        default:
+            return new SortedMapImpl<K, Float64Traits>(kovf, vovf);
+    }
+}
+
+
+template <typename K>
+static MapLikeImpl *new_hash_map_impl(Ovf kovf, Dt vd, Ovf vovf) {
+    switch (vd) {
+        case Dt::OBJ:
+            return new HashMapImpl<K, ObjectTraits>(kovf, vovf);
+        case Dt::I64:
+            return new HashMapImpl<K, Int64Traits>(kovf, vovf);
+        case Dt::U64:
+            return new HashMapImpl<K, UInt64Traits>(kovf, vovf);
+        default:
+            return new HashMapImpl<K, Float64Traits>(kovf, vovf);
+    }
+}
+
+
+inline MapLikeImpl *new_map_impl(ColKind kind, Dt kd, Ovf kovf, Dt vd, Ovf vovf) {
+    if (kind == ColKind::SORTED_MAP) {
+        switch (kd) {
+            case Dt::OBJ:
+                return new_sorted_map_impl<ObjectTraits>(kovf, vd, vovf);
+            case Dt::I64:
+                return new_sorted_map_impl<Int64Traits>(kovf, vd, vovf);
+            case Dt::U64:
+                return new_sorted_map_impl<UInt64Traits>(kovf, vd, vovf);
+            default:
+                return new_sorted_map_impl<Float64Traits>(kovf, vd, vovf);
+        }
+    }
+    switch (kd) {
+        case Dt::OBJ:
+            return new_hash_map_impl<HashedObjectTraits>(kovf, vd, vovf);
+        case Dt::I64:
+            return new_hash_map_impl<Int64Traits>(kovf, vd, vovf);
+        case Dt::U64:
+            return new_hash_map_impl<UInt64Traits>(kovf, vd, vovf);
+        default:
+            return new_hash_map_impl<Float64Traits>(kovf, vd, vovf);
+    }
+}
+

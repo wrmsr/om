@@ -30,108 +30,9 @@ static struct PyModuleDef *stl_module_def();
 
 
 //
-// Impl factories
-//
-
-static SetLikeImpl *new_set_impl(ColKind kind, Dt dt, Ovf ovf) {
-    if (kind == ColKind::SORTED_SET) {
-        switch (dt) {
-            case Dt::OBJ:
-                return new SortedSetImpl<ObjectTraits>(ovf);
-            case Dt::I64:
-                return new SortedSetImpl<Int64Traits>(ovf);
-            case Dt::U64:
-                return new SortedSetImpl<UInt64Traits>(ovf);
-            default:
-                return new SortedSetImpl<Float64Traits>(ovf);
-        }
-    }
-    switch (dt) {
-        case Dt::OBJ:
-            return new HashSetImpl<HashedObjectTraits>(ovf);
-        case Dt::I64:
-            return new HashSetImpl<Int64Traits>(ovf);
-        case Dt::U64:
-            return new HashSetImpl<UInt64Traits>(ovf);
-        default:
-            return new HashSetImpl<Float64Traits>(ovf);
-    }
-}
-
-
-template <typename K>
-static MapLikeImpl *new_sorted_map_impl(Ovf kovf, Dt vd, Ovf vovf) {
-    switch (vd) {
-        case Dt::OBJ:
-            return new SortedMapImpl<K, ObjectTraits>(kovf, vovf);
-        case Dt::I64:
-            return new SortedMapImpl<K, Int64Traits>(kovf, vovf);
-        case Dt::U64:
-            return new SortedMapImpl<K, UInt64Traits>(kovf, vovf);
-        default:
-            return new SortedMapImpl<K, Float64Traits>(kovf, vovf);
-    }
-}
-
-
-template <typename K>
-static MapLikeImpl *new_hash_map_impl(Ovf kovf, Dt vd, Ovf vovf) {
-    switch (vd) {
-        case Dt::OBJ:
-            return new HashMapImpl<K, ObjectTraits>(kovf, vovf);
-        case Dt::I64:
-            return new HashMapImpl<K, Int64Traits>(kovf, vovf);
-        case Dt::U64:
-            return new HashMapImpl<K, UInt64Traits>(kovf, vovf);
-        default:
-            return new HashMapImpl<K, Float64Traits>(kovf, vovf);
-    }
-}
-
-
-static MapLikeImpl *new_map_impl(ColKind kind, Dt kd, Ovf kovf, Dt vd, Ovf vovf) {
-    if (kind == ColKind::SORTED_MAP) {
-        switch (kd) {
-            case Dt::OBJ:
-                return new_sorted_map_impl<ObjectTraits>(kovf, vd, vovf);
-            case Dt::I64:
-                return new_sorted_map_impl<Int64Traits>(kovf, vd, vovf);
-            case Dt::U64:
-                return new_sorted_map_impl<UInt64Traits>(kovf, vd, vovf);
-            default:
-                return new_sorted_map_impl<Float64Traits>(kovf, vd, vovf);
-        }
-    }
-    switch (kd) {
-        case Dt::OBJ:
-            return new_hash_map_impl<HashedObjectTraits>(kovf, vd, vovf);
-        case Dt::I64:
-            return new_hash_map_impl<Int64Traits>(kovf, vd, vovf);
-        case Dt::U64:
-            return new_hash_map_impl<UInt64Traits>(kovf, vd, vovf);
-        default:
-            return new_hash_map_impl<Float64Traits>(kovf, vd, vovf);
-    }
-}
-
-
-static VecLikeImpl *new_vec_impl(Dt dt, Ovf ovf) {
-    switch (dt) {
-        case Dt::OBJ:
-            return new VectorImpl<ObjectTraits>(ovf);
-        case Dt::I64:
-            return new VectorImpl<Int64Traits>(ovf);
-        case Dt::U64:
-            return new VectorImpl<UInt64Traits>(ovf);
-        default:
-            return new VectorImpl<Float64Traits>(ovf);
-    }
-}
-
-
-//
 // Module state
 //
+
 
 struct stl_state {
     PyTypeObject *set_type;
@@ -180,6 +81,7 @@ static stl_state *find_state_2(PyObject *v, PyObject *w) {
 //
 // Container / iterator objects
 //
+
 
 struct ColObject {
     PyObject_HEAD
@@ -330,6 +232,7 @@ static PyObject *col_copy_as(PyTypeObject *tp, ColObject *co) {
 //
 // Iterator type
 //
+
 
 static void iter_dealloc(PyObject *self) {
     PyTypeObject *tp = Py_TYPE(self);
@@ -510,6 +413,7 @@ static const char *col_short_name(PyObject *self) {
 //
 // Set / UnorderedSet
 //
+
 
 static bool is_our_set(stl_state *st, PyObject *o) {
     return PyObject_TypeCheck(o, st->set_type) || PyObject_TypeCheck(o, st->unordered_set_type);
@@ -1278,7 +1182,6 @@ static PyGetSetDef set_getset[] = {
 };
 
 
-
 // SortedCollection surface (sorted variant only): iter / iter_desc are just the existing iterators under the interface
 // names; the seeded and find forms ride the new impl primitives.
 static PyObject *set_iter_from(PyObject *self, PyObject *base) {
@@ -1432,6 +1335,7 @@ static PyType_Spec unordered_set_spec = {
 //
 // Map / UnorderedMap
 //
+
 
 static bool is_our_map(stl_state *st, PyObject *o) {
     return PyObject_TypeCheck(o, st->map_type) || PyObject_TypeCheck(o, st->unordered_map_type);
@@ -2156,6 +2060,7 @@ static PyType_Spec unordered_map_spec = {
 //
 // Vector
 //
+
 
 static VecLikeImpl *vec_impl(ColObject *co) {
     return static_cast<VecLikeImpl *>(co->impl);
@@ -2907,6 +2812,7 @@ static PyType_Spec vector_spec = {
 //
 // Module
 //
+
 
 static int add_col_type(PyObject *mod, PyType_Spec *spec, PyTypeObject **out) {
     PyTypeObject *tp = (PyTypeObject *)PyType_FromModuleAndSpec(mod, spec, nullptr);

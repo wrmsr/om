@@ -10,6 +10,7 @@
 // Sets
 //
 
+
 struct SetLikeImpl : AnyImpl {
     using AnyImpl::AnyImpl;
 
@@ -27,6 +28,7 @@ struct SetLikeImpl : AnyImpl {
 //
 // Sorted set
 //
+
 
 template <typename K>
 struct SortedSetImpl final : SetLikeImpl {
@@ -267,6 +269,7 @@ AnyIter *SortedSetImpl<K>::make_iter_from(IterKind, bool desc, PyObject *base) {
 // Hash set
 //
 
+
 template <typename K>
 struct HashSetImpl final : SetLikeImpl {
     using Cont = std::unordered_set<typename K::Slot, typename K::Hash, typename K::Eq>;
@@ -467,4 +470,35 @@ AnyIter *HashSetImpl<K>::make_iter(IterKind, bool) {
     r->it = set_.cbegin();
     r->expect = version;
     return r;
+}
+
+
+//
+// Impl factories
+//
+
+
+inline SetLikeImpl *new_set_impl(ColKind kind, Dt dt, Ovf ovf) {
+    if (kind == ColKind::SORTED_SET) {
+        switch (dt) {
+            case Dt::OBJ:
+                return new SortedSetImpl<ObjectTraits>(ovf);
+            case Dt::I64:
+                return new SortedSetImpl<Int64Traits>(ovf);
+            case Dt::U64:
+                return new SortedSetImpl<UInt64Traits>(ovf);
+            default:
+                return new SortedSetImpl<Float64Traits>(ovf);
+        }
+    }
+    switch (dt) {
+        case Dt::OBJ:
+            return new HashSetImpl<HashedObjectTraits>(ovf);
+        case Dt::I64:
+            return new HashSetImpl<Int64Traits>(ovf);
+        case Dt::U64:
+            return new HashSetImpl<UInt64Traits>(ovf);
+        default:
+            return new HashSetImpl<Float64Traits>(ovf);
+    }
 }

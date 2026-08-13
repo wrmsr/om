@@ -26,6 +26,7 @@
 // Dtypes
 //
 
+
 enum class Dt : uint8_t {
     OBJ,
     I64,
@@ -128,6 +129,7 @@ inline const char *dtype_name(Dt dt, Ovf ovf) {
 // comparator or equality predicate throws, which is what keeps the containers consistent across such errors.
 //
 
+
 struct py_err_set : std::exception {
 };
 
@@ -170,6 +172,7 @@ int py_shield_int(F &&fn) noexcept {
 // the lock guard has been released. Callers must therefore always declare the Bin *before* the guard, so that on any
 // exit path the guard unlocks first and the bin drains second.
 //
+
 
 struct Bin {
     PyObject *slot0 = nullptr;
@@ -223,6 +226,7 @@ struct Bin {
 //
 // Numeric boxing / unboxing
 //
+
 
 inline bool unbox_int64(PyObject *o, Ovf ovf, int64_t *out) {
     PyObject *idx = PyNumber_Index(o);
@@ -360,6 +364,7 @@ inline uint64_t float64_key_bits(double v) noexcept {
 // slot is actually stored. release_into() moves a stored slot's owned reference into a Bin for deferred decref.
 // Comparator / hash / equality functors may throw py_err_set for object dtypes.
 //
+
 
 struct Int64Traits {
     using Slot = int64_t;
@@ -611,6 +616,7 @@ int unbox_probe(PyObject *o, Ovf ovf, typename Tr::Slot *out) {
 // std::bad_alloc; entry points translate via py_shield.
 //
 
+
 // What an iterator yields; direction is an orthogonal flag on make_iter / make_iter_from ("desc"), so kinds compose
 // with both directions (e.g. reversed keys for __reversed__, descending items for items_desc).
 enum class IterKind : uint8_t {
@@ -701,6 +707,7 @@ struct AnyImpl {
 //    consistent structure. tp_clear also runs unlocked: it only ever runs on objects GC has proven unreachable, which
 //    no thread can concurrently be operating on.
 //
+
 
 inline bool col_lock_acquire(AnyImpl *impl) {
     unsigned long tid = PyThread_get_thread_ident();
