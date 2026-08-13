@@ -164,9 +164,9 @@ def __om_amalg__():  # noqa
             dict(path='../interp/inject.py', sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143'),
             dict(path='../interp/default.py', sha1='7ea7b7d7aa191aedd4716f3616ca0d07a4a3d875'),
             dict(path='../interp/venvs.py', sha1='9042c733bff897c3390b1886de115f1bbaaaa9d0'),
-            dict(path='configs.py', sha1='dc7dcc956ee65c4cfab61a604933f86890f05b67'),
+            dict(path='configs.py', sha1='ca6349f1fcba60ef1b26986eba293b40fa39081a'),
             dict(path='venvs.py', sha1='d705aa16add6ab3cf901af31b3547c697e1543a0'),
-            dict(path='cli.py', sha1='fcac5604f3613b1b1b382a27f2f6e9402a149f11'),
+            dict(path='cli.py', sha1='91311743636e42bdacdac0043d1d7460e69602a1'),
         ],
     )
 
@@ -14075,9 +14075,23 @@ class InterpVenv:
 
 @dc.dataclass(frozen=True)
 class VenvConfig(InterpVenvConfig):
+    alias_for: ta.Optional[str] = None
     inherits: ta.Optional[ta.Sequence[str]] = None
     docker_service: ta.Optional[str] = None
     srcs: ta.Optional[ta.List[str]] = None
+
+    def __post_init__(self) -> None:
+        dataclass_maybe_post_init(super())
+
+        if self.alias_for is not None:
+            check.non_empty_str(self.alias_for)
+            for f in dc.fields(self):
+                if f.name != 'alias_for':
+                    if getattr(self, f.name) is not None:
+                        raise ValueError(f'Must not set {f.name} when alias_for is present.')
+
+        else:
+            check.not_isinstance(self.inherits, str)
 
 
 @dc.dataclass(frozen=True)
@@ -14156,6 +14170,8 @@ class PyprojectConfigPreparer:
 
         ivs = dict(self._inherit_venvs(pcfg.venvs or {}))
         for k, v in ivs.items():
+            if v.alias_for:
+                continue
             v = dc.replace(v, srcs=self._resolve_srcs(v.srcs or [], pcfg.srcs or {}))
             v = dc.replace(v, interp=self._fixup_interp(v.interp))
             ivs[k] = v
@@ -14291,11 +14307,28 @@ class Run:
 
     @cached_nullary
     def venvs(self) -> ta.Mapping[str, Venv]:
-        return {
-            n: Venv(n, c)
-            for n, c in self.cfg().venvs.items()
-            if not n.startswith('_')
-        }
+        venvs: ta.Dict[str, Venv] = {}
+        aliases: ta.Dict[str, ta.List[str]] = {}
+
+        for n, c in self.cfg().venvs.items():
+            if n.startswith('_'):
+                continue
+
+            check.not_in(n, venvs)
+            check.not_in(n, aliases)
+
+            if (af := c.alias_for):
+                aliases.setdefault(af, []).append(n)
+
+            else:
+                venvs[n] = Venv(n, c)
+
+        for n, afs in aliases.items():
+            v = venvs[n]
+            for af in afs:
+                venvs[af] = v
+
+        return venvs
 
 
 ##

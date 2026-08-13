@@ -49,6 +49,9 @@ requires_pats = [
     'mypy',
 ]
 
+[tool.om.pyproject.venvs.'14']
+alias_for = 'default'
+
 [tool.om.pyproject.venvs.'14d']
 inherits = ['_default']
 interp = '@14d'

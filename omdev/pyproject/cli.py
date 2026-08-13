@@ -93,11 +93,28 @@ class Run:
 
     @cached_nullary
     def venvs(self) -> ta.Mapping[str, Venv]:
-        return {
-            n: Venv(n, c)
-            for n, c in self.cfg().venvs.items()
-            if not n.startswith('_')
-        }
+        venvs: ta.Dict[str, Venv] = {}
+        aliases: ta.Dict[str, ta.List[str]] = {}
+
+        for n, c in self.cfg().venvs.items():
+            if n.startswith('_'):
+                continue
+
+            check.not_in(n, venvs)
+            check.not_in(n, aliases)
+
+            if (af := c.alias_for):
+                aliases.setdefault(af, []).append(n)
+
+            else:
+                venvs[n] = Venv(n, c)
+
+        for n, afs in aliases.items():
+            v = venvs[n]
+            for af in afs:
+                venvs[af] = v
+
+        return venvs
 
 
 ##

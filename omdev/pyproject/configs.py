@@ -2,6 +2,8 @@
 import dataclasses as dc
 import typing as ta
 
+from omcore.lite.check import check
+from omcore.lite.dataclasses import dataclass_maybe_post_init
 from omcore.lite.marshal import unmarshal_obj
 
 from ..interp.venvs import InterpVenvConfig
@@ -12,9 +14,23 @@ from ..interp.venvs import InterpVenvConfig
 
 @dc.dataclass(frozen=True)
 class VenvConfig(InterpVenvConfig):
+    alias_for: ta.Optional[str] = None
     inherits: ta.Optional[ta.Sequence[str]] = None
     docker_service: ta.Optional[str] = None
     srcs: ta.Optional[ta.List[str]] = None
+
+    def __post_init__(self) -> None:
+        dataclass_maybe_post_init(super())
+
+        if self.alias_for is not None:
+            check.non_empty_str(self.alias_for)
+            for f in dc.fields(self):
+                if f.name != 'alias_for':
+                    if getattr(self, f.name) is not None:
+                        raise ValueError(f'Must not set {f.name} when alias_for is present.')
+
+        else:
+            check.not_isinstance(self.inherits, str)
 
 
 @dc.dataclass(frozen=True)
@@ -93,6 +109,8 @@ class PyprojectConfigPreparer:
 
         ivs = dict(self._inherit_venvs(pcfg.venvs or {}))
         for k, v in ivs.items():
+            if v.alias_for:
+                continue
             v = dc.replace(v, srcs=self._resolve_srcs(v.srcs or [], pcfg.srcs or {}))
             v = dc.replace(v, interp=self._fixup_interp(v.interp))
             ivs[k] = v
