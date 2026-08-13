@@ -1,4 +1,3 @@
-import collections
 import contextlib
 import errno
 import os
@@ -13,21 +12,21 @@ import uuid
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
+from ...io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from ...logs import all as logs
 from ...sockets.io import close_socket_immediately
+from .dispatch import RpcRequestDispatcher
+from .pipelines import RpcPipelineFailure
+from .pipelines import RpcServerDispatch
+from .pipelines import RpcServerSendResponse
+from .pipelines import RpcWireError
+from .pipelines import RpcWireResponse
+from .pipelines import rpc_server_pipeline_spec
 from .protocol import RPC_DEFAULT_MAX_FRAME_BYTES
-from .protocol import RPC_PROTOCOL_NAME
 from .protocol import RPC_PROTOCOL_VERSION
 from .protocol import RpcHandler
 from .protocol import RpcProtocolError
-from .protocol import RpcRequest
-from .protocol import encode_rpc_message
-from .protocol import error_message
-from .protocol import exception_type_name
-from .protocol import hello_message
-from .protocol import recv_rpc_message
-from .protocol import result_message
-from .protocol import send_rpc_message
+from .registry import RpcResponseRegistry
 
 
 log = logs.get_module_logger(globals())
@@ -83,102 +82,6 @@ class RpcServerConfig:
 
 
 ##
-
-
-class _RpcResponseEntry:
-    def __init__(self, request: RpcRequest) -> None:
-        super().__init__()
-
-        self.request = request
-        self.response: ta.Mapping[str, ta.Any] | None = None
-
-
-class _RpcResponseCache:
-    def __init__(
-            self,
-            handler: RpcHandler,
-            *,
-            max_entries: int,
-            max_frame_bytes: int,
-    ) -> None:
-        super().__init__()
-
-        self._handler = handler
-        self._max_entries = max_entries
-        self._max_frame_bytes = max_frame_bytes
-
-        self._condition = threading.Condition(threading.RLock())
-        self._entries: collections.OrderedDict[tuple[str, str], _RpcResponseEntry] = collections.OrderedDict()
-
-    def _wait_locked(self, entry: _RpcResponseEntry) -> ta.Mapping[str, ta.Any]:
-        while entry.response is None:
-            self._condition.wait()
-        return entry.response
-
-    def call(self, request: RpcRequest) -> ta.Mapping[str, ta.Any]:
-        key = (request.client_id, request.request_id)
-
-        with self._condition:
-            if (entry := self._entries.get(key)) is not None:
-                if entry.request != request:
-                    return error_message(
-                        request,
-                        code='protocol',
-                        remote_type='omcore.daemons.rpc.RpcProtocolError',
-                        message='RPC request id was reused with different request data',
-                    )
-                response = self._wait_locked(entry)
-                self._entries.move_to_end(key)
-                return response
-
-            if len(self._entries) >= self._max_entries:
-                return error_message(
-                    request,
-                    code='remote',
-                    remote_type='omcore.daemons.rpc.RpcRequestCacheFullError',
-                    message='RPC request cache is full',
-                )
-
-            entry = _RpcResponseEntry(request)
-            self._entries[key] = entry
-
-        try:
-            try:
-                result = self._handler(request)
-            except BaseException as exc:  # noqa
-                response = error_message(
-                    request,
-                    code='remote',
-                    remote_type=exception_type_name(exc),
-                    message=str(exc)[:1_000],
-                )
-            else:
-                response = result_message(request, result)
-
-            try:
-                encode_rpc_message(response, self._max_frame_bytes)
-            except RpcProtocolError as exc:
-                response = error_message(
-                    request,
-                    code='remote',
-                    remote_type=exception_type_name(exc),
-                    message=str(exc)[:1_000],
-                )
-                encode_rpc_message(response, self._max_frame_bytes)
-
-        except BaseException as exc:  # noqa
-            response = error_message(
-                request,
-                code='remote',
-                remote_type=exception_type_name(exc),
-                message='Failed to construct RPC response',
-            )
-
-        with self._condition:
-            entry.response = response
-            self._entries.move_to_end(key)
-            self._condition.notify_all()
-            return response
 
 
 class _RpcConnectionThreads:
@@ -255,66 +158,59 @@ class RpcServer(lang.Final):
     def config(self) -> RpcServerConfig:
         return self._config
 
-    @staticmethod
-    def _parse_hello(obj: ta.Mapping[str, ta.Any]) -> int:
-        if obj.get('type') != 'hello' or obj.get('protocol') != RPC_PROTOCOL_NAME:
-            raise RpcProtocolError('Invalid RPC hello')
-        version = obj.get('version')
-        if not isinstance(version, int):
-            raise RpcProtocolError(f'Invalid RPC protocol version: {version!r}')
-        return version
-
-    @staticmethod
-    def _parse_request(obj: ta.Mapping[str, ta.Any]) -> RpcRequest:
-        if obj.get('type') != 'request':
-            raise RpcProtocolError(f'Expected RPC request, got {obj.get("type")!r}')
-        try:
-            return RpcRequest(
-                client_id=check.isinstance(obj['client_id'], str),
-                request_id=check.isinstance(obj['request_id'], str),
-                method=check.isinstance(obj['method'], str),
-                params=obj.get('params'),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise RpcProtocolError(f'Invalid RPC request: {exc}') from exc
-
     def _handle_connection(
             self,
             conn: socket.socket,
             *,
             instance_id: uuid.UUID,
             runtime: RpcServerRuntime,
-            responses: _RpcResponseCache,
+            dispatcher: RpcRequestDispatcher,
     ) -> None:
         conn.settimeout(self._config.connection_timeout_s)
+        with SyncSocketIoPipelineDriver(
+                rpc_server_pipeline_spec(
+                    protocol_version=RPC_PROTOCOL_VERSION,
+                    instance_id=instance_id,
+                    max_frame_bytes=self._config.max_frame_bytes,
+                ),
+                conn,
+        ) as driver:
+            while True:
+                event = driver.next()
+                if isinstance(event, RpcPipelineFailure):
+                    raise event.exc
+                if isinstance(event, RpcServerDispatch):
+                    request = event.request
+                    break
+                if event is not None:
+                    raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
+                if not driver.is_running:
+                    return
 
-        version = self._parse_hello(recv_rpc_message(conn, self._config.max_frame_bytes))
-        send_rpc_message(
-            conn,
-            hello_message(
-                version=RPC_PROTOCOL_VERSION,
-                instance_id=instance_id,
-            ),
-            self._config.max_frame_bytes,
-        )
-        if version != RPC_PROTOCOL_VERSION:
-            return
+            if (activity := runtime.acquire_activity()) is None:
+                response: RpcWireResponse = RpcWireError(
+                    client_id=request.client_id,
+                    request_id=request.request_id,
+                    code='unavailable',
+                    remote_type='omcore.daemons.rpc.RpcServerActivityRejectedError',
+                    message='RPC server is shutting down',
+                )
+                driver.enqueue(RpcServerSendResponse(response=response))
+                while driver.is_running:
+                    if (event := driver.next()) is not None:
+                        if isinstance(event, RpcPipelineFailure):
+                            raise event.exc
+                        raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
+                return
 
-        request = self._parse_request(recv_rpc_message(conn, self._config.max_frame_bytes))
-
-        if (activity := runtime.acquire_activity()) is None:
-            response = error_message(
-                request,
-                code='unavailable',
-                remote_type='omcore.daemons.rpc.RpcServerActivityRejectedError',
-                message='RPC server is shutting down',
-            )
-            send_rpc_message(conn, response, self._config.max_frame_bytes)
-            return
-
-        with activity:
-            response = responses.call(request)
-            send_rpc_message(conn, response, self._config.max_frame_bytes)
+            with activity:
+                response = dispatcher.dispatch(request)
+                driver.enqueue(RpcServerSendResponse(response=response))
+                while driver.is_running:
+                    if (event := driver.next()) is not None:
+                        if isinstance(event, RpcPipelineFailure):
+                            raise event.exc
+                        raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
 
     def _unlink_socket(self, identity: tuple[int, int] | None) -> None:
         if identity is None:
@@ -363,9 +259,12 @@ class RpcServer(lang.Final):
             instance_id: uuid.UUID | None = None,
     ) -> uuid.UUID:
         instance_id = instance_id or uuid.uuid7()
-        responses = _RpcResponseCache(
-            self._config.handler,
+        responses = RpcResponseRegistry(
             max_entries=self._config.response_cache_size,
+        )
+        dispatcher = RpcRequestDispatcher(
+            self._config.handler,
+            responses,
             max_frame_bytes=self._config.max_frame_bytes,
         )
         connections = _RpcConnectionThreads()
@@ -419,7 +318,7 @@ class RpcServer(lang.Final):
                                             conn,
                                             instance_id=instance_id,
                                             runtime=runtime,
-                                            responses=responses,
+                                            dispatcher=dispatcher,
                                         ),
                                     )
 

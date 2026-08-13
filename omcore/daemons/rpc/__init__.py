@@ -23,12 +23,25 @@ with _lang.auto_proxy_init(globals()):
         RpcClientConnection,
     )
 
+    from .asyncio import (  # noqa
+        AsyncioRpcClient,
+        AsyncioRpcClientConnection,
+        AsyncioRpcServer,
+        AsyncioRpcServerConfig,
+        AsyncRpcHandler,
+        ThreadedAsyncRpcHandler,
+    )
+
     from .server import (  # noqa
         RpcServer,
         RpcServerConfig,
         RpcServerDrainTimeoutError,
         RpcServerRuntime,
         SimpleRpcServerRuntime,
+    )
+
+    from .fdio import (  # noqa
+        FdioRpcServer,
     )
 
     from .objects import (  # noqa

@@ -58,7 +58,8 @@ The package is intentionally composable rather than presenting one mandatory dae
 | Runtime | `ServiceRuntime`, `Activity`, `ShutdownController` | Track activity, idle lifetime, signals, and graceful drain. |
 | Lazy access | `LazyDaemon` | Connect first; coordinate launch and relaunch only when explicitly unavailable. |
 | Readiness | `ConnectWait`, `HttpWait`, `RpcWait` | Supply pluggable transport- or application-level health checks. |
-| RPC core | `RpcServer`, `RpcClient`, `RpcObjectHandler`, `RpcObjectProxy` | Provide independently usable JSON calls and an opt-in typed-object facade. |
+| RPC core | `RpcServer`, `AsyncioRpcServer`, `FdioRpcServer`, `RpcClient`, `AsyncioRpcClient` | Provide pipeline-backed JSON calls independently of daemon lifecycle. |
+| RPC facade | `RpcObjectHandler`, `RpcObjectProxy` | Add an opt-in typed-object interface above any `RpcCaller`. |
 | RPC adapters | `RpcService`, `LazyRpcClient`, `RpcWait` | Compose RPC with service runtime, lazy daemon launch, and readiness. |
 
 A typical lazy RPC application assembles these pieces as follows:
@@ -76,10 +77,12 @@ LazyRpcClient
 `ServiceDaemon` is a convenience value which ties a `Service` or service config to a `Daemon` or daemon config. It
 does not introduce another runtime layer.
 
-The RPC implementation is a subpackage rather than a single lifecycle component. `rpc.protocol`, `rpc.client`,
-`rpc.server`, and `rpc.objects` have no dependency on daemon launching or service runtime. `rpc.services`,
-`rpc.lazy`, and `rpc.waiting` are explicit composition adapters. A daemon may serve HTTP or run entirely in-process,
-and an RPC server may be run by a thread, a remote host's supervisor, or any other lifecycle owner.
+The RPC implementation is a subpackage rather than a single lifecycle component. `rpc.pipelines` contains the
+runtime-neutral framing, JSON, and session state machines; `rpc.registry` owns request identity without choosing how a
+waiter blocks; and sync, asyncio, and fdio hosts drive fresh per-connection specifications. These pieces do not depend
+on daemon launching. `rpc.services`, `rpc.lazy`, and `rpc.waiting` are explicit composition adapters. A daemon may serve
+HTTP or run entirely in-process, and an RPC server may be run by a thread, a remote host's supervisor, or any other
+lifecycle owner.
 
 ## Process choices
 
@@ -172,6 +175,16 @@ The RPC transport is intentionally small:
 - stable client/request IDs and same-instance response replay; and
 - remote, unavailable, protocol, and indeterminate outcome errors.
 
+Framing and protocol sequencing are sans-I/O pipeline handlers. `RpcServer`/`RpcClient` use the synchronous socket
+driver, `AsyncioRpcServer`/`AsyncioRpcClient` use the asyncio stream driver, and `FdioRpcServer` uses the fdio driver.
+The wire messages and session handlers are shared; listener ownership, connection tracking, waits, and handler
+execution are host policy. The asyncio host accepts only async handlers. A synchronous handler must be wrapped in
+`ThreadedAsyncRpcHandler`, making the event-loop/thread choice explicit.
+
+`FdioRpcServer` deliberately executes its synchronous handler on the fdio loop and is therefore suited to short,
+nonblocking work. It is a useful first datapoint for a future general pipeline-server abstraction, not an assertion
+that every server should share one listener implementation.
+
 `RpcObjectHandler` and `RpcObjectProxy` form an optional interface facade over that transport. Only methods explicitly
 marked with `@rpc_method` are exposed; the handler never performs request-controlled attribute lookup. The same
 interface supplies local argument binding on the proxy and authoritative binding on the server:
@@ -196,8 +209,10 @@ See the retry contract in [DESIGN.md](DESIGN.md).
 ## Testing
 
 The suite uses real files, locks, Unix sockets, HTTP servers, subprocesses, multiprocessing children, raw forks,
-signals, and execs. It also verifies a thread-backed service through shared in-process state and exercises the RPC core
-without a daemon. The daemon tests do not mock or patch those boundaries.
+signals, and execs. It also verifies a thread-backed service through shared in-process state, exercises the RPC core
+without a daemon, runs pure sans-I/O transcripts, crosses sync and asyncio clients and servers, drives an fdio server,
+and checks compatibility with the original blocking wire helpers. The daemon tests do not mock or patch those
+boundaries.
 
 ```shell
 ./python -m pytest omcore/daemons/tests

@@ -42,6 +42,29 @@ Acceptance should include:
 - clean cancellation, peer disconnect, shutdown, and drain semantics; and
 - no import dependency from the RPC core to daemon lifecycle modules.
 
+### Planned implementation slices
+
+The RPC rewrite should proceed without changing `omcore.io.pipelines` or `omcore.http.pipelines`:
+
+1. **Complete:** Add typed wire messages, a bounded length-frame codec, a JSON message codec, and client/server session handlers
+   under `omcore.daemons.rpc`. Prove them first with the deterministic pure driver and split-input transcripts.
+2. **Complete:** Add a nonblocking, server-instance-wide response registry. Connection hosts may wait synchronously or asynchronously
+   for an in-progress duplicate without the registry itself depending on an event loop.
+3. **Complete:** Reimplement the existing synchronous `RpcClient` and `RpcServer` APIs over the sync socket pipeline driver. Retain
+   the current Unix-socket wire protocol, hardened bind/unlink behavior, lazy retry semantics, and daemon adapters.
+4. **Complete:** Add asyncio client and server hosts using the same pipeline specifications and protocol/session handlers. Handler
+   execution policy must be explicit so a synchronous handler is not accidentally run on the event-loop thread.
+5. **Complete:** Add an fdio server host as a separate connection-group implementation over the same specs. If this exposes more
+   than two defects in the existing fdio pipeline driver, or requires more than four total lines of fixes outside
+   `omcore.daemons`, preserve the attempted regression tests as expected failures, document the obstruction, and
+   continue the sync/async work rather than expanding this project into an fdio repair effort.
+6. **Complete:** Run old-client/new-server and new-client/old-server interoperability tests. The blocking helpers remain
+   as a small compatibility API and independent wire-format oracle.
+
+The initial hosts may remain RPC-specific. They should record what listener ownership, wakeup, connection tracking,
+driver construction, dispatch, graceful drain, and abort behavior a future general-purpose pipeline server actually
+needs, rather than prematurely placing an unproven abstraction in `omcore.io.pipelines`.
+
 ## 2. First-class non-RPC services
 
 Provide a runtime-managed HTTP composition using `omcore.http.pipelines`. It should demonstrate request activity

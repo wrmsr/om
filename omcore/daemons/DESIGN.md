@@ -75,14 +75,18 @@ connect these into an on-demand policy.
 RPC is colocated under `omcore.daemons` for now, but it is not part of the daemon lifecycle abstraction. Its modules
 make the boundary explicit:
 
-- `rpc.protocol`, `rpc.client`, `rpc.server`, and `rpc.objects` are lifecycle-independent RPC pieces;
+- `rpc.pipelines` implements runtime-neutral framing, JSON translation, and connection sessions;
+- `rpc.registry` and `rpc.dispatch` implement lifecycle-independent identity, replay, and synchronous dispatch;
+- `rpc.client`, `rpc.server`, `rpc.asyncio`, `rpc.fdio`, and `rpc.objects` are lifecycle-independent RPC pieces;
 - `rpc.services` adapts `RpcServer` to `ServiceRuntime`;
 - `rpc.lazy` composes `RpcClient` with `LazyDaemon`; and
 - `rpc.waiting` adapts an RPC handshake to the general readiness interface.
 
-`RpcServer` depends on the small `RpcServerRuntime` interface rather than on `ServiceRuntime`. Consequently it can run
-under a thread, a different supervisor, or an eventual remote-host runtime. In the other direction, daemon code does
-not require RPC: targets can be ordinary functions, in-process services, HTTP servers, or other protocols.
+`RpcServer` and `FdioRpcServer` depend on the small `RpcServerRuntime` interface rather than on `ServiceRuntime`.
+Consequently they can run under a thread, a different supervisor, or an eventual remote-host runtime.
+`AsyncioRpcServer` owns its lifecycle directly and drains its tracked connection tasks on `close()`. In the other
+direction, daemon code does not require RPC: targets can be ordinary functions, in-process services, HTTP servers, or
+other protocols.
 
 ---
 
@@ -216,8 +220,14 @@ which already obtained an activity lease, up to the configured deadline.
 ## 7. RPC protocol
 
 RPC currently uses an `AF_UNIX`/`SOCK_STREAM` socket. Each message is encoded as UTF-8 JSON preceded by an unsigned
-four-byte big-endian byte count. Frame size is checked before allocating or decoding, and JSON encoding rejects data
-which cannot be represented by the configured bound.
+four-byte big-endian byte count. Frame size is checked as soon as its header is available, and inbound and outbound
+JSON are validated against the configured bound.
+
+The protocol core is a sans-I/O `IoPipeline.Spec`, freshly constructed for each connection because its handlers own
+session-local state. Inbound bytes pass through a bounded frame decoder, a typed JSON wire codec, and a one-request
+client or server session. Outbound application commands traverse those handlers in reverse. Connected-stream drivers
+own reads, writes, flush completion, half-close observation, output watermarks, and graceful final output. They do not
+own listening sockets or application concurrency.
 
 `RpcServer` owns this transport, concurrent connection handling, and response replay independently of daemon services.
 It is driven by `RpcServerRuntime`, the narrow interface for shutdown, drain timeout, and optional activity acquisition.
@@ -235,10 +245,15 @@ Handshake-only probes do not acquire activity and therefore do not keep an idle 
 acquire runtime activity before handler execution. Once shutdown begins, the service sends an explicit unavailable
 response instead of accepting the request.
 
-The server accepts connections concurrently in tracked daemon threads. Shutdown closes the listener, waits for tracked
-connections to drain, and closes their sockets on drain timeout. Socket cleanup compares device/inode identity before
-unlinking so an old instance cannot remove a replacement's socket. Bind refuses to replace a non-socket path, probes an
-existing socket for a live owner, and only removes a stale socket.
+The synchronous server accepts connections concurrently in tracked daemon threads and drives each through the sync
+socket pipeline driver. The asyncio host tracks one task and pipeline driver per stream and requires an async handler;
+`ThreadedAsyncRpcHandler` is the explicit adapter for synchronous work. The fdio host dispatches driver-visible RPC
+events on its single poll loop and retains a runtime activity lease until queued response output has drained. Shutdown
+closes the listener and drains tracked connections up to the host's configured deadline.
+
+All hosts use inode-safe socket cleanup: an old instance compares device/inode identity before unlinking and therefore
+cannot remove a replacement's socket. Bind refuses to replace a non-socket path, probes an existing socket for a live
+owner, and only removes a stale socket.
 
 ### Object interface facade
 
@@ -256,7 +271,7 @@ interfaces, not on daemon launch or service runtime.
 ### Request identity and replay
 
 A request is identified by `(client_id, request_id)` and includes its method and parameters. Within one service
-instance, the response cache has these rules:
+instance, the runtime-neutral response registry has these rules:
 
 - the first request executes the handler and stores its result or remote error;
 - a concurrent or later value-equivalent request with the same identity receives the stored response;
@@ -266,6 +281,11 @@ instance, the response cache has these rules:
 The configured cache bound is fail-closed. Once full, new unique requests receive a cache-full remote error. Evicting
 an old entry would permit a lost response to cause the same request identity to execute twice, so bounded memory is
 preferred over weakening replay safety. Idle-exiting services naturally bound the cache lifetime.
+
+The registry returns execute, pending, replay, or reject claims. It does not run handlers and does not choose a waiting
+runtime. Pending entries expose both a condition-backed synchronous wait and completion callbacks; the asyncio
+dispatcher turns the latter into a loop-owned future without blocking the event-loop thread. A response is JSON- and
+frame-validated before it becomes the authoritative cached value.
 
 ### Outcome taxonomy
 
@@ -323,8 +343,9 @@ handshake, fail closed on mismatch, and require an explicit development override
 Behavior at OS boundaries is covered by integration tests without mocks or patches. Tests use real `flock` locks,
 Unix sockets, HTTP servers, threads, multiprocessing spawn/fork, raw fork, double-fork reparenting, signals, exec
 replacement, concurrent launchers, response loss, and process replacement. A shared-state integration test verifies
-that `ThreadSpawning` truly remains in-process, while a standalone server test verifies that the RPC core runs without
-daemon or service-runtime adapters.
+that `ThreadSpawning` truly remains in-process. RPC coverage includes pure split-byte protocol transcripts, sync and
+asyncio cross-host interoperability, explicit threaded asyncio handling, an fdio host, blocking-wire compatibility,
+and standalone servers without daemon adapters.
 
 The LLM demo test invokes the real argparse CLI twice. It verifies that the first process starts a detached service,
 the second connects to the same PID and instance ID, both calls traverse RPC, and signal shutdown releases the pidfile.
