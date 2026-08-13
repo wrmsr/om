@@ -119,88 +119,6 @@ requires = ['-rrequirements.txt']
 
 
 ##
-# mypy
-
-[tool.mypy]
-# ignore_missing_imports = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unreachable = true
-warn_unused_ignores = true
-
-pretty = true
-show_column_numbers = true
-show_error_codes = true
-show_error_context = true
-show_traceback = true
-# verbosity = 1
-
-check_untyped_defs = true
-
-[[tool.mypy.overrides]]
-module = [
-
-    ##
-    # omdev
-
-    'pgcli',
-    'pgcli.*',
-
-    'pytesseract',
-    'rapidocr_onnxruntime',
-
-    ##
-    # omcore
-
-    'annotationlib',
-
-    'brotli',
-    'cloudpickle',
-    'lz4',
-    'lz4.*',
-    'pg8000',
-    'snappy',
-    'sqlean',
-    'sqlite_vec',
-    'trio_asyncio',
-    'trio_asyncio.*',
-
-    'flask',
-
-    '_pydev_bundle',
-    'pydevd',
-    'pydevd_nest_asyncio',
-    'pydevd_pycharm',
-
-    ##
-    # omllm
-
-    'tinygrad',
-    'tinygrad.*',
-
-    'datasets',
-    'sentencepiece',
-    'tokenizers',
-    'tokenizers.*',
-    'torchvision',
-    'torchvision.*',
-
-    'llama_cpp',
-    'llama_cpp.*',
-
-    'mlx.*',
-    'mlx_lm.*',
-
-    ##
-    # omxtra
-
-    'wikitextparser',
-
-]
-ignore_missing_imports = true
-disable_error_code = ['import-untyped']
-
-##
 # pytest
 
 [tool.pytest.ini_options]
@@ -436,6 +354,89 @@ ignore = [
     'W503',
     'W504',
 ]
+
+
+##
+# mypy
+
+[tool.mypy]
+# ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_ignores = true
+
+pretty = true
+show_column_numbers = true
+show_error_codes = true
+show_error_context = true
+show_traceback = true
+# verbosity = 1
+
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+
+    ##
+    # omdev
+
+    'pgcli',
+    'pgcli.*',
+
+    'pytesseract',
+    'rapidocr_onnxruntime',
+
+    ##
+    # omcore
+
+    'annotationlib',
+
+    'brotli',
+    'cloudpickle',
+    'lz4',
+    'lz4.*',
+    'pg8000',
+    'snappy',
+    'sqlean',
+    'sqlite_vec',
+    'trio_asyncio',
+    'trio_asyncio.*',
+
+    'flask',
+
+    '_pydev_bundle',
+    'pydevd',
+    'pydevd_nest_asyncio',
+    'pydevd_pycharm',
+
+    ##
+    # omllm
+
+    'tinygrad',
+    'tinygrad.*',
+
+    'datasets',
+    'sentencepiece',
+    'tokenizers',
+    'tokenizers.*',
+    'torchvision',
+    'torchvision.*',
+
+    'llama_cpp',
+    'llama_cpp.*',
+
+    'mlx.*',
+    'mlx_lm.*',
+
+    ##
+    # omxtra
+
+    'wikitextparser',
+
+]
+ignore_missing_imports = true
+disable_error_code = ['import-untyped']
 
 
 ##

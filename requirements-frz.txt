@@ -51,7 +51,7 @@ duckdb==1.5.5
 execnet==2.1.2
 executing==2.2.1
 fake-useragent==2.2.0
-filelock==3.32.2
+filelock==3.32.3
 flake8==7.3.0
 Flake8-pyproject==1.2.4
 flatbuffers==25.12.19
@@ -174,8 +174,9 @@ pyclipper==1.4.0
 pycodestyle==2.14.0
 pycparser==3.0
 pycryptodomex==3.23.0
-pydantic-monty==0.0.19
-pydantic-monty-runtime==0.0.19
+pydantic-monty==0.0.21
+pydantic-monty-client==0.0.21
+pydantic-monty-runtime==0.0.21
 pyee==13.0.1
 pyflakes==3.4.0
 Pygments==2.20.0
@@ -209,7 +210,7 @@ requests-toolbelt==1.0.0
 rfc3986==2.0.0
 rich==15.0.0
 ripgrep==15.1.0
-ruff==0.16.2
+ruff==0.16.3
 s3transfer==0.19.2
 safetensors==0.8.0
 scikit-image==0.26.0
@@ -268,7 +269,7 @@ trio==0.33.0
 twine==7.0.0
 typer==0.27.1
 types-awscrt==0.36.2
-types-boto3==1.43.69
+types-boto3==1.43.70
 types-docutils==0.22.3.20260724
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20260724
