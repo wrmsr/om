@@ -64,8 +64,8 @@ class LsTool(ToolClass[LsToolParams]):
 
         out = io.StringIO()
         out.write('<dir>\n')
-        for e in sorted(os.scandir(dir_path), key=lambda e: e.name):  # noqa
-            out.write(f'{e.name}{"/" if e.is_dir() else ""}\n')
+        for e in sorted(await self._fs.list_dir(dir_path), key=lambda e: e.name):  # noqa
+            out.write(f'{e.name}{"/" if e.is_dir else ""}\n')
         out.write('</dir>\n')
 
         return out.getvalue()
