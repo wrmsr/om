@@ -32,8 +32,15 @@ class Venv:
         self._cfg = cfg
 
     @property
+    def name(self) -> str:
+        return self._name
+
+    @property
     def cfg(self) -> VenvConfig:
         return self._cfg
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(name={self._name!r}, cfg={self._cfg!r})'
 
     DIR_NAME = '.venvs'
 
@@ -66,7 +73,17 @@ class Venv:
 
     @async_cached_nullary
     async def create(self) -> bool:
-        return await self._iv().create()
+        ret = await self._iv().create()
+
+        for a in self._cfg.aliases or []:
+            ap = os.path.join(self.DIR_NAME, a)
+            if os.path.exists(ap):
+                if not os.path.islink(ap):
+                    raise Exception(f'{ap} exists but is not a symlink!')
+            else:
+                os.symlink(self._name, ap)
+
+        return ret
 
     @staticmethod
     def _resolve_srcs(raw: ta.List[str]) -> ta.List[str]:

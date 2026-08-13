@@ -15,6 +15,8 @@ from ..interp.venvs import InterpVenvConfig
 @dc.dataclass(frozen=True)
 class VenvConfig(InterpVenvConfig):
     alias_for: ta.Optional[str] = None
+    aliases: ta.Optional[ta.List[str]] = None
+
     inherits: ta.Optional[ta.Sequence[str]] = None
     docker_service: ta.Optional[str] = None
     srcs: ta.Optional[ta.List[str]] = None

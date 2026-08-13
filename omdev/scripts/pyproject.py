@@ -164,9 +164,9 @@ def __om_amalg__():  # noqa
             dict(path='../interp/inject.py', sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143'),
             dict(path='../interp/default.py', sha1='7ea7b7d7aa191aedd4716f3616ca0d07a4a3d875'),
             dict(path='../interp/venvs.py', sha1='9042c733bff897c3390b1886de115f1bbaaaa9d0'),
-            dict(path='configs.py', sha1='ca6349f1fcba60ef1b26986eba293b40fa39081a'),
-            dict(path='venvs.py', sha1='d705aa16add6ab3cf901af31b3547c697e1543a0'),
-            dict(path='cli.py', sha1='91311743636e42bdacdac0043d1d7460e69602a1'),
+            dict(path='configs.py', sha1='e938253bc84400f27e3e0ddab644158441442d3f'),
+            dict(path='venvs.py', sha1='3c4688c71f5345b199cf29aaa6dd7871b40a8959'),
+            dict(path='cli.py', sha1='76d354dc31b8b9fc4fc71cf3a0227b181ad0859f'),
         ],
     )
 
@@ -14076,6 +14076,8 @@ class InterpVenv:
 @dc.dataclass(frozen=True)
 class VenvConfig(InterpVenvConfig):
     alias_for: ta.Optional[str] = None
+    aliases: ta.Optional[ta.List[str]] = None
+
     inherits: ta.Optional[ta.Sequence[str]] = None
     docker_service: ta.Optional[str] = None
     srcs: ta.Optional[ta.List[str]] = None
@@ -14202,8 +14204,15 @@ class Venv:
         self._cfg = cfg
 
     @property
+    def name(self) -> str:
+        return self._name
+
+    @property
     def cfg(self) -> VenvConfig:
         return self._cfg
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(name={self._name!r}, cfg={self._cfg!r})'
 
     DIR_NAME = '.venvs'
 
@@ -14236,7 +14245,17 @@ class Venv:
 
     @async_cached_nullary
     async def create(self) -> bool:
-        return await self._iv().create()
+        ret = await self._iv().create()
+
+        for a in self._cfg.aliases or []:
+            ap = os.path.join(self.DIR_NAME, a)
+            if os.path.exists(ap):
+                if not os.path.islink(ap):
+                    raise Exception(f'{ap} exists but is not a symlink!')
+            else:
+                os.symlink(self._name, ap)
+
+        return ret
 
     @staticmethod
     def _resolve_srcs(raw: ta.List[str]) -> ta.List[str]:
@@ -14307,21 +14326,36 @@ class Run:
 
     @cached_nullary
     def venvs(self) -> ta.Mapping[str, Venv]:
-        venvs: ta.Dict[str, Venv] = {}
+        real_cfgs: ta.Dict[str, VenvConfig] = {}
         aliases: ta.Dict[str, ta.List[str]] = {}
 
         for n, c in self.cfg().venvs.items():
             if n.startswith('_'):
                 continue
 
-            check.not_in(n, venvs)
+            check.not_in(n, real_cfgs)
             check.not_in(n, aliases)
 
             if (af := c.alias_for):
                 aliases.setdefault(af, []).append(n)
+                continue
 
-            else:
-                venvs[n] = Venv(n, c)
+            for a in c.aliases or []:
+                check.not_in(a, real_cfgs)
+                check.not_in(a, aliases)
+                aliases.setdefault(a, []).append(n)
+
+            real_cfgs[n] = c
+
+        venvs: ta.Dict[str, Venv] = {}
+        for n, c in real_cfgs.items():
+            cal = [
+                *(c.aliases or []),
+                *aliases.get(n, []),
+            ]
+            c = dc.replace(c, aliases=cal or None)
+
+            venvs[n] = Venv(n, c)
 
         for n, afs in aliases.items():
             v = venvs[n]

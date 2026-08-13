@@ -22,6 +22,7 @@ See:
 import argparse
 import asyncio
 import concurrent.futures as cf
+import dataclasses as dc
 import functools
 import itertools
 import multiprocessing as mp
@@ -43,6 +44,7 @@ from omcore.logs.std.standard import configure_standard_logging
 
 from .configs import PyprojectConfig
 from .configs import PyprojectConfigPreparer
+from .configs import VenvConfig
 from .pkg import BasePyprojectPackageGenerator
 from .pkg import PyprojectPackageGenerator
 from .venvs import Venv
@@ -93,21 +95,36 @@ class Run:
 
     @cached_nullary
     def venvs(self) -> ta.Mapping[str, Venv]:
-        venvs: ta.Dict[str, Venv] = {}
+        real_cfgs: ta.Dict[str, VenvConfig] = {}
         aliases: ta.Dict[str, ta.List[str]] = {}
 
         for n, c in self.cfg().venvs.items():
             if n.startswith('_'):
                 continue
 
-            check.not_in(n, venvs)
+            check.not_in(n, real_cfgs)
             check.not_in(n, aliases)
 
             if (af := c.alias_for):
                 aliases.setdefault(af, []).append(n)
+                continue
 
-            else:
-                venvs[n] = Venv(n, c)
+            for a in c.aliases or []:
+                check.not_in(a, real_cfgs)
+                check.not_in(a, aliases)
+                aliases.setdefault(a, []).append(n)
+
+            real_cfgs[n] = c
+
+        venvs: ta.Dict[str, Venv] = {}
+        for n, c in real_cfgs.items():
+            cal = [
+                *(c.aliases or []),
+                *aliases.get(n, []),
+            ]
+            c = dc.replace(c, aliases=cal or None)
+
+            venvs[n] = Venv(n, c)
 
         for n, afs in aliases.items():
             v = venvs[n]
