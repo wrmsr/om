@@ -21,3 +21,11 @@ _UPDATE_WRAPPER_ASSIGNMENTS_NO_ANNOTATIONS: ta.Sequence[str] = list(frozenset(fu
 def update_wrapper_no_annotations(wrapper, wrapped):
     functools.update_wrapper(wrapper, wrapped, assigned=_UPDATE_WRAPPER_ASSIGNMENTS_NO_ANNOTATIONS)
     return wrapper
+
+
+##
+
+
+def update_wrapper_wrapped(wrapper, wrapped):
+    wrapper.__wrapped__ = wrapped
+    return wrapped
