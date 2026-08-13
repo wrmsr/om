@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses as dc
-
 from collections.abc import Mapping
 from collections.abc import Sequence
 
@@ -26,21 +25,21 @@ class ParsedRgArguments:
 # merely inspect ripgrep's eventual/final configuration: reject the attempt
 # even if a later option would turn the behavior off again.
 _DENIED_LONG_OPTIONS: Mapping[str, str] = {
-    "pre": (
-        "--pre is disabled because it executes a preprocessor for input files"
+    'pre': (
+        '--pre is disabled because it executes a preprocessor for input files'
     ),
-    "hostname-bin": (
-        "--hostname-bin is disabled because it executes a program"
+    'hostname-bin': (
+        '--hostname-bin is disabled because it executes a program'
     ),
-    "search-zip": (
-        "--search-zip is disabled because it launches external decompressors"
+    'search-zip': (
+        '--search-zip is disabled because it launches external decompressors'
     ),
 }
 
 _DENIED_SHORT_OPTIONS: Mapping[str, str] = {
-    "z": (
-        "-z/--search-zip is disabled because it launches external "
-        "decompressors"
+    'z': (
+        '-z/--search-zip is disabled because it launches external '
+        'decompressors'
     ),
 }
 
@@ -74,11 +73,11 @@ def parse_allowed_rg_arguments(
 
         if not isinstance(arg, str):
             raise RgArgumentError(
-                f"ripgrep argument {i} is not a string: {arg!r}"
+                f'ripgrep argument {i} is not a string: {arg!r}',
             )
-        if "\0" in arg:
+        if '\0' in arg:
             raise RgArgumentError(
-                f"ripgrep argument {i} contains a NUL byte"
+                f'ripgrep argument {i} contains a NUL byte',
             )
 
         if not parsing_options:
@@ -88,15 +87,15 @@ def parse_allowed_rg_arguments(
 
         # This is an option terminator only when it wasn't consumed as the
         # value of a preceding option.
-        if arg == "--":
+        if arg == '--':
             parsing_options = False
             saw_end_of_options = True
             i += 1
             continue
 
-        if arg.startswith("--"):
+        if arg.startswith('--'):
             body = arg[2:]
-            name, has_equals, attached_value = body.partition("=")
+            name, has_equals, attached_value = body.partition('=')
 
             denied_reason = _DENIED_LONG_OPTIONS.get(name)
             if denied_reason is not None:
@@ -105,10 +104,10 @@ def parse_allowed_rg_arguments(
             takes_value = allowed_long.get(name)
             if takes_value is None:
                 raise RgArgumentError(
-                    f"unsupported ripgrep option: --{name}"
+                    f'unsupported ripgrep option: --{name}',
                 )
 
-            spelling = f"--{name}"
+            spelling = f'--{name}'
             if takes_value:
                 if has_equals:
                     value = attached_value
@@ -116,26 +115,26 @@ def parse_allowed_rg_arguments(
                     i += 1
                     if i >= len(argv):
                         raise RgArgumentError(
-                            f"missing value for ripgrep option {spelling}"
+                            f'missing value for ripgrep option {spelling}',
                         )
                     value = argv[i]
-                    if "\0" in value:
+                    if '\0' in value:
                         raise RgArgumentError(
-                            f"value for {spelling} contains a NUL byte"
+                            f'value for {spelling} contains a NUL byte',
                         )
 
                 options.append((spelling, value))
             else:
                 if has_equals:
                     raise RgArgumentError(
-                        f"ripgrep option {spelling} does not take a value"
+                        f'ripgrep option {spelling} does not take a value',
                     )
                 options.append((spelling, None))
 
             i += 1
             continue
 
-        if arg.startswith("-") and arg != "-":
+        if arg.startswith('-') and arg != '-':
             # lexopt parses this as a chain of short options. Once a
             # value-taking option is encountered, the remainder becomes
             # that option's value and is no longer parsed as options.
@@ -148,7 +147,7 @@ def parse_allowed_rg_arguments(
                 # ripgrep only recognizes ASCII short option names.
                 if not name.isascii():
                     raise RgArgumentError(
-                        f"unsupported non-ASCII ripgrep option: -{name}"
+                        f'unsupported non-ASCII ripgrep option: -{name}',
                     )
 
                 denied_reason = _DENIED_SHORT_OPTIONS.get(name)
@@ -158,10 +157,10 @@ def parse_allowed_rg_arguments(
                 takes_value = allowed_short.get(name)
                 if takes_value is None:
                     raise RgArgumentError(
-                        f"unsupported ripgrep option: -{name}"
+                        f'unsupported ripgrep option: -{name}',
                     )
 
-                spelling = f"-{name}"
+                spelling = f'-{name}'
                 if takes_value:
                     remainder = cluster[j + 1:]
 
@@ -173,19 +172,19 @@ def parse_allowed_rg_arguments(
                         #     -g==x    -> value "=x"
                         value = (
                             remainder[1:]
-                            if remainder.startswith("=")
+                            if remainder.startswith('=')
                             else remainder
                         )
                     else:
                         i += 1
                         if i >= len(argv):
                             raise RgArgumentError(
-                                f"missing value for ripgrep option {spelling}"
+                                f'missing value for ripgrep option {spelling}',
                             )
                         value = argv[i]
-                        if "\0" in value:
+                        if '\0' in value:
                             raise RgArgumentError(
-                                f"value for {spelling} contains a NUL byte"
+                                f'value for {spelling} contains a NUL byte',
                             )
 
                     options.append((spelling, value))
@@ -213,50 +212,50 @@ def parse_allowed_rg_arguments(
 def _main() -> None:
     # True means "takes one value"; False means "switch."
     ALLOWED_LONG = {
-        "regexp": True,
-        "fixed-strings": False,
-        "ignore-case": False,
-        "smart-case": False,
-        "glob": True,
-        "type": True,
-        "context": True,
-        "json": False,
+        'regexp': True,
+        'fixed-strings': False,
+        'ignore-case': False,
+        'smart-case': False,
+        'glob': True,
+        'type': True,
+        'context': True,
+        'json': False,
     }
 
     ALLOWED_SHORT = {
-        "e": True,
-        "F": False,
-        "i": False,
-        "S": False,
-        "g": True,
-        "t": True,
-        "C": True,
+        'e': True,
+        'F': False,
+        'i': False,
+        'S': False,
+        'g': True,
+        't': True,
+        'C': True,
     }
 
     # Accepted: --pre is the value of -e.
     parse_allowed_rg_arguments(
-        ["-e", "--pre", "."],
+        ['-e', '--pre', '.'],
         allowed_long=ALLOWED_LONG,
         allowed_short=ALLOWED_SHORT,
     )
 
     # Rejected: --pre is an actual option after two positionals.
     parse_allowed_rg_arguments(
-        ["needle", ".", "--pre", "/tmp/program"],
+        ['needle', '.', '--pre', '/tmp/program'],
         allowed_long=ALLOWED_LONG,
         allowed_short=ALLOWED_SHORT,
     )
 
     # Accepted: "-z" is the attached value of -g.
     parse_allowed_rg_arguments(
-        ["-g-z", "needle", "."],
+        ['-g-z', 'needle', '.'],
         allowed_long=ALLOWED_LONG,
         allowed_short=ALLOWED_SHORT,
     )
 
     # Rejected: this is -F followed by the -z switch.
     parse_allowed_rg_arguments(
-        ["-Fz", "needle", "."],
+        ['-Fz', 'needle', '.'],
         allowed_long=ALLOWED_LONG,
         allowed_short=ALLOWED_SHORT,
     )
@@ -264,7 +263,7 @@ def _main() -> None:
     # Rejected: the first "--" is consumed by -e, so the following --pre
     # is still an option.
     parse_allowed_rg_arguments(
-        ["-e", "--", "--pre", "/tmp/program"],
+        ['-e', '--', '--pre', '/tmp/program'],
         allowed_long=ALLOWED_LONG,
         allowed_short=ALLOWED_SHORT,
     )
@@ -272,7 +271,7 @@ def _main() -> None:
     # Accepted: this "--" really terminates option parsing, so --pre is
     # merely a positional path.
     parse_allowed_rg_arguments(
-        ["needle", "--", "--pre"],
+        ['needle', '--', '--pre'],
         allowed_long=ALLOWED_LONG,
         allowed_short=ALLOWED_SHORT,
     )

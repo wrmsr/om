@@ -80,11 +80,11 @@ def sandboxed_rg(
     """rg_args should be your own allowlisted flags, not arbitrary model-supplied text."""
 
     if not roots:
-        raise ValueError("at least one allowed root is required")
+        raise ValueError('at least one allowed root is required')
 
-    rg0 = shutil.which("rg")
+    rg0 = shutil.which('rg')
     if rg0 is None:
-        raise FileNotFoundError("rg not found on PATH")
+        raise FileNotFoundError('rg not found on PATH')
 
     rg = _realpath(rg0)
     roots_real = [_realpath(r) for r in roots]
@@ -95,40 +95,44 @@ def sandboxed_rg(
 
     # Minimal-ish runtime read set. You can tighten this after seeing sandboxd logs.
     tool_read_roots = [
-        "/System/Library",
-        "/usr/lib",
-        "/usr/share",
+        '/System/Library',
+        '/usr/lib',
+        '/usr/share',
         os.path.dirname(rg),
     ]
 
-    if rg.startswith("/opt/homebrew/"):
-        tool_read_roots.append("/opt/homebrew")
-    elif rg.startswith("/usr/local/"):
-        tool_read_roots.extend(["/usr/local/Cellar", "/usr/local/opt", "/usr/local/lib"])
-    elif rg.startswith("/opt/local/"):
-        tool_read_roots.append("/opt/local")
+    if rg.startswith('/opt/homebrew/'):
+        tool_read_roots.append('/opt/homebrew')
+    elif rg.startswith('/usr/local/'):
+        tool_read_roots.extend([
+            '/usr/local/Cellar',
+            '/usr/local/opt',
+            '/usr/local/lib',
+        ])
+    elif rg.startswith('/opt/local/'):
+        tool_read_roots.append('/opt/local')
 
     profile_lines = [
-        "(version 1)",
-        "(deny default)",
+        '(version 1)',
+        '(deny default)',
         '(allow process-exec (literal (param "RG_BIN")))',
-        "(allow sysctl-read)",
+        '(allow sysctl-read)',
         '(allow file-read* file-test-existence (literal "/"))',
-        "(allow file-read*",
+        '(allow file-read*',
     ]
 
     param_defs: list[str] = [
-        f"RG_BIN={rg}",
-        f"RG_DIR={os.path.dirname(rg)}",
+        f'RG_BIN={rg}',
+        f'RG_DIR={os.path.dirname(rg)}',
     ]
 
     for i, tr in enumerate(dict.fromkeys(tool_read_roots)):
         if os.path.exists(tr):
-            key = f"TOOL_READ_{i}"
-            param_defs.append(f"{key}={tr}")
+            key = f'TOOL_READ_{i}'
+            param_defs.append(f'{key}={tr}')
             profile_lines.append(f'  (subpath (param "{key}"))')
 
-    profile_lines.append(")")
+    profile_lines.append(')')
 
     # Allow ancestor metadata for path resolution, but not directory contents.
     ancestor_params: list[str] = []
@@ -137,60 +141,60 @@ def sandboxed_rg(
         for a in _ancestor_dirs(r):
             if a not in seen_ancestors:
                 seen_ancestors.add(a)
-                key = f"ANCESTOR_{len(ancestor_params)}"
+                key = f'ANCESTOR_{len(ancestor_params)}'
                 ancestor_params.append(key)
-                param_defs.append(f"{key}={a}")
+                param_defs.append(f'{key}={a}')
 
     if ancestor_params:
-        profile_lines.append("(allow file-read-metadata")
+        profile_lines.append('(allow file-read-metadata')
         for key in ancestor_params:
             profile_lines.append(f'  (literal (param "{key}"))')
-        profile_lines.append(")")
+        profile_lines.append(')')
 
     # Allow the actual requested roots.
     for i, r in enumerate(roots_real):
-        key = f"ROOT_{i}"
-        param_defs.append(f"{key}={r}")
+        key = f'ROOT_{i}'
+        param_defs.append(f'{key}={r}')
         profile_lines.append(f'(allow file-read* (literal (param "{key}")))')
         profile_lines.append(f'(allow file-read* (subpath (param "{key}")))')
 
-    profile = "\n".join(profile_lines) + "\n"
+    profile = '\n'.join(profile_lines) + '\n'
 
     defs: list[str] = []
     for d in param_defs:
-        defs.extend(["-D", d])
+        defs.extend(['-D', d])
 
     # These are defense-in-depth against rg features that read surprising places
     # or spawn helper programs.
     safety_rg_args = [
-        "--no-config",
-        "--no-pre",
-        "--no-search-zip",
-        "--no-follow",
-        "--no-ignore-parent",
-        "--no-ignore-global",
-        "--color=never",
+        '--no-config',
+        '--no-pre',
+        '--no-search-zip',
+        '--no-follow',
+        '--no-ignore-parent',
+        '--no-ignore-global',
+        '--color=never',
     ]
 
     cmd = [
-        "/usr/bin/sandbox-exec",
+        '/usr/bin/sandbox-exec',
         *defs,
-        "-p",
+        '-p',
         profile,
         rg,
         *rg_args,
         *safety_rg_args,
-        "-e",
+        '-e',
         pattern,
-        "--",
+        '--',
         *roots_real,
     ]
 
     env = {
-        "PATH": "/usr/bin:/bin",
-        "HOME": "/var/empty",
-        "LANG": os.environ.get("LANG", "C.UTF-8"),
-        "LC_ALL": os.environ.get("LC_ALL", os.environ.get("LANG", "C.UTF-8")),
+        'PATH': '/usr/bin:/bin',
+        'HOME': '/var/empty',
+        'LANG': os.environ.get('LANG', 'C.UTF-8'),
+        'LC_ALL': os.environ.get('LC_ALL', os.environ.get('LANG', 'C.UTF-8')),
     }
 
     return subprocess.run(
