@@ -8,9 +8,9 @@ Quit: Ctrl-Q
 import curses
 import sys
 
-from ..minivim import Engine
-from ..minivim import ListBuffer
-from ..minivim import Mode
+from .engine import Engine
+from .engine import ListBuffer
+from .engine import Mode
 
 
 ##
