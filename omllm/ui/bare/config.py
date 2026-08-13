@@ -1,0 +1,66 @@
+from omcore import dataclasses as dc
+from omcore import lang
+
+
+with lang.auto_proxy_import(globals()):
+    import argparse
+
+
+##
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class Config:
+    model: str | None = None
+
+    cwd: str | None = None
+
+    fs: bool | None = None
+    bash: bool | None = None
+
+    jsonl_storage: bool | None = None
+
+    autoexec: lang.SequenceNotStr[str] | None = None
+
+    stream: bool | None = None
+
+    verbose: bool | None = None
+
+
+##
+
+
+def make_config_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--fs', action='store_true')
+    parser.add_argument('--bash', action='store_true')
+
+    parser.add_argument('-J', '--jsonl-storage', action='store_true')
+
+    parser.add_argument('-X', '--autoexec', action='append')
+
+    parser.add_argument('-S', '--stream', action='store_true')
+
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    return parser
+
+
+def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
+    parser = make_config_parser()
+
+    args = parser.parse_args(argv)
+
+    return Config(
+        fs=args.fs,
+        bash=args.bash,
+
+        jsonl_storage=args.jsonl_storage,
+
+        autoexec=args.autoexec,
+
+        stream=args.stream,
+
+        verbose=args.verbose,
+    )

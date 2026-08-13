@@ -37,6 +37,16 @@ with _lang.auto_proxy_init(globals()):
         CommandsManager,
     )
 
+    from .commands.permissions import (  # noqa
+        PermissionsCommand,
+    )
+
+    from .commands.simple import (  # noqa
+        EchoCommand,
+
+        QuitCommand,
+    )
+
     ##
 
     from .sessions.entries import (  # noqa

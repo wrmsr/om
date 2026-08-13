@@ -1,0 +1,50 @@
+import typing as ta
+
+from omcore import inject as inj
+from omdev.home.secrets import load_secrets
+
+from ... import agent as agn
+from ... import llm
+from .config import Config
+
+
+##
+
+
+DEFAULT_MODEL: ta.Final = 'openai'
+
+MODELS: ta.Final[ta.Mapping[str, tuple[llm.ModelKey, str | None]]] = {
+    'openai': (llm.ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key'),
+    'groq': (llm.ModelKey('groq', 'openai/gpt-oss-120b'), 'groq_api_key'),
+    'cerebras': (llm.ModelKey('cerebras', 'gpt-oss-120b'), 'cerebras_api_key'),
+    'ollama': (llm.ModelKey('ollama', 'qwen3.6:27b'), None),
+}
+
+
+##
+
+
+def bind_backends(config: Config) -> inj.Elements:
+    lst: list[inj.Elemental] = []
+
+    backend_cls: ta.Any
+    if config.stream:
+        backend_cls = llm.OpenaiCompletionsStreamBackend
+    else:
+        backend_cls = llm.OpenaiCompletionsImmediateBackend
+
+    model_key, api_key_name = MODELS[config.model or DEFAULT_MODEL]
+
+    backend = backend_cls(
+        llm.default_model_catalog()[model_key],  # noqa
+        **(dict(api_key=load_secrets().get(api_key_name)) if api_key_name is not None else {}),
+    )
+
+    lst.append(inj.bind(
+        agn.BackendManager,
+        to_const=agn.DictBackendManager({
+            llm.ImmediateBackend: {None: backend},  # type: ignore[type-abstract]
+        }),
+    ))
+
+    return inj.as_elements(*lst)

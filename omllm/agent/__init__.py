@@ -18,6 +18,26 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
+    from .fs.tools.edit import (  # noqa
+        EditParams,
+        EditTool,
+    )
+
+    from .fs.tools.ls import (  # noqa
+        LsParams,
+        LsTool,
+    )
+
+    from .fs.tools.read import (  # noqa
+        ReadParams,
+        ReadTool,
+    )
+
+    from .fs.tools.write import (  # noqa
+        WriteParams,
+        WriteTool,
+    )
+
     from .fs.ops import (  # noqa
         FsOps,
 
@@ -75,6 +95,16 @@ with _lang.auto_proxy_init(globals()):
     )
 
     ##
+
+    from .shell.grep.tools.ripgrep import (  # noqa
+        RipgrepParams,
+        RipgrepTool,
+    )
+
+    from .shell.tools.bash import (  # noqa
+        BashParams,
+        BashTool,
+    )
 
     from .shell.ops import (  # noqa
         ShellExecuteParams,

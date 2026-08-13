@@ -2,6 +2,7 @@
 TODO:
  - rename 'shell', include user shell in tool desc
  - safe env subset
+ - return json of {'stdout': stdout, 'stderr': stderr}
 """
 import os
 import shutil
