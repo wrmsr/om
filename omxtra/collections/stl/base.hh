@@ -1,0 +1,805 @@
+#pragma once
+
+#define PY_SSIZE_T_CLEAN
+#include "Python.h"
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <cstring>
+#include <exception>
+#include <iterator>
+#include <mutex>
+#include <new>
+#include <vector>
+
+
+#define _MODULE_NAME "_stl"
+#define _PACKAGE_NAME "omxtra.collections.stl"
+#define _MODULE_FULL_NAME _PACKAGE_NAME "." _MODULE_NAME
+
+
+//
+// Dtypes
+//
+
+enum class Dt : uint8_t {
+    OBJ,
+    I64,
+    U64,
+    F64,
+};
+
+
+enum class Ovf : uint8_t {
+    RAISE,
+    CLAMP,
+    WRAP,
+};
+
+
+enum class ColKind : uint8_t {
+    SORTED_SET,
+    HASH_SET,
+    SORTED_MAP,
+    HASH_MAP,
+    VECTOR,
+};
+
+
+struct DtypeSpec {
+    Dt dt;
+    Ovf ovf;
+};
+
+
+inline int parse_dtype(PyObject *o, DtypeSpec *out) {
+    if (!PyUnicode_Check(o)) {
+        PyErr_Format(PyExc_TypeError, "dtype must be a str, got %.100s", Py_TYPE(o)->tp_name);
+        return -1;
+    }
+
+    const char *s = PyUnicode_AsUTF8(o);
+    if (s == nullptr) {
+        return -1;
+    }
+
+    static const struct {
+        const char *name;
+        Dt dt;
+        Ovf ovf;
+    } TABLE[] = {
+        {"object", Dt::OBJ, Ovf::RAISE},
+        {"int64", Dt::I64, Ovf::RAISE},
+        {"int64-raise", Dt::I64, Ovf::RAISE},
+        {"int64-clamp", Dt::I64, Ovf::CLAMP},
+        {"int64-wrap", Dt::I64, Ovf::WRAP},
+        {"uint64", Dt::U64, Ovf::RAISE},
+        {"uint64-raise", Dt::U64, Ovf::RAISE},
+        {"uint64-clamp", Dt::U64, Ovf::CLAMP},
+        {"uint64-wrap", Dt::U64, Ovf::WRAP},
+        {"float64", Dt::F64, Ovf::RAISE},
+    };
+
+    for (const auto &e : TABLE) {
+        if (std::strcmp(s, e.name) == 0) {
+            *out = DtypeSpec{e.dt, e.ovf};
+            return 0;
+        }
+    }
+
+    PyErr_Format(PyExc_ValueError, "unknown dtype: %.200s", s);
+    return -1;
+}
+
+
+inline const char *dtype_name(Dt dt, Ovf ovf) {
+    switch (dt) {
+        case Dt::OBJ:
+            return "object";
+        case Dt::F64:
+            return "float64";
+        case Dt::I64:
+            switch (ovf) {
+                case Ovf::RAISE: return "int64-raise";
+                case Ovf::CLAMP: return "int64-clamp";
+                default: return "int64-wrap";
+            }
+        default:
+            switch (ovf) {
+                case Ovf::RAISE: return "uint64-raise";
+                case Ovf::CLAMP: return "uint64-clamp";
+                default: return "uint64-wrap";
+            }
+    }
+}
+
+
+//
+// Error plumbing
+//
+// Python errors raised from inside comparator / hasher functors (which run deep inside STL container machinery) are
+// carried out as a py_err_set C++ exception - the Python error indicator is already set when it is thrown. Every
+// Python-visible entry point runs under py_shield / py_shield_int, which translate the exception back into the usual
+// nullptr / -1 convention. Single-element std::map / std::set / unordered insertions give the strong guarantee when a
+// comparator or equality predicate throws, which is what keeps the containers consistent across such errors.
+//
+
+struct py_err_set : std::exception {
+};
+
+
+template <typename F>
+PyObject *py_shield(F &&fn) noexcept {
+    try {
+        return fn();
+    }
+    catch (py_err_set &) {
+        return nullptr;
+    }
+    catch (std::bad_alloc &) {
+        PyErr_NoMemory();
+        return nullptr;
+    }
+}
+
+
+template <typename F>
+int py_shield_int(F &&fn) noexcept {
+    try {
+        return fn();
+    }
+    catch (py_err_set &) {
+        return -1;
+    }
+    catch (std::bad_alloc &) {
+        PyErr_NoMemory();
+        return -1;
+    }
+}
+
+
+//
+// Deferred decref bin
+//
+// Structural operations never Py_DECREF displaced references while the container lock is held - a DECREF can run
+// arbitrary __del__ code. Instead dead references are moved into a Bin, which is drained (or destructed) only after
+// the lock guard has been released. Callers must therefore always declare the Bin *before* the guard, so that on any
+// exit path the guard unlocks first and the bin drains second.
+//
+
+struct Bin {
+    PyObject *slot0 = nullptr;
+    PyObject *slot1 = nullptr;
+    std::vector<PyObject *> rest;
+
+    Bin() = default;
+    Bin(const Bin &) = delete;
+    Bin &operator=(const Bin &) = delete;
+
+    ~Bin() {
+        drain();
+    }
+
+    // Bulk paths must reserve up front so that put() cannot allocate (and thus cannot throw) mid-mutation.
+    void reserve_rest(size_t n) {
+        rest.reserve(rest.size() + n);
+    }
+
+    void put(PyObject *o) {
+        if (o == nullptr) {
+            return;
+        }
+        if (slot0 == nullptr) {
+            slot0 = o;
+        }
+        else if (slot1 == nullptr) {
+            slot1 = o;
+        }
+        else {
+            rest.push_back(o);
+        }
+    }
+
+    void drain() noexcept {
+        PyObject *a = slot0;
+        slot0 = nullptr;
+        PyObject *b = slot1;
+        slot1 = nullptr;
+        Py_XDECREF(a);
+        Py_XDECREF(b);
+        while (!rest.empty()) {
+            PyObject *o = rest.back();
+            rest.pop_back();
+            Py_DECREF(o);
+        }
+    }
+};
+
+
+//
+// Numeric boxing / unboxing
+//
+
+inline bool unbox_int64(PyObject *o, Ovf ovf, int64_t *out) {
+    PyObject *idx = PyNumber_Index(o);
+    if (idx == nullptr) {
+        return false;
+    }
+
+    int of = 0;
+    long long v = PyLong_AsLongLongAndOverflow(idx, &of);
+    if (v == -1 && of == 0 && PyErr_Occurred()) {
+        Py_DECREF(idx);
+        return false;
+    }
+
+    if (of == 0) {
+        Py_DECREF(idx);
+        *out = (int64_t)v;
+        return true;
+    }
+
+    switch (ovf) {
+        case Ovf::RAISE:
+            Py_DECREF(idx);
+            PyErr_SetString(PyExc_OverflowError, "int out of range for int64");
+            return false;
+
+        case Ovf::CLAMP:
+            Py_DECREF(idx);
+            *out = of > 0 ? INT64_MAX : INT64_MIN;
+            return true;
+
+        default: {
+            unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
+            Py_DECREF(idx);
+            if (u == (unsigned long long)-1 && PyErr_Occurred()) {
+                return false;
+            }
+            *out = (int64_t)u;
+            return true;
+        }
+    }
+}
+
+
+inline bool unbox_uint64(PyObject *o, Ovf ovf, uint64_t *out) {
+    PyObject *idx = PyNumber_Index(o);
+    if (idx == nullptr) {
+        return false;
+    }
+
+    unsigned long long v = PyLong_AsUnsignedLongLong(idx);
+    if (v != (unsigned long long)-1 || !PyErr_Occurred()) {
+        Py_DECREF(idx);
+        *out = (uint64_t)v;
+        return true;
+    }
+
+    if (!PyErr_ExceptionMatches(PyExc_OverflowError)) {
+        Py_DECREF(idx);
+        return false;
+    }
+    PyErr_Clear();
+
+    switch (ovf) {
+        case Ovf::RAISE:
+            Py_DECREF(idx);
+            PyErr_SetString(PyExc_OverflowError, "int out of range for uint64");
+            return false;
+
+        case Ovf::CLAMP: {
+            int of = 0;
+            long long sv = PyLong_AsLongLongAndOverflow(idx, &of);
+            Py_DECREF(idx);
+            if (sv == -1 && of == 0 && PyErr_Occurred()) {
+                return false;
+            }
+            // AsUnsignedLongLong overflowed, so of == 0 here implies sv < 0.
+            *out = of > 0 ? UINT64_MAX : 0;
+            return true;
+        }
+
+        default: {
+            unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
+            Py_DECREF(idx);
+            if (u == (unsigned long long)-1 && PyErr_Occurred()) {
+                return false;
+            }
+            *out = (uint64_t)u;
+            return true;
+        }
+    }
+}
+
+
+inline bool unbox_float64(PyObject *o, double *out) {
+    double v = PyFloat_AsDouble(o);
+    if (v == -1.0 && PyErr_Occurred()) {
+        return false;
+    }
+    *out = v;
+    return true;
+}
+
+
+inline size_t mix64(uint64_t x) noexcept {
+    x ^= x >> 33;
+    x *= UINT64_C(0xff51afd7ed558ccd);
+    x ^= x >> 33;
+    x *= UINT64_C(0xc4ceb9fe1a85ec53);
+    x ^= x >> 33;
+    return (size_t)x;
+}
+
+
+// Canonical bit pattern for hashing: all NaNs collapse to one pattern, and -0.0 collapses to +0.0, keeping hashing
+// consistent with the nan-aware / ieee equality used by the float64 key predicates below.
+inline uint64_t float64_key_bits(double v) noexcept {
+    if (std::isnan(v)) {
+        return UINT64_C(0x7ff8000000000000);
+    }
+    if (v == 0.0) {
+        v = 0.0;
+    }
+    uint64_t b;
+    std::memcpy(&b, &v, sizeof(b));
+    return b;
+}
+
+
+//
+// Dtype traits
+//
+// One traits struct per storage representation. Slot is the unboxed in-container representation; unbox produces a
+// *borrowed* Slot (no reference is taken for object dtypes), and ownership is only taken via retain() at the moment a
+// slot is actually stored. release_into() moves a stored slot's owned reference into a Bin for deferred decref.
+// Comparator / hash / equality functors may throw py_err_set for object dtypes.
+//
+
+struct Int64Traits {
+    using Slot = int64_t;
+    static constexpr Dt DT = Dt::I64;
+    static constexpr bool IS_OBJ = false;
+
+    struct Less {
+        bool operator()(Slot a, Slot b) const noexcept { return a < b; }
+    };
+
+    struct Hash {
+        size_t operator()(Slot v) const noexcept { return mix64((uint64_t)v); }
+    };
+
+    struct Eq {
+        bool operator()(Slot a, Slot b) const noexcept { return a == b; }
+    };
+
+    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_int64(o, ovf, out); }
+    static PyObject *box(const Slot &v) { return PyLong_FromLongLong((long long)v); }
+
+    static void retain(const Slot &) noexcept {}
+    static void release_into(const Slot &, Bin &) noexcept {}
+    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+    static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
+};
+
+
+struct UInt64Traits {
+    using Slot = uint64_t;
+    static constexpr Dt DT = Dt::U64;
+    static constexpr bool IS_OBJ = false;
+
+    struct Less {
+        bool operator()(Slot a, Slot b) const noexcept { return a < b; }
+    };
+
+    struct Hash {
+        size_t operator()(Slot v) const noexcept { return mix64(v); }
+    };
+
+    struct Eq {
+        bool operator()(Slot a, Slot b) const noexcept { return a == b; }
+    };
+
+    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_uint64(o, ovf, out); }
+    static PyObject *box(const Slot &v) { return PyLong_FromUnsignedLongLong((unsigned long long)v); }
+
+    static void retain(const Slot &) noexcept {}
+    static void release_into(const Slot &, Bin &) noexcept {}
+    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+    static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
+};
+
+
+struct Float64Traits {
+    using Slot = double;
+    static constexpr Dt DT = Dt::F64;
+    static constexpr bool IS_OBJ = false;
+
+    // Strict weak order with NaNs greater than (and equivalent to) everything else, so a NaN is a usable sorted key
+    // rather than one that compares 'equivalent' to arbitrary keys under a plain operator<.
+    struct Less {
+        bool operator()(Slot a, Slot b) const noexcept {
+            if (std::isnan(a)) {
+                return false;
+            }
+            if (std::isnan(b)) {
+                return true;
+            }
+            return a < b;
+        }
+    };
+
+    struct Hash {
+        size_t operator()(Slot v) const noexcept { return mix64(float64_key_bits(v)); }
+    };
+
+    // Key equality: nan == nan (one NaN key), and ieee == keeps 0.0 / -0.0 as the same key.
+    struct Eq {
+        bool operator()(Slot a, Slot b) const noexcept {
+            return a == b || (std::isnan(a) && std::isnan(b));
+        }
+    };
+
+    static bool unbox(PyObject *o, Ovf, Slot *out) { return unbox_float64(o, out); }
+    static PyObject *box(const Slot &v) { return PyFloat_FromDouble(v); }
+
+    static void retain(const Slot &) noexcept {}
+    static void release_into(const Slot &, Bin &) noexcept {}
+    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+
+    // Value-position equality also treats NaN as equal to NaN: unboxing loses object identity, and the identity
+    // shortcut is exactly how `x = nan; x in [x]` succeeds for builtin containers, so this recovers the common case
+    // (`nan in Vector('float64', [nan])`, remove(), count(), map value comparison) at the cost of distinguishing
+    // separately-created NaNs - which unboxed storage cannot do anyway.
+    static bool val_eq(const Slot &a, const Slot &b) {
+        return a == b || (std::isnan(a) && std::isnan(b));
+    }
+};
+
+
+struct ObjectTraits {
+    using Slot = PyObject *;
+    static constexpr Dt DT = Dt::OBJ;
+    static constexpr bool IS_OBJ = true;
+
+    struct Less {
+        bool operator()(PyObject *a, PyObject *b) const {
+            int r = PyObject_RichCompareBool(a, b, Py_LT);
+            if (r < 0) {
+                throw py_err_set();
+            }
+            return r != 0;
+        }
+    };
+
+    struct Eq {
+        bool operator()(PyObject *a, PyObject *b) const {
+            int r = PyObject_RichCompareBool(a, b, Py_EQ);
+            if (r < 0) {
+                throw py_err_set();
+            }
+            return r != 0;
+        }
+    };
+
+    struct Hash {
+        size_t operator()(PyObject *) const noexcept { return 0; }  // unused; hashed objects use HashedObjectTraits
+    };
+
+    static bool unbox(PyObject *o, Ovf, Slot *out) {
+        *out = o;  // borrowed
+        return true;
+    }
+
+    static PyObject *box(const Slot &v) { return Py_NewRef(v); }
+
+    static void retain(const Slot &v) noexcept { Py_INCREF(v); }
+    static void release_into(const Slot &v, Bin &bin) { bin.put(v); }
+
+    static int visit_slot(const Slot &v, visitproc visit, void *arg) noexcept {
+        Py_VISIT(v);
+        return 0;
+    }
+
+    static bool val_eq(const Slot &a, const Slot &b) {
+        int r = PyObject_RichCompareBool(a, b, Py_EQ);
+        if (r < 0) {
+            throw py_err_set();
+        }
+        return r != 0;
+    }
+};
+
+
+// Hashed-object slots cache the hash so that rehashing never calls back into Python: the noexcept Hash functor below
+// just reads the cached value, and Eq only rich-compares when the cached hashes already agree.
+struct HObj {
+    Py_hash_t hash;
+    PyObject *obj;
+};
+
+
+struct HashedObjectTraits {
+    using Slot = HObj;
+    static constexpr Dt DT = Dt::OBJ;
+    static constexpr bool IS_OBJ = true;
+
+    struct Less {
+        bool operator()(const HObj &, const HObj &) const noexcept { return false; }  // unused
+    };
+
+    struct Hash {
+        size_t operator()(const HObj &k) const noexcept { return (size_t)k.hash; }
+    };
+
+    struct Eq {
+        bool operator()(const HObj &a, const HObj &b) const {
+            if (a.obj == b.obj) {
+                return true;
+            }
+            if (a.hash != b.hash) {
+                return false;
+            }
+            int r = PyObject_RichCompareBool(a.obj, b.obj, Py_EQ);
+            if (r < 0) {
+                throw py_err_set();
+            }
+            return r != 0;
+        }
+    };
+
+    static bool unbox(PyObject *o, Ovf, Slot *out) {
+        Py_hash_t h = PyObject_Hash(o);
+        if (h == -1) {
+            return false;
+        }
+        *out = HObj{h, o};  // borrowed
+        return true;
+    }
+
+    static PyObject *box(const Slot &v) { return Py_NewRef(v.obj); }
+
+    static void retain(const Slot &v) noexcept { Py_INCREF(v.obj); }
+    static void release_into(const Slot &v, Bin &bin) { bin.put(v.obj); }
+
+    static int visit_slot(const Slot &v, visitproc visit, void *arg) noexcept {
+        Py_VISIT(v.obj);
+        return 0;
+    }
+
+    static bool val_eq(const Slot &a, const Slot &b) {
+        return Eq()(a, b);
+    }
+};
+
+
+// Probe unboxing, used by non-mutating lookups (contains / getitem / discard / find / ...): for primitive dtypes a
+// value that cannot be represented in the container's dtype at all is simply treated as absent - mirroring how a dict
+// lookup of a never-insertable key just misses - so only representation errors (TypeError, OverflowError in raise
+// mode) are swallowed. Object dtypes propagate everything (an unhashable probe raises, exactly as with dict / set).
+//
+// Callers brace-initialize their Slot locals (`Slot s{};`) even though every read is dominated by a success check on
+// the returned status: gcc's late -Wmaybe-uninitialized pass (at -O3, after inlining and jump threading) loses the
+// correlation between the status and the store to *out and emits false positives otherwise. The zero-init is a single
+// dead store the optimizer routinely deletes, and makes any future unguarded read deterministic rather than garbage.
+template <typename Tr>
+int unbox_probe(PyObject *o, Ovf ovf, typename Tr::Slot *out) {
+    if (Tr::unbox(o, ovf, out)) {
+        return 1;
+    }
+    if constexpr (Tr::DT != Dt::OBJ) {
+        if (PyErr_ExceptionMatches(PyExc_TypeError) || PyErr_ExceptionMatches(PyExc_OverflowError)) {
+            PyErr_Clear();
+            return 0;
+        }
+    }
+    return -1;
+}
+
+
+//
+// Impl interfaces
+//
+// Runtime dtype dispatch happens exactly once per operation, through the virtual calls below; everything underneath is
+// a fully type-specialized template instantiation. Interface methods use the CPython-ish status convention noted per
+// method; on -1 the Python error indicator is set. Methods may additionally throw py_err_set (comparator errors) or
+// std::bad_alloc; entry points translate via py_shield.
+//
+
+// What an iterator yields; direction is an orthogonal flag on make_iter / make_iter_from ("desc"), so kinds compose
+// with both directions (e.g. reversed keys for __reversed__, descending items for items_desc).
+enum class IterKind : uint8_t {
+    KEYS,
+    VALUES,
+    ITEMS,
+};
+
+
+struct AnyIter {
+    virtual ~AnyIter() = default;
+
+    // 1 = item produced (new ref in *out), 0 = exhausted, -1 = error.
+    virtual int next(PyObject **out) = 0;
+};
+
+
+struct AnyImpl {
+    // Locking state - see the locking discipline comment below. Guarded by the Python layer, not by impl methods.
+    std::mutex mutex;
+    std::atomic<unsigned long> lock_owner{0};
+
+    // Bumped on any insert / erase / reorder (not on value overwrite); sorted / hashed iterators snapshot it and fail
+    // with RuntimeError on mismatch, dict-style.
+    uint64_t version = 0;
+
+    const ColKind kind;
+    const Dt key_dt;
+    const Ovf key_ovf;
+    const Dt val_dt;
+    const Ovf val_ovf;
+
+    AnyImpl(ColKind k, Dt kd, Ovf ko, Dt vd, Ovf vo)
+        : kind(k), key_dt(kd), key_ovf(ko), val_dt(vd), val_ovf(vo) {}
+
+    virtual ~AnyImpl() = default;
+
+    virtual Py_ssize_t size() const noexcept = 0;
+    virtual int traverse(visitproc visit, void *arg) noexcept = 0;
+
+    // Moves every owned reference into bin and empties the structure.
+    virtual void clear_collect(Bin &bin) = 0;
+
+    virtual AnyImpl *clone() const = 0;
+    virtual AnyIter *make_iter(IterKind ik, bool desc) = 0;
+
+    // Iteration seeded at a key bound, for the sorted interfaces: ascending starts at lower_bound(base) (first element
+    // >= base), descending starts walking down from upper_bound(base) (so the first element yielded is the greatest <=
+    // base) - the exact bisect_left / bisect_right semantics. The bound is unboxed strictly (same acceptance as an
+    // insert would have), and only the sorted impls override this.
+    virtual AnyIter *make_iter_from(IterKind, bool, PyObject *) {
+        PyErr_SetString(PyExc_TypeError, "container does not support ordered iteration");
+        return nullptr;
+    }
+
+    // Typed fast paths; preconditions: other has the same kind / key_dt / val_dt (overflow mode may differ).
+    virtual int equals_same(AnyImpl *other) = 0;            // 1 / 0 / -1
+    virtual int merge_same(AnyImpl *other, Bin &bin) = 0;   // 0 / -1
+
+    bool same_shape(const AnyImpl *other) const noexcept {
+        return kind == other->kind && key_dt == other->key_dt && val_dt == other->val_dt;
+    }
+};
+
+
+//
+// Locking discipline
+//
+// A single per-container std::mutex serializes all structural access, on GIL and free-threaded builds alike:
+//
+//  - The mutex is acquired only via col_lock_acquire, which detaches the thread state (Py_BEGIN_ALLOW_THREADS) around
+//    a blocking acquire. On GIL builds this means no thread ever blocks on the mutex while holding the GIL - so the
+//    mutex holder can always reacquire the GIL and make progress - and on free-threaded builds a blocked thread is
+//    detached and cannot stall a stop-the-world GC.
+//
+//  - Operations on object-dtype containers call back into arbitrary Python (__lt__ / __eq__ / __hash__ / __index__,
+//    and any allocation can trigger GC finalizers) *while holding the lock* - comparison-driven tree and hash
+//    operations cannot be run any other way. The classic cross-thread lock-order deadlock is excluded by the acquire
+//    protocol above; same-thread reentrancy (user comparison or finalizer code calling back into the same container)
+//    is detected via lock_owner and refused with RuntimeError rather than deadlocking.
+//
+//  - Displaced references are never DECREFed under the lock - they go through a Bin (declared before the guard, see
+//    above) and are drained after release.
+//
+//  - tp_traverse deliberately takes no lock: free-threaded GC is stop-the-world, and a suspended thread could hold
+//    the mutex forever. Threads only suspend at safe points inside Python code - i.e. inside the user-code callbacks
+//    above, during which the STL structures are never mid-mutation - so an unlocked traversal only ever observes a
+//    consistent structure. tp_clear also runs unlocked: it only ever runs on objects GC has proven unreachable, which
+//    no thread can concurrently be operating on.
+//
+
+inline bool col_lock_acquire(AnyImpl *impl) {
+    unsigned long tid = PyThread_get_thread_ident();
+
+    if (impl->lock_owner.load(std::memory_order_relaxed) == tid) {
+        PyErr_SetString(PyExc_RuntimeError, "reentrant operation on " _MODULE_NAME " container");
+        return false;
+    }
+
+    if (!impl->mutex.try_lock()) {
+        Py_BEGIN_ALLOW_THREADS
+        impl->mutex.lock();
+        Py_END_ALLOW_THREADS
+    }
+
+    impl->lock_owner.store(tid, std::memory_order_relaxed);
+    return true;
+}
+
+
+inline void col_lock_release(AnyImpl *impl) noexcept {
+    impl->lock_owner.store(0, std::memory_order_relaxed);
+    impl->mutex.unlock();
+}
+
+
+class ColGuard {
+public:
+    explicit ColGuard(AnyImpl *impl) {
+        if (col_lock_acquire(impl)) {
+            impl_ = impl;
+        }
+    }
+
+    ColGuard(const ColGuard &) = delete;
+    ColGuard &operator=(const ColGuard &) = delete;
+
+    ~ColGuard() {
+        release();
+    }
+
+    void release() noexcept {
+        if (impl_ != nullptr) {
+            col_lock_release(impl_);
+            impl_ = nullptr;
+        }
+    }
+
+    bool held() const noexcept {
+        return impl_ != nullptr;
+    }
+
+private:
+    AnyImpl *impl_ = nullptr;
+};
+
+
+// Address-ordered two-container guard, for the typed same-shape fast paths (merge / equals / etc.). Address ordering
+// excludes lock-order inversion between two containers being operated on concurrently in opposite roles.
+class ColGuard2 {
+public:
+    ColGuard2(AnyImpl *x, AnyImpl *y) {
+        AnyImpl *lo = x;
+        AnyImpl *hi = x == y ? nullptr : y;
+        if (hi != nullptr && hi < lo) {
+            AnyImpl *t = lo;
+            lo = hi;
+            hi = t;
+        }
+
+        if (!col_lock_acquire(lo)) {
+            return;
+        }
+        if (hi != nullptr && !col_lock_acquire(hi)) {
+            col_lock_release(lo);
+            return;
+        }
+
+        lo_ = lo;
+        hi_ = hi;
+    }
+
+    ColGuard2(const ColGuard2 &) = delete;
+    ColGuard2 &operator=(const ColGuard2 &) = delete;
+
+    ~ColGuard2() {
+        if (hi_ != nullptr) {
+            col_lock_release(hi_);
+        }
+        if (lo_ != nullptr) {
+            col_lock_release(lo_);
+        }
+    }
+
+    bool held() const noexcept {
+        return lo_ != nullptr;
+    }
+
+private:
+    AnyImpl *lo_ = nullptr;
+    AnyImpl *hi_ = nullptr;
+};
