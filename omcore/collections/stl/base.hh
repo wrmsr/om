@@ -222,6 +222,52 @@ int py_shield_int(F &&fn) noexcept {
 
 
 //
+// PyMem allocator plumbing
+//
+// All native storage - container nodes and arrays, the impl and iterator objects, the Bin's spill vector - is
+// allocated through CPython's PYMEM_DOMAIN_MEM allocator (PyMem_Malloc / PyMem_Free) rather than global operator
+// new. Two reasons: tracemalloc hooks that domain, so native container memory becomes visible to Python memory
+// profiling; and on free-threaded builds the domain is backed by mimalloc, which behaves far better than glibc
+// malloc under cross-thread allocate/free traffic. The obligation this imposes is that every allocation and free
+// must happen with an attached thread state - which holds throughout this module: all structural work runs inside
+// Python-visible entry points, and the only detached window (blocking on the container mutex in col_lock_acquire)
+// neither allocates nor frees. (PyMem_RawMalloc would lift that obligation, but the raw domain is a plain malloc
+// passthrough - no mimalloc, no pymalloc pools - so the attached-state discipline is worth keeping.)
+//
+
+
+template <typename T>
+struct PyMemAllocator {
+    using value_type = T;
+
+    PyMemAllocator() = default;
+
+    template <typename U>
+    PyMemAllocator(const PyMemAllocator<U> &) noexcept {}
+
+    T *allocate(size_t n) {
+        if (n > SIZE_MAX / sizeof(T)) {
+            throw std::bad_alloc();
+        }
+        void *p = PyMem_Malloc(n * sizeof(T));
+        if (p == nullptr) {
+            throw std::bad_alloc();
+        }
+        return (T *)p;
+    }
+
+    void deallocate(T *p, size_t) noexcept {
+        PyMem_Free(p);
+    }
+
+    template <typename U>
+    bool operator==(const PyMemAllocator<U> &) const noexcept {
+        return true;
+    }
+};
+
+
+//
 // Deferred decref bin
 //
 // Structural operations never Py_DECREF displaced references while the container lock is held - a DECREF can run
@@ -234,7 +280,7 @@ int py_shield_int(F &&fn) noexcept {
 struct Bin {
     PyObject *slot0 = nullptr;
     PyObject *slot1 = nullptr;
-    std::vector<PyObject *> rest;
+    std::vector<PyObject *, PyMemAllocator<PyObject *>> rest;
 
     Bin() = default;
     Bin(const Bin &) = delete;
@@ -722,6 +768,19 @@ enum class IterKind : uint8_t {
 struct AnyIter {
     virtual ~AnyIter() = default;
 
+    // PyMem-domain allocation - see the allocator comment above; inherited by every concrete iterator.
+    static void *operator new(size_t n) {
+        void *p = PyMem_Malloc(n);
+        if (p == nullptr) {
+            throw std::bad_alloc();
+        }
+        return p;
+    }
+
+    static void operator delete(void *p) noexcept {
+        PyMem_Free(p);
+    }
+
     // 1 = item produced (new ref in *out), 0 = exhausted, -1 = error.
     virtual int next(PyObject **out) = 0;
 };
@@ -746,6 +805,19 @@ struct AnyImpl {
         : kind(k), key_dt(kd), key_ovf(ko), val_dt(vd), val_ovf(vo) {}
 
     virtual ~AnyImpl() = default;
+
+    // PyMem-domain allocation - see the allocator comment above; inherited by every concrete impl.
+    static void *operator new(size_t n) {
+        void *p = PyMem_Malloc(n);
+        if (p == nullptr) {
+            throw std::bad_alloc();
+        }
+        return p;
+    }
+
+    static void operator delete(void *p) noexcept {
+        PyMem_Free(p);
+    }
 
     virtual Py_ssize_t size() const noexcept = 0;
     virtual int traverse(visitproc visit, void *arg) noexcept = 0;

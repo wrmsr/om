@@ -32,7 +32,7 @@ struct SetLikeImpl : AnyImpl {
 
 template <typename K>
 struct SortedSetImpl final : SetLikeImpl {
-    using Cont = std::set<typename K::Slot, typename K::Less>;
+    using Cont = std::set<typename K::Slot, typename K::Less, PyMemAllocator<typename K::Slot>>;
 
     Cont set_;
 
@@ -272,7 +272,11 @@ AnyIter *SortedSetImpl<K>::make_iter_from(IterKind, bool desc, PyObject *base) {
 
 template <typename K>
 struct HashSetImpl final : SetLikeImpl {
-    using Cont = std::unordered_set<typename K::Slot, typename K::Hash, typename K::Eq>;
+    using Cont = std::unordered_set<
+        typename K::Slot,
+        typename K::Hash,
+        typename K::Eq,
+        PyMemAllocator<typename K::Slot>>;
 
     Cont set_;
 

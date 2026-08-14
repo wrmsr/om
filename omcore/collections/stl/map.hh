@@ -30,7 +30,11 @@ struct MapLikeImpl : AnyImpl {
 
 template <typename K, typename V>
 struct SortedMapImpl final : MapLikeImpl {
-    using Cont = std::map<typename K::Slot, typename V::Slot, typename K::Less>;
+    using Cont = std::map<
+        typename K::Slot,
+        typename V::Slot,
+        typename K::Less,
+        PyMemAllocator<std::pair<const typename K::Slot, typename V::Slot>>>;
 
     Cont map_;
 
@@ -368,7 +372,12 @@ AnyIter *SortedMapImpl<K, V>::make_iter_from(IterKind ik, bool desc, PyObject *b
 
 template <typename K, typename V>
 struct HashMapImpl final : MapLikeImpl {
-    using Cont = std::unordered_map<typename K::Slot, typename V::Slot, typename K::Hash, typename K::Eq>;
+    using Cont = std::unordered_map<
+        typename K::Slot,
+        typename V::Slot,
+        typename K::Hash,
+        typename K::Eq,
+        PyMemAllocator<std::pair<const typename K::Slot, typename V::Slot>>>;
 
     Cont map_;
 

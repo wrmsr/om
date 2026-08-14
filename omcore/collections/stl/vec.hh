@@ -42,7 +42,9 @@ struct VecLikeImpl : AnyImpl {
 
 template <typename E>
 struct VectorImpl final : VecLikeImpl {
-    std::vector<typename E::Slot> vec_;
+    using Vec = std::vector<typename E::Slot, PyMemAllocator<typename E::Slot>>;
+
+    Vec vec_;
 
     explicit VectorImpl(Ovf ovf)
         : VecLikeImpl(ColKind::VECTOR, E::DT, ovf, E::DT, ovf) {}
@@ -244,7 +246,7 @@ struct VectorImpl final : VecLikeImpl {
             }
             // Assemble the full result off to the side; every step after the reserves is no-throw, so a failure
             // cannot leave the vector half-spliced.
-            std::vector<typename E::Slot> out;
+            Vec out;
             out.reserve(n - (size_t)slen + sn);
             out.insert(out.end(), vec_.begin(), vec_.begin() + start);
             out.insert(out.end(), o->vec_.begin(), o->vec_.end());
@@ -297,7 +299,7 @@ struct VectorImpl final : VecLikeImpl {
             bin.reserve_rest((size_t)slen);
         }
         size_t n = vec_.size();
-        std::vector<typename E::Slot> out;
+        Vec out;
         out.reserve(n - (size_t)slen);
         Py_ssize_t next_del = start;
         Py_ssize_t left = slen;
