@@ -10,7 +10,7 @@ import tracemalloc
 import typing as ta
 
 from .... import dataclasses as dc
-from .implementations import IMPLEMENTATIONS
+from .impls import IMPLEMENTATIONS
 from .interfaces import SUITES
 from .interfaces import BenchmarkContext
 from .interfaces import BenchmarkData

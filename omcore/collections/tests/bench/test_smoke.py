@@ -1,5 +1,5 @@
 from .... import collections as col
-from .implementations import IMPLEMENTATIONS
+from .impls import IMPLEMENTATIONS
 from .interfaces import SUITES
 from .interfaces import BenchmarkContext
 from .interfaces import BenchmarkData
