@@ -116,12 +116,23 @@ def build_rg_sandbox_profile(
 ##
 
 
+# These are defense-in-depth against rg features that read surprising places or spawn helper programs.
+SAFETY_RG_ARGS: ta.Final[ta.Sequence[str]] = [
+    '--no-config',
+    '--no-pre',
+    '--no-search-zip',
+    '--no-follow',
+    '--no-ignore-parent',
+    '--no-ignore-global',
+    '--color=never',
+]
+
+
 def sandboxed_rg(
-    pattern: str,
-    roots: ta.Sequence[str | os.PathLike[str]],
-    *,
-    rg_args: ta.Sequence[str] = (),
-    timeout: float = 30.0,
+        *,
+        roots: ta.Sequence[str | os.PathLike[str]],
+        args: ta.Sequence[str] | None = None,
+        timeout: float = 30.0,
 ) -> subprocess.CompletedProcess[str]:
     """rg_args should be your own allowlisted flags, not arbitrary model-supplied text."""
 
@@ -148,25 +159,13 @@ def sandboxed_rg(
     for d in sbp.param_defs or []:
         defs.extend(['-D', d])
 
-    # These are defense-in-depth against rg features that read surprising places or spawn helper programs.
-    safety_rg_args = [
-        '--no-config',
-        '--no-pre',
-        '--no-search-zip',
-        '--no-follow',
-        '--no-ignore-parent',
-        '--no-ignore-global',
-        '--color=never',
-    ]
-
     cmd = [
         '/usr/bin/sandbox-exec',
         *defs,
         '-p', sbp.profile,
         rg,
-        *rg_args,
-        *safety_rg_args,
-        '-e', pattern,
+        *(args or []),
+        *SAFETY_RG_ARGS,
         '--', *roots_real,
     ]
 
@@ -188,16 +187,3 @@ def sandboxed_rg(
         close_fds=True,
         check=False,
     )
-
-
-def _main() -> None:
-    out = sandboxed_rg(
-        'foo',
-        ['omcore'],
-    )
-
-    print(out)
-
-
-if __name__ == '__main__':
-    _main()

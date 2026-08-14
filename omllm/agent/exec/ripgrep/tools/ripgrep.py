@@ -60,10 +60,14 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
 
+        #
+
         from ..args.parsing import RgArgvParser
 
         parser = RgArgvParser()
         parsed = parser.parse(params.args)  # noqa
+
+        #
 
         await self._permissions.check_allowed(ctx, FsPermissionTarget(cwd, 'r'))
 
