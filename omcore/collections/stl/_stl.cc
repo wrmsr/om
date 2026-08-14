@@ -465,13 +465,12 @@ static int stl_exec(PyObject *mod) {
 
     PyObject *dtypes = Py_BuildValue(
         "(sssssssssssssss)",
-        "object",
-        "int64-raise",
-        "int64-clamp",
-        "int64-wrap",
         "uint64-raise",
         "uint64-clamp",
         "uint64-wrap",
+        "int64-raise",
+        "int64-clamp",
+        "int64-wrap",
         "int32-raise",
         "int32-clamp",
         "int32-wrap",
@@ -479,7 +478,8 @@ static int stl_exec(PyObject *mod) {
         "int16-clamp",
         "int16-wrap",
         "float64",
-        "float32");
+        "float32",
+        "object");
     if (dtypes == nullptr) {
         return -1;
     }

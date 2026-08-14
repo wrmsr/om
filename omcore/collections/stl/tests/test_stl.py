@@ -16,12 +16,12 @@ from .. import _stl as fc  # type: ignore
 
 
 INT_DTYPES = [
-    'int64-raise',
-    'int64-clamp',
-    'int64-wrap',
     'uint64-raise',
     'uint64-clamp',
     'uint64-wrap',
+    'int64-raise',
+    'int64-clamp',
+    'int64-wrap',
     'int32-raise',
     'int32-clamp',
     'int32-wrap',
@@ -30,7 +30,7 @@ INT_DTYPES = [
     'int16-wrap',
 ]
 
-ALL_DTYPES = ['object', 'float64', 'float32', *INT_DTYPES]
+ALL_DTYPES = [*INT_DTYPES, 'float64', 'float32', 'object']
 
 SET_CLASSES = [fc.Set, fc.UnorderedSet]
 MAP_CLASSES = [fc.Map, fc.UnorderedMap]
@@ -58,13 +58,12 @@ def sample_keys(dtype, n=40, seed=0):
 
 def test_dtypes_tuple():
     assert fc.DTYPES == (
-        'object',
-        'int64-raise',
-        'int64-clamp',
-        'int64-wrap',
         'uint64-raise',
         'uint64-clamp',
         'uint64-wrap',
+        'int64-raise',
+        'int64-clamp',
+        'int64-wrap',
         'int32-raise',
         'int32-clamp',
         'int32-wrap',
@@ -73,17 +72,18 @@ def test_dtypes_tuple():
         'int16-wrap',
         'float64',
         'float32',
+        'object',
     )
 
 
 @pytest.mark.parametrize(('alias', 'canon'), [
-    ('int64', 'int64-raise'),
     ('uint64', 'uint64-raise'),
+    ('int64', 'int64-raise'),
     ('int32', 'int32-raise'),
     ('int16', 'int16-raise'),
-    ('object', 'object'),
     ('float64', 'float64'),
     ('float32', 'float32'),
+    ('object', 'object'),
 ])
 def test_dtype_aliases(alias, canon):
     assert fc.Set(alias).dtype == canon

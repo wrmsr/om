@@ -521,38 +521,38 @@ AnyIter *HashSetImpl<K>::make_iter(IterKind, bool) {
 inline SetLikeImpl *new_set_impl(ColKind kind, Dt dt, Ovf ovf) {
     if (kind == ColKind::SORTED_SET) {
         switch (dt) {
-            case Dt::OBJ:
-                return new SortedSetImpl<ObjectTraits>(ovf);
-            case Dt::I64:
-                return new SortedSetImpl<Int64Traits>(ovf);
             case Dt::U64:
                 return new SortedSetImpl<UInt64Traits>(ovf);
-            case Dt::F64:
-                return new SortedSetImpl<Float64Traits>(ovf);
+            case Dt::I64:
+                return new SortedSetImpl<Int64Traits>(ovf);
             case Dt::I32:
                 return new SortedSetImpl<Int32Traits>(ovf);
             case Dt::I16:
                 return new SortedSetImpl<Int16Traits>(ovf);
+            case Dt::F64:
+                return new SortedSetImpl<Float64Traits>(ovf);
             case Dt::F32:
                 return new SortedSetImpl<Float32Traits>(ovf);
+            case Dt::OBJ:
+                return new SortedSetImpl<ObjectTraits>(ovf);
         }
         Py_UNREACHABLE();
     }
     switch (dt) {
-        case Dt::OBJ:
-            return new HashSetImpl<HashedObjectTraits>(ovf);
-        case Dt::I64:
-            return new HashSetImpl<Int64Traits>(ovf);
         case Dt::U64:
             return new HashSetImpl<UInt64Traits>(ovf);
-        case Dt::F64:
-            return new HashSetImpl<Float64Traits>(ovf);
+        case Dt::I64:
+            return new HashSetImpl<Int64Traits>(ovf);
         case Dt::I32:
             return new HashSetImpl<Int32Traits>(ovf);
         case Dt::I16:
             return new HashSetImpl<Int16Traits>(ovf);
+        case Dt::F64:
+            return new HashSetImpl<Float64Traits>(ovf);
         case Dt::F32:
             return new HashSetImpl<Float32Traits>(ovf);
+        case Dt::OBJ:
+            return new HashSetImpl<HashedObjectTraits>(ovf);
     }
     Py_UNREACHABLE();
 }

@@ -83,13 +83,13 @@ inline stl_state *find_state_2(PyObject *v, PyObject *w) {
 
 
 enum class Dt : uint8_t {
-    OBJ,
-    I64,
     U64,
-    F64,
+    I64,
     I32,
     I16,
+    F64,
     F32,
+    OBJ,
 };
 
 
@@ -137,15 +137,14 @@ inline int parse_dtype(PyObject *o, DtypeSpec *out) {
         Dt dt;
         Ovf ovf;
     } TABLE[] = {
-        {"object", Dt::OBJ, Ovf::RAISE},
-        {"int64", Dt::I64, Ovf::RAISE},
-        {"int64-raise", Dt::I64, Ovf::RAISE},
-        {"int64-clamp", Dt::I64, Ovf::CLAMP},
-        {"int64-wrap", Dt::I64, Ovf::WRAP},
         {"uint64", Dt::U64, Ovf::RAISE},
         {"uint64-raise", Dt::U64, Ovf::RAISE},
         {"uint64-clamp", Dt::U64, Ovf::CLAMP},
         {"uint64-wrap", Dt::U64, Ovf::WRAP},
+        {"int64", Dt::I64, Ovf::RAISE},
+        {"int64-raise", Dt::I64, Ovf::RAISE},
+        {"int64-clamp", Dt::I64, Ovf::CLAMP},
+        {"int64-wrap", Dt::I64, Ovf::WRAP},
         {"int32", Dt::I32, Ovf::RAISE},
         {"int32-raise", Dt::I32, Ovf::RAISE},
         {"int32-clamp", Dt::I32, Ovf::CLAMP},
@@ -156,6 +155,7 @@ inline int parse_dtype(PyObject *o, DtypeSpec *out) {
         {"int16-wrap", Dt::I16, Ovf::WRAP},
         {"float64", Dt::F64, Ovf::RAISE},
         {"float32", Dt::F32, Ovf::RAISE},
+        {"object", Dt::OBJ, Ovf::RAISE},
     };
 
     for (const auto &e : TABLE) {
@@ -175,22 +175,18 @@ inline int parse_dtype(PyObject *o, DtypeSpec *out) {
 // instead of a runtime misroute.
 inline const char *dtype_name(Dt dt, Ovf ovf) {
     switch (dt) {
-        case Dt::OBJ:
-            return "object";
-        case Dt::F64:
-            return "float64";
-        case Dt::I64:
-            switch (ovf) {
-                case Ovf::RAISE: return "int64-raise";
-                case Ovf::CLAMP: return "int64-clamp";
-                case Ovf::WRAP: return "int64-wrap";
-            }
-            break;
         case Dt::U64:
             switch (ovf) {
                 case Ovf::RAISE: return "uint64-raise";
                 case Ovf::CLAMP: return "uint64-clamp";
                 case Ovf::WRAP: return "uint64-wrap";
+            }
+            break;
+        case Dt::I64:
+            switch (ovf) {
+                case Ovf::RAISE: return "int64-raise";
+                case Ovf::CLAMP: return "int64-clamp";
+                case Ovf::WRAP: return "int64-wrap";
             }
             break;
         case Dt::I32:
@@ -207,8 +203,12 @@ inline const char *dtype_name(Dt dt, Ovf ovf) {
                 case Ovf::WRAP: return "int16-wrap";
             }
             break;
+        case Dt::F64:
+            return "float64";
         case Dt::F32:
             return "float32";
+        case Dt::OBJ:
+            return "object";
     }
     Py_UNREACHABLE();
 }
@@ -369,67 +369,6 @@ struct Bin {
 //
 
 
-// idx is a borrowed PyLong that overflowed int64 in the direction of `of`.
-inline bool unbox_int64_overflow(PyObject *idx, int of, Ovf ovf, int64_t *out) {
-    switch (ovf) {
-        case Ovf::RAISE:
-            PyErr_SetString(PyExc_OverflowError, "int out of range for int64");
-            return false;
-
-        case Ovf::CLAMP:
-            *out = of > 0 ? INT64_MAX : INT64_MIN;
-            return true;
-
-        case Ovf::WRAP: {
-            unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
-            if (u == (unsigned long long)-1 && PyErr_Occurred()) {
-                return false;
-            }
-            *out = (int64_t)u;
-            return true;
-        }
-    }
-    Py_UNREACHABLE();
-}
-
-
-inline bool unbox_int64(PyObject *o, Ovf ovf, int64_t *out) {
-    if (PyLong_CheckExact(o)) {
-        // Fast path: PyNumber_Index on an exact int is just an incref, so skip the call and the ref traffic. An
-        // exact int cannot fail conversion except by overflow.
-        int of = 0;
-        long long v = PyLong_AsLongLongAndOverflow(o, &of);
-        if (of == 0) {
-            *out = (int64_t)v;
-            return true;
-        }
-        return unbox_int64_overflow(o, of, ovf, out);
-    }
-
-    PyObject *idx = PyNumber_Index(o);
-    if (idx == nullptr) {
-        return false;
-    }
-
-    int of = 0;
-    long long v = PyLong_AsLongLongAndOverflow(idx, &of);
-    if (v == -1 && of == 0 && PyErr_Occurred()) {
-        Py_DECREF(idx);
-        return false;
-    }
-
-    if (of == 0) {
-        Py_DECREF(idx);
-        *out = (int64_t)v;
-        return true;
-    }
-
-    bool r = unbox_int64_overflow(idx, of, ovf, out);
-    Py_DECREF(idx);
-    return r;
-}
-
-
 // idx is a borrowed PyLong that failed PyLong_AsUnsignedLongLong with OverflowError (negative, or > UINT64_MAX).
 inline bool unbox_uint64_overflow(PyObject *idx, Ovf ovf, uint64_t *out) {
     switch (ovf) {
@@ -500,13 +439,64 @@ inline bool unbox_uint64(PyObject *o, Ovf ovf, uint64_t *out) {
 }
 
 
-inline bool unbox_float64(PyObject *o, double *out) {
-    double v = PyFloat_AsDouble(o);
-    if (v == -1.0 && PyErr_Occurred()) {
+// idx is a borrowed PyLong that overflowed int64 in the direction of `of`.
+inline bool unbox_int64_overflow(PyObject *idx, int of, Ovf ovf, int64_t *out) {
+    switch (ovf) {
+        case Ovf::RAISE:
+            PyErr_SetString(PyExc_OverflowError, "int out of range for int64");
+            return false;
+
+        case Ovf::CLAMP:
+            *out = of > 0 ? INT64_MAX : INT64_MIN;
+            return true;
+
+        case Ovf::WRAP: {
+            unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
+            if (u == (unsigned long long)-1 && PyErr_Occurred()) {
+                return false;
+            }
+            *out = (int64_t)u;
+            return true;
+        }
+    }
+    Py_UNREACHABLE();
+}
+
+
+inline bool unbox_int64(PyObject *o, Ovf ovf, int64_t *out) {
+    if (PyLong_CheckExact(o)) {
+        // Fast path: PyNumber_Index on an exact int is just an incref, so skip the call and the ref traffic. An
+        // exact int cannot fail conversion except by overflow.
+        int of = 0;
+        long long v = PyLong_AsLongLongAndOverflow(o, &of);
+        if (of == 0) {
+            *out = (int64_t)v;
+            return true;
+        }
+        return unbox_int64_overflow(o, of, ovf, out);
+    }
+
+    PyObject *idx = PyNumber_Index(o);
+    if (idx == nullptr) {
         return false;
     }
-    *out = v;
-    return true;
+
+    int of = 0;
+    long long v = PyLong_AsLongLongAndOverflow(idx, &of);
+    if (v == -1 && of == 0 && PyErr_Occurred()) {
+        Py_DECREF(idx);
+        return false;
+    }
+
+    if (of == 0) {
+        Py_DECREF(idx);
+        *out = (int64_t)v;
+        return true;
+    }
+
+    bool r = unbox_int64_overflow(idx, of, ovf, out);
+    Py_DECREF(idx);
+    return r;
 }
 
 
@@ -550,6 +540,16 @@ inline bool unbox_int_narrow(PyObject *o, Ovf ovf, I *out) {
             return true;
     }
     Py_UNREACHABLE();
+}
+
+
+inline bool unbox_float64(PyObject *o, double *out) {
+    double v = PyFloat_AsDouble(o);
+    if (v == -1.0 && PyErr_Occurred()) {
+        return false;
+    }
+    *out = v;
+    return true;
 }
 
 
@@ -600,6 +600,33 @@ inline uint64_t float64_key_bits(double v) noexcept {
 //
 
 
+struct UInt64Traits {
+    using Slot = uint64_t;
+    static constexpr Dt DT = Dt::U64;
+    static constexpr bool IS_OBJ = false;
+
+    struct Less {
+        bool operator()(Slot a, Slot b) const noexcept { return a < b; }
+    };
+
+    struct Hash {
+        size_t operator()(Slot v) const noexcept { return mix64(v); }
+    };
+
+    struct Eq {
+        bool operator()(Slot a, Slot b) const noexcept { return a == b; }
+    };
+
+    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_uint64(o, ovf, out); }
+    static PyObject *box(const Slot &v) { return PyLong_FromUnsignedLongLong((unsigned long long)v); }
+
+    static void retain(const Slot &) noexcept {}
+    static void release_into(const Slot &, Bin &) noexcept {}
+    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+    static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
+};
+
+
 struct Int64Traits {
     using Slot = int64_t;
     static constexpr Dt DT = Dt::I64;
@@ -627,9 +654,11 @@ struct Int64Traits {
 };
 
 
-struct UInt64Traits {
-    using Slot = uint64_t;
-    static constexpr Dt DT = Dt::U64;
+// Narrow signed-integer traits, shared by the int32 / int16 dtypes.
+template <typename I, Dt DTV>
+struct NarrowIntTraits {
+    using Slot = I;
+    static constexpr Dt DT = DTV;
     static constexpr bool IS_OBJ = false;
 
     struct Less {
@@ -637,21 +666,25 @@ struct UInt64Traits {
     };
 
     struct Hash {
-        size_t operator()(Slot v) const noexcept { return mix64(v); }
+        size_t operator()(Slot v) const noexcept { return mix64((uint64_t)(int64_t)v); }
     };
 
     struct Eq {
         bool operator()(Slot a, Slot b) const noexcept { return a == b; }
     };
 
-    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_uint64(o, ovf, out); }
-    static PyObject *box(const Slot &v) { return PyLong_FromUnsignedLongLong((unsigned long long)v); }
+    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_int_narrow<I>(o, ovf, out); }
+    static PyObject *box(const Slot &v) { return PyLong_FromLong((long)v); }
 
     static void retain(const Slot &) noexcept {}
     static void release_into(const Slot &, Bin &) noexcept {}
     static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
     static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
 };
+
+
+using Int32Traits = NarrowIntTraits<int32_t, Dt::I32>;
+using Int16Traits = NarrowIntTraits<int16_t, Dt::I16>;
 
 
 struct Float64Traits {
@@ -699,39 +732,6 @@ struct Float64Traits {
         return a == b || (std::isnan(a) && std::isnan(b));
     }
 };
-
-
-// Narrow signed-integer traits, shared by the int32 / int16 dtypes.
-template <typename I, Dt DTV>
-struct NarrowIntTraits {
-    using Slot = I;
-    static constexpr Dt DT = DTV;
-    static constexpr bool IS_OBJ = false;
-
-    struct Less {
-        bool operator()(Slot a, Slot b) const noexcept { return a < b; }
-    };
-
-    struct Hash {
-        size_t operator()(Slot v) const noexcept { return mix64((uint64_t)(int64_t)v); }
-    };
-
-    struct Eq {
-        bool operator()(Slot a, Slot b) const noexcept { return a == b; }
-    };
-
-    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_int_narrow<I>(o, ovf, out); }
-    static PyObject *box(const Slot &v) { return PyLong_FromLong((long)v); }
-
-    static void retain(const Slot &) noexcept {}
-    static void release_into(const Slot &, Bin &) noexcept {}
-    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
-    static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
-};
-
-
-using Int32Traits = NarrowIntTraits<int32_t, Dt::I32>;
-using Int16Traits = NarrowIntTraits<int16_t, Dt::I16>;
 
 
 // float32: same NaN-aware ordering / equality / value-equality story as Float64Traits, at float storage width.
