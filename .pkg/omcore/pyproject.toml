@@ -37,7 +37,7 @@ all = [
     'executing ~= 2.2',
     'psutil ~= 7.2',
     'memray ~= 1.20',
-    'orjson ~= 3.11',
+    'orjson ~= 3.12',
     'ujson ~= 5.13',
     'pyyaml ~= 6.0',
     'cbor2 ~= 6.1',
@@ -64,7 +64,7 @@ all = [
     'pytest ~= 9.1',
     'asttokens ~= 3.0',
     'executing ~= 2.2',
-    'orjson ~= 3.11',
+    'orjson ~= 3.12',
     'pyyaml ~= 6.0',
 ]
 async = [
@@ -85,7 +85,7 @@ diag = [
     'memray ~= 1.20',
 ]
 formats = [
-    'orjson ~= 3.11',
+    'orjson ~= 3.12',
     'ujson ~= 5.13',
     'pyyaml ~= 6.0',
     'cbor2 ~= 6.1',
@@ -128,7 +128,7 @@ testing = [
 plus = [
     'asttokens ~= 3.0',
     'executing ~= 2.2',
-    'orjson ~= 3.11',
+    'orjson ~= 3.12',
     'pyyaml ~= 6.0',
 ]
 

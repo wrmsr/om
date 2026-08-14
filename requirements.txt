@@ -24,7 +24,7 @@ brotli==1.2.0  # !! USES_GIL - https://github.com/google/brotli/commit/51be27dbd
 
 ### db:
 
-sqlalchemy[asyncio]==2.0.51
+sqlalchemy[asyncio]==2.0.52
 
 ## sql
 
@@ -49,7 +49,7 @@ psutil==7.2.2
 ## json
 
 #> ujson
-orjson==3.11.9  # @om-venv !14t !14dt !15t
+orjson==3.12.0  # @om-venv !14t !14dt !15t
 
 ## pickle
 
