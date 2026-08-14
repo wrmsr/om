@@ -205,6 +205,80 @@ static PyObject * KeyCmp_vectorcall_default(
     return PyLong_FromLong(gt);
 }
 
+// Default vectorcall: inline hash/eq/id compare on keys
+static PyObject * KeyCmp_vectorcall_hash_eq_id(
+    PyObject *callable,
+    PyObject *const *args,
+    size_t nargsf,
+    PyObject *kwnames
+)
+{
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+
+    if (kwnames != nullptr && PyTuple_GET_SIZE(kwnames) != 0) {
+        PyErr_SetString(PyExc_TypeError, "KeyCmp takes no keyword arguments");
+        return nullptr;
+    }
+
+    if (nargs != 2) {
+        PyErr_Format(
+            PyExc_TypeError,
+            "KeyCmp takes exactly 2 positional arguments (%zd given)",
+            nargs
+        );
+        return nullptr;
+    }
+
+    PyObject *t0 = args[0];
+    PyObject *t1 = args[1];
+
+    // Quick, macro-based type and bounds checking
+    if (!PyTuple_CheckExact(t0) || PyTuple_GET_SIZE(t0) < 2 ||
+        !PyTuple_CheckExact(t1) || PyTuple_GET_SIZE(t1) < 2) {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "KeyCmp arguments must be exactly tuples of at least 2 items"
+        );
+        return nullptr;
+    }
+
+    PyObject *l = PyTuple_GET_ITEM(t0, 0);
+    PyObject *r = PyTuple_GET_ITEM(t1, 0);
+
+    if (l == r) {
+        return PyLong_FromLong(0);
+    }
+
+    int eq = PyObject_RichCompareBool(l, r, Py_EQ);
+    if (eq < 0) {
+        return nullptr;
+    }
+    if (eq) {
+        return PyLong_FromLong(0);
+    }
+
+    Py_hash_t hl = PyObject_Hash(l);
+    if (hl == -1 && PyErr_Occurred()) {
+        return nullptr;
+    }
+
+    Py_hash_t hr = PyObject_Hash(r);
+    if (hr == -1 && PyErr_Occurred()) {
+        return nullptr;
+    }
+
+    if (hl < hr) {
+        return PyLong_FromLong(-1);
+    } else if (hl > hr) {
+        return PyLong_FromLong(1);
+    }
+
+    uintptr_t il = reinterpret_cast<uintptr_t>(l);
+    uintptr_t ir = reinterpret_cast<uintptr_t>(r);
+
+    return PyLong_FromLong((il > ir) - (il < ir));
+}
+
 // Custom vectorcall: extract keys, delegate to stored fn via vectorcall
 static PyObject * KeyCmp_vectorcall_custom(
     PyObject *callable,
@@ -288,6 +362,9 @@ static int KeyCmp_get_fn_kind(KeyCmp *self)
     if (self->vectorcall == KeyCmp_vectorcall_default) {
         return KEY_CMP_FN_DEFAULT;
     }
+    if (self->vectorcall == KeyCmp_vectorcall_hash_eq_id) {
+        return KEY_CMP_FN_HASH_EQ_ID_CMP;
+    }
     if (self->vectorcall != KeyCmp_vectorcall_custom || self->fn == nullptr) {
         PyErr_SetString(PyExc_RuntimeError, "invalid KeyCmp state");
         return -1;
@@ -328,13 +405,11 @@ static PyObject * KeyCmp_reduce(KeyCmp *self, PyObject *Py_UNUSED(ignored))
         return nullptr;
     }
 
-    const char *fn_name = "_unpickle_key_cmp";
     PyObject *args;
     if (fn_kind == KEY_CMP_FN_DEFAULT) {
         args = PyTuple_New(0);
     } else if (fn_kind == KEY_CMP_FN_HASH_EQ_ID_CMP) {
-        fn_name = "_unpickle_key_cmp_hash_eq_id_cmp";
-        args = PyTuple_New(0);
+        args = PyTuple_Pack(1, PyUnicode_FromString("hash_eq_id"));
     } else {
         args = PyTuple_Pack(1, self->fn);
     }
@@ -342,7 +417,7 @@ static PyObject * KeyCmp_reduce(KeyCmp *self, PyObject *Py_UNUSED(ignored))
         return nullptr;
     }
 
-    PyObject *fn = get_public_comparison_attr(fn_name);
+    PyObject *fn = get_public_comparison_attr("_unpickle_key_cmp");
     if (fn == nullptr) {
         Py_DECREF(args);
         return nullptr;
@@ -386,7 +461,11 @@ static PyType_Spec KeyCmp_spec = {
 
 PyDoc_STRVAR(comparison_key_cmp_doc, "key_cmp(fn=None)");
 
-static PyObject * comparison_key_cmp(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+static PyObject * comparison_key_cmp(
+    PyObject *module,
+    PyObject *const *args,
+    Py_ssize_t nargs
+)
 {
     if (nargs > 1) {
         PyErr_Format(
@@ -398,11 +477,39 @@ static PyObject * comparison_key_cmp(PyObject *module, PyObject *const *args, Py
     }
 
     PyObject *fn = nullptr;
+    vectorcallfunc vectorcall = KeyCmp_vectorcall_default;
+
     if (nargs == 1 && args[0] != Py_None) {
-        fn = args[0];
-        if (!PyCallable_Check(fn)) {
-            PyErr_SetString(PyExc_TypeError, "key_cmp() argument must be callable or None");
-            return nullptr;
+        PyObject *arg = args[0];
+
+        if (PyUnicode_Check(arg)) {
+            int cmp = PyUnicode_CompareWithASCIIString(arg, "hash_eq_id");
+            if (cmp == 0) {
+                vectorcall = KeyCmp_vectorcall_hash_eq_id;
+            }
+            else {
+                if (cmp == -1 && PyErr_Occurred()) {
+                    return nullptr;
+                }
+
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    "key_cmp() string argument must be 'hash_eq_id'"
+                );
+                return nullptr;
+            }
+        }
+        else {
+            if (!PyCallable_Check(arg)) {
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    "key_cmp() argument must be callable, None, or 'hash_eq_id'"
+                );
+                return nullptr;
+            }
+
+            fn = arg;
+            vectorcall = KeyCmp_vectorcall_custom;
         }
     }
 
@@ -413,7 +520,7 @@ static PyObject * comparison_key_cmp(PyObject *module, PyObject *const *args, Py
     }
 
     self->fn = Py_XNewRef(fn);
-    self->vectorcall = (fn != nullptr) ? KeyCmp_vectorcall_custom : KeyCmp_vectorcall_default;
+    self->vectorcall = vectorcall;
 
     PyObject_GC_Track(self);
     return (PyObject *)self;
