@@ -105,12 +105,12 @@ class RpcResponseRejected:
     response: RpcWireError
 
 
-RpcResponseClaim: ta.TypeAlias = (
-    RpcResponseExecute |
-    RpcResponsePending |
-    RpcResponseReplay |
-    RpcResponseRejected
-)
+RpcResponseClaim: ta.TypeAlias = ta.Union[  # noqa
+    RpcResponseExecute,
+    RpcResponsePending,
+    RpcResponseReplay,
+    RpcResponseRejected,
+]
 
 
 ##

@@ -2,16 +2,16 @@ import threading
 
 import pytest
 
-from ..rpc.dispatch import RpcRequestDispatcher
-from ..rpc.pipelines import RpcWireError
-from ..rpc.pipelines import RpcWireResult
-from ..rpc.protocol import RpcRequest
-from ..rpc.registry import RpcResponseExecute
-from ..rpc.registry import RpcResponsePending
-from ..rpc.registry import RpcResponseRegistry
-from ..rpc.registry import RpcResponseRejected
-from ..rpc.registry import RpcResponseReplay
-from .testing import TEST_TIMEOUT_S
+from ...tests.testing import TEST_TIMEOUT_S
+from ..dispatch import RpcRequestDispatcher
+from ..pipelines import RpcWireError
+from ..pipelines import RpcWireResult
+from ..protocol import RpcRequest
+from ..registry import RpcResponseExecute
+from ..registry import RpcResponsePending
+from ..registry import RpcResponseRegistry
+from ..registry import RpcResponseRejected
+from ..registry import RpcResponseReplay
 
 
 ##

@@ -6,19 +6,19 @@ import time
 import typing as ta
 import uuid
 
-from ..rpc import RpcClient
-from ..rpc import RpcRequest
-from ..rpc import RpcServer
-from ..rpc import RpcServerConfig
-from ..rpc import SimpleRpcServerRuntime
-from ..rpc.protocol import RPC_DEFAULT_MAX_FRAME_BYTES
-from ..rpc.protocol import RPC_PROTOCOL_VERSION
-from ..rpc.protocol import hello_message
-from ..rpc.protocol import recv_rpc_message
-from ..rpc.protocol import request_message
-from ..rpc.protocol import result_message
-from ..rpc.protocol import send_rpc_message
-from .testing import TEST_TIMEOUT_S
+from ...tests.testing import TEST_TIMEOUT_S
+from ..client import RpcClient
+from ..protocol import RPC_DEFAULT_MAX_FRAME_BYTES
+from ..protocol import RPC_PROTOCOL_VERSION
+from ..protocol import RpcRequest
+from ..protocol import hello_message
+from ..protocol import recv_rpc_message
+from ..protocol import request_message
+from ..protocol import result_message
+from ..protocol import send_rpc_message
+from ..server import RpcServer
+from ..server import RpcServerConfig
+from ..server import SimpleRpcServerRuntime
 
 
 ##

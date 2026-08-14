@@ -11,29 +11,29 @@ import uuid
 
 import pytest
 
-from ... import check
-from ..daemon import Daemon
-from ..lazy import LazyDaemon
-from ..rpc import LazyRpcClient
-from ..rpc import RpcCallIndeterminateError
-from ..rpc import RpcClient
-from ..rpc import RpcProtocolError
-from ..rpc import RpcRemoteError
-from ..rpc import RpcRequest
-from ..rpc import RpcService
-from ..rpc import RpcWait
-from ..runtime import ServiceRuntime
-from ..services import ServiceDaemon
-from ..spawning import MultiprocessingSpawning
+from .... import check
+from ...daemon import Daemon
+from ...lazy import LazyDaemon
+from ...runtime import ServiceRuntime
+from ...services import ServiceDaemon
+from ...spawning import MultiprocessingSpawning
+from ...tests.testing import TEST_TIMEOUT_S
+from ...tests.testing import accept_worker
+from ...tests.testing import find_multiprocessing_child
+from ...tests.testing import join_multiprocessing_child
+from ...tests.testing import make_unix_listener
+from ...tests.testing import read_locked_daemon_pidfile_info
+from ...tests.testing import read_locked_pidfile
+from ...tests.testing import wait_pidfile_unlocked
+from .. import LazyRpcClient
+from .. import RpcCallIndeterminateError
+from .. import RpcClient
+from .. import RpcProtocolError
+from .. import RpcRemoteError
+from .. import RpcRequest
+from .. import RpcService
+from .. import RpcWait
 from .rpchelper import ControlledRpcHandler
-from .testing import TEST_TIMEOUT_S
-from .testing import accept_worker
-from .testing import find_multiprocessing_child
-from .testing import join_multiprocessing_child
-from .testing import make_unix_listener
-from .testing import read_locked_daemon_pidfile_info
-from .testing import read_locked_pidfile
-from .testing import wait_pidfile_unlocked
 
 
 ##

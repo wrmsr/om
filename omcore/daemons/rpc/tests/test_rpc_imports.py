@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from .testing import TEST_TIMEOUT_S
+from ...tests.testing import TEST_TIMEOUT_S
 
 
 def test_rpc_core_imports_do_not_load_daemon_adapters():

@@ -1,20 +1,20 @@
 import uuid
 
-from ...io.pipelines.drivers.pure import PureIoPipelineDriver
-from ..rpc.pipelines import RpcClientConnected
-from ..rpc.pipelines import RpcClientRequestSent
-from ..rpc.pipelines import RpcClientResponse
-from ..rpc.pipelines import RpcClientSendRequest
-from ..rpc.pipelines import RpcPipelineFailure
-from ..rpc.pipelines import RpcServerDispatch
-from ..rpc.pipelines import RpcServerSendResponse
-from ..rpc.pipelines import RpcWireError
-from ..rpc.pipelines import RpcWireResult
-from ..rpc.pipelines import rpc_client_pipeline_spec
-from ..rpc.pipelines import rpc_server_pipeline_spec
-from ..rpc.protocol import RPC_PROTOCOL_VERSION
-from ..rpc.protocol import RpcProtocolError
-from ..rpc.protocol import RpcRequest
+from .....io.pipelines.drivers.pure import PureIoPipelineDriver
+from ...protocol import RPC_PROTOCOL_VERSION
+from ...protocol import RpcProtocolError
+from ...protocol import RpcRequest
+from .. import RpcClientConnected
+from .. import RpcClientRequestSent
+from .. import RpcClientResponse
+from .. import RpcClientSendRequest
+from .. import RpcPipelineFailure
+from .. import RpcServerDispatch
+from .. import RpcServerSendResponse
+from .. import RpcWireError
+from .. import RpcWireResult
+from .. import rpc_client_pipeline_spec
+from .. import rpc_server_pipeline_spec
 
 
 ##

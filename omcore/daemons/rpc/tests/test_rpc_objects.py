@@ -6,16 +6,16 @@ import time
 
 import pytest
 
-from ..rpc import RpcClient
-from ..rpc import RpcObjectHandler
-from ..rpc import RpcObjectProxy
-from ..rpc import RpcRemoteError
-from ..rpc import RpcServer
-from ..rpc import RpcServerConfig
-from ..rpc import RpcUnavailableError
-from ..rpc import SimpleRpcServerRuntime
-from ..rpc import rpc_method
-from .testing import TEST_TIMEOUT_S
+from ...tests.testing import TEST_TIMEOUT_S
+from .. import RpcClient
+from .. import RpcObjectHandler
+from .. import RpcObjectProxy
+from .. import RpcRemoteError
+from .. import RpcServer
+from .. import RpcServerConfig
+from .. import RpcUnavailableError
+from .. import SimpleRpcServerRuntime
+from .. import rpc_method
 
 
 ##

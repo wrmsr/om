@@ -3,8 +3,8 @@ import os
 import socket
 import typing as ta
 
-from ... import dataclasses as dc
-from ..rpc import RpcRequest
+from .... import dataclasses as dc
+from ...rpc import RpcRequest
 
 
 ##

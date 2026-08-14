@@ -329,6 +329,8 @@ with _auto_proxy_init(globals(), update_exports=True):
         new_function,
         new_function_kwargs,
         copy_function,
+
+        get_function_body_source,
     )
 
     from .generators import (  # noqa

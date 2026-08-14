@@ -3,6 +3,16 @@ import time
 import types
 import typing as ta
 
+from .imports.proxy import proxy_import
+
+
+if ta.TYPE_CHECKING:
+    import inspect
+    import textwrap
+else:
+    inspect = proxy_import('inspect')
+    textwrap = proxy_import('textwrap')
+
 
 _functions: ta.Any
 try:
@@ -422,3 +432,10 @@ def new_function_kwargs(f: types.FunctionType) -> dict[str, ta.Any]:
 
 def copy_function(f: types.FunctionType) -> types.FunctionType:
     return new_function(**new_function_kwargs(f))
+
+
+##
+
+
+def get_function_body_source(fn: ta.Any) -> str:
+    return textwrap.dedent('\n'.join(inspect.getsource(fn).splitlines()[1:]))

@@ -1,10 +1,10 @@
-from ...http.pipelines.responses import FullIoPipelineHttpResponse
-from ...io.pipelines.drivers.pure import PureIoPipelineDriver
-from ...io.streambufs.utils import ByteStreamBuffers
-from ..http import HttpPipelineFailure
-from ..http import HttpServerRequest
-from ..http import HttpServerSendResponse
-from ..http import pipeline_http_server_spec
+from ....http.pipelines.responses import FullIoPipelineHttpResponse
+from ....io.pipelines.drivers.pure import PureIoPipelineDriver
+from ....io.streambufs.utils import ByteStreamBuffers
+from .. import HttpPipelineFailure
+from .. import HttpServerRequest
+from .. import HttpServerSendResponse
+from .. import pipeline_http_server_spec
 
 
 ##

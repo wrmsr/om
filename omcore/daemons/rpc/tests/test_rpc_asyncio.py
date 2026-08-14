@@ -7,17 +7,17 @@ import typing as ta
 
 import pytest
 
-from ..rpc import AsyncioRpcClient
-from ..rpc import AsyncioRpcServer
-from ..rpc import AsyncioRpcServerConfig
-from ..rpc import RpcClient
-from ..rpc import RpcRemoteError
-from ..rpc import RpcRequest
-from ..rpc import RpcServer
-from ..rpc import RpcServerConfig
-from ..rpc import SimpleRpcServerRuntime
-from ..rpc import ThreadedAsyncRpcHandler
-from .testing import TEST_TIMEOUT_S
+from ...tests.testing import TEST_TIMEOUT_S
+from .. import AsyncioRpcClient
+from .. import AsyncioRpcServer
+from .. import AsyncioRpcServerConfig
+from .. import RpcClient
+from .. import RpcRemoteError
+from .. import RpcRequest
+from .. import RpcServer
+from .. import RpcServerConfig
+from .. import SimpleRpcServerRuntime
+from .. import ThreadedAsyncRpcHandler
 
 
 ##

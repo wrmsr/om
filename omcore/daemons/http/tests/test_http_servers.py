@@ -8,18 +8,18 @@ import typing as ta
 
 import pytest
 
-from ...http.pipelines.requests import FullIoPipelineHttpRequest
-from ...http.pipelines.responses import FullIoPipelineHttpResponse
-from ...io.streambufs.utils import ByteStreamBuffers
-from ..http import AsyncHttpHandler
-from ..http import AsyncioPipelineHttpServer
-from ..http import AsyncioPipelineHttpServerConfig
-from ..http import HttpServerRuntime
-from ..http import PipelineHttpServer
-from ..http import PipelineHttpServerConfig
-from ..http import SimpleHttpServerRuntime
-from ..http import ThreadedAsyncHttpHandler
-from .testing import TEST_TIMEOUT_S
+from ....http.pipelines.requests import FullIoPipelineHttpRequest
+from ....http.pipelines.responses import FullIoPipelineHttpResponse
+from ....io.streambufs.utils import ByteStreamBuffers
+from ...tests.testing import TEST_TIMEOUT_S
+from .. import AsyncHttpHandler
+from .. import AsyncioPipelineHttpServer
+from .. import AsyncioPipelineHttpServerConfig
+from .. import HttpServerRuntime
+from .. import PipelineHttpServer
+from .. import PipelineHttpServerConfig
+from .. import SimpleHttpServerRuntime
+from .. import ThreadedAsyncHttpHandler
 
 
 ##

@@ -6,13 +6,13 @@ import typing as ta
 
 import pytest
 
-from ..rpc import FdioRpcServer
-from ..rpc import RpcClient
-from ..rpc import RpcRemoteError
-from ..rpc import RpcRequest
-from ..rpc import RpcServerConfig
-from ..rpc import SimpleRpcServerRuntime
-from .testing import TEST_TIMEOUT_S
+from ...tests.testing import TEST_TIMEOUT_S
+from .. import FdioRpcServer
+from .. import RpcClient
+from .. import RpcRemoteError
+from .. import RpcRequest
+from .. import RpcServerConfig
+from .. import SimpleRpcServerRuntime
 
 
 ##
