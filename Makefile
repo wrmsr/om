@@ -564,6 +564,38 @@ docker-dev-temp-bash:
 	docker run --rm -it "$$(docker build -q -f docker/dev/Dockerfile .)" bash
 
 
+### Docker Wheel
+
+DOCKER_WHEEL_ARCHS ?= amd64 arm64
+DOCKER_WHEEL_PYTHONS ?= cp314-cp314 cp314-cp314t
+DOCKER_WHEEL_DOCKERFILE := docker/wheel/Dockerfile
+DOCKER_WHEEL_DIST := dist/linux
+
+DOCKER_WHEEL_REPO_ROOT := $(abspath .)
+DOCKER_WHEEL_PKG ?= omcore-cext
+DOCKER_WHEEL_PKG_DIR := .pkg/$(DOCKER_WHEEL_PKG)
+
+.PHONY: docker-build-wheels
+docker-build-wheels:
+	set -e ; \
+	for arch in $(DOCKER_WHEEL_ARCHS) ; do \
+		tar -ch \
+			--exclude './build' --exclude './dist' \
+			--exclude '.git' --exclude '__pycache__' \
+			-C "$(DOCKER_WHEEL_PKG_DIR)" . \
+			-C "$(DOCKER_WHEEL_REPO_ROOT)" docker/wheel/Dockerfile \
+		| docker buildx build \
+			--platform "linux/$$arch" \
+			--file docker/wheel/Dockerfile \
+			--build-arg "PYTHONS=$(DOCKER_WHEEL_PYTHONS)" \
+			--target dist \
+			--output "type=local,dest=$(DOCKER_WHEEL_DIST)/$$arch/$(DOCKER_WHEEL_PKG)" \
+			- ; \
+		done
+	@echo
+	@ls -l $(DOCKER_WHEEL_DIST)/*/
+
+
 ### CI
 
 CI_PROJECT_DIR:=.
