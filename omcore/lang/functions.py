@@ -260,30 +260,60 @@ def opt_coalesce(*vs: T | None) -> T | None:
 
 
 class _Setter:
-    def __init__(self, item: bool, key: ta.Any, value: ta.Any = _MISSING) -> None:
-        super().__init__()
-
-        self._item = item
-        self._key = key
-        self._value = value
+    _is_item: bool
+    _key: ta.Any
+    _value: ta.Any
 
     def __reduce__(self) -> tuple[ta.Callable[..., ta.Any], tuple[ta.Any, ...]]:
-        fn = _unpickle_itemsetter if self._item else _unpickle_attrsetter
+        fn = _unpickle_itemsetter if self._is_item else _unpickle_attrsetter
         args = (self._key,) if self._value is _MISSING else (self._key, self._value)
         return (fn, args)
 
-    def __call__(self, o: ta.Any, v: ta.Any = _MISSING) -> None:
-        if self._value is not _MISSING:
-            if v is not _MISSING:
-                raise TypeError('setter takes exactly 1 argument')
-            v = self._value
-        elif v is _MISSING:
-            raise TypeError('setter takes exactly 2 arguments')
 
-        if self._item:
-            o[self._key] = v
-        else:
-            setattr(o, self._key, v)
+@ta.final
+class _AttrSetter(_Setter):
+    _is_item = False
+    _value = _MISSING
+
+    def __init__(self, key: ta.Any) -> None:
+        self._key = key
+
+    def __call__(self, o: ta.Any, v: ta.Any) -> None:
+        setattr(o, self._key, v)
+
+
+@ta.final
+class _ValueAttrSetter(_Setter):
+    _is_item = False
+
+    def __init__(self, key: ta.Any, value: ta.Any) -> None:
+        self._key, self._value = key, value
+
+    def __call__(self, o: ta.Any) -> None:
+        setattr(o, self._key, self._value)
+
+
+@ta.final
+class _ItemSetter(_Setter):
+    _is_item = True
+    _value = _MISSING
+
+    def __init__(self, key: ta.Any) -> None:
+        self._key = key
+
+    def __call__(self, o: ta.Any, v: ta.Any) -> None:
+        o[self._key] = v
+
+
+@ta.final
+class _ValueItemSetter(_Setter):
+    _is_item = True
+
+    def __init__(self, key: ta.Any, value: ta.Any) -> None:
+        self._key, self._value = key, value
+
+    def __call__(self, o: ta.Any) -> None:
+        o[self._key] = self._value
 
 
 @ta.overload
@@ -295,7 +325,10 @@ def attrsetter(a: str, v: ta.Any) -> ta.Callable[[ta.Any], None]: ...
 
 
 def attrsetter(a, v=_MISSING):
-    return _Setter(False, a, v)
+    if v is not _MISSING:
+        return _ValueAttrSetter(a, v)
+    else:
+        return _AttrSetter(a)
 
 
 @ta.overload
@@ -307,7 +340,10 @@ def itemsetter(k: ta.Any, v: ta.Any) -> ta.Callable[[ta.Any], None]: ...
 
 
 def itemsetter(k, v=_MISSING):
-    return _Setter(True, k, v)
+    if v is not _MISSING:
+        return _ValueItemSetter(k, v)
+    else:
+        return _ItemSetter(k)
 
 
 def _unpickle_attrsetter(a: str, *args: ta.Any) -> ta.Callable[..., None]:

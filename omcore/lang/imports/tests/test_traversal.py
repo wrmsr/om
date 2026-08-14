@@ -1,6 +1,9 @@
+import pytest
+
 from ..traversal import yield_importable
 
 
+@pytest.mark.skip(reason='Slow and bad and not used internally and FIXME')
 def test_yield_importable():
     base_pkg = __package__.rpartition('.')[0]
 

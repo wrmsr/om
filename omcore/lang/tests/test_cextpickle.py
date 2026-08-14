@@ -1,4 +1,5 @@
 import operator
+import os
 import pickle
 import subprocess
 import sys
@@ -6,6 +7,7 @@ import typing as ta
 
 import pytest
 
+from ...diag._pycharm import runhack as pycharm_runhack
 from .. import comparison
 from .. import functions
 
@@ -133,12 +135,14 @@ def test_pickle_across_cext_and_pure_python() -> None:
 
     subprocess.run(
         [sys.executable, '-c', _PURE_SCRIPT, 'load'],
+        env={**os.environ, pycharm_runhack.ENABLED_ENV_VAR: '0'},
         input=cext_payload,
         check=True,
     )
 
     pure_proc = subprocess.run(
         [sys.executable, '-c', _PURE_SCRIPT, 'dump'],
+        env={**os.environ, pycharm_runhack.ENABLED_ENV_VAR: '0'},
         check=True,
         stdout=subprocess.PIPE,
     )
