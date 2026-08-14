@@ -569,7 +569,7 @@ docker-dev-temp-bash:
 DOCKER_WHEEL_ARCHS ?= amd64 arm64
 DOCKER_WHEEL_PYTHONS ?= cp314-cp314 cp314-cp314t
 DOCKER_WHEEL_DOCKERFILE := docker/wheel/Dockerfile
-DOCKER_WHEEL_DIST := dist/linux
+DOCKER_WHEEL_DIST := dist
 
 DOCKER_WHEEL_REPO_ROOT := $(abspath .)
 DOCKER_WHEEL_PKGS ?= omcore-cext omdev-cext omcore-mypyc
@@ -594,8 +594,6 @@ docker-build-wheels:
 				- ; \
 		done ; \
 	done
-	@echo
-	@ls -l $(DOCKER_WHEEL_DIST)/*/
 
 
 ### CI
