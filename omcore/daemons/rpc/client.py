@@ -7,6 +7,8 @@ from ... import dataclasses as dc
 from ... import lang
 from ...io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from ...sockets.io import close_socket_immediately
+from .endpoints import RpcEndpoint
+from .endpoints import resolve_rpc_endpoint
 from .pipelines import RpcClientConnected
 from .pipelines import RpcClientRequestSent
 from .pipelines import RpcClientResponse
@@ -25,6 +27,8 @@ from .protocol import RpcProtocolError
 from .protocol import RpcRemoteError
 from .protocol import RpcRequest
 from .protocol import RpcUnavailableError
+from .transports import DEFAULT_SYNC_RPC_TRANSPORT
+from .transports import SyncRpcTransport
 
 
 ##
@@ -173,19 +177,28 @@ class RpcClientConnection(lang.Final):
 
 
 class RpcClient(lang.Final):
-    """A synchronous client for one-request-per-connection local RPC."""
+    """A synchronous client for one-request-per-connection byte-stream RPC."""
 
     @dc.dataclass(frozen=True, kw_only=True)
     class Config:
-        socket_path: str
+        # socket_path is the compatibility spelling for UnixRpcEndpoint.
+        socket_path: str = ''
+        endpoint: RpcEndpoint | None = None
 
         protocol_version: int = RPC_PROTOCOL_VERSION
         connect_timeout_s: float | None = 5.
         io_timeout_s: float | None = 30.
         max_frame_bytes: int = RPC_DEFAULT_MAX_FRAME_BYTES
 
+        @property
+        def resolved_endpoint(self) -> RpcEndpoint:
+            return resolve_rpc_endpoint(
+                endpoint=self.endpoint,
+                socket_path=self.socket_path,
+            )
+
         def __post_init__(self) -> None:
-            check.non_empty_str(self.socket_path)
+            _ = self.resolved_endpoint
             check.arg(self.protocol_version > 0)
             check.arg(self.connect_timeout_s is None or self.connect_timeout_s > 0.)
             check.arg(self.io_timeout_s is None or self.io_timeout_s > 0.)
@@ -196,11 +209,13 @@ class RpcClient(lang.Final):
             config: Config,
             *,
             client_id: str | None = None,
+            transport: SyncRpcTransport = DEFAULT_SYNC_RPC_TRANSPORT,
     ) -> None:
         super().__init__()
 
         self._config = config
         self._client_id = client_id or uuid.uuid7().hex
+        self._transport = transport
 
     @property
     def config(self) -> Config:
@@ -209,6 +224,10 @@ class RpcClient(lang.Final):
     @property
     def client_id(self) -> str:
         return self._client_id
+
+    @property
+    def endpoint(self) -> RpcEndpoint:
+        return self._config.resolved_endpoint
 
     def new_request(
             self,
@@ -225,11 +244,13 @@ class RpcClient(lang.Final):
         )
 
     def connect(self) -> RpcClientConnection:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock: socket.socket | None = None
         driver: SyncSocketIoPipelineDriver | None = None
         try:
-            sock.settimeout(self._config.connect_timeout_s)
-            sock.connect(self._config.socket_path)
+            sock = self._transport.connect(
+                self.endpoint,
+                timeout_s=self._config.connect_timeout_s,
+            )
             sock.settimeout(self._config.io_timeout_s)
 
             driver = SyncSocketIoPipelineDriver(
@@ -258,12 +279,14 @@ class RpcClient(lang.Final):
         except (RpcProtocolError, RpcUnavailableError):
             if driver is not None:
                 driver.close()
-            close_socket_immediately(sock)
+            if sock is not None:
+                close_socket_immediately(sock)
             raise
         except (EOFError, OSError) as exc:
             if driver is not None:
                 driver.close()
-            close_socket_immediately(sock)
+            if sock is not None:
+                close_socket_immediately(sock)
             raise RpcUnavailableError(str(exc)) from exc
 
     def ping(self) -> uuid.UUID:

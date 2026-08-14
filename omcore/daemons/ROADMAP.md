@@ -105,6 +105,25 @@ Likely follow-on implementations include TLS-wrapped TCP and user-supplied conne
 connection factories, listener factories, and driver selection should be independently replaceable. Protocol
 handshake behavior must remain identical across transports.
 
+### Planned implementation slices
+
+1. **Complete:** Add dumb `UnixRpcEndpoint` and `TcpRpcEndpoint` values. Preserve `socket_path=` as the Unix
+   compatibility spelling in existing client, server, service, wait, and lazy compositions.
+2. **Complete:** Extract injectable synchronous and asyncio transport interfaces. Listener implementations own bind cleanup and
+   expose the resolved bound endpoint, including the kernel-assigned port when configured with TCP port zero.
+3. **Complete:** Move hardened Unix stale-socket detection, permission setting, and inode-safe unlinking into the default transport
+   implementation. Use the same synchronous listener boundary from the fdio host rather than retaining a third Unix
+   bind implementation.
+4. **Complete:** Add default TCP connection and listener implementations for synchronous and asyncio hosts. The default is a plain
+   byte stream with no transport authentication or encryption; selecting a TCP endpoint must not be documented as a
+   security boundary.
+5. **Complete:** Exercise all sync/async client-server TCP combinations with real loopback sockets, plus lifecycle drain, protocol
+   identity, Unix compatibility, and import-dependency tests. No RPC wire messages or retry classifications should
+   differ by endpoint.
+
+TLS should follow as a transport implementation, not a protocol fork. User-supplied connected streams may require a
+separate driver factory once a concrete use case establishes how stream ownership and closure should compose.
+
 ## 4. Handler composition and object interfaces
 
 Add a routing layer which can combine ordinary `RpcHandler` implementations and multiple `RpcObjectHandler`

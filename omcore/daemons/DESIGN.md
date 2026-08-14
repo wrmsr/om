@@ -20,7 +20,7 @@ Primary goals are:
 - readiness based on a real application probe rather than process existence;
 - lazy launch which is safe under concurrent callers;
 - activity-aware idle exit and bounded graceful drain;
-- local RPC with explicit request identity and honest retry outcomes; and
+- byte-stream RPC with explicit request identity and honest retry outcomes; and
 - small layers which can be used independently.
 
 Non-goals currently include:
@@ -29,7 +29,7 @@ Non-goals currently include:
   integration is required;
 - hiding the hazards of `fork(2)`;
 - making inherited application state safe automatically;
-- remote-network RPC, transport encryption, or user authentication;
+- built-in transport encryption or user authentication;
 - promising exactly-once effects across service replacement or durable storage loss;
 - serializing arbitrary Python objects; and
 - inferring code compatibility strongly enough to make pickle safe.
@@ -49,7 +49,7 @@ LazyRpcClient ----------------------+
       v                              v
   RpcClient                     LazyDaemon
       |                              |
-      | Unix socket                  v
+      | byte stream                  v
       |                           Daemon
       |                              |
       |                              v
@@ -77,6 +77,7 @@ make the boundary explicit:
 
 - `rpc.pipelines` implements runtime-neutral framing, JSON translation, and connection sessions;
 - `rpc.registry` and `rpc.dispatch` implement lifecycle-independent identity, replay, and synchronous dispatch;
+- `rpc.endpoints` and `rpc.transports` describe and establish byte streams without importing daemon lifecycle;
 - `rpc.client`, `rpc.server`, `rpc.asyncio`, `rpc.fdio`, and `rpc.objects` are lifecycle-independent RPC pieces;
 - `rpc.services` adapts `RpcServer` to `ServiceRuntime`;
 - `rpc.lazy` composes `RpcClient` with `LazyDaemon`; and
@@ -263,15 +264,32 @@ and `HttpWait` remain fully usable without importing this serving stack.
 
 ## 8. RPC protocol
 
-RPC currently uses an `AF_UNIX`/`SOCK_STREAM` socket. Each message is encoded as UTF-8 JSON preceded by an unsigned
-four-byte big-endian byte count. Frame size is checked as soon as its header is available, and inbound and outbound
-JSON are validated against the configured bound.
+RPC runs over a connected byte stream supplied by the endpoint/transport layer. The default implementations support
+Unix-domain stream sockets and plaintext TCP. Each message is encoded as UTF-8 JSON preceded by an unsigned four-byte
+big-endian byte count. Frame size is checked as soon as its header is available, and inbound and outbound JSON are
+validated against the configured bound.
 
 The protocol core is a sans-I/O `IoPipeline.Spec`, freshly constructed for each connection because its handlers own
 session-local state. Inbound bytes pass through a bounded frame decoder, a typed JSON wire codec, and a one-request
 client or server session. Outbound application commands traverse those handlers in reverse. Connected-stream drivers
 own reads, writes, flush completion, half-close observation, output watermarks, and graceful final output. They do not
 own listening sockets or application concurrency.
+
+### Endpoints and transports
+
+`UnixRpcEndpoint` and `TcpRpcEndpoint` are behavior-free values. The latter permits server port zero; each server host
+publishes the resolved `bound_endpoint` after bind so callers can discover the kernel-selected port. The legacy
+`socket_path=` configuration form resolves to `UnixRpcEndpoint` and remains valid for clients, servers, `RpcService`,
+`RpcWait`, and lazy compositions.
+
+`SyncRpcTransport` and `AsyncioRpcTransport` separate connection/listener creation from the RPC hosts. Their listener
+interfaces own endpoint cleanup and report the resolved endpoint. Default implementations create Unix or TCP sockets;
+custom implementations are injected when constructing a client or server. The fdio host consumes the synchronous
+listener interface because its poller needs a raw selectable socket, eliminating a separate bind/cleanup policy.
+
+Unix listeners retain the hardened ownership rules: bind refuses to replace a non-socket path, probes an existing
+socket before treating it as stale, applies the configured mode, and only unlinks the inode created by that listener.
+TCP listeners have no filesystem artifact. Transport selection does not change any RPC message or call-outcome rule.
 
 `RpcServer` owns this transport, concurrent connection handling, and response replay independently of daemon services.
 It is driven by `RpcServerRuntime`, the narrow interface for shutdown, drain timeout, and optional activity acquisition.
@@ -295,9 +313,9 @@ socket pipeline driver. The asyncio host tracks one task and pipeline driver per
 events on its single poll loop and retains a runtime activity lease until queued response output has drained. Shutdown
 closes the listener and drains tracked connections up to the host's configured deadline.
 
-All hosts use inode-safe socket cleanup: an old instance compares device/inode identity before unlinking and therefore
-cannot remove a replacement's socket. Bind refuses to replace a non-socket path, probes an existing socket for a live
-owner, and only removes a stale socket.
+Unix endpoints use inode-safe socket cleanup: an old instance compares device/inode identity before unlinking and
+therefore cannot remove a replacement's socket. Bind refuses to replace a non-socket path, probes an existing socket
+for a live owner, and only removes a stale socket.
 
 ### Object interface facade
 
@@ -371,10 +389,15 @@ No hook can make an arbitrary multithreaded process universally fork-safe. Raw f
 
 ## 10. Security boundary
 
-This is local IPC, not a sandbox. Pidfiles are created mode `0600`, RPC sockets default to mode `0600`, and the service
-refuses to overwrite a non-socket at its configured endpoint. Callers remain responsible for choosing and protecting
-the containing directory, avoiding symlink-hostile shared locations, validating RPC parameters, and deciding whether
-local same-user callers are trusted.
+This is IPC, not a sandbox. Pidfiles are created mode `0600`, Unix RPC sockets default to mode `0600`, and the default
+transport refuses to overwrite a non-socket at a Unix endpoint. Callers remain responsible for choosing and
+protecting the containing directory, avoiding symlink-hostile shared locations, validating RPC parameters, and
+deciding whether local same-user callers are trusted.
+
+The default TCP transport is plaintext and unauthenticated. Loopback is appropriate for tests and trusted local
+compositions, but the library does not restrict the bind address. Selecting a non-loopback endpoint exposes the RPC
+handler to that network; authorization, TLS, firewalling, and credential policy belong to the embedding application or
+a future explicit secure transport. RPC instance identity detects service replacement but is not peer authentication.
 
 JSON is the only RPC payload format today. Pickle must not be enabled merely because a pidfile reports a package
 version or revision. A future pickle capability must compare an authoritative compatibility identity during the live
@@ -390,8 +413,9 @@ replacement, concurrent launchers, response loss, and process replacement. A sha
 that `ThreadSpawning` truly remains in-process. HTTP coverage includes pure split-byte protocol transcripts, sync and
 asyncio hosts, activity-aware drain, health probes which do not extend idle life, lazy multiprocessing launch, and an
 independent standard-library server using the same readiness abstraction. RPC coverage includes pure split-byte
-protocol transcripts, sync and asyncio cross-host interoperability, explicit threaded asyncio handling, an fdio host,
-blocking-wire compatibility, and standalone servers without daemon adapters.
+protocol transcripts, every sync/async client-server pairing over loopback TCP, resolved ephemeral ports, TCP drain,
+explicit threaded asyncio handling, fdio over Unix and TCP, blocking-wire compatibility, and standalone servers
+without daemon adapters.
 
 The LLM demo test invokes the real argparse CLI twice. It verifies that the first process starts a detached service,
 the second connects to the same PID and instance ID, both calls traverse RPC, and signal shutdown releases the pidfile.

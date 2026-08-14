@@ -18,6 +18,27 @@ with _lang.auto_proxy_init(globals()):
         RpcUnavailableError,
     )
 
+    from .endpoints import (  # noqa
+        RpcEndpoint,
+        UnixRpcEndpoint,
+        TcpRpcEndpoint,
+        resolve_rpc_endpoint,
+    )
+
+    from .transports import (  # noqa
+        SyncRpcListener,
+        SyncRpcTransport,
+        SocketRpcListener,
+        DefaultSyncRpcTransport,
+        DEFAULT_SYNC_RPC_TRANSPORT,
+
+        AsyncioRpcListener,
+        AsyncioRpcTransport,
+        AsyncioServerRpcListener,
+        DefaultAsyncioRpcTransport,
+        DEFAULT_ASYNCIO_RPC_TRANSPORT,
+    )
+
     from .client import (  # noqa
         RpcClient,
         RpcClientConnection,

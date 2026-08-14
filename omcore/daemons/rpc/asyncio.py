@@ -1,9 +1,5 @@
 import asyncio
-import errno
 import inspect
-import os
-import socket
-import stat
 import typing as ta
 import uuid
 
@@ -15,6 +11,8 @@ from ...logs import all as logs
 from .client import RpcClient
 from .dispatch import rpc_remote_error_response
 from .dispatch import validate_rpc_response
+from .endpoints import RpcEndpoint
+from .endpoints import resolve_rpc_endpoint
 from .pipelines import RpcClientConnected
 from .pipelines import RpcClientRequestSent
 from .pipelines import RpcClientResponse
@@ -43,6 +41,9 @@ from .registry import RpcResponseRegistry
 from .registry import RpcResponseRejected
 from .registry import RpcResponseReplay
 from .server import RpcServerDrainTimeoutError
+from .transports import DEFAULT_ASYNCIO_RPC_TRANSPORT
+from .transports import AsyncioRpcListener
+from .transports import AsyncioRpcTransport
 
 
 log = logs.get_module_logger(globals())
@@ -292,11 +293,13 @@ class AsyncioRpcClient(lang.Final):
             config: RpcClient.Config,
             *,
             client_id: str | None = None,
+            transport: AsyncioRpcTransport = DEFAULT_ASYNCIO_RPC_TRANSPORT,
     ) -> None:
         super().__init__()
 
         self._config = config
         self._client_id = client_id or uuid.uuid7().hex
+        self._transport = transport
 
     @property
     def config(self) -> RpcClient.Config:
@@ -305,6 +308,10 @@ class AsyncioRpcClient(lang.Final):
     @property
     def client_id(self) -> str:
         return self._client_id
+
+    @property
+    def endpoint(self) -> RpcEndpoint:
+        return self._config.resolved_endpoint
 
     def new_request(
             self,
@@ -323,7 +330,7 @@ class AsyncioRpcClient(lang.Final):
     async def connect(self) -> AsyncioRpcClientConnection:
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_unix_connection(self._config.socket_path),
+                self._transport.connect(self.endpoint),
                 self._config.connect_timeout_s,
             )
         except OSError as exc:
@@ -388,7 +395,9 @@ class AsyncioRpcClient(lang.Final):
 
 @dc.dataclass(frozen=True, kw_only=True)
 class AsyncioRpcServerConfig:
-    socket_path: str
+    # socket_path is the compatibility spelling for UnixRpcEndpoint.
+    socket_path: str = ''
+    endpoint: RpcEndpoint | None = None
     handler: AsyncRpcHandler
 
     socket_mode: int = 0o600
@@ -398,8 +407,15 @@ class AsyncioRpcServerConfig:
     response_cache_size: int = 1_024
     backlog: int = 128
 
+    @property
+    def resolved_endpoint(self) -> RpcEndpoint:
+        return resolve_rpc_endpoint(
+            endpoint=self.endpoint,
+            socket_path=self.socket_path,
+        )
+
     def __post_init__(self) -> None:
-        check.non_empty_str(self.socket_path)
+        _ = self.resolved_endpoint
         check.callable(self.handler)
         check.arg(
             inspect.iscoroutinefunction(self.handler) or
@@ -415,15 +431,21 @@ class AsyncioRpcServerConfig:
 
 
 class AsyncioRpcServer(lang.Final):
-    """An asyncio Unix-socket host for the runtime-neutral RPC pipeline."""
+    """An asyncio byte-stream host for the runtime-neutral RPC pipeline."""
 
-    def __init__(self, config: AsyncioRpcServerConfig) -> None:
+    def __init__(
+            self,
+            config: AsyncioRpcServerConfig,
+            *,
+            transport: AsyncioRpcTransport = DEFAULT_ASYNCIO_RPC_TRANSPORT,
+    ) -> None:
         super().__init__()
 
         self._config = config
-        self._server: asyncio.Server | None = None
+        self._transport = transport
+        self._listener: AsyncioRpcListener | None = None
+        self._bound_endpoint: RpcEndpoint | None = None
         self._instance_id: uuid.UUID | None = None
-        self._socket_identity: tuple[int, int] | None = None
         self._dispatcher: AsyncRpcRequestDispatcher | None = None
         self._connections: set[asyncio.Task[None]] = set()
         self._drivers: dict[asyncio.Task[None], PollAsyncioStreamIoPipelineDriver] = {}
@@ -439,51 +461,14 @@ class AsyncioRpcServer(lang.Final):
 
     @property
     def started(self) -> bool:
-        return self._server is not None
+        return self._listener is not None
 
-    def _unlink_socket(self) -> None:
-        if (identity := self._socket_identity) is None:
-            return
-        self._socket_identity = None
-        try:
-            stat_result = os.lstat(self._config.socket_path)
-        except FileNotFoundError:
-            return
-        if (stat_result.st_dev, stat_result.st_ino) == identity:
-            os.unlink(self._config.socket_path)
-
-    def _bind_listener(self, listener: socket.socket) -> None:
-        try:
-            listener.bind(self._config.socket_path)
-            return
-        except OSError as exc:
-            if exc.errno != errno.EADDRINUSE:
-                raise
-
-        try:
-            socket_stat = os.lstat(self._config.socket_path)
-        except FileNotFoundError:
-            listener.bind(self._config.socket_path)
-            return
-        if not stat.S_ISSOCK(socket_stat.st_mode):
-            raise RuntimeError(f'Refusing to replace non-socket path: {self._config.socket_path!r}')
-
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
-            try:
-                probe.connect(self._config.socket_path)
-            except (ConnectionRefusedError, FileNotFoundError):
-                pass
-            else:
-                raise RuntimeError(f'RPC socket is already active: {self._config.socket_path!r}')
-
-        try:
-            os.unlink(self._config.socket_path)
-        except FileNotFoundError:
-            pass
-        listener.bind(self._config.socket_path)
+    @property
+    def bound_endpoint(self) -> RpcEndpoint:
+        return check.not_none(self._bound_endpoint)
 
     async def start(self, *, instance_id: uuid.UUID | None = None) -> uuid.UUID:
-        if self._server is not None or self._closing:
+        if self._listener is not None or self._closing:
             raise RuntimeError('Asyncio RPC server is already started or closed')
 
         self._instance_id = instance_id or uuid.uuid7()
@@ -493,22 +478,13 @@ class AsyncioRpcServer(lang.Final):
             max_frame_bytes=self._config.max_frame_bytes,
         )
 
-        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        try:
-            self._bind_listener(listener)
-            os.chmod(self._config.socket_path, self._config.socket_mode)
-            socket_stat = os.lstat(self._config.socket_path)
-            self._socket_identity = (socket_stat.st_dev, socket_stat.st_ino)
-            listener.listen(self._config.backlog)
-            listener.setblocking(False)
-            self._server = await asyncio.start_unix_server(
-                self._accept_connection,
-                sock=listener,
-            )
-        except BaseException:
-            listener.close()
-            self._unlink_socket()
-            raise
+        self._listener = await self._transport.listen(
+            self._config.resolved_endpoint,
+            self._accept_connection,
+            backlog=self._config.backlog,
+            unix_socket_mode=self._config.socket_mode,
+        )
+        self._bound_endpoint = self._listener.bound_endpoint
         return self._instance_id
 
     def _accept_connection(
@@ -586,8 +562,7 @@ class AsyncioRpcServer(lang.Final):
             self._drivers.pop(task, None)
 
     async def serve_forever(self) -> ta.NoReturn:
-        server = check.not_none(self._server)
-        await server.serve_forever()
+        await check.not_none(self._listener).serve_forever()
         raise RuntimeError('Asyncio RPC server stopped serving')
 
     async def close(self) -> bool:
@@ -595,28 +570,24 @@ class AsyncioRpcServer(lang.Final):
             return False
         self._closing = True
 
-        if (server := self._server) is not None:
-            self._server = None
-            server.close()
-            await server.wait_closed()
+        if (listener := self._listener) is not None:
+            self._listener = None
+            await listener.close()
 
-        try:
-            if self._connections:
-                done, pending = await asyncio.wait(
-                    self._connections,
-                    timeout=self._config.drain_timeout_s,
-                )
-                for task in done:
-                    task.result()
-                if pending:
-                    for task in pending:
-                        if (driver := self._drivers.get(task)) is not None:
-                            await driver.close()
-                        task.cancel()
-                    await asyncio.gather(*pending, return_exceptions=True)
-                    raise RpcServerDrainTimeoutError('Asyncio RPC connections did not drain before timeout')
-        finally:
-            self._unlink_socket()
+        if self._connections:
+            done, pending = await asyncio.wait(
+                self._connections,
+                timeout=self._config.drain_timeout_s,
+            )
+            for task in done:
+                task.result()
+            if pending:
+                for task in pending:
+                    if (driver := self._drivers.get(task)) is not None:
+                        await driver.close()
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                raise RpcServerDrainTimeoutError('Asyncio RPC connections did not drain before timeout')
         return True
 
     async def __aenter__(self) -> ta.Self:

@@ -1,7 +1,5 @@
-import errno
-import os
 import socket
-import stat
+import threading
 import time
 import typing as ta
 import uuid
@@ -15,6 +13,7 @@ from ...io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
 from ...logs import all as logs
 from ...sockets.addresses import SocketAddress
 from .dispatch import RpcRequestDispatcher
+from .endpoints import RpcEndpoint
 from .pipelines import RpcPipelineFailure
 from .pipelines import RpcServerDispatch
 from .pipelines import RpcServerSendResponse
@@ -27,6 +26,9 @@ from .registry import RpcResponseRegistry
 from .server import RpcServerConfig
 from .server import RpcServerDrainTimeoutError
 from .server import RpcServerRuntime
+from .transports import DEFAULT_SYNC_RPC_TRANSPORT
+from .transports import SyncRpcListener
+from .transports import SyncRpcTransport
 
 
 log = logs.get_module_logger(globals())
@@ -165,13 +167,21 @@ class _FdioRpcConnection(IoPipelineDriverSocketFdioHandler):
 class _FdioRpcListener(SocketFdioHandler):
     def __init__(
             self,
-            sock: socket.socket,
+            listener: SyncRpcListener,
             on_connect: ta.Callable[[socket.socket, SocketAddress], None],
     ) -> None:
+        sock = listener.socket
         sock.setblocking(False)
         super().__init__(sock, sock.getsockname())
 
+        self._listener = listener
         self._on_connect = on_connect
+
+    def close(self) -> None:
+        try:
+            super().close()
+        finally:
+            self._listener.close()
 
     def readable(self) -> bool:
         return True
@@ -179,7 +189,7 @@ class _FdioRpcListener(SocketFdioHandler):
     def on_readable(self) -> None:
         while True:
             try:
-                conn, addr = check.not_none(self._sock).accept()
+                conn, addr = self._listener.accept()
             except BlockingIOError:
                 return
             conn.setblocking(False)
@@ -192,54 +202,29 @@ class _FdioRpcListener(SocketFdioHandler):
 class FdioRpcServer(lang.Final):
     """A single-threaded fdio host for the runtime-neutral RPC pipeline."""
 
-    def __init__(self, config: RpcServerConfig) -> None:
+    def __init__(
+            self,
+            config: RpcServerConfig,
+            *,
+            transport: SyncRpcTransport = DEFAULT_SYNC_RPC_TRANSPORT,
+    ) -> None:
         super().__init__()
 
         self._config = config
+        self._transport = transport
+        self._bound_endpoint: RpcEndpoint | None = None
+        self._started = threading.Event()
 
     @property
     def config(self) -> RpcServerConfig:
         return self._config
 
-    def _unlink_socket(self, identity: tuple[int, int] | None) -> None:
-        if identity is None:
-            return
-        try:
-            stat_result = os.lstat(self._config.socket_path)
-        except FileNotFoundError:
-            return
-        if (stat_result.st_dev, stat_result.st_ino) == identity:
-            os.unlink(self._config.socket_path)
+    @property
+    def bound_endpoint(self) -> RpcEndpoint:
+        return check.not_none(self._bound_endpoint)
 
-    def _bind_listener(self, listener: socket.socket) -> None:
-        try:
-            listener.bind(self._config.socket_path)
-            return
-        except OSError as exc:
-            if exc.errno != errno.EADDRINUSE:
-                raise
-
-        try:
-            socket_stat = os.lstat(self._config.socket_path)
-        except FileNotFoundError:
-            listener.bind(self._config.socket_path)
-            return
-        if not stat.S_ISSOCK(socket_stat.st_mode):
-            raise RuntimeError(f'Refusing to replace non-socket path: {self._config.socket_path!r}')
-
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
-            try:
-                probe.connect(self._config.socket_path)
-            except (ConnectionRefusedError, FileNotFoundError):
-                pass
-            else:
-                raise RuntimeError(f'RPC socket is already active: {self._config.socket_path!r}')
-
-        try:
-            os.unlink(self._config.socket_path)
-        except FileNotFoundError:
-            pass
-        listener.bind(self._config.socket_path)
+    def wait_started(self, timeout_s: float | None = None) -> bool:
+        return self._started.wait(timeout_s)
 
     def run(
             self,
@@ -256,15 +241,14 @@ class FdioRpcServer(lang.Final):
         manager = FdioManager(SelectFdioPoller())
         connections: set[_FdioRpcConnection] = set()
 
-        socket_identity: tuple[int, int] | None = None
+        socket_listener = self._transport.listen(
+            self._config.resolved_endpoint,
+            backlog=self._config.backlog,
+            unix_socket_mode=self._config.socket_mode,
+        )
+        self._bound_endpoint = socket_listener.bound_endpoint
+        self._started.set()
         try:
-            listener_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self._bind_listener(listener_sock)
-            os.chmod(self._config.socket_path, self._config.socket_mode)
-            socket_stat = os.lstat(self._config.socket_path)
-            socket_identity = (socket_stat.st_dev, socket_stat.st_ino)
-            listener_sock.listen(self._config.backlog)
-
             def on_connect(conn: socket.socket, addr: SocketAddress) -> None:
                 connection = _FdioRpcConnection(
                     conn,
@@ -277,7 +261,7 @@ class FdioRpcServer(lang.Final):
                 connections.add(connection)
                 manager.register(connection)
 
-            listener = _FdioRpcListener(listener_sock, on_connect)
+            listener = _FdioRpcListener(socket_listener, on_connect)
             manager.register(listener)
             try:
                 while not runtime.shutdown_requested:
@@ -305,4 +289,4 @@ class FdioRpcServer(lang.Final):
         finally:
             for connection in connections:
                 connection.close()
-            self._unlink_socket(socket_identity)
+            socket_listener.close()

@@ -10,9 +10,11 @@ def test_rpc_core_imports_do_not_load_daemon_adapters():
         import sys
 
         import omcore.daemons.rpc.client  # noqa
+        import omcore.daemons.rpc.endpoints  # noqa
         import omcore.daemons.rpc.objects  # noqa
         import omcore.daemons.rpc.protocol  # noqa
         import omcore.daemons.rpc.server  # noqa
+        import omcore.daemons.rpc.transports  # noqa
 
         unexpected = {
             'omcore.daemons.lazy',

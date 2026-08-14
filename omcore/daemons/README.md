@@ -60,6 +60,7 @@ The package is intentionally composable rather than presenting one mandatory dae
 | Readiness | `ConnectWait`, `HttpWait`, `RpcWait` | Supply pluggable transport- or application-level health checks. |
 | HTTP core | `pipeline_http_server_spec`, `PipelineHttpServer`, `AsyncioPipelineHttpServer` | Serve bounded HTTP requests through runtime-neutral pipelines and sync or asyncio hosts. |
 | HTTP adapters | `PipelineHttpService`, `AsyncioPipelineHttpService` | Compose the optional HTTP hosts with activity-aware service lifetime. |
+| RPC endpoint | `UnixRpcEndpoint`, `TcpRpcEndpoint`, sync/async transport interfaces | Choose and establish a byte-stream boundary independently of RPC messages. |
 | RPC core | `RpcServer`, `AsyncioRpcServer`, `FdioRpcServer`, `RpcClient`, `AsyncioRpcClient` | Provide pipeline-backed JSON calls independently of daemon lifecycle. |
 | RPC facade | `RpcObjectHandler`, `RpcObjectProxy` | Add an opt-in typed-object interface above any `RpcCaller`. |
 | RPC adapters | `RpcService`, `LazyRpcClient`, `RpcWait` | Compose RPC with service runtime, lazy daemon launch, and readiness. |
@@ -193,7 +194,7 @@ of `Daemon`, `Launcher`, `LazyDaemon`, or the general readiness interface import
 
 The RPC transport is intentionally small:
 
-- Unix-domain stream sockets;
+- Unix-domain or TCP byte streams;
 - four-byte big-endian length framing;
 - bounded UTF-8 JSON messages;
 - a protocol/version handshake and per-launch instance ID;
@@ -207,6 +208,17 @@ driver, `AsyncioRpcServer`/`AsyncioRpcClient` use the asyncio stream driver, and
 The wire messages and session handlers are shared; listener ownership, connection tracking, waits, and handler
 execution are host policy. The asyncio host accepts only async handlers. A synchronous handler must be wrapped in
 `ThreadedAsyncRpcHandler`, making the event-loop/thread choice explicit.
+
+`UnixRpcEndpoint` and `TcpRpcEndpoint` are dumb endpoint values. Existing `socket_path=` configuration remains the
+compatibility shorthand for a Unix endpoint. For TCP, pass `endpoint=TcpRpcEndpoint(...)`; a server configured with
+port zero exposes the kernel-selected address through `bound_endpoint`. Sync and asyncio transports are injectable at
+client/server construction, while the default implementations provide Unix sockets and plaintext TCP. The fdio host
+uses the same synchronous listener interface and therefore supports the same default endpoints.
+
+TCP does not alter the handshake, instance identity, replay cache, or retry taxonomy. The default TCP transport also
+does not add authentication or encryption. Binding beyond loopback exposes the RPC handler to that network and must be
+an explicit application security decision. A future TLS transport belongs behind the transport interface rather than
+inside the RPC protocol.
 
 `FdioRpcServer` deliberately executes its synchronous handler on the fdio loop and is therefore suited to short,
 nonblocking work. It is a useful first datapoint for a future general pipeline-server abstraction, not an assertion
@@ -229,21 +241,21 @@ greeter: Greeter = RpcObjectProxy.of(Greeter, client)
 ```
 
 This facade does not change the JSON boundary: parameters and return values must still be JSON-representable. The
-layer does not currently provide streaming, authentication beyond local filesystem permissions, arbitrary object
-marshaling, or pickle transport. In particular, it never assumes a failed connection means a request was not executed.
-See the retry contract in [DESIGN.md](DESIGN.md).
+layer does not currently provide streaming, transport authentication, arbitrary object marshaling, or pickle
+transport. In particular, it never assumes a failed connection means a request was not executed. See the retry
+contract in [DESIGN.md](DESIGN.md).
 
 ## Testing
 
 The suite uses real files, locks, Unix sockets, HTTP servers, subprocesses, multiprocessing children, raw forks,
 signals, and execs. It verifies sync and asyncio thread-backed HTTP services through shared in-process state, lazily
 launches a pipeline HTTP service in a spawned process, and probes an independent standard-library HTTP server through
-the same `HttpWait`. It also exercises the RPC core without a daemon, runs pure sans-I/O transcripts, crosses sync and
-asyncio clients and servers, drives an fdio server, and checks compatibility with the original blocking wire helpers.
-The daemon tests do not mock or patch those boundaries.
+the same `HttpWait`. It also exercises the RPC core without a daemon, runs pure sans-I/O transcripts, crosses every
+sync/async client-server pairing over real TCP and Unix sockets, drives fdio through both endpoints, and checks
+compatibility with the original blocking wire helpers. The daemon tests do not mock or patch those boundaries.
 
 ```shell
-./python -m pytest omcore/daemons/tests
+./python -m pytest omcore/daemons
 ```
 
 The integration suite covers Linux behavior continuously and includes Darwin-specific execution in CI. Raw fork,

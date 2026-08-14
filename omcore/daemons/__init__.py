@@ -98,6 +98,18 @@ with _lang.auto_proxy_init(globals()):
         RpcRequest,
         RpcHandler,
 
+        RpcEndpoint,
+        UnixRpcEndpoint,
+        TcpRpcEndpoint,
+
+        SyncRpcListener,
+        SyncRpcTransport,
+        DefaultSyncRpcTransport,
+
+        AsyncioRpcListener,
+        AsyncioRpcTransport,
+        DefaultAsyncioRpcTransport,
+
         RpcClientConnection,
         RpcClient,
 

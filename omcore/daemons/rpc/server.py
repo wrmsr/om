@@ -1,9 +1,6 @@
 import contextlib
-import errno
-import os
 import selectors
 import socket
-import stat
 import threading
 import time
 import typing as ta
@@ -16,6 +13,8 @@ from ...io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from ...logs import all as logs
 from ...sockets.io import close_socket_immediately
 from .dispatch import RpcRequestDispatcher
+from .endpoints import RpcEndpoint
+from .endpoints import resolve_rpc_endpoint
 from .pipelines import RpcPipelineFailure
 from .pipelines import RpcServerDispatch
 from .pipelines import RpcServerSendResponse
@@ -27,6 +26,8 @@ from .protocol import RPC_PROTOCOL_VERSION
 from .protocol import RpcHandler
 from .protocol import RpcProtocolError
 from .registry import RpcResponseRegistry
+from .transports import DEFAULT_SYNC_RPC_TRANSPORT
+from .transports import SyncRpcTransport
 
 
 log = logs.get_module_logger(globals())
@@ -62,7 +63,9 @@ class RpcServerDrainTimeoutError(TimeoutError):
 
 @dc.dataclass(frozen=True, kw_only=True)
 class RpcServerConfig:
-    socket_path: str
+    # socket_path is the compatibility spelling for UnixRpcEndpoint.
+    socket_path: str = ''
+    endpoint: RpcEndpoint | None = None
     handler: RpcHandler
 
     socket_mode: int = 0o600
@@ -72,8 +75,16 @@ class RpcServerConfig:
     response_cache_size: int = 1_024
     backlog: int = 128
 
+    @property
+    def resolved_endpoint(self) -> RpcEndpoint:
+        return resolve_rpc_endpoint(
+            endpoint=self.endpoint,
+            socket_path=self.socket_path,
+        )
+
     def __post_init__(self) -> None:
-        check.non_empty_str(self.socket_path)
+        _ = self.resolved_endpoint
+        check.callable(self.handler)
         check.arg(0 <= self.socket_mode <= 0o777)
         check.arg(self.connection_timeout_s is None or self.connection_timeout_s > 0.)
         check.arg(self.max_frame_bytes > 0)
@@ -147,16 +158,31 @@ class _RpcConnectionThreads:
 
 
 class RpcServer(lang.Final):
-    """A concurrent Unix-socket RPC server driven by a pluggable runtime."""
+    """A concurrent byte-stream RPC server driven by pluggable runtime and transport interfaces."""
 
-    def __init__(self, config: RpcServerConfig) -> None:
+    def __init__(
+            self,
+            config: RpcServerConfig,
+            *,
+            transport: SyncRpcTransport = DEFAULT_SYNC_RPC_TRANSPORT,
+    ) -> None:
         super().__init__()
 
         self._config = config
+        self._transport = transport
+        self._bound_endpoint: RpcEndpoint | None = None
+        self._started = threading.Event()
 
     @property
     def config(self) -> RpcServerConfig:
         return self._config
+
+    @property
+    def bound_endpoint(self) -> RpcEndpoint:
+        return check.not_none(self._bound_endpoint)
+
+    def wait_started(self, timeout_s: float | None = None) -> bool:
+        return self._started.wait(timeout_s)
 
     def _handle_connection(
             self,
@@ -212,46 +238,6 @@ class RpcServer(lang.Final):
                             raise event.exc
                         raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
 
-    def _unlink_socket(self, identity: tuple[int, int] | None) -> None:
-        if identity is None:
-            return
-        try:
-            stat_result = os.lstat(self._config.socket_path)
-        except FileNotFoundError:
-            return
-        if (stat_result.st_dev, stat_result.st_ino) == identity:
-            os.unlink(self._config.socket_path)
-
-    def _bind_listener(self, listener: socket.socket) -> None:
-        try:
-            listener.bind(self._config.socket_path)
-            return
-        except OSError as exc:
-            if exc.errno != errno.EADDRINUSE:
-                raise
-
-        try:
-            socket_stat = os.lstat(self._config.socket_path)
-        except FileNotFoundError:
-            listener.bind(self._config.socket_path)
-            return
-        if not stat.S_ISSOCK(socket_stat.st_mode):
-            raise RuntimeError(f'Refusing to replace non-socket path: {self._config.socket_path!r}')
-
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
-            try:
-                probe.connect(self._config.socket_path)
-            except (ConnectionRefusedError, FileNotFoundError):
-                pass
-            else:
-                raise RuntimeError(f'RPC socket is already active: {self._config.socket_path!r}')
-
-        try:
-            os.unlink(self._config.socket_path)
-        except FileNotFoundError:
-            pass
-        listener.bind(self._config.socket_path)
-
     def run(
             self,
             runtime: RpcServerRuntime,
@@ -269,72 +255,71 @@ class RpcServer(lang.Final):
         )
         connections = _RpcConnectionThreads()
 
-        socket_identity: tuple[int, int] | None = None
+        listener = self._transport.listen(
+            self._config.resolved_endpoint,
+            backlog=self._config.backlog,
+            unix_socket_mode=self._config.socket_mode,
+        )
         try:
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
-                self._bind_listener(listener)
-                os.chmod(self._config.socket_path, self._config.socket_mode)
-                socket_stat = os.lstat(self._config.socket_path)
-                socket_identity = (socket_stat.st_dev, socket_stat.st_ino)
+            self._bound_endpoint = listener.bound_endpoint
+            self._started.set()
+            listener.socket.setblocking(False)
 
-                listener.listen(self._config.backlog)
-                listener.setblocking(False)
-
-                shutdown_read_sock, shutdown_write_sock = socket.socketpair()
-                with shutdown_read_sock, shutdown_write_sock:
-                    def wake_for_shutdown() -> None:
-                        runtime.wait_shutdown()
-                        try:
-                            shutdown_write_sock.sendall(b'X')
-                        except OSError:
-                            pass
-
-                    shutdown_thread = threading.Thread(
-                        target=wake_for_shutdown,
-                        name='RpcServerShutdown',
-                        daemon=True,
-                    )
-                    shutdown_thread.start()
-
+            shutdown_read_sock, shutdown_write_sock = socket.socketpair()
+            with shutdown_read_sock, shutdown_write_sock:
+                def wake_for_shutdown() -> None:
+                    runtime.wait_shutdown()
                     try:
-                        with selectors.DefaultSelector() as selector:
-                            selector.register(listener, selectors.EVENT_READ, 'listener')
-                            selector.register(shutdown_read_sock, selectors.EVENT_READ, 'shutdown')
+                        shutdown_write_sock.sendall(b'X')
+                    except OSError:
+                        pass
 
-                            while not runtime.shutdown_requested:
-                                for key, _ in selector.select():
-                                    if key.data == 'shutdown':
-                                        shutdown_read_sock.recv(4096)
-                                        continue
+                shutdown_thread = threading.Thread(
+                    target=wake_for_shutdown,
+                    name='RpcServerShutdown',
+                    daemon=True,
+                )
+                shutdown_thread.start()
 
-                                    try:
-                                        conn, _ = listener.accept()
-                                    except BlockingIOError:
-                                        continue
+                try:
+                    with selectors.DefaultSelector() as selector:
+                        selector.register(listener.socket, selectors.EVENT_READ, 'listener')
+                        selector.register(shutdown_read_sock, selectors.EVENT_READ, 'shutdown')
 
-                                    connections.start(
+                        while not runtime.shutdown_requested:
+                            for key, _ in selector.select():
+                                if key.data == 'shutdown':
+                                    shutdown_read_sock.recv(4096)
+                                    continue
+
+                                try:
+                                    conn, _ = listener.accept()
+                                except BlockingIOError:
+                                    continue
+
+                                connections.start(
+                                    conn,
+                                    lambda conn: self._handle_connection(
                                         conn,
-                                        lambda conn: self._handle_connection(
-                                            conn,
-                                            instance_id=instance_id,
-                                            runtime=runtime,
-                                            dispatcher=dispatcher,
-                                        ),
-                                    )
+                                        instance_id=instance_id,
+                                        runtime=runtime,
+                                        dispatcher=dispatcher,
+                                    ),
+                                )
 
-                    finally:
-                        if not runtime.shutdown_requested:
-                            runtime.request_shutdown('rpc-server-exiting')
-                        shutdown_thread.join()
-
-            if not connections.wait(runtime.drain_timeout_s):
-                connections.close_sockets()
-                raise RpcServerDrainTimeoutError('RPC connections did not drain before timeout')
-
-            return instance_id
+                finally:
+                    if not runtime.shutdown_requested:
+                        runtime.request_shutdown('rpc-server-exiting')
+                    shutdown_thread.join()
 
         finally:
-            self._unlink_socket(socket_identity)
+            listener.close()
+
+        if not connections.wait(runtime.drain_timeout_s):
+            connections.close_sockets()
+            raise RpcServerDrainTimeoutError('RPC connections did not drain before timeout')
+
+        return instance_id
 
 
 class SimpleRpcServerRuntime(lang.Final):

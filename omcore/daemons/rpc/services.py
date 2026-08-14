@@ -6,6 +6,7 @@ from ..runtime import ActivityRejectedError
 from ..runtime import DrainTimeoutError
 from ..runtime import ServiceRuntime
 from ..services import RuntimeService
+from .endpoints import RpcEndpoint
 from .protocol import RPC_DEFAULT_MAX_FRAME_BYTES
 from .protocol import RpcHandler
 from .server import RpcServer
@@ -49,7 +50,8 @@ class RpcService(RuntimeService['RpcService.Config']):
 
     @dc.dataclass(frozen=True, kw_only=True)
     class Config(RuntimeService.Config):
-        socket_path: str
+        socket_path: str = ''
+        endpoint: RpcEndpoint | None = None
         handler: RpcHandler
 
         socket_mode: int = 0o600
@@ -61,6 +63,7 @@ class RpcService(RuntimeService['RpcService.Config']):
         def server_config(self) -> RpcServerConfig:
             return RpcServerConfig(
                 socket_path=self.socket_path,
+                endpoint=self.endpoint,
                 handler=self.handler,
                 socket_mode=self.socket_mode,
                 connection_timeout_s=self.connection_timeout_s,

@@ -19,7 +19,7 @@ RPC_DEFAULT_MAX_FRAME_BYTES = 16 * 1024 * 1024
 
 
 class RpcError(Exception):
-    """Base exception for the local RPC protocol."""
+    """Base exception for the RPC protocol."""
 
 
 class RpcProtocolError(RpcError):
