@@ -8,8 +8,7 @@
 //     "tlx/**/*.hpp"
 //   ],
 //   "extra_compile_args": [
-//     "-fvisibility=hidden",
-//     "-Iomcore/collections/stl/tlx"
+//     "-fvisibility=hidden"
 //   ]
 // }
 #define PY_SSIZE_T_CLEAN
