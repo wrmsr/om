@@ -24,7 +24,7 @@ from ...tests.testing import read_locked_pidfile
 from ...tests.testing import wait_pidfile_unlocked
 from .. import AsyncioPipelineHttpService
 from .. import PipelineHttpService
-from .test_http_servers import _http_request
+from .test_servers import _http_request
 
 
 ##
