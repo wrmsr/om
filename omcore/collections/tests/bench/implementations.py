@@ -10,9 +10,10 @@ from ...btreeseq import _btreeseq_py
 from ...fixedmap import _fixedmap_py
 from ...persistent import DictPersistentMapping
 from ...persistent import TuplePersistentSequence
+from .interfaces import ContainerKind
 from .interfaces import DataKind
+from .interfaces import Factory
 from .interfaces import Implementation
-from .interfaces import KeyKind
 
 
 try:
@@ -29,6 +30,11 @@ try:
     from ...fixedmap import _fixedmap as _fixedmap_cext  # type: ignore
 except ImportError:
     _fixedmap_cext = None
+
+try:
+    from ...stl import _stl as _stl_cext  # type: ignore
+except ImportError:
+    _stl_cext = None
 
 
 ##
@@ -117,65 +123,241 @@ def _new_skip_list(items: ta.Iterable[ta.Any]) -> col.SkipList:
 ##
 
 
+def _stl_factory(cls_name: str, *dtypes: str) -> Factory:
+    if _stl_cext is None:
+        def unavailable(items: ta.Iterable[ta.Any]) -> ta.Any:
+            raise RuntimeError('stl extension is unavailable')
+
+        return unavailable
+
+    cls = getattr(_stl_cext, cls_name)
+
+    def make(items: ta.Iterable[ta.Any]) -> ta.Any:
+        return cls(*dtypes, items)
+
+    return make
+
+
+_STL_AVAILABLE = _stl_cext is not None
+_STL_UNAVAILABLE_REASON = 'stl extension is not built'
+
+
+_STL_DATA_KINDS: ta.Mapping[str, DataKind] = {
+    'int64': DataKind.INT,
+    'object': DataKind.OBJECT,
+}
+
+
+def _stl_set_implementation(cls_name: str, name: str, suites: tuple[str, ...], dtype: str) -> Implementation:
+    return Implementation(
+        f'om/{name}/{dtype}',
+        suites,
+        ContainerKind.SET,
+        _stl_factory(cls_name, dtype),
+        key_kind=_STL_DATA_KINDS[dtype],
+        available=_STL_AVAILABLE,
+        unavailable_reason=_STL_UNAVAILABLE_REASON,
+    )
+
+
+def _stl_map_implementation(cls_name: str, name: str, suites: tuple[str, ...], kd: str, vd: str) -> Implementation:
+    return Implementation(
+        f'om/{name}/{kd}-{vd}',
+        suites,
+        ContainerKind.MAPPING,
+        _stl_factory(cls_name, kd, vd),
+        key_kind=_STL_DATA_KINDS[kd],
+        value_kind=_STL_DATA_KINDS[vd],
+        available=_STL_AVAILABLE,
+        unavailable_reason=_STL_UNAVAILABLE_REASON,
+    )
+
+
+# The stl containers are dtype-specialized, so each dtype combination is registered as its own implementation with
+# matching key / value data kinds - the 'object' variants store (and compare) real python objects, while the 'int64'
+# variants exercise the unboxed storage. The object-dtype Vector still receives ints (the sequence workloads are
+# arithmetic), measuring its boxed storage against the specialized variant on identical data.
+def _stl_implementations() -> tuple[Implementation, ...]:
+    return (
+        *[
+            _stl_set_implementation('Set', 'stl-set', ('set', 'sorted_collection'), dtype)
+            for dtype in ('int64', 'object')
+        ],
+        *[
+            _stl_set_implementation('UnorderedSet', 'stl-unordered-set', ('set',), dtype)
+            for dtype in ('int64', 'object')
+        ],
+        *[
+            _stl_map_implementation('Map', 'stl-map', ('sorted_mutable_mapping',), kd, vd)
+            for kd in ('int64', 'object')
+            for vd in ('int64', 'object')
+        ],
+        *[
+            _stl_map_implementation('UnorderedMap', 'stl-unordered-map', ('mutable_mapping',), kd, vd)
+            for kd in ('int64', 'object')
+            for vd in ('int64', 'object')
+        ],
+        Implementation(
+            'om/stl-vector/int64',
+            ('mutable_sequence',),
+            ContainerKind.SEQUENCE,
+            _stl_factory('Vector', 'int64'),
+            available=_STL_AVAILABLE,
+            unavailable_reason=_STL_UNAVAILABLE_REASON,
+        ),
+        Implementation(
+            'om/stl-vector/object',
+            ('mutable_sequence',),
+            ContainerKind.SEQUENCE,
+            _stl_factory('Vector', 'object'),
+            available=_STL_AVAILABLE,
+            unavailable_reason=_STL_UNAVAILABLE_REASON,
+        ),
+    )
+
+
+##
+
+
 IMPLEMENTATIONS: tuple[Implementation, ...] = (
-    Implementation('builtin/list', ('mutable_sequence',), DataKind.SEQUENCE, list),
-    Implementation('builtin/tuple', ('sequence',), DataKind.SEQUENCE, tuple),
-    Implementation('om/frozen-list', ('sequence',), DataKind.SEQUENCE, col.frozenlist),
-    Implementation('om/ranked-seq', ('sequence',), DataKind.SEQUENCE, col.RankedSeq),
-    Implementation('om/tuple-persistent-seq', ('persistent_sequence',), DataKind.SEQUENCE, TuplePersistentSequence),
-    Implementation('om/btree-seq/python', ('persistent_sequence',), DataKind.SEQUENCE, _new_py_btree_seq),
+    Implementation(
+        'builtin/list',
+        ('mutable_sequence',),
+        ContainerKind.SEQUENCE,
+        list,
+    ),
+    Implementation(
+        'builtin/tuple',
+        ('sequence',),
+        ContainerKind.SEQUENCE,
+        tuple,
+    ),
+    Implementation(
+        'om/frozen-list',
+        ('sequence',),
+        ContainerKind.SEQUENCE,
+        col.frozenlist,
+    ),
+    Implementation(
+        'om/ranked-seq',
+        ('sequence',),
+        ContainerKind.SEQUENCE,
+        col.RankedSeq,
+    ),
+    Implementation(
+        'om/tuple-persistent-seq',
+        ('persistent_sequence',),
+        ContainerKind.SEQUENCE,
+        TuplePersistentSequence,
+    ),
+    Implementation(
+        'om/btree-seq/python',
+        ('persistent_sequence',),
+        ContainerKind.SEQUENCE,
+        _new_py_btree_seq,
+    ),
     Implementation(
         'om/btree-seq/cext',
         ('persistent_sequence',),
-        DataKind.SEQUENCE,
+        ContainerKind.SEQUENCE,
         _new_cext_btree_seq,
         available=_btreeseq_cext is not None,
         unavailable_reason='btreeseq extension is not built',
     ),
 
-    Implementation('builtin/dict', ('mutable_mapping',), DataKind.MAPPING, dict),
-    Implementation('stdlib/ordered-dict', ('mutable_mapping',), DataKind.MAPPING, collections.OrderedDict),
-    Implementation('stdlib/mapping-proxy', ('mapping',), DataKind.MAPPING, _new_mapping_proxy),
+    Implementation(
+        'builtin/dict',
+        ('mutable_mapping',),
+        ContainerKind.MAPPING,
+        dict,
+    ),
+    Implementation(
+        'stdlib/ordered-dict',
+        ('mutable_mapping',),
+        ContainerKind.MAPPING,
+        collections.OrderedDict,
+    ),
+    Implementation(
+        'stdlib/mapping-proxy',
+        ('mapping',),
+        ContainerKind.MAPPING,
+        _new_mapping_proxy,
+    ),
     Implementation(
         'stdlib/weak-key-dictionary',
         ('mutable_mapping',),
-        DataKind.MAPPING,
+        ContainerKind.MAPPING,
         weakref.WeakKeyDictionary,
-        KeyKind.OBJECT,
+        key_kind=DataKind.OBJECT,
     ),
-    Implementation('om/frozen-dict', ('mapping',), DataKind.MAPPING, col.frozendict),
-    Implementation('om/fixed-map/python', ('mapping',), DataKind.MAPPING, _new_py_fixed_map),
+    Implementation(
+        'om/frozen-dict',
+        ('mapping',),
+        ContainerKind.MAPPING,
+        col.frozendict,
+    ),
+    Implementation(
+        'om/fixed-map/python',
+        ('mapping',),
+        ContainerKind.MAPPING,
+        _new_py_fixed_map,
+    ),
     Implementation(
         'om/fixed-map/cext',
         ('mapping',),
-        DataKind.MAPPING,
+        ContainerKind.MAPPING,
         _new_cext_fixed_map,
         available=_fixedmap_cext is not None,
         unavailable_reason='fixedmap extension is not built',
     ),
-    Implementation('om/bi-map', ('mapping',), DataKind.MAPPING, col.make_bi_map),
-    Implementation('om/mutable-bi-map', ('mutable_mapping',), DataKind.MAPPING, col.make_mutable_bi_map),
+    Implementation(
+        'om/bi-map',
+        ('mapping',),
+        ContainerKind.MAPPING,
+        col.make_bi_map,
+    ),
+    Implementation(
+        'om/mutable-bi-map',
+        ('mutable_mapping',),
+        ContainerKind.MAPPING,
+        col.make_mutable_bi_map,
+    ),
     Implementation(
         'om/identity-key-dict',
         ('mutable_mapping',),
-        DataKind.MAPPING,
+        ContainerKind.MAPPING,
         col.IdentityKeyDict,
-        KeyKind.OBJECT,
+        key_kind=DataKind.OBJECT,
     ),
     Implementation(
         'om/identity-weak-key-dict',
         ('mutable_mapping',),
-        DataKind.MAPPING,
+        ContainerKind.MAPPING,
         col.IdentityWeakKeyDictionary,
-        KeyKind.OBJECT,
+        key_kind=DataKind.OBJECT,
     ),
-    Implementation('om/hash-eq-map', ('mutable_mapping',), DataKind.MAPPING, _new_hash_eq_map),
-    Implementation('om/skip-list-dict', ('sorted_mutable_mapping',), DataKind.MAPPING, col.SkipListDict),
-    Implementation('om/dict-persistent-map', ('persistent_mapping',), DataKind.MAPPING, DictPersistentMapping),
+    Implementation(
+        'om/hash-eq-map',
+        ('mutable_mapping',),
+        ContainerKind.MAPPING,
+        _new_hash_eq_map,
+    ),
+    Implementation(
+        'om/skip-list-dict',
+        ('sorted_mutable_mapping',),
+        ContainerKind.MAPPING,
+        col.SkipListDict,
+    ),
+    Implementation(
+        'om/dict-persistent-map',
+        ('persistent_mapping',),
+        ContainerKind.MAPPING,
+        DictPersistentMapping,
+    ),
     Implementation(
         'om/hamt-map',
         ('persistent_mapping',),
-        DataKind.MAPPING,
+        ContainerKind.MAPPING,
         col.new_hamt_map,
         available=col.is_hamt_available(),
         unavailable_reason='hamt extension is not built',
@@ -183,49 +365,76 @@ IMPLEMENTATIONS: tuple[Implementation, ...] = (
     Implementation(
         'om/treap-map',
         ('persistent_mapping', 'sorted_mapping'),
-        DataKind.MAPPING,
+        ContainerKind.MAPPING,
         col.new_treap_map,
     ),
     Implementation(
         'om/btree-map/python',
         ('persistent_mapping', 'sorted_mapping'),
-        DataKind.MAPPING,
+        ContainerKind.MAPPING,
         _new_py_btree_map,
     ),
     Implementation(
         'om/btree-map/cext',
         ('persistent_mapping', 'sorted_mapping'),
-        DataKind.MAPPING,
+        ContainerKind.MAPPING,
         _new_cext_btree_map,
         available=_btreemap_cext is not None,
         unavailable_reason='btreemap extension is not built',
     ),
 
-    Implementation('builtin/frozenset', ('abstract_set',), DataKind.SET, frozenset),
-    Implementation('builtin/set', ('set',), DataKind.SET, set),
+    Implementation(
+        'builtin/frozenset',
+        ('abstract_set',),
+        ContainerKind.SET,
+        frozenset,
+    ),
+    Implementation(
+        'builtin/set',
+        ('set',),
+        ContainerKind.SET,
+        set,
+    ),
     Implementation(
         'stdlib/weak-set',
         ('set',),
-        DataKind.SET,
+        ContainerKind.SET,
         weakref.WeakSet,
-        KeyKind.OBJECT,
+        key_kind=DataKind.OBJECT,
     ),
-    Implementation('om/ordered-frozen-set', ('abstract_set',), DataKind.SET, col.OrderedFrozenSet),
-    Implementation('om/ordered-set', ('set',), DataKind.SET, col.OrderedSet),
+    Implementation(
+        'om/ordered-frozen-set',
+        ('abstract_set',),
+        ContainerKind.SET,
+        col.OrderedFrozenSet,
+    ),
+    Implementation(
+        'om/ordered-set',
+        ('set',),
+        ContainerKind.SET,
+        col.OrderedSet,
+    ),
     Implementation(
         'om/identity-set',
         ('set',),
-        DataKind.SET,
+        ContainerKind.SET,
         col.IdentitySet,
-        KeyKind.OBJECT,
+        key_kind=DataKind.OBJECT,
     ),
     Implementation(
         'om/identity-weak-set',
         ('set',),
-        DataKind.SET,
+        ContainerKind.SET,
         col.IdentityWeakSet,
-        KeyKind.OBJECT,
+        key_kind=DataKind.OBJECT,
     ),
 
-    Implementation('om/skip-list', ('sorted_collection',), DataKind.SET, _new_skip_list),
+    Implementation(
+        'om/skip-list',
+        ('sorted_collection',),
+        ContainerKind.SET,
+        _new_skip_list,
+    ),
+
+    *_stl_implementations(),
 )

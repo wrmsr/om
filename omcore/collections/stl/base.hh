@@ -17,7 +17,7 @@
 
 
 #define _MODULE_NAME "_stl"
-#define _PACKAGE_NAME "omxtra.collections.stl"
+#define _PACKAGE_NAME "omcore.collections.stl"
 #define _MODULE_FULL_NAME _PACKAGE_NAME "." _MODULE_NAME
 
 

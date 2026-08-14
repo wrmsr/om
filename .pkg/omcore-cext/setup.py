@@ -55,6 +55,17 @@ st.setup(
         ),
 
         st.Extension(
+            name='omcore.collections.stl._stl',
+            sources=[
+                'omcore/collections/stl/_stl.cc',
+            ],
+            extra_compile_args=[
+                '-std=c++20',
+                '-fvisibility=hidden',
+            ],
+        ),
+
+        st.Extension(
             name='omcore.collections.treap._treap',
             sources=[
                 'omcore/collections/treap/_treap.cc',

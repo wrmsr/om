@@ -330,10 +330,11 @@ def _print_csv(results: ta.Sequence[BenchmarkResult]) -> None:
 def _print_implementations() -> None:
     for implementation in IMPLEMENTATIONS:
         status = 'available' if implementation.available else f'unavailable: {implementation.unavailable_reason}'
+        kinds = f'{implementation.key_kind.value}/{implementation.value_kind.value}'
         print(
             f'{implementation.name:32} '
             f'{",".join(implementation.suites):42} '
-            f'{implementation.key_kind.value:6} '
+            f'{kinds:13} '
             f'{status}',
         )
 

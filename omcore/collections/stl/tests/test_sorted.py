@@ -1,7 +1,6 @@
 import pytest
 
-from omcore import collections as col
-
+from .... import collections as col
 from .. import _stl as fc  # type: ignore
 
 

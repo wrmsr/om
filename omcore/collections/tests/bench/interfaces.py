@@ -59,13 +59,16 @@ def resolve_suites(names: ta.Iterable[str]) -> tuple[str, ...]:
 ##
 
 
-class DataKind(enum.Enum):
+class ContainerKind(enum.Enum):
     SEQUENCE = 'sequence'
     MAPPING = 'mapping'
     SET = 'set'
 
 
-class KeyKind(enum.Enum):
+# The kind of data an implementation is exercised with, applied separately to keys (set elements / mapping keys) and
+# mapping values so dtype-specializing implementations can cover their combinations. Non-specializing implementations
+# should just use a single configuration - int, unless the implementation itself demands objects.
+class DataKind(enum.Enum):
     INT = 'int'
     OBJECT = 'object'
 
@@ -118,9 +121,10 @@ type Factory = ta.Callable[[ta.Iterable[ta.Any]], ta.Any]
 class Implementation:
     name: str
     suites: tuple[str, ...]
-    data_kind: DataKind
+    container_kind: ContainerKind
     factory: Factory
-    key_kind: KeyKind = KeyKind.INT
+    key_kind: DataKind = DataKind.INT
+    value_kind: DataKind = DataKind.INT
     available: bool = True
     unavailable_reason: str | None = None
 
@@ -136,7 +140,7 @@ class BenchmarkContext:
         self.implementation = implementation
         self.data = data
 
-        if implementation.key_kind is KeyKind.OBJECT:
+        if implementation.key_kind is DataKind.OBJECT:
             keys: tuple[ta.Any, ...] = data.object_keys
             missing_keys: tuple[ta.Any, ...] = data.missing_object_keys
         else:
@@ -145,23 +149,31 @@ class BenchmarkContext:
 
         self._keys = keys
         self._missing_keys = missing_keys
-        self._pairs = tuple((key, self.key_value(key)) for key in keys)
-        self._replacement_pairs = tuple((key, value + data.size) for key, value in self._pairs)
+        pairs: tuple[tuple[ta.Any, ta.Any], ...]
+        replacement_pairs: tuple[tuple[ta.Any, ta.Any], ...]
+        if implementation.value_kind is DataKind.OBJECT:
+            pairs = tuple((key, BenchmarkKey(self.key_value(key))) for key in keys)
+            replacement_pairs = tuple((key, BenchmarkKey(self.key_value(key) + data.size)) for key in keys)
+        else:
+            pairs = tuple((key, self.key_value(key)) for key in keys)
+            replacement_pairs = tuple((key, value + data.size) for key, value in pairs)
+        self._pairs = pairs
+        self._replacement_pairs = replacement_pairs
 
-        if implementation.data_kind is DataKind.SEQUENCE:
+        if implementation.container_kind is ContainerKind.SEQUENCE:
             collection_items: tuple[ta.Any, ...] = data.values
             missing_collection_items: tuple[ta.Any, ...] = data.missing_int_keys
             self._elements: ta.Iterable[ta.Any] = data.values
-        elif implementation.data_kind is DataKind.MAPPING:
+        elif implementation.container_kind is ContainerKind.MAPPING:
             collection_items = keys
             missing_collection_items = missing_keys
             self._elements = self._pairs
-        elif implementation.data_kind is DataKind.SET:
+        elif implementation.container_kind is ContainerKind.SET:
             collection_items = keys
             missing_collection_items = missing_keys
             self._elements = keys
         else:
-            raise TypeError(implementation.data_kind)
+            raise TypeError(implementation.container_kind)
 
         self._collection_items = collection_items
         self._missing_collection_items = missing_collection_items
@@ -191,11 +203,11 @@ class BenchmarkContext:
         return self._missing_keys
 
     @property
-    def pairs(self) -> tuple[tuple[ta.Any, int], ...]:
+    def pairs(self) -> tuple[tuple[ta.Any, ta.Any], ...]:
         return self._pairs
 
     @property
-    def replacement_pairs(self) -> tuple[tuple[ta.Any, int], ...]:
+    def replacement_pairs(self) -> tuple[tuple[ta.Any, ta.Any], ...]:
         return self._replacement_pairs
 
     @property

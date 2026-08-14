@@ -1,0 +1,4 @@
+include omcore/collections/stl/base.hh
+include omcore/collections/stl/map.hh
+include omcore/collections/stl/set.hh
+include omcore/collections/stl/vec.hh

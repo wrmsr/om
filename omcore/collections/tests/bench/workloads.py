@@ -180,11 +180,12 @@ def _sequence_count_miss(context: BenchmarkContext, obj: ta.Sequence) -> int:
 ##
 
 
-def _mapping_getitem_hit(context: BenchmarkContext, obj: ta.Mapping) -> int:
-    total = 0
+def _mapping_getitem_hit(context: BenchmarkContext, obj: ta.Mapping) -> ta.Any:
+    # No arithmetic on the fetched values: they are objects for value_kind=OBJECT implementations.
+    value = None
     for key in context.query_collection_items:
-        total += obj[key]
-    return total
+        value = obj[key]
+    return value
 
 
 def _mapping_getitem_miss(context: BenchmarkContext, obj: ta.Mapping) -> int:
@@ -197,11 +198,12 @@ def _mapping_getitem_miss(context: BenchmarkContext, obj: ta.Mapping) -> int:
     return misses
 
 
-def _mapping_get_hit(context: BenchmarkContext, obj: ta.Mapping) -> int:
-    total = 0
+def _mapping_get_hit(context: BenchmarkContext, obj: ta.Mapping) -> ta.Any:
+    # No arithmetic on the fetched values: they are objects for value_kind=OBJECT implementations.
+    value = None
     for key in context.query_collection_items:
-        total += obj.get(key, 0)
-    return total
+        value = obj.get(key, 0)
+    return value
 
 
 def _mapping_get_miss(context: BenchmarkContext, obj: ta.Mapping) -> int:

@@ -1,4 +1,0 @@
-include omxtra/collections/stl/base.hh
-include omxtra/collections/stl/map.hh
-include omxtra/collections/stl/set.hh
-include omxtra/collections/stl/vec.hh
