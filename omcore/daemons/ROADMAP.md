@@ -67,9 +67,16 @@ needs, rather than prematurely placing an unproven abstraction in `omcore.io.pip
 
 ## 2. First-class non-RPC services
 
-Provide a runtime-managed HTTP composition using `omcore.http.pipelines`. It should demonstrate request activity
-leases, application-level readiness, idle linger, graceful rejection of new work, and bounded draining without making
-HTTP part of `Daemon` itself.
+**Initial slice complete.** The package now provides a runtime-managed HTTP composition using
+`omcore.http.pipelines`. Its sans-I/O one-request core is driveable by pure, synchronous socket, and asyncio stream
+drivers. Separate sync and asyncio hosts depend on `HttpServerRuntime`; thin `PipelineHttpService` and
+`AsyncioPipelineHttpService` adapters supply `ServiceRuntime` lifecycle. Async handler policy is explicit, with a
+threaded adapter for blocking handlers.
+
+The composition demonstrates request activity leases, application-level readiness, idle linger, graceful rejection
+of new work, and bounded draining without making HTTP part of `Daemon` itself. A dedicated health route bypasses
+application dispatch and activity acquisition, so repeated probes do not extend the service's life. Accepted
+application activity is held until response output drains.
 
 The generic path must remain equally valid: `FnTarget`, `ExecTarget`, or a custom `Service` can run another web stack,
 an embedded third-party server, or a supervisor which starts and monitors an external process such as a `llama.cpp`
@@ -78,11 +85,14 @@ HTTP readiness may later be added as an alternative waiter, not as a replacement
 
 Integration coverage should include:
 
-- a thread-backed HTTP service which shares in-process state;
-- a multiprocessing HTTP service started lazily and restarted after idle exit;
-- a dedicated health endpoint whose status differs from mere TCP acceptance;
-- long-running requests extending activity and draining during shutdown; and
-- an externally implemented or child-process-backed HTTP target probed through the same readiness interface.
+- **Complete:** a thread-backed HTTP service which shares in-process state, for both sync and asyncio hosts;
+- **Complete:** a multiprocessing HTTP service started lazily and restarted with a new identity after idle exit;
+- **Complete:** a dedicated health endpoint whose status differs from mere TCP acceptance and does not extend idle;
+- **Complete:** long-running requests extending activity and accepted requests draining during shutdown; and
+- **Complete:** an independently implemented standard-library HTTP target probed through the same readiness interface.
+
+Likely follow-ons are streaming request/response sessions, keep-alive, an fdio host if useful, richer error-response
+policy, and an explicit lazy HTTP client facade which classifies transport unavailability at the actual call boundary.
 
 ## 3. RPC endpoints and transports
 

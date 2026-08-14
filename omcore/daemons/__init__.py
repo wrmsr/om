@@ -21,6 +21,22 @@ with _lang.auto_proxy_init(globals()):
         HttpWaiter,
     )
 
+    from .http import (  # noqa
+        AsyncHttpHandler,
+        AsyncioPipelineHttpServer,
+        AsyncioPipelineHttpServerConfig,
+        AsyncioPipelineHttpService,
+        HttpHandler,
+        HttpHealthConfig,
+        HttpServerRuntime,
+        PipelineHttpServer,
+        PipelineHttpServerConfig,
+        PipelineHttpServerDrainTimeoutError,
+        PipelineHttpService,
+        SimpleHttpServerRuntime,
+        ThreadedAsyncHttpHandler,
+    )
+
     from .pidfiles import (  # noqa
         DAEMON_PIDFILE_FORMAT,
         DAEMON_PIDFILE_FORMAT_VERSION,

@@ -58,6 +58,8 @@ The package is intentionally composable rather than presenting one mandatory dae
 | Runtime | `ServiceRuntime`, `Activity`, `ShutdownController` | Track activity, idle lifetime, signals, and graceful drain. |
 | Lazy access | `LazyDaemon` | Connect first; coordinate launch and relaunch only when explicitly unavailable. |
 | Readiness | `ConnectWait`, `HttpWait`, `RpcWait` | Supply pluggable transport- or application-level health checks. |
+| HTTP core | `pipeline_http_server_spec`, `PipelineHttpServer`, `AsyncioPipelineHttpServer` | Serve bounded HTTP requests through runtime-neutral pipelines and sync or asyncio hosts. |
+| HTTP adapters | `PipelineHttpService`, `AsyncioPipelineHttpService` | Compose the optional HTTP hosts with activity-aware service lifetime. |
 | RPC core | `RpcServer`, `AsyncioRpcServer`, `FdioRpcServer`, `RpcClient`, `AsyncioRpcClient` | Provide pipeline-backed JSON calls independently of daemon lifecycle. |
 | RPC facade | `RpcObjectHandler`, `RpcObjectProxy` | Add an opt-in typed-object interface above any `RpcCaller`. |
 | RPC adapters | `RpcService`, `LazyRpcClient`, `RpcWait` | Compose RPC with service runtime, lazy daemon launch, and readiness. |
@@ -159,8 +161,33 @@ When the final activity is released, a fresh idle linger window begins. `SIGINT`
 shutdown by default. `RuntimeService` waits for activity to become inactive and raises `DrainTimeoutError` if the
 configured drain deadline expires.
 
-`RpcService` acquires activity for actual requests, not for handshake-only readiness probes. It stops accepting new
-work after shutdown begins and waits for connection threads which already own accepted work.
+`RpcService` acquires activity for actual requests, not for handshake-only readiness probes. The pipeline HTTP
+services follow the same lifetime rule for application requests versus their dedicated health endpoint. They stop
+accepting new application work after shutdown begins and drain connections which already own accepted work.
+
+## HTTP services
+
+The `omcore.daemons.http` subpackage provides a small pipeline-native HTTP composition without putting HTTP policy in
+`Daemon` itself. `pipeline_http_server_spec()` is a sans-I/O, one-request session built from the repository's HTTP
+decoder, request aggregator, response encoder, and I/O flow machinery. `PipelineHttpServer` drives a fresh pipeline
+per TCP connection with the synchronous socket driver; `AsyncioPipelineHttpServer` uses the same messages and session
+with the asyncio stream driver.
+
+Both hosts depend on the narrow `HttpServerRuntime` interface rather than `ServiceRuntime`. They can therefore be run
+standalone with `SimpleHttpServerRuntime`, under another lifecycle owner, or through `PipelineHttpService` and
+`AsyncioPipelineHttpService`. The service adapters supply idle lifetime, signal shutdown, activity leases, and bounded
+drain. The asyncio host accepts only async handlers; `ThreadedAsyncHttpHandler` is the explicit adapter when blocking
+application work should run in a worker thread.
+
+The configured `HttpHealthConfig` route is handled outside the application handler and does not acquire activity.
+Repeated readiness probes cannot keep an otherwise idle service alive. An accepted application request holds activity
+through handler execution and response output drain; after shutdown begins, new application requests receive `503`.
+The initial session deliberately aggregates a bounded request body, emits a full response, closes the connection, and
+does not yet provide streaming or keep-alive.
+
+This serving stack is optional. `HttpWait` remains based on the standard library and can probe a daemon running
+`http.server`, a framework server which cannot be changed, or a daemon which supervises an external HTTP process. None
+of `Daemon`, `Launcher`, `LazyDaemon`, or the general readiness interface imports the pipeline HTTP server.
 
 ## RPC scope
 
@@ -209,10 +236,11 @@ See the retry contract in [DESIGN.md](DESIGN.md).
 ## Testing
 
 The suite uses real files, locks, Unix sockets, HTTP servers, subprocesses, multiprocessing children, raw forks,
-signals, and execs. It also verifies a thread-backed service through shared in-process state, exercises the RPC core
-without a daemon, runs pure sans-I/O transcripts, crosses sync and asyncio clients and servers, drives an fdio server,
-and checks compatibility with the original blocking wire helpers. The daemon tests do not mock or patch those
-boundaries.
+signals, and execs. It verifies sync and asyncio thread-backed HTTP services through shared in-process state, lazily
+launches a pipeline HTTP service in a spawned process, and probes an independent standard-library HTTP server through
+the same `HttpWait`. It also exercises the RPC core without a daemon, runs pure sans-I/O transcripts, crosses sync and
+asyncio clients and servers, drives an fdio server, and checks compatibility with the original blocking wire helpers.
+The daemon tests do not mock or patch those boundaries.
 
 ```shell
 ./python -m pytest omcore/daemons/tests

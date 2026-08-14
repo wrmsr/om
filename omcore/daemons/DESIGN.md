@@ -88,6 +88,16 @@ Consequently they can run under a thread, a different supervisor, or an eventual
 direction, daemon code does not require RPC: targets can be ordinary functions, in-process services, HTTP servers, or
 other protocols.
 
+### HTTP dependency boundary
+
+Pipeline HTTP follows the same interface-plus-adapter split. `http.pipelines` contains a sans-I/O one-request server
+session. `http.server` and `http.asyncio` own sync and asyncio TCP hosting against the narrow `HttpServerRuntime`
+interface. Only `http.services` adapts those hosts to `ServiceRuntime`.
+
+This is a provided composition, not the daemon transport. General launch, target, runtime, lazy, and wait modules do
+not import it. `HttpWait` intentionally remains a standard-library probe and works identically with the provided
+pipeline hosts, another Python web stack, an unmodifiable embedded server, or an externally supervised HTTP process.
+
 ---
 
 ## 3. Launch ownership and startup
@@ -217,7 +227,41 @@ which already obtained an activity lease, up to the configured deadline.
 
 ---
 
-## 7. RPC protocol
+## 7. Pipeline HTTP
+
+`pipeline_http_server_spec()` is built afresh for every connection because the request/response session handler owns
+connection-local state. Inbound bytes pass through the shared HTTP request decoder and bounded full-request
+aggregator. The host receives a typed `HttpServerRequest`, supplies a typed `HttpServerSendResponse`, and the shared
+HTTP encoder writes the response. The pure pipeline driver can exercise this entire protocol without a socket.
+
+The first HTTP session contract is intentionally small:
+
+- one full request and one full response per connection;
+- a configurable maximum aggregated request-body size;
+- response output is flushed before the connection is finalized;
+- malformed, aborted, or oversized input fails the connection; and
+- keep-alive, upgrades, and streaming bodies are not yet supported.
+
+`PipelineHttpServer` owns a TCP listener and tracked connection threads; `AsyncioPipelineHttpServer` owns an asyncio
+listener and tracked connection tasks. Both use `HttpServerRuntime` for shutdown state, bounded draining, and optional
+activity acceptance. `SimpleHttpServerRuntime` supports standalone/manual ownership. The asyncio host requires an
+async handler, while `ThreadedAsyncHttpHandler` makes off-loop execution of a synchronous handler explicit.
+
+Health routing is host policy layered above the protocol session. A matching `HttpHealthConfig` route bypasses the
+application handler and does not acquire activity, so readiness polling cannot postpone idle shutdown. Healthy probes
+return `200`; a probe handled after shutdown begins returns `503`. Each non-health request must acquire activity before
+application dispatch. Rejection returns `503` without invoking the handler. An accepted lease is retained through
+handler execution and response output drain, so accepted work both survives an idle deadline and participates in
+graceful connection draining. Synchronous handler failures become a bounded `500` response rather than terminating the
+host; the asyncio dispatcher applies the same policy while preserving task cancellation.
+
+`PipelineHttpService` and `AsyncioPipelineHttpService` are the only adapters to `ServiceRuntime`. The rest of the HTTP
+subpackage remains usable without daemon launch, pidfiles, idle policy, or `ServiceDaemon`. Conversely, daemon targets
+and `HttpWait` remain fully usable without importing this serving stack.
+
+---
+
+## 8. RPC protocol
 
 RPC currently uses an `AF_UNIX`/`SOCK_STREAM` socket. Each message is encoded as UTF-8 JSON preceded by an unsigned
 four-byte big-endian byte count. Frame size is checked as soon as its header is available, and inbound and outbound
@@ -308,7 +352,7 @@ idempotency key or transaction boundary.
 
 ---
 
-## 8. Logging and descriptors
+## 9. Logging and descriptors
 
 The library does not impose a global logging configuration. A multiprocessing entrypoint can configure logging before
 the launch function; file handlers then survive reparenting while standard streams are redirected. The LLM demo uses
@@ -325,7 +369,7 @@ No hook can make an arbitrary multithreaded process universally fork-safe. Raw f
 
 ---
 
-## 9. Security boundary
+## 10. Security boundary
 
 This is local IPC, not a sandbox. Pidfiles are created mode `0600`, RPC sockets default to mode `0600`, and the service
 refuses to overwrite a non-socket at its configured endpoint. Callers remain responsible for choosing and protecting
@@ -338,14 +382,16 @@ handshake, fail closed on mismatch, and require an explicit development override
 
 ---
 
-## 10. Testing contract
+## 11. Testing contract
 
 Behavior at OS boundaries is covered by integration tests without mocks or patches. Tests use real `flock` locks,
 Unix sockets, HTTP servers, threads, multiprocessing spawn/fork, raw fork, double-fork reparenting, signals, exec
 replacement, concurrent launchers, response loss, and process replacement. A shared-state integration test verifies
-that `ThreadSpawning` truly remains in-process. RPC coverage includes pure split-byte protocol transcripts, sync and
-asyncio cross-host interoperability, explicit threaded asyncio handling, an fdio host, blocking-wire compatibility,
-and standalone servers without daemon adapters.
+that `ThreadSpawning` truly remains in-process. HTTP coverage includes pure split-byte protocol transcripts, sync and
+asyncio hosts, activity-aware drain, health probes which do not extend idle life, lazy multiprocessing launch, and an
+independent standard-library server using the same readiness abstraction. RPC coverage includes pure split-byte
+protocol transcripts, sync and asyncio cross-host interoperability, explicit threaded asyncio handling, an fdio host,
+blocking-wire compatibility, and standalone servers without daemon adapters.
 
 The LLM demo test invokes the real argparse CLI twice. It verifies that the first process starts a detached service,
 the second connects to the same PID and instance ID, both calls traverse RPC, and signal shutdown releases the pidfile.
