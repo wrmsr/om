@@ -2,8 +2,9 @@
 
 #include "base.hh"
 
-#include <map>
 #include <unordered_map>
+
+#include "tlx/tlx/container/btree_map.hpp"
 
 
 //
@@ -30,11 +31,12 @@ struct MapLikeImpl : AnyImpl {
 
 template <typename K, typename V>
 struct SortedMapImpl final : MapLikeImpl {
-    using Cont = std::map<
+    using Cont = tlx::btree_map<
         typename K::Slot,
         typename V::Slot,
         typename K::Less,
-        PyMemAllocator<std::pair<const typename K::Slot, typename V::Slot>>>;
+        BtreeTraitsFor<K, std::pair<typename K::Slot, typename V::Slot>>,
+        PyMemAllocator<std::pair<typename K::Slot, typename V::Slot>>>;
 
     Cont map_;
 
@@ -91,7 +93,7 @@ struct SortedMapImpl final : MapLikeImpl {
         if (!V::unbox(v, val_ovf, &vs)) {
             return -1;
         }
-        auto [it, inserted] = map_.try_emplace(ks, vs);
+        auto [it, inserted] = map_.insert2(ks, vs);  // insert-if-absent, tlx's try_emplace equivalent
         if (inserted) {
             K::retain(it->first);
             V::retain(it->second);
@@ -111,22 +113,46 @@ struct SortedMapImpl final : MapLikeImpl {
         if (r <= 0) {
             return r;
         }
+        if constexpr (!K::IS_OBJ && !V::IS_OBJ) {
+            // No reference bookkeeping for fully-primitive entries: when the value is not wanted back, the
+            // single-descent erase-by-key beats the find-then-erase(iterator) double descent.
+            if (out_opt == nullptr) {
+                if (!map_.erase_one(ks)) {
+                    return 0;
+                }
+                ++version;
+                return 1;
+            }
+        }
         auto it = map_.find(ks);
         if (it == map_.end()) {
             return 0;
         }
+        // Box before erasing so a boxing failure leaves the entry untouched.
+        PyObject *o = nullptr;
         if (out_opt != nullptr) {
-            // Box before erasing so a boxing failure leaves the entry untouched.
-            PyObject *o = V::box(it->second);
+            o = V::box(it->second);
             if (o == nullptr) {
                 return -1;
             }
+        }
+        // Erase before releasing: the btree's erase(iterator) re-descends by key and can throw a comparator error,
+        // so the references must not be moved into the bin until the erase has actually succeeded.
+        typename K::Slot kslot = it->first;
+        typename V::Slot vslot = it->second;
+        try {
+            map_.erase(it);
+        }
+        catch (...) {
+            Py_XDECREF(o);
+            throw;
+        }
+        K::release_into(kslot, bin);
+        V::release_into(vslot, bin);
+        ++version;
+        if (out_opt != nullptr) {
             *out_opt = o;
         }
-        K::release_into(it->first, bin);
-        V::release_into(it->second, bin);
-        map_.erase(it);
-        ++version;
         return 1;
     }
 
@@ -144,9 +170,19 @@ struct SortedMapImpl final : MapLikeImpl {
             Py_DECREF(ko);
             return -1;
         }
-        K::release_into(it->first, bin);
-        V::release_into(it->second, bin);
-        map_.erase(it);
+        // Erase before releasing, as in remove_.
+        typename K::Slot kslot = it->first;
+        typename V::Slot vslot = it->second;
+        try {
+            map_.erase(it);
+        }
+        catch (...) {
+            Py_DECREF(ko);
+            Py_DECREF(vo);
+            throw;
+        }
+        K::release_into(kslot, bin);
+        V::release_into(vslot, bin);
         ++version;
         *k_out = ko;
         *v_out = vo;
@@ -166,10 +202,10 @@ struct SortedMapImpl final : MapLikeImpl {
             if (!V::unbox(d, val_ovf, &vs)) {
                 return -1;
             }
-            auto er = map_.try_emplace(ks, vs);
+            auto er = map_.insert2(ks, vs);
             it = er.first;
-            // An inconsistent user comparator can make the find above miss while this emplace still lands on an
-            // existing node - only take ownership of what was actually inserted.
+            // An inconsistent user comparator can make the find above miss while this insert still lands on an
+            // existing entry - only take ownership of what was actually inserted.
             if (er.second) {
                 K::retain(it->first);
                 V::retain(it->second);
@@ -255,7 +291,7 @@ struct SortedMapImpl final : MapLikeImpl {
         }
         bool changed = false;
         for (const auto &e : o->map_) {
-            auto [it, inserted] = map_.try_emplace(e.first, e.second);
+            auto [it, inserted] = map_.insert2(e.first, e.second);
             if (inserted) {
                 K::retain(it->first);
                 V::retain(it->second);
@@ -339,7 +375,7 @@ template <typename K, typename V>
 AnyIter *SortedMapImpl<K, V>::make_iter(IterKind ik, bool desc) {
     auto *r = new SortedMapIter<K, V>();
     r->impl = this;
-    r->it = desc ? map_.cend() : map_.cbegin();
+    r->it = desc ? map_.end() : map_.begin();  // tlx btree has no cbegin/cend; converts to const_iterator
     r->expect = version;
     r->ik = ik;
     r->rev = desc;

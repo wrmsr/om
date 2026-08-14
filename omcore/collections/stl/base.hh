@@ -13,7 +13,10 @@
 #include <iterator>
 #include <mutex>
 #include <new>
+#include <type_traits>
 #include <vector>
+
+#include "tlx/tlx/container/btree.hpp"
 
 
 #define _MODULE_NAME "_stl"
@@ -720,6 +723,37 @@ struct HashedObjectTraits {
         return Eq()(a, b);
     }
 };
+
+
+//
+// tlx btree traits
+//
+// The sorted containers are (vendored) tlx B+ trees rather than std::map / std::set: an order of magnitude better
+// node density than one heap-allocated red-black node per element, and cache-linear leaf-chain iteration. Primitive
+// dtypes keep tlx's default in-node linear search - the cache-friendly choice when a comparison is one instruction.
+// Object dtypes force binary search (binsearch_threshold = 0): every comparison there is a Python richcompare call,
+// so call count dominates any cache effect.
+//
+// Two tlx behaviors the sorted impls must respect (see the erase reordering comments in set.hh / map.hh):
+//  - btree iterators are invalidated by EVERY insert / erase (slots shift within leaves, end() captures the tail
+//    leaf), not just by erasure of the pointed-to element as with std::map - the iterator version-check discipline
+//    is what makes the stored iterators safe, and is load-bearing.
+//  - erase(iterator) re-descends by key, so for object dtypes it runs comparators and can throw py_err_set; unlike
+//    std::map's erase(iterator) it must be treated as fallible.
+//
+
+
+template <typename Key, typename Value>
+struct ObjBtreeTraits : tlx::btree_default_traits<Key, Value> {
+    static const size_t binsearch_threshold = 0;
+};
+
+
+template <typename K, typename Value>
+using BtreeTraitsFor = std::conditional_t<
+    K::IS_OBJ,
+    ObjBtreeTraits<typename K::Slot, Value>,
+    tlx::btree_default_traits<typename K::Slot, Value>>;
 
 
 // Probe unboxing, used by non-mutating lookups (contains / getitem / discard / find / ...): for primitive dtypes a

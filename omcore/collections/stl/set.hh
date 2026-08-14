@@ -2,8 +2,9 @@
 
 #include "base.hh"
 
-#include <set>
 #include <unordered_set>
+
+#include "tlx/tlx/container/btree_set.hpp"
 
 
 //
@@ -32,7 +33,11 @@ struct SetLikeImpl : AnyImpl {
 
 template <typename K>
 struct SortedSetImpl final : SetLikeImpl {
-    using Cont = std::set<typename K::Slot, typename K::Less, PyMemAllocator<typename K::Slot>>;
+    using Cont = tlx::btree_set<
+        typename K::Slot,
+        typename K::Less,
+        BtreeTraitsFor<K, typename K::Slot>,
+        PyMemAllocator<typename K::Slot>>;
 
     Cont set_;
 
@@ -99,14 +104,28 @@ struct SortedSetImpl final : SetLikeImpl {
         if (r <= 0) {
             return r;
         }
-        auto it = set_.find(s);
-        if (it == set_.end()) {
-            return 0;
+        if constexpr (!K::IS_OBJ) {
+            // Primitive slots need no reference bookkeeping, so the single-descent erase-by-key suffices; the
+            // find-then-erase(iterator) form below would descend the tree twice.
+            if (!set_.erase_one(s)) {
+                return 0;
+            }
+            ++version;
+            return 1;
         }
-        K::release_into(*it, bin);
-        set_.erase(it);
-        ++version;
-        return 1;
+        else {
+            auto it = set_.find(s);
+            if (it == set_.end()) {
+                return 0;
+            }
+            // Erase before releasing: the btree's erase(iterator) re-descends by key and can throw a comparator
+            // error, so the reference must not be moved into the bin until the erase has actually succeeded.
+            typename K::Slot slot = *it;
+            set_.erase(it);
+            K::release_into(slot, bin);
+            ++version;
+            return 1;
+        }
     }
 
     int pop_(PyObject **out, Bin &bin) override {
@@ -114,12 +133,20 @@ struct SortedSetImpl final : SetLikeImpl {
             return 0;
         }
         auto it = set_.begin();  // smallest element for sorted sets
-        PyObject *o = K::box(*it);
+        typename K::Slot slot = *it;
+        // Box before erasing so a boxing failure leaves the set untouched; erase before releasing (see discard_).
+        PyObject *o = K::box(slot);
         if (o == nullptr) {
             return -1;
         }
-        K::release_into(*it, bin);
-        set_.erase(it);
+        try {
+            set_.erase(it);
+        }
+        catch (...) {
+            Py_DECREF(o);
+            throw;
+        }
+        K::release_into(slot, bin);
         ++version;
         *out = o;
         return 1;
@@ -242,7 +269,7 @@ AnyIter *SortedSetImpl<K>::make_iter(IterKind, bool desc) {
     auto *r = new SortedSetIter<K>();
     r->impl = this;
     r->rev = desc;
-    r->it = desc ? set_.cend() : set_.cbegin();
+    r->it = desc ? set_.end() : set_.begin();  // tlx btree has no cbegin/cend; converts to const_iterator
     r->expect = version;
     return r;
 }
