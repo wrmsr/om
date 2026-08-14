@@ -26,6 +26,17 @@ static functions_state * get_functions_state(PyObject *module)
     return (functions_state *)state;
 }
 
+static PyObject * get_public_functions_attr(const char *name)
+{
+    PyObject *module = PyImport_ImportModule(_PACKAGE_NAME ".functions");
+    if (module == nullptr) {
+        return nullptr;
+    }
+    PyObject *attr = PyObject_GetAttrString(module, name);
+    Py_DECREF(module);
+    return attr;
+}
+
 //
 
 enum SetterMode {
@@ -159,6 +170,49 @@ static PyObject * Setter_repr(Setter *self)
     }
 }
 
+static PyObject * Setter_reduce(Setter *self, PyObject *Py_UNUSED(ignored))
+{
+    if (self->key == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "invalid Setter state");
+        return nullptr;
+    }
+
+    const char *fn_name;
+    if (self->mode == SETTER_MODE_ATTR) {
+        fn_name = "_unpickle_attrsetter";
+    } else if (self->mode == SETTER_MODE_ITEM) {
+        fn_name = "_unpickle_itemsetter";
+    } else {
+        PyErr_SetString(PyExc_RuntimeError, "invalid Setter mode");
+        return nullptr;
+    }
+
+    PyObject *args;
+    if (self->value == nullptr) {
+        args = PyTuple_Pack(1, self->key);
+    } else {
+        args = PyTuple_Pack(2, self->key, self->value);
+    }
+    if (args == nullptr) {
+        return nullptr;
+    }
+
+    PyObject *fn = get_public_functions_attr(fn_name);
+    if (fn == nullptr) {
+        Py_DECREF(args);
+        return nullptr;
+    }
+    PyObject *result = PyTuple_Pack(2, fn, args);
+    Py_DECREF(fn);
+    Py_DECREF(args);
+    return result;
+}
+
+static PyMethodDef Setter_methods[] = {
+    {"__reduce__", (PyCFunction)Setter_reduce, METH_NOARGS, "Pickle support"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
 static PyMemberDef Setter_members[] = {
     {"__vectorcalloffset__", T_PYSSIZET, offsetof(Setter, vectorcall), READONLY, ""},
     {nullptr}
@@ -170,6 +224,7 @@ static PyType_Slot Setter_slots[] = {
     {Py_tp_clear, (void *) Setter_clear},
     {Py_tp_call, (void *) Setter_call},
     {Py_tp_new, (void *) Setter_new},
+    {Py_tp_methods, (void *) Setter_methods},
     {Py_tp_members, (void *) Setter_members},
     {Py_tp_repr, (void *) Setter_repr},
     {Py_tp_doc, (void *) "Callable that sets an attribute or item"},

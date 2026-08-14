@@ -22,6 +22,17 @@ static comparison_state * get_comparison_state(PyObject *module)
     return (comparison_state *)state;
 }
 
+static PyObject * get_public_comparison_attr(const char *name)
+{
+    PyObject *module = PyImport_ImportModule(_PACKAGE_NAME ".comparison");
+    if (module == nullptr) {
+        return nullptr;
+    }
+    PyObject *attr = PyObject_GetAttrString(module, name);
+    Py_DECREF(module);
+    return attr;
+}
+
 //
 
 PyDoc_STRVAR(comparison_cmp_doc, "cmp(l, r)");
@@ -266,6 +277,87 @@ static PyObject * KeyCmp_call(KeyCmp *self, PyObject *args, PyObject *kwargs)
     return self->vectorcall((PyObject *)self, call_args, 2, nullptr);
 }
 
+enum KeyCmpFnKind {
+    KEY_CMP_FN_DEFAULT = 0,
+    KEY_CMP_FN_HASH_EQ_ID_CMP = 1,
+    KEY_CMP_FN_CUSTOM = 2,
+};
+
+static int KeyCmp_get_fn_kind(KeyCmp *self)
+{
+    if (self->vectorcall == KeyCmp_vectorcall_default) {
+        return KEY_CMP_FN_DEFAULT;
+    }
+    if (self->vectorcall != KeyCmp_vectorcall_custom || self->fn == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "invalid KeyCmp state");
+        return -1;
+    }
+
+    PyObject *module = PyType_GetModule(Py_TYPE(self));
+    if (module == nullptr) {
+        return -1;
+    }
+
+    PyObject *cmp_fn = PyObject_GetAttrString(module, "cmp");
+    if (cmp_fn == nullptr) {
+        return -1;
+    }
+    bool is_cmp = self->fn == cmp_fn;
+    Py_DECREF(cmp_fn);
+    if (is_cmp) {
+        return KEY_CMP_FN_DEFAULT;
+    }
+
+    PyObject *hash_eq_id_cmp_fn = PyObject_GetAttrString(module, "hash_eq_id_cmp");
+    if (hash_eq_id_cmp_fn == nullptr) {
+        return -1;
+    }
+    bool is_hash_eq_id_cmp = self->fn == hash_eq_id_cmp_fn;
+    Py_DECREF(hash_eq_id_cmp_fn);
+    if (is_hash_eq_id_cmp) {
+        return KEY_CMP_FN_HASH_EQ_ID_CMP;
+    }
+
+    return KEY_CMP_FN_CUSTOM;
+}
+
+static PyObject * KeyCmp_reduce(KeyCmp *self, PyObject *Py_UNUSED(ignored))
+{
+    int fn_kind = KeyCmp_get_fn_kind(self);
+    if (fn_kind < 0) {
+        return nullptr;
+    }
+
+    const char *fn_name = "_unpickle_key_cmp";
+    PyObject *args;
+    if (fn_kind == KEY_CMP_FN_DEFAULT) {
+        args = PyTuple_New(0);
+    } else if (fn_kind == KEY_CMP_FN_HASH_EQ_ID_CMP) {
+        fn_name = "_unpickle_key_cmp_hash_eq_id_cmp";
+        args = PyTuple_New(0);
+    } else {
+        args = PyTuple_Pack(1, self->fn);
+    }
+    if (args == nullptr) {
+        return nullptr;
+    }
+
+    PyObject *fn = get_public_comparison_attr(fn_name);
+    if (fn == nullptr) {
+        Py_DECREF(args);
+        return nullptr;
+    }
+    PyObject *result = PyTuple_Pack(2, fn, args);
+    Py_DECREF(fn);
+    Py_DECREF(args);
+    return result;
+}
+
+static PyMethodDef KeyCmp_methods[] = {
+    {"__reduce__", (PyCFunction)KeyCmp_reduce, METH_NOARGS, "Pickle support"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
 static PyMemberDef KeyCmp_members[] = {
     {"__vectorcalloffset__", T_PYSSIZET, offsetof(KeyCmp, vectorcall), READONLY, ""},
     {nullptr}
@@ -276,6 +368,7 @@ static PyType_Slot KeyCmp_slots[] = {
     {Py_tp_traverse, (void *) KeyCmp_traverse},
     {Py_tp_clear, (void *) KeyCmp_clear},
     {Py_tp_call, (void *) KeyCmp_call},
+    {Py_tp_methods, (void *) KeyCmp_methods},
     {Py_tp_members, (void *) KeyCmp_members},
     {Py_tp_doc, (void *) "Callable comparing tuples by first element"},
     {0, nullptr}

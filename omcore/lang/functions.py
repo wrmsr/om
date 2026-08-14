@@ -259,6 +259,33 @@ def opt_coalesce(*vs: T | None) -> T | None:
 ##
 
 
+class _Setter:
+    def __init__(self, item: bool, key: ta.Any, value: ta.Any = _MISSING) -> None:
+        super().__init__()
+
+        self._item = item
+        self._key = key
+        self._value = value
+
+    def __reduce__(self) -> tuple[ta.Callable[..., ta.Any], tuple[ta.Any, ...]]:
+        fn = _unpickle_itemsetter if self._item else _unpickle_attrsetter
+        args = (self._key,) if self._value is _MISSING else (self._key, self._value)
+        return (fn, args)
+
+    def __call__(self, o: ta.Any, v: ta.Any = _MISSING) -> None:
+        if self._value is not _MISSING:
+            if v is not _MISSING:
+                raise TypeError('setter takes exactly 1 argument')
+            v = self._value
+        elif v is _MISSING:
+            raise TypeError('setter takes exactly 2 arguments')
+
+        if self._item:
+            o[self._key] = v
+        else:
+            setattr(o, self._key, v)
+
+
 @ta.overload
 def attrsetter(a: str) -> ta.Callable[[ta.Any, ta.Any], None]: ...
 
@@ -268,14 +295,7 @@ def attrsetter(a: str, v: ta.Any) -> ta.Callable[[ta.Any], None]: ...
 
 
 def attrsetter(a, v=_MISSING):
-    if v is not _MISSING:
-        def f0(o):
-            setattr(o, a, v)
-        return f0
-    else:
-        def f1(o, v):
-            setattr(o, a, v)
-        return f1
+    return _Setter(False, a, v)
 
 
 @ta.overload
@@ -287,14 +307,15 @@ def itemsetter(k: ta.Any, v: ta.Any) -> ta.Callable[[ta.Any], None]: ...
 
 
 def itemsetter(k, v=_MISSING):
-    if v is not _MISSING:
-        def f0(o):
-            o[k] = v
-        return f0
-    else:
-        def f1(o, v):
-            o[k] = v
-        return f1
+    return _Setter(True, k, v)
+
+
+def _unpickle_attrsetter(a: str, *args: ta.Any) -> ta.Callable[..., None]:
+    return attrsetter(a, *args)
+
+
+def _unpickle_itemsetter(k: ta.Any, *args: ta.Any) -> ta.Callable[..., None]:
+    return itemsetter(k, *args)
 
 
 if _functions is not None:

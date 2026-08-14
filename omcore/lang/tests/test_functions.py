@@ -1,3 +1,4 @@
+import pickle
 import typing as ta
 
 import pytest
@@ -189,3 +190,28 @@ def test_itemsetter():
 
     itemsetter('ghi', 532)(d)
     assert d['ghi'] == 532
+
+
+@pytest.mark.parametrize('protocol', range(pickle.HIGHEST_PROTOCOL + 1))
+def test_setter_pickle(protocol) -> None:
+    for is_item, setter, call_args, expected in [
+        (False, attrsetter('value'), (420,), 420),
+        (False, attrsetter('value', None), (), None),
+        (True, itemsetter('value'), (420,), 420),
+        (True, itemsetter('value', None), (), None),
+    ]:
+        payload = pickle.dumps(setter, protocol)
+        assert b'omcore.lang._functions' not in payload
+
+        setter2 = pickle.loads(payload)  # noqa
+        if is_item:
+            target: ta.Any = {}
+            setter2(target, *call_args)
+            assert target['value'] == expected
+        else:
+            class Target:
+                pass
+
+            target = Target()
+            setter2(target, *call_args)
+            assert target.value == expected

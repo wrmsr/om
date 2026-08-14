@@ -1,8 +1,11 @@
+import operator
+import pickle
 import typing as ta
 
 import pytest
 
 from ..comparison import cmp
+from ..comparison import hash_eq_id_cmp
 from ..comparison import key_cmp
 
 
@@ -102,3 +105,18 @@ def test_key_cmp_can_sort_with_custom_reverse_key_order() -> None:
 
     got = sorted(items, key=functools.cmp_to_key(key_cmp(reverse_cmp)))
     assert got == [(3, 'c'), (2, 'x'), (1, 'z')]
+
+
+@pytest.mark.parametrize('protocol', range(pickle.HIGHEST_PROTOCOL + 1))
+def test_key_cmp_pickle(protocol) -> None:
+    for kc in [
+        key_cmp(),
+        key_cmp(cmp),
+        key_cmp(hash_eq_id_cmp),
+        key_cmp(operator.sub),
+    ]:
+        payload = pickle.dumps(kc, protocol)
+        assert b'omcore.lang._comparison' not in payload
+
+        kc2 = pickle.loads(payload)  # noqa
+        assert kc2((1, 'a'), (2, 'b')) == kc((1, 'a'), (2, 'b'))
