@@ -229,6 +229,7 @@ class PyprojectCli(ArgparseCli):
         argparse_arg('-b', '--build', action='store_true'),
         argparse_arg('-r', '--revision', action='store_true'),
         argparse_arg('-j', '--jobs', type=int),
+        argparse_arg('-S', '--suffix', action='append'),
         argparse_arg('cmd', nargs='?'),
         argparse_arg('args', nargs=argparse.REMAINDER),
     )
@@ -260,6 +261,8 @@ class PyprojectCli(ArgparseCli):
                 for dir_name in run.cfg().pkgs
             ]
             pgs = list(itertools.chain.from_iterable([pg, *pg.children()] for pg in pgs))
+            if self.args.suffix is not None:
+                pgs = [pg for pg in pgs if pg.pkg_suffix.lstrip('-') in self.args.suffix]
 
             num_threads = self.args.jobs or int(max(mp.cpu_count() // 1.5, 1))
             futs: ta.List[cf.Future]
@@ -281,6 +284,40 @@ class PyprojectCli(ArgparseCli):
                     ]
                     for fut in futs:
                         fut.result()
+
+        elif cmd == 'build':
+            pkgs_root = os.path.join('.pkg')
+
+            build_output_dir = 'dist'
+            add_revision = bool(self.args.revision)
+
+            os.makedirs(build_output_dir, exist_ok=True)
+
+            pgs = [
+                PyprojectPackageGenerator(
+                    dir_name,
+                    pkgs_root,
+                )
+                for dir_name in run.cfg().pkgs
+            ]
+            pgs = list(itertools.chain.from_iterable([pg, *pg.children()] for pg in pgs))
+            if self.args.suffix is not None:
+                pgs = [pg for pg in pgs if pg.pkg_suffix.lstrip('-') in self.args.suffix]
+
+            num_threads = self.args.jobs or int(max(mp.cpu_count() // 1.5, 1))
+            with cf.ThreadPoolExecutor(num_threads) as ex:
+                futs = [
+                    ex.submit(functools.partial(
+                        pg.build,
+                        build_output_dir,
+                        BasePyprojectPackageGenerator.BuildOpts(
+                            add_revision=add_revision,
+                        ),
+                    ))
+                    for pg in pgs
+                ]
+                for fut in futs:
+                    fut.result()
 
         else:
             raise Exception(f'unknown subcommand: {cmd}')

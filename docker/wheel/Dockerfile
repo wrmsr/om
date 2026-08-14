@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-
 ##
 # Build-only image producing portable (manylinux) linux wheels.
 #
@@ -14,6 +13,7 @@ ARG TEST_IMAGE=python:3.14-slim
 
 FROM quay.io/pypa/manylinux_2_28_x86_64 AS base-amd64
 FROM quay.io/pypa/manylinux_2_28_aarch64 AS base-arm64
+
 
 ##
 
@@ -55,13 +55,27 @@ import sys
 import sysconfig
 
 for dist in sys.argv[1:]:
-    tl = (md.distribution(dist).read_text('top_level.txt') or dist.replace('-', '_')).split()
-    for name in tl:
+    d = md.distribution(dist)
+    mods = []
+    for f in (d.files or []):
+        # skip auditwheel's vendored-lib dirs and metadata - not importable
+        if f.parts[0].endswith(('.libs', '.dist-info')):
+            continue
+        if f.name.endswith('.so'):
+            mods.append('.'.join((*f.parts[:-1], f.name.split('.', 1)[0])))
+    if not mods:
+        mods = (d.read_text('top_level.txt') or dist.replace('-', '_')).split()
+    for name in sorted(mods):
         mod = importlib.import_module(name)
-        print('imported', mod.__name__, 'from', mod.__file__)
+        print('imported', mod.__name__, 'from', getattr(mod, '__file__', '?'))
 
 assert not (sysconfig.get_config_var('Py_GIL_DISABLED') and sys._is_gil_enabled())
 CHECKEOF
+
+# /deps: named context (--build-context deps=...) holding the repo dist/ - sdists + universal wheels of the pure root
+# packages. Layered secondaries resolve their root deps from it offline; darwin/incompatible wheels in the dir are
+# ignored by pip's tag filtering.
+COPY --from=deps . /deps/
 
 # Check every repaired wheel with its own interpreter. Wheels are selected per interpreter via the {python}-{abi} tag
 # pair in their filenames (which is exactly the /opt/python dirname), installed by *path* so no dist name is needed, and
@@ -74,10 +88,11 @@ RUN set -eux; \
     cd /tmp; \
     for py in ${PYTHONS}; do \
         pybin="/opt/python/${py}/bin"; \
-        "${pybin}/python" -m pip install --no-deps /out/*-"${py}"-*.whl; \
+        "${pybin}/python" -m pip install --no-index --find-links /deps /out/*-"${py}"-*.whl; \
         dists="$(for w in /out/*-"${py}"-*.whl; do basename "${w}" | cut -d- -f1; done | sort -u)"; \
         "${pybin}/python" /check.py ${dists}; \
     done
+
 
 ##
 
@@ -90,13 +105,15 @@ ARG TEST_TAG=cp314-cp314
 
 COPY --from=build /check.py /check.py
 COPY --from=build /out /wheels
+COPY --from=deps . /deps/
 
 RUN set -eux; \
     cd /tmp; \
-    pip install --no-deps /wheels/*-"${TEST_TAG}"-*.whl; \
+    pip install --find-links /deps /wheels/*-"${TEST_TAG}"-*.whl; \
     dists="$(for w in /wheels/*-"${TEST_TAG}"-*.whl; do basename "${w}" | cut -d- -f1; done | sort -u)"; \
     python /check.py ${dists}; \
     echo 'smoke test ok'
+
 
 ##
 

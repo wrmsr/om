@@ -78,6 +78,10 @@ class BasePyprojectPackageGenerator(Abstract):
         self._pkgs_root = pkgs_root
         self._pkg_suffix = pkg_suffix
 
+    @property
+    def pkg_suffix(self) -> str:
+        return self._pkg_suffix
+
     #
 
     @cached_nullary
@@ -88,6 +92,10 @@ class BasePyprojectPackageGenerator(Abstract):
 
     @cached_nullary
     def _pkg_dir(self) -> str:
+        return os.path.join(self._pkgs_root, self._dir_name + self._pkg_suffix)
+
+    @cached_nullary
+    def _cleaned_pkg_dir(self) -> str:
         pkg_dir: str = os.path.join(self._pkgs_root, self._dir_name + self._pkg_suffix)
         if os.path.isdir(pkg_dir):
             shutil.rmtree(pkg_dir)
@@ -103,15 +111,15 @@ class BasePyprojectPackageGenerator(Abstract):
     ]
 
     def _write_git_ignore(self) -> None:
-        with open(os.path.join(self._pkg_dir(), '.gitignore'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), '.gitignore'), 'w') as f:
             f.write('\n'.join([*self._GIT_IGNORE, '']))
 
     #
 
     def _symlink_source_dir(self) -> None:
         os.symlink(
-            os.path.relpath(self._dir_name, self._pkg_dir()),
-            os.path.join(self._pkg_dir(), self._dir_name),
+            os.path.relpath(self._dir_name, self._cleaned_pkg_dir()),
+            os.path.join(self._cleaned_pkg_dir(), self._dir_name),
         )
 
     #
@@ -240,12 +248,12 @@ class BasePyprojectPackageGenerator(Abstract):
     def _symlink_standard_files(self) -> None:
         for fn in self._STANDARD_FILES:
             for tp in [
-                [self._pkg_dir(), self._dir_name],
+                [self._cleaned_pkg_dir(), self._dir_name],
                 [],
             ]:
                 fp = os.path.join(*tp, fn)
                 if os.path.exists(fp):
-                    os.symlink(os.path.relpath(fp, self._pkg_dir()), os.path.join(self._pkg_dir(), fn))
+                    os.symlink(os.path.relpath(fp, self._cleaned_pkg_dir()), os.path.join(self._cleaned_pkg_dir(), fn))
                     break
 
     #
@@ -258,13 +266,13 @@ class BasePyprojectPackageGenerator(Abstract):
     def gen(self) -> str:
         log.info('Generating pyproject package: %s -> %s (%s)', self._dir_name, self._pkgs_root, self._pkg_suffix)
 
-        self._pkg_dir()
+        self._cleaned_pkg_dir()
         self._write_git_ignore()
         self._symlink_source_dir()
         self._write_file_contents()
         self._symlink_standard_files()
 
-        return self._pkg_dir()
+        return self._cleaned_pkg_dir()
 
     #
 
@@ -433,11 +441,11 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
     def _write_file_contents(self) -> None:
         fc = self.file_contents()
 
-        with open(os.path.join(self._pkg_dir(), 'pyproject.toml'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
             TomlWriter(f).write_root(fc.pyproject_dct)
 
         if fc.manifest_in:
-            with open(os.path.join(self._pkg_dir(), 'MANIFEST.in'), 'w') as f:
+            with open(os.path.join(self._cleaned_pkg_dir(), 'MANIFEST.in'), 'w') as f:
                 f.write('\n'.join([*fc.manifest_in, '']))  # noqa
 
     #
@@ -530,14 +538,14 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
     def _write_file_contents(self) -> None:
         fc = self.file_contents()
 
-        with open(os.path.join(self._pkg_dir(), 'pyproject.toml'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
             TomlWriter(f).write_root(fc.pyproject_dct)
 
-        with open(os.path.join(self._pkg_dir(), 'setup.py'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), 'setup.py'), 'w') as f:
             f.write(fc.setup_py)
 
         if fc.manifest_in:
-            with open(os.path.join(self._pkg_dir(), 'MANIFEST.in'), 'w') as f:
+            with open(os.path.join(self._cleaned_pkg_dir(), 'MANIFEST.in'), 'w') as f:
                 f.write('\n'.join([*fc.manifest_in, '']))  # noqa
 
 
@@ -1085,5 +1093,5 @@ class _PyprojectCliPackageGenerator(BasePyprojectPackageGenerator):
     def _write_file_contents(self) -> None:
         fc = self.file_contents()
 
-        with open(os.path.join(self._pkg_dir(), 'pyproject.toml'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
             TomlWriter(f).write_root(fc.pyproject_dct)

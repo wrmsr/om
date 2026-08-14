@@ -156,7 +156,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='b45143bec5fbc9b4f9c6424601e37e348c29ea9f'),
+            dict(path='pkg.py', sha1='0d7711930ff032230b9fd6b27f9ce6dacaaf9d85'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -166,7 +166,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/venvs.py', sha1='9042c733bff897c3390b1886de115f1bbaaaa9d0'),
             dict(path='configs.py', sha1='e938253bc84400f27e3e0ddab644158441442d3f'),
             dict(path='venvs.py', sha1='3c4688c71f5345b199cf29aaa6dd7871b40a8959'),
-            dict(path='cli.py', sha1='325e4685fe2d3b7e4695e9e81f4ed92f4a859d20'),
+            dict(path='cli.py', sha1='2027b3658bbff4edaffec217e20175f3c5d91e8a'),
         ],
     )
 
@@ -12701,6 +12701,10 @@ class BasePyprojectPackageGenerator(Abstract):
         self._pkgs_root = pkgs_root
         self._pkg_suffix = pkg_suffix
 
+    @property
+    def pkg_suffix(self) -> str:
+        return self._pkg_suffix
+
     #
 
     @cached_nullary
@@ -12711,6 +12715,10 @@ class BasePyprojectPackageGenerator(Abstract):
 
     @cached_nullary
     def _pkg_dir(self) -> str:
+        return os.path.join(self._pkgs_root, self._dir_name + self._pkg_suffix)
+
+    @cached_nullary
+    def _cleaned_pkg_dir(self) -> str:
         pkg_dir: str = os.path.join(self._pkgs_root, self._dir_name + self._pkg_suffix)
         if os.path.isdir(pkg_dir):
             shutil.rmtree(pkg_dir)
@@ -12726,15 +12734,15 @@ class BasePyprojectPackageGenerator(Abstract):
     ]
 
     def _write_git_ignore(self) -> None:
-        with open(os.path.join(self._pkg_dir(), '.gitignore'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), '.gitignore'), 'w') as f:
             f.write('\n'.join([*self._GIT_IGNORE, '']))
 
     #
 
     def _symlink_source_dir(self) -> None:
         os.symlink(
-            os.path.relpath(self._dir_name, self._pkg_dir()),
-            os.path.join(self._pkg_dir(), self._dir_name),
+            os.path.relpath(self._dir_name, self._cleaned_pkg_dir()),
+            os.path.join(self._cleaned_pkg_dir(), self._dir_name),
         )
 
     #
@@ -12863,12 +12871,12 @@ class BasePyprojectPackageGenerator(Abstract):
     def _symlink_standard_files(self) -> None:
         for fn in self._STANDARD_FILES:
             for tp in [
-                [self._pkg_dir(), self._dir_name],
+                [self._cleaned_pkg_dir(), self._dir_name],
                 [],
             ]:
                 fp = os.path.join(*tp, fn)
                 if os.path.exists(fp):
-                    os.symlink(os.path.relpath(fp, self._pkg_dir()), os.path.join(self._pkg_dir(), fn))
+                    os.symlink(os.path.relpath(fp, self._cleaned_pkg_dir()), os.path.join(self._cleaned_pkg_dir(), fn))
                     break
 
     #
@@ -12881,13 +12889,13 @@ class BasePyprojectPackageGenerator(Abstract):
     def gen(self) -> str:
         log.info('Generating pyproject package: %s -> %s (%s)', self._dir_name, self._pkgs_root, self._pkg_suffix)
 
-        self._pkg_dir()
+        self._cleaned_pkg_dir()
         self._write_git_ignore()
         self._symlink_source_dir()
         self._write_file_contents()
         self._symlink_standard_files()
 
-        return self._pkg_dir()
+        return self._cleaned_pkg_dir()
 
     #
 
@@ -13056,11 +13064,11 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
     def _write_file_contents(self) -> None:
         fc = self.file_contents()
 
-        with open(os.path.join(self._pkg_dir(), 'pyproject.toml'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
             TomlWriter(f).write_root(fc.pyproject_dct)
 
         if fc.manifest_in:
-            with open(os.path.join(self._pkg_dir(), 'MANIFEST.in'), 'w') as f:
+            with open(os.path.join(self._cleaned_pkg_dir(), 'MANIFEST.in'), 'w') as f:
                 f.write('\n'.join([*fc.manifest_in, '']))  # noqa
 
     #
@@ -13153,14 +13161,14 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
     def _write_file_contents(self) -> None:
         fc = self.file_contents()
 
-        with open(os.path.join(self._pkg_dir(), 'pyproject.toml'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
             TomlWriter(f).write_root(fc.pyproject_dct)
 
-        with open(os.path.join(self._pkg_dir(), 'setup.py'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), 'setup.py'), 'w') as f:
             f.write(fc.setup_py)
 
         if fc.manifest_in:
-            with open(os.path.join(self._pkg_dir(), 'MANIFEST.in'), 'w') as f:
+            with open(os.path.join(self._cleaned_pkg_dir(), 'MANIFEST.in'), 'w') as f:
                 f.write('\n'.join([*fc.manifest_in, '']))  # noqa
 
 
@@ -13708,7 +13716,7 @@ class _PyprojectCliPackageGenerator(BasePyprojectPackageGenerator):
     def _write_file_contents(self) -> None:
         fc = self.file_contents()
 
-        with open(os.path.join(self._pkg_dir(), 'pyproject.toml'), 'w') as f:
+        with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
             TomlWriter(f).write_root(fc.pyproject_dct)
 
 
@@ -14460,6 +14468,7 @@ class PyprojectCli(ArgparseCli):
         argparse_arg('-b', '--build', action='store_true'),
         argparse_arg('-r', '--revision', action='store_true'),
         argparse_arg('-j', '--jobs', type=int),
+        argparse_arg('-S', '--suffix', action='append'),
         argparse_arg('cmd', nargs='?'),
         argparse_arg('args', nargs=argparse.REMAINDER),
     )
@@ -14491,6 +14500,8 @@ class PyprojectCli(ArgparseCli):
                 for dir_name in run.cfg().pkgs
             ]
             pgs = list(itertools.chain.from_iterable([pg, *pg.children()] for pg in pgs))
+            if self.args.suffix is not None:
+                pgs = [pg for pg in pgs if pg.pkg_suffix.lstrip('-') in self.args.suffix]
 
             num_threads = self.args.jobs or int(max(mp.cpu_count() // 1.5, 1))
             futs: ta.List[cf.Future]
@@ -14512,6 +14523,40 @@ class PyprojectCli(ArgparseCli):
                     ]
                     for fut in futs:
                         fut.result()
+
+        elif cmd == 'build':
+            pkgs_root = os.path.join('.pkg')
+
+            build_output_dir = 'dist'
+            add_revision = bool(self.args.revision)
+
+            os.makedirs(build_output_dir, exist_ok=True)
+
+            pgs = [
+                PyprojectPackageGenerator(
+                    dir_name,
+                    pkgs_root,
+                )
+                for dir_name in run.cfg().pkgs
+            ]
+            pgs = list(itertools.chain.from_iterable([pg, *pg.children()] for pg in pgs))
+            if self.args.suffix is not None:
+                pgs = [pg for pg in pgs if pg.pkg_suffix.lstrip('-') in self.args.suffix]
+
+            num_threads = self.args.jobs or int(max(mp.cpu_count() // 1.5, 1))
+            with cf.ThreadPoolExecutor(num_threads) as ex:
+                futs = [
+                    ex.submit(functools.partial(
+                        pg.build,
+                        build_output_dir,
+                        BasePyprojectPackageGenerator.BuildOpts(
+                            add_revision=add_revision,
+                        ),
+                    ))
+                    for pg in pgs
+                ]
+                for fut in futs:
+                    fut.result()
 
         else:
             raise Exception(f'unknown subcommand: {cmd}')

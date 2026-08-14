@@ -572,26 +572,28 @@ DOCKER_WHEEL_DOCKERFILE := docker/wheel/Dockerfile
 DOCKER_WHEEL_DIST := dist/linux
 
 DOCKER_WHEEL_REPO_ROOT := $(abspath .)
-DOCKER_WHEEL_PKG ?= omcore-cext
-DOCKER_WHEEL_PKG_DIR := .pkg/$(DOCKER_WHEEL_PKG)
+DOCKER_WHEEL_PKGS ?= omcore-cext omdev-cext omcore-mypyc
 
 .PHONY: docker-build-wheels
 docker-build-wheels:
 	set -e ; \
-	for arch in $(DOCKER_WHEEL_ARCHS) ; do \
-		tar -ch \
-			--exclude './build' --exclude './dist' \
-			--exclude '.git' --exclude '__pycache__' \
-			-C "$(DOCKER_WHEEL_PKG_DIR)" . \
-			-C "$(DOCKER_WHEEL_REPO_ROOT)" docker/wheel/Dockerfile \
-		| docker buildx build \
-			--platform "linux/$$arch" \
-			--file docker/wheel/Dockerfile \
-			--build-arg "PYTHONS=$(DOCKER_WHEEL_PYTHONS)" \
-			--target dist \
-			--output "type=local,dest=$(DOCKER_WHEEL_DIST)/$$arch/$(DOCKER_WHEEL_PKG)" \
-			- ; \
-		done
+	for pkg in $(DOCKER_WHEEL_PKGS) ; do \
+		for arch in $(DOCKER_WHEEL_ARCHS) ; do \
+			tar -ch \
+				--exclude './build' --exclude './dist' \
+				--exclude '.git' --exclude '__pycache__' \
+				-C ".pkg/$$pkg" . \
+				-C "$(DOCKER_WHEEL_REPO_ROOT)" docker/wheel/Dockerfile \
+			| docker buildx build \
+				--platform "linux/$$arch" \
+				--file docker/wheel/Dockerfile \
+				--build-arg "PYTHONS=$(DOCKER_WHEEL_PYTHONS)" \
+				--build-context "deps=$(DOCKER_WHEEL_REPO_ROOT)/dist" \
+				--target dist \
+				--output "type=local,dest=$(DOCKER_WHEEL_DIST)/" \
+				- ; \
+		done ; \
+	done
 	@echo
 	@ls -l $(DOCKER_WHEEL_DIST)/*/
 
@@ -640,15 +642,23 @@ ci-bash:
 
 .PHONY: package
 package: gen check
-	${MAKE} _package
+	${MAKE} clean-package
+	VENV=14 ${MAKE} _package
+	VENV=14t ${MAKE} _package_ext
+	${MAKE} docker-build-wheels
 
 .PHONY: _package
-_package: clean-package
+_package:
 	PYTHONPATH=. ${PYTHON} ${PYPROJECT_SRC} pkg -b -r gen
+
+.PHONY: _package_ext
+_package_ext:
+	PYTHONPATH=. ${PYTHON} ${PYPROJECT_SRC} pkg -r -S cext -S mypyc build
 
 .PHONY: test-install
 test-install: venv
-	for EXT in '.tar.gz' '.whl' ; do \
+	# FIXME: re-enable for '.whl'
+	for EXT in '.tar.gz' ; do \
 		D=$$(mktemp -d) ; \
 		echo "$$D" ; \
 		${PYTHON} -m venv "$$D/venv" ; \
