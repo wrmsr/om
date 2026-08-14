@@ -294,6 +294,17 @@ def _format_ns(value: float | None) -> str:
     return f'{value / 1_000_000:.2f} ms'
 
 
+def _format_ns_plain(value: float | None) -> str:
+    if value is None:
+        return '-'
+    return f'{value:,.1f} ns'
+
+
+# Actual runtimes are not knowable before the run, so the uniform-nanoseconds columns are preemptively sized for
+# ~9.99 seconds worth of them.
+_PLAIN_NS_WIDTH: ta.Final[int] = len(_format_ns_plain(9.99e9))
+
+
 def _format_bytes(value: int | None) -> str:
     if value is None:
         return '-'
@@ -309,15 +320,22 @@ def _print_human_result(
         *,
         implementation_width: int,
         name_width: int,
+        plain_ns: bool = False,
 ) -> None:
     noisy = ' !' if result.runtime_spread is not None and result.runtime_spread > 1.5 else ''
     name = f'{result.suite}/{result.operation}'
+    if plain_ns:
+        format_ns = _format_ns_plain
+        ns_width = _PLAIN_NS_WIDTH
+    else:
+        format_ns = _format_ns
+        ns_width = 10
     print(
         f'{result.implementation:{implementation_width}} '
         f'{name:{name_width}} '
         f'n={result.size:<6} '
-        f'min={_format_ns(result.runtime_min_ns_per_op):>10} '
-        f'median={_format_ns(result.runtime_median_ns_per_op):>10} '
+        f'min={format_ns(result.runtime_min_ns_per_op):>{ns_width}} '
+        f'median={format_ns(result.runtime_median_ns_per_op):>{ns_width}} '
         f'peak={_format_bytes(result.memory_peak_bytes):>10}'
         f'{noisy}',
     )
@@ -386,6 +404,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--max-cycles', type=_positive_int, default=256)
     parser.add_argument('--max-setup-items', type=_positive_int, default=20_000)
     parser.add_argument('--fast', action='store_true', help='use fewer repetitions and target operations')
+    parser.add_argument('--ns', action='store_true', help='report timings uniformly in nanoseconds')
     measurement = parser.add_mutually_exclusive_group()
     measurement.add_argument('--runtime-only', action='store_true')
     measurement.add_argument('--memory-only', action='store_true')
@@ -439,6 +458,7 @@ def main() -> None:
                 result,
                 implementation_width=implementation_width,
                 name_width=name_width,
+                plain_ns=args.ns,
             )
 
     if args.as_json:
