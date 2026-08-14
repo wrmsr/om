@@ -241,7 +241,7 @@ def _run_benchmark(params: _BenchmarkParams) -> BenchmarkResult:
     )
 
 
-def run(config: RunConfig) -> ta.Iterator[BenchmarkResult]:
+def _plan(config: RunConfig) -> tuple[_BenchmarkParams, ...]:
     implementations = _select_implementations(config)
 
     all_params: list[_BenchmarkParams] = []
@@ -269,8 +269,16 @@ def run(config: RunConfig) -> ta.Iterator[BenchmarkResult]:
             grouped_params.setdefault(p.workload, {}).setdefault(p.size, []).append(p)
         all_params = [p for d2 in grouped_params.values() for ps in d2.values() for p in ps]
 
-    for p in all_params:
+    return tuple(all_params)
+
+
+def _run_params(params: ta.Iterable[_BenchmarkParams]) -> ta.Iterator[BenchmarkResult]:
+    for p in params:
         yield _run_benchmark(p)
+
+
+def run(config: RunConfig) -> ta.Iterator[BenchmarkResult]:
+    return _run_params(_plan(config))
 
 
 ##
@@ -296,12 +304,17 @@ def _format_bytes(value: int | None) -> str:
     return f'{value / (1024 * 1024):.2f} MiB'
 
 
-def _print_human_result(result: BenchmarkResult) -> None:
+def _print_human_result(
+        result: BenchmarkResult,
+        *,
+        implementation_width: int,
+        name_width: int,
+) -> None:
     noisy = ' !' if result.runtime_spread is not None and result.runtime_spread > 1.5 else ''
     name = f'{result.suite}/{result.operation}'
     print(
-        f'{result.implementation:30} '
-        f'{name:42} '
+        f'{result.implementation:{implementation_width}} '
+        f'{name:{name_width}} '
         f'n={result.size:<6} '
         f'min={_format_ns(result.runtime_min_ns_per_op):>10} '
         f'median={_format_ns(result.runtime_median_ns_per_op):>10} '
@@ -412,11 +425,21 @@ def main() -> None:
         print(f'python {platform.python_version()} on {platform.platform()}')
         print('runtime is per logical operation; memory retained/peak is the one-cycle tracemalloc delta')
 
+    # The full parameter list is known before anything runs, so the human output's implementation and name columns
+    # are sized to the widest values this run will actually print.
+    params = _plan(config)
+    implementation_width = max((len(p.implementation.name) for p in params), default=1)
+    name_width = max((len(f'{p.workload.suite}/{p.workload.name}') for p in params), default=1)
+
     results: list[BenchmarkResult] = []
-    for result in run(config):
+    for result in _run_params(params):
         results.append(result)
         if not args.as_json and not args.as_csv:
-            _print_human_result(result)
+            _print_human_result(
+                result,
+                implementation_width=implementation_width,
+                name_width=name_width,
+            )
 
     if args.as_json:
         _print_json(results)
