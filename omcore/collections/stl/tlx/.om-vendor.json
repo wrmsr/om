@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/tlx/tlx",
+  "rev": "2dd63ab839909f0b43cd02108a1869c4670b2c8e",
+  "ref": null,
+  "files": [
+    "LICENSE",
+    "tlx/container/btree.hpp",
+    "tlx/container/btree_map.hpp",
+    "tlx/container/btree_set.hpp",
+    "tlx/die/core.cpp",
+    "tlx/die/core.hpp"
+  ]
+}

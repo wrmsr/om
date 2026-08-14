@@ -58,6 +58,7 @@ st.setup(
             name='omcore.collections.stl._stl',
             sources=[
                 'omcore/collections/stl/_stl.cc',
+                'omcore/collections/stl/tlx/tlx/die/core.cpp',
             ],
             extra_compile_args=[
                 '-std=c++20',

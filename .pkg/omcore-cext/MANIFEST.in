@@ -1,4 +1,8 @@
 include omcore/collections/stl/base.hh
 include omcore/collections/stl/map.hh
 include omcore/collections/stl/set.hh
+include omcore/collections/stl/tlx/tlx/container/btree.hpp
+include omcore/collections/stl/tlx/tlx/container/btree_map.hpp
+include omcore/collections/stl/tlx/tlx/container/btree_set.hpp
+include omcore/collections/stl/tlx/tlx/die/core.hpp
 include omcore/collections/stl/vec.hh

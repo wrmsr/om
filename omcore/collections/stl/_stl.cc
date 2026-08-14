@@ -1,9 +1,11 @@
 // @om-cext {
 //   "extra_sources": [
-//     "*.cc"
+//     "*.cc",
+//     "tlx/**/*.cpp"
 //   ],
 //   "extra_headers": [
-//     "*.hh"
+//     "*.hh",
+//     "tlx/**/*.hpp"
 //   ],
 //   "extra_compile_args": [
 //     "-fvisibility=hidden"
