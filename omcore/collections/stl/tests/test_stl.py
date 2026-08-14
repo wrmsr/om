@@ -22,9 +22,15 @@ INT_DTYPES = [
     'uint64-raise',
     'uint64-clamp',
     'uint64-wrap',
+    'int32-raise',
+    'int32-clamp',
+    'int32-wrap',
+    'int16-raise',
+    'int16-clamp',
+    'int16-wrap',
 ]
 
-ALL_DTYPES = ['object', 'float64', *INT_DTYPES]
+ALL_DTYPES = ['object', 'float64', 'float32', *INT_DTYPES]
 
 SET_CLASSES = [fc.Set, fc.UnorderedSet]
 MAP_CLASSES = [fc.Map, fc.UnorderedMap]
@@ -40,6 +46,9 @@ def sample_keys(dtype, n=40, seed=0):
         return [rnd.choice(['a', 'b', 'c', 'dd', 'ee', 'f']) + str(rnd.randrange(10)) for _ in range(n)]
     if dtype == 'float64':
         return [round(rnd.uniform(-50.0, 50.0), 2) for _ in range(n)]
+    if dtype == 'float32':
+        # Quarters are exactly representable at float32 width, so values round-trip through narrowed storage.
+        return [rnd.randrange(-800, 800) / 4 for _ in range(n)]
     return [rnd.randrange(0, 200) for _ in range(n)]
 
 
@@ -56,15 +65,25 @@ def test_dtypes_tuple():
         'uint64-raise',
         'uint64-clamp',
         'uint64-wrap',
+        'int32-raise',
+        'int32-clamp',
+        'int32-wrap',
+        'int16-raise',
+        'int16-clamp',
+        'int16-wrap',
         'float64',
+        'float32',
     )
 
 
 @pytest.mark.parametrize(('alias', 'canon'), [
     ('int64', 'int64-raise'),
     ('uint64', 'uint64-raise'),
+    ('int32', 'int32-raise'),
+    ('int16', 'int16-raise'),
     ('object', 'object'),
     ('float64', 'float64'),
+    ('float32', 'float32'),
 ])
 def test_dtype_aliases(alias, canon):
     assert fc.Set(alias).dtype == canon
@@ -74,7 +93,7 @@ def test_dtype_aliases(alias, canon):
     assert m.value_type == canon
 
 
-@pytest.mark.parametrize('bad', ['int32', 'Object', 'object ', '', 'float', 'object\x00junk', 'int64\x00'])
+@pytest.mark.parametrize('bad', ['int8', 'uint32', 'Object', 'object ', '', 'float', 'object\x00junk', 'int64\x00'])
 def test_bad_dtype(bad):
     with pytest.raises(ValueError):  # noqa
         fc.Set(bad)
@@ -279,6 +298,55 @@ def test_overflow_modes(make):
     add(c, -1)
     add(c, 2 ** 64 + 3)
     assert sorted(dump(c)) == [3, UINT64_MAX]
+
+
+@pytest.mark.parametrize(('dt', 'bits'), [('int32', 32), ('int16', 16)])
+def test_narrow_int_overflow_modes(dt, bits):
+    lo = -2 ** (bits - 1)
+    hi = 2 ** (bits - 1) - 1
+
+    s = fc.Set(f'{dt}-raise')
+    with pytest.raises(OverflowError):
+        s.add(hi + 1)
+    with pytest.raises(OverflowError):
+        s.add(lo - 1)
+    with pytest.raises(OverflowError):
+        s.add(2 ** 100)
+    s.add(hi)
+    s.add(lo)
+    assert sorted(s) == [lo, hi]
+    assert (hi + 1) not in s  # probe semantics: unrepresentable values are simply absent
+
+    c = fc.Set(f'{dt}-clamp')
+    c.add(hi + 5)
+    c.add(lo - 5)
+    c.add(2 ** 100)
+    c.add(-2 ** 100)
+    assert sorted(c) == [lo, hi]
+
+    w = fc.Vector(f'{dt}-wrap', [hi + 1, 2 ** bits + 3, -1, 2 ** 100])
+    assert list(w) == [lo, 3, -1, 0]
+
+
+def test_float32_semantics():
+    v = fc.Vector('float32', [0.1])
+    assert 0.1 in v  # the probe narrows the same way as storage did
+    assert v[0] != 0.1  # but the stored value boxes back widened, no longer equal to the double
+    assert abs(v[0] - 0.1) < 1e-7
+    assert v.count(0.1) == 1
+    assert v.index(0.1) == 0
+
+    nan = float('nan')
+    inf = float('inf')
+    s = fc.Set('float32', [nan, float('nan'), -0.0, 0.0, 1e300])
+    assert len(s) == 3  # one nan key, one zero key, and 1e300 narrowed to inf
+    assert nan in s
+    assert inf in s
+
+    m = fc.UnorderedMap('float32', 'float32', [(0.5, 0.25)])
+    assert m[0.5] == 0.25  # exactly representable values round-trip untouched
+    assert m.key_type == 'float32'
+    assert pickle.loads(pickle.dumps(m)) == m  # noqa
 
 
 def test_int_coercion():
@@ -1039,6 +1107,9 @@ def _pickle_cases():
         fc.Vector('object', ['a', 1, None, ['x']]),
         fc.Vector('float64', [nan, -0.0, 2.5]),
         fc.Vector('uint64-raise'),
+        fc.Set('float32', [1.5, nan]),
+        fc.Map('int32-clamp', 'int16-wrap', [(1, 2), (3, 4)]),
+        fc.Vector('int16-wrap', [1, -1]),
     ]
 
 
@@ -1195,6 +1266,9 @@ def test_repr_round_trip():
             fc.UnorderedMap('object', 'object', [('k', 'v')]),
             fc.Vector('uint64-clamp', [1, 2]),
             fc.Vector('object', []),
+            fc.Set('int32-wrap', [2, 1]),
+            fc.Vector('float32', [0.5]),
+            fc.Map('int16', 'float32', [(1, 1.5)]),
     ):
         r = repr(c)
         assert type(c).__name__ in r

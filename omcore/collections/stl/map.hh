@@ -734,9 +734,16 @@ static MapLikeImpl *new_sorted_map_impl(Ovf kovf, Dt vd, Ovf vovf) {
             return new SortedMapImpl<K, Int64Traits>(kovf, vovf);
         case Dt::U64:
             return new SortedMapImpl<K, UInt64Traits>(kovf, vovf);
-        default:
+        case Dt::F64:
             return new SortedMapImpl<K, Float64Traits>(kovf, vovf);
+        case Dt::I32:
+            return new SortedMapImpl<K, Int32Traits>(kovf, vovf);
+        case Dt::I16:
+            return new SortedMapImpl<K, Int16Traits>(kovf, vovf);
+        case Dt::F32:
+            return new SortedMapImpl<K, Float32Traits>(kovf, vovf);
     }
+    Py_UNREACHABLE();
 }
 
 
@@ -749,9 +756,16 @@ static MapLikeImpl *new_hash_map_impl(Ovf kovf, Dt vd, Ovf vovf) {
             return new HashMapImpl<K, Int64Traits>(kovf, vovf);
         case Dt::U64:
             return new HashMapImpl<K, UInt64Traits>(kovf, vovf);
-        default:
+        case Dt::F64:
             return new HashMapImpl<K, Float64Traits>(kovf, vovf);
+        case Dt::I32:
+            return new HashMapImpl<K, Int32Traits>(kovf, vovf);
+        case Dt::I16:
+            return new HashMapImpl<K, Int16Traits>(kovf, vovf);
+        case Dt::F32:
+            return new HashMapImpl<K, Float32Traits>(kovf, vovf);
     }
+    Py_UNREACHABLE();
 }
 
 
@@ -764,9 +778,16 @@ inline MapLikeImpl *new_map_impl(ColKind kind, Dt kd, Ovf kovf, Dt vd, Ovf vovf)
                 return new_sorted_map_impl<Int64Traits>(kovf, vd, vovf);
             case Dt::U64:
                 return new_sorted_map_impl<UInt64Traits>(kovf, vd, vovf);
-            default:
+            case Dt::F64:
                 return new_sorted_map_impl<Float64Traits>(kovf, vd, vovf);
+            case Dt::I32:
+                return new_sorted_map_impl<Int32Traits>(kovf, vd, vovf);
+            case Dt::I16:
+                return new_sorted_map_impl<Int16Traits>(kovf, vd, vovf);
+            case Dt::F32:
+                return new_sorted_map_impl<Float32Traits>(kovf, vd, vovf);
         }
+        Py_UNREACHABLE();
     }
     switch (kd) {
         case Dt::OBJ:
@@ -775,9 +796,16 @@ inline MapLikeImpl *new_map_impl(ColKind kind, Dt kd, Ovf kovf, Dt vd, Ovf vovf)
             return new_hash_map_impl<Int64Traits>(kovf, vd, vovf);
         case Dt::U64:
             return new_hash_map_impl<UInt64Traits>(kovf, vd, vovf);
-        default:
+        case Dt::F64:
             return new_hash_map_impl<Float64Traits>(kovf, vd, vovf);
+        case Dt::I32:
+            return new_hash_map_impl<Int32Traits>(kovf, vd, vovf);
+        case Dt::I16:
+            return new_hash_map_impl<Int16Traits>(kovf, vd, vovf);
+        case Dt::F32:
+            return new_hash_map_impl<Float32Traits>(kovf, vd, vovf);
     }
+    Py_UNREACHABLE();
 }
 
 

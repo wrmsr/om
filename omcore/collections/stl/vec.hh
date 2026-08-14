@@ -442,9 +442,16 @@ inline VecLikeImpl *new_vec_impl(Dt dt, Ovf ovf) {
             return new VectorImpl<Int64Traits>(ovf);
         case Dt::U64:
             return new VectorImpl<UInt64Traits>(ovf);
-        default:
+        case Dt::F64:
             return new VectorImpl<Float64Traits>(ovf);
+        case Dt::I32:
+            return new VectorImpl<Int32Traits>(ovf);
+        case Dt::I16:
+            return new VectorImpl<Int16Traits>(ovf);
+        case Dt::F32:
+            return new VectorImpl<Float32Traits>(ovf);
     }
+    Py_UNREACHABLE();
 }
 
 

@@ -11,6 +11,7 @@
 #include <cstring>
 #include <exception>
 #include <iterator>
+#include <limits>
 #include <mutex>
 #include <new>
 #include <type_traits>
@@ -86,6 +87,9 @@ enum class Dt : uint8_t {
     I64,
     U64,
     F64,
+    I32,
+    I16,
+    F32,
 };
 
 
@@ -142,7 +146,16 @@ inline int parse_dtype(PyObject *o, DtypeSpec *out) {
         {"uint64-raise", Dt::U64, Ovf::RAISE},
         {"uint64-clamp", Dt::U64, Ovf::CLAMP},
         {"uint64-wrap", Dt::U64, Ovf::WRAP},
+        {"int32", Dt::I32, Ovf::RAISE},
+        {"int32-raise", Dt::I32, Ovf::RAISE},
+        {"int32-clamp", Dt::I32, Ovf::CLAMP},
+        {"int32-wrap", Dt::I32, Ovf::WRAP},
+        {"int16", Dt::I16, Ovf::RAISE},
+        {"int16-raise", Dt::I16, Ovf::RAISE},
+        {"int16-clamp", Dt::I16, Ovf::CLAMP},
+        {"int16-wrap", Dt::I16, Ovf::WRAP},
         {"float64", Dt::F64, Ovf::RAISE},
+        {"float32", Dt::F32, Ovf::RAISE},
     };
 
     for (const auto &e : TABLE) {
@@ -157,6 +170,9 @@ inline int parse_dtype(PyObject *o, DtypeSpec *out) {
 }
 
 
+// Switches over Dt / Ovf are deliberately exhaustive with no default: a forgotten case in any of them (most
+// dangerously the impl factories, where a default would silently materialize the wrong dtype) is a -Wswitch warning
+// instead of a runtime misroute.
 inline const char *dtype_name(Dt dt, Ovf ovf) {
     switch (dt) {
         case Dt::OBJ:
@@ -167,15 +183,34 @@ inline const char *dtype_name(Dt dt, Ovf ovf) {
             switch (ovf) {
                 case Ovf::RAISE: return "int64-raise";
                 case Ovf::CLAMP: return "int64-clamp";
-                default: return "int64-wrap";
+                case Ovf::WRAP: return "int64-wrap";
             }
-        default:
+            break;
+        case Dt::U64:
             switch (ovf) {
                 case Ovf::RAISE: return "uint64-raise";
                 case Ovf::CLAMP: return "uint64-clamp";
-                default: return "uint64-wrap";
+                case Ovf::WRAP: return "uint64-wrap";
             }
+            break;
+        case Dt::I32:
+            switch (ovf) {
+                case Ovf::RAISE: return "int32-raise";
+                case Ovf::CLAMP: return "int32-clamp";
+                case Ovf::WRAP: return "int32-wrap";
+            }
+            break;
+        case Dt::I16:
+            switch (ovf) {
+                case Ovf::RAISE: return "int16-raise";
+                case Ovf::CLAMP: return "int16-clamp";
+                case Ovf::WRAP: return "int16-wrap";
+            }
+            break;
+        case Dt::F32:
+            return "float32";
     }
+    Py_UNREACHABLE();
 }
 
 
@@ -345,7 +380,7 @@ inline bool unbox_int64_overflow(PyObject *idx, int of, Ovf ovf, int64_t *out) {
             *out = of > 0 ? INT64_MAX : INT64_MIN;
             return true;
 
-        default: {
+        case Ovf::WRAP: {
             unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
             if (u == (unsigned long long)-1 && PyErr_Occurred()) {
                 return false;
@@ -354,6 +389,7 @@ inline bool unbox_int64_overflow(PyObject *idx, int of, Ovf ovf, int64_t *out) {
             return true;
         }
     }
+    Py_UNREACHABLE();
 }
 
 
@@ -412,7 +448,7 @@ inline bool unbox_uint64_overflow(PyObject *idx, Ovf ovf, uint64_t *out) {
             return true;
         }
 
-        default: {
+        case Ovf::WRAP: {
             unsigned long long u = PyLong_AsUnsignedLongLongMask(idx);
             if (u == (unsigned long long)-1 && PyErr_Occurred()) {
                 return false;
@@ -421,6 +457,7 @@ inline bool unbox_uint64_overflow(PyObject *idx, Ovf ovf, uint64_t *out) {
             return true;
         }
     }
+    Py_UNREACHABLE();
 }
 
 
@@ -469,6 +506,61 @@ inline bool unbox_float64(PyObject *o, double *out) {
         return false;
     }
     *out = v;
+    return true;
+}
+
+
+// Narrowing signed-integer unbox for the int32 / int16 dtypes, layered on the int64 machinery - the Ovf semantics
+// compose: a 64-bit clamp followed by a width clamp is the width clamp; the 64-bit mask followed by truncation is
+// exactly mod-2^width wrap (C++20 defines signed narrowing as modular); raise runs a 64-bit clamp first, since any
+// clamped (huge) value necessarily fails the width range check below, keeping the error message width-correct.
+template <typename I>
+inline bool unbox_int_narrow(PyObject *o, Ovf ovf, I *out) {
+    static_assert(std::is_signed_v<I> && sizeof(I) < 8);
+    constexpr int64_t min = std::numeric_limits<I>::min();
+    constexpr int64_t max = std::numeric_limits<I>::max();
+
+    int64_t v;
+    switch (ovf) {
+        case Ovf::RAISE:
+            if (!unbox_int64(o, Ovf::CLAMP, &v)) {
+                return false;
+            }
+            if (v < min || v > max) {
+                PyErr_SetString(
+                    PyExc_OverflowError,
+                    sizeof(I) == 4 ? "int out of range for int32" : "int out of range for int16");
+                return false;
+            }
+            *out = (I)v;
+            return true;
+
+        case Ovf::CLAMP:
+            if (!unbox_int64(o, Ovf::CLAMP, &v)) {
+                return false;
+            }
+            *out = v < min ? (I)min : v > max ? (I)max : (I)v;
+            return true;
+
+        case Ovf::WRAP:
+            if (!unbox_int64(o, Ovf::WRAP, &v)) {
+                return false;
+            }
+            *out = (I)v;
+            return true;
+    }
+    Py_UNREACHABLE();
+}
+
+
+inline bool unbox_float32(PyObject *o, float *out) {
+    double v;
+    if (!unbox_float64(o, &v)) {
+        return false;
+    }
+    // IEEE double->float conversion: rounds to nearest, out-of-range finite values become +/-inf - the same
+    // narrowing semantics as numpy's float32. (Formally implementation-defined in C++, IEEE on every target.)
+    *out = (float)v;
     return true;
 }
 
@@ -603,6 +695,82 @@ struct Float64Traits {
     // shortcut is exactly how `x = nan; x in [x]` succeeds for builtin containers, so this recovers the common case
     // (`nan in Vector('float64', [nan])`, remove(), count(), map value comparison) at the cost of distinguishing
     // separately-created NaNs - which unboxed storage cannot do anyway.
+    static bool val_eq(const Slot &a, const Slot &b) {
+        return a == b || (std::isnan(a) && std::isnan(b));
+    }
+};
+
+
+// Narrow signed-integer traits, shared by the int32 / int16 dtypes.
+template <typename I, Dt DTV>
+struct NarrowIntTraits {
+    using Slot = I;
+    static constexpr Dt DT = DTV;
+    static constexpr bool IS_OBJ = false;
+
+    struct Less {
+        bool operator()(Slot a, Slot b) const noexcept { return a < b; }
+    };
+
+    struct Hash {
+        size_t operator()(Slot v) const noexcept { return mix64((uint64_t)(int64_t)v); }
+    };
+
+    struct Eq {
+        bool operator()(Slot a, Slot b) const noexcept { return a == b; }
+    };
+
+    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_int_narrow<I>(o, ovf, out); }
+    static PyObject *box(const Slot &v) { return PyLong_FromLong((long)v); }
+
+    static void retain(const Slot &) noexcept {}
+    static void release_into(const Slot &, Bin &) noexcept {}
+    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+    static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
+};
+
+
+using Int32Traits = NarrowIntTraits<int32_t, Dt::I32>;
+using Int16Traits = NarrowIntTraits<int16_t, Dt::I16>;
+
+
+// float32: same NaN-aware ordering / equality / value-equality story as Float64Traits, at float storage width.
+// Hashing widens to double first - float->double is exact, so this shares float64_key_bits' NaN and -0.0
+// canonicalization instead of duplicating it.
+struct Float32Traits {
+    using Slot = float;
+    static constexpr Dt DT = Dt::F32;
+    static constexpr bool IS_OBJ = false;
+
+    struct Less {
+        bool operator()(Slot a, Slot b) const noexcept {
+            if (std::isnan(a)) {
+                return false;
+            }
+            if (std::isnan(b)) {
+                return true;
+            }
+            return a < b;
+        }
+    };
+
+    struct Hash {
+        size_t operator()(Slot v) const noexcept { return mix64(float64_key_bits((double)v)); }
+    };
+
+    struct Eq {
+        bool operator()(Slot a, Slot b) const noexcept {
+            return a == b || (std::isnan(a) && std::isnan(b));
+        }
+    };
+
+    static bool unbox(PyObject *o, Ovf, Slot *out) { return unbox_float32(o, out); }
+    static PyObject *box(const Slot &v) { return PyFloat_FromDouble((double)v); }
+
+    static void retain(const Slot &) noexcept {}
+    static void release_into(const Slot &, Bin &) noexcept {}
+    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+
     static bool val_eq(const Slot &a, const Slot &b) {
         return a == b || (std::isnan(a) && std::isnan(b));
     }

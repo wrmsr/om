@@ -21,11 +21,12 @@
 
 
 // fastutil-style primitive-specialized containers: Set / UnorderedSet / Map / UnorderedMap / Vector, each parameterized
-// (per key / value position) over one of the dtypes 'object', 'int64-{raise,clamp,wrap}', 'uint64-{raise,clamp,wrap}',
-// or 'float64'. Primitive dtypes are stored unboxed (as int64_t / uint64_t / double) and box/unbox only at the Python
-// boundary; 'object' stores owned PyObject* references and participates fully in GC. Each combination is a distinct
-// C++ template instantiation, so the loops that drive lookups, bulk merges, comparisons, sorts, and slices are fully
-// type-specialized - the only per-element indirection anywhere is the unavoidable one at the Python boundary itself.
+// (per key / value position) over one of the dtypes 'object', '{int64,uint64,int32,int16}-{raise,clamp,wrap}',
+// 'float64', or 'float32'. Primitive dtypes are stored unboxed (at their native widths) and box/unbox only at the
+// Python boundary; 'object' stores owned PyObject* references and participates fully in GC. Each combination is a
+// distinct C++ template instantiation, so the loops that drive lookups, bulk merges, comparisons, sorts, and slices are
+// fully type-specialized - the only per-element indirection anywhere is the unavoidable one at the Python boundary
+// itself.
 
 
 //
@@ -463,7 +464,7 @@ static int stl_exec(PyObject *mod) {
     }
 
     PyObject *dtypes = Py_BuildValue(
-        "(ssssssss)",
+        "(sssssssssssssss)",
         "object",
         "int64-raise",
         "int64-clamp",
@@ -471,7 +472,14 @@ static int stl_exec(PyObject *mod) {
         "uint64-raise",
         "uint64-clamp",
         "uint64-wrap",
-        "float64");
+        "int32-raise",
+        "int32-clamp",
+        "int32-wrap",
+        "int16-raise",
+        "int16-clamp",
+        "int16-wrap",
+        "float64",
+        "float32");
     if (dtypes == nullptr) {
         return -1;
     }
