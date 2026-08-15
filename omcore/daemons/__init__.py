@@ -84,6 +84,29 @@ with _lang.auto_proxy_init(globals()):
         ServiceRuntime,
     )
 
+    from .children import (  # noqa
+        ChildProcessConfig,
+        ChildProcessInput,
+        ChildProcessOutput,
+        ChildProcessOutputMode,
+        ChildTerminationConfig,
+
+        ChildProcess,
+        ChildProcessFactory,
+        PopenChildProcess,
+        PopenChildProcessFactory,
+        DEFAULT_CHILD_PROCESS_FACTORY,
+
+        ChildSupervisorError,
+        ChildProcessExitedError,
+        ChildProcessResult,
+        ChildProcessStopTimeoutError,
+        ChildProcessSupervisor,
+        ChildProcessSupervisorConfig,
+
+        ChildProcessService,
+    )
+
     from .rpc import (  # noqa
         RPC_PROTOCOL_NAME,
         RPC_PROTOCOL_VERSION,

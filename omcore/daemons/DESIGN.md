@@ -20,6 +20,7 @@ Primary goals are:
 - readiness based on a real application probe rather than process existence;
 - lazy launch which is safe under concurrent callers;
 - activity-aware idle exit and bounded graceful drain;
+- ownership, bounded shutdown, and deterministic reaping of one external child process;
 - byte-stream RPC with explicit request identity and honest retry outcomes; and
 - small layers which can be used independently.
 
@@ -228,7 +229,56 @@ which already obtained an activity lease, up to the configured deadline.
 
 ---
 
-## 7. Pipeline HTTP
+## 7. External child ownership
+
+`children` is an interface-plus-adapter composition for one directly owned external process:
+
+- `ChildProcessConfig` describes command, working directory, environment, standard streams, explicitly passed file
+  descriptors, and session creation;
+- `ChildProcessFactory` creates a controllable and waitable `ChildProcess`, with `PopenChildProcessFactory` as the
+  default implementation;
+- `ChildTerminationConfig` supplies graceful signal, signal-forwarding, process-group, grace-deadline, and kill-deadline
+  policy;
+- `ChildProcessSupervisor` coordinates those pieces against `ServiceRuntime`; and
+- `ChildProcessService` is the only adapter which makes that coordinator a configured daemon service.
+
+Process creation remains distinct from daemon launch readiness. `Popen` reports fork/exec or platform creation errors
+to the supervisor, but `Launcher` has already crossed its generic target-run boundary by then. A daemon caller which
+needs usable startup confirmation configures `ConnectWait`, `HttpWait`, or another application probe. No health check
+is embedded in process ownership.
+
+The supervisor starts one waiter which exclusively calls `wait()` and therefore reaps the direct child. A second
+coordinator waits for runtime shutdown. On requested or idle shutdown it sends the configured graceful signal. On
+signal shutdown it forwards the original signal by default. If the child does not exit before `grace_timeout_s`, the
+coordinator sends `SIGKILL`; failure to observe exit by `kill_timeout_s` raises `ChildProcessStopTimeoutError`. A
+`None` deadline explicitly means an unbounded wait at that stage.
+
+Any observed child exit for which no shutdown request existed at reap time is unexpected, including status zero. The
+supervisor requests runtime shutdown with diagnostic detail and raises `ChildProcessExitedError`; its attached
+`ChildProcessResult` retains PID, return code, absence of the prior shutdown request, and escalation state. An exit
+after shutdown returns the same result normally. This distinction propagates external server loss without treating an
+ordinary signal-driven stop as failure.
+
+Process-group signaling is allowed only when child session creation is also selected, making the child PID the known
+group ID and avoiding accidental signaling of the supervisor's own group. It delivers policy to descendants, but the
+supervisor can reap only its direct child; that child remains responsible for its children. The implementation is not
+an init system: it has no restart loop, dependency ordering, privilege policy, resource containment, or orphan
+adoption. If a process remains unobservable after the kill deadline, the timeout reports that ownership could not be
+completed rather than claiming success.
+
+The default factory keeps `close_fds` enabled. Standard input defaults to `/dev/null`; stdout and stderr can inherit,
+use `/dev/null`, share stdout, or use supervisor-owned binary files in append or truncate mode. `pass_fds` is explicit.
+Owned files remain open through child lifetime and are closed by the waiter after `wait()`. This policy configures child
+descriptors, not Python logging and not global handlers.
+
+Finally, direct application traffic to an opaque child does not pass through the supervisor and cannot automatically
+acquire or touch a runtime activity lease. Readiness probes likewise remain health observations, not activity. A
+traffic-aware idle lifetime requires a proxy, explicit notification, or child-native behavior; configuring a runtime
+idle timeout alone creates a fixed supervisor-side deadline.
+
+---
+
+## 8. Pipeline HTTP
 
 `pipeline_http_server_spec()` is built afresh for every connection because the request/response session handler owns
 connection-local state. Inbound bytes pass through the shared HTTP request decoder and bounded full-request
@@ -262,7 +312,7 @@ and `HttpWait` remain fully usable without importing this serving stack.
 
 ---
 
-## 8. RPC protocol
+## 9. RPC protocol
 
 RPC runs over a connected byte stream supplied by the endpoint/transport layer. The default implementations support
 Unix-domain stream sockets and plaintext TCP. Each message is encoded as UTF-8 JSON preceded by an unsigned four-byte
@@ -370,7 +420,7 @@ idempotency key or transaction boundary.
 
 ---
 
-## 9. Logging and descriptors
+## 10. Logging and descriptors
 
 The library does not impose a global logging configuration. A multiprocessing entrypoint can configure logging before
 the launch function; file handlers then survive reparenting while standard streams are redirected. The LLM demo uses
@@ -387,7 +437,7 @@ No hook can make an arbitrary multithreaded process universally fork-safe. Raw f
 
 ---
 
-## 10. Security boundary
+## 11. Security boundary
 
 This is IPC, not a sandbox. Pidfiles are created mode `0600`, Unix RPC sockets default to mode `0600`, and the default
 transport refuses to overwrite a non-socket at a Unix endpoint. Callers remain responsible for choosing and
@@ -405,7 +455,7 @@ handshake, fail closed on mismatch, and require an explicit development override
 
 ---
 
-## 11. Testing contract
+## 12. Testing contract
 
 Behavior at OS boundaries is covered by integration tests without mocks or patches. Tests use real `flock` locks,
 Unix sockets, HTTP servers, threads, multiprocessing spawn/fork, raw fork, double-fork reparenting, signals, exec
@@ -415,7 +465,8 @@ asyncio hosts, activity-aware drain, health probes which do not extend idle life
 independent standard-library server using the same readiness abstraction. RPC coverage includes pure split-byte
 protocol transcripts, every sync/async client-server pairing over loopback TCP, resolved ephemeral ports, TCP drain,
 explicit threaded asyncio handling, fdio over Unix and TCP, blocking-wire compatibility, and standalone servers
-without daemon adapters.
+without daemon adapters. External-child coverage uses actual fork/exec, file descriptors, output files, process groups,
+signals, kill escalation, unexpected exits, and an HTTP process composed with `HttpWait` and a supervisor pidfile.
 
 The LLM demo test invokes the real argparse CLI twice. It verifies that the first process starts a detached service,
 the second connects to the same PID and instance ID, both calls traverse RPC, and signal shutdown releases the pidfile.

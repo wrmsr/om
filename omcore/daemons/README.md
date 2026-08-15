@@ -56,6 +56,7 @@ The package is intentionally composable rather than presenting one mandatory dae
 | Launching | `Launcher`, `Daemon` | Own startup monitoring, pidfile coordination, optional reparenting, and readiness. |
 | Service | `Service`, `RuntimeService`, `ServiceDaemon` | Package configured long-running behavior as a target. |
 | Runtime | `ServiceRuntime`, `Activity`, `ShutdownController` | Track activity, idle lifetime, signals, and graceful drain. |
+| Child supervision | `ChildProcessSupervisor`, `ChildProcessService` | Own, stop, escalate, and reap one external executable. |
 | Lazy access | `LazyDaemon` | Connect first; coordinate launch and relaunch only when explicitly unavailable. |
 | Readiness | `ConnectWait`, `HttpWait`, `RpcWait` | Supply pluggable transport- or application-level health checks. |
 | HTTP core | `pipeline_http_server_spec`, `PipelineHttpServer`, `AsyncioPipelineHttpServer` | Serve bounded HTTP requests through runtime-neutral pipelines and sync or asyncio hosts. |
@@ -166,6 +167,56 @@ configured drain deadline expires.
 services follow the same lifetime rule for application requests versus their dedicated health endpoint. They stop
 accepting new application work after shutdown begins and drain connections which already own accepted work.
 
+## External child processes
+
+`omcore.daemons.children` covers the case where the service implementation is an executable this repository cannot
+adapt: for example, a model server with its own HTTP stack. `ChildProcessSupervisor` is the reusable owner;
+`ChildProcessService` is its thin `ServiceRuntime` adapter. Readiness remains ordinary daemon configuration:
+
+```python
+service = ChildProcessService.Config(
+    process=ChildProcessConfig(
+        cmd=('/opt/llama-server', '--port', '8080'),
+        stdout=ChildProcessOutput.file('/var/tmp/llama.log'),
+        stderr=ChildProcessOutput(mode=ChildProcessOutputMode.STDOUT),
+        start_new_session=True,
+    ),
+    termination=ChildTerminationConfig(
+        signal_process_group=True,
+        grace_timeout_s=10.,
+        kill_timeout_s=5.,
+    ),
+)
+daemon = ServiceDaemon(
+    service,
+    Daemon.Config(
+        spawning=MultiprocessingSpawning(),
+        pid_file='/var/tmp/llama-supervisor.pid',
+        wait=HttpWait(url='http://127.0.0.1:8080/healthz'),
+    ),
+).daemon_()
+```
+
+The pidfile identifies the Python supervisor, not the external child. A successful `Popen` call establishes that the
+executable was created; `HttpWait` establishes that its application is ready. If `Popen` itself fails, the service
+raises that startup error. If the child exits before runtime shutdown was requested, the supervisor reaps it, requests
+runtime shutdown, and raises `ChildProcessExitedError` with its PID and return code.
+
+On requested or idle shutdown, the configured graceful signal is sent. On signal-originated shutdown, the incoming
+signal is forwarded by default. The supervisor waits for the grace deadline, sends `SIGKILL` if necessary, and waits
+for the configured kill deadline while a dedicated waiter owns reaping. Process-group signaling is opt-in and requires
+`start_new_session=True`; it controls descendants as a group but only the direct child is waitable by this supervisor.
+
+Standard input defaults to `/dev/null`. Output may be inherited, discarded, written to an append-or-truncate file, or
+(for stderr) joined to stdout. `pass_fds` is the explicit escape hatch for additional descriptors; ordinary `Popen`
+descriptor closing remains enabled. When a daemon reparents and closes its own standard streams, inherited child
+output is consequently `/dev/null`, so configure files or child-native logging when output must survive.
+
+An opaque server's traffic bypasses `ServiceRuntime`, so the supervisor cannot infer request activity. An idle timeout
+on `ChildProcessService` is therefore a fixed lifetime from its last explicit runtime touch, not traffic-aware linger.
+Use no runtime idle timeout, a child-native idle policy, an explicit activity notification channel, or a proxy when
+actual requests must renew the lease.
+
 ## HTTP services
 
 The `omcore.daemons.http` subpackage provides a small pipeline-native HTTP composition without putting HTTP policy in
@@ -250,9 +301,11 @@ contract in [DESIGN.md](DESIGN.md).
 The suite uses real files, locks, Unix sockets, HTTP servers, subprocesses, multiprocessing children, raw forks,
 signals, and execs. It verifies sync and asyncio thread-backed HTTP services through shared in-process state, lazily
 launches a pipeline HTTP service in a spawned process, and probes an independent standard-library HTTP server through
-the same `HttpWait`. It also exercises the RPC core without a daemon, runs pure sans-I/O transcripts, crosses every
-sync/async client-server pairing over real TCP and Unix sockets, drives fdio through both endpoints, and checks
-compatibility with the original blocking wire helpers. The daemon tests do not mock or patch those boundaries.
+the same `HttpWait`. External-child tests pass real descriptors, redirect real output, signal a process group, force
+graceful-timeout escalation, propagate unexpected exit, and probe a supervised external HTTP process while separately
+tracking its supervisor pidfile. The suite also exercises the RPC core without a daemon, runs pure sans-I/O transcripts,
+crosses every sync/async client-server pairing over real TCP and Unix sockets, drives fdio through both endpoints, and
+checks compatibility with the original blocking wire helpers. The daemon tests do not mock or patch those boundaries.
 
 ```shell
 ./python -m pytest omcore/daemons

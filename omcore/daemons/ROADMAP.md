@@ -147,14 +147,34 @@ shares a UID. JSON remains the interoperable default.
 
 ## 6. External-child supervision
 
-Add composable targets or services for the common case where the daemon process owns and babysits another executable.
-This is intentionally smaller than a general init system, but should cover startup observation, signal forwarding,
-graceful termination followed by a configured kill deadline, child reaping, logging/descriptor policy, and propagation
-of unexpected child exit.
+**Initial slice complete.** The package provides composable process configuration and factory interfaces, a
+runtime-driven supervisor, and a service adapter for the common case where the daemon process owns and babysits
+another executable. This is intentionally smaller than a general init system, but covers startup observation, signal
+forwarding, graceful termination followed by a configured kill deadline, child reaping, logging/descriptor policy,
+and propagation of unexpected child exit.
 
 Readiness should remain orthogonal: callers may use `ConnectWait`, `HttpWait`, a process-specific probe, or a sequence
 of checks. This path is important for tools such as model servers whose HTTP implementation is outside this repository
 and cannot be adapted to internal pipeline APIs.
+
+### Planned implementation slices
+
+1. **Complete:** Separate an immutable child command/descriptor specification, an injectable process factory, and
+   termination policy from the runtime coordinator. The default factory should use `subprocess.Popen`, inherit no
+   accidental input, expose explicit inherited descriptors, and support inherited, discarded, redirected, and
+   append-or-truncate file output.
+2. **Complete:** Have the coordinator observe `Popen` startup errors, reap the direct child deterministically, treat any
+   exit before a runtime shutdown request as a service failure, and request runtime shutdown so sibling lifecycle
+   machinery sees the loss.
+3. **Complete:** Forward signal-originated shutdown using the original signal, use a configured signal for requested or
+   idle shutdown, escalate after a grace deadline, and report the pathological case where the child remains unreaped
+   after the kill deadline. Process-group signaling must be explicit and paired with a new child session.
+4. **Complete:** Supply a thin `RuntimeService` adapter without coupling readiness to process ownership. Prove
+   composition with a real external HTTP child, `HttpWait`, a daemon pidfile for the supervisor, and graceful shutdown
+   through the daemon.
+5. **Complete:** Document the opaque-child activity boundary: direct traffic to an external server cannot automatically
+   renew a `ServiceRuntime` idle lease. Fixed linger, explicit activity notification, a proxy, or child-native idle
+   behavior remain separate policies rather than hidden inference in the supervisor.
 
 ## 7. Operations and observability
 
