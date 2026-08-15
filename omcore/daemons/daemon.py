@@ -27,6 +27,8 @@ from ..os.pidfiles.pidfile import Pidfile
 from .inspection import DaemonInspection
 from .inspection import DaemonInspector
 from .launching import Launcher
+from .operations import DaemonWaitStoppedResult
+from .operations import wait_daemon_stopped
 from .spawning import Spawning
 from .targets import Target
 from .waiting import Wait
@@ -113,6 +115,20 @@ class Daemon:
             check.non_empty_str(self._config.pid_file),
             wait=self._config.wait,
         ).inspect()
+
+    def wait_stopped(
+            self,
+            timeout: lang.TimeoutLike = lang.Timeout.DEFAULT,
+            *,
+            initial: DaemonInspection | None = None,
+    ) -> DaemonWaitStoppedResult:
+        check.state(self.has_pidfile)
+        return wait_daemon_stopped(
+            check.non_empty_str(self._config.pid_file),
+            initial=initial,
+            timeout=lang.Timeout.of(timeout, self._config.wait_timeout),
+            sleep_s=self._config.wait_sleep_s,
+        )
 
     #
 

@@ -194,7 +194,9 @@ file logging without installing global handlers implicitly.
 2. **Complete:** Exercise absent, starting, ready, exited, stale, malformed, and replacement-instance transitions
    against real locks, processes, pidfiles, and health endpoints. Each inspection should create a fresh waiter so
    stateful wait adapters do not leak success between snapshots.
-3. Add a wait-for-stopped operation based on lock release and inode/instance observation rather than PID disappearance.
+3. **Complete:** Add a wait-for-stopped operation based on lock release and inode/instance observation rather than PID
+   disappearance. Report path or identity replacement separately without claiming that an unlinked original process
+   exited, and retain initial/last snapshots on timeout.
 4. Define the race contract for signaling before adding a stop helper. Linux pidfds can close the PID-reuse window,
    while the portable POSIX fallback must expose its weaker guarantees rather than treating UUID metadata as an OS
    process handle.

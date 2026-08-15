@@ -160,6 +160,19 @@ Inspection compares the opened inode with the path after reading and retries rep
 snapshot, its result can become outdated immediately after return. It does not signal a PID, rewrite the pidfile, or
 claim that UUID metadata closes the OS-level PID-reuse race.
 
+`wait_daemon_stopped()` and `Daemon.wait_stopped()` turn an inspection into an identity-aware lifecycle wait. The
+waiter opens and retains the expected pidfile inode, then polls its advisory lock. Its typed result is:
+
+- `ALREADY_STOPPED` when the initial snapshot had no running owner;
+- `STOPPED` only after the waiter itself acquires the original inode's exclusive lock; or
+- `REPLACED` when the path points to another inode, or a different PID/structured instance takes ownership of the same
+  inode before lock release is observed.
+
+`REPLACED` is intentionally not reported as stopped: the original process may still be running with an unlinked
+pidfile while another owner occupies the configured path. `DaemonWaitStoppedTimeoutError` retains the initial and last
+snapshots. Legacy one-line records can use inode and PID comparison, but lack the UUID's stronger semantic identity.
+This operation performs no signaling and does not run readiness probes.
+
 ## Lazy service behavior
 
 `LazyDaemon` requires both a pidfile and a readiness probe. On a call it first attempts the real operation. Only an
@@ -328,10 +341,11 @@ launches a pipeline HTTP service in a spawned process, and probes an independent
 the same `HttpWait`. External-child tests pass real descriptors, redirect real output, signal a process group, force
 graceful-timeout escalation, propagate unexpected exit, and probe a supervised external HTTP process while separately
 tracking its supervisor pidfile. Inspection coverage observes that process through startup, readiness, exit, stale
-contents, and replacement UUIDs. The suite also exercises the RPC core without a daemon, runs pure sans-I/O
-transcripts, crosses every sync/async client-server pairing over real TCP and Unix sockets, drives fdio through both
-endpoints, and checks compatibility with the original blocking wire helpers. The daemon tests do not mock or patch
-those boundaries.
+contents, and replacement UUIDs. Wait-stopped coverage uses separately spawned lock owners to prove lock release,
+timeout diagnostics, unlinked/recreated path detection, and same-inode UUID replacement. The suite also exercises the
+RPC core without a daemon, runs pure sans-I/O transcripts, crosses every sync/async client-server pairing over real TCP
+and Unix sockets, drives fdio through both endpoints, and checks compatibility with the original blocking wire
+helpers. The daemon tests do not mock or patch those boundaries.
 
 ```shell
 ./python -m pytest omcore/daemons

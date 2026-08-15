@@ -60,6 +60,14 @@ with _lang.auto_proxy_init(globals()):
         DaemonInspector,
     )
 
+    from .operations import (  # noqa
+        DaemonWaitStoppedReason,
+        DaemonWaitStoppedResult,
+        DaemonWaitStoppedTimeoutError,
+        DaemonStoppedWaiter,
+        wait_daemon_stopped,
+    )
+
     from .startup import (  # noqa
         LaunchErrorInfo,
         LaunchReport,

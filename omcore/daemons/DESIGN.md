@@ -201,6 +201,25 @@ snapshots, but neither is an OS process handle. This API deliberately performs n
 operation must state the remaining read-to-signal PID-reuse race explicitly; platforms with pidfds may provide a
 stronger implementation.
 
+### Waiting for a specific owner to stop
+
+`DaemonStoppedWaiter` accepts an initial inspection or creates an ownership-only one. If that snapshot has no owner,
+it returns `ALREADY_STOPPED`. Otherwise it opens the path, requires the opened device/inode to match the initial
+snapshot, and retains that descriptor for the wait.
+
+`STOPPED` has one narrow proof: a nonblocking exclusive `flock` succeeded on the original inode, demonstrating that its
+previous owner released the lock. The waiter then releases its short-lived lock and takes a final snapshot. A new owner
+may already appear there; the result still means the specifically observed original lock was released.
+
+If the path changes inode, disappears before it can be anchored, or exposes a different PID or structured instance ID
+while the original lock remains unavailable, the operation returns `REPLACED`. This is terminal for named-daemon
+ownership but does not claim that an old process holding an unlinked inode exited. With legacy or transiently empty
+records, only the identity fields actually observed can participate in replacement detection.
+
+Timeout raises `DaemonWaitStoppedTimeoutError` carrying the initial and last snapshots. Polling deliberately omits
+readiness: endpoint health cannot prove process ownership or lock release. The operation does not signal, delete, or
+rewrite anything, and therefore remains reusable as the verification half of a later stop API.
+
 ---
 
 ## 5. Readiness and lazy launch
@@ -490,7 +509,8 @@ explicit threaded asyncio handling, fdio over Unix and TCP, blocking-wire compat
 without daemon adapters. External-child coverage uses actual fork/exec, file descriptors, output files, process groups,
 signals, kill escalation, unexpected exits, and an HTTP process composed with `HttpWait` and a supervisor pidfile.
 Inspection follows that real process through not-ready, ready, stale, and replacement identities, and separately covers
-malformed records, readiness exceptions, and fresh stateful waiter construction.
+malformed records, readiness exceptions, and fresh stateful waiter construction. Wait-stopped coverage uses real
+spawned lock owners for observed release, timeout, path/inode replacement, and same-inode UUID replacement.
 
 The LLM demo test invokes the real argparse CLI twice. It verifies that the first process starts a detached service,
 the second connects to the same PID and instance ID, both calls traverse RPC, and signal shutdown releases the pidfile.
