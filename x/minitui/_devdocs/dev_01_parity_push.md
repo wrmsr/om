@@ -158,3 +158,18 @@ incremental-settle behavior; inline style survival. chatdemo takes `--md=interna
 backends pty-verified streaming the full demo with highlighted code fences.
 
 Next up (per the repo owner): wiring minitui to what minichain has become.
+
+## 2026-08-15 (later): the enter-chord ergonomics fix
+
+Why ctrl/shift+enter didn't work on the owner's mac: Enter is the single byte 0x0d on the legacy wire and shift/ctrl
+don't change it - only extended-key protocols can report them. We spoke kitty's protocol but not xterm's older
+`modifyOtherKeys`, which is what iTerm2 (pre-3.5), xterm, mintty, and notably tmux's `extended-keys` forwarding emit.
+Fixes:
+- Surfaces now request modifyOtherKeys (`CSI >4;2m`) alongside the kitty push (same `kitty_keys` opt-in - it's
+  'extended key reporting' generally now), reset on restore; the parser decodes `CSI 27;mod;code~` through the same
+  codepoint+modifiers path as kitty's `CSI code;mod u`.
+- **ctrl+j submits from insert** (when the TextArea has a submit handler): 0x0a is byte-distinguishable from Enter's
+  0x0d on every terminal ever made because we clear ICRNL - the universally-portable chord, per the owner's pick.
+- shift+enter now also submits (all modified Enters mean 'send'; plain Enter in insert is the newline).
+pty-verified all three: modifyOtherKeys ctrl+enter, raw ctrl+j, kitty shift+enter. Remaining true limitation:
+Terminal.app supports neither protocol - there, ctrl+j / alt+enter (with option-as-meta) are the options.

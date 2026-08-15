@@ -283,3 +283,29 @@ def test_multicursor_rendering_in_textarea():
     rows_ = ta_.render(20)
     eol_cells = [seg for row in rows_ for seg in row if seg.style == CURSOR_TAG and seg.text == ' ']
     assert eol_cells
+
+
+def test_ctrl_j_submits_from_insert():
+    submitted: list = []
+    ta_ = TextArea(on_submit=submitted.append)
+    type_text(ta_, 'hello')
+    press(ta_, Key('j', ctrl=True))
+    assert submitted == ['hello']
+    assert ta_.engine.mode is Mode.INSERT
+
+    # Without a submit handler (the vimdemo editor), ctrl+j is not consumed.
+    ta2 = TextArea(start_in_normal=True)
+    assert not ta2.handle_event(KeyEvent(Key('j', ctrl=True)))
+
+
+def test_all_modified_enters_submit():
+    submitted: list = []
+    ta_ = TextArea(on_submit=submitted.append)
+    for i, key in enumerate([
+        Key('enter', ctrl=True),
+        Key('enter', alt=True),
+        Key('enter', shift=True),
+    ]):
+        type_text(ta_, f'm{i}')
+        press(ta_, key)
+    assert submitted == ['m0', 'm1', 'm2']

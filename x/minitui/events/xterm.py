@@ -89,8 +89,8 @@ _SS3_BASES: ta.Mapping[str, str] = {
     'M': 'enter',
 }
 
-# Kitty extended-key codepoints that aren't just unicode characters (minimal set; the full functional-key ranges can
-# land when something needs them).
+# Extended-key codepoints that aren't just unicode characters (shared by the kitty protocol and xterm's
+# modifyOtherKeys; the full kitty functional-key ranges can land when something needs them).
 _KITTY_SPECIAL_BASES: ta.Mapping[int, str] = {
     9: 'tab',
     13: 'enter',
@@ -270,6 +270,14 @@ class XtermEventParser(EventParser):
             self._dispatch_kitty_key(params, raw=raw)
             return
 
+        if final == '~' and len(ints) == 3 and ints[0] == 27:
+            # xterm modifyOtherKeys (formatOtherKeys=0): CSI 27 ; modifier ; codepoint ~
+            if ints[1] is not None and ints[2] is not None:
+                self._emit_codepoint_key(ints[2], _decode_modifiers(ints[1]), raw=raw)
+            else:
+                self.emit(UnknownSequenceEvent(raw))
+            return
+
         if final == '~':
             if ints and ints[0] is not None and (base := _CSI_TILDE_BASES.get(ints[0])) is not None:
                 mods = _decode_modifiers(ints[1]) if len(ints) > 1 and ints[1] is not None else {}
@@ -339,15 +347,25 @@ class XtermEventParser(EventParser):
             if len(mod_fields) > 1 and mod_fields[1] == '3':
                 return  # key release - ignored
 
+        self._emit_codepoint_key(code, mods, raw=raw)
+
+    def _emit_codepoint_key(self, code: int, mods: dict[str, bool], *, raw: str) -> None:
+        """Shared by the kitty protocol and modifyOtherKeys: a unicode codepoint plus modifier flags."""
+
         if (base := _KITTY_SPECIAL_BASES.get(code)) is not None:
             # Named keys keep explicit shift; a shifted printable would already be its shifted character.
             self._emit_key(Key(base, **mods))
             return
 
-        if code < 0x110000 and (c := chr(code)).isprintable():
+        if 0 < code < 0x110000 and (c := chr(code)).isprintable():
             if mods.pop('shift', False):
                 c = c.upper()
             self._emit_key(Key(c if c != ' ' else 'space', **mods))
+            return
+
+        if 0 < code < 0x20:
+            # A modified control character (modifyOtherKeys reports e.g. ctrl+enter-with-shift this way too).
+            self._emit_key(key_from_char(chr(code), alt=mods.get('alt', False)))
             return
 
         self.emit(UnknownSequenceEvent(raw))

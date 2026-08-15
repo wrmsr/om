@@ -113,7 +113,10 @@ class InlineSurface(Surface):
         w.autowrap(False)
         w.bracketed_paste(True)
         if self._kitty_keys:
+            # Both extended-key protocols: kitty (modern) and xterm modifyOtherKeys (iTerm2, xterm, mintty, and the
+            # format tmux's extended-keys forwards). Terminals honor whichever they speak; both are ignored elsewhere.
             w.kitty_keys(True)
+            w.modify_other_keys(True)
         if self._mouse:
             w.mouse_tracking(True)
         if not defer_origin:
@@ -175,6 +178,7 @@ class InlineSurface(Surface):
         if self._mouse:
             w.mouse_tracking(False)
         if self._kitty_keys:
+            w.modify_other_keys(False)
             w.kitty_keys(False)
         w.bracketed_paste(False)
         w.autowrap(True)

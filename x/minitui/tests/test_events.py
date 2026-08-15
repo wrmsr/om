@@ -217,3 +217,15 @@ def test_keymap_prefix_timeout_resolves_shorter_binding():
     # But a second g in time gives the chord.
     assert m.push(Key('g')).is_pending
     assert m.push(Key('g')).commands == ('top',)
+
+
+def test_modify_other_keys_sequences():
+    p = XtermEventParser()
+    # xterm modifyOtherKeys format: CSI 27;mod;codepoint~
+    assert keys(p.feed('\x1b[27;5;13~')) == [Key('enter', ctrl=True)]
+    assert keys(p.feed('\x1b[27;2;13~')) == [Key('enter', shift=True)]
+    assert keys(p.feed('\x1b[27;5;106~')) == [Key('j', ctrl=True)]
+    assert keys(p.feed('\x1b[27;2;97~')) == [Key('A')]  # shifted printable becomes its character
+    assert keys(p.feed('\x1b[27;3;13~')) == [Key('enter', alt=True)]
+    # Plain tilde keys are unaffected.
+    assert keys(p.feed('\x1b[3~')) == [Key('delete')]

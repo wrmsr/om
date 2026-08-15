@@ -80,6 +80,8 @@ _BRACKETED_PASTE_ON = b'\x1b[?2004h'
 _BRACKETED_PASTE_OFF = b'\x1b[?2004l'
 _KITTY_KEYS_PUSH = b'\x1b[>1u'
 _KITTY_KEYS_POP = b'\x1b[<u'
+_MODIFY_OTHER_KEYS_ON = b'\x1b[>4;2m'
+_MODIFY_OTHER_KEYS_OFF = b'\x1b[>4;0m'
 _MOUSE_ON = b'\x1b[?1000h\x1b[?1006h'
 _MOUSE_OFF = b'\x1b[?1006l\x1b[?1000l'
 _ALT_SCREEN_ON = b'\x1b[?1049h'
@@ -187,6 +189,9 @@ class TermWriter:
 
     def kitty_keys(self, enabled: bool) -> None:  # noqa
         self.raw(_KITTY_KEYS_PUSH if enabled else _KITTY_KEYS_POP)
+
+    def modify_other_keys(self, enabled: bool) -> None:  # noqa
+        self.raw(_MODIFY_OTHER_KEYS_ON if enabled else _MODIFY_OTHER_KEYS_OFF)
 
     def mouse_tracking(self, enabled: bool) -> None:  # noqa
         self.raw(_MOUSE_ON if enabled else _MOUSE_OFF)

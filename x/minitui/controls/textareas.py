@@ -6,9 +6,9 @@ cursor, so arbitrarily large pasted content stays motion- and search-accessible 
 Lines hard-wrap at the width (cell-exact, mid-word, like vim's 'wrap' without 'linebreak') so document<->screen
 position math stays trivial.
 
-Enter semantics (per design): insert mode Enter inserts a newline (vim-pure); normal mode Enter submits; ctrl+enter
-(kitty-negotiated terminals) or alt+enter (universal) submits from insert mode. Engine decorations (visual selection,
-search matches) render as style tags resolved by the composition theme.
+Enter semantics (per design): insert mode Enter inserts a newline (vim-pure); normal mode Enter submits; from insert
+mode, ctrl+j (universal - the other newline byte), ctrl/shift+enter (extended-key terminals), or alt+enter submit.
+Engine decorations (visual selection, search matches) render as style tags resolved by the composition theme.
 """
 import typing as ta
 
@@ -399,15 +399,20 @@ class TextArea(Control):
 
         key = event.key
 
-        # Submit semantics.
+        # Submit semantics. ctrl+j is the universally-portable submit chord: 0x0a is byte-distinguishable from
+        # Enter's 0x0d on every terminal (we clear ICRNL), no extended-key protocol required.
         if key.base == 'enter':
-            if key.ctrl or key.alt:
+            if key.ctrl or key.alt or key.shift:
                 self._submit()
                 return True
             if engine.mode is Mode.NORMAL:
                 self._submit()
                 return True
             engine.feed('\r')
+            return True
+
+        if key == Key('j', ctrl=True) and self._on_submit is not None:
+            self._submit()
             return True
 
         if key == Key('r', ctrl=True):
