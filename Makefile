@@ -575,25 +575,32 @@ DOCKER_WHEEL_REPO_ROOT:=$(abspath .)
 DOCKER_WHEEL_PKGS?=omcore-cext omdev-cext omcore-mypyc
 
 .PHONY: docker-build-wheels
-docker-build-wheels:
+docker-build-wheels: venv
+	${PYTHON} -m omdev.tools.shell doall \
+		-E DOCKER_WHEEL_ARCH="${DOCKER_WHEEL_ARCHS}" \
+		-E DOCKER_WHEEL_PKG="${DOCKER_WHEEL_PKGS}" \
+		${MAKE} _docker-build-wheel
+
+.PHONY: _docker-build-wheel
+_docker-build-wheel:
 	set -e ; \
-	for pkg in $(DOCKER_WHEEL_PKGS) ; do \
-		for arch in $(DOCKER_WHEEL_ARCHS) ; do \
-			tar -ch \
-				--exclude './build' --exclude './dist' \
-				--exclude '.git' --exclude '__pycache__' \
-				-C ".pkg/$$pkg" . \
-				-C "$(DOCKER_WHEEL_REPO_ROOT)" docker/wheel/Dockerfile \
-			| docker buildx build \
-				--platform "linux/$$arch" \
-				--file docker/wheel/Dockerfile \
-				--build-arg "PYTHONS=$(DOCKER_WHEEL_PYTHONS)" \
-				--build-context "deps=$(DOCKER_WHEEL_REPO_ROOT)/dist" \
-				--target dist \
-				--output "type=local,dest=$(DOCKER_WHEEL_DIST)/" \
-				- ; \
-		done ; \
-	done
+	\
+	: "$${DOCKER_WHEEL_PKG:?DOCKER_WHEEL_PKG must be set}" ; \
+	: "$${DOCKER_WHEEL_ARCH:?DOCKER_WHEEL_ARCH must be set}" ; \
+	\
+	tar -ch \
+		--exclude './build' --exclude './dist' \
+		--exclude '.git' --exclude '__pycache__' \
+		-C ".pkg/$$DOCKER_WHEEL_PKG" . \
+		-C "$(DOCKER_WHEEL_REPO_ROOT)" docker/wheel/Dockerfile \
+	| docker buildx build \
+		--platform "linux/$$DOCKER_WHEEL_ARCH" \
+		--file docker/wheel/Dockerfile \
+		--build-arg "PYTHONS=$(DOCKER_WHEEL_PYTHONS)" \
+		--build-context "deps=$(DOCKER_WHEEL_REPO_ROOT)/dist" \
+		--target dist \
+		--output "type=local,dest=$(DOCKER_WHEEL_DIST)/" \
+		- ; \
 
 
 ### CI

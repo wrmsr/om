@@ -562,7 +562,7 @@
     "module": ".tools.shell",
     "attr": "_CLI_MODULE",
     "file": "omdev/tools/shell.py",
-    "line": 230,
+    "line": 241,
     "value": {
       "!.cli.types.CliModule": {
         "name": [

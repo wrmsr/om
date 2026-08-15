@@ -120,7 +120,9 @@ class ShellCli(ap.Cli):
 
     @ap.cmd(
         ap.arg('-e', '--env', action='append'),
+        ap.arg('-E', '--env-list', action='append'),
         ap.arg('-p', '--placeholder', action='append'),
+        ap.arg('-P', '--placeholder-list', action='append'),
 
         ap.arg('-j', '--jobs', type=int),
 
@@ -136,19 +138,28 @@ class ShellCli(ap.Cli):
         #  - --shell toggle
         #  - interleave / tag / prepend / somehow multiplex stdout/err
 
-        def collect_axis(raw_lst: ta.Sequence[str] | None) -> dict[str, list[str]]:
-            if not raw_lst:
+        def collect_axis(
+                raw_lst: ta.Sequence[str] | None,
+                raw_lst_lst: ta.Sequence[str] | None,
+        ) -> dict[str, list[str]]:
+            if not raw_lst and not raw_lst_lst:
                 return {}
 
             out: dict[str, list[str]] = {}
-            for s in raw_lst:
+
+            for s in raw_lst or []:
                 k, v = s.split('=')
                 out.setdefault(check.non_empty_str(k), []).append(v)
 
+            for s in raw_lst_lst or []:
+                k, v = s.split('=')
+                vs = [ss for s in v.split() if (ss := s.strip())]
+                out.setdefault(check.non_empty_str(k), []).extend(vs)
+
             return out
 
-        envs = collect_axis(self.args.env)  # noqa
-        phs = collect_axis(self.args.placeholder)  # noqa
+        envs = collect_axis(self.args.env, self.args.env_list)  # noqa
+        phs = collect_axis(self.args.placeholder, self.args.placeholder_list)  # noqa
 
         #
 

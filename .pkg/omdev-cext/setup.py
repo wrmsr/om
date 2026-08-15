@@ -34,6 +34,7 @@ st.setup(
                 '-Wno-unused-const-variable',
                 '-Wno-unused-function',
                 '-fvisibility=hidden',
+                '-g0',
             ],
             define_macros=[
                 ('_GNU_SOURCE', '1'),
