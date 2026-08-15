@@ -362,3 +362,172 @@ def test_external_edit_clears_history():
     e.doc.set_text('external')
     e.send('u')
     assert e.render() == 'external'  # history was invalidated, not corrupted
+
+
+##
+# Grown in the depth pass: %, ~, blockwise visual.
+
+
+def test_percent_matching():
+    check('% open->close', make('f(a(b)c)x', '%', (0, 1)), cursor=(0, 7))
+    check('% close->open', make('f(a(b)c)x', '%', (0, 7)), cursor=(0, 1))
+    check('% seeks first bracket on line', make('ab (c)', '%'), cursor=(0, 5))
+    check('% multiline', make('if {\n  x\n}', '%', (0, 3)), cursor=(2, 0))
+    check('d% deletes through match', make('a(bc)d', 'd%', (0, 1)), text='ad')
+    check('% no bracket is a no-op', make('abc', '%', (0, 1)), cursor=(0, 1))
+
+
+def test_tilde_toggles_case():
+    check('~ toggles and advances', make('aBc', '~~'), text='Abc', cursor=(0, 2))
+    check('3~', make('abc', '3~'), text='ABC', cursor=(0, 2))
+    check('~ undoes as one unit', make('abc', '3~u'), text='abc')
+    check('~ at eol clamps', make('ab', '5~'), text='AB')
+
+
+def test_visual_block_basics():
+    e = make('abcd\nefgh\nijkl', '')
+    e.feed('l')
+    e.feed('<c-v>')
+    assert e.mode is Mode.VISUAL_BLOCK
+    e.send('jjl')  # 3 rows x cols 1-2
+
+    (dec,) = e.decorations()
+    assert dec.span.kind.name == 'BLOCK'
+    assert (dec.span.start.row, dec.span.start.col) == (0, 1)
+    assert (dec.span.end.row, dec.span.end.col) == (2, 3)
+
+    e.feed('d')
+    assert e.render() == 'ad\neh\nil'
+    assert e.mode is Mode.NORMAL
+
+
+def test_visual_block_yank_put():
+    e = make('abcd\nefgh', '')
+    e.feed('<c-v>')
+    e.send('jly')  # yank the 2x2 block at cols 0-1
+    assert e.render() == 'abcd\nefgh'  # yank doesn't edit
+
+    e.send('$p')  # block-paste after end of line 0
+    assert e.render() == 'abcdab\nefghef'
+
+
+def test_visual_block_paste_pads_short_lines():
+    e = make('abcd\nx', '')
+    e.feed('<c-v>')
+    e.send('jy')  # 2x1 block: 'a', 'x'... anchor col0 row0 -> row1: pieces 'a','x'
+    e.send('gg$p')
+    assert e.render() == 'abcda\nx   x'
+
+
+def test_visual_block_escape_and_toggle():
+    e = make('abc', '')
+    e.feed('<c-v>')
+    m1 = e.mode
+    assert m1 is Mode.VISUAL_BLOCK
+    e.feed('<c-v>')  # toggles off
+    m2 = e.mode
+    assert m2 is Mode.NORMAL
+    e.feed('v')
+    e.feed('<c-v>')  # v -> block switch
+    m3 = e.mode
+    assert m3 is Mode.VISUAL_BLOCK
+    e.feed(ESC)
+    m4 = e.mode
+    assert m4 is Mode.NORMAL
+
+
+def test_visual_block_change_replicates():
+    # Multi-cursor: block change types onto EVERY row, live - real vim replays at Esc, we show it as you type.
+    e = make('abcd\nefgh', '')
+    e.feed('<c-v>')
+    e.send('jlc')
+    assert e.mode is Mode.INSERT
+    assert e.status().cursor_count == 2
+    e.send('XY' + ESC)
+    assert e.render() == 'XYcd\nXYgh'
+    assert e.status().cursor_count == 1
+
+
+##
+# Multi-cursor.
+
+
+def test_block_insert_replicates():
+    e = make('one\ntwo\nthree', '')
+    e.feed('<c-v>')
+    e.send('jjI')
+    assert e.status().cursor_count == 3
+    e.send('>> ' + ESC)
+    assert e.render() == '>> one\n>> two\n>> three'
+    assert e.status().cursor_count == 1
+
+
+def test_block_append_pads_short_lines():
+    e = make('long line\nab\nmedium', '')
+    e.send('$')          # col 8 on row 0
+    e.feed('<c-v>')
+    e.send('jjA')        # append at the block's right edge on all rows
+    e.send('!' + ESC)
+    assert e.render() == 'long line!\nab       !\nmedium   !'
+
+
+def test_block_insert_skips_short_lines():
+    e = make('abcdef\nab\nabcdef', '', (0, 4))
+    e.feed('<c-v>')
+    e.send('jjI')
+    # Row 1 ('ab') doesn't reach col 4: vim skips it.
+    assert e.status().cursor_count == 2
+    e.send('X' + ESC)
+    assert e.render() == 'abcdXef\nab\nabcdXef'
+
+
+def test_add_cursor_api_typing_backspace_enter():
+    e = make('aaa\nbbb', 'i')  # insert mode, cursor at (0,0)
+    e.add_cursor(Pos(1, 0))
+    e.send('X')
+    assert e.render() == 'Xaaa\nXbbb'
+    e.send('\x7f')  # backspace at both
+    assert e.render() == 'aaa\nbbb'
+    e.send('Y\r')   # type + enter at both
+    assert e.render() == 'Y\naaa\nY\nbbb'
+
+
+def test_multicursor_same_row_ordering():
+    # Two cursors on one row: edits at the earlier position must shift the later cursor correctly.
+    e = make('axbx', 'i')
+    e.set_cursor(Pos(0, 1))
+    e.add_cursor(Pos(0, 3))
+    e.send('!')
+    assert e.render() == 'a!xb!x'
+    e.send('\x7f')
+    assert e.render() == 'axbx'
+
+
+def test_multicursor_merge_on_collision():
+    e = make('ab', 'i')
+    e.set_cursor(Pos(0, 1))
+    e.add_cursor(Pos(0, 2))
+    assert e.status().cursor_count == 2
+    e.send('\x7f')  # both delete left; positions collide at col 0... second deletes 'b' -> both land at 0
+    assert e.render() == ''
+    assert e.status().cursor_count == 1
+
+
+def test_multicursor_paste_and_undo_unit():
+    e = make('a\nb', 'i')
+    e.add_cursor(Pos(1, 0))
+    e.insert_text('<<')
+    assert e.render() == '<<a\n<<b'
+    e.send(ESC)
+    e.send('u')
+    assert e.render() == 'a\nb'
+
+
+def test_secondary_cursor_decorations():
+    from ..vim.status import CURSOR_TAG  # noqa: PLC0415
+
+    e = make('aaa\nbbb', 'i')
+    e.add_cursor(Pos(1, 1))
+    decs = [d for d in e.decorations() if d.tag == CURSOR_TAG]
+    assert len(decs) == 1
+    assert decs[0].span.start == Pos(1, 1)

@@ -10,6 +10,7 @@ class Mode(enum.Enum):
     INSERT = enum.auto()
     VISUAL = enum.auto()
     VISUAL_LINE = enum.auto()
+    VISUAL_BLOCK = enum.auto()
     CMDLINE = enum.auto()
 
 

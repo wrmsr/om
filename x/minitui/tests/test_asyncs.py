@@ -21,6 +21,7 @@ def test_async_driver_dispatch_and_render():
     app = RecordingApp(driver)  # type: ignore[arg-type]  # duck-compatible: invalidate/stop match
 
     async def main():
+        tty.send(b'\x1b[3;1R')  # answer the startup origin CPR
         tty.send(b'ab\x1b[A')
 
         async def later():

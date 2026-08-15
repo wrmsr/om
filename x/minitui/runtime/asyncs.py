@@ -19,10 +19,13 @@ import typing as ta
 from omcore import check
 
 from ..events.parsing import Read1
+from ..events.types import CursorPositionEvent
 from ..events.types import Event
+from ..events.types import ModeReportEvent
 from ..events.types import ResizeEvent
 from ..events.xterm import XtermEventParser
 from ..screens.cells import Line
+from ..surfaces.bases import Surface
 from ..surfaces.inlines import InlineSurface
 from .drivers import App
 
@@ -99,7 +102,7 @@ class AsyncTimers:
 
 
 class AsyncDriver:
-    def __init__(self, surface: InlineSurface) -> None:
+    def __init__(self, surface: Surface) -> None:
         super().__init__()
 
         self._surface = surface
@@ -118,8 +121,12 @@ class AsyncDriver:
         self._parser_flush_handle: asyncio.TimerHandle | None = None
         self._parser_pending: Read1 | None = None
 
+        self._awaiting_origin = False
+        self._origin_fallback_handle: asyncio.TimerHandle | None = None
+        self._pending_commits: list[ta.Sequence[Line]] = []
+
     @property
-    def surface(self) -> InlineSurface:
+    def surface(self) -> Surface:
         return self._surface
 
     @property
@@ -140,7 +147,11 @@ class AsyncDriver:
             self._loop.call_soon(self._render)
 
     def commit(self, lines: ta.Sequence[Line]) -> None:
-        self._surface.commit(lines)
+        surface = check.isinstance(self._surface, InlineSurface)
+        if self._awaiting_origin:
+            self._pending_commits.append(tuple(lines))
+        else:
+            surface.commit(lines)
         self.invalidate()
 
     def stop(self) -> None:
@@ -160,7 +171,7 @@ class AsyncDriver:
 
     def _render(self) -> None:
         self._render_scheduled = False
-        if not self._invalidated or self._app is None:
+        if not self._invalidated or self._app is None or self._awaiting_origin:
             return
         self._invalidated = False
 
@@ -169,9 +180,32 @@ class AsyncDriver:
             self._app.handle_event(ResizeEvent(surface.height, surface.width))
         surface.present(self._app.render(surface.width, surface.height))
 
+    def _resolve_origin(self, col: int | None) -> None:
+        if not self._awaiting_origin:
+            return
+        surface = check.isinstance(self._surface, InlineSurface)
+        if col is not None:
+            surface.resolve_origin(col)
+        else:
+            surface.resolve_origin_fallback()
+        self._awaiting_origin = False
+        if self._origin_fallback_handle is not None:
+            self._origin_fallback_handle.cancel()
+            self._origin_fallback_handle = None
+        pending, self._pending_commits = self._pending_commits, []
+        for lines in pending:
+            surface.commit(lines)
+        self.invalidate()
+
     def _dispatch(self, events: ta.Iterable[Event]) -> None:
         app = check.not_none(self._app)
         for event in events:
+            if self._awaiting_origin and isinstance(event, CursorPositionEvent):
+                self._resolve_origin(event.x)
+                continue
+            if isinstance(event, ModeReportEvent) and event.mode == 2026:
+                self._surface.set_sync_output(event.value != 0)
+                continue
             app.handle_event(event)
 
     def _track_parser_deadline(self) -> None:
@@ -219,7 +253,15 @@ class AsyncDriver:
         self._stop_event = asyncio.Event()
 
         surface = self._surface
-        surface.prepare()
+        if isinstance(surface, InlineSurface):
+            surface.prepare(defer_origin=True)
+            surface.request_origin(self._parser)
+            surface.request_sync_output_report()
+            self._awaiting_origin = True
+            self._origin_fallback_handle = loop.call_later(.25, lambda: self._resolve_origin(None))
+        else:
+            surface.prepare()
+            surface.request_sync_output_report()
 
         input_fd = surface.tty.input_fd
         loop.add_reader(input_fd, self._on_readable)
@@ -236,6 +278,9 @@ class AsyncDriver:
         try:
             await self._stop_event.wait()
         finally:
+            if self._origin_fallback_handle is not None:
+                self._origin_fallback_handle.cancel()
+                self._origin_fallback_handle = None
             if self._parser_flush_handle is not None:
                 self._parser_flush_handle.cancel()
             if has_winch_handler:

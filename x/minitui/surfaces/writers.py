@@ -61,6 +61,7 @@ _CAP_FALLBACKS: ta.Mapping[str, bytes] = {
     'civis': b'\x1b[?25l',
     'cnorm': b'\x1b[?25h',
     'cub': b'\x1b[%p1%dD',
+    'cup': b'\x1b[%i%p1%d;%p2%dH',
     'cub1': b'\x08',
     'cuf': b'\x1b[%p1%dC',
     'cuf1': b'\x1b[C',
@@ -81,6 +82,9 @@ _KITTY_KEYS_PUSH = b'\x1b[>1u'
 _KITTY_KEYS_POP = b'\x1b[<u'
 _MOUSE_ON = b'\x1b[?1000h\x1b[?1006h'
 _MOUSE_OFF = b'\x1b[?1006l\x1b[?1000l'
+_ALT_SCREEN_ON = b'\x1b[?1049h'
+_ALT_SCREEN_OFF = b'\x1b[?1049l'
+_SYNC_QUERY = b'\x1b[?2026$p'
 
 
 class TermWriter:
@@ -144,6 +148,11 @@ class TermWriter:
     def cr(self) -> None:
         self.text('\r')
 
+    def move_to(self, row: int, col: int) -> None:
+        """Absolute cursor addressing (0-based) - the alt-surface movement primitive."""
+
+        self.cap('cup', row, col)
+
     def crlf(self, n: int = 1) -> None:
         # With OPOST off this is the literal pair: column 0, then down one row - scrolling the terminal if (and only
         # if) the cursor is on the bottom row. This, not cud, is how the live region grows; see the inline surface.
@@ -164,6 +173,9 @@ class TermWriter:
     def autowrap(self, enabled: bool) -> None:  # noqa
         self.cap('smam' if enabled else 'rmam')
 
+    def sync_query(self) -> None:
+        self.raw(_SYNC_QUERY)
+
     def sync_start(self) -> None:
         self.raw(_SYNC_START)
 
@@ -178,6 +190,12 @@ class TermWriter:
 
     def mouse_tracking(self, enabled: bool) -> None:  # noqa
         self.raw(_MOUSE_ON if enabled else _MOUSE_OFF)
+
+    def alt_screen(self, enabled: bool) -> None:  # noqa
+        if (entry := self._cap('smcup' if enabled else 'rmcup')) is not None:
+            self._buffer.extend(entry)
+        else:
+            self.raw(_ALT_SCREEN_ON if enabled else _ALT_SCREEN_OFF)
 
     def bell(self) -> None:
         self.cap('bel')

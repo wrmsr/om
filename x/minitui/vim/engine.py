@@ -10,8 +10,10 @@ Reshaped from x/vibes/minivim onto the docs layer:
  - `status()` and `decorations()` are the only outputs besides the document itself - the engine never renders and
    never reads a keyboard; frontends pump `feed()` with plain chars (plus '<left>'-style tokens for special keys).
 
-Still deliberately out of scope (as in minivim): marks/jumplist, macros (q), blockwise visual (reserved in Kind),
-regex search, ex ranges. The dot-repeat is a keystroke recorder/replayer, exactly like vim's redo buffer.
+Grown beyond minivim: CMDLINE mode, edit-group undo/redo, `%` and `~`, and blockwise visual (ctrl+v: BLOCK spans,
+d/y/c/p over rectangles - block-change types on the first row only, no replication yet). Still deliberately out of
+scope: marks/jumplist, macros (q), regex search, ex ranges, block insert (I/A). The dot-repeat is a keystroke
+recorder/replayer, exactly like vim's redo buffer.
 """
 import typing as ta
 
@@ -22,6 +24,8 @@ from omcore import lang
 from ..docs.cursors import Cursor
 from ..docs.documents import Document
 from ..docs.edits import AppliedEdit
+from ..docs.edits import TextEdit
+from ..docs.edits import remap_pos_through
 from ..docs.positions import Kind
 from ..docs.positions import Pos
 from ..docs.positions import Span
@@ -40,16 +44,20 @@ from .parsing import Parser
 from .registers import Registers
 from .registers import RegValue
 from .registers import pieces_repeat
+from .scans import BRACKET_PAIRS
+from .scans import CLOSE_BRACKETS
 from .scans import char_at
 from .scans import char_class
 from .scans import clamp_col
 from .scans import find_char
 from .scans import first_nonblank
 from .scans import llen
+from .scans import match_bracket
 from .scans import retreat
 from .scans import word_back
 from .scans import word_end
 from .scans import word_fwd
+from .status import CURSOR_TAG
 from .status import SEARCH_CURRENT_TAG
 from .status import SEARCH_MATCH_TAG
 from .status import SELECTION_TAG
@@ -159,8 +167,20 @@ class VimEngine:
         return self._cursors[0].pos
 
     def set_cursor(self, pos: Pos) -> None:
+        """Place the (single) cursor explicitly - collapses any secondary cursors."""
+
         pos = self._doc.clamp(pos, allow_newline_slot=self._mode is Mode.INSERT)
-        self._set_cursor(pos, want=pos.col)
+        self._set_all_cursors([pos])
+
+    def add_cursor(self, pos: Pos) -> None:
+        """Add a secondary cursor. Insert-mode edits apply at every cursor; Esc collapses back to the primary."""
+
+        pos = self._doc.clamp(pos, allow_newline_slot=self._mode is Mode.INSERT)
+        if all(c.pos != pos for c in self._cursors):
+            self._cursors = (*self._cursors, Cursor(pos, want=pos.col))
+
+    def clear_secondary_cursors(self) -> None:
+        self._cursors = (self._cursors[0],)
 
     def feed(self, key: str) -> None:
         """
@@ -173,7 +193,7 @@ class VimEngine:
             self._feed_insert(key)
         elif self._mode is Mode.CMDLINE:
             self._feed_cmdline(key)
-        elif self._mode in (Mode.VISUAL, Mode.VISUAL_LINE):
+        elif self._mode in (Mode.VISUAL, Mode.VISUAL_LINE, Mode.VISUAL_BLOCK):
             self._feed_visual(key)
         else:
             self._feed_normal(key)
@@ -193,11 +213,10 @@ class VimEngine:
         self._begin_change()
 
     def insert_text(self, text: str) -> None:
-        """Insert text at the cursor (paste). In normal mode the cursor stays put, vim-put semantics not implied."""
+        """Insert text at every cursor (paste). In normal mode the cursor lands after the insertion."""
 
         self._begin_change()
-        applied = self._doc.insert(self.cursor, text)
-        self._set_cursor(self._doc.clamp(applied.edit.new_end, allow_newline_slot=self._mode is Mode.INSERT))
+        self._insert_at_cursors(text)
         if self._mode is not Mode.INSERT:
             self._end_change()
 
@@ -213,13 +232,23 @@ class VimEngine:
             pending=self._parser.pending,
             cmdline=cmdline,
             message=self._message,
+            cursor_count=len(self._cursors),
         )
 
     def decorations(self) -> list[Decoration]:
         decs: list[Decoration] = []
 
-        if self._mode in (Mode.VISUAL, Mode.VISUAL_LINE) and self._visual_anchor is not None:
+        if (
+                self._mode in (Mode.VISUAL, Mode.VISUAL_LINE, Mode.VISUAL_BLOCK) and
+                self._visual_anchor is not None
+        ):
             decs.append(Decoration(self._visual_span(), SELECTION_TAG))
+
+        for extra in self._cursors[1:]:
+            decs.append(Decoration(
+                Span(Kind.EXCLUSIVE, extra.pos, Pos(extra.pos.row, extra.pos.col + 1)),
+                CURSOR_TAG,
+            ))
 
         query: str | None = None
         forward = True
@@ -249,6 +278,41 @@ class VimEngine:
             Cursor(pos, want=want if want is not None else primary.want),
             *self._cursors[1:],
         )
+
+    def _set_all_cursors(self, positions: ta.Sequence[Pos]) -> None:
+        """Replace the whole cursor set; positions[0] is the primary. Coinciding cursors merge (first wins)."""
+
+        seen: set[Pos] = set()
+        cursors: list[Cursor] = []
+        for pos in positions:
+            if pos not in seen:
+                seen.add(pos)
+                cursors.append(Cursor(pos, want=pos.col))
+        self._cursors = tuple(cursors) if cursors else (Cursor(Pos(0, 0)),)
+
+    def _edit_at_cursors(
+            self,
+            make: ta.Callable[[Pos], tuple[Pos, Pos, str] | None],
+            place: ta.Callable[[AppliedEdit], Pos],
+    ) -> None:
+        """
+        Apply one logical edit at every cursor: ascending document order, each cursor's position remapped through the
+        edits already applied this keystroke - the whole reason edits are ranges with remappable positions.
+        """
+
+        order = sorted(range(len(self._cursors)), key=lambda i: self._cursors[i].pos)
+        applied: list[TextEdit] = []
+        new_pos: dict[int, Pos] = {}
+        for i in order:
+            pos = remap_pos_through(self._cursors[i].pos, applied)
+            if (spec := make(pos)) is None:
+                new_pos[i] = pos
+                continue
+            start, end, text = spec
+            a = self._doc.replace(start, end, text)
+            applied.append(a.edit)
+            new_pos[i] = place(a)
+        self._set_all_cursors([new_pos[i] for i in range(len(self._cursors))])
 
     @property
     def _want(self) -> int:
@@ -291,7 +355,7 @@ class VimEngine:
         finally:
             self._history_suppressed = False
         target = entry.cursor_before if undo else entry.cursor_after
-        self._set_cursor(clamp_col(self._doc, self._doc.clamp(target)))
+        self._set_all_cursors([clamp_col(self._doc, self._doc.clamp(target))])
 
     ##
     # Normal mode
@@ -299,6 +363,12 @@ class VimEngine:
     def _feed_normal(self, key: str) -> None:
         if key in CMDLINE_STARTERS and self._parser.is_idle:
             self._enter_cmdline(CmdlineKind(key))
+            return
+
+        if key == '<c-v>' and self._parser.is_idle:
+            self._keys.clear()
+            self._visual_anchor = self.cursor
+            self._set_visual(Mode.VISUAL_BLOCK)
             return
 
         key = TOKEN_MOTIONS.get(key, key)
@@ -340,14 +410,51 @@ class VimEngine:
     ##
     # Insert mode
 
-    def _feed_insert(self, key: str) -> None:  # noqa: C901
+    def _insert_at_cursors(self, text: str) -> None:
+        self._edit_at_cursors(
+            lambda pos: (pos, pos, text),
+            lambda a: a.edit.new_end,
+        )
+
+    def _backspace_at_cursors(self) -> None:
+        doc = self._doc
+
+        def make(pos: Pos) -> tuple[Pos, Pos, str] | None:
+            if pos.col > 0:
+                return (Pos(pos.row, pos.col - 1), pos, '')
+            if pos.row > 0:
+                return (Pos(pos.row - 1, llen(doc, pos.row - 1)), Pos(pos.row, 0), '')
+            return None
+
+        self._edit_at_cursors(make, lambda a: a.edit.start)
+
+    def _move_cursors_insert(self, key: str) -> None:
+        doc = self._doc
+
+        def move(pos: Pos) -> Pos:
+            if key == '<left>':
+                return Pos(pos.row, max(0, pos.col - 1))
+            if key == '<right>':
+                return Pos(pos.row, min(pos.col + 1, llen(doc, pos.row)))
+            if key == '<up>' and pos.row > 0:
+                return Pos(pos.row - 1, min(pos.col, llen(doc, pos.row - 1)))
+            if key == '<down>' and pos.row + 1 < doc.line_count():
+                return Pos(pos.row + 1, min(pos.col, llen(doc, pos.row + 1)))
+            if key == '<home>':
+                return Pos(pos.row, 0)
+            if key == '<end>':
+                return Pos(pos.row, llen(doc, pos.row))
+            return pos
+
+        self._set_all_cursors([move(c.pos) for c in self._cursors])
+
+    def _feed_insert(self, key: str) -> None:
         if self._rec_insert and not self._replaying:
             self._keys.append(key)
 
-        doc = self._doc
-        cur = self.cursor
-
         if key == ESC:
+            self.clear_secondary_cursors()
+            cur = self.cursor
             self._mode = Mode.NORMAL
             self._set_cursor(Pos(cur.row, max(0, cur.col - 1)), want=max(0, cur.col - 1))
             self._end_change()
@@ -358,38 +465,19 @@ class VimEngine:
             return
 
         if key in ('\r', '\n'):
-            doc.insert(cur, '\n')
-            self._set_cursor(Pos(cur.row + 1, 0))
+            self._insert_at_cursors('\n')
             return
 
         if key in BACKSPACES:
-            if cur.col > 0:
-                doc.delete(Pos(cur.row, cur.col - 1), cur)
-                self._set_cursor(Pos(cur.row, cur.col - 1))
-            elif cur.row > 0:
-                new_col = llen(doc, cur.row - 1)
-                doc.delete(Pos(cur.row - 1, new_col), Pos(cur.row, 0))
-                self._set_cursor(Pos(cur.row - 1, new_col))
+            self._backspace_at_cursors()
             return
 
         if key.startswith('<'):
-            if key == '<left>':
-                self._set_cursor(Pos(cur.row, max(0, cur.col - 1)))
-            elif key == '<right>':
-                self._set_cursor(Pos(cur.row, min(cur.col + 1, llen(doc, cur.row))))
-            elif key == '<up>' and cur.row > 0:
-                self._set_cursor(Pos(cur.row - 1, min(cur.col, llen(doc, cur.row - 1))))
-            elif key == '<down>' and cur.row + 1 < doc.line_count():
-                self._set_cursor(Pos(cur.row + 1, min(cur.col, llen(doc, cur.row + 1))))
-            elif key == '<home>':
-                self._set_cursor(Pos(cur.row, 0))
-            elif key == '<end>':
-                self._set_cursor(Pos(cur.row, llen(doc, cur.row)))
+            self._move_cursors_insert(key)
             return
 
         if len(key) == 1 and (key.isprintable() or key == '\t'):
-            doc.insert(cur, key)
-            self._set_cursor(Pos(cur.row, cur.col + 1))
+            self._insert_at_cursors(key)
 
     ##
     # Cmdline mode (/ ? :)
@@ -459,6 +547,14 @@ class VimEngine:
     # Visual mode
 
     def _feed_visual(self, key: str) -> None:  # noqa: C901
+        if key == '<c-v>':
+            if self._mode is Mode.VISUAL_BLOCK:
+                self._leave_visual()
+            else:
+                self._set_visual(Mode.VISUAL_BLOCK)
+            self._parser.reset()
+            return
+
         key = TOKEN_MOTIONS.get(key, key)
 
         state, cmd = self._parser.feed(key)
@@ -492,6 +588,32 @@ class VimEngine:
             anchor = check.not_none(self._visual_anchor)
             self._visual_anchor = self.cursor
             self._set_cursor(anchor, want=anchor.col)
+            return
+
+        # blockwise I/A: a cursor per block row, live-replicating insert (vim replays at Esc; we show it live)
+        if self._mode is Mode.VISUAL_BLOCK and cmd.action in ('I', 'A'):
+            span = self._visual_span()
+            self._leave_visual()
+            self._begin_change()
+            doc = self._doc
+            positions: list[Pos] = []
+            if cmd.action == 'A':
+                col = span.end.col
+                for r in range(span.start.row, span.end.row + 1):
+                    if (pad := col - llen(doc, r)) > 0:
+                        doc.insert(Pos(r, llen(doc, r)), ' ' * pad)
+                    positions.append(Pos(r, col))
+            else:
+                col = span.start.col
+                positions = [
+                    Pos(r, col)
+                    for r in range(span.start.row, span.end.row + 1)
+                    if llen(doc, r) >= col  # vim skips lines that don't reach the block's left edge
+                ]
+                if not positions:
+                    positions = [self._doc.clamp(Pos(span.start.row, col))]
+            self._set_all_cursors(positions)
+            self._mode = Mode.INSERT
             return
 
         # operator (or synonym) applies to the selection
@@ -541,9 +663,14 @@ class VimEngine:
         self._parser.visual = False
 
     def _visual_span(self) -> Span:
-        a, b = sorted([check.not_none(self._visual_anchor), self.cursor])
+        anchor = check.not_none(self._visual_anchor)
+        a, b = sorted([anchor, self.cursor])
         if self._mode is Mode.VISUAL_LINE:
             return Span(Kind.LINEWISE, Pos(a.row, 0), Pos(b.row, 0))
+        if self._mode is Mode.VISUAL_BLOCK:
+            c1 = min(anchor.col, self.cursor.col)
+            c2 = max(anchor.col, self.cursor.col) + 1
+            return Span(Kind.BLOCK, Pos(a.row, c1), Pos(b.row, c2))
         end = Pos(b.row, min(b.col + 1, llen(self._doc, b.row)))  # incl. cursor char
         return Span(Kind.EXCLUSIVE, a, end)
 
@@ -629,6 +756,19 @@ class VimEngine:
         if k == '$':
             row = min(p.row + n - 1, doc.line_count() - 1)
             return MotionResult(Pos(row, max(0, llen(doc, row) - 1)), inc, curswant_eol=True)
+
+        if k == '%':
+            # First bracket at-or-after the cursor on this line, jumped to its match.
+            line = doc.line(p.row)
+            col = next(
+                (c for c in range(p.col, len(line)) if line[c] in BRACKET_PAIRS or line[c] in CLOSE_BRACKETS),
+                None,
+            )
+            if col is None:
+                return None
+            if (mpos := match_bracket(doc, Pos(p.row, col))) is None:
+                return None
+            return MotionResult(mpos, inc)
 
         if k and k in 'wW':
             return MotionResult(word_fwd(doc, p, n, k == 'W'), exc)
@@ -740,6 +880,15 @@ class VimEngine:
         if op == 'c':
             pieces, kind = self._extract(span)
             self._regs.set(reg or '"', RegValue(tuple(pieces), kind), is_yank=False)
+            if span.kind is Kind.BLOCK:
+                # A cursor per row: typed text live-replicates onto every block row (vim replays at Esc instead).
+                self._delete_span(span)
+                self._set_all_cursors([
+                    Pos(r, min(span.start.col, llen(doc, r)))
+                    for r in range(span.start.row, span.end.row + 1)
+                ])
+                self._mode = Mode.INSERT
+                return True
             if span.kind is Kind.LINEWISE:
                 r1, r2 = span.start.row, span.end.row
                 doc.replace(Pos(r1, 0), Pos(r2, llen(doc, r2)), '')
@@ -756,10 +905,29 @@ class VimEngine:
         doc = self._doc
         if span.kind is Kind.LINEWISE:
             return ([doc.line(r) for r in range(span.start.row, span.end.row + 1)], Kind.LINEWISE)
+        if span.kind is Kind.BLOCK:
+            return (
+                [
+                    doc.line(r)[span.start.col: min(span.end.col, llen(doc, r))]
+                    for r in range(span.start.row, span.end.row + 1)
+                ],
+                Kind.BLOCK,
+            )
         return (doc.get_text(span.start, span.end).split('\n'), Kind.EXCLUSIVE)
 
     def _delete_span(self, span: Span) -> None:
         doc = self._doc
+        if span.kind is Kind.BLOCK:
+            # Row-local deletes: column positions on other rows are unaffected, so order doesn't matter.
+            for r in range(span.start.row, span.end.row + 1):
+                line_len = llen(doc, r)
+                a = min(span.start.col, line_len)
+                b = min(span.end.col, line_len)
+                if b > a:
+                    doc.delete(Pos(r, a), Pos(r, b))
+            pos = clamp_col(doc, self._doc.clamp(Pos(span.start.row, span.start.col)))
+            self._set_cursor(pos, want=pos.col)
+            return
         if span.kind is Kind.LINEWISE:
             r1, r2 = span.start.row, span.end.row
             last = doc.line_count() - 1
@@ -843,6 +1011,17 @@ class VimEngine:
                 self._set_cursor(Pos(row, len(first)))
             return True
 
+        if a == '~':
+            line = doc.line(cur.row)
+            if cur.col >= len(line):
+                return False
+            end = min(cur.col + n, len(line))
+            self._begin_change()
+            doc.replace(cur, Pos(cur.row, end), line[cur.col: end].swapcase())
+            pos = clamp_col(doc, Pos(cur.row, end))
+            self._set_cursor(pos, want=pos.col)
+            return True
+
         if a == 'u':
             self._no_record = True
             if self._undo:
@@ -881,8 +1060,25 @@ class VimEngine:
             self._apply_history(entry, undo=False)
             self._undo.append(entry)
 
-    def _put(self, rv: RegValue, count: int, *, after: bool) -> None:
+    def _put(self, rv: RegValue, count: int, *, after: bool) -> None:  # noqa: C901
         doc, cur = self._doc, self.cursor
+
+        if rv.kind is Kind.BLOCK:
+            # Paste the rectangle at the cursor column on successive rows, creating rows / padding as needed.
+            # (A count would stack copies; ignored for now, like vim's rarer block-put variants.)
+            col = cur.col + 1 if (after and llen(doc, cur.row)) else cur.col
+            for i, piece in enumerate(rv.pieces):
+                row = cur.row + i
+                if row >= doc.line_count():
+                    end = doc.end_pos()
+                    doc.insert(end, '\n')
+                line_len = llen(doc, row)
+                if line_len < col:
+                    doc.insert(Pos(row, line_len), ' ' * (col - line_len))
+                doc.insert(Pos(row, col), piece)
+            pos = clamp_col(doc, Pos(cur.row, col))
+            self._set_cursor(pos, want=pos.col)
+            return
 
         if rv.kind is Kind.LINEWISE:
             text = '\n'.join(rv.pieces * count)

@@ -16,14 +16,17 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ..docs.documents import Document
+from ..docs.highlighting import IncrementalHighlighter
 from ..docs.positions import Kind
 from ..docs.positions import Pos
 from ..events.keys import Key
 from ..events.types import Event
 from ..events.types import KeyEvent
 from ..events.types import PasteEvent
+from ..text.highlights import Highlighter
 from ..text.segments import Segment
 from ..text.styles import StyleLike
+from ..text.widths import ascii_control_repr
 from ..text.widths import char_width
 from ..vim.engine import VimEngine
 from ..vim.modes import Mode
@@ -47,6 +50,19 @@ _KEY_TOKENS: ta.Mapping[str, str] = {
 }
 
 
+def _display_char(c: str) -> tuple[str, int]:
+    """What one document character displays as: tabs become four spaces, control chars caret notation."""
+
+    if c == '\t':
+        return ('    ', 4)
+    if (caret := ascii_control_repr(c)) is not None:
+        return (caret, len(caret))
+    return (c, char_width(c))
+
+
+_TagInterval: ta.TypeAlias = tuple[int, int, StyleLike]  # [start_col, end_col) -> style/tag
+
+
 @dc.dataclass(frozen=True)
 class _WrapRow(lang.Final):
     """One screen row of one document row: [start_col, end_col) plus its rendered cells' columns."""
@@ -68,6 +84,7 @@ class TextArea(Control):
             on_submit: ta.Callable[[str], None] | None = None,
             ex_handler: ta.Callable[[str], str | None] | None = None,
             start_in_normal: bool = False,
+            highlighter: Highlighter | None = None,
     ) -> None:
         super().__init__()
 
@@ -76,8 +93,18 @@ class TextArea(Control):
         self._prompt = prompt
         self._prompt_style = prompt_style
         self._on_submit = on_submit
+        self._highlighter = highlighter
 
         self._top = 0  # first visible screen row of the wrapped document
+        self._last_width = 80  # viewport ops happen between renders; remember the geometry
+        self._pending_z = False
+
+        self._hl_version: int | None = None
+        self._hl_tags: list[list[_TagInterval]] = []
+
+        if isinstance(highlighter, IncrementalHighlighter):
+            # Feed every applied edit (undo inverses included) so keystrokes cost incremental reparses.
+            self.doc.add_listener(lambda doc, applied: highlighter.note_edit(applied.edit))
 
         if not start_in_normal:
             self._engine.enter_insert()
@@ -87,13 +114,25 @@ class TextArea(Control):
         return self._engine
 
     @property
+    def max_height(self) -> int:
+        return self._max_height
+
+    def set_max_height(self, max_height: int) -> None:
+        self._max_height = max(max_height, 1)
+
+    @property
     def doc(self) -> Document:
         return self._engine.doc
 
     def clear(self) -> None:
-        self.doc.set_text('')
-        self._engine.set_cursor(Pos(0, 0))
+        self.set_text('')
+
+    def set_text(self, text: str) -> None:
+        """Replace the whole content (history navigation, programmatic fills); cursor to end, insert mode."""
+
+        self.doc.set_text(text)
         self._engine.enter_insert()
+        self._engine.set_cursor(self.doc.end_pos())
         self._top = 0
 
     ##
@@ -112,7 +151,7 @@ class TextArea(Control):
             col = 0
             budget = 0
             while col < len(line):
-                w = char_width(line[col])
+                _, w = _display_char(line[col])
                 if budget + w > text_width and col > start:
                     rows.append(_WrapRow(r, start, col, first=start == 0))
                     start = col
@@ -145,7 +184,26 @@ class TextArea(Control):
         return top, height
 
     ##
-    # Decoration spans -> per-(row, col) tags
+    # Style layers: syntax base spans under engine decorations
+
+    def _base_tags(self, doc_row: int) -> ta.Sequence[_TagInterval]:
+        if self._highlighter is None:
+            return ()
+        if self._hl_version != self.doc.version:
+            self._hl_tags = []
+            for row in self._highlighter.highlight(self.doc.lines()):
+                intervals: list[_TagInterval] = []
+                col = 0
+                for seg in row:
+                    end = col + len(seg.text)
+                    if seg.style is not None:
+                        intervals.append((col, end, seg.style))
+                    col = end
+                self._hl_tags.append(intervals)
+            self._hl_version = self.doc.version
+        if 0 <= doc_row < len(self._hl_tags):
+            return self._hl_tags[doc_row]
+        return ()
 
     def _row_tags(self, doc_row: int) -> list[tuple[int, int, str]]:
         """Tagged col intervals for one document row, later entries taking priority."""
@@ -158,6 +216,12 @@ class TextArea(Control):
                 if span.start.row <= doc_row <= span.end.row:
                     out.append((0, len(doc.line(doc_row)), dec.tag))
                 continue
+            if span.kind is Kind.BLOCK:
+                if span.start.row <= doc_row <= span.end.row:
+                    b = min(span.end.col, len(doc.line(doc_row)))
+                    if b > span.start.col:
+                        out.append((span.start.col, b, dec.tag))
+                continue
             if not span.start.row <= doc_row <= span.end.row:
                 continue
             a = span.start.col if doc_row == span.start.row else 0
@@ -166,7 +230,7 @@ class TextArea(Control):
                 out.append((a, b, dec.tag))
         return out
 
-    def _segment_row(self, row: _WrapRow, tags: ta.Sequence[tuple[int, int, str]]) -> list[Segment]:
+    def _segment_row(self, row: _WrapRow, tags: ta.Sequence[_TagInterval]) -> list[Segment]:
         line = self.doc.line(row.doc_row)
         segments: list[Segment] = []
 
@@ -174,34 +238,43 @@ class TextArea(Control):
             prefix = self._prompt if row.first and row.doc_row == 0 else ' ' * len(self._prompt)
             segments.append(Segment(prefix, self._prompt_style))
 
-        def tag_at(col: int) -> str | None:
-            found: str | None = None
+        def tag_at(col: int) -> StyleLike:
+            found: StyleLike = None
             for a, b, tag in tags:
                 if a <= col < b:
                     found = tag
             return found
 
         text = ''
-        style: str | None = None
+        style: StyleLike = None
         for col in range(row.start_col, row.end_col):
             c_tag = tag_at(col)
             if text and c_tag != style:
                 segments.append(Segment(text, style))
                 text = ''
             style = c_tag
-            text += line[col]
+            text += _display_char(line[col])[0]
         if text:
             segments.append(Segment(text, style))
+
+        # A tag covering the newline slot (a secondary cursor parked at end-of-line) renders as a styled space.
+        if row.end_col == len(line) and (eol_tag := tag_at(len(line))) is not None:
+            segments.append(Segment(' ', eol_tag))
+
         return segments
 
     ##
     # Control interface
 
     def render(self, width: int) -> ta.Sequence[ta.Sequence[Segment]]:
+        self._last_width = width
         rows = self._wrap_rows(width)
         top, height = self._scroll(rows)
         visible = rows[top: top + height]
-        return [self._segment_row(row, self._row_tags(row.doc_row)) for row in visible] or [[]]
+        return [
+            self._segment_row(row, [*self._base_tags(row.doc_row), *self._row_tags(row.doc_row)])
+            for row in visible
+        ] or [[]]
 
     def cursor(self, width: int) -> tuple[int, int] | None:
         rows = self._wrap_rows(width)
@@ -212,8 +285,99 @@ class TextArea(Control):
         row = rows[cursor_row]
         cur = self._engine.cursor
         line = self.doc.line(row.doc_row)
-        x = len(self._prompt) + sum(char_width(c) for c in line[row.start_col: min(cur.col, row.end_col)])
+        x = len(self._prompt) + sum(
+            _display_char(c)[1] for c in line[row.start_col: min(cur.col, row.end_col)]
+        )
         return (x, cursor_row - top)
+
+    ##
+    # Viewport operations (view concerns vim routes through the editor: scrolling lives with the window, not the
+    # engine - the engine stays headless)
+
+    def _visible_modes(self) -> bool:
+        return self._engine.mode in (Mode.NORMAL, Mode.VISUAL, Mode.VISUAL_LINE, Mode.VISUAL_BLOCK)
+
+    def _viewport(self) -> tuple[list[_WrapRow], int, int]:
+        rows = self._wrap_rows(self._last_width)
+        top, height = self._scroll(rows)
+        return rows, top, height
+
+    def _cursor_to_wrap_row(self, rows: ta.Sequence[_WrapRow], index: int) -> None:
+        row = rows[min(max(index, 0), len(rows) - 1)]
+        cur = self._engine.cursor
+        col = min(max(cur.col, row.start_col), max(row.end_col - 1, row.start_col))
+        self._engine.set_cursor(Pos(row.doc_row, col))
+
+    def _scroll_half_page(self, *, down: bool) -> None:
+        rows, top, height = self._viewport()
+        half = max(height // 2, 1)
+        delta = half if down else -half
+        self._cursor_to_wrap_row(rows, self._cursor_screen_row(rows) + delta)
+        self._top = min(max(top + delta, 0), max(len(rows) - height, 0))
+
+    def _scroll_line(self, *, down: bool) -> None:
+        rows, top, height = self._viewport()
+        self._top = min(max(top + (1 if down else -1), 0), max(len(rows) - height, 0))
+        cursor_row = self._cursor_screen_row(rows)
+        if cursor_row < self._top:
+            self._cursor_to_wrap_row(rows, self._top)
+        elif cursor_row >= self._top + height:
+            self._cursor_to_wrap_row(rows, self._top + height - 1)
+
+    def _reposition(self, where: str) -> None:
+        rows, top, height = self._viewport()
+        cursor_row = self._cursor_screen_row(rows)
+        if where == 't':
+            new_top = cursor_row
+        elif where == 'b':
+            new_top = cursor_row - height + 1
+        else:  # 'z': center
+            new_top = cursor_row - height // 2
+        self._top = min(max(new_top, 0), max(len(rows) - height, 0))
+
+    def _move_to_screen_line(self, where: str) -> None:
+        rows, top, height = self._viewport()
+        if where == 'H':
+            index = top
+        elif where == 'L':
+            index = top + height - 1
+        else:  # 'M'
+            index = top + height // 2
+        row = rows[min(max(index, 0), len(rows) - 1)]
+        line = self.doc.line(row.doc_row)
+        stripped = line.lstrip(' \t')
+        col = (len(line) - len(stripped)) if stripped else 0
+        self._engine.set_cursor(Pos(row.doc_row, col))
+
+    def _handle_view_key(self, key: Key) -> bool:
+        if not self._visible_modes():
+            self._pending_z = False
+            return False
+
+        if self._pending_z:
+            self._pending_z = False
+            if key in (Key('z'), Key('t'), Key('b')):
+                self._reposition('z' if key.base == 'z' else key.base)
+            return True
+
+        if key == Key('d', ctrl=True) or key == Key('u', ctrl=True):
+            self._scroll_half_page(down=key.base == 'd')
+            return True
+        if key == Key('e', ctrl=True) or key == Key('y', ctrl=True):
+            self._scroll_line(down=key.base == 'e')
+            return True
+
+        if self._engine.status().pending:
+            return False  # an in-progress command (d, 2, ...) owns plain letters
+
+        if key == Key('z'):
+            self._pending_z = True
+            return True
+        if key in (Key('H'), Key('M'), Key('L')):
+            self._move_to_screen_line(key.base)
+            return True
+
+        return False
 
     def _submit(self) -> None:
         text = self.doc.text()
@@ -251,6 +415,13 @@ class TextArea(Control):
                 engine.redo()
                 return True
             return False
+
+        if key == Key('v', ctrl=True) and self._visible_modes():
+            engine.feed('<c-v>')
+            return True
+
+        if self._handle_view_key(key):
+            return True
 
         if key.ctrl or key.super_:
             return False  # other chords are the app's business

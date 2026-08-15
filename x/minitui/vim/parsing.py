@@ -28,7 +28,7 @@ ParseResult: ta.TypeAlias = tuple[str, ta.Optional['Command']]  # ('more'|'cmd'|
 ESC = '\x1b'
 
 OPERATORS: ta.AbstractSet[str] = frozenset('dcy><')
-ACTIONS: ta.AbstractSet[str] = frozenset('xXDCsSYpPiIaAoOuJrvV.')
+ACTIONS: ta.AbstractSet[str] = frozenset('xXDCsSYpPiIaAoOuJrvV.~')
 ACTION_NEEDS_ARG: ta.AbstractSet[str] = frozenset('r')
 
 CMDLINE_STARTERS: ta.AbstractSet[str] = frozenset('/?:')

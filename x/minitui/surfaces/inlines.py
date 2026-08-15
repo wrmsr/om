@@ -69,6 +69,8 @@ class InlineSurface(Surface):
         self._cursor_shown = True
         self._prepared = False
         self._debug_cycle = 0
+        # Blind-optimistic until negotiated: unknown DECSETs are ignored by terminals that lack them.
+        self._sync_output = True
 
     @property
     def tty(self) -> Tty:
@@ -91,7 +93,16 @@ class InlineSurface(Surface):
     ##
     # Lifecycle
 
-    def prepare(self) -> None:
+    def prepare(self, *, defer_origin: bool = False) -> None:
+        """
+        Enter raw mode and establish the live region origin.
+
+        By default the origin is column 0 of the current row (a bare CR - a shell's partial line gets overwritten).
+        With `defer_origin`, nothing positional is written: the caller (a driver) sends a CPR query via
+        `request_origin` and later calls `resolve_origin`/`resolve_origin_fallback` - which moves to a *fresh* line
+        when the shell left the cursor mid-line, the polite behavior. No present/commit may happen in between.
+        """
+
         check.state(not self._prepared)
 
         self._tty.enter_raw()
@@ -105,15 +116,51 @@ class InlineSurface(Surface):
             w.kitty_keys(True)
         if self._mouse:
             w.mouse_tracking(True)
-        # Normalize to column 0 of the current row; this becomes the live region origin. (A shell that left a partial
-        # line gets overwritten - CPR-based column detection can improve this once the input layer exists.)
-        w.cr()
+        if not defer_origin:
+            w.cr()
         w.flush()
 
         self._frame = EMPTY_FRAME
         self._cursor = (0, 0)
         self._cursor_shown = True
         self._prepared = True
+
+    def set_sync_output(self, enabled: bool) -> None:
+        self._sync_output = enabled
+
+    def request_sync_output_report(self) -> None:
+        """Send the DECRQM query for synchronized output; the answer arrives as a ModeReportEvent(2026, ...)."""
+
+        w = self._writer
+        w.sync_query()
+        w.flush()
+
+    def request_origin(self, parser: ta.Any) -> None:
+        """Send a CPR query (DSR 6); `parser` is armed to recognize the response (expect_cursor_position_report)."""
+
+        w = self._writer
+        w.raw(b'\x1b[6n')
+        w.flush()
+        parser.expect_cursor_position_report()
+
+    def resolve_origin(self, col: int) -> None:
+        """The CPR answer arrived: start on a fresh line if the shell left the cursor mid-line."""
+
+        w = self._writer
+        if col > 0:
+            w.crlf()
+        else:
+            w.cr()  # col 0 already, but normalize defensively
+        w.flush()
+        self._cursor = (0, 0)
+
+    def resolve_origin_fallback(self) -> None:
+        """No CPR answer (unsupported terminal): fall back to the overwrite-in-place behavior."""
+
+        w = self._writer
+        w.cr()
+        w.flush()
+        self._cursor = (0, 0)
 
     def restore(self) -> None:
         if not self._prepared:
@@ -237,7 +284,8 @@ class InlineSurface(Surface):
         diff = diff_frames(self._frame, frame)
 
         w = self._writer
-        w.sync_start()
+        if self._sync_output:
+            w.sync_start()
         debug_style = self._debug_style() if not diff.is_empty else None
 
         if not diff.is_empty:
@@ -259,7 +307,8 @@ class InlineSurface(Surface):
         else:
             self._hide_cursor()
 
-        w.sync_end()
+        if self._sync_output:
+            w.sync_end()
         w.flush()
 
         self._frame = frame
@@ -283,7 +332,8 @@ class InlineSurface(Surface):
         self.take_resized()
 
         w = self._writer
-        w.sync_start()
+        if self._sync_output:
+            w.sync_start()
         self._hide_cursor()
 
         old = self._frame
@@ -310,7 +360,8 @@ class InlineSurface(Surface):
         self._cursor = (0, 0)
         self._frame = Frame(remaining, cursor=(0, 0), cursor_visible=old.cursor_visible)
 
-        w.sync_end()
+        if self._sync_output:
+            w.sync_end()
         w.flush()
 
     ##

@@ -6,6 +6,7 @@ from omcore.term.vt100.terminal import Vt100Terminal
 from ..events.keys import Key
 from ..events.types import Event
 from ..events.types import KeyEvent
+from ..events.types import ModeReportEvent
 from ..events.types import PasteEvent
 from ..runtime.drivers import App
 from ..runtime.drivers import SyncDriver
@@ -66,6 +67,8 @@ def run_driver(
     tty = PipeTty(height=height, width=width)
     driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
     app = RecordingApp(driver)
+    # Answer the startup origin CPR like a real terminal (row 3, col 1) so rendering isn't timeout-delayed.
+    tty.send(b'\x1b[3;1R')
     tty.send(data)
     if then is not None:
         # Deliver the second chunk from inside the loop, guaranteeing a render happens between the two reads.
@@ -111,3 +114,63 @@ def test_driver_escape_timeout_fires():
     # the run. (The wait is the parser's 50ms escape timeout - real time, but tiny and deterministic in outcome.)
     app, _ = run_driver(b'\x1b')
     assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('escape')]
+
+
+def test_origin_cpr_midline_gets_fresh_line():
+    # A shell left its prompt mid-line (col 5). The driver's CPR dance must move to a fresh line instead of
+    # overwriting it.
+    tty = PipeTty(height=6, width=40)
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
+    app = RecordingApp(driver)
+
+    term = Vt100Terminal(rows=6, cols=40)
+    term.feed('sh$ x')  # the partial prompt line, cursor now at col 5
+
+    tty.send(b'\x1b[1;6R')  # CPR answer: row 1, col 6 (1-based) = col 5
+
+    def quit_later() -> None:
+        tty.send(b'\x04')
+        tty.close_input()
+
+    driver.timers.call_later(.02, quit_later)
+    try:
+        driver.run(app)
+    finally:
+        os.close(tty.read_fd)
+
+    term.feed(b''.join(tty.writes))
+    lines = term.all_lines()
+    assert lines[0] == 'sh$ x'  # the prompt survived
+    assert any(line.startswith('events:') for line in lines[1:])  # our output started below it
+
+
+def test_sync_output_negotiation_disables_bracket():
+    # The terminal reports DECRQM mode 2026 as unrecognized (value 0): frames stop being sync-bracketed.
+    tty = PipeTty(height=6, width=40)
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
+    app = RecordingApp(driver)
+
+    tty.send(b'\x1b[3;1R')      # origin CPR
+    tty.send(b'\x1b[?2026;0$y')  # sync output: unrecognized
+
+    def quit_later() -> None:
+        tty.send(b'\x04')
+        tty.close_input()
+
+    def type_and_quit() -> None:
+        tty.send(b'x')
+        driver.timers.call_later(.02, quit_later)
+
+    driver.timers.call_later(.02, type_and_quit)
+    try:
+        driver.run(app)
+    finally:
+        os.close(tty.read_fd)
+
+    # The mode report was consumed as plumbing, never forwarded.
+    assert not any(isinstance(e, ModeReportEvent) for e in app.events)
+
+    # Renders after the report carry no sync bracket.
+    late = b''.join(tty.writes[-6:])
+    assert b'events:' in b''.join(tty.writes)
+    assert b'\x1b[?2026h' not in late

@@ -23,6 +23,9 @@ class RegValue(lang.Final):
 
 
 def _reg_append(old: RegValue, new: RegValue) -> RegValue:
+    if old.kind is Kind.BLOCK or new.kind is Kind.BLOCK:
+        # Blocks stack vertically on append. (vim's horizontal-join subtleties are out of scope.)
+        return RegValue((*old.pieces, *new.pieces), Kind.BLOCK)
     if old.kind is Kind.LINEWISE or new.kind is Kind.LINEWISE:
         return RegValue((*old.pieces, *new.pieces), Kind.LINEWISE)
     joined = (*old.pieces[:-1], old.pieces[-1] + new.pieces[0], *new.pieces[1:])

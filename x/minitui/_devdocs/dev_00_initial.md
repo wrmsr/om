@@ -171,3 +171,7 @@ Notes to self / near-term decisions already made:
 - Sync-output 2026 wrapped around every present unconditionally for now.
 - vt100 emulator needs: scroll-at-bottom (it currently clamps!), scrollback capture, autowrap flag, and enough SGR to
   round-trip our styles. Extend in place in omcore, tests live here.
+
+---
+
+(This era is closed - continued in `dev_01_parity_push.md`.)

@@ -7,11 +7,13 @@ Deliberately modeled behaviors (the ones renderers depend on):
  - Autowrap (DECAWM, ``CSI ? 7 h/l``) with proper *deferred* wrap: writing the last column sets a wrap-pending flag
    rather than moving the cursor; with autowrap off the cursor pins and further writes overwrite the last cell.
  - Cursor visibility (DECTCEM, ``CSI ? 25 h/l``).
+ - The alternate screen (``CSI ? 1049 h/l``, also 47/1047): a separate grid with the main screen and cursor saved
+   and restored; scrolling while in the alt screen discards lines instead of feeding scrollback.
  - SGR attributes and colors, including 256-indexed (``38;5;n``) and truecolor (``38;2;r;g;b``) forms, stored
    structurally on cells.
 
-Deliberately unmodeled (so far): scroll regions, alt screen, character sets, bce (erases always write plain blank
-cells), resize/reflow, OSC handling beyond swallowing.
+Deliberately unmodeled (so far): scroll regions, character sets, bce (erases always write plain blank cells),
+resize/reflow, OSC handling beyond swallowing.
 """
 import dataclasses as dc
 import typing as ta
@@ -80,6 +82,9 @@ class Vt100Terminal:
         self._cursor_visible = True
         self._bells = 0
 
+        self._in_alt_screen = False
+        self._saved_main: tuple[list[list[Cell]], int, int] | None = None
+
         self._state: ta.Literal['normal', 'esc', 'csi', 'osc'] = 'normal'
         self._escape_buffer: list[str] = []
 
@@ -116,6 +121,10 @@ class Vt100Terminal:
     @property
     def bells(self) -> int:
         return self._bells
+
+    @property
+    def in_alt_screen(self) -> bool:
+        return self._in_alt_screen
 
     def cell(self, row: int, col: int) -> Cell:
         return self._screen[row][col]
@@ -154,10 +163,27 @@ class Vt100Terminal:
         self._cursor_col = min(max(self._cursor_col, 0), self._cols - 1)
 
     def _scroll_up(self) -> None:
-        self._scrollback.append(self._screen.pop(0))
+        top = self._screen.pop(0)
         self._screen.append(self._blank_row())
+        if self._in_alt_screen:
+            return  # the alt screen has no scrollback; scrolled-off lines are simply gone
+        self._scrollback.append(top)
         if len(self._scrollback) > self._max_scrollback:
             del self._scrollback[: len(self._scrollback) - self._max_scrollback]
+
+    def _set_alt_screen(self, enabled: bool) -> None:
+        if enabled and not self._in_alt_screen:
+            self._saved_main = (self._screen, self._cursor_row, self._cursor_col)
+            self._screen = [self._blank_row() for _ in range(self._rows)]
+            self._cursor_row = 0
+            self._cursor_col = 0
+            self._in_alt_screen = True
+        elif not enabled and self._in_alt_screen:
+            self._in_alt_screen = False
+            if self._saved_main is not None:
+                self._screen, self._cursor_row, self._cursor_col = self._saved_main
+                self._saved_main = None
+        self._wrap_pending = False
 
     def _index(self) -> None:
         """LF: move down one row, scrolling (into scrollback) at the bottom. Column is preserved."""
@@ -220,7 +246,9 @@ class Vt100Terminal:
                             self._wrap_pending = False
                     elif p == 25:
                         self._cursor_visible = enabled
-                    # Other private modes (2004, 2026, 1049, ...) are ignored.
+                    elif p in (47, 1047, 1049):
+                        self._set_alt_screen(enabled)
+                    # Other private modes (2004, 2026, ...) are ignored.
             return
 
         if final in 'ABCD':

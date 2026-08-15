@@ -40,7 +40,7 @@ class MotionResult(lang.Final):
 # motion key -> needs a trailing character argument? (vim's NV_NCH flag)
 MOTION_NEEDS_ARG: ta.AbstractSet[str] = frozenset('ftFT')
 
-MOTION_KEYS: ta.AbstractSet[str] = frozenset('hljk0^$wWbBeEGnN;,') | {'gg'} | MOTION_NEEDS_ARG
+MOTION_KEYS: ta.AbstractSet[str] = frozenset('hljk0^$wWbBeEGnN;,%') | {'gg'} | MOTION_NEEDS_ARG
 
 
 def resolve(doc: Document, start: Pos, mr: MotionResult) -> Span | None:

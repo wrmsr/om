@@ -171,3 +171,41 @@ def find_char(
     if col < 0 or col >= max(len(line), 1):
         return None
     return Pos(p.row, col)
+
+
+##
+# Bracket matching (the % motion). Generic over the three bracket pairs, nesting-aware, multi-line.
+
+
+BRACKET_PAIRS = {
+    '(': ')',
+    '[': ']',
+    '{': '}',
+}
+
+CLOSE_BRACKETS = {close: open_ for open_, close in BRACKET_PAIRS.items()}
+
+
+def match_bracket(doc: Document, pos: Pos) -> Pos | None:
+    """The matching bracket for the one at `pos`, or None (not on a bracket / unbalanced)."""
+
+    ch = char_at(doc, pos)
+    if ch in BRACKET_PAIRS:
+        open_ch, close_ch, forward = ch, BRACKET_PAIRS[ch], True
+    elif ch in CLOSE_BRACKETS:
+        open_ch, close_ch, forward = CLOSE_BRACKETS[ch], ch, False
+    else:
+        return None
+
+    depth = 0
+    q: Pos | None = pos
+    while q is not None:
+        c = char_at(doc, q)
+        if c == (open_ch if forward else close_ch):
+            depth += 1
+        elif c == (close_ch if forward else open_ch):
+            depth -= 1
+            if depth == 0:
+                return q
+        q = advance(doc, q) if forward else retreat(doc, q)
+    return None

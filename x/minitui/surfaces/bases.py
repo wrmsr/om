@@ -4,6 +4,7 @@ import abc
 from omcore import lang
 
 from ..screens.cells import Frame
+from ..tty.terminals import Tty
 
 
 ##
@@ -17,6 +18,29 @@ class Surface(lang.Abstract):
     turn each `present` into a minimal byte stream via retained-frame diffing. Coordinates in frames are always
     surface-relative; nothing above the surface knows absolute terminal positions.
     """
+
+    @property
+    @abc.abstractmethod
+    def tty(self) -> Tty:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def take_resized(self) -> bool:
+        """Absorb any pending terminal resize, returning whether one happened (the caller should re-layout)."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def set_sync_output(self, enabled: bool) -> None:
+        """Whether frames are wrapped in synchronized output (DECSET 2026). Defaults on, blind-optimistically."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def request_sync_output_report(self) -> None:
+        """Send the DECRQM query for mode 2026; the answer arrives in the input stream as a ModeReportEvent."""
+
+        raise NotImplementedError
 
     @property
     @abc.abstractmethod
