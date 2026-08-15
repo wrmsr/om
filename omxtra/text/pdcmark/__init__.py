@@ -29,7 +29,6 @@ from .brokenlinks import (  # noqa
 from .errors import (  # noqa
     ParserStateError,
     PdcmarkError,
-    ResourceLimitExceededError,
 )
 
 from .events import (  # noqa

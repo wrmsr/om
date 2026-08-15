@@ -11,8 +11,6 @@ See docs/02_PrePlan.md and docs/00_Goals.md for the contract:
   - `committed + tentative` at any moment equals what an oracle on the prefix-seen-so-far would have produced.
   - Full-reparse equivalence: chunking has zero observable effect on the final committed stream.
 """
-import copy
-
 from ..blocks.machine import BlockMachine
 from ..errors import ParserStateError
 from ..events import Event
@@ -131,13 +129,13 @@ class StreamingParser:
         """
         Events that would be emitted if input ended right now.
 
-        Clones the BlockMachine (deepcopy), feeds the partial trailing line if any, and finishes the clone. The clone is
-        discarded; the live BlockMachine is unaffected.
+        Clones the BlockMachine (a cheap shallow clone - its open-block state is immutable), feeds the partial trailing
+        line if any, and finishes the clone. The clone is discarded; the live BlockMachine is unaffected.
         """
 
         if not self._buffer and not self._bm.has_open_block:
             return []
-        clone = copy.deepcopy(self._bm)
+        clone = self._bm.clone()
         events: list[Event] = []
         if self._buffer:
             partial_start = self._offset

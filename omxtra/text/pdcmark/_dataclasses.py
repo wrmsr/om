@@ -137,33 +137,38 @@ def _process_dataclass__f473e20a450081cf6cd69ae589d80b94c0ab1e72():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('content_indent', 'open_start', 'open_next')), EqPlan(fields=('content_indent', 'o"
-        "pen_start', 'open_next')), FrozenPlan(fields=('content_indent', 'open_start', 'open_next'), allow_dynamic_dund"
-        "er_attrs=False), HashPlan(action='add', fields=('content_indent', 'open_start', 'open_next'), cache=False), In"
-        "itPlan(fields=(InitPlan.Field(name='content_indent', annotation=OpRef(name='init.fields.0.annotation'), defaul"
-        "t=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate="
-        "None, check_type=None), InitPlan.Field(name='open_start', annotation=OpRef(name='init.fields.1.annotation'), d"
-        "efault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
-        "date=None, check_type=None), InitPlan.Field(name='open_next', annotation=OpRef(name='init.fields.2.annotation'"
-        "), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, "
-        "validate=None, check_type=None)), self_param='self', std_params=('content_indent', 'open_start', 'open_next'),"
-        " kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(f"
-        "ields=(ReprPlan.Field(name='content_indent', kw_only=False, fn=None), ReprPlan.Field(name='open_start', kw_onl"
-        "y=False, fn=None), ReprPlan.Field(name='open_next', kw_only=False, fn=None)), id=False, terse=False, default_f"
-        "n=None)))"
+        "Plans(tup=(CopyPlan(fields=('content_indent', 'open_start', 'open_next', 'began_empty')), EqPlan(fields=('cont"
+        "ent_indent', 'open_start', 'open_next', 'began_empty')), FrozenPlan(fields=('content_indent', 'open_start', 'o"
+        "pen_next', 'began_empty'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('content_indent',"
+        " 'open_start', 'open_next', 'began_empty'), cache=False), InitPlan(fields=(InitPlan.Field(name='content_indent"
+        "', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override="
+        "False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='open_"
+        "start', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, over"
+        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='"
+        "open_next', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, "
+        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(na"
+        "me='began_empty', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default"
+        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
+        ", check_type=None)), self_param='self', std_params=('content_indent', 'open_start', 'open_next', 'began_empty'"
+        "), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan"
+        "(fields=(ReprPlan.Field(name='content_indent', kw_only=False, fn=None), ReprPlan.Field(name='open_start', kw_o"
+        "nly=False, fn=None), ReprPlan.Field(name='open_next', kw_only=False, fn=None), ReprPlan.Field(name='began_empt"
+        "y', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='024b274335f2639578957cc82d128cf48a60abe0',
+    plan_repr_sha1='4610be8cbe9931a0c893c78cc1404838f9193981',
     cls_names=(
         ('omxtra.text.pdcmark.blocks.containers', 'OpenItem'),
     ),
 )
-def _process_dataclass__024b274335f2639578957cc82d128cf48a60abe0():
+def _process_dataclass__4610be8cbe9931a0c893c78cc1404838f9193981():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -177,6 +182,7 @@ def _process_dataclass__024b274335f2639578957cc82d128cf48a60abe0():
                 content_indent=self.content_indent,
                 open_start=self.open_start,
                 open_next=self.open_next,
+                began_empty=self.began_empty,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -189,7 +195,8 @@ def _process_dataclass__024b274335f2639578957cc82d128cf48a60abe0():
             return (
                 self.content_indent == other.content_indent and
                 self.open_start == other.open_start and
-                self.open_next == other.open_next
+                self.open_next == other.open_next and
+                self.began_empty == other.began_empty
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -198,6 +205,7 @@ def _process_dataclass__024b274335f2639578957cc82d128cf48a60abe0():
             'content_indent',
             'open_start',
             'open_next',
+            'began_empty',
         }
 
         def __setattr__(self, name, value):
@@ -225,6 +233,7 @@ def _process_dataclass__024b274335f2639578957cc82d128cf48a60abe0():
                 self.content_indent,
                 self.open_start,
                 self.open_next,
+                self.began_empty,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -234,10 +243,12 @@ def _process_dataclass__024b274335f2639578957cc82d128cf48a60abe0():
             content_indent: __dataclass__init__fields__0__annotation,
             open_start: __dataclass__init__fields__1__annotation,
             open_next: __dataclass__init__fields__2__annotation,
+            began_empty: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'content_indent', content_indent)
             __dataclass__object_setattr(self, 'open_start', open_start)
             __dataclass__object_setattr(self, 'open_next', open_next)
+            __dataclass__object_setattr(self, 'began_empty', began_empty)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -247,6 +258,7 @@ def _process_dataclass__024b274335f2639578957cc82d128cf48a60abe0():
             parts.append(f"content_indent={self.content_indent!r}")
             parts.append(f"open_start={self.open_start!r}")
             parts.append(f"open_next={self.open_next!r}")
+            parts.append(f"began_empty={self.began_empty!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -2998,30 +3010,33 @@ def _process_dataclass__a2a86acf3d3bd47481ddfeceb58346fdf602dabb():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('offset', 'char', 'count', 'can_open', 'can_close')), EqPlan(fields=('offset', 'ch"
-        "ar', 'count', 'can_open', 'can_close')), HashPlan(action='set_none', fields=None, cache=None), InitPlan(fields"
-        "=(InitPlan.Field(name='offset', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_facto"
-        "ry=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None"
-        "), InitPlan.Field(name='char', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factor"
-        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
-        ", InitPlan.Field(name='count', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factor"
-        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
-        ", InitPlan.Field(name='can_open', annotation=OpRef(name='init.fields.3.annotation'), default=None, default_fac"
-        "tory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=No"
-        "ne), InitPlan.Field(name='can_close', annotation=OpRef(name='init.fields.4.annotation'), default=None, default"
-        "_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_typ"
-        "e=None)), self_param='self', std_params=('offset', 'char', 'count', 'can_open', 'can_close'), kw_only_params=("
-        "), frozen=False, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan."
-        "Field(name='offset', kw_only=False, fn=None), ReprPlan.Field(name='char', kw_only=False, fn=None), ReprPlan.Fi"
-        "eld(name='count', kw_only=False, fn=None), ReprPlan.Field(name='can_open', kw_only=False, fn=None), ReprPlan.F"
-        "ield(name='can_close', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('offset', 'char', 'count', 'can_open', 'can_close', 'original_count')), EqPlan(fie"
+        "lds=('offset', 'char', 'count', 'can_open', 'can_close', 'original_count')), HashPlan(action='set_none', field"
+        "s=None, cache=None), InitPlan(fields=(InitPlan.Field(name='offset', annotation=OpRef(name='init.fields.0.annot"
+        "ation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce="
+        "None, validate=None, check_type=None), InitPlan.Field(name='char', annotation=OpRef(name='init.fields.1.annota"
+        "tion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=N"
+        "one, validate=None, check_type=None), InitPlan.Field(name='count', annotation=OpRef(name='init.fields.2.annota"
+        "tion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=N"
+        "one, validate=None, check_type=None), InitPlan.Field(name='can_open', annotation=OpRef(name='init.fields.3.ann"
+        "otation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
+        "e=None, validate=None, check_type=None), InitPlan.Field(name='can_close', annotation=OpRef(name='init.fields.4"
+        ".annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, c"
+        "oerce=None, validate=None, check_type=None), InitPlan.Field(name='original_count', annotation=OpRef(name='init"
+        ".fields.5.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.IN"
+        "STANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('offset', 'char', 'count"
+        "', 'can_open', 'can_close', 'original_count'), kw_only_params=(), frozen=False, slots=False, post_init_params="
+        "None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='offset', kw_only=False, fn=None), R"
+        "eprPlan.Field(name='char', kw_only=False, fn=None), ReprPlan.Field(name='count', kw_only=False, fn=None), Repr"
+        "Plan.Field(name='can_open', kw_only=False, fn=None), ReprPlan.Field(name='can_close', kw_only=False, fn=None),"
+        " ReprPlan.Field(name='original_count', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='d45222081a73e4ade7a3fe1bb249fdf36f87be7e',
+    plan_repr_sha1='6fa2718b84ea4ebc409b668174a2559e9e14b32e',
     cls_names=(
         ('omxtra.text.pdcmark.inlines.nodes', 'DelimNode'),
     ),
 )
-def _process_dataclass__d45222081a73e4ade7a3fe1bb249fdf36f87be7e():
+def _process_dataclass__6fa2718b84ea4ebc409b668174a2559e9e14b32e():
     def _process_dataclass(
         *,
         __class__,
@@ -3030,6 +3045,7 @@ def _process_dataclass__d45222081a73e4ade7a3fe1bb249fdf36f87be7e():
         __dataclass__init__fields__2__annotation,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__5__annotation,
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
         __dataclass__set_cls_attr,
@@ -3043,6 +3059,7 @@ def _process_dataclass__d45222081a73e4ade7a3fe1bb249fdf36f87be7e():
                 count=self.count,
                 can_open=self.can_open,
                 can_close=self.can_close,
+                original_count=self.original_count,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3057,7 +3074,8 @@ def _process_dataclass__d45222081a73e4ade7a3fe1bb249fdf36f87be7e():
                 self.char == other.char and
                 self.count == other.count and
                 self.can_open == other.can_open and
-                self.can_close == other.can_close
+                self.can_close == other.can_close and
+                self.original_count == other.original_count
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3071,12 +3089,14 @@ def _process_dataclass__d45222081a73e4ade7a3fe1bb249fdf36f87be7e():
             count: __dataclass__init__fields__2__annotation,
             can_open: __dataclass__init__fields__3__annotation,
             can_close: __dataclass__init__fields__4__annotation,
+            original_count: __dataclass__init__fields__5__annotation,
         ) -> __dataclass__None:
             self.offset = offset
             self.char = char
             self.count = count
             self.can_open = can_open
             self.can_close = can_close
+            self.original_count = original_count
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3088,6 +3108,7 @@ def _process_dataclass__d45222081a73e4ade7a3fe1bb249fdf36f87be7e():
             parts.append(f"count={self.count!r}")
             parts.append(f"can_open={self.can_open!r}")
             parts.append(f"can_close={self.can_close!r}")
+            parts.append(f"original_count={self.original_count!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -3256,37 +3277,41 @@ def _process_dataclass__3e00211e6a72d5f070161d015c11e3bc8dc599b3():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('offset', 'consumed_end', 'kind', 'raw_consumed', 'dest_url', 'title', 'label')), "
-        "EqPlan(fields=('offset', 'consumed_end', 'kind', 'raw_consumed', 'dest_url', 'title', 'label')), HashPlan(acti"
-        "on='set_none', fields=None, cache=None), InitPlan(fields=(InitPlan.Field(name='offset', annotation=OpRef(name="
-        "'init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTy"
-        "pe.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='consumed_end', annotation=OpRe"
-        "f(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type="
-        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='kind', annotation=OpRef"
-        "(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=F"
-        "ieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='raw_consumed', annotatio"
-        "n=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
-        "n.Field(name='dest_url', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4."
+        "Plans(tup=(CopyPlan(fields=('offset', 'consumed_end', 'kind', 'raw_consumed', 'dest_url', 'title', 'label', 's"
+        "uffix_joined')), EqPlan(fields=('offset', 'consumed_end', 'kind', 'raw_consumed', 'dest_url', 'title', 'label'"
+        ", 'suffix_joined')), HashPlan(action='set_none', fields=None, cache=None), InitPlan(fields=(InitPlan.Field(nam"
+        "e='offset', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, "
+        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(na"
+        "me='consumed_end', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init"
+        "=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.F"
+        "ield(name='kind', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init="
+        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fi"
+        "eld(name='raw_consumed', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3."
         "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
-        "te=None, check_type=None), InitPlan.Field(name='title', annotation=OpRef(name='init.fields.5.annotation'), def"
-        "ault=OpRef(name='init.fields.5.default'), default_factory=None, init=True, override=False, field_type=FieldTyp"
-        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='label', annotation=OpRef(name='"
-        "init.fields.6.annotation'), default=OpRef(name='init.fields.6.default'), default_factory=None, init=True, over"
-        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', s"
-        "td_params=('offset', 'consumed_end', 'kind', 'raw_consumed', 'dest_url', 'title', 'label'), kw_only_params=(),"
-        " frozen=False, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Fi"
-        "eld(name='offset', kw_only=False, fn=None), ReprPlan.Field(name='consumed_end', kw_only=False, fn=None), ReprP"
-        "lan.Field(name='kind', kw_only=False, fn=None), ReprPlan.Field(name='raw_consumed', kw_only=False, fn=None), R"
-        "eprPlan.Field(name='dest_url', kw_only=False, fn=None), ReprPlan.Field(name='title', kw_only=False, fn=None), "
-        "ReprPlan.Field(name='label', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+        "te=None, check_type=None), InitPlan.Field(name='dest_url', annotation=OpRef(name='init.fields.4.annotation'), "
+        "default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_type=Field"
+        "Type.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='title', annotation=OpRef(nam"
+        "e='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factory=None, init=True, o"
+        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(nam"
+        "e='label', annotation=OpRef(name='init.fields.6.annotation'), default=OpRef(name='init.fields.6.default'), def"
+        "ault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check"
+        "_type=None), InitPlan.Field(name='suffix_joined', annotation=OpRef(name='init.fields.7.annotation'), default=O"
+        "pRef(name='init.fields.7.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
+        "ANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('offset', 'consumed_end', "
+        "'kind', 'raw_consumed', 'dest_url', 'title', 'label', 'suffix_joined'), kw_only_params=(), frozen=False, slots"
+        "=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='offset', k"
+        "w_only=False, fn=None), ReprPlan.Field(name='consumed_end', kw_only=False, fn=None), ReprPlan.Field(name='kind"
+        "', kw_only=False, fn=None), ReprPlan.Field(name='raw_consumed', kw_only=False, fn=None), ReprPlan.Field(name='"
+        "dest_url', kw_only=False, fn=None), ReprPlan.Field(name='title', kw_only=False, fn=None), ReprPlan.Field(name="
+        "'label', kw_only=False, fn=None), ReprPlan.Field(name='suffix_joined', kw_only=False, fn=None)), id=False, ter"
+        "se=False, default_fn=None)))"
     ),
-    plan_repr_sha1='905cdedc197c762f04bbe81b8047a2d3ba9f017f',
+    plan_repr_sha1='1a2321521310685038eefb9d0d58c992a7161332',
     cls_names=(
         ('omxtra.text.pdcmark.inlines.nodes', 'LinkCloseNode'),
     ),
 )
-def _process_dataclass__905cdedc197c762f04bbe81b8047a2d3ba9f017f():
+def _process_dataclass__1a2321521310685038eefb9d0d58c992a7161332():
     def _process_dataclass(
         *,
         __class__,
@@ -3301,6 +3326,8 @@ def _process_dataclass__905cdedc197c762f04bbe81b8047a2d3ba9f017f():
         __dataclass__init__fields__5__default,
         __dataclass__init__fields__6__annotation,
         __dataclass__init__fields__6__default,
+        __dataclass__init__fields__7__annotation,
+        __dataclass__init__fields__7__default,
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
         __dataclass__set_cls_attr,
@@ -3316,6 +3343,7 @@ def _process_dataclass__905cdedc197c762f04bbe81b8047a2d3ba9f017f():
                 dest_url=self.dest_url,
                 title=self.title,
                 label=self.label,
+                suffix_joined=self.suffix_joined,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3332,7 +3360,8 @@ def _process_dataclass__905cdedc197c762f04bbe81b8047a2d3ba9f017f():
                 self.raw_consumed == other.raw_consumed and
                 self.dest_url == other.dest_url and
                 self.title == other.title and
-                self.label == other.label
+                self.label == other.label and
+                self.suffix_joined == other.suffix_joined
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3348,6 +3377,7 @@ def _process_dataclass__905cdedc197c762f04bbe81b8047a2d3ba9f017f():
             dest_url: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
             title: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
             label: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            suffix_joined: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
         ) -> __dataclass__None:
             self.offset = offset
             self.consumed_end = consumed_end
@@ -3356,6 +3386,7 @@ def _process_dataclass__905cdedc197c762f04bbe81b8047a2d3ba9f017f():
             self.dest_url = dest_url
             self.title = title
             self.label = label
+            self.suffix_joined = suffix_joined
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3369,6 +3400,7 @@ def _process_dataclass__905cdedc197c762f04bbe81b8047a2d3ba9f017f():
             parts.append(f"dest_url={self.dest_url!r}")
             parts.append(f"title={self.title!r}")
             parts.append(f"label={self.label!r}")
+            parts.append(f"suffix_joined={self.suffix_joined!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -3580,26 +3612,137 @@ def _process_dataclass__60b012522eae37710a74ad3dcbb86cc2c2ac519b():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('text', 'lines', 'hard_break_after')), EqPlan(fields=('text', 'lines', 'hard_break"
-        "_after')), FrozenPlan(fields=('text', 'lines', 'hard_break_after'), allow_dynamic_dunder_attrs=False), HashPla"
-        "n(action='add', fields=('text', 'lines', 'hard_break_after'), cache=False), InitPlan(fields=(InitPlan.Field(na"
-        "me='text', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(nam"
-        "e='lines', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(nam"
-        "e='hard_break_after', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_p"
-        "aram='self', std_params=('text', 'lines', 'hard_break_after'), kw_only_params=(), frozen=True, slots=False, po"
-        "st_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='text', kw_only=False"
-        ", fn=None), ReprPlan.Field(name='lines', kw_only=False, fn=None), ReprPlan.Field(name='hard_break_after', kw_o"
-        "nly=False, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('nodes', 'retokenize')), EqPlan(fields=('nodes', 'retokenize')), FrozenPlan(fields"
+        "=('nodes', 'retokenize'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('nodes', 'retokeni"
+        "ze'), cache=False), InitPlan(fields=(InitPlan.Field(name='nodes', annotation=OpRef(name='init.fields.0.annotat"
+        "ion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
+        "ne, validate=None, check_type=None), InitPlan.Field(name='retokenize', annotation=OpRef(name='init.fields.1.an"
+        "notation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
+        "ce=None, validate=None, check_type=None)), self_param='self', std_params=('nodes', 'retokenize'), kw_only_para"
+        "ms=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPl"
+        "an.Field(name='nodes', kw_only=False, fn=None), ReprPlan.Field(name='retokenize', kw_only=False, fn=None)), id"
+        "=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='c60f72245d67b656bb830d573e7a137364bf689e',
+    plan_repr_sha1='1ff82aba505883b61978272eb4941cddb22e2681',
+    cls_names=(
+        ('omxtra.text.pdcmark.inlines.tokenize', 'TokenizedBlock'),
+    ),
+)
+def _process_dataclass__1ff82aba505883b61978272eb4941cddb22e2681():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                nodes=self.nodes,
+                retokenize=self.retokenize,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.nodes == other.nodes and
+                self.retokenize == other.retokenize
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'nodes',
+            'retokenize',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.nodes,
+                self.retokenize,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            nodes: __dataclass__init__fields__0__annotation,
+            retokenize: __dataclass__init__fields__1__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'nodes', nodes)
+            __dataclass__object_setattr(self, 'retokenize', retokenize)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"nodes={self.nodes!r}")
+            parts.append(f"retokenize={self.retokenize!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('text', 'lines', 'line_starts')), EqPlan(fields=('text', 'lines', 'line_starts')),"
+        " FrozenPlan(fields=('text', 'lines', 'line_starts'), allow_dynamic_dunder_attrs=False), HashPlan(action='add',"
+        " fields=('text', 'lines', 'line_starts'), cache=False), InitPlan(fields=(InitPlan.Field(name='text', annotatio"
+        "n=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field"
+        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='lines', annotatio"
+        "n=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field"
+        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='line_starts', ann"
+        "otation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False,"
+        " field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=("
+        "'text', 'lines', 'line_starts'), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns="
+        "(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='text', kw_only=False, fn=None), ReprPlan.Field(nam"
+        "e='lines', kw_only=False, fn=None), ReprPlan.Field(name='line_starts', kw_only=False, fn=None)), id=False, ter"
+        "se=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='06fc25ca5253c374afebd4da3298f8ac13b0e756',
     cls_names=(
         ('omxtra.text.pdcmark.inlines.tokenize', '_Joined'),
     ),
 )
-def _process_dataclass__c60f72245d67b656bb830d573e7a137364bf689e():
+def _process_dataclass__06fc25ca5253c374afebd4da3298f8ac13b0e756():
     def _process_dataclass(
         *,
         __class__,
@@ -3618,7 +3761,7 @@ def _process_dataclass__c60f72245d67b656bb830d573e7a137364bf689e():
             return __class__(  # noqa
                 text=self.text,
                 lines=self.lines,
-                hard_break_after=self.hard_break_after,
+                line_starts=self.line_starts,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3631,7 +3774,7 @@ def _process_dataclass__c60f72245d67b656bb830d573e7a137364bf689e():
             return (
                 self.text == other.text and
                 self.lines == other.lines and
-                self.hard_break_after == other.hard_break_after
+                self.line_starts == other.line_starts
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3639,7 +3782,7 @@ def _process_dataclass__c60f72245d67b656bb830d573e7a137364bf689e():
         __dataclass___frozen_fields = {
             'text',
             'lines',
-            'hard_break_after',
+            'line_starts',
         }
 
         def __setattr__(self, name, value):
@@ -3666,7 +3809,7 @@ def _process_dataclass__c60f72245d67b656bb830d573e7a137364bf689e():
             return hash((
                 self.text,
                 self.lines,
-                self.hard_break_after,
+                self.line_starts,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3675,11 +3818,11 @@ def _process_dataclass__c60f72245d67b656bb830d573e7a137364bf689e():
             self,
             text: __dataclass__init__fields__0__annotation,
             lines: __dataclass__init__fields__1__annotation,
-            hard_break_after: __dataclass__init__fields__2__annotation,
+            line_starts: __dataclass__init__fields__2__annotation,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'text', text)
             __dataclass__object_setattr(self, 'lines', lines)
-            __dataclass__object_setattr(self, 'hard_break_after', hard_break_after)
+            __dataclass__object_setattr(self, 'line_starts', line_starts)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3688,7 +3831,7 @@ def _process_dataclass__c60f72245d67b656bb830d573e7a137364bf689e():
             parts = []
             parts.append(f"text={self.text!r}")
             parts.append(f"lines={self.lines!r}")
-            parts.append(f"hard_break_after={self.hard_break_after!r}")
+            parts.append(f"line_starts={self.line_starts!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

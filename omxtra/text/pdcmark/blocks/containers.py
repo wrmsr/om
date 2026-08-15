@@ -65,3 +65,4 @@ class OpenItem(OpenContainer):
     content_indent: int
     open_start: int  # offset of the marker
     open_next: int   # offset just past the marker line's newline
+    began_empty: bool = False  # marker line had no content; CM: such an item may contain at most one blank line

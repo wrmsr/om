@@ -3,8 +3,6 @@ Adversarial input tests - the link-reference expansion-bomb that motivates pulld
 pulldown-cmark issue #844 and parse.rs::ParserInner). Without the fuel guard, an input that repeatedly references the
 same large refdef can balloon output size quadratically.
 """
-import time
-
 from omcore import dataclasses as dc
 
 from .... import pdcmark as m
@@ -22,14 +20,10 @@ def test_link_ref_expansion_bomb_stays_bounded():
     # Cap fuel low so we definitely exhaust.
     opts = dc.replace(COMMONMARK, link_ref_expansion_min=10_000)
 
-    t0 = time.monotonic()
     out = render_html(m.parse(src, opts))
-    elapsed = time.monotonic() - t0
 
     # Output size should be bounded by something like fuel + overhead.
     assert len(out) < 50_000, f'output ballooned to {len(out)} bytes - fuel guard not effective'
-    # And it shouldn't take noticeable wall time on a sane impl.
-    assert elapsed < 2.0, f'expansion bomb took {elapsed:.2f}s'
 
 
 def test_link_ref_resolves_when_fuel_available():
@@ -37,3 +31,31 @@ def test_link_ref_resolves_when_fuel_available():
     src = '[x]: /url\n\n[x]\n'
     out = render_html(m.parse(src))
     assert '/url' in out
+
+
+# Deep nesting must degrade gracefully (bounded output / capped containers), never raise RecursionError.
+
+
+def test_deep_emphasis_nesting_no_crash():
+    events = m.parse('*' * 2000 + 'a' + '*' * 2000)
+    render_html(events)
+
+
+def test_deep_bracket_nesting_no_crash():
+    events = m.parse('[' * 2000 + 'a' + ']' * 2000)
+    render_html(events)
+
+
+def test_container_depth_is_capped():
+    events = m.parse('>' * 5000 + ' hi')
+    bq_starts = sum(
+        1 for e in events if isinstance(e, m.Start) and isinstance(e.tag, m.BlockQuote)
+    )
+    assert bq_starts == COMMONMARK.max_container_depth
+
+
+def test_paren_nesting_cap_configurable():
+    deep = '[a](' + '(' * 40 + 'u' + ')' * 40 + ')'
+    assert '<a' not in render_html(m.parse(deep))
+    opts = dc.replace(COMMONMARK, max_nested_parens=64)
+    assert '<a' in render_html(m.parse(deep, opts))

@@ -132,3 +132,52 @@ def test_hardbreak_via_trailing_spaces():
 def test_hardbreak_via_trailing_backslash():
     out = tokenize_inline((_line('hello\\', 0), _line('world', 7)))
     assert any(isinstance(t, HardBreakNode) for t in out)
+
+
+# Multi-line whitespace / break semantics (lines are joined verbatim; breaks are decided in the walk).
+
+
+def test_double_backslash_at_eol_is_soft_break():
+    # The escape consumes the pair into a literal backslash; the newline is then an ordinary soft break.
+    out = tokenize_inline((_line('foo\\\\', 0), _line('bar', 6)))
+    kinds = [type(n).__name__ for n in out]
+    assert kinds == ['TextNode', 'SoftBreakNode', 'TextNode']
+    assert isinstance(out[0], TextNode) and out[0].text == 'foo\\'
+
+
+def test_triple_backslash_at_eol_is_hard_break():
+    out = tokenize_inline((_line('foo\\\\\\', 0), _line('bar', 7)))
+    kinds = [type(n).__name__ for n in out]
+    assert kinds == ['TextNode', 'HardBreakNode', 'TextNode']
+    assert isinstance(out[0], TextNode) and out[0].text == 'foo\\'
+
+
+def test_code_span_keeps_interior_trailing_spaces():
+    out = tokenize_inline((_line('`code  ', 0), _line('span`', 8)))
+    assert len(out) == 1
+    assert isinstance(out[0], CodeNode) and out[0].text == 'code   span'
+
+
+def test_code_span_keeps_interior_leading_spaces():
+    out = tokenize_inline((_line('`a', 0), _line('   b`', 3)))
+    assert isinstance(out[0], CodeNode) and out[0].text == 'a    b'
+
+
+def test_raw_html_keeps_interior_whitespace():
+    out = tokenize_inline((_line('<a href="x  ', 0), _line('y">', 13)))
+    assert len(out) == 1
+    assert isinstance(out[0], HtmlNode) and out[0].text == '<a href="x  \ny">'
+
+
+def test_soft_break_swallows_next_line_leading_spaces():
+    out = tokenize_inline((_line('aaa', 0), _line('   bbb', 4)))
+    kinds = [type(n).__name__ for n in out]
+    assert kinds == ['TextNode', 'SoftBreakNode', 'TextNode']
+    assert isinstance(out[2], TextNode) and out[2].text == 'bbb'
+
+
+def test_tab_before_newline_is_soft_break():
+    out = tokenize_inline((_line('a\t', 0), _line('b', 3)))
+    kinds = [type(n).__name__ for n in out]
+    assert kinds == ['TextNode', 'SoftBreakNode', 'TextNode']
+    assert isinstance(out[0], TextNode) and out[0].text == 'a'

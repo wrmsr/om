@@ -105,3 +105,50 @@ def test_offset_slice_round_trips_basic():
         # whitespace from paragraph lines).
         slice_ = src[t.offset[0]:t.offset[1]]
         assert t.text in slice_ or slice_.strip() == t.text.strip()
+
+
+# Exact spans on hand-written inputs. The corpus invariants above only bound offsets; these pin them down - in
+# particular, decoded entities / escapes must not shrink a Text event's source span.
+
+
+def _leaf_spans(src: str) -> list[tuple[str, tuple[int, int], str]]:
+    out: list[tuple[str, tuple[int, int], str]] = []
+    for ev in parse(src):
+        if isinstance(ev, (m.Text, m.Code)):
+            out.append((type(ev).__name__, ev.offset, ev.text))
+        elif isinstance(ev, (m.SoftBreak, m.HardBreak)):
+            out.append((type(ev).__name__, ev.offset, ''))
+    return out
+
+
+def test_exact_spans_entity():
+    assert _leaf_spans('&amp; foobar\n') == [('Text', (0, 12), '& foobar')]
+
+
+def test_exact_spans_escape():
+    assert _leaf_spans('\\*x\\* yz\n') == [('Text', (0, 8), '*x* yz')]
+
+
+def test_exact_spans_code():
+    assert _leaf_spans('a `co` b\n') == [
+        ('Text', (0, 2), 'a '),
+        ('Code', (2, 6), 'co'),
+        ('Text', (6, 8), ' b'),
+    ]
+
+
+def test_exact_spans_soft_break():
+    assert _leaf_spans('a\nb\n') == [
+        ('Text', (0, 1), 'a'),
+        ('SoftBreak', (1, 2), ''),
+        ('Text', (2, 3), 'b'),
+    ]
+
+
+def test_exact_spans_hard_break():
+    # The break spans the trailing spaces plus the newline.
+    assert _leaf_spans('a  \nb\n') == [
+        ('Text', (0, 1), 'a'),
+        ('HardBreak', (1, 4), ''),
+        ('Text', (4, 5), 'b'),
+    ]

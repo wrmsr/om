@@ -191,3 +191,91 @@ Terminal.app supports neither protocol - there, ctrl+j / alt+enter (with option-
   has no separator, tested) still reaches the app's ex handler untouched.
 - Not yet: `c` confirm flag, `:g//`, counts, `~` sugar. 193 tests; live-verified in vimdemo (:%s, visual-range :s,
   group refs, :w roundtrip to disk).
+
+## 2026-08-15 (later): pdcmark code review (owner asked "how does that code look?")
+
+Full read + differential + benchmarks of omxtra/text/pdcmark while we're depending on it as an md backend.
+- **Verdict: high quality.** Faithful firstpass.rs analogue in blocks/machine.py (immutable open-block records via
+  dc.replace, offsets on everything), honest docs (04_Status.md lists real limitations), zero TODO/FIXME markers,
+  359-test suite incl. chunking-equivalence invariants over 8 feed strategies.
+- **Found+fixed one real bug** (ee77bfccb): named-entity scanning trusted `html.unescape(raw) != raw`, but unescape
+  resolves legacy semicolon-less entities embedded as *prefixes* - `&notanentity;` decoded to `¬anentity;` via the
+  HTML4 `&not`. Now an exact `html.entities.html5` lookup of `name + ';'`. Regression test added.
+- Differential HTML vs markdown-it, 62 tricky cases normalized: **59/62 identical**; all 3 divergences are
+  option-gated, not bugs (forward refdefs -> `prescan_refdefs=True`; strikethrough/tables are off-by-default GFM
+  extensions; pdcmark emits `<del>` like pulldown, markdown-it emits `<s>`). Unclosed-fence handling is
+  spec-correct where markdown-it deviates.
+- Perf: oneshot ~0.43 MB/s vs markdown-it 0.70 (same order, fine); streaming 8-char chunks ~64 KB/s - the
+  deepcopy-per-feed tentative computation is the tax. Still ~1000x faster than LLM tokens arrive; noted as the
+  obvious optimization target if it ever matters (lazy tentative, or snapshot only the open-block spine).
+- Minor: `BlockMachine.tentative_events` (machine.py:180) is dead code with a false "does not mutate" docstring
+  (routes through refdef consumption + shared Fuel). Left for the owner's call.
+
+Deep-dive addendum (inlines/scanning layers, agent-assisted, top claims re-verified by hand):
+- Confirmed real bugs beyond the entity fix: (a) per-line trim at join time destroys trailing spaces/`\` inside
+  code spans and raw HTML (~7 spec cases); (b) `\\` at EOL wrongly becomes a hard break (even-run rule ignored);
+  (c) `~` delimiters use the *underscore* flanking rules so intraword `a~~b~~c` never strikes; (d) Text-event end
+  offsets shrink after entities/escapes (decoded length added to source position); (e) unbounded recursion -
+  `'*'*3000+'a'+'*'*3000` raises bare RecursionError; `options.max_container_depth`/`max_nested_parens` and
+  `ResourceLimitExceededError` are never read/raised; (f) `_escape_html` escapes `"` in body text (attribute-style
+  everywhere) - swapping just that function measured 459->477 default / 503->521 prescan; (g) `_escape_href` uses
+  unicode-aware `isalnum` so non-ASCII never percent-encodes.
+- Perf root cause found: `_source_offset` + `_line_index_at_newline` are linear scans -> inline pass ~O(n^1.9);
+  75% of a 2000-line-paragraph parse. Trivial fixes (bisect over joined_start; newline-pos dict).
+- Architectural limit: link suffix consumed at tokenize time, so failed links can't rescan (CM 528/529).
+- Sizeable dead-code inventory (whitespace.py scanners, LineStart.min_hrule plumbing, refdefs
+  parse_single_line_refdef with a false "still used" comment, etc.); inlines/links.py and parser.py have no unit
+  tests of their own; offset tests only assert bounds so (d) sails through.
+- None of it blocks the minitui backend usage: streaming chat markdown doesn't hit the pathological shapes, and
+  the differential is fully explained. Fix-ups are the owner's call.
+
+## 2026-08-15 (later still): pdcmark M8 - fixed everything the review found
+
+Owner said "fix all of it, especially the performance issue". Eight commits (617101791..cff233a23):
+- **Perf**: binary-searched offset mapping + bulk plain-text consumption in the tokenizer (75%-of-parse quadratic
+  gone; 400-line paragraph 39->14ms) and a cheap shallow BlockMachine.clone() replacing deepcopy for streaming
+  tentative computation (100-line/40-char-chunk stream 329->81ms, 4x).
+- **The invasive one**: verbatim line joining - trailing-space/backslash hard breaks, next-line leading-skip, and
+  paragraph edge-trimming all decided in the walk where text context is known. Fixes code spans/raw HTML eating
+  interior whitespace, `\\` EOL false hard break, and exact Text-event source spans (offsets from joined positions,
+  not decoded lengths).
+- Renderer escaping split (body &<> vs attribute +"), ASCII-only href passthrough; ~ uses * flanking; CM 0.31
+  comments; entities decoded in dests/titles/fence infos; Zs-only whitespace; mod-3 on original run lengths
+  (DelimNode.original_count).
+- **Link-suffix rescan** (the one the reviewer called architectural): LinkCloseNode records its suffix's joined
+  span; on failure resolve_links re-tokenizes it (prefix-slice bounded) and splices fresh nodes in. CM 528/529 pass.
+- Iterative inline walkers (no more RecursionError at any depth); max_container_depth and max_nested_parens actually
+  enforced (degrade to content, never raise); never-raised ResourceLimitExceededError removed.
+- Dead-code sweep (whitespace/lines scanners, min_hrule plumbing, parse_single_line_refdef, no-op branches, false
+  comments); abstractmethod on BrokenLinkResolver.resolve; annotations; README links.
+- **Test-runner bombshell**: the spec runner's setext-header detection was swallowing 80 upstream examples whose
+  first content line was ---/=== (and misattributing sections - 'Thematic breaks' really has 19 cases, not 2).
+  True corpus is 652 examples. Honest before/after on the FULL corpus: **535/579 -> 572/618** (default/prescan,
+  88%/95%). Ratchets raised; curated indices remapped to true upstream numbering; 5 new strict sections.
+- 421 pdcmark tests (was 355 + removed-dead-fn tests) incl. new test_links.py/test_parser.py/test_rendering.py,
+  exact-span offsets, multi-line inline semantics, strikethrough/unicode flanking, deep-nesting DoS. Green on 3.14
+  and 3.14t. minitui's 193 still green; differential vs markdown-it still 59/62 with all 3 option-gated.
+
+## 2026-08-15 (M9): list-machine edge semantics - List items/Lists/Block quotes/Emphasis now full
+
+Owner asked what the list gaps were, then "take a run at all of them". One commit (5c7c78ee4):
+- **Tight/loose rework**: pending-blank model - _handle_blank records a pending blank on open lists (skipping
+  verbatim-leaf content, still-matched blockquote interiors, and empty-marker lines); _consume_pending_blank flips
+  loose exactly the list that directly receives the next block (innermost open item's list) and clears the rest;
+  indented-code continuation drops the pending blank (interior to the block). Every shape cross-checked against
+  markdown-it (18/18 battery).
+- **Empty items**: began_empty on OpenItem; item + immediately-following blank stays empty (list stays open); empty
+  markers can't interrupt a paragraph *directly* but CAN in lazy position (cmark's interrupts_paragraph is true only
+  when the matched container is the paragraph itself - so `> foo` + `2. bar` splits into quote + ol start=2, which
+  we previously got wrong too).
+- **Different-delimiter split**: `3)` after `2.` closes the list and opens ol start=3 (lazy gate no longer applies
+  interrupt restrictions; the start!=1 and non-empty rules live only in the direct-interrupt paths).
+- **Lazy remainder**: lazy continuation appends the post-matched-marker slice, not the raw line - `> 1. > quote` +
+  `> lazy` no longer leaks a literal `>` into the paragraph.
+- **Two extra machine bugs found while in there**: fenced-code/HTML-block leaves were being displaced by container
+  markers in their content (`>` or `-` lines inside a fence shredded it!) - now skipped per cmark's loop guard; and
+  blank lines didn't close GFM tables (following paragraph became a table row).
+- CM spec 589/652 default, 635/652 prescan (ratchets raised); 17 of 26 sections now 100% incl. List items(48),
+  Lists(26), Block quotes(25), Emphasis(132). 445 pdcmark tests (20 new in blocks/tests/test_list_edges.py), green
+  on 3.14 + 3.14t; minitui 193 green; remaining default-mode failures are the documented forward-refdef streaming
+  cluster (Links/Images/refdefs) plus Tabs 8/11 and singleton stragglers.

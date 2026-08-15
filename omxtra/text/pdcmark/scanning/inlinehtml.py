@@ -56,7 +56,12 @@ def scan_inline_html(text: str, start: int) -> InlineHtmlMatch | None:
 
 
 def _scan_comment(text: str, start: int) -> InlineHtmlMatch | None:
-    # `<!-- ... -->` - body may NOT contain `--` or end with `-`.
+    # CM 0.31 / HTML5: `<!-->`, `<!--->`, or `<!--` + text + `-->` where text doesn't start with `>` or `->`, doesn't
+    # contain `<!--`, `-->`, or `--!>`, and doesn't end with `<!-`. (Bare `--` inside is allowed, unlike CM ≤ 0.30.)
+    if text.startswith('<!-->', start):
+        return InlineHtmlMatch(end=start + 5)
+    if text.startswith('<!--->', start):
+        return InlineHtmlMatch(end=start + 6)
     body_start = start + 4
     end = text.find('-->', body_start)
     if end < 0:
@@ -64,9 +69,9 @@ def _scan_comment(text: str, start: int) -> InlineHtmlMatch | None:
     body = text[body_start:end]
     if body.startswith(('>', '->')):
         return None
-    if '--' in body:
+    if '<!--' in body or '--!>' in body:
         return None
-    if body.endswith('-'):
+    if body.endswith('<!-'):
         return None
     return InlineHtmlMatch(end=end + 3)
 

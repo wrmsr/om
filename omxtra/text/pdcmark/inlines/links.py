@@ -14,6 +14,8 @@ CommonMark Appendix A:
   - Resolution order for a closer: inline → reference → collapsed → shortcut. Whichever first succeeds wins. None
     succeeded? The opener / closer revert to text.
 """
+import typing as ta
+
 from omcore import check
 from omcore import dataclasses as dc
 
@@ -53,11 +55,26 @@ class Fuel:
 
 def resolve_links(
         nodes: list[InlineNode],
+        *,
         refdefs: RefDefs,
         fuel: Fuel,
-        broken_link_resolver: BrokenLinkResolver | None,
+        broken_link_resolver: BrokenLinkResolver | None = None,
+        retokenize: ta.Callable[[int, int], list[InlineNode]] | None = None,
 ) -> list[InlineNode]:
     stack: list[_LinkStackEntry] = []
+
+    def fail_closer(i: int, node: LinkCloseNode) -> None:
+        # The `]` becomes literal text. Any consumed suffix gets a fresh inline parse spliced in after it - a failed
+        # link's `[ref]` suffix can itself become a link (CM spec 528/529) - falling back to flat raw text when no
+        # re-tokenizer is available.
+        if retokenize is not None and node.suffix_joined is not None:
+            nodes[i] = TextNode(offset=node.offset, text=']')
+            nodes[i + 1:i + 1] = retokenize(*node.suffix_joined)
+        else:
+            nodes[i] = TextNode(
+                offset=(node.offset[0], node.consumed_end),
+                text=node.raw_consumed,
+            )
 
     i = 0
     while i < len(nodes):
@@ -73,10 +90,7 @@ def resolve_links(
             # closer fails AND the deactivated opener is dropped from the stack. (We still convert it to text below for
             # unmatched-opener cleanup.) Images remain matchable regardless of any "active" considerations.
             if not stack:
-                nodes[i] = TextNode(
-                    offset=(node.offset[0], node.consumed_end),
-                    text=node.raw_consumed,
-                )
+                fail_closer(i, node)
                 i += 1
                 continue
 
@@ -90,10 +104,7 @@ def resolve_links(
                         offset=opener.offset,
                         text='![' if opener.is_image else '[',
                     )
-                nodes[i] = TextNode(
-                    offset=(node.offset[0], node.consumed_end),
-                    text=node.raw_consumed,
-                )
+                fail_closer(i, node)
                 stack.pop()
                 i += 1
                 continue
@@ -143,12 +154,9 @@ def resolve_links(
                 continue
 
             # No resolution. For a non-image link, CM says we deactivate this opener (and earlier links) but leave its
-            # `[` in the source as text. The closer (with any consumed suffix) becomes text. For an image, both opener
-            # and closer just revert to text.
-            nodes[i] = TextNode(
-                offset=(node.offset[0], node.consumed_end),
-                text=node.raw_consumed,
-            )
+            # `[` in the source as text. The closer becomes text (with any consumed suffix re-tokenized after it). For
+            # an image, both opener and closer just revert to text.
+            fail_closer(i, node)
             if entry.is_image:
                 nodes[entry.node_index] = TextNode(
                     offset=opener.offset,
@@ -178,23 +186,27 @@ def resolve_links(
 
 
 def _finalize_link_placeholders(nodes: list[InlineNode]) -> None:
-    for j in range(len(nodes)):
-        n = nodes[j]
+    # Iterative (explicit stack) - deep nesting must not hit the interpreter recursion limit.
+    stack: list[list[InlineNode]] = [nodes]
+    while stack:
+        cur = stack.pop()
+        for j in range(len(cur)):
+            n = cur[j]
 
-        if isinstance(n, LinkOpenNode):
-            nodes[j] = TextNode(
-                offset=n.offset,
-                text='![' if n.is_image else '[',
-            )
+            if isinstance(n, LinkOpenNode):
+                cur[j] = TextNode(
+                    offset=n.offset,
+                    text='![' if n.is_image else '[',
+                )
 
-        elif isinstance(n, LinkCloseNode):
-            nodes[j] = TextNode(
-                offset=(n.offset[0], n.consumed_end),
-                text=n.raw_consumed,
-            )
+            elif isinstance(n, LinkCloseNode):
+                cur[j] = TextNode(
+                    offset=(n.offset[0], n.consumed_end),
+                    text=n.raw_consumed,
+                )
 
-        elif isinstance(n, LinkGroup):
-            _finalize_link_placeholders(n.children)
+            elif isinstance(n, LinkGroup):
+                stack.append(n.children)
 
 
 ##
@@ -298,19 +310,18 @@ def _flatten_to_text(nodes: list[InlineNode]) -> str:
     """
 
     parts: list[str] = []
+    work: list[InlineNode] = list(reversed(nodes))
 
-    for n in nodes:
+    while work:
+        n = work.pop()
         if isinstance(n, TextNode):
             parts.append(n.text)
 
         elif isinstance(n, DelimNode):
             parts.append(n.char * n.count)
 
-        elif isinstance(n, EmphasisGroup):
-            parts.append(_flatten_to_text(n.children))
-
-        elif isinstance(n, LinkGroup):
-            parts.append(_flatten_to_text(n.children))
+        elif isinstance(n, (EmphasisGroup, LinkGroup)):
+            work.extend(reversed(n.children))
 
         elif isinstance(n, (CodeNode, HtmlNode)):
             parts.append(n.text)

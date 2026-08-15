@@ -67,8 +67,7 @@ def resolve_emphasis(nodes: list[InlineNode]) -> list[InlineNode]:
                     children=children,
                 )
 
-                # Update opener / closer counts (mutating frozen-by-convention but actually mutable DelimNodes; they're
-                # internal IR not events).
+                # Update opener / closer counts in place (DelimNodes are mutable IR; events stay immutable).
                 new_opener_count = opener.count - consume
                 new_closer_count = node.count - consume
                 if new_opener_count > 0:
@@ -93,12 +92,8 @@ def resolve_emphasis(nodes: list[InlineNode]) -> list[InlineNode]:
                 else:
                     delim_stack = delim_stack[:match_s]
 
-                # Position update: if closer remains, re-try matching at its new position.
-                group_offset_in_nodes = opener_i + (1 if new_opener_count > 0 else 0)
-                if new_closer_count > 0:
-                    i = group_offset_in_nodes + 1
-                    continue
-                i = group_offset_in_nodes + 1
+                # Continue at the closer's new position (if it remains, it re-tries matching from there).
+                i = opener_i + (1 if new_opener_count > 0 else 0) + 1
                 continue
 
         if node.can_open:
@@ -133,21 +128,26 @@ def _find_matching_opener(
 
 
 def _mod3_blocked(opener: DelimNode, closer: DelimNode) -> bool:
-    # CM §6.4 mod-3 rule. Only applies when at least one of the two runs is "both" (left- and right-flanking
-    # simultaneously).
+    # CM §6.4 mod-3 rule, checked against the ORIGINAL delimiter-run lengths (cmark keeps `original_length` for exactly
+    # this; partial matches mutate `count` but must not affect the rule). Only applies when at least one of the two
+    # runs is "both" (left- and right-flanking simultaneously).
     if not (opener.can_close or closer.can_open):
         return False
-    if (opener.count + closer.count) % 3 != 0:
+    if (opener.original_count + closer.original_count) % 3 != 0:
         return False
-    if opener.count % 3 == 0 and closer.count % 3 == 0:
+    if opener.original_count % 3 == 0 and closer.original_count % 3 == 0:
         return False
     return True
 
 
 def _finalize_remaining(nodes: list[InlineNode]) -> None:
-    for i in range(len(nodes)):
-        n = nodes[i]
-        if isinstance(n, DelimNode):
-            nodes[i] = TextNode(offset=n.offset, text=n.char * n.count)
-        elif isinstance(n, EmphasisGroup):
-            _finalize_remaining(n.children)
+    # Iterative (explicit stack) - deeply nested emphasis must not hit the interpreter recursion limit.
+    stack: list[list[InlineNode]] = [nodes]
+    while stack:
+        cur = stack.pop()
+        for i in range(len(cur)):
+            n = cur[i]
+            if isinstance(n, DelimNode):
+                cur[i] = TextNode(offset=n.offset, text=n.char * n.count)
+            elif isinstance(n, EmphasisGroup):
+                stack.append(n.children)

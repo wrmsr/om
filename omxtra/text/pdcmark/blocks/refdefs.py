@@ -58,6 +58,13 @@ class RefDefs:
     def __len__(self) -> int:
         return len(self._table)
 
+    def copy(self) -> RefDefs:
+        """An independent copy (LinkDefs are immutable and shared)."""
+
+        new = RefDefs()
+        new._table = dict(self._table)  # noqa
+        return new
+
 
 ##
 
@@ -185,60 +192,3 @@ def _skip_ws_across_lines(
             return None, 0
 
 
-# pulldown-cmark/src/firstpass.rs::FirstPass::parse_refdef_total - single-line subset; preserved for the single-line
-# code path (still used by the BlockMachine - kept for now to avoid churn, but the multi-line `try_consume_refdef` is
-# now the canonical entry point).
-def parse_single_line_refdef(line: str) -> tuple[str, LinkDef] | None:
-    """
-    If `line` is a single-line refdef of shape `[label]: <dest> [title]?`, return the normalized label and a LinkDef.
-    Else return None.
-
-    Trailing whitespace on the line is permitted. Anything else after the optional title (or, if no title, after the
-    destination) makes the line not a refdef.
-    """
-
-    n = len(line)
-    j = 0
-    while j < n and line[j] == ' ' and j < 3:
-        j += 1
-    if j >= n or line[j] != '[':
-        return None
-    label_scan = scan_link_label(line, j)
-    if label_scan is None:
-        return None
-    if label_scan.end >= n or line[label_scan.end] != ':':
-        return None
-    norm = normalize_link_label(label_scan.raw)
-    if not norm:
-        return None
-
-    pos = label_scan.end + 1
-    while pos < n and (line[pos] == ' ' or line[pos] == '\t'):
-        pos += 1
-    if pos >= n:
-        # Destination on next line - multi-line refdef.
-        return None
-
-    dest_scan = scan_link_destination(line, pos)
-    if dest_scan is None:
-        return None
-    pos = dest_scan.end
-
-    while pos < n and (line[pos] == ' ' or line[pos] == '\t'):
-        pos += 1
-
-    title = ''
-    if pos < n:
-        if line[pos] not in '"\'(':
-            return None  # garbage after dest
-        title_scan = scan_link_title(line, pos)
-        if title_scan is None:
-            return None
-        title = title_scan.title
-        pos = title_scan.end
-        while pos < n and (line[pos] == ' ' or line[pos] == '\t'):
-            pos += 1
-        if pos < n:
-            return None  # garbage after title
-
-    return norm, LinkDef(dest=dest_scan.dest, title=title)

@@ -11,6 +11,9 @@ Source offsets are tracked via a small position-to-offset lookup table built dur
 Cf. pulldown-cmark/src/parse.rs::handle_inline_pass1 - same role and same construct precedences, but operating on a
 fresh joined string rather than mutating a tree.
 """
+import bisect
+import re
+import typing as ta
 import unicodedata
 
 from omcore import dataclasses as dc
@@ -43,62 +46,34 @@ class _LineInfo:
     joined_start: int  # position in joined text where this line begins
     source_start: int  # original BufferedLine.line_start
     source_next: int   # original BufferedLine.line_next
-    text_len: int      # length of `text` in the joined string (after trim)
+    text_len: int      # length of `text` in the joined string
 
 
 @dc.dataclass(frozen=True)
 class _Joined:
     text: str
     lines: tuple[_LineInfo, ...]
-    hard_break_after: tuple[bool, ...]  # parallel to `lines`; True iff a HardBreak follows
+    line_starts: tuple[int, ...]  # parallel to `lines`; each line's joined_start, for binary search
 
 
 def _build_joined(lines: tuple[BufferedLine, ...]) -> _Joined:
+    # Lines are joined VERBATIM with '\n' separators. Whitespace significance around line breaks (trailing-space /
+    # trailing-backslash hard breaks, next-line leading-space skipping, paragraph initial/final trimming) is decided in
+    # the tokenizer walk, where text context is known - a code span or raw-HTML span crossing a line break must see the
+    # raw whitespace.
     out_parts: list[str] = []
     info: list[_LineInfo] = []
-    hard: list[bool] = []
     pos = 0
     last_ix = len(lines) - 1
 
     for i, ln in enumerate(lines):
-        # Strip leading whitespace per CM paragraph rules. Block parsing has already stripped up-to-3-space indentation;
-        # what remains here is the line content as it appeared after container markers.
         text = ln.text
-
-        # Leading whitespace stripping happens in the block parser for paragraph emission; for inline parsing we strip
-        # again to handle any continuation-line leading whitespace that the block parser didn't (e.g., lazy-continuation
-        # lines).
-        text = text.lstrip(' \t')
-
-        is_hardbreak = False
-        if i < last_ix:
-            if text.endswith('\\'):
-                # Literal backslash at end of line → hard break, consume the backslash. Only if the backslash isn't
-                # itself escaped - CM treats the trailing-`\` form specially and we don't have to worry about
-                # double-backslash because we trim only one.
-                text = text[:-1]
-                is_hardbreak = True
-
-            elif text.endswith('  '):
-                # 2+ trailing spaces → hard break.
-                text = text.rstrip(' \t')
-                is_hardbreak = True
-
-            else:
-                # Strip trailing whitespace (it's not significant for non-hard-break case).
-                text = text.rstrip(' \t')
-
-        else:
-            # Last line - no following line, no hard break. Just strip trailing whitespace.
-            text = text.rstrip(' \t')
-
         info.append(_LineInfo(
             joined_start=pos,
             source_start=ln.line_start,
             source_next=ln.line_next,
             text_len=len(text),
         ))
-        hard.append(is_hardbreak)
         out_parts.append(text)
         pos += len(text)
         if i < last_ix:
@@ -108,94 +83,161 @@ def _build_joined(lines: tuple[BufferedLine, ...]) -> _Joined:
     return _Joined(
         text=''.join(out_parts),
         lines=tuple(info),
-        hard_break_after=tuple(hard),
+        line_starts=tuple(li.joined_start for li in info),
     )
 
 
 def _source_offset(joined: _Joined, p: int) -> int:
     """Map a joined-text position to an absolute source offset."""
 
-    # Linear walk; lines per block are typically few. Could binary-search if it ever matters.
-    for li in joined.lines:
-        if p < li.joined_start + li.text_len:
-            return li.source_start + (p - li.joined_start)
-
-        if p == li.joined_start + li.text_len:
-            # On the newline boundary - point at start of the newline char in source. If trailing whitespace was
-            # trimmed, the newline is somewhere before line_next; we approximate by using line_next - 1.
-            return max(li.source_start, li.source_next - 1)
-
-    # Off the end of joined → end of last line.
-    return joined.lines[-1].source_next
+    # Binary search for the line containing p. Every joined position from a line's start through its trailing newline
+    # (== the next line's start - 1) belongs to that line. Since lines are joined verbatim, the mapping within a line
+    # (newline included - it maps to the start of the source EOL sequence) is linear.
+    ix = bisect.bisect_right(joined.line_starts, p) - 1
+    li = joined.lines[ix if ix >= 0 else 0]
+    return min(li.source_start + (p - li.joined_start), li.source_next)
 
 
 ##
+
+
+# Characters that can start a non-text construct (or need per-char handling) in the main tokenizer loop. Everything
+# between two of these is plain text and is consumed in bulk.
+_RE_SPECIAL = re.compile(r'[\n\\&`<!\[\]*_~]')
+
+
+@dc.dataclass(frozen=True)
+class TokenizedBlock:
+    nodes: list[InlineNode]
+
+    # Re-runs the tokenizer walk over a joined-text span (absolute positions), bounding all scanning at the span end.
+    # Link resolution uses this to give a failed link's consumed suffix a fresh inline parse of its own.
+    retokenize: ta.Callable[[int, int], list[InlineNode]]
+
+
+def tokenize_block(
+        lines: tuple[BufferedLine, ...],
+        *,
+        strikethrough: bool = False,
+        max_nested_parens: int = 32,
+) -> TokenizedBlock:
+    if not lines:
+        return TokenizedBlock(nodes=[], retokenize=lambda start, end: [])
+    joined = _build_joined(lines)
+
+    def retokenize(start: int, end: int) -> list[InlineNode]:
+        # A prefix slice keeps joined positions absolute while preventing scanners from matching past the span end.
+        # (Edge trimming is a whole-paragraph rule and doesn't apply to interior spans.)
+        return _walk(
+            joined,
+            joined.text[:end],
+            start,
+            strikethrough=strikethrough,
+            max_nested_parens=max_nested_parens,
+            trim_edges=False,
+        )
+
+    return TokenizedBlock(
+        nodes=_walk(
+            joined,
+            joined.text,
+            0,
+            strikethrough=strikethrough,
+            max_nested_parens=max_nested_parens,
+            trim_edges=True,
+        ),
+        retokenize=retokenize,
+    )
 
 
 def tokenize_inline(
         lines: tuple[BufferedLine, ...],
         *,
         strikethrough: bool = False,
+        max_nested_parens: int = 32,
 ) -> list[InlineNode]:
-    if not lines:
-        return []
-    joined = _build_joined(lines)
+    return tokenize_block(lines, strikethrough=strikethrough, max_nested_parens=max_nested_parens).nodes
+
+
+def _walk(  # noqa: C901
+        joined: _Joined,
+        s: str,
+        start: int,
+        *,
+        strikethrough: bool,
+        max_nested_parens: int,
+        trim_edges: bool,
+) -> list[InlineNode]:
     nodes: list[InlineNode] = []
-    s = joined.text
     n = len(s)
 
-    # Text accumulator - flushed into a TextNode on any non-text token.
+    # Text accumulator - flushed into a TextNode on any non-text token. Entities / escapes decode into it, so its
+    # content may be shorter than the joined span it covers; source offsets always come from joined positions.
     buf: list[str] = []
-    buf_start = 0  # joined position where buf started (only valid if buf is non-empty)
+    buf_start = start  # joined position where buf started (only valid if buf is non-empty)
 
-    def flush_text() -> None:
+    def flush_text(end_pos: int, *, strip_trailing: int = 0) -> None:
         if not buf:
             return
         text = ''.join(buf)
+        if strip_trailing:
+            # The stripped chars are literal source whitespace, bulk-appended verbatim - safe to cut by count.
+            text = text[:max(len(text) - strip_trailing, 0)]
         if text:
-            start = _source_offset(joined, buf_start)
-            end = _source_offset(joined, buf_start + len(text))
-            nodes.append(TextNode(offset=(start, end), text=text))
+            start_src = _source_offset(joined, buf_start)
+            end_src = _source_offset(joined, end_pos)
+            nodes.append(TextNode(offset=(start_src, end_src), text=text))
         buf.clear()
 
-    def emit(node: InlineNode) -> None:
-        flush_text()
+    def emit(node: InlineNode, at_pos: int) -> None:
+        flush_text(at_pos)
         nodes.append(node)
 
-    i = 0
+    def line_end_source(newline_pos: int) -> int:
+        line_ix = _line_index_at_newline(joined, newline_pos)
+        if line_ix is not None:
+            return joined.lines[line_ix].source_next
+        return _source_offset(joined, newline_pos + 1)
+
+    # CM trims a paragraph's initial whitespace before inline parsing. (Headings and table cells arrive pre-trimmed;
+    # the skip is harmless there.)
+    i = start
+    if trim_edges:
+        while i < n and s[i] in ' \t':
+            i += 1
+
     while i < n:
         c = s[i]
 
-        # Newline boundary - soft or hard break.
+        # Newline boundary - soft or hard break. Trailing spaces / tabs are removed from the text; two-plus trailing
+        # spaces make the break hard. Leading whitespace of the following line belongs to the break, not the text.
         if c == '\n':
-            # Determine which line transition this newline marks. Find the line whose joined_start + text_len == i.
-            line_ix = _line_index_at_newline(joined, i)
-            is_hard = joined.hard_break_after[line_ix] if line_ix is not None else False
-            line_end_source = (
-                joined.lines[line_ix].source_next
-                if line_ix is not None else _source_offset(joined, i + 1)
-            )
-            line_start_source = (
-                joined.lines[line_ix].source_start + joined.lines[line_ix].text_len
-                if line_ix is not None else _source_offset(joined, i)
-            )
+            j = i
+            while j > start and s[j - 1] in ' \t':
+                j -= 1
+            is_hard = i - j >= 2 and s[i - 1] == ' ' and s[i - 2] == ' '
+            flush_text(j, strip_trailing=i - j)
+            offset = (_source_offset(joined, j), line_end_source(i))
             if is_hard:
-                emit(HardBreakNode(offset=(line_start_source, line_end_source)))
+                nodes.append(HardBreakNode(offset=offset))
             else:
-                emit(SoftBreakNode(offset=(line_start_source, line_end_source)))
+                nodes.append(SoftBreakNode(offset=offset))
             i += 1
+            while i < n and s[i] in ' \t':
+                i += 1
             continue
 
         # Backslash escape.
         if c == '\\' and i + 1 < n:
             nxt = s[i + 1]
             if nxt == '\n':
-                # Backslash before EOL - already handled at trim time as a hard break (the `\` was consumed). This
-                # branch shouldn't normally hit, but if it does we treat as text.
-                if not buf:
-                    buf_start = i
-                buf.append(c)
-                i += 1
+                # Backslash at end of line → hard break (CM §6.9). Escaped backslashes were consumed pairwise by the
+                # branch below, so a backslash surviving to this position is an odd (unescaped) one.
+                flush_text(i)
+                nodes.append(HardBreakNode(offset=(_source_offset(joined, i), line_end_source(i + 1))))
+                i += 2
+                while i < n and s[i] in ' \t':
+                    i += 1
                 continue
 
             if is_escapable(nxt):
@@ -226,7 +268,7 @@ def tokenize_inline(
                 content = _normalize_code_span(content)
                 start_src = _source_offset(joined, i)
                 end_src = _source_offset(joined, close + run)
-                emit(CodeNode(offset=(start_src, end_src), text=content))
+                emit(CodeNode(offset=(start_src, end_src), text=content), i)
                 i = close + run
                 continue
 
@@ -243,7 +285,7 @@ def tokenize_inline(
             if al is not None:
                 start_src = _source_offset(joined, i)
                 end_src = _source_offset(joined, al.end)
-                emit(AutolinkNode(offset=(start_src, end_src), target=al.target, is_email=al.is_email))
+                emit(AutolinkNode(offset=(start_src, end_src), target=al.target, is_email=al.is_email), i)
                 i = al.end
                 continue
 
@@ -251,7 +293,7 @@ def tokenize_inline(
             if html_m is not None:
                 start_src = _source_offset(joined, i)
                 end_src = _source_offset(joined, html_m.end)
-                emit(HtmlNode(offset=(start_src, end_src), text=s[i:html_m.end]))
+                emit(HtmlNode(offset=(start_src, end_src), text=s[i:html_m.end]), i)
                 i = html_m.end
                 continue
 
@@ -259,7 +301,7 @@ def tokenize_inline(
         if c == '!' and i + 1 < n and s[i + 1] == '[':
             start_src = _source_offset(joined, i)
             end_src = _source_offset(joined, i + 2)
-            emit(LinkOpenNode(offset=(start_src, end_src), is_image=True))
+            emit(LinkOpenNode(offset=(start_src, end_src), is_image=True), i)
             i += 2
             continue
 
@@ -267,15 +309,14 @@ def tokenize_inline(
         if c == '[':
             start_src = _source_offset(joined, i)
             end_src = _source_offset(joined, i + 1)
-            emit(LinkOpenNode(offset=(start_src, end_src), is_image=False))
+            emit(LinkOpenNode(offset=(start_src, end_src), is_image=False), i)
             i += 1
             continue
 
         # Link close `]` - also peeks ahead for the link suffix.
         if c == ']':
-            close_start_src = _source_offset(joined, i)  # noqa
-            close_node, consumed_to = _scan_link_suffix(s, i, joined)
-            emit(close_node)
+            close_node, consumed_to = _scan_link_suffix(s, i, joined, max_nested_parens)
+            emit(close_node, i)
             i = consumed_to
             continue
 
@@ -295,17 +336,26 @@ def tokenize_inline(
                 count=run_end - i,
                 can_open=can_open,
                 can_close=can_close,
-            ))
+                original_count=run_end - i,
+            ), i)
             i = run_end
             continue
 
-        # Plain text accumulation.
+        # Plain text accumulation - bulk-consume through the next potentially-special character. (The current char may
+        # itself be a special that fell through above, so the scan starts at i + 1; progress is always ≥ 1 char.)
         if not buf:
             buf_start = i
-        buf.append(c)
-        i += 1
+        m2 = _RE_SPECIAL.search(s, i + 1)
+        j = m2.start() if m2 is not None else n
+        buf.append(s[i:j])
+        i = j
 
-    flush_text()
+    # Final whitespace of the block is trimmed (CM paragraph raw-content rule); interior spans flush as-is.
+    j = n
+    if trim_edges:
+        while j > 0 and s[j - 1] in ' \t':
+            j -= 1
+    flush_text(j, strip_trailing=n - j)
     return nodes
 
 
@@ -380,13 +430,14 @@ def _flanking(c: str, prev_c: str, next_c: str) -> tuple[bool, bool]:
         and (not prev_punct or next_ws or next_punct)
     )
 
-    if c == '*':
-        can_open = left_flanking
-        can_close = right_flanking
-    else:
+    if c == '_':
         # Underscore: intraword underscores are neither opening nor closing.
         can_open = left_flanking and (not right_flanking or prev_punct)
         can_close = right_flanking and (not left_flanking or next_punct)
+    else:
+        # `*` and (GFM) `~` use the plain flanking rules - intraword emphasis / strikethrough is allowed.
+        can_open = left_flanking
+        can_close = right_flanking
 
     return can_open, can_close
 
@@ -396,8 +447,8 @@ def _is_unicode_whitespace(c: str) -> bool:
         return True
     if c in ' \t\n\v\f\r':
         return True
-    # CM defines unicode whitespace as `Zs` plus tab/CR/LF/FF/VT.
-    return unicodedata.category(c).startswith('Z')
+    # CM defines unicode whitespace as `Zs` plus tab/CR/LF/FF/VT (not `Zl`/`Zp`).
+    return unicodedata.category(c) == 'Zs'
 
 
 def _is_unicode_punct(c: str) -> bool:
@@ -411,13 +462,18 @@ def _is_unicode_punct(c: str) -> bool:
 
 
 def _line_index_at_newline(joined: _Joined, pos: int) -> int | None:
-    for ix, li in enumerate(joined.lines):
-        if li.joined_start + li.text_len == pos:
-            return ix
+    ix = bisect.bisect_right(joined.line_starts, pos) - 1
+    if ix >= 0 and joined.lines[ix].joined_start + joined.lines[ix].text_len == pos:
+        return ix
     return None
 
 
-def _scan_link_suffix(s: str, close_pos: int, joined: _Joined) -> tuple[LinkCloseNode, int]:
+def _scan_link_suffix(
+        s: str,
+        close_pos: int,
+        joined: _Joined,
+        max_nested_parens: int,
+) -> tuple[LinkCloseNode, int]:
     """
     Inspect what follows a `]` at `s[close_pos]` to determine the link-close kind.
 
@@ -445,7 +501,7 @@ def _scan_link_suffix(s: str, close_pos: int, joined: _Joined) -> tuple[LinkClos
 
     # Inline link / image: `(dest "title")`.
     if nxt == '(':
-        result = _try_parse_inline_link(s, after)
+        result = _try_parse_inline_link(s, after, max_nested_parens)
         if result is not None:
             dest, title, end_pos = result
             end_src = _source_offset(joined, end_pos)
@@ -456,6 +512,7 @@ def _scan_link_suffix(s: str, close_pos: int, joined: _Joined) -> tuple[LinkClos
                 raw_consumed=s[close_pos:end_pos],
                 dest_url=dest,
                 title=title,
+                suffix_joined=(close_pos + 1, end_pos),
             ), end_pos
         # Fall through - `(` without a valid link → shortcut form.
 
@@ -470,6 +527,7 @@ def _scan_link_suffix(s: str, close_pos: int, joined: _Joined) -> tuple[LinkClos
                 consumed_end=end_src,
                 kind='collapsed',
                 raw_consumed=s[close_pos:end_pos],
+                suffix_joined=(close_pos + 1, end_pos),
             ), end_pos
 
         # `[label]` → reference.
@@ -483,6 +541,7 @@ def _scan_link_suffix(s: str, close_pos: int, joined: _Joined) -> tuple[LinkClos
                 kind='reference',
                 raw_consumed=s[close_pos:end_pos],
                 label=label_scan.raw,
+                suffix_joined=(close_pos + 1, end_pos),
             ), end_pos
 
     # Default - shortcut form (try inner text against refdefs at resolution time).
@@ -494,7 +553,7 @@ def _scan_link_suffix(s: str, close_pos: int, joined: _Joined) -> tuple[LinkClos
     ), after
 
 
-def _try_parse_inline_link(s: str, paren_pos: int) -> tuple[str, str, int] | None:
+def _try_parse_inline_link(s: str, paren_pos: int, max_nested_parens: int) -> tuple[str, str, int] | None:
     """Parse `(dest "title")` starting at the `(`. Returns (dest, title, end_pos_after_paren)."""
 
     n = len(s)
@@ -510,14 +569,13 @@ def _try_parse_inline_link(s: str, paren_pos: int) -> tuple[str, str, int] | Non
     # Destination - may or may not be present.
     dest = ''
     if s[i] != ')':
-        dest_scan = scan_link_destination(s, i)
+        dest_scan = scan_link_destination(s, i, max_parens=max_nested_parens)
         if dest_scan is None:
             return None
         dest = dest_scan.dest
         i = dest_scan.end
 
     # Optional whitespace before title.
-    pre_title = i
     i = _consume_link_ws(s, i, allow_nl=True)
     title = ''
     if i < n and s[i] in '"\'(':
@@ -533,9 +591,7 @@ def _try_parse_inline_link(s: str, paren_pos: int) -> tuple[str, str, int] | Non
             # Title-shaped but invalid - fail the whole inline link.
             return None
 
-    else:
-        i = pre_title  # no title; rewind ws-skip if it ate nothing useful
-        i = _consume_link_ws(s, i, allow_nl=True)
+    # (No title: `i` already sits just past the whitespace run; nothing to rewind.)
 
     if i >= n or s[i] != ')':
         return None

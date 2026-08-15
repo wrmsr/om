@@ -47,3 +47,14 @@ def test_not_ampersand():
 def test_embedded_offset():
     m = scan_entity('hello &amp; world', 6)
     assert m is not None and m.decoded == '&' and m.end == 11
+
+
+def test_unknown_name_with_known_prefix_is_not_an_entity():
+    # `&not` is a legacy semicolon-less HTML entity; CommonMark must not decode it as a prefix of an unknown name.
+    assert scan_entity('&notanentity;', 0) is None
+    assert scan_entity('&copyright?;', 0) is None
+    # But the real semicolon-terminated names still work.
+    m = scan_entity('&not;', 0)
+    assert m is not None and m.decoded == '¬'
+    m = scan_entity('&notin;', 0)
+    assert m is not None and m.decoded == '∉'

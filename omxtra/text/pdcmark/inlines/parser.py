@@ -48,7 +48,7 @@ from .nodes import InlineNode
 from .nodes import LinkGroup
 from .nodes import SoftBreakNode
 from .nodes import TextNode
-from .tokenize import tokenize_inline
+from .tokenize import tokenize_block
 
 
 ##
@@ -78,12 +78,17 @@ class InlineParser:
     def parse(self, lines: ta.Sequence[BufferedLine]) -> list[Event]:
         if not lines:
             return []
-        nodes = tokenize_inline(tuple(lines), strikethrough=self._options.strikethrough)
+        tokenized = tokenize_block(
+            tuple(lines),
+            strikethrough=self._options.strikethrough,
+            max_nested_parens=self._options.max_nested_parens,
+        )
         nodes = resolve_links(
-            nodes,
+            tokenized.nodes,
             refdefs=self._refdefs,
             fuel=self._fuel,
             broken_link_resolver=self._options.broken_link_resolver,
+            retokenize=tokenized.retokenize,
         )
         # Resolve emphasis on the top-level list AND recursively inside link / image groups.
         _resolve_emphasis_recursive(nodes)
@@ -96,21 +101,36 @@ class InlineParser:
 
 
 def _resolve_emphasis_recursive(nodes: list[InlineNode]) -> None:
-    resolve_emphasis(nodes)
-
-    for n in nodes:
-        if isinstance(n, LinkGroup):
-            _resolve_emphasis_recursive(n.children)
-
-        elif isinstance(n, EmphasisGroup):
-            _resolve_emphasis_recursive(n.children)
+    # Only LinkGroup children need their own emphasis pass - their node lists were severed from the parent list before
+    # emphasis ran there. EmphasisGroup children were resolved as part of their parent list; we only descend through
+    # them to find nested LinkGroups. Iterative (explicit stacks) - deep nesting must not hit the recursion limit.
+    work: list[list[InlineNode]] = [nodes]
+    while work:
+        cur = work.pop()
+        resolve_emphasis(cur)
+        scan: list[list[InlineNode]] = [cur]
+        while scan:
+            lst = scan.pop()
+            for n in lst:
+                if isinstance(n, LinkGroup):
+                    work.append(n.children)
+                elif isinstance(n, EmphasisGroup):
+                    scan.append(n.children)
 
 
 def _emit_events(nodes: ta.Iterable[InlineNode], out: list[Event]) -> None:
+    # Iterative pre-order walk: group nodes push their (already-built) End event onto the work stack behind their
+    # children. Deeply nested emphasis must not hit the interpreter recursion limit.
     tag: Tag
+    work: list[InlineNode | End] = list(reversed(list(nodes)))
 
-    for n in nodes:
-        if isinstance(n, TextNode):
+    while work:
+        n = work.pop()
+
+        if isinstance(n, End):
+            out.append(n)
+
+        elif isinstance(n, TextNode):
             if n.text:
                 out.append(Text(offset=n.offset, text=n.text))
 
@@ -142,8 +162,8 @@ def _emit_events(nodes: ta.Iterable[InlineNode], out: list[Event]) -> None:
             else:
                 tag = Emphasis()
             out.append(Start(offset=n.offset, tag=tag))
-            _emit_events(n.children, out)
-            out.append(End(offset=n.offset, tag=tag))
+            work.append(End(offset=n.offset, tag=tag))
+            work.extend(reversed(n.children))
 
         elif isinstance(n, LinkGroup):
             tag = (
@@ -152,8 +172,8 @@ def _emit_events(nodes: ta.Iterable[InlineNode], out: list[Event]) -> None:
                 else Link(link_type=n.link_type, dest_url=n.dest_url, title=n.title, id=n.id)
             )
             out.append(Start(offset=n.offset, tag=tag))
-            _emit_events(n.children, out)
-            out.append(End(offset=n.offset, tag=tag))
+            work.append(End(offset=n.offset, tag=tag))
+            work.extend(reversed(n.children))
 
         else:
             raise TypeError(n)

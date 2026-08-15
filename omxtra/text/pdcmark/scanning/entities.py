@@ -7,11 +7,13 @@ CommonMark §6.2: three entity forms,
   * decimal: `&#NNNN;`         (e.g. `&#35;` → `#`)
   * hexadecimal: `&#xHHHH;` / `&#XHHHH;`
 
-We delegate decoding to stdlib `html.unescape`, which has the full HTML5 named-entity table - far larger and more
-current than pulldown-cmark's generated 2125-row `entities.rs`. The job here is just to recognize the byte span of a
-valid entity reference and decode it.
+We delegate decoding to the stdlib's HTML5 named-entity table (`html.entities.html5`) - far larger and more current
+than pulldown-cmark's generated 2125-row `entities.rs`. Lookups use the exact semicolon-terminated name: CommonMark
+recognizes only `&name;` forms, never the legacy semicolon-less entities (`&copy` is plain text), and never partial
+matches (`&notanentity;` must not decode its `&not` prefix - which is exactly what `html.unescape` would do, so it
+must not be used here).
 """
-import html
+import html.entities
 import re
 
 from omcore import dataclasses as dc
@@ -29,10 +31,10 @@ _RE_HEX = re.compile(r'&#[xX]([0-9A-Fa-f]{1,6});')
 @dc.dataclass(frozen=True)
 class EntityMatch:
     end: int      # one past the closing `;`
-    decoded: str  # the decoded character(s); falls back to the raw text for unknown named refs
+    decoded: str  # the decoded character(s)
 
 
-# pulldown-cmark/src/scanners.rs::scan_entity - same shape but we lean on stdlib `html.unescape`.
+# pulldown-cmark/src/scanners.rs::scan_entity - same shape but we lean on the stdlib's HTML5 entity table.
 def scan_entity(text: str, start: int) -> EntityMatch | None:
     if start >= len(text) or text[start] != '&':
         return None
@@ -54,11 +56,10 @@ def scan_entity(text: str, start: int) -> EntityMatch | None:
 
     m = _RE_NAMED.match(text, start)
     if m is not None:
-        # `html.unescape` resolves all HTML5 named entities; for unknown names it returns the input unchanged (which is
-        # the wrong behavior - CM says unknown named refs render as plain text). We detect by comparing.
-        raw = m.group(0)
-        decoded = html.unescape(raw)
-        if decoded == raw:
+        # Exact lookup of the semicolon-terminated name only. (NOT `html.unescape`: it also resolves legacy
+        # semicolon-less entities embedded as prefixes, turning `&notanentity;` into `\u00acanentity;`.)
+        decoded = html.entities.html5.get(m.group(1) + ';')
+        if decoded is None:
             return None
         return EntityMatch(end=m.end(), decoded=decoded)
 

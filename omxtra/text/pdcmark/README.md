@@ -11,8 +11,8 @@ A pure-Python, streaming-first markdown parser modeled on the Rust
 - CommonMark core + GFM tables, strikethrough, task lists, and admonition blockquotes.
 - Source offsets on every event.
 
-Origin and design context: [docs/00_Goals.md](../docs/00_Goals.md),
-[docs/02_PrePlan.md](../docs/02_PrePlan.md), [docs/03_Plan.md](../docs/03_Plan.md).
+Origin and design context: [docs/00_Goals.md](docs/00_Goals.md),
+[docs/02_PrePlan.md](docs/02_PrePlan.md), [docs/03_Plan.md](docs/03_Plan.md).
 
 
 ## Install

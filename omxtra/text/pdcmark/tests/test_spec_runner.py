@@ -9,8 +9,7 @@ from .spec_runner import parse_spec_text
 
 
 SAMPLE = """
-Section One
-===========
+# Section One
 
 ```````````````````````````````` example
 # heading

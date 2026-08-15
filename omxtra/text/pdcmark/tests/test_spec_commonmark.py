@@ -46,8 +46,14 @@ def _passes(case: SpecCase) -> bool:
 #   M3 (links/images, prescan_refdefs=True):  468/572
 #   M4 (GFM tables/strikethrough/tasklist):   429/572 / 473/572
 #   M5 (tight-list rendering):                459/572 / 503/572
-_BASELINE_FLOOR_DEFAULT = 459
-_BASELINE_FLOOR_PRESCAN = 503
+#   M8 (review hardening - see 04_Status):    572/652 / 618/652
+#   M9 (list-machine edge semantics):         589/652 / 635/652
+#
+# Totals before M8 were out of 572: the spec runner's setext-header detection used to swallow the 80 examples whose
+# first content line was a `---`/`===` line. The corrected corpus holds all 652 upstream examples; the pre-M8 parser
+# measured against it scores 535/652 default, 579/652 prescan.
+_BASELINE_FLOOR_DEFAULT = 589
+_BASELINE_FLOOR_PRESCAN = 635
 
 
 def test_cm_spec_pass_count_meets_baseline_default(cm_cases):
@@ -84,6 +90,17 @@ _STRICT_SECTIONS = (
     'Inlines',           # M2: single-case section, passes once inlines work.
     'Autolinks',         # M3: all 19/19 cases passing.
     'Precedence',        # M5: 1/1 once inline parser + lists agree.
+    # M8 (review hardening):
+    'ATX headings',
+    'Setext headings',
+    'Code spans',
+    'Raw HTML',
+    'Hard line breaks',
+    # M9 (list-machine edge semantics):
+    'List items',
+    'Lists',
+    'Block quotes',
+    'Emphasis and strong emphasis',
 )
 
 
@@ -101,36 +118,36 @@ def test_cm_section_full_pass(cm_cases, section):
 # A small set of CM spec case indices that exercise specific M1 features and must pass. If any fails, something specific
 # has regressed.
 _CURATED_CASE_INDICES = (
-    # Numbers reference upstream CM 0.30 spec.txt indices. Cases listed here are exact-match smoke tests covering
-    # features we explicitly want green on each milestone.
+    # Numbers reference upstream CM spec.txt example indices (the runner ATX-only section scan yields the true
+    # upstream numbering). Cases listed here are exact-match smoke tests for features we want green per milestone.
     # M1 - block-level:
     1,    # tab in indented code
     43,   # thematic break (* / - / _)
-    69,   # HTML block - <table>
-    139,  # plain paragraph
-    147,  # paragraph with leading blank lines
-    148,  # blockquote with ATX heading and paragraph
-    568,  # soft line break
-    570,  # textual content with punctuation
+    148,  # HTML block - <table>
+    219,  # plain paragraph
+    221,  # paragraph with interior blank lines
+    228,  # blockquote with ATX heading and paragraph
+    648,  # soft line break
+    650,  # textual content with punctuation
     # M2 - inline core:
-    13,   # backslash-escape of various ASCII punctuation
-    248,  # simple code span: `foo`
-    249,  # code span trimming: `` foo ` bar ``
-    270,  # *foo bar*
-    273,  # `* a *` - non-breaking-space flanking
-    514,  # autolink URI
-    515,  # autolink URI with query
-    533,  # raw inline HTML series
-    553,  # hard break via trailing spaces
+    12,   # backslash-escape of various ASCII punctuation
+    328,  # simple code span: `foo`
+    329,  # code span trimming: `` foo ` bar ``
+    350,  # *foo bar*
+    351,  # `a * foo bar*` - space flanking blocks emphasis
+    594,  # autolink URI
+    595,  # autolink URI with query
+    613,  # raw inline HTML series
+    633,  # hard break via trailing spaces
     # M3 - links / images (default mode, no prescan needed for these):
-    402,  # inline link `[link](/uri "title")`
-    403,  # inline link no title
-    404,  # inline link with empty text
-    492,  # inline image
+    482,  # inline link `[link](/uri "title")`
+    483,  # inline link no title
+    484,  # inline link with empty text
+    572,  # inline image
     # M4 - GFM extensions are tested in test_spec_gfm.py.
     # M5 - tight-list rendering:
-    177,  # tight list - `-    one\n\n     two`
-    221,  # mixed bullet markers → multiple tight lists
+    257,  # tight list - ` -    one` / `     two`
+    301,  # mixed bullet markers → multiple tight lists
 )
 
 

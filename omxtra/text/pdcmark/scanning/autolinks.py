@@ -20,7 +20,9 @@ from omcore import dataclasses as dc
 
 
 _RE_URI = re.compile(
-    r'[A-Za-z][A-Za-z0-9+.\-]{1,31}:[^\s<>\x00-\x1f]*',
+    # Body: any char other than ASCII controls (0x00-0x1F, 0x7F), space, `<`, `>`. Non-ASCII whitespace (e.g. NBSP) is
+    # allowed - CM's exclusion list is ASCII-only.
+    r'[A-Za-z][A-Za-z0-9+.\-]{1,31}:[^<>\x00-\x20\x7f]*',
 )
 
 
@@ -54,8 +56,8 @@ def scan_autolink(text: str, start: int) -> AutolinkMatch | None:
     if not body:
         return None
 
-    # Reject if body contains whitespace.
-    if any(c.isspace() or c == '<' for c in body):
+    # Reject if body contains ASCII whitespace or `<`.
+    if any(c in ' \t\n\v\f\r<' for c in body):
         return None
 
     # Try URI form first (must contain `:` after scheme).

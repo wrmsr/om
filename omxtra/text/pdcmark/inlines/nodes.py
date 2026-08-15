@@ -78,10 +78,11 @@ class DelimNode(InlineNode):
     """
 
     offset: tuple[int, int]
-    char: str        # '*' or '_'
-    count: int       # number of consecutive chars in the run
+    char: str            # '*', '_', or '~'
+    count: int           # number of consecutive chars remaining in the run (decremented by partial matches)
     can_open: bool
     can_close: bool
+    original_count: int  # run length as scanned; the mod-3 rule reads this, not the mutated `count`
 
 
 @dc.dataclass()
@@ -122,9 +123,12 @@ class LinkCloseNode(InlineNode):
     `consumed_end` is the absolute source offset just past the consumed link-suffix syntax (== the `]`'s own end
     position when no suffix was present).
 
-    `raw_consumed` is the literal source text that was consumed (everything from the `]` through `consumed_end`). On
-    resolution failure we emit this as plain text so consumed suffix syntax doesn't get lost - see CM Appendix A's rule
-    about reconstituting "fake" link suffixes.
+    `raw_consumed` is the literal source text that was consumed (everything from the `]` through `consumed_end`).
+
+    `suffix_joined` is the joined-text span of the consumed suffix (everything after the `]`), or None when nothing was
+    consumed. On resolution failure the resolver re-tokenizes this span into fresh nodes so the suffix gets a full
+    inline parse of its own (CM: a failed link's `[ref]` suffix can itself become a link - e.g. spec 528); when no
+    re-tokenizer is available it falls back to emitting `raw_consumed` as plain text.
     """
 
     offset: tuple[int, int]
@@ -134,6 +138,7 @@ class LinkCloseNode(InlineNode):
     dest_url: str = ''
     title: str = ''
     label: str = ''
+    suffix_joined: tuple[int, int] | None = None
 
 
 @dc.dataclass()

@@ -1,7 +1,7 @@
 from .... import pdcmark as m
 from ...options import COMMONMARK
 from ..machine import BlockMachine
-from ..refdefs import parse_single_line_refdef
+from ..refdefs import try_consume_refdef
 
 
 def _feed(text):
@@ -25,7 +25,14 @@ def _feed(text):
     return events, bm.refdefs
 
 
-# Scanner-level
+# Scanner-level (single-line refdefs via the canonical multi-line entry point)
+
+
+def parse_single_line_refdef(line):
+    m = try_consume_refdef([line], 0)
+    if m is None or m.lines_consumed != 1:
+        return None
+    return m.label, m.link_def
 
 
 def test_parse_basic():

@@ -6,6 +6,8 @@ followed by an optional info string. A backtick fence's info string must not con
 """
 from omcore import dataclasses as dc
 
+from .entities import scan_entity
+from .whitespace import is_ascii_punctuation
 from .whitespace import scan_ch_repeat
 
 
@@ -37,11 +39,34 @@ def scan_fence_open(line: str) -> FenceOpen | None:
         return None
     info_start = i + length
     # Take the rest of the line as info, trimming leading / trailing whitespace.
-    info = line[info_start:].strip()
+    raw_info = line[info_start:].strip()
     # Backtick fences may not contain a backtick in the info string.
-    if c == '`' and '`' in info:
+    if c == '`' and '`' in raw_info:
         return None
-    return FenceOpen(fence_char=c, fence_length=length, indent=i, info=info)
+    return FenceOpen(fence_char=c, fence_length=length, indent=i, info=_decode_info(raw_info))
+
+
+def _decode_info(raw: str) -> str:
+    """CM §4.5: backslash escapes and entity references are decoded in info strings."""
+
+    if '\\' not in raw and '&' not in raw:
+        return raw
+    out: list[str] = []
+    i = 0
+    n = len(raw)
+    while i < n:
+        c = raw[i]
+        if c == '\\' and i + 1 < n and is_ascii_punctuation(raw[i + 1]):
+            out.append(raw[i + 1])
+            i += 2
+            continue
+        if c == '&' and (em := scan_entity(raw, i)) is not None:
+            out.append(em.decoded)
+            i = em.end
+            continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
 
 
 # pulldown-cmark/src/scanners.rs::scan_closing_code_fence

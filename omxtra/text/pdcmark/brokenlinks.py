@@ -9,6 +9,7 @@ supply a fallback URL / title.
 Cf. `pulldown-cmark/src/parse.rs::ParserCallbacks::handle_broken_link` and `BrokenLink`. Simpler than the rust version
 because Python has no per-callback monomorphization concerns; we use a small protocol instead of generics.
 """
+import abc
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -49,6 +50,7 @@ class BrokenLinkResolver(lang.Abstract):
     def __call__(self, link: BrokenLink) -> BrokenLinkResolution | None:
         return self.resolve(link)
 
+    @abc.abstractmethod
     def resolve(self, link: BrokenLink) -> BrokenLinkResolution | None:
         raise NotImplementedError
 

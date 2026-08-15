@@ -49,13 +49,6 @@ def test_tab_advance_relative_to_position():
     assert ls.remaining() == 'abc'
 
 
-def test_scan_all_space():
-    ls = LineStart('   \tabc')
-    ls.scan_all_space()
-    assert ls.position == 4
-    assert ls.remaining() == 'abc'
-
-
 def test_scan_ch():
     ls = LineStart('> blockquote')
     assert ls.scan_ch('>') is True

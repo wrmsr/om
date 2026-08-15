@@ -128,19 +128,14 @@ def _decode_tabs(s: str) -> str:
 
 
 def _try_section_header(lines: ta.Sequence[str], i: int) -> tuple[str, int] | None:
+    # ATX-style only: `# heading` / `## heading` / ... . (Setext-style detection is deliberately absent - spec prose
+    # regularly contains `foo` / `---` example fragments outside fences that would misattribute sections.)
     line = lines[i]
 
-    # ATX-style: `# heading` / `## heading` / ...
     if line.startswith('#'):
         m = re.match(r'^(#{1,6})\s+(.*?)\s*#*\s*$', line)
         if m:
             return m.group(2), 1
-
-    # Setext-style: title line followed by an underline of `=` or `-`.
-    if i + 1 < len(lines) and line.strip():
-        nxt = lines[i + 1]
-        if nxt and (set(nxt.strip()) <= {'='} or set(nxt.strip()) <= {'-'}) and len(nxt.strip()) >= 3:
-            return line.strip(), 2
 
     return None
 

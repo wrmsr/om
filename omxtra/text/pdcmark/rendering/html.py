@@ -6,8 +6,8 @@ StringIO that the caller turns into a `str`, (b) buffering per list so that the 
 `List` end-event can retroactively suppress `<p>` wrappers inside that list. Originally we always treats lists as loose
 (`<p>` is emitted around item content); now we populate the tight flag and the renderer honors it.
 
-The renderer escapes text content for HTML; raw HTML events (`Html`, `InlineHtml`) are written verbatim. Code-span text
-gets HTML escape but not body-text-quote escape (matching pulldown).
+Escaping matches pulldown-cmark-escape: body text (including code spans) escapes `&<>` only; attribute values (titles,
+alt text, info-string language classes) also escape `"`. Raw HTML events (`Html`, `InlineHtml`) are written verbatim.
 """
 import io
 import typing as ta
@@ -42,15 +42,14 @@ from ..events import TableRow
 from ..events import Tag
 from ..events import TaskListMarker
 from ..events import Text
+from ..scanning.whitespace import is_ascii_alphanumeric
 
 
 ##
 
 
-# pulldown-cmark-escape/src/lib.rs::escape_html / escape_html_body_text
+# pulldown-cmark-escape/src/lib.rs::escape_html - attribute contexts (title, alt, class); quotes must be escaped.
 def _escape_html(s: str) -> str:
-    # Body text escape: `&`, `<`, `>`, `"`. We don't try to be smart about pre-escaped entities; the inline parser will
-    # preserve them via dedicated Text/Html events.
     return (
         s
         .replace('&', '&amp;')
@@ -60,7 +59,17 @@ def _escape_html(s: str) -> str:
     )
 
 
-_BLOCK_TAGS: tuple = (
+# pulldown-cmark-escape/src/lib.rs::escape_html_body_text - body text between tags; a literal `"` stays as-is.
+def _escape_html_body(s: str) -> str:
+    return (
+        s
+        .replace('&', '&amp;')
+        .replace('<', '&lt;')
+        .replace('>', '&gt;')
+    )
+
+
+_BLOCK_TAGS: tuple[type[Tag], ...] = (
     BlockQuote,
     FencedCodeBlock,
     IndentedCodeBlock,
@@ -128,7 +137,7 @@ def _escape_href(s: str) -> str:
             i += 1
             continue
 
-        if c.isalnum() or c in safe_punct:
+        if is_ascii_alphanumeric(c) or c in safe_punct:
             out.append(c)
             i += 1
             continue
@@ -174,7 +183,7 @@ class _HtmlRenderer:
         self._image_alt_buf: list[list[str]] = []
         # Table state - pulldown-cmark/src/html.rs uses the same shape. Pushed on Start(Table), popped on End(Table);
         # supports nested tables (rare but legal).
-        self._table_alignments: list[tuple] = []  # current table's alignments
+        self._table_alignments: list[tuple[Alignment, ...]] = []  # current table's alignments
         self._table_in_head: list[bool] = []      # True while inside TableHead
         self._table_cell_ix: list[int] = []       # column index within current row
         self._table_body_open: list[bool] = []    # True once we've emitted `<tbody>`
@@ -262,11 +271,11 @@ class _HtmlRenderer:
             self._end_tag(tag)
 
         elif isinstance(ev, Text):
-            self._write(_escape_html(ev.text))
+            self._write(_escape_html_body(ev.text))
 
         elif isinstance(ev, Code):
             self._write('<code>')
-            self._write(_escape_html(ev.text))
+            self._write(_escape_html_body(ev.text))
             self._write('</code>')
 
         elif isinstance(ev, (Html, InlineHtml)):
@@ -342,7 +351,7 @@ class _HtmlRenderer:
 
     #
 
-    def _start_tag(self, tag) -> None:
+    def _start_tag(self, tag: Tag) -> None:
         if isinstance(tag, Paragraph):
             self._newline()
             self._write('<p>')
@@ -445,7 +454,7 @@ class _HtmlRenderer:
         else:
             raise TypeError(tag)
 
-    def _end_tag(self, tag) -> None:
+    def _end_tag(self, tag: Tag) -> None:
         if isinstance(tag, Paragraph):
             self._write('</p>\n')
 

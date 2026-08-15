@@ -7,6 +7,7 @@ that uses these.
 """
 from omcore import dataclasses as dc
 
+from .entities import scan_entity
 from .whitespace import is_ascii_punctuation
 
 
@@ -73,7 +74,7 @@ def normalize_link_label(raw: str) -> str:
 @dc.dataclass(frozen=True)
 class LinkDestScan:
     end: int   # index in text just past the destination
-    dest: str  # the destination (angle brackets stripped if present; escapes preserved)
+    dest: str  # the destination (angle brackets stripped; backslash escapes and entities decoded)
 
 
 # pulldown-cmark/src/scanners.rs::scan_link_dest - restricted to single-line use here.
@@ -96,6 +97,10 @@ def scan_link_destination(text: str, start: int, *, max_parens: int = 32) -> Lin
                 out.append(text[i + 1])
                 i += 2
                 continue
+            if c == '&' and (em := scan_entity(text, i)) is not None:
+                out.append(em.decoded)
+                i = em.end
+                continue
             out.append(c)
             i += 1
         return None
@@ -111,6 +116,10 @@ def scan_link_destination(text: str, start: int, *, max_parens: int = 32) -> Lin
         if c == '\\' and i + 1 < n and is_ascii_punctuation(text[i + 1]):
             out.append(text[i + 1])
             i += 2
+            continue
+        if c == '&' and (em := scan_entity(text, i)) is not None:
+            out.append(em.decoded)
+            i = em.end
             continue
         if c == '(':
             depth += 1
@@ -134,7 +143,7 @@ def scan_link_destination(text: str, start: int, *, max_parens: int = 32) -> Lin
 @dc.dataclass(frozen=True)
 class LinkTitleScan:
     end: int    # index in text just past the title's closing delimiter
-    title: str  # title content (delimiters stripped; escapes preserved)
+    title: str  # title content (delimiters stripped; backslash escapes and entities decoded)
 
 
 # pulldown-cmark/src/scanners.rs scans titles inline; we factor it out. Single-line for now.
@@ -162,6 +171,10 @@ def scan_link_title(text: str, start: int) -> LinkTitleScan | None:
         if c == '\\' and i + 1 < n and is_ascii_punctuation(text[i + 1]):
             out.append(text[i + 1])
             i += 2
+            continue
+        if c == '&' and (em := scan_entity(text, i)) is not None:
+            out.append(em.decoded)
+            i = em.end
             continue
         out.append(c)
         i += 1

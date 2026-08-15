@@ -35,3 +35,15 @@ def test_not_uri_or_email():
 def test_offset():
     m = scan_autolink('foo <http://x.test> bar', 4)
     assert m is not None
+
+
+def test_uri_allows_non_ascii_and_nbsp():
+    # CM's exclusion list is ASCII-only: NBSP and other non-ASCII pass through.
+    m = scan_autolink('<http://x.test/a b>', 0)
+    assert m is not None and m.target == 'http://x.test/a b'
+
+
+def test_uri_rejects_ascii_space_and_controls():
+    assert scan_autolink('<http://x.test/a b>', 0) is None
+    assert scan_autolink('<http://x.test/a\tb>', 0) is None
+    assert scan_autolink('<http://x.test/a\x01b>', 0) is None

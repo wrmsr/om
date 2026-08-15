@@ -11,8 +11,8 @@ Algorithm sketch for `feed_line`:
      number of containers that continued. (See `_walk_continuations`; mirrors
      pulldown-cmark/src/parse.rs::scan_containers.)
   2. Decide how to handle unmatched containers:
-     - Paragraph + non-blank, non-new-block remainder ⇒ lazy continuation: leave the stack alone, treat the whole line
-       as paragraph content.
+     - Paragraph + non-blank, non-new-block remainder ⇒ lazy continuation: leave the stack alone, append the
+       post-matched-marker remainder as paragraph content.
      - Otherwise: close unmatched containers (and any open leaf in them).
   3. Try to open new containers in a loop (blockquote `>`, list marker). A list marker may
      reuse an existing same-type list rather than open a fresh one.
@@ -177,17 +177,18 @@ class BlockMachine:
         self._process_line(bl, events)
         return events
 
-    def tentative_events(self, fallback_next: int) -> list[Event]:
-        """Events that would emit right now if input ended without further `feed_line`s. Does NOT mutate state."""
+    def clone(self) -> BlockMachine:
+        """
+        A cheap independent copy, for tentative-event computation: open-block records and buffered lines are immutable
+        and shared; the refdef table and fuel are copied so the clone's inline parsing can't leak into live state.
+        """
 
-        if self._open is None and not self._stack:
-            return []
-        events: list[Event] = []
-        if self._open is not None:
-            events.extend(self._close_to_events(self._open, fallback_next))
-        for c in reversed(self._stack):
-            events.append(self._close_container_event(c, fallback_next))
-        return events
+        new = BlockMachine(self._options, refdefs=self._refdefs.copy())
+        new._fuel.remaining = self._fuel.remaining  # noqa
+        new._stack = list(self._stack)  # noqa
+        new._open = self._open  # noqa
+        new._terminated = self._terminated  # noqa
+        return new
 
     def finish(self, final_offset: int) -> list[Event]:
         if self._terminated:
@@ -208,18 +209,24 @@ class BlockMachine:
         matched_depth = self._walk_continuations(ls)
         blank = is_blank_line(ls.remaining())
 
-        # Lazy continuation: an open paragraph absorbs the line even if some outer containers' markers were missed. We
+        # Lazy continuation: an open paragraph absorbs the line even if some inner containers' markers were missed. We
         # require the line not to be blank AND not to be a new-block starter at the *post-container-walk* position.
         # `ls.remaining()` is what's left after the matched containers' marker / indent consumption - that's the
         # context against which "is this a new block?" should be evaluated, NOT the raw line (whose leading whitespace
-        # belongs to the unmatched outer containers).
+        # belongs to the unmatched outer containers). The absorbed text is that same remainder: matched markers (e.g.
+        # an outer `>`) must not leak into the paragraph.
         if (
             matched_depth < len(self._stack)
             and isinstance(self._open, OpenParagraph)
             and not blank
-            and not self._line_starts_new_block(ls.remaining())
+            and not self._line_starts_new_block(ls.remaining(), paragraph_interruption=False)
         ):
-            self._open = dc.replace(self._open, lines=(*self._open.lines, bl))
+            lazy_bl = BufferedLine(
+                text=bl.text[ls.position:],
+                line_start=bl.line_start + ls.position,
+                line_next=bl.line_next,
+            )
+            self._open = dc.replace(self._open, lines=(*self._open.lines, lazy_bl))
             return
 
         # Lists themselves have no continuation marker; they continue iff a same-type item starts here or some inner
@@ -237,30 +244,57 @@ class BlockMachine:
         if matched_depth < len(self._stack):
             self._close_to_depth(matched_depth, events, bl.line_start)
 
-        # Open new containers in a loop. Each iteration may push one container.
-        while True:
-            ls_save = ls.clone()
-            if self._try_open_new_container(ls, bl, events):
-                continue
-            ls.restore(ls_save)
-            break
+        # Fenced-code / HTML-block leaves swallow everything - container markers included - as content until their
+        # own close condition; skip container opening and loose bookkeeping while one is open (cf. cmark's
+        # open_new_blocks loop guard on CODE_BLOCK / HTML_BLOCK).
+        if not isinstance(self._open, (OpenFencedCode, OpenHtmlBlock)):
+            if not blank:
+                # A non-blank line that doesn't continue the open leaf begins a new block directly inside the
+                # innermost open item (or begins a new item): a pending blank line makes the receiving list loose.
+                # Indented-code continuation extends the same block - a pending blank was interior to it and is
+                # dropped without loosening anything.
+                self._consume_pending_blank(
+                    None
+                    if isinstance(self._open, OpenIndentedCode) and _leading_indent(ls.remaining()) >= 4
+                    else self._receiving_list_index(),
+                )
 
-        # Process the remaining line content. Re-check blankness here - container openers (e.g. GFM `> [!NOTE]`) may
-        # have consumed the entire post-marker remainder of the line.
+            # Open new containers in a loop. Each iteration may push one container.
+            while True:
+                ls_save = ls.clone()
+                if self._try_open_new_container(ls, bl, events):
+                    continue
+                ls.restore(ls_save)
+                break
+
+        # Process the remaining line content. Re-check blankness here - container openers (e.g. a list marker with no
+        # content, or GFM `> [!NOTE]`) may have consumed the entire post-marker remainder of the line.
         if blank or is_blank_line(ls.remaining()):
             self._handle_blank(bl, events)
             return
 
-        # This line is non-blank content. Any open list whose `had_blank` flag is set just had content arrive after a
-        # blank → the list is loose.
-        self._reconcile_list_loose_on_content()
-
         self._dispatch_leaf(bl, ls, events)
 
-    def _reconcile_list_loose_on_content(self) -> None:
+    def _receiving_list_index(self) -> int | None:
+        """The stack index of the list a new block beginning here belongs to: the innermost open item's list."""
+
+        if not self._stack:
+            return None
+        top_ix = len(self._stack) - 1
+        top = self._stack[top_ix]
+        if isinstance(top, OpenList):
+            return top_ix
+        if isinstance(top, OpenItem) and top_ix > 0 and isinstance(self._stack[top_ix - 1], OpenList):
+            return top_ix - 1
+        return None
+
+    def _consume_pending_blank(self, receiving_index: int | None) -> None:
+        # CM: a list is loose iff a blank line separates its items, or two blocks directly inside one of its items.
+        # The pending blank flips exactly the list that directly receives the next block; every other open list's
+        # pending flag clears (the blank wasn't between that list's direct constituents).
         for i, c in enumerate(self._stack):
             if isinstance(c, OpenList) and c.had_blank:
-                self._stack[i] = dc.replace(c, had_blank=False, is_loose=True)
+                self._stack[i] = dc.replace(c, had_blank=False, is_loose=c.is_loose or i == receiving_index)
 
     def _line_opens_matching_item(self, lst: OpenList, ls: LineStart) -> bool:
         """
@@ -333,6 +367,11 @@ class BlockMachine:
     # New-container opening.
 
     def _try_open_new_container(self, ls: LineStart, bl: BufferedLine, events: list[Event]) -> bool:
+        # DoS bound: at max_container_depth the marker is not a container start - it degrades to plain content of the
+        # innermost open block instead of growing the stack (per-line work is O(stack depth)).
+        if len(self._stack) >= self._options.max_container_depth:
+            return False
+
         # Up-to-3-space indent then the marker. 4+ columns means the line is indented-code or paragraph content; no
         # container can start there.
         save = ls.clone()
@@ -382,10 +421,12 @@ class BlockMachine:
             return False
 
         if marker is not None:
-            # Only marker `1.` / `1)` may interrupt a paragraph (CommonMark §5.2 example 277-279). ATX-ish interrupters
-            # and other block starters already handled in lazy-continuation check; for list markers we apply the
-            # additional CM constraint that ordered lists interrupting a paragraph must have start=1.
-            if isinstance(self._open, OpenParagraph) and marker.is_ordered and marker.start != 1:
+            # List items interrupting a paragraph (CommonMark §5.2): ordered markers must start at 1, and the item must
+            # not be empty. (ATX-ish interrupters and other block starters are handled in the lazy-continuation check.)
+            if isinstance(self._open, OpenParagraph) and (
+                (marker.is_ordered and marker.start != 1)
+                or is_blank_line(rem[marker.marker_width:])
+            ):
                 ls.restore(save)
                 return False
 
@@ -446,6 +487,7 @@ class BlockMachine:
                 content_indent=content_indent,
                 open_start=bl.line_start + marker_start_in_line,
                 open_next=bl.line_next,
+                began_empty=is_blank_line(ls.line[marker_end_in_line:]),
             ))
 
             # Consume the post-marker indent from the LineStart cursor.
@@ -794,14 +836,34 @@ class BlockMachine:
     # Blank-line and "is this a new block?" helpers.
 
     def _handle_blank(self, bl: BufferedLine, events: list[Event]) -> None:
-        # Tight / loose: record on every open list. If non-blank content later arrives still inside the list, the list
-        # flips to loose; if the list closes without further content, the trailing blank doesn't make it loose.
-        for i, c in enumerate(self._stack):
-            if isinstance(c, OpenList) and not c.had_blank:
-                self._stack[i] = dc.replace(c, had_blank=True)
+        # CM: a list item can begin with at most one blank line. An item whose marker line had no content and whose
+        # very next line is blank contains nothing - close it (its list stays open; following content is outside).
+        if (
+            self._stack
+            and isinstance(top := self._stack[-1], OpenItem)
+            and top.began_empty
+            and bl.line_start == top.open_next
+            and self._open is None
+        ):
+            events.append(self._close_container_event(self._stack.pop(), bl.line_start))
 
-        # Close an open paragraph or indented-code block; fenced-code and html blocks 1-5 stay.
-        if isinstance(self._open, OpenParagraph):
+        # Tight / loose: record a pending blank on the open lists; `_consume_pending_blank` flips the receiving list
+        # loose when a new block later begins. Not recorded when the blank isn't a between-blocks separator: it is
+        # verbatim leaf content (fenced code, html 1-5), interior to a still-matched blockquote, or the empty content
+        # of a list item that opened on this very line.
+        is_separator_blank = not (
+            isinstance(self._open, OpenFencedCode)
+            or (isinstance(self._open, OpenHtmlBlock) and not html_block_closes_on_blank_line(self._open.html_type))
+            or (self._stack and isinstance(self._stack[-1], OpenBlockQuote))
+            or (self._stack and isinstance(self._stack[-1], OpenItem) and self._stack[-1].open_next == bl.line_next)
+        )
+        if is_separator_blank:
+            for i, c in enumerate(self._stack):
+                if isinstance(c, OpenList) and not c.had_blank:
+                    self._stack[i] = dc.replace(c, had_blank=True)
+
+        # Close an open paragraph, table, or indented-code block; fenced-code and html blocks 1-5 stay.
+        if isinstance(self._open, (OpenParagraph, OpenTable)):
             events.extend(self._close_to_events(self._open, bl.line_start))
             self._open = None
             return
@@ -830,14 +892,16 @@ class BlockMachine:
 
         # No open leaf - blank lines just pass through.
 
-    def _line_starts_new_block(self, line: str) -> bool:
+    def _line_starts_new_block(self, line: str, *, paragraph_interruption: bool = True) -> bool:
         """
         True if `line` starts a new block construct that would *interrupt* an open paragraph. Used to decide whether
         lazy / direct paragraph continuation applies.
 
-        The CommonMark "ordered list with start != 1 cannot interrupt a paragraph" rule only applies when there is no
-        enclosing list of matching type - a `2.` on a line whose enclosing list is ordered-with-period continues that
-        list and therefore interrupts the prior item's paragraph.
+        CommonMark restricts list markers interrupting a paragraph: ordered markers must start at 1 and the item must
+        not be empty. Those restrictions apply only when the paragraph itself is directly open in matched context
+        (`paragraph_interruption=True`, cf. cmark's `interrupts_paragraph`, true only when the matched container IS the
+        paragraph). In the lazy-continuation position (some containers unmatched) any list marker starts a block -
+        e.g. `> foo` followed by `2. bar` splits into a quote and an `<ol start="2">`.
         """
 
         if _leading_indent(line) >= 4:
@@ -871,17 +935,11 @@ class BlockMachine:
             if not marker.is_ordered and marker.char in '-*' and scan_hrule(body):
                 return False
 
-            if marker.is_ordered and marker.start != 1:
-                # Only interrupts if some enclosing list has matching type.
-                for c in self._stack:
-                    if (
-                        isinstance(c, OpenList)
-                        and c.is_ordered == marker.is_ordered
-                        and c.marker_char == marker.char
-                    ):
-                        return True
-
-                return False
+            if paragraph_interruption:
+                if marker.is_ordered and marker.start != 1:
+                    return False
+                if is_blank_line(body[marker.marker_width:]):
+                    return False  # an empty list item cannot interrupt a paragraph
 
             return True
 
