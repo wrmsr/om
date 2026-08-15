@@ -41,8 +41,8 @@ struct SortedSetImpl final : SetLikeImpl {
 
     Cont set_;
 
-    explicit SortedSetImpl(Ovf ovf)
-        : SetLikeImpl(ColKind::SORTED_SET, K::DT, ovf, K::DT, ovf) {}
+    SortedSetImpl(Dt dt, Ovf ovf)
+        : SetLikeImpl(ColKind::SORTED_SET, dt, ovf, dt, ovf) {}
 
     ~SortedSetImpl() override {
         if constexpr (K::IS_OBJ) {
@@ -59,7 +59,7 @@ struct SortedSetImpl final : SetLikeImpl {
 
     int contains_(PyObject *o) override {
         typename K::Slot s{};
-        int r = unbox_probe<K>(o, key_ovf, &s);
+        int r = unbox_probe<K>(o, key_dt, key_ovf, &s);
         if (r <= 0) {
             return r;
         }
@@ -68,7 +68,7 @@ struct SortedSetImpl final : SetLikeImpl {
 
     int find_elem(PyObject *probe, PyObject **out) override {
         typename K::Slot s{};
-        int r = unbox_probe<K>(probe, key_ovf, &s);
+        int r = unbox_probe<K>(probe, key_dt, key_ovf, &s);
         if (r <= 0) {
             return r;
         }
@@ -76,7 +76,7 @@ struct SortedSetImpl final : SetLikeImpl {
         if (it == set_.end()) {
             return 0;
         }
-        PyObject *o = K::box(*it);
+        PyObject *o = K::box(key_dt, *it);
         if (o == nullptr) {
             return -1;
         }
@@ -86,7 +86,7 @@ struct SortedSetImpl final : SetLikeImpl {
 
     int add_(PyObject *o) override {
         typename K::Slot s{};
-        if (!K::unbox(o, key_ovf, &s)) {
+        if (!K::unbox(o, key_dt, key_ovf, &s)) {
             return -1;
         }
         auto [it, inserted] = set_.insert(s);
@@ -100,7 +100,7 @@ struct SortedSetImpl final : SetLikeImpl {
 
     int discard_(PyObject *o, Bin &bin) override {
         typename K::Slot s{};
-        int r = unbox_probe<K>(o, key_ovf, &s);
+        int r = unbox_probe<K>(o, key_dt, key_ovf, &s);
         if (r <= 0) {
             return r;
         }
@@ -135,7 +135,7 @@ struct SortedSetImpl final : SetLikeImpl {
         auto it = set_.begin();  // smallest element for sorted sets
         typename K::Slot slot = *it;
         // Box before erasing so a boxing failure leaves the set untouched; erase before releasing (see discard_).
-        PyObject *o = K::box(slot);
+        PyObject *o = K::box(key_dt, slot);
         if (o == nullptr) {
             return -1;
         }
@@ -176,7 +176,7 @@ struct SortedSetImpl final : SetLikeImpl {
     }
 
     AnyImpl *clone() const override {
-        auto *n = new SortedSetImpl(key_ovf);
+        auto *n = new SortedSetImpl(key_dt, key_ovf);
         try {
             n->set_ = set_;  // structural copy; no comparator calls
         }
@@ -253,7 +253,7 @@ struct SortedSetIter final : AnyIter {
             }
             cur = it;
         }
-        PyObject *o = K::box(*cur);
+        PyObject *o = K::box(impl->key_dt, *cur);
         if (o == nullptr) {
             return -1;
         }
@@ -278,7 +278,7 @@ AnyIter *SortedSetImpl<K>::make_iter(IterKind, bool desc) {
 template <typename K>
 AnyIter *SortedSetImpl<K>::make_iter_from(IterKind, bool desc, PyObject *base) {
     typename K::Slot s{};
-    if (!K::unbox(base, key_ovf, &s)) {
+    if (!K::unbox(base, key_dt, key_ovf, &s)) {
         return nullptr;
     }
     // Object-dtype bounds run Less (richcompare) here, so this can throw py_err_set; seek before allocating.
@@ -307,8 +307,8 @@ struct HashSetImpl final : SetLikeImpl {
 
     Cont set_;
 
-    explicit HashSetImpl(Ovf ovf)
-        : SetLikeImpl(ColKind::HASH_SET, K::DT, ovf, K::DT, ovf) {}
+    HashSetImpl(Dt dt, Ovf ovf)
+        : SetLikeImpl(ColKind::HASH_SET, dt, ovf, dt, ovf) {}
 
     ~HashSetImpl() override {
         if constexpr (K::IS_OBJ) {
@@ -325,7 +325,7 @@ struct HashSetImpl final : SetLikeImpl {
 
     int contains_(PyObject *o) override {
         typename K::Slot s{};
-        int r = unbox_probe<K>(o, key_ovf, &s);
+        int r = unbox_probe<K>(o, key_dt, key_ovf, &s);
         if (r <= 0) {
             return r;
         }
@@ -334,7 +334,7 @@ struct HashSetImpl final : SetLikeImpl {
 
     int find_elem(PyObject *probe, PyObject **out) override {
         typename K::Slot s{};
-        int r = unbox_probe<K>(probe, key_ovf, &s);
+        int r = unbox_probe<K>(probe, key_dt, key_ovf, &s);
         if (r <= 0) {
             return r;
         }
@@ -342,7 +342,7 @@ struct HashSetImpl final : SetLikeImpl {
         if (it == set_.end()) {
             return 0;
         }
-        PyObject *o = K::box(*it);
+        PyObject *o = K::box(key_dt, *it);
         if (o == nullptr) {
             return -1;
         }
@@ -352,7 +352,7 @@ struct HashSetImpl final : SetLikeImpl {
 
     int add_(PyObject *o) override {
         typename K::Slot s{};
-        if (!K::unbox(o, key_ovf, &s)) {
+        if (!K::unbox(o, key_dt, key_ovf, &s)) {
             return -1;
         }
         auto [it, inserted] = set_.insert(s);
@@ -366,7 +366,7 @@ struct HashSetImpl final : SetLikeImpl {
 
     int discard_(PyObject *o, Bin &bin) override {
         typename K::Slot s{};
-        int r = unbox_probe<K>(o, key_ovf, &s);
+        int r = unbox_probe<K>(o, key_dt, key_ovf, &s);
         if (r <= 0) {
             return r;
         }
@@ -385,7 +385,7 @@ struct HashSetImpl final : SetLikeImpl {
             return 0;
         }
         auto it = set_.begin();
-        PyObject *o = K::box(*it);
+        PyObject *o = K::box(key_dt, *it);
         if (o == nullptr) {
             return -1;
         }
@@ -424,7 +424,7 @@ struct HashSetImpl final : SetLikeImpl {
     }
 
     AnyImpl *clone() const override {
-        auto *n = new HashSetImpl(key_ovf);
+        auto *n = new HashSetImpl(key_dt, key_ovf);
         try {
             n->set_ = set_;  // copies buckets; Hash is noexcept (cached for objects), Eq is not called
         }
@@ -491,7 +491,7 @@ struct HashSetIter final : AnyIter {
         if (it == impl->set_.end()) {
             return 0;
         }
-        PyObject *o = K::box(*it);
+        PyObject *o = K::box(impl->key_dt, *it);
         if (o == nullptr) {
             return -1;
         }
@@ -522,37 +522,31 @@ inline SetLikeImpl *new_set_impl(ColKind kind, Dt dt, Ovf ovf) {
     if (kind == ColKind::SORTED_SET) {
         switch (dt) {
             case Dt::U64:
-                return new SortedSetImpl<UInt64Traits>(ovf);
             case Dt::I64:
-                return new SortedSetImpl<Int64Traits>(ovf);
-            case Dt::I32:
-                return new SortedSetImpl<Int32Traits>(ovf);
-            case Dt::I16:
-                return new SortedSetImpl<Int16Traits>(ovf);
             case Dt::F64:
-                return new SortedSetImpl<Float64Traits>(ovf);
+                return new SortedSetImpl<Canon64Traits>(dt, ovf);
+            case Dt::I32:
             case Dt::F32:
-                return new SortedSetImpl<Float32Traits>(ovf);
+                return new SortedSetImpl<Canon32Traits>(dt, ovf);
+            case Dt::I16:
+                return new SortedSetImpl<Canon16Traits>(dt, ovf);
             case Dt::OBJ:
-                return new SortedSetImpl<ObjectTraits>(ovf);
+                return new SortedSetImpl<ObjectTraits>(dt, ovf);
         }
         Py_UNREACHABLE();
     }
     switch (dt) {
         case Dt::U64:
-            return new HashSetImpl<UInt64Traits>(ovf);
         case Dt::I64:
-            return new HashSetImpl<Int64Traits>(ovf);
-        case Dt::I32:
-            return new HashSetImpl<Int32Traits>(ovf);
-        case Dt::I16:
-            return new HashSetImpl<Int16Traits>(ovf);
         case Dt::F64:
-            return new HashSetImpl<Float64Traits>(ovf);
+            return new HashSetImpl<Canon64Traits>(dt, ovf);
+        case Dt::I32:
         case Dt::F32:
-            return new HashSetImpl<Float32Traits>(ovf);
+            return new HashSetImpl<Canon32Traits>(dt, ovf);
+        case Dt::I16:
+            return new HashSetImpl<Canon16Traits>(dt, ovf);
         case Dt::OBJ:
-            return new HashSetImpl<HashedObjectTraits>(ovf);
+            return new HashSetImpl<HashedObjectTraits>(dt, ovf);
     }
     Py_UNREACHABLE();
 }

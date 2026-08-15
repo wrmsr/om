@@ -591,18 +591,112 @@ inline uint64_t float64_key_bits(double v) noexcept {
 
 
 //
+// Canonical primitive forms
+//
+// Every primitive dtype maps into an unsigned integer of its storage width whose unsigned ordering and bitwise
+// equality reproduce the dtype's ordering and value-equality exactly:
+//
+//  - unsigned ints: identity.
+//  - signed ints: sign bit flipped - two's-complement order becomes unsigned order.
+//  - floats: canonicalized (single NaN pattern, -0.0 -> +0.0) then the IEEE order-map - negative values are
+//    bit-complemented, non-negative values get the sign bit set. The resulting total order preserves the
+//    NaN-greatest / NaN-equivalent convention, +/-0.0 share one key, and bitwise equality is exactly the NaN-aware
+//    value equality (`x = nan; x in c` succeeds, separately-created NaNs collapse - which unboxed storage cannot
+//    distinguish anyway).
+//
+// This is what lets every primitive dtype of a given width share one container instantiation per container kind
+// (see the storage-class traits below) with inner loops that are bare unsigned compares - for floats actually
+// cheaper than native comparisons. The runtime dtype decides only how slots convert at the Python boundary.
+//
+
+
+inline uint64_t canon_from_i64(int64_t v) noexcept {
+    return (uint64_t)v ^ (UINT64_C(1) << 63);
+}
+
+
+inline int64_t canon_to_i64(uint64_t c) noexcept {
+    return (int64_t)(c ^ (UINT64_C(1) << 63));
+}
+
+
+inline uint64_t canon_from_f64(double v) noexcept {
+    uint64_t b = float64_key_bits(v);
+    return (b >> 63) ? ~b : (b | (UINT64_C(1) << 63));
+}
+
+
+inline double canon_to_f64(uint64_t c) noexcept {
+    uint64_t b = (c >> 63) ? (c ^ (UINT64_C(1) << 63)) : ~c;
+    double v;
+    std::memcpy(&v, &b, sizeof(v));
+    return v;
+}
+
+
+// float32 analog of float64_key_bits: all NaNs collapse to one pattern, -0.0f collapses to +0.0f.
+inline uint32_t float32_key_bits(float v) noexcept {
+    if (std::isnan(v)) {
+        return UINT32_C(0x7fc00000);
+    }
+    if (v == 0.0f) {
+        v = 0.0f;
+    }
+    uint32_t b;
+    std::memcpy(&b, &v, sizeof(b));
+    return b;
+}
+
+
+inline uint32_t canon_from_i32(int32_t v) noexcept {
+    return (uint32_t)v ^ (UINT32_C(1) << 31);
+}
+
+
+inline int32_t canon_to_i32(uint32_t c) noexcept {
+    return (int32_t)(c ^ (UINT32_C(1) << 31));
+}
+
+
+inline uint32_t canon_from_f32(float v) noexcept {
+    uint32_t b = float32_key_bits(v);
+    return (b >> 31) ? ~b : (b | (UINT32_C(1) << 31));
+}
+
+
+inline float canon_to_f32(uint32_t c) noexcept {
+    uint32_t b = (c >> 31) ? (c ^ (UINT32_C(1) << 31)) : ~c;
+    float v;
+    std::memcpy(&v, &b, sizeof(v));
+    return v;
+}
+
+
+inline uint16_t canon_from_i16(int16_t v) noexcept {
+    return (uint16_t)((uint16_t)v ^ (uint16_t)0x8000);
+}
+
+
+inline int16_t canon_to_i16(uint16_t c) noexcept {
+    return (int16_t)(c ^ (uint16_t)0x8000);
+}
+
+
+//
 // Dtype traits
 //
-// One traits struct per storage representation. Slot is the unboxed in-container representation; unbox produces a
-// *borrowed* Slot (no reference is taken for object dtypes), and ownership is only taken via retain() at the moment a
-// slot is actually stored. release_into() moves a stored slot's owned reference into a Bin for deferred decref.
+// One traits struct per storage CLASS, not per dtype: all primitive dtypes of a width share the canonical-form
+// traits for that width, and the runtime dtype (carried by the impl and passed to unbox / box) matters only at the
+// Python boundary. The comparison / hash / equality functors are dtype-blind bare unsigned operations, so shared
+// instantiations lose nothing in the inner loops. Slot is the in-container representation; unbox produces a
+// *borrowed* Slot (no reference is taken for object dtypes), and ownership is only taken via retain() at the moment
+// a slot is actually stored. release_into() moves a stored slot's owned reference into a Bin for deferred decref.
 // Comparator / hash / equality functors may throw py_err_set for object dtypes.
 //
 
 
-struct UInt64Traits {
+struct Canon64Traits {
     using Slot = uint64_t;
-    static constexpr Dt DT = Dt::U64;
     static constexpr bool IS_OBJ = false;
 
     struct Less {
@@ -617,19 +711,69 @@ struct UInt64Traits {
         bool operator()(Slot a, Slot b) const noexcept { return a == b; }
     };
 
-    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_uint64(o, ovf, out); }
-    static PyObject *box(const Slot &v) { return PyLong_FromUnsignedLongLong((unsigned long long)v); }
+    static bool unbox(PyObject *o, Dt dt, Ovf ovf, Slot *out) {
+        switch (dt) {
+            case Dt::U64: {
+                uint64_t v;
+                if (!unbox_uint64(o, ovf, &v)) {
+                    return false;
+                }
+                *out = v;
+                return true;
+            }
+            case Dt::I64: {
+                int64_t v;
+                if (!unbox_int64(o, ovf, &v)) {
+                    return false;
+                }
+                *out = canon_from_i64(v);
+                return true;
+            }
+            case Dt::F64: {
+                double v;
+                if (!unbox_float64(o, &v)) {
+                    return false;
+                }
+                *out = canon_from_f64(v);
+                return true;
+            }
+            case Dt::I32:
+            case Dt::I16:
+            case Dt::F32:
+            case Dt::OBJ:
+                break;  // not 64-bit-storage dtypes; excluded by the impl factories
+        }
+        Py_UNREACHABLE();
+    }
+
+    static PyObject *box(Dt dt, const Slot &v) {
+        switch (dt) {
+            case Dt::U64:
+                return PyLong_FromUnsignedLongLong((unsigned long long)v);
+            case Dt::I64:
+                return PyLong_FromLongLong((long long)canon_to_i64(v));
+            case Dt::F64:
+                return PyFloat_FromDouble(canon_to_f64(v));
+            case Dt::I32:
+            case Dt::I16:
+            case Dt::F32:
+            case Dt::OBJ:
+                break;
+        }
+        Py_UNREACHABLE();
+    }
 
     static void retain(const Slot &) noexcept {}
     static void release_into(const Slot &, Bin &) noexcept {}
     static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+
+    // Bitwise equality on canonical form is each dtype's value equality (see the canonical-form comment).
     static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
 };
 
 
-struct Int64Traits {
-    using Slot = int64_t;
-    static constexpr Dt DT = Dt::I64;
+struct Canon32Traits {
+    using Slot = uint32_t;
     static constexpr bool IS_OBJ = false;
 
     struct Less {
@@ -644,21 +788,60 @@ struct Int64Traits {
         bool operator()(Slot a, Slot b) const noexcept { return a == b; }
     };
 
-    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_int64(o, ovf, out); }
-    static PyObject *box(const Slot &v) { return PyLong_FromLongLong((long long)v); }
+    static bool unbox(PyObject *o, Dt dt, Ovf ovf, Slot *out) {
+        switch (dt) {
+            case Dt::I32: {
+                int32_t v;
+                if (!unbox_int_narrow<int32_t>(o, ovf, &v)) {
+                    return false;
+                }
+                *out = canon_from_i32(v);
+                return true;
+            }
+            case Dt::F32: {
+                float v;
+                if (!unbox_float32(o, &v)) {
+                    return false;
+                }
+                *out = canon_from_f32(v);
+                return true;
+            }
+            case Dt::U64:
+            case Dt::I64:
+            case Dt::I16:
+            case Dt::F64:
+            case Dt::OBJ:
+                break;  // not 32-bit-storage dtypes; excluded by the impl factories
+        }
+        Py_UNREACHABLE();
+    }
+
+    static PyObject *box(Dt dt, const Slot &v) {
+        switch (dt) {
+            case Dt::I32:
+                return PyLong_FromLong((long)canon_to_i32(v));
+            case Dt::F32:
+                return PyFloat_FromDouble((double)canon_to_f32(v));
+            case Dt::U64:
+            case Dt::I64:
+            case Dt::I16:
+            case Dt::F64:
+            case Dt::OBJ:
+                break;
+        }
+        Py_UNREACHABLE();
+    }
 
     static void retain(const Slot &) noexcept {}
     static void release_into(const Slot &, Bin &) noexcept {}
     static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+
     static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
 };
 
 
-// Narrow signed-integer traits, shared by the int32 / int16 dtypes.
-template <typename I, Dt DTV>
-struct NarrowIntTraits {
-    using Slot = I;
-    static constexpr Dt DT = DTV;
+struct Canon16Traits {
+    using Slot = uint16_t;
     static constexpr bool IS_OBJ = false;
 
     struct Less {
@@ -666,120 +849,59 @@ struct NarrowIntTraits {
     };
 
     struct Hash {
-        size_t operator()(Slot v) const noexcept { return mix64((uint64_t)(int64_t)v); }
+        size_t operator()(Slot v) const noexcept { return mix64((uint64_t)v); }
     };
 
     struct Eq {
         bool operator()(Slot a, Slot b) const noexcept { return a == b; }
     };
 
-    static bool unbox(PyObject *o, Ovf ovf, Slot *out) { return unbox_int_narrow<I>(o, ovf, out); }
-    static PyObject *box(const Slot &v) { return PyLong_FromLong((long)v); }
+    static bool unbox(PyObject *o, Dt dt, Ovf ovf, Slot *out) {
+        switch (dt) {
+            case Dt::I16: {
+                int16_t v;
+                if (!unbox_int_narrow<int16_t>(o, ovf, &v)) {
+                    return false;
+                }
+                *out = canon_from_i16(v);
+                return true;
+            }
+            case Dt::U64:
+            case Dt::I64:
+            case Dt::I32:
+            case Dt::F64:
+            case Dt::F32:
+            case Dt::OBJ:
+                break;  // not 16-bit-storage dtypes; excluded by the impl factories
+        }
+        Py_UNREACHABLE();
+    }
+
+    static PyObject *box(Dt dt, const Slot &v) {
+        switch (dt) {
+            case Dt::I16:
+                return PyLong_FromLong((long)canon_to_i16(v));
+            case Dt::U64:
+            case Dt::I64:
+            case Dt::I32:
+            case Dt::F64:
+            case Dt::F32:
+            case Dt::OBJ:
+                break;
+        }
+        Py_UNREACHABLE();
+    }
 
     static void retain(const Slot &) noexcept {}
     static void release_into(const Slot &, Bin &) noexcept {}
     static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
+
     static bool val_eq(const Slot &a, const Slot &b) { return a == b; }
-};
-
-
-using Int32Traits = NarrowIntTraits<int32_t, Dt::I32>;
-using Int16Traits = NarrowIntTraits<int16_t, Dt::I16>;
-
-
-struct Float64Traits {
-    using Slot = double;
-    static constexpr Dt DT = Dt::F64;
-    static constexpr bool IS_OBJ = false;
-
-    // Strict weak order with NaNs greater than (and equivalent to) everything else, so a NaN is a usable sorted key
-    // rather than one that compares 'equivalent' to arbitrary keys under a plain operator<.
-    struct Less {
-        bool operator()(Slot a, Slot b) const noexcept {
-            if (std::isnan(a)) {
-                return false;
-            }
-            if (std::isnan(b)) {
-                return true;
-            }
-            return a < b;
-        }
-    };
-
-    struct Hash {
-        size_t operator()(Slot v) const noexcept { return mix64(float64_key_bits(v)); }
-    };
-
-    // Key equality: nan == nan (one NaN key), and ieee == keeps 0.0 / -0.0 as the same key.
-    struct Eq {
-        bool operator()(Slot a, Slot b) const noexcept {
-            return a == b || (std::isnan(a) && std::isnan(b));
-        }
-    };
-
-    static bool unbox(PyObject *o, Ovf, Slot *out) { return unbox_float64(o, out); }
-    static PyObject *box(const Slot &v) { return PyFloat_FromDouble(v); }
-
-    static void retain(const Slot &) noexcept {}
-    static void release_into(const Slot &, Bin &) noexcept {}
-    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
-
-    // Value-position equality also treats NaN as equal to NaN: unboxing loses object identity, and the identity
-    // shortcut is exactly how `x = nan; x in [x]` succeeds for builtin containers, so this recovers the common case
-    // (`nan in Vector('float64', [nan])`, remove(), count(), map value comparison) at the cost of distinguishing
-    // separately-created NaNs - which unboxed storage cannot do anyway.
-    static bool val_eq(const Slot &a, const Slot &b) {
-        return a == b || (std::isnan(a) && std::isnan(b));
-    }
-};
-
-
-// float32: same NaN-aware ordering / equality / value-equality story as Float64Traits, at float storage width.
-// Hashing widens to double first - float->double is exact, so this shares float64_key_bits' NaN and -0.0
-// canonicalization instead of duplicating it.
-struct Float32Traits {
-    using Slot = float;
-    static constexpr Dt DT = Dt::F32;
-    static constexpr bool IS_OBJ = false;
-
-    struct Less {
-        bool operator()(Slot a, Slot b) const noexcept {
-            if (std::isnan(a)) {
-                return false;
-            }
-            if (std::isnan(b)) {
-                return true;
-            }
-            return a < b;
-        }
-    };
-
-    struct Hash {
-        size_t operator()(Slot v) const noexcept { return mix64(float64_key_bits((double)v)); }
-    };
-
-    struct Eq {
-        bool operator()(Slot a, Slot b) const noexcept {
-            return a == b || (std::isnan(a) && std::isnan(b));
-        }
-    };
-
-    static bool unbox(PyObject *o, Ovf, Slot *out) { return unbox_float32(o, out); }
-    static PyObject *box(const Slot &v) { return PyFloat_FromDouble((double)v); }
-
-    static void retain(const Slot &) noexcept {}
-    static void release_into(const Slot &, Bin &) noexcept {}
-    static int visit_slot(const Slot &, visitproc, void *) noexcept { return 0; }
-
-    static bool val_eq(const Slot &a, const Slot &b) {
-        return a == b || (std::isnan(a) && std::isnan(b));
-    }
 };
 
 
 struct ObjectTraits {
     using Slot = PyObject *;
-    static constexpr Dt DT = Dt::OBJ;
     static constexpr bool IS_OBJ = true;
 
     struct Less {
@@ -806,12 +928,12 @@ struct ObjectTraits {
         size_t operator()(PyObject *) const noexcept { return 0; }  // unused; hashed objects use HashedObjectTraits
     };
 
-    static bool unbox(PyObject *o, Ovf, Slot *out) {
+    static bool unbox(PyObject *o, Dt, Ovf, Slot *out) {
         *out = o;  // borrowed
         return true;
     }
 
-    static PyObject *box(const Slot &v) { return Py_NewRef(v); }
+    static PyObject *box(Dt, const Slot &v) { return Py_NewRef(v); }
 
     static void retain(const Slot &v) noexcept { Py_INCREF(v); }
     static void release_into(const Slot &v, Bin &bin) { bin.put(v); }
@@ -841,7 +963,6 @@ struct HObj {
 
 struct HashedObjectTraits {
     using Slot = HObj;
-    static constexpr Dt DT = Dt::OBJ;
     static constexpr bool IS_OBJ = true;
 
     struct Less {
@@ -868,7 +989,7 @@ struct HashedObjectTraits {
         }
     };
 
-    static bool unbox(PyObject *o, Ovf, Slot *out) {
+    static bool unbox(PyObject *o, Dt, Ovf, Slot *out) {
         Py_hash_t h = PyObject_Hash(o);
         if (h == -1) {
             return false;
@@ -877,7 +998,7 @@ struct HashedObjectTraits {
         return true;
     }
 
-    static PyObject *box(const Slot &v) { return Py_NewRef(v.obj); }
+    static PyObject *box(Dt, const Slot &v) { return Py_NewRef(v.obj); }
 
     static void retain(const Slot &v) noexcept { Py_INCREF(v.obj); }
     static void release_into(const Slot &v, Bin &bin) { bin.put(v.obj); }
@@ -934,11 +1055,11 @@ using BtreeTraitsFor = std::conditional_t<
 // correlation between the status and the store to *out and emits false positives otherwise. The zero-init is a single
 // dead store the optimizer routinely deletes, and makes any future unguarded read deterministic rather than garbage.
 template <typename Tr>
-int unbox_probe(PyObject *o, Ovf ovf, typename Tr::Slot *out) {
-    if (Tr::unbox(o, ovf, out)) {
+int unbox_probe(PyObject *o, Dt dt, Ovf ovf, typename Tr::Slot *out) {
+    if (Tr::unbox(o, dt, ovf, out)) {
         return 1;
     }
-    if constexpr (Tr::DT != Dt::OBJ) {
+    if constexpr (!Tr::IS_OBJ) {
         if (PyErr_ExceptionMatches(PyExc_TypeError) || PyErr_ExceptionMatches(PyExc_OverflowError)) {
             PyErr_Clear();
             return 0;

@@ -49,7 +49,10 @@ def sample_keys(dtype, n=40, seed=0):
     if dtype == 'float32':
         # Quarters are exactly representable at float32 width, so values round-trip through narrowed storage.
         return [rnd.randrange(-800, 800) / 4 for _ in range(n)]
-    return [rnd.randrange(0, 200) for _ in range(n)]
+    if dtype.startswith('uint'):
+        return [rnd.randrange(0, 200) for _ in range(n)]
+    # Signed ints get negative keys too - ordering across the sign boundary is where canonical-form bugs would live.
+    return [rnd.randrange(-200, 200) for _ in range(n)]
 
 
 ##
@@ -326,6 +329,31 @@ def test_narrow_int_overflow_modes(dt, bits):
 
     w = fc.Vector(f'{dt}-wrap', [hi + 1, 2 ** bits + 3, -1, 2 ** 100])
     assert list(w) == [lo, 3, -1, 0]
+
+
+@pytest.mark.parametrize(('dt', 'bits'), [('int64', 64), ('int32', 32), ('int16', 16)])
+def test_sorted_int_ordering_across_sign(dt, bits):
+    lo = -2 ** (bits - 1)
+    hi = 2 ** (bits - 1) - 1
+    ks = [0, -1, 1, lo, hi, lo + 1, hi - 1, -7, 7]
+    s = fc.Set(dt, ks)
+    assert list(s) == sorted(ks)
+    assert list(reversed(s)) == sorted(ks)[::-1]
+    m = fc.Map(dt, dt, [(k, k) for k in ks])
+    assert list(m) == sorted(ks)
+    assert [k for k, _ in m.items_from(0)] == [k for k in sorted(ks) if k >= 0]
+
+
+@pytest.mark.parametrize('dt', ['float64', 'float32'])
+def test_sorted_float_ordering_edges(dt):
+    inf = float('inf')
+    nan = float('nan')
+    s = fc.Set(dt, [nan, -inf, inf, 0.0, -0.0, -1.5, 1.5])
+    out = list(s)
+    assert len(out) == 6  # -0.0 and 0.0 share a key
+    assert out[:5] == [-inf, -1.5, 0.0, 1.5, inf]
+    assert out[5] != out[5]  # nan sorts greatest
+    assert list(s.iter_from(0.0))[:3] == [0.0, 1.5, inf]
 
 
 def test_float32_semantics():

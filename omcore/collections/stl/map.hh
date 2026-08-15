@@ -40,8 +40,8 @@ struct SortedMapImpl final : MapLikeImpl {
 
     Cont map_;
 
-    SortedMapImpl(Ovf kovf, Ovf vovf)
-        : MapLikeImpl(ColKind::SORTED_MAP, K::DT, kovf, V::DT, vovf) {}
+    SortedMapImpl(Dt kd, Ovf kovf, Dt vd, Ovf vovf)
+        : MapLikeImpl(ColKind::SORTED_MAP, kd, kovf, vd, vovf) {}
 
     ~SortedMapImpl() override {
         if constexpr (K::IS_OBJ || V::IS_OBJ) {
@@ -59,7 +59,7 @@ struct SortedMapImpl final : MapLikeImpl {
 
     int contains_(PyObject *k) override {
         typename K::Slot ks{};
-        int r = unbox_probe<K>(k, key_ovf, &ks);
+        int r = unbox_probe<K>(k, key_dt, key_ovf, &ks);
         if (r <= 0) {
             return r;
         }
@@ -68,7 +68,7 @@ struct SortedMapImpl final : MapLikeImpl {
 
     int lookup(PyObject *k, PyObject **out) override {
         typename K::Slot ks{};
-        int r = unbox_probe<K>(k, key_ovf, &ks);
+        int r = unbox_probe<K>(k, key_dt, key_ovf, &ks);
         if (r <= 0) {
             return r;
         }
@@ -76,7 +76,7 @@ struct SortedMapImpl final : MapLikeImpl {
         if (it == map_.end()) {
             return 0;
         }
-        PyObject *o = V::box(it->second);
+        PyObject *o = V::box(val_dt, it->second);
         if (o == nullptr) {
             return -1;
         }
@@ -86,11 +86,11 @@ struct SortedMapImpl final : MapLikeImpl {
 
     int assign(PyObject *k, PyObject *v, Bin &bin) override {
         typename K::Slot ks{};
-        if (!K::unbox(k, key_ovf, &ks)) {
+        if (!K::unbox(k, key_dt, key_ovf, &ks)) {
             return -1;
         }
         typename V::Slot vs{};
-        if (!V::unbox(v, val_ovf, &vs)) {
+        if (!V::unbox(v, val_dt, val_ovf, &vs)) {
             return -1;
         }
         auto [it, inserted] = map_.insert2(ks, vs);  // insert-if-absent, tlx's try_emplace equivalent
@@ -109,7 +109,7 @@ struct SortedMapImpl final : MapLikeImpl {
 
     int remove_(PyObject *k, PyObject **out_opt, Bin &bin) override {
         typename K::Slot ks{};
-        int r = unbox_probe<K>(k, key_ovf, &ks);
+        int r = unbox_probe<K>(k, key_dt, key_ovf, &ks);
         if (r <= 0) {
             return r;
         }
@@ -131,7 +131,7 @@ struct SortedMapImpl final : MapLikeImpl {
         // Box before erasing so a boxing failure leaves the entry untouched.
         PyObject *o = nullptr;
         if (out_opt != nullptr) {
-            o = V::box(it->second);
+            o = V::box(val_dt, it->second);
             if (o == nullptr) {
                 return -1;
             }
@@ -161,11 +161,11 @@ struct SortedMapImpl final : MapLikeImpl {
             return 0;
         }
         auto it = std::prev(map_.end());  // last (greatest) item, sorted-dict flavor
-        PyObject *ko = K::box(it->first);
+        PyObject *ko = K::box(key_dt, it->first);
         if (ko == nullptr) {
             return -1;
         }
-        PyObject *vo = V::box(it->second);
+        PyObject *vo = V::box(val_dt, it->second);
         if (vo == nullptr) {
             Py_DECREF(ko);
             return -1;
@@ -192,14 +192,14 @@ struct SortedMapImpl final : MapLikeImpl {
     int set_default(PyObject *k, PyObject *d, PyObject **out) override {
         // Insertion may occur, so the key gets full (non-probe) unboxing, like dict.setdefault.
         typename K::Slot ks{};
-        if (!K::unbox(k, key_ovf, &ks)) {
+        if (!K::unbox(k, key_dt, key_ovf, &ks)) {
             return -1;
         }
         auto it = map_.find(ks);
         if (it == map_.end()) {
             // The default is unboxed only if it is actually going to be inserted, dict-style.
             typename V::Slot vs{};
-            if (!V::unbox(d, val_ovf, &vs)) {
+            if (!V::unbox(d, val_dt, val_ovf, &vs)) {
                 return -1;
             }
             auto er = map_.insert2(ks, vs);
@@ -212,7 +212,7 @@ struct SortedMapImpl final : MapLikeImpl {
                 ++version;
             }
         }
-        PyObject *o = V::box(it->second);
+        PyObject *o = V::box(val_dt, it->second);
         if (o == nullptr) {
             return -1;
         }
@@ -249,7 +249,7 @@ struct SortedMapImpl final : MapLikeImpl {
     }
 
     AnyImpl *clone() const override {
-        auto *n = new SortedMapImpl(key_ovf, val_ovf);
+        auto *n = new SortedMapImpl(key_dt, key_ovf, val_dt, val_ovf);
         try {
             n->map_ = map_;  // structural copy; no comparator calls
         }
@@ -340,14 +340,14 @@ struct SortedMapIter final : AnyIter {
         PyObject *o;
         switch (ik) {
             case IterKind::VALUES:
-                o = V::box(cur->second);
+                o = V::box(impl->val_dt, cur->second);
                 break;
             case IterKind::ITEMS: {
-                PyObject *ko = K::box(cur->first);
+                PyObject *ko = K::box(impl->key_dt, cur->first);
                 if (ko == nullptr) {
                     return -1;
                 }
-                PyObject *vo = V::box(cur->second);
+                PyObject *vo = V::box(impl->val_dt, cur->second);
                 if (vo == nullptr) {
                     Py_DECREF(ko);
                     return -1;
@@ -358,7 +358,7 @@ struct SortedMapIter final : AnyIter {
                 break;
             }
             default:  // KEYS
-                o = K::box(cur->first);
+                o = K::box(impl->key_dt, cur->first);
                 break;
         }
         if (o == nullptr) {
@@ -386,7 +386,7 @@ AnyIter *SortedMapImpl<K, V>::make_iter(IterKind ik, bool desc) {
 template <typename K, typename V>
 AnyIter *SortedMapImpl<K, V>::make_iter_from(IterKind ik, bool desc, PyObject *base) {
     typename K::Slot ks{};
-    if (!K::unbox(base, key_ovf, &ks)) {
+    if (!K::unbox(base, key_dt, key_ovf, &ks)) {
         return nullptr;
     }
     // Object-dtype bounds run Less (richcompare) here, so this can throw py_err_set; seek before allocating.
@@ -417,8 +417,8 @@ struct HashMapImpl final : MapLikeImpl {
 
     Cont map_;
 
-    HashMapImpl(Ovf kovf, Ovf vovf)
-        : MapLikeImpl(ColKind::HASH_MAP, K::DT, kovf, V::DT, vovf) {}
+    HashMapImpl(Dt kd, Ovf kovf, Dt vd, Ovf vovf)
+        : MapLikeImpl(ColKind::HASH_MAP, kd, kovf, vd, vovf) {}
 
     ~HashMapImpl() override {
         if constexpr (K::IS_OBJ || V::IS_OBJ) {
@@ -436,7 +436,7 @@ struct HashMapImpl final : MapLikeImpl {
 
     int contains_(PyObject *k) override {
         typename K::Slot ks{};
-        int r = unbox_probe<K>(k, key_ovf, &ks);
+        int r = unbox_probe<K>(k, key_dt, key_ovf, &ks);
         if (r <= 0) {
             return r;
         }
@@ -445,7 +445,7 @@ struct HashMapImpl final : MapLikeImpl {
 
     int lookup(PyObject *k, PyObject **out) override {
         typename K::Slot ks{};
-        int r = unbox_probe<K>(k, key_ovf, &ks);
+        int r = unbox_probe<K>(k, key_dt, key_ovf, &ks);
         if (r <= 0) {
             return r;
         }
@@ -453,7 +453,7 @@ struct HashMapImpl final : MapLikeImpl {
         if (it == map_.end()) {
             return 0;
         }
-        PyObject *o = V::box(it->second);
+        PyObject *o = V::box(val_dt, it->second);
         if (o == nullptr) {
             return -1;
         }
@@ -463,11 +463,11 @@ struct HashMapImpl final : MapLikeImpl {
 
     int assign(PyObject *k, PyObject *v, Bin &bin) override {
         typename K::Slot ks{};
-        if (!K::unbox(k, key_ovf, &ks)) {
+        if (!K::unbox(k, key_dt, key_ovf, &ks)) {
             return -1;
         }
         typename V::Slot vs{};
-        if (!V::unbox(v, val_ovf, &vs)) {
+        if (!V::unbox(v, val_dt, val_ovf, &vs)) {
             return -1;
         }
         auto [it, inserted] = map_.try_emplace(ks, vs);
@@ -486,7 +486,7 @@ struct HashMapImpl final : MapLikeImpl {
 
     int remove_(PyObject *k, PyObject **out_opt, Bin &bin) override {
         typename K::Slot ks{};
-        int r = unbox_probe<K>(k, key_ovf, &ks);
+        int r = unbox_probe<K>(k, key_dt, key_ovf, &ks);
         if (r <= 0) {
             return r;
         }
@@ -495,7 +495,7 @@ struct HashMapImpl final : MapLikeImpl {
             return 0;
         }
         if (out_opt != nullptr) {
-            PyObject *o = V::box(it->second);
+            PyObject *o = V::box(val_dt, it->second);
             if (o == nullptr) {
                 return -1;
             }
@@ -513,11 +513,11 @@ struct HashMapImpl final : MapLikeImpl {
             return 0;
         }
         auto it = map_.begin();  // arbitrary first item, dict-popitem flavor
-        PyObject *ko = K::box(it->first);
+        PyObject *ko = K::box(key_dt, it->first);
         if (ko == nullptr) {
             return -1;
         }
-        PyObject *vo = V::box(it->second);
+        PyObject *vo = V::box(val_dt, it->second);
         if (vo == nullptr) {
             Py_DECREF(ko);
             return -1;
@@ -533,13 +533,13 @@ struct HashMapImpl final : MapLikeImpl {
 
     int set_default(PyObject *k, PyObject *d, PyObject **out) override {
         typename K::Slot ks{};
-        if (!K::unbox(k, key_ovf, &ks)) {
+        if (!K::unbox(k, key_dt, key_ovf, &ks)) {
             return -1;
         }
         auto it = map_.find(ks);
         if (it == map_.end()) {
             typename V::Slot vs{};
-            if (!V::unbox(d, val_ovf, &vs)) {
+            if (!V::unbox(d, val_dt, val_ovf, &vs)) {
                 return -1;
             }
             auto er = map_.try_emplace(ks, vs);
@@ -552,7 +552,7 @@ struct HashMapImpl final : MapLikeImpl {
                 ++version;
             }
         }
-        PyObject *o = V::box(it->second);
+        PyObject *o = V::box(val_dt, it->second);
         if (o == nullptr) {
             return -1;
         }
@@ -593,7 +593,7 @@ struct HashMapImpl final : MapLikeImpl {
     }
 
     AnyImpl *clone() const override {
-        auto *n = new HashMapImpl(key_ovf, val_ovf);
+        auto *n = new HashMapImpl(key_dt, key_ovf, val_dt, val_ovf);
         try {
             n->map_ = map_;  // copies buckets; Hash is noexcept (cached for objects), Eq is not called
         }
@@ -678,17 +678,17 @@ struct HashMapIter final : AnyIter {
         PyObject *o;
         switch (ik) {
             case IterKind::KEYS:
-                o = K::box(it->first);
+                o = K::box(impl->key_dt, it->first);
                 break;
             case IterKind::VALUES:
-                o = V::box(it->second);
+                o = V::box(impl->val_dt, it->second);
                 break;
             default: {
-                PyObject *ko = K::box(it->first);
+                PyObject *ko = K::box(impl->key_dt, it->first);
                 if (ko == nullptr) {
                     return -1;
                 }
-                PyObject *vo = V::box(it->second);
+                PyObject *vo = V::box(impl->val_dt, it->second);
                 if (vo == nullptr) {
                     Py_DECREF(ko);
                     return -1;
@@ -726,44 +726,38 @@ AnyIter *HashMapImpl<K, V>::make_iter(IterKind ik, bool) {
 
 
 template <typename K>
-static MapLikeImpl *new_sorted_map_impl(Ovf kovf, Dt vd, Ovf vovf) {
+static MapLikeImpl *new_sorted_map_impl(Dt kd, Ovf kovf, Dt vd, Ovf vovf) {
     switch (vd) {
         case Dt::U64:
-            return new SortedMapImpl<K, UInt64Traits>(kovf, vovf);
         case Dt::I64:
-            return new SortedMapImpl<K, Int64Traits>(kovf, vovf);
-        case Dt::I32:
-            return new SortedMapImpl<K, Int32Traits>(kovf, vovf);
-        case Dt::I16:
-            return new SortedMapImpl<K, Int16Traits>(kovf, vovf);
         case Dt::F64:
-            return new SortedMapImpl<K, Float64Traits>(kovf, vovf);
+            return new SortedMapImpl<K, Canon64Traits>(kd, kovf, vd, vovf);
+        case Dt::I32:
         case Dt::F32:
-            return new SortedMapImpl<K, Float32Traits>(kovf, vovf);
+            return new SortedMapImpl<K, Canon32Traits>(kd, kovf, vd, vovf);
+        case Dt::I16:
+            return new SortedMapImpl<K, Canon16Traits>(kd, kovf, vd, vovf);
         case Dt::OBJ:
-            return new SortedMapImpl<K, ObjectTraits>(kovf, vovf);
+            return new SortedMapImpl<K, ObjectTraits>(kd, kovf, vd, vovf);
     }
     Py_UNREACHABLE();
 }
 
 
 template <typename K>
-static MapLikeImpl *new_hash_map_impl(Ovf kovf, Dt vd, Ovf vovf) {
+static MapLikeImpl *new_hash_map_impl(Dt kd, Ovf kovf, Dt vd, Ovf vovf) {
     switch (vd) {
         case Dt::U64:
-            return new HashMapImpl<K, UInt64Traits>(kovf, vovf);
         case Dt::I64:
-            return new HashMapImpl<K, Int64Traits>(kovf, vovf);
-        case Dt::I32:
-            return new HashMapImpl<K, Int32Traits>(kovf, vovf);
-        case Dt::I16:
-            return new HashMapImpl<K, Int16Traits>(kovf, vovf);
         case Dt::F64:
-            return new HashMapImpl<K, Float64Traits>(kovf, vovf);
+            return new HashMapImpl<K, Canon64Traits>(kd, kovf, vd, vovf);
+        case Dt::I32:
         case Dt::F32:
-            return new HashMapImpl<K, Float32Traits>(kovf, vovf);
+            return new HashMapImpl<K, Canon32Traits>(kd, kovf, vd, vovf);
+        case Dt::I16:
+            return new HashMapImpl<K, Canon16Traits>(kd, kovf, vd, vovf);
         case Dt::OBJ:
-            return new HashMapImpl<K, ObjectTraits>(kovf, vovf);
+            return new HashMapImpl<K, ObjectTraits>(kd, kovf, vd, vovf);
     }
     Py_UNREACHABLE();
 }
@@ -773,37 +767,31 @@ inline MapLikeImpl *new_map_impl(ColKind kind, Dt kd, Ovf kovf, Dt vd, Ovf vovf)
     if (kind == ColKind::SORTED_MAP) {
         switch (kd) {
             case Dt::U64:
-                return new_sorted_map_impl<UInt64Traits>(kovf, vd, vovf);
             case Dt::I64:
-                return new_sorted_map_impl<Int64Traits>(kovf, vd, vovf);
-            case Dt::I32:
-                return new_sorted_map_impl<Int32Traits>(kovf, vd, vovf);
-            case Dt::I16:
-                return new_sorted_map_impl<Int16Traits>(kovf, vd, vovf);
             case Dt::F64:
-                return new_sorted_map_impl<Float64Traits>(kovf, vd, vovf);
+                return new_sorted_map_impl<Canon64Traits>(kd, kovf, vd, vovf);
+            case Dt::I32:
             case Dt::F32:
-                return new_sorted_map_impl<Float32Traits>(kovf, vd, vovf);
+                return new_sorted_map_impl<Canon32Traits>(kd, kovf, vd, vovf);
+            case Dt::I16:
+                return new_sorted_map_impl<Canon16Traits>(kd, kovf, vd, vovf);
             case Dt::OBJ:
-                return new_sorted_map_impl<ObjectTraits>(kovf, vd, vovf);
+                return new_sorted_map_impl<ObjectTraits>(kd, kovf, vd, vovf);
         }
         Py_UNREACHABLE();
     }
     switch (kd) {
         case Dt::U64:
-            return new_hash_map_impl<UInt64Traits>(kovf, vd, vovf);
         case Dt::I64:
-            return new_hash_map_impl<Int64Traits>(kovf, vd, vovf);
-        case Dt::I32:
-            return new_hash_map_impl<Int32Traits>(kovf, vd, vovf);
-        case Dt::I16:
-            return new_hash_map_impl<Int16Traits>(kovf, vd, vovf);
         case Dt::F64:
-            return new_hash_map_impl<Float64Traits>(kovf, vd, vovf);
+            return new_hash_map_impl<Canon64Traits>(kd, kovf, vd, vovf);
+        case Dt::I32:
         case Dt::F32:
-            return new_hash_map_impl<Float32Traits>(kovf, vd, vovf);
+            return new_hash_map_impl<Canon32Traits>(kd, kovf, vd, vovf);
+        case Dt::I16:
+            return new_hash_map_impl<Canon16Traits>(kd, kovf, vd, vovf);
         case Dt::OBJ:
-            return new_hash_map_impl<HashedObjectTraits>(kovf, vd, vovf);
+            return new_hash_map_impl<HashedObjectTraits>(kd, kovf, vd, vovf);
     }
     Py_UNREACHABLE();
 }

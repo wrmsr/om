@@ -46,8 +46,8 @@ struct VectorImpl final : VecLikeImpl {
 
     Vec vec_;
 
-    explicit VectorImpl(Ovf ovf)
-        : VecLikeImpl(ColKind::VECTOR, E::DT, ovf, E::DT, ovf) {}
+    VectorImpl(Dt dt, Ovf ovf)
+        : VecLikeImpl(ColKind::VECTOR, dt, ovf, dt, ovf) {}
 
     ~VectorImpl() override {
         if constexpr (E::IS_OBJ) {
@@ -63,7 +63,7 @@ struct VectorImpl final : VecLikeImpl {
     }
 
     int get_at(Py_ssize_t i, PyObject **out) override {
-        PyObject *o = E::box(vec_[(size_t)i]);
+        PyObject *o = E::box(key_dt, vec_[(size_t)i]);
         if (o == nullptr) {
             return -1;
         }
@@ -73,7 +73,7 @@ struct VectorImpl final : VecLikeImpl {
 
     int set_at(Py_ssize_t i, PyObject *v, Bin &bin) override {
         typename E::Slot s{};
-        if (!E::unbox(v, key_ovf, &s)) {
+        if (!E::unbox(v, key_dt, key_ovf, &s)) {
             return -1;
         }
         E::release_into(vec_[(size_t)i], bin);
@@ -84,7 +84,7 @@ struct VectorImpl final : VecLikeImpl {
 
     int insert_at(Py_ssize_t i, PyObject *v) override {
         typename E::Slot s{};
-        if (!E::unbox(v, key_ovf, &s)) {
+        if (!E::unbox(v, key_dt, key_ovf, &s)) {
             return -1;
         }
         vec_.insert(vec_.begin() + i, s);
@@ -95,7 +95,7 @@ struct VectorImpl final : VecLikeImpl {
 
     int pop_at(Py_ssize_t i, PyObject **out_opt, Bin &bin) override {
         if (out_opt != nullptr) {
-            PyObject *o = E::box(vec_[(size_t)i]);
+            PyObject *o = E::box(key_dt, vec_[(size_t)i]);
             if (o == nullptr) {
                 return -1;
             }
@@ -109,7 +109,7 @@ struct VectorImpl final : VecLikeImpl {
 
     int append_(PyObject *v) override {
         typename E::Slot s{};
-        if (!E::unbox(v, key_ovf, &s)) {
+        if (!E::unbox(v, key_dt, key_ovf, &s)) {
             return -1;
         }
         vec_.push_back(s);
@@ -120,7 +120,7 @@ struct VectorImpl final : VecLikeImpl {
 
     int find_(PyObject *probe, Py_ssize_t start, Py_ssize_t stop, Py_ssize_t *at) override {
         typename E::Slot s{};
-        int r = unbox_probe<E>(probe, key_ovf, &s);
+        int r = unbox_probe<E>(probe, key_dt, key_ovf, &s);
         if (r <= 0) {
             return r;
         }
@@ -135,7 +135,7 @@ struct VectorImpl final : VecLikeImpl {
 
     Py_ssize_t count_(PyObject *probe) override {
         typename E::Slot s{};
-        int r = unbox_probe<E>(probe, key_ovf, &s);
+        int r = unbox_probe<E>(probe, key_dt, key_ovf, &s);
         if (r < 0) {
             return -1;
         }
@@ -212,7 +212,7 @@ struct VectorImpl final : VecLikeImpl {
     }
 
     VecLikeImpl *slice_(Py_ssize_t start, Py_ssize_t step, Py_ssize_t len) const override {
-        auto *n = new VectorImpl(key_ovf);
+        auto *n = new VectorImpl(key_dt, key_ovf);
         try {
             n->vec_.reserve((size_t)len);
         }
@@ -342,7 +342,7 @@ struct VectorImpl final : VecLikeImpl {
     }
 
     AnyImpl *clone() const override {
-        auto *n = new VectorImpl(key_ovf);
+        auto *n = new VectorImpl(key_dt, key_ovf);
         try {
             n->vec_ = vec_;
         }
@@ -408,7 +408,7 @@ struct VectorIter final : AnyIter {
             idx = -1;
             return 0;
         }
-        PyObject *o = E::box(impl->vec_[(size_t)idx]);
+        PyObject *o = E::box(impl->key_dt, impl->vec_[(size_t)idx]);
         if (o == nullptr) {
             return -1;
         }
@@ -437,19 +437,16 @@ AnyIter *VectorImpl<E>::make_iter(IterKind, bool desc) {
 inline VecLikeImpl *new_vec_impl(Dt dt, Ovf ovf) {
     switch (dt) {
         case Dt::U64:
-            return new VectorImpl<UInt64Traits>(ovf);
         case Dt::I64:
-            return new VectorImpl<Int64Traits>(ovf);
-        case Dt::I32:
-            return new VectorImpl<Int32Traits>(ovf);
-        case Dt::I16:
-            return new VectorImpl<Int16Traits>(ovf);
         case Dt::F64:
-            return new VectorImpl<Float64Traits>(ovf);
+            return new VectorImpl<Canon64Traits>(dt, ovf);
+        case Dt::I32:
         case Dt::F32:
-            return new VectorImpl<Float32Traits>(ovf);
+            return new VectorImpl<Canon32Traits>(dt, ovf);
+        case Dt::I16:
+            return new VectorImpl<Canon16Traits>(dt, ovf);
         case Dt::OBJ:
-            return new VectorImpl<ObjectTraits>(ovf);
+            return new VectorImpl<ObjectTraits>(dt, ovf);
     }
     Py_UNREACHABLE();
 }

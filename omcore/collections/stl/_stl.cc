@@ -8,7 +8,8 @@
 //     "tlx/**/*.hpp"
 //   ],
 //   "extra_compile_args": [
-//     "-fvisibility=hidden"
+//     "-fvisibility=hidden",
+//     "-g0"
 //   ]
 // }
 #define PY_SSIZE_T_CLEAN
