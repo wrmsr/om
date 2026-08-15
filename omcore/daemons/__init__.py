@@ -52,6 +52,14 @@ with _lang.auto_proxy_init(globals()):
         current_daemon_pidfile_info,
     )
 
+    from .inspection import (  # noqa
+        DaemonLifecycleState,
+        DaemonReadinessState,
+        DaemonInspection,
+        DaemonInspectionRaceError,
+        DaemonInspector,
+    )
+
     from .startup import (  # noqa
         LaunchErrorInfo,
         LaunchReport,

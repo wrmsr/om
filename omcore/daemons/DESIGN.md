@@ -179,6 +179,28 @@ contents after the process exits, so readers must only trust structured info whi
 The launch context makes the same info available to the target. `RpcService` uses its `instance_id` for the live
 handshake. A directly run RPC service without a daemon pidfile creates its own instance ID.
 
+### Read-only inspection
+
+`DaemonInspector` observes ownership, record identity, and optional readiness as one best-effort snapshot. Its primary
+lifecycle state has four values: absent path, unlocked/stale file, locked/running owner, and locked/ready owner. The
+pidfile lock remains authoritative in both directions. A locked file with empty or malformed contents still has an
+owner; a valid structured record in an unlocked file does not.
+
+Record parsing and readiness are orthogonal dimensions on `DaemonInspection`. Numeric and structured identity are
+retained as far as they can be parsed, while parse failures are reported without changing ownership state. Readiness
+runs only for a locked owner, uses a newly constructed waiter for every snapshot, and records false, success, or an
+exception separately. A readiness exception does not imply that the owner disappeared.
+
+Inspection opens without creating, obtains device/inode identity from that descriptor, reads a bounded record, and
+compares the path's identity afterward. It retries disappearance or replacement during that interval and reports a
+bounded race failure if the path never stabilizes. Probing whether the exclusive lock is available necessarily takes
+that lock briefly when no owner exists; this is the same advisory-lock limitation as other pidfile ownership checks.
+
+The result is immediately staleable. Inode and UUID observations are useful for detecting replacement across
+snapshots, but neither is an OS process handle. This API deliberately performs no signaling. A later portable stop
+operation must state the remaining read-to-signal PID-reuse race explicitly; platforms with pidfds may provide a
+stronger implementation.
+
 ---
 
 ## 5. Readiness and lazy launch
@@ -467,6 +489,8 @@ protocol transcripts, every sync/async client-server pairing over loopback TCP, 
 explicit threaded asyncio handling, fdio over Unix and TCP, blocking-wire compatibility, and standalone servers
 without daemon adapters. External-child coverage uses actual fork/exec, file descriptors, output files, process groups,
 signals, kill escalation, unexpected exits, and an HTTP process composed with `HttpWait` and a supervisor pidfile.
+Inspection follows that real process through not-ready, ready, stale, and replacement identities, and separately covers
+malformed records, readiness exceptions, and fresh stateful waiter construction.
 
 The LLM demo test invokes the real argparse CLI twice. It verifies that the first process starts a detached service,
 the second connects to the same PID and instance ID, both calls traverse RPC, and signal shutdown releases the pidfile.

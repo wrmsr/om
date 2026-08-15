@@ -185,6 +185,22 @@ commands, while programmatic APIs remain primary.
 Logging should stay application-configurable. Future helpers can provide structured lifecycle events and convenient
 file logging without installing global handlers implicitly.
 
+### Planned implementation slices
+
+1. **Complete:** Add a read-only inspection snapshot whose lifecycle state distinguishes an absent pidfile, an unlocked
+   stale file, a locked owner, and a locked owner whose optional readiness probe succeeds. Preserve numeric and
+   structured identity when parseable, but report record and readiness errors orthogonally instead of confusing them
+   with ownership.
+2. **Complete:** Exercise absent, starting, ready, exited, stale, malformed, and replacement-instance transitions
+   against real locks, processes, pidfiles, and health endpoints. Each inspection should create a fresh waiter so
+   stateful wait adapters do not leak success between snapshots.
+3. Add a wait-for-stopped operation based on lock release and inode/instance observation rather than PID disappearance.
+4. Define the race contract for signaling before adding a stop helper. Linux pidfds can close the PID-reuse window,
+   while the portable POSIX fallback must expose its weaker guarantees rather than treating UUID metadata as an OS
+   process handle.
+5. Build a small CLI over the programmatic inspect, wait, and stop APIs after those contracts settle. Endpoint and log
+   reporting should consume explicit application metadata rather than growing mutable fields in the pidfile by default.
+
 ## 8. Hardening and portability
 
 Continue real integration testing across Linux, Darwin, supported Python versions, and free-threaded Python. Add race

@@ -57,6 +57,7 @@ The package is intentionally composable rather than presenting one mandatory dae
 | Service | `Service`, `RuntimeService`, `ServiceDaemon` | Package configured long-running behavior as a target. |
 | Runtime | `ServiceRuntime`, `Activity`, `ShutdownController` | Track activity, idle lifetime, signals, and graceful drain. |
 | Child supervision | `ChildProcessSupervisor`, `ChildProcessService` | Own, stop, escalate, and reap one external executable. |
+| Inspection | `DaemonInspector`, `DaemonInspection` | Observe pidfile ownership, identity, and optional readiness without signaling. |
 | Lazy access | `LazyDaemon` | Connect first; coordinate launch and relaunch only when explicitly unavailable. |
 | Readiness | `ConnectWait`, `HttpWait`, `RpcWait` | Supply pluggable transport- or application-level health checks. |
 | HTTP core | `pipeline_http_server_spec`, `PipelineHttpServer`, `AsyncioPipelineHttpServer` | Serve bounded HTTP requests through runtime-neutral pipelines and sync or asyncio hosts. |
@@ -135,6 +136,29 @@ first line. Old one-line pidfiles remain readable.
 The file is not a heartbeat. Its record is authoritative only while the file is locked; stale contents may remain
 after exit. Each successful launch receives a new `uuid.UUID` `instance_id`, and an RPC service launched under that
 daemon exposes the same UUID in its protocol handshake.
+
+## Inspection
+
+`DaemonInspector` takes a pidfile path and an optional `Wait`, and returns a read-only `DaemonInspection` snapshot.
+`Daemon.inspect()` is the convenience form using its configured pidfile and readiness probe. Lifecycle state follows
+the ownership primitives rather than guessing from process existence:
+
+| State | Meaning |
+| --- | --- |
+| `ABSENT` | The configured pidfile path did not exist. |
+| `STALE` | The pidfile existed but its exclusive lock was available. Old contents are descriptive only. |
+| `RUNNING` | Another owner held the lock; readiness was absent, false, or failed. |
+| `READY` | Another owner held the lock and a fresh readiness probe succeeded. |
+
+The snapshot includes the opened pidfile's device/inode pair, recoverable numeric PID, structured
+`DaemonPidfileInfo`, and separate pidfile/readiness error strings. A locked empty pidfile is a legitimate startup
+transition and remains `RUNNING`; malformed contents do not disprove lock ownership. Conversely, a perfectly valid
+record in an unlocked file remains `STALE`. Readiness is never probed for absent or stale files, and each inspection
+constructs a fresh waiter so a stateful `SequentialWait` cannot retain progress across snapshots.
+
+Inspection compares the opened inode with the path after reading and retries replacement races. Like every status
+snapshot, its result can become outdated immediately after return. It does not signal a PID, rewrite the pidfile, or
+claim that UUID metadata closes the OS-level PID-reuse race.
 
 ## Lazy service behavior
 
@@ -303,9 +327,11 @@ signals, and execs. It verifies sync and asyncio thread-backed HTTP services thr
 launches a pipeline HTTP service in a spawned process, and probes an independent standard-library HTTP server through
 the same `HttpWait`. External-child tests pass real descriptors, redirect real output, signal a process group, force
 graceful-timeout escalation, propagate unexpected exit, and probe a supervised external HTTP process while separately
-tracking its supervisor pidfile. The suite also exercises the RPC core without a daemon, runs pure sans-I/O transcripts,
-crosses every sync/async client-server pairing over real TCP and Unix sockets, drives fdio through both endpoints, and
-checks compatibility with the original blocking wire helpers. The daemon tests do not mock or patch those boundaries.
+tracking its supervisor pidfile. Inspection coverage observes that process through startup, readiness, exit, stale
+contents, and replacement UUIDs. The suite also exercises the RPC core without a daemon, runs pure sans-I/O
+transcripts, crosses every sync/async client-server pairing over real TCP and Unix sockets, drives fdio through both
+endpoints, and checks compatibility with the original blocking wire helpers. The daemon tests do not mock or patch
+those boundaries.
 
 ```shell
 ./python -m pytest omcore/daemons

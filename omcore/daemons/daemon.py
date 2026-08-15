@@ -24,6 +24,8 @@ from .. import dataclasses as dc
 from .. import lang
 from ..logs import all as logs
 from ..os.pidfiles.pidfile import Pidfile
+from .inspection import DaemonInspection
+from .inspection import DaemonInspector
 from .launching import Launcher
 from .spawning import Spawning
 from .targets import Target
@@ -104,6 +106,13 @@ class Daemon:
 
         with self._non_inheritable_pidfile() as pf:
             return not pf.try_acquire_lock()
+
+    def inspect(self) -> DaemonInspection:
+        check.state(self.has_pidfile)
+        return DaemonInspector(
+            check.non_empty_str(self._config.pid_file),
+            wait=self._config.wait,
+        ).inspect()
 
     #
 

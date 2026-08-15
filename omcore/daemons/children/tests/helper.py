@@ -83,7 +83,7 @@ def _run(args: argparse.Namespace) -> int:
         time.sleep(args.exit_delay_s)
         return args.exit_code
 
-    if args.port is not None:
+    if args.port is not None and not stopped.wait(args.startup_delay_s):
         server = http.server.ThreadingHTTPServer(('127.0.0.1', args.port), _Handler)
         server.daemon_threads = True
         server.timeout = .05
@@ -112,6 +112,7 @@ def _main() -> None:
     parser.add_argument('--write-fd', type=int)
     parser.add_argument('--spawn-grandchild', action='store_true')
     parser.add_argument('--port', type=int)
+    parser.add_argument('--startup-delay-s', type=float, default=0.)
     raise SystemExit(_run(parser.parse_args()))
 
 
