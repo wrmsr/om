@@ -12,6 +12,7 @@ omcore/sql/api/_dataclasses.py linguist-generated
 omcore/sql/queries/_dataclasses.py linguist-generated
 omcore/sql/tabledefs/_dataclasses.py linguist-generated
 omcore/text/abnf/_dataclasses.py linguist-generated
+omcore/text/pdcmark/_dataclasses.py linguist-generated
 omdev/dataclasses/_dumping.py linguist-generated
 omdev/manifests/_dumping.py linguist-generated
 omdev/scripts/ci.py linguist-generated
@@ -66,7 +67,6 @@ omxtra/text/antlr/cli/tests/_antlr/ChatLexer.py linguist-generated
 omxtra/text/antlr/cli/tests/_antlr/ChatListener.py linguist-generated
 omxtra/text/antlr/cli/tests/_antlr/ChatParser.py linguist-generated
 omxtra/text/antlr/cli/tests/_antlr/ChatVisitor.py linguist-generated
-omxtra/text/pdcmark/_dataclasses.py linguist-generated
 x/collections/kv2/bases.py linguist-generated
 x/logs/_tlog.py linguist-generated
 x/minichain/_dataclasses.py linguist-generated
