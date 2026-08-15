@@ -332,7 +332,7 @@ def _process_dataclass__2f37b84f9aab121f7605c84979de27b041f43481():
     ),
     plan_repr_sha1='a4bac4368b32f230c00cb11f9025c48ef8db0801',
     cls_names=(
-        ('omllm.agent.eval.tools.js', 'JsToolParams'),
+        ('omllm.agent.eval.tools.quickjs', 'QuickjsToolParams'),
     ),
 )
 def _process_dataclass__a4bac4368b32f230c00cb11f9025c48ef8db0801():

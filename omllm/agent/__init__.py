@@ -18,9 +18,9 @@ from omcore import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
-    from .eval.tools.js import (  # noqa
-        JsToolParams,
-        JsTool,
+    from .eval.tools.quickjs import (  # noqa
+        QuickjsToolParams,
+        QuickjsTool,
     )
 
     from .eval.permissions import (  # noqa

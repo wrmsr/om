@@ -1,6 +1,8 @@
 import typing as ta
 
 from omcore import dataclasses as dc
+from omcore import lang
+from omcore.formats.json import all as json
 
 from ...permissions.types import PermissionDecider
 from ...tools.classes import ToolClass
@@ -10,11 +12,15 @@ from ..permissions import EvalLanguage
 from ..permissions import EvalPermissionTarget
 
 
+with lang.auto_proxy_import(globals()):
+    from omdev.js import quickjs
+
+
 ##
 
 
 @dc.dataclass(frozen=True)
-class JsToolParams:
+class QuickjsToolParams:
     code: str
 
     _: dc.KW_ONLY
@@ -22,13 +28,13 @@ class JsToolParams:
     timeout_s: float | None = None
 
 
-class JsTool(ToolClass[JsToolParams]):
-    name: ta.Final = 'js'
+class QuickjsTool(ToolClass[QuickjsToolParams]):
+    name: ta.Final = 'quickjs'
 
-    params_cls: ta.Final = JsToolParams
+    params_cls: ta.Final = QuickjsToolParams
 
     description: ta.Final = ToolDescription(
-        'Evaluates javascript code.',
+        'Evaluates javascript code using the quickjs engine.',
         dict(
             code='The js code to evaluate.',
             timeout_s='An optional timeout in seconds.',
@@ -44,10 +50,14 @@ class JsTool(ToolClass[JsToolParams]):
 
         self._permissions = permissions
 
-    async def execute(self, ctx: ToolContext, params: JsToolParams) -> str:
+    async def execute(self, ctx: ToolContext, params: QuickjsToolParams) -> str:
         await self._permissions.check_allowed(ctx, EvalPermissionTarget(
             language=EvalLanguage.JS,
             code=params.code,
         ))
 
-        raise NotImplementedError
+        js_ctx = quickjs.Context()
+        if params.timeout_s is not None:
+            js_ctx.set_time_limit(params.timeout_s)
+        result = js_ctx.eval(params.code)
+        return json.dumps(result)

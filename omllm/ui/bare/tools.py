@@ -30,8 +30,8 @@ def bind_tools(config: Config) -> inj.Elements:
 
     if config.eval:
         lst.extend([
-            inj.bind(agn.JsTool, singleton=True),
-            bind_agent_tool_class(agn.JsTool),
+            inj.bind(agn.QuickjsTool, singleton=True),
+            bind_agent_tool_class(agn.QuickjsTool),
         ])
 
     if config.exec:
