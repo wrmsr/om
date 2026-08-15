@@ -173,3 +173,21 @@ Fixes:
 - shift+enter now also submits (all modified Enters mean 'send'; plain Enter in insert is the newline).
 pty-verified all three: modifyOtherKeys ctrl+enter, raw ctrl+j, kitty shift+enter. Remaining true limitation:
 Terminal.app supports neither protocol - there, ctrl+j / alt+enter (with option-as-meta) are the options.
+
+## 2026-08-15 (later): :s[ubstitute], ex ranges, line jumps
+
+`vim/substitutes.py` + engine wiring: engine-owned ex built-ins run before app-handler delegation.
+- `[range]s<sep>pat<sep>repl<sep>flags`: ranges `%` / `N,M` / `.` / `$` / `'<,'>` (visual-mode `:` leaves visual,
+  records the marks, and prefills `:'<,'>` like vim); any punctuation separator with backslash escaping; flags `g`
+  (per-line-all; first-only default, like vim) and `i`.
+- **Documented divergence: patterns are python `re` syntax**, not vim's dialect (no magicness levels; `(...)` not
+  `\(...\)`). Replacement keeps the vim conveniences: `&` = whole match (`\&` literal), `\1` groups, `\r` inserts a
+  real line break (the row-offset bookkeeping handles document growth mid-range). Empty pattern reuses the last `/`
+  search, escaped literally.
+- One undo unit per substitute; cursor to the last substituted line (vim semantics - which promptly confused my own
+  pty script: after `:%s` the cursor is on the last line, so select ranges from a known spot). vim-style message
+  ('N substitutions on M lines'), 'Pattern not found', 'Invalid pattern: ...'.
+- Bare ranges jump: `:42`, `:$`, `:%`. Everything unrecognized (`:w`, `:set ...` - note `set` starts with 's' but
+  has no separator, tested) still reaches the app's ex handler untouched.
+- Not yet: `c` confirm flag, `:g//`, counts, `~` sugar. 193 tests; live-verified in vimdemo (:%s, visual-range :s,
+  group refs, :w roundtrip to disk).

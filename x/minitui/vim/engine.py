@@ -63,6 +63,10 @@ from .status import SEARCH_MATCH_TAG
 from .status import SELECTION_TAG
 from .status import Decoration
 from .status import VimStatus
+from .substitutes import SubstituteError
+from .substitutes import apply_substitute
+from .substitutes import parse_ex_range
+from .substitutes import parse_substitute
 from .textobjs import textobj
 
 
@@ -128,6 +132,7 @@ class VimEngine:
 
         self._cmdline_kind: CmdlineKind | None = None
         self._cmdline_text = ''
+        self._last_visual_rows: tuple[int, int] | None = None  # the '< '> marks, by row
         self._last_search: tuple[str, bool] | None = None  # (query, forward)
         self._search_hl = False
 
@@ -509,9 +514,50 @@ class VimEngine:
         else:
             self._message = f'Pattern not found: {query}'
 
+    def _try_builtin_ex(self, text: str) -> bool:
+        """Engine-owned ex commands: [range]s/// and bare-range line jumps. True if handled."""
+
+        doc = self._doc
+        rng, rest = parse_ex_range(
+            text,
+            current_row=self.cursor.row,
+            last_row=doc.line_count() - 1,
+            visual=self._last_visual_rows,
+        )
+        rest = rest.strip()
+
+        if rng is not None and not rest:
+            # A bare range is a jump to its last line (':42', ':$', ':%').
+            col = first_nonblank(doc, rng.end_row)
+            self._set_cursor(Pos(rng.end_row, col), want=col)
+            return True
+
+        if (spec := parse_substitute(rest)) is None:
+            return False
+
+        if rng is None:
+            rng = parse_ex_range('.', current_row=self.cursor.row, last_row=doc.line_count() - 1)[0]
+            rng = check.not_none(rng)
+
+        last_query = self._last_search[0] if self._last_search is not None else None
+        self._begin_change()
+        try:
+            result = apply_substitute(doc, rng, spec, last_search=last_query)
+        except SubstituteError as e:
+            self._message = str(e)
+        else:
+            col = first_nonblank(doc, min(result.last_row, doc.line_count() - 1))
+            self._set_cursor(doc.clamp(Pos(result.last_row, col)), want=col)
+            self._message = result.message
+        finally:
+            self._end_change()
+        return True
+
     def _accept_ex(self, text: str) -> None:
         text = text.strip()
         if not text:
+            return
+        if self._try_builtin_ex(text):
             return
         if self._ex_handler is not None:
             self._message = self._ex_handler(text) or ''
@@ -547,6 +593,12 @@ class VimEngine:
     # Visual mode
 
     def _feed_visual(self, key: str) -> None:  # noqa: C901
+        if key == ':' and self._parser.is_idle:
+            self._leave_visual()  # records the '< '> marks
+            self._enter_cmdline(CmdlineKind.EX)
+            self._cmdline_text = "'<,'>"
+            return
+
         if key == '<c-v>':
             if self._mode is Mode.VISUAL_BLOCK:
                 self._leave_visual()
@@ -658,6 +710,9 @@ class VimEngine:
         self._parser.visual = True
 
     def _leave_visual(self) -> None:
+        if self._visual_anchor is not None:
+            a, b = sorted((self._visual_anchor.row, self.cursor.row))
+            self._last_visual_rows = (a, b)
         self._mode = Mode.NORMAL
         self._visual_anchor = None
         self._parser.visual = False

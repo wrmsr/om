@@ -531,3 +531,123 @@ def test_secondary_cursor_decorations():
     decs = [d for d in e.decorations() if d.tag == CURSOR_TAG]
     assert len(decs) == 1
     assert decs[0].span.start == Pos(1, 1)
+
+
+##
+# :s[ubstitute] and ex ranges.
+
+
+def test_substitute_current_line():
+    e = make('aa bb aa\naa', ':s/aa/XX/\r')
+    assert e.render() == 'XX bb aa\naa'  # first occurrence, current line only
+    assert '1 substitution on 1 line' in e.status().message
+
+
+def test_substitute_g_flag():
+    e = make('aa bb aa\naa', ':s/aa/XX/g\r')
+    assert e.render() == 'XX bb XX\naa'
+
+
+def test_substitute_percent_range():
+    e = make('aa\nbb aa\naa aa', ':%s/aa/X/g\r')
+    assert e.render() == 'X\nbb X\nX X'
+    assert '4 substitutions on 3 lines' in e.status().message
+
+
+def test_substitute_line_range():
+    e = make('a\na\na\na', ':2,3s/a/b/\r')
+    assert e.render() == 'a\nb\nb\na'
+
+
+def test_substitute_dot_dollar_range():
+    e = make('a\na\na', 'j')  # cursor on line 2
+    e.send(':.,$s/a/z/\r')
+    assert e.render() == 'a\nz\nz'
+
+
+def test_substitute_regex_and_groups():
+    e = make('foo123bar', ':s/([a-z]+)(\\d+)/\\2-\\1/\r')
+    assert e.render() == '123-foobar'
+
+
+def test_substitute_ampersand_and_literal():
+    e = make('cat', ':s/cat/[&]/\r')
+    assert e.render() == '[cat]'
+    e2 = make('cat', ':s/cat/a\\&b/\r')
+    assert e2.render() == 'a&b'
+
+
+def test_substitute_ignorecase_flag():
+    e = make('Foo foo', ':s/foo/x/gi\r')
+    assert e.render() == 'x x'
+
+
+def test_substitute_alternate_separator():
+    e = make('a/b', ':s#a/b#c#\r')
+    assert e.render() == 'c'
+    # Escaped separator inside the pattern.
+    e2 = make('a/b', ':s/a\\/b/c/\r')
+    assert e2.render() == 'c'
+
+
+def test_substitute_newline_replacement():
+    e = make('one two', ':s/ /\\r/\r')
+    assert e.render() == 'one\ntwo'
+
+
+def test_substitute_empty_pattern_reuses_search():
+    e = make('hay needle hay', '/needle\r')
+    e.send(':s//FOUND/\r')
+    assert e.render() == 'hay FOUND hay'
+
+    e2 = make('abc', ':s//x/\r')
+    assert 'no previous search' in e2.status().message.lower()
+    assert e2.render() == 'abc'
+
+
+def test_substitute_errors_and_undo():
+    e = make('abc', ':s/zzz/x/\r')
+    assert 'not found' in e.status().message.lower()
+    assert e.render() == 'abc'
+
+    e2 = make('abc', ':s/[/x/\r')
+    assert 'invalid pattern' in e2.status().message.lower()
+
+    # The whole substitute is one undo unit.
+    e3 = make('a a\na a', ':%s/a/b/g\r')
+    assert e3.render() == 'b b\nb b'
+    e3.send('u')
+    assert e3.render() == 'a a\na a'
+
+
+def test_substitute_visual_range():
+    e = make('a\na\na\na', '')
+    e.send('jVj')          # linewise-select rows 2-3
+    e.send(':')            # ex from visual: range prefilled
+    assert e.status().cmdline == ":'<,'>"
+    e.send('s/a/Q/\r')
+    assert e.render() == 'a\nQ\nQ\na'
+
+
+def test_bare_range_jumps():
+    e = make('l1\nl2\nl3\nl4', ':3\r')
+    assert e.cursor.row == 2
+    e.send(':$\r')
+    assert e.cursor.row == 3
+    e.send(':1\r')
+    assert e.cursor.row == 0
+
+
+def test_non_builtin_ex_still_delegates():
+    seen: list = []
+
+    def handler(line):
+        seen.append(line)
+        return 'ok'
+
+    e = VimEngine('abc', ex_handler=handler)
+    e.send(':w somefile\r')
+    assert seen == ['w somefile']
+    # 'set' starts with 's' but has no separator - must reach the app handler, not the substitute parser.
+    e.send(':set number\r')
+    assert seen == ['w somefile', 'set number']
