@@ -1,93 +1,19 @@
 import concurrent.futures as cf
-import multiprocessing as mp
 import os
 import tempfile
 import time
-import typing as ta
 
 import pytest
 
-from ...os.pidfiles.pidfile import Pidfile
 from ..daemon import Daemon
 from ..inspection import DaemonInspector
 from ..inspection import DaemonLifecycleState
 from ..operations import DaemonWaitStoppedReason
 from ..operations import DaemonWaitStoppedTimeoutError
 from ..operations import wait_daemon_stopped
-from ..pidfiles import DaemonPidfileInfo
-from ..pidfiles import dumps_daemon_pidfile_info
-from ..pidfiles import make_daemon_pidfile_info
 from ..targets import FnTarget
 from .testing import TEST_TIMEOUT_S
-
-
-##
-
-
-def _hold_pidfile(pid_file: str, connection: ta.Any) -> None:
-    try:
-        with Pidfile(pid_file, inheritable=False) as pidfile:
-            info = make_daemon_pidfile_info()
-            pidfile.write(
-                pid=info.pid,
-                suffix=dumps_daemon_pidfile_info(info),
-            )
-            connection.send(info)
-            connection.recv()
-    finally:
-        connection.close()
-
-
-class _PidfileHolder:
-    def __init__(self, pid_file: str) -> None:
-        super().__init__()
-
-        self._pid_file = pid_file
-        self._connection: ta.Any = None
-        self._process: ta.Any = None
-        self.info: DaemonPidfileInfo | None = None
-
-    def __enter__(self) -> ta.Self:
-        context = mp.get_context('spawn')
-        parent_connection, child_connection = context.Pipe()
-        process = context.Process(
-            target=_hold_pidfile,
-            args=(self._pid_file, child_connection),
-        )
-        process.start()
-        child_connection.close()
-
-        self._connection = parent_connection
-        self._process = process
-        if not parent_connection.poll(TEST_TIMEOUT_S):
-            self.close()
-            raise TimeoutError('Pidfile holder did not start')
-        self.info = parent_connection.recv()
-        return self
-
-    def close(self) -> None:
-        process = self._process
-        if process is None:
-            return
-
-        connection = self._connection
-        self._process = None
-        self._connection = None
-
-        if process.is_alive():
-            try:
-                connection.send('release')
-            except (BrokenPipeError, EOFError):
-                pass
-        process.join(TEST_TIMEOUT_S)
-        if process.is_alive():
-            process.kill()
-            process.join(TEST_TIMEOUT_S)
-        connection.close()
-        process.close()
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.close()
+from .testing import PidfileHolder
 
 
 ##
@@ -96,7 +22,7 @@ class _PidfileHolder:
 def test_wait_daemon_stopped_observes_the_original_lock_release() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         pid_file = os.path.join(temp_dir, 'service.pid')
-        with _PidfileHolder(pid_file) as holder:
+        with PidfileHolder(pid_file) as holder:
             daemon = Daemon(
                 FnTarget(lambda: None),
                 Daemon.Config(
@@ -130,7 +56,7 @@ def test_wait_daemon_stopped_observes_the_original_lock_release() -> None:
 def test_wait_daemon_stopped_times_out_with_the_last_observation() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         pid_file = os.path.join(temp_dir, 'service.pid')
-        with _PidfileHolder(pid_file):
+        with PidfileHolder(pid_file):
             initial = DaemonInspector(pid_file).inspect()
             with pytest.raises(DaemonWaitStoppedTimeoutError) as exc_info:
                 wait_daemon_stopped(
@@ -148,11 +74,11 @@ def test_wait_daemon_stopped_times_out_with_the_last_observation() -> None:
 def test_wait_daemon_stopped_detects_path_inode_replacement() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         pid_file = os.path.join(temp_dir, 'service.pid')
-        with _PidfileHolder(pid_file) as original:
+        with PidfileHolder(pid_file) as original:
             initial = DaemonInspector(pid_file).inspect()
             os.unlink(pid_file)
 
-            with _PidfileHolder(pid_file) as replacement:
+            with PidfileHolder(pid_file) as replacement:
                 result = wait_daemon_stopped(
                     pid_file,
                     initial=initial,
@@ -171,11 +97,11 @@ def test_wait_daemon_stopped_detects_path_inode_replacement() -> None:
 def test_wait_daemon_stopped_detects_uuid_replacement_on_the_same_inode() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         pid_file = os.path.join(temp_dir, 'service.pid')
-        with _PidfileHolder(pid_file) as original:
+        with PidfileHolder(pid_file) as original:
             initial = DaemonInspector(pid_file).inspect()
             assert initial.info == original.info
 
-        with _PidfileHolder(pid_file) as replacement:
+        with PidfileHolder(pid_file) as replacement:
             current = DaemonInspector(pid_file).inspect()
             assert current.pidfile_inode == initial.pidfile_inode
             assert current.info == replacement.info

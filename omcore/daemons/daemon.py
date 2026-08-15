@@ -17,6 +17,7 @@ TODO:
 """
 import itertools
 import os.path
+import signal
 import time
 
 from .. import check
@@ -24,12 +25,16 @@ from .. import dataclasses as dc
 from .. import lang
 from ..logs import all as logs
 from ..os.pidfiles.pidfile import Pidfile
+from ..os.pidfiles.pinning import PidfilePinner
 from .inspection import DaemonInspection
 from .inspection import DaemonInspector
 from .launching import Launcher
 from .operations import DaemonWaitStoppedResult
 from .operations import wait_daemon_stopped
 from .spawning import Spawning
+from .stopping import DaemonStopResult
+from .stopping import DaemonStopSafety
+from .stopping import stop_daemon
 from .targets import Target
 from .waiting import Wait
 from .waiting import waiter_for
@@ -127,6 +132,26 @@ class Daemon:
             check.non_empty_str(self._config.pid_file),
             initial=initial,
             timeout=lang.Timeout.of(timeout, self._config.wait_timeout),
+            sleep_s=self._config.wait_sleep_s,
+        )
+
+    def stop(
+            self,
+            timeout: lang.TimeoutLike = lang.Timeout.DEFAULT,
+            *,
+            initial: DaemonInspection | None = None,
+            signum: int = signal.SIGTERM,
+            pinner: PidfilePinner | None = None,
+            safety: DaemonStopSafety = DaemonStopSafety.REQUIRE_VERIFIED,
+    ) -> DaemonStopResult:
+        check.state(self.has_pidfile)
+        return stop_daemon(
+            check.non_empty_str(self._config.pid_file),
+            initial=initial,
+            signum=signum,
+            timeout=lang.Timeout.of(timeout, self._config.wait_timeout),
+            pinner=pinner,
+            safety=safety,
             sleep_s=self._config.wait_sleep_s,
         )
 

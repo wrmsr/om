@@ -218,7 +218,31 @@ records, only the identity fields actually observed can participate in replaceme
 
 Timeout raises `DaemonWaitStoppedTimeoutError` carrying the initial and last snapshots. Polling deliberately omits
 readiness: endpoint health cannot prove process ownership or lock release. The operation does not signal, delete, or
-rewrite anything, and therefore remains reusable as the verification half of a later stop API.
+rewrite anything, and therefore remains reusable as the verification half of the stop API.
+
+### Verified stop
+
+`DaemonStopper` composes inspection, pidfile-owner pinning, one signal delivery, and `DaemonStoppedWaiter`. Its default
+safety policy rejects `UnverifiedPidfilePinner`, so a platform without an available ownership verifier fails before
+signaling. Raw numeric-PID signaling remains available only when the caller selects
+`DaemonStopSafety.ALLOW_UNVERIFIED`. A user-supplied pinner is part of the caller's trust boundary.
+
+The initial inspection identifies the intended instance. Before signaling, the operation requires the path inode,
+record PID, structured UUID when present, and pinner-discovered owner to remain consistent. Replacement detected
+before delivery is terminal and unsignaled. A missing owner is handed to the stopped waiter, which decides whether the
+original lock was released or the named service was replaced.
+
+On Linux, the default `lslocks` pinner discovers the lock owner, after which the stopper opens a real kernel pidfd,
+revalidates identity, and invokes `pidfd_send_signal`. The handle pins the process identity across the last
+check-to-signal interval. The `lsof` pinner used on systems such as Darwin can verify that the recorded PID has the
+pidfile open before delivery, but `kill(2)` still has a PID-reuse race after that observation. Legacy one-line records
+also lack UUID-level replacement detection. These limitations are exposed policy, not claims of portable pidfd-like
+safety.
+
+Stop targets only the daemon PID and sends exactly the caller-selected signal, defaulting to `SIGTERM`. It does not
+infer process-group ownership or escalate. Its result includes whether delivery occurred and embeds the identity-aware
+wait result. Timeout retains the initial and last snapshots, pinned PID, signal, and delivery flag so callers may make
+their own escalation decision with the full observation history.
 
 ---
 

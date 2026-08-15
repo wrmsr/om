@@ -2,6 +2,7 @@ import fcntl
 import json
 import multiprocessing as mp
 import os
+import signal
 import socket
 import typing as ta
 import warnings
@@ -9,6 +10,8 @@ import warnings
 from ... import check
 from ...os.pidfiles.pidfile import Pidfile
 from ..pidfiles import DaemonPidfileInfo
+from ..pidfiles import dumps_daemon_pidfile_info
+from ..pidfiles import make_daemon_pidfile_info
 from ..pidfiles import read_daemon_pidfile_info
 
 
@@ -16,6 +19,92 @@ from ..pidfiles import read_daemon_pidfile_info
 
 
 TEST_TIMEOUT_S = 10.
+
+
+def _hold_pidfile(
+        pid_file: str,
+        connection: ta.Any,
+        ignored_signals: ta.Sequence[int],
+) -> None:
+    try:
+        for signum in ignored_signals:
+            signal.signal(signum, signal.SIG_IGN)
+
+        with Pidfile(pid_file, inheritable=False) as pidfile:
+            info = make_daemon_pidfile_info()
+            pidfile.write(
+                pid=info.pid,
+                suffix=dumps_daemon_pidfile_info(info),
+            )
+            connection.send(info)
+            connection.recv()
+    finally:
+        connection.close()
+
+
+class PidfileHolder:
+    def __init__(
+            self,
+            pid_file: str,
+            *,
+            ignored_signals: ta.Sequence[int] = (),
+    ) -> None:
+        super().__init__()
+
+        self._pid_file = pid_file
+        self._ignored_signals = tuple(ignored_signals)
+        self._connection: ta.Any = None
+        self._process: ta.Any = None
+        self._info: DaemonPidfileInfo | None = None
+
+    @property
+    def info(self) -> DaemonPidfileInfo:
+        return check.not_none(self._info)
+
+    def __enter__(self) -> ta.Self:
+        context = mp.get_context('spawn')
+        parent_connection, child_connection = context.Pipe()
+        process = context.Process(
+            target=_hold_pidfile,
+            args=(self._pid_file, child_connection, self._ignored_signals),
+        )
+        process.start()
+        child_connection.close()
+
+        self._connection = parent_connection
+        self._process = process
+        if not parent_connection.poll(TEST_TIMEOUT_S):
+            self.close()
+            raise TimeoutError('Pidfile holder did not start')
+        self._info = parent_connection.recv()
+        return self
+
+    def is_alive(self) -> bool:
+        return self._process is not None and self._process.is_alive()
+
+    def close(self) -> None:
+        process = self._process
+        if process is None:
+            return
+
+        connection = self._connection
+        self._process = None
+        self._connection = None
+
+        if process.is_alive():
+            try:
+                connection.send('release')
+            except (BrokenPipeError, EOFError):
+                pass
+        process.join(TEST_TIMEOUT_S)
+        if process.is_alive():
+            process.kill()
+            process.join(TEST_TIMEOUT_S)
+        connection.close()
+        process.close()
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
 
 
 def make_unix_listener(path: str, *, backlog: int = 16) -> socket.socket:

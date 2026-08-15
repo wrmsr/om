@@ -68,6 +68,20 @@ with _lang.auto_proxy_init(globals()):
         wait_daemon_stopped,
     )
 
+    from .stopping import (  # noqa
+        DaemonStopSafety,
+        DaemonStopResult,
+
+        DaemonStopError,
+        DaemonStopUnavailableError,
+        DaemonStopIdentityError,
+        DaemonStopSignalError,
+        DaemonStopTimeoutError,
+
+        DaemonStopper,
+        stop_daemon,
+    )
+
     from .startup import (  # noqa
         LaunchErrorInfo,
         LaunchReport,

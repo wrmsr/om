@@ -173,6 +173,24 @@ pidfile while another owner occupies the configured path. `DaemonWaitStoppedTime
 snapshots. Legacy one-line records can use inode and PID comparison, but lack the UUID's stronger semantic identity.
 This operation performs no signaling and does not run readiness probes.
 
+`stop_daemon()` and `Daemon.stop()` add one deliberately conservative signaling step before the same wait. By default,
+they require a `PidfilePinner` which independently relates the locked pidfile to its recorded owner; if the platform
+can provide only `UnverifiedPidfilePinner`, they raise `DaemonStopUnavailableError` without sending a signal. Passing
+`DaemonStopSafety.ALLOW_UNVERIFIED` explicitly permits the weaker raw-PID behavior.
+
+Immediately before signaling, the stop operation rechecks the anchored inode, recorded PID, optional structured UUID,
+and PID discovered by the pinner. Linux's `lslocks` implementation then opens a real kernel pidfd, rechecks identity,
+and sends through the pidfd, preventing PID reuse between the final check and signal delivery. The portable `lsof`
+implementation verifies that the recorded process still has the pidfile open, but Darwin and other POSIX systems
+retain an unavoidable read-to-`kill(2)` PID-reuse race. A caller-supplied pinner other than the explicitly unverified
+implementation is trusted to provide its own ownership proof and uses the same portable signal path.
+
+The result reports the pinned PID, requested signal, whether it was sent, and the complete wait-stopped result. A
+replacement observed before signaling receives no signal and returns `REPLACED`; disappearance is resolved by the
+waiter rather than treated as a signaling failure. `DaemonStopTimeoutError` retains the initial and last inspections
+plus signal details. Stop sends only the requested signal (default `SIGTERM`) to the daemon PID. It never signals a
+process group and never escalates to `SIGKILL`; those are separate, application-owned policies.
+
 ## Lazy service behavior
 
 `LazyDaemon` requires both a pidfile and a readiness probe. On a call it first attempts the real operation. Only an

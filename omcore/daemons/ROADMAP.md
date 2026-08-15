@@ -197,9 +197,12 @@ file logging without installing global handlers implicitly.
 3. **Complete:** Add a wait-for-stopped operation based on lock release and inode/instance observation rather than PID
    disappearance. Report path or identity replacement separately without claiming that an unlinked original process
    exited, and retain initial/last snapshots on timeout.
-4. Define the race contract for signaling before adding a stop helper. Linux pidfds can close the PID-reuse window,
-   while the portable POSIX fallback must expose its weaker guarantees rather than treating UUID metadata as an OS
-   process handle.
+4. **Complete:** Define the race contract for signaling and add a stop helper which fails closed when only the
+   unverified pidfile fallback is available. Revalidate the anchored inode, record PID, structured instance, and
+   discovered lock owner before signaling. On Linux, pair verified `lslocks` owner discovery with a real kernel pidfd
+   and signal through that handle; other verified POSIX pinners retain a documented read-to-signal race. Make raw PID
+   signaling explicit opt-in, signal only the daemon PID, perform no automatic `SIGKILL`, and reuse wait-stopped for
+   the terminal result.
 5. Build a small CLI over the programmatic inspect, wait, and stop APIs after those contracts settle. Endpoint and log
    reporting should consume explicit application metadata rather than growing mutable fields in the pidfile by default.
 
