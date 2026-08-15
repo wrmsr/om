@@ -55,7 +55,7 @@ def scan_link_label(text: str, start: int) -> LinkLabelScan | None:
             cps += 2
             only_ws = False
             continue
-        if c not in ' \t':
+        if c not in ' \t\n':
             only_ws = False
         i += 1
         cps += 1

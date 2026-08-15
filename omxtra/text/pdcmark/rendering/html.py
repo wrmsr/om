@@ -382,8 +382,9 @@ class _HtmlRenderer:
             self._write('<pre><code>')
 
         elif isinstance(tag, HtmlBlock):
-            # No wrapper - content is raw HTML emitted via Html events.
-            pass
+            # No wrapper - content is raw HTML emitted via Html events - but the block starts on a fresh line (e.g.
+            # `<li>` + html block).
+            self._newline()
 
         elif isinstance(tag, List):
             self._newline()

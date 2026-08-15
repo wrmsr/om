@@ -48,12 +48,13 @@ def _passes(case: SpecCase) -> bool:
 #   M5 (tight-list rendering):                459/572 / 503/572
 #   M8 (review hardening - see 04_Status):    572/652 / 618/652
 #   M9 (list-machine edge semantics):         589/652 / 635/652
+#   M10 (tabs / refdefs / label matching):     603/652 / 650/652
 #
 # Totals before M8 were out of 572: the spec runner's setext-header detection used to swallow the 80 examples whose
 # first content line was a `---`/`===` line. The corrected corpus holds all 652 upstream examples; the pre-M8 parser
 # measured against it scores 535/652 default, 579/652 prescan.
-_BASELINE_FLOOR_DEFAULT = 589
-_BASELINE_FLOOR_PRESCAN = 635
+_BASELINE_FLOOR_DEFAULT = 603
+_BASELINE_FLOOR_PRESCAN = 650
 
 
 def test_cm_spec_pass_count_meets_baseline_default(cm_cases):
@@ -101,6 +102,11 @@ _STRICT_SECTIONS = (
     'Lists',
     'Block quotes',
     'Emphasis and strong emphasis',
+    # M10 (tabs / refdefs / label matching):
+    'Tabs',
+    'Indented code blocks',
+    'Fenced code blocks',
+    'HTML blocks',
 )
 
 

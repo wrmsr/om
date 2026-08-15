@@ -279,3 +279,23 @@ Owner asked what the list gaps were, then "take a run at all of them". One commi
   Lists(26), Block quotes(25), Emphasis(132). 445 pdcmark tests (20 new in blocks/tests/test_list_edges.py), green
   on 3.14 + 3.14t; minitui 193 green; remaining default-mode failures are the documented forward-refdef streaming
   cluster (Links/Images/refdefs) plus Tabs 8/11 and singleton stragglers.
+
+## 2026-08-15 (M10): tabs, refdefs, raw label matching - 650/652 prescan
+
+Owner: "do all the easy and medium ones, and the GFM table edge". One commit (4f36da6c0):
+- GFM table edge turned out already fixed by M9's blank-closes-table; floor raised to 9/9 (14/14 GFM fixtures).
+- Easy: blank lines inside indented/fenced code keep post-indent whitespace (_handle_blank now takes the LineStart);
+  HTML blocks start on a fresh line inside <li>; collapsed/shortcut labels match RAW source text via a joined-text
+  slice on TokenizedBlock (LinkOpen/LinkClose carry joined positions) - `[foo\!]` never matches `[foo!]`, `[bar\\]`
+  matches itself.
+- Medium: _strip_indent_columns(carry, text, cols) materializes leftover tab-carry columns into indented-code
+  content (`- foo` + tab-tab-bar keeps its two spaces; same via `>`); try_consume_refdef reworked over joined
+  candidate text - multi-line labels (scan_link_label now treats \n as whitespace for the only-ws check) and
+  multi-line titles, whitespace REQUIRED between dest and title (`<bar>(baz)` is garbage), invalid-title-line
+  fallback keeps the refdef title-less; refdefs peel BEFORE setext promotion (empty remainder -> the === underline
+  is paragraph text; one old test encoded the wrong behavior and was rewritten to CM 215/216).
+- CM spec 603/652 default, 650/652 prescan - the ONLY prescan failures left are the bracket-chaining pair 569/571
+  (bounded-rescan limitation, documented). Strict sections now include Tabs, Indented/Fenced code, HTML blocks
+  (21 of 26 sections at 100% in default mode).
+- 463 pdcmark tests (18 new), green 3.14 + 3.14t; minitui 193 green; differential 59/62 steady; perf unchanged
+  (13.4ms / 84ms benchmarks).

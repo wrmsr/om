@@ -160,3 +160,14 @@ def test_broken_link_resolver_none_leaves_text():
     opts = dc.replace(COMMONMARK, broken_link_resolver=r)
     out = render_html(m.parse('[unknown]', opts))
     assert '<a' not in out and '[unknown]' in out
+
+
+# Label matching uses raw source text (escapes unprocessed)
+
+
+def test_escaped_label_does_not_match_unescaped_refdef():
+    assert _html('[foo!]: /url\n\n[bar][foo\\!]') == '<p>[bar][foo!]</p>'
+
+
+def test_escaped_backslash_label_matches_itself():
+    assert _html('[bar\\\\]: /uri\n\n[bar\\\\]') == '<p><a href="/uri">bar\\</a></p>'

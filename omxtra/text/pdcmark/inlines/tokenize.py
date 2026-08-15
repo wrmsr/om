@@ -114,6 +114,10 @@ class TokenizedBlock:
     # Link resolution uses this to give a failed link's consumed suffix a fresh inline parse of its own.
     retokenize: ta.Callable[[int, int], list[InlineNode]]
 
+    # Raw (undecoded) joined-text slice - link resolution derives collapsed / shortcut labels from this, since CM
+    # matches labels on raw source text (escapes are NOT processed: `[foo\!]` does not match a `[foo!]` refdef).
+    raw_slice: ta.Callable[[int, int], str]
+
 
 def tokenize_block(
         lines: tuple[BufferedLine, ...],
@@ -122,7 +126,7 @@ def tokenize_block(
         max_nested_parens: int = 32,
 ) -> TokenizedBlock:
     if not lines:
-        return TokenizedBlock(nodes=[], retokenize=lambda start, end: [])
+        return TokenizedBlock(nodes=[], retokenize=lambda start, end: [], raw_slice=lambda start, end: '')
     joined = _build_joined(lines)
 
     def retokenize(start: int, end: int) -> list[InlineNode]:
@@ -147,6 +151,7 @@ def tokenize_block(
             trim_edges=True,
         ),
         retokenize=retokenize,
+        raw_slice=lambda start, end: joined.text[start:end],
     )
 
 
@@ -301,7 +306,7 @@ def _walk(  # noqa: C901
         if c == '!' and i + 1 < n and s[i + 1] == '[':
             start_src = _source_offset(joined, i)
             end_src = _source_offset(joined, i + 2)
-            emit(LinkOpenNode(offset=(start_src, end_src), is_image=True), i)
+            emit(LinkOpenNode(offset=(start_src, end_src), is_image=True, joined_end=i + 2), i)
             i += 2
             continue
 
@@ -309,7 +314,7 @@ def _walk(  # noqa: C901
         if c == '[':
             start_src = _source_offset(joined, i)
             end_src = _source_offset(joined, i + 1)
-            emit(LinkOpenNode(offset=(start_src, end_src), is_image=False), i)
+            emit(LinkOpenNode(offset=(start_src, end_src), is_image=False, joined_end=i + 1), i)
             i += 1
             continue
 
@@ -495,6 +500,7 @@ def _scan_link_suffix(
             consumed_end=close_src_end,
             kind='shortcut',
             raw_consumed=']',
+            joined_start=close_pos,
         ), after
 
     nxt = s[after]
@@ -513,6 +519,7 @@ def _scan_link_suffix(
                 dest_url=dest,
                 title=title,
                 suffix_joined=(close_pos + 1, end_pos),
+            joined_start=close_pos,
             ), end_pos
         # Fall through - `(` without a valid link → shortcut form.
 
@@ -528,6 +535,7 @@ def _scan_link_suffix(
                 kind='collapsed',
                 raw_consumed=s[close_pos:end_pos],
                 suffix_joined=(close_pos + 1, end_pos),
+            joined_start=close_pos,
             ), end_pos
 
         # `[label]` → reference.
@@ -542,6 +550,7 @@ def _scan_link_suffix(
                 raw_consumed=s[close_pos:end_pos],
                 label=label_scan.raw,
                 suffix_joined=(close_pos + 1, end_pos),
+            joined_start=close_pos,
             ), end_pos
 
     # Default - shortcut form (try inner text against refdefs at resolution time).
@@ -550,6 +559,7 @@ def _scan_link_suffix(
         consumed_end=close_src_end,
         kind='shortcut',
         raw_consumed=']',
+            joined_start=close_pos,
     ), after
 
 

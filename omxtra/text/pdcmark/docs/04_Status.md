@@ -20,6 +20,14 @@ and [03_Plan.md](03_Plan.md).
 | M7 | README, offset-consistency tests, docs polish | — | 357 | ~5,200 |
 | M8 | Review hardening (see below) | 572 / 618 (of 652) | 421 | ~5,300 |
 | M9 | List-machine edge semantics | 589 / 635 (of 652) | 445 | ~5,350 |
+| M10 | Tabs, refdefs, raw label matching | 603 / 650 (of 652) | 463 | ~5,400 |
+
+M10 fixed: tab-carry columns materialize into indented-code content across container boundaries; blank lines inside
+code blocks keep their post-indent whitespace; HTML blocks start on a fresh line inside `<li>`; collapsed / shortcut
+labels match on raw source text (escapes unprocessed - `[foo\!]` never matches `[foo!]`); the refdef parser handles
+multi-line labels and titles, requires whitespace between destination and title, and peels refdefs before setext
+promotion. Under prescan only 2 cases now fail (the `[foo][bar][baz]` bracket-chaining pair, 569/571); the remaining
+default-mode delta is the documented forward-reference streaming tradeoff. GFM fixtures pass 14/14.
 
 M9 fixed: tight/loose blank attribution (a blank line flips loose exactly the list that directly receives the next
 block; blanks interior to fenced code, indented code, or nested blockquotes don't leak outward; empty-marker lines
@@ -74,14 +82,14 @@ All four invariants from [00_Goals.md](00_Goals.md#cross-cutting-invariants) hol
 | Code spans | 22 | 22 | 22 |
 | Emphasis and strong emphasis | 132 | 132 | 132 |
 | Entity and numeric character references | 16 | 17 | 17 |
-| Fenced code blocks | 28 | 28 | 29 |
-| HTML blocks | 43 | 43 | 44 |
+| Fenced code blocks | 29 | 29 | 29 |
+| HTML blocks | 44 | 44 | 44 |
 | Hard line breaks | 15 | 15 | 15 |
 | Images | 9 | 22 | 22 |
-| Indented code blocks | 11 | 11 | 12 |
+| Indented code blocks | 12 | 12 | 12 |
 | Inlines | 1 | 1 | 1 |
-| Link reference definitions | 17 | 21 | 27 |
-| Links | 58 | 85 | 90 |
+| Link reference definitions | 23 | 27 | 27 |
+| Links | 60 | 88 | 90 |
 | List items | 48 | 48 | 48 |
 | Lists | 26 | 26 | 26 |
 | Paragraphs | 8 | 8 | 8 |
@@ -89,7 +97,7 @@ All four invariants from [00_Goals.md](00_Goals.md#cross-cutting-invariants) hol
 | Raw HTML | 20 | 20 | 20 |
 | Setext headings | 27 | 27 | 27 |
 | Soft line breaks | 2 | 2 | 2 |
-| Tabs | 8 | 8 | 11 |
+| Tabs | 11 | 11 | 11 |
 | Textual content | 3 | 3 | 3 |
 | Thematic breaks | 19 | 19 | 19 |
 
@@ -98,7 +106,7 @@ GFM extensions (under `pdcmark.GFM`):
 | File | Pass |
 |---|---|
 | `gfm_strikethrough.txt` | 3/3 |
-| `gfm_table.txt` | 8/9 |
+| `gfm_table.txt` | 9/9 |
 | `gfm_tasklist.txt` | 2/2 |
 
 
@@ -124,14 +132,13 @@ parser doesn't emit corresponding events:
 
 ## Known limitations beyond non-goals
 
-- Multi-line refdefs with title on a third line work; some edge cases in the upstream Link
-  reference definitions section (esp. ones interacting with raw HTML or empty labels) still fail.
+- The `[foo][bar][baz]` bracket-chaining pair (CM 569/571): a failed `[foo][bar]`'s re-tokenized
+  `[bar]` cannot pair with the following `[baz]` - the suffix rescan is bounded at its own span.
+  The last two prescan-mode failures.
 - Pulldown's own `specs/table.txt` is a stricter suite than the GFM spec; most of its cases
   exercise interactions with constructs we don't implement.
 - Forward-reference resolution in streaming mode degrades to `LinkType.*_UNKNOWN` /
   `BrokenLinkResolver`. Documented; oneshot's `prescan_refdefs=True` recovers full spec behavior.
-- The single failing `gfm_table.txt` case (#5) involves a body row with no `|` that should still
-  count as a row — our terminator rule closes the table on that line.
 - Pathological bracket floods (`[` × N + `]` × N) are polynomial (list splicing), not linear —
   bounded and crash-free, but slower than pulldown on that shape.
 - Emphasis resolution has no `openers_bottom` optimization; a failed closer rescans the whole

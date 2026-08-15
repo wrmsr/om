@@ -60,6 +60,7 @@ def resolve_links(
         fuel: Fuel,
         broken_link_resolver: BrokenLinkResolver | None = None,
         retokenize: ta.Callable[[int, int], list[InlineNode]] | None = None,
+        raw_slice: ta.Callable[[int, int], str] | None = None,
 ) -> list[InlineNode]:
     stack: list[_LinkStackEntry] = []
 
@@ -116,13 +117,18 @@ def resolve_links(
             # Inner children = nodes strictly between opener and closer.
             children = nodes[entry.node_index + 1:i]
 
-            # Try resolution.
+            # Try resolution. Collapsed / shortcut labels come from the raw source slice between the brackets when
+            # available - CM matches labels on raw text, escapes unprocessed (`[foo\!]` never matches `[foo!]`).
+            inner_raw: str | None = None
+            if raw_slice is not None and opener.joined_end >= 0 and node.joined_start >= 0:
+                inner_raw = raw_slice(opener.joined_end, node.joined_start)
             resolved = _try_resolve_link(
                 close_node=node,
                 children=children,
                 refdefs=refdefs,
                 fuel=fuel,
                 broken_link_resolver=broken_link_resolver,
+                inner_raw=inner_raw,
             )
             if resolved is not None:
                 group = LinkGroup(
@@ -227,6 +233,7 @@ def _try_resolve_link(
         refdefs: RefDefs,
         fuel: Fuel,
         broken_link_resolver: BrokenLinkResolver | None,
+        inner_raw: str | None = None,
 ) -> _Resolved | None:
     if close_node.kind == 'inline':
         return _Resolved(
@@ -243,8 +250,9 @@ def _try_resolve_link(
             return _Resolved(LinkType.REFERENCE, ld.dest, ld.title, label)
         return _try_broken(LinkType.REFERENCE, label, close_node, broken_link_resolver)
 
-    # 'collapsed' or 'shortcut' - label is the inner text.
-    inner_label = normalize_link_label(_flatten_to_text(children))
+    # 'collapsed' or 'shortcut' - label is the raw inner source text (decoded-node flattening is the fallback for
+    # callers without raw-slice access).
+    inner_label = normalize_link_label(inner_raw if inner_raw is not None else _flatten_to_text(children))
     if not inner_label:
         return None
 

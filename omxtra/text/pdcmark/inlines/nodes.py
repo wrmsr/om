@@ -103,11 +103,13 @@ class EmphasisGroup(InlineNode):
 class LinkOpenNode(InlineNode):
     """
     Placeholder for a `[` (link) or `![` (image) marker. Pairs with a LinkCloseNode during the link-resolution pass;
-    unmatched openers fall back to text.
+    unmatched openers fall back to text. `joined_end` is the joined-text position just past the marker, used with the
+    closer's `joined_start` to recover the raw (undecoded) inner text for label matching.
     """
 
     offset: tuple[int, int]
     is_image: bool
+    joined_end: int = -1
 
 
 @dc.dataclass()
@@ -139,6 +141,7 @@ class LinkCloseNode(InlineNode):
     title: str = ''
     label: str = ''
     suffix_joined: tuple[int, int] | None = None
+    joined_start: int = -1  # joined-text position of the `]`
 
 
 @dc.dataclass()

@@ -130,3 +130,40 @@ def test_blank_line_closes_table():
     out = _html('| a |\n| --- |\n| 1 |\n\nx\n', GFM)
     assert out.endswith('</table>\n<p>x</p>\n')
     assert '<td>x</td>' not in out
+
+
+# Tab carry across container / code boundaries
+
+
+def test_tab_carry_materializes_in_item_code():
+    assert _html('- foo\n\n\t\tbar\n') == (
+        '<ul>\n<li>\n<p>foo</p>\n<pre><code>  bar\n</code></pre>\n</li>\n</ul>\n'
+    )
+
+
+def test_tab_carry_materializes_in_quote_code():
+    assert _html('>\t\tfoo\n') == '<blockquote>\n<pre><code>  foo\n</code></pre>\n</blockquote>\n'
+
+
+def test_tab_carry_materializes_after_marker():
+    assert _html('-\t\tfoo\n') == '<ul>\n<li>\n<pre><code>  foo\n</code></pre>\n</li>\n</ul>\n'
+
+
+# Blank lines inside code blocks keep their post-indent whitespace
+
+
+def test_indented_code_interior_blank_keeps_spaces():
+    assert _html('    chunk1\n      \n      chunk2\n') == (
+        '<pre><code>chunk1\n  \n  chunk2\n</code></pre>\n'
+    )
+
+
+def test_fenced_code_blank_lines_keep_spaces():
+    assert _html('```\n\n  \n```\n') == '<pre><code>\n  \n</code></pre>\n'
+
+
+# HTML block starts on a fresh line inside a list item
+
+
+def test_html_block_newline_inside_item():
+    assert _html('- <div>\n- foo\n') == '<ul>\n<li>\n<div>\n</li>\n<li>foo</li>\n</ul>\n'

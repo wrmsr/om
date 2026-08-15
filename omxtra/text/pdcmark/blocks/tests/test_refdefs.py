@@ -131,12 +131,22 @@ def test_first_definition_wins():
     assert refdefs.get('foo').dest == '/first'
 
 
-def test_setext_paragraph_is_not_refdef():
-    # A paragraph that becomes a setext heading should NOT have refdefs peeled - `[foo]: /url\n===` is a level-1 heading
-    # with content `[foo]: /url`.
+def test_setext_underline_after_pure_refdef_is_text():
+    # CM 216: refdefs peel off BEFORE setext promotion. When the whole would-be heading was a refdef, there is no
+    # paragraph left to promote and the underline is ordinary paragraph text.
     events, refdefs = _feed('[foo]: /url\n===\n')
-    assert any(isinstance(e, m.Start) and isinstance(e.tag, m.Heading) for e in events)
-    assert 'foo' not in refdefs
+    assert not any(isinstance(e, m.Start) and isinstance(e.tag, m.Heading) for e in events)
+    assert 'foo' in refdefs
+    assert any(isinstance(e, m.Text) and e.text == '===' for e in events)
+
+
+def test_setext_promotion_peels_leading_refdefs():
+    # CM 215: the refdef is consumed and only the remaining line becomes the heading.
+    events, refdefs = _feed('[foo]: /url\nbar\n===\n')
+    heading_starts = [e for e in events if isinstance(e, m.Start) and isinstance(e.tag, m.Heading)]
+    assert len(heading_starts) == 1
+    assert 'foo' in refdefs
+    assert any(isinstance(e, m.Text) and e.text == 'bar' for e in events)
 
 
 def test_non_refdef_first_line_stops_consumption():
@@ -146,3 +156,34 @@ def test_non_refdef_first_line_stops_consumption():
     paragraphs = [e for e in events if isinstance(e, m.Start) and isinstance(e.tag, m.Paragraph)]
     assert len(paragraphs) == 1
     assert 'foo' not in refdefs
+
+
+def test_multiline_label():
+    events, refdefs = _feed('[\nfoo\n]: /url\nbar\n')
+    assert 'foo' in refdefs
+    assert any(isinstance(e, m.Text) and e.text == 'bar' for e in events)
+
+
+def test_multiline_title():
+    events, refdefs = _feed("[foo]: /url '\ntitle\nline1\nline2\n'\n")
+    ld = refdefs.get('foo')
+    assert ld is not None and ld.title == '\ntitle\nline1\nline2\n'
+
+
+def test_title_requires_separation_from_dest():
+    # `<bar>(baz)` - no whitespace between destination and title makes the line garbage, not a refdef.
+    events, refdefs = _feed('[foo]: <bar>(baz)\n')
+    assert 'foo' not in refdefs
+
+
+def test_escaped_bracket_label_with_parens_dest_and_title():
+    events, refdefs = _feed("[Foo*bar\\]]:my_(url) 'title (with parens)'\n")
+    ld = refdefs.get('foo*bar\\]')
+    assert ld is not None and ld.dest == 'my_(url)' and ld.title == 'title (with parens)'
+
+
+def test_invalid_title_line_leaves_refdef_without_title():
+    # The title-shaped next line doesn't close - the refdef is still valid without a title; that line is a paragraph.
+    events, refdefs = _feed('[foo]: /url\n"unterminated\n')
+    ld = refdefs.get('foo')
+    assert ld is not None and ld.title == ''

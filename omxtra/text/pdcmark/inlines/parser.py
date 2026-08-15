@@ -89,6 +89,7 @@ class InlineParser:
             fuel=self._fuel,
             broken_link_resolver=self._options.broken_link_resolver,
             retokenize=tokenized.retokenize,
+            raw_slice=tokenized.raw_slice,
         )
         # Resolve emphasis on the top-level list AND recursively inside link / image groups.
         _resolve_emphasis_recursive(nodes)

@@ -104,6 +104,16 @@ def _strip_columns(line: str, columns: int) -> str:
     return line[i:]
 
 
+def _strip_indent_columns(carry: int, text: str, columns: int) -> str:
+    """
+    Strip up to `columns` of indentation from carry-prefixed text. `carry` is a LineStart's leftover tab columns; the
+    text's own tabs are stop-aligned right after the carry, so drawing from the carry first keeps tab math correct.
+    """
+
+    take = min(carry, columns)
+    return ' ' * (carry - take) + _strip_columns(text, columns - take)
+
+
 def _post_marker_indent(line: str, marker_end: int) -> int:
     """
     Compute the column count for content following a list marker, per CommonMark §5.2:
@@ -270,7 +280,7 @@ class BlockMachine:
         # Process the remaining line content. Re-check blankness here - container openers (e.g. a list marker with no
         # content, or GFM `> [!NOTE]`) may have consumed the entire post-marker remainder of the line.
         if blank or is_blank_line(ls.remaining()):
-            self._handle_blank(bl, events)
+            self._handle_blank(bl, ls, events)
             return
 
         self._dispatch_leaf(bl, ls, events)
@@ -538,12 +548,12 @@ class BlockMachine:
                 return
 
             if isinstance(open_, OpenIndentedCode):
-                # Continuation requires 4+ columns of indent relative to the container; we
-                # already consumed container markers so we measure on `content`.
-                if _leading_indent(content) >= 4 or is_blank_line(content):
+                # Continuation requires 4+ columns of indent relative to the container; we already consumed container
+                # markers so we measure on `content`, counting leftover tab-carry columns.
+                if ls.tab_carry + _leading_indent(content) >= 4 or is_blank_line(content):
                     new_line = dc.replace(
                         bl,
-                        text=_strip_columns(content, 4),
+                        text=_strip_indent_columns(ls.tab_carry, content, 4),
                         line_start=absolute_content_start,
                     )
                     self._open = dc.replace(open_, lines=(*open_.lines, new_line))
@@ -559,10 +569,16 @@ class BlockMachine:
                 else:
                     setext_level = None
                 if setext_level is not None:
-                    self._emit_paragraph_or_heading(
-                        open_, bl.line_next, events, heading_level=setext_level,
-                    )
+                    # Refdefs peel off BEFORE setext promotion (CM 215/216): only what remains becomes the heading.
+                    # If nothing remains there is no paragraph to promote, and the underline is ordinary text.
+                    remaining = self._consume_leading_refdefs(open_.lines)
                     self._open = None
+                    if remaining:
+                        self._emit_paragraph_or_heading(
+                            dc.replace(open_, lines=remaining), bl.line_next, events, heading_level=setext_level,
+                        )
+                    else:
+                        self._open_fresh(bl, content, absolute_content_start, events, carry=ls.tab_carry)
                     return
 
                 # Table head promotion - the LAST line of the open paragraph is a header candidate iff it contains a
@@ -606,7 +622,7 @@ class BlockMachine:
                     return
 
         # No open leaf (or it just closed): try to open one.
-        self._open_fresh(bl, content, absolute_content_start, events)
+        self._open_fresh(bl, content, absolute_content_start, events, carry=ls.tab_carry)
 
     def _open_fresh(
             self,
@@ -614,10 +630,13 @@ class BlockMachine:
             content: str,
             absolute_content_start: int,
             events: list[Event],
+            *,
+            carry: int = 0,
     ) -> None:
-        # Indented code block (only when no other context applies).
-        if _leading_indent(content) >= 4:
-            stripped = _strip_columns(content, 4)
+        # Indented code block (only when no other context applies). Leftover tab-carry columns from container-marker
+        # consumption count toward (and materialize into) the code indent.
+        if carry + _leading_indent(content) >= 4:
+            stripped = _strip_indent_columns(carry, content, 4)
             self._open = OpenIndentedCode(lines=(dc.replace(
                 bl,
                 text=stripped,
@@ -835,7 +854,7 @@ class BlockMachine:
 
     # Blank-line and "is this a new block?" helpers.
 
-    def _handle_blank(self, bl: BufferedLine, events: list[Event]) -> None:
+    def _handle_blank(self, bl: BufferedLine, ls: LineStart, events: list[Event]) -> None:
         # CM: a list item can begin with at most one blank line. An item whose marker line had no content and whose
         # very next line is blank contains nothing - close it (its list stays open; following content is outside).
         if (
@@ -869,15 +888,23 @@ class BlockMachine:
             return
 
         if isinstance(self._open, OpenIndentedCode):
-            # Blank lines inside indented code are kept (with empty text); on close they're stripped by
-            # `_emit_indented_code`.
-            new_line = BufferedLine(text='', line_start=bl.line_start, line_next=bl.line_next)
+            # Blank lines inside indented code are kept, retaining whatever whitespace follows the 4 columns of code
+            # indent; trailing blanks are stripped at close by `_emit_indented_code`.
+            new_line = BufferedLine(
+                text=_strip_indent_columns(ls.tab_carry, ls.remaining(), 4),
+                line_start=bl.line_start + ls.position,
+                line_next=bl.line_next,
+            )
             self._open = dc.replace(self._open, lines=(*self._open.lines, new_line))
             return
 
         if isinstance(self._open, OpenFencedCode):
-            # Blank lines inside a fenced code block are content.
-            new_line = BufferedLine(text='', line_start=bl.line_start, line_next=bl.line_next)
+            # Blank lines inside a fenced code block are content, retaining whitespace past the fence indent.
+            new_line = BufferedLine(
+                text=_strip_indent_columns(ls.tab_carry, ls.remaining(), self._open.fence_indent),
+                line_start=bl.line_start + ls.position,
+                line_next=bl.line_next,
+            )
             self._open = dc.replace(self._open, content=(*self._open.content, new_line))
             return
 
@@ -886,7 +913,11 @@ class BlockMachine:
                 events.extend(self._close_to_events(self._open, bl.line_start))
                 self._open = None
                 return
-            new_line = BufferedLine(text='', line_start=bl.line_start, line_next=bl.line_next)
+            new_line = BufferedLine(
+                text=ls.remaining(),
+                line_start=bl.line_start + ls.position,
+                line_next=bl.line_next,
+            )
             self._open = dc.replace(self._open, lines=(*self._open.lines, new_line))
             return
 
@@ -974,8 +1005,8 @@ class BlockMachine:
             heading_level: int | None,
     ) -> list[Event]:
         out: list[Event] = events if events is not None else []
-        # Refdef peel - only for plain paragraphs (a setext-promoted heading uses the entire paragraph as heading
-        # content, so refdefs would be inside the heading text per CM).
+        # Refdef peel for plain paragraphs. (Setext promotion peels refdefs itself, before deciding whether any
+        # paragraph remains to promote - lines arriving here with heading_level are already peeled.)
         lines = p.lines
         if heading_level is None:
             lines = self._consume_leading_refdefs(lines)

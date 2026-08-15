@@ -37,7 +37,7 @@ def _passes(c: SpecCase) -> bool:
 
 _GFM_FLOORS = {
     'gfm_strikethrough.txt': 3,
-    'gfm_table.txt': 8,
+    'gfm_table.txt': 9,
     'gfm_tasklist.txt': 2,
 }
 
