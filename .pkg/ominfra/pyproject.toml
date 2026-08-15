@@ -13,7 +13,7 @@ urls = {source = 'https://github.com/wrmsr/om'}
 license = 'BSD-3-Clause'
 readme = 'README.md'
 requires-python = '>=3.14'
-version = '0.0.43'
+version = '0.0.44'
 classifiers = [
     'Intended Audience :: Developers',
     'Operating System :: OS Independent',
@@ -24,15 +24,15 @@ classifiers = [
 ]
 description = 'ominfra'
 dependencies = [
-    'omcore == 0.0.43',
+    'omcore == 0.0.44',
 ]
 
 [project.optional-dependencies]
 all = [
-    'omdev == 0.0.43',
+    'omdev == 0.0.44',
 ]
 omdev = [
-    'omdev == 0.0.43',
+    'omdev == 0.0.44',
 ]
 
 [project.entry-points]
