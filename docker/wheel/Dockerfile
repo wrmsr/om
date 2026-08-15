@@ -88,7 +88,7 @@ RUN set -eux; \
     cd /tmp; \
     for py in ${PYTHONS}; do \
         pybin="/opt/python/${py}/bin"; \
-        "${pybin}/python" -m pip install --no-index --find-links /deps /out/*-"${py}"-*.whl; \
+        "${pybin}/python" -m pip install --find-links /deps /out/*-"${py}"-*.whl; \
         dists="$(for w in /out/*-"${py}"-*.whl; do basename "${w}" | cut -d- -f1; done | sort -u)"; \
         "${pybin}/python" /check.py ${dists}; \
     done

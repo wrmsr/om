@@ -566,13 +566,13 @@ docker-dev-temp-bash:
 
 ### Docker Wheel
 
-DOCKER_WHEEL_ARCHS ?= amd64 arm64
-DOCKER_WHEEL_PYTHONS ?= cp314-cp314 cp314-cp314t
-DOCKER_WHEEL_DOCKERFILE := docker/wheel/Dockerfile
-DOCKER_WHEEL_DIST := dist
+DOCKER_WHEEL_ARCHS?=amd64 arm64
+DOCKER_WHEEL_PYTHONS?=cp314-cp314 cp314-cp314t
+DOCKER_WHEEL_DOCKERFILE:=docker/wheel/Dockerfile
+DOCKER_WHEEL_DIST:=dist
 
-DOCKER_WHEEL_REPO_ROOT := $(abspath .)
-DOCKER_WHEEL_PKGS ?= omcore-cext omdev-cext omcore-mypyc
+DOCKER_WHEEL_REPO_ROOT:=$(abspath .)
+DOCKER_WHEEL_PKGS?=omcore-cext omdev-cext omcore-mypyc
 
 .PHONY: docker-build-wheels
 docker-build-wheels:
