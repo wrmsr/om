@@ -17,59 +17,6 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-r"""
-TODO: original go:
-
-func (p *Parser) arithmExpr(compact bool) ArithmExpr {
-    return p.arithmExprComma(compact)
-}
-
-# These function names are inspired by Bash's expr.c
-
-func (p *Parser) arithmExprComma(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprAssign, Comma)
-}
-
-func (p *Parser) arithmExprLor(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprLand, OrArit, XorBool)
-}
-
-func (p *Parser) arithmExprLand(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprBor, AndArit)
-}
-
-func (p *Parser) arithmExprBor(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprBxor, Or)
-}
-
-func (p *Parser) arithmExprBxor(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprBand, Xor)
-}
-
-func (p *Parser) arithmExprBand(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprEquality, And)
-}
-
-func (p *Parser) arithmExprEquality(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprComparison, Eql, Neq)
-}
-
-func (p *Parser) arithmExprComparison(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprShift, Lss, Gtr, Leq, Geq)
-}
-
-func (p *Parser) arithmExprShift(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprAddition, Shl, Shr)
-}
-
-func (p *Parser) arithmExprAddition(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprMultiplication, Add, Sub)
-}
-
-func (p *Parser) arithmExprMultiplication(compact bool) ArithmExpr {
-    return p.arithmExprBinary(compact, p.arithmExprPower, Mul, Quo, Rem)
-}
-"""  # noqa
 import typing as ta
 
 from .langs import LANG_ZSH

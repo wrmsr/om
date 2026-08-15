@@ -116,6 +116,8 @@ def lang_from_string(s: str) -> LangVariant | Error:
 
 
 def lang_in(l: LangVariant, l2: LangVariant) -> bool:
+    if l == LANG_BASH_LEGACY:
+        l = LANG_BASH
     return l & l2 == l
 
 

@@ -27,7 +27,6 @@ from .langs import LANG_MIR_BSD_KORN
 from .langs import LANG_POSIX
 from .langs import LangVariant
 from .langs import lang_in
-from .lexer import _EOF_RUNE
 
 
 with lang.auto_proxy_import(globals()):
@@ -82,9 +81,7 @@ def quote(s: str, l: LangVariant) -> str | Error:
     non_printable = False
     offs = 0
 
-    rem = s
-    while len(rem) > 0:
-        r = rem[0]
+    for r in s:
         # Like regOps; token characters.
         if r in (
             ';', '"', '\'', '(', ')', '$', '|', '&', '>', '<', '`',
@@ -106,12 +103,12 @@ def quote(s: str, l: LangVariant) -> str | Error:
             shell_chars = True
         elif r == '\x00':
             return QuoteError(offs, QUOTE_ERR_NULL)
-        if not r.isprintable():
+        codepoint = ord(r)
+        if not r.isprintable() or 0xD800 <= codepoint <= 0xDFFF:
             if lang_in(l, LANG_POSIX):
                 return QuoteError(offs, QUOTE_ERR_POSIX)
             non_printable = True
-        rem = rem[1:]
-        offs += 1
+        offs += len(r.encode('utf-8', errors='surrogatepass'))
 
     if not shell_chars and not non_printable and not parser.is_keyword(s):
         # Nothing to quote; avoid allocating.
@@ -127,14 +124,13 @@ def quote(s: str, l: LangVariant) -> str | Error:
         b.write("$'")
         last_requote_if_hex = False
         offs = 0
-        rem = s
-        while len(rem) > 0:
+        for r in s:
             next_requote_if_hex = False
-            r, size = utf8.DecodeRuneInString(rem)
+            codepoint = ord(r)
             if r == '\'' or r == '\\':
                 b.write('\\')
                 b.write(r)
-            elif r.isprintable():
+            elif r.isprintable() and not 0xD800 <= codepoint <= 0xDFFF:
                 if last_requote_if_hex and is_hex(r):
                     b.write("'$'")
                 b.write(r)
@@ -152,31 +148,29 @@ def quote(s: str, l: LangVariant) -> str | Error:
                 b.write('\\t')
             elif r == '\v':
                 b.write('\\v')
-            elif r < _EOF_RUNE or (r == utf8.RuneError and size == 1):
+            elif codepoint < 0x80:
                 # \xXX, fixed at two hexadecimal characters.
-                b.write('\\x%02x' % (rem[0],))
+                b.write('\\x%02x' % (codepoint,))
                 # Unfortunately, mksh allows \x to consume more hex characters.
                 # Ensure that we don't allow it to read more than two.
                 if lang_in(l, LANG_MIR_BSD_KORN):
                     next_requote_if_hex = True
-            elif r > utf8.MaxRune:
-                # Not a valid Unicode code point?
+            elif 0xD800 <= codepoint <= 0xDFFF:
                 return QuoteError(offs, QUOTE_ERR_RANGE)
-            elif lang_in(l, LANG_MIR_BSD_KORN) and r > 0xFFFD:
+            elif lang_in(l, LANG_MIR_BSD_KORN) and codepoint > 0xFFFD:
                 # From the CAVEATS section in R59's man page:
                 #
                 # mksh currently uses OPTU-16 internally, which is the same as
                 # UTF-8 and CESU-8 with 0000..FFFD being valid codepoints.
                 return QuoteError(offs, QUOTE_ERR_MKSH)
-            elif r < 0x10000:
+            elif codepoint < 0x10000:
                 # \uXXXX, fixed at four hexadecimal characters.
-                b.write('\\u%04x' % (r,))
+                b.write('\\u%04x' % (codepoint,))
             else:
                 # \UXXXXXXXX, fixed at eight hexadecimal characters.
-                b.write('\\U%08x' % (r,))
-            rem = rem[size:]
+                b.write('\\U%08x' % (codepoint,))
             last_requote_if_hex = next_requote_if_hex
-            offs += size
+            offs += len(r.encode('utf-8', errors='surrogatepass'))
 
         b.write("'")
         return b.getvalue()

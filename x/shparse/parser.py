@@ -17,44 +17,28 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-r"""
-TODO: original go for higher-level IO/initialization functions:
-
-type ParserOption func(*Parser)
-
-func KeepComments(enabled bool) ParserOption { ... }
-func Variant(l LangVariant) ParserOption { ... }
-func StopAt(word string) ParserOption { ... }
-func RecoverErrors(maximum int) ParserOption { ... }
-func NewParser(options ...ParserOption) *Parser { ... }
-func (p *Parser) Parse(r io.Reader, name string) (*File, error) { ... }
-func (p *Parser) Stmts(r io.Reader, fn func(*Stmt) bool) error { ... }
-func (p *Parser) StmtsSeq(r io.Reader) iter.Seq2[*Stmt, error] { ... }
-type wrappedReader struct { ... }
-func (p *Parser) Interactive(r io.Reader, fn func([]*Stmt) bool) error { ... }
-func (p *Parser) InteractiveSeq(r io.Reader) iter.Seq2[[]*Stmt, error] { ... }
-func (p *Parser) Words(r io.Reader, fn func(*Word) bool) error { ... }
-func (p *Parser) WordsSeq(r io.Reader) iter.Seq2[*Word, error] { ... }
-func (p *Parser) Document(r io.Reader) (*Word, error) { ... }
-func (p *Parser) Arithmetic(r io.Reader) (ArithmExpr, error) { ... }
-
-type ParseError struct { Filename, Pos, Text, Incomplete }
-type LangError struct { Filename, Pos, Feature, Langs, LangUsed }
-"""  # noqa
 import typing as ta
 
+from omcore import dataclasses as dc
+
+from .langs import LANG_AUTO
+from .langs import LANG_BASH
 from .langs import LANG_BASH_LIKE
+from .langs import LANG_BASH_LEGACY
 from .langs import LANG_BATS
 from .langs import LANG_MIR_BSD_KORN
 from .langs import LANG_POSIX
+from .langs import LANG_RESOLVED_VARIANTS
 from .langs import LANG_ZSH
 from .langs import LangVariant
 from .langs import lang_bits
 from .langs import lang_in
+from .langs import lang_string
 from .lexer import _EOF_RUNE
 from .lexer import _ESC_NEWL
 from .lexer import ascii_digit
 from .lexer import ascii_letter
+from .lexer import bquote_escaped
 from .lexer import param_name_rune
 from .lexer import single_rune_param
 from .lexer import test_binary_op
@@ -159,6 +143,44 @@ class _SaveState(ta.NamedTuple):
 ##
 
 
+@dc.dataclass()
+class ParseError(Exception):
+    """An unrecoverable shell syntax error."""
+
+    filename: str
+    pos: Pos
+    text: str
+    incomplete: bool = False
+
+    def __str__(self) -> str:
+        prefix = self.pos.string()
+        if self.filename:
+            prefix = f'{self.filename}:{prefix}'
+        return f'{prefix}: {self.text}'
+
+
+@dc.dataclass()
+class LangError(Exception):
+    """A shell construct unsupported by the configured language variant."""
+
+    filename: str
+    pos: Pos
+    feature: str
+    langs: list[LangVariant]
+    lang_used: LangVariant
+
+    def __str__(self) -> str:
+        prefix = self.pos.string()
+        if self.filename:
+            prefix = f'{self.filename}:{prefix}'
+        verb = 'are' if self.feature.endswith('s') else 'is'
+        supported = '/'.join(lang_string(lang) for lang in self.langs)
+        return f'{prefix}: {self.feature} {verb} a {supported} feature; tried parsing as {lang_string(self.lang_used)}'
+
+
+##
+
+
 # IsKeyword returns True if the given word is a language keyword
 # in POSIX Shell or Bash.
 def is_keyword(word: str) -> bool:
@@ -245,11 +267,41 @@ class Parser:
     _ALL_PARAM_EXP = _ALL_PARAM_EXP
     _RECOVERED_POS = _RECOVERED_POS
 
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            *,
+            keep_comments: bool = False,
+            lang: LangVariant = LANG_BASH,
+            stop_at: str | None = None,
+            recover_errors: int = 0,
+    ) -> None:
         super().__init__()
 
+        if lang == LANG_BASH_LEGACY:
+            lang = LANG_BASH
+        elif lang == LANG_AUTO:
+            raise ValueError('LANG_AUTO is not supported by the parser')
+        elif not lang_in(lang, LANG_RESOLVED_VARIANTS) or len(lang_bits(lang)) != 1:
+            raise ValueError(f'unknown shell language variant: {lang:#b}')
+        if stop_at is not None:
+            if len(stop_at.encode()) > 4:
+                raise ValueError("stop word can't be over four bytes in size")
+            if any(char in stop_at for char in ' \t\n\r'):
+                raise ValueError("stop word can't contain whitespace characters")
+        if recover_errors < 0:
+            raise ValueError('recover_errors must not be negative')
+
+        self.keep_comments = keep_comments
+        self.lang = lang
+        self.stop_at = stop_at
+        self.recover_errors_max = recover_errors
+
+        self._reset()
+
+    def _reset(self) -> None:
         self.src: str = ''
         self.bsp: int = 0
+        self.byte_bsp: int = 0
         self.r: str = ''
         self.w: int = 0
 
@@ -273,13 +325,7 @@ class Parser:
         self.quote: int = _NO_STATE
         self.eql_offs: int = 0
 
-        self.keep_comments: bool = False
-        self.lang: LangVariant = LangVariant(0)
-
-        self.stop_at: str | None = None
-
         self.recovered_errors: int = 0
-        self.recover_errors_max: int = 0
 
         self.forbid_nested: bool = False
 
@@ -299,9 +345,92 @@ class Parser:
         self.rx_first_part: bool = False
 
         self.acc_coms: list[Comment] = []
-        self.cur_coms: list[Comment] = []
+        self.cur_coms: list[Comment] = self.acc_coms
 
         self.lit_bs: list[str] | None = None
+
+    @staticmethod
+    def _read_source(source: str | ta.TextIO) -> str:
+        if isinstance(source, str):
+            return source
+        text = source.read()
+        if not isinstance(text, str):
+            raise TypeError('source.read() must return str')
+        return text
+
+    def _start(self, source: str | ta.TextIO, *, name: str = '') -> None:
+        self._reset()
+        self.src = self._read_source(source)
+        self.f = File(name=name)
+        self.rune()
+        self.next()
+
+    def _raise_error(self) -> None:
+        if self.err is not None:
+            raise self.err
+
+    def parse(self, source: str | ta.TextIO, name: str = '') -> File:
+        """Parse a complete shell program."""
+
+        self._start(source, name=name)
+        if self.f is None:
+            raise RuntimeError('parser was not initialized')
+        self.f.stmts, self.f.last = self.stmt_list()
+        if self.err is None:
+            self.do_heredocs()
+        self._raise_error()
+        return self.f
+
+    def parse_statements(self, source: str | ta.TextIO) -> list[Stmt]:
+        """Parse and return all statements in a shell program."""
+
+        return self.parse(source).stmts
+
+    def parse_words(self, source: str | ta.TextIO) -> list[Word]:
+        """Parse whitespace-separated shell words."""
+
+        self._start(source)
+        words: list[Word] = []
+        while True:
+            self.got(Token.NEWL_)
+            word = self.get_word()
+            if word is None:
+                if self.tok != Token.EOF_:
+                    self.cur_err('%s is not a valid word', self.tok)
+                break
+            words.append(word)
+        self._raise_error()
+        return words
+
+    def parse_document(self, source: str | ta.TextIO) -> Word | None:
+        """Parse a here-document body up to end-of-input."""
+
+        self._reset()
+        self.src = self._read_source(source)
+        self.f = File()
+        self.rune()
+        self.quote = _HDOC_BODY
+        self.hdoc_stops = ['MVDAN_CC_SH_SYNTAX_EOF']
+        self.parsing_doc = True
+        self.next()
+        word = self.get_word()
+        self._raise_error()
+        return word
+
+    def parse_arithmetic(self, source: str | ta.TextIO) -> ArithmExpr | None:
+        """Parse a single arithmetic expression."""
+
+        from .parser_arithm import arithm_expr
+
+        self._reset()
+        self.src = self._read_source(source)
+        self.f = File()
+        self.rune()
+        self.quote = _ARITHM_EXPR
+        self.next()
+        expr = arithm_expr(self, False)
+        self._raise_error()
+        return expr
 
     # -- Lexer methods (delegated to lexer.py functions) --
 
@@ -318,12 +447,15 @@ class Parser:
         while True:  # retry loop
             if self.bsp >= len(self.src):
                 self.bsp = len(self.src) + 1
+                self.byte_bsp = len(self.src.encode()) + 1
                 self.r = _EOF_RUNE
                 self.w = 1
                 return self.r
 
             b = self.src[self.bsp]
             self.bsp += 1
+            byte_width = len(b.encode())
+            self.byte_bsp += byte_width
 
             if b == '\x00':
                 # Ignore null bytes while parsing, like bash.
@@ -339,12 +471,14 @@ class Parser:
                 if self.r != '\\':
                     if self.peek() == '\n':
                         self.bsp += 1
+                        self.byte_bsp += 1
                         self.w, self.r = 1, _ESC_NEWL
                         return _ESC_NEWL
                     p1, p2 = self.peek_two()
                     if p1 == '\r' and p2 == '\n':  # \\\r\n turns into \\\n
                         self.col += 1
                         self.bsp += 2
+                        self.byte_bsp += 2
                         self.w, self.r = 2, _ESC_NEWL
                         return _ESC_NEWL
 
@@ -353,7 +487,7 @@ class Parser:
                     self.open_bquotes > 0
                     and bquotes < self.open_bquotes
                     and self.bsp < len(self.src)
-                    and self.src[self.bsp] in ('$', '`', '\\')
+                    and bquote_escaped(self.src[self.bsp])
                 ):
                     bquotes += 1
                     self.col += 1
@@ -363,7 +497,7 @@ class Parser:
                 self.last_bquote_esc = bquotes
             if self.lit_bs is not None:
                 self.lit_bs.append(b)
-            self.w, self.r = 1, b
+            self.w, self.r = byte_width, b
             return self.r
 
     def peek(self) -> str:
@@ -383,8 +517,7 @@ class Parser:
         next_(self)
 
     def next_pos(self) -> Pos:
-        offset = min(self.offs + self.bsp - self.w, 0x7fffffff)
-        return new_pos(offset, self.line, self.col)
+        return new_pos(self.offs + self.byte_bsp - self.w, self.line, self.col)
 
     def _comment(self, hash_pos: Pos, text: str) -> Comment:
         return Comment(hash=hash_pos, text=text)
@@ -567,6 +700,7 @@ class Parser:
         if self.err is None:
             self.err = err
             self.bsp = len(self.src) + 1
+            self.byte_bsp = len(self.src.encode()) + 1
             self.r = _EOF_RUNE
             self.w = 1
             self.tok = Token.EOF_
@@ -576,7 +710,12 @@ class Parser:
 
     def pos_err(self, pos: Pos, format: str, *args: ta.Any) -> None:
         text = format % args if args else format
-        self.err_pass(RuntimeError(text))
+        self.err_pass(ParseError(
+            filename=self.f.name if self.f is not None else '',
+            pos=pos,
+            text=text,
+            incomplete=self.tok == Token.EOF_ and self.incomplete(),
+        ))
 
     def cur_err(self, format: str, *args: ta.Any) -> None:
         self.pos_err(self.pos, format, *args)
@@ -584,8 +723,16 @@ class Parser:
     def check_lang(self, pos: Pos, lang_set: LangVariant, format: str, *a: ta.Any) -> None:
         if lang_in(self.lang, lang_set):
             return
+        if lang_in(LANG_BASH_LIKE, lang_set):
+            lang_set = LangVariant(lang_set & ~LANG_BATS)
         feature = format % a if a else format
-        self.err_pass(RuntimeError(f'{feature} is a {"/".join(str(l) for l in lang_bits(lang_set))} feature'))
+        self.err_pass(LangError(
+            filename=self.f.name if self.f is not None else '',
+            pos=pos,
+            feature=feature,
+            langs=lang_bits(lang_set),
+            lang_used=self.lang,
+        ))
 
     # -- Statement parsing --
 
@@ -1051,12 +1198,67 @@ class Parser:
         pe.rbrace = self.matched(pe.dollar, Token.DOLL_BRACE, Token.RIGHT_BRACE)
         return pe
 
+    def _nested_parameter_start(self, pe: ParamExp) -> tuple[Token, Pos]:
+        if pe.short:
+            return Token.ILLEGAL_TOK, Pos()
+
+        quote_pos = Pos()
+        if self.r == '"':
+            quote_pos = self.next_pos()
+            self.rune()
+        if self.r != '$':
+            if quote_pos.is_valid():
+                return Token.DOLLAR, quote_pos
+            return Token.ILLEGAL_TOK, Pos()
+
+        next_rune = self.peek()
+        if next_rune not in ('{', '('):
+            return Token.ILLEGAL_TOK, quote_pos
+
+        self.pos = self.next_pos()
+        self.check_lang(self.pos, LANG_ZSH, 'nested parameter expansions')
+        if self.err is not None:
+            return Token.ILLEGAL_TOK, Pos()
+        self.rune()
+        self.rune()
+        if next_rune == '{':
+            return Token.DOLL_BRACE, quote_pos
+        return Token.DOLL_PAREN, quote_pos
+
     def _param_exp_parameter(self, pe: ParamExp) -> ParamExp | None:
         from .lexer import end_lit
         from .lexer import new_lit
+        from .lexer import param_token
 
-        # Check for Zsh nested parameter expressions
-        # TODO: nestedParameterStart translation - simplified for now
+        # Check for Zsh nested parameter expressions like ${(f)"$(foo)"}.
+        left, quote_pos = self._nested_parameter_start(pe)
+        if left != Token.ILLEGAL_TOK:
+            self.tok = left
+            if left == Token.DOLL_BRACE:
+                nested: WordPart | None = self.param_exp()
+            elif left == Token.DOLL_PAREN:
+                nested = self.cmd_subst()
+            else:
+                nested = None
+                self.pos_err(pe.pos(), 'invalid nested parameter expansion')
+
+            if quote_pos.is_valid():
+                if self.r != '"':
+                    self.tok = param_token(self, self.r)
+                    if self.tok == Token.ILLEGAL_TOK:
+                        self.pos_err(pe.pos(), 'invalid nested parameter expansion')
+                    else:
+                        self.quote_err(quote_pos, Token.DBL_QUOTE)
+                pe.nested_param = DblQuoted(
+                    left=quote_pos,
+                    right=self.next_pos(),
+                    parts=[nested] if nested is not None else [],
+                )
+                self.rune()
+            else:
+                pe.nested_param = nested
+            return pe
+
         if self.r in ('?', '-'):
             if pe.length and self.peek() != '}':
                 pe.length = False
@@ -1092,6 +1294,8 @@ class Parser:
 
     def _param_exp_exp(self) -> Expansion:
         op = ParExpOperator(self.tok)
+        if op == ParExpOperator.MATCH_EMPTY:
+            self.check_lang(self.pos, LANG_ZSH, '${name%sarg}', op.string())
         self.quote = _PARAM_EXP_EXP
         self.next()
         if op == ParExpOperator.OTHER_PARAMOPS:

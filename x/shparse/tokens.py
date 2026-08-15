@@ -140,7 +140,7 @@ class Token(enum.StrEnum):
     DBL_COMMA = ',,'
     AT        = '@'
     SLASH     = '/'
-    DBL_SLASH = '#'
+    DBL_SLASH = '//'
     PERIOD    = '.'
     COLON     = ':'
 
@@ -187,7 +187,14 @@ class Token(enum.StrEnum):
     GLOB_EXCL  = '!('
 
 
-class RedirOperator(enum.Enum):
+class _TokenOperator:
+    value: Token
+
+    def __str__(self) -> str:
+        return self.value.value
+
+
+class RedirOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -215,7 +222,7 @@ class RedirOperator(enum.Enum):
     CLB_OUT       = Token.RDR_CLOB
 
 
-class ProcOperator(enum.Enum):
+class ProcOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -224,7 +231,7 @@ class ProcOperator(enum.Enum):
     CMD_OUT     = Token.CMD_OUT
 
 
-class GlobOperator(enum.Enum):
+class GlobOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -235,7 +242,7 @@ class GlobOperator(enum.Enum):
     GLOB_EXCEPT       = Token.GLOB_EXCL
 
 
-class BinCmdOperator(enum.Enum):
+class BinCmdOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -245,7 +252,7 @@ class BinCmdOperator(enum.Enum):
     PIPE_ALL = Token.OR_AND
 
 
-class CaseOperator(enum.Enum):
+class CaseOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -255,7 +262,7 @@ class CaseOperator(enum.Enum):
     RESUME_KORN = Token.SEMI_OR
 
 
-class ParNamesOperator(enum.Enum):
+class ParNamesOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -263,7 +270,7 @@ class ParNamesOperator(enum.Enum):
     NAMES_PREFIX_WORDS = Token.AT
 
 
-class ParExpOperator(enum.Enum):
+class ParExpOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -287,7 +294,7 @@ class ParExpOperator(enum.Enum):
     OTHER_PARAMOPS          = Token.AT
 
 
-class UnAritOperator(enum.Enum):
+class UnAritOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -299,7 +306,7 @@ class UnAritOperator(enum.Enum):
     MINUS        = Token.MINUS
 
 
-class BinAritOperator(enum.Enum):
+class BinAritOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -347,7 +354,7 @@ class BinAritOperator(enum.Enum):
     POW_ASSGN      = Token.POW_ASSGN
 
 
-class UnTestOperator(enum.Enum):
+class UnTestOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 
@@ -379,7 +386,7 @@ class UnTestOperator(enum.Enum):
     TS_PAREN    = Token.LEFT_PAREN
 
 
-class BinTestOperator(enum.Enum):
+class BinTestOperator(_TokenOperator, enum.Enum):
     def string(self) -> str:
         return self.value.value  # noqa
 

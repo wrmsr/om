@@ -132,47 +132,43 @@ def split_braces(word: Word) -> bool:
                     add_lit(LIT_LEFT_BRACE)
                     acc.parts.extend(br.elems[0].parts)
                     add_lit(LIT_RIGHT_BRACE)
-                    break
-
-                if not br.sequence:
+                elif not br.sequence:
                     acc.parts.append(br)
-                    break
+                else:
+                    chars = [False, False]
+                    broken = False
+                    for i, elem in enumerate(br.elems[:2]):
+                        val = elem.lit()
+                        try:
+                            int(val)  # noqa
+                        except ValueError:
+                            if len(val) == 1 and lexer.ascii_letter(val[0]):
+                                chars[i] = True
+                            else:
+                                broken = True
 
-                chars = [False, False]
-                broken = False
-                for i, elem in enumerate(br.elems[:2]):
-                    val = elem.lit()
-                    try:
-                        int(val)  # noqa
-                    except ValueError:
-                        if len(val) == 1 and lexer.ascii_letter(val[0]):
-                            chars[i] = True
-                        else:
+                    if len(br.elems) == 3:
+                        # increment must be a number
+                        val = br.elems[2].lit()
+                        try:
+                            int(val)  # noqa
+                        except ValueError:
                             broken = True
 
-                if len(br.elems) == 3:
-                    # increment must be a number
-                    val = br.elems[2].lit()
-                    try:
-                        int(val)  # noqa
-                    except ValueError:
+                    # are start and end both chars or
+                    # non-chars?
+                    if chars[0] != chars[1]:
                         broken = True
-
-                # are start and end both chars or
-                # non-chars?
-                if chars[0] != chars[1]:
-                    broken = True
-                if not broken:
-                    acc.parts.append(br)
-                    break
-
-                # return broken {x..y[..incr]} to a non-brace
-                add_lit(LIT_LEFT_BRACE)
-                for i, elem in enumerate(br.elems):
-                    if i > 0:
-                        add_lit(LIT_DOTS)
-                    acc.parts.extend(elem.parts)
-                add_lit(LIT_RIGHT_BRACE)
+                    if not broken:
+                        acc.parts.append(br)
+                    else:
+                        # return broken {x..y[..incr]} to a non-brace
+                        add_lit(LIT_LEFT_BRACE)
+                        for i, elem in enumerate(br.elems):
+                            if i > 0:
+                                add_lit(LIT_DOTS)
+                            acc.parts.extend(elem.parts)
+                        add_lit(LIT_RIGHT_BRACE)
 
             else:
                 continue

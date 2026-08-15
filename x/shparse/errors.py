@@ -8,6 +8,9 @@ from omcore import lang
 
 
 class Error(lang.Abstract):
+    def __str__(self) -> str:
+        return self.message
+
     @property
     @abc.abstractmethod
     def message(self) -> str:

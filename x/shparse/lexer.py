@@ -81,137 +81,6 @@ def bquote_escaped(b: str) -> bool:
     return False
 
 
-r"""
-TODO: original go for parser_rune / parser_fill (byte-level IO, not applicable to string-based Python parser):
-
-const escNewl rune = utf8.RuneSelf + 1
-
-
-def parser_rune(p: 'parser.Parser') -> str:
-    if p.r == '\n' or p.r == escNewl {
-        # p.r instead of b so that newline
-        # character positions don't have col 0.
-        p.line++
-        p.col = 0
-
-    p.col += int64(p.w)
-    bquotes := 0
-
-retry:
-    if p.bsp >= uint(len(p.bs)) and p.fill() == 0 {
-        if len(p.bs) == 0 {
-            # Necessary for the last position to be correct.
-            # TODO: this is not exactly intuitive; figure out a better way.
-            p.bsp = 1
-
-        p.r = utf8.RuneSelf
-        p.w = 1
-        return p.r
-
-    if b := p.bs[p.bsp]; b < utf8.RuneSelf {
-        p.bsp++
-        switch b {
-        case '\x00':
-            # Ignore null bytes while parsing, like bash.
-            p.col++
-            goto retry
-
-        case '\r':
-            if p.peek() == '\n' { # \r\n turns into \n
-                p.col++
-                goto retry
-
-        case '\\':
-            if p.r == '\\' {
-            else if p.peek() == '\n' {
-                p.bsp++
-                p.w, p.r = 1, escNewl
-                return escNewl
-            else if p1, p2 := p.peekTwo(); p1 == '\r' and p2 == '\n' { # \\\r\n turns into \\\n
-                p.col++
-                p.bsp += 2
-                p.w, p.r = 2, escNewl
-                return escNewl
-
-            # TODO: why is this necessary to ensure correct position info?
-            p.readEOF = False
-            if p.openBquotes > 0 and bquotes < p.openBquotes and
-                p.bsp < uint(len(p.bs)) and bquote_escaped(p.bs[p.bsp]) {
-                # We turn backquote command substitutions into $(),
-                # so we remove the extra backslashes needed by the backquotes.
-                bquotes++
-                p.col++
-                goto retry
-
-        if b == '`' {
-            p.lastBquoteEsc = bquotes
-        if p.litBs is not None {
-            p.litBs = append(p.litBs, b)
-        p.w, p.r = 1, rune(b)
-        return p.r
-
-decodeRune:
-    var w int
-    p.r, w = utf8.DecodeRune(p.bs[p.bsp:])
-    if p.r == utf8.RuneError and not utf8.FullRune(p.bs[p.bsp:]) {
-        # we need more bytes to read a full non-ascii rune
-        if p.fill() > 0 {
-            goto decodeRune
-
-    if p.litBs is not None {
-        p.litBs = append(p.litBs, p.bs[p.bsp:p.bsp+uint(w)]...)
-
-    p.bsp += uint(w)
-    if p.r == utf8.RuneError and w == 1 {
-        p.posErr(p.nextPos(), "invalid UTF-8 encoding")
-
-    p.w = w
-    return p.r
-
-# fill reads more bytes from the input src into readBuf.
-# Any bytes that had not yet been used at the end of the buffer
-# are slid into the beginning of the buffer.
-# The number of read bytes is returned, which is at least one
-# unless a read error occurred, such as [io.EOF].
-def parser_fill(p: 'parser.Parser', n: int) -> None:
-    if p.readEOF or p.r == utf8.RuneSelf {
-        # If the reader already gave us [io.EOF], do not try again.
-        # If we decided to stop for any reason, do not bother reading either.
-        return 0
-
-    p.offs += int64(p.bsp)
-    left := len(p.bs) - int(p.bsp)
-    copy(p.readBuf[:left], p.readBuf[p.bsp:])
-
-readAgain:
-    n, err := 0, p.readErr
-    if err == nil {
-        n, err = p.src.Read(p.readBuf[left:])
-        p.readErr = err
-        if err == io.EOF {
-            p.readEOF = True
-
-    if n == 0 {
-        if err == nil {
-            goto readAgain
-
-        # don't use p.errPass as we don't want to overwrite p.tok
-        if err != io.EOF {
-            p.err = err
-
-        if left > 0 {
-            p.bs = p.readBuf[:left]
-        else {
-            p.bs = nil
-
-    else {
-        p.bs = p.readBuf[:left+n]
-
-    p.bsp = 0
-    return n
-"""  # noqa
-
-
 def next_keep_spaces(p: 'parser.Parser') -> None:
     r = p.r
     if p.quote != p._HDOC_BODY and p.quote != p._HDOC_BODY_TABS:
@@ -232,24 +101,16 @@ def next_keep_spaces(p: 'parser.Parser') -> None:
             p.tok = dq_token(p, r)
         else:
             advance_lit_hdoc(p, r)
-    elif (
-        (cond_repl := (p.quote == p._PARAM_EXP_REPL))
-        or (cond_exp := (p.quote == p._PARAM_EXP_EXP))  # noqa: F841
-    ):
-        if cond_repl:
-            if r == '/':
-                p.rune()
-                p.tok = Token.SLASH
-            else:
-                # fallthrough to paramExpExp handling
-                cond_exp = True
-        if cond_exp:  # noqa: F821
-            if r == '}':
-                p.tok = param_token(p, r)
-            elif r in ('`', '"', '$', '\''):
-                p.tok = reg_token(p, r)
-            else:
-                advance_lit_other(p, r)
+    elif p.quote == p._PARAM_EXP_REPL and r == '/':
+        p.rune()
+        p.tok = Token.SLASH
+    elif p.quote in (p._PARAM_EXP_REPL, p._PARAM_EXP_EXP):
+        if r == '}':
+            p.tok = param_token(p, r)
+        elif r in ('`', '"', '$', '\''):
+            p.tok = reg_token(p, r)
+        else:
+            advance_lit_other(p, r)
 
     if p.err is not None:
         p.tok = Token.EOF_
@@ -328,7 +189,7 @@ def next_(p: 'parser.Parser') -> None:
                         break
                 r = p.rune()
             if p.keep_comments:
-                p.cur_coms.append(p._comment(
+                p.acc_coms.append(p._comment(
                     hash_pos=p.pos,
                     text=end_lit(p),
                 ))

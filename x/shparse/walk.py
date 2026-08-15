@@ -17,8 +17,11 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import enum
 import functools
 import typing as ta
+
+from omcore import dataclasses as dc
 
 from .nodes import ArithmCmd
 from .nodes import ArithmExp
@@ -50,6 +53,7 @@ from .nodes import Node
 from .nodes import ParamExp
 from .nodes import ParenArithm
 from .nodes import ParenTest
+from .nodes import Pos
 from .nodes import ProcSubst
 from .nodes import Redirect
 from .nodes import SglQuoted
@@ -81,7 +85,9 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
     if isinstance(node, File):
         walk_list(node.stmts, f)
         walk_comments(node.last, f)
-    elif isinstance(node, (Comment, Stmt)):
+    elif isinstance(node, Comment):
+        pass
+    elif isinstance(node, Stmt):
         for c in node.comments:
             if not node.end().after(c.pos()):
                 defers.append(functools.partial(walk, c, f))
@@ -120,7 +126,7 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         walk_list(node.do, f)
         walk_comments(node.do_last, f)
     elif isinstance(node, ForClause):
-        walk(node.loop, f)
+        walk_nilable(node.loop, f)
         walk_list(node.do, f)
         walk_comments(node.do_last, f)
     elif isinstance(node, WordIter):
@@ -136,10 +142,12 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
     elif isinstance(node, FuncDecl):
         walk_nilable(node.name, f)
         walk_list(node.names, f)
-        walk(node.body, f)
+        walk_nilable(node.body, f)
     elif isinstance(node, Word):
         walk_list(node.parts, f)
-    elif isinstance(node, (Lit, SglQuoted, DblQuoted)):
+    elif isinstance(node, (Lit, SglQuoted)):
+        pass
+    elif isinstance(node, DblQuoted):
         walk_list(node.parts, f)
     elif isinstance(node, CmdSubst):
         walk_list(node.stmts, f)
@@ -158,29 +166,28 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         if node.exp is not None:
             walk_nilable(node.exp.word, f)
     elif isinstance(node, ArithmExp):
-        walk(node.x, f)
+        walk_nilable(node.x, f)
     elif isinstance(node, ArithmCmd):
-        walk(node.x, f)
+        walk_nilable(node.x, f)
     elif isinstance(node, BinaryArithm):
-        walk(node.x, f)
-        walk(node.y, f)
+        walk_nilable(node.x, f)
+        walk_nilable(node.y, f)
     elif isinstance(node, BinaryTest):
-        walk(node.x, f)
-        walk(node.y, f)
+        walk_nilable(node.x, f)
+        walk_nilable(node.y, f)
     elif isinstance(node, UnaryArithm):
-        walk(node.x, f)
+        walk_nilable(node.x, f)
     elif isinstance(node, UnaryTest):
-        walk(node.x, f)
+        walk_nilable(node.x, f)
     elif isinstance(node, ParenArithm):
-        walk(node.x, f)
+        walk_nilable(node.x, f)
     elif isinstance(node, FlagsArithm):
-        walk(node.flags, f)
-        if node.x is not None:
-            walk(node.x, f)
+        walk_nilable(node.flags, f)
+        walk_nilable(node.x, f)
     elif isinstance(node, ParenTest):
-        walk(node.x, f)
+        walk_nilable(node.x, f)
     elif isinstance(node, CaseClause):
-        walk(node.word, f)
+        walk_nilable(node.word, f)
         walk_list(node.items, f)
         walk_comments(node.last, f)
     elif isinstance(node, CaseItem):
@@ -193,7 +200,7 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         walk_list(node.stmts, f)
         walk_comments(node.last, f)
     elif isinstance(node, TestClause):
-        walk(node.x, f)
+        walk_nilable(node.x, f)
     elif isinstance(node, DeclClause):
         walk_list(node.args, f)
     elif isinstance(node, ArrayExpr):
@@ -208,7 +215,7 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         walk_nilable(node.index, f)
         walk_nilable(node.value, f)
     elif isinstance(node, ExtGlob):
-        walk(node.pattern, f)
+        walk_nilable(node.pattern, f)
     elif isinstance(node, ProcSubst):
         walk_list(node.stmts, f)
         walk_comments(node.last, f)
@@ -216,12 +223,12 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         walk_nilable(node.stmt, f)
     elif isinstance(node, CoprocClause):
         walk_nilable(node.name, f)
-        walk(node.stmt, f)
+        walk_nilable(node.stmt, f)
     elif isinstance(node, LetClause):
         walk_list(node.exprs, f)
     elif isinstance(node, TestDecl):
-        walk(node.description, f)
-        walk(node.body, f)
+        walk_nilable(node.description, f)
+        walk_nilable(node.body, f)
     else:
         raise TypeError(node)
 
@@ -231,7 +238,7 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         defer()
 
 
-def walk_nilable(node: Node | None, f: ta.Callable[[Node], bool]) -> None:
+def walk_nilable(node: Node | None, f: ta.Callable[[Node | None], bool]) -> None:
     if node is not None:
         walk(node, f)
 
@@ -239,89 +246,72 @@ def walk_nilable(node: Node | None, f: ta.Callable[[Node], bool]) -> None:
 NodeT = ta.TypeVar('NodeT', bound=Node)
 
 
-def walk_list(lst: ta.Sequence[NodeT], f: ta.Callable[[Node], bool]) -> None:
+def walk_list(lst: ta.Sequence[NodeT], f: ta.Callable[[Node | None], bool]) -> None:
     for node in lst:
         walk(node, f)
 
 
-def walk_comments(lst: ta.Sequence[Comment], f: ta.Callable[[Node], bool]) -> None:
+def walk_comments(lst: ta.Sequence[Comment], f: ta.Callable[[Node | None], bool]) -> None:
     # Note that []Comment does not satisfy the generic constraint []Node.
     for n in lst:
         walk(n, f)
 
 
-r"""
 # DebugPrint prints the provided syntax tree, spanning multiple lines and with
 # indentation. Can be useful to investigate the content of a syntax tree.
+def debug_print(out: ta.TextIO, node: Node) -> None:
+    """Write a multiline representation of a syntax tree."""
 
-class DebugPrinter:
-    out   io.Writer
-    level int
-    err   error
+    printer = _DebugPrinter(out)
+    printer.print(node)
+    out.write('\n')
 
-    def __init__(self, w io.Writer, node Node) error {
-        p := debugPrinter{out: w}
-        p.print(reflect.ValueOf(node))
-        p.printf("\n")
-        return p.err
 
-    def printf(self, format string, args ...any) -> None:
-        _, err := fmt.Fprintf(p.out, format, args...)
-        if err != nil && p.err == nil {
-            p.err = err
+class _DebugPrinter:
+    def __init__(self, out: ta.TextIO) -> None:
+        super().__init__()
 
-    def newline(self) -> None:
-        p.printf("\n")
-        for range p.level {
-            p.printf(".  ")
+        self._out = out
+        self._level = 0
 
-    def print(self, x reflect.Value) -> None:
-        switch x.Kind() {
-        case reflect.Interface:
-            if x.IsNil() {
-                p.printf("nil")
-                return
-            p.print(x.Elem())
-        case reflect.Pointer:
-            if x.IsNil() {
-                p.printf("nil")
-                return
-            p.printf("*")
-            p.print(x.Elem())
-        case reflect.Slice:
-            p.printf("%s (len = %d) {", x.Type(), x.Len())
-            if x.Len() > 0 {
-                p.level++
-                p.newline()
-                for i := range x.Len() {
-                    p.printf("%d: ", i)
-                    p.print(x.Index(i))
-                    if i == x.Len()-1 {
-                        p.level--
-                    p.newline()
-            p.printf("}")
+    def _newline(self) -> None:
+        self._out.write('\n')
+        self._out.write('.  ' * self._level)
 
-        case reflect.Struct:
-            if v, ok := x.Interface().(Pos); ok {
-                if v.IsRecovered() {
-                    p.printf("<recovered>")
-                    return
-                p.printf("%v:%v", v.Line(), v.Col())
-                return
-            t := x.Type()
-            p.printf("%s {", t)
-            p.level++
-            p.newline()
-            for i := range t.NumField() {
-                p.printf("%s: ", t.Field(i).Name)
-                p.print(x.Field(i))
-                if i == x.NumField()-1 {
-                    p.level--
-                p.newline()
-            p.printf("}")
-        default:
-            if s, ok := x.Interface().(fmt.Stringer); ok && !x.IsZero() {
-                p.printf("%#v (%s)", x.Interface(), s)
-            else {
-                p.printf("%#v", x.Interface())
-"""  # noqa
+    def print(self, value: ta.Any) -> None:
+        if value is None:
+            self._out.write('None')
+        elif isinstance(value, Pos):
+            if value.is_recovered():
+                self._out.write('<recovered>')
+            else:
+                self._out.write(value.string())
+        elif isinstance(value, list):
+            self._out.write(f'list (len = {len(value)}) {{')
+            if value:
+                self._level += 1
+                self._newline()
+                for index, item in enumerate(value):
+                    self._out.write(f'{index}: ')
+                    self.print(item)
+                    if index == len(value) - 1:
+                        self._level -= 1
+                    self._newline()
+            self._out.write('}')
+        elif dc.is_dataclass(value):
+            self._out.write(f'{type(value).__name__} {{')
+            fields = dc.fields(value)
+            if fields:
+                self._level += 1
+                self._newline()
+                for index, field in enumerate(fields):
+                    self._out.write(f'{field.name}: ')
+                    self.print(getattr(value, field.name))
+                    if index == len(fields) - 1:
+                        self._level -= 1
+                    self._newline()
+            self._out.write('}')
+        elif isinstance(value, enum.Enum):
+            self._out.write(repr(value.value))
+        else:
+            self._out.write(repr(value))

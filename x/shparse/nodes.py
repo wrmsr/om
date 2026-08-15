@@ -57,10 +57,10 @@ class Node(lang.Abstract):
 # File represents a shell source file.
 @dc.dataclass()
 class File(Node):
-    name: str
+    name: str = ''
 
-    stmts: list['Stmt']
-    last: list['Comment']
+    stmts: list['Stmt'] = dc.field(default_factory=list)
+    last: list['Comment'] = dc.field(default_factory=list)
 
     def pos(self) -> 'Pos':
         return stmts_pos(self.stmts, self.last)
@@ -171,8 +171,8 @@ class Pos:
 # We reserve a few of the highest values to represent types of invalid positions.
 # We leave some space before the real uint32 maximum so that we can easily detect
 # when arithmetic on invalid positions is done by mistake.
-OFFSET_RECOVERED = (1<<32 - 1) - 10
-OFFSET_MAX       = (1<<32 - 1) - 11
+OFFSET_RECOVERED = (1 << 32) - 1 - 10
+OFFSET_MAX       = (1 << 32) - 1 - 11
 
 # We used to split line and column numbers evenly in 16 bits, but line numbers
 # are significantly more important in practice. Use more bits for them.
@@ -215,9 +215,10 @@ def pos_add_col(p: Pos, n: int) -> Pos:
     if not p.is_valid():
         return p
     # TODO: guard against overflows
-    p.line_col += n
-    p.offs += n
-    return p
+    return Pos(
+        offs=p.offs + n,
+        line_col=p.line_col + n,
+    )
 
 
 def pos_max(p1: Pos, p2: Pos) -> Pos:
@@ -229,14 +230,14 @@ def pos_max(p1: Pos, p2: Pos) -> Pos:
 # Comment represents a single comment on a single line.
 @dc.dataclass()
 class Comment(Node):
-    hash: Pos
-    text: str
+    hash: Pos = dc.field(default_factory=Pos)
+    text: str = ''
 
     def pos(self) -> Pos:
         return self.hash
 
     def end(self) -> Pos:
-        return pos_add_col(self.hash, 1 + len(self.text))
+        return pos_add_col(self.hash, 1 + len(self.text.encode()))
 
 
 # Stmt represents a statement, also known as a "complete command". It is
@@ -244,17 +245,17 @@ class Comment(Node):
 # it.
 @dc.dataclass()
 class Stmt(Node):
-    comments: list['Comment']
-    cmd: ta.Optional['Command']
+    comments: list['Comment'] = dc.field(default_factory=list)
+    cmd: ta.Optional['Command'] = None
 
-    position: Pos
-    semicolon: Pos  # position of ';', '&', or '|&', if any
+    position: Pos = dc.field(default_factory=Pos)
+    semicolon: Pos = dc.field(default_factory=Pos)  # position of ';', '&', or '|&', if any
 
-    negated: bool     # ! stmt
-    background: bool  # stmt &
-    coprocess: bool   # mksh's |&
+    negated: bool = False     # ! stmt
+    background: bool = False  # stmt &
+    coprocess: bool = False   # mksh's |&
 
-    redirs: list['Redirect']  # stmt >a <b
+    redirs: list['Redirect'] = dc.field(default_factory=list)  # stmt >a <b
 
     def pos(self) -> Pos:
         return self.position
@@ -312,17 +313,17 @@ class Command(Node, lang.Abstract):
 # includes parameter expansions, which may expand to assignments or options.
 @dc.dataclass()
 class Assign(Node):
-    append: bool  # +=
-    naked: bool   # without '='
+    append: bool = False  # +=
+    naked: bool = False   # without '='
 
-    name: 'Lit'  # must be a valid name
+    name: ta.Optional['Lit'] = None  # must be a valid name
 
     index: ta.Optional['ArithmExpr'] = None  # [i], ["k"]
     value: ta.Optional['Word']       = None  # =val
     array: ta.Optional['ArrayExpr']  = None  # =(arr)
 
     def pos(self) -> Pos:
-        if not self.name is None:
+        if self.name is None:
             return self.value.pos()
         return self.name.pos()
 
@@ -341,8 +342,8 @@ class Assign(Node):
 # Redirect represents an input/output redirection.
 @dc.dataclass()
 class Redirect(Node):
-    op_pos: Pos
-    op: RedirOperator
+    op_pos: Pos = dc.field(default_factory=Pos)
+    op: RedirOperator | None = None
     n: ta.Optional['Lit'] = None      # fd>, or {varname}> in Bash
     word: ta.Optional['Word'] = None  # >word
     hdoc: ta.Optional['Word'] = None  # here-document body
@@ -365,8 +366,8 @@ class Redirect(Node):
 # variables that cannot be arrays and which only apply to the call.
 @dc.dataclass()
 class CallExpr(Command):
-    assigns: list[Assign]  # a=x b=y args
-    args: list['Word']
+    assigns: list[Assign] = dc.field(default_factory=list)  # a=x b=y args
+    args: list['Word'] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         if self.assigns:
@@ -383,11 +384,11 @@ class CallExpr(Command):
 # shell environment.
 @dc.dataclass()
 class Subshell(Command):
-    lparen: Pos
-    rparen: Pos
+    lparen: Pos = dc.field(default_factory=Pos)
+    rparen: Pos = dc.field(default_factory=Pos)
 
-    stmts: list['Stmt']
-    last: list['Comment']
+    stmts: list['Stmt'] = dc.field(default_factory=list)
+    last: list['Comment'] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.lparen
@@ -400,11 +401,11 @@ class Subshell(Command):
 # scope. It is essentially a list of statements within curly braces.
 @dc.dataclass()
 class Block(Command):
-    lbrace: Pos
-    rbrace: Pos
+    lbrace: Pos = dc.field(default_factory=Pos)
+    rbrace: Pos = dc.field(default_factory=Pos)
 
-    stmts: list['Stmt']
-    last: list['Comment']
+    stmts: list['Stmt'] = dc.field(default_factory=list)
+    last: list['Comment'] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.lbrace
@@ -416,18 +417,18 @@ class Block(Command):
 # IfClause represents an if statement.
 @dc.dataclass()
 class IfClause(Command):
-    position: Pos  # position of the starting "if", "elif", or "else" token
-    then_pos: Pos  # position of "then", empty if this is an "else"
-    fi_pos: Pos    # position of "fi", shared with .Else if non-nil
+    position: Pos = dc.field(default_factory=Pos)  # position of the starting "if", "elif", or "else" token
+    then_pos: Pos = dc.field(default_factory=Pos)  # position of "then", empty if this is an "else"
+    fi_pos: Pos = dc.field(default_factory=Pos)    # position of "fi", shared with .Else if non-nil
 
-    cond: list['Stmt']
-    cond_last: list['Comment']
-    then: list['Stmt']
-    then_last: list['Comment']
+    cond: list['Stmt'] = dc.field(default_factory=list)
+    cond_last: list['Comment'] = dc.field(default_factory=list)
+    then: list['Stmt'] = dc.field(default_factory=list)
+    then_last: list['Comment'] = dc.field(default_factory=list)
 
-    else_: ta.Optional['IfClause']  # if non-nil, an "elif" or an "else"
+    else_: ta.Optional['IfClause'] = None  # if non-nil, an "elif" or an "else"
 
-    last: list['Comment']  # comments on the first "elif", "else", or "fi"
+    last: list['Comment'] = dc.field(default_factory=list)  # comments on the first "elif", "else", or "fi"
 
     def pos(self) -> Pos:
         return self.position
@@ -439,15 +440,15 @@ class IfClause(Command):
 # WhileClause represents a while or an until clause.
 @dc.dataclass()
 class WhileClause(Command):
-    while_pos: Pos
-    do_pos: Pos
-    done_pos: Pos
-    until: bool
+    while_pos: Pos = dc.field(default_factory=Pos)
+    do_pos: Pos = dc.field(default_factory=Pos)
+    done_pos: Pos = dc.field(default_factory=Pos)
+    until: bool = False
 
-    cond: list['Stmt']
-    cond_last: list['Comment']
-    do: list['Stmt']
-    do_last: list['Comment']
+    cond: list['Stmt'] = dc.field(default_factory=list)
+    cond_last: list['Comment'] = dc.field(default_factory=list)
+    do: list['Stmt'] = dc.field(default_factory=list)
+    do_last: list['Comment'] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.while_pos
@@ -460,15 +461,15 @@ class WhileClause(Command):
 # Bash.
 @dc.dataclass()
 class ForClause(Command):
-    for_pos: Pos
-    do_pos: Pos
-    done_pos: Pos
-    select: bool
-    braces: bool  # deprecated form with { } instead of do/done
-    loop: 'Loop'
+    for_pos: Pos = dc.field(default_factory=Pos)
+    do_pos: Pos = dc.field(default_factory=Pos)
+    done_pos: Pos = dc.field(default_factory=Pos)
+    select: bool = False
+    braces: bool = False  # deprecated form with { } instead of do/done
+    loop: ta.Optional['Loop'] = None
 
-    do: list['Stmt']
-    do_last: list['Comment']
+    do: list['Stmt'] = dc.field(default_factory=list)
+    do_last: list['Comment'] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.for_pos
@@ -488,9 +489,9 @@ class Loop(Node, lang.Abstract):
 # the iteration is over the shell's positional parameters.
 @dc.dataclass()
 class WordIter(Loop):
-    name: 'Lit'
-    in_pos: Pos  # position of "in"
-    items: list['Word']
+    name: ta.Optional['Lit'] = None
+    in_pos: Pos = dc.field(default_factory=Pos)  # position of "in"
+    items: list['Word'] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.name.pos()
@@ -507,8 +508,8 @@ class WordIter(Loop):
 # This node will only appear with [LANG_BASH].
 @dc.dataclass()
 class CStyleLoop(Loop):
-    lparen: Pos
-    rparen: Pos
+    lparen: Pos = dc.field(default_factory=Pos)
+    rparen: Pos = dc.field(default_factory=Pos)
 
     # Init, Cond, Post can each be nil, if the for loop construct omits it.
     init: ta.Optional['ArithmExpr'] = None
@@ -525,10 +526,10 @@ class CStyleLoop(Loop):
 # BinaryCmd represents a binary expression between two statements.
 @dc.dataclass()
 class BinaryCmd(Command):
-    op_pos: Pos
-    op: BinCmdOperator
-    x: 'Stmt'
-    y: 'Stmt'
+    op_pos: Pos = dc.field(default_factory=Pos)
+    op: BinCmdOperator | None = None
+    x: ta.Optional['Stmt'] = None
+    y: ta.Optional['Stmt'] = None
 
     def pos(self) -> Pos:
         return self.x.pos()
@@ -540,17 +541,17 @@ class BinaryCmd(Command):
 # FuncDecl represents the declaration of a function.
 @dc.dataclass()
 class FuncDecl(Command):
-    position: Pos
-    rsrv_word: bool  # non-posix "function f" style
-    parens: bool     # with () parentheses, can only be false when RsrvWord==true
+    position: Pos = dc.field(default_factory=Pos)
+    rsrv_word: bool = False  # non-posix "function f" style
+    parens: bool = False     # with () parentheses, can only be false when RsrvWord==true
 
     # Only one of these is set at a time.
     # Neither is set when declaring an anonymous func with [LANG_ZSH].
     # TODO(v4): join these, even if it's mildly annoying to non-Zsh users.
-    name: 'Lit'
-    names: list['Lit']  # When declaring many func names with [LANG_ZSH].
+    name: ta.Optional['Lit'] = None
+    names: list['Lit'] = dc.field(default_factory=list)  # When declaring many func names with [LANG_ZSH].
 
-    body: Stmt
+    body: Stmt | None = None
 
     def pos(self) -> Pos:
         return self.position
@@ -641,7 +642,7 @@ class WordPart(Node, lang.Abstract):
 class Lit(WordPart):
     value_pos: Pos = dc.field(default_factory=Pos)
     value_end: Pos = dc.field(default_factory=Pos)
-    value: str
+    value: str = ''
 
     def pos(self) -> Pos:
         return self.value_pos
@@ -653,10 +654,10 @@ class Lit(WordPart):
 # SglQuoted represents a string within single quotes.
 @dc.dataclass()
 class SglQuoted(WordPart):
-    left: Pos
-    right: Pos
-    dollar: bool  # $''
-    value: str
+    left: Pos = dc.field(default_factory=Pos)
+    right: Pos = dc.field(default_factory=Pos)
+    dollar: bool = False  # $''
+    value: str = ''
 
     def pos(self) -> Pos:
         return self.left
@@ -668,10 +669,10 @@ class SglQuoted(WordPart):
 # DblQuoted represents a list of nodes within double quotes.
 @dc.dataclass()
 class DblQuoted(WordPart):
-    left: Pos
-    right: Pos
-    dollar: bool  # $""
-    parts: list[WordPart]
+    left: Pos = dc.field(default_factory=Pos)
+    right: Pos = dc.field(default_factory=Pos)
+    dollar: bool = False  # $""
+    parts: list[WordPart] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.left
@@ -683,15 +684,15 @@ class DblQuoted(WordPart):
 # CmdSubst represents a command substitution.
 @dc.dataclass()
 class CmdSubst(WordPart):
-    left: Pos
-    right: Pos
+    left: Pos = dc.field(default_factory=Pos)
+    right: Pos = dc.field(default_factory=Pos)
 
-    stmts: list['Stmt']
-    last: list['Comment']
+    stmts: list['Stmt'] = dc.field(default_factory=list)
+    last: list['Comment'] = dc.field(default_factory=list)
 
-    backquotes: bool  # deprecated `foo`
-    temp_file: bool   # mksh's ${ foo;}
-    reply_var: bool   # mksh's ${|foo;}
+    backquotes: bool = False  # deprecated `foo`
+    temp_file: bool = False   # mksh's ${ foo;}
+    reply_var: bool = False   # mksh's ${|foo;}
 
     def pos(self) -> Pos:
         return self.left
@@ -703,40 +704,40 @@ class CmdSubst(WordPart):
 # ParamExp represents a parameter expansion.
 @dc.dataclass()
 class ParamExp(WordPart):
-    dollar: Pos
-    rbrace: Pos
+    dollar: Pos = dc.field(default_factory=Pos)
+    rbrace: Pos = dc.field(default_factory=Pos)
 
-    short: bool  # $a instead of ${a}
+    short: bool = False  # $a instead of ${a}
 
-    flags: Lit | None  # ${(flags)a} with [LANG_ZSH]
+    flags: Lit | None = None  # ${(flags)a} with [LANG_ZSH]
 
     # Only one of these is set at a time.
     # TODO(v4): perhaps use an Operator token here,
     # given how we've grown the number of booleans
-    excl: bool    # ${!a}
-    length: bool  # ${#a}
-    width: bool   # mksh's ${%a}
-    plus: bool    # ${+a} with [LANG_ZSH]
+    excl: bool = False    # ${!a}
+    length: bool = False  # ${#a}
+    width: bool = False   # mksh's ${%a}
+    plus: bool = False    # ${+a} with [LANG_ZSH]
 
     # Only one of these is set at a time.
     # TODO(v4): consider joining Param and NestedParam into a single field,
     # even if that would be mildly annoying to non-Zsh users.
-    param: Lit
+    param: Lit | None = None
     # A nested parameter expression in the form of [*ParamExp] or [*CmdSubst],
     # or either of those in a [*DblQuoted]. Only possible with [LANG_ZSH].
-    nested_param: WordPart | None
+    nested_param: WordPart | None = None
 
-    index: ArithmExpr | None  # ${a[i]}, ${a["k"]}, or a ${a[i,j]} slice with [LANG_ZSH]
+    index: ArithmExpr | None = None  # ${a[i]}, ${a["k"]}, or a ${a[i,j]} slice with [LANG_ZSH]
 
     # Only one of these is set at a time.
     # TODO(v4): consider joining these in a single "expansion" field/type,
     # because it should be impossible for multiple to be set at once,
     # and a flat structure like this takes up more space.
-    modifiers: list[Lit]            # ${a:h2} with [LANG_ZSH]
-    slice: ta.Optional['Slice']     # ${a:x:y}
-    repl: ta.Optional['Replace']    # ${a/x/y}
-    names: ParNamesOperator | None  # ${!prefix*} or ${!prefix@}
-    exp: ta.Optional['Expansion']   # ${a:-b}, ${a#b}, etc
+    modifiers: list[Lit] = dc.field(default_factory=list)  # ${a:h2} with [LANG_ZSH]
+    slice: ta.Optional['Slice'] = None                      # ${a:x:y}
+    repl: ta.Optional['Replace'] = None                    # ${a/x/y}
+    names: ParNamesOperator | None = None                  # ${!prefix*} or ${!prefix@}
+    exp: ta.Optional['Expansion'] = None                   # ${a:-b}, ${a#b}, etc
 
     # simple returns true if the parameter expansion is of the form $name or ${name},
     # only expanding a name without any further logic.
@@ -781,35 +782,35 @@ class ParamExp(WordPart):
 # [LANG_ZSH] uses a [BinaryArithm] with [Comma] in [ParamExp.Index] instead.
 @dc.dataclass()
 class Slice:
-    offset: ArithmExpr
-    length: ArithmExpr
+    offset: ArithmExpr | None = None
+    length: ArithmExpr | None = None
 
 
 # Replace represents a search and replace expression inside a [ParamExp].
 @dc.dataclass()
 class Replace:
-    all: bool
-    orig: Word
-    with_: Word
+    all: bool = False
+    orig: Word | None = None
+    with_: Word | None = None
 
 
 # Expansion represents string manipulation in a [ParamExp] other than those
 # covered by [Replace].
 @dc.dataclass()
 class Expansion:
-    op: ParExpOperator
-    word: Word
+    op: ParExpOperator | None = None
+    word: Word | None = None
 
 
 # ArithmExp represents an arithmetic expansion.
 @dc.dataclass()
 class ArithmExp(WordPart):
-    left: Pos
-    right: Pos
-    bracket: bool   # deprecated $[expr] form
-    unsigned: bool  # mksh's $((# expr))
+    left: Pos = dc.field(default_factory=Pos)
+    right: Pos = dc.field(default_factory=Pos)
+    bracket: bool = False   # deprecated $[expr] form
+    unsigned: bool = False  # mksh's $((# expr))
 
-    x: ArithmExpr
+    x: ArithmExpr | None = None
 
     def pos(self) -> Pos:
         return self.left
@@ -825,11 +826,11 @@ class ArithmExp(WordPart):
 # This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN].
 @dc.dataclass()
 class ArithmCmd(Command):
-    left: Pos
-    right: Pos
-    unsigned: bool  # mksh's ((# expr))
+    left: Pos = dc.field(default_factory=Pos)
+    right: Pos = dc.field(default_factory=Pos)
+    unsigned: bool = False  # mksh's ((# expr))
 
-    x: ArithmExpr
+    x: ArithmExpr | None = None
 
     def pos(self) -> Pos:
         return self.left
@@ -848,10 +849,10 @@ class ArithmCmd(Command):
 # [TernColon] does not appear in any other scenario.
 @dc.dataclass()
 class BinaryArithm(ArithmExpr):
-    op_pos: Pos
-    op: BinAritOperator
-    x: ArithmExpr
-    y: ArithmExpr
+    op_pos: Pos = dc.field(default_factory=Pos)
+    op: BinAritOperator | None = None
+    x: ArithmExpr | None = None
+    y: ArithmExpr | None = None
 
     def pos(self) -> Pos:
         return self.x.pos()
@@ -867,10 +868,10 @@ class BinaryArithm(ArithmExpr):
 # valid name.
 @dc.dataclass()
 class UnaryArithm(ArithmExpr):
-    op_pos: Pos
-    op: UnAritOperator
-    post: bool
-    x: ArithmExpr
+    op_pos: Pos = dc.field(default_factory=Pos)
+    op: UnAritOperator | None = None
+    post: bool = False
+    x: ArithmExpr | None = None
 
     def pos(self) -> Pos:
         if self.post:
@@ -886,10 +887,10 @@ class UnaryArithm(ArithmExpr):
 # ParenArithm represents an arithmetic expression within parentheses.
 @dc.dataclass()
 class ParenArithm(ArithmExpr):
-    lparen: Pos
-    rparen: Pos
+    lparen: Pos = dc.field(default_factory=Pos)
+    rparen: Pos = dc.field(default_factory=Pos)
 
-    x: ArithmExpr
+    x: ArithmExpr | None = None
 
     def pos(self) -> Pos:
         return self.lparen
@@ -904,8 +905,8 @@ class ParenArithm(ArithmExpr):
 # This node will only appear with [LANG_ZSH].
 @dc.dataclass()
 class FlagsArithm(ArithmExpr):
-    flags: Lit
-    x: ArithmExpr
+    flags: Lit | None = None
+    x: ArithmExpr | None = None
 
     def pos(self) -> Pos:
         return pos_add_col(self.flags.pos(), -1)
@@ -919,14 +920,14 @@ class FlagsArithm(ArithmExpr):
 # CaseClause represents a case (switch) clause.
 @dc.dataclass()
 class CaseClause(Command):
-    case: Pos
-    in_: Pos
-    esac: Pos
-    braces: bool  # deprecated mksh form with braces instead of in/esac
+    case: Pos = dc.field(default_factory=Pos)
+    in_: Pos = dc.field(default_factory=Pos)
+    esac: Pos = dc.field(default_factory=Pos)
+    braces: bool = False  # deprecated mksh form with braces instead of in/esac
 
-    word: Word
-    items: list['CaseItem']
-    last: list[Comment]
+    word: Word | None = None
+    items: list['CaseItem'] = dc.field(default_factory=list)
+    last: list[Comment] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.case
@@ -938,13 +939,13 @@ class CaseClause(Command):
 # CaseItem represents a pattern list (case) within a [CaseClause].
 @dc.dataclass()
 class CaseItem(Node):
-    op: CaseOperator
-    op_pos: Pos  # unset if it was finished by "esac"
-    comments: list[Comment]
-    patterns: list[Word]
+    op: CaseOperator | None = None
+    op_pos: Pos = dc.field(default_factory=Pos)  # unset if it was finished by "esac"
+    comments: list[Comment] = dc.field(default_factory=list)
+    patterns: list[Word] = dc.field(default_factory=list)
 
-    stmts: list[Stmt]
-    last: list[Comment]
+    stmts: list[Stmt] = dc.field(default_factory=list)
+    last: list[Comment] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.patterns[0].pos()
@@ -960,10 +961,10 @@ class CaseItem(Node):
 # This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN].
 @dc.dataclass()
 class TestClause(Command):
-    left: Pos
-    right: Pos
+    left: Pos = dc.field(default_factory=Pos)
+    right: Pos = dc.field(default_factory=Pos)
 
-    x: TestExpr
+    x: TestExpr | None = None
 
     def pos(self) -> Pos:
         return self.left
@@ -976,10 +977,10 @@ class TestClause(Command):
 # BinaryTest represents a binary test expression.
 @dc.dataclass()
 class BinaryTest(TestExpr):
-    op_pos: Pos
-    op: BinTestOperator
-    x: TestExpr
-    y: TestExpr
+    op_pos: Pos = dc.field(default_factory=Pos)
+    op: BinTestOperator | None = None
+    x: TestExpr | None = None
+    y: TestExpr | None = None
 
     def pos(self) -> Pos:
         return self.x.pos()
@@ -992,9 +993,9 @@ class BinaryTest(TestExpr):
 # before or after the sub-expression.
 @dc.dataclass()
 class UnaryTest(TestExpr):
-    op_pos: Pos
-    op: UnTestOperator
-    x: TestExpr
+    op_pos: Pos = dc.field(default_factory=Pos)
+    op: UnTestOperator | None = None
+    x: TestExpr | None = None
 
     def pos(self) -> Pos:
         return self.op_pos
@@ -1006,10 +1007,10 @@ class UnaryTest(TestExpr):
 # ParenTest represents a test expression within parentheses.
 @dc.dataclass()
 class ParenTest(TestExpr):
-    lparen: Pos
-    rparen: Pos
+    lparen: Pos = dc.field(default_factory=Pos)
+    rparen: Pos = dc.field(default_factory=Pos)
 
-    x: TestExpr
+    x: TestExpr | None = None
 
     def pos(self) -> Pos:
         return self.lparen
@@ -1028,8 +1029,8 @@ class ParenTest(TestExpr):
 class DeclClause(Command):
     # Variant is one of "declare", "local", "export", "readonly",
     # "typeset", or "nameref".
-    variant: Lit
-    args: list[Assign]
+    variant: Lit | None = None
+    args: list[Assign] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.variant.pos()
@@ -1045,11 +1046,11 @@ class DeclClause(Command):
 # This node will only appear with [LANG_BASH].
 @dc.dataclass()
 class ArrayExpr(Node):
-    lparen: Pos
-    rparen: Pos
+    lparen: Pos = dc.field(default_factory=Pos)
+    rparen: Pos = dc.field(default_factory=Pos)
 
-    elems: list['ArrayElem']
-    last: list[Comment]
+    elems: list['ArrayElem'] = dc.field(default_factory=list)
+    last: list[Comment] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.lparen
@@ -1065,9 +1066,9 @@ class ArrayExpr(Node):
 # Finally, neither can be nil; for example, declare -A x=([index]=value)
 @dc.dataclass()
 class ArrayElem(Node):
-    index: ArithmExpr
-    value: Word
-    comments: list[Comment]
+    index: ArithmExpr | None = None
+    value: Word | None = None
+    comments: list[Comment] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         if self.index is not None:
@@ -1087,9 +1088,9 @@ class ArrayElem(Node):
 # This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN].
 @dc.dataclass()
 class ExtGlob(WordPart):
-    op_pos: Pos
-    op: GlobOperator
-    pattern: Lit
+    op_pos: Pos = dc.field(default_factory=Pos)
+    op: GlobOperator | None = None
+    pattern: Lit | None = None
 
     def pos(self) -> Pos:
         return self.op_pos
@@ -1103,12 +1104,12 @@ class ExtGlob(WordPart):
 # This node will only appear with [LANG_BASH].
 @dc.dataclass()
 class ProcSubst(WordPart):
-    op_pos: Pos
-    rparen: Pos
-    op: ProcOperator
+    op_pos: Pos = dc.field(default_factory=Pos)
+    rparen: Pos = dc.field(default_factory=Pos)
+    op: ProcOperator | None = None
 
-    stmts: list[Stmt]
-    last: list[Comment]
+    stmts: list[Stmt] = dc.field(default_factory=list)
+    last: list[Comment] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.op_pos
@@ -1123,9 +1124,9 @@ class ProcSubst(WordPart):
 # This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN].
 @dc.dataclass()
 class TimeClause(Command):
-    time: Pos
-    posix_format: bool
-    stmt: Stmt
+    time: Pos = dc.field(default_factory=Pos)
+    posix_format: bool = False
+    stmt: Stmt | None = None
 
     def pos(self) -> Pos:
         return self.time
@@ -1141,9 +1142,9 @@ class TimeClause(Command):
 # This node will only appear with [LANG_BASH].
 @dc.dataclass()
 class CoprocClause(Command):
-    coproc: Pos
-    name: Word
-    stmt: Stmt
+    coproc: Pos = dc.field(default_factory=Pos)
+    name: Word | None = None
+    stmt: Stmt | None = None
 
     def pos(self) -> Pos:
         return self.coproc
@@ -1157,8 +1158,8 @@ class CoprocClause(Command):
 # This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN].
 @dc.dataclass()
 class LetClause(Command):
-    let: Pos
-    exprs: list[ArithmExpr]
+    let: Pos = dc.field(default_factory=Pos)
+    exprs: list[ArithmExpr] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return self.let
@@ -1172,8 +1173,8 @@ class LetClause(Command):
 # This node will only appear as a result of [SplitBraces].
 @dc.dataclass()
 class BraceExp(WordPart):
-    sequence: bool  # {x..y[..incr]} instead of {x,y[,...]}
-    elems: list[Word]
+    sequence: bool = False  # {x..y[..incr]} instead of {x,y[,...]}
+    elems: list[Word] = dc.field(default_factory=list)
 
     def pos(self) -> Pos:
         return pos_add_col(self.elems[0].pos(), -1)
@@ -1185,9 +1186,9 @@ class BraceExp(WordPart):
 # TestDecl represents the declaration of a Bats test function.
 @dc.dataclass()
 class TestDecl(Command):
-    position: Pos
-    description: Word
-    body: Stmt
+    position: Pos = dc.field(default_factory=Pos)
+    description: Word | None = None
+    body: Stmt | None = None
 
     def pos(self) -> Pos:
         return self.position
