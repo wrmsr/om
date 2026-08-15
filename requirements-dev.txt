@@ -29,13 +29,13 @@ types-paramiko==5.0.0.20260724
 types-psutil==7.2.2.20260518
 types-pygments==2.20.0.20260728
 types-pymysql==1.2.0.20260807
-types-pyyaml==6.0.12.20260724
+types-pyyaml==6.0.12.20260815
 types-regex==2026.7.19.20260720
 types-setuptools==84.0.0.20260812
 types-ujson==5.10.0.20250822
 
 black==26.5.1
-mypy==2.3.0
+mypy==2.3.1
 
 astpretty==3.0.0
 
@@ -153,7 +153,7 @@ pillow==12.3.0
 
 # accelerate==1.13.0  # @om-venv !15 !15t
 
-bitsandbytes==0.50.0  # @om-venv !15 !15t
+bitsandbytes==0.50.1  # @om-venv !15 !15t
 
 regex==2026.7.19
 
