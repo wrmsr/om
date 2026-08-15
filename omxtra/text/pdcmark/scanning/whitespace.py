@@ -40,6 +40,4 @@ def scan_ch_repeat(s: str, i: int, c: str) -> int:
 def is_blank_line(line: str) -> bool:
     """True if `line` (which does not contain a trailing newline) is empty or all-whitespace."""
 
-    if not line:
-        return True
-    return all(is_ascii_whitespace_no_nl(c) for c in line)
+    return not line.strip(' \t\v\f')

@@ -519,7 +519,7 @@ def _scan_link_suffix(
                 dest_url=dest,
                 title=title,
                 suffix_joined=(close_pos + 1, end_pos),
-            joined_start=close_pos,
+                joined_start=close_pos,
             ), end_pos
         # Fall through - `(` without a valid link → shortcut form.
 
@@ -535,7 +535,7 @@ def _scan_link_suffix(
                 kind='collapsed',
                 raw_consumed=s[close_pos:end_pos],
                 suffix_joined=(close_pos + 1, end_pos),
-            joined_start=close_pos,
+                joined_start=close_pos,
             ), end_pos
 
         # `[label]` → reference.
@@ -550,7 +550,7 @@ def _scan_link_suffix(
                 raw_consumed=s[close_pos:end_pos],
                 label=label_scan.raw,
                 suffix_joined=(close_pos + 1, end_pos),
-            joined_start=close_pos,
+                joined_start=close_pos,
             ), end_pos
 
     # Default - shortcut form (try inner text against refdefs at resolution time).
@@ -559,7 +559,7 @@ def _scan_link_suffix(
         consumed_end=close_src_end,
         kind='shortcut',
         raw_consumed=']',
-            joined_start=close_pos,
+        joined_start=close_pos,
     ), after
 
 

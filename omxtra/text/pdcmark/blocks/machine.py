@@ -114,6 +114,19 @@ def _strip_indent_columns(carry: int, text: str, columns: int) -> str:
     return ' ' * (carry - take) + _strip_columns(text, columns - take)
 
 
+def _fence_with_content(f: OpenFencedCode, content: tuple[BufferedLine, ...]) -> OpenFencedCode:
+    # Hot path (once per fenced-code line): direct construction instead of dc.replace.
+    return OpenFencedCode(
+        fence_char=f.fence_char,
+        fence_length=f.fence_length,
+        fence_indent=f.fence_indent,
+        info=f.info,
+        open_start=f.open_start,
+        open_next=f.open_next,
+        content=content,
+    )
+
+
 def _post_marker_indent(line: str, marker_end: int) -> int:
     """
     Compute the column count for content following a list marker, per CommonMark §5.2:
@@ -236,7 +249,7 @@ class BlockMachine:
                 line_start=bl.line_start + ls.position,
                 line_next=bl.line_next,
             )
-            self._open = dc.replace(self._open, lines=(*self._open.lines, lazy_bl))
+            self._open = OpenParagraph(lines=(*self._open.lines, lazy_bl))
             return
 
         # Lists themselves have no continuation marker; they continue iff a same-type item starts here or some inner
@@ -551,12 +564,12 @@ class BlockMachine:
                 # Continuation requires 4+ columns of indent relative to the container; we already consumed container
                 # markers so we measure on `content`, counting leftover tab-carry columns.
                 if ls.tab_carry + _leading_indent(content) >= 4 or is_blank_line(content):
-                    new_line = dc.replace(
-                        bl,
+                    new_line = BufferedLine(
                         text=_strip_indent_columns(ls.tab_carry, content, 4),
                         line_start=absolute_content_start,
+                        line_next=bl.line_next,
                     )
-                    self._open = dc.replace(open_, lines=(*open_.lines, new_line))
+                    self._open = OpenIndentedCode(lines=(*open_.lines, new_line))
                     return
                 events.extend(self._close_to_events(open_, bl.line_start))
                 self._open = None
@@ -617,8 +630,8 @@ class BlockMachine:
 
                 else:
                     # Direct paragraph continuation (we already consumed container markers).
-                    new_bl = dc.replace(bl, text=content, line_start=absolute_content_start)
-                    self._open = dc.replace(open_, lines=(*open_.lines, new_bl))
+                    new_bl = BufferedLine(text=content, line_start=absolute_content_start, line_next=bl.line_next)
+                    self._open = OpenParagraph(lines=(*open_.lines, new_bl))
                     return
 
         # No open leaf (or it just closed): try to open one.
@@ -637,10 +650,10 @@ class BlockMachine:
         # consumption count toward (and materialize into) the code indent.
         if carry + _leading_indent(content) >= 4:
             stripped = _strip_indent_columns(carry, content, 4)
-            self._open = OpenIndentedCode(lines=(dc.replace(
-                bl,
+            self._open = OpenIndentedCode(lines=(BufferedLine(
                 text=stripped,
                 line_start=absolute_content_start,
+                line_next=bl.line_next,
             ),))
             return
 
@@ -698,7 +711,7 @@ class BlockMachine:
             block = OpenHtmlBlock(
                 html_type=html_start.type,
                 open_start=absolute_content_start,
-                lines=(dc.replace(bl, text=content, line_start=absolute_content_start),),
+                lines=(BufferedLine(text=content, line_start=absolute_content_start, line_next=bl.line_next),),
             )
             if (
                 not html_block_closes_on_blank_line(block.html_type)
@@ -710,7 +723,7 @@ class BlockMachine:
             return
 
         # Default - open a paragraph.
-        new_bl = dc.replace(bl, text=content, line_start=absolute_content_start)
+        new_bl = BufferedLine(text=content, line_start=absolute_content_start, line_next=bl.line_next)
         self._open = OpenParagraph(lines=(new_bl,))
 
     # Leaf-block feed helpers.
@@ -734,7 +747,7 @@ class BlockMachine:
             line_start=absolute_content_start,
             line_next=bl.line_next,
         )
-        self._open = dc.replace(open_, content=(*open_.content, new_line))
+        self._open = _fence_with_content(open_, (*open_.content, new_line))
 
     def _emit_table_open(
             self,
@@ -842,7 +855,11 @@ class BlockMachine:
             line_start=absolute_content_start,
             line_next=bl.line_next,
         )
-        new_block = dc.replace(open_, lines=(*open_.lines, new_line))
+        new_block = OpenHtmlBlock(
+            html_type=open_.html_type,
+            open_start=open_.open_start,
+            lines=(*open_.lines, new_line),
+        )
         if (
             not html_block_closes_on_blank_line(open_.html_type)
             and html_block_close_on_line(open_.html_type, content)
@@ -895,7 +912,7 @@ class BlockMachine:
                 line_start=bl.line_start + ls.position,
                 line_next=bl.line_next,
             )
-            self._open = dc.replace(self._open, lines=(*self._open.lines, new_line))
+            self._open = OpenIndentedCode(lines=(*self._open.lines, new_line))
             return
 
         if isinstance(self._open, OpenFencedCode):
@@ -905,7 +922,7 @@ class BlockMachine:
                 line_start=bl.line_start + ls.position,
                 line_next=bl.line_next,
             )
-            self._open = dc.replace(self._open, content=(*self._open.content, new_line))
+            self._open = _fence_with_content(self._open, (*self._open.content, new_line))
             return
 
         if isinstance(self._open, OpenHtmlBlock):
@@ -918,7 +935,11 @@ class BlockMachine:
                 line_start=bl.line_start + ls.position,
                 line_next=bl.line_next,
             )
-            self._open = dc.replace(self._open, lines=(*self._open.lines, new_line))
+            self._open = OpenHtmlBlock(
+                html_type=self._open.html_type,
+                open_start=self._open.open_start,
+                lines=(*self._open.lines, new_line),
+            )
             return
 
         # No open leaf - blank lines just pass through.

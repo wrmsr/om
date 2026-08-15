@@ -110,6 +110,34 @@ GFM extensions (under `pdcmark.GFM`):
 | `gfm_tasklist.txt` | 2/2 |
 
 
+## Performance
+
+Measured against markdown-it-py (`commonmark` preset) on shaped corpora, best-of-3, CPython 3.14 (see the review
+session's bench script; ratios are pdcmark time / markdown-it time):
+
+| shape | size | pdcmark | markdown-it | ratio |
+|---|---|---|---|---|
+| plain paragraphs | 41 KB | 12.4 ms | 9.1 ms | 1.36x |
+| one long paragraph | 32 KB | 8.2 ms | 8.3 ms | 0.99x |
+| emphasis-heavy | 40 KB | 84 ms | 66 ms | 1.26x |
+| code-heavy | 16 KB | 16 ms | 6.5 ms | 2.4x |
+| list-heavy | 17 KB | 72 ms | 44 ms | 1.6x |
+| link-heavy | 21 KB | 35 ms | 34 ms | 1.02x |
+| quote-heavy | 14 KB | 39 ms | 23 ms | 1.7x |
+| LLM-chat-like | 35 KB | 51 ms | 34 ms | 1.5x |
+| CommonMark spec.txt | 204 KB | 147 ms | 85 ms | 1.7x |
+
+Streaming a 100-line paragraph in 40-char chunks: ~82 ms (the tentative tail re-inline-parses the open block each
+feed - O(block²) while a single block streams; irrelevant at chat scale).
+
+The profile is flat: no function exceeds ~10% of runtime. Time is interpreter fixed cost per line / node / event
+(the top entries are the per-line orchestrator itself, `isinstance` dispatch, and dataclass construction). The
+remaining gap to markdown-it is that its inline lexer leans on C-level regex sweeps where we make many small Python
+calls. Closing it would take compilation (mypyc / C++), and there is no well-isolated kernel to compile: the cost is
+smeared across the block machine, tokenizer, and event layer, and the omcore dataclass records in those hot paths
+would not benefit from mypyc without first being rewritten as plain classes. Deliberately not pursued - current
+throughput (~0.5-4 MB/s by shape) exceeds LLM streaming rates by 3-4 orders of magnitude.
+
 ## Out of scope (explicit non-goals)
 
 These are pulldown-cmark extensions we explicitly don't port — see

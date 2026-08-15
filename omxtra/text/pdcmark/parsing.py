@@ -54,17 +54,30 @@ def _prescan(text: str, options: Options) -> RefDefs:
 def _iter_lines(text: str) -> ta.Iterator[tuple[str, int, int]]:
     n = len(text)
     pos = 0
+
+    if '\r' not in text:
+        # Fast path (the overwhelmingly common case): LF-only line endings, scanned with C-level find.
+        while pos < n:
+            lf = text.find('\n', pos)
+            if lf < 0:
+                yield text[pos:], pos, n
+                return
+            yield text[pos:lf], pos, lf + 1
+            pos = lf + 1
+        return
+
     while pos < n:
-        nl_pos = pos
-        while nl_pos < n and text[nl_pos] != '\n' and text[nl_pos] != '\r':
-            nl_pos += 1
-        body = text[pos:nl_pos]
-        if nl_pos < n and text[nl_pos] == '\r' and nl_pos + 1 < n and text[nl_pos + 1] == '\n':
-            nl_len = 2
-        elif nl_pos < n:
-            nl_len = 1
+        lf = text.find('\n', pos)
+        cr = text.find('\r', pos)
+        if lf < 0 and cr < 0:
+            yield text[pos:], pos, n
+            return
+        if cr >= 0 and (lf < 0 or cr < lf):
+            nl_pos = cr
+            nl_len = 2 if cr + 1 < n and text[cr + 1] == '\n' else 1
         else:
-            nl_len = 0
+            nl_pos = lf
+            nl_len = 1
         next_off = nl_pos + nl_len
-        yield body, pos, next_off
+        yield text[pos:nl_pos], pos, next_off
         pos = next_off

@@ -299,3 +299,19 @@ Owner: "do all the easy and medium ones, and the GFM table edge". One commit (4f
   (21 of 26 sections at 100% in default mode).
 - 463 pdcmark tests (18 new), green 3.14 + 3.14t; minitui 193 green; differential 59/62 steady; perf unchanged
   (13.4ms / 84ms benchmarks).
+
+## 2026-08-15 (perf research): profile + micro-batch, extension assessment
+
+Owner asked for a profile, low-hanging wins, and whether a c++/mypyc extension is warranted.
+- Bench harness (scratchpad pdc_bench.py) vs markdown-it over 9 shaped corpora. Before: 1.1-3.2x slower by shape.
+- Low-hanging batch landed (8b4ddf97b): is_blank_line via str.strip (6x on itself); _iter_lines str.find scan with
+  LF fast path (was per-char over the whole doc); hot dc.replace sites -> direct construction (~8us -> ~1us each;
+  paragraph/fence/html/indented line appends + BufferedLine rebuilds; _fence_with_content helper for the 7-field
+  record). Net -23% on spec.txt (190->147ms), long-para at PARITY (0.99x), code-heavy 3.2->2.4x. No behavior change.
+- Post-batch profile is FLAT: top entries are _process_line itself, isinstance, dataclass init - interpreter fixed
+  cost per line/node/event. No function >10%. Remaining candidates are ~2-3% each (renderer type-dict dispatch,
+  BufferedLine as plain class) - diminishing returns.
+- Extension verdict: NO well-isolated kernel to compile. Cost is smeared across machine+tokenizer+events; mypyc
+  wouldn't help the omcore-dataclass records in hot paths without first rewriting them as plain classes (a real
+  refactor, not a bolt-on); a C++ extension would be a rewrite. Documented in 04_Status's new Performance section
+  with the measured table. Current 0.5-4 MB/s beats LLM streaming rates by 3-4 orders of magnitude.

@@ -159,5 +159,3 @@ def _skip_ws(text: str, pos: int, *, max_newlines: int) -> int | None:
         else:
             break
     return pos
-
-
