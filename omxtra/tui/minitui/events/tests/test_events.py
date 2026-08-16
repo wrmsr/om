@@ -230,3 +230,22 @@ def test_modify_other_keys_sequences():
     assert keys(p.feed('\x1b[27;3;13~')) == [Key('enter', alt=True)]
     # Plain tilde keys are unaffected.
     assert keys(p.feed('\x1b[3~')) == [Key('delete')]
+
+
+def test_extended_ctrl_aliases_fold_to_legacy_keys():
+    # On the legacy wire ctrl+[ / ctrl+m / ctrl+i ARE escape / enter / tab; the extended protocols report them as
+    # ctrl+letter codepoints. Both wires must produce the same keys - vim's ctrl+[ escape especially.
+    p = XtermEventParser()
+    assert keys(p.feed('\x1b[91;5u')) == [Key('escape')]      # kitty ctrl+[
+    assert keys(p.feed('\x1b[27;5;91~')) == [Key('escape')]   # modifyOtherKeys ctrl+[
+    assert keys(p.feed('\x1b[91;7u')) == [Key('escape', alt=True)]  # ctrl+alt+[ keeps alt, like legacy ESC-prefix
+    assert keys(p.feed('\x1b[109;5u')) == [Key('enter')]      # ctrl+m
+    assert keys(p.feed('\x1b[105;5u')) == [Key('tab')]        # ctrl+i
+
+
+def test_extended_ctrl_aliases_leave_distinctions_intact():
+    p = XtermEventParser()
+    assert keys(p.feed('\x1b[91;1u')) == [Key('[')]                 # plain [
+    assert keys(p.feed('\x1b[13;5u')) == [Key('enter', ctrl=True)]  # the real ctrl+enter (submit chord)
+    assert keys(p.feed('\x1b[105;6u')) == [Key('I', ctrl=True)]     # ctrl+shift+i is not tab
+    assert keys(p.feed('\x1b[104;5u')) == [Key('h', ctrl=True)]     # ctrl+h already agrees across wires

@@ -99,6 +99,16 @@ _KITTY_SPECIAL_BASES: ta.Mapping[int, str] = {
     127: 'backspace',
 }
 
+# Legacy-wire control aliases. On the plain-bytes wire these chords ARE the named keys (ctrl+[ = 0x1b, ctrl+m = 0x0d,
+# ctrl+i = 0x09) and modal editing leans on that - ctrl+[ is vim's escape. The extended protocols disambiguate them as
+# ctrl+letter instead; fold them back so bindings behave identically on every negotiated wire. (ctrl+h and ctrl+j
+# already agree across wires - 0x08/0x0a decode to ctrl+h/ctrl+j - so they are deliberately absent.)
+_CTRL_ALIAS_BASES: ta.Mapping[int, str] = {
+    91: 'escape',  # ctrl+[
+    105: 'tab',    # ctrl+i
+    109: 'enter',  # ctrl+m
+}
+
 
 def _decode_modifiers(m: int) -> dict[str, bool]:
     bits = max(m - 1, 0)
@@ -355,6 +365,16 @@ class XtermEventParser(EventParser):
         if (base := _KITTY_SPECIAL_BASES.get(code)) is not None:
             # Named keys keep explicit shift; a shifted printable would already be its shifted character.
             self._emit_key(Key(base, **mods))
+            return
+
+        if (
+            mods.get('ctrl')
+            and not mods.get('shift')
+            and not mods.get('super_')
+            and (base := _CTRL_ALIAS_BASES.get(code)) is not None
+        ):
+            # The ctrl folds into the named key exactly as the legacy wire would have reported it; alt survives.
+            self._emit_key(Key(base, alt=mods.get('alt', False)))
             return
 
         if 0 < code < 0x110000 and (c := chr(code)).isprintable():

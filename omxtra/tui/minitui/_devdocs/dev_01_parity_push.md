@@ -327,3 +327,16 @@ Owner asked me to perform the relocations (previous session's renames had been d
   now inside the repo-wide make targets.
 - Combined suites green on 3.14 + 3.14t (656 tests), ruff + mypy clean across both new locations, spec scores
   and differential unchanged (603/650, 59/62).
+
+## 2026-08-16 (later): ctrl+[ dead on iTerm2 - extended-protocol legacy aliases
+
+Owner report: ctrl+[ broken on mac iTerm2 (with or without tmux) but fine through iterm->tmux->mosh->linux-tmux.
+Perfect protocol fingerprint: iTerm2 3.5+ speaks the kitty keyboard protocol we negotiate, so ctrl+[ arrives as
+`CSI 91;5u` -> Key('[', ctrl) instead of raw 0x1b -> Key('escape'); mosh strips the negotiation so the remote chain
+stays legacy and "works". Fix (2b3645e99): `_CTRL_ALIAS_BASES` in the shared codepoint path folds the three
+diverging legacy aliases back - ctrl+[ -> escape, ctrl+m -> enter, ctrl+i -> tab (alt survives, matching legacy
+ESC-prefix; ctrl+h/ctrl+j already agreed across wires since 0x08/0x0a decode to ctrl+h/ctrl+j). Distinctions the
+protocols exist to provide are kept: ctrl+enter (13;5u, the submit chord), ctrl+shift+i, ctrl+h stay themselves.
+Parser regression tests for both wire forms + kept-distinctions; verified end-to-end that kitty-wire ctrl+[ leaves
+INSERT in a TextArea. (Also removed the pycache-husk dirs left at omxtra/tui/<pkg> by the minitui re-nesting;
+package now lives at omxtra/tui/minitui alongside apps/txpython.)
