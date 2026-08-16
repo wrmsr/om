@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 import importlib.util
 
 import pytest

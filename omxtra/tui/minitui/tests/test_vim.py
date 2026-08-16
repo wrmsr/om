@@ -1,3 +1,4 @@
+# flake8: noqa: E241
 from ..docs.positions import Pos
 from ..vim.engine import VimEngine
 from ..vim.modes import Mode

@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 import pytest
 
 from ..events.keymaps import Keymap

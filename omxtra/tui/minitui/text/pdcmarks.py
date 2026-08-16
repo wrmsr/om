@@ -1,5 +1,5 @@
 """
-The pdcmark streaming backend: omxtra's pure-python pulldown-cmark translation driving the shared MdBlock model.
+The pdcmark streaming backend: omcore's pure-python pulldown-cmark translation driving the shared MdBlock model.
 
 pdcmark's `StreamingParser` contract is exactly this layer's contract - committed events are append-only, the
 tentative tail replaces itself, and any chunking of input commits the same stream a oneshot parse would - so the
@@ -12,7 +12,7 @@ lists merge into their parent list; tables render as pipe-joined rows. Hard brea
 """
 import typing as ta
 
-from omxtra.text import pdcmark
+from omcore.text import pdcmark
 
 from .markdowns import MarkdownStreamBackend
 from .markdowns import MdBlock

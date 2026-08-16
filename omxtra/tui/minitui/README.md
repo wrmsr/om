@@ -26,7 +26,7 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
     apps -> runtime -> controls -> { surfaces, events, docs+vim } -> screens -> text
 
 - **text/** - structured `Style`/`Color` (+ depth downgrade), styled segments, word wrap, width measurement, SGR
-  emit/parse, streaming markdown with swappable backends (zero-dep internal / omxtra pdcmark / markdown-it) over a
+  emit/parse, streaming markdown with swappable backends (zero-dep internal / omcore pdcmark / markdown-it) over a
   shared block model, the `Highlighter` protocol with python (stdlib tokenize) and diff highlighters.
 - **screens/** - `Cell`/`Line`/`Frame` and retained-frame diffing: the correctness ground truth. Spurious redraws
   cost a re-render and an empty diff, never visible output.

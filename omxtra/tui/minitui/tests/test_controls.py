@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 from ..controls.stacks import stack_frame
 from ..controls.statics import Static
 from ..controls.status import StatusBar

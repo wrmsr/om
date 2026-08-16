@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 """
 A zero-dependency, line-oriented markdown subset - built for streaming llm output, not commonmark conformance.
 

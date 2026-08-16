@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 from ..text.highlights import highlight_code
 from ..text.markdowns import MarkdownStream
 from ..text.markdowns import MdCode

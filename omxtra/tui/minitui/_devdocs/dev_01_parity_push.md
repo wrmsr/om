@@ -142,7 +142,7 @@ cursors render via a `vim.cursor` decoration tag - including a styled-space cell
 **Streaming markdown backends are swappable.** `MarkdownStreamBackend` abstract (feed / pop_settled / tail_blocks /
 finalize), three implementations behind `get_markdown_stream(name)`:
 - `internal` (default): the zero-dep line-based parser, unchanged behavior.
-- `pdcmark` (`text/pdcmarks.py`): omxtra's pulldown-cmark translation. Its `StreamingParser` contract (committed
+- `pdcmark` (`text/pdcmarks.py`): omcore's pulldown-cmark translation. Its `StreamingParser` contract (committed
   events append-only + tentative tail, chunking-invariant) IS this layer's contract - **zero pdcmark modifications
   needed**; the adapter is pure event->MdBlock conversion, buffering committed events until top-level groups
   complete. In-repo dependency, no quarantine.
@@ -194,7 +194,7 @@ Terminal.app supports neither protocol - there, ctrl+j / alt+enter (with option-
 
 ## 2026-08-15 (later): pdcmark code review (owner asked "how does that code look?")
 
-Full read + differential + benchmarks of omxtra/text/pdcmark while we're depending on it as an md backend.
+Full read + differential + benchmarks of omcore/text/pdcmark while we're depending on it as an md backend.
 - **Verdict: high quality.** Faithful firstpass.rs analogue in blocks/machine.py (immutable open-block records via
   dc.replace, offsets on everything), honest docs (04_Status.md lists real limitations), zero TODO/FIXME markers,
   359-test suite incl. chunking-equivalence invariants over 8 feed strategies.
