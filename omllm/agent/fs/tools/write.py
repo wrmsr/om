@@ -70,7 +70,7 @@ class WriteTool(ToolClass[WriteToolParams]):
             if not os.path.isfile(params.file_path):
                 raise ValueError('Path already exists and is not a file')
 
-        with open(params.file_path, 'w') as f:  # noqa
-            f.write(params.contents)
+        contents_b = params.contents.encode('utf-8')
+        await self._fs.write_file(params.file_path, contents_b)
 
         return 'The file has been written successfully.'

@@ -1,6 +1,5 @@
 import asyncio
 import os.path
-import sys
 
 from omcore import dataclasses as dc
 from omcore import inject as inj
@@ -86,12 +85,6 @@ async def _a_main() -> None:
 
         for ax in config.autoexec or []:
             await session.prompt(ax)
-
-        if sys.stdin.isatty():
-            try:
-                import readline  # noqa
-            except ImportError:
-                pass
 
         while True:
             try:

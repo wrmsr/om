@@ -187,16 +187,6 @@ class RequestPreparer:
             raw_tools: list[dict] = []
 
             for tool in self._context.tools:
-                raw_properties: dict = {}
-                raw_required: list[str] = []
-                for param in tool.params or []:
-                    raw_properties[param.name] = {
-                        **({'type': param.type} if param.type else {}),
-                        **({'description': param.description} if param.description else {}),
-                    }
-                    if not param.optional:
-                        raw_required.append(param.name)
-
                 raw_tools.append({
                     'name': tool.name,
                     **({'description': tool.description} if tool.description else {}),

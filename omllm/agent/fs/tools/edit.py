@@ -90,10 +90,10 @@ class EditTool(ToolClass[EditToolParams]):
         if not params.old_string:
             raise ValueError('The requested edit to was given an empty "old_string" parameter.')
 
-        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'r'))
+        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'w'))
 
-        with open(params.file_path) as f:  # noqa
-            old_file = f.read()
+        old_file_b = await self._fs.read_file(params.file_path)
+        old_file = old_file_b.decode('utf-8')
 
         n = old_file.count(params.old_string)
         if not n:
@@ -103,10 +103,10 @@ class EditTool(ToolClass[EditToolParams]):
             raise ValueError('The requested file to edit contained the given "old_string" parameter multiple times.')
 
         new_file = old_file.replace(params.old_string, params.new_string)
+        new_file_b = new_file.encode('utf-8')
 
         # FIXME: confirm lol
 
-        with open(params.file_path, 'w') as f:  # noqa
-            f.write(new_file)
+        await self._fs.write_file(params.file_path, new_file_b)
 
         return 'The file has been edited successfully.'
