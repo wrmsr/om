@@ -1,3 +1,5 @@
+include omcore/collections/stl/ankerl/include/ankerl/stl.h
+include omcore/collections/stl/ankerl/include/ankerl/unordered_dense.h
 include omcore/collections/stl/base.hh
 include omcore/collections/stl/map.hh
 include omcore/collections/stl/set.hh

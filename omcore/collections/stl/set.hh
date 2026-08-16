@@ -2,8 +2,7 @@
 
 #include "base.hh"
 
-#include <unordered_set>
-
+#include "ankerl/include/ankerl/unordered_dense.h"
 #include "tlx/tlx/container/btree_set.hpp"
 
 
@@ -299,7 +298,7 @@ AnyIter *SortedSetImpl<K>::make_iter_from(IterKind, bool desc, PyObject *base) {
 
 template <typename K>
 struct HashSetImpl final : SetLikeImpl {
-    using Cont = std::unordered_set<
+    using Cont = ankerl::unordered_dense::set<
         typename K::Slot,
         typename K::Hash,
         typename K::Eq,

@@ -5,6 +5,7 @@
 //   ],
 //   "extra_headers": [
 //     "*.hh",
+//     "ankerl/**/*.h",
 //     "tlx/**/*.hpp"
 //   ],
 //   "extra_compile_args": [

@@ -2,8 +2,7 @@
 
 #include "base.hh"
 
-#include <unordered_map>
-
+#include "ankerl/include/ankerl/unordered_dense.h"
 #include "tlx/tlx/container/btree_map.hpp"
 
 
@@ -408,12 +407,12 @@ AnyIter *SortedMapImpl<K, V>::make_iter_from(IterKind ik, bool desc, PyObject *b
 
 template <typename K, typename V>
 struct HashMapImpl final : MapLikeImpl {
-    using Cont = std::unordered_map<
+    using Cont = ankerl::unordered_dense::map<
         typename K::Slot,
         typename V::Slot,
         typename K::Hash,
         typename K::Eq,
-        PyMemAllocator<std::pair<const typename K::Slot, typename V::Slot>>>;
+        PyMemAllocator<std::pair<typename K::Slot, typename V::Slot>>>;
 
     Cont map_;
 

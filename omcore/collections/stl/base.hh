@@ -704,10 +704,15 @@ struct Canon64Traits {
     };
 
     struct Hash {
+        using is_avalanching = void;  // mix64 already avalanches; ankerl skips its own mixing
+        using is_transparent = void;
+
         size_t operator()(Slot v) const noexcept { return mix64(v); }
     };
 
     struct Eq {
+        using is_transparent = void;
+
         bool operator()(Slot a, Slot b) const noexcept { return a == b; }
     };
 
@@ -781,10 +786,15 @@ struct Canon32Traits {
     };
 
     struct Hash {
+        using is_avalanching = void;  // mix64 already avalanches; ankerl skips its own mixing
+        using is_transparent = void;
+
         size_t operator()(Slot v) const noexcept { return mix64((uint64_t)v); }
     };
 
     struct Eq {
+        using is_transparent = void;
+
         bool operator()(Slot a, Slot b) const noexcept { return a == b; }
     };
 
@@ -849,10 +859,15 @@ struct Canon16Traits {
     };
 
     struct Hash {
+        using is_avalanching = void;  // mix64 already avalanches; ankerl skips its own mixing
+        using is_transparent = void;
+
         size_t operator()(Slot v) const noexcept { return mix64((uint64_t)v); }
     };
 
     struct Eq {
+        using is_transparent = void;
+
         bool operator()(Slot a, Slot b) const noexcept { return a == b; }
     };
 
@@ -970,10 +985,18 @@ struct HashedObjectTraits {
     };
 
     struct Hash {
+        using is_transparent = void;
+
         size_t operator()(const HObj &k) const noexcept { return (size_t)k.hash; }
     };
 
+    // is_transparent on Hash and Eq is load-bearing, not a lookup nicety: it is what routes ankerl set inserts
+    // through the key-shortcut path, whose Eq (Python __eq__) calls all happen before any mutation. The generic
+    // append-first emplace path would run them with a borrowed, unretained element already sitting in the dense
+    // vector - visible to the unlocked GC traverse, and left behind entirely if __eq__ throws.
     struct Eq {
+        using is_transparent = void;
+
         bool operator()(const HObj &a, const HObj &b) const {
             if (a.obj == b.obj) {
                 return true;
@@ -1015,7 +1038,14 @@ struct HashedObjectTraits {
 
 
 //
-// tlx btree traits
+// Backend container notes
+//
+// The hashed containers are (vendored) ankerl::unordered_dense maps / sets rather than std::unordered_map /
+// std::unordered_set: open addressing over dense contiguous storage - no per-node malloc, cache-linear iteration,
+// and markedly faster probes. Two of its behaviors matter here: erase is swap-and-pop (the last element moves into
+// the erased slot, re-hashed with our noexcept hash functors - no Python), and iterators are dense-vector
+// positions invalidated by every insert / erase - covered, as with the btree below, by the iterator version-check
+// discipline.
 //
 // The sorted containers are (vendored) tlx B+ trees rather than std::map / std::set: an order of magnitude better
 // node density than one heap-allocated red-black node per element, and cache-linear leaf-chain iteration. Primitive
