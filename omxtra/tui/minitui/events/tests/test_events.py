@@ -1,22 +1,22 @@
 # @om-precheck-allow-any-unicode
 import pytest
 
-from ..events.keymaps import Keymap
-from ..events.keymaps import KeymapMatcher
-from ..events.keys import Key
-from ..events.keys import KeySpecError
-from ..events.keys import key_from_char
-from ..events.keys import parse_key
-from ..events.types import CursorPositionEvent
-from ..events.types import FocusEvent
-from ..events.types import KeyEvent
-from ..events.types import KittyFlagsEvent
-from ..events.types import ModeReportEvent
-from ..events.types import MouseEvent
-from ..events.types import MouseEventKind
-from ..events.types import PasteEvent
-from ..events.types import UnknownSequenceEvent
-from ..events.xterm import XtermEventParser
+from ..keymaps import Keymap
+from ..keymaps import KeymapMatcher
+from ..keys import Key
+from ..keys import KeySpecError
+from ..keys import key_from_char
+from ..keys import parse_key
+from ..types import CursorPositionEvent
+from ..types import FocusEvent
+from ..types import KeyEvent
+from ..types import KittyFlagsEvent
+from ..types import ModeReportEvent
+from ..types import MouseEvent
+from ..types import MouseEventKind
+from ..types import PasteEvent
+from ..types import UnknownSequenceEvent
+from ..xterm import XtermEventParser
 
 
 ##

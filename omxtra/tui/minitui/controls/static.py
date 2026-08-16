@@ -4,7 +4,7 @@ import typing as ta
 from ..text.segments import Segment
 from ..text.styles import StyleLike
 from ..text.wraps import wrap_segments
-from .bases import Control
+from .base import Control
 
 
 TextParts: ta.TypeAlias = ta.Sequence[tuple[str, StyleLike]]

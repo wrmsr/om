@@ -67,6 +67,7 @@ omxtra/text/antlr/cli/tests/_antlr/ChatLexer.py linguist-generated
 omxtra/text/antlr/cli/tests/_antlr/ChatListener.py linguist-generated
 omxtra/text/antlr/cli/tests/_antlr/ChatParser.py linguist-generated
 omxtra/text/antlr/cli/tests/_antlr/ChatVisitor.py linguist-generated
+omxtra/tui/minitui/_dataclasses.py linguist-generated
 x/collections/kv2/bases.py linguist-generated
 x/logs/_tlog.py linguist-generated
 x/minichain/_dataclasses.py linguist-generated

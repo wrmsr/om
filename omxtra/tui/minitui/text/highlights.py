@@ -21,9 +21,9 @@ from .segments import Segment
 
 
 if ta.TYPE_CHECKING:
-    from . import pygmenting
+    from . import pygments
 else:
-    pygmenting = lang.proxy_import('.pygmenting', __package__)
+    pygments = lang.proxy_import('.pygments', __package__)
 
 
 SegmentRows: ta.TypeAlias = ta.Sequence[ta.Sequence[Segment]]
@@ -191,7 +191,7 @@ def get_highlighter(info: str) -> Highlighter | None:
 
     if (name := _HIGHLIGHTER_ALIASES.get(info.strip().lower())) is not None:
         return _HIGHLIGHTERS[name]
-    return pygmenting.get_pygments_highlighter(info)
+    return pygments.get_pygments_highlighter(info)
 
 
 def highlight_code(info: str, lines: ta.Sequence[str]) -> SegmentRows | None:

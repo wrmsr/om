@@ -19,17 +19,17 @@ from omcore import lang
 
 from ..controls.cards import Card
 from ..controls.cards import CardState
-from ..controls.histories import InputHistory
-from ..controls.markdowns import MarkdownTail
-from ..controls.markdowns import get_markdown_stream
+from ..controls.history import InputHistory
+from ..controls.markdown import MarkdownTail
+from ..controls.markdown import get_markdown_stream
 from ..controls.spinners import Spinner
 from ..controls.stacks import StackLayout
 from ..controls.stacks import stack_layout
-from ..controls.statics import Static
+from ..controls.static import Static
 from ..controls.status import StatusBar
 from ..controls.suggestions import SuggestionItem
 from ..controls.suggestions import SuggestionsPopup
-from ..controls.textareas import TextArea
+from ..controls.textarea import TextArea
 from ..events.keys import Key
 from ..events.types import Event
 from ..events.types import KeyEvent
@@ -52,7 +52,7 @@ from ..text.colors import MAGENTA
 from ..text.colors import RED
 from ..text.colors import YELLOW
 from ..text.colors import RgbColor
-from ..text.markdowns import parse_markdown
+from ..text.markdown import parse_markdown
 from ..text.segments import Segment
 from ..text.styles import Style
 from ..text.styles import Theme

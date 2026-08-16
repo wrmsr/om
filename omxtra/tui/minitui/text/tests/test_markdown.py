@@ -1,18 +1,22 @@
 # @om-precheck-allow-any-unicode
-from ..text.highlights import highlight_code
-from ..text.markdowns import MarkdownStream
-from ..text.markdowns import MdCode
-from ..text.markdowns import MdHeading
-from ..text.markdowns import MdList
-from ..text.markdowns import MdListItem
-from ..text.markdowns import MdParagraph
-from ..text.markdowns import MdQuote
-from ..text.markdowns import MdRule
-from ..text.markdowns import parse_inlines
-from ..text.markdowns import parse_markdown
-from ..text.markdowns import render_block
-from ..text.markdowns import render_blocks
-from ..text.segments import segments_text
+import importlib.util
+
+import pytest
+
+from ..highlights import highlight_code
+from ..markdown import MarkdownStream
+from ..markdown import MdCode
+from ..markdown import MdHeading
+from ..markdown import MdList
+from ..markdown import MdListItem
+from ..markdown import MdParagraph
+from ..markdown import MdQuote
+from ..markdown import MdRule
+from ..markdown import parse_inlines
+from ..markdown import parse_markdown
+from ..markdown import render_block
+from ..markdown import render_blocks
+from ..segments import segments_text
 
 
 ##
@@ -169,10 +173,6 @@ def test_unknown_language_returns_none():
 
 
 def test_pygments_fallback_highlighter():
-    import importlib.util  # noqa: PLC0415
-
-    import pytest  # noqa: PLC0415
-
     if importlib.util.find_spec('pygments') is None:
         pytest.skip('pygments not installed')
 

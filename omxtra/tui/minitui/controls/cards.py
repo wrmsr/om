@@ -15,8 +15,8 @@ from ..events.types import MouseEvent
 from ..events.types import MouseEventKind
 from ..text.segments import Segment
 from ..text.wraps import wrap_segments
-from .bases import Control
-from .statics import TextParts
+from .base import Control
+from .static import TextParts
 
 
 ##

@@ -1,12 +1,15 @@
-from ..controls.textareas import TextArea
-from ..docs.positions import Pos
-from ..events.keys import Key
-from ..events.keys import key_text
-from ..events.types import KeyEvent
-from ..events.types import PasteEvent
-from ..text.segments import segments_text
-from ..vim.modes import Mode
-from ..vim.status import SEARCH_MATCH_TAG
+from ...docs.positions import Pos
+from ...events.keys import Key
+from ...events.keys import key_text
+from ...events.types import KeyEvent
+from ...events.types import PasteEvent
+from ...text.highlights import PythonHighlighter
+from ...text.segments import segments_text
+from ...vim.modes import Mode
+from ...vim.status import CURSOR_TAG
+from ...vim.status import SEARCH_MATCH_TAG
+from ...vim.status import SEARCH_MATCH_TAG as _SM
+from ..textarea import TextArea
 
 
 ##
@@ -157,8 +160,6 @@ def test_tab_and_control_display():
 
 
 def test_syntax_highlighting_base_layer():
-    from ..text.highlights import PythonHighlighter  # noqa: PLC0415
-
     ta_ = TextArea(highlighter=PythonHighlighter())
     ta_.handle_event(PasteEvent('def foo():\n    return "s"'))
 
@@ -171,7 +172,6 @@ def test_syntax_highlighting_base_layer():
     press(ta_, 'escape')
     type_text(ta_, '/return')
     styles = {seg.style for row in ta_.render(40) for seg in row}
-    from ..vim.status import SEARCH_MATCH_TAG as _SM  # noqa: PLC0415
     assert _SM in styles or 'vim.search.current' in styles
     # And the keyword tag no longer covers the matched word.
     texts_by_style = {(seg.style, seg.text) for row in ta_.render(40) for seg in row}
@@ -259,8 +259,6 @@ def test_ctrl_v_block_from_textarea():
 
 
 def test_multicursor_rendering_in_textarea():
-    from ..vim.status import CURSOR_TAG  # noqa: PLC0415
-
     ta_ = TextArea(start_in_normal=True)
     ta_.doc.set_text('aaa\nbbb\nccc')
     press(ta_, Key('v', ctrl=True))

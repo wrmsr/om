@@ -1,7 +1,7 @@
-from ..text.colors import RED
-from ..text.styles import Style
-from ..text.styles import Theme
-from .harness import SurfaceHarness
+from ...tests.harness import SurfaceHarness
+from ...text.colors import RED
+from ...text.styles import Style
+from ...text.styles import Theme
 
 
 ##

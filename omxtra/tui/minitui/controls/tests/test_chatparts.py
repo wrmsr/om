@@ -1,8 +1,16 @@
-from ..controls.histories import InputHistory
-from ..controls.markdowns import MarkdownTail
-from ..controls.suggestions import SuggestionItem
-from ..controls.suggestions import SuggestionsPopup
-from ..text.segments import segments_text
+from ...events.types import MouseEvent
+from ...events.types import MouseEventKind
+from ...text.segments import Segment
+from ...text.segments import segments_text
+from ...text.styles import EMPTY_THEME
+from ..cards import Card
+from ..cards import CardState
+from ..history import InputHistory
+from ..markdown import MarkdownTail
+from ..stacks import stack_layout
+from ..static import Static
+from ..suggestions import SuggestionItem
+from ..suggestions import SuggestionsPopup
 
 
 ##
@@ -74,12 +82,6 @@ def test_markdown_tail_control():
 
 
 def test_card_lifecycle_and_render():
-    from ..controls.cards import Card  # noqa: PLC0415
-    from ..controls.cards import CardState  # noqa: PLC0415
-    from ..events.types import MouseEvent  # noqa: PLC0415
-    from ..events.types import MouseEventKind  # noqa: PLC0415
-    from ..text.segments import Segment  # noqa: PLC0415
-
     decided: list = []
     card = Card(
         [('tool()', 'card.summary')],
@@ -110,10 +112,6 @@ def test_card_lifecycle_and_render():
 
 
 def test_stack_layout_hit_regions():
-    from ..controls.stacks import stack_layout  # noqa: PLC0415
-    from ..controls.statics import Static  # noqa: PLC0415
-    from ..text.styles import EMPTY_THEME  # noqa: PLC0415
-
     a = Static([('a1\na2', None)])
     b = Static([('b1', None)])
 

@@ -1,11 +1,12 @@
 # flake8: noqa: E241
-from ..docs.positions import Pos
-from ..vim.engine import VimEngine
-from ..vim.modes import Mode
-from ..vim.parsing import ESC
-from ..vim.status import SEARCH_CURRENT_TAG
-from ..vim.status import SEARCH_MATCH_TAG
-from ..vim.status import SELECTION_TAG
+from ...docs.positions import Pos
+from ..engine import VimEngine
+from ..modes import Mode
+from ..parsing import ESC
+from ..status import CURSOR_TAG
+from ..status import SEARCH_CURRENT_TAG
+from ..status import SEARCH_MATCH_TAG
+from ..status import SELECTION_TAG
 
 
 ##
@@ -525,8 +526,6 @@ def test_multicursor_paste_and_undo_unit():
 
 
 def test_secondary_cursor_decorations():
-    from ..vim.status import CURSOR_TAG  # noqa: PLC0415
-
     e = make('aaa\nbbb', 'i')
     e.add_cursor(Pos(1, 1))
     decs = [d for d in e.decorations() if d.tag == CURSOR_TAG]

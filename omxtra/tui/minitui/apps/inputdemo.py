@@ -14,9 +14,9 @@ import typing as ta
 
 from ..controls.spinners import Spinner
 from ..controls.stacks import stack_frame
-from ..controls.statics import Static
+from ..controls.static import Static
 from ..controls.status import StatusBar
-from ..controls.textareas import TextArea
+from ..controls.textarea import TextArea
 from ..events.keys import Key
 from ..events.types import Event
 from ..events.types import KeyEvent

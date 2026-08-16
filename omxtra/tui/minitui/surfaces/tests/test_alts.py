@@ -1,11 +1,11 @@
 from omcore.term.vt100.terminal import Vt100Terminal
 
-from ..screens.cells import Frame
-from ..screens.cells import line_from_segments
-from ..surfaces.alts import AltSurface
-from ..text.segments import Segment
-from ..text.styles import EMPTY_THEME
-from .harness import RecordingTty
+from ...screens.cells import Frame
+from ...screens.cells import line_from_segments
+from ...tests.harness import RecordingTty
+from ...text.segments import Segment
+from ...text.styles import EMPTY_THEME
+from ..alts import AltSurface
 
 
 ##

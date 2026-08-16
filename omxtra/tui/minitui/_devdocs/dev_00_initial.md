@@ -115,7 +115,7 @@ The document layer, the reshaped vim engine, and the scrolled-vim-window TextAre
   start==end, delete is text=''; same shape as tree-sitter `edit()` and LSP; `AppliedEdit` carries the exact inverse;
   `remap_pos` with insert bias for cursors-vs-anchors), `documents.py` (never-empty lines; `replace()` is the single
   mutation primitive - validates, applies, bumps version, computes inverse, notifies listeners), `cursors.py`
-  (Cursor tuple groundwork), `searches.py` (literal smartcase matching -> Spans; `next_match` with wrap).
+  (Cursor tuple groundwork), `searching.py` (literal smartcase matching -> Spans; `next_match` with wrap).
 - `vim/`: minivim copied in and reshaped into modules (modes/registers/scans/motions/textobjs/parsing/status/engine).
   Everything minivim had survives (**all 22 of its tests pass ported verbatim**), plus:
   - Edit-based undo *groups* replacing whole-buffer snapshots: a group opens at a change command, stays open through

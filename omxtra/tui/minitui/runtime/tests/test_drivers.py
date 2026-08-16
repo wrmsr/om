@@ -3,19 +3,19 @@ import typing as ta
 
 from omcore.term.vt100.terminal import Vt100Terminal
 
-from ..events.keys import Key
-from ..events.types import Event
-from ..events.types import KeyEvent
-from ..events.types import ModeReportEvent
-from ..events.types import PasteEvent
-from ..runtime.drivers import App
-from ..runtime.drivers import SyncDriver
-from ..screens.cells import Frame
-from ..screens.cells import line_from_segments
-from ..surfaces.inlines import InlineSurface
-from ..text.segments import Segment
-from ..text.styles import EMPTY_THEME
-from .harness import RecordingTty
+from ...events.keys import Key
+from ...events.types import Event
+from ...events.types import KeyEvent
+from ...events.types import ModeReportEvent
+from ...events.types import PasteEvent
+from ...screens.cells import Frame
+from ...screens.cells import line_from_segments
+from ...surfaces.inlines import InlineSurface
+from ...tests.harness import RecordingTty
+from ...text.segments import Segment
+from ...text.styles import EMPTY_THEME
+from ..drivers import App
+from ..drivers import SyncDriver
 
 
 ##

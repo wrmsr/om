@@ -29,8 +29,8 @@ from ..docs.edits import remap_pos_through
 from ..docs.positions import Kind
 from ..docs.positions import Pos
 from ..docs.positions import Span
-from ..docs.searches import find_matches
-from ..docs.searches import next_match
+from ..docs.searching import find_matches
+from ..docs.searching import next_match
 from .modes import CmdlineKind
 from .modes import Mode
 from .motions import MOTION_NEEDS_ARG

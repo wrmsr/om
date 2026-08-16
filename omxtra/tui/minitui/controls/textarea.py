@@ -30,7 +30,7 @@ from ..text.widths import ascii_control_repr
 from ..text.widths import char_width
 from ..vim.engine import VimEngine
 from ..vim.modes import Mode
-from .bases import Control
+from .base import Control
 
 
 ##

@@ -5,7 +5,7 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ..text.segments import Segment
-from .bases import Control
+from .base import Control
 
 
 ##

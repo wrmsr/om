@@ -2,14 +2,14 @@ import importlib.util
 
 import pytest
 
-from ..controls.textareas import TextArea
-from ..docs.documents import Document
-from ..docs.positions import Pos
-from ..docs.treesitting import get_tree_sitter_highlighter
-from ..events.keys import Key
-from ..events.types import KeyEvent
-from ..events.types import PasteEvent
-from ..text.segments import segments_text
+from ...controls.textarea import TextArea
+from ...events.keys import Key
+from ...events.types import KeyEvent
+from ...events.types import PasteEvent
+from ...text.segments import segments_text
+from ..documents import Document
+from ..positions import Pos
+from ..treesitter import get_tree_sitter_highlighter
 
 
 ##

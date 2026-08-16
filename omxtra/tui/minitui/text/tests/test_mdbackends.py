@@ -3,11 +3,11 @@ import importlib.util
 
 import pytest
 
-from ..controls.markdowns import get_markdown_stream
-from ..text.markdowns import MdCode
-from ..text.markdowns import MdHeading
-from ..text.markdowns import render_blocks
-from ..text.segments import segments_text
+from ...controls.markdown import get_markdown_stream
+from ..markdown import MdCode
+from ..markdown import MdHeading
+from ..markdown import render_blocks
+from ..segments import segments_text
 
 
 ##

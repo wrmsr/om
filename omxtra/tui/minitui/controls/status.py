@@ -4,8 +4,8 @@ import typing as ta
 from ..text.segments import Segment
 from ..text.widths import str_width
 from ..text.wraps import wrap_segments
-from .bases import Control
-from .statics import TextParts
+from .base import Control
+from .static import TextParts
 
 
 ##

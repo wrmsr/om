@@ -13,15 +13,15 @@ import typing as ta
 
 from omdev.markdown import incparse
 
-from .markdowns import MarkdownStreamBackend
-from .markdowns import MdBlock
-from .markdowns import MdCode
-from .markdowns import MdHeading
-from .markdowns import MdList
-from .markdowns import MdListItem
-from .markdowns import MdParagraph
-from .markdowns import MdQuote
-from .markdowns import MdRule
+from .markdown import MarkdownStreamBackend
+from .markdown import MdBlock
+from .markdown import MdCode
+from .markdown import MdHeading
+from .markdown import MdList
+from .markdown import MdListItem
+from .markdown import MdParagraph
+from .markdown import MdQuote
+from .markdown import MdRule
 from .segments import Segment
 
 

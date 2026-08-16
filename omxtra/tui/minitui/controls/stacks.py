@@ -18,7 +18,7 @@ from ..screens.cells import Frame
 from ..screens.cells import Line
 from ..screens.cells import line_from_segments
 from ..text.styles import Theme
-from .bases import Control
+from .base import Control
 
 
 ##

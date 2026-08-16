@@ -1,7 +1,7 @@
-from ..apps.streamdemo import PARAGRAPHS
-from ..apps.streamdemo import StreamDemo
-from ..apps.streamdemo import wrap_words
-from .harness import SurfaceHarness
+from ...tests.harness import SurfaceHarness
+from ..streamdemo import PARAGRAPHS
+from ..streamdemo import StreamDemo
+from ..streamdemo import wrap_words
 
 
 ##

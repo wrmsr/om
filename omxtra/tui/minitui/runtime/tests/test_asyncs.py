@@ -4,10 +4,10 @@ import threading
 
 from omcore.term.vt100.terminal import Vt100Terminal
 
-from ..events.keys import Key
-from ..events.types import KeyEvent
-from ..runtime.asyncs import AsyncDriver
-from ..surfaces.inlines import InlineSurface
+from ...events.keys import Key
+from ...events.types import KeyEvent
+from ...surfaces.inlines import InlineSurface
+from ..asyncs import AsyncDriver
 from .test_drivers import PipeTty
 from .test_drivers import RecordingApp
 

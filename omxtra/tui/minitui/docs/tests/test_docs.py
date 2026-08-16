@@ -1,13 +1,13 @@
 import pytest
 
-from ..docs.documents import Document
-from ..docs.edits import TextEdit
-from ..docs.edits import remap_pos
-from ..docs.positions import Kind
-from ..docs.positions import Pos
-from ..docs.positions import Span
-from ..docs.searches import find_matches
-from ..docs.searches import next_match
+from ..documents import Document
+from ..edits import TextEdit
+from ..edits import remap_pos
+from ..positions import Kind
+from ..positions import Pos
+from ..positions import Span
+from ..searching import find_matches
+from ..searching import next_match
 
 
 ##

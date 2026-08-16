@@ -12,11 +12,11 @@ import os.path
 import sys
 import typing as ta
 
-from ..controls.bases import Control
+from ..controls.base import Control
 from ..controls.stacks import stack_frame
 from ..controls.status import StatusBar
-from ..controls.textareas import TextArea
-from ..docs.treesitting import get_tree_sitter_highlighter
+from ..controls.textarea import TextArea
+from ..docs.treesitter import get_tree_sitter_highlighter
 from ..events.types import Event
 from ..runtime.drivers import App
 from ..runtime.drivers import SyncDriver

@@ -11,21 +11,21 @@ import typing as ta
 from omcore import lang
 
 from ..text.highlights import highlight_code
-from ..text.markdowns import CodeHighlighter
-from ..text.markdowns import MarkdownStream
-from ..text.markdowns import MarkdownStreamBackend
-from ..text.markdowns import MdBlock
-from ..text.markdowns import render_blocks
+from ..text.markdown import CodeHighlighter
+from ..text.markdown import MarkdownStream
+from ..text.markdown import MarkdownStreamBackend
+from ..text.markdown import MdBlock
+from ..text.markdown import render_blocks
 from ..text.segments import Segment
-from .bases import Control
+from .base import Control
 
 
 if ta.TYPE_CHECKING:
-    from ..text import markdownits
-    from ..text import pdcmarks
+    from ..text import markdownit
+    from ..text import pdcmark
 else:
-    markdownits = lang.proxy_import('..text.markdownits', __package__)
-    pdcmarks = lang.proxy_import('..text.pdcmarks', __package__)
+    markdownit = lang.proxy_import('..text.markdownit', __package__)
+    pdcmark = lang.proxy_import('..text.pdcmark', __package__)
 
 
 ##
@@ -53,10 +53,10 @@ def get_markdown_stream(name: str | None = None) -> MarkdownStreamBackend:
     if resolved == 'internal':
         return MarkdownStream()
     if resolved == 'pdcmark':
-        return pdcmarks.PdcmarkStream()
-    if not markdownits.markdown_it_available():
+        return pdcmark.PdcmarkStream()
+    if not markdownit.markdown_it_available():
         raise LookupError('markdown-it backend requested but markdown_it is not installed')
-    return markdownits.MarkdownItStream()
+    return markdownit.MarkdownItStream()
 
 
 class MarkdownTail(Control):
