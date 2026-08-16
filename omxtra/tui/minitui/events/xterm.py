@@ -368,10 +368,10 @@ class XtermEventParser(EventParser):
             return
 
         if (
-            mods.get('ctrl')
-            and not mods.get('shift')
-            and not mods.get('super_')
-            and (base := _CTRL_ALIAS_BASES.get(code)) is not None
+            mods.get('ctrl') and
+            not mods.get('shift') and
+            not mods.get('super_') and
+            (base := _CTRL_ALIAS_BASES.get(code)) is not None
         ):
             # The ctrl folds into the named key exactly as the legacy wire would have reported it; alt survives.
             self._emit_key(Key(base, alt=mods.get('alt', False)))
