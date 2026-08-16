@@ -315,3 +315,15 @@ Owner asked for a profile, low-hanging wins, and whether a c++/mypyc extension i
   wouldn't help the omcore-dataclass records in hot paths without first rewriting them as plain classes (a real
   refactor, not a bolt-on); a C++ extension would be a rewrite. Documented in 04_Status's new Performance section
   with the measured table. Current 0.5-4 MB/s beats LLM streaming rates by 3-4 orders of magnitude.
+
+## 2026-08-16 (later): the moves - pdcmark -> omcore/text/, minitui -> omxtra/tui/
+
+Owner asked me to perform the relocations (previous session's renames had been done in place).
+- omcore/text/pdcmark: all `from omcore import X` relativized per omcore convention (`from ... import` at package
+  level, one more dot per subpackage); dataclass codegen regenerated; 463 tests green in place. tui's backend
+  wrapper now imports omcore.text.pdcmark.
+- omxtra/tui/minitui: merged alongside the pre-existing apps/txpython. Module-path strings in app docstrings/README
+  updated (x.minitui -> omxtra.tui.minitui); design.md layout header and intro.md gate commands updated - the package is
+  now inside the repo-wide make targets.
+- Combined suites green on 3.14 + 3.14t (656 tests), ruff + mypy clean across both new locations, spec scores
+  and differential unchanged (603/650, 59/62).

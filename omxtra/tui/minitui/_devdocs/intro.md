@@ -44,7 +44,5 @@ dual-write finalized messages to the main screen through a driver hack (`Backgro
 - Our pure-python terminfo (`omcore.term.terminfo`) for *output* capabilities; hardcoded-xterm + runtime feature
   negotiation (DECRQM 2026/2048, kitty keyboard protocol) for *input* - the modern consensus.
 - curses is never referenced at runtime; at most an optional test-only cross-validation oracle for terminfo.
-- `x/` is not covered by the `make fix check` entrypoints - run manually:
-  `./python -mruff check x/minitui && ./python -m mypy x/minitui`
 - Follow `CODESTYLE.md` strictly (module layout, one-import-per-line, relative imports, `lang.Abstract`, `check` not
   `assert`, frozen dataclasses, blank line after docstrings, ...).
