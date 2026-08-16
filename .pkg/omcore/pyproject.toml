@@ -168,6 +168,11 @@ exclude = [
 'omcore.cexts' = [
     'include/omcore/*',
 ]
+'omcore.collections.stl' = [
+    'ankerl/include/ankerl/*',
+    'tlx/tlx/container/*',
+    'tlx/tlx/die/*',
+]
 'omcore.http.resources' = [
     '*',
 ]
