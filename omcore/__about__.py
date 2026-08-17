@@ -38,7 +38,7 @@ class Project(ProjectBase):
             'anyio ~= 4.14',
             'sniffio ~= 1.3',
 
-            'trio ~= 0.33',
+            'trio ~= 0.34',
             'trio-asyncio ~= 0.15',
         ],
 
@@ -121,9 +121,13 @@ class Project(ProjectBase):
 
     #
 
-    _plus_dependencies = [
+    _check_dependencies = [
         'asttokens',
         'executing',
+    ]
+
+    _plus_dependencies = [
+        *_check_dependencies,
 
         'orjson',
         'pyyaml',
@@ -134,9 +138,13 @@ class Project(ProjectBase):
         for l in od.values() for s in l
     })(optional_dependencies)
 
-    optional_dependencies['plus'] = (lambda ds, pd: [  # noqa
-        ds[n] for n in pd
-    ])(_dependency_specs_by_name, _plus_dependencies)
+    optional_dependencies.update((lambda ds, k_pd_tups: {  # noqa
+        k: [ds[n] for n in pd]
+        for k, pd in k_pd_tups
+    })(_dependency_specs_by_name, [
+        ('check', _check_dependencies),
+        ('plus', _plus_dependencies),
+    ]))
 
     #
 

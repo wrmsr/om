@@ -74,7 +74,7 @@ httpx[http2]==0.28.1
 
 ### async
 
-trio==0.33.0
+trio==0.34.0
 # trio-asyncio==0.15.0  # subprocess watcher issue
 
 aiomysql==0.3.2
