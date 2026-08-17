@@ -3632,27 +3632,32 @@ def _process_dataclass__0834e5230a51f618f90306ba72fdddbb21826d0c():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('ctx', 'result')), EqPlan(fields=('ctx', 'result')), FrozenPlan(fields=('ctx', 're"
-        "sult'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('ctx', 'result'), cache=False), Init"
-        "Plan(fields=(InitPlan.Field(name='ctx', annotation=OpRef(name='init.fields.0.annotation'), default=None, defau"
-        "lt_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_t"
-        "ype=None), InitPlan.Field(name='result', annotation=OpRef(name='init.fields.1.annotation'), default=None, defa"
-        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None)), self_param='self', std_params=(), kw_only_params=('ctx', 'result'), frozen=True, slots=False, pos"
-        "t_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='ctx', kw_only=True, f"
-        "n=None), ReprPlan.Field(name='result', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('tool', 'context', 'result')), EqPlan(fields=('tool', 'context', 'result')), Froze"
+        "nPlan(fields=('tool', 'context', 'result'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=("
+        "'tool', 'context', 'result'), cache=False), InitPlan(fields=(InitPlan.Field(name='tool', annotation=OpRef(name"
+        "='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldT"
+        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='context', annotation=OpRef(na"
+        "me='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fiel"
+        "dType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='result', annotation=OpRef(n"
+        "ame='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fie"
+        "ldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_para"
+        "ms=('tool', 'context', 'result'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=("
+        ")), ReprPlan(fields=(ReprPlan.Field(name='tool', kw_only=True, fn=None), ReprPlan.Field(name='context', kw_onl"
+        "y=True, fn=None), ReprPlan.Field(name='result', kw_only=True, fn=None)), id=False, terse=False, default_fn=Non"
+        "e)))"
     ),
-    plan_repr_sha1='9aeaabcf0e10474bf506f7dd600c5a243350afe7',
+    plan_repr_sha1='31071407de5ebf51fc2ba36e75b3bfeaabe9a51d',
     cls_names=(
         ('omllm.agent.types.events', 'ToolExecutionEndEvent'),
     ),
 )
-def _process_dataclass__9aeaabcf0e10474bf506f7dd600c5a243350afe7():
+def _process_dataclass__31071407de5ebf51fc2ba36e75b3bfeaabe9a51d():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -3663,7 +3668,8 @@ def _process_dataclass__9aeaabcf0e10474bf506f7dd600c5a243350afe7():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
-                ctx=self.ctx,
+                tool=self.tool,
+                context=self.context,
                 result=self.result,
             )
 
@@ -3675,14 +3681,16 @@ def _process_dataclass__9aeaabcf0e10474bf506f7dd600c5a243350afe7():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.ctx == other.ctx and
+                self.tool == other.tool and
+                self.context == other.context and
                 self.result == other.result
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
-            'ctx',
+            'tool',
+            'context',
             'result',
         }
 
@@ -3708,7 +3716,8 @@ def _process_dataclass__9aeaabcf0e10474bf506f7dd600c5a243350afe7():
 
         def __hash__(self):
             return hash((
-                self.ctx,
+                self.tool,
+                self.context,
                 self.result,
             ))
 
@@ -3717,10 +3726,12 @@ def _process_dataclass__9aeaabcf0e10474bf506f7dd600c5a243350afe7():
         def __init__(
             self,
             *,
-            ctx: __dataclass__init__fields__0__annotation,
-            result: __dataclass__init__fields__1__annotation,
+            tool: __dataclass__init__fields__0__annotation,
+            context: __dataclass__init__fields__1__annotation,
+            result: __dataclass__init__fields__2__annotation,
         ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'ctx', ctx)
+            __dataclass__object_setattr(self, 'tool', tool)
+            __dataclass__object_setattr(self, 'context', context)
             __dataclass__object_setattr(self, 'result', result)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -3728,7 +3739,8 @@ def _process_dataclass__9aeaabcf0e10474bf506f7dd600c5a243350afe7():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"ctx={self.ctx!r}")
+            parts.append(f"tool={self.tool!r}")
+            parts.append(f"context={self.context!r}")
             parts.append(f"result={self.result!r}")
             return (
                 f"{self.__class__.__qualname__}("
@@ -3743,25 +3755,29 @@ def _process_dataclass__9aeaabcf0e10474bf506f7dd600c5a243350afe7():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('ctx',)), EqPlan(fields=('ctx',)), FrozenPlan(fields=('ctx',), allow_dynamic_dunde"
-        "r_attrs=False), HashPlan(action='add', fields=('ctx',), cache=False), InitPlan(fields=(InitPlan.Field(name='ct"
-        "x', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override"
-        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_"
-        "params=(), kw_only_params=('ctx',), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns"
-        "=()), ReprPlan(fields=(ReprPlan.Field(name='ctx', kw_only=True, fn=None),), id=False, terse=False, default_fn="
-        "None)))"
+        "Plans(tup=(CopyPlan(fields=('tool', 'context')), EqPlan(fields=('tool', 'context')), FrozenPlan(fields=('tool'"
+        ", 'context'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('tool', 'context'), cache=Fals"
+        "e), InitPlan(fields=(InitPlan.Field(name='tool', annotation=OpRef(name='init.fields.0.annotation'), default=No"
+        "ne, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
+        ", check_type=None), InitPlan.Field(name='context', annotation=OpRef(name='init.fields.1.annotation'), default="
+        "None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
+        "ne, check_type=None)), self_param='self', std_params=(), kw_only_params=('tool', 'context'), frozen=True, slot"
+        "s=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='tool', kw"
+        "_only=True, fn=None), ReprPlan.Field(name='context', kw_only=True, fn=None)), id=False, terse=False, default_f"
+        "n=None)))"
     ),
-    plan_repr_sha1='8042bf86bb3514ce3051f8122379b874bedcfeef',
+    plan_repr_sha1='f28a5082d99d8ac843acb4ce5f81801c307aec26',
     cls_names=(
         ('omllm.agent.types.events', 'ToolExecutionEvent'),
         ('omllm.agent.types.events', 'ToolExecutionStartEvent'),
     ),
 )
-def _process_dataclass__8042bf86bb3514ce3051f8122379b874bedcfeef():
+def _process_dataclass__f28a5082d99d8ac843acb4ce5f81801c307aec26():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -3772,7 +3788,8 @@ def _process_dataclass__8042bf86bb3514ce3051f8122379b874bedcfeef():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
-                ctx=self.ctx,
+                tool=self.tool,
+                context=self.context,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3783,13 +3800,15 @@ def _process_dataclass__8042bf86bb3514ce3051f8122379b874bedcfeef():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.ctx == other.ctx
+                self.tool == other.tool and
+                self.context == other.context
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
-            'ctx',
+            'tool',
+            'context',
         }
 
         def __setattr__(self, name, value):
@@ -3814,7 +3833,8 @@ def _process_dataclass__8042bf86bb3514ce3051f8122379b874bedcfeef():
 
         def __hash__(self):
             return hash((
-                self.ctx,
+                self.tool,
+                self.context,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3822,16 +3842,19 @@ def _process_dataclass__8042bf86bb3514ce3051f8122379b874bedcfeef():
         def __init__(
             self,
             *,
-            ctx: __dataclass__init__fields__0__annotation,
+            tool: __dataclass__init__fields__0__annotation,
+            context: __dataclass__init__fields__1__annotation,
         ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'ctx', ctx)
+            __dataclass__object_setattr(self, 'tool', tool)
+            __dataclass__object_setattr(self, 'context', context)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"ctx={self.ctx!r}")
+            parts.append(f"tool={self.tool!r}")
+            parts.append(f"context={self.context!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

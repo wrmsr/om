@@ -7,6 +7,7 @@ from ... import llm
 from .contexts import Context
 from .messages import Message
 from .states import State
+from .tools import Tool
 from .tools import ToolContext
 from .tools import ToolResult
 
@@ -70,7 +71,8 @@ class TurnEndEvent(TurnEvent):
 
 @dc.dataclass(frozen=True, kw_only=True)
 class ToolExecutionEvent(Event, lang.Abstract):
-    ctx: ToolContext
+    tool: Tool
+    context: ToolContext
 
 
 @ta.final

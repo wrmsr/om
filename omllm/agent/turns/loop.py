@@ -10,6 +10,8 @@ from ..types.events import AgentEndEvent
 from ..types.events import AgentStartEvent
 from ..types.events import Event
 from ..types.events import LlmAiStreamEvent
+from ..types.events import ToolExecutionEndEvent
+from ..types.events import ToolExecutionStartEvent
 from ..types.events import TurnEndEvent
 from ..types.events import TurnStartEvent
 from ..types.messages import Message
@@ -140,12 +142,25 @@ class TurnLoop:
             for tool_call in tool_calls:
                 tool = check.not_none(self._context.tools)[tool_call.name]
 
-                tool_result = await tool.executor(ToolContext(  # noqa
+                tool_context = ToolContext(  # noqa
                     args=tool_call.args,
 
                     llm_tool_call=tool_call,
 
                     env=self._tool_env,
+                )
+
+                await self._publish(ToolExecutionStartEvent(
+                    tool=tool,
+                    context=tool_context,
+                ))
+
+                tool_result = await tool.executor(tool_context)
+
+                await self._publish(ToolExecutionEndEvent(
+                    tool=tool,
+                    context=tool_context,
+                    result=tool_result,
                 ))
 
                 tool_result_message = llm.ToolResultMessage(
