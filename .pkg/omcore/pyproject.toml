@@ -66,8 +66,10 @@ all = [
     'executing ~= 2.2',
     'asttokens ~= 3.0',
     'executing ~= 2.2',
-    'orjson ~= 3.12',
-    'pyyaml ~= 6.0',
+    'cryptography ~= 50.0',
+    'lz4 ~= 4.4',
+    'pg8000 ~= 1.31',
+    'pymysql ~= 1.2',
 ]
 async = [
     'anyio ~= 4.14',
@@ -134,8 +136,10 @@ check = [
 plus = [
     'asttokens ~= 3.0',
     'executing ~= 2.2',
-    'orjson ~= 3.12',
-    'pyyaml ~= 6.0',
+    'cryptography ~= 50.0',
+    'lz4 ~= 4.4',
+    'pg8000 ~= 1.31',
+    'pymysql ~= 1.2',
 ]
 
 [project.entry-points]

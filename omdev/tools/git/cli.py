@@ -122,7 +122,7 @@ class Cli(ap.Cli):
         except FileNotFoundError:
             return dc.asdict(self.Config())  # noqa
 
-        return yaml.safe_load(buf) or {}
+        return yaml.loads(buf) or {}
 
     class _NOT_SET(lang.Marker):  # noqa
         pass
@@ -143,7 +143,7 @@ class Cli(ap.Cli):
     )
     def print_cfg(self) -> None:
         cfg = self.load_config(self._args.dir)
-        print(yaml.dump(msh.marshal(cfg)))
+        print(yaml.dumps(msh.marshal(cfg)))
 
     #
 

@@ -23,7 +23,7 @@ def _main() -> None:
     api_dir = dcache.default().get(OPENAI_OPENAPI_DATA)
 
     with open(os.path.join(api_dir, 'openapi.yaml')) as f:
-        doc = yaml.safe_load(f)
+        doc = yaml.loads(f)
     print(json.std_backend().dumps_pretty(doc))
 
     api = msh.unmarshal(doc, openapi.Openapi)
