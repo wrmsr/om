@@ -8,10 +8,12 @@ from omcore import dataclasses as dc
 from ... import llm
 
 
-type ToolExecutor = ta.Callable[[ToolContext], ta.Awaitable[ToolResult]]
-
-
 ##
+
+
+class ToolExecutor(ta.Protocol):
+    def __call__(self, ctx: ToolContext) -> ta.Awaitable[ToolResult]: ...
+
 
 
 @ta.final

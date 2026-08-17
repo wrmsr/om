@@ -53,6 +53,8 @@ with _lang.auto_proxy_init(globals()):
 
     from .sessions.entries import (  # noqa
         SessionEntry,
+
+        MessageSessionEntry,
     )
 
     from .sessions.events import (  # noqa

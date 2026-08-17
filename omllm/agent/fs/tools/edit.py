@@ -1,5 +1,6 @@
 """
 TODO:
+ - use FsOps lol
  - must read file before editing
  - must re-read file if file has been modified
  - loosened replacer helpers

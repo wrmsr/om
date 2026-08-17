@@ -149,8 +149,15 @@ with _lang.auto_proxy_init(globals()):
         AgentStartEvent,
         AgentEndEvent,
 
+        TurnEvent,
         TurnStartEvent,
         TurnEndEvent,
+
+        ToolExecutionEvent,
+        ToolExecutionStartEvent,
+        ToolExecutionEndEvent,
+
+        StateUpdateEvent,
     )
 
     from .types.messages import (  # noqa

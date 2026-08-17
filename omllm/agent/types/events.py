@@ -7,6 +7,8 @@ from ... import llm
 from .contexts import Context
 from .messages import Message
 from .states import State
+from .tools import ToolContext
+from .tools import ToolResult
 
 
 ##
@@ -46,16 +48,41 @@ class AgentEndEvent(Event):
 ##
 
 
+@dc.dataclass(frozen=True)
+class TurnEvent(Event, lang.Abstract):
+    pass
+
+
 @ta.final
 @dc.dataclass(frozen=True)
-class TurnStartEvent(Event):
+class TurnStartEvent(TurnEvent):
     pass
 
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
-class TurnEndEvent(Event):
+class TurnEndEvent(TurnEvent):
     message: Message
+
+
+##
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class ToolExecutionEvent(Event, lang.Abstract):
+    ctx: ToolContext
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+class ToolExecutionStartEvent(ToolExecutionEvent):
+    pass
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+class ToolExecutionEndEvent(ToolExecutionEvent):
+    result: ToolResult
 
 
 ##
