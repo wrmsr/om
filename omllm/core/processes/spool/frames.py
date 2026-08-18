@@ -40,7 +40,14 @@ class SpoolRecord:
 
     def __repr__(self) -> str:
         d = self.data if len(self.data) <= 40 else self.data[:37] + b'...'
-        return f'{self.__class__.__name__}(fd={self.fd}, seq={self.seq}, offset={self.offset}, data={d!r})'
+        return (
+            f'{self.__class__.__name__}('
+            f'fd={self.fd}, '
+            f'seq={self.seq}, '
+            f'offset={self.offset}, '
+            f'data={d!r}'
+            f')'
+        )
 
 
 ##

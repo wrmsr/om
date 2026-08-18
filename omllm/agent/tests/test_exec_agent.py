@@ -8,7 +8,7 @@ from ... import llm
 from ...core import processes
 from ..agent import Agent
 from ..backends import DictBackendManager
-from ..exec.ops import ProcsExecOps
+from ..exec.ops import ProcessesExecOps
 from ..exec.tools.bash import BashTool
 from ..permissions.deciders import StaticPermissionDecider
 from ..permissions.types import PermissionState
@@ -39,7 +39,7 @@ async def _run_agent(td, m):
 
     bash = BashTool(
         permissions=StaticPermissionDecider(PermissionState.ALLOW),
-        exec=ProcsExecOps(),
+        exec=ProcessesExecOps(),
     )
 
     await agent.update_state(lambda s: dc.replace(

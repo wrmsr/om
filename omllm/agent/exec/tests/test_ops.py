@@ -2,14 +2,14 @@ import pytest
 
 from ....core import processes
 from ..ops import ExecParams
-from ..ops import ProcsExecOps
+from ..ops import ProcessesExecOps
 from ..ops import format_exec_output
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_procs_exec_ops_basic(tmp_path):
     async with processes.AsyncioProcessManager() as m:
-        ops = ProcsExecOps()
+        ops = ProcessesExecOps()
         env = {'PATH': '/usr/bin:/bin', 'FOO': 'bar'}
 
         r = await ops.exec(m.root, ExecParams(
@@ -84,7 +84,7 @@ class _EchoSandbox(_procs.Sandbox):
 @pytest.mark.asyncs('asyncio')
 async def test_procs_exec_ops_applies_options(tmp_path):
     async with processes.AsyncioProcessManager() as m:
-        r = await ProcsExecOps().exec(m.root, ExecParams(
+        r = await ProcessesExecOps().exec(m.root, ExecParams(
             ['echo', 'hi'],
             cwd=str(tmp_path),
             env={'PATH': '/usr/bin:/bin'},

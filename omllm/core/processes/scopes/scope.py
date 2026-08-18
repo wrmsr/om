@@ -123,7 +123,13 @@ class ProcessScope:
         ops.scope_opened(self)
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({"/".join(self._path)!r}, processes={len(self._processes)}, children={len(self._children)})'  # noqa
+        return (
+            f'{self.__class__.__name__}('
+            f'{"/".join(self._path)!r}, '
+            f'processes={len(self._processes)}, '
+            f'children={len(self._children)}'
+            f')'
+        )
 
     #
 

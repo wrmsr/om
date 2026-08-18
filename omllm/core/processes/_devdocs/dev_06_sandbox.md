@@ -16,7 +16,7 @@ no writes, no network) is now a reusable system, with ripgrep as the first opt-i
 - **`SandboxExecSandbox`** (macOS): renders a `(deny default)` sandbox-exec profile with `(allow file-read* (subpath
   ...))` / `(allow file* ...)` per root; `sandbox-exec -p <profile> <cmd>`.
 - **`platform_sandbox(policy)`**: picks the backend by `sys.platform`.
-- Composes through `ExecOps`: `ExecParams` gained `options: Sequence[ProcOption]`, `ProcsExecOps` passes them to
+- Composes through `ExecOps`: `ExecParams` gained `options: Sequence[ProcOption]`, `ProcessesExecOps` passes them to
   `scope.spawn(spec, *options)`. `RipgrepTool(sandbox=True)` -> `platform_sandbox(SandboxPolicy(read_roots=[cwd]))`
   (opt-in, default off so it runs anywhere).
 
@@ -26,7 +26,7 @@ Usage: `await scope.run(spec, platform_sandbox(SandboxPolicy(read_roots=[cwd])))
 
 - Rendering: bwrap argv (ro/rw binds, missing-path skip, `--unshare-net` toggle, `--chdir`), sandbox-exec profile
   (deny-default, subpath allows incl. spaces, network toggle), stdio (PtyStdio) preserved through wrapping.
-- Passthrough: `ProcsExecOps` applies `ExecParams.options` end-to-end (a test `Sandbox` that echoes a marker then
+- Passthrough: `ProcessesExecOps` applies `ExecParams.options` end-to-end (a test `Sandbox` that echoes a marker then
   execs - proves the manager applies it and output streams back). `RipgrepTool` passes a `Sandbox` iff `sandbox=True`.
 - **Gated live** bwrap confinement test (`test_bwrap_confinement_live`): reads allowed root, cannot read an unbound
   path, no network. **Skipped in this sandbox** - bwrap here can't create unprivileged user namespaces (kernel

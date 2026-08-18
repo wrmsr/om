@@ -39,8 +39,8 @@ def bind_tools(config: Config) -> inj.Elements:
         lst.extend([
             processes.bind_process_manager(),
 
-            inj.bind(agn.ProcsExecOps, singleton=True),
-            inj.bind(agn.ExecOps, to_key=agn.ProcsExecOps),
+            inj.bind(agn.ProcessesExecOps, singleton=True),
+            inj.bind(agn.ExecOps, to_key=agn.ProcessesExecOps),
 
             inj.bind(agn.BashTool, singleton=True),
             bind_agent_tool_class(agn.BashTool),

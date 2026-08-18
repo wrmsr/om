@@ -8,25 +8,25 @@ clean; full `omllm` suite 417 passed / 20 skipped.
 
 - `agent/exec/ops.py` rewritten over `omllm.core.processes`:
   - `ExecOps.exec(scope, params)` - takes the `ProcessScope` to run in (per the "put the scope on the tool context"
-    decision). `ProcsExecOps` spawns a `ProcessSpec`, `wait(timeout_s)`, `aclose()` (reaps; kills the group on timeout),
+    decision). `ProcessesExecOps` spawns a `ProcessSpec`, `wait(timeout_s)`, `aclose()` (reaps; kills the group on timeout),
     then reads the spool.
   - `ExecResult` gains `timed_out` and `truncated`; keeps `rc`/`stdout`/`stderr` (split by spool fd 1/2).
   - `format_exec_output(result, *, timeout_s=, max_chars=30_000)` -> model-facing text: stdout then stderr, head+tail
     truncation for very large output, and `[exit code N]` / `[command timed out ...]` notes as out-of-band framing.
-  - `LocalExecOps` (the old `create_subprocess_exec` one-shot) is gone; `ProcsExecOps` replaces it.
+  - `LocalExecOps` (the old `create_subprocess_exec` one-shot) is gone; `ProcessesExecOps` replaces it.
 - `agent/types/tools.py`: `ToolEnvironment.processes: processes.ProcessScope | None`. This is where the tool-call
   process scope lives *for now* - it will move onto a real turn/tool DI scope later, but nothing here waits on that.
 - `agent/exec/tools/bash.py` + `.../ripgrep/tools/ripgrep.py`: pull the scope from `ctx.env.processes`, pass `timeout_s`
   through, and render via `format_exec_output` (so stderr and the exit code now reach the model - previously bash
   returned stdout only and dropped stderr/rc).
 - `ui/bare/tools.py`: under `--exec`, binds the process manager (`processes.bind_process_manager()`, an async-managed
-  singleton) and `ProcsExecOps` -> `ExecOps`.
+  singleton) and `ProcessesExecOps` -> `ExecOps`.
 - `ui/bare/main.py`: sets `ToolEnvironment(cwd=..., processes=(await injector[processes.ProcessManager]).root)` when
   exec is enabled. The manager is started on provision and closed on injector teardown - no globals.
 
 ## Proven end-to-end
 
-- `agent/exec/tests/test_ops.py`: `ProcsExecOps` basic / nonzero-exit / timeout (partial output preserved, killed);
+- `agent/exec/tests/test_ops.py`: `ProcessesExecOps` basic / nonzero-exit / timeout (partial output preserved, killed);
   `format_exec_output` rendering.
 - `agent/tests/test_exec_agent.py`: drives the real `Agent` + `TurnLoop` with a **scripted backend** that emits a
   `bash` tool call. The whole path runs - scripted turn -> loop -> BashTool -> ProcsExecOps -> real subprocess ->

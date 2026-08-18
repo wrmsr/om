@@ -5,6 +5,9 @@ collect the captured output - and returns a structured `ExecResult`. `format_exe
 model-facing text (combined streams, exit / timeout notes, head+tail truncation for very large output).
 
 Long-lived / background / streaming processes are spawned directly against a scope, not through here.
+
+FIXME:
+ - pointless ProcessesExecOps abstraction with 'processes.ProcessScope' and whatnot baked right into the interface lol
 """
 import abc
 import typing as ta
@@ -60,7 +63,7 @@ class ExecOps(lang.Abstract):
 ##
 
 
-class ProcsExecOps(ExecOps):
+class ProcessesExecOps(ExecOps):
     async def exec(self, scope: processes.ProcessScope, params: ExecParams) -> ExecResult:
         spec = processes.ProcessSpec(
             tuple(params.cmd),
@@ -104,8 +107,8 @@ def format_exec_output(
         max_chars: int | None = DEFAULT_MAX_EXEC_OUTPUT_CHARS,
 ) -> str:
     """
-    Renders an `ExecResult` as model-facing text: combined stdout then stderr, with out-of-band notes for a
-    nonzero exit, a timeout, or truncation - phrased so a model can tell them apart from the command's own output.
+    Renders an `ExecResult` as model-facing text: combined stdout then stderr, with out-of-band notes for a nonzero
+    exit, a timeout, or truncation - phrased so a model can tell them apart from the command's own output.
     """
 
     out = (result.stdout or b'').decode('utf-8', 'replace')
