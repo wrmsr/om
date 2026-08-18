@@ -4,8 +4,8 @@ import sys
 
 from omcore import inject as inj
 
-from ... import agent as agn
-from .config import Config
+from .... import agent as agn
+from ..config import Config
 
 
 ##

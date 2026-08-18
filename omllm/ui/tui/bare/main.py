@@ -4,21 +4,16 @@ import os.path
 from omcore import dataclasses as dc
 from omcore import inject as inj
 
-from ... import agent as agn
-from ... import harness as har
-from ...core import procs
-from ...core import ui
-from .agent import AgentEventSubscribers
-from .agent import bind_agent
-from .backends import bind_backends
-from .commands import bind_commands
-from .config import parse_config
+from .... import agent as agn
+from .... import harness as har
+from ....core import procs
+from ....core import ui
+from ..agent import AgentEventSubscribers
+from ..config import parse_config
+from ..inject import bind_tui
 from .input import InputManager
 from .input import bind_input
 from .output import bind_output
-from .permissions import bind_permissions
-from .session import bind_sessions
-from .tools import bind_tools
 
 
 ##
@@ -35,14 +30,10 @@ async def _a_main() -> None:
     #
 
     lst: list[inj.Elemental] = [
-        bind_agent(config),
-        bind_backends(config),
-        bind_commands(config),
+        bind_tui(config),
+
         bind_input(config),
         bind_output(config),
-        bind_permissions(config),
-        bind_sessions(config),
-        bind_tools(config),
     ]
 
     #
