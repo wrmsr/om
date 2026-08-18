@@ -13,7 +13,7 @@ is 24 passed / 1 skipped (root-only credentials test), and the wider `omllm/{age
   marshal'd `(stage, errno, msg)` over the status fd; EOF-with-no-data == exec succeeded. ~10-12ms/spawn.
 - **`launch/`** — `Launcher`/`SpecTransform`/`LaunchPlan`; `ShimLauncher` (bootstrap `python -I -S -c`, payload in an
   unlinked temp file); `ShellWrapTransform` (wraps `omcore.subprocesses.wrap`), `EnvScrubTransform`.
-- **`scopes/`, `handles.py`, `manager.py`** — the loop-agnostic tree + roles + abstract manager (`ScopeOps` is the
+- **`scopes/`, `handles.py`, `manager.py`** — the loop-agnostic tree + roles + abstract manager (`ScopeManager` is the
   impl hook so scopes stay asyncio-free).
 - **`asyncio/`** — `_SpawnerPopen` (no-op `__del__`, all wait/signal methods raise), `ExitWatcher` (waitid WNOWAIT
   thread → call_soon_threadsafe, never reaps), pipe protocols (`connect_read/write_pipe`, own the fds), `notifier`

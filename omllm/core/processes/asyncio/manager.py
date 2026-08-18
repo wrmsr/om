@@ -27,7 +27,7 @@ from ..manager import ProcessManager
 from ..scopes.policies import ScopeClosePolicy
 from ..scopes.scope import ProcessScope
 from ..scopes.scope import ScopeCloseResult
-from ..scopes.scope import ScopeOps
+from ..scopes.scope import ScopeManager
 from ..spool.spool import OutputSpool
 from ..spool.storage import SpoolStorage
 from ..types.errors import ManagerClosedError
@@ -86,7 +86,7 @@ class _StatusProtocol(asyncio.Protocol):
 ##
 
 
-class AsyncioProcessManager(ProcessManager, ScopeOps):
+class AsyncioProcessManager(ProcessManager, ScopeManager):
     def __init__(
             self,
             config: ManagerConfig | None = None,
@@ -118,7 +118,7 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
         self._root = ProcessScope(
             'root',
             parent=None,
-            ops=self,
+            manager=self,
             options=self._config.default_options,
             close_policy=self._config.close_policy,
         )

@@ -49,7 +49,7 @@
 
 - `ProcessScope(name, parent, ops)`: `spawn(spec, *options)`, `run(spec, *options, timeout=None) -> ProcessRun`
   (spawn + wait + drain + close), `child(name)`, `adopt(process)`, `processes`, `children`, `aclose()`,
-  `async with`. `ScopeOps` (impl hook): `spawn(scope, spec, options)`, `close_processes(procs, policy)`.
+  `async with`. `ScopeManager` (impl hook): `spawn(scope, spec, options)`, `close_processes(procs, policy)`.
 - Handles (`handles.py`): `ProcessInfo` (id, pid, spec, options, state, returncode, scope, name), `ProcessControl`
   (`signal`, `terminate`, `kill`, `aclose(policy=None)`), `ProcessStdin` (`write`, `write_eof`, `stdin_closed`),
   `ProcessOutput` (`spool`, `output_ended`), `ProcessWaiter` (`wait(timeout=None)`, `done`, `exited`), `Process`

@@ -3,7 +3,7 @@ A `ProcessScope` is a node in the lifetime tree. It owns processes (and child sc
 closes: child scopes first (reverse creation order, sequentially), then all its own processes concurrently. Moving a
 handle between scopes (`adopt`) is how a tool-call process becomes a background one.
 
-The scope itself is loop-agnostic; concurrency and spawning are delegated to `ScopeOps`, implemented by the manager.
+The scope itself is loop-agnostic; concurrency and spawning are delegated to `ScopeManager`, implemented by the manager.
 """
 import abc
 import typing as ta
@@ -37,7 +37,7 @@ class ScopeCloseResult:
     errors: ta.Sequence[Exception] = ()
 
 
-class ScopeOps(lang.Abstract):
+class ScopeManager(lang.Abstract):
     """The manager-side implementation hooks a scope needs."""
 
     @abc.abstractmethod
@@ -95,7 +95,7 @@ class ProcessScope:
             name: str,
             *,
             parent: ProcessScope | None,
-            ops: ScopeOps,
+            manager: ScopeManager,
             options: ta.Iterable[ProcessOption] | None = None,
             close_policy: ScopeClosePolicy | None = None,
     ) -> None:
@@ -103,7 +103,7 @@ class ProcessScope:
 
         self._name = check.non_empty_str(name)
         self._parent = parent
-        self._ops = ops
+        self._manager = manager
         self._own_options: ProcessOptions = layer_options(None, options)
         self._close_policy = close_policy
 
@@ -120,7 +120,7 @@ class ProcessScope:
 
         self._path: tuple[str, ...] = (*(parent._path if parent is not None else ()), name)  # noqa: SLF001
 
-        ops.scope_opened(self)
+        manager.scope_opened(self)
 
     def __repr__(self) -> str:
         return (
@@ -203,7 +203,7 @@ class ProcessScope:
         return ProcessScope(
             name,
             parent=self,
-            ops=self._ops,
+            manager=self._manager,
             options=options,
             close_policy=close_policy,
         )
@@ -213,7 +213,7 @@ class ProcessScope:
     async def spawn(self, spec: ProcessSpec, *options: ProcessOption) -> Process:
         self._check_open()
         opts = layer_options(self.options, options)
-        proc = await self._ops.spawn(self, spec, opts)
+        proc = await self._manager.spawn(self, spec, opts)
         return proc
 
     async def run(
@@ -256,7 +256,7 @@ class ProcessScope:
         if old is self:
             return
         check.in_(process.id, old._processes)  # noqa: SLF001
-        self._ops.reparent(process, self)
+        self._manager.reparent(process, self)
 
     def _register(self, process: Process) -> None:
         check.not_in(process.id, self._processes)
@@ -283,7 +283,7 @@ class ProcessScope:
 
         procs = list(self._processes.values())
         try:
-            result = await self._ops.close_processes(procs, self.close_policy)
+            result = await self._manager.close_processes(procs, self.close_policy)
         except Exception as e:  # noqa
             result = ScopeCloseResult(num_processes=len(procs), errors=[e])
         errors.extend(result.errors)
@@ -293,7 +293,7 @@ class ProcessScope:
             p._children.pop(self._name, None)  # noqa: SLF001
         self._closed = True
 
-        await self._ops.scope_closed(self, dc.replace(result, errors=errors))
+        await self._manager.scope_closed(self, dc.replace(result, errors=errors))
 
         if errors:
             if len(errors) == 1:
