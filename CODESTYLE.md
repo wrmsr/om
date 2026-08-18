@@ -90,9 +90,9 @@
 
 ### Naming
 
-- Module names should be nouns (usually plural or gerunds), not verbs, so as to not clash with function names. A module
-  should be named `parsing.py`, not `parse.py`, so `__init__.py` could `from .parsing import parse` without shadowing
-  the module itself.
+- Module names should *usually* (but *not* always) be nouns (usually plural or gerunds), not verbs, so as to not clash
+  with function names. A module should be named `parsing.py`, not `parse.py`, so `__init__.py` could `from .parsing
+  import parse` without shadowing the module itself.
 - Function names should be verbs.
 - When naming interface classes, the interface should be the 'bare' name, and implementations should have prefixes and
   suffixes. For example, a user service interface would be `UserService`, with a `DbUserService` or `DictUserService`
@@ -448,6 +448,17 @@ def make_it_a_tuple(t: T) -> tuple[T]:
 ### Tests
 
 - As above, write tests in pytest-style.
+- Tests should go in `tests` subpackages nearest to the code they test.
+  - As we generally prefer organizing code into small nested packages, this naturally results in each layer of
+    subpackage tending to have its own `tests` subpackage. Avoid cramming tests for subpackages into some more
+    root-level parent `tests` package.
+    - For example, if you have `tui/controls/textbox.py`, `tui/input/keyboard.py`, and `tui/screen.py`, you *should*
+      have `tui/controls/tests/test_textbox.py`, `tui/input/tests/test_keyboard.py`, and `tui/tests/test_screen.py` -
+      you should *not* have `tui/tests/test_textbox.py` or `tui/tests/test_keyboard.py`.
+  - Test-only support code should also go in a `tests` subpackage, but should not have a `test_` module name prefix.
+    - Test code in subpackages is allowed to import test-only support code from parent `tests` subpackages. For example,
+      a `tui/controls/tests/test_textbox.py` would be allowed to import a `tui/tests/utils.py` file via `from ...tests
+      import utils`.
 - Use raw assertions liberally in tests, and use pytest utilities like `pytest.raises`.
 - Use fixtures and other advanced pytest features sparingly. Prefer to simply instantiate test data rather than wrap it
   in a fixture.
