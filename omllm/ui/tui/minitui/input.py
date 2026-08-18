@@ -2,8 +2,8 @@
 Input side of the minitui backend: the permission asker.
 
 `PermissionAsker.ask` is awaited from deep inside the tool executor, mid-turn. Here it surfaces as a warm-window
-confirmation card (allow f10 / deny f2) whose response resolves an asyncio future - the driver keeps rendering (and
-the user keeps typing) while the turn is parked on the decision.
+confirmation card (allow f10 / deny f2) whose response resolves an asyncio future - the driver keeps rendering (and the
+user keeps typing) while the turn is parked on the decision.
 """
 import asyncio
 

@@ -2,8 +2,8 @@
 Entry point for the minitui chat backend: `python -m omllm.ui.tui.minitui`.
 
 Structural difference from `bare`: there is no blocking read loop - `AsyncDriver.run(app)` owns the terminal for the
-process lifetime, and prompts run as concurrent tasks so the surface keeps rendering stream deltas (and accepting
-input) while a turn is in flight. Submissions made mid-turn queue and run in order.
+process lifetime, and prompts run as concurrent tasks so the surface keeps rendering stream deltas (and accepting input)
+while a turn is in flight. Submissions made mid-turn queue and run in order.
 """
 import asyncio
 import os.path
