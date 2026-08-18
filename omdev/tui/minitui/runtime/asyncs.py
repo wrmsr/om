@@ -207,8 +207,8 @@ class AsyncDriver:
                 self._resolve_origin(event.x)
                 continue
             if isinstance(event, KittyFlagsEvent):
-                # Kitty-protocol confirmation: with disambiguation active the ESC byte can only start a sequence,
-                # so escape parsing may wait indefinitely (immune to laggy split sequences).
+                # Kitty-protocol confirmation: with disambiguation active the ESC byte can only start a sequence, so
+                # escape parsing may wait indefinitely (immune to laggy split sequences).
                 self._parser.set_escape_unambiguous(bool(event.flags & 1))
                 continue
             if isinstance(event, ModeReportEvent) and event.mode == 2026:

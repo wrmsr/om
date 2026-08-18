@@ -52,7 +52,7 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
             *,
             permissions: PermissionDecider,
             exec: ExecOps,  # noqa
-            sandbox: bool = False,
+            sandbox: bool = False,  # FIXME: really dog?
     ) -> None:
         super().__init__()
 
