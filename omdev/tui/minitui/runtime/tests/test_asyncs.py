@@ -49,13 +49,14 @@ def test_async_driver_dispatch_and_render():
 def test_async_driver_escape_timeout():
     tty = PipeTty(height=6, width=40)
     driver = AsyncDriver(InlineSurface(tty, term='xterm-256color'))
+    driver.parser.escape_timeout_s = .05  # shrink the real-time wait so the test stays fast
     app = RecordingApp(driver)  # type: ignore[arg-type]
 
     async def main():
         tty.send(b'\x1b')
 
         async def later():
-            await asyncio.sleep(.15)  # > the 50ms escape timeout
+            await asyncio.sleep(.15)  # > the shrunken escape window
             driver.stop()
 
         task = asyncio.get_running_loop().create_task(later())

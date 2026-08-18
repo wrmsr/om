@@ -117,6 +117,7 @@ class InlineSurface(Surface):
             # Both extended-key protocols: kitty (modern) and xterm modifyOtherKeys (iTerm2, xterm, mintty, and the
             # format tmux's extended-keys forwards). Terminals honor whichever they speak; both are ignored elsewhere.
             w.kitty_keys(True)
+            w.kitty_keys_query()
             w.modify_other_keys(True)
         if self._mouse:
             w.mouse_tracking(True)

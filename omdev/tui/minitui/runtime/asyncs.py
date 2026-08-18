@@ -21,6 +21,7 @@ from omcore import check
 from ..events.parsing import Read1
 from ..events.types import CursorPositionEvent
 from ..events.types import Event
+from ..events.types import KittyFlagsEvent
 from ..events.types import ModeReportEvent
 from ..events.types import ResizeEvent
 from ..events.xterm import XtermEventParser
@@ -204,6 +205,11 @@ class AsyncDriver:
         for event in events:
             if self._awaiting_origin and isinstance(event, CursorPositionEvent):
                 self._resolve_origin(event.x)
+                continue
+            if isinstance(event, KittyFlagsEvent):
+                # Kitty-protocol confirmation: with disambiguation active the ESC byte can only start a sequence,
+                # so escape parsing may wait indefinitely (immune to laggy split sequences).
+                self._parser.set_escape_unambiguous(bool(event.flags & 1))
                 continue
             if isinstance(event, ModeReportEvent) and event.mode == 2026:
                 self._surface.set_sync_output(event.value != 0)

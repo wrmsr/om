@@ -485,3 +485,29 @@ sequence's legacy meaning alt+shift+o instead of a silent swallow; _KITTY_SPECIA
 functional codes F1-F12 (57364..57375) for report-all-keys implementations. Regressions: laggy SS3 tail -> f2;
 lone ESC O -> alt+O; kitty numeric F-keys; iTerm2 CSI 11~..14~ forms. (Also cleaned the omxtra/tui/minitui pycache
 husks from the omdev move - the package now lives at omdev/tui/minitui.)
+
+## 2026-08-18 (later): the escape-timeout design conversation - kitty confirmation kills the ambiguity
+
+Owner (frequently on mosh/terrible-wifi links): "none of these timeouts are edge cases - what does vim do?"
+The landscape, now documented in xterm.py's constants block: the ESC byte is key/sequence-intro/alt-prefix
+overloaded and only elapsed time disambiguates on the legacy wire. Vim waits ~1000ms for key codes by default
+(sequence-favoring; the famous post-ESC delay everyone tunes with ttimeoutlen), neovim picks 50 (ESC-favoring),
+tmux's escape-time (historically 500ms) makes it the classic sequence SPLITTER once it misjudges. mosh is gentle
+per-keypress (one datagram) but its server-side emulator has no kitty support, so mosh sessions are stuck legacy.
+Fix (060ab8028), two prongs:
+- The kitty protocol deletes the ambiguity (escape key = CSI 27u), and we already negotiate it - now we USE the
+  confirmation: surfaces send CSI ?u after the >1u push; drivers consume the ?flagsu reply as plumbing and flip
+  the parser into unambiguous-escape mode - bare-ESC and SS3 waits become indefinite (like CSI always was) and
+  Escape gains zero-latency delivery. Strictly better on both axes on modern terminals.
+- Legacy wire: MINITUI_ESCAPE_TIMEOUT_S / MINITUI_SS3_TIMEOUT_S env overrides (parser reads at construction;
+  ss3 clamped >= escape). The only cost of raising them is bare-ESC resolution latency - the honest dial.
+Tests: unambiguous mode (no pending timeout after ESC; laggy SS3 tail fine; CSI 27u escape), env overrides w/
+bogus-value fallback, driver consumes the flags reply (not forwarded to app), surfaces emit the query, e2e flag
+flip through a full SyncDriver run.
+
+Correction (same day): env vars are forbidden in this codebase - the MINITUI_ESCAPE_TIMEOUT_S /
+MINITUI_SS3_TIMEOUT_S overrides above were removed the day they landed. The legacy-wire dial is now the default
+itself (ESCAPE_TIMEOUT_S raised .05 -> .5, vim-leaning, per the owner - sole user - being frequently on laggy
+links) plus injectable kwargs on XtermEventParser (escape_timeout_s / ss3_timeout_s, defaulting to the globals;
+nothing constructs with overrides yet, prewired on purpose). Kitty-confirmed unambiguous mode is unchanged and
+still moots the timeouts entirely on modern terminals.

@@ -16,6 +16,7 @@ from ..types import MouseEvent
 from ..types import MouseEventKind
 from ..types import PasteEvent
 from ..types import UnknownSequenceEvent
+from ..xterm import ESCAPE_TIMEOUT_S
 from ..xterm import SS3_TIMEOUT_S
 from ..xterm import XtermEventParser
 
@@ -283,3 +284,31 @@ def test_iterm2_kitty_fkeys_csi_tilde():
     # iTerm2's kitty-protocol mode reports F1-F4 as CSI 11~..14~ (not SS3 / CSI P..S).
     p = XtermEventParser()
     assert keys(p.feed('\x1b[11~\x1b[12~\x1b[13~\x1b[14~')) == [Key('f1'), Key('f2'), Key('f3'), Key('f4')]
+
+
+def test_unambiguous_escape_mode_waits_indefinitely():
+    # With kitty disambiguation confirmed, a bare ESC byte can only begin a sequence: no timeout races, and the
+    # escape key itself arrives as CSI 27u with zero latency.
+    p = XtermEventParser()
+    p.set_escape_unambiguous(True)
+
+    assert p.feed('\x1b') == []
+    assert p.pending_timeout_s is None      # would otherwise arm the bare-ESC window
+    assert keys(p.feed('OQ')) == [Key('f2')]  # an SS3 tail may lag arbitrarily
+
+    assert keys(p.feed('\x1b[27u')) == [Key('escape')]
+
+
+def test_escape_timeouts_injectable():
+    p = XtermEventParser(escape_timeout_s=.4, ss3_timeout_s=2.0)
+    assert p.escape_timeout_s == .4
+    assert p.ss3_timeout_s == 2.0
+    p.feed('\x1b')
+    assert p.pending_timeout_s == .4
+
+    # The SS3 window is clamped to at least the bare-ESC window.
+    assert XtermEventParser(escape_timeout_s=3.0).ss3_timeout_s == 3.0
+
+    p = XtermEventParser()
+    assert p.escape_timeout_s == ESCAPE_TIMEOUT_S
+    assert p.ss3_timeout_s == SS3_TIMEOUT_S

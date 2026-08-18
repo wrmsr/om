@@ -111,8 +111,18 @@ def test_driver_paste_roundtrip():
 
 def test_driver_escape_timeout_fires():
     # A lone ESC with no follow-up: the loop must fire the parser timeout and deliver the escape key, then EOF ends the
-    # run. (The wait is the parser's 50ms escape timeout - real time, but tiny and deterministic in outcome.)
-    app, _ = run_driver(b'\x1b')
+    # run. (The wait is real time - shrink the window so the test stays fast.)
+    tty = PipeTty(height=6, width=40)
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
+    driver.parser.escape_timeout_s = .05
+    app = RecordingApp(driver)
+    tty.send(b'\x1b[3;1R')
+    tty.send(b'\x1b')
+    tty.close_input()
+    try:
+        driver.run(app)
+    finally:
+        os.close(tty.read_fd)
     assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('escape')]
 
 
@@ -207,3 +217,18 @@ def test_driver_stop_before_origin_flushes_commits():
     term = Vt100Terminal(rows=6, cols=40)
     term.feed(b''.join(tty.writes))
     assert 'parting words' in term.all_lines()
+
+
+def test_kitty_flags_reply_relaxes_escape_parsing():
+    # The prepare-time CSI ?u query's reply is plumbing: the driver flips the parser into unambiguous-escape mode
+    # instead of forwarding it to the app.
+    app, tty = run_driver(b'\x1b[?1u', then=b'\x04')
+    assert not any(isinstance(e, ModeReportEvent) or type(e).__name__ == 'KittyFlagsEvent' for e in app.events)
+
+
+def test_kitty_query_sent_when_enabled():
+    tty = PipeTty(height=6, width=40)
+    surface = InlineSurface(tty, term='xterm-256color', kitty_keys=True)
+    surface.prepare(defer_origin=True)
+    assert b'\x1b[?u' in b''.join(tty.writes)
+    surface.restore()

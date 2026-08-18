@@ -5,7 +5,7 @@ Hardcoded xterm-compatible sequences plus runtime-negotiable extensions (SGR mou
 protocol), per the modern consensus - terminfo is not consulted for input. Structural decoding is preferred over big
 sequence tables: modifier parameters (CSI 1;5A etc.) are decoded arithmetically rather than enumerated.
 
-The bare-ESC-vs-sequence ambiguity is resolved by a short read timeout (the classic `ttimeoutlen`); bracketed paste
+The bare-ESC-vs-sequence ambiguity is resolved by a read timeout (the classic `ttimeoutlen`); bracketed paste
 bodies bypass per-character parsing entirely.
 """
 import typing as ta
@@ -31,14 +31,27 @@ from .types import UnknownSequenceEvent
 ##
 
 
-# How long a lone ESC waits for a following byte before resolving as the escape key.
-ESCAPE_TIMEOUT_S = .05
+# The ESC byte is fundamentally overloaded on the legacy wire: the escape KEY, the intro of every escape sequence,
+# and the alt prefix - and only elapsed time can tell them apart. Every program picks a timeout and thereby picks its
+# failure mode: vim waits ~1000ms for key codes by default (sequence-favoring; the famous "delay after ESC"), neovim
+# picks ttimeoutlen=50 (ESC-favoring; splits break on laggy links), tmux's escape-time (historically 500ms) makes it
+# the classic splitter of sequences it misjudged. The kitty keyboard protocol deletes the ambiguity entirely - the
+# escape key arrives as CSI 27u - so when the terminal confirms it (see `set_escape_unambiguous`) these timeouts stop
+# applying and escape parsing waits indefinitely, like the CSI path always has.
 
-# How long an SS3 intro (ESC O) waits for its final byte. Deliberately much longer than the bare-ESC timeout (vim's
-# ttimeoutlen waits ~1000ms here): the CSI path waits indefinitely for its final, and an SS3 tail delayed past a
-# too-short window silently breaks F1-F4 while F5+ (CSI-form) keep working. The fallback meaning of a lone ESC O on
-# the legacy wire is alt+shift+o, so that's what a timeout resolves to.
+# How long a lone ESC waits for a following byte before resolving as the escape key. The default sides with sequence
+# integrity over ESC latency (closer to vim's ~1000ms than neovim's 50) - the sole cost is bare-ESC resolution latency
+# (the visible mode-change lag vim users tune with ttimeoutlen), and on any kitty-confirmed terminal the timeout stops
+# applying anyway. Injectable per-instance via `XtermEventParser(escape_timeout_s=...)` for laggy legacy links (mosh
+# into tmux, bad wifi).
+ESCAPE_TIMEOUT_S = .5
+
+# How long an SS3 intro (ESC O) waits for its final byte. Kept at least as long as the bare-ESC timeout (vim waits
+# ~1000ms here): the CSI path waits indefinitely for its final, and an SS3 tail delayed past a too-short window
+# silently breaks F1-F4 while F5+ (CSI-form) keep working. The fallback meaning of a lone ESC O on the legacy wire is
+# alt+shift+o, so that's what a timeout resolves to. Injectable per-instance like the escape timeout.
 SS3_TIMEOUT_S = .5
+
 
 _MAX_CSI_LENGTH = 64
 
@@ -138,10 +151,39 @@ def _int_params(params: str) -> list[int | None]:
 
 
 class XtermEventParser(EventParser):
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            *,
+            escape_timeout_s: float = ESCAPE_TIMEOUT_S,
+            ss3_timeout_s: float = SS3_TIMEOUT_S,
+    ) -> None:
         super().__init__()
 
         self._expect_cpr = False
+
+        self.escape_timeout_s = escape_timeout_s
+        self.ss3_timeout_s = max(ss3_timeout_s, escape_timeout_s)
+        self._escape_unambiguous = False
+
+    @property
+    def escape_unambiguous(self) -> bool:
+        return self._escape_unambiguous
+
+    def set_escape_unambiguous(self, unambiguous: bool) -> None:
+        """
+        The terminal confirmed the kitty keyboard protocol's disambiguation is (in)active. When active, the escape
+        key arrives as `CSI 27u`, so a bare ESC byte can only begin a sequence - escape parsing waits indefinitely
+        (like the CSI path) and the escape key itself gains zero-latency delivery. Applies to reads begun after the
+        change.
+        """
+
+        self._escape_unambiguous = unambiguous
+
+    def _escape_wait_s(self) -> float | None:
+        return None if self._escape_unambiguous else self.escape_timeout_s
+
+    def _ss3_wait_s(self) -> float | None:
+        return None if self._escape_unambiguous else self.ss3_timeout_s
 
     def expect_cursor_position_report(self) -> None:
         """
@@ -174,7 +216,7 @@ class XtermEventParser(EventParser):
     def _parse_escape(self) -> ParseGenerator:
         while True:
             try:
-                c = yield Read1(ESCAPE_TIMEOUT_S)
+                c = yield Read1(self._escape_wait_s())
             except ParseTimeoutError:
                 self._emit_char('\x1b')
                 return
@@ -194,7 +236,7 @@ class XtermEventParser(EventParser):
 
     def _parse_ss3(self) -> ParseGenerator:
         try:
-            c = yield Read1(SS3_TIMEOUT_S)
+            c = yield Read1(self._ss3_wait_s())
         except ParseTimeoutError:
             self._emit_key(Key('O', alt=True))
             return
