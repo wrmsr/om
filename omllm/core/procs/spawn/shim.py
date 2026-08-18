@@ -1,21 +1,21 @@
 # ruff: noqa: UP006 UP007 UP045
 """
 The spawn shim: runs in the child, after fork and before exec, applying everything the parent asked for that
-`subprocess.Popen` cannot do safely with threads (privilege drop, rlimits, deathsig, signal disposition cleanup),
-then `execvpe`s the target. Failures at any stage are reported as a single marshal'd record over the status fd, which
-is otherwise closed-on-exec so that EOF alone means "exec happened".
+`subprocess.Popen` cannot do safely with threads (privilege drop, rlimits, deathsig, signal disposition cleanup), then
+`execvpe`s the target. Failures at any stage are reported as a single marshal'd record over the status fd, which is
+otherwise closed-on-exec so that EOF alone means "exec happened".
 
 **Pure stdlib, zero om imports, py3.8-safe syntax.** The source is loaded as a resource and shipped to the child (or,
 later, to a remote host) as text and exec'd in a bare namespace, so nothing here may depend on the om codebase or on a
-modern interpreter. It is intentionally *not* marked `@om-lite` (that would subject it to a lite-import precheck, and
-it lives under the non-lite `omllm.core` package which cannot be imported under 3.8) - but the same constraints apply:
-keep it stdlib-only and syntactically valid back to Python 3.8. `# type:` comment annotations and the `UP*` noqa above
-exist for exactly that reason.
+modern interpreter. It is intentionally *not* marked `@om-lite` (that would subject it to a lite-import precheck, and it
+lives under the non-lite `omllm.core` package which cannot be imported under 3.8) - but the same constraints apply: keep
+it stdlib-only and syntactically valid back to Python 3.8. `# type:` comment annotations and the `UP*` noqa above exist
+for exactly that reason.
 
 The payload is a marshal-able dict; os-level strings are bytes:
-  argv: [bytes], env: {bytes: bytes}, cwd: bytes|None, status_fd: int, keep_fds: [int], close_fds: [int],
-  umask: int|None, rlimits: [(resource, soft, hard)], user: int|bytes|None, group: int|bytes|None,
-  extra_groups: [int|bytes]|None, deathsig: int|None
+  argv: [bytes], env: {bytes: bytes}, cwd: bytes|None, status_fd: int, keep_fds: [int], close_fds: [int], umask:
+  int|None, rlimits: [(resource, soft, hard)], user: int|bytes|None, group: int|bytes|None, extra_groups:
+  [int|bytes]|None, deathsig: int|None
 """
 import marshal
 import os
@@ -120,7 +120,7 @@ def apply_rlimits(rlimits):  # type: (ta.Any) -> None
 
 
 def apply_deathsig(sig):  # type: (int) -> None
-    if not sys.platform.startswith('linux'):
+    if not getattr(sys, 'platform').startswith('linux'):  # mypy workaround
         return
     import ctypes  # noqa
     libc = ctypes.CDLL(None, use_errno=True)
@@ -151,8 +151,8 @@ def reset_signals():  # type: () -> None
 
 
 def apply_fds(status_fd, keep_fds, close_fds):  # type: (int, ta.Any, ta.Any) -> None
-    # `pass_fds` makes everything inheritable in the child - the status fd must NOT survive exec (its EOF is the
-    # success signal), and internal fds must not leak into the target.
+    # `pass_fds` makes everything inheritable in the child - the status fd must NOT survive exec (its EOF is the success
+    # signal), and internal fds must not leak into the target.
     for fd in close_fds or ():
         if fd == status_fd:
             continue
@@ -212,7 +212,7 @@ def main(payload):  # type: (ta.Any) -> None
 
 
 def _main():  # type: () -> None
-    """Debug entrypoint: `python -m omllm.core.procs._spawn <payload_fd>` with a marshal'd payload on that fd."""
+    """Debug entrypoint: `python -m omllm.core.procs.spawn.shim <payload_fd>` with a marshal'd payload on that fd."""
 
     fd = int(sys.argv[1])
     with os.fdopen(fd, 'rb') as f:

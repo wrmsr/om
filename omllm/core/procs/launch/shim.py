@@ -40,7 +40,7 @@ BOOTSTRAP: ta.Final[str] = (
 
 @lang.cached_function
 def shim_source() -> str:
-    return lang.get_relative_resources('.._spawn', globals=globals())['shim.py'].read_text()
+    return lang.get_relative_resources('..spawn', globals=globals())['shim.py'].read_text()
 
 
 ##

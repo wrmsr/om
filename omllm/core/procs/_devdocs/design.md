@@ -64,7 +64,7 @@
   `omcore.subprocesses.wrap`; `EnvScrubTransform`).
 - `ShimLauncher.plan(spec, options) -> ShimLaunch(argv, payload: bytes, env)`: bootstrap `-c` code + marshal'd
   (source, payload) written to an unlinked temp file (any size, no pipe stalls). Shim source loaded once via
-  `lang.get_relative_resources('._spawn', globals=globals())['shim.py']` (never `__file__`).
+  `lang.get_relative_resources('.spawn', globals=globals())['shim.py']` (never `__file__`).
 - Status protocol: parent reads the status pipe until EOF. EOF with no data == exec happened. Any data == a
   marshal'd `(stage, errno, message)` error record from the shim → `SpawnError`; the shim then `os._exit(127)`.
 
