@@ -420,15 +420,16 @@ class _DarwinProcessTitleState(_ClobberProcessTitleState):
         argc = int(argc_p.contents.value)
         argv_p = argv_pp.contents
         argv = [int(argv_p[i]) for i in range(argc)]
-        self._setup_clobber(argv)
 
         new_argv, keepalive = self._copy_argv(argv)
-        argv_pp.contents = ct.cast(
+        argv_pp[0] = ct.cast(
             new_argv,
             ct.POINTER(ct.c_void_p),
         )
         self._argv_keepalive.extend(keepalive)
         self._argv_keepalive.append(new_argv)
+
+        self._setup_clobber(argv)
 
     def _global_setup(self) -> None:
         self.get_process_title()

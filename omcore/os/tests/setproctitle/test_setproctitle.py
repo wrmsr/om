@@ -62,7 +62,7 @@ import os
 print(os.getpid())
 # ps can fail on kfreebsd arch
 # (http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=460331)
-print(os.popen("ps -x -o pid,command 2> /dev/null").read())
+print(os.popen(f"ps -p {os.getpid()} -o pid= -o command= 2> /dev/null").read())
 """,
     )
     lines = [line for line in rv.splitlines() if line]
@@ -189,7 +189,7 @@ setproctitle.setproctitle("Hello, module!")
 
 import os
 print(os.getpid())
-print(os.popen("ps -x -o pid,command 2> /dev/null").read())
+print(os.popen(f"ps -p {os.getpid()} -o pid= -o command= 2> /dev/null").read())
             """,
         )
 
@@ -213,8 +213,23 @@ import setproctitle
 setproctitle.setproctitle("Hello, long!")
 
 import os
+import sys
+
 print(os.getpid())
-print(os.popen("ps -x -o pid,command 2> /dev/null").read())
+for _ in range(3):
+    ps_output = os.popen(
+        f"ps -p {os.getpid()} -o pid= -o command= 2> /dev/null",
+    ).read()
+    ps_parts = ps_output.strip().split(None, 1)
+    if len(ps_parts) == 2:
+        ps_title = ps_parts[1]
+        if not (
+            sys.platform == 'darwin'
+            and ps_title.startswith('(')
+            and ps_title.endswith(')')
+        ):
+            break
+print(ps_output)
             """,
         )
 
@@ -252,7 +267,7 @@ import os
 import locale
 from subprocess import Popen, PIPE
 print(os.getpid())
-proc = Popen("ps -x -o pid,command 2> /dev/null", shell=True,
+proc = Popen(f"ps -p {os.getpid()} -o pid= -o command= 2> /dev/null", shell=True,
     close_fds=True, stdout=PIPE, stderr=PIPE)
 buf = proc.stdout.read()
 print(buf.decode(locale.getpreferredencoding(), 'replace'))
@@ -289,7 +304,7 @@ setproctitle.setproctitle("Hello, weird args!")
 
 import os
 print(os.getpid())
-print(os.popen("ps -x -o pid,command 2> /dev/null").read())
+print(os.popen(f"ps -p {os.getpid()} -o pid= -o command= 2> /dev/null").read())
 """,
             args=' '.join(['-', 'hello', euro, snowman]),
         )
@@ -320,13 +335,13 @@ def test_weird_path(tmp_path):
     os.symlink(sys.executable, exc)
 
     rv = run_script(
-        f"""
+        """
 import setproctitle
 setproctitle.setproctitle("Hello, weird path!")
 
 import os
 print(os.getpid())
-print(os.popen("ps -x -o pid,command 2> /dev/null").read())
+print(os.popen(f"ps -p {os.getpid()} -o pid= -o command= 2> /dev/null").read())
 """,
         args=' '.join(['-', 'foo', 'bar', 'baz']),
         executable=exc,
