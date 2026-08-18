@@ -1,3 +1,4 @@
+import shutil
 import tempfile
 
 import pytest
@@ -24,6 +25,7 @@ class _CaptureExecOps(ExecOps):
         return ExecResult(rc=0, stdout=b'', stderr=b'')
 
 
+@pytest.mark.skpif(shutil.which('rg') is None, reason='no ripgrep')
 @pytest.mark.asyncs('asyncio')
 async def test_ripgrep_passes_sandbox_option_when_enabled():
     cap = _CaptureExecOps()
@@ -41,6 +43,7 @@ async def test_ripgrep_passes_sandbox_option_when_enabled():
     assert any(isinstance(o, procs.Sandbox) for o in cap.captured.options)
 
 
+@pytest.mark.skpif(shutil.which('rg') is None, reason='no ripgrep')
 @pytest.mark.asyncs('asyncio')
 async def test_ripgrep_no_sandbox_by_default():
     cap = _CaptureExecOps()
