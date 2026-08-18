@@ -42,6 +42,15 @@ def _truncate(s: str, n: int) -> str:
     return s if len(s) <= n else s[:n - 3] + '...'
 
 
+def _detail_rows(text: str, *, limit_lines: int = 8) -> list[list[mt.Segment]]:
+    """Card-detail rows from possibly-multiline text: newline-split (segments are single-line), line-capped."""
+
+    rows = mt.split_segment_lines([(_truncate(text, 2000), 'card.detail')])
+    if len(rows) > limit_lines:
+        rows = [*rows[:limit_lines], [mt.Segment(f'... (+{len(rows) - limit_lines} more lines)', 'card.summary.dim')]]
+    return rows
+
+
 def _inline_parts(t: ui.Text, style: mt.Style) -> ta.Iterator[tuple[str, mt.StyleLike]]:
     # Yields (text, style) runs - text may contain newlines; `mt.split_segment_lines` rows them up.
     if isinstance(t, ui.StrText):
@@ -80,9 +89,11 @@ class MinituiTextDisplayer(ui.TextDisplayer):
             ))
 
         else:
-            # Inline nodes - possibly multi-line strings; each line wraps and commits.
+            # Inline nodes - possibly multi-line; rows wrap individually and commit as one block.
+            rows: list[ta.Sequence[mt.Segment]] = []
             for row in mt.split_segment_lines(_inline_parts(t, mt.EMPTY_STYLE)):
-                self._app.display_inline(row)
+                rows.extend(mt.wrap_segments(row, self._app.width) if row else [[]])
+            self._app.display_rows(rows)
 
     async def display_text(self, *texts: ui.CanText) -> None:
         for t in texts:
@@ -159,7 +170,7 @@ class AgentEventRenderer:
                 ok=ev.result.error is None,
                 detail_rows=[
                     *self._tool_detail(ev.context),
-                    [mt.Segment(_truncate(result_text, 200), 'card.detail')],
+                    *_detail_rows(result_text),
                 ],
             )
 
@@ -171,7 +182,7 @@ class VerboseEventRenderer:
         self._app = app
 
     async def on_agent_event(self, ev: agn.Event) -> None:
-        self._app.display_inline([mt.Segment(_truncate(repr(ev), 200), 'status.dim')])
+        self._app.display_text(_truncate(repr(ev), 200), 'status.dim')
 
 
 ##

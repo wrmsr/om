@@ -406,3 +406,15 @@ Fixes (both in the library, plus ordering hygiene in the app): AsyncDriver.commi
 before restore; omllm main starts the driver before subscribing/update_state, with the whole setup inside the
 try/finally that stops the driver. Regression tests: commit-before-run buffers+flushes; stop-before-origin
 flushes. e2e repro green (-v -X hello -X /quit: verbose events + response rendered, exit 0).
+
+## 2026-08-18 (later): multiline tool output - Segment's no-newlines contract vs grep
+
+Owner hit Segment.__post_init__ rejecting a ToolExecutionEndEvent result containing newlines (grep output). Segments
+are single-line by design; the omllm backend was stuffing raw result text into one. Fixes (aa8117ad0, all
+backend-side - the library contract is correct): _detail_rows() splits tool results via split_segment_lines with an
+8-line cap and '(+N more lines)' tail (cards wrap rows to width already, so only newlines were the hazard);
+MinituiChatApp.display_text() is the newline-safe plain-text path (split -> wrap -> single commit block) used by the
+verbose renderer, command echo, and prompt-error paths; the TextDisplayer inline branch now commits multi-line
+inline text as ONE block (it was emitting a blank-separated commit per line). Verified headlessly with a 14-line
+grep-style result: card renders, expands with capped detail; display_text commits 3 rows + 1 blank as one block.
+Both pty e2es still green.

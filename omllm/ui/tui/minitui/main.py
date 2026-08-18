@@ -80,7 +80,7 @@ class PromptPump:
         try:
             await self._session.prompt(text)
         except Exception as e:  # noqa: BLE001
-            self._app.display_inline([mt.Segment(f'error: {e!r}', 'error')])
+            self._app.display_text(f'error: {e!r}', 'error')
         finally:
             self._task = None
             self._maybe_start()

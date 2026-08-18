@@ -86,6 +86,14 @@ class MinituiChatApp(mt.App):
     def display_inline(self, segments: ta.Sequence[mt.Segment]) -> None:
         self.display_rows(mt.wrap_segments(segments, self.width) if segments else [[]])
 
+    def display_text(self, text: str, style: mt.StyleLike = None) -> None:
+        """Newline-safe plain-text display: splits into rows, wraps each, commits as one block."""
+
+        out: list[ta.Sequence[mt.Segment]] = []
+        for row in mt.split_segment_lines([(text, style)]):
+            out.extend(mt.wrap_segments(row, self.width) if row else [[]])
+        self.display_rows(out)
+
     ##
     # Chat flow
 
@@ -98,7 +106,7 @@ class MinituiChatApp(mt.App):
         self._driver.invalidate()
 
     def show_command_echo(self, text: str) -> None:
-        self.display_rows([[mt.Segment(text, 'echo.command')]])
+        self.display_text(text, 'echo.command')
 
     def begin_ai_turn(self) -> None:
         self._busy = True
