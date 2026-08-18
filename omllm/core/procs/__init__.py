@@ -127,6 +127,7 @@ with _lang.auto_proxy_init(globals()):
         RunTimeout,
         Tag,
         PassFd,
+        Target,
     )
 
     from .types.specs import (  # noqa
@@ -137,6 +138,12 @@ with _lang.auto_proxy_init(globals()):
 
     from .types.states import (  # noqa
         ProcessState,
+    )
+
+    ##
+
+    from .targets.docker import (  # noqa
+        DockerExecTarget,
     )
 
     ##

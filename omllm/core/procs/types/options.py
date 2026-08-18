@@ -2,6 +2,7 @@
 Per-spawn policies as `TypedValues` families. A `ProcOptions` collection is layered manager -> scope -> spawn via
 `layer_options` (unique families override, non-unique families accumulate), so callers only state what differs.
 """
+import abc
 import signal
 import typing as ta
 
@@ -9,6 +10,8 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore import typedvalues as tv
+
+from .specs import ProcessSpec
 
 
 ##
@@ -150,6 +153,22 @@ class Tag(tv.ScalarTypedValue[str], ProcOption, lang.Final):
 @dc.dataclass(frozen=True)
 class PassFd(tv.ScalarTypedValue[int], ProcOption, lang.Final):
     """Non-unique: an extra caller-owned fd to keep open (inheritable) in the child."""
+
+
+##
+
+
+class Target(tv.UniqueTypedValue, ProcOption, lang.Abstract):
+    """
+    Where a process runs. The default (no Target) is local. A Target rewrites the spec into the *local* command that
+    reaches the destination - e.g. wrapping argv in `docker exec ...` or `ssh host ...` - so the manager still spawns
+    and manages a single local process. Targets also own remote signal semantics (a future concern: killing the
+    local `docker exec` client does not necessarily stop the process inside the container).
+    """
+
+    @abc.abstractmethod
+    def transform_spec(self, spec: ProcessSpec) -> ProcessSpec:
+        raise NotImplementedError
 
 
 ##

@@ -245,6 +245,34 @@ class OutputSpool:
                 return r
             await self._notifier.wait(remaining)
 
+    async def poll(
+            self,
+            cursor: int = 0,
+            *,
+            timeout: float | None = None,
+            max_bytes: int | None = None,
+    ) -> SpoolRead:
+        """
+        Long-poll: returns any currently-available output immediately; if there is none, waits up to `timeout` for
+        the first output to arrive (or the spool to end), then returns. Unlike `read`, this does not keep collecting
+        for the whole window - it returns as soon as there is something to return, which is what a caller following a
+        running process wants.
+        """
+
+        r = self.read_available(cursor, max_bytes=max_bytes)
+        if r.records or r.ended or not timeout or timeout <= 0:
+            return r
+
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return self.read_available(cursor, max_bytes=max_bytes)
+            await self._notifier.wait(remaining)
+            r = self.read_available(cursor, max_bytes=max_bytes)
+            if r.records or r.ended:
+                return r
+
     async def subscribe(
             self,
             cursor: int = 0,

@@ -43,6 +43,7 @@ from ..types.ids import CountingProcessIdGenerator
 from ..types.ids import ProcessId
 from ..types.ids import ProcessIdGenerator
 from ..types.options import ProcOptions
+from ..types.options import Target
 from ..types.options import get_session_mode
 from ..types.options import get_spool_policy
 from ..types.specs import ProcessSpec
@@ -331,6 +332,11 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
         loop = check.not_none(self._loop)
 
         pid_id = self._ids.next_id()
+
+        # A Target (e.g. docker exec) rewrites the spec into the local command that reaches the destination.
+        if (target := options.get(Target)) is not None:  # type: ignore[type-abstract]
+            spec = target.transform_spec(spec)
+
         stdio = spec.stdio
         spool_policy = get_spool_policy(options)
         session_mode = get_session_mode(options).mode

@@ -41,6 +41,23 @@ with _lang.auto_proxy_init(globals()):
         BashTool,
     )
 
+    from .exec.tools.process import (  # noqa
+        ProcessSpawnToolParams,
+        ProcessSpawnTool,
+
+        ProcessReadToolParams,
+        ProcessReadTool,
+
+        ProcessWriteToolParams,
+        ProcessWriteTool,
+
+        ProcessKillToolParams,
+        ProcessKillTool,
+
+        ProcessListToolParams,
+        ProcessListTool,
+    )
+
     from .exec.permissions import (  # noqa
         ExecPermissionTarget,
         ExecPermissionMatcher,

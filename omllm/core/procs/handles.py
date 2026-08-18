@@ -61,6 +61,13 @@ class ProcessInfo(lang.Abstract):
         raise NotImplementedError
 
     @property
+    @abc.abstractmethod
+    def created_at(self) -> float:
+        """Wall-clock time (time.time()) at which the process was spawned."""
+
+        raise NotImplementedError
+
+    @property
     def name(self) -> str | None:
         return self.spec.name
 
