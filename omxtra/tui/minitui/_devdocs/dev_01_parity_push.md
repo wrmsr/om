@@ -431,3 +431,27 @@ raw call_later at both scheduling sites (tool-complete .8s, deny .6s), and begin
 now acts only on its own captured card rather than whatever occupies the slot. Regression test drives ask->allow->
 finish->ask with the stale timer fired in between (and the deny-path variant); both successor cards stay live and
 confirmable. pty e2es green.
+
+## 2026-08-18 (later): timing-hazard audit - "how many of these are we sitting on?"
+
+Owner asked, after the second timer bug. Full sweep of every deferred/timed construct (ce660a18f):
+- FOUND + FIXED: SyncDriver had BOTH AsyncDriver holes unfixed (pre-run commit -> check.state crash; stop-before-
+  origin -> dropped commits). commit() buffers while `not self._running`; run() finally resolves origin fallback
+  before restore. Regression tests mirror the async pair.
+- FOUND + HARDENED: chatdemo's warm-window timers (`call_later(1.2, self._tool_complete)` etc.) captured the card
+  SLOT - the exact pattern the omllm stuck-card bug was copied from. Now identity-guarded (`_tool_complete(card)`,
+  `_finalize_card(card)` with `self._card is not card` early-outs). Reachability analysis said chatdemo was
+  accidentally safe (the stream holds while a card is live), but the demo is the reference people copy.
+- ASSESSED SAFE (with reasons, for the record):
+  * call_every ticks (spinners, chat pump, omllm _tick): idempotent state-refresh; guarded by flags.
+  * Parser escape-timeout: single-threaded dispatch; deadline re-arms only on Read1 identity change; flush
+    handles cancelled in run() teardown (async) / never fire post-loop (sync). The classic ESC-then-[ 50ms
+    ambiguity is inherent to the wire and bracketed paste covers the paste case.
+  * Timers.fire_due: snapshot-now, cancel-safe, reschedule-from-now (no catch-up bursts); a 0-delay self-
+    rescheduling callback only terminates because monotonic advances - noted as a footgun, not fixed.
+  * Post-stop timer callbacks (async loop outlives driver): commit buffers harmlessly, invalidate no-ops.
+  * omllm PromptPump: create_task+sleep(0) deterministically covers run()'s synchronous prologue; aclose
+    cancellation propagates through a parked permission future (quit-mid-confirmation unwinds cleanly).
+  * AsyncTimers re-bind on driver reuse would replay stale pending timers - driver reuse is out of contract.
+Scoreboard: 4 real bugs total in this class (2 async driver, 2 sync driver) + 2 stale-slot card patterns
+(omllm + chatdemo), all fixed with regression tests; everything else audited clean.

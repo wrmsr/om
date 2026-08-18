@@ -242,19 +242,20 @@ class ChatDemoApp(App):
                 ('fake_search', 'card.summary'),
                 ('(query="minitui")  running...', 'card.summary.dim'),
             ])
-            self._driver.timers.call_later(1.2, self._tool_complete)
+            self._driver.timers.call_later(1.2, lambda: self._tool_complete(card))
         else:
             card.set_state(CardState.DENIED)
             card.set_summary([
                 ('fake_search', 'card.summary'),
                 ('  denied', 'card.summary.dim'),
             ])
-            self._driver.timers.call_later(.8, self._finalize_card)
+            self._driver.timers.call_later(.8, lambda: self._finalize_card(card))
         self._driver.invalidate()
 
-    def _tool_complete(self) -> None:
-        card = self._card
-        if card is None:
+    def _tool_complete(self, card: Card) -> None:
+        # Identity-guarded: a deferred timer must only touch the card it was scheduled for, never a successor that
+        # took the slot in the meantime.
+        if self._card is not card:
             return
         card.set_state(CardState.COMPLETE)
         card.set_summary([
@@ -266,12 +267,11 @@ class ChatDemoApp(App):
             [Segment('2. a vim engine in a chat input', 'card.detail')],
             [Segment('3. this card, which is about to become scrollback', 'card.detail')],
         ])
-        self._driver.timers.call_later(1.0, self._finalize_card)
+        self._driver.timers.call_later(1.0, lambda: self._finalize_card(card))
         self._driver.invalidate()
 
-    def _finalize_card(self) -> None:
-        card = self._card
-        if card is None:
+    def _finalize_card(self, card: Card) -> None:
+        if self._card is not card:
             return
         self._card = None
         # Commit the card exactly as displayed (expanded state included) - warm window becomes scrollback.

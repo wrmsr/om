@@ -174,3 +174,36 @@ def test_sync_output_negotiation_disables_bracket():
     late = b''.join(tty.writes[-6:])
     assert b'events:' in b''.join(tty.writes)
     assert b'\x1b[?2026h' not in late
+
+
+def test_driver_commit_before_run_buffers():
+    # Commits made before run() prepares the surface buffer and flush once the origin resolves.
+    tty = PipeTty(height=6, width=40)
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
+    app = RecordingApp(driver)
+
+    driver.commit([line_from_segments([Segment('early bird')], EMPTY_THEME)])  # must not raise
+
+    tty.send(b'\x1b[3;1R')
+    tty.send(b'\x04')
+    driver.run(app)
+
+    term = Vt100Terminal(rows=6, cols=40)
+    term.feed(b''.join(tty.writes))
+    assert 'early bird' in term.all_lines()
+
+
+def test_driver_stop_before_origin_flushes_commits():
+    # Stopping (EOF here) before the CPR answer must still land buffered commits, not drop them.
+    tty = PipeTty(height=6, width=40)
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
+    app = RecordingApp(driver)
+
+    driver.commit([line_from_segments([Segment('parting words')], EMPTY_THEME)])
+    # No CPR answer: close input immediately so the loop exits (EOF) while the origin is still unresolved.
+    tty.close_input()
+    driver.run(app)
+
+    term = Vt100Terminal(rows=6, cols=40)
+    term.feed(b''.join(tty.writes))
+    assert 'parting words' in term.all_lines()

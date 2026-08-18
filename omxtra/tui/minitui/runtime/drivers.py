@@ -92,8 +92,9 @@ class SyncDriver:
 
     def commit(self, lines: ta.Sequence[Line]) -> None:
         surface = check.isinstance(self._surface, InlineSurface)
-        if self._awaiting_origin:
-            # Nothing may touch the terminal until the origin resolves; committed content queues in order.
+        if not self._running or self._awaiting_origin:
+            # Nothing may touch the terminal until run() has prepared it and the origin has resolved; committed
+            # content queues in order and flushes through the origin-resolution path.
             self._pending_commits.append(tuple(lines))
         else:
             surface.commit(lines)
@@ -230,6 +231,10 @@ class SyncDriver:
 
         finally:
             self._running = False
+            if self._awaiting_origin:
+                # Stopped before the CPR answer (or its deadline): resolve via the fallback now so buffered commits
+                # reach the terminal instead of being dropped.
+                self._resolve_origin(None)
             signal.set_wakeup_fd(old_wakeup)
             os.close(wake_r)
             os.close(wake_w)
