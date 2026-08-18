@@ -148,7 +148,9 @@ class AsyncDriver:
 
     def commit(self, lines: ta.Sequence[Line]) -> None:
         surface = check.isinstance(self._surface, InlineSurface)
-        if self._awaiting_origin:
+        if self._loop is None or self._awaiting_origin:
+            # Buffered while the origin is unresolved - and likewise before run() has prepared the surface at all
+            # (matching AsyncTimers' pre-run buffering): run() flushes via the origin-resolution path.
             self._pending_commits.append(tuple(lines))
         else:
             surface.commit(lines)
@@ -278,6 +280,10 @@ class AsyncDriver:
         try:
             await self._stop_event.wait()
         finally:
+            if self._awaiting_origin:
+                # Stopped before the CPR answer (or its fallback timer): resolve via the fallback now so buffered
+                # commits reach the terminal instead of being dropped.
+                self._resolve_origin(None)
             if self._origin_fallback_handle is not None:
                 self._origin_fallback_handle.cancel()
                 self._origin_fallback_handle = None

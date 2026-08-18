@@ -393,3 +393,16 @@ The moment the whole project pointed at. Two commits (04b744757, 80da20d34):
   ALLOW + DENY paths headlessly (frame text + future resolution). ruff/mypy clean omllm+omxtra; omllm suite
   417 passed; minitui 204.
 - Untested against a REAL streaming backend (needs keys) - owner should run `python -m omllm.ui.tui.minitui`.
+
+## 2026-08-18 (later): -v startup crash - two AsyncDriver commit-buffering holes
+
+Owner hit `RuntimeError: State condition not met` running the omllm minitui ui with `-v -X ...`. Static diagnosis
+confirmed by pty repro with the scripted backend: (1) verbose subscriber commits on the StateUpdateEvent published
+by agent.update_state during setup, BEFORE driver.run prepared the surface - InlineSurface.commit rightly refuses;
+(2) fixing that exposed a second hole the fast autoexec path revealed: everything completed inside the 250ms
+CPR-origin window, and stop()'s teardown dropped the still-buffered commits (all scrollback lost, silent).
+Fixes (both in the library, plus ordering hygiene in the app): AsyncDriver.commit buffers when not running
+(pre-run parity with AsyncTimers); run() teardown resolves origin via the fallback and flushes pending commits
+before restore; omllm main starts the driver before subscribing/update_state, with the whole setup inside the
+try/finally that stops the driver. Regression tests: commit-before-run buffers+flushes; stop-before-origin
+flushes. e2e repro green (-v -X hello -X /quit: verbose events + response rendered, exit 0).

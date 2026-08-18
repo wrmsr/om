@@ -136,26 +136,6 @@ async def _a_main() -> None:
 
         proc_scope = (await injector[procs.ProcessManager]).root if config.exec else None
 
-        for el in await injector[AgentEventSubscribers]:
-            agent.subscribe(el)
-
-        await agent.update_state(
-            lambda state: dc.replace(
-                state,
-                context=dc.replace(
-                    state.context,
-                    system_prompt='\n\n'.join([
-                        f'Current working directory: {cwd}',
-                    ]),
-                    tools=tool_set,
-                ),
-                tool_env=agn.ToolEnvironment(
-                    cwd=cwd,
-                    procs=proc_scope,
-                ),
-            ),
-        )
-
         #
 
         app.set_commands([
@@ -166,10 +146,32 @@ async def _a_main() -> None:
         pump = PromptPump(session=session, app=app)
         app.on_submit = pump.submit
 
+        # The driver starts before any agent activity: its run prologue prepares the surface, and everything the
+        # setup below causes to display (e.g. verbose-mode StateUpdateEvents) buffers until then.
         driver_task = asyncio.get_running_loop().create_task(driver.run(app))
-        await asyncio.sleep(0)  # let the driver prepare the surface before anything commits
+        await asyncio.sleep(0)
 
         try:
+            for el in await injector[AgentEventSubscribers]:
+                agent.subscribe(el)
+
+            await agent.update_state(
+                lambda state: dc.replace(
+                    state,
+                    context=dc.replace(
+                        state.context,
+                        system_prompt='\n\n'.join([
+                            f'Current working directory: {cwd}',
+                        ]),
+                        tools=tool_set,
+                    ),
+                    tool_env=agn.ToolEnvironment(
+                        cwd=cwd,
+                        procs=proc_scope,
+                    ),
+                ),
+            )
+
             for ax in config.autoexec or []:
                 pump.submit(ax)
 
