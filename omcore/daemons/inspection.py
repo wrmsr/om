@@ -100,31 +100,37 @@ def _read_pidfile_fd(fd: int, max_bytes: int) -> str | None:
         raise DaemonPidfileInfoError(f'Daemon pidfile is not UTF-8: {exc}') from exc
 
 
-def _parse_pidfile_record(
-        raw: str | None,
-) -> tuple[int | None, DaemonPidfileInfo | None, str | None]:
+class _ParsedPidfileRecord(ta.NamedTuple):
+    pid: int | None
+    info: DaemonPidfileInfo | None
+    pidfile_error: str | None
+
+
+def _parse_pidfile_record(raw: str | None) -> _ParsedPidfileRecord:
     if raw is None:
-        return None, None, None
+        return _ParsedPidfileRecord(None, None, None)
 
     lines = raw.splitlines()
     if not lines:
-        return None, None, None
+        return _ParsedPidfileRecord(None, None, None)
 
     try:
         pid = int(lines[0].strip())
         if pid <= 0:
             raise ValueError(pid)
     except ValueError:
-        return None, None, _format_error(DaemonPidfileInfoError(
-            f'Invalid daemon pid line: {lines[0]!r}',
-        ))
+        return _ParsedPidfileRecord(
+            None,
+            None,
+            _format_error(DaemonPidfileInfoError(f'Invalid daemon pid line: {lines[0]!r}')),
+        )
 
     try:
         info = parse_daemon_pidfile_info(raw)
     except DaemonPidfileInfoError as exc:
-        return pid, None, _format_error(exc)
+        return _ParsedPidfileRecord(pid, None, _format_error(exc))
 
-    return pid, info, None
+    return _ParsedPidfileRecord(pid, info, None)
 
 
 ##
@@ -200,9 +206,7 @@ class DaemonInspector(lang.Final):
             except FileNotFoundError:
                 return _PidfileObservation(exists=False)
 
-        raise DaemonInspectionRaceError(
-            f'Daemon pidfile path changed repeatedly during inspection: {self._pid_file!r}',
-        )
+        raise DaemonInspectionRaceError(f'Daemon pidfile path changed repeatedly during inspection: {self._pid_file!r}')
 
     def inspect(self) -> DaemonInspection:
         observation = self._observe_pidfile()

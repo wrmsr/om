@@ -1,8 +1,3 @@
-"""
-TODO:
- - Config? dedupe defaults with Daemon
- - ExitStacked? hold ref to Spawner, which holds refs to thread/proc - which will likely outlive it, but still
-"""
 import contextlib
 import functools
 import typing as ta

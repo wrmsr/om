@@ -73,8 +73,8 @@ with _lang.auto_proxy_init(globals()):
         rpc_method,
     )
 
-    # Daemon integration adapters. The core protocol, client, server, and object
-    # facade modules above do not depend on the daemon lifecycle.
+    # Daemon integration adapters. The core protocol, client, server, and object facade modules above do not depend on
+    # the daemon lifecycle.
     from .lazy import (  # noqa
         LazyRpcClient,
     )

@@ -1,20 +1,3 @@
-"""
-TODO:
- - OK.. this is useful for non-system-daemons too... which have no pidfile..
- - split out pidfile concern to.. identity?
- - async[io] support, really just waiting
- - helpers for http, json, etc
- - heartbeat? status checks? heartbeat file?
- - zmq
- - cli, cfg reload
- - bootstrap
-  - rsrc limit
-  - logs
- - https://github.com/Homebrew/homebrew-services
- - deathpacts
- - timebomb
- - pickle protocol, revision / venv check, multiprocessing manager support
-"""
 import itertools
 import os.path
 import signal

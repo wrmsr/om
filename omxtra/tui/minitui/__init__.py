@@ -21,6 +21,202 @@ with _lang.auto_proxy_init(
         # eager=True,
 ):
     ##
+    # controls
+
+    from .controls.base import (  # noqa
+        Control,
+    )
+
+    from .controls.static import (  # noqa
+        TextParts,
+        parts_to_segment_lines,
+        Static,
+    )
+
+    from .controls.stacks import (  # noqa
+        StackRegion,
+        StackLayout,
+        stack_layout,
+        stack_frame,
+    )
+
+    from .controls.status import (  # noqa
+        StatusBar,
+    )
+
+    from .controls.spinners import (  # noqa
+        Spinner,
+    )
+
+    from .controls.textarea import (  # noqa
+        TextArea,
+    )
+
+    from .controls.history import (  # noqa
+        InputHistory,
+    )
+
+    from .controls.suggestions import (  # noqa
+        SuggestionItem,
+        SuggestionsPopup,
+    )
+
+    from .controls.cards import (  # noqa
+        CardState,
+        TERMINAL_CARD_STATES,
+        Card,
+    )
+
+    from .controls.markdown import (  # noqa
+        MARKDOWN_BACKEND_NAMES,
+        get_markdown_stream,
+        MarkdownTail,
+    )
+
+    ##
+    # docs
+
+    from .docs.positions import (  # noqa
+        Pos,
+        Kind,
+        Span,
+    )
+
+    from .docs.edits import (  # noqa
+        TextEdit,
+        AppliedEdit,
+        remap_pos,
+        remap_pos_through,
+    )
+
+    from .docs.documents import (  # noqa
+        DocumentListener,
+        Document,
+    )
+
+    from .docs.cursors import (  # noqa
+        Cursor,
+    )
+
+    from .docs.searching import (  # noqa
+        find_matches,
+        next_match,
+    )
+
+    from .docs.highlighting import (  # noqa
+        IncrementalHighlighter,
+    )
+
+    from .docs.treesitter import (  # noqa
+        tree_sitter_available,
+        TreeSitterHighlighter,
+        get_tree_sitter_highlighter,
+    )
+
+    ##
+    # events
+
+    from .events.keys import (  # noqa
+        Key,
+        KeySpecError,
+        parse_key,
+        key_from_char,
+        key_text,
+    )
+
+    from .events.types import (  # noqa
+        Event,
+        KeyEvent,
+        PasteEvent,
+        MouseEventKind,
+        MouseEvent,
+        FocusEvent,
+        ResizeEvent,
+        CursorPositionEvent,
+        ModeReportEvent,
+        KittyFlagsEvent,
+        UnknownSequenceEvent,
+    )
+
+    from .events.parsing import (  # noqa
+        ParseTimeoutError,
+        EventParser,
+    )
+
+    from .events.xterm import (  # noqa
+        ESCAPE_TIMEOUT_S,
+        XtermEventParser,
+    )
+
+    from .events.keymaps import (  # noqa
+        DEFAULT_CHORD_TIMEOUT_S,
+        KeymapMatch,
+        Keymap,
+        KeymapMatcher,
+    )
+
+    ##
+    # runtime
+
+    from .runtime.timers import (  # noqa
+        Timer,
+        Timers,
+    )
+
+    from .runtime.drivers import (  # noqa
+        App,
+        SyncDriver,
+    )
+
+    from .runtime.asyncs import (  # noqa
+        AsyncTimer,
+        AsyncTimers,
+        AsyncDriver,
+    )
+
+    ##
+    # screens
+
+    from .screens.cells import (  # noqa
+        CursorXY,
+        Cell,
+        Line,
+        EMPTY_LINE,
+        Frame,
+        EMPTY_FRAME,
+
+        cells_from_text,
+        line_from_segments,
+        render_cells,
+    )
+
+    from .screens.diffs import (  # noqa
+        LineUpdate,
+        diff_lines,
+        FrameDiff,
+        diff_frames,
+    )
+
+    ##
+    # surfaces
+
+    from .surfaces.base import (  # noqa
+        Surface,
+    )
+
+    from .surfaces.inlines import (  # noqa
+        InlineSurface,
+    )
+
+    from .surfaces.alts import (  # noqa
+        AltSurface,
+    )
+
+    from .surfaces.writers import (  # noqa
+        TermWriter,
+    )
+
+    ##
     # text
 
     from .text.colors import (  # noqa
@@ -168,131 +364,10 @@ with _lang.auto_proxy_init(
     )
 
     ##
-    # screens
-
-    from .screens.cells import (  # noqa
-        CursorXY,
-        Cell,
-        Line,
-        EMPTY_LINE,
-        Frame,
-        EMPTY_FRAME,
-
-        cells_from_text,
-        line_from_segments,
-        render_cells,
-    )
-
-    from .screens.diffs import (  # noqa
-        LineUpdate,
-        diff_lines,
-        FrameDiff,
-        diff_frames,
-    )
-
-    ##
-    # events
-
-    from .events.keys import (  # noqa
-        Key,
-        KeySpecError,
-        parse_key,
-        key_from_char,
-        key_text,
-    )
-
-    from .events.types import (  # noqa
-        Event,
-        KeyEvent,
-        PasteEvent,
-        MouseEventKind,
-        MouseEvent,
-        FocusEvent,
-        ResizeEvent,
-        CursorPositionEvent,
-        ModeReportEvent,
-        KittyFlagsEvent,
-        UnknownSequenceEvent,
-    )
-
-    from .events.parsing import (  # noqa
-        ParseTimeoutError,
-        EventParser,
-    )
-
-    from .events.xterm import (  # noqa
-        ESCAPE_TIMEOUT_S,
-        XtermEventParser,
-    )
-
-    from .events.keymaps import (  # noqa
-        DEFAULT_CHORD_TIMEOUT_S,
-        KeymapMatch,
-        Keymap,
-        KeymapMatcher,
-    )
-
-    ##
-    # tty / surfaces
+    # tty
 
     from .tty.terminals import (  # noqa
         Tty,
-    )
-
-    from .surfaces.base import (  # noqa
-        Surface,
-    )
-
-    from .surfaces.inlines import (  # noqa
-        InlineSurface,
-    )
-
-    from .surfaces.alts import (  # noqa
-        AltSurface,
-    )
-
-    from .surfaces.writers import (  # noqa
-        TermWriter,
-    )
-
-    ##
-    # docs
-
-    from .docs.positions import (  # noqa
-        Pos,
-        Kind,
-        Span,
-    )
-
-    from .docs.edits import (  # noqa
-        TextEdit,
-        AppliedEdit,
-        remap_pos,
-        remap_pos_through,
-    )
-
-    from .docs.documents import (  # noqa
-        DocumentListener,
-        Document,
-    )
-
-    from .docs.cursors import (  # noqa
-        Cursor,
-    )
-
-    from .docs.searching import (  # noqa
-        find_matches,
-        next_match,
-    )
-
-    from .docs.highlighting import (  # noqa
-        IncrementalHighlighter,
-    )
-
-    from .docs.treesitter import (  # noqa
-        tree_sitter_available,
-        TreeSitterHighlighter,
-        get_tree_sitter_highlighter,
     )
 
     ##
@@ -332,76 +407,4 @@ with _lang.auto_proxy_init(
     from .vim.engine import (  # noqa
         ExHandler,
         VimEngine,
-    )
-
-    ##
-    # controls
-
-    from .controls.base import (  # noqa
-        Control,
-    )
-
-    from .controls.static import (  # noqa
-        TextParts,
-        parts_to_segment_lines,
-        Static,
-    )
-
-    from .controls.stacks import (  # noqa
-        StackRegion,
-        StackLayout,
-        stack_layout,
-        stack_frame,
-    )
-
-    from .controls.status import (  # noqa
-        StatusBar,
-    )
-
-    from .controls.spinners import (  # noqa
-        Spinner,
-    )
-
-    from .controls.textarea import (  # noqa
-        TextArea,
-    )
-
-    from .controls.history import (  # noqa
-        InputHistory,
-    )
-
-    from .controls.suggestions import (  # noqa
-        SuggestionItem,
-        SuggestionsPopup,
-    )
-
-    from .controls.cards import (  # noqa
-        CardState,
-        TERMINAL_CARD_STATES,
-        Card,
-    )
-
-    from .controls.markdown import (  # noqa
-        MARKDOWN_BACKEND_NAMES,
-        get_markdown_stream,
-        MarkdownTail,
-    )
-
-    ##
-    # runtime
-
-    from .runtime.timers import (  # noqa
-        Timer,
-        Timers,
-    )
-
-    from .runtime.drivers import (  # noqa
-        App,
-        SyncDriver,
-    )
-
-    from .runtime.asyncs import (  # noqa
-        AsyncTimer,
-        AsyncTimers,
-        AsyncDriver,
     )

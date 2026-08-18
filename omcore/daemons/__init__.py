@@ -4,116 +4,6 @@ from .. import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
-    from .daemon import (  # noqa
-        Daemon,
-    )
-
-    from .launching import (  # noqa
-        Launcher,
-    )
-
-    from .lazy import (  # noqa
-        LazyDaemon,
-    )
-
-    from .httpwaiting import (  # noqa
-        HttpWait,
-        HttpWaiter,
-    )
-
-    from .http import (  # noqa
-        AsyncHttpHandler,
-        AsyncioPipelineHttpServer,
-        AsyncioPipelineHttpServerConfig,
-        AsyncioPipelineHttpService,
-        HttpHandler,
-        HttpHealthConfig,
-        HttpServerRuntime,
-        PipelineHttpServer,
-        PipelineHttpServerConfig,
-        PipelineHttpServerDrainTimeoutError,
-        PipelineHttpService,
-        SimpleHttpServerRuntime,
-        ThreadedAsyncHttpHandler,
-    )
-
-    from .pidfiles import (  # noqa
-        DAEMON_PIDFILE_FORMAT,
-        DAEMON_PIDFILE_FORMAT_VERSION,
-
-        DaemonPidfileInfo,
-        DaemonPidfileInfoError,
-
-        make_daemon_pidfile_info,
-        dumps_daemon_pidfile_info,
-        loads_daemon_pidfile_info,
-        parse_daemon_pidfile_info,
-        read_daemon_pidfile_info,
-        current_daemon_pidfile_info,
-    )
-
-    from .inspection import (  # noqa
-        DaemonLifecycleState,
-        DaemonReadinessState,
-        DaemonInspection,
-        DaemonInspectionRaceError,
-        DaemonInspector,
-    )
-
-    from .operations import (  # noqa
-        DaemonWaitStoppedReason,
-        DaemonWaitStoppedResult,
-        DaemonWaitStoppedTimeoutError,
-        DaemonStoppedWaiter,
-        wait_daemon_stopped,
-    )
-
-    from .stopping import (  # noqa
-        DaemonStopSafety,
-        DaemonStopResult,
-
-        DaemonStopError,
-        DaemonStopUnavailableError,
-        DaemonStopIdentityError,
-        DaemonStopSignalError,
-        DaemonStopTimeoutError,
-
-        DaemonStopper,
-        stop_daemon,
-    )
-
-    from .startup import (  # noqa
-        LaunchErrorInfo,
-        LaunchReport,
-        LaunchError,
-    )
-
-    from .services import (  # noqa
-        Service,
-        RuntimeService,
-
-        ServiceTarget,
-        ServiceTargetRunner,
-
-        ServiceConfigTarget,
-        ServiceConfigTargetRunner,
-
-        ServiceDaemon,
-    )
-
-    from .runtime import (  # noqa
-        ShutdownReason,
-        ShutdownRequest,
-        ShutdownController,
-
-        ActivityRejectedError,
-        Activity,
-        ActivityLease,
-
-        DrainTimeoutError,
-        ServiceRuntime,
-    )
-
     from .children import (  # noqa
         ChildProcessConfig,
         ChildProcessInput,
@@ -135,6 +25,22 @@ with _lang.auto_proxy_init(globals()):
         ChildProcessSupervisorConfig,
 
         ChildProcessService,
+    )
+
+    from .http import (  # noqa
+        AsyncHttpHandler,
+        AsyncioPipelineHttpServer,
+        AsyncioPipelineHttpServerConfig,
+        AsyncioPipelineHttpService,
+        HttpHandler,
+        HttpHealthConfig,
+        HttpServerRuntime,
+        PipelineHttpServer,
+        PipelineHttpServerConfig,
+        PipelineHttpServerDrainTimeoutError,
+        PipelineHttpService,
+        SimpleHttpServerRuntime,
+        ThreadedAsyncHttpHandler,
     )
 
     from .rpc import (  # noqa
@@ -186,6 +92,80 @@ with _lang.auto_proxy_init(globals()):
         RpcService,
     )
 
+    from .daemon import (  # noqa
+        Daemon,
+    )
+
+    from .httpwaiting import (  # noqa
+        HttpWait,
+        HttpWaiter,
+    )
+
+    from .inspection import (  # noqa
+        DaemonLifecycleState,
+        DaemonReadinessState,
+        DaemonInspection,
+        DaemonInspectionRaceError,
+        DaemonInspector,
+    )
+
+    from .launching import (  # noqa
+        Launcher,
+    )
+
+    from .lazy import (  # noqa
+        LazyDaemon,
+    )
+
+    from .operations import (  # noqa
+        DaemonWaitStoppedReason,
+        DaemonWaitStoppedResult,
+        DaemonWaitStoppedTimeoutError,
+        DaemonStoppedWaiter,
+        wait_daemon_stopped,
+    )
+
+    from .pidfiles import (  # noqa
+        DAEMON_PIDFILE_FORMAT,
+        DAEMON_PIDFILE_FORMAT_VERSION,
+
+        DaemonPidfileInfo,
+        DaemonPidfileInfoError,
+
+        make_daemon_pidfile_info,
+        dumps_daemon_pidfile_info,
+        loads_daemon_pidfile_info,
+        parse_daemon_pidfile_info,
+        read_daemon_pidfile_info,
+        current_daemon_pidfile_info,
+    )
+
+    from .runtime import (  # noqa
+        ShutdownReason,
+        ShutdownRequest,
+        ShutdownController,
+
+        ActivityRejectedError,
+        Activity,
+        ActivityLease,
+
+        DrainTimeoutError,
+        ServiceRuntime,
+    )
+
+    from .services import (  # noqa
+        Service,
+        RuntimeService,
+
+        ServiceTarget,
+        ServiceTargetRunner,
+
+        ServiceConfigTarget,
+        ServiceConfigTargetRunner,
+
+        ServiceDaemon,
+    )
+
     from .spawning import (  # noqa
         Spawning,
         Spawn,
@@ -205,6 +185,26 @@ with _lang.auto_proxy_init(globals()):
         ThreadSpawning,
         ThreadSpawned,
         ThreadSpawner,
+    )
+
+    from .startup import (  # noqa
+        LaunchErrorInfo,
+        LaunchReport,
+        LaunchError,
+    )
+
+    from .stopping import (  # noqa
+        DaemonStopSafety,
+        DaemonStopResult,
+
+        DaemonStopError,
+        DaemonStopUnavailableError,
+        DaemonStopIdentityError,
+        DaemonStopSignalError,
+        DaemonStopTimeoutError,
+
+        DaemonStopper,
+        stop_daemon,
     )
 
     from .targets import (  # noqa

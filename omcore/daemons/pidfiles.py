@@ -33,16 +33,16 @@ class DaemonPidfileInfoError(ValueError):
 
 
 def _validate_daemon_pidfile_info(info: DaemonPidfileInfo) -> DaemonPidfileInfo:
+    if info.format != DAEMON_PIDFILE_FORMAT:
+        raise DaemonPidfileInfoError(f'Invalid daemon pidfile format: {info.format!r}')
+    if type(info.format_version) is not int or info.format_version != DAEMON_PIDFILE_FORMAT_VERSION:
+        raise DaemonPidfileInfoError(f'Invalid daemon pidfile format version: {info.format_version!r}')
     if not isinstance(info.pid, int) or isinstance(info.pid, bool) or info.pid <= 0:
         raise DaemonPidfileInfoError(f'Invalid daemon pid: {info.pid!r}')
     if not isinstance(info.instance_id, uuid.UUID):
         raise DaemonPidfileInfoError(f'Invalid daemon instance id: {info.instance_id!r}')
     if not isinstance(info.started_at, datetime.datetime) or info.started_at.utcoffset() != datetime.timedelta():
         raise DaemonPidfileInfoError(f'Daemon start time is not an aware UTC datetime: {info.started_at!r}')
-    if info.format != DAEMON_PIDFILE_FORMAT:
-        raise DaemonPidfileInfoError(f'Invalid daemon pidfile format: {info.format!r}')
-    if type(info.format_version) is not int or info.format_version != DAEMON_PIDFILE_FORMAT_VERSION:
-        raise DaemonPidfileInfoError(f'Invalid daemon pidfile format version: {info.format_version!r}')
     return info
 
 
@@ -71,9 +71,7 @@ def loads_daemon_pidfile_info(s: str) -> DaemonPidfileInfo:
             raise DaemonPidfileInfoError(f'Invalid daemon pidfile format: {obj.get("format")!r}')
         format_version = obj.get('format_version')
         if type(format_version) is not int or format_version != DAEMON_PIDFILE_FORMAT_VERSION:
-            raise DaemonPidfileInfoError(
-                f'Invalid daemon pidfile format version: {format_version!r}',
-            )
+            raise DaemonPidfileInfoError(f'Invalid daemon pidfile format version: {format_version!r}')
         if not isinstance(obj.get('pid'), int) or isinstance(obj.get('pid'), bool):
             raise DaemonPidfileInfoError(f'Invalid daemon pid: {obj.get("pid")!r}')
         if not isinstance(obj.get('instance_id'), str):
@@ -110,9 +108,7 @@ def parse_daemon_pidfile_info(raw: str) -> DaemonPidfileInfo | None:
 
     info = loads_daemon_pidfile_info(lines[1])
     if info.pid != pid:
-        raise DaemonPidfileInfoError(
-            f'Daemon pid line {pid} does not match info pid {info.pid}',
-        )
+        raise DaemonPidfileInfoError(f'Daemon pid line {pid} does not match info pid {info.pid}')
     return info
 
 
