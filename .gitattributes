@@ -38,6 +38,7 @@ ominfra/scripts/journald2aws.py linguist-generated
 ominfra/scripts/manage.py linguist-generated
 omllm/agent/_dataclasses.py linguist-generated
 omllm/core/_dataclasses.py linguist-generated
+omllm/core/procs/_dataclasses.py linguist-generated
 omllm/harness/_dataclasses.py linguist-generated
 omllm/interop/ollama/_dataclasses.py linguist-generated
 omllm/interop/tavily/_dataclasses.py linguist-generated
