@@ -5,24 +5,25 @@ from .... import lang
 from ...tests.testing import TEST_TIMEOUT_S
 
 
+def _script() -> None:
+    import sys
+
+    import omcore.daemons.children.configs  # noqa
+    import omcore.daemons.children.processes  # noqa
+
+    unexpected = {
+        'omcore.daemons.children.services',
+        'omcore.daemons.children.supervisors',
+        'omcore.daemons.runtime',
+        'omcore.daemons.services',
+    } & sys.modules.keys()
+    if unexpected:
+        raise RuntimeError(f'Child process core loaded daemon adapters: {sorted(unexpected)!r}')
+
+
 def test_child_process_core_imports_do_not_load_runtime_adapter() -> None:
-    def script() -> None:
-        import sys
-
-        import omcore.daemons.children.configs  # noqa
-        import omcore.daemons.children.processes  # noqa
-
-        unexpected = {
-            'omcore.daemons.children.services',
-            'omcore.daemons.children.supervisors',
-            'omcore.daemons.runtime',
-            'omcore.daemons.services',
-        } & sys.modules.keys()
-        if unexpected:
-            raise RuntimeError(f'Child process core loaded daemon adapters: {sorted(unexpected)!r}')
-
     subprocess.run(
-        [sys.executable, '-c', lang.get_function_body_source(script)],
+        [sys.executable, '-c', lang.get_function_body_source(_script)],
         check=True,
         timeout=TEST_TIMEOUT_S,
     )
