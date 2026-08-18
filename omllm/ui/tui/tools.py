@@ -36,13 +36,29 @@ def bind_tools(config: Config) -> inj.Elements:
         ])
 
     if config.exec:
-        lst.append(procs.bind_process_manager())
         lst.extend([
+            procs.bind_process_manager(),
+
             inj.bind(agn.ProcsExecOps, singleton=True),
             inj.bind(agn.ExecOps, to_key=agn.ProcsExecOps),
 
             inj.bind(agn.BashTool, singleton=True),
             bind_agent_tool_class(agn.BashTool),
+
+            inj.bind(agn.ProcessSpawnTool, singleton=True),
+            bind_agent_tool_class(agn.ProcessSpawnTool),
+
+            inj.bind(agn.ProcessReadTool, singleton=True),
+            bind_agent_tool_class(agn.ProcessReadTool),
+
+            inj.bind(agn.ProcessWriteTool, singleton=True),
+            bind_agent_tool_class(agn.ProcessWriteTool),
+
+            inj.bind(agn.ProcessKillTool, singleton=True),
+            bind_agent_tool_class(agn.ProcessKillTool),
+
+            inj.bind(agn.ProcessListTool, singleton=True),
+            bind_agent_tool_class(agn.ProcessListTool),
         ])
 
     if config.fs:
