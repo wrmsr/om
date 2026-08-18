@@ -24,6 +24,7 @@ with _lang.auto_proxy_init(globals()):
         ProcessControl,
         ProcessStdin,
         ProcessOutput,
+        ProcessPty,
         ProcessWaiter,
     )
 
@@ -87,6 +88,7 @@ with _lang.auto_proxy_init(globals()):
         ProcessPoisonedError,
         StuckProcessError,
         ScopeClosedError,
+        NotAPtyError,
         ManagerClosedError,
         ManagerNotStartedError,
         UnsafeChildSignalDispositionError,
@@ -130,6 +132,7 @@ with _lang.auto_proxy_init(globals()):
     from .types.specs import (  # noqa
         ProcessSpec,
         ProcessStdio,
+        PtyStdio,
     )
 
     from .types.states import (  # noqa

@@ -22,6 +22,7 @@ from omcore.logs import all as logs
 
 from ..handles import Process
 from ..spool.spool import OutputSpool
+from ..types.errors import NotAPtyError
 from ..types.errors import ProcessNotAliveError
 from ..types.errors import ProcessPoisonedError
 from ..types.errors import ProcessTimeoutError
@@ -36,6 +37,7 @@ from ..types.options import TerminationPolicy
 from ..types.options import get_termination_policy
 from ..types.specs import ProcessSpec
 from ..types.states import ProcessState
+from . import pty as _pty
 from .pipes import StdinWriter
 from .reaper import ExitWatcher
 from .spawn import _SpawnerPopen
@@ -74,6 +76,7 @@ class AsyncioProcess(Process):
             popen: _SpawnerPopen,
             spool: OutputSpool,
             stdin: StdinWriter | None,
+            pty_master_fd: int | None = None,
             owner: ProcessOwner,
             loop: asyncio.AbstractEventLoop,
     ) -> None:
@@ -87,6 +90,8 @@ class AsyncioProcess(Process):
         self._pid = check.isinstance(popen.pid, int)
         self._spool = spool
         self._stdin = stdin
+        self._pty_master_fd = pty_master_fd
+        self._is_pty = pty_master_fd is not None
         self._owner = owner
         self._loop = loop
 
@@ -198,6 +203,12 @@ class AsyncioProcess(Process):
         # connection_lost callbacks arrive asynchronously; make the state consistent now.
         self._read_transports.clear()
         self._open_output_fds.clear()
+        if (mfd := self._pty_master_fd) is not None:
+            self._pty_master_fd = None
+            try:
+                os.close(mfd)
+            except OSError:
+                pass
         if not self._output_ended_ev.is_set():
             self._spool.mark_ended()
             self._output_ended_ev.set()
@@ -380,6 +391,28 @@ class AsyncioProcess(Process):
     async def write_eof(self) -> None:
         if (w := self._stdin) is not None:
             await w.write_eof()
+
+    #
+
+    @property
+    def has_pty(self) -> bool:
+        return self._is_pty
+
+    async def resize(self, rows: int, cols: int) -> None:
+        if not self._is_pty:
+            raise NotAPtyError(repr(self))
+        if (mfd := self._pty_master_fd) is None:
+            raise ProcessNotAliveError(f'{self!r} pty is torn down')
+        _pty.set_winsize(mfd, rows, cols)
+
+    def get_winsize(self) -> tuple[int, int] | None:
+        if (mfd := self._pty_master_fd) is None:
+            return None
+        try:
+            ws = _pty.get_winsize(mfd)
+        except OSError:
+            return None
+        return (ws.rows, ws.cols)
 
     #
 

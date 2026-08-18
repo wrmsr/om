@@ -47,6 +47,10 @@ class ScopeClosedError(ProcsError):
     pass
 
 
+class NotAPtyError(ProcsError):
+    pass
+
+
 class ManagerClosedError(ProcsError):
     pass
 

@@ -19,6 +19,7 @@ from ..types.options import ProcOptions
 from ..types.options import Rlimit
 from ..types.options import Umask
 from ..types.specs import ProcessSpec
+from ..types.specs import PtyStdio
 from .launcher import Launcher
 from .launcher import LaunchPlan
 from .launcher import SpecTransform
@@ -59,6 +60,7 @@ def build_payload(
         status_fd: int,
         keep_fds: ta.Sequence[int] = (),
         close_fds: ta.Sequence[int] = (),
+        set_ctty: bool = False,
 ) -> dict[str, ta.Any]:
     payload: dict[str, ta.Any] = {
         'argv': [os.fsencode(a) for a in spec.argv],
@@ -68,6 +70,9 @@ def build_payload(
         'keep_fds': list(keep_fds),
         'close_fds': list(close_fds),
     }
+
+    if set_ctty:
+        payload['set_ctty'] = True
 
     if (um := options.get(Umask)) is not None:
         payload['umask'] = um.v
@@ -142,6 +147,7 @@ class ShimLauncher(Launcher):
             options,
             status_fd=status_fd,
             keep_fds=keep_fds,
+            set_ctty=isinstance(spec.stdio, PtyStdio),
         )
 
         payload_fd = self._write_payload_file(payload)

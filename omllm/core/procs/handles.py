@@ -132,6 +132,28 @@ class ProcessOutput(lang.Abstract):
         raise NotImplementedError
 
 
+class ProcessPty(lang.Abstract):
+    @property
+    @abc.abstractmethod
+    def has_pty(self) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def resize(self, rows: int, cols: int) -> ta.Awaitable[None]:
+        """
+        Sets the terminal window size, delivering SIGWINCH to the child's foreground group. Raises NotAPtyError
+        if the process was not started under a pty.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_winsize(self) -> tuple[int, int] | None:
+        """Current (rows, cols), or None if there is no pty (or it has been torn down)."""
+
+        raise NotImplementedError
+
+
 class ProcessWaiter(lang.Abstract):
     @property
     @abc.abstractmethod
@@ -156,6 +178,7 @@ class Process(
     ProcessControl,
     ProcessStdin,
     ProcessOutput,
+    ProcessPty,
     ProcessWaiter,
     lang.Abstract,
 ):

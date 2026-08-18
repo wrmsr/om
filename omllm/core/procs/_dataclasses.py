@@ -3470,3 +3470,139 @@ def _process_dataclass__3b70cd4f03cfd37d11ef93c4fcce8732a9f97263():
         __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
 
     return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('rows', 'cols', 'term')), EqPlan(fields=('rows', 'cols', 'term')), FrozenPlan(fiel"
+        "ds=('rows', 'cols', 'term'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('rows', 'cols',"
+        " 'term'), cache=True), InitPlan(fields=(InitPlan.Field(name='rows', annotation=OpRef(name='init.fields.0.annot"
+        "ation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_t"
+        "ype=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cols', annotation=O"
+        "pRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init"
+        "=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.F"
+        "ield(name='term', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default"
+        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
+        ", check_type=None)), self_param='self', std_params=(), kw_only_params=('rows', 'cols', 'term'), frozen=True, s"
+        "lots=False, post_init_params=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='rows', k"
+        "w_only=True, fn=None), ReprPlan.Field(name='cols', kw_only=True, fn=None), ReprPlan.Field(name='term', kw_only"
+        "=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='8e0cbaf421c3b71ad9ae0cbdcfc78c820f4b35d7',
+    cls_names=(
+        ('omllm.core.procs.types.specs', 'PtyStdio'),
+    ),
+)
+def _process_dataclass__8e0cbaf421c3b71ad9ae0cbdcfc78c820f4b35d7():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                rows=self.rows,
+                cols=self.cols,
+                term=self.term,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.rows == other.rows and
+                self.cols == other.cols and
+                self.term == other.term
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'rows',
+            'cols',
+            'term',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            try:
+                return self.__dataclass_hash__
+            except AttributeError:
+                pass
+            object.__setattr__(
+                self,
+                '__dataclass_hash__',
+                h := hash((
+                    self.rows,
+                    self.cols,
+                    self.term,
+                ))
+            )
+            return h
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            rows: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            cols: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            term: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'rows', rows)
+            __dataclass__object_setattr(self, 'cols', cols)
+            __dataclass__object_setattr(self, 'term', term)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"rows={self.rows!r}")
+            parts.append(f"cols={self.cols!r}")
+            parts.append(f"term={self.term!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass

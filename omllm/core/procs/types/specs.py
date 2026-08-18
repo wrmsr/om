@@ -52,6 +52,31 @@ class ProcessStdio:
 DEFAULT_PROCESS_STDIO: ta.Final = ProcessStdio()
 
 
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(cache_hash=True)
+class PtyStdio:
+    """
+    Run the child under a pseudo-terminal: its stdin/stdout/stderr are the pty slave (a real controlling tty), and the
+    handle exposes the merged master as output plus a writable stdin. Output is a single interleaved stream (fd 1 in
+    the spool) - a tty has no separate stderr. Requires session-leader semantics (SessionMode 'session'), which the
+    manager enforces.
+    """
+
+    rows: int = 24
+    cols: int = 80
+
+    # Value for the child's TERM env var, unless the spec already sets one. None leaves TERM untouched.
+    term: str | None = 'xterm-256color'
+
+    def __post_init__(self) -> None:
+        check.arg(self.rows > 0)
+        check.arg(self.cols > 0)
+
+
+type Stdio = ProcessStdio | PtyStdio
+
+
 ##
 
 
@@ -94,7 +119,7 @@ class ProcessSpec:
     # means a clean environment. Note that argv[0] is resolved against the PATH of *this* env (or `os.defpath`).
     env: ta.Mapping[str, str] | None = dc.xfield(default=None, coerce=_check_env)
 
-    stdio: ProcessStdio = DEFAULT_PROCESS_STDIO
+    stdio: Stdio = DEFAULT_PROCESS_STDIO
 
     # A human / llm facing label. Not unique.
     name: str | None = None

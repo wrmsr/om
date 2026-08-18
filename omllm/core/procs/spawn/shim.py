@@ -168,6 +168,14 @@ def apply_fds(status_fd, keep_fds, close_fds):  # type: (int, ta.Any, ta.Any) ->
 ##
 
 
+def set_controlling_tty():  # type: () -> None
+    # fd 0 is the pty slave (Popen dup2'd it); the process is a session leader (start_new_session), so it has no
+    # controlling terminal yet and this ioctl makes the slave its ctty. Must run in the child, before exec.
+    import fcntl  # noqa
+    import termios  # noqa
+    fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+
+
 def main(payload):  # type: (ta.Any) -> None
     status_fd = payload['status_fd']
     stage = 'payload'
@@ -196,6 +204,10 @@ def main(payload):  # type: (ta.Any) -> None
         stage = 'chdir'
         if cwd:
             os.chdir(cwd)
+
+        stage = 'ctty'
+        if payload.get('set_ctty'):
+            set_controlling_tty()
 
         stage = 'fds'
         apply_fds(status_fd, payload.get('keep_fds'), payload.get('close_fds'))

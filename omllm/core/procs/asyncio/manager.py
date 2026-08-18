@@ -46,7 +46,9 @@ from ..types.options import ProcOptions
 from ..types.options import get_session_mode
 from ..types.options import get_spool_policy
 from ..types.specs import ProcessSpec
+from ..types.specs import PtyStdio
 from ..types.states import ProcessState
+from . import pty as _pty
 from .notifier import AsyncioSpoolNotifier
 from .pipes import ReadPipeProtocol
 from .pipes import StdinWriter
@@ -361,35 +363,60 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
         stdout_r: int | None = None
         stderr_r: int | None = None
 
+        is_pty = isinstance(stdio, PtyStdio)
+        pty_master_fd: int | None = None
+        pty_read_fd: int | None = None
+        pty_write_fd: int | None = None
+
+        if isinstance(stdio, PtyStdio) and stdio.term is not None and 'TERM' not in spec.resolve_env():
+            spec = spec.with_env(TERM=stdio.term)
+
         try:
-            if stdio.stdin == 'pipe':
-                stdin_arg, stdin_w = _pipe(child_reads=True)
-            elif stdio.stdin == 'devnull':
-                stdin_arg = subprocess.DEVNULL
-            elif stdio.stdin == 'inherit':
-                stdin_arg = None
-            else:
-                stdin_arg = check.isinstance(stdio.stdin, int)
+            if isinstance(stdio, PtyStdio):
+                # A pty needs the child to be a session leader to acquire the slave as its controlling terminal.
+                session_mode = 'session'
+                master, slave = _pty.open_pty()
+                parent_fds.append(master)
+                child_fds.append(slave)
+                _pty.set_winsize(slave, stdio.rows, stdio.cols)
+                pty_read_fd = os.dup(master)
+                os.set_inheritable(pty_read_fd, False)
+                parent_fds.append(pty_read_fd)
+                pty_write_fd = os.dup(master)
+                os.set_inheritable(pty_write_fd, False)
+                parent_fds.append(pty_write_fd)
+                pty_master_fd = master
+                stdin_arg = stdout_arg = stderr_arg = slave
 
-            if stdio.stdout == 'pipe':
-                stdout_arg, stdout_r = _pipe(child_reads=False)
-            elif stdio.stdout == 'devnull':
-                stdout_arg = subprocess.DEVNULL
-            elif stdio.stdout == 'inherit':
-                stdout_arg = None
             else:
-                stdout_arg = check.isinstance(stdio.stdout, int)
+                if stdio.stdin == 'pipe':
+                    stdin_arg, stdin_w = _pipe(child_reads=True)
+                elif stdio.stdin == 'devnull':
+                    stdin_arg = subprocess.DEVNULL
+                elif stdio.stdin == 'inherit':
+                    stdin_arg = None
+                else:
+                    stdin_arg = check.isinstance(stdio.stdin, int)
 
-            if stdio.stderr == 'pipe':
-                stderr_arg, stderr_r = _pipe(child_reads=False)
-            elif stdio.stderr == 'devnull':
-                stderr_arg = subprocess.DEVNULL
-            elif stdio.stderr == 'inherit':
-                stderr_arg = None
-            elif stdio.stderr == 'stdout':
-                stderr_arg = subprocess.STDOUT
-            else:
-                stderr_arg = check.isinstance(stdio.stderr, int)
+                if stdio.stdout == 'pipe':
+                    stdout_arg, stdout_r = _pipe(child_reads=False)
+                elif stdio.stdout == 'devnull':
+                    stdout_arg = subprocess.DEVNULL
+                elif stdio.stdout == 'inherit':
+                    stdout_arg = None
+                else:
+                    stdout_arg = check.isinstance(stdio.stdout, int)
+
+                if stdio.stderr == 'pipe':
+                    stderr_arg, stderr_r = _pipe(child_reads=False)
+                elif stdio.stderr == 'devnull':
+                    stderr_arg = subprocess.DEVNULL
+                elif stdio.stderr == 'inherit':
+                    stderr_arg = None
+                elif stdio.stderr == 'stdout':
+                    stderr_arg = subprocess.STDOUT
+                else:
+                    stderr_arg = check.isinstance(stdio.stderr, int)
 
             status_r, status_w = os.pipe()
             parent_fds.append(status_r)
@@ -427,6 +454,12 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
         spool = OutputSpool(storage, AsyncioSpoolNotifier(loop))
         self._spools.append(spool)
 
+        if is_pty:
+            stdin_w = pty_write_fd
+            output_reads: list[tuple[int, int]] = [(_pty.PTY_OUTPUT_FD, check.not_none(pty_read_fd))]
+        else:
+            output_reads = [(fd, r) for fd, r in ((1, stdout_r), (2, stderr_r)) if r is not None]
+
         stdin_writer: StdinWriter | None = None
         if stdin_w is not None:
             w_transport, w_protocol = await loop.connect_write_pipe(
@@ -443,13 +476,12 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
             popen=popen,
             spool=spool,
             stdin=stdin_writer,
+            pty_master_fd=pty_master_fd,
             owner=self,
             loop=loop,
         )
 
-        for fd_num, parent_fd in ((1, stdout_r), (2, stderr_r)):
-            if parent_fd is None:
-                continue
+        for fd_num, parent_fd in output_reads:
             r_transport, _ = await loop.connect_read_pipe(
                 functools.partial(
                     ReadPipeProtocol,
