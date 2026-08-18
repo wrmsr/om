@@ -298,6 +298,159 @@ def _process_dataclass__d5e4f63ce7138d8b3a84c09932de4695692f22a7():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('shim_python', 'spill_dir', 'default_options', 'close_policy', 'spawn_timeout_s'))"
+        ", EqPlan(fields=('shim_python', 'spill_dir', 'default_options', 'close_policy', 'spawn_timeout_s')), FrozenPla"
+        "n(fields=('shim_python', 'spill_dir', 'default_options', 'close_policy', 'spawn_timeout_s'), allow_dynamic_dun"
+        "der_attrs=False), HashPlan(action='add', fields=('shim_python', 'spill_dir', 'default_options', 'close_policy'"
+        ", 'spawn_timeout_s'), cache=False), InitPlan(fields=(InitPlan.Field(name='shim_python', annotation=OpRef(name="
+        "'init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, ove"
+        "rride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name="
+        "'spill_dir', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), d"
+        "efault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, che"
+        "ck_type=None), InitPlan.Field(name='default_options', annotation=OpRef(name='init.fields.2.annotation'), defau"
+        "lt=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType."
+        "INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='close_policy', annotation=OpRef(n"
+        "ame='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True,"
+        " override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(n"
+        "ame='spawn_timeout_s', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.de"
+        "fault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate"
+        "=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('shim_python', 'spill_dir', 'defau"
+        "lt_options', 'close_policy', 'spawn_timeout_s'), frozen=True, slots=False, post_init_params=None, init_fns=(),"
+        " validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='shim_python', kw_only=True, fn=None), ReprPlan.Field("
+        "name='spill_dir', kw_only=True, fn=None), ReprPlan.Field(name='default_options', kw_only=True, fn=None), ReprP"
+        "lan.Field(name='close_policy', kw_only=True, fn=None), ReprPlan.Field(name='spawn_timeout_s', kw_only=True, fn"
+        "=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='a2b043166b6926b743f271a348e9635f0e81d563',
+    cls_names=(
+        ('omllm.core.procs.manager', 'ManagerConfig'),
+    ),
+)
+def _process_dataclass__a2b043166b6926b743f271a348e9635f0e81d563():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                shim_python=self.shim_python,
+                spill_dir=self.spill_dir,
+                default_options=self.default_options,
+                close_policy=self.close_policy,
+                spawn_timeout_s=self.spawn_timeout_s,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.shim_python == other.shim_python and
+                self.spill_dir == other.spill_dir and
+                self.default_options == other.default_options and
+                self.close_policy == other.close_policy and
+                self.spawn_timeout_s == other.spawn_timeout_s
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'shim_python',
+            'spill_dir',
+            'default_options',
+            'close_policy',
+            'spawn_timeout_s',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.shim_python,
+                self.spill_dir,
+                self.default_options,
+                self.close_policy,
+                self.spawn_timeout_s,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            shim_python: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            spill_dir: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            default_options: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            close_policy: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            spawn_timeout_s: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'shim_python', shim_python)
+            __dataclass__object_setattr(self, 'spill_dir', spill_dir)
+            __dataclass__object_setattr(self, 'default_options', default_options)
+            __dataclass__object_setattr(self, 'close_policy', close_policy)
+            __dataclass__object_setattr(self, 'spawn_timeout_s', spawn_timeout_s)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"shim_python={self.shim_python!r}")
+            parts.append(f"spill_dir={self.spill_dir!r}")
+            parts.append(f"default_options={self.default_options!r}")
+            parts.append(f"close_policy={self.close_policy!r}")
+            parts.append(f"spawn_timeout_s={self.spawn_timeout_s!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('policy', 'bwrap')), EqPlan(fields=('policy', 'bwrap')), FrozenPlan(fields=('polic"
         "y', 'bwrap'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('policy', 'bwrap'), cache=Fals"
         "e), InitPlan(fields=(InitPlan.Field(name='policy', annotation=OpRef(name='init.fields.0.annotation'), default="
@@ -1820,6 +1973,1115 @@ def _process_dataclass__6bd870c188b5ac0bd1d834e685c284c262cd1eb2():
             parts.append(f"errno={self.errno!r}")
             parts.append(f"message={self.message!r}")
             parts.append(f"argv={self.argv!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('process_id', 'pid', 'scope_path', 'state')), EqPlan(fields=('process_id', 'pid', "
+        "'scope_path', 'state')), FrozenPlan(fields=('process_id', 'pid', 'scope_path', 'state'), allow_dynamic_dunder_"
+        "attrs=False), HashPlan(action='add', fields=('process_id', 'pid', 'scope_path', 'state'), cache=False), InitPl"
+        "an(fields=(InitPlan.Field(name='process_id', annotation=OpRef(name='init.fields.0.annotation'), default=None, "
+        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
+        "eck_type=None), InitPlan.Field(name='pid', annotation=OpRef(name='init.fields.1.annotation'), default=None, de"
+        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, chec"
+        "k_type=None), InitPlan.Field(name='scope_path', annotation=OpRef(name='init.fields.2.annotation'), default=Non"
+        "e, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None,"
+        " check_type=None), InitPlan.Field(name='state', annotation=OpRef(name='init.fields.3.annotation'), default=Non"
+        "e, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None,"
+        " check_type=None)), self_param='self', std_params=(), kw_only_params=('process_id', 'pid', 'scope_path', 'stat"
+        "e'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan"
+        ".Field(name='process_id', kw_only=True, fn=None), ReprPlan.Field(name='pid', kw_only=True, fn=None), ReprPlan."
+        "Field(name='scope_path', kw_only=True, fn=None), ReprPlan.Field(name='state', kw_only=True, fn=None)), id=Fals"
+        "e, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='b142ac80b580a067d4667bafd436680004d70a13',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ProcessAbandonedEvent'),
+    ),
+)
+def _process_dataclass__b142ac80b580a067d4667bafd436680004d70a13():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                process_id=self.process_id,
+                pid=self.pid,
+                scope_path=self.scope_path,
+                state=self.state,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.process_id == other.process_id and
+                self.pid == other.pid and
+                self.scope_path == other.scope_path and
+                self.state == other.state
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'process_id',
+            'pid',
+            'scope_path',
+            'state',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.process_id,
+                self.pid,
+                self.scope_path,
+                self.state,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            process_id: __dataclass__init__fields__0__annotation,
+            pid: __dataclass__init__fields__1__annotation,
+            scope_path: __dataclass__init__fields__2__annotation,
+            state: __dataclass__init__fields__3__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'process_id', process_id)
+            __dataclass__object_setattr(self, 'pid', pid)
+            __dataclass__object_setattr(self, 'scope_path', scope_path)
+            __dataclass__object_setattr(self, 'state', state)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"process_id={self.process_id!r}")
+            parts.append(f"pid={self.pid!r}")
+            parts.append(f"scope_path={self.scope_path!r}")
+            parts.append(f"state={self.state!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=()), EqPlan(fields=()), FrozenPlan(fields=(), allow_dynamic_dunder_attrs=False), Ha"
+        "shPlan(action='add', fields=(), cache=False), InitPlan(fields=(), self_param='self', std_params=(), kw_only_pa"
+        "rams=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(), i"
+        "d=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='e1f7edfe11f2b721d6a656c46e698fedc95461bb',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ProcessEvent'),
+    ),
+)
+def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__()  # noqa
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return True
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash(())
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+        ) -> __dataclass__None:
+            pass
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            return f"{self.__class__.__qualname__}()"
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('process_id', 'pid', 'scope_path', 'returncode')), EqPlan(fields=('process_id', 'p"
+        "id', 'scope_path', 'returncode')), FrozenPlan(fields=('process_id', 'pid', 'scope_path', 'returncode'), allow_"
+        "dynamic_dunder_attrs=False), HashPlan(action='add', fields=('process_id', 'pid', 'scope_path', 'returncode'), "
+        "cache=False), InitPlan(fields=(InitPlan.Field(name='process_id', annotation=OpRef(name='init.fields.0.annotati"
+        "on'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=Non"
+        "e, validate=None, check_type=None), InitPlan.Field(name='pid', annotation=OpRef(name='init.fields.1.annotation"
+        "'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
+        " validate=None, check_type=None), InitPlan.Field(name='scope_path', annotation=OpRef(name='init.fields.2.annot"
+        "ation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce="
+        "None, validate=None, check_type=None), InitPlan.Field(name='returncode', annotation=OpRef(name='init.fields.3."
+        "annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, co"
+        "erce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('process_id', '"
+        "pid', 'scope_path', 'returncode'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns="
+        "()), ReprPlan(fields=(ReprPlan.Field(name='process_id', kw_only=True, fn=None), ReprPlan.Field(name='pid', kw_"
+        "only=True, fn=None), ReprPlan.Field(name='scope_path', kw_only=True, fn=None), ReprPlan.Field(name='returncode"
+        "', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='5409f904bee0df22eece1a4568e4244dbb6f65d3',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ProcessExitedEvent'),
+        ('omllm.core.procs.types.events', 'ProcessReapedEvent'),
+    ),
+)
+def _process_dataclass__5409f904bee0df22eece1a4568e4244dbb6f65d3():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                process_id=self.process_id,
+                pid=self.pid,
+                scope_path=self.scope_path,
+                returncode=self.returncode,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.process_id == other.process_id and
+                self.pid == other.pid and
+                self.scope_path == other.scope_path and
+                self.returncode == other.returncode
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'process_id',
+            'pid',
+            'scope_path',
+            'returncode',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.process_id,
+                self.pid,
+                self.scope_path,
+                self.returncode,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            process_id: __dataclass__init__fields__0__annotation,
+            pid: __dataclass__init__fields__1__annotation,
+            scope_path: __dataclass__init__fields__2__annotation,
+            returncode: __dataclass__init__fields__3__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'process_id', process_id)
+            __dataclass__object_setattr(self, 'pid', pid)
+            __dataclass__object_setattr(self, 'scope_path', scope_path)
+            __dataclass__object_setattr(self, 'returncode', returncode)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"process_id={self.process_id!r}")
+            parts.append(f"pid={self.pid!r}")
+            parts.append(f"scope_path={self.scope_path!r}")
+            parts.append(f"returncode={self.returncode!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('process_id', 'pid', 'scope_path')), EqPlan(fields=('process_id', 'pid', 'scope_pa"
+        "th')), FrozenPlan(fields=('process_id', 'pid', 'scope_path'), allow_dynamic_dunder_attrs=False), HashPlan(acti"
+        "on='add', fields=('process_id', 'pid', 'scope_path'), cache=False), InitPlan(fields=(InitPlan.Field(name='proc"
+        "ess_id', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, ove"
+        "rride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name="
+        "'pid', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, overr"
+        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='s"
+        "cope_path', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, "
+        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self"
+        "', std_params=(), kw_only_params=('process_id', 'pid', 'scope_path'), frozen=True, slots=False, post_init_para"
+        "ms=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='process_id', kw_only=True, fn=No"
+        "ne), ReprPlan.Field(name='pid', kw_only=True, fn=None), ReprPlan.Field(name='scope_path', kw_only=True, fn=Non"
+        "e)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='e093c157cc0fc076230b50b62b78c9dbc7860db0',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ProcessLifecycleEvent'),
+    ),
+)
+def _process_dataclass__e093c157cc0fc076230b50b62b78c9dbc7860db0():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                process_id=self.process_id,
+                pid=self.pid,
+                scope_path=self.scope_path,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.process_id == other.process_id and
+                self.pid == other.pid and
+                self.scope_path == other.scope_path
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'process_id',
+            'pid',
+            'scope_path',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.process_id,
+                self.pid,
+                self.scope_path,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            process_id: __dataclass__init__fields__0__annotation,
+            pid: __dataclass__init__fields__1__annotation,
+            scope_path: __dataclass__init__fields__2__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'process_id', process_id)
+            __dataclass__object_setattr(self, 'pid', pid)
+            __dataclass__object_setattr(self, 'scope_path', scope_path)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"process_id={self.process_id!r}")
+            parts.append(f"pid={self.pid!r}")
+            parts.append(f"scope_path={self.scope_path!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('process_id', 'pid', 'scope_path', 'reason')), EqPlan(fields=('process_id', 'pid',"
+        " 'scope_path', 'reason')), FrozenPlan(fields=('process_id', 'pid', 'scope_path', 'reason'), allow_dynamic_dund"
+        "er_attrs=False), HashPlan(action='add', fields=('process_id', 'pid', 'scope_path', 'reason'), cache=False), In"
+        "itPlan(fields=(InitPlan.Field(name='process_id', annotation=OpRef(name='init.fields.0.annotation'), default=No"
+        "ne, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
+        ", check_type=None), InitPlan.Field(name='pid', annotation=OpRef(name='init.fields.1.annotation'), default=None"
+        ", default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, "
+        "check_type=None), InitPlan.Field(name='scope_path', annotation=OpRef(name='init.fields.2.annotation'), default"
+        "=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
+        "one, check_type=None), InitPlan.Field(name='reason', annotation=OpRef(name='init.fields.3.annotation'), defaul"
+        "t=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate="
+        "None, check_type=None)), self_param='self', std_params=(), kw_only_params=('process_id', 'pid', 'scope_path', "
+        "'reason'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Re"
+        "prPlan.Field(name='process_id', kw_only=True, fn=None), ReprPlan.Field(name='pid', kw_only=True, fn=None), Rep"
+        "rPlan.Field(name='scope_path', kw_only=True, fn=None), ReprPlan.Field(name='reason', kw_only=True, fn=None)), "
+        "id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='f82e4121ad9e1de13cd57f99c31eafe003feb3c7',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ProcessPoisonedEvent'),
+    ),
+)
+def _process_dataclass__f82e4121ad9e1de13cd57f99c31eafe003feb3c7():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                process_id=self.process_id,
+                pid=self.pid,
+                scope_path=self.scope_path,
+                reason=self.reason,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.process_id == other.process_id and
+                self.pid == other.pid and
+                self.scope_path == other.scope_path and
+                self.reason == other.reason
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'process_id',
+            'pid',
+            'scope_path',
+            'reason',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.process_id,
+                self.pid,
+                self.scope_path,
+                self.reason,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            process_id: __dataclass__init__fields__0__annotation,
+            pid: __dataclass__init__fields__1__annotation,
+            scope_path: __dataclass__init__fields__2__annotation,
+            reason: __dataclass__init__fields__3__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'process_id', process_id)
+            __dataclass__object_setattr(self, 'pid', pid)
+            __dataclass__object_setattr(self, 'scope_path', scope_path)
+            __dataclass__object_setattr(self, 'reason', reason)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"process_id={self.process_id!r}")
+            parts.append(f"pid={self.pid!r}")
+            parts.append(f"scope_path={self.scope_path!r}")
+            parts.append(f"reason={self.reason!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('process_id', 'pid', 'scope_path', 'old_scope_path')), EqPlan(fields=('process_id'"
+        ", 'pid', 'scope_path', 'old_scope_path')), FrozenPlan(fields=('process_id', 'pid', 'scope_path', 'old_scope_pa"
+        "th'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('process_id', 'pid', 'scope_path', 'ol"
+        "d_scope_path'), cache=False), InitPlan(fields=(InitPlan.Field(name='process_id', annotation=OpRef(name='init.f"
+        "ields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INST"
+        "ANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='pid', annotation=OpRef(name='init.fie"
+        "lds.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTAN"
+        "CE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='scope_path', annotation=OpRef(name='ini"
+        "t.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.I"
+        "NSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='old_scope_path', annotation=OpRef("
+        "name='init.fields.3.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fi"
+        "eldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_par"
+        "ams=('process_id', 'pid', 'scope_path', 'old_scope_path'), frozen=True, slots=False, post_init_params=None, in"
+        "it_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='process_id', kw_only=True, fn=None), ReprPl"
+        "an.Field(name='pid', kw_only=True, fn=None), ReprPlan.Field(name='scope_path', kw_only=True, fn=None), ReprPla"
+        "n.Field(name='old_scope_path', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='4f6217c4a9ba13eff1c63fa7edca4a70c15c6e81',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ProcessReparentedEvent'),
+    ),
+)
+def _process_dataclass__4f6217c4a9ba13eff1c63fa7edca4a70c15c6e81():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                process_id=self.process_id,
+                pid=self.pid,
+                scope_path=self.scope_path,
+                old_scope_path=self.old_scope_path,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.process_id == other.process_id and
+                self.pid == other.pid and
+                self.scope_path == other.scope_path and
+                self.old_scope_path == other.old_scope_path
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'process_id',
+            'pid',
+            'scope_path',
+            'old_scope_path',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.process_id,
+                self.pid,
+                self.scope_path,
+                self.old_scope_path,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            process_id: __dataclass__init__fields__0__annotation,
+            pid: __dataclass__init__fields__1__annotation,
+            scope_path: __dataclass__init__fields__2__annotation,
+            old_scope_path: __dataclass__init__fields__3__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'process_id', process_id)
+            __dataclass__object_setattr(self, 'pid', pid)
+            __dataclass__object_setattr(self, 'scope_path', scope_path)
+            __dataclass__object_setattr(self, 'old_scope_path', old_scope_path)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"process_id={self.process_id!r}")
+            parts.append(f"pid={self.pid!r}")
+            parts.append(f"scope_path={self.scope_path!r}")
+            parts.append(f"old_scope_path={self.old_scope_path!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('process_id', 'pid', 'scope_path', 'argv', 'name')), EqPlan(fields=('process_id', "
+        "'pid', 'scope_path', 'argv', 'name')), FrozenPlan(fields=('process_id', 'pid', 'scope_path', 'argv', 'name'), "
+        "allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('process_id', 'pid', 'scope_path', 'argv', '"
+        "name'), cache=False), InitPlan(fields=(InitPlan.Field(name='process_id', annotation=OpRef(name='init.fields.0."
+        "annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, co"
+        "erce=None, validate=None, check_type=None), InitPlan.Field(name='pid', annotation=OpRef(name='init.fields.1.an"
+        "notation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
+        "ce=None, validate=None, check_type=None), InitPlan.Field(name='scope_path', annotation=OpRef(name='init.fields"
+        ".2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE,"
+        " coerce=None, validate=None, check_type=None), InitPlan.Field(name='argv', annotation=OpRef(name='init.fields."
+        "3.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, "
+        "coerce=None, validate=None, check_type=None), InitPlan.Field(name='name', annotation=OpRef(name='init.fields.4"
+        ".annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, f"
+        "ield_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(),"
+        " kw_only_params=('process_id', 'pid', 'scope_path', 'argv', 'name'), frozen=True, slots=False, post_init_param"
+        "s=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='process_id', kw_only=True, fn=Non"
+        "e), ReprPlan.Field(name='pid', kw_only=True, fn=None), ReprPlan.Field(name='scope_path', kw_only=True, fn=None"
+        "), ReprPlan.Field(name='argv', kw_only=True, fn=None), ReprPlan.Field(name='name', kw_only=True, fn=None)), id"
+        "=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='56c1e9adf90660305d8c05948098412ad28aadd9',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ProcessSpawnedEvent'),
+    ),
+)
+def _process_dataclass__56c1e9adf90660305d8c05948098412ad28aadd9():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                process_id=self.process_id,
+                pid=self.pid,
+                scope_path=self.scope_path,
+                argv=self.argv,
+                name=self.name,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.process_id == other.process_id and
+                self.pid == other.pid and
+                self.scope_path == other.scope_path and
+                self.argv == other.argv and
+                self.name == other.name
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'process_id',
+            'pid',
+            'scope_path',
+            'argv',
+            'name',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.process_id,
+                self.pid,
+                self.scope_path,
+                self.argv,
+                self.name,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            process_id: __dataclass__init__fields__0__annotation,
+            pid: __dataclass__init__fields__1__annotation,
+            scope_path: __dataclass__init__fields__2__annotation,
+            argv: __dataclass__init__fields__3__annotation,
+            name: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'process_id', process_id)
+            __dataclass__object_setattr(self, 'pid', pid)
+            __dataclass__object_setattr(self, 'scope_path', scope_path)
+            __dataclass__object_setattr(self, 'argv', argv)
+            __dataclass__object_setattr(self, 'name', name)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"process_id={self.process_id!r}")
+            parts.append(f"pid={self.pid!r}")
+            parts.append(f"scope_path={self.scope_path!r}")
+            parts.append(f"argv={self.argv!r}")
+            parts.append(f"name={self.name!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('scope_path', 'num_processes', 'num_abandoned')), EqPlan(fields=('scope_path', 'nu"
+        "m_processes', 'num_abandoned')), FrozenPlan(fields=('scope_path', 'num_processes', 'num_abandoned'), allow_dyn"
+        "amic_dunder_attrs=False), HashPlan(action='add', fields=('scope_path', 'num_processes', 'num_abandoned'), cach"
+        "e=False), InitPlan(fields=(InitPlan.Field(name='scope_path', annotation=OpRef(name='init.fields.0.annotation')"
+        ", default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, v"
+        "alidate=None, check_type=None), InitPlan.Field(name='num_processes', annotation=OpRef(name='init.fields.1.anno"
+        "tation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
+        "=None, validate=None, check_type=None), InitPlan.Field(name='num_abandoned', annotation=OpRef(name='init.field"
+        "s.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False"
+        ", field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params="
+        "(), kw_only_params=('scope_path', 'num_processes', 'num_abandoned'), frozen=True, slots=False, post_init_param"
+        "s=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='scope_path', kw_only=True, fn=Non"
+        "e), ReprPlan.Field(name='num_processes', kw_only=True, fn=None), ReprPlan.Field(name='num_abandoned', kw_only="
+        "True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='8d943650426f34712c448e0a77b8e2dba1f246fd',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ScopeClosedEvent'),
+    ),
+)
+def _process_dataclass__8d943650426f34712c448e0a77b8e2dba1f246fd():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                scope_path=self.scope_path,
+                num_processes=self.num_processes,
+                num_abandoned=self.num_abandoned,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.scope_path == other.scope_path and
+                self.num_processes == other.num_processes and
+                self.num_abandoned == other.num_abandoned
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'scope_path',
+            'num_processes',
+            'num_abandoned',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.scope_path,
+                self.num_processes,
+                self.num_abandoned,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            scope_path: __dataclass__init__fields__0__annotation,
+            num_processes: __dataclass__init__fields__1__annotation,
+            num_abandoned: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'scope_path', scope_path)
+            __dataclass__object_setattr(self, 'num_processes', num_processes)
+            __dataclass__object_setattr(self, 'num_abandoned', num_abandoned)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"scope_path={self.scope_path!r}")
+            parts.append(f"num_processes={self.num_processes!r}")
+            parts.append(f"num_abandoned={self.num_abandoned!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('scope_path',)), EqPlan(fields=('scope_path',)), FrozenPlan(fields=('scope_path',)"
+        ", allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('scope_path',), cache=False), InitPlan(fie"
+        "lds=(InitPlan.Field(name='scope_path', annotation=OpRef(name='init.fields.0.annotation'), default=None, defaul"
+        "t_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_ty"
+        "pe=None),), self_param='self', std_params=(), kw_only_params=('scope_path',), frozen=True, slots=False, post_i"
+        "nit_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='scope_path', kw_only=Tru"
+        "e, fn=None),), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='524a82161f342e6602cfacfede4ac8fd91b42a86',
+    cls_names=(
+        ('omllm.core.procs.types.events', 'ScopeEvent'),
+        ('omllm.core.procs.types.events', 'ScopeOpenedEvent'),
+    ),
+)
+def _process_dataclass__524a82161f342e6602cfacfede4ac8fd91b42a86():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                scope_path=self.scope_path,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.scope_path == other.scope_path
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'scope_path',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.scope_path,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            scope_path: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'scope_path', scope_path)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"scope_path={self.scope_path!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

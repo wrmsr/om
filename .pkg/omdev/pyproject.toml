@@ -69,11 +69,11 @@ tui = [
     'textual-dev ~= 1.8',
     'textual-speedups ~= 0.2',
 ]
-rs = [
-    'omdev-rs == 0.0.46',
-]
 cext = [
     'omdev-cext == 0.0.46',
+]
+rs = [
+    'omdev-rs == 0.0.46',
 ]
 all = [
     'ominfra == 0.0.46',
@@ -95,8 +95,8 @@ all = [
     'textual ~= 8.2',
     'textual-dev ~= 1.8',
     'textual-speedups ~= 0.2',
-    'omdev-rs == 0.0.46',
     'omdev-cext == 0.0.46',
+    'omdev-rs == 0.0.46',
 ]
 
 [project.entry-points]

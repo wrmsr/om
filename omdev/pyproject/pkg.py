@@ -340,7 +340,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         st = dict(specs.setuptools)
 
-        exts = {
+        exts = [
             k
             for k in [
                 'cext',
@@ -348,7 +348,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
                 'rs',
             ]
             if bool(st.pop(k, None))
-        }
+        ]
 
         ##
 
