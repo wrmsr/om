@@ -31,6 +31,7 @@
     be assumed to be present.
   - `textual`, specifically - it is the sole chosen TUI library. Almost all terminal functionality throughout the
     codebase is usable without it - it only powers a small number of specific, larger TUI apps.
+    - **NOTE:** this is in flux.
   - Async backends: `trio`, `anyio`, `trio-asyncio`. Except in specific situations (such as under `textual`) async code
     is not assumed to be running under asyncio, and in general async code should use anyio.
     - **NOTE:** this is in flux.
@@ -517,3 +518,4 @@ def make_it_a_tuple(t: T) -> tuple[T]:
 ### Misc. Linguistic Pedantry
 
 - We spell it 'falsey' not 'falsy'.
+- We use `.yml` extensions not `.yaml`.
