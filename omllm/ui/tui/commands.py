@@ -30,6 +30,12 @@ def bind_commands(config: Config) -> inj.Elements:
         harness_commands().bind_item(to_key=har.PermissionsCommand),
     ])
 
+    if config.exec:
+        lst.extend([
+            inj.bind(har.ProcessesCommand, singleton=True),
+            harness_commands().bind_item(to_key=har.ProcessesCommand),
+        ])
+
     lst.extend([
         harness_commands().bind_items_provider(singleton=True),
 

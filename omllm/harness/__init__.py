@@ -43,6 +43,10 @@ with _lang.auto_proxy_init(globals()):
         PermissionsCommand,
     )
 
+    from .commands.processes import (  # noqa
+        ProcessesCommand,
+    )
+
     from .commands.simple import (  # noqa
         EchoCommand,
 
