@@ -42,9 +42,14 @@ def _lookup(ctx: ToolContext, process_id: str) -> processes.Process:
 
 def _status_note(proc: processes.Process, read: processes.SpoolRead) -> str:
     parts: list[str] = [proc.id]
-    if read.ended or not proc.state.is_alive:
+    # Whether the process has *exited* is a distinct event from whether its *output* has ended (a process can close
+    # its stdio and keep running, and - the source of a past flake - output EOF can be observed before the exit is,
+    # since the exit code arrives from a separate waitid). Report the exit only once it is actually observed.
+    if proc.exited:
         rc = proc.returncode
         parts.append(f'exited (rc={rc})' if rc is not None else 'exited')
+    elif read.ended:
+        parts.append('running; output closed')
     elif read.more:
         parts.append('running; more output available')
     else:
@@ -138,6 +143,10 @@ class ProcessReadToolParams:
 
 
 class ProcessReadTool(ToolClass[ProcessReadToolParams]):
+    # How long a read that has hit end-of-output will wait for the (imminent) exit to be observed, so the status can
+    # report the exit code. A process that merely closed its stdio and kept running is reported as running after this.
+    _EXIT_GRACE_S: ta.ClassVar[float] = 5.0
+
     name: ta.Final = 'process_read'
 
     params_cls: ta.Final = ProcessReadToolParams
@@ -165,6 +174,14 @@ class ProcessReadTool(ToolClass[ProcessReadToolParams]):
             timeout=params.wait_s if params.wait_s > 0 else None,
             max_bytes=params.max_bytes,
         )
+
+        # Output is fully closed but the exit has not been observed yet: for a normal command the process just
+        # exited and its exit code is imminent, so wait briefly (bounded) rather than racing it into the status.
+        if read.ended and not proc.exited:
+            try:
+                await proc.wait(self._EXIT_GRACE_S)
+            except processes.ProcessTimeoutError:
+                pass
 
         text = processes.ArrivalMergedRenderer().render(read.records)
         note = _status_note(proc, read)

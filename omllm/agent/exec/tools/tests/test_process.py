@@ -81,14 +81,14 @@ async def test_process_read_exited():
             await spawn.execute(ctx, ProcessSpawnToolParams(command='echo one; echo two >&2; exit 4'))
             pid = next(iter(m.root.processes))
 
-            # follow the process like a model would: read from the advancing cursor until it reports exit.
+            # follow the process like a model would: read from the advancing cursor until it reports the exit code.
             seen = ''
             cursor = 0
             for _ in range(50):
                 r = await read.execute(ctx, ProcessReadToolParams(id=pid, cursor=cursor, wait_s=2.0))
                 seen += r
                 cursor = int(r.rsplit('next_cursor=', 1)[1].rstrip(']'))
-                if 'exited' in r:
+                if 'exited (rc=' in r:
                     break
             assert 'one' in seen and 'two' in seen
             assert 'exited (rc=4)' in seen

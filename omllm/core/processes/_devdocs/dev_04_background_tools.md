@@ -38,3 +38,23 @@ incl. the empty-params list tool.
 - Human `/ps` slash command (process_list is the LLM-facing equivalent; a human command is a small ui add).
 - Per-tool-call child scopes + reparent-on-background (the "adopt into an ancestor" flow) - lands with DI scopes.
 - Plain-text output dump for the model to `read` a huge process's full log (spill file is framed).
+
+## Flake fix: exited-status race (2026-08-18)
+
+`test_process_read_exited` flaked on a slow CI box: the status note showed `[p1; exited; next_cursor=...]` (no
+`(rc=N)`). Root cause: `_status_note` decided "exited" from `read.ended` (output EOF), but **output-EOF and the exit
+observation are separate events** - output closes on the loop thread (pipe `connection_lost`), while the exit code
+arrives from `waitid` on the reaper thread via `call_soon_threadsafe`. Under load the output can close before the
+exit is observed, so `read.ended` was True while `returncode` was still None -> bare `exited`.
+
+Fix (`agent/exec/tools/process.py`):
+- `_status_note` reports the exit from `proc.exited` (which is only true once `returncode` is set, under the handle
+  lock, before the event) - never from `read.ended`. `read.ended` with the process still alive is now its own case,
+  `running; output closed` (a process that closed its stdio but kept running).
+- `ProcessReadTool.execute` waits briefly (`_EXIT_GRACE_S = 5s`, bounded) for the exit when output has ended but the
+  exit isn't observed yet - it's imminent for a normal command, so the read returns as soon as it fires; a genuine
+  stdio-closing daemon is reported as running after the grace.
+
+Stress-checked 30x green; the test now loops until it sees `exited (rc=` specifically.
+
+(Also cleaned up the stale empty `omllm/core/procs/` dir left by the `procs` -> `processes` package rename.)
