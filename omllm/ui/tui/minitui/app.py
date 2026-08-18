@@ -160,24 +160,25 @@ class MinituiChatApp(mt.App):
         self.finalize_card()
 
         def respond(allowed: bool) -> None:
-            card = self._card
-            if card is not None:
+            # Act only on this closure's own card - the slot may hold a successor by now.
+            if self._card is new_card:
                 if allowed:
-                    card.set_state(mt.CardState.RUNNING)
-                    card.set_summary([(title, 'card.summary'), ('  running...', 'card.summary.dim')])
+                    new_card.set_state(mt.CardState.RUNNING)
+                    new_card.set_summary([(title, 'card.summary'), ('  running...', 'card.summary.dim')])
                 else:
-                    card.set_state(mt.CardState.DENIED)
-                    card.set_summary([(title, 'card.summary'), ('  denied', 'card.summary.dim')])
-                    self._driver.timers.call_later(.6, self.finalize_card)
+                    new_card.set_state(mt.CardState.DENIED)
+                    new_card.set_summary([(title, 'card.summary'), ('  denied', 'card.summary.dim')])
+                    self._finalize_card_later(new_card, .6)
             on_respond(allowed)
             self._driver.invalidate()
 
-        self._card = mt.Card(
+        new_card = mt.Card(
             [(title, 'card.summary'), ('  awaiting confirmation', 'card.summary.dim')],
             state=mt.CardState.CONFIRMING,
             detail=list(detail_rows),
             on_confirm=respond,
         )
+        self._card = new_card
         self._driver.invalidate()
 
     def tool_started(self, title: str, detail_rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> None:
@@ -207,8 +208,17 @@ class MinituiChatApp(mt.App):
         card.set_summary([(title, 'card.summary'), ('  done' if ok else '  failed', 'card.summary.dim')])
         if detail_rows is not None:
             card.set_detail(list(detail_rows))
-        self._driver.timers.call_later(.8, self.finalize_card)
+        self._finalize_card_later(card, .8)
         self._driver.invalidate()
+
+    def _finalize_card_later(self, card: mt.Card, delay_s: float) -> None:
+        # Identity-guarded: by the time the warm-window delay elapses, the slot may already hold the NEXT tool's card
+        # (back-to-back tool uses); a stale timer must never finalize a successor out from under the user.
+        def fn() -> None:
+            if self._card is card:
+                self.finalize_card()
+
+        self._driver.timers.call_later(delay_s, fn)
 
     def finalize_card(self) -> None:
         card = self._card

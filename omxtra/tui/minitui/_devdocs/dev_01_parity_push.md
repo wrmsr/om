@@ -418,3 +418,16 @@ verbose renderer, command echo, and prompt-error paths; the TextDisplayer inline
 inline text as ONE block (it was emitting a blank-separated commit per line). Verified headlessly with a 14-line
 grep-style result: card renders, expands with capped detail; display_text commits 3 rows + 1 blank as one block.
 Both pty e2es still green.
+
+## 2026-08-18 (later): stuck confirmation card on back-to-back tool uses - stale finalize timer
+
+Owner report: the f10/f2 card stops responding, but only when a second tool use immediately follows the first.
+Timeline diagnosis: tool_finished schedules `call_later(.8, self.finalize_card)` - capturing the SLOT, not the
+card. Tool 2's ask displaces card 1 (immediate finalize) and installs card 2 CONFIRMING; 0.8s later tool 1's stale
+timer fires finalize_card and commits card 2 to scrollback mid-confirmation: frozen allow/deny row in history,
+self._card None so f10/f2 fall through to the textarea, the asker future never resolves, turn parked forever.
+Fix (643a848ce): _finalize_card_later(card, delay) with an identity guard (`if self._card is card`) replaces the
+raw call_later at both scheduling sites (tool-complete .8s, deny .6s), and begin_permission_card's respond closure
+now acts only on its own captured card rather than whatever occupies the slot. Regression test drives ask->allow->
+finish->ask with the stale timer fired in between (and the deny-path variant); both successor cards stay live and
+confirmable. pty e2es green.
