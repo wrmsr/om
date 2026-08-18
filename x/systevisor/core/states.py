@@ -63,3 +63,4 @@ class SystevisorSignalReason(enum.Enum):
     REMOVE = 'remove'
     SHUTDOWN = 'shutdown'
     ESCALATE = 'escalate'
+    FORWARD = 'forward'

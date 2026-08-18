@@ -61,6 +61,11 @@ class SystevisorShutdownCommand(SystevisorEngineCommand):
 
 
 @dc.dataclass(frozen=True)
+class SystevisorForwardSignalCommand(SystevisorEngineCommand):
+    signal: str
+
+
+@dc.dataclass(frozen=True)
 class SystevisorSpawnSucceededFact(SystevisorEngineFact):
     run_id: SystevisorRunId
 

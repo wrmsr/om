@@ -14,6 +14,8 @@ from x.systevisor.configs.models import SystevisorExecConfig
 from x.systevisor.configs.models import SystevisorManagerConfig
 from x.systevisor.configs.models import SystevisorNamespaceConfig
 from x.systevisor.configs.models import SystevisorObservationConfig
+from x.systevisor.configs.models import SystevisorSignalScope
+from x.systevisor.configs.models import SystevisorStopConfig
 from x.systevisor.configs.models import SystevisorUnitConfig
 from x.systevisor.configs.models import SystevisorUnitResourcesConfig
 from x.systevisor.configs.snapshots import SystevisorConfigSnapshot
@@ -428,5 +430,13 @@ class TestSystevisorIsolationCapabilities(unittest.TestCase):
                 namespaces=SystevisorNamespaceConfig(mount=True),
             ),
         )
+        group_escalation = dc.replace(
+            original,
+            stop=SystevisorStopConfig(kill_scope=SystevisorSignalScope.SESSION),
+        )
         self.assertIs(systevisor_classify_unit_change(original, observed).kind, SystevisorUnitChangeKind.LIVE)
         self.assertIs(systevisor_classify_unit_change(original, isolated).kind, SystevisorUnitChangeKind.RESTART)
+        self.assertIs(
+            systevisor_classify_unit_change(original, group_escalation).kind,
+            SystevisorUnitChangeKind.RESTART,
+        )

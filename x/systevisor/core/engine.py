@@ -28,6 +28,7 @@ from .identities import SystevisorUnitName
 from .inputs import SystevisorApplySnapshotCommand
 from .inputs import SystevisorDeadlineReachedFact
 from .inputs import SystevisorEngineInput
+from .inputs import SystevisorForwardSignalCommand
 from .inputs import SystevisorHealthProbeResultFact
 from .inputs import SystevisorProcessExitedFact
 from .inputs import SystevisorRestartInstanceCommand
@@ -37,6 +38,7 @@ from .inputs import SystevisorSetUnitDesiredCommand
 from .inputs import SystevisorShutdownCommand
 from .inputs import SystevisorSpawnFailedFact
 from .inputs import SystevisorSpawnSucceededFact
+from .signals import systevisor_normalize_signal_name
 from .state import SystevisorCollectionState
 from .state import SystevisorEngineState
 from .state import SystevisorHealthProbeState
@@ -96,6 +98,8 @@ class SystevisorEngine:
             self._set_instance_desired(engine_input, now)
         elif isinstance(engine_input, SystevisorRestartInstanceCommand):
             self._restart_instance(engine_input, now)
+        elif isinstance(engine_input, SystevisorForwardSignalCommand):
+            self._forward_signal(engine_input, now)
         elif isinstance(engine_input, SystevisorShutdownCommand):
             self._shutdown(engine_input, now)
         elif isinstance(engine_input, SystevisorSpawnSucceededFact):
@@ -542,6 +546,37 @@ class SystevisorEngine:
         for instance in self._stop_order():
             self._change_desired(instance, SystevisorDesiredState.INACTIVE, SystevisorDesiredOrigin.SHUTDOWN, now)
 
+    def _forward_signal(self, command: SystevisorForwardSignalCommand, now: float) -> None:
+        incoming = systevisor_normalize_signal_name(command.signal)
+        for instance in sorted(self._state.instances.values(), key=lambda item: item.instance_id):
+            if instance.run_id is None or instance.process_state not in _SYSTEVISOR_ENGINE_LIVE_PROCESS_STATES:
+                continue
+            signals = instance.desired_spec.unit.signals
+            outgoing = next((
+                configured_outgoing
+                for configured_incoming, configured_outgoing in signals.forward.items()
+                if systevisor_normalize_signal_name(configured_incoming) == incoming
+            ), None)
+            if outgoing is None:
+                continue
+            outgoing = systevisor_normalize_signal_name(outgoing)
+            self._effects.append(SystevisorSignalProcessEffect(
+                run_id=instance.run_id,
+                signal=outgoing,
+                scope=signals.scope,
+                reason=SystevisorSignalReason.FORWARD,
+            ))
+            self._emit_event(
+                SystevisorEventKind.SIGNAL_FORWARDED,
+                now,
+                instance=instance,
+                data={
+                    'incoming': incoming,
+                    'outgoing': outgoing,
+                    'scope': signals.scope.value,
+                },
+            )
+
     def _spawn_succeeded(self, fact: SystevisorSpawnSucceededFact, now: float) -> None:
         instance = self._find_run(fact.run_id)
         if (
@@ -659,7 +694,10 @@ class SystevisorEngine:
                 self._effects.append(SystevisorSignalProcessEffect(
                     run_id=instance.run_id,
                     signal=instance.desired_spec.unit.stop.kill_signal,
-                    scope=instance.desired_spec.unit.stop.scope,
+                    scope=(
+                        instance.desired_spec.unit.stop.kill_scope or
+                        instance.desired_spec.unit.stop.scope
+                    ),
                     reason=SystevisorSignalReason.ESCALATE,
                 ))
             else:

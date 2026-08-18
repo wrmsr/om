@@ -209,3 +209,59 @@ class TestSystevisorConfigs(unittest.TestCase):
 
         self.assertFalse(result.is_valid)
         self.assertIn('invalid_self_update_policy', {item.code for item in result.diagnostics})
+
+    def test_automatic_child_log_directory_is_explicit_and_absolute(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            valid_path = root / 'valid.json'
+            valid_path.write_text(json.dumps({
+                'manager': {'child_log_directory': temp_dir},
+                'units': {
+                    'worker': {
+                        'exec': {'argv': ['worker']},
+                        'stdio': {'stdout': {'mode': 'file'}},
+                    },
+                },
+            }))
+            invalid_path = root / 'invalid.json'
+            invalid_path.write_text(json.dumps({
+                'manager': {'child_log_directory': 'relative'},
+                'units': {
+                    'worker': {
+                        'exec': {'argv': ['worker']},
+                        'stdio': {'stdout': {'mode': 'file'}},
+                    },
+                },
+            }))
+
+            valid = SystevisorConfigCompiler().compile([str(valid_path)])
+            invalid = SystevisorConfigCompiler().compile([str(invalid_path)])
+
+        self.assertTrue(valid.is_valid, valid.diagnostics)
+        self.assertIn('invalid_child_log_directory', {item.code for item in invalid.diagnostics})
+
+    def test_signal_routes_are_named_catchable_and_do_not_override_manager_control(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = pathlib.Path(temp_dir) / 'config.json'
+            path.write_text(json.dumps({
+                'units': {
+                    'worker': {
+                        'exec': {'argv': ['worker']},
+                        'stop': {'signal': 'not-a-signal'},
+                        'signals': {
+                            'forward': {
+                                'TERM': 'USR1',
+                                'KILL': 'USR2',
+                                'SIGUSR1': 'not-a-signal',
+                            },
+                        },
+                    },
+                },
+            }))
+
+            result = SystevisorConfigCompiler().compile([str(path)])
+
+        codes = {item.code for item in result.diagnostics}
+        self.assertIn('invalid_stop_signal', codes)
+        self.assertIn('invalid_forward_signal', codes)
+        self.assertIn('reserved_forward_signal', codes)

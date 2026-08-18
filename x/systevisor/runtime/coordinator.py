@@ -20,11 +20,14 @@ from ..core.events import SystevisorEngineOutput
 from ..core.identities import SystevisorRunId
 from ..core.inputs import SystevisorApplySnapshotCommand
 from ..core.inputs import SystevisorEngineInput
+from ..core.inputs import SystevisorForwardSignalCommand
 from ..core.inputs import SystevisorHealthProbeResultFact
 from ..core.inputs import SystevisorProcessExitedFact
 from ..core.inputs import SystevisorShutdownCommand
 from ..core.inputs import SystevisorSpawnFailedFact
 from ..core.inputs import SystevisorSpawnSucceededFact
+from ..core.signals import systevisor_normalize_signal_name
+from ..core.signals import systevisor_parse_signal_name
 from ..core.states import SystevisorDeadlineKind
 from .clocks import SystevisorClock
 from .events import SystevisorEventBus
@@ -92,6 +95,7 @@ class SystevisorRuntimeCoordinator:
         self._pending_exits: ta.Dict[SystevisorRunId, SystevisorObservedProcessExit] = {}
         self._internal_processes: ta.Dict[SystevisorRunId, SystevisorInternalProcessCallbacks] = {}
         self._signal_handler: ta.Optional[SystevisorSignalFdioHandler] = None
+        self._forward_signal_numbers: ta.Sequence[int] = ()
 
         self._deadline_handler = SystevisorDeadlineFdioHandler(clock, self._on_deadline)
         self._wait_handler = SystevisorProcessWaitFdioHandler(
@@ -114,14 +118,10 @@ class SystevisorRuntimeCoordinator:
     def log_manager(self) -> SystevisorLogManager:
         return self._log_manager
 
-    def install_signal_handler(self, signal_numbers: ta.Iterable[int] = ()) -> None:
+    def install_signal_handler(self) -> None:
         if self._signal_handler is not None:
             raise RuntimeError('signal handler is already installed')
-        handler = (
-            SystevisorSignalFdioHandler(self._on_signal, signal_numbers)
-            if signal_numbers else
-            SystevisorSignalFdioHandler(self._on_signal)
-        )
+        handler = SystevisorSignalFdioHandler(self._on_signal, self._forward_signal_numbers)
         handler.install()
         self._signal_handler = handler
         self._fdio_manager.register(handler)
@@ -165,6 +165,13 @@ class SystevisorRuntimeCoordinator:
         self._wait_handler.poke()
         self._log_manager.set_default_strip_ansi(snapshot.config.manager.strip_ansi)
         self._event_bus.set_journal_capacity(snapshot.config.api.event_backlog)
+        self._forward_signal_numbers = tuple(sorted({
+            systevisor_parse_signal_name(incoming)
+            for unit in snapshot.config.units.values()
+            for incoming in unit.signals.forward
+        }))
+        if self._signal_handler is not None:
+            self._signal_handler.reconfigure(self._forward_signal_numbers)
 
     def _execute_effect(self, effect: SystevisorEngineEffect) -> None:
         if isinstance(effect, SystevisorSpawnProcessEffect):
@@ -358,6 +365,9 @@ class SystevisorRuntimeCoordinator:
             self._event_bus.publish('runtime.reload_requested', received, self._clock.monotonic())
         else:
             self._event_bus.publish('runtime.signal', received, self._clock.monotonic())
+            self.submit(SystevisorForwardSignalCommand(
+                systevisor_normalize_signal_name(signal.Signals(received.signal_number).name),
+            ))
 
     def poll(self, timeout: ta.Optional[float] = None) -> None:
         self._fdio_manager.poll(timeout=timeout)

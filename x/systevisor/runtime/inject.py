@@ -20,7 +20,9 @@ from .coordinator import SystevisorRuntimeCoordinator
 from .events import SystevisorEventBus
 from .health import SystevisorFdioHealthProbeRunner
 from .health import SystevisorHealthProbeRunner
+from .logs import SystevisorChildSyslogWriter
 from .logs import SystevisorLogManager
+from .logs import SystevisorPosixChildSyslogWriter
 from .processes import SystevisorChildPidProvider
 from .processes import SystevisorProcessManager
 from .processes import SystevisorSystemChildPidProvider
@@ -49,8 +51,9 @@ def _systevisor_runtime_inject_provide_event_bus() -> SystevisorEventBus:
 def _systevisor_runtime_inject_provide_log_manager(
         event_bus: SystevisorEventBus,
         clock: SystevisorClock,
+        syslog_writer: SystevisorChildSyslogWriter,
 ) -> SystevisorLogManager:
-    return SystevisorLogManager(event_bus, clock)
+    return SystevisorLogManager(event_bus, clock, syslog_writer)
 
 
 def systevisor_bind_runtime() -> InjectorBindings:
@@ -71,6 +74,8 @@ def systevisor_bind_runtime() -> InjectorBindings:
         inj.bind(SystevisorChildPidProvider, to_key=SystevisorSystemChildPidProvider),
         inj.bind(_systevisor_runtime_inject_provide_process_manager, singleton=True),
         inj.bind(_systevisor_runtime_inject_provide_event_bus, singleton=True),
+        inj.bind(SystevisorPosixChildSyslogWriter, singleton=True),
+        inj.bind(SystevisorChildSyslogWriter, to_key=SystevisorPosixChildSyslogWriter),
         inj.bind(_systevisor_runtime_inject_provide_log_manager, singleton=True),
         inj.bind(SystevisorFdioHealthProbeRunner, singleton=True),
         inj.bind(SystevisorHealthProbeRunner, to_key=SystevisorFdioHealthProbeRunner),

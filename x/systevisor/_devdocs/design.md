@@ -52,6 +52,12 @@ actual signal primitive accepts that lease rather than an integer. Individual Li
 Portable direct-child signaling relies on the invariant that the manager has not reaped the child. Group signaling
 requires a new session and retains the leader's wait right through shutdown/escalation.
 
+Manager-originated signal forwarding is configuration, not ambient proxy behavior. Reserved termination signals enter
+ordered shutdown, HUP enters transactional reload, and CHLD enters wait observation. Other configured catchable
+signals are dynamically installed, normalized, submitted as typed engine commands, rewritten per unit, and emitted as
+run-scoped signal effects. A session forwarding scope is restart-required so the child was already prepared as an
+owned session leader.
+
 All wait and signal call sites are confined and checked statically. Unknown adopted processes have no control
 capability and are only reaped.
 
@@ -149,6 +155,11 @@ can replace it if history or distributed claims eventually justify that complexi
 Child stdout/stderr are byte streams. A channel fanout drains the pipe into a byte-offset ring and configured sinks.
 Streaming clients read ranges and receive an explicit gap if requested bytes were evicted. Slow clients never apply
 backpressure to the child pipe. Text decoding is an adapter with explicit error policy.
+
+Rotating files, manager stdout/stderr, and an injected syslog writer are independent sinks. File output without an
+explicit path derives a run-specific filename beneath the absolute child-log directory; cold cleanup can remove only
+that generated filename namespace. A sink exception detaches that sink and emits an event without interrupting pipe
+drainage or the byte ring.
 
 ## Health
 

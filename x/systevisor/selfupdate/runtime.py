@@ -300,6 +300,13 @@ class SystevisorSelfUpdateManager(FdioHandler):
             )
             return operation
 
+        if not os.path.isabs(source_path):
+            self._operations.finish(
+                operation,
+                SystevisorOperationStatus.REJECTED,
+                message='self-update source path must be absolute',
+            )
+            return operation
         canonical_source = os.path.realpath(source_path)
         try:
             if not systevisor_self_update_is_amalgamated_source(self._running_source_path):
@@ -372,6 +379,8 @@ class SystevisorSelfUpdateManager(FdioHandler):
         return operation
 
     def _on_probe_exec(self, result: SystevisorProcessExecResult) -> None:
+        if self._closed:
+            return
         request = self._request
         if request is None or result.run_id != request.probe_run_id:
             raise SystevisorSelfUpdateError('unexpected candidate exec result')
@@ -379,6 +388,8 @@ class SystevisorSelfUpdateManager(FdioHandler):
             request.probe_exec_error = result.message or 'candidate exec failed'
 
     def _on_probe_exit(self, observed: SystevisorObservedProcessExit) -> None:
+        if self._closed:
+            return
         request = self._request
         if request is None or observed.run_id != request.probe_run_id:
             raise SystevisorSelfUpdateError('unexpected candidate exit')
@@ -621,10 +632,12 @@ class SystevisorSelfUpdateManager(FdioHandler):
         self._closed = True
         request = self._request
         if self._phase is SystevisorSelfUpdatePhase.PROBING and request is not None:
+            message = 'manager closed during the candidate probe'
             try:
                 self._process_manager.signal(request.probe_run_id, 'KILL', SystevisorSignalScope.PROCESS)
-            except Exception:  # noqa: BLE001, S110
-                pass
+            except Exception as exc:  # noqa: BLE001
+                message += f'; probe termination failed: {type(exc).__name__}: {exc}'
+            self._fail(message)
         elif self._phase is SystevisorSelfUpdatePhase.PREPARED:
             self._fail('manager closed before the prepared self-update executed')
 

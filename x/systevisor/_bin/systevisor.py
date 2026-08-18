@@ -102,7 +102,8 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/sockets/addresses.py', sha1='91e74bab525937f7633193c9aecc54530e54b6d2'),
             dict(path='configs/diagnostics.py', sha1='cab70a215b125e92306df1015f16849e86dbf814'),
             dict(path='core/identities.py', sha1='e05ff81845814fcce1e10f61d10c4192cdfa6f9c'),
-            dict(path='core/states.py', sha1='5c96d77599bdbcb39e0ffd78d97ac8a26a98fb1c'),
+            dict(path='core/signals.py', sha1='3a193bc0730e5ff6d2aeec9b5e9cc075bafce4f6'),
+            dict(path='core/states.py', sha1='cb33534747c2613daa5249e7bd6278954ae540c6'),
             dict(path='platforms/services.py', sha1='74fd539b4d05c9e847563e1dcd0c8bed9187d071'),
             dict(path='runtime/events.py', sha1='e108908260b6867e4465444f85d8e8966204b587'),
             dict(path='scheduling/cron.py', sha1='b5e169f2cb6ec3cdac9a4ca9d12c88a259456835'),
@@ -122,7 +123,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='36fc6bbb39de4236a933d43c1ec51f5897c97994'),
+            dict(path='configs/models.py', sha1='86450e7d201599874c824638d791ab0523536541'),
             dict(path='runtime/clocks.py', sha1='f364654f73e89d21cf4df61dbb8596fca24fd5d5'),
             dict(path='../../omcore/configs/formats.py', sha1='9263da888199b408e902490244e9d5caddc69821'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
@@ -138,11 +139,11 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='configs/marshal.py', sha1='3c4ef5c9b224a7c47c90dc4dc2a73d5a4c071ce9'),
-            dict(path='configs/validation.py', sha1='b8adeb3c5214b686ab01a4c36a575d645c9c5ae6'),
+            dict(path='configs/validation.py', sha1='1708d899166af80980a85717081f7c09e788cf93'),
             dict(path='control/jsoncodec.py', sha1='351d8be14f9b96ae4f2bbf52595cf67620316f4c'),
             dict(path='control/operations.py', sha1='4c8366037a0e9ffbb20566042793248ce60d8c18'),
-            dict(path='core/changes.py', sha1='e5f3ff0bf8cc9e517762ee8dcbd4379b3e948fba'),
-            dict(path='runtime/signals.py', sha1='45f9201104fd3d4df962d280bb5a3d0a23b93b1b'),
+            dict(path='core/changes.py', sha1='ad654c398408297dae49b9d08cdb91b3b956a682'),
+            dict(path='runtime/signals.py', sha1='affb2c1c630b49855af137bee05155dbcd4e1d19'),
             dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
             dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
@@ -171,19 +172,19 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
             dict(path='configs/compiling.py', sha1='c84d5c5c81fb4f40ad6eee2e2a8e77ccc97440c2'),
             dict(path='core/effects.py', sha1='047f2294357fb737a49c7f67fe1886d2fc76709e'),
-            dict(path='core/inputs.py', sha1='b28f37beb5078bb2b3c43c7c8b5593d2e8c58deb'),
+            dict(path='core/inputs.py', sha1='58bd148f803b9f8d6657970dbb2e6211da3771f7'),
             dict(path='core/state.py', sha1='96d43e24492ec520bbbeeef4019cb68aa0e84619'),
             dict(path='platforms/inject.py', sha1='2bc9e6829c3b4668519e6afa7dffb4def8b50416'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='00a5a981594b5f6133b6daec746f75b30da88fd9'),
             dict(path='../../omcore/io/pipelines/drivers/fdio.py', sha1='bfd36823fcfff9eb6448d5d093eacd122849c0fa'),
             dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='6b6c29eca0d1679ac4219d81cbeb1f1e549a772e'),
-            dict(path='core/events.py', sha1='dba043a5555e53174d3a98c901de68eedf19679b'),
+            dict(path='core/events.py', sha1='9ca81d117b5b34553bf2466ba983cb778bb52e1c'),
             dict(path='runtime/fdio.py', sha1='c6609308ee8748415669e44f814245c5e1ade703'),
-            dict(path='runtime/logs.py', sha1='2838a13bf447db806586ea01fa3ae52d5b0f82a6'),
-            dict(path='runtime/processes.py', sha1='a17c6c85d2eb6ac59590a331af91b7a08e37d9dd'),
+            dict(path='runtime/logs.py', sha1='0ad855c5d4ef5c428928fb58d269bc1cb522e295'),
+            dict(path='runtime/processes.py', sha1='9c040cc9b458f18e098283fb4252eee26b0aa393'),
             dict(path='../../omcore/http/pipelines/clients/responses.py', sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/requests.py', sha1='2258c98399fd861ca308ff1ef498513d435f6fbb'),  # noqa
-            dict(path='core/engine.py', sha1='f6bb0142c4384795bc7176ffb0aff344a20a4e6d'),
+            dict(path='core/engine.py', sha1='fe76f8ddc8c246a8c8c11d3452ddf98384d5bdb8'),
             dict(path='resources/cgroups.py', sha1='4ccf68c772b82481a06d9cf8addda457166216ba'),
             dict(path='resources/namespaces.py', sha1='bd1c4b97fd72df49bfd9820f7638f27263285ab2'),
             dict(path='resources/sampling.py', sha1='b15a7599153f597aae6c7df172648fbc7e847124'),
@@ -191,14 +192,14 @@ def __om_amalg__():  # noqa
             dict(path='control/client.py', sha1='80a93c5f83f5c4dc8351bc9c294cdfdcd67e23ee'),
             dict(path='runtime/health.py', sha1='b780f9252da4e15d2870dc347516b41ab9c1d610'),
             dict(path='selfupdate/codec.py', sha1='5f71efb5f0f3a37ab55ccdedcaf9415e98a05536'),
-            dict(path='runtime/coordinator.py', sha1='b4c51f15047c1081fcc282cdec0f1874c0dd0a95'),
+            dict(path='runtime/coordinator.py', sha1='8568cad678ef01c6345a31dcb89cdca16ed25f83'),
             dict(path='control/configs.py', sha1='90e91da0e8aa53d5f3287c9ee014708f44934d33'),
-            dict(path='runtime/inject.py', sha1='669fd27c28d474018f91728f4c773557103f125a'),
+            dict(path='runtime/inject.py', sha1='563ae31969873a00e47238bcc3986a78ad82bab6'),
             dict(path='selfupdate/restore.py', sha1='8abe6acbef76bfe299d3be504ca922543eb6bbd6'),
             dict(path='control/manager.py', sha1='8f715afde9a17b57e2ffaea413d299a99c988214'),
             dict(path='control/service.py', sha1='caa36df4c4fe11e47a757593129d2ced91a77c57'),
             dict(path='resources/runtime.py', sha1='fca60675a1390fe1f5fb11f3eccaacff29b4eb05'),
-            dict(path='selfupdate/runtime.py', sha1='4b59c6d9bd300bb4e37e4c00011cdded4c2c9c32'),
+            dict(path='selfupdate/runtime.py', sha1='35531174f73367b956dc22adfe2fc2e9a824b4f1'),
             dict(path='resources/inject.py', sha1='8a6e401ae5226cbe3980c1e3c091376d7aea1660'),
             dict(path='scheduling/runtime.py', sha1='1becc1acded71aa3578bf9cedf33f97c015fcee9'),
             dict(path='selfupdate/inject.py', sha1='9745fc822cdb64e91b21ee60e71412430a3738c7'),
@@ -206,7 +207,7 @@ def __om_amalg__():  # noqa
             dict(path='control/http.py', sha1='229bea0294159966194a4d30042972a2a41d6320'),
             dict(path='control/plane.py', sha1='6564a0b172a8b5794443e87472d73b156c23e662'),
             dict(path='control/inject.py', sha1='7beba0838f55bbf618f8b24aa23ad965dfd5f89b'),
-            dict(path='main.py', sha1='f7da1685265220046d7b268a2e3c39d2c46105a6'),
+            dict(path='main.py', sha1='b9d7640f3481429f44bec6e28009e9ddeacdb01a'),
             dict(path='__main__.py', sha1='7f67abe616ff38fa814292fe452159be5cf04acb'),
         ],
     )
@@ -4498,6 +4499,35 @@ def systevisor_make_instance_id(unit_name: str, slot: int) -> SystevisorInstance
 
 
 ########################################
+# ../core/signals.py
+
+
+class SystevisorSignalNameError(ValueError):
+    pass
+
+
+def systevisor_parse_signal_name(value: str) -> int:
+    name = value.upper()
+    if not name.startswith('SIG'):
+        name = f'SIG{name}'
+    signal_number = getattr(signal, name, None)
+    if not isinstance(signal_number, int) or signal_number <= 0:
+        raise SystevisorSignalNameError(value)
+    return signal_number
+
+
+def systevisor_normalize_signal_name(value: str) -> str:
+    signal_number = systevisor_parse_signal_name(value)
+    name = signal.Signals(signal_number).name
+    return name[3:] if name.startswith('SIG') else name
+
+
+def systevisor_signal_is_catchable(value: str) -> bool:
+    signal_number = systevisor_parse_signal_name(value)
+    return signal_number not in {signal.SIGKILL, signal.SIGSTOP}
+
+
+########################################
 # ../core/states.py
 
 
@@ -4563,6 +4593,7 @@ class SystevisorSignalReason(enum.Enum):
     REMOVE = 'remove'
     SHUTDOWN = 'shutdown'
     ESCALATE = 'escalate'
+    FORWARD = 'forward'
 
 
 ########################################
@@ -12241,6 +12272,14 @@ class SystevisorStopConfig:
     timeout_secs: float = 10.
     kill_signal: str = 'KILL'
     scope: SystevisorSignalScope = SystevisorSignalScope.PROCESS
+    kill_scope: ta.Optional[SystevisorSignalScope] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorUnitSignalsConfig:
+    forward: ta.Mapping[str, str] = dc.field(default_factory=dict)
+    scope: SystevisorSignalScope = SystevisorSignalScope.PROCESS
 
 
 @install_dataclass_kw_only_init()
@@ -12260,6 +12299,7 @@ class SystevisorOutputConfig:
     backups: int = 10
     back_buffer_bytes: int = 1024 * 1024
     emit_events: bool = False
+    syslog: bool = False
     strip_ansi: ta.Optional[bool] = None
 
 
@@ -12315,6 +12355,7 @@ class SystevisorUnitConfig:
     identity: SystevisorIdentityConfig = dc.field(default_factory=SystevisorIdentityConfig)
     restart: SystevisorRestartConfig = dc.field(default_factory=SystevisorRestartConfig)
     stop: SystevisorStopConfig = dc.field(default_factory=SystevisorStopConfig)
+    signals: SystevisorUnitSignalsConfig = dc.field(default_factory=SystevisorUnitSignalsConfig)
     stdio: SystevisorStdioConfig = dc.field(default_factory=SystevisorStdioConfig)
     dependencies: SystevisorDependenciesConfig = dc.field(default_factory=SystevisorDependenciesConfig)
     health: ta.Sequence[SystevisorHealthProbeConfig] = ()
@@ -14952,6 +14993,17 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'pid_file',
         ))
 
+    if (
+            config.manager.child_log_directory is not None and
+            not os.path.isabs(config.manager.child_log_directory)
+    ):
+        errors.append(_systevisor_config_validation_error(
+            'invalid_child_log_directory',
+            'manager child_log_directory must be an absolute path',
+            'manager',
+            'child_log_directory',
+        ))
+
     manager_log_level = logging.getLevelName(config.manager.log.level.upper())
     if not isinstance(manager_log_level, int):
         errors.append(_systevisor_config_validation_error(
@@ -15212,10 +15264,14 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                 'stdin',
             ))
         for channel_name, output in (('stdout', unit.stdio.stdout), ('stderr', unit.stdio.stderr)):
-            if output.mode is SystevisorOutputMode.FILE and output.file is None:
+            if (
+                    output.mode is SystevisorOutputMode.FILE and
+                    output.file is None and
+                    config.manager.child_log_directory is None
+            ):
                 errors.append(_systevisor_config_validation_error(
                     'missing_output_file',
-                    'file output mode requires a file',
+                    'file output mode requires a file or manager child_log_directory',
                     *unit_path,
                     'stdio',
                     channel_name,
@@ -15228,6 +15284,73 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                     'stdio',
                     channel_name,
                 ))
+
+        for field_name, signal_name in (
+                ('signal', unit.stop.signal),
+                ('kill_signal', unit.stop.kill_signal),
+        ):
+            try:
+                systevisor_normalize_signal_name(signal_name)
+            except (SystevisorSignalNameError, ValueError):
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_stop_signal',
+                    f'invalid stop signal: {signal_name!r}',
+                    *unit_path,
+                    'stop',
+                    field_name,
+                ))
+
+        forwarded_inputs: ta.Set[str] = set()
+        for incoming, outgoing in unit.signals.forward.items():
+            incoming_valid = True
+            try:
+                normalized_incoming = systevisor_normalize_signal_name(incoming)
+                incoming_catchable = systevisor_signal_is_catchable(incoming)
+            except (SystevisorSignalNameError, ValueError):
+                incoming_valid = False
+                normalized_incoming = incoming.upper()
+                incoming_catchable = False
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_forward_signal',
+                    f'invalid incoming signal: {incoming!r}',
+                    *unit_path,
+                    'signals',
+                    'forward',
+                    incoming,
+                ))
+            try:
+                systevisor_normalize_signal_name(outgoing)
+            except (SystevisorSignalNameError, ValueError):
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_forward_signal',
+                    f'invalid outgoing signal: {outgoing!r}',
+                    *unit_path,
+                    'signals',
+                    'forward',
+                    incoming,
+                ))
+            if incoming_valid and (
+                    normalized_incoming in {'CHLD', 'TERM', 'INT', 'HUP', 'QUIT'} or
+                    not incoming_catchable
+            ):
+                errors.append(_systevisor_config_validation_error(
+                    'reserved_forward_signal',
+                    f'incoming signal is reserved by the manager: {incoming!r}',
+                    *unit_path,
+                    'signals',
+                    'forward',
+                    incoming,
+                ))
+            if normalized_incoming in forwarded_inputs:
+                errors.append(_systevisor_config_validation_error(
+                    'duplicate_forward_signal',
+                    f'incoming signal is configured more than once: {normalized_incoming}',
+                    *unit_path,
+                    'signals',
+                    'forward',
+                    incoming,
+                ))
+            forwarded_inputs.add(normalized_incoming)
 
         dependency_names = set(unit.dependencies.requires)
         dependency_names.update(unit.dependencies.wants)
@@ -15669,7 +15792,11 @@ class SystevisorUnitChange:
 
 
 def _systevisor_changes_output_topology(output: SystevisorOutputConfig) -> str:
-    if output.mode in {SystevisorOutputMode.CAPTURE, SystevisorOutputMode.FILE, SystevisorOutputMode.STDOUT}:
+    if output.mode in {
+            SystevisorOutputMode.CAPTURE,
+            SystevisorOutputMode.FILE,
+            SystevisorOutputMode.STDOUT,
+    }:
         return 'pipe'
     return output.mode.value
 
@@ -15684,6 +15811,9 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             ('kind', old.kind, new.kind),
             ('stdio.stdin', old.stdio.stdin, new.stdio.stdin),
             ('stdio.redirect_stderr', old.stdio.redirect_stderr, new.stdio.redirect_stderr),
+            ('stop.scope', old.stop.scope, new.stop.scope),
+            ('stop.kill_scope', old.stop.kill_scope, new.stop.kill_scope),
+            ('signals.scope', old.signals.scope, new.signals.scope),
             ('resources.cgroup', old.resources.cgroup, new.resources.cgroup),
             ('resources.namespaces', old.resources.namespaces, new.resources.namespaces),
             ('resources.inherited_sockets', old.resources.inherited_sockets, new.resources.inherited_sockets),
@@ -15710,7 +15840,10 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             ('autostart', old.autostart, new.autostart),
             ('priority', old.priority, new.priority),
             ('restart', old.restart, new.restart),
-            ('stop', old.stop, new.stop),
+            ('stop.signal', old.stop.signal, new.stop.signal),
+            ('stop.timeout_secs', old.stop.timeout_secs, new.stop.timeout_secs),
+            ('stop.kill_signal', old.stop.kill_signal, new.stop.kill_signal),
+            ('signals.forward', old.signals.forward, new.signals.forward),
             ('dependencies', old.dependencies, new.dependencies),
             ('health', old.health, new.health),
             ('resources.observe', old.resources.observe, new.resources.observe),
@@ -15763,10 +15896,10 @@ class SystevisorSignalFdioHandler(FdioHandler):
     def __init__(
             self,
             callback: ta.Callable[[SystevisorReceivedSignal], None],
-            signal_numbers: ta.Iterable[int] = _SYSTEVISOR_SIGNALS_DEFAULT_SIGNALS,
+            signal_numbers: ta.Iterable[int] = (),
     ) -> None:
         self._callback = callback
-        self._signal_numbers = tuple(dict.fromkeys(signal_numbers))
+        self._signal_numbers = tuple(dict.fromkeys((*_SYSTEVISOR_SIGNALS_DEFAULT_SIGNALS, *signal_numbers)))
         self._read_fd, self._write_fd = os.pipe()
         os.set_blocking(self._read_fd, False)
         os.set_blocking(self._write_fd, False)
@@ -15802,6 +15935,27 @@ class SystevisorSignalFdioHandler(FdioHandler):
             raise
         self._previous_wakeup_fd = previous_wakeup_fd
         self._installed = True
+
+    def reconfigure(self, signal_numbers: ta.Iterable[int]) -> None:
+        configured = tuple(dict.fromkeys((*_SYSTEVISOR_SIGNALS_DEFAULT_SIGNALS, *signal_numbers)))
+        if not self._installed:
+            self._signal_numbers = configured
+            return
+        previous_numbers = set(self._signal_numbers)
+        configured_numbers = set(configured)
+        installed: ta.List[int] = []
+        try:
+            for signal_number in configured_numbers - previous_numbers:
+                self._previous_handlers[signal_number] = signal.getsignal(signal_number)
+                signal.signal(signal_number, _systevisor_signals_python_handler)
+                installed.append(signal_number)
+        except BaseException:  # noqa: BLE001
+            for signal_number in installed:
+                signal.signal(signal_number, self._previous_handlers.pop(signal_number))
+            raise
+        for signal_number in previous_numbers - configured_numbers:
+            signal.signal(signal_number, self._previous_handlers.pop(signal_number))
+        self._signal_numbers = configured
 
     def readable(self) -> bool:
         return self._installed and not self._closed
@@ -22461,6 +22615,11 @@ class SystevisorShutdownCommand(SystevisorEngineCommand):
 
 
 @dc.dataclass(frozen=True)
+class SystevisorForwardSignalCommand(SystevisorEngineCommand):
+    signal: str
+
+
+@dc.dataclass(frozen=True)
 class SystevisorSpawnSucceededFact(SystevisorEngineFact):
     run_id: SystevisorRunId
 
@@ -24553,6 +24712,7 @@ class SystevisorEventKind(enum.Enum):
     COMMAND_REJECTED = 'command_rejected'
     STALE_FACT_IGNORED = 'stale_fact_ignored'
     SHUTDOWN_STARTED = 'shutdown_started'
+    SIGNAL_FORWARDED = 'signal_forwarded'
     HEALTH_PROBE_STARTED = 'health_probe_started'
     HEALTH_PROBE_RESULT = 'health_probe_result'
     HEALTH_CHANGED = 'health_changed'
@@ -24731,6 +24891,9 @@ class SystevisorProcessWaitFdioHandler(FdioHandler):
 _SYSTEVISOR_LOGS_ANSI_ESCAPE_RE = re.compile(
     rb'(?:\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\))',
 )
+_SYSTEVISOR_LOGS_AUTO_FILE_RE = re.compile(
+    r'^systevisor-child-[A-Za-z0-9_.:-]+-[0-9]+-(?:stdout|stderr)\.log(?:\.[1-9][0-9]*)?$',
+)
 
 
 class SystevisorLogStream(enum.Enum):
@@ -24875,6 +25038,48 @@ class SystevisorLogSink(Abstract):
 
     def close(self) -> None:
         pass
+
+
+class SystevisorChildSyslogWriter(Abstract):
+    @abc.abstractmethod
+    def write(
+            self,
+            instance_id: SystevisorInstanceId,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+            data: bytes,
+    ) -> None:
+        raise NotImplementedError
+
+
+class SystevisorPosixChildSyslogWriter(SystevisorChildSyslogWriter):
+    def write(
+            self,
+            instance_id: SystevisorInstanceId,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+            data: bytes,
+    ) -> None:
+        priority = syslog.LOG_INFO if stream is SystevisorLogStream.STDOUT else syslog.LOG_ERR
+        text = data.decode('utf-8', errors='replace').replace('\x00', r'\x00')
+        syslog.syslog(priority, f'systevisor[{instance_id} run={int(run_id)} {stream.value}]: {text}')
+
+
+class SystevisorSyslogLogSink(SystevisorLogSink):
+    def __init__(
+            self,
+            writer: SystevisorChildSyslogWriter,
+            instance_id: SystevisorInstanceId,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+    ) -> None:
+        self._writer = writer
+        self._instance_id = instance_id
+        self._run_id = run_id
+        self._stream = stream
+
+    def write(self, data: bytes) -> None:
+        self._writer.write(self._instance_id, self._run_id, self._stream, data)
 
 
 class SystevisorFdLogSink(SystevisorLogSink):
@@ -25025,12 +25230,15 @@ class SystevisorLogManager:
             self,
             event_bus: SystevisorEventBus,
             clock: SystevisorClock,
+            syslog_writer: ta.Optional[SystevisorChildSyslogWriter] = None,
             *,
             default_strip_ansi: bool = False,
     ) -> None:
         self._event_bus = event_bus
         self._clock = clock
+        self._syslog_writer = syslog_writer
         self._default_strip_ansi = default_strip_ansi
+        self._child_log_directory: ta.Optional[str] = None
         self._channels: ta.Dict[ta.Tuple[SystevisorRunId, SystevisorLogStream], SystevisorLogChannel] = {}
         self._subscriptions: ta.Dict[
             int,
@@ -25044,14 +25252,51 @@ class SystevisorLogManager:
 
     def _make_sinks(
             self,
+            run_id: SystevisorRunId,
+            instance_id: SystevisorInstanceId,
             stream: SystevisorLogStream,
             config: SystevisorOutputConfig,
+            *,
+            reopen: bool = False,
     ) -> ta.List[SystevisorLogSink]:
+        sinks: ta.List[SystevisorLogSink] = []
         if config.mode is SystevisorOutputMode.FILE:
-            return [SystevisorRotatingFileLogSink(config)]
-        if config.mode is SystevisorOutputMode.STDOUT:
-            return [SystevisorFdLogSink(1 if stream is SystevisorLogStream.STDOUT else 2)]
-        return []
+            file = config.file
+            if file is None:
+                if self._child_log_directory is None:
+                    raise ValueError('automatic file output requires a child log directory')
+                file = os.path.join(
+                    self._child_log_directory,
+                    f'systevisor-child-{instance_id}-{int(run_id)}-{stream.value}.log',
+                )
+            sinks.append(SystevisorRotatingFileLogSink(dc.replace(
+                config,
+                file=file,
+                append=True if reopen else config.append,
+            )))
+        elif config.mode is SystevisorOutputMode.STDOUT:
+            sinks.append(SystevisorFdLogSink(1 if stream is SystevisorLogStream.STDOUT else 2))
+        if config.syslog:
+            if self._syslog_writer is None:
+                raise RuntimeError('syslog output is not configured')
+            sinks.append(SystevisorSyslogLogSink(self._syslog_writer, instance_id, run_id, stream))
+        return sinks
+
+    def configure_manager(self, config: SystevisorManagerConfig, *, cleanup: bool) -> None:
+        directory = config.child_log_directory
+        if directory is not None:
+            os.makedirs(directory, mode=0o755, exist_ok=True)
+            if not os.path.isdir(directory):
+                raise NotADirectoryError(directory)
+            directory = os.path.realpath(directory)
+        if self._channels and directory != self._child_log_directory:
+            raise RuntimeError('child log directory cannot change while log channels exist')
+        self._child_log_directory = directory
+        if cleanup and config.cleanup_auto_logs and directory is not None:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if _SYSTEVISOR_LOGS_AUTO_FILE_RE.fullmatch(entry.name) and entry.is_file(follow_symlinks=False):
+                        os.unlink(entry.path)
 
     def set_default_strip_ansi(self, enabled: bool) -> None:
         self._default_strip_ansi = enabled
@@ -25075,7 +25320,7 @@ class SystevisorLogManager:
                 stream=stream,
                 config=output_config,
                 ring=SystevisorByteRingBuffer(output_config.back_buffer_bytes),
-                sinks=self._make_sinks(stream, output_config),
+                sinks=self._make_sinks(effect.run_id, effect.instance_id, stream, output_config),
                 created_at=self._clock.monotonic(),
             )
             self._channels[(effect.run_id, stream)] = channel
@@ -25116,7 +25361,7 @@ class SystevisorLogManager:
         for sink in channel.sinks:
             try:
                 sink.write(data)
-            except OSError as exc:
+            except Exception as exc:  # noqa: BLE001
                 sink.close()
                 self._event_bus.publish('log.sink_error', {
                     'run_id': run_id,
@@ -25221,7 +25466,13 @@ class SystevisorLogManager:
                 stream=state.stream,
                 config=state.config,
                 ring=ring,
-                sinks=self._make_sinks(state.stream, state.config),
+                sinks=self._make_sinks(
+                    state.run_id,
+                    state.instance_id,
+                    state.stream,
+                    state.config,
+                    reopen=True,
+                ),
                 retired=state.retired,
                 created_at=state.created_at,
                 last_activity_at=state.last_activity_at,
@@ -25257,7 +25508,7 @@ class SystevisorLogManager:
             channel.ring.resize(output_config.back_buffer_bytes)
             for sink in channel.sinks:
                 sink.close()
-            channel.sinks = self._make_sinks(stream, output_config)
+            channel.sinks = self._make_sinks(effect.run_id, effect.instance_id, stream, output_config)
             channel.config = output_config
 
     def retire_process(self, run_id: SystevisorRunId) -> None:
@@ -25704,16 +25955,6 @@ def _systevisor_processes_pidfd_send_signal(pidfd: int, signal_number: int) -> b
     raise OSError(error_number, os.strerror(error_number))
 
 
-def _systevisor_processes_parse_signal(value: str) -> int:
-    name = value.upper()
-    if not name.startswith('SIG'):
-        name = f'SIG{name}'
-    signal_number = getattr(signal, name, None)
-    if not isinstance(signal_number, int):
-        raise ValueError(value)  # noqa: TRY004
-    return signal_number
-
-
 def _systevisor_processes_resolve_identity(config: SystevisorIdentityConfig) -> SystevisorResolvedIdentity:
     passwd_entry: ta.Any = None
     if config.user is not None:
@@ -25853,7 +26094,11 @@ def _systevisor_processes_prepare(
         environment=environment,
         fds=fds,
         max_fd=_systevisor_processes_max_fd(),
-        isolate_session=spec.unit.stop.scope is SystevisorSignalScope.SESSION,
+        isolate_session=(
+            spec.unit.stop.scope is SystevisorSignalScope.SESSION or
+            spec.unit.stop.kill_scope is SystevisorSignalScope.SESSION or
+            spec.unit.signals.scope is SystevisorSignalScope.SESSION
+        ),
     )
 
 
@@ -26392,7 +26637,7 @@ class SystevisorProcessManager:
             signal_value: str,
             scope: SystevisorSignalScope,
     ) -> SystevisorSignalDelivery:
-        signal_number = _systevisor_processes_parse_signal(signal_value)
+        signal_number = systevisor_parse_signal_name(signal_value)
         with self.acquire_signal_lease(run_id) as lease:
             return self.signal_with_lease(lease, signal_number, scope)
 
@@ -26735,6 +26980,8 @@ class SystevisorEngine:
             self._set_instance_desired(engine_input, now)
         elif isinstance(engine_input, SystevisorRestartInstanceCommand):
             self._restart_instance(engine_input, now)
+        elif isinstance(engine_input, SystevisorForwardSignalCommand):
+            self._forward_signal(engine_input, now)
         elif isinstance(engine_input, SystevisorShutdownCommand):
             self._shutdown(engine_input, now)
         elif isinstance(engine_input, SystevisorSpawnSucceededFact):
@@ -27181,6 +27428,37 @@ class SystevisorEngine:
         for instance in self._stop_order():
             self._change_desired(instance, SystevisorDesiredState.INACTIVE, SystevisorDesiredOrigin.SHUTDOWN, now)
 
+    def _forward_signal(self, command: SystevisorForwardSignalCommand, now: float) -> None:
+        incoming = systevisor_normalize_signal_name(command.signal)
+        for instance in sorted(self._state.instances.values(), key=lambda item: item.instance_id):
+            if instance.run_id is None or instance.process_state not in _SYSTEVISOR_ENGINE_LIVE_PROCESS_STATES:
+                continue
+            signals = instance.desired_spec.unit.signals
+            outgoing = next((
+                configured_outgoing
+                for configured_incoming, configured_outgoing in signals.forward.items()
+                if systevisor_normalize_signal_name(configured_incoming) == incoming
+            ), None)
+            if outgoing is None:
+                continue
+            outgoing = systevisor_normalize_signal_name(outgoing)
+            self._effects.append(SystevisorSignalProcessEffect(
+                run_id=instance.run_id,
+                signal=outgoing,
+                scope=signals.scope,
+                reason=SystevisorSignalReason.FORWARD,
+            ))
+            self._emit_event(
+                SystevisorEventKind.SIGNAL_FORWARDED,
+                now,
+                instance=instance,
+                data={
+                    'incoming': incoming,
+                    'outgoing': outgoing,
+                    'scope': signals.scope.value,
+                },
+            )
+
     def _spawn_succeeded(self, fact: SystevisorSpawnSucceededFact, now: float) -> None:
         instance = self._find_run(fact.run_id)
         if (
@@ -27298,7 +27576,10 @@ class SystevisorEngine:
                 self._effects.append(SystevisorSignalProcessEffect(
                     run_id=instance.run_id,
                     signal=instance.desired_spec.unit.stop.kill_signal,
-                    scope=instance.desired_spec.unit.stop.scope,
+                    scope=(
+                        instance.desired_spec.unit.stop.kill_scope or
+                        instance.desired_spec.unit.stop.scope
+                    ),
                     reason=SystevisorSignalReason.ESCALATE,
                 ))
             else:
@@ -30634,6 +30915,7 @@ class SystevisorRuntimeCoordinator:
         self._pending_exits: ta.Dict[SystevisorRunId, SystevisorObservedProcessExit] = {}
         self._internal_processes: ta.Dict[SystevisorRunId, SystevisorInternalProcessCallbacks] = {}
         self._signal_handler: ta.Optional[SystevisorSignalFdioHandler] = None
+        self._forward_signal_numbers: ta.Sequence[int] = ()
 
         self._deadline_handler = SystevisorDeadlineFdioHandler(clock, self._on_deadline)
         self._wait_handler = SystevisorProcessWaitFdioHandler(
@@ -30656,14 +30938,10 @@ class SystevisorRuntimeCoordinator:
     def log_manager(self) -> SystevisorLogManager:
         return self._log_manager
 
-    def install_signal_handler(self, signal_numbers: ta.Iterable[int] = ()) -> None:
+    def install_signal_handler(self) -> None:
         if self._signal_handler is not None:
             raise RuntimeError('signal handler is already installed')
-        handler = (
-            SystevisorSignalFdioHandler(self._on_signal, signal_numbers)
-            if signal_numbers else
-            SystevisorSignalFdioHandler(self._on_signal)
-        )
+        handler = SystevisorSignalFdioHandler(self._on_signal, self._forward_signal_numbers)
         handler.install()
         self._signal_handler = handler
         self._fdio_manager.register(handler)
@@ -30707,6 +30985,13 @@ class SystevisorRuntimeCoordinator:
         self._wait_handler.poke()
         self._log_manager.set_default_strip_ansi(snapshot.config.manager.strip_ansi)
         self._event_bus.set_journal_capacity(snapshot.config.api.event_backlog)
+        self._forward_signal_numbers = tuple(sorted({
+            systevisor_parse_signal_name(incoming)
+            for unit in snapshot.config.units.values()
+            for incoming in unit.signals.forward
+        }))
+        if self._signal_handler is not None:
+            self._signal_handler.reconfigure(self._forward_signal_numbers)
 
     def _execute_effect(self, effect: SystevisorEngineEffect) -> None:
         if isinstance(effect, SystevisorSpawnProcessEffect):
@@ -30900,6 +31185,9 @@ class SystevisorRuntimeCoordinator:
             self._event_bus.publish('runtime.reload_requested', received, self._clock.monotonic())
         else:
             self._event_bus.publish('runtime.signal', received, self._clock.monotonic())
+            self.submit(SystevisorForwardSignalCommand(
+                systevisor_normalize_signal_name(signal.Signals(received.signal_number).name),
+            ))
 
     def poll(self, timeout: ta.Optional[float] = None) -> None:
         self._fdio_manager.poll(timeout=timeout)
@@ -31300,8 +31588,9 @@ def _systevisor_runtime_inject_provide_event_bus() -> SystevisorEventBus:
 def _systevisor_runtime_inject_provide_log_manager(
         event_bus: SystevisorEventBus,
         clock: SystevisorClock,
+        syslog_writer: SystevisorChildSyslogWriter,
 ) -> SystevisorLogManager:
-    return SystevisorLogManager(event_bus, clock)
+    return SystevisorLogManager(event_bus, clock, syslog_writer)
 
 
 def systevisor_bind_runtime() -> InjectorBindings:
@@ -31322,6 +31611,8 @@ def systevisor_bind_runtime() -> InjectorBindings:
         inj.bind(SystevisorChildPidProvider, to_key=SystevisorSystemChildPidProvider),
         inj.bind(_systevisor_runtime_inject_provide_process_manager, singleton=True),
         inj.bind(_systevisor_runtime_inject_provide_event_bus, singleton=True),
+        inj.bind(SystevisorPosixChildSyslogWriter, singleton=True),
+        inj.bind(SystevisorChildSyslogWriter, to_key=SystevisorPosixChildSyslogWriter),
         inj.bind(_systevisor_runtime_inject_provide_log_manager, singleton=True),
         inj.bind(SystevisorFdioHealthProbeRunner, singleton=True),
         inj.bind(SystevisorHealthProbeRunner, to_key=SystevisorFdioHealthProbeRunner),
@@ -32431,6 +32722,13 @@ class SystevisorSelfUpdateManager(FdioHandler):
             )
             return operation
 
+        if not os.path.isabs(source_path):
+            self._operations.finish(
+                operation,
+                SystevisorOperationStatus.REJECTED,
+                message='self-update source path must be absolute',
+            )
+            return operation
         canonical_source = os.path.realpath(source_path)
         try:
             if not systevisor_self_update_is_amalgamated_source(self._running_source_path):
@@ -32503,6 +32801,8 @@ class SystevisorSelfUpdateManager(FdioHandler):
         return operation
 
     def _on_probe_exec(self, result: SystevisorProcessExecResult) -> None:
+        if self._closed:
+            return
         request = self._request
         if request is None or result.run_id != request.probe_run_id:
             raise SystevisorSelfUpdateError('unexpected candidate exec result')
@@ -32510,6 +32810,8 @@ class SystevisorSelfUpdateManager(FdioHandler):
             request.probe_exec_error = result.message or 'candidate exec failed'
 
     def _on_probe_exit(self, observed: SystevisorObservedProcessExit) -> None:
+        if self._closed:
+            return
         request = self._request
         if request is None or observed.run_id != request.probe_run_id:
             raise SystevisorSelfUpdateError('unexpected candidate exit')
@@ -32752,10 +33054,12 @@ class SystevisorSelfUpdateManager(FdioHandler):
         self._closed = True
         request = self._request
         if self._phase is SystevisorSelfUpdatePhase.PROBING and request is not None:
+            message = 'manager closed during the candidate probe'
             try:
                 self._process_manager.signal(request.probe_run_id, 'KILL', SystevisorSignalScope.PROCESS)
-            except Exception:  # noqa: BLE001, S110
-                pass
+            except Exception as exc:  # noqa: BLE001
+                message += f'; probe termination failed: {type(exc).__name__}: {exc}'
+            self._fail(message)
         elif self._phase is SystevisorSelfUpdatePhase.PREPARED:
             self._fail('manager closed before the prepared self-update executed')
 
@@ -34275,6 +34579,8 @@ class SystevisorMainServerContext:
             self.manager_runtime = manager_runtime
 
         coordinator = self._injector.provide(SystevisorRuntimeCoordinator)
+        if compiled.snapshot is not None:
+            coordinator.log_manager.configure_manager(compiled.snapshot.config.manager, cleanup=True)
         controller = self._injector.provide(SystevisorConfigController)
         self.coordinator = coordinator
         self.controller = controller
@@ -34319,6 +34625,7 @@ class SystevisorMainServerContext:
         coordinator = self._injector.provide(SystevisorRuntimeCoordinator)
         self.coordinator = coordinator
         coordinator.event_bus.rehydrate(handoff.event_bus)
+        coordinator.log_manager.configure_manager(handoff.snapshot.config.manager, cleanup=False)
         coordinator.log_manager.rehydrate(handoff.logs)
         coordinator.engine.rehydrate(handoff.engine)
         process_manager = self._injector.provide(SystevisorProcessManager)
@@ -34647,7 +34954,7 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
         method, target = 'POST', '/v1/_shutdown'
     elif args.command == 'self-update':
         method, target = 'POST', '/v1/_self_update'
-        body = {'source': args.source}
+        body = {'source': os.path.realpath(args.source)}
     elif args.command == 'events':
         query: ta.List[ta.Tuple[str, ta.Any]] = [('after', args.after)]
         query.extend(('topic', topic) for topic in args.topic)

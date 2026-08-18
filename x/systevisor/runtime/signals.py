@@ -31,10 +31,10 @@ class SystevisorSignalFdioHandler(FdioHandler):
     def __init__(
             self,
             callback: ta.Callable[[SystevisorReceivedSignal], None],
-            signal_numbers: ta.Iterable[int] = _SYSTEVISOR_SIGNALS_DEFAULT_SIGNALS,
+            signal_numbers: ta.Iterable[int] = (),
     ) -> None:
         self._callback = callback
-        self._signal_numbers = tuple(dict.fromkeys(signal_numbers))
+        self._signal_numbers = tuple(dict.fromkeys((*_SYSTEVISOR_SIGNALS_DEFAULT_SIGNALS, *signal_numbers)))
         self._read_fd, self._write_fd = os.pipe()
         os.set_blocking(self._read_fd, False)
         os.set_blocking(self._write_fd, False)
@@ -70,6 +70,27 @@ class SystevisorSignalFdioHandler(FdioHandler):
             raise
         self._previous_wakeup_fd = previous_wakeup_fd
         self._installed = True
+
+    def reconfigure(self, signal_numbers: ta.Iterable[int]) -> None:
+        configured = tuple(dict.fromkeys((*_SYSTEVISOR_SIGNALS_DEFAULT_SIGNALS, *signal_numbers)))
+        if not self._installed:
+            self._signal_numbers = configured
+            return
+        previous_numbers = set(self._signal_numbers)
+        configured_numbers = set(configured)
+        installed: ta.List[int] = []
+        try:
+            for signal_number in configured_numbers - previous_numbers:
+                self._previous_handlers[signal_number] = signal.getsignal(signal_number)
+                signal.signal(signal_number, _systevisor_signals_python_handler)
+                installed.append(signal_number)
+        except BaseException:  # noqa: BLE001
+            for signal_number in installed:
+                signal.signal(signal_number, self._previous_handlers.pop(signal_number))
+            raise
+        for signal_number in previous_numbers - configured_numbers:
+            signal.signal(signal_number, self._previous_handlers.pop(signal_number))
+        self._signal_numbers = configured
 
     def readable(self) -> bool:
         return self._installed and not self._closed

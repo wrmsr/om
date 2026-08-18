@@ -162,6 +162,14 @@ class SystevisorStopConfig:
     timeout_secs: float = 10.
     kill_signal: str = 'KILL'
     scope: SystevisorSignalScope = SystevisorSignalScope.PROCESS
+    kill_scope: ta.Optional[SystevisorSignalScope] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorUnitSignalsConfig:
+    forward: ta.Mapping[str, str] = dc.field(default_factory=dict)
+    scope: SystevisorSignalScope = SystevisorSignalScope.PROCESS
 
 
 @install_dataclass_kw_only_init()
@@ -181,6 +189,7 @@ class SystevisorOutputConfig:
     backups: int = 10
     back_buffer_bytes: int = 1024 * 1024
     emit_events: bool = False
+    syslog: bool = False
     strip_ansi: ta.Optional[bool] = None
 
 
@@ -236,6 +245,7 @@ class SystevisorUnitConfig:
     identity: SystevisorIdentityConfig = dc.field(default_factory=SystevisorIdentityConfig)
     restart: SystevisorRestartConfig = dc.field(default_factory=SystevisorRestartConfig)
     stop: SystevisorStopConfig = dc.field(default_factory=SystevisorStopConfig)
+    signals: SystevisorUnitSignalsConfig = dc.field(default_factory=SystevisorUnitSignalsConfig)
     stdio: SystevisorStdioConfig = dc.field(default_factory=SystevisorStdioConfig)
     dependencies: SystevisorDependenciesConfig = dc.field(default_factory=SystevisorDependenciesConfig)
     health: ta.Sequence[SystevisorHealthProbeConfig] = ()

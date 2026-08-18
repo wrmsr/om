@@ -77,8 +77,11 @@
 
 ## Phase 11: hardening and release
 
-- Close the Supervisor config-compatibility matrix, broaden fault injection and platform contracts, finalize operator
-  documentation, and exercise release artifacts across supported interpreters and hosts.
+- Complete: closed the old rebuild's config-compatibility matrix, including split graceful/escalation scopes,
+  automatic child logs, simultaneous syslog output, and manager-signal rewriting.
+- Complete: broadened injected/failure boundaries, finalized operator/release documentation, and exercised the
+  generated artifact and full suite on the default interpreter and CPython 3.8. Docker scenarios remain an explicit
+  host gate and reported the unavailable daemon rather than weakening or silently bypassing their contract.
 
 Each phase updates a chronological dev journal, runs focused tests, runs manual Ruff and mypy over `x/systevisor`, and
 is committed only after the required repository checks pass.

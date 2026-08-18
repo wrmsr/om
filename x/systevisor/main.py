@@ -141,6 +141,8 @@ class SystevisorMainServerContext:
             self.manager_runtime = manager_runtime
 
         coordinator = self._injector.provide(SystevisorRuntimeCoordinator)
+        if compiled.snapshot is not None:
+            coordinator.log_manager.configure_manager(compiled.snapshot.config.manager, cleanup=True)
         controller = self._injector.provide(SystevisorConfigController)
         self.coordinator = coordinator
         self.controller = controller
@@ -185,6 +187,7 @@ class SystevisorMainServerContext:
         coordinator = self._injector.provide(SystevisorRuntimeCoordinator)
         self.coordinator = coordinator
         coordinator.event_bus.rehydrate(handoff.event_bus)
+        coordinator.log_manager.configure_manager(handoff.snapshot.config.manager, cleanup=False)
         coordinator.log_manager.rehydrate(handoff.logs)
         coordinator.engine.rehydrate(handoff.engine)
         process_manager = self._injector.provide(SystevisorProcessManager)
@@ -513,7 +516,7 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
         method, target = 'POST', '/v1/_shutdown'
     elif args.command == 'self-update':
         method, target = 'POST', '/v1/_self_update'
-        body = {'source': args.source}
+        body = {'source': os.path.realpath(args.source)}
     elif args.command == 'events':
         query: ta.List[ta.Tuple[str, ta.Any]] = [('after', args.after)]
         query.extend(('topic', topic) for topic in args.topic)

@@ -1,8 +1,12 @@
 # ruff: noqa: UP006 UP007 UP045
 import logging
+import os
 import typing as ta
 
 from ..core.identities import systevisor_is_valid_name
+from ..core.signals import SystevisorSignalNameError
+from ..core.signals import systevisor_normalize_signal_name
+from ..core.signals import systevisor_signal_is_catchable
 from ..scheduling.cron import SystevisorCronError
 from ..scheduling.cron import systevisor_parse_cron
 from .diagnostics import SystevisorConfigDiagnostic
@@ -152,6 +156,17 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'manager pid_file may not be empty',
             'manager',
             'pid_file',
+        ))
+
+    if (
+            config.manager.child_log_directory is not None and
+            not os.path.isabs(config.manager.child_log_directory)
+    ):
+        errors.append(_systevisor_config_validation_error(
+            'invalid_child_log_directory',
+            'manager child_log_directory must be an absolute path',
+            'manager',
+            'child_log_directory',
         ))
 
     manager_log_level = logging.getLevelName(config.manager.log.level.upper())
@@ -414,10 +429,14 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                 'stdin',
             ))
         for channel_name, output in (('stdout', unit.stdio.stdout), ('stderr', unit.stdio.stderr)):
-            if output.mode is SystevisorOutputMode.FILE and output.file is None:
+            if (
+                    output.mode is SystevisorOutputMode.FILE and
+                    output.file is None and
+                    config.manager.child_log_directory is None
+            ):
                 errors.append(_systevisor_config_validation_error(
                     'missing_output_file',
-                    'file output mode requires a file',
+                    'file output mode requires a file or manager child_log_directory',
                     *unit_path,
                     'stdio',
                     channel_name,
@@ -430,6 +449,73 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                     'stdio',
                     channel_name,
                 ))
+
+        for field_name, signal_name in (
+                ('signal', unit.stop.signal),
+                ('kill_signal', unit.stop.kill_signal),
+        ):
+            try:
+                systevisor_normalize_signal_name(signal_name)
+            except (SystevisorSignalNameError, ValueError):
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_stop_signal',
+                    f'invalid stop signal: {signal_name!r}',
+                    *unit_path,
+                    'stop',
+                    field_name,
+                ))
+
+        forwarded_inputs: ta.Set[str] = set()
+        for incoming, outgoing in unit.signals.forward.items():
+            incoming_valid = True
+            try:
+                normalized_incoming = systevisor_normalize_signal_name(incoming)
+                incoming_catchable = systevisor_signal_is_catchable(incoming)
+            except (SystevisorSignalNameError, ValueError):
+                incoming_valid = False
+                normalized_incoming = incoming.upper()
+                incoming_catchable = False
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_forward_signal',
+                    f'invalid incoming signal: {incoming!r}',
+                    *unit_path,
+                    'signals',
+                    'forward',
+                    incoming,
+                ))
+            try:
+                systevisor_normalize_signal_name(outgoing)
+            except (SystevisorSignalNameError, ValueError):
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_forward_signal',
+                    f'invalid outgoing signal: {outgoing!r}',
+                    *unit_path,
+                    'signals',
+                    'forward',
+                    incoming,
+                ))
+            if incoming_valid and (
+                    normalized_incoming in {'CHLD', 'TERM', 'INT', 'HUP', 'QUIT'} or
+                    not incoming_catchable
+            ):
+                errors.append(_systevisor_config_validation_error(
+                    'reserved_forward_signal',
+                    f'incoming signal is reserved by the manager: {incoming!r}',
+                    *unit_path,
+                    'signals',
+                    'forward',
+                    incoming,
+                ))
+            if normalized_incoming in forwarded_inputs:
+                errors.append(_systevisor_config_validation_error(
+                    'duplicate_forward_signal',
+                    f'incoming signal is configured more than once: {normalized_incoming}',
+                    *unit_path,
+                    'signals',
+                    'forward',
+                    incoming,
+                ))
+            forwarded_inputs.add(normalized_incoming)
 
         dependency_names = set(unit.dependencies.requires)
         dependency_names.update(unit.dependencies.wants)

@@ -49,6 +49,7 @@ def _systevisor_test_process_effect(
         *,
         run_id: int = 1,
         scope: SystevisorSignalScope = SystevisorSignalScope.PROCESS,
+        kill_scope: ta.Optional[SystevisorSignalScope] = None,
         identity: SystevisorIdentityConfig = SystevisorIdentityConfig(),
         resources: SystevisorUnitResourcesConfig = SystevisorUnitResourcesConfig(),
 ) -> SystevisorSpawnProcessEffect:
@@ -56,7 +57,7 @@ def _systevisor_test_process_effect(
         'test': SystevisorUnitConfig(
             exec=SystevisorExecConfig(argv=argv),
             restart=SystevisorRestartConfig(start_secs=0.),
-            stop=SystevisorStopConfig(scope=scope),
+            stop=SystevisorStopConfig(scope=scope, kill_scope=kill_scope),
             identity=identity,
             resources=resources,
         ),
@@ -154,6 +155,21 @@ class SystevisorTestChildPidProvider(SystevisorChildPidProvider):
 
 
 class TestSystevisorProcesses(unittest.TestCase):
+    def test_escalation_group_scope_prepares_an_owned_session(self) -> None:
+        manager = SystevisorProcessManager()
+        effect = _systevisor_test_process_effect(
+            ('/bin/sleep', '60'),
+            kill_scope=SystevisorSignalScope.SESSION,
+        )
+        manager.spawn(effect)
+        self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
+        _systevisor_test_wait_exec(manager, effect.run_id)
+
+        state = manager.get_state(effect.run_id)
+        assert state is not None
+        self.assertTrue(state.session_requested)
+        self.assertEqual(state.session_id, state.pid)
+
     def test_stable_process_wait_right_can_be_rehydrated(self) -> None:
         first_manager = SystevisorProcessManager()
         effect = _systevisor_test_process_effect(('/bin/sleep', '60'))

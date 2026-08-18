@@ -11,6 +11,7 @@ from x.systevisor.configs.models import SystevisorRestartMode
 from x.systevisor.configs.models import SystevisorSignalScope
 from x.systevisor.configs.models import SystevisorStopConfig
 from x.systevisor.configs.models import SystevisorUnitConfig
+from x.systevisor.configs.models import SystevisorUnitSignalsConfig
 from x.systevisor.configs.snapshots import SystevisorConfigSnapshot
 from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
 from x.systevisor.core.effects import SystevisorApplyLiveConfigEffect
@@ -21,6 +22,7 @@ from x.systevisor.core.events import SystevisorEventKind
 from x.systevisor.core.identities import SystevisorInstanceId
 from x.systevisor.core.identities import SystevisorRunId
 from x.systevisor.core.inputs import SystevisorApplySnapshotCommand
+from x.systevisor.core.inputs import SystevisorForwardSignalCommand
 from x.systevisor.core.inputs import SystevisorProcessExitedFact
 from x.systevisor.core.inputs import SystevisorRestartInstanceCommand
 from x.systevisor.core.inputs import SystevisorSetInstanceDesiredCommand
@@ -45,6 +47,7 @@ def _systevisor_test_engine_unit(
         restart_mode: SystevisorRestartMode = SystevisorRestartMode.UNEXPECTED,
         dependencies: SystevisorDependenciesConfig = SystevisorDependenciesConfig(),
         stop: SystevisorStopConfig = SystevisorStopConfig(),
+        signals: SystevisorUnitSignalsConfig = SystevisorUnitSignalsConfig(),
         priority: int = 999,
 ) -> SystevisorUnitConfig:
     return SystevisorUnitConfig(
@@ -59,6 +62,7 @@ def _systevisor_test_engine_unit(
         ),
         dependencies=dependencies,
         stop=stop,
+        signals=signals,
         priority=priority,
     )
 
@@ -68,6 +72,30 @@ def _systevisor_test_engine_effects(output: object, effect_type: object) -> list
 
 
 class TestSystevisorEngine(unittest.TestCase):
+    def test_manager_signal_forwarding_is_rewritten_by_run_identity(self) -> None:
+        harness = SystevisorEngineHarness()
+        output = harness.submit(SystevisorApplySnapshotCommand(_systevisor_test_engine_snapshot(
+            worker=_systevisor_test_engine_unit(
+                'worker',
+                signals=SystevisorUnitSignalsConfig(
+                    forward={'USR1': 'HUP'},
+                    scope=SystevisorSignalScope.PROCESS,
+                ),
+            ),
+        )))
+        spawn = _systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect)[0]
+        harness.succeed_spawn(spawn)
+
+        output = harness.submit(SystevisorForwardSignalCommand('SIGUSR1'))
+
+        forwarded = _systevisor_test_engine_effects(output, SystevisorSignalProcessEffect)
+        self.assertEqual(len(forwarded), 1)
+        self.assertEqual(
+            (forwarded[0].run_id, forwarded[0].signal, forwarded[0].reason),
+            (spawn.run_id, 'HUP', SystevisorSignalReason.FORWARD),
+        )
+        self.assertIn(SystevisorEventKind.SIGNAL_FORWARDED, {event.kind for event in output.events})
+
     def test_dependency_start_is_lock_step(self) -> None:
         harness = SystevisorEngineHarness()
         snapshot = _systevisor_test_engine_snapshot(
@@ -205,7 +233,8 @@ class TestSystevisorEngine(unittest.TestCase):
             signal='INT',
             timeout_secs=5.,
             kill_signal='KILL',
-            scope=SystevisorSignalScope.SESSION,
+            scope=SystevisorSignalScope.PROCESS,
+            kill_scope=SystevisorSignalScope.SESSION,
         )
         output = harness.submit(SystevisorApplySnapshotCommand(_systevisor_test_engine_snapshot(
             worker=_systevisor_test_engine_unit('worker', stop=stop),
@@ -218,7 +247,7 @@ class TestSystevisorEngine(unittest.TestCase):
         self.assertEqual((first_signal.run_id, first_signal.signal, first_signal.scope), (
             spawn.run_id,
             'INT',
-            SystevisorSignalScope.SESSION,
+            SystevisorSignalScope.PROCESS,
         ))
 
         outputs = harness.advance_to(5.)
@@ -228,6 +257,7 @@ class TestSystevisorEngine(unittest.TestCase):
             'KILL',
             SystevisorSignalReason.ESCALATE,
         ))
+        self.assertEqual(final_signal.scope, SystevisorSignalScope.SESSION)
 
     def test_stale_run_fact_cannot_mutate_replacement(self) -> None:
         harness = SystevisorEngineHarness()

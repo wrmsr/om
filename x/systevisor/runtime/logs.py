@@ -4,11 +4,13 @@ import dataclasses as dc
 import enum
 import os
 import re
+import syslog
 import typing as ta
 
 from omcore.io.fdio.handlers import FdioHandler
 from omcore.lite.abstract import Abstract
 
+from ..configs.models import SystevisorManagerConfig
 from ..configs.models import SystevisorOutputConfig
 from ..configs.models import SystevisorOutputMode
 from ..core.effects import SystevisorApplyLiveConfigEffect
@@ -21,6 +23,9 @@ from .events import SystevisorEventBus
 
 _SYSTEVISOR_LOGS_ANSI_ESCAPE_RE = re.compile(
     rb'(?:\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\))',
+)
+_SYSTEVISOR_LOGS_AUTO_FILE_RE = re.compile(
+    r'^systevisor-child-[A-Za-z0-9_.:-]+-[0-9]+-(?:stdout|stderr)\.log(?:\.[1-9][0-9]*)?$',
 )
 
 
@@ -166,6 +171,48 @@ class SystevisorLogSink(Abstract):
 
     def close(self) -> None:
         pass
+
+
+class SystevisorChildSyslogWriter(Abstract):
+    @abc.abstractmethod
+    def write(
+            self,
+            instance_id: SystevisorInstanceId,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+            data: bytes,
+    ) -> None:
+        raise NotImplementedError
+
+
+class SystevisorPosixChildSyslogWriter(SystevisorChildSyslogWriter):
+    def write(
+            self,
+            instance_id: SystevisorInstanceId,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+            data: bytes,
+    ) -> None:
+        priority = syslog.LOG_INFO if stream is SystevisorLogStream.STDOUT else syslog.LOG_ERR
+        text = data.decode('utf-8', errors='replace').replace('\x00', r'\x00')
+        syslog.syslog(priority, f'systevisor[{instance_id} run={int(run_id)} {stream.value}]: {text}')
+
+
+class SystevisorSyslogLogSink(SystevisorLogSink):
+    def __init__(
+            self,
+            writer: SystevisorChildSyslogWriter,
+            instance_id: SystevisorInstanceId,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+    ) -> None:
+        self._writer = writer
+        self._instance_id = instance_id
+        self._run_id = run_id
+        self._stream = stream
+
+    def write(self, data: bytes) -> None:
+        self._writer.write(self._instance_id, self._run_id, self._stream, data)
 
 
 class SystevisorFdLogSink(SystevisorLogSink):
@@ -316,12 +363,15 @@ class SystevisorLogManager:
             self,
             event_bus: SystevisorEventBus,
             clock: SystevisorClock,
+            syslog_writer: ta.Optional[SystevisorChildSyslogWriter] = None,
             *,
             default_strip_ansi: bool = False,
     ) -> None:
         self._event_bus = event_bus
         self._clock = clock
+        self._syslog_writer = syslog_writer
         self._default_strip_ansi = default_strip_ansi
+        self._child_log_directory: ta.Optional[str] = None
         self._channels: ta.Dict[ta.Tuple[SystevisorRunId, SystevisorLogStream], SystevisorLogChannel] = {}
         self._subscriptions: ta.Dict[
             int,
@@ -335,14 +385,51 @@ class SystevisorLogManager:
 
     def _make_sinks(
             self,
+            run_id: SystevisorRunId,
+            instance_id: SystevisorInstanceId,
             stream: SystevisorLogStream,
             config: SystevisorOutputConfig,
+            *,
+            reopen: bool = False,
     ) -> ta.List[SystevisorLogSink]:
+        sinks: ta.List[SystevisorLogSink] = []
         if config.mode is SystevisorOutputMode.FILE:
-            return [SystevisorRotatingFileLogSink(config)]
-        if config.mode is SystevisorOutputMode.STDOUT:
-            return [SystevisorFdLogSink(1 if stream is SystevisorLogStream.STDOUT else 2)]
-        return []
+            file = config.file
+            if file is None:
+                if self._child_log_directory is None:
+                    raise ValueError('automatic file output requires a child log directory')
+                file = os.path.join(
+                    self._child_log_directory,
+                    f'systevisor-child-{instance_id}-{int(run_id)}-{stream.value}.log',
+                )
+            sinks.append(SystevisorRotatingFileLogSink(dc.replace(
+                config,
+                file=file,
+                append=True if reopen else config.append,
+            )))
+        elif config.mode is SystevisorOutputMode.STDOUT:
+            sinks.append(SystevisorFdLogSink(1 if stream is SystevisorLogStream.STDOUT else 2))
+        if config.syslog:
+            if self._syslog_writer is None:
+                raise RuntimeError('syslog output is not configured')
+            sinks.append(SystevisorSyslogLogSink(self._syslog_writer, instance_id, run_id, stream))
+        return sinks
+
+    def configure_manager(self, config: SystevisorManagerConfig, *, cleanup: bool) -> None:
+        directory = config.child_log_directory
+        if directory is not None:
+            os.makedirs(directory, mode=0o755, exist_ok=True)
+            if not os.path.isdir(directory):
+                raise NotADirectoryError(directory)
+            directory = os.path.realpath(directory)
+        if self._channels and directory != self._child_log_directory:
+            raise RuntimeError('child log directory cannot change while log channels exist')
+        self._child_log_directory = directory
+        if cleanup and config.cleanup_auto_logs and directory is not None:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if _SYSTEVISOR_LOGS_AUTO_FILE_RE.fullmatch(entry.name) and entry.is_file(follow_symlinks=False):
+                        os.unlink(entry.path)
 
     def set_default_strip_ansi(self, enabled: bool) -> None:
         self._default_strip_ansi = enabled
@@ -366,7 +453,7 @@ class SystevisorLogManager:
                 stream=stream,
                 config=output_config,
                 ring=SystevisorByteRingBuffer(output_config.back_buffer_bytes),
-                sinks=self._make_sinks(stream, output_config),
+                sinks=self._make_sinks(effect.run_id, effect.instance_id, stream, output_config),
                 created_at=self._clock.monotonic(),
             )
             self._channels[(effect.run_id, stream)] = channel
@@ -407,7 +494,7 @@ class SystevisorLogManager:
         for sink in channel.sinks:
             try:
                 sink.write(data)
-            except OSError as exc:
+            except Exception as exc:  # noqa: BLE001
                 sink.close()
                 self._event_bus.publish('log.sink_error', {
                     'run_id': run_id,
@@ -512,7 +599,13 @@ class SystevisorLogManager:
                 stream=state.stream,
                 config=state.config,
                 ring=ring,
-                sinks=self._make_sinks(state.stream, state.config),
+                sinks=self._make_sinks(
+                    state.run_id,
+                    state.instance_id,
+                    state.stream,
+                    state.config,
+                    reopen=True,
+                ),
                 retired=state.retired,
                 created_at=state.created_at,
                 last_activity_at=state.last_activity_at,
@@ -548,7 +641,7 @@ class SystevisorLogManager:
             channel.ring.resize(output_config.back_buffer_bytes)
             for sink in channel.sinks:
                 sink.close()
-            channel.sinks = self._make_sinks(stream, output_config)
+            channel.sinks = self._make_sinks(effect.run_id, effect.instance_id, stream, output_config)
             channel.config = output_config
 
     def retire_process(self, run_id: SystevisorRunId) -> None:

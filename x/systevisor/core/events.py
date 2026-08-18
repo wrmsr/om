@@ -23,6 +23,7 @@ class SystevisorEventKind(enum.Enum):
     COMMAND_REJECTED = 'command_rejected'
     STALE_FACT_IGNORED = 'stale_fact_ignored'
     SHUTDOWN_STARTED = 'shutdown_started'
+    SIGNAL_FORWARDED = 'signal_forwarded'
     HEALTH_PROBE_STARTED = 'health_probe_started'
     HEALTH_PROBE_RESULT = 'health_probe_result'
     HEALTH_CHANGED = 'health_changed'

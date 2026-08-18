@@ -36,6 +36,7 @@ from ..core.identities import SystevisorHealthCheckId
 from ..core.identities import SystevisorInstanceId
 from ..core.identities import SystevisorRunId
 from ..core.identities import SystevisorUnitName
+from ..core.signals import systevisor_parse_signal_name
 from ..core.state import SystevisorEngineState
 
 
@@ -466,16 +467,6 @@ def _systevisor_processes_pidfd_send_signal(pidfd: int, signal_number: int) -> b
     raise OSError(error_number, os.strerror(error_number))
 
 
-def _systevisor_processes_parse_signal(value: str) -> int:
-    name = value.upper()
-    if not name.startswith('SIG'):
-        name = f'SIG{name}'
-    signal_number = getattr(signal, name, None)
-    if not isinstance(signal_number, int):
-        raise ValueError(value)  # noqa: TRY004
-    return signal_number
-
-
 def _systevisor_processes_resolve_identity(config: SystevisorIdentityConfig) -> SystevisorResolvedIdentity:
     passwd_entry: ta.Any = None
     if config.user is not None:
@@ -615,7 +606,11 @@ def _systevisor_processes_prepare(
         environment=environment,
         fds=fds,
         max_fd=_systevisor_processes_max_fd(),
-        isolate_session=spec.unit.stop.scope is SystevisorSignalScope.SESSION,
+        isolate_session=(
+            spec.unit.stop.scope is SystevisorSignalScope.SESSION or
+            spec.unit.stop.kill_scope is SystevisorSignalScope.SESSION or
+            spec.unit.signals.scope is SystevisorSignalScope.SESSION
+        ),
     )
 
 
@@ -1154,7 +1149,7 @@ class SystevisorProcessManager:
             signal_value: str,
             scope: SystevisorSignalScope,
     ) -> SystevisorSignalDelivery:
-        signal_number = _systevisor_processes_parse_signal(signal_value)
+        signal_number = systevisor_parse_signal_name(signal_value)
         with self.acquire_signal_lease(run_id) as lease:
             return self.signal_with_lease(lease, signal_number, scope)
 

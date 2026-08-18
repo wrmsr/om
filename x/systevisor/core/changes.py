@@ -17,7 +17,11 @@ class SystevisorUnitChange:
 
 
 def _systevisor_changes_output_topology(output: SystevisorOutputConfig) -> str:
-    if output.mode in {SystevisorOutputMode.CAPTURE, SystevisorOutputMode.FILE, SystevisorOutputMode.STDOUT}:
+    if output.mode in {
+            SystevisorOutputMode.CAPTURE,
+            SystevisorOutputMode.FILE,
+            SystevisorOutputMode.STDOUT,
+    }:
         return 'pipe'
     return output.mode.value
 
@@ -32,6 +36,9 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             ('kind', old.kind, new.kind),
             ('stdio.stdin', old.stdio.stdin, new.stdio.stdin),
             ('stdio.redirect_stderr', old.stdio.redirect_stderr, new.stdio.redirect_stderr),
+            ('stop.scope', old.stop.scope, new.stop.scope),
+            ('stop.kill_scope', old.stop.kill_scope, new.stop.kill_scope),
+            ('signals.scope', old.signals.scope, new.signals.scope),
             ('resources.cgroup', old.resources.cgroup, new.resources.cgroup),
             ('resources.namespaces', old.resources.namespaces, new.resources.namespaces),
             ('resources.inherited_sockets', old.resources.inherited_sockets, new.resources.inherited_sockets),
@@ -58,7 +65,10 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             ('autostart', old.autostart, new.autostart),
             ('priority', old.priority, new.priority),
             ('restart', old.restart, new.restart),
-            ('stop', old.stop, new.stop),
+            ('stop.signal', old.stop.signal, new.stop.signal),
+            ('stop.timeout_secs', old.stop.timeout_secs, new.stop.timeout_secs),
+            ('stop.kill_signal', old.stop.kill_signal, new.stop.kill_signal),
+            ('signals.forward', old.signals.forward, new.signals.forward),
             ('dependencies', old.dependencies, new.dependencies),
             ('health', old.health, new.health),
             ('resources.observe', old.resources.observe, new.resources.observe),
