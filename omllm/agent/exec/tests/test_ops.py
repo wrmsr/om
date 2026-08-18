@@ -1,6 +1,6 @@
 import pytest
 
-from ....core import procs
+from ....core import processes
 from ..ops import ExecParams
 from ..ops import ProcsExecOps
 from ..ops import format_exec_output
@@ -8,7 +8,7 @@ from ..ops import format_exec_output
 
 @pytest.mark.asyncs('asyncio')
 async def test_procs_exec_ops_basic(tmp_path):
-    async with procs.AsyncioProcessManager() as m:
+    async with processes.AsyncioProcessManager() as m:
         ops = ProcsExecOps()
         env = {'PATH': '/usr/bin:/bin', 'FOO': 'bar'}
 
@@ -71,7 +71,7 @@ def test_format_exec_output():
 
 import dataclasses as _dc  # noqa: E402
 
-from ....core import procs as _procs  # noqa: E402
+from ....core import processes as _procs  # noqa: E402
 
 
 @_dc.dataclass(frozen=True)
@@ -83,7 +83,7 @@ class _EchoSandbox(_procs.Sandbox):
 
 @pytest.mark.asyncs('asyncio')
 async def test_procs_exec_ops_applies_options(tmp_path):
-    async with procs.AsyncioProcessManager() as m:
+    async with processes.AsyncioProcessManager() as m:
         r = await ProcsExecOps().exec(m.root, ExecParams(
             ['echo', 'hi'],
             cwd=str(tmp_path),

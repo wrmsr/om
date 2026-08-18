@@ -6,7 +6,7 @@ from omcore import collections as col
 from omcore import dataclasses as dc
 
 from ... import llm
-from ...core import procs
+from ...core import processes
 
 
 ##
@@ -24,7 +24,7 @@ class ToolEnvironment:
 
     # The process scope tools spawn subprocesses into (foreground execs, and later background processes). Its lifetime
     # is managed by whoever set it - currently the ui, for the session.
-    procs: procs.ProcessScope | None = None
+    processes: processes.ProcessScope | None = None
 
 
 @ta.final

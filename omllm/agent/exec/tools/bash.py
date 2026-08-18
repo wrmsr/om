@@ -60,7 +60,7 @@ class BashTool(ToolClass[BashToolParams]):
     async def execute(self, ctx: ToolContext, params: BashToolParams) -> str:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
-        if (scope := ctx.env.procs) is None:
+        if (scope := ctx.env.processes) is None:
             raise ValueError('No process scope configured')
 
         cmd = [

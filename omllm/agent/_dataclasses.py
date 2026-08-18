@@ -5103,23 +5103,23 @@ def _process_dataclass__54fee9780fdd2751d58ee103a3cc4b08b8ff2ab5():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('cwd', 'procs')), EqPlan(fields=('cwd', 'procs')), FrozenPlan(fields=('cwd', 'proc"
-        "s'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('cwd', 'procs'), cache=False), InitPlan"
-        "(fields=(InitPlan.Field(name='cwd', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='ini"
-        "t.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=N"
-        "one, validate=None, check_type=None), InitPlan.Field(name='procs', annotation=OpRef(name='init.fields.1.annota"
-        "tion'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_ty"
-        "pe=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_onl"
-        "y_params=('cwd', 'procs'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), Rep"
-        "rPlan(fields=(ReprPlan.Field(name='cwd', kw_only=True, fn=None), ReprPlan.Field(name='procs', kw_only=True, fn"
-        "=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('cwd', 'processes')), EqPlan(fields=('cwd', 'processes')), FrozenPlan(fields=('cwd"
+        "', 'processes'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('cwd', 'processes'), cache="
+        "False), InitPlan(fields=(InitPlan.Field(name='cwd', annotation=OpRef(name='init.fields.0.annotation'), default"
+        "=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType.IN"
+        "STANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='processes', annotation=OpRef(name='"
+        "init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, over"
+        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', s"
+        "td_params=(), kw_only_params=('cwd', 'processes'), frozen=True, slots=False, post_init_params=None, init_fns=("
+        "), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='cwd', kw_only=True, fn=None), ReprPlan.Field(name='"
+        "processes', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='f2dfe140f284b7ef25d791349644090a052ebddc',
+    plan_repr_sha1='04372af305113f3a710a7917cde3400b20d3d2b7',
     cls_names=(
         ('omllm.agent.types.tools', 'ToolEnvironment'),
     ),
 )
-def _process_dataclass__f2dfe140f284b7ef25d791349644090a052ebddc():
+def _process_dataclass__04372af305113f3a710a7917cde3400b20d3d2b7():
     def _process_dataclass(
         *,
         __class__,
@@ -5138,7 +5138,7 @@ def _process_dataclass__f2dfe140f284b7ef25d791349644090a052ebddc():
                 raise TypeError(self)
             return __class__(  # noqa
                 cwd=self.cwd,
-                procs=self.procs,
+                processes=self.processes,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -5150,14 +5150,14 @@ def _process_dataclass__f2dfe140f284b7ef25d791349644090a052ebddc():
                 return NotImplemented
             return (
                 self.cwd == other.cwd and
-                self.procs == other.procs
+                self.processes == other.processes
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'cwd',
-            'procs',
+            'processes',
         }
 
         def __setattr__(self, name, value):
@@ -5183,7 +5183,7 @@ def _process_dataclass__f2dfe140f284b7ef25d791349644090a052ebddc():
         def __hash__(self):
             return hash((
                 self.cwd,
-                self.procs,
+                self.processes,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -5192,10 +5192,10 @@ def _process_dataclass__f2dfe140f284b7ef25d791349644090a052ebddc():
             self,
             *,
             cwd: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
-            procs: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            processes: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'cwd', cwd)
-            __dataclass__object_setattr(self, 'procs', procs)
+            __dataclass__object_setattr(self, 'processes', processes)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -5203,7 +5203,7 @@ def _process_dataclass__f2dfe140f284b7ef25d791349644090a052ebddc():
         def __repr__(self):
             parts = []
             parts.append(f"cwd={self.cwd!r}")
-            parts.append(f"procs={self.procs!r}")
+            parts.append(f"processes={self.processes!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

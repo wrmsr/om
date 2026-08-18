@@ -3,7 +3,7 @@ import tempfile
 
 import pytest
 
-from ......core import procs
+from ......core import processes
 from .....permissions.deciders import StaticPermissionDecider
 from .....permissions.types import PermissionState
 from .....types.tools import ToolContext
@@ -35,12 +35,12 @@ async def test_ripgrep_passes_sandbox_option_when_enabled():
         sandbox=True,
     )
     with tempfile.TemporaryDirectory() as td:
-        async with procs.AsyncioProcessManager() as m:
-            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, procs=m.root))
+        async with processes.AsyncioProcessManager() as m:
+            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))
             await rg.execute(ctx, RipgrepToolParams(args=['foo']))
 
     assert cap.captured is not None
-    assert any(isinstance(o, procs.Sandbox) for o in cap.captured.options)
+    assert any(isinstance(o, processes.Sandbox) for o in cap.captured.options)
 
 
 @pytest.mark.skipif(shutil.which('rg') is None, reason='no ripgrep')
@@ -49,8 +49,8 @@ async def test_ripgrep_no_sandbox_by_default():
     cap = _CaptureExecOps()
     rg = RipgrepTool(permissions=StaticPermissionDecider(PermissionState.ALLOW), exec=cap)
     with tempfile.TemporaryDirectory() as td:
-        async with procs.AsyncioProcessManager() as m:
-            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, procs=m.root))
+        async with processes.AsyncioProcessManager() as m:
+            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))
             await rg.execute(ctx, RipgrepToolParams(args=['foo']))
 
     assert cap.captured is not None

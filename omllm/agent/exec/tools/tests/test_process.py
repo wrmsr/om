@@ -2,7 +2,7 @@ import tempfile
 
 import pytest
 
-from .....core import procs
+from .....core import processes
 from ....permissions.deciders import StaticPermissionDecider
 from ....permissions.types import PermissionState
 from ....types.tools import ToolContext
@@ -34,8 +34,8 @@ def _tools():
 async def test_process_tools_interactive():
     spawn, read, write, kill, lst = _tools()
     with tempfile.TemporaryDirectory() as td:
-        async with procs.AsyncioProcessManager() as m:
-            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, procs=m.root))
+        async with processes.AsyncioProcessManager() as m:
+            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))
 
             out = await spawn.execute(ctx, ProcessSpawnToolParams(command='cat', name='echoer'))
             assert 'Started background process' in out
@@ -75,8 +75,8 @@ async def test_process_tools_interactive():
 async def test_process_read_exited():
     spawn, read, _, kill, _ = _tools()
     with tempfile.TemporaryDirectory() as td:
-        async with procs.AsyncioProcessManager() as m:
-            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, procs=m.root))
+        async with processes.AsyncioProcessManager() as m:
+            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))
 
             await spawn.execute(ctx, ProcessSpawnToolParams(command='echo one; echo two >&2; exit 4'))
             pid = next(iter(m.root.processes))
@@ -103,8 +103,8 @@ async def test_process_tools_via_executor():
     # exercises the ToolClass param-reflection path (incl. the empty-params list tool)
     spawn, read, _, _, lst = _tools()
     with tempfile.TemporaryDirectory() as td:
-        async with procs.AsyncioProcessManager() as m:
-            ctx_env = ToolEnvironment(cwd=td, procs=m.root)
+        async with processes.AsyncioProcessManager() as m:
+            ctx_env = ToolEnvironment(cwd=td, processes=m.root)
 
             res = await spawn.tool().executor(ToolContext(args={'command': 'sleep 5'}, env=ctx_env))
             assert res.error is None

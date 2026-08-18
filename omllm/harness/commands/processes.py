@@ -6,7 +6,7 @@ from omcore import check
 from omcore import lang
 from omcore.argparse import all as ap
 
-from ...core import procs
+from ...core import processes
 from ...core import ui
 from .base import CommandContext
 from .classes import ParserCommandClass
@@ -21,23 +21,23 @@ class ProcessesCommand(ParserCommandClass):
     see).
     """
 
-    def __init__(self, processes: procs.ProcessManager) -> None:
+    def __init__(self, processes: processes.ProcessManager) -> None:
         super().__init__()
 
         self._processes = processes
 
     #
 
-    _STATE_COLORS: ta.ClassVar[ta.Mapping[procs.ProcessState, ui.TextColor]] = {
-        procs.ProcessState.SPAWNING: 'blue',
-        procs.ProcessState.RUNNING: 'green',
-        procs.ProcessState.EXITED: 'yellow',
-        procs.ProcessState.REAPED: 'yellow',
-        procs.ProcessState.ABANDONED: 'red',
-        procs.ProcessState.POISONED: 'red',
+    _STATE_COLORS: ta.ClassVar[ta.Mapping[processes.ProcessState, ui.TextColor]] = {
+        processes.ProcessState.SPAWNING: 'blue',
+        processes.ProcessState.RUNNING: 'green',
+        processes.ProcessState.EXITED: 'yellow',
+        processes.ProcessState.REAPED: 'yellow',
+        processes.ProcessState.ABANDONED: 'red',
+        processes.ProcessState.POISONED: 'red',
     }
 
-    _STATE_NAME_LEN: ta.ClassVar[int] = max(len(s.name) for s in procs.ProcessState)
+    _STATE_NAME_LEN: ta.ClassVar[int] = max(len(s.name) for s in processes.ProcessState)
 
     _JSON_STYLE: ta.ClassVar = ui.JsonTextStyle(
         mode='compact',
@@ -45,7 +45,7 @@ class ProcessesCommand(ParserCommandClass):
         unquote_idents=True,
     )
 
-    def _process_body(self, p: procs.Process) -> ta.Mapping[str, ta.Any]:
+    def _process_body(self, p: processes.Process) -> ta.Mapping[str, ta.Any]:
         body: dict[str, ta.Any] = {
             'pid': p.pid,
             'argv': list(p.spec.argv),
@@ -58,7 +58,7 @@ class ProcessesCommand(ParserCommandClass):
         body['scope'] = '/'.join(p.scope.path)
         return body
 
-    def _render_process(self, p: procs.Process) -> ui.CanText:
+    def _render_process(self, p: processes.Process) -> ui.CanText:
         return list(lang.interleave(' ' * 2, [
             ui.Text.style(p.id, bold=True),
             ui.Text.style(
@@ -92,13 +92,13 @@ class ProcessesCommand(ParserCommandClass):
     )
     async def _run_kill(self, ctx: CommandContext, args: ap.Namespace) -> None:
         try:
-            proc = self._processes.processes[procs.ProcessId(check.non_empty_str(args.id))]
+            proc = self._processes.processes[processes.ProcessId(check.non_empty_str(args.id))]
         except KeyError:
             await ctx.print(f'No such process: {args.id}')
             return
 
         if args.force:
-            await proc.aclose(procs.TerminationPolicy(signal=signal.SIGKILL, grace_s=0.0))
+            await proc.aclose(processes.TerminationPolicy(signal=signal.SIGKILL, grace_s=0.0))
         else:
             await proc.aclose()
 

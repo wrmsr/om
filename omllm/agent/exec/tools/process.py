@@ -3,7 +3,7 @@ Tools for managing long-lived background processes: spawn one that outlives the 
 (cursor + wait window), write to its stdin, list them, and terminate them. Foreground one-shot commands go through
 the `bash` tool instead.
 
-All of these operate on the process scope carried by `ToolEnvironment.procs` - a backgrounded process lives there
+All of these operate on the process scope carried by `ToolEnvironment.processes` - a backgrounded process lives there
 until it is terminated or the scope (session) is torn down.
 """
 import os
@@ -15,7 +15,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
-from ....core import procs
+from ....core import processes
 from ...permissions.types import PermissionDecider
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
@@ -26,21 +26,21 @@ from ..permissions import ExecPermissionTarget
 ##
 
 
-def _scope(ctx: ToolContext) -> procs.ProcessScope:
-    if ctx.env is None or (scope := ctx.env.procs) is None:
+def _scope(ctx: ToolContext) -> processes.ProcessScope:
+    if ctx.env is None or (scope := ctx.env.processes) is None:
         raise ValueError('No process scope configured')
     return scope
 
 
-def _lookup(ctx: ToolContext, process_id: str) -> procs.Process:
+def _lookup(ctx: ToolContext, process_id: str) -> processes.Process:
     scope = _scope(ctx)
     try:
-        return scope.processes[procs.ProcessId(check.non_empty_str(process_id))]
+        return scope.processes[processes.ProcessId(check.non_empty_str(process_id))]
     except KeyError:
         raise ValueError(f'No such process: {process_id!r} (use process_list)') from None
 
 
-def _status_note(proc: procs.Process, read: procs.SpoolRead) -> str:
+def _status_note(proc: processes.Process, read: processes.SpoolRead) -> str:
     parts: list[str] = [proc.id]
     if read.ended or not proc.state.is_alive:
         rc = proc.returncode
@@ -109,11 +109,11 @@ class ProcessSpawnTool(ToolClass[ProcessSpawnToolParams]):
 
         await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
 
-        proc = await scope.spawn(procs.ProcessSpec(
+        proc = await scope.spawn(processes.ProcessSpec(
             cmd,
             cwd=cwd,
             env=dict(os.environ),
-            stdio=procs.ProcessStdio(stdin='pipe', stdout='pipe', stderr='pipe'),
+            stdio=processes.ProcessStdio(stdin='pipe', stdout='pipe', stderr='pipe'),
             name=params.name,
         ))
 
@@ -166,7 +166,7 @@ class ProcessReadTool(ToolClass[ProcessReadToolParams]):
             max_bytes=params.max_bytes,
         )
 
-        text = procs.ArrivalMergedRenderer().render(read.records)
+        text = processes.ArrivalMergedRenderer().render(read.records)
         note = _status_note(proc, read)
         if text and not text.endswith('\n'):
             text += '\n'
@@ -250,7 +250,7 @@ class ProcessKillTool(ToolClass[ProcessKillToolParams]):
         proc = _lookup(ctx, params.id)
 
         if params.force:
-            await proc.aclose(procs.TerminationPolicy(signal=signal.SIGKILL, grace_s=0.0))
+            await proc.aclose(processes.TerminationPolicy(signal=signal.SIGKILL, grace_s=0.0))
         else:
             await proc.aclose()
 

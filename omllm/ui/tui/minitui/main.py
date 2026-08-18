@@ -14,7 +14,7 @@ from omxtra.tui import minitui as mt
 
 from .... import agent as agn
 from .... import harness as har
-from ....core import procs
+from ....core import processes
 from ....core import ui
 from ..agent import AgentEventSubscribers
 from ..config import parse_config
@@ -134,7 +134,7 @@ async def _a_main() -> None:
         driver = await injector[mt.AsyncDriver]
         app = await injector[MinituiChatApp]
 
-        proc_scope = (await injector[procs.ProcessManager]).root if config.exec else None
+        proc_scope = (await injector[processes.ProcessManager]).root if config.exec else None
 
         #
 
@@ -167,7 +167,7 @@ async def _a_main() -> None:
                     ),
                     tool_env=agn.ToolEnvironment(
                         cwd=cwd,
-                        procs=proc_scope,
+                        processes=proc_scope,
                     ),
                 ),
             )

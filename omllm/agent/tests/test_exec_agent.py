@@ -5,7 +5,7 @@ import pytest
 from omcore import dataclasses as dc
 
 from ... import llm
-from ...core import procs
+from ...core import processes
 from ..agent import Agent
 from ..backends import DictBackendManager
 from ..exec.ops import ProcsExecOps
@@ -45,7 +45,7 @@ async def _run_agent(td, m):
     await agent.update_state(lambda s: dc.replace(
         s,
         context=Context(tools=ToolSet([bash.tool()])),
-        tool_env=ToolEnvironment(cwd=td, procs=m.root),
+        tool_env=ToolEnvironment(cwd=td, processes=m.root),
     ))
 
     ended: list = []
@@ -58,7 +58,7 @@ async def _run_agent(td, m):
 @pytest.mark.asyncs('asyncio')
 async def test_agent_runs_bash_tool_through_procs():
     with tempfile.TemporaryDirectory() as td:
-        async with procs.AsyncioProcessManager() as m:
+        async with processes.AsyncioProcessManager() as m:
             new_messages = await _run_agent(td, m)
 
             tool_results = [msg for msg in new_messages if isinstance(msg, llm.ToolResultMessage)]

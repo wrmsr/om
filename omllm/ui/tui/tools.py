@@ -4,7 +4,7 @@ from omcore import inject as inj
 from omcore import lang
 
 from ... import agent as agn
-from ...core import procs
+from ...core import processes
 from .config import Config
 
 
@@ -37,7 +37,7 @@ def bind_tools(config: Config) -> inj.Elements:
 
     if config.exec:
         lst.extend([
-            procs.bind_process_manager(),
+            processes.bind_process_manager(),
 
             inj.bind(agn.ProcsExecOps, singleton=True),
             inj.bind(agn.ExecOps, to_key=agn.ProcsExecOps),

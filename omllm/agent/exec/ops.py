@@ -1,5 +1,5 @@
 """
-Command execution for tools, backed by the process manager (`omllm.core.procs`). An `ExecOps` runs a single
+Command execution for tools, backed by the process manager (`omllm.core.processes`). An `ExecOps` runs a single
 foreground command in a caller-supplied `ProcessScope` - spawn, wait (with an optional timeout), tear down, and
 collect the captured output - and returns a structured `ExecResult`. `format_exec_output` renders that into
 model-facing text (combined streams, exit / timeout notes, head+tail truncation for very large output).
@@ -13,7 +13,7 @@ from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ...core import procs
+from ...core import processes
 
 
 ##
@@ -32,7 +32,7 @@ class ExecParams:
     timeout_s: float | None = None
 
     # Extra process options (Sandbox, Target, ...) applied to the spawn.
-    options: ta.Sequence[procs.ProcOption] = dc.xfield(default=(), coerce=tuple)
+    options: ta.Sequence[processes.ProcessOption] = dc.xfield(default=(), coerce=tuple)
 
 
 @ta.final
@@ -53,7 +53,7 @@ class ExecResult:
 
 class ExecOps(lang.Abstract):
     @abc.abstractmethod
-    def exec(self, scope: procs.ProcessScope, params: ExecParams) -> ta.Awaitable[ExecResult]:
+    def exec(self, scope: processes.ProcessScope, params: ExecParams) -> ta.Awaitable[ExecResult]:
         raise NotImplementedError
 
 
@@ -61,8 +61,8 @@ class ExecOps(lang.Abstract):
 
 
 class ProcsExecOps(ExecOps):
-    async def exec(self, scope: procs.ProcessScope, params: ExecParams) -> ExecResult:
-        spec = procs.ProcessSpec(
+    async def exec(self, scope: processes.ProcessScope, params: ExecParams) -> ExecResult:
+        spec = processes.ProcessSpec(
             tuple(params.cmd),
             cwd=params.cwd,
             env=dict(params.env),
@@ -74,7 +74,7 @@ class ProcsExecOps(ExecOps):
         try:
             try:
                 await proc.wait(params.timeout_s)
-            except procs.ProcessTimeoutError:
+            except processes.ProcessTimeoutError:
                 timed_out = True
         finally:
             # Reaps the process (and, on timeout, kills it and its group first).

@@ -2,7 +2,7 @@ import tempfile
 
 import pytest
 
-from ....core import procs
+from ....core import processes
 from ....core import ui
 from ..base import CommandContext
 from ..processes import ProcessesCommand
@@ -23,9 +23,9 @@ class _Capture:
 @pytest.mark.asyncs('asyncio')
 async def test_processes_command_list_and_kill():
     with tempfile.TemporaryDirectory() as td:
-        async with procs.AsyncioProcessManager() as m:
-            p1 = await m.root.spawn(procs.ProcessSpec(['sleep', '30'], cwd=td, name='sleeper'))
-            p2 = await m.root.spawn(procs.ProcessSpec(['sh', '-c', 'exit 0'], cwd=td))
+        async with processes.AsyncioProcessManager() as m:
+            p1 = await m.root.spawn(processes.ProcessSpec(['sleep', '30'], cwd=td, name='sleeper'))
+            p2 = await m.root.spawn(processes.ProcessSpec(['sh', '-c', 'exit 0'], cwd=td))
             await p2.wait(2.0)  # exits, stays a held (unreaped) zombie in the registry
 
             cmd = ProcessesCommand(m)
