@@ -1,9 +1,9 @@
 """
 Syntax highlighting: code lines in, styled segment rows out.
 
-The protocol is deliberately small and text-shaped for now; the incremental path (tree-sitter consuming Document
-change events, which are already shaped like its `edit()` API) will extend it rather than replace it - a
-full-retokenize implementation of the same protocol is always the zero-dependency fallback.
+The protocol is deliberately small and text-shaped for now; the incremental path (tree-sitter consuming Document change
+events, which are already shaped like its `edit()` API) will extend it rather than replace it - a full-retokenize
+implementation of the same protocol is always the zero-dependency fallback.
 
 Included zero-dep highlighters: python (stdlib tokenize, error-tolerant - malformed source falls back to plain) and
 unified diffs. pygments slots in later as an optional quarantined implementation covering the long-tail catalog.

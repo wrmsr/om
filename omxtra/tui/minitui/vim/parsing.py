@@ -6,8 +6,8 @@ The normal/visual-mode command grammar and parser.
                               | action )
 
 feed() consumes one key and returns ('more' | 'cmd' | 'abort', Command?). The incremental shape is what lets a real
-frontend drive it key-by-key; `pending` exposes the keys typed so far for status-bar display. In visual mode the
-grammar inverts: the range already exists, so an operator key *terminates*. (Adapted from x/vibes/minivim.)
+frontend drive it key-by-key; `pending` exposes the keys typed so far for status-bar display. In visual mode the grammar
+inverts: the range already exists, so an operator key *terminates*. (Adapted from x/vibes/minivim.)
 """
 import typing as ta
 

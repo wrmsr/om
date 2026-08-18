@@ -40,8 +40,8 @@
 The frame model: one terminal cell / row / screenful of structured, resolved content.
 
 A `Cell` is one displayed grapheme (a base character plus any trailing zero-width combining characters), its column
-width, and its fully-resolved `Style` (semantic tags are resolved by a theme *before* this layer). A `Line` is a row
-of cells; a `Frame` is the whole live region: lines plus cursor state. All frozen, all comparable - diffing (see
+width, and its fully-resolved `Style` (semantic tags are resolved by a theme *before* this layer). A `Line` is a row of
+cells; a `Frame` is the whole live region: lines plus cursor state. All frozen, all comparable - diffing (see
 `diffs.py`) is plain structural comparison.
 """
 import dataclasses as dc

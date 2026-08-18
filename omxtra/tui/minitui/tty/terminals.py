@@ -72,16 +72,16 @@ class Tty:
         """
         Put the input fd into raw-ish mode: no echo, no canonical buffering, no flow control, no output processing.
 
-        With `keep_signals` (the default) ISIG stays on, so ctrl-c/ctrl-z still raise/suspend - the app decides
-        whether to take those over later by rebinding at the signal level.
+        With `keep_signals` (the default) ISIG stays on, so ctrl-c/ctrl-z still raise/suspend - the app decides whether
+        to take those over later by rebinding at the signal level.
         """
 
         check.state(self._saved_state is None)
         self._saved_state = get_term_state(self._input_fd)
 
         raw = self._saved_state.copy()
-        # ICRNL et al must go too: otherwise the Enter key's '\r' arrives as '\n' (ctrl+j). (pyrepl leaves them set
-        # and instead binds both ctrl+j and ctrl+m to accept - we want the distinction.)
+        # ICRNL et al must go too: otherwise the Enter key's '\r' arrives as '\n' (ctrl+j). (pyrepl leaves them set and
+        # instead binds both ctrl+j and ctrl+m to accept - we want the distinction.)
         raw.iflag &= ~(termios.INPCK | termios.ISTRIP | termios.IXON | termios.ICRNL | termios.INLCR | termios.IGNCR)
         raw.oflag &= ~termios.OPOST
         raw.cflag &= ~(termios.CSIZE | termios.PARENB)

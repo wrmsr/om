@@ -89,8 +89,8 @@ _SS3_BASES: ta.Mapping[str, str] = {
     'M': 'enter',
 }
 
-# Extended-key codepoints that aren't just unicode characters (shared by the kitty protocol and xterm's
-# modifyOtherKeys; the full kitty functional-key ranges can land when something needs them).
+# Extended-key codepoints that aren't just unicode characters (shared by the kitty protocol and xterm's modifyOtherKeys;
+# the full kitty functional-key ranges can land when something needs them).
 _KITTY_SPECIAL_BASES: ta.Mapping[int, str] = {
     9: 'tab',
     13: 'enter',

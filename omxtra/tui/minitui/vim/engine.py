@@ -2,13 +2,13 @@
 The modal editing engine: keys in, document edits + pure-data feedback out.
 
 Reshaped from x/vibes/minivim onto the docs layer:
- - All mutation flows through Document range edits; undo/redo are groups of `AppliedEdit` inverses (one group per
-   change command - a `c` operator's typed insertion is part of its group, matching vim's undo units).
+ - All mutation flows through Document range edits; undo/redo are groups of `AppliedEdit` inverses (one group per change
+   command - a `c` operator's typed insertion is part of its group, matching vim's undo units).
  - Cursors are a tuple (primary first) per the multi-cursor groundwork; only the primary is used so far.
- - `/` `?` `:` are a real CMDLINE mode: search is incremental (`decorations()` exposes live match spans), `:` lines
-   go to an injectable ex handler.
- - `status()` and `decorations()` are the only outputs besides the document itself - the engine never renders and
-   never reads a keyboard; frontends pump `feed()` with plain chars (plus '<left>'-style tokens for special keys).
+ - `/` `?` `:` are a real CMDLINE mode: search is incremental (`decorations()` exposes live match spans), `:` lines go
+   to an injectable ex handler.
+ - `status()` and `decorations()` are the only outputs besides the document itself - the engine never renders and never
+   reads a keyboard; frontends pump `feed()` with plain chars (plus '<left>'-style tokens for special keys).
 
 Grown beyond minivim: CMDLINE mode, edit-group undo/redo, `%` and `~`, and blockwise visual (ctrl+v: BLOCK spans,
 d/y/c/p over rectangles - block-change types on the first row only, no replication yet). Still deliberately out of
@@ -1119,8 +1119,8 @@ class VimEngine:
         doc, cur = self._doc, self.cursor
 
         if rv.kind is Kind.BLOCK:
-            # Paste the rectangle at the cursor column on successive rows, creating rows / padding as needed.
-            # (A count would stack copies; ignored for now, like vim's rarer block-put variants.)
+            # Paste the rectangle at the cursor column on successive rows, creating rows / padding as needed. (A count
+            # would stack copies; ignored for now, like vim's rarer block-put variants.)
             col = cur.col + 1 if (after and llen(doc, cur.row)) else cur.col
             for i, piece in enumerate(rv.pieces):
                 row = cur.row + i

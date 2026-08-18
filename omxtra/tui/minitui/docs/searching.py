@@ -2,8 +2,8 @@
 Document search producing charwise spans.
 
 Literal matching with vim-flavored smartcase (all-lowercase queries match case-insensitively; any uppercase makes the
-query exact). Recomputation is full-document - documents at input-textarea scale make that free; incremental
-maintenance through change events is a later optimization behind the same interface.
+query exact). Recomputation is full-document - documents at input-textarea scale make that free; incremental maintenance
+through change events is a later optimization behind the same interface.
 """
 import typing as ta
 

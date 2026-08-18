@@ -1,9 +1,9 @@
 """
 Registers: named clipboards with a kind.
 
-Contents are stored as line-pieces plus a Kind; the kind decides whether `p` opens new lines (LINEWISE) or splices
-into the current one (charwise). "A appends to "a; the unnamed register always mirrors the last write; "0 holds the
-last yank. (Adapted from x/vibes/minivim.)
+Contents are stored as line-pieces plus a Kind; the kind decides whether `p` opens new lines (LINEWISE) or splices into
+the current one (charwise). "A appends to "a; the unnamed register always mirrors the last write; "0 holds the last
+yank. (Adapted from x/vibes/minivim.)
 """
 import typing as ta
 

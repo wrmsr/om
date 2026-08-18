@@ -54,8 +54,8 @@ from ..tty.terminals import Tty
 ##
 
 
-# Fallbacks for capabilities missing from a terminfo entry - the ansi/xterm forms, matching terminfo's parametrized
-# cap syntax (processed via tparm just like real entries).
+# Fallbacks for capabilities missing from a terminfo entry - the ansi/xterm forms, matching terminfo's parametrized cap
+# syntax (processed via tparm just like real entries).
 _CAP_FALLBACKS: ta.Mapping[str, bytes] = {
     'bel': b'\x07',
     'civis': b'\x1b[?25l',
@@ -156,8 +156,8 @@ class TermWriter:
         self.cap('cup', row, col)
 
     def crlf(self, n: int = 1) -> None:
-        # With OPOST off this is the literal pair: column 0, then down one row - scrolling the terminal if (and only
-        # if) the cursor is on the bottom row. This, not cud, is how the live region grows; see the inline surface.
+        # With OPOST off this is the literal pair: column 0, then down one row - scrolling the terminal if (and only if)
+        # the cursor is on the bottom row. This, not cud, is how the live region grows; see the inline surface.
         self.text('\r\n' * n)
 
     def erase_eol(self) -> None:

@@ -291,8 +291,8 @@ class TextArea(Control):
         return (x, cursor_row - top)
 
     ##
-    # Viewport operations (view concerns vim routes through the editor: scrolling lives with the window, not the
-    # engine - the engine stays headless)
+    # Viewport operations (view concerns vim routes through the editor: scrolling lives with the window, not the engine
+    # - the engine stays headless)
 
     def _visible_modes(self) -> bool:
         return self._engine.mode in (Mode.NORMAL, Mode.VISUAL, Mode.VISUAL_LINE, Mode.VISUAL_BLOCK)
@@ -399,8 +399,8 @@ class TextArea(Control):
 
         key = event.key
 
-        # Submit semantics. ctrl+j is the universally-portable submit chord: 0x0a is byte-distinguishable from
-        # Enter's 0x0d on every terminal (we clear ICRNL), no extended-key protocol required.
+        # Submit semantics. ctrl+j is the universally-portable submit chord: 0x0a is byte-distinguishable from Enter's
+        # 0x0d on every terminal (we clear ICRNL), no extended-key protocol required.
         if key.base == 'enter':
             if key.ctrl or key.alt or key.shift:
                 self._submit()

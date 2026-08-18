@@ -1,9 +1,9 @@
 """
 The alt-screen surface: fullscreen apps over the same frame/diff machinery as the inline surface.
 
-Simpler in every way that matters: the alt screen is a fixed grid the terminal hands us whole, so movement is
-absolute (`cup`), rows never scroll, and there is no commit operation - nothing here ever becomes scrollback, which
-is exactly the tradeoff fullscreen apps opt into. The inline surface remains the primary citizen; this exists for the
+Simpler in every way that matters: the alt screen is a fixed grid the terminal hands us whole, so movement is absolute
+(`cup`), rows never scroll, and there is no commit operation - nothing here ever becomes scrollback, which is exactly
+the tradeoff fullscreen apps opt into. The inline surface remains the primary citizen; this exists for the
 genuinely-fullscreen cases (the vim clone, a future browse mode).
 """
 from omcore import check

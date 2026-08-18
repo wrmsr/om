@@ -1,10 +1,10 @@
 """
 SGR ('select graphic rendition') escape emission and parsing.
 
-Emission is always full-reset-plus-rebuild (`\\x1b[0;...m`) - given transition elision by the caller (only emit when
-the effective style actually changes) this is both correct and cheap, and avoids the whole class of incremental-SGR
-state bugs. Parsing ingests pre-styled ANSI text (subprocess output, etc.) back into structured segments; non-SGR
-escape sequences are dropped.
+Emission is always full-reset-plus-rebuild (`\\x1b[0;...m`) - given transition elision by the caller (only emit when the
+effective style actually changes) this is both correct and cheap, and avoids the whole class of incremental-SGR state
+bugs. Parsing ingests pre-styled ANSI text (subprocess output, etc.) back into structured segments; non-SGR escape
+sequences are dropped.
 """
 import re
 import typing as ta

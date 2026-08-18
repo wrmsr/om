@@ -130,8 +130,8 @@ class FrameDiff:
     The plan for turning the displayed (retained) frame into a new one.
 
     `line_updates` cover rows present in both frames; `appended` rows extend the live region downward (the surface
-    creates them, forcing terminal scroll as needed); `shrink` rows are erased from the bottom. Application order:
-    grow, update, shrink, cursor.
+    creates them, forcing terminal scroll as needed); `shrink` rows are erased from the bottom. Application order: grow,
+    update, shrink, cursor.
     """
 
     old_height: int

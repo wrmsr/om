@@ -1,9 +1,9 @@
 """
 Motion results and span resolution.
 
-A motion never edits: it *describes* - target + kind + hints. `resolve()` turns (start, MotionResult) into an
-operable Span, applying vim's two `:help exclusive` adjustment rules - those two rules alone are why `dw` behaves
-sanely without w/b special-casing anything. (Adapted from x/vibes/minivim.)
+A motion never edits: it *describes* - target + kind + hints. `resolve()` turns (start, MotionResult) into an operable
+Span, applying vim's two `:help exclusive` adjustment rules - those two rules alone are why `dw` behaves sanely without
+w/b special-casing anything. (Adapted from x/vibes/minivim.)
 """
 import typing as ta
 

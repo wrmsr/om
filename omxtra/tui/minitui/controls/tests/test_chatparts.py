@@ -1,8 +1,11 @@
 from ...events.types import MouseEvent
 from ...events.types import MouseEventKind
+from ...screens.cells import line_from_segments
+from ...text.colors import RgbColor
 from ...text.segments import Segment
 from ...text.segments import segments_text
 from ...text.styles import EMPTY_THEME
+from ...text.themes import DEFAULT_THEME
 from ..cards import Card
 from ..cards import CardState
 from ..history import InputHistory
@@ -129,10 +132,6 @@ def test_stack_layout_hit_regions():
 
 def test_confirmation_card_resolves_to_soft_truecolor():
     # The default theme renders the allow/deny buttons with muted RgbColors - never ANSI named green/red.
-    from ...screens.cells import line_from_segments  # noqa: PLC0415
-    from ...text.colors import RgbColor  # noqa: PLC0415
-    from ...text.themes import DEFAULT_THEME  # noqa: PLC0415
-
     card = Card(
         [('tool()', 'card.summary')],
         state=CardState.CONFIRMING,

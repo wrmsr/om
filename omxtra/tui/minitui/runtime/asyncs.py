@@ -3,12 +3,12 @@ The asyncio driver: the same App contract as SyncDriver, hosted in an asyncio lo
 
 The core stays synchronous and single-threaded - this driver only owns pacing: the input fd via `add_reader`, SIGWINCH
 via `add_signal_handler`, escape-parser timeouts via `call_later`, and a coalescing `invalidate()` that schedules at
-most one render per loop turn (the ptk ten-line trick). `post()` is the *sole* thread-safe entry point: anything
-outside the loop (worker threads, other tasks' executors) hands a callable across with it; everything else must be
-called on the loop.
+most one render per loop turn (the ptk ten-line trick). `post()` is the *sole* thread-safe entry point: anything outside
+the loop (worker threads, other tasks' executors) hands a callable across with it; everything else must be called on the
+loop.
 
-asyncio-specific by design (this is the isolation point the rest of the codebase's anyio-vs-asyncio flux doesn't
-reach): apps that want structured concurrency layer their own tasks above and talk to the driver through post().
+asyncio-specific by design (this is the isolation point the rest of the codebase's anyio-vs-asyncio flux doesn't reach):
+apps that want structured concurrency layer their own tasks above and talk to the driver through post().
 """
 import asyncio
 import codecs
@@ -56,8 +56,8 @@ class AsyncTimers:
     """
     The call_later/call_every subset of runtime.timers.Timers, backed by the asyncio loop.
 
-    Timers may be created before the driver runs (apps typically register their spinner in __init__); they are held
-    and scheduled when the driver binds its loop.
+    Timers may be created before the driver runs (apps typically register their spinner in __init__); they are held and
+    scheduled when the driver binds its loop.
     """
 
     def __init__(self) -> None:

@@ -2,8 +2,8 @@
 The phase-1 proof: a fake llm stream rendered through the inline surface's commit model.
 
 Paragraphs stream word-by-word into the live region (a bounded tail + spinner status line); each finished paragraph is
-committed into the terminal's native scrollback and never touched again. Watch it in tmux: scrollback works, the
-history survives exit, and only the live tail repaints.
+committed into the terminal's native scrollback and never touched again. Watch it in tmux: scrollback works, the history
+survives exit, and only the live tail repaints.
 
 Run: ./python -m x.minitui.apps.streamdemo [--visualize-redraws]
 

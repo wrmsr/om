@@ -1,11 +1,11 @@
 """
 A tiny generator-as-parser engine.
 
-The parse logic is written as a generator that *asks* for characters by yielding `Read1(timeout_s)` and emits events
-via `emit()`; the engine pumps characters in from `feed()`. Timeouts are cooperative and clock-free: the engine never
-looks at a clock - it exposes the currently-pending read's timeout (`pending_timeout_s`), and whoever owns the real
-event loop calls `flush_timeout()` when that much time passes without input. Tests just call `flush_timeout()`
-directly, making every timeout path exactly reproducible.
+The parse logic is written as a generator that *asks* for characters by yielding `Read1(timeout_s)` and emits events via
+`emit()`; the engine pumps characters in from `feed()`. Timeouts are cooperative and clock-free: the engine never looks
+at a clock - it exposes the currently-pending read's timeout (`pending_timeout_s`), and whoever owns the real event loop
+calls `flush_timeout()` when that much time passes without input. Tests just call `flush_timeout()` directly, making
+every timeout path exactly reproducible.
 
 (The shape is a reimplementation of the idea in textual's `_parser.py`, on structured events and without the
 buffering/peek machinery.)

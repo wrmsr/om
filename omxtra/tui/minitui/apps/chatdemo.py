@@ -2,12 +2,12 @@
 The chat-head-shaped demo: streaming markdown, history, slash commands - the whole commit-model pipeline.
 
 Fake 'ai' responses stream word-by-word as markdown: settled blocks (closed paragraphs, fenced code with real python/
-diff highlighting, lists, quotes) commit to scrollback as they finish; only the unsettled tail re-renders. Messages
-are numbered - the registry pattern that keeps future browse/copy features possible over dead scrollback ('/show 2'
+diff highlighting, lists, quotes) commit to scrollback as they finish; only the unsettled tail re-renders. Messages are
+numbered - the registry pattern that keeps future browse/copy features possible over dead scrollback ('/show 2'
 re-commits a message's raw source, standing in for '/pbcopy').
 
-Input is the vim textarea (Esc for normal mode, /search, u/ctrl+r, ...). Up/ctrl+p and down/ctrl+n walk history when
-the cursor is on the first/last line (vim j/k still work inside multi-line drafts). '/' opens the command popup - tab
+Input is the vim textarea (Esc for normal mode, /search, u/ctrl+r, ...). Up/ctrl+p and down/ctrl+n walk history when the
+cursor is on the first/last line (vim j/k still work inside multi-line drafts). '/' opens the command popup - tab
 cycles, enter runs. Ctrl-d quits.
 
 Run: ./python -m x.minitui.apps.chatdemo
@@ -147,8 +147,8 @@ class ChatDemoApp(App):
         driver.timers.call_every(.1, self._spin)
         driver.timers.call_every(.03, self._pump_stream)
 
-        # Committing requires a prepared surface; the constructor runs before driver.run(), so the first response
-        # starts from inside the loop.
+        # Committing requires a prepared surface; the constructor runs before driver.run(), so the first response starts
+        # from inside the loop.
         driver.timers.call_later(0., self._start_response)
 
     ##
@@ -220,7 +220,10 @@ class ChatDemoApp(App):
 
     def _start_tool_use(self) -> None:
         self._card = Card(
-            [('fake_search', 'card.summary'), ('(query="minitui")  awaiting confirmation', 'card.summary.dim')],
+            [
+                ('fake_search', 'card.summary'),
+                ('(query="minitui")  awaiting confirmation', 'card.summary.dim'),
+            ],
             state=CardState.CONFIRMING,
             detail=[
                 [Segment('tool: fake_search', 'card.detail')],
@@ -235,11 +238,17 @@ class ChatDemoApp(App):
             return
         if allowed:
             card.set_state(CardState.RUNNING)
-            card.set_summary([('fake_search', 'card.summary'), ('(query="minitui")  running...', 'card.summary.dim')])
+            card.set_summary([
+                ('fake_search', 'card.summary'),
+                ('(query="minitui")  running...', 'card.summary.dim'),
+            ])
             self._driver.timers.call_later(1.2, self._tool_complete)
         else:
             card.set_state(CardState.DENIED)
-            card.set_summary([('fake_search', 'card.summary'), ('  denied', 'card.summary.dim')])
+            card.set_summary([
+                ('fake_search', 'card.summary'),
+                ('  denied', 'card.summary.dim'),
+            ])
             self._driver.timers.call_later(.8, self._finalize_card)
         self._driver.invalidate()
 
@@ -248,7 +257,10 @@ class ChatDemoApp(App):
         if card is None:
             return
         card.set_state(CardState.COMPLETE)
-        card.set_summary([('fake_search', 'card.summary'), ('(query="minitui")  3 results', 'card.summary.dim')])
+        card.set_summary([
+            ('fake_search', 'card.summary'),
+            ('(query="minitui")  3 results', 'card.summary.dim'),
+        ])
         card.set_detail([
             [Segment('1. the commit model', 'card.detail')],
             [Segment('2. a vim engine in a chat input', 'card.detail')],

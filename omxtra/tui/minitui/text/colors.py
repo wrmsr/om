@@ -2,8 +2,8 @@
 Terminal color model and depth downgrading.
 
 Colors are structured values, never raw SGR strings. Downgrade paths (rgb -> 256 -> 16) follow the well-known analytic
-approaches: the 6x6x6 cube's non-linear ramp with a greyscale branch for low-saturation colors, and nearest-match over
-a concrete palette table for 16-color terminals (excluding greys for saturated colors so they don't wash out).
+approaches: the 6x6x6 cube's non-linear ramp with a greyscale branch for low-saturation colors, and nearest-match over a
+concrete palette table for 16-color terminals (excluding greys for saturated colors so they don't wash out).
 """
 import colorsys
 import enum
@@ -88,8 +88,8 @@ def parse_rgb(s: str) -> RgbColor:
 
 def detect_color_depth(environ: ta.Mapping[str, str] | None = None) -> ColorDepth:
     """
-    Sniff the terminal's color depth from the environment - the modern consensus heuristics: COLORTERM for
-    truecolor, a `256color` TERM for the indexed palette, `dumb` for none, 16 colors otherwise.
+    Sniff the terminal's color depth from the environment - the modern consensus heuristics: COLORTERM for truecolor, a
+    `256color` TERM for the indexed palette, `dumb` for none, 16 colors otherwise.
     """
 
     env = environ if environ is not None else os.environ

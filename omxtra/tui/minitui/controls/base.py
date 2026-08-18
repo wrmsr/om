@@ -5,8 +5,8 @@ A `Control` renders *rows of styled segments* for a width - semantic content, no
 composition point (see `stacks.py`) resolves themes, builds cells, and assembles the frame. Height is height-for-width
 by construction: it's simply how many rows `render` returns.
 
-Controls are passive: mutate them, then ask the driver to `invalidate()`. Event routing is a plain focus pointer held
-by the app - there is no tree walk, no bubbling, no implicit dispatch.
+Controls are passive: mutate them, then ask the driver to `invalidate()`. Event routing is a plain focus pointer held by
+the app - there is no tree walk, no bubbling, no implicit dispatch.
 """
 import abc
 import typing as ta

@@ -38,8 +38,8 @@ class Style(lang.Final):
         """
         Return this style with `other`'s set fields applied over it.
 
-        Colors overlay when non-None; attribute flags are or'd. This is the merge rule used when compositing style
-        spans from multiple producers (syntax under selection under search, etc.).
+        Colors overlay when non-None; attribute flags are or'd. This is the merge rule used when compositing style spans
+        from multiple producers (syntax under selection under search, etc.).
         """
 
         if other.is_plain:

@@ -2,8 +2,8 @@
 The synchronous driver: one loop owning input, timers, and frame scheduling.
 
 The app is passive and pure-ish: it renders frames on demand and handles typed events; all pacing lives here. Redraws
-coalesce through a single `invalidate()` flag - any number of invalidations between iterations costs one render, and
-the retained-frame diff downstream makes even that render cheap when nothing visibly changed.
+coalesce through a single `invalidate()` flag - any number of invalidations between iterations costs one render, and the
+retained-frame diff downstream makes even that render cheap when nothing visibly changed.
 
 Wakeups: input fd readability, timer deadlines, the escape-parser's pending timeout, and a self-pipe written by the
 signal machinery (Python's poll retries EINTR per PEP 475, so SIGWINCH would otherwise not wake the loop at all).
@@ -159,8 +159,8 @@ class SyncDriver:
 
         surface = self._surface
         if isinstance(surface, InlineSurface):
-            # Learn where the shell left the cursor before touching the terminal: a mid-line prompt gets a fresh
-            # line instead of being overwritten. Rendering and commits hold until the answer (or a short timeout).
+            # Learn where the shell left the cursor before touching the terminal: a mid-line prompt gets a fresh line
+            # instead of being overwritten. Rendering and commits hold until the answer (or a short timeout).
             surface.prepare(defer_origin=True)
             surface.request_origin(self._parser)
             surface.request_sync_output_report()

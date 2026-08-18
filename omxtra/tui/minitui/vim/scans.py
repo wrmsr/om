@@ -2,9 +2,8 @@
 Scan space over a document: iterate as if lines ended in a virtual "newline slot" at col == len(line).
 
 That slot is blank-class, which is exactly why word runs never merge across lines; an empty line is a single newline
-slot. Includes vim's three character classes (blank / punctuation / word; "big" words collapse to two) and the word
-and find-char motions built on them. (Adapted from x/vibes/minivim, retargeted from its Buffer protocol onto
-docs.Document.)
+slot. Includes vim's three character classes (blank / punctuation / word; "big" words collapse to two) and the word and
+find-char motions built on them. (Adapted from x/vibes/minivim, retargeted from its Buffer protocol onto docs.Document.)
 """
 from ..docs.documents import Document
 from ..docs.positions import Pos
@@ -51,8 +50,8 @@ def clamp_col(doc: Document, p: Pos) -> Pos:
 
 
 ##
-# Word machinery. vim's three char classes: 0 blank, 1 punctuation, 2 word. For W/B/E ("big" words) every non-blank
-# is one class.
+# Word machinery. vim's three char classes: 0 blank, 1 punctuation, 2 word. For W/B/E ("big" words) every non-blank is
+# one class.
 
 
 def char_class(ch: str | None, big: bool) -> int:  # noqa
@@ -153,8 +152,8 @@ def find_char(
         repeat: bool = False,
 ) -> Pos | None:
     """
-    `f t F T` (current line only, like vim). `repeat` handles the classic `;`-after-`t` stickiness: skip a target
-    we're already sitting against.
+    `f t F T` (current line only, like vim). `repeat` handles the classic `;`-after-`t` stickiness: skip a target we're
+    already sitting against.
     """
 
     line = doc.line(p.row)

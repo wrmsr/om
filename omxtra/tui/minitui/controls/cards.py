@@ -2,10 +2,10 @@
 The card: an updatable, expandable, lifecycle-bearing panel - the warm-window shape of a tool use.
 
 A card lives in the live region while its subject is in flight: state advances (confirming -> running -> complete /
-denied / failed), the summary and detail mutate freely, the detail expands and collapses (keyboard or click). When
-its subject finalizes, the app commits the card's rendered rows to scrollback and drops it from the stack - the full
-warm-window lifecycle. Confirmation is a callback the app resolves (bound keys, clicks); the card itself just
-displays and remembers.
+denied / failed), the summary and detail mutate freely, the detail expands and collapses (keyboard or click). When its
+subject finalizes, the app commits the card's rendered rows to scrollback and drops it from the stack - the full
+warm-window lifecycle. Confirmation is a callback the app resolves (bound keys, clicks); the card itself just displays
+and remembers.
 """
 import enum
 import typing as ta

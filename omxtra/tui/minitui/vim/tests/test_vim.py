@@ -256,8 +256,8 @@ def test_search_backward():
 
 
 def test_search_operator_motion():
-    # d/pattern is intentionally unsupported (cmdline only enters from an idle parser) - 'd' then '/' aborts the op
-    # and enters search. But dn works.
+    # d/pattern is intentionally unsupported (cmdline only enters from an idle parser) - 'd' then '/' aborts the op and
+    # enters search. But dn works.
     e = make('foo bar foo', '/bar\rgg')
     e.send('dn')
     assert e.render() == 'bar foo'

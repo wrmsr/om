@@ -110,15 +110,15 @@ def test_driver_paste_roundtrip():
 
 
 def test_driver_escape_timeout_fires():
-    # A lone ESC with no follow-up: the loop must fire the parser timeout and deliver the escape key, then EOF ends
-    # the run. (The wait is the parser's 50ms escape timeout - real time, but tiny and deterministic in outcome.)
+    # A lone ESC with no follow-up: the loop must fire the parser timeout and deliver the escape key, then EOF ends the
+    # run. (The wait is the parser's 50ms escape timeout - real time, but tiny and deterministic in outcome.)
     app, _ = run_driver(b'\x1b')
     assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('escape')]
 
 
 def test_origin_cpr_midline_gets_fresh_line():
-    # A shell left its prompt mid-line (col 5). The driver's CPR dance must move to a fresh line instead of
-    # overwriting it.
+    # A shell left its prompt mid-line (col 5). The driver's CPR dance must move to a fresh line instead of overwriting
+    # it.
     tty = PipeTty(height=6, width=40)
     driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
     app = RecordingApp(driver)

@@ -1,14 +1,14 @@
 """
 The pdcmark streaming backend: omcore's pure-python pulldown-cmark translation driving the shared MdBlock model.
 
-pdcmark's `StreamingParser` contract is exactly this layer's contract - committed events are append-only, the
-tentative tail replaces itself, and any chunking of input commits the same stream a oneshot parse would - so the
-adapter here is pure event->block conversion. Committed events buffer until a complete top-level group closes (a
-block's Start..End, or a standalone event), since block conversion needs whole groups.
+pdcmark's `StreamingParser` contract is exactly this layer's contract - committed events are append-only, the tentative
+tail replaces itself, and any chunking of input commits the same stream a oneshot parse would - so the adapter here is
+pure event->block conversion. Committed events buffer until a complete top-level group closes (a block's Start..End, or
+a standalone event), since block conversion needs whole groups.
 
 Flattenings (the render model is deliberately simpler than commonmark): nested quote/item content joins into the
-parent's inline spans, with non-paragraph children (code blocks in quotes, etc.) emitted as sibling blocks; nested
-lists merge into their parent list; tables render as pipe-joined rows. Hard breaks soften to spaces (blocks re-wrap).
+parent's inline spans, with non-paragraph children (code blocks in quotes, etc.) emitted as sibling blocks; nested lists
+merge into their parent list; tables render as pipe-joined rows. Hard breaks soften to spaces (blocks re-wrap).
 """
 import typing as ta
 

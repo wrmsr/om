@@ -52,9 +52,9 @@ def remap_pos(pos: Pos, edit: TextEdit, *, before_bias: bool = False) -> Pos:
     """
     Where `pos` lands after `edit` is applied.
 
-    Positions before the edited range are unchanged; positions after it shift by the edit's size delta; positions
-    inside the replaced range clamp to its start (or, with `before_bias` False and an insert at exactly `pos`, stay
-    after the inserted text - insertions at the cursor push the cursor forward).
+    Positions before the edited range are unchanged; positions after it shift by the edit's size delta; positions inside
+    the replaced range clamp to its start (or, with `before_bias` False and an insert at exactly `pos`, stay after the
+    inserted text - insertions at the cursor push the cursor forward).
     """
 
     start = edit.start

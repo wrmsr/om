@@ -1,15 +1,15 @@
 """
 The inline surface: minitui's reason to exist.
 
-The terminal viewport is [ ...native scrollback... | committed tail | LIVE REGION ]. The live region is the bottom
-rows of our output: a retained `Frame`, diffed and redrawn in place. `commit()` freezes lines out of the top of the
-live region into the terminal's own scrollback - immutable once emitted, visible after exit, tmux-native - and
-re-anchors the live region below them. A message that finalizes exactly as displayed commits for zero bytes.
+The terminal viewport is [ ...native scrollback... | committed tail | LIVE REGION ]. The live region is the bottom rows
+of our output: a retained `Frame`, diffed and redrawn in place. `commit()` freezes lines out of the top of the live
+region into the terminal's own scrollback - immutable once emitted, visible after exit, tmux-native - and re-anchors the
+live region below them. A message that finalizes exactly as displayed commits for zero bytes.
 
-All cursor tracking is relative to the live region origin (row 0); there are no absolute coordinates anywhere.
-Downward motion is always the literal '\\r\\n' pair - never cud - because only '\\r\\n' scrolls the terminal when the
-cursor is on the bottom row, which is exactly how the live region grows and how commits push history upward. Autowrap
-is disabled while active so a width-exact line can never desync the relative tracking.
+All cursor tracking is relative to the live region origin (row 0); there are no absolute coordinates anywhere. Downward
+motion is always the literal '\\r\\n' pair - never cud - because only '\\r\\n' scrolls the terminal when the cursor is
+on the bottom row, which is exactly how the live region grows and how commits push history upward. Autowrap is disabled
+while active so a width-exact line can never desync the relative tracking.
 """
 import typing as ta
 
@@ -98,10 +98,10 @@ class InlineSurface(Surface):
         """
         Enter raw mode and establish the live region origin.
 
-        By default the origin is column 0 of the current row (a bare CR - a shell's partial line gets overwritten).
-        With `defer_origin`, nothing positional is written: the caller (a driver) sends a CPR query via
-        `request_origin` and later calls `resolve_origin`/`resolve_origin_fallback` - which moves to a *fresh* line
-        when the shell left the cursor mid-line, the polite behavior. No present/commit may happen in between.
+        By default the origin is column 0 of the current row (a bare CR - a shell's partial line gets overwritten). With
+        `defer_origin`, nothing positional is written: the caller (a driver) sends a CPR query via `request_origin` and
+        later calls `resolve_origin`/`resolve_origin_fallback` - which moves to a *fresh* line when the shell left the
+        cursor mid-line, the polite behavior. No present/commit may happen in between.
         """
 
         check.state(not self._prepared)
@@ -228,8 +228,8 @@ class InlineSurface(Surface):
         return style
 
     def _resync_margin(self, y: int) -> None:
-        # With autowrap off the terminal pins the cursor at the last column, so a write reaching the right margin
-        # leaves the physical cursor short of where naive width-addition says. A CR makes tracking exact again.
+        # With autowrap off the terminal pins the cursor at the last column, so a write reaching the right margin leaves
+        # the physical cursor short of where naive width-addition says. A CR makes tracking exact again.
         if self._cursor[0] >= self._term_width:
             self._writer.cr()
             self._cursor = (0, y)
@@ -351,8 +351,8 @@ class InlineSurface(Surface):
             else:
                 self._write_line_onto_new_row(line, i, None)
 
-        # Advance the origin to the row after the last committed line, creating it if the commit consumed the whole
-        # live region (which may scroll).
+        # Advance the origin to the row after the last committed line, creating it if the commit consumed the whole live
+        # region (which may scroll).
         if n < old.height:
             self._move(0, n)
             remaining = old.lines[n:]

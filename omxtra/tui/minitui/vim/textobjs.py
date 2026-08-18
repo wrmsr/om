@@ -116,8 +116,8 @@ def _obj_pair(doc: Document, p: Pos, *, around: bool, open_ch: str, close_ch: st
         end = advance(doc, close_pos) or Pos(close_pos.row, close_pos.col + 1)
         return Span(Kind.EXCLUSIVE, open_pos, end)
 
-    # vim promotes the *inner* object to linewise when the open bracket ends its line and only whitespace precedes
-    # the close bracket on its line - this is why `di{` on a code block keeps the braces on their own lines.
+    # vim promotes the *inner* object to linewise when the open bracket ends its line and only whitespace precedes the
+    # close bracket on its line - this is why `di{` on a code block keeps the braces on their own lines.
     if (
             open_pos.col == llen(doc, open_pos.row) - 1 and
             close_pos.col <= first_nonblank(doc, close_pos.row) and
@@ -130,8 +130,8 @@ def _obj_pair(doc: Document, p: Pos, *, around: bool, open_ch: str, close_ch: st
 
 
 def _obj_quote(doc: Document, p: Pos, *, around: bool, q: str) -> Span | None:
-    # Current line only, like vim. Pair quotes left-to-right; take the pair containing the cursor, else the next pair
-    # to the right.
+    # Current line only, like vim. Pair quotes left-to-right; take the pair containing the cursor, else the next pair to
+    # the right.
     line = doc.line(p.row)
     idx = [i for i, ch in enumerate(line) if ch == q]
     pairs = list(zip(idx[0::2], idx[1::2]))

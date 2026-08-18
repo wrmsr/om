@@ -57,8 +57,8 @@ def stack_layout(
     """
     Render `controls` top-to-bottom into a frame fitting `max_height`, with per-control hit regions.
 
-    The cursor comes from `focus` (offset to its rows); if focus is None or its cursor is None (or truncated away),
-    the frame's cursor is parked at the end with the cursor hidden.
+    The cursor comes from `focus` (offset to its rows); if focus is None or its cursor is None (or truncated away), the
+    frame's cursor is parked at the end with the cursor hidden.
     """
 
     lines: list[Line] = []

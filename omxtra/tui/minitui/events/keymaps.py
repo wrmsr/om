@@ -4,8 +4,8 @@ Key-sequence to command matching.
 A `Keymap` maps key sequences to *command objects* - whatever typed values the consumer dispatches on; nothing here is
 stringly-dispatched. Matching is a trie walk with explicit prefix state and the classic `timeoutlen` semantics: when a
 pressed sequence is both a bound chord and a prefix of a longer one, the matcher waits (reporting `pending_timeout_s`)
-and resolves to the shorter binding if nothing else arrives in time. Unmatched sequences are handed back verbatim so
-the consumer can route them elsewhere (e.g. self-insert).
+and resolves to the shorter binding if nothing else arrives in time. Unmatched sequences are handed back verbatim so the
+consumer can route them elsewhere (e.g. self-insert).
 
 This is deliberately separate from the escape-sequence parser's timeout (`ttimeoutlen`) - conflating the two is the
 classic bug.

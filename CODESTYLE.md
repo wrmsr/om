@@ -521,4 +521,5 @@ def make_it_a_tuple(t: T) -> tuple[T]:
 
 - Put only a single space after a punctuation between sentences.
 - Spell it 'falsey' not 'falsy'.
+- Unless specifically referring to something unicode-y, don't use em dashes in comments and docstrings! 🤖
 - Use a `.yml` extensions not `.yaml`.

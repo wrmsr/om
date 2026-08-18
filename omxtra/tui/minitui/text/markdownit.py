@@ -2,10 +2,10 @@
 The markdown-it streaming backend: `markdown_it` tokens (via omdev's incremental parser) driving the shared MdBlock
 model.
 
-Strictly quarantined optional dependency: markdown_it is proxy-imported through omdev's incparse; availability is
-probed without importing. omdev's `IncrementalMarkdownParser` supplies the stable/unstable token split - its
-stability rule (everything before the second-to-last top-level token) is markdown-it's own block structure, so
-settling fidelity comes from the real parser. The same flattenings as the pdcmark backend apply.
+Strictly quarantined optional dependency: markdown_it is proxy-imported through omdev's incparse; availability is probed
+without importing. omdev's `IncrementalMarkdownParser` supplies the stable/unstable token split - its stability rule
+(everything before the second-to-last top-level token) is markdown-it's own block structure, so settling fidelity comes
+from the real parser. The same flattenings as the pdcmark backend apply.
 """
 import functools
 import importlib.util

@@ -35,9 +35,9 @@ class MdBlock(lang.Abstract):
     pass
 
 
-# Inline content is styled spans (md.* tags), not raw markdown text: parser backends with real inline engines
-# (pdcmark, markdown-it) produce spans directly; the internal parser builds them via `parse_inlines`. The `.of()`
-# constructors take raw inline-markdown text and are what the internal parser (and tests) use.
+# Inline content is styled spans (md.* tags), not raw markdown text: parser backends with real inline engines (pdcmark,
+# markdown-it) produce spans directly; the internal parser builds them via `parse_inlines`. The `.of()` constructors
+# take raw inline-markdown text and are what the internal parser (and tests) use.
 
 
 @dc.dataclass(frozen=True)
@@ -371,8 +371,8 @@ def _render_code(block: MdCode, width: int, highlighter: CodeHighlighter | None)
 
     rows: list[list[Segment]] = []
     for row in body_rows:
-        # Plain (untagged) highlighter output still gets the code base style; tabs expand here (display-only path);
-        # rows right-fill so themes with code backgrounds paint the full block width.
+        # Plain (untagged) highlighter output still gets the code base style; tabs expand here (display-only path); rows
+        # right-fill so themes with code backgrounds paint the full block width.
         body = [
             Segment(_expand_tabs(seg.text), seg.style if seg.style is not None else 'md.code')
             for seg in row
