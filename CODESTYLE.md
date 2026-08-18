@@ -519,5 +519,6 @@ def make_it_a_tuple(t: T) -> tuple[T]:
 
 ### Misc. Linguistic Pedantry
 
-- We spell it 'falsey' not 'falsy'.
-- We use `.yml` extensions not `.yaml`.
+- Put only a single space after a punctuation between sentences.
+- Spell it 'falsey' not 'falsy'.
+- Use a `.yml` extensions not `.yaml`.

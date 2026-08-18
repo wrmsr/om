@@ -1,11 +1,11 @@
 """
-The asyncio `Process` handle. All state changes happen on the loop thread; the exit watcher thread only posts
-callbacks. The `threading.Lock` guards the tiny signal/reap syscall critical sections so that a signal can never race
-a reap even under a future free-threaded / multi-thread arrangement.
+The asyncio `Process` handle. All state changes happen on the loop thread; the exit watcher thread only posts callbacks.
+The `threading.Lock` guards the tiny signal/reap syscall critical sections so that a signal can never race a reap even
+under a future free-threaded / multi-thread arrangement.
 
 INVARIANTS:
-- Signals are sent only while the process is unreaped and unpoisoned (SPAWNING/RUNNING/EXITED/ABANDONED) - in all
-  of those the pid (and hence pgid) is still ours.
+- Signals are sent only while the process is unreaped and unpoisoned (SPAWNING/RUNNING/EXITED/ABANDONED) - in all of
+  those the pid (and hence pgid) is still ours.
 - `killpg` is only ever called with our own leader's pid.
 - Reaping is the deliberate last step of `aclose()`, after the group sweep, under the lock.
 """
@@ -267,8 +267,8 @@ class AsyncioProcess(Process):
                 pass
             except PermissionError:
                 # macOS/BSD return EPERM (where Linux returns ESRCH / success) when signaling a zombie, or a process
-                # group whose only remaining members are zombies. Because we only ever signal processes we still own,
-                # a confirmed-dead target makes this benign; a still-live one is a genuine permission error to raise.
+                # group whose only remaining members are zombies. Because we only ever signal processes we still own, a
+                # confirmed-dead target makes this benign; a still-live one is a genuine permission error to raise.
                 if not self._is_exited_nowait(pid):
                     raise
 

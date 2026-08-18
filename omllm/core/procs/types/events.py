@@ -15,7 +15,7 @@ from .states import ProcessState
 
 
 @dc.dataclass(frozen=True)
-class ProcessEvent(lang.Abstract):
+class ProcessEvent(lang.Sealed, lang.Abstract):
     pass
 
 

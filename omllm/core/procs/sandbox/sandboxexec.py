@@ -2,6 +2,10 @@
 macOS `sandbox-exec` confinement backend. Renders a `SandboxPolicy` into a Scheme-ish sandbox profile that denies by
 default and allows reads/writes only under the permitted subpaths. Cannot be exercised off macOS; kept structurally
 simple.
+
+TODO:
+ - rename
+ - bring back sexp lol
 """
 import typing as ta
 

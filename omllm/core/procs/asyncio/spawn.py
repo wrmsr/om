@@ -1,10 +1,10 @@
 """
-`subprocess.Popen` used strictly as a *spawner*. INVARIANT: after `Popen()` returns, nothing here (or anywhere) may
-call `wait/poll/communicate/send_signal/terminate/kill` on it, or use it as a context manager. Every one of those
-paths calls `waitpid` and would reap - or race with - the child whose pid we deliberately hold. `Popen.__del__` does
-the same (and, for still-running children, parks the object in `subprocess._active` to be reaped by the *next*
-`Popen()` call anywhere in the process), so it is neutralized too. We hold a strong ref to the object for the handle's
-lifetime and set `returncode` ourselves after our own reap.
+`subprocess.Popen` used strictly as a *spawner*. INVARIANT: after `Popen()` returns, nothing here (or anywhere) may call
+`wait/poll/communicate/send_signal/terminate/kill` on it, or use it as a context manager. Every one of those paths calls
+`waitpid` and would reap - or race with - the child whose pid we deliberately hold. `Popen.__del__` does the same (and,
+for still-running children, parks the object in `subprocess._active` to be reaped by the *next* `Popen()` call anywhere
+in the process), so it is neutralized too. We hold a strong ref to the object for the handle's lifetime and set
+`returncode` ourselves after our own reap.
 """
 import subprocess
 import typing as ta

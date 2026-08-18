@@ -138,8 +138,8 @@ class Deathsig(tv.UniqueTypedValue, ProcOption, lang.Final):
 @dc.dataclass(frozen=True)
 class RunTimeout(tv.UniqueScalarTypedValue[float], ProcOption, lang.Final):
     """
-    Overall wall-clock timeout for `ProcessScope.run` in seconds; on expiry the process is stopped and the run
-    raises `ProcessTimeoutError`.
+    Overall wall-clock timeout for `ProcessScope.run` in seconds; on expiry the process is stopped and the run raises
+    `ProcessTimeoutError`.
     """
 
 
@@ -162,8 +162,8 @@ class Target(tv.UniqueTypedValue, ProcOption, lang.Abstract):
     """
     Where a process runs. The default (no Target) is local. A Target rewrites the spec into the *local* command that
     reaches the destination - e.g. wrapping argv in `docker exec ...` or `ssh host ...` - so the manager still spawns
-    and manages a single local process. Targets also own remote signal semantics (a future concern: killing the
-    local `docker exec` client does not necessarily stop the process inside the container).
+    and manages a single local process. Targets also own remote signal semantics (a future concern: killing the local
+    `docker exec` client does not necessarily stop the process inside the container).
     """
 
     @abc.abstractmethod
@@ -176,9 +176,9 @@ class Target(tv.UniqueTypedValue, ProcOption, lang.Abstract):
 
 class Sandbox(tv.UniqueTypedValue, ProcOption, lang.Abstract):
     """
-    Local OS-level confinement (filesystem, network) applied by wrapping the command in a sandbox launcher
-    (bubblewrap on Linux, sandbox-exec on macOS). Like Target it rewrites the spec into the local command to run;
-    unlike Target the process is still local, just confined. Applied after any Target.
+    Local OS-level confinement (filesystem, network) applied by wrapping the command in a sandbox launcher (bubblewrap
+    on Linux, sandbox-exec on macOS). Like Target it rewrites the spec into the local command to run; unlike Target the
+    process is still local, just confined. Applied after any Target.
     """
 
     @abc.abstractmethod

@@ -1,6 +1,6 @@
 """
-A `Launcher` turns a `ProcessSpec` (+ options) into what `subprocess.Popen` is actually asked to run. The only
-launcher today is the `ShimLauncher`; remote targets will be further launchers/transforms layered on the same seam.
+A `Launcher` turns a `ProcessSpec` (+ options) into what `subprocess.Popen` is actually asked to run. The only launcher
+today is the `ShimLauncher`; remote targets will be further launchers/transforms layered on the same seam.
 """
 import abc
 import os
@@ -44,8 +44,8 @@ def apply_transforms(
 @dc.dataclass(frozen=True, kw_only=True)
 class LaunchPlan:
     """
-    Everything Popen needs. Owns `owned_fds` (created for this launch, e.g. the payload file) - the spawner must
-    close them in the parent after `Popen()` returns, whether or not it succeeded, via `close()`.
+    Everything Popen needs. Owns `owned_fds` (created for this launch, e.g. the payload file) - the spawner must close
+    them in the parent after `Popen()` returns, whether or not it succeeded, via `close()`.
     """
 
     # The spec after transforms - what the target will actually be.

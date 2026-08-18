@@ -1,7 +1,7 @@
 """
 Pipe plumbing without asyncio's subprocess transport (which would hand reaping to its child watcher). We create the
-pipes, and use `loop.connect_read_pipe` / `loop.connect_write_pipe` on our ends. Note the transports take ownership
-of (and close) the file objects handed to them.
+pipes, and use `loop.connect_read_pipe` / `loop.connect_write_pipe` on our ends. Note the transports take ownership of
+(and close) the file objects handed to them.
 """
 import asyncio
 import typing as ta

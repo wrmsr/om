@@ -76,8 +76,8 @@ class ProcessControl(lang.Abstract):
     @abc.abstractmethod
     def signal(self, sig: int, *, process_group: bool | None = None) -> ta.Awaitable[None]:
         """
-        Sends a signal to the process (or, by default per its TerminationPolicy, its process group). Only ever
-        reaches processes we own: raises ProcessNotAliveError once reaped or poisoned.
+        Sends a signal to the process (or, by default per its TerminationPolicy, its process group). Only ever reaches
+        processes we own: raises ProcessNotAliveError once reaped or poisoned.
         """
 
         raise NotImplementedError
@@ -148,8 +148,8 @@ class ProcessPty(lang.Abstract):
     @abc.abstractmethod
     def resize(self, rows: int, cols: int) -> ta.Awaitable[None]:
         """
-        Sets the terminal window size, delivering SIGWINCH to the child's foreground group. Raises NotAPtyError
-        if the process was not started under a pty.
+        Sets the terminal window size, delivering SIGWINCH to the child's foreground group. Raises NotAPtyError if the
+        process was not started under a pty.
         """
 
         raise NotImplementedError
@@ -170,8 +170,8 @@ class ProcessWaiter(lang.Abstract):
     @abc.abstractmethod
     def wait(self, timeout: float | None = None) -> ta.Awaitable[int]:
         """
-        Waits for exit and returns the return code (negative signal number if signaled). Raises
-        ProcessTimeoutError on timeout; the process is left as-is. Cancellation-safe.
+        Waits for exit and returns the return code (negative signal number if signaled). Raises ProcessTimeoutError on
+        timeout; the process is left as-is. Cancellation-safe.
         """
 
         raise NotImplementedError
@@ -190,7 +190,14 @@ class Process(
     lang.Abstract,
 ):
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(id={self.id!r}, pid={self.pid}, state={self.state.name}, argv={list(self.spec.argv)!r})'  # noqa
+        return (
+            f'{self.__class__.__name__}('
+            f'id={self.id!r}, '
+            f'pid={self.pid}, '
+            f'state={self.state.name}, '
+            f'argv={list(self.spec.argv)!r}'
+            f')'
+        )
 
     async def __aenter__(self) -> ta.Self:
         return self

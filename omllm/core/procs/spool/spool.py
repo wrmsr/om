@@ -41,8 +41,8 @@ class SpoolNotifier(lang.Abstract):
 @dc.dataclass(frozen=True, kw_only=True)
 class SpoolRead:
     """
-    The out-of-band framing of a read: enough for a tool to phrase truncation, elapsed offsets, and end-of-output
-    to a model distinguishably from the process's own bytes.
+    The out-of-band framing of a read: enough for a tool to phrase truncation, elapsed offsets, and end-of-output to a
+    model distinguishably from the process's own bytes.
     """
 
     records: ta.Sequence[SpoolRecord]
@@ -168,8 +168,8 @@ class OutputSpool:
             max_bytes: int | None = None,
     ) -> SpoolRead:
         """
-        Synchronously returns whatever is currently available at or after `cursor` (payload-bounded by
-        `max_bytes`, always at least one whole record if any is available).
+        Synchronously returns whatever is currently available at or after `cursor` (payload-bounded by `max_bytes`,
+        always at least one whole record if any is available).
         """
 
         check.arg(cursor >= 0)
@@ -253,10 +253,10 @@ class OutputSpool:
             max_bytes: int | None = None,
     ) -> SpoolRead:
         """
-        Long-poll: returns any currently-available output immediately; if there is none, waits up to `timeout` for
-        the first output to arrive (or the spool to end), then returns. Unlike `read`, this does not keep collecting
-        for the whole window - it returns as soon as there is something to return, which is what a caller following a
-        running process wants.
+        Long-poll: returns any currently-available output immediately; if there is none, waits up to `timeout` for the
+        first output to arrive (or the spool to end), then returns. Unlike `read`, this does not keep collecting for the
+        whole window - it returns as soon as there is something to return, which is what a caller following a running
+        process wants.
         """
 
         r = self.read_available(cursor, max_bytes=max_bytes)

@@ -58,16 +58,16 @@ DEFAULT_PROCESS_STDIO: ta.Final = ProcessStdio()
 class PtyStdio:
     """
     Run the child under a pseudo-terminal: its stdin/stdout/stderr are the pty slave (a real controlling tty), and the
-    handle exposes the merged master as output plus a writable stdin. Output is a single interleaved stream (fd 1 in
-    the spool) - a tty has no separate stderr. Requires session-leader semantics (SessionMode 'session'), which the
-    manager enforces.
+    handle exposes the merged master as output plus a writable stdin. Output is a single interleaved stream (fd 1 in the
+    spool) - a tty has no separate stderr. Requires session-leader semantics (SessionMode 'session'), which the manager
+    enforces.
     """
 
     rows: int = 24
     cols: int = 80
 
-    # Value for the child's TERM env var. Authoritative for the pty (overrides any inherited host TERM);
-    # only an explicit TERM in the spec's env wins over it. None leaves TERM untouched.
+    # Value for the child's TERM env var. Authoritative for the pty (overrides any inherited host TERM); only an
+    # explicit TERM in the spec's env wins over it. None leaves TERM untouched.
     term: str | None = 'xterm-256color'
 
     def __post_init__(self) -> None:

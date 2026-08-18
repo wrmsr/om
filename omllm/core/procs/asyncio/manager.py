@@ -1,6 +1,6 @@
 """
-The asyncio `ProcessManager`. See `_devdocs/design.md`. Everything asyncio-specific in procs lives in this package;
-the abstract interfaces one level up are what the rest of the codebase depends on.
+The asyncio `ProcessManager`. See `_devdocs/design.md`. Everything asyncio-specific in procs lives in this package; the
+abstract interfaces one level up are what the rest of the codebase depends on.
 """
 import asyncio
 import collections
@@ -128,7 +128,11 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
 
     def __del__(self) -> None:
         if self._state == 'started':
-            log.error('procs: %r deleted without being closed! live processes: %r', self, list(self._processes.values()))  # noqa
+            log.error(
+                'procs: %r deleted without being closed! live processes: %r',
+                self,
+                list(self._processes.values()),
+            )
 
     #
 
@@ -334,8 +338,8 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
 
         pid_id = self._ids.next_id()
 
-        # A Target (e.g. docker exec) rewrites the spec into the local command that reaches the destination; a
-        # Sandbox (bwrap / sandbox-exec) then wraps it in local OS-level confinement.
+        # A Target (e.g. docker exec) rewrites the spec into the local command that reaches the destination; a Sandbox
+        # (bwrap / sandbox-exec) then wraps it in local OS-level confinement.
         if (target := options.get(Target)) is not None:  # type: ignore[type-abstract]
             spec = target.transform_spec(spec)
         if (sandbox := options.get(Sandbox)) is not None:  # type: ignore[type-abstract]
@@ -378,8 +382,8 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
         pty_read_fd: int | None = None
         pty_write_fd: int | None = None
 
-        # PtyStdio.term is authoritative for a pty we create: it overrides any inherited host TERM, and is only
-        # skipped when the caller explicitly set TERM in spec.env.
+        # PtyStdio.term is authoritative for a pty we create: it overrides any inherited host TERM, and is only skipped
+        # when the caller explicitly set TERM in spec.env.
         if (
                 isinstance(stdio, PtyStdio) and
                 stdio.term is not None and

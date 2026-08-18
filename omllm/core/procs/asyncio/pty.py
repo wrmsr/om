@@ -1,7 +1,7 @@
 """
-Pseudo-terminal helpers. A pty is a single bidirectional char device: the child's stdin/stdout/stderr are the slave,
-and the master is both the child's output (read) and its input (write) - so there is no separate stderr, and output
-is one interleaved stream. Winsize changes on the master are delivered to the child's foreground group as SIGWINCH.
+Pseudo-terminal helpers. A pty is a single bidirectional char device: the child's stdin/stdout/stderr are the slave, and
+the master is both the child's output (read) and its input (write) - so there is no separate stderr, and output is one
+interleaved stream. Winsize changes on the master are delivered to the child's foreground group as SIGWINCH.
 """
 import fcntl
 import os

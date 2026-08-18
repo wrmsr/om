@@ -17,8 +17,8 @@ class ProcessState(enum.Enum):
     # Reaped. Terminal. The pid may be recycled by the OS - never signaled again.
     REAPED = enum.auto()
 
-    # Survived SIGKILL past the hard timeout and was unregistered. Terminal for management purposes; if it ever
-    # exits it is reaped by its lingering watcher.
+    # Survived SIGKILL past the hard timeout and was unregistered. Terminal for management purposes; if it ever exits it
+    # is reaped by its lingering watcher.
     ABANDONED = enum.auto()
 
     # Something else reaped our child (SIGCHLD ignored, foreign waitpid, ...). Terminal - never signaled again.

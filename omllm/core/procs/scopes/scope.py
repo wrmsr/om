@@ -217,8 +217,8 @@ class ProcessScope:
             timeout: float | None = None,
     ) -> ProcessRun:
         """
-        Spawns, waits for exit (bounded by `timeout` or a `RunTimeout` option), then fully closes the handle -
-        sweeping the process group per its TerminationPolicy - and returns the collected output.
+        Spawns, waits for exit (bounded by `timeout` or a `RunTimeout` option), then fully closes the handle - sweeping
+        the process group per its TerminationPolicy - and returns the collected output.
         """
 
         proc = await self.spawn(spec, *options)

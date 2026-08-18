@@ -105,8 +105,8 @@ def _docker_daemon_up() -> bool:
 
 
 def _wait_container_ready(cid: str, timeout: float = 20.0) -> bool:
-    # `docker run -d` returns before the container is fully up; exec'ing too early gives a transient
-    # "OCI runtime exec failed". Probe with a trivial exec until it succeeds.
+    # `docker run -d` returns before the container is fully up; exec'ing too early gives a transient "OCI runtime exec
+    # failed". Probe with a trivial exec until it succeeds.
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if subprocess.run(['docker', 'exec', cid, 'true'], capture_output=True, check=False).returncode == 0:  # noqa

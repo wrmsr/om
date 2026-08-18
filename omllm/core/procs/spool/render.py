@@ -1,7 +1,7 @@
 """
 Renderers turn spool records into text for a consumer. They are *stateful* views - one instance per consumer, fed
-successive reads in order - so line continuation and incremental decoding work across chunk boundaries. Which fds
-are stdout/stderr is a convention of the caller (1 and 2 by default).
+successive reads in order - so line continuation and incremental decoding work across chunk boundaries. Which fds are
+stdout/stderr is a convention of the caller (1 and 2 by default).
 """
 import abc
 import datetime

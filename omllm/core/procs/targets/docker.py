@@ -3,12 +3,12 @@ Run a process inside an already-running docker container via `docker exec`. This
 into the local `docker exec ...` command, which the manager then spawns and streams as an ordinary local process.
 
 The spec's `cwd` and `env` are interpreted container-side (`-w` / `-e`); the local docker client itself inherits the
-host environment (it needs PATH / DOCKER_HOST to reach the daemon). A `PtyStdio` spec adds `-t` so the container
-process gets a real tty.
+host environment (it needs PATH / DOCKER_HOST to reach the daemon). A `PtyStdio` spec adds `-t` so the container process
+gets a real tty.
 
 Caveat: terminating the process handle kills the local `docker exec` *client*; depending on the daemon the process
-inside the container may keep running. A reliable remote stop needs the in-container pid (a `docker exec <c> kill`,
-or the future in-container agent) - not yet implemented here.
+inside the container may keep running. A reliable remote stop needs the in-container pid (a `docker exec <c> kill`, or
+the future in-container agent) - not yet implemented here.
 """
 import typing as ta
 
@@ -58,8 +58,8 @@ class DockerExecTarget(Target, lang.Final):
         for k, v in (spec.env or {}).items():
             argv += ['-e', f'{k}={v}']
 
-        # No `--`: `docker exec` stops parsing flags at the container (the first positional), so the
-        # command follows directly. Passing `--` would make docker try to exec `--` itself.
+        # No `--`: `docker exec` stops parsing flags at the container (the first positional), so the command follows
+        # directly. Passing `--` would make docker try to exec `--` itself.
         argv += [self.container, *spec.argv]
 
         # The local docker client runs anywhere and inherits the host env (env=None); the container-side cwd/env were

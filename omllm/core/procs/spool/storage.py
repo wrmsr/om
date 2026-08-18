@@ -1,7 +1,7 @@
 """
-Byte-level storage for one spool: the framed stream is split into a spilled prefix `[0, spilled_end)` living in a
-temp file, an optionally dropped gap `[spilled_end, mem_start)` (only when spilling is disabled or has failed), and
-an in-memory suffix `[mem_start, total)`. Not thread-safe: written by one owner.
+Byte-level storage for one spool: the framed stream is split into a spilled prefix `[0, spilled_end)` living in a temp
+file, an optionally dropped gap `[spilled_end, mem_start)` (only when spilling is disabled or has failed), and an
+in-memory suffix `[mem_start, total)`. Not thread-safe: written by one owner.
 """
 import collections
 import os
@@ -111,8 +111,8 @@ class SpoolStorage:
         n = len(f)
         self._mem_size -= n
 
-        # The spilled prefix must stay contiguous: once a frame is dropped, everything after it is dropped too, and
-        # the file is never appended again (would create a hole).
+        # The spilled prefix must stay contiguous: once a frame is dropped, everything after it is dropped too, and the
+        # file is never appended again (would create a hole).
         if self._spilled_end == self._mem_start and (fd := self._open_spill()) is not None:
             try:
                 mv = memoryview(f)

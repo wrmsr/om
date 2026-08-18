@@ -89,6 +89,6 @@ class SshTarget(Target, lang.Final):
         argv.append(f'{self.user}@{self.host}' if self.user is not None else self.host)
         argv.append(build_remote_command(spec))
 
-        # cwd/env were folded into the remote command; the local ssh client runs anywhere and inherits the host env
-        # (ssh config, agent, ...).
+        # cwd/env were folded into the remote command; the local ssh client runs anywhere and inherits the host env (ssh
+        # config, agent, ...).
         return dc.replace(spec, argv=argv, cwd=None, env=None)

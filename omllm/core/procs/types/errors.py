@@ -61,6 +61,6 @@ class ManagerNotStartedError(ProcsError):
 
 class UnsafeChildSignalDispositionError(ProcsError):
     """
-    SIGCHLD is ignored (or otherwise makes children auto-reap) in this process - pid ownership cannot be
-    guaranteed, so the manager refuses to start.
+    SIGCHLD is ignored (or otherwise makes children auto-reap) in this process - pid ownership cannot be guaranteed, so
+    the manager refuses to start.
     """

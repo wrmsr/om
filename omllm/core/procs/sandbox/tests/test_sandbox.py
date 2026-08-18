@@ -38,9 +38,9 @@ def test_build_bwrap_argv(tmp_path):
             for i in range(len(argv) - 2)
         )
 
-    assert _pair('--ro-bind', str(ro))             # read root bound ro
-    assert _pair('--bind', str(rw))                # write root bound rw
-    assert _pair('--ro-bind', '/usr')              # existing system root
+    assert _pair('--ro-bind', str(ro))       # read root bound ro
+    assert _pair('--bind', str(rw))          # write root bound rw
+    assert _pair('--ro-bind', '/usr')  # existing system root
     assert '/nonexistent-xyz' not in argv          # missing paths skipped (bwrap would error)
     assert ['--chdir', str(ro)] == argv[argv.index('--chdir'):argv.index('--chdir') + 2]
 
@@ -64,9 +64,9 @@ def test_sandbox_exec_profile():
     prof = build_sandbox_exec_profile(pol)
     assert '(deny default)' in prof
     assert '(allow file-read* (subpath "/usr"))' in prof
-    assert '(allow file-read* (subpath "/a b"))' in prof     # spaces handled
+    assert '(allow file-read* (subpath "/a b"))' in prof  # spaces handled
     assert '(allow file* (subpath "/w"))' in prof
-    assert '(allow network*)' not in prof                    # denied
+    assert '(allow network*)' not in prof                 # denied
 
     argv = SandboxExecSandbox(policy=pol).transform_spec(ProcessSpec(['rg', 'x'])).argv
     assert argv[0] == '/usr/bin/sandbox-exec'
@@ -120,8 +120,13 @@ async def test_bwrap_confinement_live(tmp_path):
 
         # no network
         run = await m.root.run(
-            ProcessSpec(['python3', '-c', 'import socket; socket.create_connection(("1.1.1.1", 80), 2)'],
-                        cwd=str(allowed)),
+            ProcessSpec(
+                [
+                    'python3',
+                    '-c',
+                    'import socket; socket.create_connection(("1.1.1.1", 80), 2)',
+                ],
+                cwd=str(allowed)),
             sandbox,
         )
         assert run.returncode != 0

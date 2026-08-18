@@ -1,7 +1,7 @@
 """
 Bubblewrap (`bwrap`) confinement backend for Linux. Renders a `SandboxPolicy` into a `bwrap ... -- <cmd>` invocation
-that binds only the permitted paths, drops network unless allowed, and dies with its parent. Requires unprivileged
-user namespaces to actually run (kernels that disable them will reject the spawn).
+that binds only the permitted paths, drops network unless allowed, and dies with its parent. Requires unprivileged user
+namespaces to actually run (kernels that disable them will reject the spawn).
 """
 import os.path
 import typing as ta

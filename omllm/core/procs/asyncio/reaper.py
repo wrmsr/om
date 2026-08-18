@@ -1,8 +1,8 @@
 """
 Exit observation without reaping: one small daemon thread per child blocks in `waitid(P_PID, pid, WEXITED | WNOWAIT)`
-and hands the result to the loop. The child stays a zombie - its pid and pgid remain unrecyclable and therefore safe
-to signal - until the handle deliberately reaps it. (This is the same shape as 3.14's own threaded child watcher, but
-under our control: it never reaps.) A Linux pidfd + `add_reader` path is a possible thread-free replacement.
+and hands the result to the loop. The child stays a zombie - its pid and pgid remain unrecyclable and therefore safe to
+signal - until the handle deliberately reaps it. (This is the same shape as 3.14's own threaded child watcher, but under
+our control: it never reaps.) A Linux pidfd + `add_reader` path is a possible thread-free replacement.
 """
 import asyncio
 import os

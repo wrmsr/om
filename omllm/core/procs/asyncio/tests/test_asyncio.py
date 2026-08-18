@@ -364,8 +364,8 @@ async def test_scope_close_policy_backstop():
         assert time.monotonic() - t0 < 3.
         assert p.state in (ProcessState.ABANDONED, ProcessState.EXITED, ProcessState.REAPED)
         assert not m.processes
-        # The abandoned process is still ours (unreaped) - closing the manager must not hang, and the watcher reaps
-        # it once the SIGKILL from the abandonment... note: no SIGKILL was sent by the backstop; send one ourselves.
+        # The abandoned process is still ours (unreaped) - closing the manager must not hang, and the watcher reaps it
+        # once the SIGKILL from the abandonment... note: no SIGKILL was sent by the backstop; send one ourselves.
         if p.state.name == 'ABANDONED':
             await p.kill()
         assert await _poll(lambda: p.state.name == 'REAPED')

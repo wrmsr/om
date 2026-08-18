@@ -33,10 +33,10 @@ async def test_pty_controlling_terminal_and_winsize():
         assert run.returncode == 0
         out = RawRenderer().render(run.output.records)
         lines = out.splitlines()
-        assert lines[0].startswith('/dev/')          # stdin is a tty
-        assert lines[1] == '30 100'                   # winsize propagated
-        assert lines[2] == 'TERM=xterm-256color'      # TERM injected
-        assert lines[3].strip() not in ('?', '')      # a real controlling terminal (not '?')
+        assert lines[0].startswith('/dev/')       # stdin is a tty
+        assert lines[1] == '30 100'               # winsize propagated
+        assert lines[2] == 'TERM=xterm-256color'  # TERM injected
+        assert lines[3].strip() not in ('?', '')  # a real controlling terminal (not '?')
         # pty output is a single merged stream tagged as fd 1.
         assert all(r.fd == PTY_OUTPUT_FD for r in run.output.records)
         assert run.process.has_pty
@@ -91,8 +91,8 @@ async def test_resize_requires_pty():
 
 @pytest.mark.asyncs('asyncio')
 async def test_pty_term_overrides_host(monkeypatch):
-    # Regression: PtyStdio.term must be authoritative even when the host already exports TERM (this used to flake -
-    # the injection was skipped whenever the inherited environment had TERM set).
+    # Regression: PtyStdio.term must be authoritative even when the host already exports TERM (this used to flake - the
+    # injection was skipped whenever the inherited environment had TERM set).
     monkeypatch.setenv('TERM', 'xterm')
 
     async with AsyncioProcessManager() as m:

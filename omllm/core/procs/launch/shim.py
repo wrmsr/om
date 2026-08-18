@@ -1,7 +1,7 @@
 """
-Builds the `python -I -S -c <bootstrap> <payload_fd>` launch. The bootstrap loads two marshal'd values from the
-payload fd - the shim source (as text) and the payload dict - `exec`s the source and calls its `main(payload)`. The
-payload rides an unlinked temp file rather than a pipe so it can be arbitrarily large without stalling the parent.
+Builds the `python -I -S -c <bootstrap> <payload_fd>` launch. The bootstrap loads two marshal'd values from the payload
+fd - the shim source (as text) and the payload dict - `exec`s the source and calls its `main(payload)`. The payload
+rides an unlinked temp file rather than a pipe so it can be arbitrarily large without stalling the parent.
 """
 import marshal
 import os
