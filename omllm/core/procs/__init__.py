@@ -128,6 +128,7 @@ with _lang.auto_proxy_init(globals()):
         Tag,
         PassFd,
         Target,
+        Sandbox,
     )
 
     from .types.specs import (  # noqa
@@ -144,6 +145,26 @@ with _lang.auto_proxy_init(globals()):
 
     from .targets.docker import (  # noqa
         DockerExecTarget,
+    )
+
+    from .targets.ssh import (  # noqa
+        SshTarget,
+    )
+
+    from .sandbox.policy import (  # noqa
+        SandboxPolicy,
+    )
+
+    from .sandbox.bwrap import (  # noqa
+        BwrapSandbox,
+    )
+
+    from .sandbox.sandboxexec import (  # noqa
+        SandboxExecSandbox,
+    )
+
+    from .sandbox.factory import (  # noqa
+        platform_sandbox,
     )
 
     ##

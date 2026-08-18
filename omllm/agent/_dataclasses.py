@@ -434,29 +434,33 @@ def _process_dataclass__a4bac4368b32f230c00cb11f9025c48ef8db0801():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('cmd', 'cwd', 'env', 'timeout_s')), EqPlan(fields=('cmd', 'cwd', 'env', 'timeout_s"
-        "')), FrozenPlan(fields=('cmd', 'cwd', 'env', 'timeout_s'), allow_dynamic_dunder_attrs=False), HashPlan(action="
-        "'add', fields=('cmd', 'cwd', 'env', 'timeout_s'), cache=False), InitPlan(fields=(InitPlan.Field(name='cmd', an"
-        "notation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False"
-        ", field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0.coerce'), validate=None, check_type=None), I"
-        "nitPlan.Field(name='cwd', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=Non"
-        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Ini"
-        "tPlan.Field(name='env', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None,"
-        " init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.2.coerce'), validate"
-        "=None, check_type=None), InitPlan.Field(name='timeout_s', annotation=OpRef(name='init.fields.3.annotation'), d"
-        "efault=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldT"
-        "ype.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('cmd',), kw_only_p"
-        "arams=('cwd', 'env', 'timeout_s'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns="
-        "()), ReprPlan(fields=(ReprPlan.Field(name='cmd', kw_only=False, fn=None), ReprPlan.Field(name='cwd', kw_only=T"
-        "rue, fn=None), ReprPlan.Field(name='env', kw_only=True, fn=None), ReprPlan.Field(name='timeout_s', kw_only=Tru"
-        "e, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('cmd', 'cwd', 'env', 'timeout_s', 'options')), EqPlan(fields=('cmd', 'cwd', 'env',"
+        " 'timeout_s', 'options')), FrozenPlan(fields=('cmd', 'cwd', 'env', 'timeout_s', 'options'), allow_dynamic_dund"
+        "er_attrs=False), HashPlan(action='add', fields=('cmd', 'cwd', 'env', 'timeout_s', 'options'), cache=False), In"
+        "itPlan(fields=(InitPlan.Field(name='cmd', annotation=OpRef(name='init.fields.0.annotation'), default=None, def"
+        "ault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0."
+        "coerce'), validate=None, check_type=None), InitPlan.Field(name='cwd', annotation=OpRef(name='init.fields.1.ann"
+        "otation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
+        "e=None, validate=None, check_type=None), InitPlan.Field(name='env', annotation=OpRef(name='init.fields.2.annot"
+        "ation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce="
+        "OpRef(name='init.fields.2.coerce'), validate=None, check_type=None), InitPlan.Field(name='timeout_s', annotati"
+        "on=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, "
+        "init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPl"
+        "an.Field(name='options', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4."
+        "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='"
+        "init.fields.4.coerce'), validate=None, check_type=None)), self_param='self', std_params=('cmd',), kw_only_para"
+        "ms=('cwd', 'env', 'timeout_s', 'options'), frozen=True, slots=False, post_init_params=None, init_fns=(), valid"
+        "ate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='cmd', kw_only=False, fn=None), ReprPlan.Field(name='cwd', k"
+        "w_only=True, fn=None), ReprPlan.Field(name='env', kw_only=True, fn=None), ReprPlan.Field(name='timeout_s', kw_"
+        "only=True, fn=None), ReprPlan.Field(name='options', kw_only=True, fn=None)), id=False, terse=False, default_fn"
+        "=None)))"
     ),
-    plan_repr_sha1='5986a6c3cc1a54f5883d47dbf330fe31db27a1d1',
+    plan_repr_sha1='f49a8601b6e9315cbff7ef2252311f1a36778cc4',
     cls_names=(
         ('omllm.agent.exec.ops', 'ExecParams'),
     ),
 )
-def _process_dataclass__5986a6c3cc1a54f5883d47dbf330fe31db27a1d1():
+def _process_dataclass__f49a8601b6e9315cbff7ef2252311f1a36778cc4():
     def _process_dataclass(
         *,
         __class__,
@@ -467,6 +471,9 @@ def _process_dataclass__5986a6c3cc1a54f5883d47dbf330fe31db27a1d1():
         __dataclass__init__fields__2__coerce,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__coerce,
+        __dataclass__init__fields__4__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -481,6 +488,7 @@ def _process_dataclass__5986a6c3cc1a54f5883d47dbf330fe31db27a1d1():
                 cwd=self.cwd,
                 env=self.env,
                 timeout_s=self.timeout_s,
+                options=self.options,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -494,7 +502,8 @@ def _process_dataclass__5986a6c3cc1a54f5883d47dbf330fe31db27a1d1():
                 self.cmd == other.cmd and
                 self.cwd == other.cwd and
                 self.env == other.env and
-                self.timeout_s == other.timeout_s
+                self.timeout_s == other.timeout_s and
+                self.options == other.options
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -504,6 +513,7 @@ def _process_dataclass__5986a6c3cc1a54f5883d47dbf330fe31db27a1d1():
             'cwd',
             'env',
             'timeout_s',
+            'options',
         }
 
         def __setattr__(self, name, value):
@@ -532,6 +542,7 @@ def _process_dataclass__5986a6c3cc1a54f5883d47dbf330fe31db27a1d1():
                 self.cwd,
                 self.env,
                 self.timeout_s,
+                self.options,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -543,13 +554,16 @@ def _process_dataclass__5986a6c3cc1a54f5883d47dbf330fe31db27a1d1():
             cwd: __dataclass__init__fields__1__annotation,
             env: __dataclass__init__fields__2__annotation,
             timeout_s: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            options: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
         ) -> __dataclass__None:
             cmd = __dataclass__init__fields__0__coerce(cmd)
             env = __dataclass__init__fields__2__coerce(env)
+            options = __dataclass__init__fields__4__coerce(options)
             __dataclass__object_setattr(self, 'cmd', cmd)
             __dataclass__object_setattr(self, 'cwd', cwd)
             __dataclass__object_setattr(self, 'env', env)
             __dataclass__object_setattr(self, 'timeout_s', timeout_s)
+            __dataclass__object_setattr(self, 'options', options)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -560,6 +574,7 @@ def _process_dataclass__5986a6c3cc1a54f5883d47dbf330fe31db27a1d1():
             parts.append(f"cwd={self.cwd!r}")
             parts.append(f"env={self.env!r}")
             parts.append(f"timeout_s={self.timeout_s!r}")
+            parts.append(f"options={self.options!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

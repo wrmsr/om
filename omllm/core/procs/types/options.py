@@ -174,6 +174,21 @@ class Target(tv.UniqueTypedValue, ProcOption, lang.Abstract):
 ##
 
 
+class Sandbox(tv.UniqueTypedValue, ProcOption, lang.Abstract):
+    """
+    Local OS-level confinement (filesystem, network) applied by wrapping the command in a sandbox launcher
+    (bubblewrap on Linux, sandbox-exec on macOS). Like Target it rewrites the spec into the local command to run;
+    unlike Target the process is still local, just confined. Applied after any Target.
+    """
+
+    @abc.abstractmethod
+    def transform_spec(self, spec: ProcessSpec) -> ProcessSpec:
+        raise NotImplementedError
+
+
+##
+
+
 DEFAULT_TERMINATION_POLICY: ta.Final = TerminationPolicy()
 DEFAULT_SPOOL_POLICY: ta.Final = SpoolPolicy()
 DEFAULT_SESSION_MODE: ta.Final = SessionMode()

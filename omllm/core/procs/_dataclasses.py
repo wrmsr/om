@@ -451,6 +451,433 @@ def _process_dataclass__a2b043166b6926b743f271a348e9635f0e81d563():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('policy', 'bwrap')), EqPlan(fields=('policy', 'bwrap')), FrozenPlan(fields=('polic"
+        "y', 'bwrap'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('policy', 'bwrap'), cache=Fals"
+        "e), InitPlan(fields=(InitPlan.Field(name='policy', annotation=OpRef(name='init.fields.0.annotation'), default="
+        "None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
+        "ne, check_type=None), InitPlan.Field(name='bwrap', annotation=OpRef(name='init.fields.1.annotation'), default="
+        "OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INS"
+        "TANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('polic"
+        "y', 'bwrap'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields="
+        "(ReprPlan.Field(name='policy', kw_only=True, fn=None), ReprPlan.Field(name='bwrap', kw_only=True, fn=None)), i"
+        "d=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='c6d39796f42bdf9e5bbe2d0b4ba473803660479e',
+    cls_names=(
+        ('omllm.core.procs.sandbox.bwrap', 'BwrapSandbox'),
+    ),
+)
+def _process_dataclass__c6d39796f42bdf9e5bbe2d0b4ba473803660479e():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                policy=self.policy,
+                bwrap=self.bwrap,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.policy == other.policy and
+                self.bwrap == other.bwrap
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'policy',
+            'bwrap',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.policy,
+                self.bwrap,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            policy: __dataclass__init__fields__0__annotation,
+            bwrap: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'policy', policy)
+            __dataclass__object_setattr(self, 'bwrap', bwrap)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.policy)) is not None:
+                parts.append(f"policy={s}")
+            if (s := __dataclass__repr__default_fn(self.bwrap)) is not None:
+                parts.append(f"bwrap={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('read_roots', 'write_roots', 'system_read_roots', 'allow_network', 'allow_dev', 'a"
+        "llow_proc', 'tmpfs_tmp')), EqPlan(fields=('read_roots', 'write_roots', 'system_read_roots', 'allow_network', '"
+        "allow_dev', 'allow_proc', 'tmpfs_tmp')), FrozenPlan(fields=('read_roots', 'write_roots', 'system_read_roots', "
+        "'allow_network', 'allow_dev', 'allow_proc', 'tmpfs_tmp'), allow_dynamic_dunder_attrs=False), HashPlan(action='"
+        "add', fields=('read_roots', 'write_roots', 'system_read_roots', 'allow_network', 'allow_dev', 'allow_proc', 't"
+        "mpfs_tmp'), cache=False), InitPlan(fields=(InitPlan.Field(name='read_roots', annotation=OpRef(name='init.field"
+        "s.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False"
+        ", field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0.coerce'), validate=None, check_type=None), I"
+        "nitPlan.Field(name='write_roots', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init."
+        "fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpR"
+        "ef(name='init.fields.1.coerce'), validate=None, check_type=None), InitPlan.Field(name='system_read_roots', ann"
+        "otation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=N"
+        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.2.coerce'), vali"
+        "date=None, check_type=None), InitPlan.Field(name='allow_network', annotation=OpRef(name='init.fields.3.annotat"
+        "ion'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_typ"
+        "e=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='allow_dev', annotatio"
+        "n=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, i"
+        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
+        "n.Field(name='allow_proc', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields."
+        "5.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
+        "date=None, check_type=None), InitPlan.Field(name='tmpfs_tmp', annotation=OpRef(name='init.fields.6.annotation'"
+        "), default=OpRef(name='init.fields.6.default'), default_factory=None, init=True, override=False, field_type=Fi"
+        "eldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_par"
+        "ams=('read_roots', 'write_roots', 'system_read_roots', 'allow_network', 'allow_dev', 'allow_proc', 'tmpfs_tmp'"
+        "), frozen=True, slots=False, post_init_params=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Fie"
+        "ld(name='read_roots', kw_only=True, fn=None), ReprPlan.Field(name='write_roots', kw_only=True, fn=None), ReprP"
+        "lan.Field(name='system_read_roots', kw_only=True, fn=None), ReprPlan.Field(name='allow_network', kw_only=True,"
+        " fn=None), ReprPlan.Field(name='allow_dev', kw_only=True, fn=None), ReprPlan.Field(name='allow_proc', kw_only="
+        "True, fn=None), ReprPlan.Field(name='tmpfs_tmp', kw_only=True, fn=None)), id=False, terse=False, default_fn=Op"
+        "Ref(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='0e012a6897228640134f468f15aaa62af65d895c',
+    cls_names=(
+        ('omllm.core.procs.sandbox.policy', 'SandboxPolicy'),
+    ),
+)
+def _process_dataclass__0e012a6897228640134f468f15aaa62af65d895c():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__coerce,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__coerce,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__coerce,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
+        __dataclass__init__fields__6__annotation,
+        __dataclass__init__fields__6__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                read_roots=self.read_roots,
+                write_roots=self.write_roots,
+                system_read_roots=self.system_read_roots,
+                allow_network=self.allow_network,
+                allow_dev=self.allow_dev,
+                allow_proc=self.allow_proc,
+                tmpfs_tmp=self.tmpfs_tmp,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.read_roots == other.read_roots and
+                self.write_roots == other.write_roots and
+                self.system_read_roots == other.system_read_roots and
+                self.allow_network == other.allow_network and
+                self.allow_dev == other.allow_dev and
+                self.allow_proc == other.allow_proc and
+                self.tmpfs_tmp == other.tmpfs_tmp
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'read_roots',
+            'write_roots',
+            'system_read_roots',
+            'allow_network',
+            'allow_dev',
+            'allow_proc',
+            'tmpfs_tmp',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.read_roots,
+                self.write_roots,
+                self.system_read_roots,
+                self.allow_network,
+                self.allow_dev,
+                self.allow_proc,
+                self.tmpfs_tmp,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            read_roots: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            write_roots: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            system_read_roots: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            allow_network: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            allow_dev: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            allow_proc: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            tmpfs_tmp: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+        ) -> __dataclass__None:
+            read_roots = __dataclass__init__fields__0__coerce(read_roots)
+            write_roots = __dataclass__init__fields__1__coerce(write_roots)
+            system_read_roots = __dataclass__init__fields__2__coerce(system_read_roots)
+            __dataclass__object_setattr(self, 'read_roots', read_roots)
+            __dataclass__object_setattr(self, 'write_roots', write_roots)
+            __dataclass__object_setattr(self, 'system_read_roots', system_read_roots)
+            __dataclass__object_setattr(self, 'allow_network', allow_network)
+            __dataclass__object_setattr(self, 'allow_dev', allow_dev)
+            __dataclass__object_setattr(self, 'allow_proc', allow_proc)
+            __dataclass__object_setattr(self, 'tmpfs_tmp', tmpfs_tmp)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.read_roots)) is not None:
+                parts.append(f"read_roots={s}")
+            if (s := __dataclass__repr__default_fn(self.write_roots)) is not None:
+                parts.append(f"write_roots={s}")
+            if (s := __dataclass__repr__default_fn(self.system_read_roots)) is not None:
+                parts.append(f"system_read_roots={s}")
+            if (s := __dataclass__repr__default_fn(self.allow_network)) is not None:
+                parts.append(f"allow_network={s}")
+            if (s := __dataclass__repr__default_fn(self.allow_dev)) is not None:
+                parts.append(f"allow_dev={s}")
+            if (s := __dataclass__repr__default_fn(self.allow_proc)) is not None:
+                parts.append(f"allow_proc={s}")
+            if (s := __dataclass__repr__default_fn(self.tmpfs_tmp)) is not None:
+                parts.append(f"tmpfs_tmp={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('policy', 'sandbox_exec')), EqPlan(fields=('policy', 'sandbox_exec')), FrozenPlan("
+        "fields=('policy', 'sandbox_exec'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('policy',"
+        " 'sandbox_exec'), cache=False), InitPlan(fields=(InitPlan.Field(name='policy', annotation=OpRef(name='init.fie"
+        "lds.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTAN"
+        "CE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='sandbox_exec', annotation=OpRef(name='i"
+        "nit.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, overr"
+        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', st"
+        "d_params=(), kw_only_params=('policy', 'sandbox_exec'), frozen=True, slots=False, post_init_params=None, init_"
+        "fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='policy', kw_only=True, fn=None), ReprPlan.Fiel"
+        "d(name='sandbox_exec', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'"
+        "))))"
+    ),
+    plan_repr_sha1='9a5f5c90daad24f9b293093f3d6e1575328b393c',
+    cls_names=(
+        ('omllm.core.procs.sandbox.sandboxexec', 'SandboxExecSandbox'),
+    ),
+)
+def _process_dataclass__9a5f5c90daad24f9b293093f3d6e1575328b393c():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                policy=self.policy,
+                sandbox_exec=self.sandbox_exec,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.policy == other.policy and
+                self.sandbox_exec == other.sandbox_exec
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'policy',
+            'sandbox_exec',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.policy,
+                self.sandbox_exec,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            policy: __dataclass__init__fields__0__annotation,
+            sandbox_exec: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'policy', policy)
+            __dataclass__object_setattr(self, 'sandbox_exec', sandbox_exec)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.policy)) is not None:
+                parts.append(f"policy={s}")
+            if (s := __dataclass__repr__default_fn(self.sandbox_exec)) is not None:
+                parts.append(f"sandbox_exec={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('overall_timeout_s',)), EqPlan(fields=('overall_timeout_s',)), FrozenPlan(fields=("
         "'overall_timeout_s',), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('overall_timeout_s',)"
         ", cache=False), InitPlan(fields=(InitPlan.Field(name='overall_timeout_s', annotation=OpRef(name='init.fields.0"
@@ -1237,6 +1664,219 @@ def _process_dataclass__bb15c23275aaa6b4e82483ce7a8c6e10924b283b():
                 parts.append(f"extra_flags={s}")
             if (s := __dataclass__repr__default_fn(self.docker)) is not None:
                 parts.append(f"docker={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('host', 'user', 'port', 'identity_file', 'control_path', 'control_persist', 'no_ho"
+        "st_key_checking', 'extra_options', 'ssh')), EqPlan(fields=('host', 'user', 'port', 'identity_file', 'control_p"
+        "ath', 'control_persist', 'no_host_key_checking', 'extra_options', 'ssh')), FrozenPlan(fields=('host', 'user', "
+        "'port', 'identity_file', 'control_path', 'control_persist', 'no_host_key_checking', 'extra_options', 'ssh'), a"
+        "llow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('host', 'user', 'port', 'identity_file', 'con"
+        "trol_path', 'control_persist', 'no_host_key_checking', 'extra_options', 'ssh'), cache=False), InitPlan(fields="
+        "(InitPlan.Field(name='host', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory="
+        "None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0.coerce'), val"
+        "idate=None, check_type=None), InitPlan.Field(name='user', annotation=OpRef(name='init.fields.1.annotation'), d"
+        "efault=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldT"
+        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='port', annotation=OpRef(name="
+        "'init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, ove"
+        "rride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name="
+        "'identity_file', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'"
+        "), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None,"
+        " check_type=None), InitPlan.Field(name='control_path', annotation=OpRef(name='init.fields.4.annotation'), defa"
+        "ult=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_type=FieldType"
+        ".INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='control_persist', annotation=OpR"
+        "ef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factory=None, init=T"
+        "rue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fie"
+        "ld(name='no_host_key_checking', annotation=OpRef(name='init.fields.6.annotation'), default=OpRef(name='init.fi"
+        "elds.6.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
+        " validate=None, check_type=None), InitPlan.Field(name='extra_options', annotation=OpRef(name='init.fields.7.an"
+        "notation'), default=OpRef(name='init.fields.7.default'), default_factory=None, init=True, override=False, fiel"
+        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ssh', annotation"
+        "=OpRef(name='init.fields.8.annotation'), default=OpRef(name='init.fields.8.default'), default_factory=None, in"
+        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_pa"
+        "ram='self', std_params=(), kw_only_params=('host', 'user', 'port', 'identity_file', 'control_path', 'control_p"
+        "ersist', 'no_host_key_checking', 'extra_options', 'ssh'), frozen=True, slots=False, post_init_params=None, ini"
+        "t_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='host', kw_only=True, fn=None), ReprPlan.Fiel"
+        "d(name='user', kw_only=True, fn=None), ReprPlan.Field(name='port', kw_only=True, fn=None), ReprPlan.Field(name"
+        "='identity_file', kw_only=True, fn=None), ReprPlan.Field(name='control_path', kw_only=True, fn=None), ReprPlan"
+        ".Field(name='control_persist', kw_only=True, fn=None), ReprPlan.Field(name='no_host_key_checking', kw_only=Tru"
+        "e, fn=None), ReprPlan.Field(name='extra_options', kw_only=True, fn=None), ReprPlan.Field(name='ssh', kw_only=T"
+        "rue, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='ecf30ed9a10c30376827f71a44ea23d04e81ebac',
+    cls_names=(
+        ('omllm.core.procs.targets.ssh', 'SshTarget'),
+    ),
+)
+def _process_dataclass__ecf30ed9a10c30376827f71a44ea23d04e81ebac():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__coerce,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
+        __dataclass__init__fields__6__annotation,
+        __dataclass__init__fields__6__default,
+        __dataclass__init__fields__7__annotation,
+        __dataclass__init__fields__7__default,
+        __dataclass__init__fields__8__annotation,
+        __dataclass__init__fields__8__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                host=self.host,
+                user=self.user,
+                port=self.port,
+                identity_file=self.identity_file,
+                control_path=self.control_path,
+                control_persist=self.control_persist,
+                no_host_key_checking=self.no_host_key_checking,
+                extra_options=self.extra_options,
+                ssh=self.ssh,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.host == other.host and
+                self.user == other.user and
+                self.port == other.port and
+                self.identity_file == other.identity_file and
+                self.control_path == other.control_path and
+                self.control_persist == other.control_persist and
+                self.no_host_key_checking == other.no_host_key_checking and
+                self.extra_options == other.extra_options and
+                self.ssh == other.ssh
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'host',
+            'user',
+            'port',
+            'identity_file',
+            'control_path',
+            'control_persist',
+            'no_host_key_checking',
+            'extra_options',
+            'ssh',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.host,
+                self.user,
+                self.port,
+                self.identity_file,
+                self.control_path,
+                self.control_persist,
+                self.no_host_key_checking,
+                self.extra_options,
+                self.ssh,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            host: __dataclass__init__fields__0__annotation,
+            user: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            port: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            identity_file: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            control_path: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            control_persist: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            no_host_key_checking: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            extra_options: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
+            ssh: __dataclass__init__fields__8__annotation = __dataclass__init__fields__8__default,
+        ) -> __dataclass__None:
+            host = __dataclass__init__fields__0__coerce(host)
+            __dataclass__object_setattr(self, 'host', host)
+            __dataclass__object_setattr(self, 'user', user)
+            __dataclass__object_setattr(self, 'port', port)
+            __dataclass__object_setattr(self, 'identity_file', identity_file)
+            __dataclass__object_setattr(self, 'control_path', control_path)
+            __dataclass__object_setattr(self, 'control_persist', control_persist)
+            __dataclass__object_setattr(self, 'no_host_key_checking', no_host_key_checking)
+            __dataclass__object_setattr(self, 'extra_options', extra_options)
+            __dataclass__object_setattr(self, 'ssh', ssh)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.host)) is not None:
+                parts.append(f"host={s}")
+            if (s := __dataclass__repr__default_fn(self.user)) is not None:
+                parts.append(f"user={s}")
+            if (s := __dataclass__repr__default_fn(self.port)) is not None:
+                parts.append(f"port={s}")
+            if (s := __dataclass__repr__default_fn(self.identity_file)) is not None:
+                parts.append(f"identity_file={s}")
+            if (s := __dataclass__repr__default_fn(self.control_path)) is not None:
+                parts.append(f"control_path={s}")
+            if (s := __dataclass__repr__default_fn(self.control_persist)) is not None:
+                parts.append(f"control_persist={s}")
+            if (s := __dataclass__repr__default_fn(self.no_host_key_checking)) is not None:
+                parts.append(f"no_host_key_checking={s}")
+            if (s := __dataclass__repr__default_fn(self.extra_options)) is not None:
+                parts.append(f"extra_options={s}")
+            if (s := __dataclass__repr__default_fn(self.ssh)) is not None:
+                parts.append(f"ssh={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

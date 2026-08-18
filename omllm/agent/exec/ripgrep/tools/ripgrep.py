@@ -5,6 +5,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
+from .....core import procs
 from ....fs.permissions import FsPermissionTarget
 from ....permissions.types import PermissionDecider
 from ....tools.classes import ToolClass
@@ -51,11 +52,13 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
             *,
             permissions: PermissionDecider,
             exec: ExecOps,  # noqa
+            sandbox: bool = False,
     ) -> None:
         super().__init__()
 
         self._permissions = permissions
         self._exec = exec
+        self._sandbox = sandbox
 
     async def execute(self, ctx: ToolContext, params: RipgrepToolParams) -> str:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
@@ -81,11 +84,17 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
 
         await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
 
+        options: tuple[procs.ProcOption, ...] = ()
+        if self._sandbox:
+            # ripgrep only needs to read the search tree - confine it to the cwd, no writes, no network.
+            options = (procs.platform_sandbox(procs.SandboxPolicy(read_roots=[cwd])),)
+
         result = await self._exec.exec(scope, ExecParams(
             cmd,
             cwd=cwd,
             env=dict(os.environ),
             timeout_s=params.timeout_s,
+            options=options,
         ))
 
         return format_exec_output(result, timeout_s=params.timeout_s)

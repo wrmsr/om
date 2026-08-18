@@ -43,6 +43,7 @@ from ..types.ids import CountingProcessIdGenerator
 from ..types.ids import ProcessId
 from ..types.ids import ProcessIdGenerator
 from ..types.options import ProcOptions
+from ..types.options import Sandbox
 from ..types.options import Target
 from ..types.options import get_session_mode
 from ..types.options import get_spool_policy
@@ -333,9 +334,12 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
 
         pid_id = self._ids.next_id()
 
-        # A Target (e.g. docker exec) rewrites the spec into the local command that reaches the destination.
+        # A Target (e.g. docker exec) rewrites the spec into the local command that reaches the destination; a
+        # Sandbox (bwrap / sandbox-exec) then wraps it in local OS-level confinement.
         if (target := options.get(Target)) is not None:  # type: ignore[type-abstract]
             spec = target.transform_spec(spec)
+        if (sandbox := options.get(Sandbox)) is not None:  # type: ignore[type-abstract]
+            spec = sandbox.transform_spec(spec)
 
         stdio = spec.stdio
         spool_policy = get_spool_policy(options)

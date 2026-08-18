@@ -31,6 +31,9 @@ class ExecParams:
 
     timeout_s: float | None = None
 
+    # Extra process options (Sandbox, Target, ...) applied to the spawn.
+    options: ta.Sequence[procs.ProcOption] = dc.xfield(default=(), coerce=tuple)
+
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
@@ -65,7 +68,7 @@ class ProcsExecOps(ExecOps):
             env=dict(params.env),
         )
 
-        proc = await scope.spawn(spec)
+        proc = await scope.spawn(spec, *params.options)
 
         timed_out = False
         try:

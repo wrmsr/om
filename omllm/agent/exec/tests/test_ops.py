@@ -64,3 +64,32 @@ def test_format_exec_output():
     assert len(out) < 1500
 
     assert format_exec_output(ExecResult(rc=0)) == '(no output)'
+
+
+##
+
+
+import dataclasses as _dc  # noqa: E402
+
+from ....core import procs as _procs  # noqa: E402
+
+
+@_dc.dataclass(frozen=True)
+class _EchoSandbox(_procs.Sandbox):
+    def transform_spec(self, spec):
+        # observably wraps: echoes a marker to stderr, then execs the original command.
+        return _dc.replace(spec, argv=['sh', '-c', 'echo SANDBOXED >&2; exec "$@"', 'sh', *spec.argv])
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_procs_exec_ops_applies_options(tmp_path):
+    async with procs.AsyncioProcessManager() as m:
+        r = await ProcsExecOps().exec(m.root, ExecParams(
+            ['echo', 'hi'],
+            cwd=str(tmp_path),
+            env={'PATH': '/usr/bin:/bin'},
+            options=(_EchoSandbox(),),
+        ))
+        assert r.rc == 0
+        assert r.stdout == b'hi\n'
+        assert r.stderr == b'SANDBOXED\n'
