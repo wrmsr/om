@@ -6,6 +6,7 @@ from omcore import inject as inj
 
 from ... import agent as agn
 from ... import harness as har
+from ...core import procs
 from ...core import ui
 from .agent import AgentEventSubscribers
 from .agent import bind_agent
@@ -62,6 +63,8 @@ async def _a_main() -> None:
         session = await injector[har.Session]
         input_manager = await injector[InputManager]
 
+        proc_scope = (await injector[procs.ProcessManager]).root if config.exec else None
+
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
 
@@ -77,6 +80,7 @@ async def _a_main() -> None:
                 ),
                 tool_env=agn.ToolEnvironment(
                     cwd=cwd,
+                    procs=proc_scope,
                 ),
             ),
         )

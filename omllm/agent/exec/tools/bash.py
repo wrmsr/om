@@ -17,6 +17,7 @@ from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ..ops import ExecOps
 from ..ops import ExecParams
+from ..ops import format_exec_output
 from ..permissions import ExecPermissionTarget
 
 
@@ -59,6 +60,8 @@ class BashTool(ToolClass[BashToolParams]):
     async def execute(self, ctx: ToolContext, params: BashToolParams) -> str:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
+        if (scope := ctx.env.procs) is None:
+            raise ValueError('No process scope configured')
 
         cmd = [
             check.not_none(shutil.which('bash')),
@@ -68,10 +71,11 @@ class BashTool(ToolClass[BashToolParams]):
 
         await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
 
-        result = await self._exec.exec(ExecParams(
+        result = await self._exec.exec(scope, ExecParams(
             cmd,
             cwd=cwd,
             env=dict(os.environ),
+            timeout_s=params.timeout_s,
         ))
 
-        return check.not_none(result.stdout).decode('utf-8')
+        return format_exec_output(result, timeout_s=params.timeout_s)

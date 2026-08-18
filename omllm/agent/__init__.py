@@ -51,7 +51,9 @@ with _lang.auto_proxy_init(globals()):
         ExecResult,
         ExecOps,
 
-        LocalExecOps,
+        ProcsExecOps,
+
+        format_exec_output,
     )
 
     ##
