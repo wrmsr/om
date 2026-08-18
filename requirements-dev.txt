@@ -95,7 +95,7 @@ docutils==0.23
 markdown-it-py==4.2.0
 mdit-py-plugins==0.6.1
 
-pygments==2.20.0
+pygments==2.21.0
 
 mwparserfromhell==0.7.2  # @om-venv !14t !15t
 wikitextparser==1.0.3  # !! GPL
@@ -122,11 +122,11 @@ hf-xet==1.6.0
 
 datasets==5.0.1  # @om-venv !15 !15t  # !! includes arrow and pandas and shit
 
-transformers==5.11.0  # @om-venv !14t !14dt !15t
-sentence-transformers==5.6.0  # @om-venv !14t !14dt !15 !15t
+transformers==5.15.0  # @om-venv !14t !14dt !15t
+sentence-transformers==6.0.0  # @om-venv !14t !14dt !15 !15t
 
 sentencepiece==0.2.2
-tiktoken==0.13.0  # @om-venv !15 !15t
+tiktoken==0.14.0  # @om-venv !15 !15t
 tokenizers==0.22.2  # @om-venv !14t !14dt !15t
 
 llama-cpp-python; sys_platform == "darwin"

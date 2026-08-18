@@ -37,7 +37,7 @@ class Project(ProjectBase):
             'markdown-it-py ~= 4.2',
             'mdit-py-plugins ~= 0.6',
 
-            'pygments ~= 2.20',
+            'pygments ~= 2.21',
         ],
 
         'mypy': [

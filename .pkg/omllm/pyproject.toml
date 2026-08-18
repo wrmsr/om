@@ -36,7 +36,7 @@ all = [
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
     'tinygrad ~= 0.13',
     'torch ~= 2.13',
-    'transformers ~= 5.11',
+    'transformers ~= 5.15',
 ]
 omdev = [
     'omdev == 0.0.46',
@@ -48,7 +48,7 @@ interop = [
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
     'tinygrad ~= 0.13',
     'torch ~= 2.13',
-    'transformers ~= 5.11',
+    'transformers ~= 5.15',
 ]
 
 [project.entry-points]

@@ -37,7 +37,7 @@ all = [
     'docutils ~= 0.23',
     'markdown-it-py ~= 4.2',
     'mdit-py-plugins ~= 0.6',
-    'pygments ~= 2.20',
+    'pygments ~= 2.21',
     'mypy ~= 2.3',
     'pytesseract ~= 0.3',
     'rapidocr-onnxruntime ~= 1.4',
@@ -66,7 +66,7 @@ doc = [
     'docutils ~= 0.23',
     'markdown-it-py ~= 4.2',
     'mdit-py-plugins ~= 0.6',
-    'pygments ~= 2.20',
+    'pygments ~= 2.21',
 ]
 mypy = [
     'mypy ~= 2.3',
