@@ -261,9 +261,7 @@ class AsyncioPipelineHttpServer(lang.Final):
                             await driver.close()
                         task.cancel()
                     await asyncio.gather(*pending, return_exceptions=True)
-                    raise PipelineHttpServerDrainTimeoutError(
-                        'Asyncio HTTP connections did not drain before timeout',
-                    )
+                    raise PipelineHttpServerDrainTimeoutError('Asyncio HTTP connections did not drain before timeout')
         finally:
             self._connections.clear()
         return True

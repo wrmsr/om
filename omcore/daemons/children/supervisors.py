@@ -32,9 +32,7 @@ class ChildSupervisorError(RuntimeError):
 
 class ChildProcessExitedError(ChildSupervisorError):
     def __init__(self, result: ChildProcessResult) -> None:
-        super().__init__(
-            f'Child process {result.pid} exited unexpectedly with status {result.returncode}',
-        )
+        super().__init__(f'Child process {result.pid} exited unexpectedly with status {result.returncode}')
 
         self._result = result
 

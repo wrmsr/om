@@ -154,9 +154,7 @@ class DaemonStopper(lang.Final):
         if initial.pid is None or current.pid is None:
             raise DaemonStopIdentityError('Daemon pidfile does not contain a PID')
         if initial.pid != pinned_pid or current.pid != pinned_pid:
-            raise DaemonStopIdentityError(
-                f'Pidfile owner {pinned_pid} does not match recorded daemon PID',
-            )
+            raise DaemonStopIdentityError(f'Pidfile owner {pinned_pid} does not match recorded daemon PID')
         if initial.info is not None and current.info is None:
             raise DaemonStopIdentityError('Structured daemon identity disappeared before signaling')
 
@@ -202,9 +200,7 @@ class DaemonStopper(lang.Final):
             pidfd_open = getattr(os, 'pidfd_open', None)
             pidfd_send_signal = getattr(signal, 'pidfd_send_signal', None)
             if pidfd_open is None or pidfd_send_signal is None:
-                raise DaemonStopUnavailableError(
-                    'Verified Linux stop requires pidfd_open and pidfd_send_signal',
-                )
+                raise DaemonStopUnavailableError('Verified Linux stop requires pidfd_open and pidfd_send_signal')
 
             try:
                 pidfd = pidfd_open(pinned_pid)

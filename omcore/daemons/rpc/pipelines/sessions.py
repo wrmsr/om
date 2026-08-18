@@ -24,6 +24,9 @@ from .messages import RpcWireResult
 ##
 
 
+_RpcClientSessionState: ta.TypeAlias = ta.Literal['new', 'hello', 'ready', 'request', 'done']
+
+
 class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
     """Implement one handshaken, single-request client conversation."""
 
@@ -31,7 +34,7 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
         super().__init__()
 
         self._protocol_version = protocol_version
-        self._state: ta.Literal['new', 'hello', 'ready', 'request', 'done'] = 'new'
+        self._state: _RpcClientSessionState = 'new'
 
     def _fail(self, ctx: IoPipelineHandlerContext, exc: BaseException) -> None:
         if self._state == 'done':
@@ -112,6 +115,9 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
         ctx.feed_in(msg)
 
 
+_RpcServerSessionState: ta.TypeAlias = ta.Literal['new', 'hello', 'ready', 'dispatch', 'response', 'done']
+
+
 class RpcServerSessionIoPipelineHandler(IoPipelineHandler):
     """Implement one handshaken, single-request server conversation."""
 
@@ -125,7 +131,7 @@ class RpcServerSessionIoPipelineHandler(IoPipelineHandler):
 
         self._protocol_version = protocol_version
         self._instance_id = instance_id
-        self._state: ta.Literal['new', 'hello', 'ready', 'dispatch', 'response', 'done'] = 'new'
+        self._state: _RpcServerSessionState = 'new'
 
     def _state_is(self, state: str) -> bool:
         return self._state == state
