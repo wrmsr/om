@@ -16,6 +16,7 @@ from ..runtime.logs import SystevisorLogChunkEvent
 from ..runtime.logs import SystevisorLogManager
 from ..runtime.logs import SystevisorLogStream
 from ..runtime.logs import SystevisorLogSubscription
+from ..scheduling.runtime import SystevisorScheduler
 from .configs import SystevisorConfigController
 from .jsoncodec import SystevisorJsonCodec
 from .operations import SystevisorOperationStatus
@@ -70,7 +71,7 @@ class SystevisorApiStreamResponse:
     headers: ta.Mapping[str, str] = dc.field(default_factory=dict)
 
 
-SystevisorApiResult = ta.Union[SystevisorApiResponse, SystevisorApiStreamResponse]
+SystevisorApiResult = ta.Union[SystevisorApiResponse, SystevisorApiStreamResponse]  # om-amalg-typing-no-move
 
 
 class SystevisorApiError(Exception):
@@ -212,12 +213,14 @@ class SystevisorApiApplication:
             event_bus: SystevisorEventBus,
             log_manager: SystevisorLogManager,
             json_codec: SystevisorJsonCodec,
+            scheduler: SystevisorScheduler,
     ) -> None:
         self._control = control
         self._config_controller = config_controller
         self._event_bus = event_bus
         self._log_manager = log_manager
         self._json_codec = json_codec
+        self._scheduler = scheduler
 
     def _json_response(self, value: ta.Any, status: int = 200) -> SystevisorApiResponse:
         return SystevisorApiResponse(status=status, body=self._json_codec.dumps(value))
@@ -340,6 +343,8 @@ class SystevisorApiApplication:
         if method == 'GET' and segments == ('v1', 'collections'):
             state = self._control.coordinator.engine.state
             return self._json_response({'collections': tuple(state.collections.values())})
+        if method == 'GET' and segments == ('v1', 'schedules'):
+            return self._json_response({'schedules': tuple(self._scheduler.states.values())})
         if method == 'GET' and segments == ('v1', 'operations'):
             operations = self._control.operations.list()
             requested_statuses = frozenset(query.get('status', ()))

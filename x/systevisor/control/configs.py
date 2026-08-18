@@ -166,7 +166,15 @@ class SystevisorConfigController:
             *,
             initial: bool = False,
     ) -> SystevisorConfigControllerResult:
-        result = self._compile()
+        return self.apply_compiled(self._compile(), request_id, initial=initial)
+
+    def apply_compiled(
+            self,
+            result: SystevisorConfigCompileResult,
+            request_id: ta.Optional[str] = None,
+            *,
+            initial: bool = False,
+    ) -> SystevisorConfigControllerResult:
         prepared: ta.List[SystevisorConfigPreparedChange] = []
         if result.snapshot is not None:
             try:

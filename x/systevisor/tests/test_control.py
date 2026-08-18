@@ -46,6 +46,8 @@ from x.systevisor.runtime.health import SystevisorFdioHealthProbeRunner
 from x.systevisor.runtime.logs import SystevisorLogManager
 from x.systevisor.runtime.logs import SystevisorLogStream
 from x.systevisor.runtime.processes import SystevisorProcessManager
+from x.systevisor.scheduling.runtime import SystevisorJsonScheduleStateStore
+from x.systevisor.scheduling.runtime import SystevisorScheduler
 
 
 class SystevisorControlTestFixture:
@@ -66,6 +68,12 @@ class SystevisorControlTestFixture:
             },
             'collections': {
                 'stack': {'units': ['idle']},
+            },
+            'schedules': {
+                'annual': {
+                    'cron': '0 0 1 1 *',
+                    'action': {'kind': 'restart', 'target_kind': 'unit', 'target': 'idle'},
+                },
             },
         }))
         self.poller = SelectFdioPoller()
@@ -103,15 +111,25 @@ class SystevisorControlTestFixture:
             self.config_controller,
             self.operations,
         )
+        self.scheduler = SystevisorScheduler(
+            self.config_controller,
+            self.control,
+            self.clock,
+            self.fdio_manager,
+            self.event_bus,
+            SystevisorJsonScheduleStateStore(),
+        )
         self.application = SystevisorApiApplication(
             self.control,
             self.config_controller,
             self.event_bus,
             self.log_manager,
             self.codec,
+            self.scheduler,
         )
 
     def close(self) -> None:
+        self.scheduler.close()
         self.control.close()
         self.config_controller.close()
         self.coordinator.close()
@@ -212,6 +230,11 @@ class TestSystevisorControl(unittest.TestCase):
         self.assertEqual(root.status, 200)
         root_body = json.loads(root.body)
         self.assertEqual(root_body['api_version'], 1)
+
+        schedules = self.fixture.application.handle(SystevisorApiRequest('GET', '/v1/schedules'))
+        self.assertIsInstance(schedules, SystevisorApiResponse)
+        assert isinstance(schedules, SystevisorApiResponse)
+        self.assertEqual(json.loads(schedules.body)['schedules'][0]['name'], 'annual')
 
         response = self.fixture.application.handle(SystevisorApiRequest(
             'GET',

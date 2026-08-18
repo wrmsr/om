@@ -7,6 +7,7 @@ from x.systevisor.configs.compiling import SystevisorConfigCompiler
 from x.systevisor.configs.diagnostics import SystevisorConfigDiagnosticStage
 from x.systevisor.configs.models import SystevisorDependencyCondition
 from x.systevisor.configs.models import SystevisorRestartMode
+from x.systevisor.configs.models import SystevisorScheduleActionKind
 from x.systevisor.core.identities import SystevisorInstanceId
 
 
@@ -23,6 +24,12 @@ class TestSystevisorConfigs(unittest.TestCase):
                         'exec': {'argv': ['redis-server', '--port', '0']},
                         'replicas': 2,
                         'restart': {'mode': 'always'},
+                    },
+                },
+                'schedules': {
+                    'db-cycle': {
+                        'cron': '0 3 * * *',
+                        'action': {'kind': 'restart', 'target_kind': 'unit', 'target': 'db'},
                     },
                 },
             }))
@@ -51,6 +58,7 @@ class TestSystevisorConfigs(unittest.TestCase):
             {SystevisorInstanceId('db:0'), SystevisorInstanceId('db:1'), SystevisorInstanceId('web:0')},
         )
         self.assertEqual(snapshot.config.units['db'].restart.mode, SystevisorRestartMode.ALWAYS)
+        self.assertEqual(snapshot.config.schedules['db-cycle'].action.kind, SystevisorScheduleActionKind.RESTART)
         self.assertEqual(
             snapshot.config.units['web'].dependencies.requires,
             {'db': SystevisorDependencyCondition.RUNNING},

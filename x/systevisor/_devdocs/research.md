@@ -73,3 +73,21 @@ serve as a portable identity pin if all waiting is centralized. Linux pidfds str
 identity-safe individual signal path. Safe group signaling additionally requires a session created for the owned run;
 the unreaped session leader pins the numeric SID/PGID until group cleanup is complete. Adopted unknown descendants are
 reap-only.
+
+## Deployment findings
+
+The repo amalgamator recursively resolves relative imports and explicitly mounted package roots without renaming any
+symbol. Generating the first real artifact found a runtime type alias which the amalgamator had hoisted ahead of the
+dataclasses it referenced. Keeping that alias in source order with `om-amalg-typing-no-move` fixed the actual artifact;
+the artifact test now executes every definition and protects against recurrence. The current artifact is just under
+one megabyte and imports only the standard library.
+
+Linux exposes direct child PIDs in `/proc/self/task/<pid>/children`, including zombies. That permits targeted
+unknown-adoptee observation without a broad `waitpid(-1)` which could steal a managed wait right. Darwin has no
+subreaper/PID-1-container role equivalent in this implementation; known direct children remain fully supported there,
+while a future native process table reader can implement the injected child-PID provider if a reap-only use case
+emerges.
+
+systemd readiness requires only an AF_UNIX datagram to `NOTIFY_SOCKET`; no libsystemd or D-Bus dependency is needed.
+launchd has no matching readiness protocol for this use. Direct service templates therefore provide useful opaque
+interop without coupling either platform manager to Systevisor's internal resources.

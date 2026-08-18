@@ -9,10 +9,14 @@ from omcore.lite.inject import inj
 from ..configs.compiling import SystevisorConfigCompiler
 from ..runtime.clocks import SystevisorClock
 from ..runtime.coordinator import SystevisorRuntimeCoordinator
+from ..scheduling.runtime import SystevisorJsonScheduleStateStore
+from ..scheduling.runtime import SystevisorScheduler
+from ..scheduling.runtime import SystevisorScheduleStateStore
 from .api import SystevisorApiApplication
 from .configs import SystevisorConfigController
 from .http import SystevisorHttpServer
 from .jsoncodec import SystevisorJsonCodec
+from .manager import SystevisorManagerConfigParticipant
 from .operations import SystevisorOperationStore
 from .plane import SystevisorControlPlane
 from .service import SystevisorControlService
@@ -49,6 +53,10 @@ def systevisor_bind_control(bootstrap: SystevisorControlBootstrapConfig) -> Inje
         inj.bind(SystevisorConfigCompiler, singleton=True),
         inj.bind(SystevisorJsonCodec, singleton=True),
         inj.bind(_systevisor_control_inject_provide_config_controller, singleton=True),
+        inj.bind(SystevisorManagerConfigParticipant, singleton=True),
+        inj.bind(SystevisorJsonScheduleStateStore, singleton=True),
+        inj.bind(SystevisorScheduleStateStore, to_key=SystevisorJsonScheduleStateStore),
+        inj.bind(SystevisorScheduler, singleton=True),
         inj.bind(SystevisorOperationStore, singleton=True),
         inj.bind(SystevisorControlService, singleton=True),
         inj.bind(SystevisorApiApplication, singleton=True),

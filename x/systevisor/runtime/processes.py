@@ -71,6 +71,25 @@ class SystevisorProcessSpawnError(SystevisorProcessError):
     pass
 
 
+class SystevisorChildPidProvider(Abstract):
+    @abc.abstractmethod
+    def child_pids(self) -> ta.Sequence[int]:
+        raise NotImplementedError
+
+
+class SystevisorSystemChildPidProvider(SystevisorChildPidProvider):
+    def child_pids(self) -> ta.Sequence[int]:
+        if not os.path.isdir('/proc/self/task'):
+            return ()
+        path = f'/proc/self/task/{os.getpid()}/children'
+        try:
+            with open(path) as children_file:
+                raw = children_file.read()
+        except OSError:
+            return ()
+        return tuple(int(value) for value in raw.split() if value.isdigit() and int(value) > 0)
+
+
 @dc.dataclass(frozen=True)
 class SystevisorResolvedIdentity:
     uid: ta.Optional[int]
@@ -215,6 +234,12 @@ class SystevisorProcessExecResult:
 class SystevisorObservedProcessExit:
     run_id: SystevisorRunId
     instance_id: SystevisorInstanceId
+    return_code: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorUnknownProcessExit:
+    pid: int
     return_code: int
 
 
@@ -673,13 +698,22 @@ class SystevisorProcessManager:
             *,
             signal_backend: ta.Optional[SystevisorProcessSignalBackend] = None,
             child_modifiers: ta.Iterable[SystevisorChildModifier] = (),
+            child_pid_provider: ta.Optional[SystevisorChildPidProvider] = None,
     ) -> None:
         if not all(hasattr(os, name) for name in ('waitid', 'WNOWAIT', 'P_PID', 'WEXITED', 'WNOHANG')):
             raise RuntimeError('systevisor requires waitid with WNOWAIT')
         self._signal_backend = signal_backend or SystevisorPosixProcessSignalBackend()
         self._child_modifiers = tuple(child_modifiers)
+        self._child_pid_provider = child_pid_provider or SystevisorSystemChildPidProvider()
+        self._reap_unknown_children = False
         self._processes_by_run: ta.Dict[SystevisorRunId, SystevisorOwnedProcess] = {}
         self._processes_by_pid: ta.Dict[int, SystevisorOwnedProcess] = {}
+
+    def set_reap_unknown_children(self, enabled: bool) -> None:
+        self._reap_unknown_children = enabled
+
+    def needs_wait_polling(self) -> bool:
+        return self.has_processes() or self._reap_unknown_children
 
     def snapshot_states(self) -> ta.Sequence[SystevisorOwnedProcessState]:
         return tuple(process.snapshot() for process in self._processes_by_run.values())
@@ -928,6 +962,37 @@ class SystevisorProcessManager:
                 return_code=process.return_code,
             ))
         return tuple(observed)
+
+    def poll_unknown_exits(self) -> ta.Sequence[SystevisorUnknownProcessExit]:
+        if not self._reap_unknown_children:
+            return ()
+        reaped: ta.List[SystevisorUnknownProcessExit] = []
+        options = os.WEXITED | os.WNOHANG | os.WNOWAIT
+        for pid in tuple(dict.fromkeys(self._child_pid_provider.child_pids())):
+            if pid in self._processes_by_pid:
+                continue
+            try:
+                result = os.waitid(os.P_PID, pid, options)
+            except ChildProcessError:
+                continue
+            if result is None or result.si_pid == 0:
+                continue
+            return_code = _systevisor_processes_wait_result_return_code(result)
+            try:
+                reaped_pid, wait_status = os.waitpid(pid, os.WNOHANG)
+            except ChildProcessError:
+                continue
+            if reaped_pid == 0:
+                continue
+            if reaped_pid != pid:
+                raise SystevisorProcessOwnershipError(f'unknown-child wait returned unexpected pid: {reaped_pid}')
+            wait_return_code = _systevisor_processes_wait_status_return_code(wait_status)
+            if wait_return_code != return_code:
+                raise SystevisorProcessOwnershipError(
+                    f'unknown-child wait status changed for pid {pid}: {return_code} != {wait_return_code}',
+                )
+            reaped.append(SystevisorUnknownProcessExit(pid=pid, return_code=return_code))
+        return tuple(reaped)
 
     def acknowledge_exit(self, run_id: SystevisorRunId) -> SystevisorProcessRetirement:
         process = self._processes_by_run.get(run_id)

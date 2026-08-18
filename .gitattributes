@@ -84,5 +84,6 @@ x/ommlds/backends/ollama/_dataclasses.py linguist-generated
 x/ommlds/backends/openai/protocol/_dataclasses.py linguist-generated
 x/ommlds/backends/tavily/_dataclasses.py linguist-generated
 x/ommlds/cli/_dataclasses.py linguist-generated
+x/systevisor/_bin/systevisor.py linguist-generated
 
 #### end @om-generated ####

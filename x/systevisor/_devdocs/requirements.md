@@ -67,6 +67,9 @@
 - Build calendar scheduling over the same deadline service, with explicit missed-run and persistence policy.
 - Begin with replaceable atomic-JSON persistence; add SQLite only if stronger history/claim semantics justify it.
 
+The initial implemented calendar surface is classic five-field cron in UTC. Named civil timezones remain deferred
+because stock Python 3.8 does not guarantee either `zoneinfo` or an installed IANA timezone database.
+
 ## Testing and deployment
 
 - Test policy through a manual clock and fake drivers without sleeps, threads, sockets, or subprocesses.

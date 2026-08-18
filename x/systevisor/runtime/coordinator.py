@@ -77,7 +77,7 @@ class SystevisorRuntimeCoordinator:
         self._wait_handler = SystevisorProcessWaitFdioHandler(
             clock,
             self._observe_process_exits,
-            process_manager.has_processes,
+            process_manager.needs_wait_polling,
         )
         self._fdio_manager.register(self._deadline_handler)
         self._fdio_manager.register(self._wait_handler)
@@ -118,6 +118,11 @@ class SystevisorRuntimeCoordinator:
         try:
             while self._input_queue:
                 current_input = self._input_queue.popleft()
+                if isinstance(current_input, SystevisorApplySnapshotCommand):
+                    self._process_manager.set_reap_unknown_children(
+                        current_input.snapshot.config.manager.reap_unknown_children,
+                    )
+                    self._wait_handler.poke()
                 output = self._engine.step(current_input, self._clock.monotonic())
                 if isinstance(current_input, SystevisorApplySnapshotCommand):
                     self._log_manager.set_default_strip_ansi(current_input.snapshot.config.manager.strip_ansi)
@@ -261,6 +266,8 @@ class SystevisorRuntimeCoordinator:
                     continue
                 self._handle_exec_result(result)
             self._complete_process_exit(observed)
+        for unknown in self._process_manager.poll_unknown_exits():
+            self._event_bus.publish('runtime.unknown_child_reaped', unknown, self._clock.monotonic())
 
     def _complete_process_exit(self, observed: SystevisorObservedProcessExit) -> None:
         pidfd_handler = self._pidfd_handlers.pop(observed.run_id, None)

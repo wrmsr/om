@@ -165,6 +165,18 @@ class SystevisorControlService:
         self._refresh(operation.operation_id)
         return operation
 
+    def restart_unit(self, unit_name: str) -> SystevisorOperation:
+        instance_ids = self._instances_for_unit(unit_name)
+        operation = self._operations.create('unit.restart', unit_name)
+        self._create_goal(operation, SystevisorControlGoalKind.RESTART, instance_ids)
+        for instance_id in instance_ids:
+            self._coordinator.submit(SystevisorRestartInstanceCommand(
+                instance_id,
+                operation.operation_id,
+            ))
+        self._refresh(operation.operation_id)
+        return operation
+
     def shutdown(self) -> SystevisorOperation:
         operation = self._operations.create('manager.shutdown')
         self._create_goal(

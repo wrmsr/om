@@ -63,6 +63,30 @@ class SystevisorHealthRecovery(enum.Enum):
     STOP = 'stop'
 
 
+class SystevisorScheduleActionKind(enum.Enum):
+    START = 'start'
+    STOP = 'stop'
+    RESTART = 'restart'
+    SHUTDOWN = 'shutdown'
+
+
+class SystevisorScheduleTargetKind(enum.Enum):
+    UNIT = 'unit'
+    COLLECTION = 'collection'
+    INSTANCE = 'instance'
+
+
+class SystevisorScheduleMissedPolicy(enum.Enum):
+    SKIP = 'skip'
+    LATEST = 'latest'
+    ALL = 'all'
+
+
+class SystevisorScheduleConcurrencyPolicy(enum.Enum):
+    ALLOW = 'allow'
+    SKIP = 'skip'
+
+
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
 class SystevisorExecConfig:
@@ -196,6 +220,26 @@ class SystevisorCollectionConfig:
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorScheduleActionConfig:
+    kind: SystevisorScheduleActionKind
+    target_kind: ta.Optional[SystevisorScheduleTargetKind] = None
+    target: ta.Optional[str] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorScheduleConfig:
+    cron: str
+    action: SystevisorScheduleActionConfig
+    enabled: bool = True
+    timezone: str = 'UTC'
+    missed: SystevisorScheduleMissedPolicy = SystevisorScheduleMissedPolicy.SKIP
+    max_catch_up: int = 1
+    concurrency: SystevisorScheduleConcurrencyPolicy = SystevisorScheduleConcurrencyPolicy.SKIP
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorManagerLogConfig:
     level: str = 'INFO'
     file: ta.Optional[str] = None
@@ -246,4 +290,5 @@ class SystevisorConfig:
     api: SystevisorApiConfig = dc.field(default_factory=SystevisorApiConfig)
     units: ta.Mapping[str, SystevisorUnitConfig] = dc.field(default_factory=dict)
     collections: ta.Mapping[str, SystevisorCollectionConfig] = dc.field(default_factory=dict)
+    schedules: ta.Mapping[str, SystevisorScheduleConfig] = dc.field(default_factory=dict)
     variables: ta.Mapping[str, ta.Any] = dc.field(default_factory=dict)

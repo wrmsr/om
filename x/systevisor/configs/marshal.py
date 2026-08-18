@@ -13,6 +13,10 @@ from .models import SystevisorHealthRecovery
 from .models import SystevisorHealthRole
 from .models import SystevisorOutputMode
 from .models import SystevisorRestartMode
+from .models import SystevisorScheduleActionKind
+from .models import SystevisorScheduleConcurrencyPolicy
+from .models import SystevisorScheduleMissedPolicy
+from .models import SystevisorScheduleTargetKind
 from .models import SystevisorSignalScope
 from .models import SystevisorStdinMode
 from .models import SystevisorUnitKind
@@ -49,6 +53,10 @@ _SYSTEVISOR_CONFIG_ENUM_TYPES = (
     SystevisorHealthRole,
     SystevisorOutputMode,
     SystevisorRestartMode,
+    SystevisorScheduleActionKind,
+    SystevisorScheduleConcurrencyPolicy,
+    SystevisorScheduleMissedPolicy,
+    SystevisorScheduleTargetKind,
     SystevisorSignalScope,
     SystevisorStdinMode,
     SystevisorUnitKind,

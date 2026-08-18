@@ -55,6 +55,35 @@ requires a new session and retains the leader's wait right through shutdown/esca
 All wait and signal call sites are confined and checked statically. Unknown adopted processes have no control
 capability and are only reaped.
 
+## Host boundary
+
+Manager bootstrap happens only after a complete cold candidate has compiled and before the injector constructs the
+reactor or any managed child. The injected platform runtime owns daemonization, cwd/umask and resource-limit setup,
+manager identity reduction, Linux subreaper setup, process title, manager logging, the locked pidfile, and service
+notification. Fields which establish process-global bootstrap state are immutable during live reload. Manager log
+settings, ANSI policy, and a non-null process-title replacement are live fields and participate in the same prepared
+configuration transaction as HTTP listeners.
+
+The pidfile is an open, exclusively locked capability rather than a stale PID hint. Cleanup compares device/inode and
+will not unlink a path replaced by another actor. It is manager coordination only and is never converted into a child
+signaling capability.
+
+On Linux, direct children are enumerated through procfs for unknown-adoptee cleanup. The process manager first excludes
+every PID in its owned-run map, observes an unknown exit with `waitid(..., WNOWAIT)`, and reaps it without ever creating
+a signal lease. Reap polling remains active when configured even if no managed run exists, covering PID 1 startup
+races and already-zombied adoptees.
+
+systemd sees Systevisor as one `Type=notify` service and receives readiness/stopping datagrams. Its generated unit uses
+`KillMode=process`, leaving delegation and draining to Systevisor rather than exposing children as platform units.
+launchd likewise receives a single direct-exec plist. Neither adapter projects the internal unit graph outward.
+
+## Artifact boundary
+
+`__main__.py` is the amalgamation root and continuously generates `_bin/systevisor.py`. The checked-in artifact has
+only standard-library imports and is loaded from an unrelated temporary path in tests, so package/PYTHONPATH leakage
+cannot satisfy missing internal imports. Development-time regeneration is compared byte-for-byte. Python 3.8 loads
+and executes the checked artifact even though the development amalgamator itself now requires a newer interpreter.
+
 ## Event and operation ordering
 
 Inputs are processed serially. A state transition is committed before its event is published. Subscribers may enqueue
@@ -73,6 +102,16 @@ after eviction; transport backpressure never reaches child-pipe draining.
 Relative lifecycle, restart, health, and shutdown deadlines use a monotonic clock. Calendar schedules use wall time
 only to calculate the next occurrence, then arm a monotonic deadline. Wall-clock jumps cause recalculation rather than
 corrupting relative process timers.
+
+The first calendar implementation accepts classic five-field cron in UTC. Each schedule records the last occurrence
+it evaluated, not merely the last action it fired. Missed-run policy selects skip, latest, or a bounded all; concurrency
+policy can suppress a fire while the prior operation remains pending. A schedule invokes the ordinary control service,
+so restart/start/stop/shutdown has exactly the same validation, events, and process ownership path as HTTP or CLI.
+
+Durable schedule state is a versioned atomically replaced JSON file beneath the effective state directory. A matching
+per-schedule fingerprint resumes its last evaluated occurrence; a changed definition establishes a new current-time
+baseline and never reinterprets old occurrences under new policy. The store is injected so SQLite or another backend
+can replace it if history or distributed claims eventually justify that complexity.
 
 ## Output
 

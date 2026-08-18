@@ -3,6 +3,7 @@ import os
 import select
 import signal
 import time
+import typing as ta
 import unittest
 
 from x.systevisor.configs.models import SystevisorConfig
@@ -20,6 +21,7 @@ from x.systevisor.core.identities import SystevisorRunId
 from x.systevisor.core.states import SystevisorSignalReason
 from x.systevisor.runtime.processes import SystevisorChildContext
 from x.systevisor.runtime.processes import SystevisorChildModifier
+from x.systevisor.runtime.processes import SystevisorChildPidProvider
 from x.systevisor.runtime.processes import SystevisorObservedProcessExit
 from x.systevisor.runtime.processes import SystevisorOwnedProcessStatus
 from x.systevisor.runtime.processes import SystevisorProcessExecResult
@@ -117,6 +119,14 @@ class SystevisorTestChildModifier(SystevisorChildModifier):
 
     def after_identity(self, context: SystevisorChildContext) -> None:
         os.write(self._checkpoint_fd, b'modified')
+
+
+class SystevisorTestChildPidProvider(SystevisorChildPidProvider):
+    def __init__(self, pids: ta.Iterable[int] = ()) -> None:
+        self.pids = tuple(pids)
+
+    def child_pids(self) -> ta.Sequence[int]:
+        return self.pids
 
 
 class TestSystevisorProcesses(unittest.TestCase):
@@ -284,3 +294,40 @@ class TestSystevisorProcesses(unittest.TestCase):
             manager.spawn(effect)
 
         self.assertEqual(manager.snapshot_states(), ())
+
+    def test_unknown_child_is_reaped_without_receiving_a_signal_capability(self) -> None:
+        provider = SystevisorTestChildPidProvider()
+        manager = SystevisorProcessManager(child_pid_provider=provider)
+        manager.set_reap_unknown_children(True)
+        pid = os.fork()
+        if pid == 0:
+            os._exit(23)
+        provider.pids = (pid,)
+        try:
+            os.waitid(os.P_PID, pid, os.WEXITED | os.WNOWAIT)
+            reaped = manager.poll_unknown_exits()
+
+            self.assertEqual(len(reaped), 1)
+            self.assertEqual(reaped[0].pid, pid)
+            self.assertEqual(reaped[0].return_code, 23)
+            with self.assertRaises(ChildProcessError):
+                os.waitpid(pid, os.WNOHANG)
+        finally:
+            try:
+                os.waitpid(pid, os.WNOHANG)
+            except ChildProcessError:
+                pass
+
+    def test_unknown_reaper_never_consumes_an_owned_child(self) -> None:
+        provider = SystevisorTestChildPidProvider()
+        manager = SystevisorProcessManager(child_pid_provider=provider)
+        manager.set_reap_unknown_children(True)
+        effect = _systevisor_test_process_effect(('/bin/true',))
+        spawned = manager.spawn(effect)
+        self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
+        provider.pids = (spawned.state.pid,)
+        _systevisor_test_wait_exec(manager, effect.run_id)
+        os.waitid(os.P_PID, spawned.state.pid, os.WEXITED | os.WNOWAIT)
+
+        self.assertEqual(manager.poll_unknown_exits(), ())
+        self.assertEqual(_systevisor_test_wait_exit(manager, effect.run_id).run_id, effect.run_id)

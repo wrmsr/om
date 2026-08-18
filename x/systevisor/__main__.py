@@ -1,4 +1,6 @@
 # @om-lite
+# @om-amalg ./_bin/systevisor.py
+# mypy: ignore-errors
 from .main import systevisor_main
 
 

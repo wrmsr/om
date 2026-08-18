@@ -47,18 +47,31 @@
 
 ## Phase 7: deployment and artifact
 
-- Finish continuous amalgamation, PID 1 behavior, daemon compatibility, systemd/launchd opaque integration, process
-  title updates, and realistic Docker scenarios.
+- Complete: continuous checked-in amalgamation and isolated Python 3.8 artifact smoke tests.
+- Complete: manager bootstrap, daemon mode, locked pidfile, resource limits, identity reduction, process title,
+  rotating manager logs, optional journald, Linux subreaper/PID 1 behavior, and reap-only unknown adoptees.
+- Complete: systemd notification and opaque systemd/launchd templates.
+- Complete: an opt-in, one-container-per-test Docker harness with FIFO JSON checkpoints and unconditional cleanup.
 
-## Phase 8: schedules and platform capabilities
+## Phase 8: schedules and durable time state
 
-- Add oneshot tasks, cron triggers, atomic JSON schedule state, socket adoption, resource sampling, cgroup v2, and
-  optional namespace configuration.
+- Complete: five-field UTC cron/calendar triggers over fdio deadlines, wall-jump rechecks, missed-run/concurrency
+  policy, ordinary scheduled control actions, events/API state, and replaceable atomic-JSON persistence.
+- Deferred: named/non-UTC timezones until a self-contained Python 3.8 timezone-data policy is selected.
 
-## Phase 9: self-update
+## Phase 9: observation and platform capabilities
+
+- Add procfs/Darwin resource sampling, cgroup v2 delegation, optional namespace configuration, and socket adoption.
+
+## Phase 10: self-update
 
 - Implement candidate probing, freeze, final snapshot, FD inheritance, in-place exec, rehydration, validation, and
   failure reporting.
+
+## Phase 11: hardening and release
+
+- Close the Supervisor config-compatibility matrix, broaden fault injection and platform contracts, finalize operator
+  documentation, and exercise release artifacts across supported interpreters and hosts.
 
 Each phase updates a chronological dev journal, runs focused tests, runs manual Ruff and mypy over `x/systevisor`, and
 is committed only after the required repository checks pass.

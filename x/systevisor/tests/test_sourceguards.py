@@ -46,7 +46,7 @@ def _systevisor_test_source_paths() -> ta.Iterator[str]:
         dir_names[:] = [
             name
             for name in dir_names
-            if name not in {'_devdocs', '__pycache__', 'tests'}
+            if name not in {'_bin', '_devdocs', '__pycache__', 'tests'}
         ]
         for file_name in file_names:
             if file_name.endswith('.py'):

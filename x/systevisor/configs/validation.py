@@ -1,7 +1,10 @@
 # ruff: noqa: UP006 UP007 UP045
+import logging
 import typing as ta
 
 from ..core.identities import systevisor_is_valid_name
+from ..scheduling.cron import SystevisorCronError
+from ..scheduling.cron import systevisor_parse_cron
 from .diagnostics import SystevisorConfigDiagnostic
 from .diagnostics import SystevisorConfigDiagnosticSeverity
 from .diagnostics import SystevisorConfigDiagnosticStage
@@ -9,6 +12,8 @@ from .models import SystevisorConfig
 from .models import SystevisorHealthProbeKind
 from .models import SystevisorHealthRole
 from .models import SystevisorOutputMode
+from .models import SystevisorScheduleActionKind
+from .models import SystevisorScheduleTargetKind
 from .models import SystevisorStdinMode
 from .models import SystevisorUnitKind
 
@@ -102,6 +107,47 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'invalid_resource_minimum',
             'manager min_fds and min_procs must be non-negative',
             'manager',
+        ))
+
+    if config.manager.process_title is not None and '\x00' in config.manager.process_title:
+        errors.append(_systevisor_config_validation_error(
+            'invalid_process_title',
+            'manager process title may not contain NUL',
+            'manager',
+            'process_title',
+        ))
+
+    if config.manager.pid_file == '':
+        errors.append(_systevisor_config_validation_error(
+            'invalid_pid_file',
+            'manager pid_file may not be empty',
+            'manager',
+            'pid_file',
+        ))
+
+    manager_log_level = logging.getLevelName(config.manager.log.level.upper())
+    if not isinstance(manager_log_level, int):
+        errors.append(_systevisor_config_validation_error(
+            'invalid_log_level',
+            f'invalid manager log level: {config.manager.log.level!r}',
+            'manager',
+            'log',
+            'level',
+        ))
+    if config.manager.log.file == '':
+        errors.append(_systevisor_config_validation_error(
+            'invalid_log_file',
+            'manager log file may not be empty',
+            'manager',
+            'log',
+            'file',
+        ))
+    if config.manager.log.max_bytes < 0 or config.manager.log.backups < 0:
+        errors.append(_systevisor_config_validation_error(
+            'invalid_manager_log_limit',
+            'manager log max_bytes and backups must be non-negative',
+            'manager',
+            'log',
         ))
 
     if (config.api.tcp_host is None) != (config.api.tcp_port is None):
@@ -407,6 +453,84 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                     *collection_path,
                     'units',
                 ))
+
+    instance_ids = {
+        f'{unit_name}:{replica}'
+        for unit_name, unit in config.units.items()
+        for replica in range(unit.replica_start, unit.replica_start + unit.replicas)
+    }
+    for schedule_name, schedule in config.schedules.items():
+        schedule_path = ('schedules', schedule_name)
+        if not systevisor_is_valid_name(schedule_name):
+            errors.append(_systevisor_config_validation_error(
+                'invalid_schedule_name',
+                f'invalid schedule name: {schedule_name!r}',
+                *schedule_path,
+            ))
+        try:
+            systevisor_parse_cron(schedule.cron)
+        except SystevisorCronError as exc:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cron',
+                str(exc),
+                *schedule_path,
+                'cron',
+            ))
+        if schedule.timezone != 'UTC':
+            errors.append(_systevisor_config_validation_error(
+                'unsupported_schedule_timezone',
+                'the initial scheduler supports only UTC',
+                *schedule_path,
+                'timezone',
+            ))
+        if schedule.max_catch_up < 1:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_schedule_catch_up',
+                'schedule max_catch_up must be positive',
+                *schedule_path,
+                'max_catch_up',
+            ))
+        action = schedule.action
+        if action.kind is SystevisorScheduleActionKind.SHUTDOWN:
+            if action.target_kind is not None or action.target is not None:
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_schedule_shutdown_target',
+                    'shutdown schedule actions may not have a target',
+                    *schedule_path,
+                    'action',
+                ))
+            continue
+        if action.target_kind is None or action.target is None:
+            errors.append(_systevisor_config_validation_error(
+                'missing_schedule_target',
+                'non-shutdown schedule actions require target_kind and target',
+                *schedule_path,
+                'action',
+            ))
+            continue
+        if (
+                action.kind is SystevisorScheduleActionKind.RESTART and
+                action.target_kind is SystevisorScheduleTargetKind.COLLECTION
+        ):
+            errors.append(_systevisor_config_validation_error(
+                'unsupported_schedule_action',
+                'collection restart is not supported; schedule an instance or unit restart',
+                *schedule_path,
+                'action',
+            ))
+        targets = (
+            config.units if action.target_kind is SystevisorScheduleTargetKind.UNIT else
+            config.collections if action.target_kind is SystevisorScheduleTargetKind.COLLECTION else
+            instance_ids
+        )
+        if action.target not in targets:
+            errors.append(_systevisor_config_validation_error(
+                'unknown_schedule_target',
+                f'unknown schedule target: {action.target!r}',
+                *schedule_path,
+                'action',
+                'target',
+            ))
 
     for cycle in _systevisor_config_validation_cycles(config):
         errors.append(_systevisor_config_validation_error(
