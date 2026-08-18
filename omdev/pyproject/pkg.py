@@ -336,7 +336,21 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
     def file_contents(self) -> FileContents:
         specs = self.build_specs()
 
-        #
+        ##
+
+        st = dict(specs.setuptools)
+
+        exts = {
+            k
+            for k in [
+                'cext',
+                'mypyc',
+                'rs',
+            ]
+            if bool(st.pop(k, None))
+        }
+
+        ##
 
         pyp_dct = {}
 
@@ -350,15 +364,30 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         pyp_dct['project'] = prj
 
-        self._move_dict_key(prj, 'optional-dependencies', pyp_dct, extrask := 'project.optional-dependencies')
+        self._move_dict_key(
+            prj,
+            'optional-dependencies',
+            pyp_dct,
+            extrask := 'project.optional-dependencies',
+        )
+
+        if exts:
+            pyp_dct[extrask] = {
+                **(pyp_dct.get(extrask, {})),
+                **{
+                    ext: [f'{prj["name"]}-{ext} == {prj["version"]}']
+                    for ext in exts
+                },
+            }
+
         if (extras := pyp_dct.get(extrask)):
             pyp_dct[extrask] = {
+                **extras,
                 'all': [
                     e
                     for lst in extras.values()
                     for e in lst
                 ],
-                **extras,
             }
 
         if (eps := prj.pop('entry-points', None)):
@@ -371,15 +400,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         ##
 
-        st = dict(specs.setuptools)
         pyp_dct['tool.setuptools'] = st
-
-        for k in [
-            'cext',
-            'mypyc',
-            'rs',
-        ]:
-            st.pop(k, None)
 
         #
 

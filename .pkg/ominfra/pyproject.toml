@@ -28,10 +28,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-all = [
+omdev = [
     'omdev == 0.0.46',
 ]
-omdev = [
+all = [
     'omdev == 0.0.46',
 ]
 

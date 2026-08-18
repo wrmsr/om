@@ -28,27 +28,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-all = [
-    'ominfra == 0.0.46',
-    'omllm == 0.0.46',
-    'black ~= 26.5',
-    'pycparser ~= 3.0',
-    'pcpp ~= 1.30',
-    'docutils ~= 0.23',
-    'markdown-it-py ~= 4.2',
-    'mdit-py-plugins ~= 0.6',
-    'pygments ~= 2.21',
-    'mypy ~= 2.3',
-    'pytesseract ~= 0.3',
-    'rapidocr-onnxruntime ~= 1.4',
-    'pillow ~= 12.3',
-    'gprof2dot ~= 2025.4',
-    'segno ~= 1.6',
-    'rich ~= 15.0',
-    'textual ~= 8.2',
-    'textual-dev ~= 1.8',
-    'textual-speedups ~= 0.2',
-]
 ominfra = [
     'ominfra == 0.0.46',
 ]
@@ -89,6 +68,35 @@ tui = [
     'textual ~= 8.2',
     'textual-dev ~= 1.8',
     'textual-speedups ~= 0.2',
+]
+rs = [
+    'omdev-rs == 0.0.46',
+]
+cext = [
+    'omdev-cext == 0.0.46',
+]
+all = [
+    'ominfra == 0.0.46',
+    'omllm == 0.0.46',
+    'black ~= 26.5',
+    'pycparser ~= 3.0',
+    'pcpp ~= 1.30',
+    'docutils ~= 0.23',
+    'markdown-it-py ~= 4.2',
+    'mdit-py-plugins ~= 0.6',
+    'pygments ~= 2.21',
+    'mypy ~= 2.3',
+    'pytesseract ~= 0.3',
+    'rapidocr-onnxruntime ~= 1.4',
+    'pillow ~= 12.3',
+    'gprof2dot ~= 2025.4',
+    'segno ~= 1.6',
+    'rich ~= 15.0',
+    'textual ~= 8.2',
+    'textual-dev ~= 1.8',
+    'textual-speedups ~= 0.2',
+    'omdev-rs == 0.0.46',
+    'omdev-cext == 0.0.46',
 ]
 
 [project.entry-points]

@@ -28,8 +28,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-all = [
+omdev = [
     'omdev == 0.0.46',
+]
+interop = [
     'huggingface-hub ~= 1.27',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
@@ -38,10 +40,8 @@ all = [
     'torch ~= 2.13',
     'transformers ~= 5.15',
 ]
-omdev = [
+all = [
     'omdev == 0.0.46',
-]
-interop = [
     'huggingface-hub ~= 1.27',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
