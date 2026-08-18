@@ -75,3 +75,24 @@ Tests live in a `tests/` subpackage *inside the most specific package they exerc
 A "general" test module for a package may share the package's name (`test_asyncio.py` under `asyncio/`). Mind the
 relative-import depth when adding tests: from `asyncio/tests/`, asyncio-internal imports are `..`, procs-level are
 `...`; from `spool/tests/`, the sibling asyncio notifier is `...asyncio.notifier`.
+
+## macOS/BSD: EPERM when signaling a zombie (2026-08-18)
+
+Reported failing on darwin: the group-sweep `killpg` in `aclose` raised `PermissionError: [Errno 1] Operation not
+permitted`. Cause: **macOS/BSD return EPERM (not Linux's ESRCH/success) when signaling a zombie process, or a
+process group whose only remaining members are zombies.** Our teardown signals the leader *after* it has exited (we
+hold it as a zombie), so on darwin nearly every close of an exited process EPERM'd — and `run()` (spawn→wait→close)
+hits it every time, so "all tests failed."
+
+Fix (`asyncio/process.py::_signal_locked`): on `PermissionError`, probe liveness non-reapingly with
+`_is_exited_nowait` (`waitid(P_PID, pid, WEXITED|WNOHANG|WNOWAIT)`); swallow the EPERM iff the target is confirmed
+dead (the benign zombie quirk), re-raise iff it is genuinely still alive. This is sound because the "never signal an
+unowned pid" guarantee comes from the *state check* (never signal REAPED/POISONED) plus the held zombie — not from
+the signal succeeding. ESRCH is still swallowed unconditionally.
+
+Regression tests (`test_zombie_signal_eperm_tolerated`, `test_is_exited_nowait`) inject EPERM via `monkeypatch` on
+`os.killpg`/`os.kill` (the codestyle's sanctioned external-dep fault-injection exception) so the darwin path is
+exercised on Linux too: swallowed for a real held zombie, surfaced for a live process.
+
+Watch for other latent darwin differences as they surface (waitid/pidfd/kqueue paths, pipe transports); this was the
+first, and the only one reported so far.

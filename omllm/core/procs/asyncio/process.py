@@ -251,8 +251,27 @@ class AsyncioProcess(Process):
                 else:
                     os.kill(pid, sig)
             except ProcessLookupError:
-                # Cannot happen while the leader is unreaped, but harmless if it did.
+                # ESRCH: the target is already gone. Benign - and never a recycled pid, since we hold the zombie
+                # unreaped until teardown.
                 pass
+            except PermissionError:
+                # macOS/BSD return EPERM (where Linux returns ESRCH / success) when signaling a zombie, or a process
+                # group whose only remaining members are zombies. Because we only ever signal processes we still own,
+                # a confirmed-dead target makes this benign; a still-live one is a genuine permission error to raise.
+                if not self._is_exited_nowait(pid):
+                    raise
+
+    @staticmethod
+    def _is_exited_nowait(pid: int) -> bool:
+        """Non-reaping liveness probe: True iff the pid has exited (a zombie we still hold) or is already gone."""
+
+        try:
+            res = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        except ChildProcessError:
+            return True
+        except OSError:
+            return False
+        return res is not None
 
     def _signal_if_owned(self, sig: int, process_group: bool) -> bool:
         try:

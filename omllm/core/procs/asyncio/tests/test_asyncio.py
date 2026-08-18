@@ -31,6 +31,7 @@ from ...types.specs import ProcessSpec
 from ...types.specs import ProcessStdio
 from ...types.states import ProcessState
 from ..manager import AsyncioProcessManager
+from ..process import AsyncioProcess
 
 
 def _sh(script, **kwargs):
@@ -389,6 +390,53 @@ async def test_manager_lifecycle():
     # A fresh instance works after the previous one closed.
     async with AsyncioProcessManager() as m2:
         assert (await m2.root.run(_sh('echo again'))).stdout == b'again\n'
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_zombie_signal_eperm_tolerated(monkeypatch):
+    # macOS/BSD return EPERM (not ESRCH) when signaling a zombie or an all-zombie group. Inject that here so the
+    # behavior is exercised on any platform: it must be swallowed for a process we hold that has already exited, but
+    # surfaced for one that is genuinely still alive.
+    async with AsyncioProcessManager() as m:
+        exited = await m.root.spawn(_sh('exit 0'))
+        assert await exited.wait(5.) == 0
+        assert exited.state.name == 'EXITED'  # a real, still-held zombie
+
+        def _eperm(*_a, **_k):
+            raise PermissionError(1, 'Operation not permitted')
+
+        monkeypatch.setattr(os, 'killpg', _eperm)
+        monkeypatch.setattr(os, 'kill', _eperm)
+
+        # Confirmed-dead target: EPERM is the benign zombie quirk -> swallowed.
+        await exited.signal(signal.SIGTERM)
+        await exited.signal(signal.SIGTERM, process_group=False)
+        await exited.aclose()  # the group sweep also EPERMs and must not raise
+        assert exited.state.name == 'REAPED'
+
+        # Live target: EPERM is genuine -> surfaced.
+        alive = await m.root.spawn(_sh('sleep 100'))
+        await _poll(lambda: alive.state.name == 'RUNNING')
+        with pytest.raises(PermissionError):
+            await alive.signal(signal.SIGTERM)
+
+        monkeypatch.undo()
+        await alive.aclose()
+        assert alive.state.name == 'REAPED'
+
+
+def test_is_exited_nowait():
+    import subprocess
+    p = subprocess.Popen(['sh', '-c', 'exit 0'])
+    p.wait()  # reaped by Popen -> gone
+    assert AsyncioProcess._is_exited_nowait(p.pid) is True  # noqa: SLF001
+
+    p2 = subprocess.Popen(['sh', '-c', 'sleep 100'])
+    try:
+        assert AsyncioProcess._is_exited_nowait(p2.pid) is False  # noqa: SLF001
+    finally:
+        p2.kill()
+        p2.wait()
 
 
 def test_sigchld_guard():
