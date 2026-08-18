@@ -471,3 +471,17 @@ backend was still 'internal' (which doesn't parse nesting at all). One commit (1
   omcore is always present so pdcmark always available; the tinier internal parser stays selectable by name.
 - All three backends agree on (marker, depth) sequences whole-fed AND chunk-fed; cross-backend regression +
   internal-parser depth tests + renderer indent/wrap tests. 213 minitui tests; omllm suite + e2e green.
+
+## 2026-08-18 (later): F2 deny dead; F1/F2/F4 insert P/Q/S - the SS3 timeout asymmetry
+
+Owner's symptom table was the whole diagnosis: F1->-'P', F2->'Q', F4->'S'-ish, F5 nothing, F10 works. F1-F4 are the
+SS3 family (ESC O P..S); F5/F10 are CSI-number keys. Reproduced exactly: an SS3 final byte arriving after the window
+yields UnknownSequence('\x1bO') (silent) + the letter as text - deny never fires; in insert mode the letter lands in
+the textarea. Root asymmetry: _parse_csi waits INDEFINITELY for its final; _parse_ss3 reused the bare-ESC 50ms
+timeout. Vim waits ~1000ms (ttimeoutlen) for SS3 finals for exactly this reason. Researched iTerm2's kitty-mode
+F-keys along the way (it sends CSI 11~..14~, which we already handled - notcurses#2818).
+Fix (ac00b7fcf): SS3_TIMEOUT_S = .5 (bare ESC stays 50ms for vim responsiveness); a genuine timeout resolves to the
+sequence's legacy meaning alt+shift+o instead of a silent swallow; _KITTY_SPECIAL_BASES gains the kitty numeric
+functional codes F1-F12 (57364..57375) for report-all-keys implementations. Regressions: laggy SS3 tail -> f2;
+lone ESC O -> alt+O; kitty numeric F-keys; iTerm2 CSI 11~..14~ forms. (Also cleaned the omxtra/tui/minitui pycache
+husks from the omdev move - the package now lives at omdev/tui/minitui.)

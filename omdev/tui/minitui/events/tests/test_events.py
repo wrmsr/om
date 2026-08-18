@@ -16,6 +16,7 @@ from ..types import MouseEvent
 from ..types import MouseEventKind
 from ..types import PasteEvent
 from ..types import UnknownSequenceEvent
+from ..xterm import SS3_TIMEOUT_S
 from ..xterm import XtermEventParser
 
 
@@ -249,3 +250,36 @@ def test_extended_ctrl_aliases_leave_distinctions_intact():
     assert keys(p.feed('\x1b[13;5u')) == [Key('enter', ctrl=True)]  # the real ctrl+enter (submit chord)
     assert keys(p.feed('\x1b[105;6u')) == [Key('I', ctrl=True)]     # ctrl+shift+i is not tab
     assert keys(p.feed('\x1b[104;5u')) == [Key('h', ctrl=True)]     # ctrl+h already agrees across wires
+
+
+def test_ss3_tail_survives_delay():
+    # F1-F4 are SS3-encoded (ESC O P..S); their final byte may lag well past the bare-ESC window (relays, load).
+    # The SS3 continuation window is generous, like the CSI path - a 50ms window silently ate F1-F4 while F5+
+    # (CSI-form) kept working.
+    p = XtermEventParser()
+    evs = list(p.feed('\x1bO'))
+    assert p.pending_timeout_s == SS3_TIMEOUT_S
+    evs += list(p.feed('Q'))
+    assert keys(evs) == [Key('f2')]
+
+
+def test_ss3_timeout_is_alt_shift_o():
+    # A lone ESC O that really times out means alt+shift+o on the legacy wire - not a silent swallow.
+    p = XtermEventParser()
+    evs = list(p.feed('\x1bO'))
+    evs += list(p.flush_timeout())
+    assert keys(evs) == [Key('O', alt=True)]
+
+
+def test_kitty_numeric_function_keys():
+    # Report-all-keys kitty implementations send numeric functional codes instead of legacy CSI/SS3 forms.
+    p = XtermEventParser()
+    assert keys(p.feed('\x1b[57364;1u')) == [Key('f1')]
+    assert keys(p.feed('\x1b[57365;1u')) == [Key('f2')]
+    assert keys(p.feed('\x1b[57373u')) == [Key('f10')]
+
+
+def test_iterm2_kitty_fkeys_csi_tilde():
+    # iTerm2's kitty-protocol mode reports F1-F4 as CSI 11~..14~ (not SS3 / CSI P..S).
+    p = XtermEventParser()
+    assert keys(p.feed('\x1b[11~\x1b[12~\x1b[13~\x1b[14~')) == [Key('f1'), Key('f2'), Key('f3'), Key('f4')]

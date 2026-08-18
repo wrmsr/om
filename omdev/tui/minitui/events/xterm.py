@@ -34,6 +34,12 @@ from .types import UnknownSequenceEvent
 # How long a lone ESC waits for a following byte before resolving as the escape key.
 ESCAPE_TIMEOUT_S = .05
 
+# How long an SS3 intro (ESC O) waits for its final byte. Deliberately much longer than the bare-ESC timeout (vim's
+# ttimeoutlen waits ~1000ms here): the CSI path waits indefinitely for its final, and an SS3 tail delayed past a
+# too-short window silently breaks F1-F4 while F5+ (CSI-form) keep working. The fallback meaning of a lone ESC O on
+# the legacy wire is alt+shift+o, so that's what a timeout resolves to.
+SS3_TIMEOUT_S = .5
+
 _MAX_CSI_LENGTH = 64
 
 
@@ -97,6 +103,9 @@ _KITTY_SPECIAL_BASES: ta.Mapping[int, str] = {
     27: 'escape',
     32: 'space',
     127: 'backspace',
+    # The kitty protocol's numeric functional-key codes (F1-F12) - sent instead of the legacy CSI/SS3 forms by
+    # report-all-keys implementations.
+    **{57364 + i: f'f{i + 1}' for i in range(12)},
 }
 
 # Legacy-wire control aliases. On the plain-bytes wire these chords ARE the named keys (ctrl+[ = 0x1b, ctrl+m = 0x0d,
@@ -185,9 +194,9 @@ class XtermEventParser(EventParser):
 
     def _parse_ss3(self) -> ParseGenerator:
         try:
-            c = yield Read1(ESCAPE_TIMEOUT_S)
+            c = yield Read1(SS3_TIMEOUT_S)
         except ParseTimeoutError:
-            self.emit(UnknownSequenceEvent('\x1bO'))
+            self._emit_key(Key('O', alt=True))
             return
 
         if (base := _SS3_BASES.get(c)) is not None:
