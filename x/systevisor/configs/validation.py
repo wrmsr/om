@@ -109,6 +109,24 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'manager',
         ))
 
+    if config.manager.observation.interval_secs <= 0 or config.manager.observation.retained_runs < 0:
+        errors.append(_systevisor_config_validation_error(
+            'invalid_observation_policy',
+            'observation interval_secs must be positive and retained_runs must be non-negative',
+            'manager',
+            'observation',
+        ))
+
+    cgroup_root = config.manager.cgroups.root
+    if cgroup_root is not None and (not cgroup_root or not cgroup_root.startswith('/')):
+        errors.append(_systevisor_config_validation_error(
+            'invalid_cgroup_root',
+            'manager cgroup root must be an absolute path',
+            'manager',
+            'cgroups',
+            'root',
+        ))
+
     if config.manager.process_title is not None and '\x00' in config.manager.process_title:
         errors.append(_systevisor_config_validation_error(
             'invalid_process_title',
@@ -262,6 +280,119 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                 *unit_path,
                 'stop',
                 'timeout_secs',
+            ))
+
+        cgroup = unit.resources.cgroup
+        if cgroup.enabled and cgroup_root is None:
+            errors.append(_systevisor_config_validation_error(
+                'missing_cgroup_root',
+                'cgroup-enabled units require manager.cgroups.root',
+                *unit_path,
+                'resources',
+                'cgroup',
+            ))
+        if not cgroup.enabled and any(value is not None for value in (
+                cgroup.cpu_weight,
+                cgroup.cpu_quota_usec,
+                cgroup.memory_low_bytes,
+                cgroup.memory_high_bytes,
+                cgroup.memory_max_bytes,
+                cgroup.pids_max,
+        )):
+            errors.append(_systevisor_config_validation_error(
+                'disabled_cgroup_policy',
+                'cgroup resource controls require enabled=true',
+                *unit_path,
+                'resources',
+                'cgroup',
+            ))
+        if cgroup.cpu_weight is not None and not 1 <= cgroup.cpu_weight <= 10_000:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_cpu_weight',
+                'cgroup cpu_weight must be between 1 and 10000',
+                *unit_path,
+                'resources',
+                'cgroup',
+                'cpu_weight',
+            ))
+        if cgroup.cpu_quota_usec is not None and cgroup.cpu_quota_usec <= 0:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_cpu_quota',
+                'cgroup cpu_quota_usec must be positive',
+                *unit_path,
+                'resources',
+                'cgroup',
+                'cpu_quota_usec',
+            ))
+        if not 1_000 <= cgroup.cpu_period_usec <= 1_000_000:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_cpu_period',
+                'cgroup cpu_period_usec must be between 1000 and 1000000',
+                *unit_path,
+                'resources',
+                'cgroup',
+                'cpu_period_usec',
+            ))
+        if any(value is not None and value < 0 for value in (
+                cgroup.memory_low_bytes,
+                cgroup.memory_high_bytes,
+                cgroup.memory_max_bytes,
+        )):
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_memory_limit',
+                'cgroup memory limits must be non-negative',
+                *unit_path,
+                'resources',
+                'cgroup',
+            ))
+        if cgroup.pids_max is not None and cgroup.pids_max < 1:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_pids_limit',
+                'cgroup pids_max must be positive',
+                *unit_path,
+                'resources',
+                'cgroup',
+                'pids_max',
+            ))
+        namespaces = unit.resources.namespaces
+        if namespaces.hostname is not None and not namespaces.uts:
+            errors.append(_systevisor_config_validation_error(
+                'namespace_hostname_without_uts',
+                'namespace hostname requires uts=true',
+                *unit_path,
+                'resources',
+                'namespaces',
+                'hostname',
+            ))
+        if len(set(unit.resources.inherited_sockets)) != len(unit.resources.inherited_sockets):
+            errors.append(_systevisor_config_validation_error(
+                'duplicate_inherited_socket',
+                'inherited socket names must be unique within a unit',
+                *unit_path,
+                'resources',
+                'inherited_sockets',
+            ))
+        for socket_name in unit.resources.inherited_sockets:
+            if not systevisor_is_valid_name(socket_name):
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_inherited_socket_name',
+                    f'invalid inherited socket name: {socket_name!r}',
+                    *unit_path,
+                    'resources',
+                    'inherited_sockets',
+                ))
+        if namespaces.hostname is not None and (
+                not namespaces.hostname or
+                '\x00' in namespaces.hostname or
+                len(namespaces.hostname.encode('utf-8')) > 64
+        ):
+            errors.append(_systevisor_config_validation_error(
+                'invalid_namespace_hostname',
+                'namespace hostname must be non-empty, NUL-free, and at most 64 UTF-8 bytes',
+                *unit_path,
+                'resources',
+                'namespaces',
+                'hostname',
             ))
         if unit.stdio.stdin.mode is SystevisorStdinMode.FILE and unit.stdio.stdin.file is None:
             errors.append(_systevisor_config_validation_error(

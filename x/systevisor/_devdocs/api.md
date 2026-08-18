@@ -24,6 +24,8 @@ child output configuration.
 - `GET /v1/units` returns current instance states.
 - `GET /v1/collections` returns collection desired/status/failure state.
 - `GET /v1/schedules` returns configured schedule timing, counters, and last operation identity.
+- `GET /v1/resources` returns retained per-run samples, cgroup lifecycle state, and adopted listener descriptors.
+- `GET /v1/resources/{run}` returns the retained sample and cgroup state for one run.
 - `GET /v1/config` returns the active snapshot, last config attempt, and source settings.
 - `POST /v1/config/_check` compiles without applying.
 - `POST /v1/config/_reload` prepares and atomically applies a candidate.
@@ -44,7 +46,7 @@ stream rather than keeping a handler blocked on process state.
 
 `./python -m x.systevisor` is the shared entrypoint. `serve` runs the manager; `run` manages one collection as a
 foreground compose-like unit; `config-check` works offline; `status`,
-`units`, `collections`, `schedules`, `config`, `operations`, `check`, `reload`, `start`, `stop`, `restart`, `shutdown`, `events`,
+`units`, `collections`, `schedules`, `resources [RUN]`, `config`, `operations`, `check`, `reload`, `start`, `stop`, `restart`, `shutdown`, `events`,
 and `logs` use the
 same HTTP API. Client HTTP framing uses omcore I/O pipelines over a synchronous socket because the CLI is a separate
 short-lived process; the server always uses the fdio driver.

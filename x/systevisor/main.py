@@ -30,6 +30,9 @@ from .platforms.runtime import SystevisorManagerRuntime
 from .platforms.services import SystevisorServiceTemplateConfig
 from .platforms.services import systevisor_render_launchd_plist
 from .platforms.services import systevisor_render_systemd_service
+from .resources.inject import systevisor_bind_resources
+from .resources.runtime import SystevisorResourceObserver
+from .resources.sockets import SystevisorInheritedSocketRegistry
 from .runtime.coordinator import SystevisorRuntimeCoordinator
 from .runtime.inject import systevisor_bind_runtime
 from .scheduling.runtime import SystevisorScheduler
@@ -86,6 +89,7 @@ class SystevisorMainServerContext:
         )
         self._injector = inj.create_injector(
             systevisor_bind_platforms(),
+            systevisor_bind_resources(),
             systevisor_bind_runtime(),
             systevisor_bind_control(bootstrap),
         )
@@ -98,6 +102,8 @@ class SystevisorMainServerContext:
         self.poller: ta.Optional[FdioPoller] = None
         self.manager_runtime: ta.Optional[SystevisorManagerRuntime] = None
         self.scheduler: ta.Optional[SystevisorScheduler] = None
+        self.resource_observer: ta.Optional[SystevisorResourceObserver] = None
+        self.inherited_sockets: ta.Optional[SystevisorInheritedSocketRegistry] = None
 
     def compile(self) -> SystevisorConfigCompileResult:
         bootstrap = self._injector.provide(SystevisorControlBootstrapConfig)
@@ -112,6 +118,7 @@ class SystevisorMainServerContext:
             startup_collection: ta.Optional[SystevisorCollectionName] = None,
     ) -> SystevisorConfigControllerResult:
         if compiled.snapshot is not None:
+            self.inherited_sockets = self._injector.provide(SystevisorInheritedSocketRegistry)
             manager_runtime = self._injector.provide(SystevisorManagerRuntime)
             manager_runtime.setup(compiled.snapshot.config.manager)
             self.manager_runtime = manager_runtime
@@ -126,6 +133,7 @@ class SystevisorMainServerContext:
             self.control = self._injector.provide(SystevisorControlService)
             self.scheduler = self._injector.provide(SystevisorScheduler)
             self.scheduler.set_state_directory_override(self._state_directory)
+            self.resource_observer = self._injector.provide(SystevisorResourceObserver)
             self.control_plane = self._injector.provide(SystevisorControlPlane)
             coordinator.engine.state.startup_collection = startup_collection
 
@@ -141,6 +149,8 @@ class SystevisorMainServerContext:
             self.manager_runtime.stopping()
 
     def close(self) -> None:
+        if self.resource_observer is not None:
+            self.resource_observer.close()
         if self.scheduler is not None:
             self.scheduler.close()
         if self.control_plane is not None:
@@ -155,6 +165,8 @@ class SystevisorMainServerContext:
             self.poller.close()
         if self.manager_runtime is not None:
             self.manager_runtime.close()
+        if self.inherited_sockets is not None:
+            self.inherited_sockets.close()
 
 
 def _systevisor_main_serve(args: argparse.Namespace) -> int:
@@ -290,6 +302,11 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
         target = '/v1/collections'
     elif args.command == 'schedules':
         target = '/v1/schedules'
+    elif args.command == 'resources':
+        target = (
+            '/v1/resources' if args.run_id is None else
+            f'/v1/resources/{args.run_id}'
+        )
     elif args.command == 'config':
         target = '/v1/config'
     elif args.command == 'operations':
@@ -390,6 +407,9 @@ def _systevisor_main_parser() -> argparse.ArgumentParser:
             'status', 'units', 'collections', 'schedules', 'config', 'operations', 'reload', 'check', 'shutdown',
     ):
         subparsers.add_parser(command)
+
+    resources = subparsers.add_parser('resources')
+    resources.add_argument('run_id', type=int, nargs='?')
 
     for command in ('start', 'stop'):
         action = subparsers.add_parser(command)

@@ -89,6 +89,39 @@ class SystevisorScheduleConcurrencyPolicy(enum.Enum):
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorNamespaceConfig:
+    mount: bool = False
+    ipc: bool = False
+    uts: bool = False
+    network: bool = False
+    cgroup: bool = False
+    hostname: ta.Optional[str] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorCgroupConfig:
+    enabled: bool = False
+    cpu_weight: ta.Optional[int] = None
+    cpu_quota_usec: ta.Optional[int] = None
+    cpu_period_usec: int = 100_000
+    memory_low_bytes: ta.Optional[int] = None
+    memory_high_bytes: ta.Optional[int] = None
+    memory_max_bytes: ta.Optional[int] = None
+    pids_max: ta.Optional[int] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorUnitResourcesConfig:
+    observe: bool = True
+    cgroup: SystevisorCgroupConfig = dc.field(default_factory=SystevisorCgroupConfig)
+    namespaces: SystevisorNamespaceConfig = dc.field(default_factory=SystevisorNamespaceConfig)
+    inherited_sockets: ta.Sequence[str] = ()
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorExecConfig:
     argv: ta.Sequence[str] = ()
     executable: ta.Optional[str] = None
@@ -206,6 +239,7 @@ class SystevisorUnitConfig:
     stdio: SystevisorStdioConfig = dc.field(default_factory=SystevisorStdioConfig)
     dependencies: SystevisorDependenciesConfig = dc.field(default_factory=SystevisorDependenciesConfig)
     health: ta.Sequence[SystevisorHealthProbeConfig] = ()
+    resources: SystevisorUnitResourcesConfig = dc.field(default_factory=SystevisorUnitResourcesConfig)
     tags: ta.Sequence[str] = ()
 
 
@@ -251,6 +285,21 @@ class SystevisorManagerLogConfig:
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorObservationConfig:
+    enabled: bool = True
+    interval_secs: float = 5.
+    retained_runs: int = 128
+    emit_events: bool = False
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorCgroupManagerConfig:
+    root: ta.Optional[str] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorManagerConfig:
     identifier: str = 'systevisor'
     foreground: bool = True
@@ -269,6 +318,8 @@ class SystevisorManagerConfig:
     subreaper: bool = True
     reap_unknown_children: bool = True
     log: SystevisorManagerLogConfig = dc.field(default_factory=SystevisorManagerLogConfig)
+    observation: SystevisorObservationConfig = dc.field(default_factory=SystevisorObservationConfig)
+    cgroups: SystevisorCgroupManagerConfig = dc.field(default_factory=SystevisorCgroupManagerConfig)
 
 
 @install_dataclass_kw_only_init()

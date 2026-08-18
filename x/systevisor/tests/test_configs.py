@@ -24,6 +24,7 @@ class TestSystevisorConfigs(unittest.TestCase):
                         'exec': {'argv': ['redis-server', '--port', '0']},
                         'replicas': 2,
                         'restart': {'mode': 'always'},
+                        'resources': {'observe': False},
                     },
                 },
                 'schedules': {
@@ -58,6 +59,7 @@ class TestSystevisorConfigs(unittest.TestCase):
             {SystevisorInstanceId('db:0'), SystevisorInstanceId('db:1'), SystevisorInstanceId('web:0')},
         )
         self.assertEqual(snapshot.config.units['db'].restart.mode, SystevisorRestartMode.ALWAYS)
+        self.assertFalse(snapshot.config.units['db'].resources.observe)
         self.assertEqual(snapshot.config.schedules['db-cycle'].action.kind, SystevisorScheduleActionKind.RESTART)
         self.assertEqual(
             snapshot.config.units['web'].dependencies.requires,

@@ -32,6 +32,9 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             ('kind', old.kind, new.kind),
             ('stdio.stdin', old.stdio.stdin, new.stdio.stdin),
             ('stdio.redirect_stderr', old.stdio.redirect_stderr, new.stdio.redirect_stderr),
+            ('resources.cgroup', old.resources.cgroup, new.resources.cgroup),
+            ('resources.namespaces', old.resources.namespaces, new.resources.namespaces),
+            ('resources.inherited_sockets', old.resources.inherited_sockets, new.resources.inherited_sockets),
     )
     for path, old_value, new_value in restart_candidates:
         if old_value != new_value:
@@ -58,6 +61,7 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             ('stop', old.stop, new.stop),
             ('dependencies', old.dependencies, new.dependencies),
             ('health', old.health, new.health),
+            ('resources.observe', old.resources.observe, new.resources.observe),
             ('tags', old.tags, new.tags),
     )
     for path, old_value, new_value in live_candidates:

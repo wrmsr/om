@@ -70,6 +70,17 @@
 The initial implemented calendar surface is classic five-field cron in UTC. Named civil timezones remain deferred
 because stock Python 3.8 does not guarantee either `zoneinfo` or an installed IANA timezone database.
 
+## Observation and platform capabilities
+
+- Sample only processes already represented by an owned run; sampling must never mint a signal/wait capability.
+- Validate Linux procfs birth identity around multi-file samples and use injected Darwin libproc access.
+- Expose cumulative counters, monotonic rates, cgroup aggregates, failures, and bounded ended-run state through API/CLI.
+- Treat isolation configuration as restart-required and observation policy as live-updateable.
+- Require cgroup v2 roots to be explicitly delegated; validate requested controllers before reconciliation.
+- Join cgroups through a prepared child FD, never signal through a cgroup, and retry removal while descendants remain.
+- Preserve direct-child ownership by excluding PID namespaces until an explicit extra-fork ownership protocol exists.
+- Adopt only named, validated activation sockets and map only explicitly selected descriptors into a child.
+
 ## Testing and deployment
 
 - Test policy through a manual clock and fake drivers without sleeps, threads, sockets, or subprocesses.

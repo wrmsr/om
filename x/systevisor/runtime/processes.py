@@ -109,8 +109,26 @@ class SystevisorChildContext:
 
 
 class SystevisorChildModifier:
+    def parent_prepare(self, context: SystevisorChildContext) -> None:
+        pass
+
+    def parent_spawned(self, context: SystevisorChildContext, pid: int) -> None:
+        pass
+
+    def parent_spawn_failed(self, context: SystevisorChildContext) -> None:
+        pass
+
+    def parent_retired(self, context: SystevisorChildContext) -> None:
+        pass
+
     def preserved_fds(self, context: SystevisorChildContext) -> ta.Sequence[int]:
         return ()
+
+    def reserved_child_fds(self, context: SystevisorChildContext) -> ta.Sequence[int]:
+        return ()
+
+    def child_environment(self, context: SystevisorChildContext) -> ta.Mapping[str, str]:
+        return {}
 
     def before_identity(self, context: SystevisorChildContext) -> None:
         pass
@@ -175,6 +193,7 @@ class SystevisorOwnedProcessState:
     signal_lease_count: int
     purpose: SystevisorOwnedProcessPurpose
     health_check_id: ta.Optional[SystevisorHealthCheckId]
+    observe_resources: bool
 
 
 @dc.dataclass
@@ -196,10 +215,12 @@ class SystevisorOwnedProcess:
     exit_reported: bool = False
     purpose: SystevisorOwnedProcessPurpose = SystevisorOwnedProcessPurpose.SERVICE
     health_check_id: ta.Optional[SystevisorHealthCheckId] = None
+    child_context: ta.Optional[SystevisorChildContext] = None
+    observe_resources: bool = True
 
     def snapshot(self) -> SystevisorOwnedProcessState:
         return SystevisorOwnedProcessState(
-            state_schema_version=2,
+            state_schema_version=3,
             run_id=self.run_id,
             instance_id=self.instance_id,
             pid=self.pid,
@@ -215,6 +236,7 @@ class SystevisorOwnedProcess:
             signal_lease_count=self.signal_lease_count,
             purpose=self.purpose,
             health_check_id=self.health_check_id,
+            observe_resources=self.observe_resources,
         )
 
 
@@ -644,13 +666,20 @@ def _systevisor_processes_child_main(
         else:
             _systevisor_processes_child_dup(fds.stderr_child_fd, 2)
 
+        environment = dict(prepared.environment)
         context = SystevisorChildContext(
             run_id=prepared.run_id,
             instance_id=prepared.instance_id,
             spec=prepared.spec,
             identity=prepared.identity,
-            environment=prepared.environment,
+            environment=environment,
         )
+        for modifier in modifiers:
+            for key, value in modifier.child_environment(context).items():
+                previous = environment.get(key)
+                if previous is not None and previous != value:
+                    raise SystevisorProcessSpawnError(f'child environment collision for {key!r}')
+                environment[key] = value
         preserved_fds = {fds.exec_error_child_fd}
         for modifier in modifiers:
             preserved_fds.update(modifier.preserved_fds(context))
@@ -672,10 +701,41 @@ def _systevisor_processes_child_main(
 
         argv = tuple(prepared.spec.unit.exec.argv)
         executable = prepared.spec.unit.exec.executable or argv[0]
-        os.execvpe(executable, argv, dict(prepared.environment))
+        os.execvpe(executable, argv, environment)
     except BaseException as exc:  # noqa: BLE001
         _systevisor_processes_child_write_error(prepared.fds.exec_error_child_fd, exc)
     os._exit(127)
+
+
+def _systevisor_processes_child_context(prepared: SystevisorPreparedProcess) -> SystevisorChildContext:
+    return SystevisorChildContext(
+        run_id=prepared.run_id,
+        instance_id=prepared.instance_id,
+        spec=prepared.spec,
+        identity=prepared.identity,
+        environment=prepared.environment,
+    )
+
+
+def _systevisor_processes_relocate_reserved_fds(
+        prepared: SystevisorPreparedProcess,
+        modifiers: ta.Sequence[SystevisorChildModifier],
+        context: SystevisorChildContext,
+) -> None:
+    reserved = {
+        fd
+        for modifier in modifiers
+        for fd in modifier.reserved_child_fds(context)
+    }
+    if not reserved:
+        return
+    if min(reserved) < 3 or max(reserved) >= prepared.max_fd:
+        raise SystevisorProcessSpawnError('child modifier reserved an invalid descriptor')
+    exec_error_fd = prepared.fds.exec_error_child_fd
+    if exec_error_fd in reserved:
+        duplicate = fcntl.fcntl(exec_error_fd, fcntl.F_DUPFD_CLOEXEC, max(reserved) + 1)
+        os.close(exec_error_fd)
+        prepared.fds.exec_error_child_fd = duplicate
 
 
 def _systevisor_processes_wait_result_return_code(result: ta.Any) -> int:
@@ -790,9 +850,17 @@ class SystevisorProcessManager:
         if effect.run_id in self._processes_by_run:
             raise SystevisorProcessOwnershipError(f'run is already owned: {effect.run_id}')
         prepared = _systevisor_processes_prepare(effect)
+        context = _systevisor_processes_child_context(prepared)
+        prepared_modifiers: ta.List[SystevisorChildModifier] = []
         try:
+            for modifier in self._child_modifiers:
+                prepared_modifiers.append(modifier)
+                modifier.parent_prepare(context)
+            _systevisor_processes_relocate_reserved_fds(prepared, self._child_modifiers, context)
             pid = os.fork()
         except BaseException:
+            for modifier in reversed(prepared_modifiers):
+                modifier.parent_spawn_failed(context)
             for fd in prepared.fds.all_fds():
                 _systevisor_processes_close_quietly(fd)
             raise
@@ -817,11 +885,15 @@ class SystevisorProcessManager:
                 exec_error_fd=prepared.fds.exec_error_parent_fd,
                 purpose=purpose,
                 health_check_id=health_check_id,
+                child_context=context,
+                observe_resources=effect.spec.unit.resources.observe,
             )
             if pid in self._processes_by_pid:
                 raise SystevisorProcessOwnershipError(f'pid is already owned: {pid}')
             self._processes_by_run[effect.run_id] = process
             self._processes_by_pid[pid] = process
+            for modifier in prepared_modifiers:
+                modifier.parent_spawned(context, pid)
             return SystevisorProcessSpawned(state=process.snapshot())
         except BaseException:
             _systevisor_processes_close_parent_fds(prepared)
@@ -1028,6 +1100,9 @@ class SystevisorProcessManager:
         process.status = SystevisorOwnedProcessStatus.REAPED
         del self._processes_by_run[run_id]
         del self._processes_by_pid[process.pid]
+        if process.child_context is not None:
+            for modifier in reversed(self._child_modifiers):
+                modifier.parent_retired(process.child_context)
         state = process.snapshot()
         return SystevisorProcessRetirement(
             state=state,

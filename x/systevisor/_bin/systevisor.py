@@ -121,7 +121,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='ef91243dc1b2e4090b87ab8a23be0b88cc4d94c9'),
+            dict(path='configs/models.py', sha1='4de3fd9ef9ec88ec4a10690baa0d891f5ca7f4a3'),
             dict(path='runtime/clocks.py', sha1='f364654f73e89d21cf4df61dbb8596fca24fd5d5'),
             dict(path='../../omcore/configs/formats.py', sha1='9263da888199b408e902490244e9d5caddc69821'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
@@ -137,10 +137,10 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='configs/marshal.py', sha1='3c4ef5c9b224a7c47c90dc4dc2a73d5a4c071ce9'),
-            dict(path='configs/validation.py', sha1='eb37cfe42430263e30d3e2db8ed278cf75bd8163'),
+            dict(path='configs/validation.py', sha1='a00c57252097a3c3d33d21c4ee2e2a47051a2dc4'),
             dict(path='control/jsoncodec.py', sha1='351d8be14f9b96ae4f2bbf52595cf67620316f4c'),
             dict(path='control/operations.py', sha1='f6f1bc54a0efc86f03b678b76f626af0e7a2834a'),
-            dict(path='core/changes.py', sha1='bf5d0509f3a02b77ea29a6febe076c0738900549'),
+            dict(path='core/changes.py', sha1='e5f3ff0bf8cc9e517762ee8dcbd4379b3e948fba'),
             dict(path='runtime/signals.py', sha1='45f9201104fd3d4df962d280bb5a3d0a23b93b1b'),
             dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
@@ -162,7 +162,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='configs/snapshots.py', sha1='ea9fe1037ee1d325fe6e2b550e9747617ed551d2'),
-            dict(path='platforms/runtime.py', sha1='fabb41a00fcd7c277f7540c154398b8a9ede9935'),
+            dict(path='platforms/runtime.py', sha1='89962f326aa314a8534a204c2345562506c7a4ba'),
             dict(path='../../omcore/http/pipelines/aggregators.py', sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1'),
             dict(path='../../omcore/http/pipelines/clients/requests.py', sha1='60607306046abc3d5bb0c2e0b40e61251151ae13'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5'),  # noqa
@@ -179,23 +179,29 @@ def __om_amalg__():  # noqa
             dict(path='core/events.py', sha1='dba043a5555e53174d3a98c901de68eedf19679b'),
             dict(path='runtime/fdio.py', sha1='c6609308ee8748415669e44f814245c5e1ade703'),
             dict(path='runtime/logs.py', sha1='51265ca162c263ca06f8d71bd915dc526a9fcc2d'),
-            dict(path='runtime/processes.py', sha1='32ddf7082190b57795916a36ce071ca3406041e7'),
+            dict(path='runtime/processes.py', sha1='c85dc4fa370dee1e9cb6bfd07b8a1b7f6b07bed8'),
             dict(path='../../omcore/http/pipelines/clients/responses.py', sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/requests.py', sha1='2258c98399fd861ca308ff1ef498513d435f6fbb'),  # noqa
             dict(path='core/engine.py', sha1='1f25b259943de63637e6a680f3d1a57026f80daa'),
+            dict(path='resources/cgroups.py', sha1='a8ee0fa41abc6a5e694b5a1582911ab97faa05cd'),
+            dict(path='resources/namespaces.py', sha1='bd1c4b97fd72df49bfd9820f7638f27263285ab2'),
+            dict(path='resources/sampling.py', sha1='b15a7599153f597aae6c7df172648fbc7e847124'),
+            dict(path='resources/sockets.py', sha1='ebb97a95d343570146a77a52197b04eac5f52373'),
             dict(path='control/client.py', sha1='80a93c5f83f5c4dc8351bc9c294cdfdcd67e23ee'),
             dict(path='runtime/health.py', sha1='f4174e2db2a7c7495910dac8ba80a37f5bf558c1'),
             dict(path='runtime/coordinator.py', sha1='55ae71d8bb1162a58de82b2e1d4ea0cba65b71fa'),
             dict(path='control/configs.py', sha1='ecf93f4659e672854b2e368d68e091c9bb922ebc'),
-            dict(path='runtime/inject.py', sha1='42fd4f96cf1ef5bb31445800e36c1ce006da0def'),
+            dict(path='runtime/inject.py', sha1='669fd27c28d474018f91728f4c773557103f125a'),
             dict(path='control/manager.py', sha1='8f715afde9a17b57e2ffaea413d299a99c988214'),
             dict(path='control/service.py', sha1='caa36df4c4fe11e47a757593129d2ced91a77c57'),
+            dict(path='resources/runtime.py', sha1='fca60675a1390fe1f5fb11f3eccaacff29b4eb05'),
+            dict(path='resources/inject.py', sha1='8a6e401ae5226cbe3980c1e3c091376d7aea1660'),
             dict(path='scheduling/runtime.py', sha1='1becc1acded71aa3578bf9cedf33f97c015fcee9'),
-            dict(path='control/api.py', sha1='fe0b7cf23affc0c861055ca4df81da8af06fbc8e'),
+            dict(path='control/api.py', sha1='73c83533d833ed63b0646f9eab3ad3905ecb5a50'),
             dict(path='control/http.py', sha1='229bea0294159966194a4d30042972a2a41d6320'),
             dict(path='control/plane.py', sha1='6564a0b172a8b5794443e87472d73b156c23e662'),
             dict(path='control/inject.py', sha1='7beba0838f55bbf618f8b24aa23ad965dfd5f89b'),
-            dict(path='main.py', sha1='cfb1d2277f5fce4a7c8a4b4d467925aedbbfd6c2'),
+            dict(path='main.py', sha1='fa1c7315c305ed80c8b10d17e63f75a7987b303d'),
             dict(path='__main__.py', sha1='7f67abe616ff38fa814292fe452159be5cf04acb'),
         ],
     )
@@ -12030,6 +12036,39 @@ class SystevisorScheduleConcurrencyPolicy(enum.Enum):
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorNamespaceConfig:
+    mount: bool = False
+    ipc: bool = False
+    uts: bool = False
+    network: bool = False
+    cgroup: bool = False
+    hostname: ta.Optional[str] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorCgroupConfig:
+    enabled: bool = False
+    cpu_weight: ta.Optional[int] = None
+    cpu_quota_usec: ta.Optional[int] = None
+    cpu_period_usec: int = 100_000
+    memory_low_bytes: ta.Optional[int] = None
+    memory_high_bytes: ta.Optional[int] = None
+    memory_max_bytes: ta.Optional[int] = None
+    pids_max: ta.Optional[int] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorUnitResourcesConfig:
+    observe: bool = True
+    cgroup: SystevisorCgroupConfig = dc.field(default_factory=SystevisorCgroupConfig)
+    namespaces: SystevisorNamespaceConfig = dc.field(default_factory=SystevisorNamespaceConfig)
+    inherited_sockets: ta.Sequence[str] = ()
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorExecConfig:
     argv: ta.Sequence[str] = ()
     executable: ta.Optional[str] = None
@@ -12147,6 +12186,7 @@ class SystevisorUnitConfig:
     stdio: SystevisorStdioConfig = dc.field(default_factory=SystevisorStdioConfig)
     dependencies: SystevisorDependenciesConfig = dc.field(default_factory=SystevisorDependenciesConfig)
     health: ta.Sequence[SystevisorHealthProbeConfig] = ()
+    resources: SystevisorUnitResourcesConfig = dc.field(default_factory=SystevisorUnitResourcesConfig)
     tags: ta.Sequence[str] = ()
 
 
@@ -12192,6 +12232,21 @@ class SystevisorManagerLogConfig:
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorObservationConfig:
+    enabled: bool = True
+    interval_secs: float = 5.
+    retained_runs: int = 128
+    emit_events: bool = False
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class SystevisorCgroupManagerConfig:
+    root: ta.Optional[str] = None
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorManagerConfig:
     identifier: str = 'systevisor'
     foreground: bool = True
@@ -12210,6 +12265,8 @@ class SystevisorManagerConfig:
     subreaper: bool = True
     reap_unknown_children: bool = True
     log: SystevisorManagerLogConfig = dc.field(default_factory=SystevisorManagerLogConfig)
+    observation: SystevisorObservationConfig = dc.field(default_factory=SystevisorObservationConfig)
+    cgroups: SystevisorCgroupManagerConfig = dc.field(default_factory=SystevisorCgroupManagerConfig)
 
 
 @install_dataclass_kw_only_init()
@@ -14709,6 +14766,24 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'manager',
         ))
 
+    if config.manager.observation.interval_secs <= 0 or config.manager.observation.retained_runs < 0:
+        errors.append(_systevisor_config_validation_error(
+            'invalid_observation_policy',
+            'observation interval_secs must be positive and retained_runs must be non-negative',
+            'manager',
+            'observation',
+        ))
+
+    cgroup_root = config.manager.cgroups.root
+    if cgroup_root is not None and (not cgroup_root or not cgroup_root.startswith('/')):
+        errors.append(_systevisor_config_validation_error(
+            'invalid_cgroup_root',
+            'manager cgroup root must be an absolute path',
+            'manager',
+            'cgroups',
+            'root',
+        ))
+
     if config.manager.process_title is not None and '\x00' in config.manager.process_title:
         errors.append(_systevisor_config_validation_error(
             'invalid_process_title',
@@ -14862,6 +14937,119 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                 *unit_path,
                 'stop',
                 'timeout_secs',
+            ))
+
+        cgroup = unit.resources.cgroup
+        if cgroup.enabled and cgroup_root is None:
+            errors.append(_systevisor_config_validation_error(
+                'missing_cgroup_root',
+                'cgroup-enabled units require manager.cgroups.root',
+                *unit_path,
+                'resources',
+                'cgroup',
+            ))
+        if not cgroup.enabled and any(value is not None for value in (
+                cgroup.cpu_weight,
+                cgroup.cpu_quota_usec,
+                cgroup.memory_low_bytes,
+                cgroup.memory_high_bytes,
+                cgroup.memory_max_bytes,
+                cgroup.pids_max,
+        )):
+            errors.append(_systevisor_config_validation_error(
+                'disabled_cgroup_policy',
+                'cgroup resource controls require enabled=true',
+                *unit_path,
+                'resources',
+                'cgroup',
+            ))
+        if cgroup.cpu_weight is not None and not 1 <= cgroup.cpu_weight <= 10_000:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_cpu_weight',
+                'cgroup cpu_weight must be between 1 and 10000',
+                *unit_path,
+                'resources',
+                'cgroup',
+                'cpu_weight',
+            ))
+        if cgroup.cpu_quota_usec is not None and cgroup.cpu_quota_usec <= 0:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_cpu_quota',
+                'cgroup cpu_quota_usec must be positive',
+                *unit_path,
+                'resources',
+                'cgroup',
+                'cpu_quota_usec',
+            ))
+        if not 1_000 <= cgroup.cpu_period_usec <= 1_000_000:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_cpu_period',
+                'cgroup cpu_period_usec must be between 1000 and 1000000',
+                *unit_path,
+                'resources',
+                'cgroup',
+                'cpu_period_usec',
+            ))
+        if any(value is not None and value < 0 for value in (
+                cgroup.memory_low_bytes,
+                cgroup.memory_high_bytes,
+                cgroup.memory_max_bytes,
+        )):
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_memory_limit',
+                'cgroup memory limits must be non-negative',
+                *unit_path,
+                'resources',
+                'cgroup',
+            ))
+        if cgroup.pids_max is not None and cgroup.pids_max < 1:
+            errors.append(_systevisor_config_validation_error(
+                'invalid_cgroup_pids_limit',
+                'cgroup pids_max must be positive',
+                *unit_path,
+                'resources',
+                'cgroup',
+                'pids_max',
+            ))
+        namespaces = unit.resources.namespaces
+        if namespaces.hostname is not None and not namespaces.uts:
+            errors.append(_systevisor_config_validation_error(
+                'namespace_hostname_without_uts',
+                'namespace hostname requires uts=true',
+                *unit_path,
+                'resources',
+                'namespaces',
+                'hostname',
+            ))
+        if len(set(unit.resources.inherited_sockets)) != len(unit.resources.inherited_sockets):
+            errors.append(_systevisor_config_validation_error(
+                'duplicate_inherited_socket',
+                'inherited socket names must be unique within a unit',
+                *unit_path,
+                'resources',
+                'inherited_sockets',
+            ))
+        for socket_name in unit.resources.inherited_sockets:
+            if not systevisor_is_valid_name(socket_name):
+                errors.append(_systevisor_config_validation_error(
+                    'invalid_inherited_socket_name',
+                    f'invalid inherited socket name: {socket_name!r}',
+                    *unit_path,
+                    'resources',
+                    'inherited_sockets',
+                ))
+        if namespaces.hostname is not None and (
+                not namespaces.hostname or
+                '\x00' in namespaces.hostname or
+                len(namespaces.hostname.encode('utf-8')) > 64
+        ):
+            errors.append(_systevisor_config_validation_error(
+                'invalid_namespace_hostname',
+                'namespace hostname must be non-empty, NUL-free, and at most 64 UTF-8 bytes',
+                *unit_path,
+                'resources',
+                'namespaces',
+                'hostname',
             ))
         if unit.stdio.stdin.mode is SystevisorStdinMode.FILE and unit.stdio.stdin.file is None:
             errors.append(_systevisor_config_validation_error(
@@ -15312,6 +15500,9 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             ('kind', old.kind, new.kind),
             ('stdio.stdin', old.stdio.stdin, new.stdio.stdin),
             ('stdio.redirect_stderr', old.stdio.redirect_stderr, new.stdio.redirect_stderr),
+            ('resources.cgroup', old.resources.cgroup, new.resources.cgroup),
+            ('resources.namespaces', old.resources.namespaces, new.resources.namespaces),
+            ('resources.inherited_sockets', old.resources.inherited_sockets, new.resources.inherited_sockets),
     )
     for path, old_value, new_value in restart_candidates:
         if old_value != new_value:
@@ -15338,6 +15529,7 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             ('stop', old.stop, new.stop),
             ('dependencies', old.dependencies, new.dependencies),
             ('health', old.health, new.health),
+            ('resources.observe', old.resources.observe, new.resources.observe),
             ('tags', old.tags, new.tags),
     )
     for path, old_value, new_value in live_candidates:
@@ -20824,6 +21016,7 @@ class SystevisorManagerRuntime:
         return dc.replace(
             config,
             log=SystevisorManagerLogConfig(),
+            observation=SystevisorObservationConfig(),
             process_title=None,
             strip_ansi=False,
         )
@@ -24821,8 +25014,26 @@ class SystevisorChildContext:
 
 
 class SystevisorChildModifier:
+    def parent_prepare(self, context: SystevisorChildContext) -> None:
+        pass
+
+    def parent_spawned(self, context: SystevisorChildContext, pid: int) -> None:
+        pass
+
+    def parent_spawn_failed(self, context: SystevisorChildContext) -> None:
+        pass
+
+    def parent_retired(self, context: SystevisorChildContext) -> None:
+        pass
+
     def preserved_fds(self, context: SystevisorChildContext) -> ta.Sequence[int]:
         return ()
+
+    def reserved_child_fds(self, context: SystevisorChildContext) -> ta.Sequence[int]:
+        return ()
+
+    def child_environment(self, context: SystevisorChildContext) -> ta.Mapping[str, str]:
+        return {}
 
     def before_identity(self, context: SystevisorChildContext) -> None:
         pass
@@ -24887,6 +25098,7 @@ class SystevisorOwnedProcessState:
     signal_lease_count: int
     purpose: SystevisorOwnedProcessPurpose
     health_check_id: ta.Optional[SystevisorHealthCheckId]
+    observe_resources: bool
 
 
 @dc.dataclass
@@ -24908,10 +25120,12 @@ class SystevisorOwnedProcess:
     exit_reported: bool = False
     purpose: SystevisorOwnedProcessPurpose = SystevisorOwnedProcessPurpose.SERVICE
     health_check_id: ta.Optional[SystevisorHealthCheckId] = None
+    child_context: ta.Optional[SystevisorChildContext] = None
+    observe_resources: bool = True
 
     def snapshot(self) -> SystevisorOwnedProcessState:
         return SystevisorOwnedProcessState(
-            state_schema_version=2,
+            state_schema_version=3,
             run_id=self.run_id,
             instance_id=self.instance_id,
             pid=self.pid,
@@ -24927,6 +25141,7 @@ class SystevisorOwnedProcess:
             signal_lease_count=self.signal_lease_count,
             purpose=self.purpose,
             health_check_id=self.health_check_id,
+            observe_resources=self.observe_resources,
         )
 
 
@@ -25356,13 +25571,20 @@ def _systevisor_processes_child_main(
         else:
             _systevisor_processes_child_dup(fds.stderr_child_fd, 2)
 
+        environment = dict(prepared.environment)
         context = SystevisorChildContext(
             run_id=prepared.run_id,
             instance_id=prepared.instance_id,
             spec=prepared.spec,
             identity=prepared.identity,
-            environment=prepared.environment,
+            environment=environment,
         )
+        for modifier in modifiers:
+            for key, value in modifier.child_environment(context).items():
+                previous = environment.get(key)
+                if previous is not None and previous != value:
+                    raise SystevisorProcessSpawnError(f'child environment collision for {key!r}')
+                environment[key] = value
         preserved_fds = {fds.exec_error_child_fd}
         for modifier in modifiers:
             preserved_fds.update(modifier.preserved_fds(context))
@@ -25384,10 +25606,41 @@ def _systevisor_processes_child_main(
 
         argv = tuple(prepared.spec.unit.exec.argv)
         executable = prepared.spec.unit.exec.executable or argv[0]
-        os.execvpe(executable, argv, dict(prepared.environment))
+        os.execvpe(executable, argv, environment)
     except BaseException as exc:  # noqa: BLE001
         _systevisor_processes_child_write_error(prepared.fds.exec_error_child_fd, exc)
     os._exit(127)
+
+
+def _systevisor_processes_child_context(prepared: SystevisorPreparedProcess) -> SystevisorChildContext:
+    return SystevisorChildContext(
+        run_id=prepared.run_id,
+        instance_id=prepared.instance_id,
+        spec=prepared.spec,
+        identity=prepared.identity,
+        environment=prepared.environment,
+    )
+
+
+def _systevisor_processes_relocate_reserved_fds(
+        prepared: SystevisorPreparedProcess,
+        modifiers: ta.Sequence[SystevisorChildModifier],
+        context: SystevisorChildContext,
+) -> None:
+    reserved = {
+        fd
+        for modifier in modifiers
+        for fd in modifier.reserved_child_fds(context)
+    }
+    if not reserved:
+        return
+    if min(reserved) < 3 or max(reserved) >= prepared.max_fd:
+        raise SystevisorProcessSpawnError('child modifier reserved an invalid descriptor')
+    exec_error_fd = prepared.fds.exec_error_child_fd
+    if exec_error_fd in reserved:
+        duplicate = fcntl.fcntl(exec_error_fd, fcntl.F_DUPFD_CLOEXEC, max(reserved) + 1)
+        os.close(exec_error_fd)
+        prepared.fds.exec_error_child_fd = duplicate
 
 
 def _systevisor_processes_wait_result_return_code(result: ta.Any) -> int:
@@ -25502,9 +25755,17 @@ class SystevisorProcessManager:
         if effect.run_id in self._processes_by_run:
             raise SystevisorProcessOwnershipError(f'run is already owned: {effect.run_id}')
         prepared = _systevisor_processes_prepare(effect)
+        context = _systevisor_processes_child_context(prepared)
+        prepared_modifiers: ta.List[SystevisorChildModifier] = []
         try:
+            for modifier in self._child_modifiers:
+                prepared_modifiers.append(modifier)
+                modifier.parent_prepare(context)
+            _systevisor_processes_relocate_reserved_fds(prepared, self._child_modifiers, context)
             pid = os.fork()
         except BaseException:
+            for modifier in reversed(prepared_modifiers):
+                modifier.parent_spawn_failed(context)
             for fd in prepared.fds.all_fds():
                 _systevisor_processes_close_quietly(fd)
             raise
@@ -25529,11 +25790,15 @@ class SystevisorProcessManager:
                 exec_error_fd=prepared.fds.exec_error_parent_fd,
                 purpose=purpose,
                 health_check_id=health_check_id,
+                child_context=context,
+                observe_resources=effect.spec.unit.resources.observe,
             )
             if pid in self._processes_by_pid:
                 raise SystevisorProcessOwnershipError(f'pid is already owned: {pid}')
             self._processes_by_run[effect.run_id] = process
             self._processes_by_pid[pid] = process
+            for modifier in prepared_modifiers:
+                modifier.parent_spawned(context, pid)
             return SystevisorProcessSpawned(state=process.snapshot())
         except BaseException:
             _systevisor_processes_close_parent_fds(prepared)
@@ -25740,6 +26005,9 @@ class SystevisorProcessManager:
         process.status = SystevisorOwnedProcessStatus.REAPED
         del self._processes_by_run[run_id]
         del self._processes_by_pid[process.pid]
+        if process.child_context is not None:
+            for modifier in reversed(self._child_modifiers):
+                modifier.parent_retired(process.child_context)
         state = process.snapshot()
         return SystevisorProcessRetirement(
             state=state,
@@ -27201,6 +27469,945 @@ class SystevisorEngine:
 
 
 ########################################
+# ../resources/cgroups.py
+
+
+class SystevisorCgroupError(Exception):
+    pass
+
+
+class SystevisorCgroupRunStatus(enum.Enum):
+    PREPARED = 'prepared'
+    ACTIVE = 'active'
+    RETIRED_POPULATED = 'retired_populated'
+    REMOVED = 'removed'
+    CLEANUP_FAILED = 'cleanup_failed'
+
+
+@dc.dataclass(frozen=True)
+class SystevisorCgroupPreparedRun:
+    path: str
+    procs_fd: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorCgroupCounters:
+    cpu_usage_usec: ta.Optional[int] = None
+    cpu_user_usec: ta.Optional[int] = None
+    cpu_system_usec: ta.Optional[int] = None
+    cpu_throttled_usec: ta.Optional[int] = None
+    cpu_nr_throttled: ta.Optional[int] = None
+    memory_current_bytes: ta.Optional[int] = None
+    memory_peak_bytes: ta.Optional[int] = None
+    memory_swap_current_bytes: ta.Optional[int] = None
+    pids_current: ta.Optional[int] = None
+    io_read_bytes: ta.Optional[int] = None
+    io_write_bytes: ta.Optional[int] = None
+    io_read_operations: ta.Optional[int] = None
+    io_write_operations: ta.Optional[int] = None
+    populated: ta.Optional[bool] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorCgroupRunState:
+    state_schema_version: int
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    path: str
+    config: SystevisorCgroupConfig
+    status: SystevisorCgroupRunStatus
+    pid: ta.Optional[int] = None
+    cleanup_error: ta.Optional[str] = None
+
+
+class SystevisorCgroupFs(Abstract):
+    @abc.abstractmethod
+    def validate_root(self, root: str, configs: ta.Iterable[SystevisorCgroupConfig]) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def create_run(
+            self,
+            root: str,
+            name: str,
+            config: SystevisorCgroupConfig,
+    ) -> SystevisorCgroupPreparedRun:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def finish_spawn(self, prepared: SystevisorCgroupPreparedRun) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def abort_run(self, prepared: SystevisorCgroupPreparedRun) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def retire_run(self, path: str) -> ta.Tuple[bool, bool]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def sample(self, path: str) -> SystevisorCgroupCounters:
+        raise NotImplementedError
+
+
+def _systevisor_cgroup_read_text(path: str) -> str:
+    with open(path) as input_file:
+        return input_file.read().strip()
+
+
+def _systevisor_cgroup_read_optional_int(path: str) -> ta.Optional[int]:
+    try:
+        value = _systevisor_cgroup_read_text(path)
+    except OSError:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _systevisor_cgroup_read_keyed(path: str) -> ta.Mapping[str, int]:
+    try:
+        value = _systevisor_cgroup_read_text(path)
+    except OSError:
+        return {}
+    result: ta.Dict[str, int] = {}
+    for line in value.splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        try:
+            result[parts[0]] = int(parts[1])
+        except ValueError:
+            continue
+    return result
+
+
+def _systevisor_cgroup_write_file(path: str, value: str) -> None:
+    flags = os.O_WRONLY | getattr(os, 'O_CLOEXEC', 0) | getattr(os, 'O_NOFOLLOW', 0)
+    fd = os.open(path, flags)
+    try:
+        data = value.encode('ascii')
+        offset = 0
+        while offset < len(data):
+            offset += os.write(fd, data[offset:])
+    finally:
+        os.close(fd)
+
+
+class SystevisorSystemCgroupFs(SystevisorCgroupFs):
+    def validate_root(self, root: str, configs: ta.Iterable[SystevisorCgroupConfig]) -> None:
+        if sys.platform != 'linux':
+            raise SystevisorCgroupError('cgroup v2 isolation is supported only on Linux')
+        try:
+            root_stat = os.stat(root, follow_symlinks=False)
+        except OSError as exc:
+            raise SystevisorCgroupError(f'cannot inspect delegated cgroup root {root!r}: {exc}') from exc
+        if not stat.S_ISDIR(root_stat.st_mode):
+            raise SystevisorCgroupError(f'delegated cgroup root is not a directory: {root!r}')
+        for name in ('cgroup.controllers', 'cgroup.procs'):
+            if not os.path.isfile(os.path.join(root, name)):
+                raise SystevisorCgroupError(f'not a delegated cgroup v2 root; missing {name}: {root!r}')
+        enabled_controllers = frozenset(
+            _systevisor_cgroup_read_text(os.path.join(root, 'cgroup.subtree_control')).split(),
+        )
+        required_controllers: ta.Set[str] = set()
+        for config in configs:
+            if config.cpu_weight is not None or config.cpu_quota_usec is not None:
+                required_controllers.add('cpu')
+            if any(value is not None for value in (
+                    config.memory_low_bytes,
+                    config.memory_high_bytes,
+                    config.memory_max_bytes,
+            )):
+                required_controllers.add('memory')
+            if config.pids_max is not None:
+                required_controllers.add('pids')
+        missing_controllers = required_controllers - enabled_controllers
+        if missing_controllers:
+            raise SystevisorCgroupError(
+                f'delegated cgroup root has disabled controllers: {", ".join(sorted(missing_controllers))}',
+            )
+
+    def create_run(
+            self,
+            root: str,
+            name: str,
+            config: SystevisorCgroupConfig,
+    ) -> SystevisorCgroupPreparedRun:
+        path = os.path.join(root, name)
+        try:
+            os.mkdir(path, 0o700)
+        except OSError as exc:
+            raise SystevisorCgroupError(f'cannot create run cgroup {path!r}: {exc}') from exc
+
+        procs_fd = -1
+        try:
+            settings: ta.List[ta.Tuple[str, str]] = []
+            if config.cpu_weight is not None:
+                settings.append(('cpu.weight', f'{config.cpu_weight}\n'))
+            if config.cpu_quota_usec is not None:
+                settings.append(('cpu.max', f'{config.cpu_quota_usec} {config.cpu_period_usec}\n'))
+            for file_name, value in (
+                    ('memory.low', config.memory_low_bytes),
+                    ('memory.high', config.memory_high_bytes),
+                    ('memory.max', config.memory_max_bytes),
+                    ('pids.max', config.pids_max),
+            ):
+                if value is not None:
+                    settings.append((file_name, f'{value}\n'))
+            for file_name, setting_value in settings:
+                _systevisor_cgroup_write_file(os.path.join(path, file_name), setting_value)
+            procs_fd = os.open(
+                os.path.join(path, 'cgroup.procs'),
+                os.O_WRONLY | getattr(os, 'O_CLOEXEC', 0) | getattr(os, 'O_NOFOLLOW', 0),
+            )
+            return SystevisorCgroupPreparedRun(path=path, procs_fd=procs_fd)
+        except BaseException:
+            if procs_fd >= 0:
+                os.close(procs_fd)
+            try:
+                os.rmdir(path)
+            except OSError:
+                pass
+            raise
+
+    def finish_spawn(self, prepared: SystevisorCgroupPreparedRun) -> None:
+        try:
+            os.close(prepared.procs_fd)
+        except OSError:
+            pass
+
+    def abort_run(self, prepared: SystevisorCgroupPreparedRun) -> None:
+        self.finish_spawn(prepared)
+        try:
+            os.rmdir(prepared.path)
+        except OSError:
+            pass
+
+    def retire_run(self, path: str) -> ta.Tuple[bool, bool]:
+        events = _systevisor_cgroup_read_keyed(os.path.join(path, 'cgroup.events'))
+        populated = bool(events.get('populated', 0))
+        if populated:
+            return False, True
+        try:
+            os.rmdir(path)
+        except FileNotFoundError:
+            return True, False
+        except OSError as exc:
+            raise SystevisorCgroupError(f'cannot remove empty run cgroup {path!r}: {exc}') from exc
+        return True, False
+
+    def sample(self, path: str) -> SystevisorCgroupCounters:
+        cpu = _systevisor_cgroup_read_keyed(os.path.join(path, 'cpu.stat'))
+        events = _systevisor_cgroup_read_keyed(os.path.join(path, 'cgroup.events'))
+        io_values: ta.Dict[str, int] = {}
+        try:
+            io_text = _systevisor_cgroup_read_text(os.path.join(path, 'io.stat'))
+        except OSError:
+            io_text = ''
+        for line in io_text.splitlines():
+            for item in line.split()[1:]:
+                key, separator, raw_value = item.partition('=')
+                if not separator:
+                    continue
+                try:
+                    io_values[key] = io_values.get(key, 0) + int(raw_value)
+                except ValueError:
+                    continue
+        return SystevisorCgroupCounters(
+            cpu_usage_usec=cpu.get('usage_usec'),
+            cpu_user_usec=cpu.get('user_usec'),
+            cpu_system_usec=cpu.get('system_usec'),
+            cpu_throttled_usec=cpu.get('throttled_usec'),
+            cpu_nr_throttled=cpu.get('nr_throttled'),
+            memory_current_bytes=_systevisor_cgroup_read_optional_int(os.path.join(path, 'memory.current')),
+            memory_peak_bytes=_systevisor_cgroup_read_optional_int(os.path.join(path, 'memory.peak')),
+            memory_swap_current_bytes=_systevisor_cgroup_read_optional_int(os.path.join(path, 'memory.swap.current')),
+            pids_current=_systevisor_cgroup_read_optional_int(os.path.join(path, 'pids.current')),
+            io_read_bytes=io_values.get('rbytes'),
+            io_write_bytes=io_values.get('wbytes'),
+            io_read_operations=io_values.get('rios'),
+            io_write_operations=io_values.get('wios'),
+            populated=(bool(events['populated']) if 'populated' in events else None),
+        )
+
+
+def _systevisor_cgroup_run_name(context: SystevisorChildContext) -> str:
+    identity_digest = hashlib.sha256(str(context.instance_id).encode('utf-8')).hexdigest()[:16]
+    return f'sv-{int(context.run_id)}-{identity_digest}'
+
+
+class SystevisorCgroupManager(SystevisorChildModifier):
+    def __init__(self, cgroup_fs: SystevisorCgroupFs) -> None:
+        self._cgroup_fs = cgroup_fs
+        self._active_root: ta.Optional[str] = None
+        self._candidate_root: ta.Optional[str] = None
+        self._has_candidate = False
+        self._prepared: ta.Dict[SystevisorRunId, SystevisorCgroupPreparedRun] = {}
+        self._states: ta.Dict[SystevisorRunId, SystevisorCgroupRunState] = {}
+        self._wake_callback: ta.Optional[ta.Callable[[], None]] = None
+
+    @property
+    def states(self) -> ta.Mapping[SystevisorRunId, SystevisorCgroupRunState]:
+        return self._states
+
+    def set_wake_callback(self, callback: ta.Callable[[], None]) -> None:
+        self._wake_callback = callback
+
+    def needs_sweep(self) -> bool:
+        return any(state.status in {
+            SystevisorCgroupRunStatus.RETIRED_POPULATED,
+            SystevisorCgroupRunStatus.CLEANUP_FAILED,
+        } for state in self._states.values())
+
+    def prepare_config(self, snapshot: SystevisorConfigSnapshot) -> None:
+        if self._has_candidate:
+            raise SystevisorCgroupError('a cgroup configuration candidate is already prepared')
+        root = snapshot.config.manager.cgroups.root
+        configs = tuple(
+            unit.resources.cgroup
+            for unit in snapshot.config.units.values()
+            if unit.resources.cgroup.enabled
+        )
+        if configs:
+            if root is None:
+                raise SystevisorCgroupError('cgroup-enabled units require a delegated root')
+            self._cgroup_fs.validate_root(root, configs)
+        self._candidate_root = root
+        self._has_candidate = True
+
+    def commit_config(self) -> None:
+        if not self._has_candidate:
+            raise SystevisorCgroupError('no cgroup configuration candidate is prepared')
+        self._active_root = self._candidate_root
+        self._candidate_root = None
+        self._has_candidate = False
+
+    def rollback_config(self) -> None:
+        self._candidate_root = None
+        self._has_candidate = False
+
+    def _root(self) -> ta.Optional[str]:
+        return self._candidate_root if self._has_candidate else self._active_root
+
+    def parent_prepare(self, context: SystevisorChildContext) -> None:
+        config = context.spec.unit.resources.cgroup
+        if context.run_id <= 0 or not config.enabled:
+            return
+        root = self._root()
+        if root is None:
+            raise SystevisorCgroupError('cgroup configuration is not active')
+        prepared = self._cgroup_fs.create_run(root, _systevisor_cgroup_run_name(context), config)
+        self._prepared[context.run_id] = prepared
+        self._states[context.run_id] = SystevisorCgroupRunState(
+            state_schema_version=1,
+            run_id=context.run_id,
+            instance_id=context.instance_id,
+            path=prepared.path,
+            config=config,
+            status=SystevisorCgroupRunStatus.PREPARED,
+        )
+
+    def preserved_fds(self, context: SystevisorChildContext) -> ta.Sequence[int]:
+        prepared = self._prepared.get(context.run_id)
+        return (prepared.procs_fd,) if prepared is not None else ()
+
+    def before_identity(self, context: SystevisorChildContext) -> None:
+        prepared = self._prepared.get(context.run_id)
+        if prepared is None:
+            return
+        try:
+            os.write(prepared.procs_fd, b'0\n')
+        finally:
+            os.close(prepared.procs_fd)
+
+    def parent_spawned(self, context: SystevisorChildContext, pid: int) -> None:
+        prepared = self._prepared.pop(context.run_id, None)
+        if prepared is None:
+            return
+        self._cgroup_fs.finish_spawn(prepared)
+        state = self._states[context.run_id]
+        self._states[context.run_id] = dc.replace(
+            state,
+            status=SystevisorCgroupRunStatus.ACTIVE,
+            pid=pid,
+        )
+
+    def parent_spawn_failed(self, context: SystevisorChildContext) -> None:
+        prepared = self._prepared.pop(context.run_id, None)
+        if prepared is None:
+            return
+        self._cgroup_fs.abort_run(prepared)
+        self._states.pop(context.run_id, None)
+
+    def _retire(self, run_id: SystevisorRunId) -> None:
+        state = self._states.get(run_id)
+        if state is None or state.status is SystevisorCgroupRunStatus.REMOVED:
+            return
+        try:
+            removed, populated = self._cgroup_fs.retire_run(state.path)
+        except (OSError, SystevisorCgroupError) as exc:
+            self._states[run_id] = dc.replace(
+                state,
+                status=SystevisorCgroupRunStatus.CLEANUP_FAILED,
+                cleanup_error=f'{type(exc).__name__}: {exc}',
+            )
+            return
+        self._states[run_id] = dc.replace(
+            state,
+            status=(
+                SystevisorCgroupRunStatus.REMOVED if removed else
+                SystevisorCgroupRunStatus.RETIRED_POPULATED if populated else
+                SystevisorCgroupRunStatus.CLEANUP_FAILED
+            ),
+            cleanup_error=None,
+        )
+
+    def parent_retired(self, context: SystevisorChildContext) -> None:
+        self._retire(context.run_id)
+        if self.needs_sweep() and self._wake_callback is not None:
+            self._wake_callback()
+
+    def sweep(self) -> None:
+        for run_id, state in tuple(self._states.items()):
+            if state.status in {
+                    SystevisorCgroupRunStatus.RETIRED_POPULATED,
+                    SystevisorCgroupRunStatus.CLEANUP_FAILED,
+            }:
+                self._retire(run_id)
+
+    def sample(self, run_id: SystevisorRunId) -> ta.Optional[SystevisorCgroupCounters]:
+        state = self._states.get(run_id)
+        if state is None or state.status is SystevisorCgroupRunStatus.REMOVED:
+            return None
+        return self._cgroup_fs.sample(state.path)
+
+    def prune(self, retained_run_ids: ta.AbstractSet[SystevisorRunId]) -> None:
+        for run_id, state in tuple(self._states.items()):
+            if state.status is SystevisorCgroupRunStatus.REMOVED and run_id not in retained_run_ids:
+                del self._states[run_id]
+
+
+########################################
+# ../resources/namespaces.py
+
+
+_SYSTEVISOR_NAMESPACE_CLONE_NEWNS = 0x00020000
+_SYSTEVISOR_NAMESPACE_CLONE_NEWCGROUP = 0x02000000
+_SYSTEVISOR_NAMESPACE_CLONE_NEWUTS = 0x04000000
+_SYSTEVISOR_NAMESPACE_CLONE_NEWIPC = 0x08000000
+_SYSTEVISOR_NAMESPACE_CLONE_NEWNET = 0x40000000
+
+_SYSTEVISOR_NAMESPACE_MS_REC = 16384
+_SYSTEVISOR_NAMESPACE_MS_PRIVATE = 1 << 18
+
+
+class SystevisorNamespaceError(Exception):
+    pass
+
+
+class SystevisorNamespaceBackend(Abstract):
+    @abc.abstractmethod
+    def apply(self, flags: int, *, private_mounts: bool, hostname: ta.Optional[str]) -> None:
+        raise NotImplementedError
+
+
+class SystevisorLinuxNamespaceBackend(SystevisorNamespaceBackend):
+    def apply(self, flags: int, *, private_mounts: bool, hostname: ta.Optional[str]) -> None:
+        if sys.platform != 'linux':
+            raise SystevisorNamespaceError('namespace isolation is supported only on Linux')
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc_unshare = getattr(libc, 'unshare', None)
+        if libc_unshare is None:
+            raise SystevisorNamespaceError('libc does not expose unshare')
+        libc_unshare.argtypes = [ctypes.c_int]
+        libc_unshare.restype = ctypes.c_int
+        if libc_unshare(flags) != 0:
+            error_number = ctypes.get_errno()
+            raise OSError(error_number, os.strerror(error_number), 'unshare')
+
+        if private_mounts:
+            libc_mount = getattr(libc, 'mount', None)
+            if libc_mount is None:
+                raise SystevisorNamespaceError('libc does not expose mount')
+            libc_mount.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_char_p,
+                ctypes.c_char_p,
+                ctypes.c_ulong,
+                ctypes.c_void_p,
+            ]
+            libc_mount.restype = ctypes.c_int
+            if libc_mount(
+                    None,
+                    b'/',
+                    None,
+                    _SYSTEVISOR_NAMESPACE_MS_REC | _SYSTEVISOR_NAMESPACE_MS_PRIVATE,
+                    None,
+            ) != 0:
+                error_number = ctypes.get_errno()
+                raise OSError(error_number, os.strerror(error_number), 'mount-private')
+
+        if hostname is not None:
+            libc_sethostname = getattr(libc, 'sethostname', None)
+            if libc_sethostname is None:
+                raise SystevisorNamespaceError('libc does not expose sethostname')
+            encoded = hostname.encode('utf-8')
+            libc_sethostname.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
+            libc_sethostname.restype = ctypes.c_int
+            if libc_sethostname(encoded, len(encoded)) != 0:
+                error_number = ctypes.get_errno()
+                raise OSError(error_number, os.strerror(error_number), 'sethostname')
+
+
+def systevisor_namespace_flags(config: SystevisorNamespaceConfig) -> int:
+    flags = 0
+    if config.mount:
+        flags |= _SYSTEVISOR_NAMESPACE_CLONE_NEWNS
+    if config.cgroup:
+        flags |= _SYSTEVISOR_NAMESPACE_CLONE_NEWCGROUP
+    if config.uts:
+        flags |= _SYSTEVISOR_NAMESPACE_CLONE_NEWUTS
+    if config.ipc:
+        flags |= _SYSTEVISOR_NAMESPACE_CLONE_NEWIPC
+    if config.network:
+        flags |= _SYSTEVISOR_NAMESPACE_CLONE_NEWNET
+    return flags
+
+
+class SystevisorNamespaceChildModifier(SystevisorChildModifier):
+    def __init__(self, backend: SystevisorNamespaceBackend) -> None:
+        self._backend = backend
+
+    def before_identity(self, context: SystevisorChildContext) -> None:
+        if context.run_id <= 0:
+            return
+        config = context.spec.unit.resources.namespaces
+        flags = systevisor_namespace_flags(config)
+        if flags:
+            self._backend.apply(flags, private_mounts=config.mount, hostname=config.hostname)
+
+
+########################################
+# ../resources/sampling.py
+
+
+class SystevisorResourceSamplingError(Exception):
+    pass
+
+
+class SystevisorResourceIdentityError(SystevisorResourceSamplingError):
+    pass
+
+
+class SystevisorResourceSampleSource(enum.Enum):
+    LINUX_PROCFS = 'linux_procfs'
+    DARWIN_LIBPROC = 'darwin_libproc'
+
+
+@dc.dataclass(frozen=True)
+class SystevisorProcessResourceCounters:
+    source: SystevisorResourceSampleSource
+    birth_identity: ta.Optional[str]
+    cpu_user_secs: ta.Optional[float] = None
+    cpu_system_secs: ta.Optional[float] = None
+    memory_rss_bytes: ta.Optional[int] = None
+    memory_virtual_bytes: ta.Optional[int] = None
+    thread_count: ta.Optional[int] = None
+    minor_faults: ta.Optional[int] = None
+    major_faults: ta.Optional[int] = None
+    read_bytes: ta.Optional[int] = None
+    write_bytes: ta.Optional[int] = None
+    read_operations: ta.Optional[int] = None
+    write_operations: ta.Optional[int] = None
+    voluntary_context_switches: ta.Optional[int] = None
+    involuntary_context_switches: ta.Optional[int] = None
+
+
+class SystevisorProcessResourceSampler(Abstract):
+    @abc.abstractmethod
+    def sample(self, process: SystevisorOwnedProcessState) -> SystevisorProcessResourceCounters:
+        raise NotImplementedError
+
+
+@dc.dataclass(frozen=True)
+class SystevisorLinuxProcStat:
+    birth_identity: str
+    cpu_user_ticks: int
+    cpu_system_ticks: int
+    rss_pages: int
+    virtual_bytes: int
+    thread_count: int
+    minor_faults: int
+    major_faults: int
+
+
+def systevisor_parse_linux_proc_stat(value: str, pid: int) -> SystevisorLinuxProcStat:
+    close_paren = value.rfind(')')
+    if close_paren < 0:
+        raise SystevisorResourceSamplingError(f'malformed procfs stat for pid {pid}')
+    fields = value[close_paren + 2:].split()
+    if len(fields) <= 21:
+        raise SystevisorResourceSamplingError(f'truncated procfs stat for pid {pid}')
+    try:
+        return SystevisorLinuxProcStat(
+            birth_identity=fields[19],
+            cpu_user_ticks=int(fields[11]),
+            cpu_system_ticks=int(fields[12]),
+            rss_pages=int(fields[21]),
+            virtual_bytes=int(fields[20]),
+            thread_count=int(fields[17]),
+            minor_faults=int(fields[7]),
+            major_faults=int(fields[9]),
+        )
+    except (IndexError, ValueError) as exc:
+        raise SystevisorResourceSamplingError(f'invalid procfs stat values for pid {pid}') from exc
+
+
+def _systevisor_resource_linux_proc_stat(pid: int) -> SystevisorLinuxProcStat:
+    try:
+        with open(f'/proc/{pid}/stat') as stat_file:
+            value = stat_file.read()
+    except OSError as exc:
+        raise SystevisorResourceSamplingError(f'cannot read procfs stat for pid {pid}: {exc}') from exc
+    return systevisor_parse_linux_proc_stat(value, pid)
+
+
+def _systevisor_resource_linux_key_values(path: str, separator: str = ':') -> ta.Mapping[str, str]:
+    try:
+        with open(path) as input_file:
+            lines = input_file.readlines()
+    except OSError:
+        return {}
+    values: ta.Dict[str, str] = {}
+    for line in lines:
+        key, found, value = line.partition(separator)
+        if found:
+            values[key.strip()] = value.strip()
+    return values
+
+
+def _systevisor_resource_optional_int(values: ta.Mapping[str, str], name: str) -> ta.Optional[int]:
+    value = values.get(name)
+    if value is None:
+        return None
+    try:
+        return int(value.split()[0])
+    except (IndexError, ValueError):
+        return None
+
+
+class SystevisorLinuxProcfsResourceSampler(SystevisorProcessResourceSampler):
+    def __init__(self) -> None:
+        self._clock_ticks = int(os.sysconf('SC_CLK_TCK'))
+        self._page_size = int(os.sysconf('SC_PAGE_SIZE'))
+
+    def sample(self, process: SystevisorOwnedProcessState) -> SystevisorProcessResourceCounters:
+        first = _systevisor_resource_linux_proc_stat(process.pid)
+        if process.birth_identity is not None and first.birth_identity != process.birth_identity:
+            raise SystevisorResourceIdentityError(
+                f'pid {process.pid} birth identity changed for run {process.run_id}',
+            )
+        status = _systevisor_resource_linux_key_values(f'/proc/{process.pid}/status')
+        io_values = _systevisor_resource_linux_key_values(f'/proc/{process.pid}/io')
+        second = _systevisor_resource_linux_proc_stat(process.pid)
+        if second.birth_identity != first.birth_identity:
+            raise SystevisorResourceIdentityError(
+                f'pid {process.pid} changed identity while sampling run {process.run_id}',
+            )
+        return SystevisorProcessResourceCounters(
+            source=SystevisorResourceSampleSource.LINUX_PROCFS,
+            birth_identity=second.birth_identity,
+            cpu_user_secs=second.cpu_user_ticks / self._clock_ticks,
+            cpu_system_secs=second.cpu_system_ticks / self._clock_ticks,
+            memory_rss_bytes=max(0, second.rss_pages) * self._page_size,
+            memory_virtual_bytes=second.virtual_bytes,
+            thread_count=second.thread_count,
+            minor_faults=second.minor_faults,
+            major_faults=second.major_faults,
+            read_bytes=_systevisor_resource_optional_int(io_values, 'read_bytes'),
+            write_bytes=_systevisor_resource_optional_int(io_values, 'write_bytes'),
+            read_operations=_systevisor_resource_optional_int(io_values, 'syscr'),
+            write_operations=_systevisor_resource_optional_int(io_values, 'syscw'),
+            voluntary_context_switches=_systevisor_resource_optional_int(status, 'voluntary_ctxt_switches'),
+            involuntary_context_switches=_systevisor_resource_optional_int(status, 'nonvoluntary_ctxt_switches'),
+        )
+
+
+class SystevisorDarwinProcTaskInfo(ctypes.Structure):
+    _fields_ = [
+        ('virtual_size', ctypes.c_uint64),
+        ('resident_size', ctypes.c_uint64),
+        ('total_user', ctypes.c_uint64),
+        ('total_system', ctypes.c_uint64),
+        ('threads_user', ctypes.c_uint64),
+        ('threads_system', ctypes.c_uint64),
+        ('policy', ctypes.c_int32),
+        ('faults', ctypes.c_int32),
+        ('pageins', ctypes.c_int32),
+        ('cow_faults', ctypes.c_int32),
+        ('messages_sent', ctypes.c_int32),
+        ('messages_received', ctypes.c_int32),
+        ('syscalls_mach', ctypes.c_int32),
+        ('syscalls_unix', ctypes.c_int32),
+        ('context_switches', ctypes.c_int32),
+        ('thread_count', ctypes.c_int32),
+        ('running_thread_count', ctypes.c_int32),
+        ('priority', ctypes.c_int32),
+    ]
+
+
+class SystevisorDarwinLibprocResourceSampler(SystevisorProcessResourceSampler):
+    def sample(self, process: SystevisorOwnedProcessState) -> SystevisorProcessResourceCounters:
+        if not _systevisor_resource_is_darwin():
+            raise SystevisorResourceSamplingError('Darwin libproc sampling is unavailable on this platform')
+        libproc = ctypes.CDLL('/usr/lib/libproc.dylib', use_errno=True)
+        proc_pidinfo = libproc.proc_pidinfo
+        proc_pidinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64, ctypes.c_void_p, ctypes.c_int]
+        proc_pidinfo.restype = ctypes.c_int
+        task_info = SystevisorDarwinProcTaskInfo()
+        size = ctypes.sizeof(task_info)
+        result = proc_pidinfo(process.pid, 4, 0, ctypes.byref(task_info), size)
+        if result != size:
+            error_number = ctypes.get_errno()
+            if error_number:
+                raise SystevisorResourceSamplingError(
+                    f'proc_pidinfo failed for pid {process.pid}: {os.strerror(error_number)}',
+                )
+            raise SystevisorResourceSamplingError(f'proc_pidinfo returned {result} bytes; expected {size}')
+        return SystevisorProcessResourceCounters(
+            source=SystevisorResourceSampleSource.DARWIN_LIBPROC,
+            birth_identity=process.birth_identity,
+            cpu_user_secs=task_info.total_user / 1_000_000_000.,
+            cpu_system_secs=task_info.total_system / 1_000_000_000.,
+            memory_rss_bytes=int(task_info.resident_size),
+            memory_virtual_bytes=int(task_info.virtual_size),
+            thread_count=int(task_info.thread_count),
+            minor_faults=int(task_info.faults),
+            major_faults=int(task_info.pageins),
+            voluntary_context_switches=int(task_info.context_switches),
+        )
+
+
+class SystevisorSystemProcessResourceSampler(SystevisorProcessResourceSampler):
+    def __init__(self) -> None:
+        self._sampler: ta.Optional[SystevisorProcessResourceSampler] = None
+
+    def sample(self, process: SystevisorOwnedProcessState) -> SystevisorProcessResourceCounters:
+        if self._sampler is None:
+            if sys.platform == 'linux':
+                self._sampler = SystevisorLinuxProcfsResourceSampler()
+            elif sys.platform == 'darwin':
+                self._sampler = SystevisorDarwinLibprocResourceSampler()
+            else:
+                raise SystevisorResourceSamplingError(f'unsupported resource sampling platform: {sys.platform}')
+        return self._sampler.sample(process)
+
+
+def _systevisor_resource_is_darwin() -> bool:
+    return sys.platform == 'darwin'
+
+
+########################################
+# ../resources/sockets.py
+
+
+_SYSTEVISOR_SOCKET_ACTIVATION_ENV_KEYS = ('LISTEN_PID', 'LISTEN_FDS', 'LISTEN_FDNAMES')
+_SYSTEVISOR_SOCKET_DUPLICATE_FLOOR = 64
+
+
+class SystevisorSocketActivationError(Exception):
+    pass
+
+
+@dc.dataclass(frozen=True)
+class SystevisorInheritedSocket:
+    state_schema_version: int
+    name: str
+    fd: int
+    family: int
+    socket_type: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorPreparedSocketMapping:
+    name: str
+    source_fd: int
+    child_fd: int
+
+
+class SystevisorInheritedSocketRegistry:
+    def __init__(
+            self,
+            environment: ta.Optional[ta.MutableMapping[str, str]] = None,
+            *,
+            pid: ta.Optional[int] = None,
+            fd_start: int = 3,
+            consume_environment: bool = True,
+    ) -> None:
+        self._environment = os.environ if environment is None else environment
+        self._pid = os.getpid() if pid is None else pid
+        self._fd_start = fd_start
+        had_activation_environment = any(key in self._environment for key in _SYSTEVISOR_SOCKET_ACTIVATION_ENV_KEYS)
+        self._sockets = self._capture()
+        self._closed = False
+        if consume_environment and had_activation_environment:
+            for key in _SYSTEVISOR_SOCKET_ACTIVATION_ENV_KEYS:
+                self._environment.pop(key, None)
+
+    @property
+    def sockets(self) -> ta.Mapping[str, SystevisorInheritedSocket]:
+        return self._sockets
+
+    def _capture(self) -> ta.Dict[str, SystevisorInheritedSocket]:
+        raw_pid = self._environment.get('LISTEN_PID')
+        raw_count = self._environment.get('LISTEN_FDS')
+        if raw_pid is None and raw_count is None:
+            return {}
+        try:
+            listen_pid = int(raw_pid or '')
+            count = int(raw_count or '')
+        except ValueError as exc:
+            raise SystevisorSocketActivationError('invalid LISTEN_PID/LISTEN_FDS') from exc
+        if listen_pid != self._pid:
+            return {}
+        if count < 0 or count > 1024:
+            raise SystevisorSocketActivationError('LISTEN_FDS must be between 0 and 1024')
+        if count == 0:
+            return {}
+
+        raw_names = self._environment.get('LISTEN_FDNAMES')
+        if raw_names is None:
+            names = tuple(f'fd{self._fd_start + index}' for index in range(count))
+        else:
+            names = tuple(raw_names.split(':'))
+            if len(names) != count or any(not name for name in names):
+                raise SystevisorSocketActivationError('LISTEN_FDNAMES must name every inherited descriptor')
+        if len(set(names)) != len(names):
+            raise SystevisorSocketActivationError('LISTEN_FDNAMES contains duplicate names')
+
+        inherited: ta.Dict[str, SystevisorInheritedSocket] = {}
+        for index, name in enumerate(names):
+            fd = self._fd_start + index
+            try:
+                fd_stat = os.fstat(fd)
+            except OSError as exc:
+                raise SystevisorSocketActivationError(f'inherited socket descriptor {fd} is not open') from exc
+            if not stat.S_ISSOCK(fd_stat.st_mode):
+                raise SystevisorSocketActivationError(f'inherited descriptor {fd} is not a socket')
+            duplicate = socket.socket(fileno=os.dup(fd))
+            try:
+                family = duplicate.family
+                socket_type = duplicate.type
+            finally:
+                duplicate.close()
+            flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+            fcntl.fcntl(fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+            inherited[name] = SystevisorInheritedSocket(
+                state_schema_version=1,
+                name=name,
+                fd=fd,
+                family=family,
+                socket_type=socket_type,
+            )
+        return inherited
+
+    def require(self, names: ta.Iterable[str]) -> ta.Sequence[SystevisorInheritedSocket]:
+        required: ta.List[SystevisorInheritedSocket] = []
+        for name in names:
+            try:
+                required.append(self._sockets[name])
+            except KeyError as exc:
+                raise SystevisorSocketActivationError(f'unknown inherited socket: {name!r}') from exc
+        return tuple(required)
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        for inherited in self._sockets.values():
+            try:
+                os.close(inherited.fd)
+            except OSError:
+                pass
+        self._sockets.clear()
+        self._closed = True
+
+
+class SystevisorInheritedSocketChildModifier(SystevisorChildModifier):
+    def __init__(self, registry: SystevisorInheritedSocketRegistry) -> None:
+        self._registry = registry
+        self._prepared: ta.Dict[SystevisorRunId, ta.Sequence[SystevisorPreparedSocketMapping]] = {}
+
+    def parent_prepare(self, context: SystevisorChildContext) -> None:
+        names = context.spec.unit.resources.inherited_sockets
+        if context.run_id <= 0 or not names:
+            return
+        inherited = self._registry.require(names)
+        mappings: ta.List[SystevisorPreparedSocketMapping] = []
+        try:
+            for index, item in enumerate(inherited):
+                source_fd = fcntl.fcntl(
+                    item.fd,
+                    fcntl.F_DUPFD_CLOEXEC,
+                    _SYSTEVISOR_SOCKET_DUPLICATE_FLOOR,
+                )
+                mappings.append(SystevisorPreparedSocketMapping(
+                    name=item.name,
+                    source_fd=source_fd,
+                    child_fd=3 + index,
+                ))
+        except BaseException:
+            for mapping in mappings:
+                os.close(mapping.source_fd)
+            raise
+        self._prepared[context.run_id] = tuple(mappings)
+
+    def preserved_fds(self, context: SystevisorChildContext) -> ta.Sequence[int]:
+        return tuple(mapping.source_fd for mapping in self._prepared.get(context.run_id, ()))
+
+    def reserved_child_fds(self, context: SystevisorChildContext) -> ta.Sequence[int]:
+        return tuple(mapping.child_fd for mapping in self._prepared.get(context.run_id, ()))
+
+    def child_environment(self, context: SystevisorChildContext) -> ta.Mapping[str, str]:
+        mappings = self._prepared.get(context.run_id, ())
+        if not mappings:
+            return {}
+        return {
+            'LISTEN_PID': str(os.getpid()),
+            'LISTEN_FDS': str(len(mappings)),
+            'LISTEN_FDNAMES': ':'.join(mapping.name for mapping in mappings),
+        }
+
+    def before_identity(self, context: SystevisorChildContext) -> None:
+        mappings = self._prepared.get(context.run_id, ())
+        try:
+            for mapping in mappings:
+                os.dup2(mapping.source_fd, mapping.child_fd)
+                os.set_inheritable(mapping.child_fd, True)
+        finally:
+            for mapping in mappings:
+                try:
+                    os.close(mapping.source_fd)
+                except OSError:
+                    pass
+
+    def _finish(self, run_id: SystevisorRunId) -> None:
+        for mapping in self._prepared.pop(run_id, ()):
+            try:
+                os.close(mapping.source_fd)
+            except OSError:
+                pass
+
+    def parent_spawned(self, context: SystevisorChildContext, pid: int) -> None:
+        self._finish(context.run_id)
+
+    def parent_spawn_failed(self, context: SystevisorChildContext) -> None:
+        self._finish(context.run_id)
+
+
+########################################
 # ../control/client.py
 
 
@@ -28373,8 +29580,14 @@ def _systevisor_runtime_inject_provide_engine() -> SystevisorEngine:
 
 def _systevisor_runtime_inject_provide_process_manager(
         child_pid_provider: SystevisorChildPidProvider,
+        cgroup_manager: SystevisorCgroupManager,
+        namespace_modifier: SystevisorNamespaceChildModifier,
+        socket_modifier: SystevisorInheritedSocketChildModifier,
 ) -> SystevisorProcessManager:
-    return SystevisorProcessManager(child_pid_provider=child_pid_provider)
+    return SystevisorProcessManager(
+        child_pid_provider=child_pid_provider,
+        child_modifiers=(cgroup_manager, socket_modifier, namespace_modifier),
+    )
 
 
 def _systevisor_runtime_inject_provide_event_bus() -> SystevisorEventBus:
@@ -28762,6 +29975,358 @@ class SystevisorControlService:
         self._event_subscription.close()
         self._goals.clear()
         self._last_exited_run_ids.clear()
+
+
+########################################
+# ../resources/runtime.py
+
+
+class SystevisorResourceEventKind(enum.Enum):
+    SAMPLED = 'sampled'
+    FAILED = 'failed'
+    RECOVERED = 'recovered'
+    ENDED = 'ended'
+
+
+@dc.dataclass(frozen=True)
+class SystevisorResourceRates:
+    cpu_percent: ta.Optional[float] = None
+    read_bytes_per_sec: ta.Optional[float] = None
+    write_bytes_per_sec: ta.Optional[float] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorResourceSample:
+    sample_schema_version: int
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    pid: int
+    monotonic_at: float
+    wall_time: float
+    process: SystevisorProcessResourceCounters
+    rates: SystevisorResourceRates
+    cgroup: ta.Optional[SystevisorCgroupCounters] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorResourceRunState:
+    state_schema_version: int
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    active: bool
+    first_observed_at: float
+    last_observed_at: ta.Optional[float]
+    ended_at: ta.Optional[float]
+    sample_count: int
+    failure_count: int
+    consecutive_failures: int
+    last_error: ta.Optional[str]
+    sample: ta.Optional[SystevisorResourceSample]
+
+
+@dc.dataclass(frozen=True)
+class SystevisorResourceEvent:
+    kind: SystevisorResourceEventKind
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    sample_count: int
+    failure_count: int
+    message: ta.Optional[str] = None
+
+
+def _systevisor_resource_rate(
+        current: ta.Optional[ta.Union[int, float]],
+        previous: ta.Optional[ta.Union[int, float]],
+        elapsed: float,
+) -> ta.Optional[float]:
+    if current is None or previous is None or elapsed <= 0 or current < previous:
+        return None
+    return (float(current) - float(previous)) / elapsed
+
+
+def _systevisor_resource_rates(
+        counters: SystevisorProcessResourceCounters,
+        previous: ta.Optional[SystevisorResourceSample],
+        now: float,
+) -> SystevisorResourceRates:
+    if previous is None:
+        return SystevisorResourceRates()
+    elapsed = now - previous.monotonic_at
+    current_cpu = (
+        None if counters.cpu_user_secs is None or counters.cpu_system_secs is None else
+        counters.cpu_user_secs + counters.cpu_system_secs
+    )
+    previous_counters = previous.process
+    previous_cpu = (
+        None if previous_counters.cpu_user_secs is None or previous_counters.cpu_system_secs is None else
+        previous_counters.cpu_user_secs + previous_counters.cpu_system_secs
+    )
+    cpu_rate = _systevisor_resource_rate(current_cpu, previous_cpu, elapsed)
+    return SystevisorResourceRates(
+        cpu_percent=None if cpu_rate is None else cpu_rate * 100.,
+        read_bytes_per_sec=_systevisor_resource_rate(
+            counters.read_bytes,
+            previous_counters.read_bytes,
+            elapsed,
+        ),
+        write_bytes_per_sec=_systevisor_resource_rate(
+            counters.write_bytes,
+            previous_counters.write_bytes,
+            elapsed,
+        ),
+    )
+
+
+class SystevisorPreparedResourceChange(SystevisorConfigPreparedChange):
+    def __init__(
+            self,
+            owner: 'SystevisorResourceObserver',
+            config: SystevisorObservationConfig,
+    ) -> None:
+        self._owner = owner
+        self._config = config
+        self._finished = False
+
+    def commit(self) -> None:
+        if self._finished:
+            raise RuntimeError('resource configuration change is already finished')
+        self._owner._cgroup_manager.commit_config()  # noqa: SLF001
+        self._owner._apply_config(self._config)  # noqa: SLF001
+        self._finished = True
+
+    def rollback(self) -> None:
+        if self._finished:
+            return
+        self._owner._cgroup_manager.rollback_config()  # noqa: SLF001
+        self._finished = True
+
+
+class SystevisorResourceObserver(FdioHandler, SystevisorConfigParticipant):
+    def __init__(
+            self,
+            config_controller: SystevisorConfigController,
+            process_manager: SystevisorProcessManager,
+            process_sampler: SystevisorProcessResourceSampler,
+            cgroup_manager: SystevisorCgroupManager,
+            socket_registry: SystevisorInheritedSocketRegistry,
+            clock: SystevisorClock,
+            fdio_manager: FdioManager,
+            event_bus: SystevisorEventBus,
+    ) -> None:
+        self._process_manager = process_manager
+        self._process_sampler = process_sampler
+        self._cgroup_manager = cgroup_manager
+        self._socket_registry = socket_registry
+        self._clock = clock
+        self._event_bus = event_bus
+        self._config = SystevisorObservationConfig(enabled=False)
+        self._states: ta.Dict[SystevisorRunId, SystevisorResourceRunState] = {}
+        self._next_sample_at: ta.Optional[float] = None
+        self._closed = False
+        cgroup_manager.set_wake_callback(self._wake_for_cgroup_cleanup)
+        config_controller.add_participant(self)
+        fdio_manager.register(self)
+
+    @property
+    def states(self) -> ta.Mapping[SystevisorRunId, SystevisorResourceRunState]:
+        return self._states
+
+    @property
+    def cgroup_states(self) -> ta.Mapping[SystevisorRunId, ta.Any]:
+        return self._cgroup_manager.states
+
+    @property
+    def inherited_sockets(self) -> ta.Mapping[str, ta.Any]:
+        return self._socket_registry.sockets
+
+    def fd(self) -> int:
+        return -1
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        self._closed = True
+        self._next_sample_at = None
+
+    def prepare(self, snapshot: SystevisorConfigSnapshot) -> SystevisorConfigPreparedChange:
+        if sys.platform != 'linux' and any(
+                systevisor_namespace_flags(unit.resources.namespaces)
+                for unit in snapshot.config.units.values()
+        ):
+            raise RuntimeError('namespace isolation is supported only on Linux')
+        self._socket_registry.require(
+            socket_name
+            for unit in snapshot.config.units.values()
+            for socket_name in unit.resources.inherited_sockets
+        )
+        self._cgroup_manager.prepare_config(snapshot)
+        return SystevisorPreparedResourceChange(self, snapshot.config.manager.observation)
+
+    def _apply_config(self, config: SystevisorObservationConfig) -> None:
+        was_enabled = self._config.enabled
+        self._config = config
+        if config.enabled:
+            if not was_enabled or self._next_sample_at is None:
+                self._next_sample_at = self._clock.monotonic()
+        else:
+            self._next_sample_at = (
+                self._clock.monotonic()
+                if self._cgroup_manager.needs_sweep() else
+                None
+            )
+
+    def _wake_for_cgroup_cleanup(self) -> None:
+        if not self._closed:
+            self._next_sample_at = self._clock.monotonic()
+
+    def next_deadline(self) -> ta.Optional[float]:
+        return None if self._closed else self._next_sample_at
+
+    def _publish(
+            self,
+            kind: SystevisorResourceEventKind,
+            state: SystevisorResourceRunState,
+            message: ta.Optional[str] = None,
+    ) -> None:
+        self._event_bus.publish('resource', SystevisorResourceEvent(
+            kind=kind,
+            run_id=state.run_id,
+            instance_id=state.instance_id,
+            sample_count=state.sample_count,
+            failure_count=state.failure_count,
+            message=message,
+        ), self._clock.monotonic())
+
+    def _sample_process(self, process: SystevisorOwnedProcessState, now: float, wall_time: float) -> None:
+        previous_state = self._states.get(process.run_id)
+        try:
+            counters = self._process_sampler.sample(process)
+            cgroup = self._cgroup_manager.sample(process.run_id)
+        except Exception as exc:  # noqa: BLE001
+            state = SystevisorResourceRunState(
+                state_schema_version=1,
+                run_id=process.run_id,
+                instance_id=process.instance_id,
+                active=True,
+                first_observed_at=(now if previous_state is None else previous_state.first_observed_at),
+                last_observed_at=(None if previous_state is None else previous_state.last_observed_at),
+                ended_at=None,
+                sample_count=(0 if previous_state is None else previous_state.sample_count),
+                failure_count=(0 if previous_state is None else previous_state.failure_count) + 1,
+                consecutive_failures=(0 if previous_state is None else previous_state.consecutive_failures) + 1,
+                last_error=f'{type(exc).__name__}: {exc}',
+                sample=(None if previous_state is None else previous_state.sample),
+            )
+            self._states[process.run_id] = state
+            if state.consecutive_failures == 1:
+                self._publish(SystevisorResourceEventKind.FAILED, state, state.last_error)
+            return
+
+        previous_sample = None if previous_state is None else previous_state.sample
+        sample = SystevisorResourceSample(
+            sample_schema_version=1,
+            run_id=process.run_id,
+            instance_id=process.instance_id,
+            pid=process.pid,
+            monotonic_at=now,
+            wall_time=wall_time,
+            process=counters,
+            rates=_systevisor_resource_rates(counters, previous_sample, now),
+            cgroup=cgroup,
+        )
+        state = SystevisorResourceRunState(
+            state_schema_version=1,
+            run_id=process.run_id,
+            instance_id=process.instance_id,
+            active=True,
+            first_observed_at=(now if previous_state is None else previous_state.first_observed_at),
+            last_observed_at=now,
+            ended_at=None,
+            sample_count=(0 if previous_state is None else previous_state.sample_count) + 1,
+            failure_count=(0 if previous_state is None else previous_state.failure_count),
+            consecutive_failures=0,
+            last_error=None,
+            sample=sample,
+        )
+        self._states[process.run_id] = state
+        if previous_state is not None and previous_state.consecutive_failures:
+            self._publish(SystevisorResourceEventKind.RECOVERED, state)
+        if self._config.emit_events:
+            self._publish(SystevisorResourceEventKind.SAMPLED, state)
+
+    def _mark_ended(self, live_run_ids: ta.AbstractSet[SystevisorRunId], now: float) -> None:
+        for run_id, state in tuple(self._states.items()):
+            if state.active and run_id not in live_run_ids:
+                ended = dc.replace(state, active=False, ended_at=now)
+                self._states[run_id] = ended
+                self._publish(SystevisorResourceEventKind.ENDED, ended)
+
+        ended_states = sorted(
+            (state for state in self._states.values() if not state.active),
+            key=lambda state: (state.ended_at or 0., int(state.run_id)),
+            reverse=True,
+        )
+        for state in ended_states[self._config.retained_runs:]:
+            self._states.pop(state.run_id, None)
+        self._cgroup_manager.prune(frozenset(self._states))
+
+    def sample_now(self) -> None:
+        if self._closed:
+            return
+        now = self._clock.monotonic()
+        wall_time = self._clock.wall_time()
+        processes = tuple(
+            process
+            for process in self._process_manager.snapshot_states()
+            if (
+                process.run_id > 0 and
+                process.purpose is SystevisorOwnedProcessPurpose.SERVICE and
+                process.status in {SystevisorOwnedProcessStatus.SPAWNING, SystevisorOwnedProcessStatus.RUNNING} and
+                process.observe_resources
+            )
+        )
+        live_run_ids = {process.run_id for process in processes}
+        for process in processes:
+            self._sample_process(process, now, wall_time)
+        self._mark_ended(live_run_ids, now)
+        self._cgroup_manager.sweep()
+
+    def on_timeout(self) -> None:
+        if self._config.enabled:
+            self.sample_now()
+        else:
+            self._cgroup_manager.sweep()
+        if not self._closed and (self._config.enabled or self._cgroup_manager.needs_sweep()):
+            self._next_sample_at = self._clock.monotonic() + self._config.interval_secs
+        else:
+            self._next_sample_at = None
+
+
+########################################
+# ../resources/inject.py
+
+
+def _systevisor_resources_inject_provide_socket_registry() -> SystevisorInheritedSocketRegistry:
+    return SystevisorInheritedSocketRegistry()
+
+
+def systevisor_bind_resources() -> InjectorBindings:
+    bindings: ta.List[InjectorBindingOrBindings] = [
+        inj.bind(SystevisorSystemCgroupFs, singleton=True),
+        inj.bind(SystevisorCgroupFs, to_key=SystevisorSystemCgroupFs),
+        inj.bind(SystevisorCgroupManager, singleton=True),
+        inj.bind(SystevisorLinuxNamespaceBackend, singleton=True),
+        inj.bind(SystevisorNamespaceBackend, to_key=SystevisorLinuxNamespaceBackend),
+        inj.bind(SystevisorNamespaceChildModifier, singleton=True),
+        inj.bind(_systevisor_resources_inject_provide_socket_registry, singleton=True),
+        inj.bind(SystevisorInheritedSocketChildModifier, singleton=True),
+        inj.bind(SystevisorSystemProcessResourceSampler, singleton=True),
+        inj.bind(SystevisorProcessResourceSampler, to_key=SystevisorSystemProcessResourceSampler),
+        inj.bind(SystevisorResourceObserver, singleton=True),
+    ]
+    return inj.as_bindings(*bindings)
 
 
 ########################################
@@ -29357,6 +30922,7 @@ class SystevisorApiApplication:
             log_manager: SystevisorLogManager,
             json_codec: SystevisorJsonCodec,
             scheduler: SystevisorScheduler,
+            resource_observer: SystevisorResourceObserver,
     ) -> None:
         self._control = control
         self._config_controller = config_controller
@@ -29364,6 +30930,7 @@ class SystevisorApiApplication:
         self._log_manager = log_manager
         self._json_codec = json_codec
         self._scheduler = scheduler
+        self._resource_observer = resource_observer
 
     def _json_response(self, value: ta.Any, status: int = 200) -> SystevisorApiResponse:
         return SystevisorApiResponse(status=status, body=self._json_codec.dumps(value))
@@ -29488,6 +31055,22 @@ class SystevisorApiApplication:
             return self._json_response({'collections': tuple(state.collections.values())})
         if method == 'GET' and segments == ('v1', 'schedules'):
             return self._json_response({'schedules': tuple(self._scheduler.states.values())})
+        if method == 'GET' and segments == ('v1', 'resources'):
+            return self._json_response({
+                'runs': tuple(self._resource_observer.states.values()),
+                'cgroups': tuple(self._resource_observer.cgroup_states.values()),
+                'inherited_sockets': tuple(self._resource_observer.inherited_sockets.values()),
+            })
+        if method == 'GET' and len(segments) == 3 and segments[:2] == ('v1', 'resources'):
+            try:
+                run_id = SystevisorRunId(int(segments[2]))
+            except ValueError as exc:
+                raise SystevisorApiError(400, 'invalid_run_id', 'run id must be an integer') from exc
+            resource_state = self._resource_observer.states.get(run_id)
+            cgroup = self._resource_observer.cgroup_states.get(run_id)
+            if resource_state is None and cgroup is None:
+                raise SystevisorApiError(404, 'resource_run_not_found', 'resource run not found')
+            return self._json_response({'run': resource_state, 'cgroup': cgroup})
         if method == 'GET' and segments == ('v1', 'operations'):
             operations = self._control.operations.list()
             requested_statuses = frozenset(query.get('status', ()))
@@ -30123,6 +31706,7 @@ class SystevisorMainServerContext:
         )
         self._injector = inj.create_injector(
             systevisor_bind_platforms(),
+            systevisor_bind_resources(),
             systevisor_bind_runtime(),
             systevisor_bind_control(bootstrap),
         )
@@ -30135,6 +31719,8 @@ class SystevisorMainServerContext:
         self.poller: ta.Optional[FdioPoller] = None
         self.manager_runtime: ta.Optional[SystevisorManagerRuntime] = None
         self.scheduler: ta.Optional[SystevisorScheduler] = None
+        self.resource_observer: ta.Optional[SystevisorResourceObserver] = None
+        self.inherited_sockets: ta.Optional[SystevisorInheritedSocketRegistry] = None
 
     def compile(self) -> SystevisorConfigCompileResult:
         bootstrap = self._injector.provide(SystevisorControlBootstrapConfig)
@@ -30149,6 +31735,7 @@ class SystevisorMainServerContext:
             startup_collection: ta.Optional[SystevisorCollectionName] = None,
     ) -> SystevisorConfigControllerResult:
         if compiled.snapshot is not None:
+            self.inherited_sockets = self._injector.provide(SystevisorInheritedSocketRegistry)
             manager_runtime = self._injector.provide(SystevisorManagerRuntime)
             manager_runtime.setup(compiled.snapshot.config.manager)
             self.manager_runtime = manager_runtime
@@ -30163,6 +31750,7 @@ class SystevisorMainServerContext:
             self.control = self._injector.provide(SystevisorControlService)
             self.scheduler = self._injector.provide(SystevisorScheduler)
             self.scheduler.set_state_directory_override(self._state_directory)
+            self.resource_observer = self._injector.provide(SystevisorResourceObserver)
             self.control_plane = self._injector.provide(SystevisorControlPlane)
             coordinator.engine.state.startup_collection = startup_collection
 
@@ -30178,6 +31766,8 @@ class SystevisorMainServerContext:
             self.manager_runtime.stopping()
 
     def close(self) -> None:
+        if self.resource_observer is not None:
+            self.resource_observer.close()
         if self.scheduler is not None:
             self.scheduler.close()
         if self.control_plane is not None:
@@ -30192,6 +31782,8 @@ class SystevisorMainServerContext:
             self.poller.close()
         if self.manager_runtime is not None:
             self.manager_runtime.close()
+        if self.inherited_sockets is not None:
+            self.inherited_sockets.close()
 
 
 def _systevisor_main_serve(args: argparse.Namespace) -> int:
@@ -30327,6 +31919,11 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
         target = '/v1/collections'
     elif args.command == 'schedules':
         target = '/v1/schedules'
+    elif args.command == 'resources':
+        target = (
+            '/v1/resources' if args.run_id is None else
+            f'/v1/resources/{args.run_id}'
+        )
     elif args.command == 'config':
         target = '/v1/config'
     elif args.command == 'operations':
@@ -30427,6 +32024,9 @@ def _systevisor_main_parser() -> argparse.ArgumentParser:
             'status', 'units', 'collections', 'schedules', 'config', 'operations', 'reload', 'check', 'shutdown',
     ):
         subparsers.add_parser(command)
+
+    resources = subparsers.add_parser('resources')
+    resources.add_argument('run_id', type=int, nargs='?')
 
     for command in ('start', 'stop'):
         action = subparsers.add_parser(command)

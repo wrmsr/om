@@ -91,3 +91,20 @@ emerges.
 systemd readiness requires only an AF_UNIX datagram to `NOTIFY_SOCKET`; no libsystemd or D-Bus dependency is needed.
 launchd has no matching readiness protocol for this use. Direct service templates therefore provide useful opaque
 interop without coupling either platform manager to Systevisor's internal resources.
+
+## Resource and capability prior art
+
+`omcore.diag.procfs` confirms the useful Linux stat indexes and procfs availability, but is non-lite, exposes broad
+diagnostic helpers, and reports RSS pages without run identity. Systevisor therefore uses a small dedicated parser,
+double-checks field 22 (start time), and keeps the sampler behind an injected interface. The Darwin implementation is
+similarly narrow and calls libproc directly rather than importing psutil or shelling out.
+
+The newer `omcore.daemons.children` work reinforces the value of explicit spawn/wait ownership and lifecycle services,
+but it is intentionally not imported: it is non-lite and solves a different daemon-library problem. Systevisor's child
+modifier lifecycle was grown locally so cgroup membership, namespaces, inherited descriptors, and future rehydration
+all share one fork-safe capability boundary.
+
+Cgroup v2 is treated as delegation, not discovery. Systevisor will not walk the machine cgroup tree, enable controllers
+in an ancestor it does not own, or use `cgroup.kill`; the configured root is a prerequisite supplied by an operator or
+service manager. Systemd activation is likewise capability-based: only the contiguous descriptors authenticated by
+matching `LISTEN_PID` are captured, and unit config can select them by `LISTEN_FDNAMES` only.

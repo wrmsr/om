@@ -11,6 +11,9 @@ from omcore.lite.inject import InjectorBindings
 from omcore.lite.inject import inj
 
 from ..core.engine import SystevisorEngine
+from ..resources.cgroups import SystevisorCgroupManager
+from ..resources.namespaces import SystevisorNamespaceChildModifier
+from ..resources.sockets import SystevisorInheritedSocketChildModifier
 from .clocks import SystevisorClock
 from .clocks import SystevisorSystemClock
 from .coordinator import SystevisorRuntimeCoordinator
@@ -29,8 +32,14 @@ def _systevisor_runtime_inject_provide_engine() -> SystevisorEngine:
 
 def _systevisor_runtime_inject_provide_process_manager(
         child_pid_provider: SystevisorChildPidProvider,
+        cgroup_manager: SystevisorCgroupManager,
+        namespace_modifier: SystevisorNamespaceChildModifier,
+        socket_modifier: SystevisorInheritedSocketChildModifier,
 ) -> SystevisorProcessManager:
-    return SystevisorProcessManager(child_pid_provider=child_pid_provider)
+    return SystevisorProcessManager(
+        child_pid_provider=child_pid_provider,
+        child_modifiers=(cgroup_manager, socket_modifier, namespace_modifier),
+    )
 
 
 def _systevisor_runtime_inject_provide_event_bus() -> SystevisorEventBus:

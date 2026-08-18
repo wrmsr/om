@@ -9,6 +9,7 @@ from omcore.lite.abstract import Abstract
 from omcore.logs.modules import get_module_logger
 
 from ..core.identities import SystevisorRunId
+from ..resources.runtime import SystevisorResourceObserver
 from ..runtime.events import SystevisorBusEvent
 from ..runtime.events import SystevisorEventBus
 from ..runtime.events import SystevisorEventSubscription
@@ -214,6 +215,7 @@ class SystevisorApiApplication:
             log_manager: SystevisorLogManager,
             json_codec: SystevisorJsonCodec,
             scheduler: SystevisorScheduler,
+            resource_observer: SystevisorResourceObserver,
     ) -> None:
         self._control = control
         self._config_controller = config_controller
@@ -221,6 +223,7 @@ class SystevisorApiApplication:
         self._log_manager = log_manager
         self._json_codec = json_codec
         self._scheduler = scheduler
+        self._resource_observer = resource_observer
 
     def _json_response(self, value: ta.Any, status: int = 200) -> SystevisorApiResponse:
         return SystevisorApiResponse(status=status, body=self._json_codec.dumps(value))
@@ -345,6 +348,22 @@ class SystevisorApiApplication:
             return self._json_response({'collections': tuple(state.collections.values())})
         if method == 'GET' and segments == ('v1', 'schedules'):
             return self._json_response({'schedules': tuple(self._scheduler.states.values())})
+        if method == 'GET' and segments == ('v1', 'resources'):
+            return self._json_response({
+                'runs': tuple(self._resource_observer.states.values()),
+                'cgroups': tuple(self._resource_observer.cgroup_states.values()),
+                'inherited_sockets': tuple(self._resource_observer.inherited_sockets.values()),
+            })
+        if method == 'GET' and len(segments) == 3 and segments[:2] == ('v1', 'resources'):
+            try:
+                run_id = SystevisorRunId(int(segments[2]))
+            except ValueError as exc:
+                raise SystevisorApiError(400, 'invalid_run_id', 'run id must be an integer') from exc
+            resource_state = self._resource_observer.states.get(run_id)
+            cgroup = self._resource_observer.cgroup_states.get(run_id)
+            if resource_state is None and cgroup is None:
+                raise SystevisorApiError(404, 'resource_run_not_found', 'resource run not found')
+            return self._json_response({'run': resource_state, 'cgroup': cgroup})
         if method == 'GET' and segments == ('v1', 'operations'):
             operations = self._control.operations.list()
             requested_statuses = frozenset(query.get('status', ()))

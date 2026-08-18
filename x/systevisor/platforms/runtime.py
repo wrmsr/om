@@ -23,6 +23,7 @@ from omcore.os.setproctitle import setproctitle
 
 from ..configs.models import SystevisorManagerConfig
 from ..configs.models import SystevisorManagerLogConfig
+from ..configs.models import SystevisorObservationConfig
 
 
 _SYSTEVISOR_PLATFORM_PR_SET_CHILD_SUBREAPER = 36
@@ -431,6 +432,7 @@ class SystevisorManagerRuntime:
         return dc.replace(
             config,
             log=SystevisorManagerLogConfig(),
+            observation=SystevisorObservationConfig(),
             process_title=None,
             strip_ansi=False,
         )

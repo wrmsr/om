@@ -55,6 +55,11 @@ requires a new session and retains the leader's wait right through shutdown/esca
 All wait and signal call sites are confined and checked statically. Unknown adopted processes have no control
 capability and are only reaped.
 
+Child modifiers have explicit parent-prepare, parent-spawned, failed-spawn, child-pre-exec, and parent-retired hooks.
+Preparation happens before `fork`; failures unwind prepared capabilities before any child exists. The child closes all
+ambient descriptors except the exec-status pipe and descriptors named by modifiers. Reserved child descriptor ranges
+can force relocation of the exec-status pipe, preventing activation sockets from silently overwriting it.
+
 ## Host boundary
 
 Manager bootstrap happens only after a complete cold candidate has compiled and before the injector constructs the
@@ -76,6 +81,32 @@ races and already-zombied adoptees.
 systemd sees Systevisor as one `Type=notify` service and receives readiness/stopping datagrams. Its generated unit uses
 `KillMode=process`, leaving delegation and draining to Systevisor rather than exposing children as platform units.
 launchd likewise receives a single direct-exec plist. Neither adapter projects the internal unit graph outward.
+
+## Observation and isolation
+
+Resource samples are observations of an owned run, never a source of process authority. The sampler receives an
+owned-process snapshot and indexes its result by run ID. Linux procfs sampling reads stat/status/io, checks the
+recorded start-time identity before the sample and again after all other reads, and reports CPU, memory, faults, I/O,
+thread, and context-switch counters. Darwin uses `proc_pidinfo(PROC_PIDTASKINFO)` through ctypes. The observer derives
+rates from monotonic deltas, records failures and recoveries, retains a configured number of ended runs, and exposes
+the latest typed state through HTTP. It does not signal, wait, or discover arbitrary PIDs.
+
+Cgroup v2 is optional and requires an explicitly configured, already delegated root. Preparation verifies cgroup-v2
+control files and every controller needed by configured limits. A per-run directory and `cgroup.procs` FD are prepared
+in the parent; after `fork`, the child writes `0` through that FD before dropping identity. Systevisor never writes
+`cgroup.kill`. CPU, memory, PID, and aggregate descendant I/O counters are observable. Empty groups are removed;
+populated descendant groups are retained and retried by an fdio deadline even when ordinary sampling is disabled.
+
+Linux mount, IPC, UTS, network, and cgroup namespaces are optional child-pre-exec capabilities backed by injected
+ctypes syscalls. A new mount namespace is made recursively private, and UTS can set a hostname. PID namespaces are not
+offered because they require another fork and would break direct-child wait ownership. User namespaces are not offered
+without a parent/child UID/GID-map protocol. Unsupported hosts reject the candidate during runtime preparation.
+
+Systemd-style activation sockets are captured before daemonization only when `LISTEN_PID` names the manager. The
+registry verifies socket descriptors, gives them collision-safe names, sets close-on-exec in the manager, and owns
+them until shutdown. Units opt into names explicitly. Each spawn duplicates only those descriptors, maps them to the
+contiguous range beginning at 3, and creates child-correct `LISTEN_PID`, `LISTEN_FDS`, and `LISTEN_FDNAMES` values.
+Unknown names reject configuration before reconciliation. Launchd named-socket acquisition is not implemented yet.
 
 ## Artifact boundary
 

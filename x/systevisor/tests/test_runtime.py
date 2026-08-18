@@ -25,6 +25,7 @@ from x.systevisor.core.identities import SystevisorRunId
 from x.systevisor.core.inputs import SystevisorApplySnapshotCommand
 from x.systevisor.core.states import SystevisorDeadlineKind
 from x.systevisor.core.states import SystevisorProcessState
+from x.systevisor.resources.inject import systevisor_bind_resources
 from x.systevisor.runtime.clocks import SystevisorSystemClock
 from x.systevisor.runtime.coordinator import SystevisorRuntimeCoordinator
 from x.systevisor.runtime.events import SystevisorEventBus
@@ -183,7 +184,7 @@ class TestSystevisorFdioRuntime(unittest.TestCase):
         self.assertIn('engine', {event.topic for event in event_bus.journal()})
 
     def test_lite_inject_assembles_singletons(self) -> None:
-        injector = inj.create_injector(systevisor_bind_runtime())
+        injector = inj.create_injector(systevisor_bind_resources(), systevisor_bind_runtime())
         coordinator = injector.provide(SystevisorRuntimeCoordinator)
         self.addCleanup(coordinator.close)
 

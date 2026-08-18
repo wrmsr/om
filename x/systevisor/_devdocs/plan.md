@@ -61,7 +61,13 @@
 
 ## Phase 9: observation and platform capabilities
 
-- Add procfs/Darwin resource sampling, cgroup v2 delegation, optional namespace configuration, and socket adoption.
+- Complete: run-keyed Linux procfs and Darwin libproc sampling, monotonic rates, retained API/CLI state, and typed
+  failure/recovery events.
+- Complete: explicitly delegated cgroup v2 run groups with controller validation, CPU/memory/PID limits, aggregate
+  counters, descendant-aware cleanup, and no cgroup-based kill path.
+- Complete: injected Linux mount/IPC/UTS/network/cgroup namespace setup and named systemd-style socket adoption.
+- Deferred deliberately: PID/user namespaces, automatic cgroup delegation/controller enablement, and launchd named
+  socket acquisition require stronger platform-specific ownership protocols.
 
 ## Phase 10: self-update
 

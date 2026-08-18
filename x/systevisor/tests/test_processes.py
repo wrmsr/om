@@ -2,6 +2,7 @@
 import os
 import select
 import signal
+import socket
 import time
 import typing as ta
 import unittest
@@ -13,12 +14,15 @@ from x.systevisor.configs.models import SystevisorRestartConfig
 from x.systevisor.configs.models import SystevisorSignalScope
 from x.systevisor.configs.models import SystevisorStopConfig
 from x.systevisor.configs.models import SystevisorUnitConfig
+from x.systevisor.configs.models import SystevisorUnitResourcesConfig
 from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
 from x.systevisor.core.effects import SystevisorSignalProcessEffect
 from x.systevisor.core.effects import SystevisorSpawnProcessEffect
 from x.systevisor.core.identities import SystevisorInstanceId
 from x.systevisor.core.identities import SystevisorRunId
 from x.systevisor.core.states import SystevisorSignalReason
+from x.systevisor.resources.sockets import SystevisorInheritedSocketChildModifier
+from x.systevisor.resources.sockets import SystevisorInheritedSocketRegistry
 from x.systevisor.runtime.processes import SystevisorChildContext
 from x.systevisor.runtime.processes import SystevisorChildModifier
 from x.systevisor.runtime.processes import SystevisorChildPidProvider
@@ -40,6 +44,7 @@ def _systevisor_test_process_effect(
         run_id: int = 1,
         scope: SystevisorSignalScope = SystevisorSignalScope.PROCESS,
         identity: SystevisorIdentityConfig = SystevisorIdentityConfig(),
+        resources: SystevisorUnitResourcesConfig = SystevisorUnitResourcesConfig(),
 ) -> SystevisorSpawnProcessEffect:
     config = SystevisorConfig(units={
         'test': SystevisorUnitConfig(
@@ -47,6 +52,7 @@ def _systevisor_test_process_effect(
             restart=SystevisorRestartConfig(start_secs=0.),
             stop=SystevisorStopConfig(scope=scope),
             identity=identity,
+            resources=resources,
         ),
     })
     snapshot = systevisor_build_config_snapshot(config, (), ())
@@ -113,6 +119,18 @@ def _systevisor_test_cleanup_process(manager: SystevisorProcessManager, run_id: 
 class SystevisorTestChildModifier(SystevisorChildModifier):
     def __init__(self, checkpoint_fd: int) -> None:
         self._checkpoint_fd = checkpoint_fd
+        self.prepared = False
+        self.spawned_pid: ta.Optional[int] = None
+        self.retired = False
+
+    def parent_prepare(self, context: SystevisorChildContext) -> None:
+        self.prepared = True
+
+    def parent_spawned(self, context: SystevisorChildContext, pid: int) -> None:
+        self.spawned_pid = pid
+
+    def parent_retired(self, context: SystevisorChildContext) -> None:
+        self.retired = True
 
     def preserved_fds(self, context: SystevisorChildContext) -> tuple:
         return (self._checkpoint_fd,)
@@ -265,9 +283,8 @@ class TestSystevisorProcesses(unittest.TestCase):
         checkpoint_read_fd, checkpoint_write_fd = os.pipe()
         self.addCleanup(os.close, checkpoint_read_fd)
         self.addCleanup(os.close, checkpoint_write_fd)
-        manager = SystevisorProcessManager(
-            child_modifiers=(SystevisorTestChildModifier(checkpoint_write_fd),),
-        )
+        modifier = SystevisorTestChildModifier(checkpoint_write_fd)
+        manager = SystevisorProcessManager(child_modifiers=(modifier,))
         effect = _systevisor_test_process_effect(('/bin/true',))
         manager.spawn(effect)
         self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
@@ -282,6 +299,50 @@ class TestSystevisorProcesses(unittest.TestCase):
         self.assertEqual(os.read(checkpoint_read_fd, 4096), b'modified')
         _systevisor_test_wait_exec(manager, effect.run_id)
         _systevisor_test_wait_exit(manager, effect.run_id)
+        state = manager.get_state(effect.run_id)
+        assert state is not None
+        self.assertTrue(modifier.prepared)
+        self.assertEqual(modifier.spawned_pid, state.pid)
+        retirement = manager.acknowledge_exit(effect.run_id)
+        systevisor_close_process_retirement(retirement)
+        self.assertTrue(modifier.retired)
+
+    def test_inherited_socket_is_mapped_through_exec_with_systemd_environment(self) -> None:
+        inherited_socket, peer_socket = socket.socketpair()
+        self.addCleanup(inherited_socket.close)
+        self.addCleanup(peer_socket.close)
+        inherited_fd = os.dup(inherited_socket.fileno())
+        registry = SystevisorInheritedSocketRegistry(
+            {
+                'LISTEN_PID': str(os.getpid()),
+                'LISTEN_FDS': '1',
+                'LISTEN_FDNAMES': 'api',
+            },
+            fd_start=inherited_fd,
+            consume_environment=False,
+        )
+        self.addCleanup(registry.close)
+        manager = SystevisorProcessManager(
+            child_modifiers=(SystevisorInheritedSocketChildModifier(registry),),
+        )
+        effect = _systevisor_test_process_effect(
+            (
+                '/bin/sh',
+                '-c',
+                (
+                    'test "$LISTEN_PID" = "$$" && test "$LISTEN_FDS" = 1 && '
+                    'test "$LISTEN_FDNAMES" = api && test -S /proc/self/fd/3'
+                ),
+            ),
+            resources=SystevisorUnitResourcesConfig(inherited_sockets=('api',)),
+        )
+        manager.spawn(effect)
+        self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
+
+        _systevisor_test_wait_exec(manager, effect.run_id)
+        observed = _systevisor_test_wait_exit(manager, effect.run_id)
+
+        self.assertEqual(observed.return_code, 0)
 
     def test_unknown_identity_is_rejected_before_fork(self) -> None:
         manager = SystevisorProcessManager()
