@@ -58,7 +58,9 @@ class DockerExecTarget(Target, lang.Final):
         for k, v in (spec.env or {}).items():
             argv += ['-e', f'{k}={v}']
 
-        argv += [self.container, '--', *spec.argv]
+        # No `--`: `docker exec` stops parsing flags at the container (the first positional), so the
+        # command follows directly. Passing `--` would make docker try to exec `--` itself.
+        argv += [self.container, *spec.argv]
 
         # The local docker client runs anywhere and inherits the host env (env=None); the container-side cwd/env were
         # consumed into flags above.

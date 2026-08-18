@@ -39,10 +39,14 @@ amalgamated in-container agent). Not implemented yet - `Target` is where that si
 - The in-container amalgamated agent (ominfra/manage pyremote-style) for real remote process control without the
   coarse `docker exec` client - the long-game the user flagged.
 
-## Follow-up (flake fix, 2026-08-18)
+## Bug fix: the `--` separator (2026-08-18)
 
-The live docker test flaked on macOS with `OCI runtime exec failed` (rc 127): `docker exec` fired before the
-just-`docker run -d`'d container was fully up. This is a container-startup race, not a `DockerExecTarget` bug (the
-target execs into an assumed-running container). Fixed the test with `_wait_container_ready()` - it probes
-`docker exec <cid> true` until it succeeds (20s budget, else `pytest.skip`) before the real exec. No production
-change: callers are expected to target an already-running container.
+The live docker test failed with `OCI runtime exec failed: exec failed: ... exec: "--": ... not found` (rc 127) -
+initially misdiagnosed as a container-startup race (a `_wait_container_ready()` probe was added, which did not fix
+it). The real bug: the target emitted `docker exec [flags] <cid> -- <argv>`. Unlike `docker run`, **`docker exec`
+uses non-interspersed flag parsing** - it stops parsing flags at the container (the first positional) and treats the
+rest as the command - so `--` is never needed and, worse, docker execs `--` itself. Fix: drop the `--`
+(`docker exec [flags] <cid> <argv>`). The fake-`docker` test shim was updated to model this (first positional =
+container, rest = command), so it now catches this class of bug. `_wait_container_ready()` is kept as harmless
+defensive practice against a genuinely-still-starting container, but was not the cause. (ssh is unaffected - it
+builds a remote command *string*, not an argv vector.)

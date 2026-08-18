@@ -19,7 +19,7 @@ def test_transform_spec():
     argv = list(t.transform_spec(s).argv)
     assert argv == [
         'docker', 'exec', '-i', '--privileged', '-w', '/work', '-u', '1000:1000',
-        '-e', 'FOO=bar', '-e', 'BAZ=qux', 'dev', '--', 'ls', '-la',
+        '-e', 'FOO=bar', '-e', 'BAZ=qux', 'dev', 'ls', '-la',
     ]
     # cwd/env are consumed into flags; the local client runs anywhere and inherits host env.
     ts = t.transform_spec(s)
@@ -28,11 +28,11 @@ def test_transform_spec():
 
     # pty adds -t
     p = DockerExecTarget(container='dev').transform_spec(ProcessSpec(['bash'], stdio=PtyStdio()))
-    assert list(p.argv) == ['docker', 'exec', '-i', '-t', 'dev', '--', 'bash']
+    assert list(p.argv) == ['docker', 'exec', '-i', '-t', 'dev', 'bash']
 
     # no env / no cwd -> minimal
     m = DockerExecTarget(container='dev').transform_spec(ProcessSpec(['true']))
-    assert list(m.argv) == ['docker', 'exec', '-i', 'dev', '--', 'true']
+    assert list(m.argv) == ['docker', 'exec', '-i', 'dev', 'true']
 
 
 # A fake `docker` that emulates `docker exec [-i|-t|-w D|-u U|-e K=V]... <container> -- <cmd...>` by running <cmd>
@@ -43,14 +43,15 @@ set -euo pipefail
 shift
 declare -a envs=()
 workdir=""
+# `docker exec` stops parsing flags at the container (first positional); everything after it is the command.
 while [ $# -gt 0 ]; do
   case "$1" in
     -i|-t) shift ;;
     -w) workdir="$2"; shift 2 ;;
     -u) shift 2 ;;
     -e) envs+=("$2"); shift 2 ;;
-    --) shift; break ;;
-    *) container="$1"; shift ;;  # the container arg, then expect --
+    -*) shift ;;
+    *) shift; break ;;  # the container; the rest of "$@" is the command
   esac
 done
 [ -n "${workdir:-}" ] && cd "$workdir"
