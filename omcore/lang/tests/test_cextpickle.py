@@ -10,13 +10,14 @@ import pytest
 from ...diag._pycharm import runhack as pycharm_runhack
 from .. import comparison
 from .. import functions
+from ..cached.function import cached_function
 from ..functions import get_function_body_source
 
 
 ##
 
 
-def _pure_script():
+def _pure_script_body():
     import importlib.abc
     import operator
     import pickle
@@ -30,8 +31,6 @@ def _pure_script():
 
     sys.meta_path.insert(0, CextBlocker())
 
-    # NOTE: This function can't use `assert` because pytest rewrites it making `getsource` not work.
-    from omcore import check  # noqa
     from omcore.lang import comparison  # noqa
     from omcore.lang import functions  # noqa
 
@@ -48,34 +47,34 @@ def _pure_script():
         }
 
     def check_objects(objects):
-        check.equal(objects['key_default']((1, 'a'), (2, 'b')), -1)
-        check.equal(objects['key_cmp']((1, 'a'), (2, 'b')), -1)
-        check.equal(objects['key_hash_eq_id_cmp']((1, 'a'), (2, 'b')), -1)
-        check.equal(objects['key_custom']((1, 'a'), (2, 'b')), -1)
+        assert objects['key_default']((1, 'a'), (2, 'b')) == -1
+        assert objects['key_cmp']((1, 'a'), (2, 'b')) == -1
+        assert objects['key_hash_eq_id_cmp']((1, 'a'), (2, 'b')) == -1
+        assert objects['key_custom']((1, 'a'), (2, 'b')) == -1
 
         class Target:
             value: object
 
         target = Target()
         objects['attr_unbound'](target, 420)
-        check.equal(target.value, 420)
+        assert target.value == 420
         objects['attr_none'](target)
-        check.none(target.value)
+        assert target.value is None
 
-        target_dict: dict[str, object] = {}
+        target_dict: dict[str, object] = {}  # type: ignore[unreachable]
         objects['item_unbound'](target_dict, 420)
-        check.equal(target_dict['value'], 420)
+        assert target_dict['value'] == 420
         objects['item_none'](target_dict)
-        check.none(target_dict['value'])
+        assert target_dict['value'] is None
 
-    check.none(comparison._comparison)  # noqa
-    check.none(functions._functions)  # noqa
+    assert comparison._comparison is None  # noqa
+    assert functions._functions is None  # noqa
 
     if sys.argv[1] == 'load':
         objects = pickle.loads(sys.stdin.buffer.read())  # noqa
         check_objects(objects)
-        check.equal(type(objects['key_default']).__module__, 'omcore.lang.comparison')
-        check.equal(type(objects['attr_unbound']).__module__, 'omcore.lang.functions')
+        assert type(objects['key_default']).__module__ == 'omcore.lang.comparison'
+        assert type(objects['attr_unbound']).__module__ == 'omcore.lang.functions'
     elif sys.argv[1] == 'dump':
         objects = make_objects()
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
@@ -86,7 +85,9 @@ def _pure_script():
         raise RuntimeError(sys.argv[1])
 
 
-_PURE_SCRIPT = get_function_body_source(_pure_script)
+@cached_function
+def _pure_script() -> str:
+    return get_function_body_source(_pure_script_body)
 
 
 def _make_objects():
@@ -134,14 +135,14 @@ def test_pickle_across_cext_and_pure_python() -> None:
     assert b'omcore.lang._functions' not in cext_payload
 
     subprocess.run(
-        [sys.executable, '-c', _PURE_SCRIPT, 'load'],
+        [sys.executable, '-c', _pure_script(), 'load'],
         env={**os.environ, pycharm_runhack.ENABLED_ENV_VAR: '0'},
         input=cext_payload,
         check=True,
     )
 
     pure_proc = subprocess.run(
-        [sys.executable, '-c', _PURE_SCRIPT, 'dump'],
+        [sys.executable, '-c', _pure_script(), 'dump'],
         env={**os.environ, pycharm_runhack.ENABLED_ENV_VAR: '0'},
         check=True,
         stdout=subprocess.PIPE,
