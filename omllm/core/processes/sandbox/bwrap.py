@@ -34,7 +34,7 @@ def build_bwrap_argv(
     ]
 
     if not policy.allow_network:
-        a += ['--unshare-net']
+        a.append('--unshare-net')
 
     def _ro(path: str) -> None:
         rp = os.path.realpath(path)
@@ -54,14 +54,14 @@ def build_bwrap_argv(
         _rw(w)
 
     if policy.allow_dev:
-        a += ['--dev', '/dev']
+        a.extend(['--dev', '/dev'])
     if policy.allow_proc:
-        a += ['--proc', '/proc']
+        a.extend(['--proc', '/proc'])
     if policy.tmpfs_tmp:
-        a += ['--tmpfs', '/tmp']  # noqa: S108
+        a.extend(['--tmpfs', '/tmp'])  # noqa: S108
 
     if cwd is not None:
-        a += ['--chdir', os.path.realpath(cwd)]
+        a.extend(['--chdir', os.path.realpath(cwd)])
 
     a.append('--')
     return a

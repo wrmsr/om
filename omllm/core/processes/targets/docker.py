@@ -49,18 +49,18 @@ class DockerExecTarget(Target, lang.Final):
         argv.extend(self.extra_flags)
 
         if spec.cwd is not None:
-            argv += ['-w', spec.cwd]
+            argv.extend(['-w', spec.cwd])
 
         if self.user is not None:
-            argv += ['-u', self.user]
+            argv.extend(['-u', self.user])
 
         # Only explicitly-set container env is forwarded (spec.env is None -> inherit the container's own env).
         for k, v in (spec.env or {}).items():
-            argv += ['-e', f'{k}={v}']
+            argv.extend(['-e', f'{k}={v}'])
 
         # No `--`: `docker exec` stops parsing flags at the container (the first positional), so the command follows
         # directly. Passing `--` would make docker try to exec `--` itself.
-        argv += [self.container, *spec.argv]
+        argv.extend([self.container, *spec.argv])
 
         # The local docker client runs anywhere and inherits the host env (env=None); the container-side cwd/env were
         # consumed into flags above.

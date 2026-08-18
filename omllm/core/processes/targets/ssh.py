@@ -66,23 +66,26 @@ class SshTarget(Target, lang.Final):
         argv: list[str] = [self.ssh]
 
         if self.port is not None:
-            argv += ['-p', str(self.port)]
+            argv.extend(['-p', str(self.port)])
         if self.identity_file is not None:
-            argv += ['-i', self.identity_file]
+            argv.extend(['-i', self.identity_file])
 
         if isinstance(spec.stdio, PtyStdio):
             # -tt forces a remote tty even though our stdin is a (pty) device rather than the user's terminal.
             argv.append('-tt')
 
         if self.control_path is not None:
-            argv += [
+            argv.extend([
                 '-o', 'ControlMaster=auto',
                 '-o', f'ControlPath={self.control_path}',
                 '-o', f'ControlPersist={self.control_persist}',
-            ]
+            ])
 
         if self.no_host_key_checking:
-            argv += ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null']
+            argv.extend([
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'UserKnownHostsFile=/dev/null',
+            ])
 
         argv.extend(self.extra_options)
 
