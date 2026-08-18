@@ -35,7 +35,8 @@ import stat
 import sys
 import tempfile
 from pathlib import Path
-from typing import Iterable, NoReturn
+from typing import Iterable
+from typing import NoReturn
 
 
 # Darwin <sys/un.h>:
@@ -57,7 +58,7 @@ _DARWIN_UNIX_PATH_MAX = 103  # sun_path[104], reserving one byte for NUL.
 
 
 class AuditToken(ctypes.Structure):
-    _fields_ = [("val", ctypes.c_uint32 * _AUDIT_TOKEN_WORDS)]
+    _fields_ = [('val', ctypes.c_uint32 * _AUDIT_TOKEN_WORDS)]
 
     @property
     def pid(self) -> int:
@@ -71,11 +72,11 @@ class AuditToken(ctypes.Structure):
         return int(self.val[7])
 
     def hex_words(self) -> str:
-        return " ".join(f"{int(word):08x}" for word in self.val)
+        return ' '.join(f'{int(word):08x}' for word in self.val)
 
 
 if ctypes.sizeof(AuditToken) != _AUDIT_TOKEN_SIZE:
-    raise RuntimeError("unexpected ctypes layout for audit_token_t")
+    raise RuntimeError('unexpected ctypes layout for audit_token_t')
 
 
 _STOP_REQUESTED = False
@@ -87,15 +88,15 @@ def _request_stop(_signum: int, _frame: object) -> None:
 
 
 def _require_darwin() -> None:
-    if sys.platform != "darwin":
-        raise RuntimeError("this program requires macOS/Darwin")
+    if sys.platform != 'darwin':
+        raise RuntimeError('this program requires macOS/Darwin')
 
 
 def _default_socket_path() -> str:
     # macOS normally gives each user a private TMPDIR.  We still create our own
     # mode-0700 directory so a custom umask cannot accidentally expose it.
-    directory = Path(tempfile.gettempdir()) / f"darwin-audit-signal-{os.getuid()}"
-    return str(directory / "control.sock")
+    directory = Path(tempfile.gettempdir()) / f'darwin-audit-signal-{os.getuid()}'
+    return str(directory / 'control.sock')
 
 
 def _validate_socket_path(path: str) -> str:
@@ -103,24 +104,24 @@ def _validate_socket_path(path: str) -> str:
     encoded = os.fsencode(path)
     if len(encoded) > _DARWIN_UNIX_PATH_MAX:
         raise ValueError(
-            f"Unix socket path is {len(encoded)} bytes; Darwin permits at most "
-            f"{_DARWIN_UNIX_PATH_MAX}: {path!r}"
+            f'Unix socket path is {len(encoded)} bytes; Darwin permits at most '
+            f'{_DARWIN_UNIX_PATH_MAX}: {path!r}',
         )
     return path
 
 
 def _ensure_private_parent(path: str) -> None:
-    parent = os.path.dirname(path) or "."
+    parent = os.path.dirname(path) or '.'
     try:
         os.makedirs(parent, mode=0o700, exist_ok=True)
     except OSError as exc:
-        raise RuntimeError(f"cannot create socket directory {parent!r}: {exc}") from exc
+        raise RuntimeError(f'cannot create socket directory {parent!r}: {exc}') from exc
 
     st = os.stat(parent)
     if st.st_uid != os.getuid():
         raise RuntimeError(
-            f"socket directory {parent!r} is owned by uid {st.st_uid}, "
-            f"not the current uid {os.getuid()}"
+            f'socket directory {parent!r} is owned by uid {st.st_uid}, '
+            f'not the current uid {os.getuid()}',
         )
 
     # Refuse a directory writable by other users unless it has sticky-dir
@@ -128,8 +129,8 @@ def _ensure_private_parent(path: str) -> None:
     unsafe_write_bits = st.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
     if unsafe_write_bits and not (st.st_mode & stat.S_ISVTX):
         raise RuntimeError(
-            f"socket directory {parent!r} is group/world-writable without the "
-            "sticky bit; use a private directory"
+            f'socket directory {parent!r} is group/world-writable without the '
+            'sticky bit; use a private directory',
         )
 
 
@@ -140,10 +141,10 @@ def _remove_stale_socket(path: str) -> None:
         return
 
     if not stat.S_ISSOCK(st.st_mode):
-        raise RuntimeError(f"refusing to replace non-socket path {path!r}")
+        raise RuntimeError(f'refusing to replace non-socket path {path!r}')
     if st.st_uid != os.getuid():
         raise RuntimeError(
-            f"refusing to replace socket {path!r} owned by uid {st.st_uid}"
+            f'refusing to replace socket {path!r} owned by uid {st.st_uid}',
         )
 
     probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -154,10 +155,10 @@ def _remove_stale_socket(path: str) -> None:
         except OSError as exc:
             if exc.errno not in (errno.ECONNREFUSED, errno.ENOENT):
                 raise RuntimeError(
-                    f"cannot determine whether socket {path!r} is stale: {exc}"
+                    f'cannot determine whether socket {path!r} is stale: {exc}',
                 ) from exc
         else:
-            raise RuntimeError(f"a server is already listening on {path!r}")
+            raise RuntimeError(f'a server is already listening on {path!r}')
     finally:
         probe.close()
 
@@ -182,8 +183,8 @@ def _unlink_if_same_socket(path: str, expected_dev: int, expected_ino: int) -> N
 def _write_pipe_message(fd: int, kind: str, message: str) -> None:
     # One short, newline-terminated record.  Escape control characters so the
     # parent can always parse it as a single line.
-    clean = message.replace("\\", "\\\\").replace("\n", "\\n").replace("\t", "\\t")
-    payload = f"{kind}\t{clean}\n".encode("utf-8", "replace")
+    clean = message.replace('\\', '\\\\').replace('\n', '\\n').replace('\t', '\\t')
+    payload = f'{kind}\t{clean}\n'.encode('utf-8', 'replace')
     try:
         os.write(fd, payload[:4096])
     except OSError:
@@ -199,16 +200,16 @@ def _read_pipe_message(fd: int) -> tuple[str, str]:
             break
         chunks.append(chunk)
         total += len(chunk)
-        if b"\n" in chunk:
+        if b'\n' in chunk:
             break
 
-    raw = b"".join(chunks).split(b"\n", 1)[0]
+    raw = b''.join(chunks).split(b'\n', 1)[0]
     if not raw:
-        return "ERR", "daemon exited before reporting readiness"
-    kind, sep, message = raw.partition(b"\t")
+        return 'ERR', 'daemon exited before reporting readiness'
+    kind, sep, message = raw.partition(b'\t')
     if not sep:
-        return "ERR", f"malformed daemon readiness record: {raw!r}"
-    return kind.decode("ascii", "replace"), message.decode("utf-8", "replace")
+        return 'ERR', f'malformed daemon readiness record: {raw!r}'
+    return kind.decode('ascii', 'replace'), message.decode('utf-8', 'replace')
 
 
 class _ReadinessReporter:
@@ -230,10 +231,10 @@ class _ReadinessReporter:
                 pass
 
     def ok(self, message: str) -> None:
-        self._finish("OK", message)
+        self._finish('OK', message)
 
     def error(self, message: str) -> None:
-        self._finish("ERR", message)
+        self._finish('ERR', message)
 
 
 def _redirect_standard_fds() -> None:
@@ -250,7 +251,7 @@ def _close_fds_except(keep: Iterable[int]) -> None:
     keep_set = {fd for fd in keep if fd >= 0}
 
     try:
-        names = os.listdir("/dev/fd")
+        names = os.listdir('/dev/fd')
     except OSError:
         soft_limit = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
         if soft_limit == resource.RLIM_INFINITY:
@@ -307,7 +308,7 @@ def _serve(path: str, readiness: _ReadinessReporter | None) -> int:
         listener.settimeout(0.5)
         _install_server_signal_handlers()
 
-        ready_message = f"pid={os.getpid()} socket={path}"
+        ready_message = f'pid={os.getpid()} socket={path}'
         if readiness is not None:
             readiness.ok(ready_message)
         else:
@@ -328,7 +329,7 @@ def _serve(path: str, readiness: _ReadinessReporter | None) -> int:
             with conn:
                 conn.settimeout(0.5)
                 try:
-                    conn.sendall(b"darwin-audit-signal/1\n")
+                    conn.sendall(b'darwin-audit-signal/1\n')
                 except (BrokenPipeError, ConnectionResetError):
                     continue
 
@@ -341,9 +342,9 @@ def _serve(path: str, readiness: _ReadinessReporter | None) -> int:
                         break
                     if not data:
                         break
-                    if b"PING" in data.upper():
+                    if b'PING' in data.upper():
                         try:
-                            conn.sendall(b"PONG\n")
+                            conn.sendall(b'PONG\n')
                         except (BrokenPipeError, ConnectionResetError):
                             break
 
@@ -362,13 +363,13 @@ def _run_daemon_child(path: str, ready_fd: int) -> NoReturn:
         if second_pid != 0:
             os._exit(0)
 
-        os.chdir("/")
+        os.chdir('/')
         os.umask(0o077)
         _redirect_standard_fds()
         _close_fds_except({0, 1, 2, readiness.fd})
         os._exit(_serve(path, readiness))
     except BaseException as exc:
-        readiness.error(f"{type(exc).__name__}: {exc}")
+        readiness.error(f'{type(exc).__name__}: {exc}')
         os._exit(1)
 
 
@@ -396,23 +397,23 @@ def _start_daemon(path: str) -> int:
             except InterruptedError:
                 continue
 
-    if kind != "OK":
+    if kind != 'OK':
         raise RuntimeError(message)
     print(message)
     return 0
 
 
 def _recv_protocol_greeting(sock: socket.socket) -> None:
-    expected = b"darwin-audit-signal/1\n"
+    expected = b'darwin-audit-signal/1\n'
     received = bytearray()
     while len(received) < len(expected):
         chunk = sock.recv(len(expected) - len(received))
         if not chunk:
-            raise ConnectionError("server closed before sending its protocol greeting")
+            raise ConnectionError('server closed before sending its protocol greeting')
         received.extend(chunk)
     if bytes(received) != expected:
         raise RuntimeError(
-            f"unexpected server greeting {bytes(received)!r}; expected {expected!r}"
+            f'unexpected server greeting {bytes(received)!r}; expected {expected!r}',
         )
 
 
@@ -420,7 +421,7 @@ def _peer_audit_token(sock: socket.socket) -> AuditToken:
     raw = sock.getsockopt(SOL_LOCAL, LOCAL_PEERTOKEN, _AUDIT_TOKEN_SIZE)
     if len(raw) != _AUDIT_TOKEN_SIZE:
         raise RuntimeError(
-            f"LOCAL_PEERTOKEN returned {len(raw)} bytes, expected {_AUDIT_TOKEN_SIZE}"
+            f'LOCAL_PEERTOKEN returned {len(raw)} bytes, expected {_AUDIT_TOKEN_SIZE}',
         )
     return AuditToken.from_buffer_copy(raw)
 
@@ -430,8 +431,8 @@ def _peer_pid(sock: socket.socket) -> int:
     raw = sock.getsockopt(SOL_LOCAL, LOCAL_PEERPID, ctypes.sizeof(ctypes.c_int32))
     if len(raw) != ctypes.sizeof(ctypes.c_int32):
         raise RuntimeError(
-            f"LOCAL_PEERPID returned {len(raw)} bytes, expected "
-            f"{ctypes.sizeof(ctypes.c_int32)}"
+            f'LOCAL_PEERPID returned {len(raw)} bytes, expected '
+            f'{ctypes.sizeof(ctypes.c_int32)}',
         )
     value = ctypes.c_int32.from_buffer_copy(raw)
     return int(value.value)
@@ -439,16 +440,16 @@ def _peer_pid(sock: socket.socket) -> int:
 
 def _load_proc_signal_with_audittoken():
     try:
-        libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+        libproc = ctypes.CDLL('/usr/lib/libproc.dylib', use_errno=True)
     except OSError as exc:
-        raise RuntimeError(f"cannot load /usr/lib/libproc.dylib: {exc}") from exc
+        raise RuntimeError(f'cannot load /usr/lib/libproc.dylib: {exc}') from exc
 
     try:
         function = libproc.proc_signal_with_audittoken
     except AttributeError as exc:
         raise RuntimeError(
-            "this macOS release does not export the private "
-            "proc_signal_with_audittoken SPI"
+            'this macOS release does not export the private '
+            'proc_signal_with_audittoken SPI',
         ) from exc
 
     function.argtypes = (ctypes.POINTER(AuditToken), ctypes.c_int)
@@ -461,22 +462,22 @@ def _load_proc_signal_with_audittoken():
 def _parse_signal(value: str) -> int:
     text = value.strip()
     if not text:
-        raise argparse.ArgumentTypeError("signal must not be empty")
+        raise argparse.ArgumentTypeError('signal must not be empty')
 
     try:
         number = int(text, 10)
     except ValueError:
         name = text.upper()
-        if not name.startswith("SIG"):
-            name = "SIG" + name
+        if not name.startswith('SIG'):
+            name = 'SIG' + name
         number_obj = getattr(signal, name, None)
-        if number_obj is None or name in {"SIG_DFL", "SIG_IGN"}:
-            raise argparse.ArgumentTypeError(f"unknown signal {value!r}")
+        if number_obj is None or name in {'SIG_DFL', 'SIG_IGN'}:
+            raise argparse.ArgumentTypeError(f'unknown signal {value!r}')
         number = int(number_obj)
 
     if number <= 0 or number >= signal.NSIG:
         raise argparse.ArgumentTypeError(
-            f"signal number must be in [1, {signal.NSIG - 1}], got {number}"
+            f'signal number must be in [1, {signal.NSIG - 1}], got {number}',
         )
     return number
 
@@ -510,16 +511,16 @@ def _run_client(path: str, sig: int, dry_run: bool, timeout: float) -> int:
         peer_pid = _peer_pid(sock)
         if token.pid != peer_pid:
             raise RuntimeError(
-                f"kernel peer identity disagreement: token pid={token.pid}, "
-                f"LOCAL_PEERPID={peer_pid}"
+                f'kernel peer identity disagreement: token pid={token.pid}, '
+                f'LOCAL_PEERPID={peer_pid}',
             )
 
-        print(f"peer pid:        {token.pid}")
-        print(f"peer pidversion: {token.pidversion}")
-        print(f"audit token:     {token.hex_words()}")
+        print(f'peer pid:        {token.pid}')
+        print(f'peer pidversion: {token.pidversion}')
+        print(f'audit token:     {token.hex_words()}')
 
         if dry_run:
-            print("dry run: no signal sent")
+            print('dry run: no signal sent')
             return 0
 
         proc_signal = _load_proc_signal_with_audittoken()
@@ -529,13 +530,13 @@ def _run_client(path: str, sig: int, dry_run: bool, timeout: float) -> int:
             # returning -1 and leaving errno for the caller.
             raise OSError(
                 result,
-                f"proc_signal_with_audittoken({_signal_name(sig)}) failed: "
-                f"{os.strerror(result)}",
+                f'proc_signal_with_audittoken({_signal_name(sig)}) failed: '
+                f'{os.strerror(result)}',
             )
 
         print(
-            f"sent {_signal_name(sig)} ({sig}) to exact peer identity "
-            f"pid={token.pid}, pidversion={token.pidversion}"
+            f'sent {_signal_name(sig)} ({sig}) to exact peer identity '
+            f'pid={token.pid}, pidversion={token.pidversion}',
         )
         return 0
     finally:
@@ -545,51 +546,51 @@ def _run_client(path: str, sig: int, dry_run: bool, timeout: float) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Darwin audit-token signalling demo using an AF_UNIX peer token "
-            "and private libproc SPI"
-        )
+            'Darwin audit-token signalling demo using an AF_UNIX peer token '
+            'and private libproc SPI'
+        ),
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest='command', required=True)
 
     server_parser = subparsers.add_parser(
-        "server", help="double-fork and listen on a Unix socket"
+        'server', help='double-fork and listen on a Unix socket',
     )
     server_parser.add_argument(
-        "--socket",
+        '--socket',
         default=_default_socket_path(),
-        help="Unix socket path (default: %(default)s)",
+        help='Unix socket path (default: %(default)s)',
     )
     server_parser.add_argument(
-        "--foreground",
-        action="store_true",
-        help="do not double-fork; useful for debugging",
+        '--foreground',
+        action='store_true',
+        help='do not double-fork; useful for debugging',
     )
 
     client_parser = subparsers.add_parser(
-        "client", help="obtain the socket peer's audit token and signal it"
+        'client', help="obtain the socket peer's audit token and signal it",
     )
     client_parser.add_argument(
-        "--socket",
+        '--socket',
         default=_default_socket_path(),
-        help="Unix socket path (default: %(default)s)",
+        help='Unix socket path (default: %(default)s)',
     )
     client_parser.add_argument(
-        "--signal",
+        '--signal',
         type=_parse_signal,
         default=int(signal.SIGTERM),
-        metavar="NAME|NUMBER",
-        help="signal to send (default: TERM)",
+        metavar='NAME|NUMBER',
+        help='signal to send (default: TERM)',
     )
     client_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="print the kernel-issued peer identity without signalling it",
+        '--dry-run',
+        action='store_true',
+        help='print the kernel-issued peer identity without signalling it',
     )
     client_parser.add_argument(
-        "--timeout",
+        '--timeout',
         type=float,
         default=5.0,
-        help="socket connection timeout in seconds (default: %(default)s)",
+        help='socket connection timeout in seconds (default: %(default)s)',
     )
 
     return parser
@@ -600,15 +601,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        if args.command == "server":
+        if args.command == 'server':
             path = _validate_socket_path(args.socket)
             if args.foreground:
                 return _serve(path, None)
             return _start_daemon(path)
 
-        if args.command == "client":
+        if args.command == 'client':
             if args.timeout <= 0:
-                parser.error("--timeout must be greater than zero")
+                parser.error('--timeout must be greater than zero')
             return _run_client(
                 _validate_socket_path(args.socket),
                 args.signal,
@@ -616,11 +617,11 @@ def main(argv: list[str] | None = None) -> int:
                 args.timeout,
             )
 
-        parser.error(f"unknown command: {args.command}")
+        parser.error(f'unknown command: {args.command}')
     except (OSError, RuntimeError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(f'error: {exc}', file=sys.stderr)
         return 1
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main())
