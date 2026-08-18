@@ -22,11 +22,9 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from .segments import Segment
+from .segments import SegmentRows
 from .styles import StyleLike
 from .wraps import wrap_segments
-
-
-SegmentRows: ta.TypeAlias = ta.Sequence[ta.Sequence[Segment]]
 
 
 ##

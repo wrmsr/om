@@ -18,15 +18,13 @@ import typing as ta
 from omcore import lang
 
 from .segments import Segment
+from .segments import SegmentRows
 
 
 if ta.TYPE_CHECKING:
     from . import pygments
 else:
     pygments = lang.proxy_import('.pygments', __package__)
-
-
-SegmentRows: ta.TypeAlias = ta.Sequence[ta.Sequence[Segment]]
 
 
 ##

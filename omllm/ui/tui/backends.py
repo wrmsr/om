@@ -28,17 +28,24 @@ def bind_backends(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     backend_cls: ta.Any
-    if config.stream:
-        backend_cls = llm.OpenaiCompletionsStreamBackend
+    backend: ta.Any
+    if (config.model or DEFAULT_MODEL) == 'scripted':
+        # Offline development / testing: the scripted backend's built-in canned responses, no keys or network.
+        backend_cls = llm.ScriptedStreamBackend if config.stream else llm.ScriptedImmediateBackend
+        backend = backend_cls(llm.Model(key=llm.ModelKey('scripted', 'scripted'), backend='scripted'))
+
     else:
-        backend_cls = llm.OpenaiCompletionsImmediateBackend
+        if config.stream:
+            backend_cls = llm.OpenaiCompletionsStreamBackend
+        else:
+            backend_cls = llm.OpenaiCompletionsImmediateBackend
 
-    model_key, api_key_name = MODELS[config.model or DEFAULT_MODEL]
+        model_key, api_key_name = MODELS[config.model or DEFAULT_MODEL]
 
-    backend = backend_cls(
-        llm.default_model_catalog()[model_key],  # noqa
-        **(dict(api_key=load_secrets().get(api_key_name)) if api_key_name is not None else {}),
-    )
+        backend = backend_cls(
+            llm.default_model_catalog()[model_key],  # noqa
+            **(dict(api_key=load_secrets().get(api_key_name)) if api_key_name is not None else {}),
+        )
 
     lst.append(inj.bind(
         agn.BackendManager,

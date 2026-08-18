@@ -364,3 +364,32 @@ authoring w/ auto-downgrade, subtle bg accents, full scope incl. syntax. One com
   Green 3.14 + 3.14t; ruff/mypy clean. SGR ladder verified: #0178D4 -> 38;2;1;120;212 / 38;5;32 / cyan.
 - Owner should eyeball chatdemo (+ --md=pdcmark) and vimdemo for taste tweaks - hexes are all named constants in
   themes.py, trivially adjustable.
+
+## 2026-08-18 (later): THE WIRING - flat API + omllm/ui/tui/minitui
+
+The moment the whole project pointed at. Two commits (04b744757, 80da20d34):
+- **Flat lazy API**: minitui/__init__.py grew the minichain-style auto_proxy_init block - ~200 names, `from
+  omxtra.tui import minitui as mt`, everything a dot away, ~40ms import (lazy). Only ONE flattening clash existed
+  (SegmentRows, identical aliases in text.highlights + text.markdown -> canonicalized in text.segments). Curated
+  exclusions: vim engine internals (scans/motions/textobjs/parsing tables), events Read1/ParseGenerator. Also
+  restored the surfaces/bases.py -> base.py rename that the re-nest had eaten.
+- **omllm/ui/tui/minitui** (alongside bare, same bind_input/bind_output convention + own main):
+  - app.py: MinituiChatApp - chatdemo's skeleton made pure-UI (no agent knowledge): stream_feed/stream_break
+    (MarkdownTail commit model), begin_ai_turn/end_ai_turn headers+status, single-slot warm tool card,
+    begin_permission_card, popup fed from CommandsManager command list, ctrl+d/:q quit.
+  - output.py: MinituiTextDisplayer walks the shared ui.Text family (MarkdownText -> md render; DiffText ->
+    MdCode('diff') through the diff highlighter; JsonText -> code-inline; Str/Concat/Style -> soft-palette
+    inline segments via split_segment_lines). AgentEventRenderer: TextDelta->stream_feed, TextEnd->stream_break,
+    Thinking->status, ToolExecutionStart/End->card lifecycle, TurnEnd for non-stream mode, AgentStart/End.
+  - input.py: CardPermissionAsker - agn.PermissionAsker awaiting an asyncio Future resolved by the card's
+    f10/f2; the turn parks on the decision while the driver keeps rendering.
+  - main.py: unlike bare's blocking read loop, AsyncDriver.run(app) owns the terminal for the process lifetime;
+    PromptPump runs session.prompt as queued concurrent tasks (typing-while-streaming); DriverQuitSignal stops
+    the driver (terminal restore) instead of raising SystemExit through a turn; Config instance bound (the
+    renderer injects it); stream defaults True.
+  - backends.py: 'scripted' model option (llm.ScriptedStreamBackend, offline, no keys) - used for the pty e2e.
+- **Verified**: pty end-to-end (`-m scripted`): submit -> you-header -> ai-header -> streamed markdown ->
+  ctrl+d clean exit w/ protocol resets; /echo + /quit through CommandsManager/QuitSignal; permission card
+  ALLOW + DENY paths headlessly (frame text + future resolution). ruff/mypy clean omllm+omxtra; omllm suite
+  417 passed; minitui 204.
+- Untested against a REAL streaming backend (needs keys) - owner should run `python -m omllm.ui.tui.minitui`.

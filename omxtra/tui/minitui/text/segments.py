@@ -17,6 +17,8 @@ from .styles import StyleLike
 
 Segments: ta.TypeAlias = ta.Sequence['Segment']
 
+SegmentRows: ta.TypeAlias = ta.Sequence[ta.Sequence['Segment']]
+
 
 ##
 

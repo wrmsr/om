@@ -25,7 +25,7 @@ from ..events.types import ModeReportEvent
 from ..events.types import ResizeEvent
 from ..events.xterm import XtermEventParser
 from ..screens.cells import Line
-from ..surfaces.bases import Surface
+from ..surfaces.base import Surface
 from ..surfaces.inlines import InlineSurface
 from .drivers import App
 

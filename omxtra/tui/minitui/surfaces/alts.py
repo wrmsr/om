@@ -17,7 +17,7 @@ from ..screens.diffs import diff_frames
 from ..text.colors import ColorDepth
 from ..text.colors import detect_color_depth
 from ..tty.terminals import Tty
-from .bases import Surface
+from .base import Surface
 from .writers import TermWriter
 
 
