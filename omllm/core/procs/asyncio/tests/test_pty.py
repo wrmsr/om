@@ -1,4 +1,5 @@
 import asyncio
+import os
 import signal
 
 import pytest
@@ -86,3 +87,26 @@ async def test_resize_requires_pty():
         with pytest.raises(NotAPtyError):
             await p.resize(10, 10)
         await p.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_pty_term_overrides_host(monkeypatch):
+    # Regression: PtyStdio.term must be authoritative even when the host already exports TERM (this used to flake -
+    # the injection was skipped whenever the inherited environment had TERM set).
+    monkeypatch.setenv('TERM', 'xterm')
+
+    async with AsyncioProcessManager() as m:
+        run = await m.root.run(ProcessSpec(['sh', '-c', 'echo TERM=$TERM'], stdio=PtyStdio()))
+        assert RawRenderer().render(run.output.records).strip() == 'TERM=xterm-256color'
+
+        # an explicit TERM in the spec env wins over the pty default
+        run = await m.root.run(ProcessSpec(
+            ['sh', '-c', 'echo TERM=$TERM'],
+            env={'TERM': 'vt100', 'PATH': os.environ.get('PATH', '/usr/bin:/bin')},
+            stdio=PtyStdio(),
+        ))
+        assert RawRenderer().render(run.output.records).strip() == 'TERM=vt100'
+
+        # term=None leaves the inherited host TERM untouched
+        run = await m.root.run(ProcessSpec(['sh', '-c', 'echo TERM=$TERM'], stdio=PtyStdio(term=None)))
+        assert RawRenderer().render(run.output.records).strip() == 'TERM=xterm'

@@ -51,3 +51,12 @@ the path differs.
   top of this: the spool records are raw bytes, so an emulator can replay them. Nothing here blocks it.
 - Not exercised on macOS yet; watch for TIOCSCTTY/openpty differences (BSD ptys behave a little differently, and the
   master EIO-vs-EOF behavior on child exit may differ). The zombie-EPERM fix from dev_01 already applies.
+
+## Follow-up (TERM flake fix, 2026-08-18)
+
+`test_pty_controlling_terminal_and_winsize` flaked on hosts that export `TERM` (a Linux CI had `TERM=xterm`; the
+darwin box didn't): the child saw the inherited `xterm` instead of the pty's `xterm-256color`. Root cause was a real
+behavior bug - the manager's TERM injection checked `spec.resolve_env()` (which folds in `os.environ`), so an
+inherited host TERM suppressed `PtyStdio.term`. Fixed so `PtyStdio.term` is authoritative for a pty we create
+(overrides the inherited host TERM); only an explicit TERM in the *spec's* env wins. Regression test
+`test_pty_term_overrides_host` pins all three cases under a monkeypatched host `TERM`.

@@ -378,7 +378,13 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
         pty_read_fd: int | None = None
         pty_write_fd: int | None = None
 
-        if isinstance(stdio, PtyStdio) and stdio.term is not None and 'TERM' not in spec.resolve_env():
+        # PtyStdio.term is authoritative for a pty we create: it overrides any inherited host TERM, and is only
+        # skipped when the caller explicitly set TERM in spec.env.
+        if (
+                isinstance(stdio, PtyStdio) and
+                stdio.term is not None and
+                (spec.env is None or 'TERM' not in spec.env)
+        ):
             spec = spec.with_env(TERM=stdio.term)
 
         try:

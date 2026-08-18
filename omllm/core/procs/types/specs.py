@@ -66,7 +66,8 @@ class PtyStdio:
     rows: int = 24
     cols: int = 80
 
-    # Value for the child's TERM env var, unless the spec already sets one. None leaves TERM untouched.
+    # Value for the child's TERM env var. Authoritative for the pty (overrides any inherited host TERM);
+    # only an explicit TERM in the spec's env wins over it. None leaves TERM untouched.
     term: str | None = 'xterm-256color'
 
     def __post_init__(self) -> None:
