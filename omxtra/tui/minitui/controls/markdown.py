@@ -3,8 +3,8 @@ The live markdown tail: the unsettled remainder of a streaming markdown backend,
 
 The commit-model pairing is the whole point: the app feeds the stream, commits whatever `pop_settled()` returns
 (rendered at the current width), and stacks this control to show the rest. Backends are swappable via
-`get_markdown_stream`: the zero-dep internal parser (default), omcore's pdcmark (pulldown-cmark translated), or
-markdown-it - all producing the same MdBlock model.
+`get_markdown_stream`: omcore's pdcmark (pulldown-cmark translated - the default; omcore is always present), the
+even tinier zero-dep internal line parser, or markdown-it - all producing the same MdBlock model.
 """
 import typing as ta
 
@@ -31,7 +31,7 @@ else:
 ##
 
 
-MARKDOWN_BACKEND_NAMES: ta.Sequence[str] = ('internal', 'pdcmark', 'markdown-it')
+MARKDOWN_BACKEND_NAMES: ta.Sequence[str] = ('pdcmark', 'internal', 'markdown-it')
 
 _MARKDOWN_BACKEND_ALIASES: ta.Mapping[str, str] = {
     'internal': 'internal',
@@ -44,11 +44,12 @@ _MARKDOWN_BACKEND_ALIASES: ta.Mapping[str, str] = {
 
 def get_markdown_stream(name: str | None = None) -> MarkdownStreamBackend:
     """
-    A fresh streaming backend by name: 'internal' (zero-dep, the default), 'pdcmark' (omcore's pulldown-cmark
-    translation), or 'markdown-it' (external, optional). Raises LookupError for unknown or unavailable backends.
+    A fresh streaming backend by name: 'pdcmark' (omcore's pulldown-cmark translation, the default), 'internal'
+    (the tinier zero-dep line parser), or 'markdown-it' (external, optional). Raises LookupError for unknown or
+    unavailable backends.
     """
 
-    if (resolved := _MARKDOWN_BACKEND_ALIASES.get((name or 'internal').strip().lower())) is None:
+    if (resolved := _MARKDOWN_BACKEND_ALIASES.get((name or 'pdcmark').strip().lower())) is None:
         raise LookupError(f'unknown markdown backend: {name!r}')
     if resolved == 'internal':
         return MarkdownStream()
@@ -68,7 +69,7 @@ class MarkdownTail(Control):
     ) -> None:
         super().__init__()
 
-        self._stream = backend if backend is not None else MarkdownStream()
+        self._stream = backend if backend is not None else get_markdown_stream()
         self._highlighter = highlighter
 
     @property

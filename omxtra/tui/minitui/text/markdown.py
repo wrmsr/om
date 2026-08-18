@@ -78,10 +78,11 @@ class MdQuote(MdBlock, lang.Final):
 class MdListItem(lang.Final):
     marker: str
     spans: tuple[Segment, ...]
+    depth: int = 0  # nesting level; each level renders two columns of indent
 
     @classmethod
-    def of(cls, marker: str, text: str) -> MdListItem:
-        return cls(marker, tuple(parse_inlines(text)))
+    def of(cls, marker: str, text: str, depth: int = 0) -> MdListItem:
+        return cls(marker, tuple(parse_inlines(text)), depth)
 
 
 @dc.dataclass(frozen=True)
@@ -195,24 +196,32 @@ def parse_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list[MdBlock]
             continue
 
         if _LIST_PAT.match(s) is not None:
-            raw_items: list[tuple[str, str]] = []
+            raw_items: list[tuple[str, str, int]] = []
+            indent_stack: list[int] = []
             j = i
             while j < n:
                 item_s = lines[j].strip()
                 if (im := _LIST_PAT.match(item_s)) is not None:
-                    raw_items.append((im.group(1), im.group(2)))
+                    # Nesting depth from the marker's indentation: each new deeper indent is one more level, and
+                    # dedenting pops back to the enclosing level.
+                    indent = len(exp := lines[j].expandtabs(4)) - len(exp.lstrip(' '))
+                    while indent_stack and indent < indent_stack[-1]:
+                        indent_stack.pop()
+                    if not indent_stack or indent > indent_stack[-1]:
+                        indent_stack.append(indent)
+                    raw_items.append((im.group(1), im.group(2), len(indent_stack) - 1))
                     j += 1
                 elif item_s and not _is_block_start(lines[j]) and raw_items and lines[j][:1] in (' ', '\t'):
                     # An indented continuation joins the previous item.
-                    marker, text = raw_items[-1]
-                    raw_items[-1] = (marker, text + ' ' + item_s)
+                    marker, text, depth = raw_items[-1]
+                    raw_items[-1] = (marker, text + ' ' + item_s, depth)
                     j += 1
                 else:
                     break
             terminated = j < n or at_eof
             if not terminated:
                 break
-            blocks.append(MdList(tuple(MdListItem.of(marker, text) for marker, text in raw_items)))
+            blocks.append(MdList(tuple(MdListItem.of(marker, text, depth) for marker, text, depth in raw_items)))
             i = j
             settle(i)
             continue
@@ -405,6 +414,9 @@ def _retag(spans: ta.Sequence[Segment], base: str) -> list[Segment]:
     return [Segment(s.text, s.style if s.style is not None else base) for s in spans]
 
 
+_LIST_BULLETS = '•◦▪'  # bullet glyph per nesting depth (cycling)
+
+
 def render_block(
         block: MdBlock,
         width: int,
@@ -427,8 +439,10 @@ def render_block(
     if isinstance(block, MdList):
         rows: list[list[Segment]] = []
         for item in block.items:
-            marker = '• ' if item.marker in '-*+' else f'{item.marker} '
-            rows.extend(_render_hanging(marker, 'md.list.marker', list(item.spans), width))
+            glyph = _LIST_BULLETS[item.depth % len(_LIST_BULLETS)]
+            marker = f'{glyph} ' if item.marker in '-*+' else f'{item.marker} '
+            prefix = '  ' * item.depth + marker
+            rows.extend(_render_hanging(prefix, 'md.list.marker', list(item.spans), width))
         return rows
 
     if isinstance(block, MdRule):

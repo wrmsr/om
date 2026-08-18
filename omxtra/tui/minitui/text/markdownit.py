@@ -11,6 +11,7 @@ import functools
 import importlib.util
 import typing as ta
 
+from omcore import dataclasses as dc
 from omdev.markdown import incparse
 
 from .markdown import MarkdownStreamBackend
@@ -124,7 +125,7 @@ class _TokenWalker:
                     if isinstance(child, MdParagraph):
                         groups.append(child.spans)
                     elif isinstance(child, MdList):
-                        nested.extend(child.items)
+                        nested.extend(dc.replace(it, depth=it.depth + 1) for it in child.items)
                     elif isinstance(child, (MdHeading, MdQuote)):
                         groups.append(child.spans)
                 joined: list[Segment] = []

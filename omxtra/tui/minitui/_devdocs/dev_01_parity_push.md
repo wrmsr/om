@@ -455,3 +455,19 @@ Owner asked, after the second timer bug. Full sweep of every deferred/timed cons
   * AsyncTimers re-bind on driver reuse would replay stale pending timers - driver reuse is out of contract.
 Scoreboard: 4 real bugs total in this class (2 async driver, 2 sync driver) + 2 stale-slot card patterns
 (omllm + chatdemo), all fixed with regression tests; everything else audited clean.
+
+## 2026-08-18 (later): nested lists rendered flat + pdcmark becomes the default backend
+
+Owner report: llm-emitted nested lists render at column 0. Diagnosis vindicated pdcmark: it parses nesting
+perfectly - the shared MdBlock model was FLAT (MdListItem had no depth field), so ALL backends flattened; the
+pdcmark adapter even had the confession comment `# flatten (indentation fidelity: later)`. Also the default
+backend was still 'internal' (which doesn't parse nesting at all). One commit (1bb8cb3c4):
+- MdListItem gains `depth: int = 0`; render_block indents two columns per level with per-depth bullet glyphs
+  (bullet/circle/square cycle) and _render_hanging keeps wrapped continuations aligned under content.
+- pdcmark + markdown-it adapters: nested MdList children merge into the parent one level deeper (dc.replace
+  depth+1) - true parser nesting preserved. Internal parser: marker-indent stack approximation (expandtabs,
+  push on deeper indent, pop on dedent).
+- get_markdown_stream default (and MarkdownTail's default backend) flipped 'internal' -> 'pdcmark' per owner:
+  omcore is always present so pdcmark always available; the tinier internal parser stays selectable by name.
+- All three backends agree on (marker, depth) sequences whole-fed AND chunk-fed; cross-backend regression +
+  internal-parser depth tests + renderer indent/wrap tests. 213 minitui tests; omllm suite + e2e green.

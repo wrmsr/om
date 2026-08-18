@@ -110,3 +110,28 @@ def test_backend_inline_styles_survive(name):
 def test_registry_errors():
     with pytest.raises(LookupError):
         get_markdown_stream('no-such-backend')
+
+
+def test_default_backend_is_pdcmark():
+    from ..pdcmark import PdcmarkStream  # noqa: PLC0415
+    assert isinstance(get_markdown_stream(), PdcmarkStream)
+
+
+def test_nested_list_depth_equivalence_across_backends():
+    src = '- a\n- b\n  - b1\n    - deep\n- c\n\n1. x\n   1. y\n2. z\n'
+    expected = None
+    for name in backend_names():
+        # Whole-feed and chunked feeds must agree on item depths.
+        for chunks in ([src], [src[i:i + 7] for i in range(0, len(src), 7)]):
+            s = get_markdown_stream(name)
+            blocks = []
+            for c in chunks:
+                s.feed(c)
+                blocks.extend(s.pop_settled())
+            blocks.extend(s.finalize())
+            from ..markdown import MdList  # noqa: PLC0415
+            items = [(it.marker, it.depth) for b in blocks if isinstance(b, MdList) for it in b.items]
+            if expected is None:
+                expected = items
+            assert items == expected, (name, len(chunks), items, expected)
+    assert expected  # at least one backend ran and produced items

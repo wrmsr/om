@@ -8,10 +8,12 @@ a standalone event), since block conversion needs whole groups.
 
 Flattenings (the render model is deliberately simpler than commonmark): nested quote/item content joins into the
 parent's inline spans, with non-paragraph children (code blocks in quotes, etc.) emitted as sibling blocks; nested lists
-merge into their parent list; tables render as pipe-joined rows. Hard breaks soften to spaces (blocks re-wrap).
+merge into their parent list with increased item depth; tables render as pipe-joined rows. Hard breaks soften to
+spaces (blocks re-wrap).
 """
 import typing as ta
 
+from omcore import dataclasses as dc
 from omcore.text import pdcmark
 
 from .markdown import MarkdownStreamBackend
@@ -135,7 +137,8 @@ class _EventWalker:
                     if isinstance(child, MdParagraph):
                         spans_groups.append(child.spans)
                     elif isinstance(child, MdList):
-                        nested.extend(child.items)  # flatten (indentation fidelity: later)
+                        # Nested lists merge into the parent, one level deeper.
+                        nested.extend(dc.replace(it, depth=it.depth + 1) for it in child.items)
                     elif isinstance(child, (MdHeading, MdQuote)):
                         spans_groups.append(child.spans)
                 marker = f'{index}.' if index is not None else '-'

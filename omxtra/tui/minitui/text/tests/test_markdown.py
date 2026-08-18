@@ -198,3 +198,27 @@ def test_heading_tags_reach_h6():
         assert tags == [f'md.h{level}'], (level, tags)
     # Beyond-spec levels clamp to h6.
     assert [seg.style for seg in MdHeading.of(9, 'x').spans] == ['md.h6']
+
+
+def test_nested_list_depths():
+    blocks = parse_markdown('- a\n- b\n  - b1\n  - b2\n    - deep\n- c\n')
+    (lst,) = blocks
+    assert isinstance(lst, MdList)
+    assert [(it.marker, it.depth) for it in lst.items] == [
+        ('-', 0), ('-', 0), ('-', 1), ('-', 1), ('-', 2), ('-', 0),
+    ]
+
+
+def test_nested_list_renders_indented():
+    blocks = parse_markdown('- a\n  - b\n    - c\n')
+    rows = [''.join(seg.text for seg in row) for row in render_block(blocks[0], 40)]
+    assert rows == ['• a', '  ◦ b', '    ▪ c']
+
+
+def test_nested_list_wrapped_lines_align_under_content():
+    blocks = parse_markdown('- ' + 'word ' * 12 + '\n  - ' + 'nest ' * 12 + '\n')
+    rows = [''.join(seg.text for seg in row) for row in render_block(blocks[0], 24)]
+    conts = [r for r in rows if not r.lstrip().startswith(('•', '◦'))]
+    assert conts, rows
+    # Continuations hang under the item's content, past its indent + marker.
+    assert all(r.startswith('  ') for r in conts), rows
