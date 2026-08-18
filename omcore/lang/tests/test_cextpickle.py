@@ -30,6 +30,8 @@ def _pure_script():
 
     sys.meta_path.insert(0, CextBlocker())
 
+    # NOTE: This function can't use `assert` because pytest rewrites it making `getsource` not work.
+    from omcore import check  # noqa
     from omcore.lang import comparison  # noqa
     from omcore.lang import functions  # noqa
 
@@ -46,34 +48,34 @@ def _pure_script():
         }
 
     def check_objects(objects):
-        assert objects['key_default']((1, 'a'), (2, 'b')) == -1
-        assert objects['key_cmp']((1, 'a'), (2, 'b')) == -1
-        assert objects['key_hash_eq_id_cmp']((1, 'a'), (2, 'b')) == -1
-        assert objects['key_custom']((1, 'a'), (2, 'b')) == -1
+        check.equal(objects['key_default']((1, 'a'), (2, 'b')), -1)
+        check.equal(objects['key_cmp']((1, 'a'), (2, 'b')), -1)
+        check.equal(objects['key_hash_eq_id_cmp']((1, 'a'), (2, 'b')), -1)
+        check.equal(objects['key_custom']((1, 'a'), (2, 'b')), -1)
 
         class Target:
             value: object
 
         target = Target()
         objects['attr_unbound'](target, 420)
-        assert target.value == 420
+        check.equal(target.value, 420)
         objects['attr_none'](target)
-        assert target.value is None
+        check.none(target.value)
 
-        target_dict: dict[str, object] = {}  # type: ignore[unreachable]
+        target_dict: dict[str, object] = {}
         objects['item_unbound'](target_dict, 420)
-        assert target_dict['value'] == 420
+        check.equal(target_dict['value'], 420)
         objects['item_none'](target_dict)
-        assert target_dict['value'] is None
+        check.none(target_dict['value'])
 
-    assert comparison._comparison is None  # noqa
-    assert functions._functions is None  # noqa
+    check.none(comparison._comparison)  # noqa
+    check.none(functions._functions)  # noqa
 
     if sys.argv[1] == 'load':
         objects = pickle.loads(sys.stdin.buffer.read())  # noqa
         check_objects(objects)
-        assert type(objects['key_default']).__module__ == 'omcore.lang.comparison'
-        assert type(objects['attr_unbound']).__module__ == 'omcore.lang.functions'
+        check.equal(type(objects['key_default']).__module__, 'omcore.lang.comparison')
+        check.equal(type(objects['attr_unbound']).__module__, 'omcore.lang.functions')
     elif sys.argv[1] == 'dump':
         objects = make_objects()
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
