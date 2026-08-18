@@ -124,6 +124,12 @@ class ProcessStdin(lang.Abstract):
 
 
 class ProcessOutput(lang.Abstract):
+    """
+    Output is tracked separately from process lifetime: `output_ended` means all output pipes have closed, which is
+    *not* the same as the process having exited (a process can close its stdio and keep running, and output EOF and
+    exit are separate events on different threads). For exit / the exit code use `ProcessWaiter` / `ProcessInfo`.
+    """
+
     @property
     @abc.abstractmethod
     def spool(self) -> OutputSpool:

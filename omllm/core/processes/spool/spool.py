@@ -57,7 +57,10 @@ class SpoolRead:
     # Framed bytes between the requested cursor and `start` that were dropped (spilling disabled or failed).
     dropped_before: int = 0
 
-    # No more output will ever arrive (all pipes closed).
+    # No more output will ever arrive (all output pipes closed). NOTE: this is an *output* signal, not a *process*
+    # one - a process can close its stdio and keep running, and (they are separate events observed on different
+    # threads) output EOF can be seen before the process's exit is. To report exit / the exit code, use
+    # `Process.exited` / `Process.returncode` / `await Process.wait(...)`, never this.
     ended: bool = False
 
     @property
