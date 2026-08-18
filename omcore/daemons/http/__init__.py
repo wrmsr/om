@@ -30,8 +30,8 @@ with _lang.auto_proxy_init(globals()):
         SimpleHttpServerRuntime,
     )
 
-    # Daemon integration adapters. The protocol and host modules above do not
-    # depend on daemon launching or ServiceRuntime.
+    # Daemon integration adapters. The protocol and host modules above do not depend on daemon launching or
+    # ServiceRuntime.
     from .services import (  # noqa
         AsyncioPipelineHttpService,
         PipelineHttpService,

@@ -18,6 +18,10 @@ with _lang.auto_proxy_init(globals()):
         DEFAULT_CHILD_PROCESS_FACTORY,
     )
 
+    from .services import (  # noqa
+        ChildProcessService,
+    )
+
     from .supervisors import (  # noqa
         ChildSupervisorError,
         ChildProcessExitedError,
@@ -25,8 +29,4 @@ with _lang.auto_proxy_init(globals()):
         ChildProcessStopTimeoutError,
         ChildProcessSupervisor,
         ChildProcessSupervisorConfig,
-    )
-
-    from .services import (  # noqa
-        ChildProcessService,
     )
