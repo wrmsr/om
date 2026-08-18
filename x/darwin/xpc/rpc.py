@@ -2,7 +2,7 @@
 A compact NSXPCConnection-like RPC layer over :mod:`ctypes_xpc.core`.
 
 It intentionally uses a tiny dictionary envelope rather than trying to imitate Foundation's private NSXPC wire format.
-Both peers can export an object and obtain a dynamic proxy for the remote object.  Calls use libxpc's native reply
+Both peers can export an object and obtain a dynamic proxy for the remote object. Calls use libxpc's native reply
 channel and return :class:`concurrent.futures.Future` objects.
 """
 import asyncio
@@ -194,11 +194,11 @@ def _close_awaitable(value: object) -> None:
 
 
 class MiniXPCConnection:
-    """A bidirectional exported-object/remote-proxy connection.
+    """
+    A bidirectional exported-object/remote-proxy connection.
 
-    Calls made through :attr:`remote` return a Future.  Returning a Future from
-    an exported method is supported and automatically flattened, which makes
-    callback-style two-way RPC straightforward and avoids blocking an XPC event
+    Calls made through :attr:`remote` return a Future. Returning a Future from an exported method is supported and
+    automatically flattened, which makes callback-style two-way RPC straightforward and avoids blocking an XPC event
     handler.
     """
 
@@ -597,7 +597,7 @@ class MiniXPCConnection:
                 },
             )
         except BaseException as exc:
-            # Most commonly the exported method returned a value outside the low-level XPC codec.  Turn that local
+            # Most commonly the exported method returned a value outside the low-level XPC codec. Turn that local
             # encoding failure into a proper remote exception rather than leaving the caller hanging.
             self._reply_exception(message, exc)
         else:

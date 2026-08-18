@@ -1,17 +1,13 @@
-"""A small, dependency-free ctypes wrapper around macOS's public C XPC API.
+"""
+A small, dependency-free ctypes wrapper around macOS's public C XPC API.
 
-The module intentionally wraps the classic ``<xpc/xpc.h>`` interface rather
-than Foundation's NSXPCConnection.  It is lazy: importing it on a non-macOS
-host is allowed, but using an XPC operation raises :class:`XPCUnavailableError`.
+The module intentionally wraps the classic ``<xpc/xpc.h>`` interface rather than Foundation's NSXPCConnection. It is
+lazy: importing it on a non-macOS host is allowed, but using an XPC operation raises :class:`XPCUnavailableError`.
 
-The interesting part is callback support.  libxpc accepts Objective-C Blocks,
-not ordinary C function pointers.  ``_Block`` below constructs a no-capture,
-global Block literal using the public Apple/Clang Blocks ABI and points its
+The interesting part is callback support. libxpc accepts Objective-C Blocks, not ordinary C function pointers.
+``_Block`` below constructs a no-capture, global Block literal using the public Apple/Clang Blocks ABI and points its
 invoke slot at a ``ctypes.CFUNCTYPE`` trampoline.
 """
-
-from __future__ import annotations
-
 import concurrent.futures
 import ctypes
 import ctypes.util
@@ -22,41 +18,10 @@ import sys
 import threading
 import traceback
 import uuid as uuid_mod
-from collections.abc import Callable
-from collections.abc import Mapping
-from collections.abc import Sequence
-from typing import Any
-from typing import Final
-from typing import cast
+import typing as ta
 
 
-__all__ = [
-    'NO_REPLY',
-    'PeerCredentials',
-    'UInt64',
-    'XPCConnection',
-    'XPCConnectionError',
-    'XPCDate',
-    'XPCDecodeError',
-    'XPCEncodeError',
-    'XPCEndpoint',
-    'XPCError',
-    'XPCErrorEvent',
-    'XPCFileDescriptor',
-    'XPCMessage',
-    'XPCNoReplyExpected',
-    'XPCObject',
-    'XPCReentrancyError',
-    'XPCUnavailableError',
-    'decode_xpc',
-    'encode_xpc',
-    'in_xpc_callback',
-    'run_bundled_service',
-    'wait_forever',
-]
-
-
-# ---------------------------------------------------------------------------
+##
 # Exceptions and small value types
 
 
@@ -107,7 +72,7 @@ class UInt64(int):
         value = int(value)
         if not 0 <= value <= 0xFFFF_FFFF_FFFF_FFFF:
             raise OverflowError('UInt64 value must be in [0, 2**64 - 1]')
-        return cast('UInt64', int.__new__(cls, value))
+        return ta.cast('UInt64', int.__new__(cls, value))
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -139,16 +104,21 @@ class XPCDate:
 
 
 class XPCFileDescriptor:
-    """A POSIX file descriptor value suitable for transfer through XPC.
+    """
+    A POSIX file descriptor value suitable for transfer through XPC.
 
-    Decoded descriptors are duplicates owned by this object.  For an outgoing
-    descriptor, pass ``owns=False`` (the default) if the caller retains normal
-    ownership of the original descriptor.
+    Decoded descriptors are duplicates owned by this object. For an outgoing descriptor, pass ``owns=False`` (the
+    default) if the caller retains normal ownership of the original descriptor.
     """
 
-    __slots__ = ('_fd', '_owns')
+    __slots__ = (
+        '_fd',
+        '_owns',
+    )
 
     def __init__(self, fd: int, *, owns: bool = False) -> None:
+        super().__init__()
+
         fd = int(fd)
         if fd < 0:
             raise ValueError('file descriptor must be nonnegative')
@@ -213,10 +183,10 @@ class _NoReply:
         return 'NO_REPLY'
 
 
-NO_REPLY: Final = _NoReply()
+NO_REPLY: ta.Final = _NoReply()
 
 
-# ---------------------------------------------------------------------------
+##
 # Lazy native bindings
 
 
@@ -263,11 +233,11 @@ class _LibXPC:
     def _bind(
         library: ctypes.CDLL,
         name: str,
-        restype: Any,
-        argtypes: list[Any],
+        restype: ta.Any,
+        argtypes: list[ta.Any],
         *,
         required: bool = True,
-    ) -> Any:
+    ) -> ta.Any:
         try:
             fn = getattr(library, name)
         except AttributeError:
@@ -287,9 +257,7 @@ class _LibXPC:
         self.xpc_retain = b(x, 'xpc_retain', _XPC, [_XPC])
         self.xpc_release = b(x, 'xpc_release', None, [_XPC])
         self.xpc_get_type = b(x, 'xpc_get_type', ctypes.c_void_p, [_XPC])
-        self.xpc_type_get_name = b(
-            x, 'xpc_type_get_name', ctypes.c_char_p, [ctypes.c_void_p],
-        )
+        self.xpc_type_get_name = b(x, 'xpc_type_get_name', ctypes.c_char_p, [ctypes.c_void_p])
         self.xpc_copy_description = b(x, 'xpc_copy_description', ctypes.c_void_p, [_XPC])
         self.xpc_equal = b(x, 'xpc_equal', ctypes.c_bool, [_XPC, _XPC])
 
@@ -303,24 +271,14 @@ class _LibXPC:
         self.xpc_double_create = b(x, 'xpc_double_create', _XPC, [ctypes.c_double])
         self.xpc_double_get_value = b(x, 'xpc_double_get_value', ctypes.c_double, [_XPC])
         self.xpc_string_create = b(x, 'xpc_string_create', _XPC, [ctypes.c_char_p])
-        self.xpc_string_get_string_ptr = b(
-            x, 'xpc_string_get_string_ptr', ctypes.c_char_p, [_XPC],
-        )
-        self.xpc_data_create = b(
-            x, 'xpc_data_create', _XPC, [ctypes.c_void_p, ctypes.c_size_t],
-        )
-        self.xpc_data_get_bytes_ptr = b(
-            x, 'xpc_data_get_bytes_ptr', ctypes.c_void_p, [_XPC],
-        )
+        self.xpc_string_get_string_ptr = b(x, 'xpc_string_get_string_ptr', ctypes.c_char_p, [_XPC])
+        self.xpc_data_create = b(x, 'xpc_data_create', _XPC, [ctypes.c_void_p, ctypes.c_size_t])
+        self.xpc_data_get_bytes_ptr = b(x, 'xpc_data_get_bytes_ptr', ctypes.c_void_p, [_XPC])
         self.xpc_data_get_length = b(x, 'xpc_data_get_length', ctypes.c_size_t, [_XPC])
         self.xpc_date_create = b(x, 'xpc_date_create', _XPC, [ctypes.c_int64])
         self.xpc_date_get_value = b(x, 'xpc_date_get_value', ctypes.c_int64, [_XPC])
-        self.xpc_uuid_create = b(
-            x, 'xpc_uuid_create', _XPC, [ctypes.POINTER(ctypes.c_uint8)],
-        )
-        self.xpc_uuid_get_bytes = b(
-            x, 'xpc_uuid_get_bytes', ctypes.POINTER(ctypes.c_uint8), [_XPC],
-        )
+        self.xpc_uuid_create = b(x, 'xpc_uuid_create', _XPC, [ctypes.POINTER(ctypes.c_uint8)])
+        self.xpc_uuid_get_bytes = b(x, 'xpc_uuid_get_bytes', ctypes.POINTER(ctypes.c_uint8), [_XPC])
         self.xpc_fd_create = b(x, 'xpc_fd_create', _XPC, [ctypes.c_int])
         self.xpc_fd_dup = b(x, 'xpc_fd_dup', ctypes.c_int, [_XPC])
 
@@ -330,9 +288,17 @@ class _LibXPC:
             _XPC,
             [ctypes.POINTER(_XPC), ctypes.c_size_t],
         )
-        self.xpc_array_get_count = b(x, 'xpc_array_get_count', ctypes.c_size_t, [_XPC])
+        self.xpc_array_get_count = b(
+            x,
+            'xpc_array_get_count',
+            ctypes.c_size_t,
+            [_XPC],
+        )
         self.xpc_array_get_value = b(
-            x, 'xpc_array_get_value', _XPC, [_XPC, ctypes.c_size_t],
+            x,
+            'xpc_array_get_value',
+            _XPC,
+            [_XPC, ctypes.c_size_t],
         )
 
         self.xpc_dictionary_create = b(
@@ -342,19 +308,34 @@ class _LibXPC:
             [ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(_XPC), ctypes.c_size_t],
         )
         self.xpc_dictionary_set_value = b(
-            x, 'xpc_dictionary_set_value', None, [_XPC, ctypes.c_char_p, _XPC],
+            x,
+            'xpc_dictionary_set_value',
+            None,
+            [_XPC, ctypes.c_char_p, _XPC],
         )
         self.xpc_dictionary_get_count = b(
-            x, 'xpc_dictionary_get_count', ctypes.c_size_t, [_XPC],
+            x,
+            'xpc_dictionary_get_count',
+            ctypes.c_size_t,
+            [_XPC],
         )
         self.xpc_dictionary_get_value = b(
-            x, 'xpc_dictionary_get_value', _XPC, [_XPC, ctypes.c_char_p],
+            x,
+            'xpc_dictionary_get_value',
+            _XPC,
+            [_XPC, ctypes.c_char_p],
         )
         self.xpc_dictionary_apply = b(
-            x, 'xpc_dictionary_apply', ctypes.c_bool, [_XPC, ctypes.c_void_p],
+            x,
+            'xpc_dictionary_apply',
+            ctypes.c_bool,
+            [_XPC, ctypes.c_void_p],
         )
         self.xpc_dictionary_create_reply = b(
-            x, 'xpc_dictionary_create_reply', _XPC, [_XPC],
+            x,
+            'xpc_dictionary_create_reply',
+            _XPC,
+            [_XPC],
         )
 
         self.xpc_endpoint_create = b(x, 'xpc_endpoint_create', _XPC, [_XPC])
@@ -376,10 +357,16 @@ class _LibXPC:
             [ctypes.c_char_p, _DISPATCH_QUEUE, ctypes.c_uint64],
         )
         self.xpc_connection_create_from_endpoint = b(
-            x, 'xpc_connection_create_from_endpoint', _XPC, [_XPC],
+            x,
+            'xpc_connection_create_from_endpoint',
+            _XPC,
+            [_XPC],
         )
         self.xpc_connection_set_event_handler = b(
-            x, 'xpc_connection_set_event_handler', None, [_XPC, ctypes.c_void_p],
+            x,
+            'xpc_connection_set_event_handler',
+            None,
+            [_XPC, ctypes.c_void_p],
         )
         self.xpc_connection_resume = b(x, 'xpc_connection_resume', None, [_XPC])
         self.xpc_connection_suspend = b(x, 'xpc_connection_suspend', None, [_XPC])
@@ -394,19 +381,34 @@ class _LibXPC:
             [_XPC, _XPC, _DISPATCH_QUEUE, ctypes.c_void_p],
         )
         self.xpc_connection_send_message_with_reply_sync = b(
-            x, 'xpc_connection_send_message_with_reply_sync', _XPC, [_XPC, _XPC],
+            x,
+            'xpc_connection_send_message_with_reply_sync',
+            _XPC,
+            [_XPC, _XPC],
         )
         self.xpc_connection_get_pid = b(
-            x, 'xpc_connection_get_pid', ctypes.c_int, [_XPC],
+            x,
+            'xpc_connection_get_pid',
+            ctypes.c_int,
+            [_XPC],
         )
         self.xpc_connection_get_euid = b(
-            x, 'xpc_connection_get_euid', ctypes.c_uint32, [_XPC],
+            x,
+            'xpc_connection_get_euid',
+            ctypes.c_uint32,
+            [_XPC],
         )
         self.xpc_connection_get_egid = b(
-            x, 'xpc_connection_get_egid', ctypes.c_uint32, [_XPC],
+            x,
+            'xpc_connection_get_egid',
+            ctypes.c_uint32,
+            [_XPC],
         )
         self.xpc_connection_get_name = b(
-            x, 'xpc_connection_get_name', ctypes.c_char_p, [_XPC],
+            x,
+            'xpc_connection_get_name',
+            ctypes.c_char_p,
+            [_XPC],
         )
         self.xpc_connection_get_asid = b(
             x,
@@ -497,13 +499,13 @@ def _pointer_value(value: int | ctypes.c_void_p | None) -> int:
 def _require_pointer(value: int | ctypes.c_void_p | None, what: str) -> int:
     ptr = _pointer_value(value)
     if not ptr:
-        # Most XPC create/copy APIs do not promise errno, and consulting the
-        # thread's previous errno here can produce a confidently wrong error.
+        # Most XPC create/copy APIs do not promise errno, and consulting the thread's previous errno here can produce a
+        # confidently wrong error.
         raise XPCError(f'{what} returned NULL')
     return ptr
 
 
-# ---------------------------------------------------------------------------
+##
 # Objective-C Block ABI bridge
 
 
@@ -524,29 +526,34 @@ class _BlockLiteral(ctypes.Structure):
     ]
 
 
-_BLOCK_IS_GLOBAL: Final = 1 << 28
-_BLOCK_10_6_TRANSITIONAL: Final = 1 << 29
+_BLOCK_IS_GLOBAL: ta.Final = 1 << 28
+_BLOCK_10_6_TRANSITIONAL: ta.Final = 1 << 29
 
 
 class _Block:
     """A no-capture global Objective-C Block backed by a ctypes callback."""
 
-    __slots__ = ('_callback', '_descriptor', '_literal', '_python_callback')
+    __slots__ = (
+        '_callback',
+        '_descriptor',
+        '_literal',
+        '_python_callback',
+    )
 
     def __init__(
         self,
-        restype: Any,
-        argtypes: Sequence[Any],
-        callback: Callable[..., Any],
+        restype: ta.Any,
+        argtypes: ta.Sequence[ta.Any],
+        callback: ta.Callable[..., ta.Any],
         *,
-        error_result: Any = None,
+        error_result: ta.Any = None,
     ) -> None:
         lib = _lib()
         self._python_callback = callback
 
         callback_type = ctypes.CFUNCTYPE(restype, ctypes.c_void_p, *argtypes)
 
-        def invoke(_block_pointer: int, *args: Any) -> Any:
+        def invoke(_block_pointer: int, *args: ta.Any) -> ta.Any:
             try:
                 return callback(*args)
             except BaseException:
@@ -559,7 +566,7 @@ class _Block:
             lib.global_block_isa,
             _BLOCK_IS_GLOBAL | _BLOCK_10_6_TRANSITIONAL,
             0,
-            ctypes.cast(self._callback, ctypes.c_void_p).value,
+            ctypes.ta.cast(self._callback, ctypes.c_void_p).value,
             ctypes.addressof(self._descriptor),
         )
 
@@ -568,14 +575,19 @@ class _Block:
         return ctypes.addressof(self._literal)
 
 
-# ---------------------------------------------------------------------------
+##
 # Raw object ownership and codec
 
 
 class XPCObject:
     """An owned reference to an otherwise unsupported/raw XPC object."""
 
-    __slots__ = ('_ptr', '_type_name', '_description', '_lock')
+    __slots__ = (
+        '_ptr',
+        '_type_name',
+        '_description',
+        '_lock',
+    )
 
     def __init__(
         self,
@@ -584,14 +596,15 @@ class XPCObject:
         retain: bool = True,
         expected_type: str | None = None,
     ) -> None:
+        super().__init__()
+
         ptr = _require_pointer(pointer, 'XPC object')
         lib = _lib()
         if retain:
             _require_pointer(lib.xpc_retain(ptr), 'xpc_retain')
 
-        # From this point on, this wrapper owns exactly one reference whether
-        # that reference was supplied by a create/copy API (retain=False) or
-        # acquired above (retain=True).  Release it on every constructor error.
+        # From this point on, this wrapper owns exactly one reference whether that reference was supplied by a
+        # create/copy API (retain=False) or acquired above (retain=True). Release it on every constructor error.
         try:
             type_name = _type_name(ptr)
             if expected_type is not None and type_name != expected_type:
@@ -645,7 +658,7 @@ class XPCObject:
             _lib().xpc_release(ptr)
 
     def __enter__(self) -> "XPCObject":
-        self.pointer
+        self.pointer  # noqa
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
@@ -736,13 +749,11 @@ def _encode_text(value: str, *, what: str) -> bytes:
 
 def _encode_key(key: object) -> bytes:
     if not isinstance(key, str):
-        raise XPCEncodeError(
-            f'XPC dictionary keys must be str, got {type(key).__name__}',
-        )
+        raise XPCEncodeError(f'XPC dictionary keys must be str, got {type(key).__name__}')
     return _encode_text(key, what='XPC dictionary key')
 
 
-def _encode_mapping(value: Mapping[str, Any]) -> int:
+def _encode_mapping(value: ta.Mapping[str, ta.Any]) -> int:
     lib = _lib()
     items = list(value.items())
     if not items:
@@ -766,7 +777,7 @@ def _encode_mapping(value: Mapping[str, Any]) -> int:
             lib.xpc_release(pointer)
 
 
-def _encode_array(value: Sequence[Any]) -> int:
+def _encode_array(value: ta.Sequence[ta.Any]) -> int:
     lib = _lib()
     if not value:
         return _require_pointer(lib.xpc_array_create(None, 0), 'xpc_array_create')
@@ -784,28 +795,34 @@ def _encode_array(value: Sequence[Any]) -> int:
             lib.xpc_release(pointer)
 
 
-def _encode(value: Any) -> int:
+def _encode(value: ta.Any) -> int:
     lib = _lib()
 
     if value is None:
         return _require_pointer(lib.xpc_null_create(), 'xpc_null_create')
+
     if isinstance(value, bool):
         return _require_pointer(lib.xpc_bool_create(value), 'xpc_bool_create')
+
     if isinstance(value, UInt64):
         return _require_pointer(lib.xpc_uint64_create(int(value)), 'xpc_uint64_create')
+
     if isinstance(value, int):
         if -(1 << 63) <= value < (1 << 63):
             return _require_pointer(lib.xpc_int64_create(value), 'xpc_int64_create')
         if 0 <= value <= 0xFFFF_FFFF_FFFF_FFFF:
             return _require_pointer(lib.xpc_uint64_create(value), 'xpc_uint64_create')
         raise XPCEncodeError(f"integer is outside XPC's 64-bit range: {value}")
+
     if isinstance(value, float):
         return _require_pointer(lib.xpc_double_create(value), 'xpc_double_create')
+
     if isinstance(value, str):
         return _require_pointer(
             lib.xpc_string_create(_encode_text(value, what='XPC string')),
             'xpc_string_create',
         )
+
     if isinstance(value, (bytes, bytearray, memoryview)):
         raw = bytes(value)
         if raw:
@@ -815,23 +832,30 @@ def _encode(value: Any) -> int:
                 'xpc_data_create',
             )
         return _require_pointer(lib.xpc_data_create(None, 0), 'xpc_data_create')
+
     if isinstance(value, XPCDate):
         return _require_pointer(
             lib.xpc_date_create(value.nanoseconds_since_epoch),
             'xpc_date_create',
         )
+
     if isinstance(value, dt.datetime):
         return _encode(XPCDate.from_datetime(value))
+
     if isinstance(value, uuid_mod.UUID):
         uuid_array = (ctypes.c_uint8 * 16).from_buffer_copy(value.bytes)
         return _require_pointer(lib.xpc_uuid_create(uuid_array), 'xpc_uuid_create')
+
     if isinstance(value, XPCFileDescriptor):
         pointer = lib.xpc_fd_create(value.fileno())
         return _require_pointer(pointer, 'xpc_fd_create')
+
     if isinstance(value, XPCObject):
         return value.retain_pointer()
-    if isinstance(value, Mapping):
-        return _encode_mapping(cast(Mapping[str, Any], value))
+
+    if isinstance(value, ta.Mapping):
+        return _encode_mapping(ta.cast(ta.Mapping[str, ta.Any], value))
+
     if isinstance(value, (list, tuple)):
         return _encode_array(value)
 
@@ -841,27 +865,32 @@ def _encode(value: Any) -> int:
     )
 
 
-def encode_xpc(value: Any) -> XPCObject:
+def encode_xpc(value: ta.Any) -> XPCObject:
     """Encode a Python value and return an owned raw XPC object."""
 
     return XPCObject(_encode(value), retain=False)
 
 
-def _decode(pointer: int | ctypes.c_void_p) -> Any:
+def _decode(pointer: int | ctypes.c_void_p) -> ta.Any:
     ptr = _require_pointer(pointer, 'XPC value')
     lib = _lib()
     type_name = _type_name(ptr)
 
     if type_name == 'null':
         return None
+
     if type_name == 'bool':
         return bool(lib.xpc_bool_get_value(ptr))
+
     if type_name == 'int64':
         return int(lib.xpc_int64_get_value(ptr))
+
     if type_name == 'uint64':
         return UInt64(lib.xpc_uint64_get_value(ptr))
+
     if type_name == 'double':
         return float(lib.xpc_double_get_value(ptr))
+
     if type_name == 'string':
         raw = lib.xpc_string_get_string_ptr(ptr)
         if raw is None:
@@ -870,6 +899,7 @@ def _decode(pointer: int | ctypes.c_void_p) -> Any:
             return raw.decode('utf-8', 'strict')
         except UnicodeDecodeError as exc:
             raise XPCDecodeError('XPC string is not valid UTF-8') from exc
+
     if type_name == 'data':
         length = int(lib.xpc_data_get_length(ptr))
         if not length:
@@ -878,13 +908,16 @@ def _decode(pointer: int | ctypes.c_void_p) -> Any:
         if not data_pointer:
             raise XPCDecodeError('nonempty XPC data object has a NULL byte pointer')
         return ctypes.string_at(data_pointer, length)
+
     if type_name == 'date':
         return XPCDate(int(lib.xpc_date_get_value(ptr)))
+
     if type_name == 'uuid':
         uuid_pointer = lib.xpc_uuid_get_bytes(ptr)
         if not uuid_pointer:
             raise XPCDecodeError('xpc_uuid_get_bytes returned NULL')
         return uuid_mod.UUID(bytes=ctypes.string_at(uuid_pointer, 16))
+
     if type_name == 'fd':
         ctypes.set_errno(0)
         fd = int(lib.xpc_fd_dup(ptr))
@@ -892,11 +925,13 @@ def _decode(pointer: int | ctypes.c_void_p) -> Any:
             errno = ctypes.get_errno() or 5
             raise OSError(errno, os.strerror(errno), 'xpc_fd_dup')
         return XPCFileDescriptor(fd, owns=True)
+
     if type_name == 'array':
         count = int(lib.xpc_array_get_count(ptr))
         return [_decode(lib.xpc_array_get_value(ptr, index)) for index in range(count)]
+
     if type_name == 'dictionary':
-        result: dict[str, Any] = {}
+        result: dict[str, ta.Any] = {}
         caught: list[BaseException] = []
 
         def apply(key: bytes | None, item_pointer: int) -> bool:
@@ -927,22 +962,24 @@ def _decode(pointer: int | ctypes.c_void_p) -> Any:
         if not complete:
             raise XPCDecodeError('xpc_dictionary_apply stopped before completing')
         return result
+
     if type_name == 'endpoint':
         return XPCEndpoint(ptr, retain=True)
+
     if type_name == 'error':
         return _decode_error(ptr)
 
     return XPCObject(ptr, retain=True)
 
 
-def decode_xpc(value: XPCObject | int | ctypes.c_void_p) -> Any:
+def decode_xpc(value: XPCObject | int | ctypes.c_void_p) -> ta.Any:
     """Decode a raw XPC object into Python values and ownership wrappers."""
 
     pointer = value.pointer if isinstance(value, XPCObject) else value
     return _decode(pointer)
 
 
-def _set_dictionary_items(pointer: int, value: Mapping[str, Any]) -> None:
+def _set_dictionary_items(pointer: int, value: ta.Mapping[str, ta.Any]) -> None:
     lib = _lib()
     for key, item in value.items():
         encoded_key = _encode_key(key)
@@ -953,7 +990,7 @@ def _set_dictionary_items(pointer: int, value: Mapping[str, Any]) -> None:
             lib.xpc_release(item_pointer)
 
 
-# ---------------------------------------------------------------------------
+##
 # Connections and messages
 
 
@@ -992,11 +1029,13 @@ class XPCMessage:
     )
 
     def __init__(self, connection: "XPCConnection", pointer: int | ctypes.c_void_p) -> None:
+        super().__init__()
+
         ptr = _require_pointer(pointer, 'incoming XPC message')
         _require_pointer(_lib().xpc_retain(ptr), 'xpc_retain')
         self._connection = connection
         self._ptr = ptr
-        self._payload: dict[str, Any] | None = None
+        self._payload: dict[str, ta.Any] | None = None
         self._replying = False
         self._replied = False
         self._lock = threading.Lock()
@@ -1016,11 +1055,11 @@ class XPCMessage:
             return self._ptr
 
     def retain_pointer(self) -> int:
-        """Return a native pointer carrying one new XPC reference.
+        """
+        Return a native pointer carrying one new XPC reference.
 
-        The caller owns that reference and must eventually pass it to
-        ``xpc_release``.  This is useful when composing the wrapper with another
-        public API that accepts the original incoming XPC message.
+        The caller owns that reference and must eventually pass it to ``xpc_release``. This is useful when composing the
+        wrapper with another public API that accepts the original incoming XPC message.
         """
 
         with self._lock:
@@ -1029,7 +1068,7 @@ class XPCMessage:
             return _require_pointer(_lib().xpc_retain(self._ptr), 'xpc_retain')
 
     @property
-    def payload(self) -> dict[str, Any]:
+    def payload(self) -> dict[str, ta.Any]:
         with self._lock:
             if self._payload is not None:
                 return self._payload
@@ -1041,8 +1080,8 @@ class XPCMessage:
             self._payload = decoded
             return decoded
 
-    def reply(self, payload: Mapping[str, Any]) -> None:
-        if not isinstance(payload, Mapping):
+    def reply(self, payload: ta.Mapping[str, ta.Any]) -> None:
+        if not isinstance(payload, ta.Mapping):
             raise TypeError('an XPC reply must be a mapping/dictionary')
 
         with self._lock:
@@ -1058,12 +1097,11 @@ class XPCMessage:
             self._replying = True
 
         try:
-            _set_dictionary_items(reply_pointer, cast(Mapping[str, Any], payload))
+            _set_dictionary_items(reply_pointer, ta.cast(ta.Mapping[str, ta.Any], payload))
             self._connection._send_raw(reply_pointer)
         except BaseException:
-            # In particular, permit a caller to replace an unencodable success
-            # value with an error reply.  xpc_connection_send_message is void,
-            # so a successful native send cannot subsequently report failure.
+            # In particular, permit a caller to replace an unencodable success value with an error reply.
+            # xpc_connection_send_message is void, so a successful native send cannot subsequently report failure.
             with self._lock:
                 self._replying = False
             raise
@@ -1095,17 +1133,17 @@ class XPCMessage:
             pass
 
 
-MessageHandler = Callable[['XPCConnection', XPCMessage], Mapping[str, Any] | _NoReply | None]
-ErrorHandler = Callable[['XPCConnection', XPCErrorEvent], None]
-PeerHandler = Callable[['XPCConnection', 'XPCConnection'], None]
-UnexpectedEventHandler = Callable[['XPCConnection', Any], None]
+MessageHandler: ta.TypeAlias = ta.Callable[['XPCConnection', XPCMessage], ta.Mapping[str, ta.Any] | _NoReply | None]
+ErrorHandler: ta.TypeAlias = ta.Callable[['XPCConnection', XPCErrorEvent], None]
+PeerHandler: ta.TypeAlias = ta.Callable[['XPCConnection', 'XPCConnection'], None]
+UnexpectedEventHandler: ta.TypeAlias = ta.Callable[['XPCConnection', ta.Any], None]
 
 
 class XPCConnection:
     """A client, listener, or accepted peer connection."""
 
-    MACH_SERVICE_LISTENER: Final = 1 << 0
-    MACH_SERVICE_PRIVILEGED: Final = 1 << 1
+    MACH_SERVICE_LISTENER: ta.Final = 1 << 0
+    MACH_SERVICE_PRIVILEGED: ta.Final = 1 << 1
 
     _active_lock = threading.Lock()
     _active: dict[int, 'XPCConnection'] = {}
@@ -1117,6 +1155,8 @@ class XPCConnection:
         retain: bool = False,
         role: str = 'connection',
     ) -> None:
+        super().__init__()
+
         ptr = _require_pointer(pointer, 'XPC connection')
         if retain:
             _require_pointer(_lib().xpc_retain(ptr), 'xpc_retain')
@@ -1231,11 +1271,11 @@ class XPCConnection:
             return _require_pointer(_lib().xpc_retain(self._ptr), 'xpc_retain')
 
     def _retained_reference(self, *, require_active: bool = False) -> _OwnedPointer:
-        """Return a temporary native retain acquired under the state lock.
+        """
+        Return a temporary native retain acquired under the state lock.
 
-        The connection-invalid callback may run on another dispatch thread and
-        release this wrapper's owned reference.  Every native operation that
-        outlives the Python state lock therefore takes a temporary retain first.
+        The connection-invalid callback may run on another dispatch thread and release this wrapper's owned reference.
+        Every native operation that outlives the Python state lock therefore takes a temporary retain first.
         """
 
         with self._lock:
@@ -1255,10 +1295,11 @@ class XPCConnection:
         *,
         auto_reply: bool = False,
     ) -> "XPCConnection":
-        """Install the Python dictionary-message handler.
+        """
+        Install the Python dictionary-message handler.
 
-        With ``auto_reply=True``, a returned mapping is sent through the native
-        reply channel.  Returning ``None`` or :data:`NO_REPLY` sends no reply.
+        With ``auto_reply=True``, a returned mapping is sent through the native reply channel. Returning ``None`` or
+        :data:`NO_REPLY` sends no reply.
         """
 
         with self._lock:
@@ -1287,11 +1328,11 @@ class XPCConnection:
         self,
         requirement: str,
     ) -> "XPCConnection":
-        """Require the remote peer to satisfy an Apple code requirement.
+        """
+        Require the remote peer to satisfy an Apple code requirement.
 
-        This wraps ``xpc_connection_set_peer_code_signing_requirement``, which
-        is public on macOS 12 and later.  Configure it before :meth:`activate`;
-        the native API treats installing multiple peer requirements on one
+        This wraps ``xpc_connection_set_peer_code_signing_requirement``, which is public on macOS 12 and later.
+        Configure it before :meth:`activate`; the native API treats installing multiple peer requirements on one
         connection as a programming error, so this wrapper permits one call.
         """
 
@@ -1305,17 +1346,11 @@ class XPCConnection:
             if not self._ptr or self._released:
                 raise XPCError('XPC connection has been released')
             if self._invalid or self._cancel_requested:
-                raise XPCError(
-                    'cannot configure a canceled/invalid XPC connection',
-                )
+                raise XPCError('cannot configure a canceled/invalid XPC connection')
             if self._activated:
-                raise XPCError(
-                    'peer code-signing requirement must be set before activate()',
-                )
+                raise XPCError('peer code-signing requirement must be set before activate()')
             if self._peer_code_signing_requirement_set:
-                raise XPCError(
-                    'a peer code-signing requirement is already installed',
-                )
+                raise XPCError('a peer code-signing requirement is already installed')
 
             function = getattr(
                 _lib(),
@@ -1407,15 +1442,14 @@ class XPCConnection:
             pointer = _require_pointer(_lib().xpc_retain(self._ptr), 'xpc_retain')
             self._cancel_requested = True
             if not self._activated:
-                # Rejected listener peers must still be explicitly canceled,
-                # even though they were never resumed/activated.  With no event
-                # handler active there will be no final invalidation callback,
-                # so release our reference immediately after cancellation.
+                # Rejected listener peers must still be explicitly canceled, even though they were never
+                # resumed/activated. With no event handler active there will be no final invalidation callback, so
+                # release our reference immediately after cancellation.
                 self._invalid = True
                 release_immediately = True
             else:
-                # A canceled connection still needs balanced suspension state
-                # so libxpc can deliver its terminal invalidation event.
+                # A canceled connection still needs balanced suspension state so libxpc can deliver its terminal
+                # invalidation event.
                 suspend_count, self._suspend_count = self._suspend_count, 0
 
         lib = _lib()
@@ -1460,20 +1494,20 @@ class XPCConnection:
         with self._retained_reference(require_active=True) as connection_pointer:
             _lib().xpc_connection_send_message(connection_pointer, message_pointer)
 
-    def send(self, payload: Mapping[str, Any]) -> None:
-        if not isinstance(payload, Mapping):
+    def send(self, payload: ta.Mapping[str, ta.Any]) -> None:
+        if not isinstance(payload, ta.Mapping):
             raise TypeError('top-level XPC messages must be mappings/dictionaries')
-        with _OwnedPointer(_encode_mapping(cast(Mapping[str, Any], payload))) as pointer:
+        with _OwnedPointer(_encode_mapping(ta.cast(ta.Mapping[str, ta.Any], payload))) as pointer:
             self._send_raw(pointer)
 
     def request_async(
-        self, payload: Mapping[str, Any],
-    ) -> concurrent.futures.Future[dict[str, Any]]:
+        self, payload: ta.Mapping[str, ta.Any],
+    ) -> concurrent.futures.Future[dict[str, ta.Any]]:
         """Send a native XPC request and return a standard-library Future."""
 
-        if not isinstance(payload, Mapping):
+        if not isinstance(payload, ta.Mapping):
             raise TypeError('top-level XPC messages must be mappings/dictionaries')
-        future: concurrent.futures.Future[dict[str, Any]] = concurrent.futures.Future()
+        future: concurrent.futures.Future[dict[str, ta.Any]] = concurrent.futures.Future()
         holder: dict[str, _Block] = {}
 
         def receive_reply(reply_pointer: int) -> None:
@@ -1506,7 +1540,7 @@ class XPCConnection:
             self._pending_reply_blocks[id(block)] = block
 
         try:
-            with _OwnedPointer(_encode_mapping(cast(Mapping[str, Any], payload))) as pointer:
+            with _OwnedPointer(_encode_mapping(ta.cast(ta.Mapping[str, ta.Any], payload))) as pointer:
                 with self._retained_reference(require_active=True) as connection_pointer:
                     _lib().xpc_connection_send_message_with_reply(
                         connection_pointer,
@@ -1524,10 +1558,10 @@ class XPCConnection:
 
     def request(
         self,
-        payload: Mapping[str, Any],
+        payload: ta.Mapping[str, ta.Any],
         *,
         timeout: float | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, ta.Any]:
         """Send a request and block outside of XPC callbacks for its reply."""
 
         if in_xpc_callback():
@@ -1537,18 +1571,16 @@ class XPCConnection:
             )
         return self.request_async(payload).result(timeout=timeout)
 
-    def request_sync_native(self, payload: Mapping[str, Any]) -> dict[str, Any]:
-        """Call libxpc's synchronous request primitive directly.
+    def request_sync_native(self, payload: ta.Mapping[str, ta.Any]) -> dict[str, ta.Any]:
+        """
+        Call libxpc's synchronous request primitive directly.
 
-        This has no timeout and is forbidden inside an XPC callback.  The normal
-        :meth:`request` method is generally preferable because it uses the async
-        native API and a Python Future.
+        This has no timeout and is forbidden inside an XPC callback. The normal :meth:`request` method is generally
+        preferable because it uses the async native API and a Python Future.
         """
 
         if in_xpc_callback():
-            raise XPCReentrancyError(
-                'xpc_connection_send_message_with_reply_sync is unsafe from an event handler',
-            )
+            raise XPCReentrancyError('xpc_connection_send_message_with_reply_sync is unsafe from an event handler')
         with _OwnedPointer(_encode_mapping(payload)) as message_pointer:
             with self._retained_reference(require_active=True) as connection_pointer:
                 reply_pointer = _require_pointer(
@@ -1635,10 +1667,9 @@ class XPCConnection:
                 self._release_if_terminal_locked()
 
     def _release_if_terminal_locked(self) -> None:
-        # Apple does not impose an ordering between the connection's terminal
-        # event and error deliveries to outstanding reply handlers.  A global
-        # Block literal is not copied by BlocksRuntime, so its Python-owned
-        # storage must remain pinned until every native reply callback ran.
+        # Apple does not impose an ordering between the connection's terminal event and error deliveries to outstanding
+        # reply handlers. A global Block literal is not copied by BlocksRuntime, so its Python-owned storage must remain
+        # pinned until every native reply callback ran.
         if self._invalid and not self._pending_reply_blocks:
             self._release_owned_reference_locked()
 
@@ -1656,16 +1687,15 @@ class XPCConnection:
         try:
             with self._lock:
                 if not self._activated and not self._released:
-                    # Newly created connections begin suspended.  Cancel before
-                    # dropping our last reference rather than merely releasing a
-                    # never-activated connection in suspended state.
+                    # Newly created connections begin suspended. Cancel before dropping our last reference rather than
+                    # merely releasing a never-activated connection in suspended state.
                     self._cancel_requested = True
                     _lib().xpc_connection_cancel(self._ptr)
                     self._invalid = True
                     self._release_owned_reference_locked()
                 elif self._activated and not self._cancel_requested and not self._invalid:
-                    # Active connections are normally kept alive by _active.  This
-                    # branch is mainly defensive during interpreter shutdown.
+                    # Active connections are normally kept alive by _active. This branch is mainly defensive during
+                    # interpreter shutdown.
                     _lib().xpc_connection_cancel(self._ptr)
         except BaseException:
             pass
@@ -1683,12 +1713,12 @@ _BUNDLED_MAIN_BLOCK: _Block | None = None
 _BUNDLED_PEERS: set[XPCConnection] = set()
 
 
-def run_bundled_service(peer_handler: Callable[[XPCConnection], None]) -> None:
-    """Enter ``xpc_main`` for an app-bundled low-level XPC service.
+def run_bundled_service(peer_handler: ta.Callable[[XPCConnection], None]) -> None:
+    """
+    Enter ``xpc_main`` for an app-bundled low-level XPC service.
 
-    This never normally returns.  It must not be used by a launchd job whose
-    plist advertises ``MachServices``; such jobs use
-    :meth:`XPCConnection.mach_service_listener` instead.
+    This never normally returns. It must not be used by a launchd job whose plist advertises ``MachServices``; such jobs
+    use :meth:`XPCConnection.mach_service_listener` instead.
     """
 
     global _BUNDLED_MAIN_BLOCK

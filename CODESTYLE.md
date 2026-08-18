@@ -387,6 +387,8 @@ def make_it_a_tuple(t: T) -> tuple[T]:
       must be self-contained.
 - PEP-695 type *parameter* syntax (`class Foo[T]:`, `def foo[T](...)`) is permitted, but declaring `ta.TypeVar`'s
   explicitly at the top of the module is still the default style.
+- Always quote the type form argument passed to `ta.cast` if it is anything more complex than simple direct
+  unparameterized reference.
 
 
 ### Async
