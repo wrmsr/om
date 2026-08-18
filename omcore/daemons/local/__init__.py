@@ -28,6 +28,23 @@ with _lang.auto_proxy_init(globals()):
         call_local_worker,
     )
 
+    from .interpreters import (  # noqa
+        SubinterpreterError,
+        SubinterpreterUnavailableError,
+        SubinterpreterSerializationError,
+        SubinterpreterCodeIdentityError,
+        SubinterpreterGilError,
+        SubinterpreterRemoteError,
+        SubinterpreterExecutionError,
+        SubinterpreterCallTimeoutError,
+
+        SubinterpreterBootstrapInfo,
+        SubinterpreterTarget,
+        SubinterpreterService,
+        SubinterpreterCaller,
+        SubinterpreterLocalWorkerRunner,
+    )
+
     from .workers import (  # noqa
         LocalWorkerConfig,
         LocalWorkerSpec,

@@ -73,6 +73,20 @@ explicit shutdown, failure inspection, deterministic joining, and a lazily cache
 no pidfile or transport and uses `ServiceRuntime` directly. The published interface remains responsible for its own
 thread safety or message dispatch rather than being forced through RPC semantics.
 
+**Initial subinterpreter slice complete.** A local-worker runner now owns a CPython subinterpreter and exposes a
+main-interpreter caller which applications can wrap in their own interfaces. It provides bounded FIFO dispatch,
+per-call activity through actual completion, typed remote and infrastructure failures, cooperative code-identity
+gating before configuration unpickle, explicit preload and import paths, deterministic service/interpreter teardown,
+and a required-GIL check for free-threaded builds. The standalone 3.14t integration harness manually compiles a
+`Py_MOD_PER_INTERPRETER_GIL_SUPPORTED` C extension outside build discovery and never imports it into pytest or the main
+interpreter. It proves private-GIL enablement, forced-no-GIL refusal, same-thread serialized calls, remote failure
+survival, linger restart, and fresh per-interpreter C module state.
+
+Likely subinterpreter follow-ons are an async caller facade, cancellation semantics which distinguish waiting from
+execution, structured code-manifest generation, and experiments with cross-interpreter queues once their payload and
+wakeup tradeoffs are preferable to the deliberately simple pickle/Future bridge. Process isolation remains a separate
+daemon choice rather than a promised property of subinterpreters.
+
 **Initial HTTP slice complete.** The package provides a runtime-managed HTTP composition using
 `omcore.http.pipelines`. Its sans-I/O one-request core is driveable by pure, synchronous socket, and asyncio stream
 drivers. Separate sync and asyncio hosts depend on `HttpServerRuntime`; thin `PipelineHttpService` and

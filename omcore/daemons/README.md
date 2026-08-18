@@ -56,7 +56,7 @@ The package is intentionally composable rather than presenting one mandatory dae
 | Launching | `Launcher`, `Daemon` | Own startup monitoring, pidfile coordination, optional reparenting, and readiness. |
 | Service | `Service`, `RuntimeService`, `ServiceDaemon` | Package configured long-running behavior as a target. |
 | Runtime | `ServiceRuntime`, `Activity`, `ShutdownController` | Track activity, idle lifetime, signals, and graceful drain. |
-| Local worker | `LocalWorkerSpec`, `LocalWorkerCoordinator`, `LocalWorkerLease` | Lazily own a directly accessible worker thread without process machinery. |
+| Local worker | `LocalWorkerSpec`, `LocalWorkerCoordinator`, `LocalWorkerLease` | Lazily own a direct or subinterpreter-backed worker without process machinery. |
 | Child supervision | `ChildProcessSupervisor`, `ChildProcessService` | Own, stop, escalate, and reap one external executable. |
 | Inspection | `DaemonInspector`, `DaemonInspection` | Observe pidfile ownership, identity, and optional readiness without signaling. |
 | Lazy access | `LazyDaemon` | Connect first; coordinate launch and relaunch only when explicitly unavailable. |
@@ -225,9 +225,9 @@ accepting new application work after shutdown begins and drain connections which
 
 ## Local in-process workers
 
-`omcore.daemons.local` applies the same activity and linger rules without pretending that a thread is a process. It
-has no pidfile, readiness transport, serialization, RPC, or HTTP. A runner constructs an ordinary in-process interface,
-publishes it once, and remains alive until its `ServiceRuntime` requests shutdown:
+`omcore.daemons.local` applies the same activity and linger rules without pretending that a thread is a process. The
+coordinator itself has no pidfile, readiness transport, serialization, RPC, or HTTP. A runner constructs an ordinary
+in-process interface, publishes it once, and remains alive until its `ServiceRuntime` requests shutdown:
 
 ```python
 class Cache:
@@ -264,6 +264,58 @@ message-passing its contract requires, and callers must not retain or use it aft
 are daemon threads by default so a forgotten global worker does not keep interpreter shutdown alive;
 `keep_process_alive=True` explicitly changes that policy. Coordinators should still be closed when their ownership
 scope ends.
+
+### Subinterpreter-backed local workers
+
+`SubinterpreterLocalWorkerRunner` is an optional message-passing runner for state which must live in a CPython
+subinterpreter. It creates one interpreter on the coordinator-owned worker thread, constructs the service there, and
+serializes every call onto that same thread. The published object remains a normal main-interpreter reference built by
+an application-supplied `interface_factory`; it delegates through `SubinterpreterCaller` rather than exposing an object
+from the other interpreter.
+
+```python
+target = SubinterpreterTarget(
+    factory_name='myapp.workers.make_image_service',
+    code_identity_name='myapp.version.CODE_IDENTITY',
+    code_identity=CODE_IDENTITY,
+    config_data=pickle.dumps(ImageServiceConfig(), protocol=pickle.HIGHEST_PROTOCOL),
+    preload_modules=('legacy_image_extension',),
+    require_gil=True,
+)
+runner = SubinterpreterLocalWorkerRunner(target, ImageServiceClient)
+IMAGE_WORKER = LocalWorkerSpec(
+    runner_factory=lambda: runner,
+    config=LocalWorkerConfig(linger_s=30.),
+)
+```
+
+The factory must return a `SubinterpreterService`; its `dispatch()` method receives a method name, positional tuple,
+and keyword mapping. Configuration, requests, and responses use pickle and are therefore for trusted, same-application
+data only. The configured code identity is resolved and compared before the configuration pickle is loaded. Exact
+identity checking is the default; `allow_code_identity_mismatch=True` is an explicit local-development escape hatch,
+not a security boundary. Importing the bootstrap and identity modules necessarily precedes the check, so the identity
+is a cooperative compatibility assertion rather than a sandbox.
+
+`module_search_paths` modifies only the new interpreter's import path. `preload_modules` are imported before the
+factory runs. On free-threaded CPython this lets a `Py_MOD_PER_INTERPRETER_GIL_SUPPORTED` extension which declares
+`Py_MOD_GIL_USED` enable that interpreter's own GIL without enabling the main interpreter's GIL. `require_gil=True`
+then verifies the result and fails closed, including when `PYTHON_GIL=0` or `-Xgil=0` forbids the import from enabling
+one. Extension dependencies and any process-global C state must also be subinterpreter-safe; the CPython declaration
+does not prove that automatically.
+
+Calls are bounded by `max_pending_calls`. Each admitted call owns runtime activity until execution actually completes,
+even if its caller times out, so linger cannot destroy in-flight interpreter work. Shutdown rejects new calls, drains
+already queued calls in order, invokes `SubinterpreterService.close()`, and closes the interpreter. Application
+exceptions become `SubinterpreterRemoteError` without killing the generation; interpreter execution failures fail the
+generation. This boundary supplies neither process isolation nor parallel calls within one service instance.
+
+The free-threaded integration harness manually compiles a purpose-built C extension into a temporary directory. The C
+source has no `@om-cext` marker and is not part of repository build discovery; the guarded script loads it only in its
+owned subinterpreters, never in the process running pytest:
+
+```shell
+VENV=14t ./python -m omcore.daemons.local.tests.interpreters.script
+```
 
 ## External child processes
 

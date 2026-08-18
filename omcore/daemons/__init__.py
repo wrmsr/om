@@ -141,6 +141,21 @@ with _lang.auto_proxy_init(globals()):
         global_local_worker_coordinator,
         acquire_local_worker,
         call_local_worker,
+
+        SubinterpreterError,
+        SubinterpreterUnavailableError,
+        SubinterpreterSerializationError,
+        SubinterpreterCodeIdentityError,
+        SubinterpreterGilError,
+        SubinterpreterRemoteError,
+        SubinterpreterExecutionError,
+        SubinterpreterCallTimeoutError,
+
+        SubinterpreterBootstrapInfo,
+        SubinterpreterTarget,
+        SubinterpreterService,
+        SubinterpreterCaller,
+        SubinterpreterLocalWorkerRunner,
     )
 
     from .lazy import (  # noqa

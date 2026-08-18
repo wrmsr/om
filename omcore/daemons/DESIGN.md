@@ -319,6 +319,33 @@ runtime shutdown and releasing its resources. Worker threads default to daemon t
 explicit. The coordinator retains every thread it creates and joins it during scoped shutdown; failures remain
 available through inspection and are delivered to callers which were waiting on the failed generation.
 
+`SubinterpreterLocalWorkerRunner` is one explicit message-passing implementation of that runner contract. One
+coordinator worker thread creates, enters, drives, finalizes, and closes one `concurrent.interpreters.Interpreter` per
+generation. A main-interpreter `SubinterpreterCaller` is wrapped by an application-provided interface factory and is
+the only published reference; no service object crosses the interpreter boundary. Calls are FIFO and execute one at a
+time on the owning OS thread.
+
+An admitted call acquires its own runtime activity before entering the queue. Admission and shutdown closure are
+serialized by the bridge lock: a call is either queued before the stop marker or rejected. Completion—not caller
+patience—releases the activity and bounded queue slot. Thus a timed-out call may still have taken effect, but it cannot
+be abandoned during interpreter teardown. After the stop marker, the runner finalizes the service and closes the
+interpreter. Ordinary service and response-serialization exceptions are returned as remote application errors;
+failure of the interpreter execution mechanism fails all queued calls and the local-worker generation.
+
+The bootstrap boundary accepts only import names, strings, booleans, path tuples, and opaque configuration bytes.
+It resolves the configured code identity before unpickling configuration, then preloads requested modules and checks
+the interpreter's actual GIL state before constructing the service. Request and response pickle are enabled only
+after successful bootstrap. These are trusted in-process messages, not an RPC security boundary. Resolving the
+bootstrap and identity code itself necessarily imports Python modules before identity comparison, and the explicit
+mismatch override weakens compatibility on purpose for local development.
+
+On a free-threaded build, an extension may advertise both `Py_MOD_PER_INTERPRETER_GIL_SUPPORTED` and
+`Py_MOD_GIL_USED`. Its preload then enables only the owned interpreter's GIL, after which `require_gil` verifies that
+the service will not run without one. A `PYTHON_GIL=0` or `-Xgil=0` override is detected and rejected. The extension
+must genuinely use per-module state and all of its dependency graph must satisfy the same subinterpreter contract;
+multiple private GILs do not make unsafe process-global C state safe. This mode isolates interpreter state and GIL
+policy, but not memory corruption, descriptors, signals, process globals, or process failure.
+
 ---
 
 ## 7. External child ownership
