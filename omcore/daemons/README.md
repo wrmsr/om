@@ -56,6 +56,7 @@ The package is intentionally composable rather than presenting one mandatory dae
 | Launching | `Launcher`, `Daemon` | Own startup monitoring, pidfile coordination, optional reparenting, and readiness. |
 | Service | `Service`, `RuntimeService`, `ServiceDaemon` | Package configured long-running behavior as a target. |
 | Runtime | `ServiceRuntime`, `Activity`, `ShutdownController` | Track activity, idle lifetime, signals, and graceful drain. |
+| Local worker | `LocalWorkerSpec`, `LocalWorkerCoordinator`, `LocalWorkerLease` | Lazily own a directly accessible worker thread without process machinery. |
 | Child supervision | `ChildProcessSupervisor`, `ChildProcessService` | Own, stop, escalate, and reap one external executable. |
 | Inspection | `DaemonInspector`, `DaemonInspection` | Observe pidfile ownership, identity, and optional readiness without signaling. |
 | Lazy access | `LazyDaemon` | Connect first; coordinate launch and relaunch only when explicitly unavailable. |
@@ -222,6 +223,48 @@ configured drain deadline expires.
 services follow the same lifetime rule for application requests versus their dedicated health endpoint. They stop
 accepting new application work after shutdown begins and drain connections which already own accepted work.
 
+## Local in-process workers
+
+`omcore.daemons.local` applies the same activity and linger rules without pretending that a thread is a process. It
+has no pidfile, readiness transport, serialization, RPC, or HTTP. A runner constructs an ordinary in-process interface,
+publishes it once, and remains alive until its `ServiceRuntime` requests shutdown:
+
+```python
+class Cache:
+    def lookup(self, key: str) -> bytes:
+        ...
+
+
+def run_cache(ctx: LocalWorkerContext[Cache]) -> None:
+    ctx.publish(Cache())
+    ctx.runtime.shutdown.wait()
+
+
+CACHE_WORKER = LocalWorkerSpec(
+    runner_factory=lambda: FnLocalWorkerRunner(run_cache),
+    config=LocalWorkerConfig(linger_s=30.),
+)
+
+
+def lookup(key: str) -> bytes:
+    with acquire_local_worker(CACHE_WORKER) as cache:
+        return cache.lookup(key)
+```
+
+Concurrent acquisitions of the same `LocalWorkerSpec` object through one coordinator share one generation and one
+published interface. Every lease is runtime activity: it prevents idle shutdown, and releasing the last lease begins
+a fresh linger window. A use which arrives during shutdown waits for that generation to finish and starts the next
+one. `ThreadedLocalWorkerCoordinator` retains and joins the threads it starts, coalesces startup, exposes inspection
+and explicit shutdown, and can be instantiated as many times as needed. `global_local_worker_coordinator()` is merely
+the lazily created default; `acquire_local_worker()` and `call_local_worker()` delegate to it.
+
+The interface is a direct reference, not a proxy. Calling one of its methods runs that method in the caller's thread
+unless the interface itself queues work to its owning worker thread. It must provide whatever thread-safety or
+message-passing its contract requires, and callers must not retain or use it after closing its lease. Worker threads
+are daemon threads by default so a forgotten global worker does not keep interpreter shutdown alive;
+`keep_process_alive=True` explicitly changes that policy. Coordinators should still be closed when their ownership
+scope ends.
+
 ## External child processes
 
 `omcore.daemons.children` covers the case where the service implementation is an executable this repository cannot
@@ -354,16 +397,18 @@ contract in [DESIGN.md](DESIGN.md).
 ## Testing
 
 The suite uses real files, locks, Unix sockets, HTTP servers, subprocesses, multiprocessing children, raw forks,
-signals, and execs. It verifies sync and asyncio thread-backed HTTP services through shared in-process state, lazily
-launches a pipeline HTTP service in a spawned process, and probes an independent standard-library HTTP server through
-the same `HttpWait`. External-child tests pass real descriptors, redirect real output, signal a process group, force
-graceful-timeout escalation, propagate unexpected exit, and probe a supervised external HTTP process while separately
-tracking its supervisor pidfile. Inspection coverage observes that process through startup, readiness, exit, stale
-contents, and replacement UUIDs. Wait-stopped coverage uses separately spawned lock owners to prove lock release,
-timeout diagnostics, unlinked/recreated path detection, and same-inode UUID replacement. The suite also exercises the
-RPC core without a daemon, runs pure sans-I/O transcripts, crosses every sync/async client-server pairing over real TCP
-and Unix sockets, drives fdio through both endpoints, and checks compatibility with the original blocking wire
-helpers. The daemon tests do not mock or patch those boundaries.
+signals, and execs. Lock-step local-worker tests use real threads to exercise concurrent single-flight startup,
+activity-held linger, restart, failure, shutdown races, and independent coordinator ownership. It verifies sync and
+asyncio thread-backed HTTP services through shared in-process state, lazily launches a pipeline HTTP service in a
+spawned process, and probes an independent standard-library HTTP server through the same `HttpWait`. External-child
+tests pass real descriptors, redirect real output, signal a process group, force graceful-timeout escalation,
+propagate unexpected exit, and probe a supervised external HTTP process while separately tracking its supervisor
+pidfile. Inspection coverage observes that process through startup, readiness, exit, stale contents, and replacement
+UUIDs. Wait-stopped coverage uses separately spawned lock owners to prove lock release, timeout diagnostics,
+unlinked/recreated path detection, and same-inode UUID replacement. The suite also exercises the RPC core without a
+daemon, runs pure sans-I/O transcripts, crosses every sync/async client-server pairing over real TCP and Unix sockets,
+drives fdio through both endpoints, and checks compatibility with the original blocking wire helpers. The daemon tests
+do not mock or patch those boundaries.
 
 ```shell
 ./python -m pytest omcore/daemons

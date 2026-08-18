@@ -67,7 +67,13 @@ needs, rather than prematurely placing an unproven abstraction in `omcore.io.pip
 
 ## 2. First-class non-RPC services
 
-**Initial slice complete.** The package now provides a runtime-managed HTTP composition using
+**Local-worker slice complete.** `omcore.daemons.local` now provides identity-keyed worker specifications, reusable
+coordinator instances, direct-interface activity leases, single-flight thread startup, idle linger and restart,
+explicit shutdown, failure inspection, deterministic joining, and a lazily cached default coordinator. This path has
+no pidfile or transport and uses `ServiceRuntime` directly. The published interface remains responsible for its own
+thread safety or message dispatch rather than being forced through RPC semantics.
+
+**Initial HTTP slice complete.** The package provides a runtime-managed HTTP composition using
 `omcore.http.pipelines`. Its sans-I/O one-request core is driveable by pure, synchronous socket, and asyncio stream
 drivers. Separate sync and asyncio hosts depend on `HttpServerRuntime`; thin `PipelineHttpService` and
 `AsyncioPipelineHttpService` adapters supply `ServiceRuntime` lifecycle. Async handler policy is explicit, with a
@@ -85,6 +91,8 @@ HTTP readiness may later be added as an alternative waiter, not as a replacement
 
 Integration coverage should include:
 
+- **Complete:** concurrent local acquisitions which coalesce startup, hold activity through linger, restart after
+  idle, cross a shutdown race, propagate failures, and remain independent across coordinator instances;
 - **Complete:** a thread-backed HTTP service which shares in-process state, for both sync and asyncio hosts;
 - **Complete:** a multiprocessing HTTP service started lazily and restarted with a new identity after idle exit;
 - **Complete:** a dedicated health endpoint whose status differs from mere TCP acceptance and does not extend idle;

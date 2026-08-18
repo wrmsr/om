@@ -113,6 +113,36 @@ with _lang.auto_proxy_init(globals()):
         Launcher,
     )
 
+    from .local import (  # noqa
+        LocalWorkerConfig,
+        LocalWorkerSpec,
+        LocalWorkerContext,
+        LocalWorkerRunner,
+        FnLocalWorkerRunner,
+
+        LocalWorkerState,
+        LocalWorkerFailure,
+        LocalWorkerInspection,
+
+        LocalWorkerError,
+        LocalWorkerCoordinatorClosedError,
+        LocalWorkerPublicationError,
+        LocalWorkerUnexpectedExitError,
+        LocalWorkerDrainTimeoutError,
+        LocalWorkerStopTimeoutError,
+        LocalWorkerGenerationError,
+        LocalWorkerStartError,
+        LocalWorkerFailedError,
+
+        LocalWorkerLease,
+        LocalWorkerCoordinator,
+        ThreadedLocalWorkerCoordinator,
+
+        global_local_worker_coordinator,
+        acquire_local_worker,
+        call_local_worker,
+    )
+
     from .lazy import (  # noqa
         LazyDaemon,
     )

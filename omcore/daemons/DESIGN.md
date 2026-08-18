@@ -292,6 +292,33 @@ and `SIGTERM` request shutdown when runtime runs on the main thread and signal h
 `drain_timeout_s` raises `DrainTimeoutError`. This gives a concrete boundary: shutdown rejects new work but honors work
 which already obtained an activity lease, up to the configured deadline.
 
+### Local worker coordination
+
+`LocalWorkerCoordinator` is the lifecycle boundary for on-demand work which stays inside the current process. It does
+not use `Daemon`, `Launcher`, a `Spawning` backend, a pidfile, readiness, or a transport. A coordinator is an ordinary
+state-owning object and multiple coordinators are independent. The cached global coordinator is only a convenience
+instance following the same contract.
+
+A `LocalWorkerSpec` has identity semantics: the same spec object identifies one logical worker within a coordinator;
+two equal-looking instances do not accidentally share state. A generation proceeds through `STARTING`, `RUNNING`, and
+`STOPPING` to `STOPPED`, or ends in `FAILED`. Concurrent acquisition coalesces behind `STARTING`. The runner must
+publish exactly one interface before serving; acquisition then returns a `LocalWorkerLease` containing that same
+direct reference and one runtime activity. An unpublished exception is a startup failure. A return before any shutdown
+request is an unexpected runtime failure.
+
+The coordinator holds a startup activity before entering `ServiceRuntime`, so construction time cannot consume the
+idle window. Publication transfers lifetime control from that startup activity to caller leases. Activity acquisition
+and the coordinator's running-state check are ordered so a caller either joins the current generation before shutdown
+or waits through `STOPPING` and starts a new generation. Releasing the final lease begins the full configured linger;
+a `None` linger keeps the worker alive until explicit shutdown or coordinator close.
+
+Published interfaces are not dispatched onto the worker thread. Their methods execute wherever their callers invoke
+them, so an interface which owns thread-affine state must implement its own queue or other message-passing boundary.
+The direct reference is valid only for the lifetime of its lease. The runner remains responsible for waiting on
+runtime shutdown and releasing its resources. Worker threads default to daemon threads, while `keep_process_alive` is
+explicit. The coordinator retains every thread it creates and joins it during scoped shutdown; failures remain
+available through inspection and are delivered to callers which were waiting on the failed generation.
+
 ---
 
 ## 7. External child ownership
