@@ -90,10 +90,14 @@ because stock Python 3.8 does not guarantee either `zoneinfo` or an installed IA
 - Generate one self-contained source artifact and smoke it under CPython 3.8 from early development onward.
 - Follow lite syntax and globally collision-safe naming throughout.
 
-## Eventual self-update
+## Self-update
 
 - Register every owned FD/resource with stable identity and explicit exec inheritance policy.
 - Serialize versioned engine/resource state without runtime object references.
 - Probe candidate code in a non-owning process, freeze mutation and I/O, then replace the manager with `exec`.
 - Preserve managed child relationships, pipes, back-buffer state, listeners where selected, and process identity.
 - Validate rehydrated resources against the live OS and fail closed on ambiguity.
+- Keep the update operation pending across `exec`, and roll back to the pinned previous artifact if candidate
+  reconstruction fails.
+- Accept only self-contained generated artifacts so both forward resume and rollback have the hidden handoff entry
+  points without depending on an import environment.

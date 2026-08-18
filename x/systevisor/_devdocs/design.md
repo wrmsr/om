@@ -158,9 +158,22 @@ their results are facts. Transient command probes use the same owned child machi
 process purpose, and occupy a reserved internal run namespace. Network probes use nonblocking connects and the omcore
 fdio/HTTP pipelines. Runtime timeouts close or signal only capabilities held by the probe runner.
 
-## Self-update preparation
+## Self-update and handoff
 
-Every live OS resource is registered with owner, kind, descriptor, closure policy, and exec inheritance policy. A
-future update freezes command acceptance and reactor dispatch only after no signal lease/effect is active. The final
-state snapshot and inheritance manifest are versioned. The new image validates parenthood, descriptors, process birth
-identity, and schema before resuming.
+Self-update is an in-place `exec` of one generated amalgamated artifact into another. The candidate is first run as an
+internally owned probe child and validates its pinned digest, handoff schema, and active configuration. Only a stable
+reactor state may proceed: no process may be starting/stopping, no health or internal child may be active, no effect
+or input may remain queued, no signal lease may be held, and no unrelated operation may be pending.
+
+The final versioned JSON manifest includes the configuration and provenance, deterministic engine, direct-child
+ownership facts, output-reader descriptors and byte rings, event cursor/journal, operation history, manager/pidfile
+state, activation sockets, and cgroup bookkeeping. Each inherited FD records a unique semantic owner plus `fstat`
+identity and status flags. The old image writes and fsyncs the manifest before transactionally clearing `FD_CLOEXEC`
+on only that inventory. A failed `execve` restores every original flag.
+
+The new image verifies its own path/digest, the unchanged manager PID, every descriptor, direct-child wait rights,
+pidfd identity, and process birth identity before rebuilding injected runtime objects. It then restores `FD_CLOEXEC`,
+rebinds disposable HTTP listeners, and completes the still-pending update operation. A failure during reconstruction
+execs the digest-pinned previous artifact with the same manifest; a successful rollback records the update operation
+as failed while preserving the manager PID and children. Accepted HTTP connections are deliberately disposable and
+clients reconnect. Only generated self-contained amalgamations are accepted as the running and candidate artifacts.

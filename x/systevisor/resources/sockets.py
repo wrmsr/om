@@ -121,6 +121,40 @@ class SystevisorInheritedSocketRegistry:
                 raise SystevisorSocketActivationError(f'unknown inherited socket: {name!r}') from exc
         return tuple(required)
 
+    def rehydrate(self, sockets: ta.Iterable[SystevisorInheritedSocket]) -> None:
+        if self._sockets or self._closed:
+            raise SystevisorSocketActivationError('socket registry can only be rehydrated before use')
+        restored: ta.Dict[str, SystevisorInheritedSocket] = {}
+        for inherited in sockets:
+            if inherited.state_schema_version != 1:
+                raise SystevisorSocketActivationError(
+                    f'unsupported inherited socket schema: {inherited.state_schema_version}',
+                )
+            if not inherited.name or inherited.name in restored:
+                raise SystevisorSocketActivationError(f'duplicate inherited socket: {inherited.name!r}')
+            try:
+                fd_stat = os.fstat(inherited.fd)
+            except OSError as exc:
+                raise SystevisorSocketActivationError(
+                    f'inherited socket descriptor {inherited.fd} is not open',
+                ) from exc
+            if not stat.S_ISSOCK(fd_stat.st_mode):
+                raise SystevisorSocketActivationError(
+                    f'inherited descriptor {inherited.fd} is not a socket',
+                )
+            duplicate = socket.socket(fileno=os.dup(inherited.fd))
+            try:
+                if duplicate.family != inherited.family or duplicate.type != inherited.socket_type:
+                    raise SystevisorSocketActivationError(
+                        f'inherited socket identity changed: {inherited.name!r}',
+                    )
+            finally:
+                duplicate.close()
+            flags = fcntl.fcntl(inherited.fd, fcntl.F_GETFD)
+            fcntl.fcntl(inherited.fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+            restored[inherited.name] = inherited
+        self._sockets = restored
+
     def close(self) -> None:
         if self._closed:
             return

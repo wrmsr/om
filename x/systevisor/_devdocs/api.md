@@ -27,6 +27,7 @@ child output configuration.
 - `GET /v1/resources` returns retained per-run samples, cgroup lifecycle state, and adopted listener descriptors.
 - `GET /v1/resources/{run}` returns the retained sample and cgroup state for one run.
 - `GET /v1/config` returns the active snapshot, last config attempt, and source settings.
+- `GET /v1/self-update` returns the current probe/prepare/exec state.
 - `POST /v1/config/_check` compiles without applying.
 - `POST /v1/config/_reload` prepares and atomically applies a candidate.
 - `GET /v1/operations` and `GET /v1/operations/{id}` expose asynchronous command records.
@@ -34,6 +35,8 @@ child output configuration.
 - `POST /v1/collections/{name}/_start|_stop` changes a collection's desired state.
 - `POST /v1/instances/{id}/_start|_stop|_restart` acts on one replica.
 - `POST /v1/_shutdown` begins reconciled shutdown.
+- `POST /v1/_self_update` with `{"source": "/absolute/candidate.py"}` probes and schedules an in-place artifact
+  update.
 - `GET /v1/events?after=N&topic=T&follow=true` replays and optionally follows events.
 - `GET /v1/logs` lists retained log channels.
 - `GET /v1/logs/{run}/{stdout|stderr}?offset=N&limit=N&follow=true` reads or follows bytes.
@@ -46,10 +49,15 @@ stream rather than keeping a handler blocked on process state.
 
 `./python -m x.systevisor` is the shared entrypoint. `serve` runs the manager; `run` manages one collection as a
 foreground compose-like unit; `config-check` works offline; `status`,
-`units`, `collections`, `schedules`, `resources [RUN]`, `config`, `operations`, `check`, `reload`, `start`, `stop`, `restart`, `shutdown`, `events`,
+`units`, `collections`, `schedules`, `resources [RUN]`, `config`, `operations`, `check`, `reload`, `start`, `stop`, `restart`, `shutdown`, `self-update`, `events`,
 and `logs` use the
 same HTTP API. Client HTTP framing uses omcore I/O pipelines over a synchronous socket because the CLI is a separate
 short-lived process; the server always uses the fdio driver.
+
+`self-update SOURCE` accepts only a regular generated amalgamated Systevisor artifact. The response operation remains
+pending while the client connection closes, the candidate probe exits, and the old image reaches its short response
+grace deadline. Clients reconnect to inspect completion because control listeners and accepted connections are not
+part of the handoff.
 
 `service-template systemd|launchd --executable PATH -c CONFIG...` is intentionally local rather than an HTTP command.
 It emits a direct-exec opaque service definition and never installs or activates it. The user remains in control of

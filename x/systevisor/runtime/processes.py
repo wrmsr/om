@@ -16,6 +16,7 @@ import typing as ta
 
 from omcore.lite.abstract import Abstract
 
+from ..configs.models import SystevisorExecConfig
 from ..configs.models import SystevisorHealthProbeKind
 from ..configs.models import SystevisorIdentityConfig
 from ..configs.models import SystevisorInputConfig
@@ -24,6 +25,9 @@ from ..configs.models import SystevisorOutputMode
 from ..configs.models import SystevisorSignalScope
 from ..configs.models import SystevisorStdinMode
 from ..configs.models import SystevisorStdioConfig
+from ..configs.models import SystevisorStopConfig
+from ..configs.models import SystevisorUnitConfig
+from ..configs.models import SystevisorUnitResourcesConfig
 from ..configs.snapshots import SystevisorDesiredInstanceSpec
 from ..core.effects import SystevisorRunHealthProbeEffect
 from ..core.effects import SystevisorSignalProcessEffect
@@ -31,6 +35,8 @@ from ..core.effects import SystevisorSpawnProcessEffect
 from ..core.identities import SystevisorHealthCheckId
 from ..core.identities import SystevisorInstanceId
 from ..core.identities import SystevisorRunId
+from ..core.identities import SystevisorUnitName
+from ..core.state import SystevisorEngineState
 
 
 _SYSTEVISOR_PROCESSES_MANAGED_OUTPUT_MODES = frozenset({
@@ -52,6 +58,7 @@ class SystevisorOwnedProcessStatus(enum.Enum):
 class SystevisorOwnedProcessPurpose(enum.Enum):
     SERVICE = 'service'
     HEALTH_COMMAND = 'health_command'
+    SELF_UPDATE_PROBE = 'self_update_probe'
 
 
 class SystevisorProcessOutputChannel(enum.Enum):
@@ -394,6 +401,22 @@ def _systevisor_processes_read_birth_identity(pid: int) -> ta.Optional[str]:
     if len(fields_after_command) <= 19:
         return None
     return fields_after_command[19]
+
+
+def _systevisor_processes_read_pidfd_pid(fd: int) -> ta.Optional[int]:
+    try:
+        with open(f'/proc/self/fdinfo/{fd}') as fdinfo_file:
+            lines = fdinfo_file.readlines()
+    except OSError:
+        return None
+    for line in lines:
+        key, separator, value = line.partition(':')
+        if separator and key == 'Pid':
+            try:
+                return int(value.strip())
+            except ValueError:
+                return None
+    return None
 
 
 def _systevisor_processes_pidfd_open(pid: int) -> ta.Optional[int]:
@@ -778,6 +801,13 @@ class SystevisorProcessManager:
     def snapshot_states(self) -> ta.Sequence[SystevisorOwnedProcessState]:
         return tuple(process.snapshot() for process in self._processes_by_run.values())
 
+    def child_contexts(self) -> ta.Mapping[SystevisorRunId, SystevisorChildContext]:
+        return {
+            process.run_id: process.child_context
+            for process in self._processes_by_run.values()
+            if process.child_context is not None
+        }
+
     def get_state(self, run_id: SystevisorRunId) -> ta.Optional[SystevisorOwnedProcessState]:
         process = self._processes_by_run.get(run_id)
         return process.snapshot() if process is not None else None
@@ -840,6 +870,155 @@ class SystevisorProcessManager:
             SystevisorOwnedProcessPurpose.HEALTH_COMMAND,
             effect.check_id,
         )
+
+    def spawn_internal(
+            self,
+            run_id: SystevisorRunId,
+            argv: ta.Sequence[str],
+            purpose: SystevisorOwnedProcessPurpose,
+    ) -> SystevisorProcessSpawned:
+        if run_id >= 0:
+            raise SystevisorProcessOwnershipError('internal run identities must be negative')
+        if purpose is SystevisorOwnedProcessPurpose.SERVICE:
+            raise SystevisorProcessOwnershipError('internal processes cannot have service purpose')
+        unit = SystevisorUnitConfig(
+            exec=SystevisorExecConfig(argv=tuple(argv)),
+            stdio=SystevisorStdioConfig(
+                stdin=SystevisorInputConfig(mode=SystevisorStdinMode.DEVNULL),
+                stdout=SystevisorOutputConfig(mode=SystevisorOutputMode.DEVNULL),
+                stderr=SystevisorOutputConfig(mode=SystevisorOutputMode.DEVNULL),
+            ),
+            stop=SystevisorStopConfig(scope=SystevisorSignalScope.SESSION),
+            resources=SystevisorUnitResourcesConfig(observe=False),
+        )
+        instance_id = SystevisorInstanceId('systevisor.self-update')
+        spec = SystevisorDesiredInstanceSpec(
+            instance_id=instance_id,
+            unit_name=SystevisorUnitName('systevisor.self-update'),
+            slot=0,
+            spec_digest=f'internal:{purpose.value}:{int(run_id)}',
+            unit=unit,
+        )
+        return self._spawn(
+            SystevisorSpawnProcessEffect(run_id=run_id, instance_id=instance_id, spec=spec),
+            purpose,
+            None,
+        )
+
+    def handoff_issues(self) -> ta.Sequence[str]:
+        issues: ta.List[str] = []
+        for process in self._processes_by_run.values():
+            label = f'run {int(process.run_id)} pid {process.pid}'
+            if process.purpose is not SystevisorOwnedProcessPurpose.SERVICE:
+                issues.append(f'{label} is an internal {process.purpose.value} process')
+            if process.status is not SystevisorOwnedProcessStatus.RUNNING:
+                issues.append(f'{label} is {process.status.value}')
+            if process.exec_error_fd is not None:
+                issues.append(f'{label} still owns an exec handshake')
+            if process.signal_lease_count:
+                issues.append(f'{label} has {process.signal_lease_count} active signal lease(s)')
+        return tuple(issues)
+
+    def rehydrate(
+            self,
+            states: ta.Iterable[SystevisorOwnedProcessState],
+            engine_state: SystevisorEngineState,
+    ) -> None:
+        if self._processes_by_run or self._processes_by_pid:
+            raise SystevisorProcessOwnershipError('process manager can only be rehydrated before use')
+        processes: ta.List[SystevisorOwnedProcess] = []
+        try:
+            for state in states:
+                if state.state_schema_version != 3:
+                    raise SystevisorProcessOwnershipError(
+                        f'unsupported process state schema: {state.state_schema_version}',
+                    )
+                if state.run_id <= 0 or state.purpose is not SystevisorOwnedProcessPurpose.SERVICE:
+                    raise SystevisorProcessOwnershipError('only service processes may cross a handoff')
+                if state.status is not SystevisorOwnedProcessStatus.RUNNING:
+                    raise SystevisorProcessOwnershipError(
+                        f'run {state.run_id} is not stable: {state.status.value}',
+                    )
+                if state.signal_lease_count or state.exec_error_fd is not None:
+                    raise SystevisorProcessOwnershipError(
+                        f'run {state.run_id} has non-transferable process state',
+                    )
+                if state.run_id in self._processes_by_run or state.pid in self._processes_by_pid:
+                    raise SystevisorProcessOwnershipError('duplicate process identity in handoff')
+                instance = engine_state.instances.get(state.instance_id)
+                if instance is None or instance.run_id != state.run_id:
+                    raise SystevisorProcessOwnershipError(
+                        f'engine does not claim handed-off run {state.run_id}',
+                    )
+
+                try:
+                    wait_result = os.waitid(
+                        os.P_PID,
+                        state.pid,
+                        os.WEXITED | os.WNOHANG | os.WNOWAIT,
+                    )
+                except ChildProcessError as exc:
+                    raise SystevisorProcessOwnershipError(
+                        f'wait ownership was lost for run {state.run_id} pid {state.pid}',
+                    ) from exc
+                birth_identity = _systevisor_processes_read_birth_identity(state.pid)
+                if (
+                        (wait_result is None or wait_result.si_pid == 0) and
+                        state.birth_identity is not None and
+                        birth_identity != state.birth_identity
+                ):
+                    raise SystevisorProcessOwnershipError(
+                        f'birth identity changed for run {state.run_id} pid {state.pid}',
+                    )
+                if state.pidfd is not None:
+                    try:
+                        os.fstat(state.pidfd)
+                    except OSError as exc:
+                        raise SystevisorProcessOwnershipError(
+                            f'pidfd is not open for run {state.run_id}',
+                        ) from exc
+                    pidfd_pid = _systevisor_processes_read_pidfd_pid(state.pidfd)
+                    if pidfd_pid is not None and pidfd_pid != state.pid:
+                        raise SystevisorProcessOwnershipError(
+                            f'pidfd identity changed for run {state.run_id}',
+                        )
+
+                status: SystevisorOwnedProcessStatus = state.status
+                return_code = state.return_code
+                if wait_result is not None and wait_result.si_pid != 0:
+                    status = SystevisorOwnedProcessStatus.EXIT_OBSERVED
+                    return_code = _systevisor_processes_wait_result_return_code(wait_result)
+                process = SystevisorOwnedProcess(
+                    run_id=state.run_id,
+                    instance_id=state.instance_id,
+                    pid=state.pid,
+                    pidfd=state.pidfd,
+                    session_requested=state.session_requested,
+                    session_id=state.session_id,
+                    birth_identity=state.birth_identity,
+                    status=status,
+                    stdout_fd=state.stdout_fd,
+                    stderr_fd=state.stderr_fd,
+                    exec_error_fd=None,
+                    return_code=return_code,
+                    purpose=state.purpose,
+                    child_context=SystevisorChildContext(
+                        run_id=state.run_id,
+                        instance_id=state.instance_id,
+                        spec=instance.desired_spec,
+                        identity=SystevisorResolvedIdentity(None, None, None, None, None),
+                        environment={},
+                    ),
+                    observe_resources=state.observe_resources,
+                )
+                self._processes_by_run[state.run_id] = process
+                self._processes_by_pid[state.pid] = process
+                processes.append(process)
+        except BaseException:
+            for process in processes:
+                self._processes_by_run.pop(process.run_id, None)
+                self._processes_by_pid.pop(process.pid, None)
+            raise
 
     def _spawn(
             self,

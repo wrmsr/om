@@ -1,5 +1,6 @@
 # ruff: noqa: UP006 UP007 UP045
 import collections
+import dataclasses as dc
 import signal
 import typing as ta
 
@@ -7,6 +8,7 @@ from omcore.io.fdio.handlers import FdioHandler
 from omcore.io.fdio.manager import FdioManager
 from omcore.logs.modules import get_module_logger
 
+from ..configs.snapshots import SystevisorConfigSnapshot
 from ..core.effects import SystevisorApplyLiveConfigEffect
 from ..core.effects import SystevisorEngineEffect
 from ..core.effects import SystevisorRunHealthProbeEffect
@@ -23,6 +25,7 @@ from ..core.inputs import SystevisorProcessExitedFact
 from ..core.inputs import SystevisorShutdownCommand
 from ..core.inputs import SystevisorSpawnFailedFact
 from ..core.inputs import SystevisorSpawnSucceededFact
+from ..core.states import SystevisorDeadlineKind
 from .clocks import SystevisorClock
 from .events import SystevisorEventBus
 from .fdio import SystevisorDeadlineFdioHandler
@@ -31,7 +34,10 @@ from .fdio import SystevisorProcessPidfdFdioHandler
 from .fdio import SystevisorProcessWaitFdioHandler
 from .health import SystevisorHealthProbeRunner
 from .logs import SystevisorLogManager
+from .logs import SystevisorLogStream
+from .logs import SystevisorProcessOutputFdioHandler
 from .processes import SystevisorObservedProcessExit
+from .processes import SystevisorOwnedProcessPurpose
 from .processes import SystevisorProcessExecResult
 from .processes import SystevisorProcessManager
 from .processes import SystevisorProcessOutputChannel
@@ -41,6 +47,19 @@ from .signals import SystevisorSignalFdioHandler
 
 
 _SYSTEVISOR_COORDINATOR_LOG = get_module_logger(globals())
+
+
+@dc.dataclass(frozen=True)
+class SystevisorRuntimeOutputFd:
+    run_id: SystevisorRunId
+    stream: SystevisorLogStream
+    fd: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorInternalProcessCallbacks:
+    on_exec: ta.Callable[[SystevisorProcessExecResult], None]
+    on_exit: ta.Callable[[SystevisorObservedProcessExit], None]
 
 
 class SystevisorRuntimeCoordinator:
@@ -71,6 +90,7 @@ class SystevisorRuntimeCoordinator:
         self._delivered_exec_results: ta.Set[SystevisorRunId] = set()
         self._failed_exec_runs: ta.Set[SystevisorRunId] = set()
         self._pending_exits: ta.Dict[SystevisorRunId, SystevisorObservedProcessExit] = {}
+        self._internal_processes: ta.Dict[SystevisorRunId, SystevisorInternalProcessCallbacks] = {}
         self._signal_handler: ta.Optional[SystevisorSignalFdioHandler] = None
 
         self._deadline_handler = SystevisorDeadlineFdioHandler(clock, self._on_deadline)
@@ -119,14 +139,8 @@ class SystevisorRuntimeCoordinator:
             while self._input_queue:
                 current_input = self._input_queue.popleft()
                 if isinstance(current_input, SystevisorApplySnapshotCommand):
-                    self._process_manager.set_reap_unknown_children(
-                        current_input.snapshot.config.manager.reap_unknown_children,
-                    )
-                    self._wait_handler.poke()
+                    self.configure_snapshot_runtime(current_input.snapshot)
                 output = self._engine.step(current_input, self._clock.monotonic())
-                if isinstance(current_input, SystevisorApplySnapshotCommand):
-                    self._log_manager.set_default_strip_ansi(current_input.snapshot.config.manager.strip_ansi)
-                    self._event_bus.set_journal_capacity(current_input.snapshot.config.api.event_backlog)
                 outputs.append(output)
                 for event in output.events:
                     _, failures = self._event_bus.publish('engine', event, self._clock.monotonic())
@@ -145,6 +159,12 @@ class SystevisorRuntimeCoordinator:
         finally:
             self._processing = False
         return tuple(outputs)
+
+    def configure_snapshot_runtime(self, snapshot: SystevisorConfigSnapshot) -> None:
+        self._process_manager.set_reap_unknown_children(snapshot.config.manager.reap_unknown_children)
+        self._wait_handler.poke()
+        self._log_manager.set_default_strip_ansi(snapshot.config.manager.strip_ansi)
+        self._event_bus.set_journal_capacity(snapshot.config.api.event_backlog)
 
     def _execute_effect(self, effect: SystevisorEngineEffect) -> None:
         if isinstance(effect, SystevisorSpawnProcessEffect):
@@ -228,6 +248,38 @@ class SystevisorRuntimeCoordinator:
             self._fdio_manager.register(pidfd_handler)
         self._wait_handler.poke()
 
+    def start_internal_process(
+            self,
+            run_id: SystevisorRunId,
+            argv: ta.Sequence[str],
+            purpose: SystevisorOwnedProcessPurpose,
+            callbacks: SystevisorInternalProcessCallbacks,
+    ) -> None:
+        if self._closed:
+            raise RuntimeError('runtime coordinator is closed')
+        if run_id in self._internal_processes:
+            raise RuntimeError(f'internal process is already registered: {run_id}')
+        spawned = self._process_manager.spawn_internal(run_id, argv, purpose)
+        self._internal_processes[run_id] = callbacks
+        state = spawned.state
+        if state.exec_error_fd is None:
+            raise RuntimeError('spawned internal process has no exec handshake fd')
+
+        def exec_ready(internal_run_id: SystevisorRunId = run_id) -> bool:
+            return self._on_exec_ready(internal_run_id)
+
+        exec_handler = SystevisorProcessExecFdioHandler(state.exec_error_fd, exec_ready)
+        self._exec_handlers[run_id] = exec_handler
+        self._fdio_manager.register(exec_handler)
+        if state.pidfd is not None:
+            pidfd_handler = SystevisorProcessPidfdFdioHandler(
+                state.pidfd,
+                self._observe_process_exits,
+            )
+            self._pidfd_handlers[run_id] = pidfd_handler
+            self._fdio_manager.register(pidfd_handler)
+        self._wait_handler.poke()
+
     def _on_health_probe_result(self, fact: SystevisorHealthProbeResultFact) -> None:
         self.submit(fact)
 
@@ -248,6 +300,10 @@ class SystevisorRuntimeCoordinator:
         exec_handler = self._exec_handlers.pop(result.run_id, None)
         if exec_handler is not None:
             exec_handler.close()
+        internal = self._internal_processes.get(result.run_id)
+        if internal is not None:
+            internal.on_exec(result)
+            return
         if self._health_probe_runner.owns_command_run(result.run_id):
             self._health_probe_runner.command_exec_result(result)
             return
@@ -274,6 +330,12 @@ class SystevisorRuntimeCoordinator:
         if pidfd_handler is not None:
             pidfd_handler.close()
         self._process_manager.acknowledge_exit(observed.run_id)
+        internal = self._internal_processes.pop(observed.run_id, None)
+        if internal is not None:
+            internal.on_exit(observed)
+            self._delivered_exec_results.discard(observed.run_id)
+            self._pending_exits.pop(observed.run_id, None)
+            return
         if self._health_probe_runner.owns_command_run(observed.run_id):
             self._health_probe_runner.command_exit(observed)
             self._delivered_exec_results.discard(observed.run_id)
@@ -302,6 +364,85 @@ class SystevisorRuntimeCoordinator:
         for run_id in tuple(self._output_handlers):
             if all(handler.closed for handler in self._output_handlers[run_id]):
                 del self._output_handlers[run_id]
+
+    def snapshot_output_fds(self) -> ta.Sequence[SystevisorRuntimeOutputFd]:
+        output_fds: ta.List[SystevisorRuntimeOutputFd] = []
+        for handlers in self._output_handlers.values():
+            for handler in handlers:
+                if isinstance(handler, SystevisorProcessOutputFdioHandler) and not handler.closed:
+                    output_fds.append(SystevisorRuntimeOutputFd(
+                        run_id=handler.run_id,
+                        stream=handler.stream,
+                        fd=handler.fd(),
+                    ))
+        return tuple(sorted(output_fds, key=lambda item: (int(item.run_id), item.stream.value)))
+
+    def handoff_issues(self) -> ta.Sequence[str]:
+        issues = list(self._process_manager.handoff_issues())
+        if self._processing or self._input_queue:
+            issues.append('the reconciliation input queue is not empty')
+        if self._exec_handlers or self._pending_exits:
+            issues.append('a process exec or exit transition is in flight')
+        if self._internal_processes:
+            issues.append('an internal process is in flight')
+        if self._health_probe_runner.has_active_checks():
+            issues.append('a health probe is in flight')
+        return tuple(issues)
+
+    def rehydrate_process_runtime(
+            self,
+            output_fds: ta.Iterable[SystevisorRuntimeOutputFd],
+    ) -> None:
+        if self._exec_handlers or self._pidfd_handlers or self._output_handlers:
+            raise RuntimeError('runtime process handlers can only be rehydrated before use')
+        states = self._process_manager.snapshot_states()
+        run_ids = {state.run_id for state in states}
+        self._delivered_exec_results.update(run_ids)
+        seen_outputs: ta.Set[ta.Tuple[SystevisorRunId, SystevisorLogStream]] = set()
+        for output in output_fds:
+            key = (output.run_id, output.stream)
+            if output.run_id not in run_ids:
+                raise RuntimeError(f'output descriptor belongs to an unknown run: {output.run_id}')
+            if key in seen_outputs:
+                raise RuntimeError(f'duplicate output descriptor: {output.run_id}:{output.stream.value}')
+            seen_outputs.add(key)
+            handler = self._log_manager.attach_rehydrated_output(
+                output.run_id,
+                output.stream,
+                output.fd,
+            )
+            self._output_handlers.setdefault(output.run_id, []).append(handler)
+            self._fdio_manager.register(handler)
+        for state in states:
+            if state.pidfd is not None:
+                pidfd_handler = SystevisorProcessPidfdFdioHandler(state.pidfd, self._observe_process_exits)
+                self._pidfd_handlers[state.run_id] = pidfd_handler
+                self._fdio_manager.register(pidfd_handler)
+        for instance in self._engine.state.instances.values():
+            if (
+                    instance.deadline_id is not None and
+                    instance.deadline_kind is not None and
+                    instance.deadline_at is not None
+            ):
+                self._deadline_handler.schedule(SystevisorScheduleDeadlineEffect(
+                    deadline_id=instance.deadline_id,
+                    deadline_at=instance.deadline_at,
+                    kind=instance.deadline_kind,
+                    instance_id=instance.instance_id,
+                    run_id=instance.run_id,
+                ))
+            for health in instance.health.values():
+                if health.in_flight_check_id is not None:
+                    raise RuntimeError('cannot rehydrate an in-flight health check')
+                if health.scheduled_deadline_id is not None and health.next_check_at is not None:
+                    self._deadline_handler.schedule(SystevisorScheduleDeadlineEffect(
+                        deadline_id=health.scheduled_deadline_id,
+                        deadline_at=health.next_check_at,
+                        kind=SystevisorDeadlineKind.HEALTH_PROBE,
+                        instance_id=instance.instance_id,
+                        run_id=instance.run_id,
+                    ))
+        self._wait_handler.poke()
 
     def close(self) -> None:
         if self._closed:

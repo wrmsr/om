@@ -18,6 +18,7 @@ from ..runtime.logs import SystevisorLogManager
 from ..runtime.logs import SystevisorLogStream
 from ..runtime.logs import SystevisorLogSubscription
 from ..scheduling.runtime import SystevisorScheduler
+from ..selfupdate.runtime import SystevisorSelfUpdateManager
 from .configs import SystevisorConfigController
 from .jsoncodec import SystevisorJsonCodec
 from .operations import SystevisorOperationStatus
@@ -216,6 +217,7 @@ class SystevisorApiApplication:
             json_codec: SystevisorJsonCodec,
             scheduler: SystevisorScheduler,
             resource_observer: SystevisorResourceObserver,
+            self_update_manager: SystevisorSelfUpdateManager,
     ) -> None:
         self._control = control
         self._config_controller = config_controller
@@ -224,6 +226,7 @@ class SystevisorApiApplication:
         self._json_codec = json_codec
         self._scheduler = scheduler
         self._resource_observer = resource_observer
+        self._self_update_manager = self_update_manager
 
     def _json_response(self, value: ta.Any, status: int = 200) -> SystevisorApiResponse:
         return SystevisorApiResponse(status=status, body=self._json_codec.dumps(value))
@@ -324,7 +327,11 @@ class SystevisorApiApplication:
             content_type=log_stream.content_type,
         )
 
-    def _dispatch(self, request: SystevisorApiRequest) -> SystevisorApiResult:
+    def _dispatch(
+            self,
+            request: SystevisorApiRequest,
+            body: ta.Mapping[str, ta.Any],
+    ) -> SystevisorApiResult:
         parsed = urllib.parse.urlsplit(request.target)
         segments = tuple(urllib.parse.unquote(part) for part in parsed.path.split('/') if part)
         query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
@@ -348,6 +355,8 @@ class SystevisorApiApplication:
             return self._json_response({'collections': tuple(state.collections.values())})
         if method == 'GET' and segments == ('v1', 'schedules'):
             return self._json_response({'schedules': tuple(self._scheduler.states.values())})
+        if method == 'GET' and segments == ('v1', 'self-update'):
+            return self._json_response(self._self_update_manager.state)
         if method == 'GET' and segments == ('v1', 'resources'):
             return self._json_response({
                 'runs': tuple(self._resource_observer.states.values()),
@@ -397,6 +406,11 @@ class SystevisorApiApplication:
             operation = self._control.reload_config()
         elif method == 'POST' and segments == ('v1', '_shutdown'):
             operation = self._control.shutdown()
+        elif method == 'POST' and segments == ('v1', '_self_update'):
+            source = body.get('source')
+            if not isinstance(source, str) or not source:
+                raise SystevisorApiError(400, 'invalid_body', 'self-update requires a non-empty source path')
+            operation = self._self_update_manager.request(source)
         elif method == 'POST' and len(segments) == 4 and segments[:2] == ('v1', 'units'):
             if segments[3] not in ('_start', '_stop'):
                 raise SystevisorApiError(404, 'not_found', 'route not found')
@@ -422,11 +436,14 @@ class SystevisorApiApplication:
 
     def handle(self, request: SystevisorApiRequest) -> SystevisorApiResult:
         try:
+            body: ta.Mapping[str, ta.Any] = {}
             if request.body:
-                body = self._json_codec.loads(request.body)
-                if body is not None and not isinstance(body, dict):
+                raw_body = self._json_codec.loads(request.body)
+                if raw_body is not None and not isinstance(raw_body, dict):
                     raise SystevisorApiError(400, 'invalid_body', 'request JSON body must be an object')
-            return self._dispatch(request)
+                if raw_body is not None:
+                    body = raw_body
+            return self._dispatch(request, body)
         except SystevisorApiError as error:
             return self._error_response(error)
         except (UnicodeDecodeError, ValueError) as exc:

@@ -24,6 +24,7 @@ from omcore.os.setproctitle import setproctitle
 from ..configs.models import SystevisorManagerConfig
 from ..configs.models import SystevisorManagerLogConfig
 from ..configs.models import SystevisorObservationConfig
+from ..configs.models import SystevisorSelfUpdateConfig
 
 
 _SYSTEVISOR_PLATFORM_PR_SET_CHILD_SUBREAPER = 36
@@ -194,6 +195,10 @@ class SystevisorPidFileManager:
     def state(self) -> ta.Optional[SystevisorPidFileState]:
         return self._state
 
+    @property
+    def fd(self) -> ta.Optional[int]:
+        return self._fd
+
     def acquire(self, path: str) -> SystevisorPidFileState:
         if self._fd is not None:
             raise SystevisorPlatformError('pidfile is already acquired')
@@ -222,6 +227,33 @@ class SystevisorPidFileManager:
         self._fd = fd
         self._state = state
         return state
+
+    def rehydrate(self, state: SystevisorPidFileState, fd: int) -> None:
+        if self._fd is not None or self._state is not None:
+            raise SystevisorPlatformError('pidfile manager can only be rehydrated before use')
+        if state.pid != os.getpid():
+            raise SystevisorPlatformError(
+                f'pidfile handoff belongs to pid {state.pid}, not current pid {os.getpid()}',
+            )
+        try:
+            fd_stat = os.fstat(fd)
+            path_stat = os.stat(state.path)
+        except OSError as exc:
+            raise SystevisorPlatformError(f'could not validate inherited pidfile: {exc}') from exc
+        expected_identity = (state.device, state.inode)
+        if (
+                (fd_stat.st_dev, fd_stat.st_ino) != expected_identity or
+                (path_stat.st_dev, path_stat.st_ino) != expected_identity
+        ):
+            raise SystevisorPlatformError('inherited pidfile identity changed')
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise SystevisorPlatformError('inherited pidfile lock was lost') from exc
+        flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+        fcntl.fcntl(fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+        self._fd = fd
+        self._state = state
 
     def close(self) -> None:
         fd = self._fd
@@ -409,6 +441,10 @@ class SystevisorManagerRuntime:
     def state(self) -> ta.Optional[SystevisorManagerRuntimeState]:
         return self._state
 
+    @property
+    def pid_file_fd(self) -> ta.Optional[int]:
+        return self._pid_file_manager.fd
+
     def setup(self, config: SystevisorManagerConfig) -> SystevisorManagerRuntimeState:
         if self._state is not None:
             raise SystevisorPlatformError('manager runtime is already set up')
@@ -427,12 +463,37 @@ class SystevisorManagerRuntime:
         self._notifier.notify(f'STATUS={config.identifier} is starting')
         return self._state
 
+    def rehydrate(
+            self,
+            state: SystevisorManagerRuntimeState,
+            pid_file_fd: ta.Optional[int],
+    ) -> SystevisorManagerRuntimeState:
+        if self._state is not None:
+            raise SystevisorPlatformError('manager runtime can only be rehydrated before setup')
+        if state.bootstrap.pid != os.getpid() or state.bootstrap.is_pid_one != (os.getpid() == 1):
+            raise SystevisorPlatformError('manager bootstrap identity changed across exec')
+        if (state.pid_file is None) != (pid_file_fd is None):
+            raise SystevisorPlatformError('pidfile state and descriptor do not match')
+        self._logging_manager.configure(state.config.log)
+        try:
+            if state.pid_file is not None:
+                self._pid_file_manager.rehydrate(state.pid_file, ta.cast(int, pid_file_fd))
+        except BaseException:
+            self._logging_manager.close()
+            raise
+        if state.config.process_title is not None:
+            setproctitle(state.config.process_title)
+        self._state = dc.replace(state, ready=False, stopping=False)
+        self._notifier.notify(f'STATUS={state.config.identifier} resumed after self-update')
+        return self._state
+
     @staticmethod
     def _immutable_config(config: SystevisorManagerConfig) -> SystevisorManagerConfig:
         return dc.replace(
             config,
             log=SystevisorManagerLogConfig(),
             observation=SystevisorObservationConfig(),
+            self_update=SystevisorSelfUpdateConfig(),
             process_title=None,
             strip_ansi=False,
         )

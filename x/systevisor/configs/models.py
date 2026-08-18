@@ -300,6 +300,14 @@ class SystevisorCgroupManagerConfig:
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorSelfUpdateConfig:
+    enabled: bool = True
+    probe_timeout_secs: float = 10.
+    response_grace_secs: float = .1
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorManagerConfig:
     identifier: str = 'systevisor'
     foreground: bool = True
@@ -320,6 +328,7 @@ class SystevisorManagerConfig:
     log: SystevisorManagerLogConfig = dc.field(default_factory=SystevisorManagerLogConfig)
     observation: SystevisorObservationConfig = dc.field(default_factory=SystevisorObservationConfig)
     cgroups: SystevisorCgroupManagerConfig = dc.field(default_factory=SystevisorCgroupManagerConfig)
+    self_update: SystevisorSelfUpdateConfig = dc.field(default_factory=SystevisorSelfUpdateConfig)
 
 
 @install_dataclass_kw_only_init()

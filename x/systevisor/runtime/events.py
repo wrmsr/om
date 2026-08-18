@@ -24,6 +24,14 @@ class SystevisorEventCallbackFailure:
     exception: Exception
 
 
+@dc.dataclass(frozen=True)
+class SystevisorEventBusState:
+    state_schema_version: int
+    journal_capacity: int
+    next_sequence: int
+    journal: ta.Sequence[SystevisorBusEvent]
+
+
 class SystevisorEventStream:
     def __init__(self, subscription_id: int, capacity: int) -> None:
         if capacity < 1:
@@ -106,6 +114,31 @@ class SystevisorEventBus:
 
     def journal(self, after_sequence: int = 0) -> ta.Sequence[SystevisorBusEvent]:
         return tuple(event for event in self._journal if event.sequence > after_sequence)
+
+    def snapshot_state(self) -> SystevisorEventBusState:
+        return SystevisorEventBusState(
+            state_schema_version=1,
+            journal_capacity=self.journal_capacity,
+            next_sequence=self._next_sequence,
+            journal=tuple(self._journal),
+        )
+
+    def rehydrate(self, state: SystevisorEventBusState) -> None:
+        if self._journal or self._callbacks or self._streams or self._next_sequence != 1:
+            raise RuntimeError('event bus can only be rehydrated before use')
+        if state.state_schema_version != 1:
+            raise ValueError(f'unsupported event bus schema: {state.state_schema_version}')
+        if state.journal_capacity < 1 or state.next_sequence < 1:
+            raise ValueError('invalid event bus handoff state')
+        previous_sequence = 0
+        for event in state.journal:
+            if event.sequence <= previous_sequence or event.sequence >= state.next_sequence:
+                raise ValueError('invalid event journal sequence')
+            previous_sequence = event.sequence
+        if len(state.journal) > state.journal_capacity:
+            raise ValueError('event journal exceeds its capacity')
+        self._journal = collections.deque(state.journal, maxlen=state.journal_capacity)
+        self._next_sequence = state.next_sequence
 
     def subscribe_callback(
             self,

@@ -117,6 +117,17 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'observation',
         ))
 
+    if (
+            config.manager.self_update.probe_timeout_secs <= 0 or
+            config.manager.self_update.response_grace_secs < 0
+    ):
+        errors.append(_systevisor_config_validation_error(
+            'invalid_self_update_policy',
+            'self-update probe timeout must be positive and response grace must be non-negative',
+            'manager',
+            'self_update',
+        ))
+
     cgroup_root = config.manager.cgroups.root
     if cgroup_root is not None and (not cgroup_root or not cgroup_root.startswith('/')):
         errors.append(_systevisor_config_validation_error(

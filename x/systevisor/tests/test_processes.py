@@ -20,6 +20,11 @@ from x.systevisor.core.effects import SystevisorSignalProcessEffect
 from x.systevisor.core.effects import SystevisorSpawnProcessEffect
 from x.systevisor.core.identities import SystevisorInstanceId
 from x.systevisor.core.identities import SystevisorRunId
+from x.systevisor.core.state import SystevisorEngineState
+from x.systevisor.core.state import SystevisorInstanceState
+from x.systevisor.core.states import SystevisorDesiredOrigin
+from x.systevisor.core.states import SystevisorDesiredState
+from x.systevisor.core.states import SystevisorProcessState
 from x.systevisor.core.states import SystevisorSignalReason
 from x.systevisor.resources.sockets import SystevisorInheritedSocketChildModifier
 from x.systevisor.resources.sockets import SystevisorInheritedSocketRegistry
@@ -27,6 +32,7 @@ from x.systevisor.runtime.processes import SystevisorChildContext
 from x.systevisor.runtime.processes import SystevisorChildModifier
 from x.systevisor.runtime.processes import SystevisorChildPidProvider
 from x.systevisor.runtime.processes import SystevisorObservedProcessExit
+from x.systevisor.runtime.processes import SystevisorOwnedProcessPurpose
 from x.systevisor.runtime.processes import SystevisorOwnedProcessStatus
 from x.systevisor.runtime.processes import SystevisorProcessExecResult
 from x.systevisor.runtime.processes import SystevisorProcessManager
@@ -148,6 +154,51 @@ class SystevisorTestChildPidProvider(SystevisorChildPidProvider):
 
 
 class TestSystevisorProcesses(unittest.TestCase):
+    def test_stable_process_wait_right_can_be_rehydrated(self) -> None:
+        first_manager = SystevisorProcessManager()
+        effect = _systevisor_test_process_effect(('/bin/sleep', '60'))
+        first_manager.spawn(effect)
+        _systevisor_test_wait_exec(first_manager, effect.run_id)
+        saved = first_manager.get_state(effect.run_id)
+        assert saved is not None
+        engine_state = SystevisorEngineState(instances={
+            effect.instance_id: SystevisorInstanceState(
+                instance_id=effect.instance_id,
+                unit_name=effect.spec.unit_name,
+                slot=effect.spec.slot,
+                desired_spec=effect.spec,
+                desired_state=SystevisorDesiredState.ACTIVE,
+                desired_origin=SystevisorDesiredOrigin.CONFIG,
+                process_state=SystevisorProcessState.RUNNING,
+                run_id=effect.run_id,
+                spawn_confirmed=True,
+            ),
+        })
+        second_manager = SystevisorProcessManager()
+        second_manager.rehydrate((saved,), engine_state)
+        self.addCleanup(_systevisor_test_cleanup_process, second_manager, effect.run_id)
+
+        restored = second_manager.get_state(effect.run_id)
+        assert restored is not None
+        self.assertEqual(restored.pid, saved.pid)
+        self.assertEqual(second_manager.handoff_issues(), ())
+        second_manager.signal(effect.run_id, 'TERM', SystevisorSignalScope.PROCESS)
+        self.assertEqual(_systevisor_test_wait_exit(second_manager, effect.run_id).return_code, -signal.SIGTERM)
+
+    def test_internal_process_is_never_handoff_eligible(self) -> None:
+        manager = SystevisorProcessManager()
+        run_id = SystevisorRunId(-1_000_000_001)
+        manager.spawn_internal(
+            run_id,
+            ('/bin/true',),
+            SystevisorOwnedProcessPurpose.SELF_UPDATE_PROBE,
+        )
+        self.addCleanup(_systevisor_test_cleanup_process, manager, run_id)
+        _systevisor_test_wait_exec(manager, run_id)
+
+        self.assertTrue(any('self_update_probe' in issue for issue in manager.handoff_issues()))
+        self.assertEqual(_systevisor_test_wait_exit(manager, run_id).return_code, 0)
+
     def test_exec_and_wait_are_observed_before_explicit_reap(self) -> None:
         manager = SystevisorProcessManager()
         effect = _systevisor_test_process_effect(('/bin/sh', '-c', 'exit 7'))

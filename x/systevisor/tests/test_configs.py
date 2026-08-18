@@ -192,3 +192,20 @@ class TestSystevisorConfigs(unittest.TestCase):
         assert first.snapshot is not None
         assert second.snapshot is not None
         self.assertEqual(first.snapshot.digest, second.snapshot.digest)
+
+    def test_self_update_timing_policy_is_validated(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = pathlib.Path(temp_dir) / 'config.json'
+            path.write_text(json.dumps({
+                'manager': {
+                    'self_update': {
+                        'probe_timeout_secs': 0,
+                        'response_grace_secs': -1,
+                    },
+                },
+            }))
+
+            result = SystevisorConfigCompiler().compile([str(path)])
+
+        self.assertFalse(result.is_valid)
+        self.assertIn('invalid_self_update_policy', {item.code for item in result.diagnostics})

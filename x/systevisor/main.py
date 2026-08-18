@@ -3,6 +3,7 @@ import argparse
 import base64
 import json
 import os
+import sys
 import typing as ta
 import urllib.parse
 
@@ -20,6 +21,7 @@ from .control.inject import SystevisorControlBootstrapConfig
 from .control.inject import systevisor_bind_control
 from .control.jsoncodec import SystevisorJsonCodec
 from .control.manager import SystevisorManagerConfigParticipant
+from .control.operations import SystevisorOperationStore
 from .control.plane import SystevisorControlPlane
 from .control.service import SystevisorControlService
 from .core.identities import SystevisorCollectionName
@@ -30,12 +32,25 @@ from .platforms.runtime import SystevisorManagerRuntime
 from .platforms.services import SystevisorServiceTemplateConfig
 from .platforms.services import systevisor_render_launchd_plist
 from .platforms.services import systevisor_render_systemd_service
+from .resources.cgroups import SystevisorCgroupManager
 from .resources.inject import systevisor_bind_resources
 from .resources.runtime import SystevisorResourceObserver
 from .resources.sockets import SystevisorInheritedSocketRegistry
 from .runtime.coordinator import SystevisorRuntimeCoordinator
 from .runtime.inject import systevisor_bind_runtime
+from .runtime.processes import SystevisorProcessManager
 from .scheduling.runtime import SystevisorScheduler
+from .selfupdate.codec import systevisor_handoff_manifest_from_obj
+from .selfupdate.codec import systevisor_self_update_read_json
+from .selfupdate.inject import systevisor_bind_self_update
+from .selfupdate.restore import SystevisorDecodedHandoff
+from .selfupdate.restore import systevisor_cleanup_handoff_files
+from .selfupdate.restore import systevisor_decode_handoff
+from .selfupdate.restore import systevisor_restore_handoff_cloexec
+from .selfupdate.restore import systevisor_rollback_handoff
+from .selfupdate.runtime import SystevisorSelfUpdateError
+from .selfupdate.runtime import SystevisorSelfUpdateManager
+from .selfupdate.runtime import systevisor_run_self_update_probe
 
 
 _SYSTEVISOR_MAIN_DEFAULT_ENDPOINT = 'unix:/tmp/systevisor.sock'
@@ -91,6 +106,7 @@ class SystevisorMainServerContext:
             systevisor_bind_platforms(),
             systevisor_bind_resources(),
             systevisor_bind_runtime(),
+            systevisor_bind_self_update(),
             systevisor_bind_control(bootstrap),
         )
         self._state_directory = args.state_directory
@@ -104,6 +120,7 @@ class SystevisorMainServerContext:
         self.scheduler: ta.Optional[SystevisorScheduler] = None
         self.resource_observer: ta.Optional[SystevisorResourceObserver] = None
         self.inherited_sockets: ta.Optional[SystevisorInheritedSocketRegistry] = None
+        self.self_update: ta.Optional[SystevisorSelfUpdateManager] = None
 
     def compile(self) -> SystevisorConfigCompileResult:
         bootstrap = self._injector.provide(SystevisorControlBootstrapConfig)
@@ -134,6 +151,12 @@ class SystevisorMainServerContext:
             self.scheduler = self._injector.provide(SystevisorScheduler)
             self.scheduler.set_state_directory_override(self._state_directory)
             self.resource_observer = self._injector.provide(SystevisorResourceObserver)
+            self.self_update = self._injector.provide(SystevisorSelfUpdateManager)
+            self.self_update.configure_mode(
+                'run' if startup_collection is not None else 'serve',
+                None if startup_collection is None else str(startup_collection),
+                os.path.realpath(sys.argv[0]),
+            )
             self.control_plane = self._injector.provide(SystevisorControlPlane)
             coordinator.engine.state.startup_collection = startup_collection
 
@@ -144,11 +167,69 @@ class SystevisorMainServerContext:
             ta.cast(SystevisorManagerRuntime, self.manager_runtime).ready()
         return result
 
+    def resume(
+            self,
+            handoff: SystevisorDecodedHandoff,
+            *,
+            completion_error: ta.Optional[str] = None,
+    ) -> None:
+        manifest = handoff.manifest
+        inherited_sockets = self._injector.provide(SystevisorInheritedSocketRegistry)
+        inherited_sockets.rehydrate(handoff.inherited_sockets)
+        self.inherited_sockets = inherited_sockets
+
+        manager_runtime = self._injector.provide(SystevisorManagerRuntime)
+        manager_runtime.rehydrate(handoff.manager_runtime, handoff.pid_file_fd)
+        self.manager_runtime = manager_runtime
+
+        coordinator = self._injector.provide(SystevisorRuntimeCoordinator)
+        self.coordinator = coordinator
+        coordinator.event_bus.rehydrate(handoff.event_bus)
+        coordinator.log_manager.rehydrate(handoff.logs)
+        coordinator.engine.rehydrate(handoff.engine)
+        process_manager = self._injector.provide(SystevisorProcessManager)
+        process_manager.rehydrate(handoff.processes, handoff.engine)
+
+        controller = self._injector.provide(SystevisorConfigController)
+        self.controller = controller
+        self.poller = self._injector.provide(FdioPoller)
+        operations = self._injector.provide(SystevisorOperationStore)
+        operations.rehydrate(handoff.operations)
+        self._injector.provide(SystevisorManagerConfigParticipant)
+        self.control = self._injector.provide(SystevisorControlService)
+        self.scheduler = self._injector.provide(SystevisorScheduler)
+        self.scheduler.set_state_directory_override(self._state_directory)
+        self.resource_observer = self._injector.provide(SystevisorResourceObserver)
+        self.self_update = self._injector.provide(SystevisorSelfUpdateManager)
+        self.self_update.configure_mode(
+            manifest.mode,
+            manifest.startup_collection,
+            os.path.realpath(sys.argv[0]),
+        )
+        self.control_plane = self._injector.provide(SystevisorControlPlane)
+
+        controller.rehydrate(handoff.snapshot)
+        self._injector.provide(SystevisorCgroupManager).rehydrate(
+            handoff.cgroups,
+            process_manager.child_contexts(),
+        )
+        coordinator.rehydrate_process_runtime(handoff.output_fds)
+        controller.install_signal_reload()
+        coordinator.install_signal_handler()
+        systevisor_restore_handoff_cloexec(handoff)
+        manager_runtime.ready()
+        if completion_error is None:
+            self.self_update.complete_resume(manifest.operation_id, manifest.source_sha256)
+        else:
+            self.self_update.fail_resume(manifest.operation_id, completion_error)
+
     def note_stopping(self) -> None:
         if self.manager_runtime is not None:
             self.manager_runtime.stopping()
 
     def close(self) -> None:
+        if self.self_update is not None:
+            self.self_update.close()
         if self.resource_observer is not None:
             self.resource_observer.close()
         if self.scheduler is not None:
@@ -181,6 +262,12 @@ def _systevisor_main_serve(args: argparse.Namespace) -> int:
         stopping_noted = False
         while True:
             coordinator.poll()
+            self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
+            if self_update.ready_to_exec():
+                try:
+                    self_update.execute_prepared()
+                except SystevisorSelfUpdateError:
+                    pass
             state = coordinator.engine.state
             if state.shutting_down and not stopping_noted:
                 context.note_stopping()
@@ -221,6 +308,12 @@ def _systevisor_main_run(args: argparse.Namespace) -> int:
         stopping_noted = False
         while True:
             coordinator.poll()
+            self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
+            if self_update.ready_to_exec():
+                try:
+                    self_update.execute_prepared()
+                except SystevisorSelfUpdateError:
+                    pass
             state = coordinator.engine.state
             collection = state.collections.get(collection_name)
             current_collection_config = (
@@ -267,6 +360,98 @@ def _systevisor_main_run(args: argparse.Namespace) -> int:
         context.close()
 
 
+def _systevisor_main_resume(args: argparse.Namespace, *, rollback: bool = False) -> int:
+    context: ta.Optional[SystevisorMainServerContext] = None
+    manifest = None
+    try:
+        manifest = systevisor_handoff_manifest_from_obj(systevisor_self_update_read_json(args.manifest))
+        handoff = systevisor_decode_handoff(
+            manifest,
+            os.path.realpath(sys.argv[0]),
+            previous_source=rollback,
+        )
+        completion_error: ta.Optional[str] = None
+        if rollback:
+            error_obj = systevisor_self_update_read_json(args.error_file)
+            if not isinstance(error_obj, dict) or not isinstance(error_obj.get('message'), str):
+                raise ValueError('invalid self-update rollback error document')
+            completion_error = error_obj['message']
+        context_args = argparse.Namespace(
+            config=list(manifest.config_paths),
+            recursive=manifest.recursive,
+            state_directory=manifest.state_directory,
+        )
+        context = SystevisorMainServerContext(context_args)
+        context.resume(handoff, completion_error=completion_error)
+        systevisor_cleanup_handoff_files(args.manifest)
+
+        coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
+        collection_name = (
+            None if manifest.startup_collection is None else
+            SystevisorCollectionName(manifest.startup_collection)
+        )
+        exit_code = 0
+        stopping_noted = False
+        shutdown_requested = False
+        while True:
+            coordinator.poll()
+            state = coordinator.engine.state
+            if collection_name is not None and not state.shutting_down and not shutdown_requested:
+                collection = state.collections.get(collection_name)
+                collection_config = (
+                    None if state.snapshot is None else
+                    state.snapshot.config.collections.get(collection_name)
+                )
+                if collection is None or collection_config is None:
+                    exit_code = 2
+                    shutdown_requested = True
+                elif collection.status is SystevisorCollectionStatus.FAILED:
+                    exit_code = 1
+                    shutdown_requested = True
+                elif collection.status is SystevisorCollectionStatus.INACTIVE:
+                    shutdown_requested = True
+                elif collection.status is SystevisorCollectionStatus.READY and all(
+                        state.snapshot is not None and
+                        state.snapshot.config.units[unit_name].kind is SystevisorUnitKind.ONESHOT
+                        for unit_name in collection_config.units
+                ):
+                    shutdown_requested = True
+                elif collection.status is SystevisorCollectionStatus.DEGRADED and all(
+                        instance.run_id is None
+                        for instance in state.instances.values()
+                        if instance.unit_name in collection_config.units
+                ):
+                    exit_code = 1
+                    shutdown_requested = True
+                if shutdown_requested:
+                    coordinator.submit(SystevisorShutdownCommand())
+            if state.shutting_down and not stopping_noted:
+                context.note_stopping()
+                stopping_noted = True
+            if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
+                return exit_code
+    except Exception as exc:  # noqa: BLE001
+        error = 'self_update_rollback_failed' if rollback else 'self_update_resume_failed'
+        message = f'{type(exc).__name__}: {exc}'
+        if not rollback and manifest is not None:
+            try:
+                systevisor_rollback_handoff(manifest, args.manifest, message)
+            except Exception as rollback_exc:  # noqa: BLE001
+                error = 'self_update_rollback_failed'
+                message = (
+                    f'{message}; rollback exec failed: '
+                    f'{type(rollback_exc).__name__}: {rollback_exc}'
+                )
+        _systevisor_main_print_json({
+            'error': error,
+            'message': message,
+        }, SystevisorJsonCodec(), 2)
+        return 2
+    finally:
+        if context is not None:
+            context.close()
+
+
 def _systevisor_main_service_template(args: argparse.Namespace) -> int:
     config = SystevisorServiceTemplateConfig(
         executable=args.executable,
@@ -294,6 +479,7 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
 
     method = 'GET'
     target = '/'
+    body: ta.Optional[ta.Any] = None
     if args.command == 'status':
         target = '/'
     elif args.command == 'units':
@@ -325,6 +511,9 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
         target = f'/v1/instances/{urllib.parse.quote(args.instance, safe="")}/_restart'
     elif args.command == 'shutdown':
         method, target = 'POST', '/v1/_shutdown'
+    elif args.command == 'self-update':
+        method, target = 'POST', '/v1/_self_update'
+        body = {'source': args.source}
     elif args.command == 'events':
         query: ta.List[ta.Tuple[str, ta.Any]] = [('after', args.after)]
         query.extend(('topic', topic) for topic in args.topic)
@@ -360,7 +549,7 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
             except KeyboardInterrupt:
                 return 130
 
-    response = client.request(method, target)
+    response = client.request(method, target, body)
     try:
         value = codec.loads(response.body)
     except (UnicodeDecodeError, json.JSONDecodeError):
@@ -408,6 +597,20 @@ def _systevisor_main_parser() -> argparse.ArgumentParser:
     ):
         subparsers.add_parser(command)
 
+    self_update = subparsers.add_parser('self-update')
+    self_update.add_argument('source')
+
+    self_update_probe = subparsers.add_parser('_self-update-probe', help=argparse.SUPPRESS)
+    self_update_probe.add_argument('--request', required=True)
+    self_update_probe.add_argument('--result', required=True)
+
+    self_update_resume = subparsers.add_parser('_self-update-resume', help=argparse.SUPPRESS)
+    self_update_resume.add_argument('--manifest', required=True)
+
+    self_update_rollback = subparsers.add_parser('_self-update-rollback', help=argparse.SUPPRESS)
+    self_update_rollback.add_argument('--manifest', required=True)
+    self_update_rollback.add_argument('--error-file', required=True)
+
     resources = subparsers.add_parser('resources')
     resources.add_argument('run_id', type=int, nargs='?')
 
@@ -444,4 +647,10 @@ def systevisor_main(argv: ta.Optional[ta.Sequence[str]] = None) -> int:
         return _systevisor_main_serve(args)
     if args.command == 'run':
         return _systevisor_main_run(args)
+    if args.command == '_self-update-probe':
+        return systevisor_run_self_update_probe(args.request, args.result, os.path.realpath(sys.argv[0]))
+    if args.command == '_self-update-resume':
+        return _systevisor_main_resume(args)
+    if args.command == '_self-update-rollback':
+        return _systevisor_main_resume(args, rollback=True)
     return _systevisor_main_client(args)

@@ -71,8 +71,9 @@
 
 ## Phase 10: self-update
 
-- Implement candidate probing, freeze, final snapshot, FD inheritance, in-place exec, rehydration, validation, and
-  failure reporting.
+- Complete: managed candidate probing, stable-point freeze, versioned snapshots, checked FD inheritance, in-place
+  exec, runtime rehydration, operation/event continuity, and failure reporting.
+- Complete: digest-pinned rollback to the previous amalgamated artifact after a candidate reconstruction failure.
 
 ## Phase 11: hardening and release
 

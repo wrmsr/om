@@ -74,6 +74,11 @@ class SystevisorEngine:
     def state(self) -> SystevisorEngineState:
         return self._state
 
+    def rehydrate(self, state: SystevisorEngineState) -> None:
+        if self._state != SystevisorEngineState() or self._effects or self._events:
+            raise RuntimeError('engine state can only be rehydrated before use')
+        self._state = state
+
     def step(self, engine_input: SystevisorEngineInput, now: float) -> SystevisorEngineOutput:
         if now < self._state.last_now:
             raise ValueError(now)

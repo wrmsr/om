@@ -436,3 +436,30 @@ class SystevisorCgroupManager(SystevisorChildModifier):
         for run_id, state in tuple(self._states.items()):
             if state.status is SystevisorCgroupRunStatus.REMOVED and run_id not in retained_run_ids:
                 del self._states[run_id]
+
+    def rehydrate(
+            self,
+            states: ta.Iterable[SystevisorCgroupRunState],
+            contexts: ta.Mapping[SystevisorRunId, SystevisorChildContext],
+    ) -> None:
+        if self._states or self._prepared:
+            raise SystevisorCgroupError('cgroup manager can only be rehydrated before use')
+        restored: ta.Dict[SystevisorRunId, SystevisorCgroupRunState] = {}
+        for state in states:
+            if state.state_schema_version != 1:
+                raise SystevisorCgroupError(f'unsupported cgroup run schema: {state.state_schema_version}')
+            if state.run_id in restored:
+                raise SystevisorCgroupError(f'duplicate cgroup run: {state.run_id}')
+            context = contexts.get(state.run_id)
+            if state.status is SystevisorCgroupRunStatus.ACTIVE:
+                if context is None:
+                    raise SystevisorCgroupError(f'active cgroup has no owned process: {state.run_id}')
+                if self._active_root is None:
+                    raise SystevisorCgroupError('active cgroup has no configured delegated root')
+                expected_path = os.path.join(self._active_root, _systevisor_cgroup_run_name(context))
+                if os.path.abspath(state.path) != os.path.abspath(expected_path):
+                    raise SystevisorCgroupError(f'cgroup path changed for run {state.run_id}')
+                if state.config != context.spec.unit.resources.cgroup or state.pid is None:
+                    raise SystevisorCgroupError(f'cgroup configuration changed for run {state.run_id}')
+            restored[state.run_id] = state
+        self._states = restored

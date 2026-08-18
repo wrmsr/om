@@ -26,6 +26,14 @@ class SystevisorOperation:
     data: ta.Mapping[str, ta.Any] = dc.field(default_factory=dict)
 
 
+@dc.dataclass(frozen=True)
+class SystevisorOperationStoreState:
+    state_schema_version: int
+    capacity: int
+    next_id: int
+    operations: ta.Sequence[SystevisorOperation]
+
+
 class SystevisorOperationStore:
     def __init__(
             self,
@@ -87,3 +95,27 @@ class SystevisorOperationStore:
 
     def list(self) -> ta.Sequence[SystevisorOperation]:
         return tuple(self._operations.values())
+
+    def snapshot_state(self) -> SystevisorOperationStoreState:
+        return SystevisorOperationStoreState(
+            state_schema_version=1,
+            capacity=self._capacity,
+            next_id=self._next_id,
+            operations=tuple(self._operations.values()),
+        )
+
+    def rehydrate(self, state: SystevisorOperationStoreState) -> None:
+        if self._operations or self._next_id != 1:
+            raise RuntimeError('operation store can only be rehydrated before use')
+        if state.state_schema_version != 1:
+            raise ValueError(f'unsupported operation store schema: {state.state_schema_version}')
+        if state.capacity < 1 or state.next_id < 1 or len(state.operations) > state.capacity:
+            raise ValueError('invalid operation store handoff state')
+        operations: ta.Dict[str, SystevisorOperation] = {}
+        for operation in state.operations:
+            if operation.operation_id in operations:
+                raise ValueError(f'duplicate operation id: {operation.operation_id}')
+            operations[operation.operation_id] = operation
+        self._capacity = state.capacity
+        self._next_id = state.next_id
+        self._operations = operations

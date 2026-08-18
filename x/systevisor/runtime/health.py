@@ -45,6 +45,10 @@ class SystevisorHealthProbeRuntimeStart:
 
 class SystevisorHealthProbeRunner(Abstract):
     @abc.abstractmethod
+    def has_active_checks(self) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def start(
             self,
             effect: SystevisorRunHealthProbeEffect,
@@ -246,6 +250,9 @@ class SystevisorFdioHealthProbeRunner(SystevisorHealthProbeRunner, FdioHandler):
     @property
     def closed(self) -> bool:
         return self._closed
+
+    def has_active_checks(self) -> bool:
+        return bool(self._checks)
 
     def close(self) -> None:
         if self._closed:

@@ -58,6 +58,20 @@ class SystevisorLogChannelInfo:
     retired: bool
 
 
+@dc.dataclass(frozen=True)
+class SystevisorLogChannelState:
+    state_schema_version: int
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    stream: SystevisorLogStream
+    config: SystevisorOutputConfig
+    data: bytes
+    end_offset: int
+    retired: bool
+    created_at: float
+    last_activity_at: ta.Optional[float]
+
+
 class SystevisorLogSubscription:
     def __init__(self, manager: 'SystevisorLogManager', subscription_id: int) -> None:
         self._manager = manager
@@ -132,6 +146,17 @@ class SystevisorByteRingBuffer:
             data=data,
             gap_bytes=gap_bytes,
         )
+
+    def snapshot(self) -> ta.Tuple[bytes, int]:
+        return bytes(self._buffer), self._end_offset
+
+    def rehydrate(self, data: bytes, end_offset: int) -> None:
+        if self._end_offset or self._buffer:
+            raise RuntimeError('ring buffer can only be rehydrated before use')
+        if end_offset < len(data) or len(data) > self._capacity:
+            raise ValueError('invalid ring buffer handoff state')
+        self._buffer[:] = data
+        self._end_offset = end_offset
 
 
 class SystevisorLogSink(Abstract):
@@ -238,9 +263,13 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
     def __init__(
             self,
             fd: int,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
             callback: ta.Callable[[bytes], None],
     ) -> None:
         self._fd = fd
+        self._run_id = run_id
+        self._stream = stream
         self._callback = callback
         self._closed = False
 
@@ -250,6 +279,14 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
     @property
     def closed(self) -> bool:
         return self._closed
+
+    @property
+    def run_id(self) -> SystevisorRunId:
+        return self._run_id
+
+    @property
+    def stream(self) -> SystevisorLogStream:
+        return self._stream
 
     def close(self) -> None:
         if not self._closed:
@@ -340,8 +377,22 @@ class SystevisorLogManager:
             ) -> None:
                 self.append(run_id, log_stream, data)
 
-            handlers.append(SystevisorProcessOutputFdioHandler(fd, handle_data))
+            handlers.append(SystevisorProcessOutputFdioHandler(fd, effect.run_id, stream, handle_data))
         return tuple(handlers)
+
+    def attach_rehydrated_output(
+            self,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+            fd: int,
+    ) -> SystevisorProcessOutputFdioHandler:
+        if (run_id, stream) not in self._channels:
+            raise RuntimeError(f'cannot attach output without a log channel: {run_id}:{stream.value}')
+
+        def handle_data(data: bytes) -> None:
+            self.append(run_id, stream, data)
+
+        return SystevisorProcessOutputFdioHandler(fd, run_id, stream, handle_data)
 
     def append(self, run_id: SystevisorRunId, stream: SystevisorLogStream, data: bytes) -> None:
         channel = self._channels[(run_id, stream)]
@@ -422,6 +473,50 @@ class SystevisorLogManager:
                 key=lambda item: (item[0][0], item[0][1].value),
             )
         )
+
+    def snapshot_states(self) -> ta.Sequence[SystevisorLogChannelState]:
+        states: ta.List[SystevisorLogChannelState] = []
+        for _, channel in sorted(
+                self._channels.items(),
+                key=lambda item: (item[0][0], item[0][1].value),
+        ):
+            data, end_offset = channel.ring.snapshot()
+            states.append(SystevisorLogChannelState(
+                state_schema_version=1,
+                run_id=channel.run_id,
+                instance_id=channel.instance_id,
+                stream=channel.stream,
+                config=channel.config,
+                data=data,
+                end_offset=end_offset,
+                retired=channel.retired,
+                created_at=channel.created_at,
+                last_activity_at=channel.last_activity_at,
+            ))
+        return tuple(states)
+
+    def rehydrate(self, states: ta.Iterable[SystevisorLogChannelState]) -> None:
+        if self._channels or self._subscriptions:
+            raise RuntimeError('log manager can only be rehydrated before use')
+        for state in states:
+            if state.state_schema_version != 1:
+                raise ValueError(f'unsupported log channel schema: {state.state_schema_version}')
+            key = (state.run_id, state.stream)
+            if key in self._channels:
+                raise ValueError(f'duplicate log channel: {state.run_id}:{state.stream.value}')
+            ring = SystevisorByteRingBuffer(state.config.back_buffer_bytes)
+            ring.rehydrate(state.data, state.end_offset)
+            self._channels[key] = SystevisorLogChannel(
+                run_id=state.run_id,
+                instance_id=state.instance_id,
+                stream=state.stream,
+                config=state.config,
+                ring=ring,
+                sinks=self._make_sinks(state.stream, state.config),
+                retired=state.retired,
+                created_at=state.created_at,
+                last_activity_at=state.last_activity_at,
+            )
 
     def read(
             self,

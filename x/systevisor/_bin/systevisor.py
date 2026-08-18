@@ -104,8 +104,9 @@ def __om_amalg__():  # noqa
             dict(path='core/identities.py', sha1='e05ff81845814fcce1e10f61d10c4192cdfa6f9c'),
             dict(path='core/states.py', sha1='5c96d77599bdbcb39e0ffd78d97ac8a26a98fb1c'),
             dict(path='platforms/services.py', sha1='74fd539b4d05c9e847563e1dcd0c8bed9187d071'),
-            dict(path='runtime/events.py', sha1='8c5bff4a99f09a24d2a818d1d70745a9a307d04a'),
+            dict(path='runtime/events.py', sha1='e108908260b6867e4465444f85d8e8966204b587'),
             dict(path='scheduling/cron.py', sha1='b5e169f2cb6ec3cdac9a4ca9d12c88a259456835'),
+            dict(path='selfupdate/models.py', sha1='71fb817afe1149f6c147902afbe6884c3ee7cc94'),
             dict(path='../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
@@ -121,7 +122,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='4de3fd9ef9ec88ec4a10690baa0d891f5ca7f4a3'),
+            dict(path='configs/models.py', sha1='36fc6bbb39de4236a933d43c1ec51f5897c97994'),
             dict(path='runtime/clocks.py', sha1='f364654f73e89d21cf4df61dbb8596fca24fd5d5'),
             dict(path='../../omcore/configs/formats.py', sha1='9263da888199b408e902490244e9d5caddc69821'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
@@ -137,9 +138,9 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='configs/marshal.py', sha1='3c4ef5c9b224a7c47c90dc4dc2a73d5a4c071ce9'),
-            dict(path='configs/validation.py', sha1='a00c57252097a3c3d33d21c4ee2e2a47051a2dc4'),
+            dict(path='configs/validation.py', sha1='b8adeb3c5214b686ab01a4c36a575d645c9c5ae6'),
             dict(path='control/jsoncodec.py', sha1='351d8be14f9b96ae4f2bbf52595cf67620316f4c'),
-            dict(path='control/operations.py', sha1='f6f1bc54a0efc86f03b678b76f626af0e7a2834a'),
+            dict(path='control/operations.py', sha1='4c8366037a0e9ffbb20566042793248ce60d8c18'),
             dict(path='core/changes.py', sha1='e5f3ff0bf8cc9e517762ee8dcbd4379b3e948fba'),
             dict(path='runtime/signals.py', sha1='45f9201104fd3d4df962d280bb5a3d0a23b93b1b'),
             dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
@@ -162,7 +163,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='configs/snapshots.py', sha1='ea9fe1037ee1d325fe6e2b550e9747617ed551d2'),
-            dict(path='platforms/runtime.py', sha1='89962f326aa314a8534a204c2345562506c7a4ba'),
+            dict(path='platforms/runtime.py', sha1='d91cda3beeb332038b14e3e0b308545fb186fc7e'),
             dict(path='../../omcore/http/pipelines/aggregators.py', sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1'),
             dict(path='../../omcore/http/pipelines/clients/requests.py', sha1='60607306046abc3d5bb0c2e0b40e61251151ae13'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5'),  # noqa
@@ -178,30 +179,34 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='6b6c29eca0d1679ac4219d81cbeb1f1e549a772e'),
             dict(path='core/events.py', sha1='dba043a5555e53174d3a98c901de68eedf19679b'),
             dict(path='runtime/fdio.py', sha1='c6609308ee8748415669e44f814245c5e1ade703'),
-            dict(path='runtime/logs.py', sha1='51265ca162c263ca06f8d71bd915dc526a9fcc2d'),
-            dict(path='runtime/processes.py', sha1='c85dc4fa370dee1e9cb6bfd07b8a1b7f6b07bed8'),
+            dict(path='runtime/logs.py', sha1='2838a13bf447db806586ea01fa3ae52d5b0f82a6'),
+            dict(path='runtime/processes.py', sha1='a17c6c85d2eb6ac59590a331af91b7a08e37d9dd'),
             dict(path='../../omcore/http/pipelines/clients/responses.py', sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/requests.py', sha1='2258c98399fd861ca308ff1ef498513d435f6fbb'),  # noqa
-            dict(path='core/engine.py', sha1='1f25b259943de63637e6a680f3d1a57026f80daa'),
-            dict(path='resources/cgroups.py', sha1='a8ee0fa41abc6a5e694b5a1582911ab97faa05cd'),
+            dict(path='core/engine.py', sha1='f6bb0142c4384795bc7176ffb0aff344a20a4e6d'),
+            dict(path='resources/cgroups.py', sha1='4ccf68c772b82481a06d9cf8addda457166216ba'),
             dict(path='resources/namespaces.py', sha1='bd1c4b97fd72df49bfd9820f7638f27263285ab2'),
             dict(path='resources/sampling.py', sha1='b15a7599153f597aae6c7df172648fbc7e847124'),
-            dict(path='resources/sockets.py', sha1='ebb97a95d343570146a77a52197b04eac5f52373'),
+            dict(path='resources/sockets.py', sha1='e180d3e0df5f66c03ceb6aa11f156986afcea92e'),
             dict(path='control/client.py', sha1='80a93c5f83f5c4dc8351bc9c294cdfdcd67e23ee'),
-            dict(path='runtime/health.py', sha1='f4174e2db2a7c7495910dac8ba80a37f5bf558c1'),
-            dict(path='runtime/coordinator.py', sha1='55ae71d8bb1162a58de82b2e1d4ea0cba65b71fa'),
-            dict(path='control/configs.py', sha1='ecf93f4659e672854b2e368d68e091c9bb922ebc'),
+            dict(path='runtime/health.py', sha1='b780f9252da4e15d2870dc347516b41ab9c1d610'),
+            dict(path='selfupdate/codec.py', sha1='5f71efb5f0f3a37ab55ccdedcaf9415e98a05536'),
+            dict(path='runtime/coordinator.py', sha1='b4c51f15047c1081fcc282cdec0f1874c0dd0a95'),
+            dict(path='control/configs.py', sha1='90e91da0e8aa53d5f3287c9ee014708f44934d33'),
             dict(path='runtime/inject.py', sha1='669fd27c28d474018f91728f4c773557103f125a'),
+            dict(path='selfupdate/restore.py', sha1='8abe6acbef76bfe299d3be504ca922543eb6bbd6'),
             dict(path='control/manager.py', sha1='8f715afde9a17b57e2ffaea413d299a99c988214'),
             dict(path='control/service.py', sha1='caa36df4c4fe11e47a757593129d2ced91a77c57'),
             dict(path='resources/runtime.py', sha1='fca60675a1390fe1f5fb11f3eccaacff29b4eb05'),
+            dict(path='selfupdate/runtime.py', sha1='4b59c6d9bd300bb4e37e4c00011cdded4c2c9c32'),
             dict(path='resources/inject.py', sha1='8a6e401ae5226cbe3980c1e3c091376d7aea1660'),
             dict(path='scheduling/runtime.py', sha1='1becc1acded71aa3578bf9cedf33f97c015fcee9'),
-            dict(path='control/api.py', sha1='73c83533d833ed63b0646f9eab3ad3905ecb5a50'),
+            dict(path='selfupdate/inject.py', sha1='9745fc822cdb64e91b21ee60e71412430a3738c7'),
+            dict(path='control/api.py', sha1='ee2da9830d7603128f219f881f302ce0a2ecde54'),
             dict(path='control/http.py', sha1='229bea0294159966194a4d30042972a2a41d6320'),
             dict(path='control/plane.py', sha1='6564a0b172a8b5794443e87472d73b156c23e662'),
             dict(path='control/inject.py', sha1='7beba0838f55bbf618f8b24aa23ad965dfd5f89b'),
-            dict(path='main.py', sha1='fa1c7315c305ed80c8b10d17e63f75a7987b303d'),
+            dict(path='main.py', sha1='f7da1685265220046d7b268a2e3c39d2c46105a6'),
             dict(path='__main__.py', sha1='7f67abe616ff38fa814292fe452159be5cf04acb'),
         ],
     )
@@ -4668,6 +4673,14 @@ class SystevisorEventCallbackFailure:
     exception: Exception
 
 
+@dc.dataclass(frozen=True)
+class SystevisorEventBusState:
+    state_schema_version: int
+    journal_capacity: int
+    next_sequence: int
+    journal: ta.Sequence[SystevisorBusEvent]
+
+
 class SystevisorEventStream:
     def __init__(self, subscription_id: int, capacity: int) -> None:
         if capacity < 1:
@@ -4750,6 +4763,31 @@ class SystevisorEventBus:
 
     def journal(self, after_sequence: int = 0) -> ta.Sequence[SystevisorBusEvent]:
         return tuple(event for event in self._journal if event.sequence > after_sequence)
+
+    def snapshot_state(self) -> SystevisorEventBusState:
+        return SystevisorEventBusState(
+            state_schema_version=1,
+            journal_capacity=self.journal_capacity,
+            next_sequence=self._next_sequence,
+            journal=tuple(self._journal),
+        )
+
+    def rehydrate(self, state: SystevisorEventBusState) -> None:
+        if self._journal or self._callbacks or self._streams or self._next_sequence != 1:
+            raise RuntimeError('event bus can only be rehydrated before use')
+        if state.state_schema_version != 1:
+            raise ValueError(f'unsupported event bus schema: {state.state_schema_version}')
+        if state.journal_capacity < 1 or state.next_sequence < 1:
+            raise ValueError('invalid event bus handoff state')
+        previous_sequence = 0
+        for event in state.journal:
+            if event.sequence <= previous_sequence or event.sequence >= state.next_sequence:
+                raise ValueError('invalid event journal sequence')
+            previous_sequence = event.sequence
+        if len(state.journal) > state.journal_capacity:
+            raise ValueError('event journal exceeds its capacity')
+        self._journal = collections.deque(state.journal, maxlen=state.journal_capacity)
+        self._next_sequence = state.next_sequence
 
     def subscribe_callback(
             self,
@@ -4921,6 +4959,100 @@ def systevisor_parse_cron(source: str) -> SystevisorCronExpression:
         month=_systevisor_cron_parse_field(fields[3], 1, 12, 'month'),
         day_of_week=_systevisor_cron_parse_field(fields[4], 0, 7, 'day-of-week', sunday_seven=True),
     )
+
+
+########################################
+# ../selfupdate/models.py
+
+
+SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION = 1
+
+
+class SystevisorSelfUpdatePhase(enum.Enum):
+    IDLE = 'idle'
+    PROBING = 'probing'
+    PREPARED = 'prepared'
+    EXECUTING = 'executing'
+    FAILED = 'failed'
+
+
+class SystevisorHandoffFdKind(enum.Enum):
+    PROCESS_PIDFD = 'process_pidfd'
+    PROCESS_STDOUT = 'process_stdout'
+    PROCESS_STDERR = 'process_stderr'
+    PID_FILE = 'pid_file'
+    ACTIVATION_SOCKET = 'activation_socket'
+
+
+@dc.dataclass(frozen=True)
+class SystevisorHandoffFd:
+    kind: SystevisorHandoffFdKind
+    owner: str
+    fd: int
+    device: int
+    inode: int
+    mode: int
+    status_flags: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSelfUpdateProbeRequest:
+    schema_version: int
+    source_path: str
+    source_sha256: str
+    config: ta.Mapping[str, ta.Any]
+    config_digest: str
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSelfUpdateProbeResult:
+    schema_version: int
+    accepted: bool
+    source_sha256: str
+    message: ta.Optional[str] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSelfUpdateState:
+    state_schema_version: int
+    phase: SystevisorSelfUpdatePhase
+    operation_id: ta.Optional[str]
+    source_path: ta.Optional[str]
+    source_sha256: ta.Optional[str]
+    requested_at: ta.Optional[float]
+    probe_run_id: ta.Optional[int]
+    deadline_at: ta.Optional[float]
+    message: ta.Optional[str]
+
+
+@dc.dataclass(frozen=True)
+class SystevisorHandoffManifest:
+    schema_version: int
+    source_path: str
+    source_sha256: str
+    previous_source_path: str
+    previous_source_sha256: str
+    created_at: float
+    manager_pid: int
+    operation_id: str
+    mode: str
+    startup_collection: ta.Optional[str]
+    config_paths: ta.Sequence[str]
+    recursive: bool
+    state_directory: ta.Optional[str]
+    config: ta.Mapping[str, ta.Any]
+    config_digest: str
+    source_paths: ta.Sequence[str]
+    provenance: ta.Sequence[ta.Mapping[str, ta.Any]]
+    engine: ta.Mapping[str, ta.Any]
+    processes: ta.Sequence[ta.Mapping[str, ta.Any]]
+    logs: ta.Sequence[ta.Mapping[str, ta.Any]]
+    event_bus: ta.Mapping[str, ta.Any]
+    operations: ta.Mapping[str, ta.Any]
+    manager_runtime: ta.Mapping[str, ta.Any]
+    inherited_sockets: ta.Sequence[ta.Mapping[str, ta.Any]]
+    cgroups: ta.Sequence[ta.Mapping[str, ta.Any]]
+    fds: ta.Sequence[SystevisorHandoffFd]
 
 
 ########################################
@@ -12247,6 +12379,14 @@ class SystevisorCgroupManagerConfig:
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorSelfUpdateConfig:
+    enabled: bool = True
+    probe_timeout_secs: float = 10.
+    response_grace_secs: float = .1
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorManagerConfig:
     identifier: str = 'systevisor'
     foreground: bool = True
@@ -12267,6 +12407,7 @@ class SystevisorManagerConfig:
     log: SystevisorManagerLogConfig = dc.field(default_factory=SystevisorManagerLogConfig)
     observation: SystevisorObservationConfig = dc.field(default_factory=SystevisorObservationConfig)
     cgroups: SystevisorCgroupManagerConfig = dc.field(default_factory=SystevisorCgroupManagerConfig)
+    self_update: SystevisorSelfUpdateConfig = dc.field(default_factory=SystevisorSelfUpdateConfig)
 
 
 @install_dataclass_kw_only_init()
@@ -14774,6 +14915,17 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'observation',
         ))
 
+    if (
+            config.manager.self_update.probe_timeout_secs <= 0 or
+            config.manager.self_update.response_grace_secs < 0
+    ):
+        errors.append(_systevisor_config_validation_error(
+            'invalid_self_update_policy',
+            'self-update probe timeout must be positive and response grace must be non-negative',
+            'manager',
+            'self_update',
+        ))
+
     cgroup_root = config.manager.cgroups.root
     if cgroup_root is not None and (not cgroup_root or not cgroup_root.startswith('/')):
         errors.append(_systevisor_config_validation_error(
@@ -15409,6 +15561,14 @@ class SystevisorOperation:
     data: ta.Mapping[str, ta.Any] = dc.field(default_factory=dict)
 
 
+@dc.dataclass(frozen=True)
+class SystevisorOperationStoreState:
+    state_schema_version: int
+    capacity: int
+    next_id: int
+    operations: ta.Sequence[SystevisorOperation]
+
+
 class SystevisorOperationStore:
     def __init__(
             self,
@@ -15470,6 +15630,30 @@ class SystevisorOperationStore:
 
     def list(self) -> ta.Sequence[SystevisorOperation]:
         return tuple(self._operations.values())
+
+    def snapshot_state(self) -> SystevisorOperationStoreState:
+        return SystevisorOperationStoreState(
+            state_schema_version=1,
+            capacity=self._capacity,
+            next_id=self._next_id,
+            operations=tuple(self._operations.values()),
+        )
+
+    def rehydrate(self, state: SystevisorOperationStoreState) -> None:
+        if self._operations or self._next_id != 1:
+            raise RuntimeError('operation store can only be rehydrated before use')
+        if state.state_schema_version != 1:
+            raise ValueError(f'unsupported operation store schema: {state.state_schema_version}')
+        if state.capacity < 1 or state.next_id < 1 or len(state.operations) > state.capacity:
+            raise ValueError('invalid operation store handoff state')
+        operations: ta.Dict[str, SystevisorOperation] = {}
+        for operation in state.operations:
+            if operation.operation_id in operations:
+                raise ValueError(f'duplicate operation id: {operation.operation_id}')
+            operations[operation.operation_id] = operation
+        self._capacity = state.capacity
+        self._next_id = state.next_id
+        self._operations = operations
 
 
 ########################################
@@ -20778,6 +20962,10 @@ class SystevisorPidFileManager:
     def state(self) -> ta.Optional[SystevisorPidFileState]:
         return self._state
 
+    @property
+    def fd(self) -> ta.Optional[int]:
+        return self._fd
+
     def acquire(self, path: str) -> SystevisorPidFileState:
         if self._fd is not None:
             raise SystevisorPlatformError('pidfile is already acquired')
@@ -20806,6 +20994,33 @@ class SystevisorPidFileManager:
         self._fd = fd
         self._state = state
         return state
+
+    def rehydrate(self, state: SystevisorPidFileState, fd: int) -> None:
+        if self._fd is not None or self._state is not None:
+            raise SystevisorPlatformError('pidfile manager can only be rehydrated before use')
+        if state.pid != os.getpid():
+            raise SystevisorPlatformError(
+                f'pidfile handoff belongs to pid {state.pid}, not current pid {os.getpid()}',
+            )
+        try:
+            fd_stat = os.fstat(fd)
+            path_stat = os.stat(state.path)
+        except OSError as exc:
+            raise SystevisorPlatformError(f'could not validate inherited pidfile: {exc}') from exc
+        expected_identity = (state.device, state.inode)
+        if (
+                (fd_stat.st_dev, fd_stat.st_ino) != expected_identity or
+                (path_stat.st_dev, path_stat.st_ino) != expected_identity
+        ):
+            raise SystevisorPlatformError('inherited pidfile identity changed')
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise SystevisorPlatformError('inherited pidfile lock was lost') from exc
+        flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+        fcntl.fcntl(fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+        self._fd = fd
+        self._state = state
 
     def close(self) -> None:
         fd = self._fd
@@ -20993,6 +21208,10 @@ class SystevisorManagerRuntime:
     def state(self) -> ta.Optional[SystevisorManagerRuntimeState]:
         return self._state
 
+    @property
+    def pid_file_fd(self) -> ta.Optional[int]:
+        return self._pid_file_manager.fd
+
     def setup(self, config: SystevisorManagerConfig) -> SystevisorManagerRuntimeState:
         if self._state is not None:
             raise SystevisorPlatformError('manager runtime is already set up')
@@ -21011,12 +21230,37 @@ class SystevisorManagerRuntime:
         self._notifier.notify(f'STATUS={config.identifier} is starting')
         return self._state
 
+    def rehydrate(
+            self,
+            state: SystevisorManagerRuntimeState,
+            pid_file_fd: ta.Optional[int],
+    ) -> SystevisorManagerRuntimeState:
+        if self._state is not None:
+            raise SystevisorPlatformError('manager runtime can only be rehydrated before setup')
+        if state.bootstrap.pid != os.getpid() or state.bootstrap.is_pid_one != (os.getpid() == 1):
+            raise SystevisorPlatformError('manager bootstrap identity changed across exec')
+        if (state.pid_file is None) != (pid_file_fd is None):
+            raise SystevisorPlatformError('pidfile state and descriptor do not match')
+        self._logging_manager.configure(state.config.log)
+        try:
+            if state.pid_file is not None:
+                self._pid_file_manager.rehydrate(state.pid_file, ta.cast(int, pid_file_fd))
+        except BaseException:
+            self._logging_manager.close()
+            raise
+        if state.config.process_title is not None:
+            setproctitle(state.config.process_title)
+        self._state = dc.replace(state, ready=False, stopping=False)
+        self._notifier.notify(f'STATUS={state.config.identifier} resumed after self-update')
+        return self._state
+
     @staticmethod
     def _immutable_config(config: SystevisorManagerConfig) -> SystevisorManagerConfig:
         return dc.replace(
             config,
             log=SystevisorManagerLogConfig(),
             observation=SystevisorObservationConfig(),
+            self_update=SystevisorSelfUpdateConfig(),
             process_title=None,
             strip_ansi=False,
         )
@@ -24523,6 +24767,20 @@ class SystevisorLogChannelInfo:
     retired: bool
 
 
+@dc.dataclass(frozen=True)
+class SystevisorLogChannelState:
+    state_schema_version: int
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    stream: SystevisorLogStream
+    config: SystevisorOutputConfig
+    data: bytes
+    end_offset: int
+    retired: bool
+    created_at: float
+    last_activity_at: ta.Optional[float]
+
+
 class SystevisorLogSubscription:
     def __init__(self, manager: 'SystevisorLogManager', subscription_id: int) -> None:
         self._manager = manager
@@ -24597,6 +24855,17 @@ class SystevisorByteRingBuffer:
             data=data,
             gap_bytes=gap_bytes,
         )
+
+    def snapshot(self) -> ta.Tuple[bytes, int]:
+        return bytes(self._buffer), self._end_offset
+
+    def rehydrate(self, data: bytes, end_offset: int) -> None:
+        if self._end_offset or self._buffer:
+            raise RuntimeError('ring buffer can only be rehydrated before use')
+        if end_offset < len(data) or len(data) > self._capacity:
+            raise ValueError('invalid ring buffer handoff state')
+        self._buffer[:] = data
+        self._end_offset = end_offset
 
 
 class SystevisorLogSink(Abstract):
@@ -24703,9 +24972,13 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
     def __init__(
             self,
             fd: int,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
             callback: ta.Callable[[bytes], None],
     ) -> None:
         self._fd = fd
+        self._run_id = run_id
+        self._stream = stream
         self._callback = callback
         self._closed = False
 
@@ -24715,6 +24988,14 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
     @property
     def closed(self) -> bool:
         return self._closed
+
+    @property
+    def run_id(self) -> SystevisorRunId:
+        return self._run_id
+
+    @property
+    def stream(self) -> SystevisorLogStream:
+        return self._stream
 
     def close(self) -> None:
         if not self._closed:
@@ -24805,8 +25086,22 @@ class SystevisorLogManager:
             ) -> None:
                 self.append(run_id, log_stream, data)
 
-            handlers.append(SystevisorProcessOutputFdioHandler(fd, handle_data))
+            handlers.append(SystevisorProcessOutputFdioHandler(fd, effect.run_id, stream, handle_data))
         return tuple(handlers)
+
+    def attach_rehydrated_output(
+            self,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+            fd: int,
+    ) -> SystevisorProcessOutputFdioHandler:
+        if (run_id, stream) not in self._channels:
+            raise RuntimeError(f'cannot attach output without a log channel: {run_id}:{stream.value}')
+
+        def handle_data(data: bytes) -> None:
+            self.append(run_id, stream, data)
+
+        return SystevisorProcessOutputFdioHandler(fd, run_id, stream, handle_data)
 
     def append(self, run_id: SystevisorRunId, stream: SystevisorLogStream, data: bytes) -> None:
         channel = self._channels[(run_id, stream)]
@@ -24888,6 +25183,50 @@ class SystevisorLogManager:
             )
         )
 
+    def snapshot_states(self) -> ta.Sequence[SystevisorLogChannelState]:
+        states: ta.List[SystevisorLogChannelState] = []
+        for _, channel in sorted(
+                self._channels.items(),
+                key=lambda item: (item[0][0], item[0][1].value),
+        ):
+            data, end_offset = channel.ring.snapshot()
+            states.append(SystevisorLogChannelState(
+                state_schema_version=1,
+                run_id=channel.run_id,
+                instance_id=channel.instance_id,
+                stream=channel.stream,
+                config=channel.config,
+                data=data,
+                end_offset=end_offset,
+                retired=channel.retired,
+                created_at=channel.created_at,
+                last_activity_at=channel.last_activity_at,
+            ))
+        return tuple(states)
+
+    def rehydrate(self, states: ta.Iterable[SystevisorLogChannelState]) -> None:
+        if self._channels or self._subscriptions:
+            raise RuntimeError('log manager can only be rehydrated before use')
+        for state in states:
+            if state.state_schema_version != 1:
+                raise ValueError(f'unsupported log channel schema: {state.state_schema_version}')
+            key = (state.run_id, state.stream)
+            if key in self._channels:
+                raise ValueError(f'duplicate log channel: {state.run_id}:{state.stream.value}')
+            ring = SystevisorByteRingBuffer(state.config.back_buffer_bytes)
+            ring.rehydrate(state.data, state.end_offset)
+            self._channels[key] = SystevisorLogChannel(
+                run_id=state.run_id,
+                instance_id=state.instance_id,
+                stream=state.stream,
+                config=state.config,
+                ring=ring,
+                sinks=self._make_sinks(state.stream, state.config),
+                retired=state.retired,
+                created_at=state.created_at,
+                last_activity_at=state.last_activity_at,
+            )
+
     def read(
             self,
             run_id: SystevisorRunId,
@@ -24957,6 +25296,7 @@ class SystevisorOwnedProcessStatus(enum.Enum):
 class SystevisorOwnedProcessPurpose(enum.Enum):
     SERVICE = 'service'
     HEALTH_COMMAND = 'health_command'
+    SELF_UPDATE_PROBE = 'self_update_probe'
 
 
 class SystevisorProcessOutputChannel(enum.Enum):
@@ -25299,6 +25639,22 @@ def _systevisor_processes_read_birth_identity(pid: int) -> ta.Optional[str]:
     if len(fields_after_command) <= 19:
         return None
     return fields_after_command[19]
+
+
+def _systevisor_processes_read_pidfd_pid(fd: int) -> ta.Optional[int]:
+    try:
+        with open(f'/proc/self/fdinfo/{fd}') as fdinfo_file:
+            lines = fdinfo_file.readlines()
+    except OSError:
+        return None
+    for line in lines:
+        key, separator, value = line.partition(':')
+        if separator and key == 'Pid':
+            try:
+                return int(value.strip())
+            except ValueError:
+                return None
+    return None
 
 
 def _systevisor_processes_pidfd_open(pid: int) -> ta.Optional[int]:
@@ -25683,6 +26039,13 @@ class SystevisorProcessManager:
     def snapshot_states(self) -> ta.Sequence[SystevisorOwnedProcessState]:
         return tuple(process.snapshot() for process in self._processes_by_run.values())
 
+    def child_contexts(self) -> ta.Mapping[SystevisorRunId, SystevisorChildContext]:
+        return {
+            process.run_id: process.child_context
+            for process in self._processes_by_run.values()
+            if process.child_context is not None
+        }
+
     def get_state(self, run_id: SystevisorRunId) -> ta.Optional[SystevisorOwnedProcessState]:
         process = self._processes_by_run.get(run_id)
         return process.snapshot() if process is not None else None
@@ -25745,6 +26108,155 @@ class SystevisorProcessManager:
             SystevisorOwnedProcessPurpose.HEALTH_COMMAND,
             effect.check_id,
         )
+
+    def spawn_internal(
+            self,
+            run_id: SystevisorRunId,
+            argv: ta.Sequence[str],
+            purpose: SystevisorOwnedProcessPurpose,
+    ) -> SystevisorProcessSpawned:
+        if run_id >= 0:
+            raise SystevisorProcessOwnershipError('internal run identities must be negative')
+        if purpose is SystevisorOwnedProcessPurpose.SERVICE:
+            raise SystevisorProcessOwnershipError('internal processes cannot have service purpose')
+        unit = SystevisorUnitConfig(
+            exec=SystevisorExecConfig(argv=tuple(argv)),
+            stdio=SystevisorStdioConfig(
+                stdin=SystevisorInputConfig(mode=SystevisorStdinMode.DEVNULL),
+                stdout=SystevisorOutputConfig(mode=SystevisorOutputMode.DEVNULL),
+                stderr=SystevisorOutputConfig(mode=SystevisorOutputMode.DEVNULL),
+            ),
+            stop=SystevisorStopConfig(scope=SystevisorSignalScope.SESSION),
+            resources=SystevisorUnitResourcesConfig(observe=False),
+        )
+        instance_id = SystevisorInstanceId('systevisor.self-update')
+        spec = SystevisorDesiredInstanceSpec(
+            instance_id=instance_id,
+            unit_name=SystevisorUnitName('systevisor.self-update'),
+            slot=0,
+            spec_digest=f'internal:{purpose.value}:{int(run_id)}',
+            unit=unit,
+        )
+        return self._spawn(
+            SystevisorSpawnProcessEffect(run_id=run_id, instance_id=instance_id, spec=spec),
+            purpose,
+            None,
+        )
+
+    def handoff_issues(self) -> ta.Sequence[str]:
+        issues: ta.List[str] = []
+        for process in self._processes_by_run.values():
+            label = f'run {int(process.run_id)} pid {process.pid}'
+            if process.purpose is not SystevisorOwnedProcessPurpose.SERVICE:
+                issues.append(f'{label} is an internal {process.purpose.value} process')
+            if process.status is not SystevisorOwnedProcessStatus.RUNNING:
+                issues.append(f'{label} is {process.status.value}')
+            if process.exec_error_fd is not None:
+                issues.append(f'{label} still owns an exec handshake')
+            if process.signal_lease_count:
+                issues.append(f'{label} has {process.signal_lease_count} active signal lease(s)')
+        return tuple(issues)
+
+    def rehydrate(
+            self,
+            states: ta.Iterable[SystevisorOwnedProcessState],
+            engine_state: SystevisorEngineState,
+    ) -> None:
+        if self._processes_by_run or self._processes_by_pid:
+            raise SystevisorProcessOwnershipError('process manager can only be rehydrated before use')
+        processes: ta.List[SystevisorOwnedProcess] = []
+        try:
+            for state in states:
+                if state.state_schema_version != 3:
+                    raise SystevisorProcessOwnershipError(
+                        f'unsupported process state schema: {state.state_schema_version}',
+                    )
+                if state.run_id <= 0 or state.purpose is not SystevisorOwnedProcessPurpose.SERVICE:
+                    raise SystevisorProcessOwnershipError('only service processes may cross a handoff')
+                if state.status is not SystevisorOwnedProcessStatus.RUNNING:
+                    raise SystevisorProcessOwnershipError(
+                        f'run {state.run_id} is not stable: {state.status.value}',
+                    )
+                if state.signal_lease_count or state.exec_error_fd is not None:
+                    raise SystevisorProcessOwnershipError(
+                        f'run {state.run_id} has non-transferable process state',
+                    )
+                if state.run_id in self._processes_by_run or state.pid in self._processes_by_pid:
+                    raise SystevisorProcessOwnershipError('duplicate process identity in handoff')
+                instance = engine_state.instances.get(state.instance_id)
+                if instance is None or instance.run_id != state.run_id:
+                    raise SystevisorProcessOwnershipError(
+                        f'engine does not claim handed-off run {state.run_id}',
+                    )
+
+                try:
+                    wait_result = os.waitid(
+                        os.P_PID,
+                        state.pid,
+                        os.WEXITED | os.WNOHANG | os.WNOWAIT,
+                    )
+                except ChildProcessError as exc:
+                    raise SystevisorProcessOwnershipError(
+                        f'wait ownership was lost for run {state.run_id} pid {state.pid}',
+                    ) from exc
+                birth_identity = _systevisor_processes_read_birth_identity(state.pid)
+                if (
+                        (wait_result is None or wait_result.si_pid == 0) and
+                        state.birth_identity is not None and
+                        birth_identity != state.birth_identity
+                ):
+                    raise SystevisorProcessOwnershipError(
+                        f'birth identity changed for run {state.run_id} pid {state.pid}',
+                    )
+                if state.pidfd is not None:
+                    try:
+                        os.fstat(state.pidfd)
+                    except OSError as exc:
+                        raise SystevisorProcessOwnershipError(
+                            f'pidfd is not open for run {state.run_id}',
+                        ) from exc
+                    pidfd_pid = _systevisor_processes_read_pidfd_pid(state.pidfd)
+                    if pidfd_pid is not None and pidfd_pid != state.pid:
+                        raise SystevisorProcessOwnershipError(
+                            f'pidfd identity changed for run {state.run_id}',
+                        )
+
+                status: SystevisorOwnedProcessStatus = state.status
+                return_code = state.return_code
+                if wait_result is not None and wait_result.si_pid != 0:
+                    status = SystevisorOwnedProcessStatus.EXIT_OBSERVED
+                    return_code = _systevisor_processes_wait_result_return_code(wait_result)
+                process = SystevisorOwnedProcess(
+                    run_id=state.run_id,
+                    instance_id=state.instance_id,
+                    pid=state.pid,
+                    pidfd=state.pidfd,
+                    session_requested=state.session_requested,
+                    session_id=state.session_id,
+                    birth_identity=state.birth_identity,
+                    status=status,
+                    stdout_fd=state.stdout_fd,
+                    stderr_fd=state.stderr_fd,
+                    exec_error_fd=None,
+                    return_code=return_code,
+                    purpose=state.purpose,
+                    child_context=SystevisorChildContext(
+                        run_id=state.run_id,
+                        instance_id=state.instance_id,
+                        spec=instance.desired_spec,
+                        identity=SystevisorResolvedIdentity(None, None, None, None, None),
+                        environment={},
+                    ),
+                    observe_resources=state.observe_resources,
+                )
+                self._processes_by_run[state.run_id] = process
+                self._processes_by_pid[state.pid] = process
+                processes.append(process)
+        except BaseException:
+            for process in processes:
+                self._processes_by_run.pop(process.run_id, None)
+                self._processes_by_pid.pop(process.pid, None)
+            raise
 
     def _spawn(
             self,
@@ -26200,6 +26712,11 @@ class SystevisorEngine:
     @property
     def state(self) -> SystevisorEngineState:
         return self._state
+
+    def rehydrate(self, state: SystevisorEngineState) -> None:
+        if self._state != SystevisorEngineState() or self._effects or self._events:
+            raise RuntimeError('engine state can only be rehydrated before use')
+        self._state = state
 
     def step(self, engine_input: SystevisorEngineInput, now: float) -> SystevisorEngineOutput:
         if now < self._state.last_now:
@@ -27889,6 +28406,33 @@ class SystevisorCgroupManager(SystevisorChildModifier):
             if state.status is SystevisorCgroupRunStatus.REMOVED and run_id not in retained_run_ids:
                 del self._states[run_id]
 
+    def rehydrate(
+            self,
+            states: ta.Iterable[SystevisorCgroupRunState],
+            contexts: ta.Mapping[SystevisorRunId, SystevisorChildContext],
+    ) -> None:
+        if self._states or self._prepared:
+            raise SystevisorCgroupError('cgroup manager can only be rehydrated before use')
+        restored: ta.Dict[SystevisorRunId, SystevisorCgroupRunState] = {}
+        for state in states:
+            if state.state_schema_version != 1:
+                raise SystevisorCgroupError(f'unsupported cgroup run schema: {state.state_schema_version}')
+            if state.run_id in restored:
+                raise SystevisorCgroupError(f'duplicate cgroup run: {state.run_id}')
+            context = contexts.get(state.run_id)
+            if state.status is SystevisorCgroupRunStatus.ACTIVE:
+                if context is None:
+                    raise SystevisorCgroupError(f'active cgroup has no owned process: {state.run_id}')
+                if self._active_root is None:
+                    raise SystevisorCgroupError('active cgroup has no configured delegated root')
+                expected_path = os.path.join(self._active_root, _systevisor_cgroup_run_name(context))
+                if os.path.abspath(state.path) != os.path.abspath(expected_path):
+                    raise SystevisorCgroupError(f'cgroup path changed for run {state.run_id}')
+                if state.config != context.spec.unit.resources.cgroup or state.pid is None:
+                    raise SystevisorCgroupError(f'cgroup configuration changed for run {state.run_id}')
+            restored[state.run_id] = state
+        self._states = restored
+
 
 ########################################
 # ../resources/namespaces.py
@@ -28323,6 +28867,40 @@ class SystevisorInheritedSocketRegistry:
                 raise SystevisorSocketActivationError(f'unknown inherited socket: {name!r}') from exc
         return tuple(required)
 
+    def rehydrate(self, sockets: ta.Iterable[SystevisorInheritedSocket]) -> None:
+        if self._sockets or self._closed:
+            raise SystevisorSocketActivationError('socket registry can only be rehydrated before use')
+        restored: ta.Dict[str, SystevisorInheritedSocket] = {}
+        for inherited in sockets:
+            if inherited.state_schema_version != 1:
+                raise SystevisorSocketActivationError(
+                    f'unsupported inherited socket schema: {inherited.state_schema_version}',
+                )
+            if not inherited.name or inherited.name in restored:
+                raise SystevisorSocketActivationError(f'duplicate inherited socket: {inherited.name!r}')
+            try:
+                fd_stat = os.fstat(inherited.fd)
+            except OSError as exc:
+                raise SystevisorSocketActivationError(
+                    f'inherited socket descriptor {inherited.fd} is not open',
+                ) from exc
+            if not stat.S_ISSOCK(fd_stat.st_mode):
+                raise SystevisorSocketActivationError(
+                    f'inherited descriptor {inherited.fd} is not a socket',
+                )
+            duplicate = socket.socket(fileno=os.dup(inherited.fd))
+            try:
+                if duplicate.family != inherited.family or duplicate.type != inherited.socket_type:
+                    raise SystevisorSocketActivationError(
+                        f'inherited socket identity changed: {inherited.name!r}',
+                    )
+            finally:
+                duplicate.close()
+            flags = fcntl.fcntl(inherited.fd, fcntl.F_GETFD)
+            fcntl.fcntl(inherited.fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+            restored[inherited.name] = inherited
+        self._sockets = restored
+
     def close(self) -> None:
         if self._closed:
             return
@@ -28606,6 +29184,10 @@ class SystevisorHealthProbeRuntimeStart:
 
 class SystevisorHealthProbeRunner(Abstract):
     @abc.abstractmethod
+    def has_active_checks(self) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def start(
             self,
             effect: SystevisorRunHealthProbeEffect,
@@ -28807,6 +29389,9 @@ class SystevisorFdioHealthProbeRunner(SystevisorHealthProbeRunner, FdioHandler):
     @property
     def closed(self) -> bool:
         return self._closed
+
+    def has_active_checks(self) -> bool:
+        return bool(self._checks)
 
     def close(self) -> None:
         if self._closed:
@@ -29042,10 +29627,981 @@ class SystevisorFdioHealthProbeRunner(SystevisorHealthProbeRunner, FdioHandler):
 
 
 ########################################
+# ../selfupdate/codec.py
+
+
+_SYSTEVISOR_SELF_UPDATE_MAX_DOCUMENT_BYTES = 64 * 1024 * 1024
+
+
+class SystevisorSelfUpdateCodecError(ValueError):
+    pass
+
+
+def _systevisor_self_update_mapping(value: ta.Any, name: str) -> ta.Mapping[str, ta.Any]:
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
+        raise SystevisorSelfUpdateCodecError(f'{name} must be an object')
+    return ta.cast(ta.Mapping[str, ta.Any], value)
+
+
+def _systevisor_self_update_sequence(value: ta.Any, name: str) -> ta.Sequence[ta.Any]:
+    if not isinstance(value, list):
+        raise SystevisorSelfUpdateCodecError(f'{name} must be an array')
+    return value
+
+
+def _systevisor_self_update_string(value: ta.Any, name: str) -> str:
+    if not isinstance(value, str):
+        raise SystevisorSelfUpdateCodecError(f'{name} must be a string')
+    return value
+
+
+def _systevisor_self_update_optional_string(value: ta.Any, name: str) -> ta.Optional[str]:
+    if value is None:
+        return None
+    return _systevisor_self_update_string(value, name)
+
+
+def _systevisor_self_update_int(value: ta.Any, name: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise SystevisorSelfUpdateCodecError(f'{name} must be an integer')
+    return value
+
+
+def _systevisor_self_update_optional_int(value: ta.Any, name: str) -> ta.Optional[int]:
+    if value is None:
+        return None
+    return _systevisor_self_update_int(value, name)
+
+
+def _systevisor_self_update_float(value: ta.Any, name: str) -> float:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise SystevisorSelfUpdateCodecError(f'{name} must be a number')
+    return float(value)
+
+
+def _systevisor_self_update_optional_float(value: ta.Any, name: str) -> ta.Optional[float]:
+    if value is None:
+        return None
+    return _systevisor_self_update_float(value, name)
+
+
+def _systevisor_self_update_bool(value: ta.Any, name: str) -> bool:
+    if not isinstance(value, bool):
+        raise SystevisorSelfUpdateCodecError(f'{name} must be a boolean')
+    return value
+
+
+def _systevisor_self_update_enum(
+        enum_type: ta.Type[ta.Any],
+        value: ta.Any,
+        name: str,
+) -> ta.Any:
+    raw = _systevisor_self_update_string(value, name)
+    try:
+        return enum_type(raw)
+    except ValueError as exc:
+        raise SystevisorSelfUpdateCodecError(f'invalid {name}: {raw!r}') from exc
+
+
+def systevisor_self_update_source_sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, 'rb') as source_file:
+        while True:
+            chunk = source_file.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def systevisor_self_update_is_amalgamated_source(path: str) -> bool:
+    try:
+        with open(path, 'rb') as source_file:
+            header = source_file.read(4096)
+    except OSError:
+        return False
+    return b'# @om-generated' in header and b'# @om-amalg-output ' in header
+
+
+def systevisor_self_update_fd(
+        kind: SystevisorHandoffFdKind,
+        owner: str,
+        fd: int,
+) -> SystevisorHandoffFd:
+    if fd < 3:
+        raise SystevisorSelfUpdateCodecError(f'cannot hand off reserved descriptor {fd}')
+    fd_stat = os.fstat(fd)
+    return SystevisorHandoffFd(
+        kind=kind,
+        owner=owner,
+        fd=fd,
+        device=fd_stat.st_dev,
+        inode=fd_stat.st_ino,
+        mode=fd_stat.st_mode,
+        status_flags=fcntl.fcntl(fd, fcntl.F_GETFL),
+    )
+
+
+def systevisor_validate_handoff_fds(fds: ta.Iterable[SystevisorHandoffFd]) -> None:
+    seen_fds: ta.Set[int] = set()
+    seen_owners: ta.Set[ta.Tuple[SystevisorHandoffFdKind, str]] = set()
+    for item in fds:
+        if item.fd < 3:
+            raise SystevisorSelfUpdateCodecError(f'handoff contains reserved descriptor {item.fd}')
+        if item.fd in seen_fds:
+            raise SystevisorSelfUpdateCodecError(f'handoff descriptor is listed more than once: {item.fd}')
+        owner_key = (item.kind, item.owner)
+        if owner_key in seen_owners:
+            raise SystevisorSelfUpdateCodecError(
+                f'handoff owner is listed more than once: {item.kind.value}:{item.owner}',
+            )
+        seen_fds.add(item.fd)
+        seen_owners.add(owner_key)
+        try:
+            fd_stat = os.fstat(item.fd)
+            status_flags = fcntl.fcntl(item.fd, fcntl.F_GETFL)
+        except OSError as exc:
+            raise SystevisorSelfUpdateCodecError(
+                f'handoff descriptor is not open: {item.kind.value}:{item.owner}:{item.fd}',
+            ) from exc
+        if (
+                fd_stat.st_dev != item.device or
+                fd_stat.st_ino != item.inode or
+                stat.S_IFMT(fd_stat.st_mode) != stat.S_IFMT(item.mode) or
+                status_flags != item.status_flags
+        ):
+            raise SystevisorSelfUpdateCodecError(
+                f'handoff descriptor identity changed: {item.kind.value}:{item.owner}:{item.fd}',
+            )
+
+
+def _systevisor_self_update_encode_spec(spec: SystevisorDesiredInstanceSpec) -> ta.Mapping[str, ta.Any]:
+    return {
+        'instance_id': spec.instance_id,
+        'unit_name': spec.unit_name,
+        'slot': spec.slot,
+        'spec_digest': spec.spec_digest,
+        'unit': systevisor_marshal_config_obj(spec.unit, SystevisorUnitConfig),
+    }
+
+
+def _systevisor_self_update_decode_spec(value: ta.Any) -> SystevisorDesiredInstanceSpec:
+    obj = _systevisor_self_update_mapping(value, 'desired spec')
+    unit = systevisor_unmarshal_config(obj.get('unit'), SystevisorUnitConfig)
+    return SystevisorDesiredInstanceSpec(
+        instance_id=SystevisorInstanceId(_systevisor_self_update_string(obj.get('instance_id'), 'instance id')),
+        unit_name=SystevisorUnitName(_systevisor_self_update_string(obj.get('unit_name'), 'unit name')),
+        slot=_systevisor_self_update_int(obj.get('slot'), 'slot'),
+        spec_digest=_systevisor_self_update_string(obj.get('spec_digest'), 'spec digest'),
+        unit=unit,
+    )
+
+
+def _systevisor_self_update_encode_health(state: SystevisorHealthProbeState) -> ta.Mapping[str, ta.Any]:
+    return {
+        'name': state.name,
+        'role': state.role.value,
+        'config_digest': state.config_digest,
+        'status': state.status.value,
+        'consecutive_successes': state.consecutive_successes,
+        'consecutive_failures': state.consecutive_failures,
+        'last_started_at': state.last_started_at,
+        'last_completed_at': state.last_completed_at,
+        'last_success_at': state.last_success_at,
+        'last_message': state.last_message,
+        'last_data': dict(state.last_data),
+        'scheduled_deadline_id': state.scheduled_deadline_id,
+        'next_check_at': state.next_check_at,
+        'in_flight_check_id': state.in_flight_check_id,
+        'recovery_applied': state.recovery_applied,
+    }
+
+
+def _systevisor_self_update_decode_health(value: ta.Any) -> SystevisorHealthProbeState:
+    obj = _systevisor_self_update_mapping(value, 'health state')
+    check_id = _systevisor_self_update_optional_int(obj.get('in_flight_check_id'), 'in-flight check id')
+    return SystevisorHealthProbeState(
+        name=_systevisor_self_update_string(obj.get('name'), 'health name'),
+        role=_systevisor_self_update_enum(SystevisorHealthRole, obj.get('role'), 'health role'),
+        config_digest=_systevisor_self_update_string(obj.get('config_digest'), 'health config digest'),
+        status=_systevisor_self_update_enum(SystevisorHealthStatus, obj.get('status'), 'health status'),
+        consecutive_successes=_systevisor_self_update_int(
+            obj.get('consecutive_successes'),
+            'consecutive successes',
+        ),
+        consecutive_failures=_systevisor_self_update_int(
+            obj.get('consecutive_failures'),
+            'consecutive failures',
+        ),
+        last_started_at=_systevisor_self_update_optional_float(obj.get('last_started_at'), 'last started at'),
+        last_completed_at=_systevisor_self_update_optional_float(
+            obj.get('last_completed_at'),
+            'last completed at',
+        ),
+        last_success_at=_systevisor_self_update_optional_float(obj.get('last_success_at'), 'last success at'),
+        last_message=_systevisor_self_update_optional_string(obj.get('last_message'), 'last message'),
+        last_data=_systevisor_self_update_mapping(obj.get('last_data'), 'last data'),
+        scheduled_deadline_id=_systevisor_self_update_optional_int(
+            obj.get('scheduled_deadline_id'),
+            'scheduled deadline id',
+        ),
+        next_check_at=_systevisor_self_update_optional_float(obj.get('next_check_at'), 'next check at'),
+        in_flight_check_id=None if check_id is None else SystevisorHealthCheckId(check_id),
+        recovery_applied=_systevisor_self_update_bool(obj.get('recovery_applied'), 'recovery applied'),
+    )
+
+
+def systevisor_encode_engine_state(state: SystevisorEngineState) -> ta.Mapping[str, ta.Any]:
+    return {
+        'state_schema_version': state.state_schema_version,
+        'config_generation': state.config_generation,
+        'instances': [
+            {
+                'instance_id': instance.instance_id,
+                'unit_name': instance.unit_name,
+                'slot': instance.slot,
+                'desired_spec': _systevisor_self_update_encode_spec(instance.desired_spec),
+                'desired_state': instance.desired_state.value,
+                'desired_origin': instance.desired_origin.value,
+                'process_state': instance.process_state.value,
+                'run_id': instance.run_id,
+                'applied_spec_digest': instance.applied_spec_digest,
+                'spawn_confirmed': instance.spawn_confirmed,
+                'start_failures': instance.start_failures,
+                'started_at': instance.started_at,
+                'ready': instance.ready,
+                'completed_successfully': instance.completed_successfully,
+                'last_return_code': instance.last_return_code,
+                'deadline_id': instance.deadline_id,
+                'deadline_kind': None if instance.deadline_kind is None else instance.deadline_kind.value,
+                'deadline_at': instance.deadline_at,
+                'restart_requested': instance.restart_requested,
+                'blocked_reason': instance.blocked_reason,
+                'start_stable': instance.start_stable,
+                'health': [
+                    _systevisor_self_update_encode_health(health)
+                    for _, health in sorted(instance.health.items())
+                ],
+            }
+            for _, instance in sorted(state.instances.items())
+        ],
+        'collections': [
+            {
+                'name': collection.name,
+                'desired_active': collection.desired_active,
+                'desired_origin': collection.desired_origin.value,
+                'status': collection.status.value,
+                'activation_sequence': collection.activation_sequence,
+                'failure_instance_id': collection.failure_instance_id,
+                'failure_reason': collection.failure_reason,
+            }
+            for _, collection in sorted(state.collections.items())
+        ],
+        'unit_desired_overrides': dict(state.unit_desired_overrides),
+        'startup_collection': state.startup_collection,
+        'shutting_down': state.shutting_down,
+        'next_run_id': state.next_run_id,
+        'next_deadline_id': state.next_deadline_id,
+        'event_sequence': state.event_sequence,
+        'last_now': state.last_now,
+        'next_health_check_id': state.next_health_check_id,
+    }
+
+
+def _systevisor_self_update_decode_instance(value: ta.Any) -> SystevisorInstanceState:
+    obj = _systevisor_self_update_mapping(value, 'instance state')
+    raw_deadline_kind = obj.get('deadline_kind')
+    raw_run_id = _systevisor_self_update_optional_int(obj.get('run_id'), 'run id')
+    health = tuple(
+        _systevisor_self_update_decode_health(item)
+        for item in _systevisor_self_update_sequence(obj.get('health'), 'health states')
+    )
+    return SystevisorInstanceState(
+        instance_id=SystevisorInstanceId(_systevisor_self_update_string(obj.get('instance_id'), 'instance id')),
+        unit_name=SystevisorUnitName(_systevisor_self_update_string(obj.get('unit_name'), 'unit name')),
+        slot=_systevisor_self_update_int(obj.get('slot'), 'slot'),
+        desired_spec=_systevisor_self_update_decode_spec(obj.get('desired_spec')),
+        desired_state=_systevisor_self_update_enum(SystevisorDesiredState, obj.get('desired_state'), 'desired state'),
+        desired_origin=_systevisor_self_update_enum(
+            SystevisorDesiredOrigin,
+            obj.get('desired_origin'),
+            'desired origin',
+        ),
+        process_state=_systevisor_self_update_enum(
+            SystevisorProcessState,
+            obj.get('process_state'),
+            'process state',
+        ),
+        run_id=None if raw_run_id is None else SystevisorRunId(raw_run_id),
+        applied_spec_digest=_systevisor_self_update_optional_string(
+            obj.get('applied_spec_digest'),
+            'applied spec digest',
+        ),
+        spawn_confirmed=_systevisor_self_update_bool(obj.get('spawn_confirmed'), 'spawn confirmed'),
+        start_failures=_systevisor_self_update_int(obj.get('start_failures'), 'start failures'),
+        started_at=_systevisor_self_update_optional_float(obj.get('started_at'), 'started at'),
+        ready=_systevisor_self_update_bool(obj.get('ready'), 'ready'),
+        completed_successfully=_systevisor_self_update_bool(
+            obj.get('completed_successfully'),
+            'completed successfully',
+        ),
+        last_return_code=_systevisor_self_update_optional_int(obj.get('last_return_code'), 'last return code'),
+        deadline_id=_systevisor_self_update_optional_int(obj.get('deadline_id'), 'deadline id'),
+        deadline_kind=(
+            None if raw_deadline_kind is None else
+            _systevisor_self_update_enum(SystevisorDeadlineKind, raw_deadline_kind, 'deadline kind')
+        ),
+        deadline_at=_systevisor_self_update_optional_float(obj.get('deadline_at'), 'deadline at'),
+        restart_requested=_systevisor_self_update_bool(obj.get('restart_requested'), 'restart requested'),
+        blocked_reason=_systevisor_self_update_optional_string(obj.get('blocked_reason'), 'blocked reason'),
+        start_stable=_systevisor_self_update_bool(obj.get('start_stable'), 'start stable'),
+        health={item.name: item for item in health},
+    )
+
+
+def _systevisor_self_update_decode_collection(value: ta.Any) -> SystevisorCollectionState:
+    obj = _systevisor_self_update_mapping(value, 'collection state')
+    return SystevisorCollectionState(
+        name=SystevisorCollectionName(_systevisor_self_update_string(obj.get('name'), 'collection name')),
+        desired_active=_systevisor_self_update_bool(obj.get('desired_active'), 'desired active'),
+        desired_origin=_systevisor_self_update_enum(
+            SystevisorDesiredOrigin,
+            obj.get('desired_origin'),
+            'desired origin',
+        ),
+        status=_systevisor_self_update_enum(
+            SystevisorCollectionStatus,
+            obj.get('status'),
+            'collection status',
+        ),
+        activation_sequence=_systevisor_self_update_int(
+            obj.get('activation_sequence'),
+            'activation sequence',
+        ),
+        failure_instance_id=(
+            None if obj.get('failure_instance_id') is None else
+            SystevisorInstanceId(_systevisor_self_update_string(
+                obj.get('failure_instance_id'),
+                'failure instance id',
+            ))
+        ),
+        failure_reason=_systevisor_self_update_optional_string(obj.get('failure_reason'), 'failure reason'),
+    )
+
+
+def systevisor_decode_engine_state(
+        value: ta.Any,
+        snapshot: SystevisorConfigSnapshot,
+) -> SystevisorEngineState:
+    obj = _systevisor_self_update_mapping(value, 'engine state')
+    schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'engine schema version')
+    if schema_version != 2:
+        raise SystevisorSelfUpdateCodecError(f'unsupported engine state schema: {schema_version}')
+    instances = tuple(
+        _systevisor_self_update_decode_instance(item)
+        for item in _systevisor_self_update_sequence(obj.get('instances'), 'instances')
+    )
+    collections = tuple(
+        _systevisor_self_update_decode_collection(item)
+        for item in _systevisor_self_update_sequence(obj.get('collections'), 'collections')
+    )
+    raw_overrides = _systevisor_self_update_mapping(obj.get('unit_desired_overrides'), 'unit desired overrides')
+    overrides = {
+        SystevisorUnitName(name): _systevisor_self_update_bool(active, f'unit override {name!r}')
+        for name, active in raw_overrides.items()
+    }
+    startup = _systevisor_self_update_optional_string(obj.get('startup_collection'), 'startup collection')
+    return SystevisorEngineState(
+        state_schema_version=schema_version,
+        snapshot=snapshot,
+        config_generation=_systevisor_self_update_int(obj.get('config_generation'), 'config generation'),
+        instances={item.instance_id: item for item in instances},
+        collections={item.name: item for item in collections},
+        unit_desired_overrides=overrides,
+        startup_collection=None if startup is None else SystevisorCollectionName(startup),
+        shutting_down=_systevisor_self_update_bool(obj.get('shutting_down'), 'shutting down'),
+        next_run_id=_systevisor_self_update_int(obj.get('next_run_id'), 'next run id'),
+        next_deadline_id=_systevisor_self_update_int(obj.get('next_deadline_id'), 'next deadline id'),
+        event_sequence=_systevisor_self_update_int(obj.get('event_sequence'), 'event sequence'),
+        last_now=_systevisor_self_update_float(obj.get('last_now'), 'last now'),
+        next_health_check_id=_systevisor_self_update_int(
+            obj.get('next_health_check_id'),
+            'next health check id',
+        ),
+    )
+
+
+def systevisor_encode_owned_process_state(state: SystevisorOwnedProcessState) -> ta.Mapping[str, ta.Any]:
+    return {
+        'state_schema_version': state.state_schema_version,
+        'run_id': state.run_id,
+        'instance_id': state.instance_id,
+        'pid': state.pid,
+        'pidfd': state.pidfd,
+        'session_requested': state.session_requested,
+        'session_id': state.session_id,
+        'birth_identity': state.birth_identity,
+        'status': state.status.value,
+        'stdout_fd': state.stdout_fd,
+        'stderr_fd': state.stderr_fd,
+        'exec_error_fd': state.exec_error_fd,
+        'return_code': state.return_code,
+        'signal_lease_count': state.signal_lease_count,
+        'purpose': state.purpose.value,
+        'health_check_id': state.health_check_id,
+        'observe_resources': state.observe_resources,
+    }
+
+
+def systevisor_decode_owned_process_state(value: ta.Any) -> SystevisorOwnedProcessState:
+    obj = _systevisor_self_update_mapping(value, 'owned process state')
+    schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'process schema version')
+    if schema_version != 3:
+        raise SystevisorSelfUpdateCodecError(f'unsupported owned process schema: {schema_version}')
+    run_id = _systevisor_self_update_int(obj.get('run_id'), 'process run id')
+    check_id = _systevisor_self_update_optional_int(obj.get('health_check_id'), 'health check id')
+    return SystevisorOwnedProcessState(
+        state_schema_version=schema_version,
+        run_id=SystevisorRunId(run_id),
+        instance_id=SystevisorInstanceId(_systevisor_self_update_string(
+            obj.get('instance_id'),
+            'process instance id',
+        )),
+        pid=_systevisor_self_update_int(obj.get('pid'), 'process pid'),
+        pidfd=_systevisor_self_update_optional_int(obj.get('pidfd'), 'process pidfd'),
+        session_requested=_systevisor_self_update_bool(obj.get('session_requested'), 'session requested'),
+        session_id=_systevisor_self_update_optional_int(obj.get('session_id'), 'session id'),
+        birth_identity=_systevisor_self_update_optional_string(obj.get('birth_identity'), 'birth identity'),
+        status=_systevisor_self_update_enum(SystevisorOwnedProcessStatus, obj.get('status'), 'process status'),
+        stdout_fd=_systevisor_self_update_optional_int(obj.get('stdout_fd'), 'stdout fd'),
+        stderr_fd=_systevisor_self_update_optional_int(obj.get('stderr_fd'), 'stderr fd'),
+        exec_error_fd=_systevisor_self_update_optional_int(obj.get('exec_error_fd'), 'exec error fd'),
+        return_code=_systevisor_self_update_optional_int(obj.get('return_code'), 'return code'),
+        signal_lease_count=_systevisor_self_update_int(obj.get('signal_lease_count'), 'signal lease count'),
+        purpose=_systevisor_self_update_enum(SystevisorOwnedProcessPurpose, obj.get('purpose'), 'process purpose'),
+        health_check_id=None if check_id is None else SystevisorHealthCheckId(check_id),
+        observe_resources=_systevisor_self_update_bool(obj.get('observe_resources'), 'observe resources'),
+    )
+
+
+def systevisor_encode_log_channel_state(
+        state: SystevisorLogChannelState,
+        fd: ta.Optional[int],
+) -> ta.Mapping[str, ta.Any]:
+    return {
+        'state_schema_version': state.state_schema_version,
+        'run_id': state.run_id,
+        'instance_id': state.instance_id,
+        'stream': state.stream.value,
+        'config': systevisor_marshal_config_obj(state.config, SystevisorOutputConfig),
+        'data_base64': base64.b64encode(state.data).decode('ascii'),
+        'end_offset': state.end_offset,
+        'retired': state.retired,
+        'created_at': state.created_at,
+        'last_activity_at': state.last_activity_at,
+        'fd': fd,
+    }
+
+
+def systevisor_decode_log_channel_state(
+        value: ta.Any,
+) -> ta.Tuple[SystevisorLogChannelState, ta.Optional[int]]:
+    obj = _systevisor_self_update_mapping(value, 'log channel state')
+    schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'log channel schema version')
+    if schema_version != 1:
+        raise SystevisorSelfUpdateCodecError(f'unsupported log channel schema: {schema_version}')
+    raw_data = _systevisor_self_update_string(obj.get('data_base64'), 'log channel data')
+    try:
+        data = base64.b64decode(raw_data, validate=True)
+    except ValueError as exc:
+        raise SystevisorSelfUpdateCodecError('invalid log channel base64 data') from exc
+    return SystevisorLogChannelState(
+        state_schema_version=schema_version,
+        run_id=SystevisorRunId(_systevisor_self_update_int(obj.get('run_id'), 'log channel run id')),
+        instance_id=SystevisorInstanceId(_systevisor_self_update_string(
+            obj.get('instance_id'),
+            'log channel instance id',
+        )),
+        stream=_systevisor_self_update_enum(SystevisorLogStream, obj.get('stream'), 'log channel stream'),
+        config=systevisor_unmarshal_config(obj.get('config'), SystevisorOutputConfig),
+        data=data,
+        end_offset=_systevisor_self_update_int(obj.get('end_offset'), 'log channel end offset'),
+        retired=_systevisor_self_update_bool(obj.get('retired'), 'log channel retired'),
+        created_at=_systevisor_self_update_float(obj.get('created_at'), 'log channel creation time'),
+        last_activity_at=_systevisor_self_update_optional_float(
+            obj.get('last_activity_at'),
+            'log channel last activity time',
+        ),
+    ), _systevisor_self_update_optional_int(obj.get('fd'), 'log channel fd')
+
+
+def systevisor_encode_event_bus_state(
+        state: SystevisorEventBusState,
+        normalize: ta.Callable[[ta.Any], ta.Any],
+) -> ta.Mapping[str, ta.Any]:
+    return {
+        'state_schema_version': state.state_schema_version,
+        'journal_capacity': state.journal_capacity,
+        'next_sequence': state.next_sequence,
+        'journal': [
+            {
+                'sequence': event.sequence,
+                'at': event.at,
+                'topic': event.topic,
+                'payload': normalize(event.payload),
+            }
+            for event in state.journal
+        ],
+    }
+
+
+def systevisor_decode_event_bus_state(value: ta.Any) -> SystevisorEventBusState:
+    obj = _systevisor_self_update_mapping(value, 'event bus state')
+    schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'event bus schema version')
+    if schema_version != 1:
+        raise SystevisorSelfUpdateCodecError(f'unsupported event bus schema: {schema_version}')
+    events: ta.List[SystevisorBusEvent] = []
+    for value_event in _systevisor_self_update_sequence(obj.get('journal'), 'event journal'):
+        raw_event = _systevisor_self_update_mapping(value_event, 'bus event')
+        events.append(SystevisorBusEvent(
+            sequence=_systevisor_self_update_int(raw_event.get('sequence'), 'bus event sequence'),
+            at=_systevisor_self_update_float(raw_event.get('at'), 'bus event time'),
+            topic=_systevisor_self_update_string(raw_event.get('topic'), 'bus event topic'),
+            payload=raw_event.get('payload'),
+        ))
+    return SystevisorEventBusState(
+        state_schema_version=schema_version,
+        journal_capacity=_systevisor_self_update_int(obj.get('journal_capacity'), 'event journal capacity'),
+        next_sequence=_systevisor_self_update_int(obj.get('next_sequence'), 'next bus event sequence'),
+        journal=tuple(events),
+    )
+
+
+def systevisor_encode_operation_store_state(
+        state: SystevisorOperationStoreState,
+        normalize: ta.Callable[[ta.Any], ta.Any],
+) -> ta.Mapping[str, ta.Any]:
+    return {
+        'state_schema_version': state.state_schema_version,
+        'capacity': state.capacity,
+        'next_id': state.next_id,
+        'operations': [
+            {
+                'operation_id': operation.operation_id,
+                'kind': operation.kind,
+                'target': operation.target,
+                'created_at': operation.created_at,
+                'status': operation.status.value,
+                'completed_at': operation.completed_at,
+                'message': operation.message,
+                'data': normalize(operation.data),
+            }
+            for operation in state.operations
+        ],
+    }
+
+
+def systevisor_decode_operation_store_state(value: ta.Any) -> SystevisorOperationStoreState:
+    obj = _systevisor_self_update_mapping(value, 'operation store state')
+    schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'operation store schema version')
+    if schema_version != 1:
+        raise SystevisorSelfUpdateCodecError(f'unsupported operation store schema: {schema_version}')
+    operations: ta.List[SystevisorOperation] = []
+    for value_operation in _systevisor_self_update_sequence(obj.get('operations'), 'operations'):
+        raw_operation = _systevisor_self_update_mapping(value_operation, 'operation')
+        operations.append(SystevisorOperation(
+            operation_id=_systevisor_self_update_string(raw_operation.get('operation_id'), 'operation id'),
+            kind=_systevisor_self_update_string(raw_operation.get('kind'), 'operation kind'),
+            target=_systevisor_self_update_optional_string(raw_operation.get('target'), 'operation target'),
+            created_at=_systevisor_self_update_float(raw_operation.get('created_at'), 'operation creation time'),
+            status=_systevisor_self_update_enum(
+                SystevisorOperationStatus,
+                raw_operation.get('status'),
+                'operation status',
+            ),
+            completed_at=_systevisor_self_update_optional_float(
+                raw_operation.get('completed_at'),
+                'operation completion time',
+            ),
+            message=_systevisor_self_update_optional_string(raw_operation.get('message'), 'operation message'),
+            data=_systevisor_self_update_mapping(raw_operation.get('data'), 'operation data'),
+        ))
+    return SystevisorOperationStoreState(
+        state_schema_version=schema_version,
+        capacity=_systevisor_self_update_int(obj.get('capacity'), 'operation capacity'),
+        next_id=_systevisor_self_update_int(obj.get('next_id'), 'next operation id'),
+        operations=tuple(operations),
+    )
+
+
+def systevisor_encode_manager_runtime_state(state: SystevisorManagerRuntimeState) -> ta.Mapping[str, ta.Any]:
+    pid_file = state.pid_file
+    return {
+        'bootstrap': {
+            'pid': state.bootstrap.pid,
+            'is_pid_one': state.bootstrap.is_pid_one,
+            'subreaper_enabled': state.bootstrap.subreaper_enabled,
+            'systemd_notify': state.bootstrap.systemd_notify,
+            'launchd_job': state.bootstrap.launchd_job,
+        },
+        'config': systevisor_marshal_config_obj(state.config, SystevisorManagerConfig),
+        'pid_file': None if pid_file is None else {
+            'path': pid_file.path,
+            'pid': pid_file.pid,
+            'device': pid_file.device,
+            'inode': pid_file.inode,
+        },
+        'ready': state.ready,
+        'stopping': state.stopping,
+    }
+
+
+def systevisor_decode_manager_runtime_state(value: ta.Any) -> SystevisorManagerRuntimeState:
+    obj = _systevisor_self_update_mapping(value, 'manager runtime state')
+    raw_bootstrap = _systevisor_self_update_mapping(obj.get('bootstrap'), 'manager bootstrap state')
+    raw_pid_file = obj.get('pid_file')
+    pid_file: ta.Optional[SystevisorPidFileState]
+    if raw_pid_file is None:
+        pid_file = None
+    else:
+        pid_obj = _systevisor_self_update_mapping(raw_pid_file, 'pidfile state')
+        pid_file = SystevisorPidFileState(
+            path=_systevisor_self_update_string(pid_obj.get('path'), 'pidfile path'),
+            pid=_systevisor_self_update_int(pid_obj.get('pid'), 'pidfile pid'),
+            device=_systevisor_self_update_int(pid_obj.get('device'), 'pidfile device'),
+            inode=_systevisor_self_update_int(pid_obj.get('inode'), 'pidfile inode'),
+        )
+    return SystevisorManagerRuntimeState(
+        bootstrap=SystevisorProcessBootstrapState(
+            pid=_systevisor_self_update_int(raw_bootstrap.get('pid'), 'bootstrap pid'),
+            is_pid_one=_systevisor_self_update_bool(raw_bootstrap.get('is_pid_one'), 'bootstrap pid one'),
+            subreaper_enabled=_systevisor_self_update_bool(
+                raw_bootstrap.get('subreaper_enabled'),
+                'bootstrap subreaper',
+            ),
+            systemd_notify=_systevisor_self_update_bool(
+                raw_bootstrap.get('systemd_notify'),
+                'bootstrap systemd notify',
+            ),
+            launchd_job=_systevisor_self_update_bool(raw_bootstrap.get('launchd_job'), 'bootstrap launchd job'),
+        ),
+        config=systevisor_unmarshal_config(obj.get('config'), SystevisorManagerConfig),
+        pid_file=pid_file,
+        ready=_systevisor_self_update_bool(obj.get('ready'), 'manager ready'),
+        stopping=_systevisor_self_update_bool(obj.get('stopping'), 'manager stopping'),
+    )
+
+
+def systevisor_encode_inherited_socket(socket_state: SystevisorInheritedSocket) -> ta.Mapping[str, ta.Any]:
+    return dc.asdict(socket_state)
+
+
+def systevisor_decode_inherited_socket(value: ta.Any) -> SystevisorInheritedSocket:
+    obj = _systevisor_self_update_mapping(value, 'inherited socket')
+    schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'socket schema version')
+    if schema_version != 1:
+        raise SystevisorSelfUpdateCodecError(f'unsupported inherited socket schema: {schema_version}')
+    return SystevisorInheritedSocket(
+        state_schema_version=schema_version,
+        name=_systevisor_self_update_string(obj.get('name'), 'socket name'),
+        fd=_systevisor_self_update_int(obj.get('fd'), 'socket fd'),
+        family=_systevisor_self_update_int(obj.get('family'), 'socket family'),
+        socket_type=_systevisor_self_update_int(obj.get('socket_type'), 'socket type'),
+    )
+
+
+def systevisor_encode_cgroup_state(state: SystevisorCgroupRunState) -> ta.Mapping[str, ta.Any]:
+    return {
+        'state_schema_version': state.state_schema_version,
+        'run_id': state.run_id,
+        'instance_id': state.instance_id,
+        'path': state.path,
+        'config': systevisor_marshal_config_obj(state.config, SystevisorCgroupConfig),
+        'status': state.status.value,
+        'pid': state.pid,
+        'cleanup_error': state.cleanup_error,
+    }
+
+
+def systevisor_decode_cgroup_state(value: ta.Any) -> SystevisorCgroupRunState:
+    obj = _systevisor_self_update_mapping(value, 'cgroup state')
+    schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'cgroup schema version')
+    if schema_version != 1:
+        raise SystevisorSelfUpdateCodecError(f'unsupported cgroup schema: {schema_version}')
+    return SystevisorCgroupRunState(
+        state_schema_version=schema_version,
+        run_id=SystevisorRunId(_systevisor_self_update_int(obj.get('run_id'), 'cgroup run id')),
+        instance_id=SystevisorInstanceId(_systevisor_self_update_string(
+            obj.get('instance_id'),
+            'cgroup instance id',
+        )),
+        path=_systevisor_self_update_string(obj.get('path'), 'cgroup path'),
+        config=systevisor_unmarshal_config(obj.get('config'), SystevisorCgroupConfig),
+        status=_systevisor_self_update_enum(SystevisorCgroupRunStatus, obj.get('status'), 'cgroup status'),
+        pid=_systevisor_self_update_optional_int(obj.get('pid'), 'cgroup pid'),
+        cleanup_error=_systevisor_self_update_optional_string(obj.get('cleanup_error'), 'cgroup cleanup error'),
+    )
+
+
+def systevisor_decode_snapshot(
+        config_value: ta.Any,
+        expected_digest: str,
+        source_paths: ta.Sequence[str],
+        provenance_values: ta.Iterable[ta.Any] = (),
+) -> SystevisorConfigSnapshot:
+    config = systevisor_unmarshal_config(config_value, SystevisorConfig)
+    provenance: ta.List[SystevisorConfigProvenance] = []
+    for value in provenance_values:
+        obj = _systevisor_self_update_mapping(value, 'configuration provenance')
+        object_path = tuple(
+            _systevisor_self_update_string(item, 'configuration object path')
+            for item in _systevisor_self_update_sequence(obj.get('object_path'), 'configuration object path')
+        )
+        provenance.append(SystevisorConfigProvenance(
+            object_path=object_path,
+            source=_systevisor_self_update_string(obj.get('source'), 'configuration provenance source'),
+        ))
+    snapshot = systevisor_build_config_snapshot(config, source_paths, provenance)
+    if snapshot.digest != expected_digest:
+        raise SystevisorSelfUpdateCodecError(
+            f'configuration digest mismatch: {snapshot.digest} != {expected_digest}',
+        )
+    return snapshot
+
+
+def _systevisor_self_update_fd_to_obj(item: SystevisorHandoffFd) -> ta.Mapping[str, ta.Any]:
+    return {
+        'kind': item.kind.value,
+        'owner': item.owner,
+        'fd': item.fd,
+        'device': item.device,
+        'inode': item.inode,
+        'mode': item.mode,
+        'status_flags': item.status_flags,
+    }
+
+
+def _systevisor_self_update_fd_from_obj(value: ta.Any) -> SystevisorHandoffFd:
+    obj = _systevisor_self_update_mapping(value, 'handoff fd')
+    return SystevisorHandoffFd(
+        kind=_systevisor_self_update_enum(SystevisorHandoffFdKind, obj.get('kind'), 'handoff fd kind'),
+        owner=_systevisor_self_update_string(obj.get('owner'), 'handoff fd owner'),
+        fd=_systevisor_self_update_int(obj.get('fd'), 'handoff fd number'),
+        device=_systevisor_self_update_int(obj.get('device'), 'handoff fd device'),
+        inode=_systevisor_self_update_int(obj.get('inode'), 'handoff fd inode'),
+        mode=_systevisor_self_update_int(obj.get('mode'), 'handoff fd mode'),
+        status_flags=_systevisor_self_update_int(obj.get('status_flags'), 'handoff fd status flags'),
+    )
+
+
+def systevisor_self_update_probe_request_to_obj(
+        request: SystevisorSelfUpdateProbeRequest,
+) -> ta.Mapping[str, ta.Any]:
+    return dc.asdict(request)
+
+
+def systevisor_self_update_probe_request_from_obj(value: ta.Any) -> SystevisorSelfUpdateProbeRequest:
+    obj = _systevisor_self_update_mapping(value, 'self-update probe request')
+    schema_version = _systevisor_self_update_int(obj.get('schema_version'), 'probe request schema version')
+    if schema_version != SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION:
+        raise SystevisorSelfUpdateCodecError(f'unsupported probe request schema: {schema_version}')
+    return SystevisorSelfUpdateProbeRequest(
+        schema_version=schema_version,
+        source_path=_systevisor_self_update_string(obj.get('source_path'), 'probe source path'),
+        source_sha256=_systevisor_self_update_string(obj.get('source_sha256'), 'probe source digest'),
+        config=_systevisor_self_update_mapping(obj.get('config'), 'probe configuration'),
+        config_digest=_systevisor_self_update_string(obj.get('config_digest'), 'probe config digest'),
+    )
+
+
+def systevisor_self_update_probe_result_to_obj(
+        result: SystevisorSelfUpdateProbeResult,
+) -> ta.Mapping[str, ta.Any]:
+    return dc.asdict(result)
+
+
+def systevisor_self_update_probe_result_from_obj(value: ta.Any) -> SystevisorSelfUpdateProbeResult:
+    obj = _systevisor_self_update_mapping(value, 'self-update probe result')
+    schema_version = _systevisor_self_update_int(obj.get('schema_version'), 'probe result schema version')
+    if schema_version != SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION:
+        raise SystevisorSelfUpdateCodecError(f'unsupported probe result schema: {schema_version}')
+    return SystevisorSelfUpdateProbeResult(
+        schema_version=schema_version,
+        accepted=_systevisor_self_update_bool(obj.get('accepted'), 'probe accepted'),
+        source_sha256=_systevisor_self_update_string(obj.get('source_sha256'), 'probe result source digest'),
+        message=_systevisor_self_update_optional_string(obj.get('message'), 'probe result message'),
+    )
+
+
+def systevisor_handoff_manifest_to_obj(manifest: SystevisorHandoffManifest) -> ta.Mapping[str, ta.Any]:
+    return {
+        'schema_version': manifest.schema_version,
+        'source_path': manifest.source_path,
+        'source_sha256': manifest.source_sha256,
+        'previous_source_path': manifest.previous_source_path,
+        'previous_source_sha256': manifest.previous_source_sha256,
+        'created_at': manifest.created_at,
+        'manager_pid': manifest.manager_pid,
+        'operation_id': manifest.operation_id,
+        'mode': manifest.mode,
+        'startup_collection': manifest.startup_collection,
+        'config_paths': list(manifest.config_paths),
+        'recursive': manifest.recursive,
+        'state_directory': manifest.state_directory,
+        'config': manifest.config,
+        'config_digest': manifest.config_digest,
+        'source_paths': list(manifest.source_paths),
+        'provenance': list(manifest.provenance),
+        'engine': manifest.engine,
+        'processes': list(manifest.processes),
+        'logs': list(manifest.logs),
+        'event_bus': manifest.event_bus,
+        'operations': manifest.operations,
+        'manager_runtime': manifest.manager_runtime,
+        'inherited_sockets': list(manifest.inherited_sockets),
+        'cgroups': list(manifest.cgroups),
+        'fds': [_systevisor_self_update_fd_to_obj(item) for item in manifest.fds],
+    }
+
+
+def systevisor_handoff_manifest_from_obj(value: ta.Any) -> SystevisorHandoffManifest:
+    obj = _systevisor_self_update_mapping(value, 'handoff manifest')
+    schema_version = _systevisor_self_update_int(obj.get('schema_version'), 'handoff schema version')
+    if schema_version != SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION:
+        raise SystevisorSelfUpdateCodecError(f'unsupported handoff schema: {schema_version}')
+    config_paths = tuple(
+        _systevisor_self_update_string(item, 'config path')
+        for item in _systevisor_self_update_sequence(obj.get('config_paths'), 'config paths')
+    )
+    source_paths = tuple(
+        _systevisor_self_update_string(item, 'source path')
+        for item in _systevisor_self_update_sequence(obj.get('source_paths'), 'source paths')
+    )
+    return SystevisorHandoffManifest(
+        schema_version=schema_version,
+        source_path=_systevisor_self_update_string(obj.get('source_path'), 'handoff source path'),
+        source_sha256=_systevisor_self_update_string(obj.get('source_sha256'), 'handoff source digest'),
+        previous_source_path=_systevisor_self_update_string(
+            obj.get('previous_source_path'),
+            'previous source path',
+        ),
+        previous_source_sha256=_systevisor_self_update_string(
+            obj.get('previous_source_sha256'),
+            'previous source digest',
+        ),
+        created_at=_systevisor_self_update_float(obj.get('created_at'), 'handoff creation time'),
+        manager_pid=_systevisor_self_update_int(obj.get('manager_pid'), 'handoff manager pid'),
+        operation_id=_systevisor_self_update_string(obj.get('operation_id'), 'handoff operation id'),
+        mode=_systevisor_self_update_string(obj.get('mode'), 'handoff mode'),
+        startup_collection=_systevisor_self_update_optional_string(
+            obj.get('startup_collection'),
+            'handoff startup collection',
+        ),
+        config_paths=config_paths,
+        recursive=_systevisor_self_update_bool(obj.get('recursive'), 'handoff recursive'),
+        state_directory=_systevisor_self_update_optional_string(
+            obj.get('state_directory'),
+            'handoff state directory',
+        ),
+        config=_systevisor_self_update_mapping(obj.get('config'), 'handoff configuration'),
+        config_digest=_systevisor_self_update_string(obj.get('config_digest'), 'handoff config digest'),
+        source_paths=source_paths,
+        provenance=tuple(
+            _systevisor_self_update_mapping(item, 'configuration provenance')
+            for item in _systevisor_self_update_sequence(obj.get('provenance'), 'configuration provenance')
+        ),
+        engine=_systevisor_self_update_mapping(obj.get('engine'), 'handoff engine'),
+        processes=tuple(
+            _systevisor_self_update_mapping(item, 'handoff process')
+            for item in _systevisor_self_update_sequence(obj.get('processes'), 'handoff processes')
+        ),
+        logs=tuple(
+            _systevisor_self_update_mapping(item, 'handoff log')
+            for item in _systevisor_self_update_sequence(obj.get('logs'), 'handoff logs')
+        ),
+        event_bus=_systevisor_self_update_mapping(obj.get('event_bus'), 'handoff event bus'),
+        operations=_systevisor_self_update_mapping(obj.get('operations'), 'handoff operations'),
+        manager_runtime=_systevisor_self_update_mapping(obj.get('manager_runtime'), 'handoff manager runtime'),
+        inherited_sockets=tuple(
+            _systevisor_self_update_mapping(item, 'handoff inherited socket')
+            for item in _systevisor_self_update_sequence(
+                obj.get('inherited_sockets'),
+                'handoff inherited sockets',
+            )
+        ),
+        cgroups=tuple(
+            _systevisor_self_update_mapping(item, 'handoff cgroup')
+            for item in _systevisor_self_update_sequence(obj.get('cgroups'), 'handoff cgroups')
+        ),
+        fds=tuple(
+            _systevisor_self_update_fd_from_obj(item)
+            for item in _systevisor_self_update_sequence(obj.get('fds'), 'handoff fds')
+        ),
+    )
+
+
+def systevisor_self_update_read_json(path: str) -> ta.Any:
+    file_size = os.stat(path).st_size
+    if file_size > _SYSTEVISOR_SELF_UPDATE_MAX_DOCUMENT_BYTES:
+        raise SystevisorSelfUpdateCodecError(f'self-update document is too large: {file_size}')
+    with open(path, 'rb') as input_file:
+        data = input_file.read(_SYSTEVISOR_SELF_UPDATE_MAX_DOCUMENT_BYTES + 1)
+    if len(data) > _SYSTEVISOR_SELF_UPDATE_MAX_DOCUMENT_BYTES:
+        raise SystevisorSelfUpdateCodecError('self-update document exceeds its size limit')
+    try:
+        return json.loads(data.decode('utf-8'))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SystevisorSelfUpdateCodecError(f'invalid self-update JSON: {exc}') from exc
+
+
+def systevisor_self_update_atomic_write_json(path: str, value: ta.Any) -> None:
+    directory = os.path.dirname(os.path.abspath(path))
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    fd, temporary_path = tempfile.mkstemp(prefix='.systevisor-update.', dir=directory)
+    try:
+        os.fchmod(fd, 0o600)
+        data = (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + '\n').encode('utf-8')
+        if len(data) > _SYSTEVISOR_SELF_UPDATE_MAX_DOCUMENT_BYTES:
+            raise SystevisorSelfUpdateCodecError('self-update document exceeds its size limit')
+        offset = 0
+        while offset < len(data):
+            offset += os.write(fd, data[offset:])
+        os.fsync(fd)
+        os.close(fd)
+        fd = -1
+        os.replace(temporary_path, path)
+        directory_fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        try:
+            os.unlink(temporary_path)
+        except FileNotFoundError:
+            pass
+
+
+########################################
 # ../runtime/coordinator.py
 
 
 _SYSTEVISOR_COORDINATOR_LOG = get_module_logger(globals())
+
+
+@dc.dataclass(frozen=True)
+class SystevisorRuntimeOutputFd:
+    run_id: SystevisorRunId
+    stream: SystevisorLogStream
+    fd: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorInternalProcessCallbacks:
+    on_exec: ta.Callable[[SystevisorProcessExecResult], None]
+    on_exit: ta.Callable[[SystevisorObservedProcessExit], None]
 
 
 class SystevisorRuntimeCoordinator:
@@ -29076,6 +30632,7 @@ class SystevisorRuntimeCoordinator:
         self._delivered_exec_results: ta.Set[SystevisorRunId] = set()
         self._failed_exec_runs: ta.Set[SystevisorRunId] = set()
         self._pending_exits: ta.Dict[SystevisorRunId, SystevisorObservedProcessExit] = {}
+        self._internal_processes: ta.Dict[SystevisorRunId, SystevisorInternalProcessCallbacks] = {}
         self._signal_handler: ta.Optional[SystevisorSignalFdioHandler] = None
 
         self._deadline_handler = SystevisorDeadlineFdioHandler(clock, self._on_deadline)
@@ -29124,14 +30681,8 @@ class SystevisorRuntimeCoordinator:
             while self._input_queue:
                 current_input = self._input_queue.popleft()
                 if isinstance(current_input, SystevisorApplySnapshotCommand):
-                    self._process_manager.set_reap_unknown_children(
-                        current_input.snapshot.config.manager.reap_unknown_children,
-                    )
-                    self._wait_handler.poke()
+                    self.configure_snapshot_runtime(current_input.snapshot)
                 output = self._engine.step(current_input, self._clock.monotonic())
-                if isinstance(current_input, SystevisorApplySnapshotCommand):
-                    self._log_manager.set_default_strip_ansi(current_input.snapshot.config.manager.strip_ansi)
-                    self._event_bus.set_journal_capacity(current_input.snapshot.config.api.event_backlog)
                 outputs.append(output)
                 for event in output.events:
                     _, failures = self._event_bus.publish('engine', event, self._clock.monotonic())
@@ -29150,6 +30701,12 @@ class SystevisorRuntimeCoordinator:
         finally:
             self._processing = False
         return tuple(outputs)
+
+    def configure_snapshot_runtime(self, snapshot: SystevisorConfigSnapshot) -> None:
+        self._process_manager.set_reap_unknown_children(snapshot.config.manager.reap_unknown_children)
+        self._wait_handler.poke()
+        self._log_manager.set_default_strip_ansi(snapshot.config.manager.strip_ansi)
+        self._event_bus.set_journal_capacity(snapshot.config.api.event_backlog)
 
     def _execute_effect(self, effect: SystevisorEngineEffect) -> None:
         if isinstance(effect, SystevisorSpawnProcessEffect):
@@ -29233,6 +30790,38 @@ class SystevisorRuntimeCoordinator:
             self._fdio_manager.register(pidfd_handler)
         self._wait_handler.poke()
 
+    def start_internal_process(
+            self,
+            run_id: SystevisorRunId,
+            argv: ta.Sequence[str],
+            purpose: SystevisorOwnedProcessPurpose,
+            callbacks: SystevisorInternalProcessCallbacks,
+    ) -> None:
+        if self._closed:
+            raise RuntimeError('runtime coordinator is closed')
+        if run_id in self._internal_processes:
+            raise RuntimeError(f'internal process is already registered: {run_id}')
+        spawned = self._process_manager.spawn_internal(run_id, argv, purpose)
+        self._internal_processes[run_id] = callbacks
+        state = spawned.state
+        if state.exec_error_fd is None:
+            raise RuntimeError('spawned internal process has no exec handshake fd')
+
+        def exec_ready(internal_run_id: SystevisorRunId = run_id) -> bool:
+            return self._on_exec_ready(internal_run_id)
+
+        exec_handler = SystevisorProcessExecFdioHandler(state.exec_error_fd, exec_ready)
+        self._exec_handlers[run_id] = exec_handler
+        self._fdio_manager.register(exec_handler)
+        if state.pidfd is not None:
+            pidfd_handler = SystevisorProcessPidfdFdioHandler(
+                state.pidfd,
+                self._observe_process_exits,
+            )
+            self._pidfd_handlers[run_id] = pidfd_handler
+            self._fdio_manager.register(pidfd_handler)
+        self._wait_handler.poke()
+
     def _on_health_probe_result(self, fact: SystevisorHealthProbeResultFact) -> None:
         self.submit(fact)
 
@@ -29253,6 +30842,10 @@ class SystevisorRuntimeCoordinator:
         exec_handler = self._exec_handlers.pop(result.run_id, None)
         if exec_handler is not None:
             exec_handler.close()
+        internal = self._internal_processes.get(result.run_id)
+        if internal is not None:
+            internal.on_exec(result)
+            return
         if self._health_probe_runner.owns_command_run(result.run_id):
             self._health_probe_runner.command_exec_result(result)
             return
@@ -29279,6 +30872,12 @@ class SystevisorRuntimeCoordinator:
         if pidfd_handler is not None:
             pidfd_handler.close()
         self._process_manager.acknowledge_exit(observed.run_id)
+        internal = self._internal_processes.pop(observed.run_id, None)
+        if internal is not None:
+            internal.on_exit(observed)
+            self._delivered_exec_results.discard(observed.run_id)
+            self._pending_exits.pop(observed.run_id, None)
+            return
         if self._health_probe_runner.owns_command_run(observed.run_id):
             self._health_probe_runner.command_exit(observed)
             self._delivered_exec_results.discard(observed.run_id)
@@ -29307,6 +30906,85 @@ class SystevisorRuntimeCoordinator:
         for run_id in tuple(self._output_handlers):
             if all(handler.closed for handler in self._output_handlers[run_id]):
                 del self._output_handlers[run_id]
+
+    def snapshot_output_fds(self) -> ta.Sequence[SystevisorRuntimeOutputFd]:
+        output_fds: ta.List[SystevisorRuntimeOutputFd] = []
+        for handlers in self._output_handlers.values():
+            for handler in handlers:
+                if isinstance(handler, SystevisorProcessOutputFdioHandler) and not handler.closed:
+                    output_fds.append(SystevisorRuntimeOutputFd(
+                        run_id=handler.run_id,
+                        stream=handler.stream,
+                        fd=handler.fd(),
+                    ))
+        return tuple(sorted(output_fds, key=lambda item: (int(item.run_id), item.stream.value)))
+
+    def handoff_issues(self) -> ta.Sequence[str]:
+        issues = list(self._process_manager.handoff_issues())
+        if self._processing or self._input_queue:
+            issues.append('the reconciliation input queue is not empty')
+        if self._exec_handlers or self._pending_exits:
+            issues.append('a process exec or exit transition is in flight')
+        if self._internal_processes:
+            issues.append('an internal process is in flight')
+        if self._health_probe_runner.has_active_checks():
+            issues.append('a health probe is in flight')
+        return tuple(issues)
+
+    def rehydrate_process_runtime(
+            self,
+            output_fds: ta.Iterable[SystevisorRuntimeOutputFd],
+    ) -> None:
+        if self._exec_handlers or self._pidfd_handlers or self._output_handlers:
+            raise RuntimeError('runtime process handlers can only be rehydrated before use')
+        states = self._process_manager.snapshot_states()
+        run_ids = {state.run_id for state in states}
+        self._delivered_exec_results.update(run_ids)
+        seen_outputs: ta.Set[ta.Tuple[SystevisorRunId, SystevisorLogStream]] = set()
+        for output in output_fds:
+            key = (output.run_id, output.stream)
+            if output.run_id not in run_ids:
+                raise RuntimeError(f'output descriptor belongs to an unknown run: {output.run_id}')
+            if key in seen_outputs:
+                raise RuntimeError(f'duplicate output descriptor: {output.run_id}:{output.stream.value}')
+            seen_outputs.add(key)
+            handler = self._log_manager.attach_rehydrated_output(
+                output.run_id,
+                output.stream,
+                output.fd,
+            )
+            self._output_handlers.setdefault(output.run_id, []).append(handler)
+            self._fdio_manager.register(handler)
+        for state in states:
+            if state.pidfd is not None:
+                pidfd_handler = SystevisorProcessPidfdFdioHandler(state.pidfd, self._observe_process_exits)
+                self._pidfd_handlers[state.run_id] = pidfd_handler
+                self._fdio_manager.register(pidfd_handler)
+        for instance in self._engine.state.instances.values():
+            if (
+                    instance.deadline_id is not None and
+                    instance.deadline_kind is not None and
+                    instance.deadline_at is not None
+            ):
+                self._deadline_handler.schedule(SystevisorScheduleDeadlineEffect(
+                    deadline_id=instance.deadline_id,
+                    deadline_at=instance.deadline_at,
+                    kind=instance.deadline_kind,
+                    instance_id=instance.instance_id,
+                    run_id=instance.run_id,
+                ))
+            for health in instance.health.values():
+                if health.in_flight_check_id is not None:
+                    raise RuntimeError('cannot rehydrate an in-flight health check')
+                if health.scheduled_deadline_id is not None and health.next_check_at is not None:
+                    self._deadline_handler.schedule(SystevisorScheduleDeadlineEffect(
+                        deadline_id=health.scheduled_deadline_id,
+                        deadline_at=health.next_check_at,
+                        kind=SystevisorDeadlineKind.HEALTH_PROBE,
+                        instance_id=instance.instance_id,
+                        run_id=instance.run_id,
+                    ))
+        self._wait_handler.poke()
 
     def close(self) -> None:
         if self._closed:
@@ -29404,6 +31082,10 @@ class SystevisorConfigController:
     @property
     def recursive(self) -> bool:
         return self._recursive
+
+    @property
+    def state_directory(self) -> ta.Optional[str]:
+        return self._state_directory
 
     @property
     def last_attempt(self) -> ta.Optional[SystevisorConfigAttempt]:
@@ -29521,6 +31203,27 @@ class SystevisorConfigController:
             applied,
         )
 
+    def rehydrate(self, snapshot: SystevisorConfigSnapshot) -> None:
+        active = self._coordinator.engine.state.snapshot
+        if active is None or active.digest != snapshot.digest:
+            raise RuntimeError('engine and controller handoff snapshots do not match')
+        prepared: ta.List[SystevisorConfigPreparedChange] = []
+        try:
+            for participant in self._participants:
+                prepared.append(participant.prepare(snapshot))
+        except BaseException:
+            for change in reversed(prepared):
+                change.rollback()
+            raise
+        try:
+            for change in prepared:
+                change.commit()
+        except BaseException:
+            for change in reversed(prepared):
+                change.rollback()
+            raise
+        self._coordinator.configure_snapshot_runtime(snapshot)
+
     def _effective_state_directory(self, snapshot: ta.Optional[SystevisorConfigSnapshot]) -> ta.Optional[str]:
         if self._state_directory is not None:
             return self._state_directory
@@ -29625,6 +31328,193 @@ def systevisor_bind_runtime() -> InjectorBindings:
         inj.bind(SystevisorRuntimeCoordinator, singleton=True),
     ]
     return inj.as_bindings(*bindings)
+
+
+########################################
+# ../selfupdate/restore.py
+
+
+@dc.dataclass(frozen=True)
+class SystevisorDecodedHandoff:
+    manifest: SystevisorHandoffManifest
+    snapshot: SystevisorConfigSnapshot
+    engine: SystevisorEngineState
+    processes: ta.Sequence[SystevisorOwnedProcessState]
+    logs: ta.Sequence[SystevisorLogChannelState]
+    output_fds: ta.Sequence[SystevisorRuntimeOutputFd]
+    event_bus: SystevisorEventBusState
+    operations: SystevisorOperationStoreState
+    manager_runtime: SystevisorManagerRuntimeState
+    pid_file_fd: ta.Optional[int]
+    inherited_sockets: ta.Sequence[SystevisorInheritedSocket]
+    cgroups: ta.Sequence[SystevisorCgroupRunState]
+
+
+def systevisor_decode_handoff(
+        manifest: SystevisorHandoffManifest,
+        current_source_path: str,
+        *,
+        previous_source: bool = False,
+) -> SystevisorDecodedHandoff:
+    current_source = os.path.realpath(current_source_path)
+    expected_source = manifest.previous_source_path if previous_source else manifest.source_path
+    expected_digest = manifest.previous_source_sha256 if previous_source else manifest.source_sha256
+    if current_source != expected_source:
+        raise SystevisorSelfUpdateCodecError(
+            f'resume source path mismatch: {current_source!r} != {expected_source!r}',
+        )
+    if systevisor_self_update_source_sha256(current_source) != expected_digest:
+        raise SystevisorSelfUpdateCodecError('resume source digest mismatch')
+    if manifest.manager_pid != os.getpid():
+        raise SystevisorSelfUpdateCodecError(
+            f'handoff belongs to manager pid {manifest.manager_pid}, not {os.getpid()}',
+        )
+    if manifest.mode not in {'serve', 'run'}:
+        raise SystevisorSelfUpdateCodecError(f'invalid handoff mode: {manifest.mode!r}')
+    if (manifest.mode == 'run') != (manifest.startup_collection is not None):
+        raise SystevisorSelfUpdateCodecError('handoff mode and startup collection do not match')
+    systevisor_validate_handoff_fds(manifest.fds)
+
+    snapshot = systevisor_decode_snapshot(
+        manifest.config,
+        manifest.config_digest,
+        manifest.source_paths,
+        manifest.provenance,
+    )
+    engine = systevisor_decode_engine_state(manifest.engine, snapshot)
+    processes = tuple(systevisor_decode_owned_process_state(value) for value in manifest.processes)
+
+    logs: ta.List[SystevisorLogChannelState] = []
+    output_fds: ta.List[SystevisorRuntimeOutputFd] = []
+    for value in manifest.logs:
+        log_state, fd = systevisor_decode_log_channel_state(value)
+        logs.append(log_state)
+        if fd is not None:
+            output_fds.append(SystevisorRuntimeOutputFd(log_state.run_id, log_state.stream, fd))
+    event_bus = systevisor_decode_event_bus_state(manifest.event_bus)
+    operations = systevisor_decode_operation_store_state(manifest.operations)
+    manager_runtime = systevisor_decode_manager_runtime_state(manifest.manager_runtime)
+    inherited_sockets = tuple(
+        systevisor_decode_inherited_socket(value)
+        for value in manifest.inherited_sockets
+    )
+    cgroups = tuple(systevisor_decode_cgroup_state(value) for value in manifest.cgroups)
+
+    expected_fds: ta.Dict[ta.Tuple[SystevisorHandoffFdKind, str], int] = {}
+    for process in processes:
+        if process.pidfd is not None:
+            expected_fds[(SystevisorHandoffFdKind.PROCESS_PIDFD, str(int(process.run_id)))] = process.pidfd
+    for output in output_fds:
+        kind = (
+            SystevisorHandoffFdKind.PROCESS_STDOUT
+            if output.stream is SystevisorLogStream.STDOUT else
+            SystevisorHandoffFdKind.PROCESS_STDERR
+        )
+        key = (kind, str(int(output.run_id)))
+        if key in expected_fds:
+            raise SystevisorSelfUpdateCodecError(f'duplicate semantic handoff descriptor: {kind.value}:{key[1]}')
+        expected_fds[key] = output.fd
+    pid_file_fd: ta.Optional[int] = None
+    if manager_runtime.pid_file is not None:
+        pid_items = [
+            item
+            for item in manifest.fds
+            if item.kind is SystevisorHandoffFdKind.PID_FILE and item.owner == 'manager'
+        ]
+        if len(pid_items) != 1:
+            raise SystevisorSelfUpdateCodecError('pidfile handoff descriptor is missing or duplicated')
+        pid_file_fd = pid_items[0].fd
+        expected_fds[(SystevisorHandoffFdKind.PID_FILE, 'manager')] = pid_file_fd
+    for inherited in inherited_sockets:
+        key = (SystevisorHandoffFdKind.ACTIVATION_SOCKET, inherited.name)
+        if key in expected_fds:
+            raise SystevisorSelfUpdateCodecError(f'duplicate activation socket: {inherited.name!r}')
+        expected_fds[key] = inherited.fd
+
+    actual_fds = {(item.kind, item.owner): item.fd for item in manifest.fds}
+    if actual_fds != expected_fds:
+        missing = sorted(f'{kind.value}:{owner}' for kind, owner in set(expected_fds) - set(actual_fds))
+        extra = sorted(f'{kind.value}:{owner}' for kind, owner in set(actual_fds) - set(expected_fds))
+        raise SystevisorSelfUpdateCodecError(
+            f'handoff descriptor semantics do not match state; missing={missing!r}; extra={extra!r}',
+        )
+
+    update_operation = next(
+        (operation for operation in operations.operations if operation.operation_id == manifest.operation_id),
+        None,
+    )
+    if (
+            update_operation is None or
+            update_operation.kind != 'manager.self_update' or
+            update_operation.status is not SystevisorOperationStatus.PENDING
+    ):
+        raise SystevisorSelfUpdateCodecError('pending self-update operation is absent from handoff')
+
+    return SystevisorDecodedHandoff(
+        manifest=manifest,
+        snapshot=snapshot,
+        engine=engine,
+        processes=processes,
+        logs=tuple(logs),
+        output_fds=tuple(output_fds),
+        event_bus=event_bus,
+        operations=operations,
+        manager_runtime=manager_runtime,
+        pid_file_fd=pid_file_fd,
+        inherited_sockets=inherited_sockets,
+        cgroups=cgroups,
+    )
+
+
+def systevisor_restore_handoff_cloexec(handoff: SystevisorDecodedHandoff) -> None:
+    systevisor_validate_handoff_fds(handoff.manifest.fds)
+    for item in handoff.manifest.fds:
+        flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
+        fcntl.fcntl(item.fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+
+
+def systevisor_cleanup_handoff_files(manifest_path: str) -> None:
+    workspace = os.path.dirname(os.path.abspath(manifest_path))
+    for name in ('probe-request.json', 'probe-result.json', 'resume-error.json', 'handoff.json'):
+        path = os.path.join(workspace, name)
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+    try:
+        os.rmdir(workspace)
+    except OSError:
+        pass
+
+
+def systevisor_rollback_handoff(
+        manifest: SystevisorHandoffManifest,
+        manifest_path: str,
+        message: str,
+) -> ta.NoReturn:
+    if systevisor_self_update_source_sha256(
+            manifest.previous_source_path,
+    ) != manifest.previous_source_sha256:
+        raise SystevisorSelfUpdateCodecError('previous source changed before rollback')
+    error_path = os.path.join(os.path.dirname(os.path.abspath(manifest_path)), 'resume-error.json')
+    systevisor_self_update_atomic_write_json(error_path, {'message': message})
+    systevisor_validate_handoff_fds(manifest.fds)
+    for item in manifest.fds:
+        flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
+        fcntl.fcntl(item.fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+    os.execve(
+        sys.executable,
+        (
+            sys.executable,
+            manifest.previous_source_path,
+            '_self-update-rollback',
+            '--manifest',
+            manifest_path,
+            '--error-file',
+            error_path,
+        ),
+        os.environ,
+    )
 
 
 ########################################
@@ -30305,6 +32195,620 @@ class SystevisorResourceObserver(FdioHandler, SystevisorConfigParticipant):
 
 
 ########################################
+# ../selfupdate/runtime.py
+
+
+_SYSTEVISOR_SELF_UPDATE_INTERNAL_RUN_START = -2_000_000_000
+
+
+class SystevisorSelfUpdateError(RuntimeError):
+    pass
+
+
+class SystevisorSelfUpdateExecBackend(Abstract):
+    @abc.abstractmethod
+    def execve(
+            self,
+            executable: str,
+            argv: ta.Sequence[str],
+            environment: ta.Mapping[str, str],
+    ) -> ta.NoReturn:
+        raise NotImplementedError
+
+
+class SystevisorPosixSelfUpdateExecBackend(SystevisorSelfUpdateExecBackend):
+    def execve(
+            self,
+            executable: str,
+            argv: ta.Sequence[str],
+            environment: ta.Mapping[str, str],
+    ) -> ta.NoReturn:
+        os.execve(executable, tuple(argv), dict(environment))
+
+
+def systevisor_exec_handoff(
+        manifest: SystevisorHandoffManifest,
+        manifest_path: str,
+        backend: SystevisorSelfUpdateExecBackend,
+) -> ta.NoReturn:
+    if systevisor_self_update_source_sha256(manifest.source_path) != manifest.source_sha256:
+        raise SystevisorSelfUpdateError('candidate source changed before exec')
+    systevisor_self_update_atomic_write_json(
+        manifest_path,
+        systevisor_handoff_manifest_to_obj(manifest),
+    )
+    systevisor_validate_handoff_fds(manifest.fds)
+    saved_fd_flags: ta.Dict[int, int] = {}
+    try:
+        for item in manifest.fds:
+            flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
+            saved_fd_flags[item.fd] = flags
+            fcntl.fcntl(item.fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+        backend.execve(
+            sys.executable,
+            (
+                sys.executable,
+                manifest.source_path,
+                '_self-update-resume',
+                '--manifest',
+                manifest_path,
+            ),
+            os.environ,
+        )
+    except BaseException:
+        for fd, flags in saved_fd_flags.items():
+            try:
+                fcntl.fcntl(fd, fcntl.F_SETFD, flags)
+            except OSError:
+                pass
+        raise
+
+
+@dc.dataclass
+class SystevisorSelfUpdateRequestRuntime:
+    operation: SystevisorOperation
+    source_path: str
+    source_sha256: str
+    config_digest: str
+    workspace: str
+    probe_request_path: str
+    probe_result_path: str
+    manifest_path: str
+    probe_run_id: SystevisorRunId
+    requested_at: float
+    probe_deadline_at: ta.Optional[float]
+    exec_ready: bool = False
+    probe_exec_error: ta.Optional[str] = None
+
+
+class SystevisorSelfUpdateManager(FdioHandler):
+    def __init__(
+            self,
+            coordinator: SystevisorRuntimeCoordinator,
+            process_manager: SystevisorProcessManager,
+            config_controller: SystevisorConfigController,
+            operations: SystevisorOperationStore,
+            clock: SystevisorClock,
+            fdio_manager: FdioManager,
+            json_codec: SystevisorJsonCodec,
+            log_manager: SystevisorLogManager,
+            event_bus: SystevisorEventBus,
+            manager_runtime: SystevisorManagerRuntime,
+            inherited_sockets: SystevisorInheritedSocketRegistry,
+            cgroup_manager: SystevisorCgroupManager,
+            exec_backend: SystevisorSelfUpdateExecBackend,
+    ) -> None:
+        self._coordinator = coordinator
+        self._process_manager = process_manager
+        self._config_controller = config_controller
+        self._operations = operations
+        self._clock = clock
+        self._json_codec = json_codec
+        self._log_manager = log_manager
+        self._event_bus = event_bus
+        self._manager_runtime = manager_runtime
+        self._inherited_sockets = inherited_sockets
+        self._cgroup_manager = cgroup_manager
+        self._exec_backend = exec_backend
+        self._phase = SystevisorSelfUpdatePhase.IDLE
+        self._request: ta.Optional[SystevisorSelfUpdateRequestRuntime] = None
+        self._next_internal_run_id = _SYSTEVISOR_SELF_UPDATE_INTERNAL_RUN_START
+        self._message: ta.Optional[str] = None
+        self._mode = 'serve'
+        self._startup_collection: ta.Optional[str] = None
+        self._running_source_path = os.path.realpath(sys.argv[0])
+        self._closed = False
+        fdio_manager.register(self)
+
+    def configure_mode(
+            self,
+            mode: str,
+            startup_collection: ta.Optional[str],
+            running_source_path: ta.Optional[str] = None,
+    ) -> None:
+        if mode not in {'serve', 'run'}:
+            raise ValueError(mode)
+        if self._request is not None:
+            raise RuntimeError('self-update mode cannot change during an update')
+        self._mode = mode
+        self._startup_collection = startup_collection
+        if running_source_path is not None:
+            self._running_source_path = os.path.realpath(running_source_path)
+
+    @property
+    def state(self) -> SystevisorSelfUpdateState:
+        request = self._request
+        return SystevisorSelfUpdateState(
+            state_schema_version=1,
+            phase=self._phase,
+            operation_id=None if request is None else request.operation.operation_id,
+            source_path=None if request is None else request.source_path,
+            source_sha256=None if request is None else request.source_sha256,
+            requested_at=None if request is None else request.requested_at,
+            probe_run_id=None if request is None else int(request.probe_run_id),
+            deadline_at=None if request is None else request.probe_deadline_at,
+            message=self._message,
+        )
+
+    def fd(self) -> int:
+        return -1
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def next_deadline(self) -> ta.Optional[float]:
+        if self._closed or self._request is None:
+            return None
+        return self._request.probe_deadline_at
+
+    def _effective_state_directory(self) -> ta.Optional[str]:
+        snapshot = self._config_controller.active_snapshot
+        if self._config_controller.state_directory is not None:
+            return self._config_controller.state_directory
+        if snapshot is not None:
+            return snapshot.config.manager.state_directory
+        return None
+
+    def _new_workspace(self) -> str:
+        state_directory = self._effective_state_directory()
+        if state_directory is not None:
+            os.makedirs(state_directory, mode=0o700, exist_ok=True)
+        return tempfile.mkdtemp(prefix='systevisor-self-update-', dir=state_directory)
+
+    def _stable_issues(self, operation_id: ta.Optional[str] = None) -> ta.Sequence[str]:
+        issues = list(self._coordinator.handoff_issues())
+        engine_state = self._coordinator.engine.state
+        if engine_state.shutting_down:
+            issues.append('the manager is shutting down')
+        for instance in engine_state.instances.values():
+            if instance.process_state in {
+                    SystevisorProcessState.STARTING,
+                    SystevisorProcessState.STOPPING,
+            }:
+                issues.append(f'instance {instance.instance_id} is {instance.process_state.value}')
+            for health in instance.health.values():
+                if health.in_flight_check_id is not None:
+                    issues.append(f'health check is in flight for {instance.instance_id}:{health.name}')
+        for operation in self._operations.list():
+            if (
+                    operation.status is SystevisorOperationStatus.PENDING and
+                    operation.operation_id != operation_id
+            ):
+                issues.append(f'operation {operation.operation_id} is pending')
+        return tuple(issues)
+
+    def request(self, source_path: str) -> SystevisorOperation:
+        operation = self._operations.create('manager.self_update', source_path)
+        if self._phase not in {SystevisorSelfUpdatePhase.IDLE, SystevisorSelfUpdatePhase.FAILED}:
+            self._operations.finish(
+                operation,
+                SystevisorOperationStatus.REJECTED,
+                message='another self-update is already active',
+            )
+            return operation
+        snapshot = self._config_controller.active_snapshot
+        if snapshot is None:
+            self._operations.finish(
+                operation,
+                SystevisorOperationStatus.REJECTED,
+                message='no active configuration is available',
+            )
+            return operation
+        if not snapshot.config.manager.self_update.enabled:
+            self._operations.finish(
+                operation,
+                SystevisorOperationStatus.REJECTED,
+                message='self-update is disabled by configuration',
+            )
+            return operation
+        issues = self._stable_issues(operation.operation_id)
+        if issues:
+            self._operations.finish(
+                operation,
+                SystevisorOperationStatus.REJECTED,
+                message='; '.join(issues),
+            )
+            return operation
+
+        canonical_source = os.path.realpath(source_path)
+        try:
+            if not systevisor_self_update_is_amalgamated_source(self._running_source_path):
+                raise SystevisorSelfUpdateError(
+                    'the running program is not a self-contained amalgamated artifact',
+                )
+            if not systevisor_self_update_is_amalgamated_source(canonical_source):
+                raise SystevisorSelfUpdateError(
+                    'candidate source is not a self-contained amalgamated artifact',
+                )
+            source_stat = os.stat(canonical_source)
+            if not stat.S_ISREG(source_stat.st_mode):
+                raise SystevisorSelfUpdateError('candidate source is not a regular file')
+            source_digest = systevisor_self_update_source_sha256(canonical_source)
+            workspace = self._new_workspace()
+        except (OSError, SystevisorSelfUpdateError) as exc:
+            self._operations.finish(
+                operation,
+                SystevisorOperationStatus.REJECTED,
+                message=f'{type(exc).__name__}: {exc}',
+            )
+            return operation
+
+        run_id = SystevisorRunId(self._next_internal_run_id)
+        self._next_internal_run_id -= 1
+        request = SystevisorSelfUpdateRequestRuntime(
+            operation=operation,
+            source_path=canonical_source,
+            source_sha256=source_digest,
+            config_digest=snapshot.digest,
+            workspace=workspace,
+            probe_request_path=os.path.join(workspace, 'probe-request.json'),
+            probe_result_path=os.path.join(workspace, 'probe-result.json'),
+            manifest_path=os.path.join(workspace, 'handoff.json'),
+            probe_run_id=run_id,
+            requested_at=self._clock.monotonic(),
+            probe_deadline_at=self._clock.monotonic() + snapshot.config.manager.self_update.probe_timeout_secs,
+        )
+        probe = SystevisorSelfUpdateProbeRequest(
+            schema_version=SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION,
+            source_path=canonical_source,
+            source_sha256=source_digest,
+            config=systevisor_marshal_config_obj(snapshot.config, SystevisorConfig),
+            config_digest=snapshot.digest,
+        )
+        try:
+            systevisor_self_update_atomic_write_json(
+                request.probe_request_path,
+                systevisor_self_update_probe_request_to_obj(probe),
+            )
+            self._request = request
+            self._phase = SystevisorSelfUpdatePhase.PROBING
+            self._message = None
+            self._coordinator.start_internal_process(
+                run_id,
+                (
+                    sys.executable,
+                    canonical_source,
+                    '_self-update-probe',
+                    '--request',
+                    request.probe_request_path,
+                    '--result',
+                    request.probe_result_path,
+                ),
+                SystevisorOwnedProcessPurpose.SELF_UPDATE_PROBE,
+                SystevisorInternalProcessCallbacks(self._on_probe_exec, self._on_probe_exit),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._fail(f'could not start candidate probe: {type(exc).__name__}: {exc}')
+        return operation
+
+    def _on_probe_exec(self, result: SystevisorProcessExecResult) -> None:
+        request = self._request
+        if request is None or result.run_id != request.probe_run_id:
+            raise SystevisorSelfUpdateError('unexpected candidate exec result')
+        if not result.succeeded:
+            request.probe_exec_error = result.message or 'candidate exec failed'
+
+    def _on_probe_exit(self, observed: SystevisorObservedProcessExit) -> None:
+        request = self._request
+        if request is None or observed.run_id != request.probe_run_id:
+            raise SystevisorSelfUpdateError('unexpected candidate exit')
+        if request.probe_exec_error is not None:
+            self._fail(request.probe_exec_error)
+            return
+        if observed.return_code != 0:
+            self._fail(f'candidate probe exited with status {observed.return_code}')
+            return
+        try:
+            result = systevisor_self_update_probe_result_from_obj(
+                systevisor_self_update_read_json(request.probe_result_path),
+            )
+            if result.source_sha256 != request.source_sha256:
+                raise SystevisorSelfUpdateError('candidate probe returned a different source digest')
+            if not result.accepted:
+                raise SystevisorSelfUpdateError(result.message or 'candidate rejected the handoff')
+            issues = self._stable_issues(request.operation.operation_id)
+            if issues:
+                raise SystevisorSelfUpdateError('; '.join(issues))
+        except Exception as exc:  # noqa: BLE001
+            self._fail(f'candidate probe failed: {type(exc).__name__}: {exc}')
+            return
+        snapshot = self._config_controller.active_snapshot
+        if snapshot is None or snapshot.digest != request.config_digest:
+            self._fail('active configuration changed during candidate probe')
+            return
+        self._phase = SystevisorSelfUpdatePhase.PREPARED
+        request.probe_deadline_at = self._clock.monotonic() + snapshot.config.manager.self_update.response_grace_secs
+        self._event_bus.publish('self_update.prepared', self.state, self._clock.monotonic())
+
+    def on_timeout(self) -> None:
+        request = self._request
+        if request is None or request.probe_deadline_at is None:
+            return
+        if self._phase is SystevisorSelfUpdatePhase.PROBING:
+            request.probe_deadline_at = None
+            try:
+                self._process_manager.signal(request.probe_run_id, 'KILL', SystevisorSignalScope.PROCESS)
+            except Exception as exc:  # noqa: BLE001
+                self._fail(f'candidate probe timeout termination failed: {type(exc).__name__}: {exc}')
+            else:
+                request.probe_exec_error = 'candidate probe timed out'
+        elif self._phase is SystevisorSelfUpdatePhase.PREPARED:
+            request.probe_deadline_at = None
+            request.exec_ready = True
+
+    def ready_to_exec(self) -> bool:
+        return (
+            self._phase is SystevisorSelfUpdatePhase.PREPARED and
+            self._request is not None and
+            self._request.exec_ready
+        )
+
+    def _build_manifest(self) -> SystevisorHandoffManifest:
+        request = self._request
+        snapshot = self._config_controller.active_snapshot
+        manager_state = self._manager_runtime.state
+        if request is None or snapshot is None or manager_state is None:
+            raise SystevisorSelfUpdateError('self-update state is incomplete')
+        if snapshot.digest != request.config_digest:
+            raise SystevisorSelfUpdateError('active configuration changed during self-update')
+        issues = self._stable_issues(request.operation.operation_id)
+        if issues:
+            raise SystevisorSelfUpdateError('; '.join(issues))
+        if systevisor_self_update_source_sha256(request.source_path) != request.source_sha256:
+            raise SystevisorSelfUpdateError('candidate source changed after probing')
+        try:
+            previous_source_stat = os.stat(self._running_source_path)
+        except OSError as exc:
+            raise SystevisorSelfUpdateError(f'cannot inspect running source: {exc}') from exc
+        if not stat.S_ISREG(previous_source_stat.st_mode):
+            raise SystevisorSelfUpdateError('running source is not a regular file')
+        previous_source_digest = systevisor_self_update_source_sha256(self._running_source_path)
+
+        output_fds = {
+            (output.run_id, output.stream): output.fd
+            for output in self._coordinator.snapshot_output_fds()
+        }
+        log_states = self._log_manager.snapshot_states()
+        logs = tuple(
+            systevisor_encode_log_channel_state(state, output_fds.get((state.run_id, state.stream)))
+            for state in log_states
+        )
+        active_log_keys = {
+            (state.run_id, state.stream)
+            for state in log_states
+            if not state.retired
+        }
+        if not set(output_fds).issubset(active_log_keys):
+            raise SystevisorSelfUpdateError('an output descriptor has no active log channel')
+
+        fds: ta.List[SystevisorHandoffFd] = []
+        for process in self._process_manager.snapshot_states():
+            if process.pidfd is not None:
+                fds.append(systevisor_self_update_fd(
+                    SystevisorHandoffFdKind.PROCESS_PIDFD,
+                    str(int(process.run_id)),
+                    process.pidfd,
+                ))
+        for (run_id, stream), fd in sorted(output_fds.items(), key=lambda item: (int(item[0][0]), item[0][1].value)):
+            fds.append(systevisor_self_update_fd(
+                (
+                    SystevisorHandoffFdKind.PROCESS_STDOUT
+                    if stream.value == 'stdout' else
+                    SystevisorHandoffFdKind.PROCESS_STDERR
+                ),
+                str(int(run_id)),
+                fd,
+            ))
+        pid_file_fd = self._manager_runtime.pid_file_fd
+        if pid_file_fd is not None:
+            fds.append(systevisor_self_update_fd(SystevisorHandoffFdKind.PID_FILE, 'manager', pid_file_fd))
+        for name, inherited in sorted(self._inherited_sockets.sockets.items()):
+            fds.append(systevisor_self_update_fd(
+                SystevisorHandoffFdKind.ACTIVATION_SOCKET,
+                name,
+                inherited.fd,
+            ))
+        systevisor_validate_handoff_fds(fds)
+
+        return SystevisorHandoffManifest(
+            schema_version=SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION,
+            source_path=request.source_path,
+            source_sha256=request.source_sha256,
+            previous_source_path=self._running_source_path,
+            previous_source_sha256=previous_source_digest,
+            created_at=self._clock.monotonic(),
+            manager_pid=os.getpid(),
+            operation_id=request.operation.operation_id,
+            mode=self._mode,
+            startup_collection=self._startup_collection,
+            config_paths=self._config_controller.paths,
+            recursive=self._config_controller.recursive,
+            state_directory=self._config_controller.state_directory,
+            config=systevisor_marshal_config_obj(snapshot.config, SystevisorConfig),
+            config_digest=snapshot.digest,
+            source_paths=snapshot.source_paths,
+            provenance=tuple({
+                'object_path': list(item.object_path),
+                'source': item.source,
+            } for item in snapshot.provenance),
+            engine=systevisor_encode_engine_state(self._coordinator.engine.state),
+            processes=tuple(
+                systevisor_encode_owned_process_state(state)
+                for state in self._process_manager.snapshot_states()
+            ),
+            logs=logs,
+            event_bus=systevisor_encode_event_bus_state(
+                self._event_bus.snapshot_state(),
+                self._json_codec.to_obj,
+            ),
+            operations=systevisor_encode_operation_store_state(
+                self._operations.snapshot_state(),
+                self._json_codec.to_obj,
+            ),
+            manager_runtime=systevisor_encode_manager_runtime_state(manager_state),
+            inherited_sockets=tuple(
+                systevisor_encode_inherited_socket(inherited)
+                for _, inherited in sorted(self._inherited_sockets.sockets.items())
+            ),
+            cgroups=tuple(
+                systevisor_encode_cgroup_state(state)
+                for _, state in sorted(self._cgroup_manager.states.items())
+            ),
+            fds=tuple(fds),
+        )
+
+    def execute_prepared(self) -> ta.NoReturn:
+        request = self._request
+        if request is None or not self.ready_to_exec():
+            raise SystevisorSelfUpdateError('self-update is not ready to execute')
+        try:
+            manifest = self._build_manifest()
+            self._phase = SystevisorSelfUpdatePhase.EXECUTING
+            systevisor_exec_handoff(manifest, request.manifest_path, self._exec_backend)
+        except BaseException as exc:
+            self._fail(f'self-update exec failed: {type(exc).__name__}: {exc}')
+            raise SystevisorSelfUpdateError(self._message or 'self-update exec failed') from exc
+
+    def _cleanup_workspace(self) -> None:
+        request = self._request
+        if request is None:
+            return
+        for path in (request.probe_request_path, request.probe_result_path, request.manifest_path):
+            try:
+                os.unlink(path)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
+        try:
+            os.rmdir(request.workspace)
+        except OSError:
+            pass
+
+    def _fail(self, message: str) -> None:
+        request = self._request
+        self._phase = SystevisorSelfUpdatePhase.FAILED
+        self._message = message
+        if request is not None:
+            request.probe_deadline_at = None
+            self._operations.finish(
+                request.operation,
+                SystevisorOperationStatus.FAILED,
+                message=message,
+            )
+        self._event_bus.publish('self_update.failed', self.state, self._clock.monotonic())
+        self._cleanup_workspace()
+
+    def complete_resume(self, operation_id: str, source_sha256: str) -> None:
+        operation = self._operations.get(operation_id)
+        if operation is None or operation.kind != 'manager.self_update':
+            raise SystevisorSelfUpdateError(f'self-update operation was not restored: {operation_id}')
+        if operation.status is not SystevisorOperationStatus.PENDING:
+            raise SystevisorSelfUpdateError(f'self-update operation is not pending: {operation_id}')
+        self._operations.finish(
+            operation,
+            SystevisorOperationStatus.SUCCEEDED,
+            data={'source_sha256': source_sha256, 'manager_pid': os.getpid()},
+        )
+        self._event_bus.publish('self_update.completed', {
+            'operation_id': operation_id,
+            'source_sha256': source_sha256,
+        }, self._clock.monotonic())
+
+    def fail_resume(self, operation_id: str, message: str) -> None:
+        operation = self._operations.get(operation_id)
+        if operation is None or operation.kind != 'manager.self_update':
+            raise SystevisorSelfUpdateError(f'self-update operation was not restored: {operation_id}')
+        if operation.status is not SystevisorOperationStatus.PENDING:
+            raise SystevisorSelfUpdateError(f'self-update operation is not pending: {operation_id}')
+        self._operations.finish(operation, SystevisorOperationStatus.FAILED, message=message)
+        self._event_bus.publish('self_update.rolled_back', {
+            'operation_id': operation_id,
+            'message': message,
+        }, self._clock.monotonic())
+
+    def close(self) -> None:
+        self._closed = True
+        request = self._request
+        if self._phase is SystevisorSelfUpdatePhase.PROBING and request is not None:
+            try:
+                self._process_manager.signal(request.probe_run_id, 'KILL', SystevisorSignalScope.PROCESS)
+            except Exception:  # noqa: BLE001, S110
+                pass
+        elif self._phase is SystevisorSelfUpdatePhase.PREPARED:
+            self._fail('manager closed before the prepared self-update executed')
+
+
+def systevisor_run_self_update_probe(
+        request_path: str,
+        result_path: str,
+        current_source_path: str,
+) -> int:
+    source_digest = ''
+    try:
+        request = systevisor_self_update_probe_request_from_obj(
+            systevisor_self_update_read_json(request_path),
+        )
+        current_source = os.path.realpath(current_source_path)
+        if current_source != request.source_path:
+            raise SystevisorSelfUpdateCodecError(
+                f'candidate source path mismatch: {current_source!r} != {request.source_path!r}',
+            )
+        source_digest = systevisor_self_update_source_sha256(current_source)
+        if source_digest != request.source_sha256:
+            raise SystevisorSelfUpdateCodecError('candidate source digest mismatch')
+        snapshot = systevisor_decode_snapshot(request.config, request.config_digest, ())
+        diagnostics = systevisor_validate_config(snapshot.config)
+        if diagnostics:
+            raise SystevisorSelfUpdateCodecError(
+                '; '.join(f'{diagnostic.code}: {diagnostic.message}' for diagnostic in diagnostics),
+            )
+        result = SystevisorSelfUpdateProbeResult(
+            schema_version=SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION,
+            accepted=True,
+            source_sha256=source_digest,
+        )
+        exit_code = 0
+    except Exception as exc:  # noqa: BLE001
+        result = SystevisorSelfUpdateProbeResult(
+            schema_version=SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION,
+            accepted=False,
+            source_sha256=source_digest,
+            message=f'{type(exc).__name__}: {exc}',
+        )
+        exit_code = 2
+    try:
+        systevisor_self_update_atomic_write_json(
+            result_path,
+            systevisor_self_update_probe_result_to_obj(result),
+        )
+    except OSError:
+        return 2
+    return exit_code
+
+
+########################################
 # ../resources/inject.py
 
 
@@ -30728,6 +33232,18 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
 
 
 ########################################
+# ../selfupdate/inject.py
+
+
+def systevisor_bind_self_update() -> InjectorBindings:
+    return inj.as_bindings(
+        inj.bind(SystevisorPosixSelfUpdateExecBackend, singleton=True),
+        inj.bind(SystevisorSelfUpdateExecBackend, to_key=SystevisorPosixSelfUpdateExecBackend),
+        inj.bind(SystevisorSelfUpdateManager, singleton=True),
+    )
+
+
+########################################
 # ../control/api.py
 
 
@@ -30923,6 +33439,7 @@ class SystevisorApiApplication:
             json_codec: SystevisorJsonCodec,
             scheduler: SystevisorScheduler,
             resource_observer: SystevisorResourceObserver,
+            self_update_manager: SystevisorSelfUpdateManager,
     ) -> None:
         self._control = control
         self._config_controller = config_controller
@@ -30931,6 +33448,7 @@ class SystevisorApiApplication:
         self._json_codec = json_codec
         self._scheduler = scheduler
         self._resource_observer = resource_observer
+        self._self_update_manager = self_update_manager
 
     def _json_response(self, value: ta.Any, status: int = 200) -> SystevisorApiResponse:
         return SystevisorApiResponse(status=status, body=self._json_codec.dumps(value))
@@ -31031,7 +33549,11 @@ class SystevisorApiApplication:
             content_type=log_stream.content_type,
         )
 
-    def _dispatch(self, request: SystevisorApiRequest) -> SystevisorApiResult:
+    def _dispatch(
+            self,
+            request: SystevisorApiRequest,
+            body: ta.Mapping[str, ta.Any],
+    ) -> SystevisorApiResult:
         parsed = urllib.parse.urlsplit(request.target)
         segments = tuple(urllib.parse.unquote(part) for part in parsed.path.split('/') if part)
         query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
@@ -31055,6 +33577,8 @@ class SystevisorApiApplication:
             return self._json_response({'collections': tuple(state.collections.values())})
         if method == 'GET' and segments == ('v1', 'schedules'):
             return self._json_response({'schedules': tuple(self._scheduler.states.values())})
+        if method == 'GET' and segments == ('v1', 'self-update'):
+            return self._json_response(self._self_update_manager.state)
         if method == 'GET' and segments == ('v1', 'resources'):
             return self._json_response({
                 'runs': tuple(self._resource_observer.states.values()),
@@ -31104,6 +33628,11 @@ class SystevisorApiApplication:
             operation = self._control.reload_config()
         elif method == 'POST' and segments == ('v1', '_shutdown'):
             operation = self._control.shutdown()
+        elif method == 'POST' and segments == ('v1', '_self_update'):
+            source = body.get('source')
+            if not isinstance(source, str) or not source:
+                raise SystevisorApiError(400, 'invalid_body', 'self-update requires a non-empty source path')
+            operation = self._self_update_manager.request(source)
         elif method == 'POST' and len(segments) == 4 and segments[:2] == ('v1', 'units'):
             if segments[3] not in ('_start', '_stop'):
                 raise SystevisorApiError(404, 'not_found', 'route not found')
@@ -31129,11 +33658,14 @@ class SystevisorApiApplication:
 
     def handle(self, request: SystevisorApiRequest) -> SystevisorApiResult:
         try:
+            body: ta.Mapping[str, ta.Any] = {}
             if request.body:
-                body = self._json_codec.loads(request.body)
-                if body is not None and not isinstance(body, dict):
+                raw_body = self._json_codec.loads(request.body)
+                if raw_body is not None and not isinstance(raw_body, dict):
                     raise SystevisorApiError(400, 'invalid_body', 'request JSON body must be an object')
-            return self._dispatch(request)
+                if raw_body is not None:
+                    body = raw_body
+            return self._dispatch(request, body)
         except SystevisorApiError as error:
             return self._error_response(error)
         except (UnicodeDecodeError, ValueError) as exc:
@@ -31708,6 +34240,7 @@ class SystevisorMainServerContext:
             systevisor_bind_platforms(),
             systevisor_bind_resources(),
             systevisor_bind_runtime(),
+            systevisor_bind_self_update(),
             systevisor_bind_control(bootstrap),
         )
         self._state_directory = args.state_directory
@@ -31721,6 +34254,7 @@ class SystevisorMainServerContext:
         self.scheduler: ta.Optional[SystevisorScheduler] = None
         self.resource_observer: ta.Optional[SystevisorResourceObserver] = None
         self.inherited_sockets: ta.Optional[SystevisorInheritedSocketRegistry] = None
+        self.self_update: ta.Optional[SystevisorSelfUpdateManager] = None
 
     def compile(self) -> SystevisorConfigCompileResult:
         bootstrap = self._injector.provide(SystevisorControlBootstrapConfig)
@@ -31751,6 +34285,12 @@ class SystevisorMainServerContext:
             self.scheduler = self._injector.provide(SystevisorScheduler)
             self.scheduler.set_state_directory_override(self._state_directory)
             self.resource_observer = self._injector.provide(SystevisorResourceObserver)
+            self.self_update = self._injector.provide(SystevisorSelfUpdateManager)
+            self.self_update.configure_mode(
+                'run' if startup_collection is not None else 'serve',
+                None if startup_collection is None else str(startup_collection),
+                os.path.realpath(sys.argv[0]),
+            )
             self.control_plane = self._injector.provide(SystevisorControlPlane)
             coordinator.engine.state.startup_collection = startup_collection
 
@@ -31761,11 +34301,69 @@ class SystevisorMainServerContext:
             ta.cast(SystevisorManagerRuntime, self.manager_runtime).ready()
         return result
 
+    def resume(
+            self,
+            handoff: SystevisorDecodedHandoff,
+            *,
+            completion_error: ta.Optional[str] = None,
+    ) -> None:
+        manifest = handoff.manifest
+        inherited_sockets = self._injector.provide(SystevisorInheritedSocketRegistry)
+        inherited_sockets.rehydrate(handoff.inherited_sockets)
+        self.inherited_sockets = inherited_sockets
+
+        manager_runtime = self._injector.provide(SystevisorManagerRuntime)
+        manager_runtime.rehydrate(handoff.manager_runtime, handoff.pid_file_fd)
+        self.manager_runtime = manager_runtime
+
+        coordinator = self._injector.provide(SystevisorRuntimeCoordinator)
+        self.coordinator = coordinator
+        coordinator.event_bus.rehydrate(handoff.event_bus)
+        coordinator.log_manager.rehydrate(handoff.logs)
+        coordinator.engine.rehydrate(handoff.engine)
+        process_manager = self._injector.provide(SystevisorProcessManager)
+        process_manager.rehydrate(handoff.processes, handoff.engine)
+
+        controller = self._injector.provide(SystevisorConfigController)
+        self.controller = controller
+        self.poller = self._injector.provide(FdioPoller)
+        operations = self._injector.provide(SystevisorOperationStore)
+        operations.rehydrate(handoff.operations)
+        self._injector.provide(SystevisorManagerConfigParticipant)
+        self.control = self._injector.provide(SystevisorControlService)
+        self.scheduler = self._injector.provide(SystevisorScheduler)
+        self.scheduler.set_state_directory_override(self._state_directory)
+        self.resource_observer = self._injector.provide(SystevisorResourceObserver)
+        self.self_update = self._injector.provide(SystevisorSelfUpdateManager)
+        self.self_update.configure_mode(
+            manifest.mode,
+            manifest.startup_collection,
+            os.path.realpath(sys.argv[0]),
+        )
+        self.control_plane = self._injector.provide(SystevisorControlPlane)
+
+        controller.rehydrate(handoff.snapshot)
+        self._injector.provide(SystevisorCgroupManager).rehydrate(
+            handoff.cgroups,
+            process_manager.child_contexts(),
+        )
+        coordinator.rehydrate_process_runtime(handoff.output_fds)
+        controller.install_signal_reload()
+        coordinator.install_signal_handler()
+        systevisor_restore_handoff_cloexec(handoff)
+        manager_runtime.ready()
+        if completion_error is None:
+            self.self_update.complete_resume(manifest.operation_id, manifest.source_sha256)
+        else:
+            self.self_update.fail_resume(manifest.operation_id, completion_error)
+
     def note_stopping(self) -> None:
         if self.manager_runtime is not None:
             self.manager_runtime.stopping()
 
     def close(self) -> None:
+        if self.self_update is not None:
+            self.self_update.close()
         if self.resource_observer is not None:
             self.resource_observer.close()
         if self.scheduler is not None:
@@ -31798,6 +34396,12 @@ def _systevisor_main_serve(args: argparse.Namespace) -> int:
         stopping_noted = False
         while True:
             coordinator.poll()
+            self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
+            if self_update.ready_to_exec():
+                try:
+                    self_update.execute_prepared()
+                except SystevisorSelfUpdateError:
+                    pass
             state = coordinator.engine.state
             if state.shutting_down and not stopping_noted:
                 context.note_stopping()
@@ -31838,6 +34442,12 @@ def _systevisor_main_run(args: argparse.Namespace) -> int:
         stopping_noted = False
         while True:
             coordinator.poll()
+            self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
+            if self_update.ready_to_exec():
+                try:
+                    self_update.execute_prepared()
+                except SystevisorSelfUpdateError:
+                    pass
             state = coordinator.engine.state
             collection = state.collections.get(collection_name)
             current_collection_config = (
@@ -31884,6 +34494,98 @@ def _systevisor_main_run(args: argparse.Namespace) -> int:
         context.close()
 
 
+def _systevisor_main_resume(args: argparse.Namespace, *, rollback: bool = False) -> int:
+    context: ta.Optional[SystevisorMainServerContext] = None
+    manifest = None
+    try:
+        manifest = systevisor_handoff_manifest_from_obj(systevisor_self_update_read_json(args.manifest))
+        handoff = systevisor_decode_handoff(
+            manifest,
+            os.path.realpath(sys.argv[0]),
+            previous_source=rollback,
+        )
+        completion_error: ta.Optional[str] = None
+        if rollback:
+            error_obj = systevisor_self_update_read_json(args.error_file)
+            if not isinstance(error_obj, dict) or not isinstance(error_obj.get('message'), str):
+                raise ValueError('invalid self-update rollback error document')
+            completion_error = error_obj['message']
+        context_args = argparse.Namespace(
+            config=list(manifest.config_paths),
+            recursive=manifest.recursive,
+            state_directory=manifest.state_directory,
+        )
+        context = SystevisorMainServerContext(context_args)
+        context.resume(handoff, completion_error=completion_error)
+        systevisor_cleanup_handoff_files(args.manifest)
+
+        coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
+        collection_name = (
+            None if manifest.startup_collection is None else
+            SystevisorCollectionName(manifest.startup_collection)
+        )
+        exit_code = 0
+        stopping_noted = False
+        shutdown_requested = False
+        while True:
+            coordinator.poll()
+            state = coordinator.engine.state
+            if collection_name is not None and not state.shutting_down and not shutdown_requested:
+                collection = state.collections.get(collection_name)
+                collection_config = (
+                    None if state.snapshot is None else
+                    state.snapshot.config.collections.get(collection_name)
+                )
+                if collection is None or collection_config is None:
+                    exit_code = 2
+                    shutdown_requested = True
+                elif collection.status is SystevisorCollectionStatus.FAILED:
+                    exit_code = 1
+                    shutdown_requested = True
+                elif collection.status is SystevisorCollectionStatus.INACTIVE:
+                    shutdown_requested = True
+                elif collection.status is SystevisorCollectionStatus.READY and all(
+                        state.snapshot is not None and
+                        state.snapshot.config.units[unit_name].kind is SystevisorUnitKind.ONESHOT
+                        for unit_name in collection_config.units
+                ):
+                    shutdown_requested = True
+                elif collection.status is SystevisorCollectionStatus.DEGRADED and all(
+                        instance.run_id is None
+                        for instance in state.instances.values()
+                        if instance.unit_name in collection_config.units
+                ):
+                    exit_code = 1
+                    shutdown_requested = True
+                if shutdown_requested:
+                    coordinator.submit(SystevisorShutdownCommand())
+            if state.shutting_down and not stopping_noted:
+                context.note_stopping()
+                stopping_noted = True
+            if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
+                return exit_code
+    except Exception as exc:  # noqa: BLE001
+        error = 'self_update_rollback_failed' if rollback else 'self_update_resume_failed'
+        message = f'{type(exc).__name__}: {exc}'
+        if not rollback and manifest is not None:
+            try:
+                systevisor_rollback_handoff(manifest, args.manifest, message)
+            except Exception as rollback_exc:  # noqa: BLE001
+                error = 'self_update_rollback_failed'
+                message = (
+                    f'{message}; rollback exec failed: '
+                    f'{type(rollback_exc).__name__}: {rollback_exc}'
+                )
+        _systevisor_main_print_json({
+            'error': error,
+            'message': message,
+        }, SystevisorJsonCodec(), 2)
+        return 2
+    finally:
+        if context is not None:
+            context.close()
+
+
 def _systevisor_main_service_template(args: argparse.Namespace) -> int:
     config = SystevisorServiceTemplateConfig(
         executable=args.executable,
@@ -31911,6 +34613,7 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
 
     method = 'GET'
     target = '/'
+    body: ta.Optional[ta.Any] = None
     if args.command == 'status':
         target = '/'
     elif args.command == 'units':
@@ -31942,6 +34645,9 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
         target = f'/v1/instances/{urllib.parse.quote(args.instance, safe="")}/_restart'
     elif args.command == 'shutdown':
         method, target = 'POST', '/v1/_shutdown'
+    elif args.command == 'self-update':
+        method, target = 'POST', '/v1/_self_update'
+        body = {'source': args.source}
     elif args.command == 'events':
         query: ta.List[ta.Tuple[str, ta.Any]] = [('after', args.after)]
         query.extend(('topic', topic) for topic in args.topic)
@@ -31977,7 +34683,7 @@ def _systevisor_main_client(args: argparse.Namespace) -> int:
             except KeyboardInterrupt:
                 return 130
 
-    response = client.request(method, target)
+    response = client.request(method, target, body)
     try:
         value = codec.loads(response.body)
     except (UnicodeDecodeError, json.JSONDecodeError):
@@ -32025,6 +34731,20 @@ def _systevisor_main_parser() -> argparse.ArgumentParser:
     ):
         subparsers.add_parser(command)
 
+    self_update = subparsers.add_parser('self-update')
+    self_update.add_argument('source')
+
+    self_update_probe = subparsers.add_parser('_self-update-probe', help=argparse.SUPPRESS)
+    self_update_probe.add_argument('--request', required=True)
+    self_update_probe.add_argument('--result', required=True)
+
+    self_update_resume = subparsers.add_parser('_self-update-resume', help=argparse.SUPPRESS)
+    self_update_resume.add_argument('--manifest', required=True)
+
+    self_update_rollback = subparsers.add_parser('_self-update-rollback', help=argparse.SUPPRESS)
+    self_update_rollback.add_argument('--manifest', required=True)
+    self_update_rollback.add_argument('--error-file', required=True)
+
     resources = subparsers.add_parser('resources')
     resources.add_argument('run_id', type=int, nargs='?')
 
@@ -32061,6 +34781,12 @@ def systevisor_main(argv: ta.Optional[ta.Sequence[str]] = None) -> int:
         return _systevisor_main_serve(args)
     if args.command == 'run':
         return _systevisor_main_run(args)
+    if args.command == '_self-update-probe':
+        return systevisor_run_self_update_probe(args.request, args.result, os.path.realpath(sys.argv[0]))
+    if args.command == '_self-update-resume':
+        return _systevisor_main_resume(args)
+    if args.command == '_self-update-rollback':
+        return _systevisor_main_resume(args, rollback=True)
     return _systevisor_main_client(args)
 
 

@@ -53,6 +53,24 @@ from x.systevisor.runtime.logs import SystevisorLogStream
 from x.systevisor.runtime.processes import SystevisorProcessManager
 from x.systevisor.scheduling.runtime import SystevisorJsonScheduleStateStore
 from x.systevisor.scheduling.runtime import SystevisorScheduler
+from x.systevisor.selfupdate.models import SystevisorSelfUpdatePhase
+from x.systevisor.selfupdate.models import SystevisorSelfUpdateState
+
+
+class SystevisorControlTestSelfUpdateManager:
+    @property
+    def state(self) -> SystevisorSelfUpdateState:
+        return SystevisorSelfUpdateState(
+            state_schema_version=1,
+            phase=SystevisorSelfUpdatePhase.IDLE,
+            operation_id=None,
+            source_path=None,
+            source_sha256=None,
+            requested_at=None,
+            probe_run_id=None,
+            deadline_at=None,
+            message=None,
+        )
 
 
 class SystevisorControlTestFixture:
@@ -142,6 +160,7 @@ class SystevisorControlTestFixture:
             self.codec,
             self.scheduler,
             self.resource_observer,
+            ta.cast(ta.Any, SystevisorControlTestSelfUpdateManager()),
         )
 
     def close(self) -> None:

@@ -96,6 +96,10 @@ class SystevisorConfigController:
         return self._recursive
 
     @property
+    def state_directory(self) -> ta.Optional[str]:
+        return self._state_directory
+
+    @property
     def last_attempt(self) -> ta.Optional[SystevisorConfigAttempt]:
         return self._last_attempt
 
@@ -210,6 +214,27 @@ class SystevisorConfigController:
             result,
             applied,
         )
+
+    def rehydrate(self, snapshot: SystevisorConfigSnapshot) -> None:
+        active = self._coordinator.engine.state.snapshot
+        if active is None or active.digest != snapshot.digest:
+            raise RuntimeError('engine and controller handoff snapshots do not match')
+        prepared: ta.List[SystevisorConfigPreparedChange] = []
+        try:
+            for participant in self._participants:
+                prepared.append(participant.prepare(snapshot))
+        except BaseException:
+            for change in reversed(prepared):
+                change.rollback()
+            raise
+        try:
+            for change in prepared:
+                change.commit()
+        except BaseException:
+            for change in reversed(prepared):
+                change.rollback()
+            raise
+        self._coordinator.configure_snapshot_runtime(snapshot)
 
     def _effective_state_directory(self, snapshot: ta.Optional[SystevisorConfigSnapshot]) -> ta.Optional[str]:
         if self._state_directory is not None:
