@@ -71,7 +71,7 @@ class _RecordingHttpRuntime:
         self.shutdown = threading.Event()
         self.active_count = 0
         self.acquisitions = 0
-        self._lock = threading.Lock()
+        self._condition = threading.Condition()
 
     @property
     def shutdown_requested(self) -> bool:
@@ -85,14 +85,22 @@ class _RecordingHttpRuntime:
 
     @contextlib.contextmanager
     def _activity(self):
-        with self._lock:
+        with self._condition:
             self.active_count += 1
             self.acquisitions += 1
         try:
             yield
         finally:
-            with self._lock:
+            with self._condition:
                 self.active_count -= 1
+                self._condition.notify_all()
+
+    def wait_inactive(self, timeout_s: float | None) -> bool:
+        with self._condition:
+            return self._condition.wait_for(
+                lambda: self.active_count == 0,
+                timeout_s,
+            )
 
     def acquire_activity(self) -> ta.ContextManager[ta.Any] | None:
         if self.shutdown.is_set():
@@ -130,10 +138,12 @@ def test_sync_pipeline_http_health_is_separate_from_application_dispatch():
         ) == (201, b'application')
         assert calls == [('/work', b'payload')]
         assert runtime.acquisitions == 1
+        assert runtime.wait_inactive(TEST_TIMEOUT_S)
         assert runtime.active_count == 0
         assert _http_request(server.bound_address, '/failure') == (500, b'internal server error')
         assert calls == [('/work', b'payload'), ('/failure', b'')]
         assert runtime.acquisitions == 2
+        assert runtime.wait_inactive(TEST_TIMEOUT_S)
         assert runtime.active_count == 0
     finally:
         runtime.request_shutdown()
