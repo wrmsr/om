@@ -50,7 +50,8 @@ class StatusBar(Control):
 
         if left_w + right_w + 1 <= width:
             filler = ' ' * (width - left_w - right_w)
-            return [[*self._left, Segment(filler), *self._right]]
+            # The gap carries the bar tag so bar backgrounds span the full width.
+            return [[*self._left, Segment(filler, 'status.bar'), *self._right]]
 
         return [
             *wrap_segments(self._left, width),

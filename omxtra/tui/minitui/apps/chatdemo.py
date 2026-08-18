@@ -39,91 +39,21 @@ from ..runtime.drivers import SyncDriver
 from ..screens.cells import Frame
 from ..screens.cells import line_from_segments
 from ..surfaces.inlines import InlineSurface
-from ..text.colors import BLACK
-from ..text.colors import BRIGHT_BLACK
-from ..text.colors import BRIGHT_BLUE
-from ..text.colors import BRIGHT_CYAN
-from ..text.colors import BRIGHT_GREEN
-from ..text.colors import BRIGHT_MAGENTA
-from ..text.colors import BRIGHT_YELLOW
-from ..text.colors import CYAN
-from ..text.colors import GREEN
-from ..text.colors import MAGENTA
-from ..text.colors import RED
-from ..text.colors import YELLOW
-from ..text.colors import RgbColor
 from ..text.markdown import parse_markdown
 from ..text.segments import Segment
 from ..text.styles import Style
-from ..text.styles import Theme
-from ..vim.status import SEARCH_CURRENT_TAG
-from ..vim.status import SEARCH_MATCH_TAG
-from ..vim.status import SELECTION_TAG
+from ..text.themes import DEFAULT_THEME
+from ..text.themes import SUCCESS
+from ..text.themes import TEXT_SECONDARY
 
 
 ##
 
 
-CODE_BG = RgbColor(40, 40, 48)
-
-CHAT_THEME = Theme({
-    'speaker.ai': Style(fg=GREEN, bold=True),
-    'speaker.you': Style(fg=MAGENTA, bold=True),
-    'speaker.num': Style(fg=BRIGHT_BLACK),
-    'status.spinner': Style(fg=CYAN),
-    'status.dim': Style(fg=BRIGHT_BLACK),
-    'status.mode': Style(fg=YELLOW, bold=True),
-    'input.glyph': Style(fg=CYAN, bold=True),
-    'error': Style(fg=RED, bold=True),
-
-    'md.h1': Style(fg=BRIGHT_CYAN, bold=True),
-    'md.h2': Style(fg=CYAN, bold=True),
-    'md.h3': Style(fg=CYAN),
-    'md.bold': Style(bold=True),
-    'md.italic': Style(italic=True),
-    'md.strike': Style(strike=True),
-    'md.code.inline': Style(fg=BRIGHT_YELLOW),
-    'md.code': Style(bg=CODE_BG),
-    'md.quote': Style(fg=BRIGHT_BLACK, italic=True),
-    'md.quote.marker': Style(fg=BRIGHT_BLACK),
-    'md.list.marker': Style(fg=CYAN),
-    'md.link': Style(fg=BRIGHT_BLUE, underline=True),
-    'md.link.url': Style(fg=BRIGHT_BLACK),
-    'md.rule': Style(fg=BRIGHT_BLACK),
-
-    'code.keyword': Style(fg=BRIGHT_MAGENTA, bg=CODE_BG),
-    'code.builtin': Style(fg=CYAN, bg=CODE_BG),
-    'code.def': Style(fg=BRIGHT_GREEN, bg=CODE_BG, bold=True),
-    'code.string': Style(fg=BRIGHT_YELLOW, bg=CODE_BG),
-    'code.comment': Style(fg=BRIGHT_BLACK, bg=CODE_BG, italic=True),
-    'code.number': Style(fg=BRIGHT_CYAN, bg=CODE_BG),
-    'code.decorator': Style(fg=YELLOW, bg=CODE_BG),
-    'code.diff.add': Style(fg=GREEN, bg=CODE_BG),
-    'code.diff.del': Style(fg=RED, bg=CODE_BG),
-    'code.diff.hunk': Style(fg=CYAN, bg=CODE_BG),
-    'code.diff.meta': Style(fg=BRIGHT_BLACK, bg=CODE_BG),
-
-    'card.expander': Style(fg=BRIGHT_BLACK),
-    'card.summary': Style(bold=True),
-    'card.summary.dim': Style(fg=BRIGHT_BLACK),
-    'card.glyph.pending': Style(fg=BRIGHT_BLACK),
-    'card.glyph.confirming': Style(fg=YELLOW, bold=True),
-    'card.glyph.running': Style(fg=CYAN, bold=True),
-    'card.glyph.complete': Style(fg=GREEN, bold=True),
-    'card.glyph.denied': Style(fg=RED, bold=True),
-    'card.glyph.failed': Style(fg=RED, bold=True),
-    'card.allow': Style(fg=BLACK, bg=GREEN, bold=True),
-    'card.deny': Style(fg=BLACK, bg=RED, bold=True),
-    'card.detail': Style(fg=BRIGHT_BLACK),
-
-    'popup.label': Style(fg=BLACK, bg=CYAN),
-    'popup.desc': Style(fg=BLACK, bg=CYAN, italic=True),
-    'popup.selected': Style(fg=BLACK, bg=BRIGHT_CYAN, bold=True),
-    'popup.selected.desc': Style(fg=BLACK, bg=BRIGHT_CYAN, italic=True),
-
-    SELECTION_TAG: Style(reverse=True),
-    SEARCH_MATCH_TAG: Style(fg=BLACK, bg=YELLOW),
-    SEARCH_CURRENT_TAG: Style(fg=BLACK, bg=BRIGHT_YELLOW, bold=True),
+CHAT_THEME = DEFAULT_THEME.extend({
+    'speaker.ai': Style(fg=SUCCESS, bold=True),
+    'speaker.you': Style(fg=TEXT_SECONDARY, bold=True),
+    'speaker.num': Style(fg=TEXT_SECONDARY),
 })
 
 

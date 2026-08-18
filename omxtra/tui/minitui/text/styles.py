@@ -85,5 +85,10 @@ class Theme:
             return style
         return self._styles.get(style, EMPTY_STYLE)
 
+    def extend(self, styles: ta.Mapping[str, Style]) -> Theme:
+        """A new Theme with `styles` layered over this one's entries (whole-entry replacement per tag)."""
+
+        return Theme({**self._styles, **styles})
+
 
 EMPTY_THEME = Theme()

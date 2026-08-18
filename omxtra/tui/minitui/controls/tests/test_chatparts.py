@@ -125,3 +125,24 @@ def test_stack_layout_hit_regions():
     layout = stack_layout([a, b], width=10, max_height=2, theme=EMPTY_THEME)
     assert layout.hit(0) == (a, 1)
     assert layout.hit(1) == (b, 0)
+
+
+def test_confirmation_card_resolves_to_soft_truecolor():
+    # The default theme renders the allow/deny buttons with muted RgbColors - never ANSI named green/red.
+    from ...screens.cells import line_from_segments  # noqa: PLC0415
+    from ...text.colors import RgbColor  # noqa: PLC0415
+    from ...text.themes import DEFAULT_THEME  # noqa: PLC0415
+
+    card = Card(
+        [('tool()', 'card.summary')],
+        state=CardState.CONFIRMING,
+        detail=[[Segment('args')]],
+        on_confirm=lambda v: None,
+    )
+    rows = card.render(40)
+    confirm_row = next(r for r in rows if 'allow' in segments_text(r))
+    line = line_from_segments(confirm_row, DEFAULT_THEME)
+    button_styles = {cell.style for cell in line.cells if cell.style.bg is not None}
+    assert button_styles, 'confirmation buttons must carry background styles'
+    for style in button_styles:
+        assert isinstance(style.bg, RgbColor), style

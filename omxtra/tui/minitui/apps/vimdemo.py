@@ -22,49 +22,37 @@ from ..runtime.drivers import App
 from ..runtime.drivers import SyncDriver
 from ..screens.cells import Frame
 from ..surfaces.alts import AltSurface
-from ..text.colors import BLACK
-from ..text.colors import BRIGHT_BLACK
-from ..text.colors import BRIGHT_CYAN
-from ..text.colors import BRIGHT_YELLOW
-from ..text.colors import CYAN
-from ..text.colors import GREEN
-from ..text.colors import MAGENTA
-from ..text.colors import RED
-from ..text.colors import WHITE
-from ..text.colors import YELLOW
 from ..text.highlights import get_highlighter
 from ..text.segments import Segment
 from ..text.styles import Style
-from ..text.styles import Theme
-from ..vim.status import SEARCH_CURRENT_TAG
-from ..vim.status import SEARCH_MATCH_TAG
-from ..vim.status import SELECTION_TAG
+from ..text.themes import DEFAULT_THEME
+from ..text.themes import FOREGROUND
+from ..text.themes import PRIMARY
+from ..text.themes import SURFACE
+from ..text.themes import TEXT_PRIMARY
+from ..text.themes import TEXT_SECONDARY
 
 
 ##
 
 
-VIM_THEME = Theme({
-    'filler': Style(fg=BRIGHT_BLACK),
-    'code.keyword': Style(fg=MAGENTA, bold=True),
-    'code.builtin': Style(fg=CYAN),
-    'code.def': Style(fg=GREEN, bold=True),
-    'code.string': Style(fg=YELLOW),
-    'code.comment': Style(fg=BRIGHT_BLACK, italic=True),
-    'code.number': Style(fg=BRIGHT_CYAN),
-    'code.decorator': Style(fg=YELLOW),
-    'code.type': Style(fg=CYAN),
-    'code.diff.add': Style(fg=GREEN),
-    'code.diff.del': Style(fg=RED),
-    'code.diff.hunk': Style(fg=CYAN),
-    'code.diff.meta': Style(fg=BRIGHT_BLACK),
-    'status.bar': Style(fg=BLACK, bg=WHITE),
-    'status.mode': Style(fg=BLACK, bg=WHITE, bold=True),
-    'status.file': Style(fg=BLACK, bg=WHITE, bold=True),
-    SELECTION_TAG: Style(reverse=True),
-    SEARCH_MATCH_TAG: Style(fg=BLACK, bg=YELLOW),
-    SEARCH_CURRENT_TAG: Style(fg=BLACK, bg=BRIGHT_YELLOW, bold=True),
-    'msg': Style(fg=CYAN),
+# Fullscreen editor: untinted syntax (no code-block background) and a surface-backed status bar.
+VIM_THEME = DEFAULT_THEME.extend({
+    'filler': Style(fg=TEXT_SECONDARY),
+    'msg': Style(fg=TEXT_PRIMARY),
+    'status.bar': Style(fg=FOREGROUND, bg=SURFACE),
+    'status.mode': Style(fg=PRIMARY, bg=SURFACE, bold=True),
+    'status.file': Style(fg=FOREGROUND, bg=SURFACE, bold=True),
+    **{
+        tag: Style(fg=style.fg, bold=style.bold, italic=style.italic)
+        for tag, style in (
+            (t, DEFAULT_THEME.resolve(t))
+            for t in (
+                'code.keyword', 'code.builtin', 'code.def', 'code.string', 'code.comment', 'code.number',
+                'code.decorator', 'code.type', 'code.diff.add', 'code.diff.del', 'code.diff.hunk', 'code.diff.meta',
+            )
+        )
+    },
 })
 
 

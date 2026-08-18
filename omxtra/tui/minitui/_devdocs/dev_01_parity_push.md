@@ -340,3 +340,27 @@ protocols exist to provide are kept: ctrl+enter (13;5u, the submit chord), ctrl+
 Parser regression tests for both wire forms + kept-distinctions; verified end-to-end that kitty-wire ctrl+[ leaves
 INSERT in a TextArea. (Also removed the pycache-husk dirs left at omxtra/tui/<pkg> by the minitui re-nesting;
 package now lives at omxtra/tui/minitui alongside apps/txpython.)
+
+## 2026-08-18: colors - default dark theme from textual-dark
+
+Owner wanted minitui prettier before the omllm wiring: soft default scheme (the tool-confirmation ANSI bg=GREEN/RED
+was the poster child), textual-dark as reference (dumped hexes at omdev/tui/rich/textual/dark.py). Settled: truecolor
+authoring w/ auto-downgrade, subtle bg accents, full scope incl. syntax. One commit (cd6a23aab):
+- text/themes.py: DARK_THEME/DEFAULT_THEME - palette constants parsed from the dump (values copied, no omdev import),
+  covering every library tag (md.h1-6/code.*/card.*/popup.*/vim.*/status.*). Deliberate divergences documented in
+  the module docstring: code-block bg uses surface #1E1E1E (fence #101010 is invisible on near-black terminals),
+  code.def bold not underline, syntax styles carry the block bg themselves (no bg-inheritance rule - fullscreen
+  apps strip it via extend, as vimdemo does).
+- colors.py: parse_rgb (#RGB/#RRGGBB, alpha rejected - dump pre-blends) + detect_color_depth (COLORTERM truecolor/
+  24bit -> TRUE; TERM 256color -> 256; direct/truecolor -> TRUE; dumb -> MONO; else 16). Surfaces' depth param is
+  now `ColorDepth | None = None` -> detect; tests/harness pins TRUE for deterministic captures.
+- styles.py: Theme.extend (dict overlay, whole-entry replacement per tag).
+- Mechanical: md heading clamp 3->6 (all backends route through MdHeading.of, one site + render retag); status-bar
+  filler tagged 'status.bar'.
+- Demos: DEFAULT_THEME.extend({app-locals}) - chatdemo's 45-entry dict + CODE_BG gone; confirmation buttons now
+  #121212-on-#71AC84 / #E0E0E0-on-#B93C5B.
+- Tests 195 -> 204: parse_rgb/detect matrix, theme-coverage (every library tag resolves non-empty AND uses no
+  NamedColor - the no-jarring-ANSI invariant), md.h4-6 retag, confirmation-card cells resolve to RgbColor.
+  Green 3.14 + 3.14t; ruff/mypy clean. SGR ladder verified: #0178D4 -> 38;2;1;120;212 / 38;5;32 / cyan.
+- Owner should eyeball chatdemo (+ --md=pdcmark) and vimdemo for taste tweaks - hexes are all named constants in
+  themes.py, trivially adjustable.

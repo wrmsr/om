@@ -27,36 +27,21 @@ from ..runtime.drivers import SyncDriver
 from ..screens.cells import Frame
 from ..screens.cells import line_from_segments
 from ..surfaces.inlines import InlineSurface
-from ..text.colors import BLACK
-from ..text.colors import BRIGHT_BLACK
-from ..text.colors import BRIGHT_YELLOW
-from ..text.colors import CYAN
-from ..text.colors import GREEN
-from ..text.colors import MAGENTA
-from ..text.colors import YELLOW
 from ..text.segments import Segment
 from ..text.styles import Style
-from ..text.styles import Theme
+from ..text.themes import DEFAULT_THEME
+from ..text.themes import SUCCESS
+from ..text.themes import TEXT_SECONDARY
 from ..text.wraps import wrap_segments
-from ..vim.status import SEARCH_CURRENT_TAG
-from ..vim.status import SEARCH_MATCH_TAG
-from ..vim.status import SELECTION_TAG
 from .streamdemo import PARAGRAPHS
 
 
 ##
 
 
-DEMO_THEME = Theme({
-    'speaker.ai': Style(fg=GREEN, bold=True),
-    'speaker.you': Style(fg=MAGENTA, bold=True),
-    'status.spinner': Style(fg=CYAN),
-    'status.dim': Style(fg=BRIGHT_BLACK),
-    'status.mode': Style(fg=YELLOW, bold=True),
-    'input.glyph': Style(fg=CYAN, bold=True),
-    SELECTION_TAG: Style(reverse=True),
-    SEARCH_MATCH_TAG: Style(fg=BLACK, bg=YELLOW),
-    SEARCH_CURRENT_TAG: Style(fg=BLACK, bg=BRIGHT_YELLOW, bold=True),
+DEMO_THEME = DEFAULT_THEME.extend({
+    'speaker.ai': Style(fg=SUCCESS, bold=True),
+    'speaker.you': Style(fg=TEXT_SECONDARY, bold=True),
 })
 
 

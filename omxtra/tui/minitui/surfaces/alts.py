@@ -15,6 +15,7 @@ from ..screens.cells import render_cells
 from ..screens.diffs import LineUpdate
 from ..screens.diffs import diff_frames
 from ..text.colors import ColorDepth
+from ..text.colors import detect_color_depth
 from ..tty.terminals import Tty
 from .bases import Surface
 from .writers import TermWriter
@@ -29,7 +30,7 @@ class AltSurface(Surface):
             tty: Tty | None = None,
             *,
             term: str | None = None,
-            depth: ColorDepth = ColorDepth.TRUE,
+            depth: ColorDepth | None = None,
             kitty_keys: bool = False,
             mouse: bool = False,
     ) -> None:
@@ -37,7 +38,7 @@ class AltSurface(Surface):
 
         self._tty = tty if tty is not None else Tty()
         self._writer = TermWriter(self._tty, term=term)
-        self._depth = depth
+        self._depth = depth if depth is not None else detect_color_depth()
         self._kitty_keys = kitty_keys
         self._mouse = mouse
 

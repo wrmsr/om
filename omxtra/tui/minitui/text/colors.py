@@ -8,6 +8,7 @@ a concrete palette table for 16-color terminals (excluding greys for saturated c
 import colorsys
 import enum
 import functools
+import os
 import typing as ta
 
 from omcore import check
@@ -63,6 +64,48 @@ class RgbColor(Color, lang.Final):
 
     def __post_init__(self) -> None:
         check.arg(0 <= self.r <= 255 and 0 <= self.g <= 255 and 0 <= self.b <= 255)
+
+
+##
+
+
+def parse_rgb(s: str) -> RgbColor:
+    """
+    Parse a `#RRGGBB` (or shorthand `#RGB`) hex string. Alpha forms are deliberately rejected - theme sources are
+    expected to pre-blend alpha against their intended background.
+    """
+
+    check.arg(s.startswith('#'), s)
+    hx = s[1:]
+    if len(hx) == 3:
+        hx = ''.join(c * 2 for c in hx)
+    check.arg(len(hx) == 6, s)
+    return RgbColor(int(hx[0:2], 16), int(hx[2:4], 16), int(hx[4:6], 16))
+
+
+##
+
+
+def detect_color_depth(environ: ta.Mapping[str, str] | None = None) -> ColorDepth:
+    """
+    Sniff the terminal's color depth from the environment - the modern consensus heuristics: COLORTERM for
+    truecolor, a `256color` TERM for the indexed palette, `dumb` for none, 16 colors otherwise.
+    """
+
+    env = environ if environ is not None else os.environ
+
+    if env.get('COLORTERM', '').lower() in ('truecolor', '24bit'):
+        return ColorDepth.TRUE
+
+    term = env.get('TERM', '').lower()
+    if term == 'dumb':
+        return ColorDepth.MONO
+    if '256color' in term:
+        return ColorDepth.ANSI_256
+    if 'truecolor' in term or 'direct' in term:
+        return ColorDepth.TRUE
+
+    return ColorDepth.ANSI_16
 
 
 ##

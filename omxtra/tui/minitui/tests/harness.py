@@ -6,6 +6,7 @@ from ..screens.cells import Frame
 from ..screens.cells import Line
 from ..screens.cells import line_from_segments
 from ..surfaces.inlines import InlineSurface
+from ..text.colors import ColorDepth
 from ..text.segments import Segment
 from ..text.styles import EMPTY_THEME
 from ..text.styles import StyleLike
@@ -65,7 +66,7 @@ class SurfaceHarness:
         super().__init__()
 
         self.tty = RecordingTty(height=height, width=width)
-        self.surface = InlineSurface(self.tty, term='xterm-256color')
+        self.surface = InlineSurface(self.tty, term='xterm-256color', depth=ColorDepth.TRUE)
         self.terminal = Vt100Terminal(rows=height, cols=width)
         self.theme = theme
 

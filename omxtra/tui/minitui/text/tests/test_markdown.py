@@ -189,3 +189,12 @@ def test_pygments_fallback_highlighter():
 
     # Still None for total nonsense.
     assert highlight_code('no-such-language-zzz', ['x']) is None
+
+
+def test_heading_tags_reach_h6():
+    for level in range(1, 7):
+        blk = MdHeading.of(level, 'title')
+        tags = [seg.style for seg in blk.spans]
+        assert tags == [f'md.h{level}'], (level, tags)
+    # Beyond-spec levels clamp to h6.
+    assert [seg.style for seg in MdHeading.of(9, 'x').spans] == ['md.h6']

@@ -49,7 +49,7 @@ class MdHeading(MdBlock, lang.Final):
 
     @classmethod
     def of(cls, level: int, text: str) -> MdHeading:
-        return cls(level, (Segment(text, f'md.h{min(level, 3)}'),) if text else ())
+        return cls(level, (Segment(text, f'md.h{min(level, 6)}'),) if text else ())
 
 
 @dc.dataclass(frozen=True)
@@ -414,7 +414,7 @@ def render_block(
         highlighter: CodeHighlighter | None = None,
 ) -> list[list[Segment]]:
     if isinstance(block, MdHeading):
-        tag = f'md.h{min(block.level, 3)}'
+        tag = f'md.h{min(block.level, 6)}'
         return _render_hanging('#' * block.level + ' ', tag, _retag(block.spans, tag), width)
 
     if isinstance(block, MdParagraph):

@@ -19,21 +19,17 @@ from ..screens.cells import Frame
 from ..screens.cells import Line
 from ..screens.cells import line_from_segments
 from ..surfaces.inlines import InlineSurface
-from ..text.colors import BRIGHT_BLACK
-from ..text.colors import CYAN
-from ..text.colors import GREEN
 from ..text.segments import Segment
 from ..text.styles import Style
-from ..text.styles import Theme
+from ..text.themes import DEFAULT_THEME
+from ..text.themes import SUCCESS
 
 
 ##
 
 
-DEMO_THEME = Theme({
-    'speaker': Style(fg=GREEN, bold=True),
-    'status.spinner': Style(fg=CYAN),
-    'status.text': Style(fg=BRIGHT_BLACK),
+DEMO_THEME = DEFAULT_THEME.extend({
+    'speaker': Style(fg=SUCCESS, bold=True),
 })
 
 
