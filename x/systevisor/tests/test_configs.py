@@ -119,6 +119,55 @@ class TestSystevisorConfigs(unittest.TestCase):
         self.assertFalse(result.is_valid)
         self.assertIn('dependency_cycle', {diagnostic.code for diagnostic in result.diagnostics})
 
+    def test_health_and_empty_collection_policies_are_validated(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = pathlib.Path(temp_dir) / 'config.json'
+            path.write_text(json.dumps({
+                'units': {
+                    'worker': {
+                        'exec': {'argv': ['worker']},
+                        'health': [
+                            {
+                                'name': 'bad-command',
+                                'role': 'liveness',
+                                'kind': 'command',
+                                'argv': ['bad\u0000argument'],
+                                'interval_secs': 0,
+                            },
+                            {
+                                'name': 'bad-http',
+                                'role': 'readiness',
+                                'kind': 'http',
+                                'url': 'https://example.com/ready',
+                                'expected_statuses': [99],
+                            },
+                            {
+                                'name': 'bad-log',
+                                'role': 'liveness',
+                                'kind': 'log_activity',
+                                'channel': 'combined',
+                                'max_quiet_secs': -1,
+                            },
+                        ],
+                    },
+                },
+                'collections': {'empty': {'units': []}},
+            }))
+
+            result = SystevisorConfigCompiler().compile([str(path)])
+
+        self.assertFalse(result.is_valid)
+        expected_codes = {
+            'empty_collection',
+            'invalid_health_argv',
+            'invalid_health_log_policy',
+            'invalid_health_statuses',
+            'invalid_health_timing',
+            'unsupported_health_url',
+        }
+        actual_codes = {diagnostic.code for diagnostic in result.diagnostics}
+        self.assertTrue(expected_codes.issubset(actual_codes), actual_codes)
+
     def test_digest_ignores_source_file_names(self) -> None:
         with tempfile.TemporaryDirectory() as first_dir, tempfile.TemporaryDirectory() as second_dir:
             data = json.dumps({'units': {'service': {'exec': {'argv': ['service']}}}})

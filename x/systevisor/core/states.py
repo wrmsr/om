@@ -20,14 +20,35 @@ class SystevisorDesiredState(enum.Enum):
 
 class SystevisorDesiredOrigin(enum.Enum):
     CONFIG = 'config'
+    COLLECTION = 'collection'
+    COLLECTION_FAILURE = 'collection_failure'
+    DEPENDENCY = 'dependency'
     MANUAL = 'manual'
     SHUTDOWN = 'shutdown'
+    HEALTH = 'health'
 
 
 class SystevisorDeadlineKind(enum.Enum):
     START_STABLE = 'start_stable'
     BACKOFF = 'backoff'
     STOP_ESCALATION = 'stop_escalation'
+    HEALTH_PROBE = 'health_probe'
+
+
+class SystevisorHealthStatus(enum.Enum):
+    UNKNOWN = 'unknown'
+    PENDING = 'pending'
+    PASSING = 'passing'
+    FAILING = 'failing'
+
+
+class SystevisorCollectionStatus(enum.Enum):
+    INACTIVE = 'inactive'
+    STARTING = 'starting'
+    READY = 'ready'
+    STOPPING = 'stopping'
+    DEGRADED = 'degraded'
+    FAILED = 'failed'
 
 
 class SystevisorUnitChangeKind(enum.Enum):

@@ -3,8 +3,10 @@ import typing as ta
 
 
 SystevisorUnitName = ta.NewType('SystevisorUnitName', str)
+SystevisorCollectionName = ta.NewType('SystevisorCollectionName', str)
 SystevisorInstanceId = ta.NewType('SystevisorInstanceId', str)
 SystevisorRunId = ta.NewType('SystevisorRunId', int)
+SystevisorHealthCheckId = ta.NewType('SystevisorHealthCheckId', int)
 
 
 _SYSTEVISOR_IDENTITIES_NAME_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.-]*$')

@@ -23,6 +23,16 @@ class SystevisorEventKind(enum.Enum):
     COMMAND_REJECTED = 'command_rejected'
     STALE_FACT_IGNORED = 'stale_fact_ignored'
     SHUTDOWN_STARTED = 'shutdown_started'
+    HEALTH_PROBE_STARTED = 'health_probe_started'
+    HEALTH_PROBE_RESULT = 'health_probe_result'
+    HEALTH_CHANGED = 'health_changed'
+    READINESS_CHANGED = 'readiness_changed'
+    HEALTH_RECOVERY_REQUESTED = 'health_recovery_requested'
+    COLLECTION_ADDED = 'collection_added'
+    COLLECTION_REMOVED = 'collection_removed'
+    COLLECTION_DESIRED_CHANGED = 'collection_desired_changed'
+    COLLECTION_STATUS_CHANGED = 'collection_status_changed'
+    COLLECTION_STOP_TOGETHER = 'collection_stop_together'
 
 
 @dc.dataclass(frozen=True)

@@ -15,6 +15,7 @@ class SystevisorConfigDiagnosticStage(enum.Enum):
     MERGE = 'merge'
     UNMARSHAL = 'unmarshal'
     VALIDATE = 'validate'
+    PREPARE = 'prepare'
 
 
 @dc.dataclass(frozen=True)

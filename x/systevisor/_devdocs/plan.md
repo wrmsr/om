@@ -39,8 +39,11 @@
 
 ## Phase 6: health, dependencies, and collections
 
-- Implement startup/readiness/liveness roles and process/TCP/HTTP/command/log/composite probes.
-- Complete dependency propagation and compose-like foreground collection behavior.
+- Complete: startup/readiness/liveness roles and process/TCP/HTTP/command/log probes, including owned command children
+  and readiness-driven dependencies.
+- Complete: collection desired claims and aggregate state, releasable transitive dependency claims, `stop_together`,
+  readiness-aware operations, state/API visibility, and compose-like foreground collection runs.
+- Deferred pending a concrete configuration contract: composite probe expressions.
 
 ## Phase 7: deployment and artifact
 

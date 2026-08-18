@@ -2,8 +2,10 @@
 import dataclasses as dc
 import typing as ta
 
+from ..configs.models import SystevisorHealthProbeConfig
 from ..configs.models import SystevisorSignalScope
 from ..configs.snapshots import SystevisorDesiredInstanceSpec
+from .identities import SystevisorHealthCheckId
 from .identities import SystevisorInstanceId
 from .identities import SystevisorRunId
 from .states import SystevisorDeadlineKind
@@ -44,3 +46,12 @@ class SystevisorApplyLiveConfigEffect(SystevisorEngineEffect):
     instance_id: SystevisorInstanceId
     spec: SystevisorDesiredInstanceSpec
     changed_paths: ta.Sequence[str]
+
+
+@dc.dataclass(frozen=True)
+class SystevisorRunHealthProbeEffect(SystevisorEngineEffect):
+    check_id: SystevisorHealthCheckId
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    probe: SystevisorHealthProbeConfig
+    spec: SystevisorDesiredInstanceSpec

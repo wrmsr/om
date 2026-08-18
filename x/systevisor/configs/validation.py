@@ -117,6 +117,19 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'api',
             'tcp_port',
         ))
+    if not 0 <= config.api.unix_socket_mode <= 0o777:
+        errors.append(_systevisor_config_validation_error(
+            'invalid_unix_socket_mode',
+            f'invalid api unix socket mode: {config.api.unix_socket_mode!r}',
+            'api',
+            'unix_socket_mode',
+        ))
+    if config.api.event_backlog < 1 or config.api.stream_queue_bytes < 1:
+        errors.append(_systevisor_config_validation_error(
+            'invalid_api_buffer_limit',
+            'api event_backlog and stream_queue_bytes must be positive',
+            'api',
+        ))
 
     for unit_name, unit in config.units.items():
         unit_path = ('units', unit_name)
@@ -270,46 +283,92 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                 ))
             health_names.add(probe.name)
             health_roles.add(probe.role)
-            if min(
-                    probe.initial_delay_secs,
-                    probe.interval_secs,
-                    probe.timeout_secs,
-                    probe.success_threshold,
-                    probe.failure_threshold,
-            ) < 0 or probe.success_threshold < 1 or probe.failure_threshold < 1:
-                errors.append(_systevisor_config_validation_error(
-                    'invalid_health_timing',
-                    'health timing values must be non-negative and thresholds must be positive',
-                    *probe_path,
-                ))
-            if probe.kind is SystevisorHealthProbeKind.COMMAND and not probe.argv:
-                errors.append(_systevisor_config_validation_error(
-                    'missing_health_argv',
-                    'command health probes require argv',
-                    *probe_path,
-                    'argv',
-                ))
-            if probe.kind is SystevisorHealthProbeKind.HTTP and probe.url is None:
-                errors.append(_systevisor_config_validation_error(
-                    'missing_health_url',
-                    'http health probes require a url',
-                    *probe_path,
-                    'url',
-                ))
-            if probe.kind is SystevisorHealthProbeKind.TCP and (probe.host is None or probe.port is None):
-                errors.append(_systevisor_config_validation_error(
-                    'missing_health_address',
-                    'tcp health probes require host and port',
-                    *probe_path,
-                ))
-            if probe.kind is SystevisorHealthProbeKind.LOG_ACTIVITY and (
-                    probe.channel is None or probe.max_quiet_secs is None
+            if (
+                    probe.initial_delay_secs < 0 or
+                    probe.interval_secs <= 0 or
+                    probe.timeout_secs <= 0 or
+                    probe.success_threshold < 1 or
+                    probe.failure_threshold < 1
             ):
                 errors.append(_systevisor_config_validation_error(
-                    'missing_health_log_policy',
-                    'log activity health probes require channel and max_quiet_secs',
+                    'invalid_health_timing',
+                    'health initial delay must be non-negative; interval, timeout, and thresholds must be positive',
                     *probe_path,
                 ))
+            if probe.kind is SystevisorHealthProbeKind.COMMAND:
+                if not probe.argv:
+                    errors.append(_systevisor_config_validation_error(
+                        'missing_health_argv',
+                        'command health probes require argv',
+                        *probe_path,
+                        'argv',
+                    ))
+                elif any(not isinstance(argument, str) or '\x00' in argument for argument in probe.argv):
+                    errors.append(_systevisor_config_validation_error(
+                        'invalid_health_argv',
+                        'command health probe argv items must be NUL-free strings',
+                        *probe_path,
+                        'argv',
+                    ))
+            if probe.kind is SystevisorHealthProbeKind.HTTP:
+                if probe.url is None:
+                    errors.append(_systevisor_config_validation_error(
+                        'missing_health_url',
+                        'http health probes require a url',
+                        *probe_path,
+                        'url',
+                    ))
+                elif not probe.url.startswith('http://'):
+                    errors.append(_systevisor_config_validation_error(
+                        'unsupported_health_url',
+                        'http health probe urls must use the http scheme',
+                        *probe_path,
+                        'url',
+                    ))
+                if not probe.method or any(character.isspace() for character in probe.method):
+                    errors.append(_systevisor_config_validation_error(
+                        'invalid_health_method',
+                        'http health probe methods must be non-empty and contain no whitespace',
+                        *probe_path,
+                        'method',
+                    ))
+                if not probe.expected_statuses or any(
+                        status < 100 or status > 599
+                        for status in probe.expected_statuses
+                ):
+                    errors.append(_systevisor_config_validation_error(
+                        'invalid_health_statuses',
+                        'http health probe expected statuses must contain valid HTTP status codes',
+                        *probe_path,
+                        'expected_statuses',
+                    ))
+            if probe.kind is SystevisorHealthProbeKind.TCP:
+                if probe.host is None or probe.port is None:
+                    errors.append(_systevisor_config_validation_error(
+                        'missing_health_address',
+                        'tcp health probes require host and port',
+                        *probe_path,
+                    ))
+                elif not 0 < probe.port < 65536:
+                    errors.append(_systevisor_config_validation_error(
+                        'invalid_health_port',
+                        'tcp health probe ports must be between 1 and 65535',
+                        *probe_path,
+                        'port',
+                    ))
+            if probe.kind is SystevisorHealthProbeKind.LOG_ACTIVITY:
+                if probe.channel is None or probe.max_quiet_secs is None:
+                    errors.append(_systevisor_config_validation_error(
+                        'missing_health_log_policy',
+                        'log activity health probes require a stdout/stderr channel and max_quiet_secs',
+                        *probe_path,
+                    ))
+                elif probe.channel not in {'stdout', 'stderr'} or probe.max_quiet_secs < 0:
+                    errors.append(_systevisor_config_validation_error(
+                        'invalid_health_log_policy',
+                        'log activity channel must be stdout/stderr and max_quiet_secs must be non-negative',
+                        *probe_path,
+                    ))
         if SystevisorHealthRole.STARTUP in health_roles and unit.kind is SystevisorUnitKind.ONESHOT:
             errors.append(_systevisor_config_validation_error(
                 'oneshot_startup_probe',
@@ -325,6 +384,13 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                 'invalid_collection_name',
                 f'invalid collection name: {collection_name!r}',
                 *collection_path,
+            ))
+        if not collection.units:
+            errors.append(_systevisor_config_validation_error(
+                'empty_collection',
+                'collections must contain at least one unit',
+                *collection_path,
+                'units',
             ))
         if len(set(collection.units)) != len(collection.units):
             errors.append(_systevisor_config_validation_error(

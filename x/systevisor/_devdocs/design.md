@@ -22,11 +22,21 @@ not injector bindings. Reload never reconstructs the injector.
 Names are stable mapping keys. Renames are remove/add unless an explicit future stable ID says otherwise. A run ID,
 not its current PID, appears in effects and events.
 
+Collection, unit, and dependency desire are explicit claims with documented precedence. An inactive configured
+collection contributes no claim; a manually stopped or failed collection contributes a veto; more specific unit and
+instance overrides win. Dependency claims are a recomputed transitive closure and disappear when their final active
+dependent disappears.
+
 ## Configuration transaction
 
 Sources are discovered deterministically, parsed by extension, merged with strict duplicate rules, explicitly
 rendered, unmarshaled, semantically validated, normalized, and hashed. Only a complete candidate becomes a desired
 snapshot. A failed live candidate records diagnostics but produces no reconciliation effects.
+
+Runtime-owned config consumers participate in a two-phase transaction. They prepare reversible resources against a
+complete candidate before the engine sees it, then commit only after snapshot acceptance. Preparation failure becomes
+a config diagnostic and rolls back all earlier participants. HTTP listener binding is the first implementation of this
+contract.
 
 Each instance records desired and applied specification hashes. The reconciler classifies changed fields. Live policy
 or sink changes update in place; execution changes create a replacement run; grouping-only changes adjust the graph.
@@ -54,6 +64,10 @@ supports replay; each stream has an independent bounded queue and gap/disconnect
 API requests which cannot complete immediately create operations. The CLI may wait by following operation events, but
 the HTTP handler never blocks the reactor waiting for a process transition.
 
+Finite control responses close their HTTP connection. Follow responses use chunked NDJSON and receive same-thread
+event/log callbacks through pipeline notifications. Each stream has a bounded application queue and emits a gap record
+after eviction; transport backpressure never reaches child-pipe draining.
+
 ## Time
 
 Relative lifecycle, restart, health, and shutdown deadlines use a monotonic clock. Calendar schedules use wall time
@@ -70,7 +84,9 @@ backpressure to the child pipe. Text decoding is an adapter with explicit error 
 
 Health is observed state, not process ownership. Startup probes gate the transition into ordinary readiness/liveness
 policy. Readiness gates dependents and availability. Liveness can request recovery. All probe executions are effects;
-their results are facts. Transient command probes use the same owned child machinery as services.
+their results are facts. Transient command probes use the same owned child machinery as services, carry an explicit
+process purpose, and occupy a reserved internal run namespace. Network probes use nonblocking connects and the omcore
+fdio/HTTP pipelines. Runtime timeouts close or signal only capabilities held by the probe runner.
 
 ## Self-update preparation
 

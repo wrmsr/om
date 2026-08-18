@@ -3,6 +3,8 @@ import dataclasses as dc
 import typing as ta
 
 from ..configs.snapshots import SystevisorConfigSnapshot
+from .identities import SystevisorCollectionName
+from .identities import SystevisorHealthCheckId
 from .identities import SystevisorInstanceId
 from .identities import SystevisorRunId
 from .identities import SystevisorUnitName
@@ -35,7 +37,7 @@ class SystevisorSetUnitDesiredCommand(SystevisorEngineCommand):
 
 @dc.dataclass(frozen=True)
 class SystevisorSetCollectionDesiredCommand(SystevisorEngineCommand):
-    collection_name: str
+    collection_name: SystevisorCollectionName
     active: bool
     request_id: ta.Optional[str] = None
 
@@ -78,3 +80,12 @@ class SystevisorProcessExitedFact(SystevisorEngineFact):
 @dc.dataclass(frozen=True)
 class SystevisorDeadlineReachedFact(SystevisorEngineFact):
     deadline_id: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorHealthProbeResultFact(SystevisorEngineFact):
+    check_id: SystevisorHealthCheckId
+    run_id: SystevisorRunId
+    success: bool
+    message: ta.Optional[str] = None
+    data: ta.Mapping[str, ta.Any] = dc.field(default_factory=dict)
