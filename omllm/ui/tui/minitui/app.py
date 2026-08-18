@@ -10,7 +10,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import inject as inj
-from omxtra.tui import minitui as mt
+from omdev.tui import minitui as mt
 
 from ..config import Config
 

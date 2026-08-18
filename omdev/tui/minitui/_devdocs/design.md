@@ -2,7 +2,7 @@
 
 ## Package layout
 
-    omxtra/tui/minitui/
+    omdev/tui/minitui/
       text/        styled text: Color/Style + semantic tags + themes, styled segments/lines,
                    width measurement, SGR emit/parse, color downgrade
       screens/     Cell/Line/Frame, retained-frame line diff, update planning        [pyrepl-derived, PSFL]

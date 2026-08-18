@@ -41,7 +41,7 @@ def _register(**kwargs):
     ),
     plan_repr_sha1='15446939461fccb5bd053a25f8fffbf933f05702',
     cls_names=(
-        ('omxtra.tui.minitui.apps.chatdemo', 'ChatMessage'),
+        ('omdev.tui.minitui.apps.chatdemo', 'ChatMessage'),
     ),
 )
 def _process_dataclass__15446939461fccb5bd053a25f8fffbf933f05702():
@@ -160,7 +160,7 @@ def _process_dataclass__15446939461fccb5bd053a25f8fffbf933f05702():
     ),
     plan_repr_sha1='3cfc026f307312ed7e797ee0dee1ad3d391b54f8',
     cls_names=(
-        ('omxtra.tui.minitui.controls.stacks', 'StackLayout'),
+        ('omdev.tui.minitui.controls.stacks', 'StackLayout'),
     ),
 )
 def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
@@ -277,7 +277,7 @@ def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
     ),
     plan_repr_sha1='954d5e4a36b3798dd4bafdb230b25527804b0d6a',
     cls_names=(
-        ('omxtra.tui.minitui.controls.stacks', 'StackRegion'),
+        ('omdev.tui.minitui.controls.stacks', 'StackRegion'),
     ),
 )
 def _process_dataclass__954d5e4a36b3798dd4bafdb230b25527804b0d6a():
@@ -405,7 +405,7 @@ def _process_dataclass__954d5e4a36b3798dd4bafdb230b25527804b0d6a():
     ),
     plan_repr_sha1='ac9984294423eb5d4108e6894070515566bb8172',
     cls_names=(
-        ('omxtra.tui.minitui.controls.suggestions', 'SuggestionItem'),
+        ('omdev.tui.minitui.controls.suggestions', 'SuggestionItem'),
     ),
 )
 def _process_dataclass__ac9984294423eb5d4108e6894070515566bb8172():
@@ -523,7 +523,7 @@ def _process_dataclass__ac9984294423eb5d4108e6894070515566bb8172():
     ),
     plan_repr_sha1='a2edcce1628e4def1067347058ceedf2ede47b34',
     cls_names=(
-        ('omxtra.tui.minitui.controls.textarea', '_WrapRow'),
+        ('omdev.tui.minitui.controls.textarea', '_WrapRow'),
     ),
 )
 def _process_dataclass__a2edcce1628e4def1067347058ceedf2ede47b34():
@@ -650,7 +650,7 @@ def _process_dataclass__a2edcce1628e4def1067347058ceedf2ede47b34():
     ),
     plan_repr_sha1='f1146d747d05277db997eecaa548f776f4410bcd',
     cls_names=(
-        ('omxtra.tui.minitui.docs.cursors', 'Cursor'),
+        ('omdev.tui.minitui.docs.cursors', 'Cursor'),
     ),
 )
 def _process_dataclass__f1146d747d05277db997eecaa548f776f4410bcd():
@@ -763,7 +763,7 @@ def _process_dataclass__f1146d747d05277db997eecaa548f776f4410bcd():
     ),
     plan_repr_sha1='1d31fac8b4351efdfe1d31d6a3b58146b8e445cd',
     cls_names=(
-        ('omxtra.tui.minitui.docs.edits', 'AppliedEdit'),
+        ('omdev.tui.minitui.docs.edits', 'AppliedEdit'),
     ),
 )
 def _process_dataclass__1d31fac8b4351efdfe1d31d6a3b58146b8e445cd():
@@ -876,7 +876,7 @@ def _process_dataclass__1d31fac8b4351efdfe1d31d6a3b58146b8e445cd():
     ),
     plan_repr_sha1='6b1ef611db996e607e7410d6e9d4ab1b97c3b267',
     cls_names=(
-        ('omxtra.tui.minitui.docs.edits', 'TextEdit'),
+        ('omdev.tui.minitui.docs.edits', 'TextEdit'),
     ),
 )
 def _process_dataclass__6b1ef611db996e607e7410d6e9d4ab1b97c3b267():
@@ -996,7 +996,7 @@ def _process_dataclass__6b1ef611db996e607e7410d6e9d4ab1b97c3b267():
     ),
     plan_repr_sha1='20aa75e5f04fa0079fa1d32266ee7199fffd28f2',
     cls_names=(
-        ('omxtra.tui.minitui.docs.positions', 'Pos'),
+        ('omdev.tui.minitui.docs.positions', 'Pos'),
     ),
 )
 def _process_dataclass__20aa75e5f04fa0079fa1d32266ee7199fffd28f2():
@@ -1161,7 +1161,7 @@ def _process_dataclass__20aa75e5f04fa0079fa1d32266ee7199fffd28f2():
     ),
     plan_repr_sha1='9f6a9acfb0bea82f081c340d814bc5f788039d55',
     cls_names=(
-        ('omxtra.tui.minitui.docs.positions', 'Span'),
+        ('omdev.tui.minitui.docs.positions', 'Span'),
     ),
 )
 def _process_dataclass__9f6a9acfb0bea82f081c340d814bc5f788039d55():
@@ -1281,7 +1281,7 @@ def _process_dataclass__9f6a9acfb0bea82f081c340d814bc5f788039d55():
     ),
     plan_repr_sha1='d63a29aca0b07f9c4057761e01c901d03418db81',
     cls_names=(
-        ('omxtra.tui.minitui.events.keymaps', 'KeymapMatch'),
+        ('omdev.tui.minitui.events.keymaps', 'KeymapMatch'),
     ),
 )
 def _process_dataclass__d63a29aca0b07f9c4057761e01c901d03418db81():
@@ -1403,7 +1403,7 @@ def _process_dataclass__d63a29aca0b07f9c4057761e01c901d03418db81():
     ),
     plan_repr_sha1='9d628ea6edc5ac579394df393cf9c532bf235976',
     cls_names=(
-        ('omxtra.tui.minitui.events.keys', 'Key'),
+        ('omdev.tui.minitui.events.keys', 'Key'),
     ),
 )
 def _process_dataclass__9d628ea6edc5ac579394df393cf9c532bf235976():
@@ -1541,7 +1541,7 @@ def _process_dataclass__9d628ea6edc5ac579394df393cf9c532bf235976():
     ),
     plan_repr_sha1='c9180ff9898a845fd156029d69d6e884b20f9919',
     cls_names=(
-        ('omxtra.tui.minitui.events.parsing', 'Read1'),
+        ('omdev.tui.minitui.events.parsing', 'Read1'),
     ),
 )
 def _process_dataclass__c9180ff9898a845fd156029d69d6e884b20f9919():
@@ -1644,7 +1644,7 @@ def _process_dataclass__c9180ff9898a845fd156029d69d6e884b20f9919():
     ),
     plan_repr_sha1='55e8b170c17862665dea908d974e50c0f8ed7f8d',
     cls_names=(
-        ('omxtra.tui.minitui.events.types', 'CursorPositionEvent'),
+        ('omdev.tui.minitui.events.types', 'CursorPositionEvent'),
     ),
 )
 def _process_dataclass__55e8b170c17862665dea908d974e50c0f8ed7f8d():
@@ -1752,7 +1752,7 @@ def _process_dataclass__55e8b170c17862665dea908d974e50c0f8ed7f8d():
     ),
     plan_repr_sha1='a56050c1cbf85700e8905c53dea3a93674a1f3a4',
     cls_names=(
-        ('omxtra.tui.minitui.events.types', 'FocusEvent'),
+        ('omdev.tui.minitui.events.types', 'FocusEvent'),
     ),
 )
 def _process_dataclass__a56050c1cbf85700e8905c53dea3a93674a1f3a4():
@@ -1855,7 +1855,7 @@ def _process_dataclass__a56050c1cbf85700e8905c53dea3a93674a1f3a4():
     ),
     plan_repr_sha1='b67b8d016105a93c2316b2bb944363f1b17c29d6',
     cls_names=(
-        ('omxtra.tui.minitui.events.types', 'KeyEvent'),
+        ('omdev.tui.minitui.events.types', 'KeyEvent'),
     ),
 )
 def _process_dataclass__b67b8d016105a93c2316b2bb944363f1b17c29d6():
@@ -1965,7 +1965,7 @@ def _process_dataclass__b67b8d016105a93c2316b2bb944363f1b17c29d6():
     ),
     plan_repr_sha1='6deea0adbb767cb1899c738559d8ba69f34de3a0',
     cls_names=(
-        ('omxtra.tui.minitui.events.types', 'KittyFlagsEvent'),
+        ('omdev.tui.minitui.events.types', 'KittyFlagsEvent'),
     ),
 )
 def _process_dataclass__6deea0adbb767cb1899c738559d8ba69f34de3a0():
@@ -2067,7 +2067,7 @@ def _process_dataclass__6deea0adbb767cb1899c738559d8ba69f34de3a0():
     ),
     plan_repr_sha1='11e61f10868c9b0244dcc0b1256b7448614cb7b3',
     cls_names=(
-        ('omxtra.tui.minitui.events.types', 'ModeReportEvent'),
+        ('omdev.tui.minitui.events.types', 'ModeReportEvent'),
     ),
 )
 def _process_dataclass__11e61f10868c9b0244dcc0b1256b7448614cb7b3():
@@ -2192,7 +2192,7 @@ def _process_dataclass__11e61f10868c9b0244dcc0b1256b7448614cb7b3():
     ),
     plan_repr_sha1='d9c26b45b541dec4a801b0ee0fa10c3641fa8952',
     cls_names=(
-        ('omxtra.tui.minitui.events.types', 'MouseEvent'),
+        ('omdev.tui.minitui.events.types', 'MouseEvent'),
     ),
 )
 def _process_dataclass__d9c26b45b541dec4a801b0ee0fa10c3641fa8952():
@@ -2345,8 +2345,8 @@ def _process_dataclass__d9c26b45b541dec4a801b0ee0fa10c3641fa8952():
     ),
     plan_repr_sha1='ce2a4c81e0f66e62a54ea3adfdc532902daece78',
     cls_names=(
-        ('omxtra.tui.minitui.events.types', 'PasteEvent'),
-        ('omxtra.tui.minitui.events.types', 'UnknownSequenceEvent'),
+        ('omdev.tui.minitui.events.types', 'PasteEvent'),
+        ('omdev.tui.minitui.events.types', 'UnknownSequenceEvent'),
     ),
 )
 def _process_dataclass__ce2a4c81e0f66e62a54ea3adfdc532902daece78():
@@ -2449,7 +2449,7 @@ def _process_dataclass__ce2a4c81e0f66e62a54ea3adfdc532902daece78():
     ),
     plan_repr_sha1='094659c4f4f035565abff5f1871a23021ca04458',
     cls_names=(
-        ('omxtra.tui.minitui.events.types', 'ResizeEvent'),
+        ('omdev.tui.minitui.events.types', 'ResizeEvent'),
     ),
 )
 def _process_dataclass__094659c4f4f035565abff5f1871a23021ca04458():
@@ -2557,8 +2557,8 @@ def _process_dataclass__094659c4f4f035565abff5f1871a23021ca04458():
     ),
     plan_repr_sha1='7cca898c5ef4e363ed489f45a749f02c73c4f575',
     cls_names=(
-        ('omxtra.tui.minitui.text.colors', 'IndexedColor'),
-        ('omxtra.tui.minitui.text.colors', 'NamedColor'),
+        ('omdev.tui.minitui.text.colors', 'IndexedColor'),
+        ('omdev.tui.minitui.text.colors', 'NamedColor'),
     ),
 )
 def _process_dataclass__7cca898c5ef4e363ed489f45a749f02c73c4f575():
@@ -2664,7 +2664,7 @@ def _process_dataclass__7cca898c5ef4e363ed489f45a749f02c73c4f575():
     ),
     plan_repr_sha1='fe5b47ce8310e488b5dde347e77311829002e50f',
     cls_names=(
-        ('omxtra.tui.minitui.text.colors', 'RgbColor'),
+        ('omdev.tui.minitui.text.colors', 'RgbColor'),
     ),
 )
 def _process_dataclass__fe5b47ce8310e488b5dde347e77311829002e50f():
@@ -2783,7 +2783,7 @@ def _process_dataclass__fe5b47ce8310e488b5dde347e77311829002e50f():
     ),
     plan_repr_sha1='a21e0430f301c7ef0a5440b6b257d185896c48a7',
     cls_names=(
-        ('omxtra.tui.minitui.text.markdown', 'MdCode'),
+        ('omdev.tui.minitui.text.markdown', 'MdCode'),
     ),
 )
 def _process_dataclass__a21e0430f301c7ef0a5440b6b257d185896c48a7():
@@ -2894,7 +2894,7 @@ def _process_dataclass__a21e0430f301c7ef0a5440b6b257d185896c48a7():
     ),
     plan_repr_sha1='cff15062ec7fb46ea1e30d0bc1b048495a515c2f',
     cls_names=(
-        ('omxtra.tui.minitui.text.markdown', 'MdHeading'),
+        ('omdev.tui.minitui.text.markdown', 'MdHeading'),
     ),
 )
 def _process_dataclass__cff15062ec7fb46ea1e30d0bc1b048495a515c2f():
@@ -3002,7 +3002,7 @@ def _process_dataclass__cff15062ec7fb46ea1e30d0bc1b048495a515c2f():
     ),
     plan_repr_sha1='045f1b7eb2701bb19dcbd715f0da1519cb736718',
     cls_names=(
-        ('omxtra.tui.minitui.text.markdown', 'MdList'),
+        ('omdev.tui.minitui.text.markdown', 'MdList'),
     ),
 )
 def _process_dataclass__045f1b7eb2701bb19dcbd715f0da1519cb736718():
@@ -3092,28 +3092,33 @@ def _process_dataclass__045f1b7eb2701bb19dcbd715f0da1519cb736718():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('marker', 'spans')), EqPlan(fields=('marker', 'spans')), FrozenPlan(fields=('marke"
-        "r', 'spans'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('marker', 'spans'), cache=Fals"
-        "e), InitPlan(fields=(InitPlan.Field(name='marker', annotation=OpRef(name='init.fields.0.annotation'), default="
-        "None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
-        "ne, check_type=None), InitPlan.Field(name='spans', annotation=OpRef(name='init.fields.1.annotation'), default="
-        "None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
-        "ne, check_type=None)), self_param='self', std_params=('marker', 'spans'), kw_only_params=(), frozen=True, slot"
-        "s=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='marker', "
-        "kw_only=False, fn=None), ReprPlan.Field(name='spans', kw_only=False, fn=None)), id=False, terse=False, default"
-        "_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('marker', 'spans', 'depth')), EqPlan(fields=('marker', 'spans', 'depth')), FrozenP"
+        "lan(fields=('marker', 'spans', 'depth'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('ma"
+        "rker', 'spans', 'depth'), cache=False), InitPlan(fields=(InitPlan.Field(name='marker', annotation=OpRef(name='"
+        "init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTyp"
+        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='spans', annotation=OpRef(name='"
+        "init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTyp"
+        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='depth', annotation=OpRef(name='"
+        "init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, over"
+        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', s"
+        "td_params=('marker', 'spans', 'depth'), kw_only_params=(), frozen=True, slots=False, post_init_params=None, in"
+        "it_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='marker', kw_only=False, fn=None), ReprPlan."
+        "Field(name='spans', kw_only=False, fn=None), ReprPlan.Field(name='depth', kw_only=False, fn=None)), id=False, "
+        "terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='26cc4c860356f918dd6311fb94b1948db9e26d2d',
+    plan_repr_sha1='bb7a03cbd43e7d23176fa716158ceba1432f7f39',
     cls_names=(
-        ('omxtra.tui.minitui.text.markdown', 'MdListItem'),
+        ('omdev.tui.minitui.text.markdown', 'MdListItem'),
     ),
 )
-def _process_dataclass__26cc4c860356f918dd6311fb94b1948db9e26d2d():
+def _process_dataclass__bb7a03cbd43e7d23176fa716158ceba1432f7f39():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -3126,6 +3131,7 @@ def _process_dataclass__26cc4c860356f918dd6311fb94b1948db9e26d2d():
             return __class__(  # noqa
                 marker=self.marker,
                 spans=self.spans,
+                depth=self.depth,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3137,7 +3143,8 @@ def _process_dataclass__26cc4c860356f918dd6311fb94b1948db9e26d2d():
                 return NotImplemented
             return (
                 self.marker == other.marker and
-                self.spans == other.spans
+                self.spans == other.spans and
+                self.depth == other.depth
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3145,6 +3152,7 @@ def _process_dataclass__26cc4c860356f918dd6311fb94b1948db9e26d2d():
         __dataclass___frozen_fields = {
             'marker',
             'spans',
+            'depth',
         }
 
         def __setattr__(self, name, value):
@@ -3171,6 +3179,7 @@ def _process_dataclass__26cc4c860356f918dd6311fb94b1948db9e26d2d():
             return hash((
                 self.marker,
                 self.spans,
+                self.depth,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3179,9 +3188,11 @@ def _process_dataclass__26cc4c860356f918dd6311fb94b1948db9e26d2d():
             self,
             marker: __dataclass__init__fields__0__annotation,
             spans: __dataclass__init__fields__1__annotation,
+            depth: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'marker', marker)
             __dataclass__object_setattr(self, 'spans', spans)
+            __dataclass__object_setattr(self, 'depth', depth)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3190,6 +3201,7 @@ def _process_dataclass__26cc4c860356f918dd6311fb94b1948db9e26d2d():
             parts = []
             parts.append(f"marker={self.marker!r}")
             parts.append(f"spans={self.spans!r}")
+            parts.append(f"depth={self.depth!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -3213,8 +3225,8 @@ def _process_dataclass__26cc4c860356f918dd6311fb94b1948db9e26d2d():
     ),
     plan_repr_sha1='d94b59df909090eea539565bc0673f53316b9e81',
     cls_names=(
-        ('omxtra.tui.minitui.text.markdown', 'MdParagraph'),
-        ('omxtra.tui.minitui.text.markdown', 'MdQuote'),
+        ('omdev.tui.minitui.text.markdown', 'MdParagraph'),
+        ('omdev.tui.minitui.text.markdown', 'MdQuote'),
     ),
 )
 def _process_dataclass__d94b59df909090eea539565bc0673f53316b9e81():
@@ -3311,7 +3323,7 @@ def _process_dataclass__d94b59df909090eea539565bc0673f53316b9e81():
     ),
     plan_repr_sha1='e1f7edfe11f2b721d6a656c46e698fedc95461bb',
     cls_names=(
-        ('omxtra.tui.minitui.text.markdown', 'MdRule'),
+        ('omdev.tui.minitui.text.markdown', 'MdRule'),
     ),
 )
 def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
@@ -3393,7 +3405,7 @@ def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
     ),
     plan_repr_sha1='b2e41750b446b961abaac20bedf8d3b3a1360879',
     cls_names=(
-        ('omxtra.tui.minitui.text.segments', 'Segment'),
+        ('omdev.tui.minitui.text.segments', 'Segment'),
     ),
 )
 def _process_dataclass__b2e41750b446b961abaac20bedf8d3b3a1360879():
@@ -3532,7 +3544,7 @@ def _process_dataclass__b2e41750b446b961abaac20bedf8d3b3a1360879():
     ),
     plan_repr_sha1='2729bbcaf6e2ed6fe4b0f8594f45caba3cf5a94c',
     cls_names=(
-        ('omxtra.tui.minitui.text.styles', 'Style'),
+        ('omdev.tui.minitui.text.styles', 'Style'),
     ),
 )
 def _process_dataclass__2729bbcaf6e2ed6fe4b0f8594f45caba3cf5a94c():
@@ -3721,7 +3733,7 @@ def _process_dataclass__2729bbcaf6e2ed6fe4b0f8594f45caba3cf5a94c():
     ),
     plan_repr_sha1='d6accabbca152039e84e31966f08f2cecf66e911',
     cls_names=(
-        ('omxtra.tui.minitui.vim.engine', '_UndoEntry'),
+        ('omdev.tui.minitui.vim.engine', '_UndoEntry'),
     ),
 )
 def _process_dataclass__d6accabbca152039e84e31966f08f2cecf66e911():
@@ -3851,7 +3863,7 @@ def _process_dataclass__d6accabbca152039e84e31966f08f2cecf66e911():
     ),
     plan_repr_sha1='59d23a89b75e09cb04c128ef1ce8cd105c66a91b',
     cls_names=(
-        ('omxtra.tui.minitui.vim.motions', 'MotionResult'),
+        ('omdev.tui.minitui.vim.motions', 'MotionResult'),
     ),
 )
 def _process_dataclass__59d23a89b75e09cb04c128ef1ce8cd105c66a91b():
@@ -4017,7 +4029,7 @@ def _process_dataclass__59d23a89b75e09cb04c128ef1ce8cd105c66a91b():
     ),
     plan_repr_sha1='aa8199857a99a28777023cf5d23898457a1ff553',
     cls_names=(
-        ('omxtra.tui.minitui.vim.parsing', 'Command'),
+        ('omdev.tui.minitui.vim.parsing', 'Command'),
     ),
 )
 def _process_dataclass__aa8199857a99a28777023cf5d23898457a1ff553():
@@ -4203,7 +4215,7 @@ def _process_dataclass__aa8199857a99a28777023cf5d23898457a1ff553():
     ),
     plan_repr_sha1='3556feaaaf1f1d3b66b8011e0c76fb5779a694c9',
     cls_names=(
-        ('omxtra.tui.minitui.vim.registers', 'RegValue'),
+        ('omdev.tui.minitui.vim.registers', 'RegValue'),
     ),
 )
 def _process_dataclass__3556feaaaf1f1d3b66b8011e0c76fb5779a694c9():
@@ -4313,7 +4325,7 @@ def _process_dataclass__3556feaaaf1f1d3b66b8011e0c76fb5779a694c9():
     ),
     plan_repr_sha1='0c197ba2089899db7f7e91669688463fbc8b9e27',
     cls_names=(
-        ('omxtra.tui.minitui.vim.status', 'Decoration'),
+        ('omdev.tui.minitui.vim.status', 'Decoration'),
     ),
 )
 def _process_dataclass__0c197ba2089899db7f7e91669688463fbc8b9e27():
@@ -4434,7 +4446,7 @@ def _process_dataclass__0c197ba2089899db7f7e91669688463fbc8b9e27():
     ),
     plan_repr_sha1='c951b441129b10feb8cb51e52267df339bccbd49',
     cls_names=(
-        ('omxtra.tui.minitui.vim.status', 'VimStatus'),
+        ('omdev.tui.minitui.vim.status', 'VimStatus'),
     ),
 )
 def _process_dataclass__c951b441129b10feb8cb51e52267df339bccbd49():
@@ -4574,7 +4586,7 @@ def _process_dataclass__c951b441129b10feb8cb51e52267df339bccbd49():
     ),
     plan_repr_sha1='49a65af234c0c6fcb1ef134454600aa61472eb03',
     cls_names=(
-        ('omxtra.tui.minitui.vim.substitutes', 'ExRange'),
+        ('omdev.tui.minitui.vim.substitutes', 'ExRange'),
     ),
 )
 def _process_dataclass__49a65af234c0c6fcb1ef134454600aa61472eb03():
@@ -4688,7 +4700,7 @@ def _process_dataclass__49a65af234c0c6fcb1ef134454600aa61472eb03():
     ),
     plan_repr_sha1='c9b71f9d6c085da692fa39b94c6e2d1360492bfc',
     cls_names=(
-        ('omxtra.tui.minitui.vim.substitutes', 'SubstituteResult'),
+        ('omdev.tui.minitui.vim.substitutes', 'SubstituteResult'),
     ),
 )
 def _process_dataclass__c9b71f9d6c085da692fa39b94c6e2d1360492bfc():
@@ -4814,7 +4826,7 @@ def _process_dataclass__c9b71f9d6c085da692fa39b94c6e2d1360492bfc():
     ),
     plan_repr_sha1='41d0b93d847273f753f36af2eb801fe647c06cfe',
     cls_names=(
-        ('omxtra.tui.minitui.vim.substitutes', 'SubstituteSpec'),
+        ('omdev.tui.minitui.vim.substitutes', 'SubstituteSpec'),
     ),
 )
 def _process_dataclass__41d0b93d847273f753f36af2eb801fe647c06cfe():

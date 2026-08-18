@@ -10,7 +10,7 @@ import os.path
 
 from omcore import dataclasses as dc
 from omcore import inject as inj
-from omxtra.tui import minitui as mt
+from omdev.tui import minitui as mt
 
 from .... import agent as agn
 from .... import harness as har

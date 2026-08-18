@@ -12,8 +12,8 @@ import importlib.util
 import typing as ta
 
 from omcore import dataclasses as dc
-from omdev.markdown import incparse
 
+from ....markdown import incparse
 from .markdown import MarkdownStreamBackend
 from .markdown import MdBlock
 from .markdown import MdCode

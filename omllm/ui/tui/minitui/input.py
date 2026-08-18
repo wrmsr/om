@@ -8,7 +8,7 @@ user keeps typing) while the turn is parked on the decision.
 import asyncio
 
 from omcore import inject as inj
-from omxtra.tui import minitui as mt
+from omdev.tui import minitui as mt
 
 from .... import agent as agn
 from ..config import Config

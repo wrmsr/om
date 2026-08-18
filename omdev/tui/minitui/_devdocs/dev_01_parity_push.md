@@ -316,14 +316,14 @@ Owner asked for a profile, low-hanging wins, and whether a c++/mypyc extension i
   refactor, not a bolt-on); a C++ extension would be a rewrite. Documented in 04_Status's new Performance section
   with the measured table. Current 0.5-4 MB/s beats LLM streaming rates by 3-4 orders of magnitude.
 
-## 2026-08-16 (later): the moves - pdcmark -> omcore/text/, minitui -> omxtra/tui/
+## 2026-08-16 (later): the moves - pdcmark -> omcore/text/, minitui -> omdev/tui/
 
 Owner asked me to perform the relocations (previous session's renames had been done in place).
 - omcore/text/pdcmark: all `from omcore import X` relativized per omcore convention (`from ... import` at package
   level, one more dot per subpackage); dataclass codegen regenerated; 463 tests green in place. tui's backend
   wrapper now imports omcore.text.pdcmark.
-- omxtra/tui/minitui: merged alongside the pre-existing apps/txpython. Module-path strings in app docstrings/README
-  updated (x.minitui -> omxtra.tui.minitui); design.md layout header and intro.md gate commands updated - the package is
+- omdev/tui/minitui: merged alongside the pre-existing apps/txpython. Module-path strings in app docstrings/README
+  updated (x.minitui -> omdev.tui.minitui); design.md layout header and intro.md gate commands updated - the package is
   now inside the repo-wide make targets.
 - Combined suites green on 3.14 + 3.14t (656 tests), ruff + mypy clean across both new locations, spec scores
   and differential unchanged (603/650, 59/62).
@@ -338,8 +338,8 @@ diverging legacy aliases back - ctrl+[ -> escape, ctrl+m -> enter, ctrl+i -> tab
 ESC-prefix; ctrl+h/ctrl+j already agreed across wires since 0x08/0x0a decode to ctrl+h/ctrl+j). Distinctions the
 protocols exist to provide are kept: ctrl+enter (13;5u, the submit chord), ctrl+shift+i, ctrl+h stay themselves.
 Parser regression tests for both wire forms + kept-distinctions; verified end-to-end that kitty-wire ctrl+[ leaves
-INSERT in a TextArea. (Also removed the pycache-husk dirs left at omxtra/tui/<pkg> by the minitui re-nesting;
-package now lives at omxtra/tui/minitui alongside apps/txpython.)
+INSERT in a TextArea. (Also removed the pycache-husk dirs left at omdev/tui/<pkg> by the minitui re-nesting;
+package now lives at omdev/tui/minitui alongside apps/txpython.)
 
 ## 2026-08-18: colors - default dark theme from textual-dark
 
@@ -369,7 +369,7 @@ authoring w/ auto-downgrade, subtle bg accents, full scope incl. syntax. One com
 
 The moment the whole project pointed at. Two commits (04b744757, 80da20d34):
 - **Flat lazy API**: minitui/__init__.py grew the minichain-style auto_proxy_init block - ~200 names, `from
-  omxtra.tui import minitui as mt`, everything a dot away, ~40ms import (lazy). Only ONE flattening clash existed
+  omdev.tui import minitui as mt`, everything a dot away, ~40ms import (lazy). Only ONE flattening clash existed
   (SegmentRows, identical aliases in text.highlights + text.markdown -> canonicalized in text.segments). Curated
   exclusions: vim engine internals (scans/motions/textobjs/parsing tables), events Read1/ParseGenerator. Also
   restored the surfaces/bases.py -> base.py rename that the re-nest had eaten.
@@ -390,7 +390,7 @@ The moment the whole project pointed at. Two commits (04b744757, 80da20d34):
   - backends.py: 'scripted' model option (llm.ScriptedStreamBackend, offline, no keys) - used for the pty e2e.
 - **Verified**: pty end-to-end (`-m scripted`): submit -> you-header -> ai-header -> streamed markdown ->
   ctrl+d clean exit w/ protocol resets; /echo + /quit through CommandsManager/QuitSignal; permission card
-  ALLOW + DENY paths headlessly (frame text + future resolution). ruff/mypy clean omllm+omxtra; omllm suite
+  ALLOW + DENY paths headlessly (frame text + future resolution). ruff/mypy clean omllm+omdev; omllm suite
   417 passed; minitui 204.
 - Untested against a REAL streaming backend (needs keys) - owner should run `python -m omllm.ui.tui.minitui`.
 
