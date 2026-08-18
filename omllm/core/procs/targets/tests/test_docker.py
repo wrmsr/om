@@ -3,6 +3,7 @@ import shutil
 import socket
 import stat
 import subprocess
+import time
 
 import pytest
 
@@ -102,6 +103,17 @@ def _docker_daemon_up() -> bool:
     return subprocess.run(['docker', 'info'], capture_output=True).returncode == 0  # noqa
 
 
+def _wait_container_ready(cid: str, timeout: float = 20.0) -> bool:
+    # `docker run -d` returns before the container is fully up; exec'ing too early gives a transient
+    # "OCI runtime exec failed". Probe with a trivial exec until it succeeds.
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if subprocess.run(['docker', 'exec', cid, 'true'], capture_output=True, check=False).returncode == 0:  # noqa
+            return True
+        time.sleep(0.1)
+    return False
+
+
 @pytest.mark.skipif(not _docker_daemon_up(), reason='no docker daemon')
 @pytest.mark.asyncs('asyncio')
 async def test_docker_exec_target_live():
@@ -110,6 +122,9 @@ async def test_docker_exec_target_live():
         ['docker', 'run', '-d', '--rm', 'busybox', 'sleep', '60'],
     ).decode().strip()
     try:
+        if not _wait_container_ready(cid):
+            pytest.skip('container did not become exec-ready')
+
         async with AsyncioProcessManager() as m:
             run = await m.root.run(
                 ProcessSpec(['sh', '-c', 'echo container-ok; hostname'], env={'X': 'y'}),

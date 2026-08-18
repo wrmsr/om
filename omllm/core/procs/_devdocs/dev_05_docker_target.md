@@ -38,3 +38,11 @@ amalgamated in-container agent). Not implemented yet - `Target` is where that si
 - Remote signal semantics on `Target` (the kill caveat above).
 - The in-container amalgamated agent (ominfra/manage pyremote-style) for real remote process control without the
   coarse `docker exec` client - the long-game the user flagged.
+
+## Follow-up (flake fix, 2026-08-18)
+
+The live docker test flaked on macOS with `OCI runtime exec failed` (rc 127): `docker exec` fired before the
+just-`docker run -d`'d container was fully up. This is a container-startup race, not a `DockerExecTarget` bug (the
+target execs into an assumed-running container). Fixed the test with `_wait_container_ready()` - it probes
+`docker exec <cid> true` until it succeeds (20s budget, else `pytest.skip`) before the real exec. No production
+change: callers are expected to target an already-running container.
