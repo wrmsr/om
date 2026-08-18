@@ -95,11 +95,11 @@ plus = [
     'pg8000 ~= 1.31',
     'pymysql ~= 1.2',
 ]
-mypyc = [
-    'omcore-mypyc == 0.0.46',
-]
 cext = [
     'omcore-cext == 0.0.46',
+]
+mypyc = [
+    'omcore-mypyc == 0.0.46',
 ]
 all = [
     'anyio ~= 4.14',
@@ -146,8 +146,8 @@ all = [
     'lz4 ~= 4.4',
     'pg8000 ~= 1.31',
     'pymysql ~= 1.2',
-    'omcore-mypyc == 0.0.46',
     'omcore-cext == 0.0.46',
+    'omcore-mypyc == 0.0.46',
 ]
 
 [project.entry-points]
