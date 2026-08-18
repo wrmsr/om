@@ -15,7 +15,7 @@ from omcore import lang
 from ..types.options import Credentials
 from ..types.options import Deathsig
 from ..types.options import PassFd
-from ..types.options import ProcOptions
+from ..types.options import ProcessOptions
 from ..types.options import Rlimit
 from ..types.options import Umask
 from ..types.specs import ProcessSpec
@@ -55,7 +55,7 @@ def _fsencode(s: int | str | bytes) -> int | bytes:
 
 def build_payload(
         spec: ProcessSpec,
-        options: ProcOptions,
+        options: ProcessOptions,
         *,
         status_fd: int,
         keep_fds: ta.Sequence[int] = (),
@@ -134,7 +134,7 @@ class ShimLauncher(Launcher):
     def plan(
             self,
             spec: ProcessSpec,
-            options: ProcOptions,
+            options: ProcessOptions,
             *,
             status_fd: int,
     ) -> LaunchPlan:

@@ -114,7 +114,7 @@ with _lang.auto_proxy_init(globals()):
 
     from .types.options import (  # noqa
         ProcessOption,
-        ProcOptions,
+        ProcessOptions,
         layer_options,
 
         TerminationPolicy,

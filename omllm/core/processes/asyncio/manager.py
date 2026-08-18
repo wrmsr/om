@@ -42,7 +42,7 @@ from ..types.events import ScopeOpenedEvent
 from ..types.ids import CountingProcessIdGenerator
 from ..types.ids import ProcessId
 from ..types.ids import ProcessIdGenerator
-from ..types.options import ProcOptions
+from ..types.options import ProcessOptions
 from ..types.options import Sandbox
 from ..types.options import Target
 from ..types.options import get_session_mode
@@ -332,7 +332,7 @@ class AsyncioProcessManager(ProcessManager, ScopeOps):
 
     #
 
-    async def spawn(self, scope: ProcessScope, spec: ProcessSpec, options: ProcOptions) -> Process:
+    async def spawn(self, scope: ProcessScope, spec: ProcessSpec, options: ProcessOptions) -> Process:
         self._check_started()
         loop = check.not_none(self._loop)
 

@@ -9,7 +9,7 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ..types.options import ProcOptions
+from ..types.options import ProcessOptions
 from ..types.specs import ProcessSpec
 
 
@@ -23,14 +23,14 @@ class SpecTransform(lang.Abstract):
     """
 
     @abc.abstractmethod
-    def transform(self, spec: ProcessSpec, options: ProcOptions) -> ProcessSpec:
+    def transform(self, spec: ProcessSpec, options: ProcessOptions) -> ProcessSpec:
         raise NotImplementedError
 
 
 def apply_transforms(
         transforms: ta.Iterable[SpecTransform],
         spec: ProcessSpec,
-        options: ProcOptions,
+        options: ProcessOptions,
 ) -> ProcessSpec:
     for t in transforms:
         spec = t.transform(spec, options)
@@ -73,7 +73,7 @@ class Launcher(lang.Abstract):
     def plan(
             self,
             spec: ProcessSpec,
-            options: ProcOptions,
+            options: ProcessOptions,
             *,
             status_fd: int,
     ) -> LaunchPlan:

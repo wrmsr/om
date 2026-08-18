@@ -32,7 +32,7 @@ from ..types.events import ProcessExitedEvent
 from ..types.events import ProcessPoisonedEvent
 from ..types.events import ProcessReapedEvent
 from ..types.ids import ProcessId
-from ..types.options import ProcOptions
+from ..types.options import ProcessOptions
 from ..types.options import TerminationPolicy
 from ..types.options import get_termination_policy
 from ..types.specs import ProcessSpec
@@ -71,7 +71,7 @@ class AsyncioProcess(Process):
             *,
             id: ProcessId,  # noqa
             spec: ProcessSpec,
-            options: ProcOptions,
+            options: ProcessOptions,
             scope: ProcessScope,
             popen: _SpawnerPopen,
             spool: OutputSpool,
@@ -134,7 +134,7 @@ class AsyncioProcess(Process):
         return self._spec
 
     @property
-    def options(self) -> ProcOptions:
+    def options(self) -> ProcessOptions:
         return self._options
 
     @property

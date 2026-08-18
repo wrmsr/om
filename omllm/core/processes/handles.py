@@ -11,7 +11,7 @@ from omcore import lang
 
 from .spool.spool import OutputSpool
 from .types.ids import ProcessId
-from .types.options import ProcOptions
+from .types.options import ProcessOptions
 from .types.options import TerminationPolicy
 from .types.specs import ProcessSpec
 from .types.states import ProcessState
@@ -42,7 +42,7 @@ class ProcessInfo(lang.Abstract):
 
     @property
     @abc.abstractmethod
-    def options(self) -> ProcOptions:
+    def options(self) -> ProcessOptions:
         raise NotImplementedError
 
     @property

@@ -4,7 +4,7 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
-from ..types.options import ProcOptions
+from ..types.options import ProcessOptions
 from ..types.specs import ProcessSpec
 from .launcher import SpecTransform
 
@@ -18,7 +18,7 @@ class ShellWrapTransform(SpecTransform):
     children. See `omcore.subprocesses.wrap`.
     """
 
-    def transform(self, spec: ProcessSpec, options: ProcOptions) -> ProcessSpec:
+    def transform(self, spec: ProcessSpec, options: ProcessOptions) -> ProcessSpec:
         argv = subprocess_maybe_shell_wrap_exec(*spec.argv)
         if tuple(argv) == tuple(spec.argv):
             return spec
@@ -35,7 +35,7 @@ class EnvScrubTransform(SpecTransform):
     remove: ta.Sequence[str] = ()
     keep: ta.Sequence[str] | None = None
 
-    def transform(self, spec: ProcessSpec, options: ProcOptions) -> ProcessSpec:
+    def transform(self, spec: ProcessSpec, options: ProcessOptions) -> ProcessSpec:
         env = spec.resolve_env()
         rm = [re.compile(p) for p in self.remove]
         kp = [re.compile(p) for p in self.keep] if self.keep is not None else None

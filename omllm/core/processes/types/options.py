@@ -21,11 +21,11 @@ class ProcessOption(tv.TypedValue, lang.Abstract):
     pass
 
 
-ProcOptions: ta.TypeAlias = tv.TypedValues[ProcessOption]
+ProcessOptions: ta.TypeAlias = tv.TypedValues[ProcessOption]
 
 
-def layer_options(base: ProcOptions | None, *overrides: ta.Iterable[ProcessOption] | None) -> ProcOptions:
-    cur: ProcOptions = base if base is not None else tv.TypedValues()
+def layer_options(base: ProcessOptions | None, *overrides: ta.Iterable[ProcessOption] | None) -> ProcessOptions:
+    cur: ProcessOptions = base if base is not None else tv.TypedValues()
     for ovr in overrides:
         if ovr is None:
             continue
@@ -194,13 +194,13 @@ DEFAULT_SPOOL_POLICY: ta.Final = SpoolPolicy()
 DEFAULT_SESSION_MODE: ta.Final = SessionMode()
 
 
-def get_termination_policy(opts: ProcOptions) -> TerminationPolicy:
+def get_termination_policy(opts: ProcessOptions) -> TerminationPolicy:
     return opts.get(TerminationPolicy, DEFAULT_TERMINATION_POLICY)
 
 
-def get_spool_policy(opts: ProcOptions) -> SpoolPolicy:
+def get_spool_policy(opts: ProcessOptions) -> SpoolPolicy:
     return opts.get(SpoolPolicy, DEFAULT_SPOOL_POLICY)
 
 
-def get_session_mode(opts: ProcOptions) -> SessionMode:
+def get_session_mode(opts: ProcessOptions) -> SessionMode:
     return opts.get(SessionMode, DEFAULT_SESSION_MODE)

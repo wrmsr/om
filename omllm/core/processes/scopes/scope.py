@@ -18,7 +18,7 @@ from ..types.errors import ProcessTimeoutError
 from ..types.errors import ScopeClosedError
 from ..types.ids import ProcessId
 from ..types.options import ProcessOption
-from ..types.options import ProcOptions
+from ..types.options import ProcessOptions
 from ..types.options import RunTimeout
 from ..types.options import layer_options
 from ..types.specs import ProcessSpec
@@ -41,7 +41,7 @@ class ScopeOps(lang.Abstract):
     """The manager-side implementation hooks a scope needs."""
 
     @abc.abstractmethod
-    def spawn(self, scope: ProcessScope, spec: ProcessSpec, options: ProcOptions) -> ta.Awaitable[Process]:
+    def spawn(self, scope: ProcessScope, spec: ProcessSpec, options: ProcessOptions) -> ta.Awaitable[Process]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -104,7 +104,7 @@ class ProcessScope:
         self._name = check.non_empty_str(name)
         self._parent = parent
         self._ops = ops
-        self._own_options: ProcOptions = layer_options(None, options)
+        self._own_options: ProcessOptions = layer_options(None, options)
         self._close_policy = close_policy
 
         self._children: dict[str, ProcessScope] = {}
@@ -156,7 +156,7 @@ class ProcessScope:
         return self._closed
 
     @property
-    def options(self) -> ProcOptions:
+    def options(self) -> ProcessOptions:
         """Effective option defaults for spawns in this scope: ancestors' layered with this scope's own."""
 
         if (p := self._parent) is None:
