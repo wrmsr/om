@@ -26,9 +26,9 @@ from ..docs.documents import Document
 from ..docs.edits import AppliedEdit
 from ..docs.edits import TextEdit
 from ..docs.edits import remap_pos_through
-from ..docs.positions import Kind
 from ..docs.positions import Pos
 from ..docs.positions import Span
+from ..docs.positions import SpanKind
 from ..docs.searching import find_matches
 from ..docs.searching import next_match
 from .modes import CmdlineKind
@@ -251,7 +251,7 @@ class VimEngine:
 
         for extra in self._cursors[1:]:
             decs.append(Decoration(
-                Span(Kind.EXCLUSIVE, extra.pos, Pos(extra.pos.row, extra.pos.col + 1)),
+                Span(SpanKind.EXCLUSIVE, extra.pos, Pos(extra.pos.row, extra.pos.col + 1)),
                 CURSOR_TAG,
             ))
 
@@ -721,13 +721,13 @@ class VimEngine:
         anchor = check.not_none(self._visual_anchor)
         a, b = sorted([anchor, self.cursor])
         if self._mode is Mode.VISUAL_LINE:
-            return Span(Kind.LINEWISE, Pos(a.row, 0), Pos(b.row, 0))
+            return Span(SpanKind.LINEWISE, Pos(a.row, 0), Pos(b.row, 0))
         if self._mode is Mode.VISUAL_BLOCK:
             c1 = min(anchor.col, self.cursor.col)
             c2 = max(anchor.col, self.cursor.col) + 1
-            return Span(Kind.BLOCK, Pos(a.row, c1), Pos(b.row, c2))
+            return Span(SpanKind.BLOCK, Pos(a.row, c1), Pos(b.row, c2))
         end = Pos(b.row, min(b.col + 1, llen(self._doc, b.row)))  # incl. cursor char
-        return Span(Kind.EXCLUSIVE, a, end)
+        return Span(SpanKind.EXCLUSIVE, a, end)
 
     ##
     # Command execution
@@ -752,7 +752,7 @@ class VimEngine:
         if cmd.op and cmd.doubled:  # dd yy cc >> <<
             r = self.cursor.row
             r2 = min(r + cmd.count - 1, self._doc.line_count() - 1)
-            return self._apply_op(cmd.op, Span(Kind.LINEWISE, Pos(r, 0), Pos(r2, 0)), cmd.register)
+            return self._apply_op(cmd.op, Span(SpanKind.LINEWISE, Pos(r, 0), Pos(r2, 0)), cmd.register)
 
         if cmd.op and cmd.tobj:
             tobj_around, tobj_obj = cmd.tobj
@@ -787,7 +787,7 @@ class VimEngine:
     def _eval_motion(self, cmd: Command) -> MotionResult | None:  # noqa: C901
         doc, p, n = self._doc, self.cursor, cmd.count
         k, arg = cmd.motion_key, cmd.motion_arg
-        exc, inc, lnw = Kind.EXCLUSIVE, Kind.INCLUSIVE, Kind.LINEWISE
+        exc, inc, lnw = SpanKind.EXCLUSIVE, SpanKind.INCLUSIVE, SpanKind.LINEWISE
 
         if k == 'h':
             t = Pos(p.row, max(0, p.col - n))
@@ -882,7 +882,7 @@ class VimEngine:
 
     def _move_to(self, mr: MotionResult) -> None:
         doc, t = self._doc, mr.target
-        if mr.kind is Kind.LINEWISE:
+        if mr.kind is SpanKind.LINEWISE:
             if mr.to_first_nonblank:
                 col = first_nonblank(doc, t.row)
                 self._set_cursor(Pos(t.row, col), want=col)
@@ -908,7 +908,7 @@ class VimEngine:
         if op == 'y':
             pieces, kind = self._extract(span)
             self._regs.set(reg or '"', RegValue(tuple(pieces), kind), is_yank=True)
-            if span.kind is not Kind.LINEWISE:
+            if span.kind is not SpanKind.LINEWISE:
                 self._set_cursor(clamp_col(doc, span.start))
             return False
 
@@ -935,7 +935,7 @@ class VimEngine:
         if op == 'c':
             pieces, kind = self._extract(span)
             self._regs.set(reg or '"', RegValue(tuple(pieces), kind), is_yank=False)
-            if span.kind is Kind.BLOCK:
+            if span.kind is SpanKind.BLOCK:
                 # A cursor per row: typed text live-replicates onto every block row (vim replays at Esc instead).
                 self._delete_span(span)
                 self._set_all_cursors([
@@ -944,7 +944,7 @@ class VimEngine:
                 ])
                 self._mode = Mode.INSERT
                 return True
-            if span.kind is Kind.LINEWISE:
+            if span.kind is SpanKind.LINEWISE:
                 r1, r2 = span.start.row, span.end.row
                 doc.replace(Pos(r1, 0), Pos(r2, llen(doc, r2)), '')
                 self._set_cursor(Pos(r1, 0))
@@ -956,23 +956,23 @@ class VimEngine:
 
         return False
 
-    def _extract(self, span: Span) -> tuple[list[str], Kind]:
+    def _extract(self, span: Span) -> tuple[list[str], SpanKind]:
         doc = self._doc
-        if span.kind is Kind.LINEWISE:
-            return ([doc.line(r) for r in range(span.start.row, span.end.row + 1)], Kind.LINEWISE)
-        if span.kind is Kind.BLOCK:
+        if span.kind is SpanKind.LINEWISE:
+            return ([doc.line(r) for r in range(span.start.row, span.end.row + 1)], SpanKind.LINEWISE)
+        if span.kind is SpanKind.BLOCK:
             return (
                 [
                     doc.line(r)[span.start.col: min(span.end.col, llen(doc, r))]
                     for r in range(span.start.row, span.end.row + 1)
                 ],
-                Kind.BLOCK,
+                SpanKind.BLOCK,
             )
-        return (doc.get_text(span.start, span.end).split('\n'), Kind.EXCLUSIVE)
+        return (doc.get_text(span.start, span.end).split('\n'), SpanKind.EXCLUSIVE)
 
     def _delete_span(self, span: Span) -> None:
         doc = self._doc
-        if span.kind is Kind.BLOCK:
+        if span.kind is SpanKind.BLOCK:
             # Row-local deletes: column positions on other rows are unaffected, so order doesn't matter.
             for r in range(span.start.row, span.end.row + 1):
                 line_len = llen(doc, r)
@@ -983,7 +983,7 @@ class VimEngine:
             pos = clamp_col(doc, self._doc.clamp(Pos(span.start.row, span.start.col)))
             self._set_cursor(pos, want=pos.col)
             return
-        if span.kind is Kind.LINEWISE:
+        if span.kind is SpanKind.LINEWISE:
             r1, r2 = span.start.row, span.end.row
             last = doc.line_count() - 1
             if r2 >= last:
@@ -1118,7 +1118,7 @@ class VimEngine:
     def _put(self, rv: RegValue, count: int, *, after: bool) -> None:  # noqa: C901
         doc, cur = self._doc, self.cursor
 
-        if rv.kind is Kind.BLOCK:
+        if rv.kind is SpanKind.BLOCK:
             # Paste the rectangle at the cursor column on successive rows, creating rows / padding as needed. (A count
             # would stack copies; ignored for now, like vim's rarer block-put variants.)
             col = cur.col + 1 if (after and llen(doc, cur.row)) else cur.col
@@ -1135,7 +1135,7 @@ class VimEngine:
             self._set_cursor(pos, want=pos.col)
             return
 
-        if rv.kind is Kind.LINEWISE:
+        if rv.kind is SpanKind.LINEWISE:
             text = '\n'.join(rv.pieces * count)
             last = doc.line_count() - 1
             if after:

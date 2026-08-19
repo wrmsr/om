@@ -70,7 +70,7 @@ anywhere).
   multi-cursor (N edits, N-1 cursors adjusted), durable match/highlight spans, precise renderer damage, undo units,
   and tree-sitter's `edit()` API shape.
 - Cursor state: `cursors: tuple[Cursor, ...]` primary-first from day one (single-cursor code uses cursors[0]).
-  `Kind` reserves BLOCK for blockwise visual.
+  `SpanKind` reserves BLOCK for blockwise visual.
 - Engine feedback: `status()` (mode, pending keys, count, register, cmdline) + `decorations()` (tagged spans:
   selection, search matches) + optional injected `View` (viewport dims/offset) for ctrl-d/zz.
 - CMDLINE mode for `/` `?` `:` with incremental search recompute per keystroke -> decorations -> frame damage.

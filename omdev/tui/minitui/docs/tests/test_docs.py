@@ -3,9 +3,9 @@ import pytest
 from ..documents import Document
 from ..edits import TextEdit
 from ..edits import remap_pos
-from ..positions import Kind
 from ..positions import Pos
 from ..positions import Span
+from ..positions import SpanKind
 from ..searching import find_matches
 from ..searching import next_match
 
@@ -93,7 +93,7 @@ def test_search_smartcase():
 
     assert len(find_matches(d, 'foo')) == 3  # all-lowercase: insensitive
     assert len(find_matches(d, 'Foo')) == 1  # uppercase present: exact
-    assert find_matches(d, 'foo', no_smartcase=True) == [Span(Kind.EXCLUSIVE, Pos(0, 4), Pos(0, 7))]
+    assert find_matches(d, 'foo', no_smartcase=True) == [Span(SpanKind.EXCLUSIVE, Pos(0, 4), Pos(0, 7))]
     assert find_matches(d, '') == []
 
 

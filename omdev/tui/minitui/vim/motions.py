@@ -11,9 +11,9 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ..docs.documents import Document
-from ..docs.positions import Kind
 from ..docs.positions import Pos
 from ..docs.positions import Span
+from ..docs.positions import SpanKind
 from .scans import first_nonblank
 from .scans import llen
 
@@ -28,7 +28,7 @@ WANT_EOL = 10 ** 9
 @dc.dataclass(frozen=True)
 class MotionResult(lang.Final):
     target: Pos
-    kind: Kind
+    kind: SpanKind
 
     _: dc.KW_ONLY
 
@@ -46,12 +46,12 @@ MOTION_KEYS: ta.AbstractSet[str] = frozenset('hljk0^$wWbBeEGnN;,%') | {'gg'} | M
 def resolve(doc: Document, start: Pos, mr: MotionResult) -> Span | None:
     """Resolve (start, motion) into an operable Span, or None for a degenerate (empty) one."""
 
-    if mr.kind is Kind.LINEWISE:
+    if mr.kind is SpanKind.LINEWISE:
         r1, r2 = sorted((start.row, mr.target.row))
-        return Span(Kind.LINEWISE, Pos(r1, 0), Pos(r2, 0))
+        return Span(SpanKind.LINEWISE, Pos(r1, 0), Pos(r2, 0))
 
     a, b = (start, mr.target) if start <= mr.target else (mr.target, start)
-    if mr.kind is Kind.INCLUSIVE:
+    if mr.kind is SpanKind.INCLUSIVE:
         b = Pos(b.row, min(b.col + 1, llen(doc, b.row)))
     else:
         # vim's two `:help exclusive` adjustments:
@@ -59,8 +59,8 @@ def resolve(doc: Document, start: Pos, mr: MotionResult) -> Span | None:
         #   * `dw` at/before the first non-blank of a line goes linewise
         if b.col == 0 and b.row > a.row:
             if a.col <= first_nonblank(doc, a.row):
-                return Span(Kind.LINEWISE, Pos(a.row, 0), Pos(b.row - 1, 0))
+                return Span(SpanKind.LINEWISE, Pos(a.row, 0), Pos(b.row - 1, 0))
             b = Pos(b.row - 1, llen(doc, b.row - 1))
     if not a < b:
         return None
-    return Span(Kind.EXCLUSIVE, a, b)
+    return Span(SpanKind.EXCLUSIVE, a, b)

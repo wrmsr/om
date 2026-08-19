@@ -17,8 +17,8 @@ from omcore import lang
 
 from ..docs.documents import Document
 from ..docs.highlighting import IncrementalHighlighter
-from ..docs.positions import Kind
 from ..docs.positions import Pos
+from ..docs.positions import SpanKind
 from ..events.keys import Key
 from ..events.types import Event
 from ..events.types import KeyEvent
@@ -212,11 +212,11 @@ class TextArea(Control):
         out: list[tuple[int, int, str]] = []
         for dec in self._engine.decorations():
             span = dec.span
-            if span.kind is Kind.LINEWISE:
+            if span.kind is SpanKind.LINEWISE:
                 if span.start.row <= doc_row <= span.end.row:
                     out.append((0, len(doc.line(doc_row)), dec.tag))
                 continue
-            if span.kind is Kind.BLOCK:
+            if span.kind is SpanKind.BLOCK:
                 if span.start.row <= doc_row <= span.end.row:
                     b = min(span.end.col, len(doc.line(doc_row)))
                     if b > span.start.col:

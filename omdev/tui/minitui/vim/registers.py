@@ -10,7 +10,7 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ..docs.positions import Kind
+from ..docs.positions import SpanKind
 
 
 ##
@@ -19,17 +19,17 @@ from ..docs.positions import Kind
 @dc.dataclass(frozen=True)
 class RegValue(lang.Final):
     pieces: tuple[str, ...]  # linewise: whole lines
-    kind: Kind               # EXCLUSIVE (charwise) or LINEWISE
+    kind: SpanKind               # EXCLUSIVE (charwise) or LINEWISE
 
 
 def _reg_append(old: RegValue, new: RegValue) -> RegValue:
-    if old.kind is Kind.BLOCK or new.kind is Kind.BLOCK:
+    if old.kind is SpanKind.BLOCK or new.kind is SpanKind.BLOCK:
         # Blocks stack vertically on append. (vim's horizontal-join subtleties are out of scope.)
-        return RegValue((*old.pieces, *new.pieces), Kind.BLOCK)
-    if old.kind is Kind.LINEWISE or new.kind is Kind.LINEWISE:
-        return RegValue((*old.pieces, *new.pieces), Kind.LINEWISE)
+        return RegValue((*old.pieces, *new.pieces), SpanKind.BLOCK)
+    if old.kind is SpanKind.LINEWISE or new.kind is SpanKind.LINEWISE:
+        return RegValue((*old.pieces, *new.pieces), SpanKind.LINEWISE)
     joined = (*old.pieces[:-1], old.pieces[-1] + new.pieces[0], *new.pieces[1:])
-    return RegValue(joined, Kind.EXCLUSIVE)
+    return RegValue(joined, SpanKind.EXCLUSIVE)
 
 
 def pieces_repeat(pieces: ta.Sequence[str], count: int) -> list[str]:

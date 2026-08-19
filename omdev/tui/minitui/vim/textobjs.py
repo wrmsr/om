@@ -7,9 +7,9 @@ import typing as ta
 from omcore import check
 
 from ..docs.documents import Document
-from ..docs.positions import Kind
 from ..docs.positions import Pos
 from ..docs.positions import Span
+from ..docs.positions import SpanKind
 from .scans import advance
 from .scans import char_at
 from .scans import char_class
@@ -75,7 +75,7 @@ def _obj_word(doc: Document, p: Pos, *, around: bool, big: bool, count: int) -> 
             if b < len(line):
                 _, b = run(b)
 
-    return Span(Kind.EXCLUSIVE, Pos(p.row, a), Pos(p.row, b))
+    return Span(SpanKind.EXCLUSIVE, Pos(p.row, a), Pos(p.row, b))
 
 
 def _obj_pair(doc: Document, p: Pos, *, around: bool, open_ch: str, close_ch: str) -> Span | None:
@@ -114,7 +114,7 @@ def _obj_pair(doc: Document, p: Pos, *, around: bool, open_ch: str, close_ch: st
 
     if around:
         end = advance(doc, close_pos) or Pos(close_pos.row, close_pos.col + 1)
-        return Span(Kind.EXCLUSIVE, open_pos, end)
+        return Span(SpanKind.EXCLUSIVE, open_pos, end)
 
     # vim promotes the *inner* object to linewise when the open bracket ends its line and only whitespace precedes the
     # close bracket on its line - this is why `di{` on a code block keeps the braces on their own lines.
@@ -123,10 +123,10 @@ def _obj_pair(doc: Document, p: Pos, *, around: bool, open_ch: str, close_ch: st
             close_pos.col <= first_nonblank(doc, close_pos.row) and
             close_pos.row > open_pos.row + 1
     ):
-        return Span(Kind.LINEWISE, Pos(open_pos.row + 1, 0), Pos(close_pos.row - 1, 0))
+        return Span(SpanKind.LINEWISE, Pos(open_pos.row + 1, 0), Pos(close_pos.row - 1, 0))
 
     inner = check.not_none(advance(doc, open_pos))
-    return Span(Kind.EXCLUSIVE, inner, close_pos)
+    return Span(SpanKind.EXCLUSIVE, inner, close_pos)
 
 
 def _obj_quote(doc: Document, p: Pos, *, around: bool, q: str) -> Span | None:
@@ -144,9 +144,9 @@ def _obj_quote(doc: Document, p: Pos, *, around: bool, q: str) -> Span | None:
     a, b = chosen
 
     if around:  # (vim also swallows trailing whitespace here; omitted)
-        return Span(Kind.EXCLUSIVE, Pos(p.row, a), Pos(p.row, b + 1))
+        return Span(SpanKind.EXCLUSIVE, Pos(p.row, a), Pos(p.row, b + 1))
 
-    return Span(Kind.EXCLUSIVE, Pos(p.row, a + 1), Pos(p.row, b))
+    return Span(SpanKind.EXCLUSIVE, Pos(p.row, a + 1), Pos(p.row, b))
 
 
 def textobj(doc: Document, p: Pos, *, around: bool, obj: str, count: int) -> Span | None:

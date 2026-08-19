@@ -8,9 +8,9 @@ through change events is a later optimization behind the same interface.
 import typing as ta
 
 from .documents import Document
-from .positions import Kind
 from .positions import Pos
 from .positions import Span
+from .positions import SpanKind
 
 
 ##
@@ -36,7 +36,7 @@ def find_matches(
         haystack = line.lower() if fold else line
         start = 0
         while (i := haystack.find(needle, start)) >= 0:
-            matches.append(Span(Kind.EXCLUSIVE, Pos(row, i), Pos(row, i + len(query))))
+            matches.append(Span(SpanKind.EXCLUSIVE, Pos(row, i), Pos(row, i + len(query))))
             start = i + len(query)
     return matches
 

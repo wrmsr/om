@@ -14,7 +14,7 @@ class Pos(lang.Final):
     col: int
 
 
-class Kind(enum.Enum):
+class SpanKind(enum.Enum):
     """How a motion/span characterizes the text it covers (vim: :help inclusive)."""
 
     EXCLUSIVE = enum.auto()  # charwise, target char NOT covered (w, b, h, 0, F, T)
@@ -32,11 +32,11 @@ class Span(lang.Final):
     start.row..end.row inclusive, cols ignored. BLOCK: reserved.
     """
 
-    kind: Kind
+    kind: SpanKind
     start: Pos
     end: Pos
 
     def contains(self, pos: Pos) -> bool:
-        if self.kind is Kind.LINEWISE:
+        if self.kind is SpanKind.LINEWISE:
             return self.start.row <= pos.row <= self.end.row
         return self.start <= pos < self.end

@@ -78,7 +78,7 @@ with _lang.auto_proxy_init(
 
     from .docs.positions import (  # noqa
         Pos,
-        Kind,
+        SpanKind,
         Span,
     )
 
