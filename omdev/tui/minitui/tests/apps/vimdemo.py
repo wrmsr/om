@@ -12,25 +12,25 @@ import os.path
 import sys
 import typing as ta
 
-from ..controls.base import Control
-from ..controls.stacks import stack_frame
-from ..controls.status import StatusBar
-from ..controls.textarea import TextArea
-from ..docs.treesitter import get_tree_sitter_highlighter
-from ..events.types import Event
-from ..runtime.drivers import App
-from ..runtime.drivers import SyncDriver
-from ..screens.cells import Frame
-from ..surfaces.alts import AltSurface
-from ..text.highlights import get_highlighter
-from ..text.segments import Segment
-from ..text.styles import Style
-from ..text.themes import DEFAULT_THEME
-from ..text.themes import FOREGROUND
-from ..text.themes import PRIMARY
-from ..text.themes import SURFACE
-from ..text.themes import TEXT_PRIMARY
-from ..text.themes import TEXT_SECONDARY
+from ...controls.base import Control
+from ...controls.stacks import stack_frame
+from ...controls.status import StatusBar
+from ...controls.textarea import TextArea
+from ...docs.treesitter import get_tree_sitter_highlighter
+from ...events.types import Event
+from ...runtime.drivers import App
+from ...runtime.drivers import SyncDriver
+from ...screens.cells import Frame
+from ...surfaces.alts import AltSurface
+from ...text.highlights import get_highlighter
+from ...text.segments import Segment
+from ...text.styles import Style
+from ...text.themes import DEFAULT_THEME
+from ...text.themes import FOREGROUND
+from ...text.themes import PRIMARY
+from ...text.themes import SURFACE
+from ...text.themes import TEXT_PRIMARY
+from ...text.themes import TEXT_SECONDARY
 
 
 ##
@@ -48,8 +48,18 @@ VIM_THEME = DEFAULT_THEME.extend({
         for tag, style in (
             (t, DEFAULT_THEME.resolve(t))
             for t in (
-                'code.keyword', 'code.builtin', 'code.def', 'code.string', 'code.comment', 'code.number',
-                'code.decorator', 'code.type', 'code.diff.add', 'code.diff.del', 'code.diff.hunk', 'code.diff.meta',
+                'code.keyword',
+                'code.builtin',
+                'code.def',
+                'code.string',
+                'code.comment',
+                'code.number',
+                'code.decorator',
+                'code.type',
+                'code.diff.add',
+                'code.diff.del',
+                'code.diff.hunk',
+                'code.diff.meta',
             )
         )
     },

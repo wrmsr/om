@@ -17,34 +17,34 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ..controls.cards import Card
-from ..controls.cards import CardState
-from ..controls.history import InputHistory
-from ..controls.markdown import MarkdownTail
-from ..controls.markdown import get_markdown_stream
-from ..controls.spinners import Spinner
-from ..controls.stacks import StackLayout
-from ..controls.stacks import stack_layout
-from ..controls.static import Static
-from ..controls.status import StatusBar
-from ..controls.suggestions import SuggestionItem
-from ..controls.suggestions import SuggestionsPopup
-from ..controls.textarea import TextArea
-from ..events.keys import Key
-from ..events.types import Event
-from ..events.types import KeyEvent
-from ..events.types import MouseEvent
-from ..runtime.drivers import App
-from ..runtime.drivers import SyncDriver
-from ..screens.cells import Frame
-from ..screens.cells import line_from_segments
-from ..surfaces.inlines import InlineSurface
-from ..text.markdown import parse_markdown
-from ..text.segments import Segment
-from ..text.styles import Style
-from ..text.themes import DEFAULT_THEME
-from ..text.themes import SUCCESS
-from ..text.themes import TEXT_SECONDARY
+from ...controls.cards import Card
+from ...controls.cards import CardState
+from ...controls.history import InputHistory
+from ...controls.markdown import MarkdownTail
+from ...controls.markdown import get_markdown_stream
+from ...controls.spinners import Spinner
+from ...controls.stacks import StackLayout
+from ...controls.stacks import stack_layout
+from ...controls.static import Static
+from ...controls.status import StatusBar
+from ...controls.suggestions import SuggestionItem
+from ...controls.suggestions import SuggestionsPopup
+from ...controls.textarea import TextArea
+from ...events.keys import Key
+from ...events.types import Event
+from ...events.types import KeyEvent
+from ...events.types import MouseEvent
+from ...runtime.drivers import App
+from ...runtime.drivers import SyncDriver
+from ...screens.cells import Frame
+from ...screens.cells import line_from_segments
+from ...surfaces.inlines import InlineSurface
+from ...text.markdown import parse_markdown
+from ...text.segments import Segment
+from ...text.styles import Style
+from ...text.themes import DEFAULT_THEME
+from ...text.themes import SUCCESS
+from ...text.themes import TEXT_SECONDARY
 
 
 ##

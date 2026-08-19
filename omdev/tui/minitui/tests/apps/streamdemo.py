@@ -15,14 +15,14 @@ import typing as ta
 
 from omcore.term.spinners import SPINNERS
 
-from ..screens.cells import Frame
-from ..screens.cells import Line
-from ..screens.cells import line_from_segments
-from ..surfaces.inlines import InlineSurface
-from ..text.segments import Segment
-from ..text.styles import Style
-from ..text.themes import DEFAULT_THEME
-from ..text.themes import SUCCESS
+from ...screens.cells import Frame
+from ...screens.cells import Line
+from ...screens.cells import line_from_segments
+from ...surfaces.inlines import InlineSurface
+from ...text.segments import Segment
+from ...text.styles import Style
+from ...text.themes import DEFAULT_THEME
+from ...text.themes import SUCCESS
 
 
 ##

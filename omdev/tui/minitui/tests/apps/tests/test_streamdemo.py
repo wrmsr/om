@@ -1,4 +1,4 @@
-from ...tests.harness import SurfaceHarness
+from ...harness import SurfaceHarness
 from ..streamdemo import PARAGRAPHS
 from ..streamdemo import StreamDemo
 from ..streamdemo import wrap_words

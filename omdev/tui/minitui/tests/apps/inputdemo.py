@@ -12,27 +12,27 @@ Run: ./python -m x.minitui.apps.inputdemo
 import itertools
 import typing as ta
 
-from ..controls.spinners import Spinner
-from ..controls.stacks import stack_frame
-from ..controls.static import Static
-from ..controls.status import StatusBar
-from ..controls.textarea import TextArea
-from ..events.keys import Key
-from ..events.types import Event
-from ..events.types import KeyEvent
-from ..events.types import PasteEvent
-from ..events.types import ResizeEvent
-from ..runtime.drivers import App
-from ..runtime.drivers import SyncDriver
-from ..screens.cells import Frame
-from ..screens.cells import line_from_segments
-from ..surfaces.inlines import InlineSurface
-from ..text.segments import Segment
-from ..text.styles import Style
-from ..text.themes import DEFAULT_THEME
-from ..text.themes import SUCCESS
-from ..text.themes import TEXT_SECONDARY
-from ..text.wraps import wrap_segments
+from ...controls.spinners import Spinner
+from ...controls.stacks import stack_frame
+from ...controls.static import Static
+from ...controls.status import StatusBar
+from ...controls.textarea import TextArea
+from ...events.keys import Key
+from ...events.types import Event
+from ...events.types import KeyEvent
+from ...events.types import PasteEvent
+from ...events.types import ResizeEvent
+from ...runtime.drivers import App
+from ...runtime.drivers import SyncDriver
+from ...screens.cells import Frame
+from ...screens.cells import line_from_segments
+from ...surfaces.inlines import InlineSurface
+from ...text.segments import Segment
+from ...text.styles import Style
+from ...text.themes import DEFAULT_THEME
+from ...text.themes import SUCCESS
+from ...text.themes import TEXT_SECONDARY
+from ...text.wraps import wrap_segments
 from .streamdemo import PARAGRAPHS
 
 
