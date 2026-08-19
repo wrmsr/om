@@ -270,8 +270,12 @@ class ProcessScope:
     async def aclose(self) -> None:
         if self._closed:
             return
-        if self._closing:
-            return
+
+        # NOTE: deliberately no early return on `_closing`. A close may be in flight in another task, or a previous one
+        # may have been cancelled midway (leaving live processes behind) - either way this call must itself run the
+        # close to completion, not report success early. Every step is idempotent and safe to run concurrently: child
+        # closes are, handle closes are serialized inside the handles, and finished handles unregister themselves.
+        # `_closing` stays set forever once a close has begun so no spawn can slip in between attempts.
         self._closing = True
 
         errors: list[Exception] = []
@@ -291,9 +295,11 @@ class ProcessScope:
         self._processes.clear()
         if (p := self._parent) is not None:
             p._children.pop(self._name, None)  # noqa: SLF001
+        first = not self._closed
         self._closed = True
 
-        await self._manager.scope_closed(self, dc.replace(result, errors=errors))
+        if first:
+            await self._manager.scope_closed(self, dc.replace(result, errors=errors))
 
         if errors:
             if len(errors) == 1:

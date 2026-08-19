@@ -162,7 +162,19 @@ class AsyncioProcess(Process):
     def _set_scope(self, scope: ProcessScope) -> None:
         self._scope = scope
 
+    def _set_stdin(self, stdin: StdinWriter) -> None:
+        check.none(self._stdin)
+        if self._state.is_terminal:
+            # Torn down while the pipe was still connecting: don't hold a transport nobody will ever close.
+            stdin.abort()
+            return
+        self._stdin = stdin
+
     def _add_read_transport(self, fd: int, transport: asyncio.ReadTransport) -> None:
+        if self._state.is_terminal:
+            # Torn down while the pipe was still connecting - `_force_close_output` has already run and will not again.
+            transport.close()
+            return
         self._read_transports[fd] = transport
         self._open_output_fds.add(fd)
 
@@ -320,11 +332,35 @@ class AsyncioProcess(Process):
             ))
         self._owner._process_finished(self)  # noqa
 
-    def _abandon(self, reason: str) -> None:
+    def _abandon(self, reason: str, *, kill: bool = False) -> None:
+        """
+        Gives up on a handle we are out of time for: it is unregistered, and its still-running exit watcher reaps it if
+        it ever does exit. With `kill` the group is SIGKILLed first (the scope-close backstop: out of time, not out of
+        options). A handle whose exit has already been *observed* has nothing to abandon - its watcher will never fire
+        again, so leaving it would hold the zombie forever - it is swept and reaped right here instead.
+        """
+
         with self._lock:
             if self._state.is_terminal:
                 return
-            self._state = ProcessState.ABANDONED
+            exited = self._state is ProcessState.EXITED
+            if not exited:
+                self._state = ProcessState.ABANDONED
+
+        if kill:
+            try:
+                self._signal_if_owned(signal.SIGKILL, self.termination_policy.process_group)
+            except OSError:
+                log.exception('processes: error killing %r at abandonment', self)
+        if (w := self._stdin) is not None:
+            w.abort()
+
+        if exited:
+            log.warning('processes: process %r had already exited at abandonment (%s) - reaping', self, reason)
+            self._force_close_output()
+            self._reap()
+            return
+
         log.error('processes: abandoning process %r: %s', self, reason)
         self._force_close_output()
         self._owner._publish_soon(ProcessAbandonedEvent(**self._event_kwargs(), state=self._state))  # noqa

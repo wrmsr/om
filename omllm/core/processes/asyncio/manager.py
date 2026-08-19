@@ -32,6 +32,7 @@ from ..spool.spool import OutputSpool
 from ..spool.storage import SpoolStorage
 from ..types.errors import ManagerClosedError
 from ..types.errors import ManagerNotStartedError
+from ..types.errors import ScopeClosedError
 from ..types.errors import SpawnError
 from ..types.errors import UnsafeChildSignalDispositionError
 from ..types.events import ProcessEvent
@@ -318,10 +319,13 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
             for t in tasks:
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            # Out of time: SIGKILL whatever is left and abandon it (its lingering watcher reaps it when it dies); a
+            # handle that had already exited is simply reaped.
             for p in processes:
                 if not p.state.is_terminal:
                     check.isinstance(p, AsyncioProcess)._abandon(  # noqa
                         f'scope close exceeded {policy.overall_timeout_s}s',
+                        kill=True,
                     )
 
         return ScopeCloseResult(
@@ -463,7 +467,10 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
             _close_all(parent_fds)
             raise
 
-        # From here the child exists: whatever happens, it must end up managed and eventually reaped.
+        # From here the child exists: whatever happens, it must end up managed and eventually reaped. Its handle and
+        # exit watcher are set up synchronously right here; everything below that can suspend (pipe connects, the exec
+        # handshake, the spawned event) runs inside one try whose handlers tear the handle down - in the background if
+        # this task is being cancelled.
 
         storage = SpoolStorage(
             memory_cap=spool_policy.memory_cap,
@@ -474,20 +481,6 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
         spool = OutputSpool(storage, AsyncioSpoolNotifier(loop))
         self._spools.append(spool)
 
-        if is_pty:
-            stdin_w = pty_write_fd
-            output_reads: list[tuple[int, int]] = [(_pty.PTY_OUTPUT_FD, check.not_none(pty_read_fd))]
-        else:
-            output_reads = [(fd, r) for fd, r in ((1, stdout_r), (2, stderr_r)) if r is not None]
-
-        stdin_writer: StdinWriter | None = None
-        if stdin_w is not None:
-            w_transport, w_protocol = await loop.connect_write_pipe(
-                WritePipeProtocol,
-                open(stdin_w, 'wb', buffering=0),  # noqa
-            )
-            stdin_writer = StdinWriter(w_transport, w_protocol)
-
         proc = AsyncioProcess(
             id=pid_id,
             spec=plan.spec,
@@ -495,35 +488,61 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
             scope=scope,
             popen=popen,
             spool=spool,
-            stdin=stdin_writer,
+            stdin=None,
             pty_master_fd=pty_master_fd,
             owner=self,
             loop=loop,
         )
-
-        for fd_num, parent_fd in output_reads:
-            r_transport, _ = await loop.connect_read_pipe(
-                functools.partial(
-                    ReadPipeProtocol,
-                    functools.partial(proc._on_data, fd_num),  # noqa
-                    functools.partial(proc._on_output_eof, fd_num),  # noqa
-                ),
-                open(parent_fd, 'rb', buffering=0),  # noqa
-            )
-            proc._add_read_transport(fd_num, r_transport)  # noqa
-        proc._no_output()  # noqa
-
-        status_fut: asyncio.Future[bytes] = loop.create_future()
-        await loop.connect_read_pipe(
-            functools.partial(_StatusProtocol, status_fut),
-            open(status_r, 'rb', buffering=0),  # noqa
-        )
-
-        scope._register(proc)  # noqa
-        self._processes[pid_id] = proc
         proc._start_watcher()  # noqa
 
+        if is_pty:
+            stdin_w = pty_write_fd
+            output_reads: list[tuple[int, int]] = [(_pty.PTY_OUTPUT_FD, check.not_none(pty_read_fd))]
+        else:
+            output_reads = [(fd, r) for fd, r in ((1, stdout_r), (2, stderr_r)) if r is not None]
+
+        # Raw parent fds not yet handed to a transport (the pty master is the handle's own). Whatever is still pending
+        # when we bail is closed by hand; an fd wrapped in a file object is closed by its transport (or, if the connect
+        # never completed, by the file object itself).
+        pending_fds = [fd for fd in parent_fds if fd != pty_master_fd]
+
+        def _adopt(fd: int, mode: str) -> ta.IO:
+            pending_fds.remove(fd)
+            return open(fd, mode, buffering=0)  # noqa
+
         try:
+            if stdin_w is not None:
+                w_transport, w_protocol = await loop.connect_write_pipe(
+                    WritePipeProtocol,
+                    _adopt(stdin_w, 'wb'),
+                )
+                proc._set_stdin(StdinWriter(w_transport, w_protocol))  # noqa
+
+            for fd_num, parent_fd in output_reads:
+                r_transport, _ = await loop.connect_read_pipe(
+                    functools.partial(
+                        ReadPipeProtocol,
+                        functools.partial(proc._on_data, fd_num),  # noqa
+                        functools.partial(proc._on_output_eof, fd_num),  # noqa
+                    ),
+                    _adopt(parent_fd, 'rb'),
+                )
+                proc._add_read_transport(fd_num, r_transport)  # noqa
+            proc._no_output()  # noqa
+
+            status_fut: asyncio.Future[bytes] = loop.create_future()
+            await loop.connect_read_pipe(
+                functools.partial(_StatusProtocol, status_fut),
+                _adopt(status_r, 'rb'),
+            )
+
+            # The scope may have begun closing while the pipes were connecting - its close has already snapshotted its
+            # processes, so registering now would leave this one in a closed scope with nothing to ever tear it down.
+            if scope.closing:
+                raise ScopeClosedError('/'.join(scope.path))
+            scope._register(proc)  # noqa
+            self._processes[pid_id] = proc
+
             try:
                 status = await asyncio.wait_for(status_fut, self._config.spawn_timeout_s)
             except TimeoutError:
@@ -541,35 +560,45 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
                     stage, err_no, msg = 'status', None, repr(status)
                 raise SpawnError(str(stage), err_no, str(msg), argv=list(spec.argv))
 
+            proc._mark_running()  # noqa
+
+            # Registered, but the scope started closing during the handshake: it is being torn down by the scope's
+            # close, so don't hand it out (the aclose below just joins that teardown).
+            if scope.closing:
+                raise ScopeClosedError('/'.join(scope.path))
+
+            await self._publish_now(ProcessSpawnedEvent(
+                process_id=proc.id,
+                pid=proc.pid,
+                scope_path=tuple(scope.path),
+                argv=tuple(plan.spec.argv),
+                name=spec.name,
+            ))
+
         except asyncio.CancelledError:
             # The spawner is being cancelled - tear the child down in the background rather than leave it unmanaged.
+            _close_all(pending_fds)
             self._spawn_task(proc.aclose())
             raise
 
         except BaseException:
             # The child is (or will shortly be) dead or unwanted: fully close it before surfacing the error.
+            _close_all(pending_fds)
             await proc.aclose()
             raise
-
-        proc._mark_running()  # noqa
-        await self._publish_now(ProcessSpawnedEvent(
-            process_id=proc.id,
-            pid=proc.pid,
-            scope_path=tuple(scope.path),
-            argv=tuple(plan.spec.argv),
-            name=spec.name,
-        ))
 
         return proc
 
     #
 
     async def aclose(self) -> None:
-        if self._state in ('closing', 'closed'):
+        if self._state == 'closed':
             return
         if self._state == 'new':
             self._state = 'closed'
             return
+        # NOTE: deliberately no early return on 'closing': a concurrent (or previously cancelled) close must also run to
+        # completion. Every step below is idempotent and safe to run concurrently.
         self._state = 'closing'
 
         errors: list[Exception] = []
@@ -583,20 +612,23 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
                 self._ensure_drain()
             await asyncio.gather(*list(self._tasks), return_exceptions=True)
 
-        any_kept = False
-        for sp in self._spools:
-            try:
-                sp.close()
-            except Exception as e:  # noqa
-                errors.append(e)
-            if sp.spill_path is not None:
-                any_kept = True
-        self._spools.clear()
+        # The first closer to get here finishes up (this block does not suspend, so concurrent closers cannot
+        # interleave in it).
+        if self._state != 'closed':
+            any_kept = False
+            for sp in self._spools:
+                try:
+                    sp.close()
+                except Exception as e:  # noqa
+                    errors.append(e)
+                if sp.spill_path is not None:
+                    any_kept = True
+            self._spools.clear()
 
-        if self._own_spill_dir and self._spill_dir is not None and not any_kept:
-            shutil.rmtree(self._spill_dir, ignore_errors=True)
+            if self._own_spill_dir and self._spill_dir is not None and not any_kept:
+                shutil.rmtree(self._spill_dir, ignore_errors=True)
 
-        self._state = 'closed'
+            self._state = 'closed'
 
         if errors:
             if len(errors) == 1:

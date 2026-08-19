@@ -29,6 +29,7 @@ from ...types.options import TerminationPolicy
 from ...types.options import Umask
 from ...types.specs import ProcessSpec
 from ...types.specs import ProcessStdio
+from ...types.specs import PtyStdio
 from ...types.states import ProcessState
 from ..manager import AsyncioProcessManager
 from ..process import AsyncioProcess
@@ -364,11 +365,134 @@ async def test_scope_close_policy_backstop():
         assert time.monotonic() - t0 < 3.
         assert p.state in (ProcessState.ABANDONED, ProcessState.EXITED, ProcessState.REAPED)
         assert not m.processes
-        # The abandoned process is still ours (unreaped) - closing the manager must not hang, and the watcher reaps it
-        # once the SIGKILL from the abandonment... note: no SIGKILL was sent by the backstop; send one ourselves.
-        if p.state.name == 'ABANDONED':
-            await p.kill()
+        # The backstop SIGKILLs what it abandons; the lingering watcher then reaps it - no hand-holding needed.
         assert await _poll(lambda: p.state.name == 'REAPED')
+        assert _reaped(p.pid)
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_scope_close_backstop_reaps_already_exited():
+    # Regression: the leader has exited (a held zombie) but a TERM-immune straggler keeps its stdout open, so the
+    # handle's aclose sits in the drain wait when the scope backstop expires. It used to be abandoned from EXITED - and
+    # since its exit watcher had already fired, nothing ever reaped it (and the straggler was never swept).
+    async with AsyncioProcessManager(ManagerConfig(close_policy=ScopeClosePolicy(overall_timeout_s=.3))) as m:
+        s = m.root.child('s')
+        p = await s.spawn(
+            _sh('(trap "" TERM; exec sleep 100) & echo $!; exit 0'),
+            TerminationPolicy(drain_s=30.),
+        )
+        gpid = int(await _read_first_line(p))
+        assert await p.wait(5.) == 0
+        assert p.state.name == 'EXITED'
+        assert _pid_alive(gpid)
+
+        t0 = time.monotonic()
+        await s.aclose()
+        assert time.monotonic() - t0 < 5.
+        assert p.state.name == 'REAPED'
+        assert _reaped(p.pid)
+        assert not m.processes
+        assert await _poll(lambda: not _pid_alive(gpid))
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_spawn_cancelled_during_setup_is_torn_down():
+    # Regression: a cancellation delivered at spawn's first suspension point - after Popen has forked but before the
+    # handle was registered / the handshake began - used to leak the child entirely (never signaled, never reaped).
+    # `call_soon(t.cancel)` lands the cancel exactly there: the task's first step (which runs Popen) is queued ahead of
+    # it, so the cancel hits the first pipe connect.
+    events: list = []
+    async with AsyncioProcessManager() as m:
+        m.subscribe(events.append)
+        loop = asyncio.get_running_loop()
+        n = 5
+        for _ in range(n):
+            t = loop.create_task(m.root.spawn(_sh('exec sleep 100'), TerminationPolicy(grace_s=1.)))
+            loop.call_soon(t.cancel)
+            with pytest.raises(asyncio.CancelledError):
+                await t
+        # Each cancelled spawn tears its child down in the background.
+        assert await _poll(lambda: len([e for e in events if isinstance(e, ProcessReapedEvent)]) == n, timeout=10.)
+        assert not m.processes
+    reaped = [e for e in events if isinstance(e, ProcessReapedEvent)]
+    assert len(reaped) == n
+    assert all(_reaped(e.pid) for e in reaped)
+
+    # Same with a stdin pipe and with a pty (different first suspension points / fd sets).
+    events.clear()
+    async with AsyncioProcessManager() as m:
+        m.subscribe(events.append)
+        loop = asyncio.get_running_loop()
+        for spec in [
+            ProcessSpec(['sleep', '100'], stdio=ProcessStdio(stdin='pipe')),
+            ProcessSpec(['sleep', '100'], stdio=PtyStdio()),
+        ]:
+            t = loop.create_task(m.root.spawn(spec, TerminationPolicy(grace_s=1.)))
+            loop.call_soon(t.cancel)
+            with pytest.raises(asyncio.CancelledError):
+                await t
+        assert await _poll(lambda: len([e for e in events if isinstance(e, ProcessReapedEvent)]) == 2, timeout=10.)
+        assert not m.processes
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_spawn_racing_scope_close():
+    # Regression: a spawn in flight (forked, pipes still connecting) while its scope closed used to register into the
+    # already-closed scope, where nothing would ever tear it down - it survived even manager close.
+    events: list = []
+    async with AsyncioProcessManager() as m:
+        m.subscribe(events.append)
+        s = m.root.child('tool')
+        t = asyncio.ensure_future(s.spawn(_sh('exec sleep 100'), TerminationPolicy(grace_s=1.)))
+        await asyncio.sleep(0)  # spawn runs up to its first suspension: forked, not yet registered
+        await s.aclose()
+        assert s.closed
+        with pytest.raises(ScopeClosedError):
+            await t
+        assert not s.processes
+        assert not m.processes
+    reaped = [e for e in events if isinstance(e, ProcessReapedEvent)]
+    assert len(reaped) == 1
+    assert _reaped(reaped[0].pid)
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_scope_close_retry_after_cancel_and_concurrent_close():
+    # Regression: a scope close cancelled mid-grace-wait used to leave the scope stuck 'closing' - later closes
+    # (including the manager's) returned immediately, leaving its processes running.
+    async with AsyncioProcessManager() as m:
+        s = m.root.child('tool')
+        p = await s.spawn(_sh('trap "" TERM; echo ready; while :; do sleep 0.05; done'), TerminationPolicy(grace_s=1.))
+        await _read_first_line(p)
+        t = asyncio.ensure_future(s.aclose())
+        await asyncio.sleep(.2)  # inside the grace wait
+        t.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await t
+        assert (s.closing, s.closed) == (True, False)  # stuck 'closing' - but only until the next attempt
+        assert p.state.name == 'RUNNING'
+
+        # The retry must actually close it.
+        await s.aclose()
+        assert s.closed
+        assert p.state.name == 'REAPED'
+        assert not m.processes
+
+        # A concurrent second closer must not return before the close is really done.
+        s2 = m.root.child('tool2')
+        p2 = await s2.spawn(
+            _sh('trap "" TERM; echo ready; while :; do sleep 0.05; done'),
+            TerminationPolicy(grace_s=.3),
+        )
+        await _read_first_line(p2)
+        t1 = asyncio.ensure_future(s2.aclose())
+        await asyncio.sleep(0)
+        t2 = asyncio.ensure_future(s2.aclose())
+        await t2
+        assert p2.state.name == 'REAPED'
+        assert s2.closed
+        await t1
+        assert not m.processes
 
 
 @pytest.mark.asyncs('asyncio')
