@@ -1,8 +1,8 @@
 """
 `BaseProcessManager`: everything about being a process manager that does not depend on the async runtime - the
-lifecycle, the registry and root scope, spawning (stdio / pty plumbing, the launcher plan, `fork_exec`, the exec-status
-handshake, registration), the ordered event stream, scope hooks, teardown and the spill directory. Handles are
-`BaseProcess`es, which are equally runtime-agnostic.
+lifecycle, the registry and root scope, spawning (stdio / pty plumbing, the launcher plan, `spawn_child`, the
+exec-status handshake, registration), the ordered event stream, scope hooks, teardown and the spill directory. Handles
+are `BaseProcess`es, which are equally runtime-agnostic.
 
 What an implementation supplies is deliberately narrow, and named `_..._runtime`-ish below: an `Asynclite` for events
 and locks, task spawning / joining, a bounded concurrent run (for scope close), a spool notifier, the process handle
@@ -60,7 +60,7 @@ from ..types.specs import PtyStdio
 from ..types.states import ProcessState
 from .process import BaseProcess
 from .process import ProcessStdinWriter
-from .spawn import fork_exec
+from .spawn import spawn_child
 from .stdio import close_fds_quietly
 from .stdio import setup_stdio
 from .types import ManagerConfig
@@ -258,7 +258,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
         # A live check catches SA_NOCLDWAIT and foreign C-level handlers too.
         devnull = os.open(os.devnull, os.O_RDWR)
         try:
-            pid = fork_exec(
+            pid = spawn_child(
                 ['sh', '-c', ':'],
                 stdin_fd=devnull,
                 stdout_fd=devnull,
@@ -460,10 +460,9 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
         try:
             plan = self._launcher.plan(spec, options, status_fd=status_w)
             try:
-                pid = fork_exec(
+                pid = spawn_child(
                     plan.argv,
                     env=plan.env,
-                    cwd=plan.cwd,
                     stdin_fd=sio.stdin_fd,
                     stdout_fd=sio.stdout_fd,
                     stderr_fd=sio.stderr_fd,
@@ -471,7 +470,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
                     session_mode=session_mode,
                 )
             except OSError as e:
-                raise SpawnError('fork', e.errno, str(e), argv=list(spec.argv)) from e
+                raise SpawnError('spawn', e.errno, str(e), argv=list(spec.argv)) from e
             finally:
                 plan.close()
 

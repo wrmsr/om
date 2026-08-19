@@ -1,9 +1,10 @@
 """
-Builds the `python -I -S -c <bootstrap> <payload_fd>` launch. The bootstrap loads two marshal'd values from the payload
-fd - the shim source (as text) and the payload dict - `exec`s the source and calls its `main(payload)`. The payload
-rides an unlinked temp file rather than a pipe so it can be arbitrarily large without stalling the parent.
+Builds the `python -I -S -c <bootstrap> <payload_fd>` launch. The payload fd carries one text file: a first line holding
+the json `ShimPayload`, followed by the shim source. The bootstrap reads both, execs the source as a module named
+`__procs_shim__`, and calls its `main(ShimPayload(**payload))`. The payload rides an unlinked temp file rather than a
+pipe so it can be arbitrarily large without stalling the parent.
 """
-import marshal
+import json
 import os
 import sys
 import tempfile
@@ -12,6 +13,7 @@ import typing as ta
 from omcore import check
 from omcore import lang
 
+from ..spawn.shim import ShimPayload
 from ..types.options import Credentials
 from ..types.options import Deathsig
 from ..types.options import PassFd
@@ -29,13 +31,16 @@ from .launcher import apply_transforms
 ##
 
 
+SHIM_MODULE_NAME: ta.Final[str] = '__procs_shim__'
+
 BOOTSTRAP: ta.Final[str] = (
-    'import marshal,os,sys;'
-    "f=os.fdopen(int(sys.argv[1]),'rb');"
-    's=marshal.load(f);p=marshal.load(f);f.close();'
-    "n={'__name__':'__procs_shim__'};"
-    "exec(compile(s,'<processes-shim>','exec'),n);"
-    "n['main'](p)"
+    'import json,os,sys,types;'
+    "f=os.fdopen(int(sys.argv[1]),'r',encoding='utf-8');"
+    'p=json.loads(f.readline());s=f.read();f.close();'
+    f"m=types.ModuleType('{SHIM_MODULE_NAME}');"
+    'sys.modules[m.__name__]=m;'
+    "exec(compile(s,'<processes-shim>','exec'),m.__dict__);"
+    'm.main(m.ShimPayload(**p))'
 )
 
 
@@ -46,12 +51,12 @@ def shim_source() -> str:
 
 def decode_shim_status(status: bytes) -> tuple[str, int | None, str]:
     """
-    Decodes a non-empty exec-status record written by the shim: a marshal'd `(stage, errno, message)`. Anything
-    undecodable is reported as a 'status' stage failure carrying the raw bytes.
+    Decodes a non-empty exec-status record written by the shim: a json `[stage, errno, message]`. Anything undecodable
+    is reported as a 'status' stage failure carrying the raw bytes.
     """
 
     try:
-        stage, err_no, msg = marshal.loads(status)  # noqa: S302
+        stage, err_no, msg = json.loads(status)
     except Exception:  # noqa
         return 'status', None, repr(status)
     return str(stage), err_no if isinstance(err_no, int) else None, str(msg)
@@ -60,48 +65,41 @@ def decode_shim_status(status: bytes) -> tuple[str, int | None, str]:
 ##
 
 
-def _fsencode(s: int | str | bytes) -> int | bytes:
-    if isinstance(s, int):
-        return s
-    return os.fsencode(s)
-
-
 def build_payload(
         spec: ProcessSpec,
         options: ProcessOptions,
         *,
         status_fd: int,
         keep_fds: ta.Sequence[int] = (),
-        close_fds: ta.Sequence[int] = (),
         set_ctty: bool = False,
-) -> dict[str, ta.Any]:
-    payload: dict[str, ta.Any] = {
-        'argv': [os.fsencode(a) for a in spec.argv],
-        'env': {os.fsencode(k): os.fsencode(v) for k, v in spec.resolve_env().items()},
-        'cwd': os.fsencode(spec.cwd) if spec.cwd is not None else None,
-        'status_fd': status_fd,
-        'keep_fds': list(keep_fds),
-        'close_fds': list(close_fds),
-    }
-
-    if set_ctty:
-        payload['set_ctty'] = True
+) -> ShimPayload:
+    kw: dict[str, ta.Any] = {}
 
     if (um := options.get(Umask)) is not None:
-        payload['umask'] = um.v
+        kw.update(umask=um.v)
 
     if (rls := options.get(Rlimit)):
-        payload['rlimits'] = [(r.resource, r.soft, r.hard) for r in rls]
+        kw.update(rlimits=[[r.resource, r.soft, r.hard] for r in rls])
 
     if (cr := options.get(Credentials)) is not None:
-        payload['user'] = _fsencode(cr.user) if cr.user is not None else None
-        payload['group'] = _fsencode(cr.group) if cr.group is not None else None
-        payload['extra_groups'] = [_fsencode(g) for g in cr.extra_groups] if cr.extra_groups is not None else None
+        kw.update(
+            user=cr.user,
+            group=cr.group,
+            extra_groups=list(cr.extra_groups) if cr.extra_groups is not None else None,
+        )
 
     if (ds := options.get(Deathsig)) is not None:
-        payload['deathsig'] = int(ds.signal)
+        kw.update(deathsig=int(ds.signal))
 
-    return payload
+    return ShimPayload(
+        argv=list(spec.argv),
+        env=dict(spec.resolve_env()),
+        status_fd=status_fd,
+        cwd=spec.cwd,
+        keep_fds=list(keep_fds),
+        set_ctty=set_ctty,
+        **kw,
+    )
 
 
 ##
@@ -131,17 +129,18 @@ class ShimLauncher(Launcher):
 
     #
 
-    def _write_payload_file(self, payload: dict[str, ta.Any]) -> int:
+    def _write_payload_file(self, payload: ShimPayload) -> int:
         f = tempfile.TemporaryFile(prefix='om-processes-payload-')  # noqa: SIM115
         try:
-            f.write(marshal.dumps(shim_source()))
-            f.write(marshal.dumps(payload))
+            # `json.dumps` escapes everything non-ascii (incl. surrogate escapes), so the payload is exactly one line.
+            f.write(payload.to_json().encode('ascii'))
+            f.write(b'\n')
+            f.write(shim_source().encode('utf-8'))
             f.flush()
             fd = os.dup(f.fileno())
         finally:
             f.close()
         os.lseek(fd, 0, os.SEEK_SET)
-        os.set_inheritable(fd, True)
         return fd
 
     def plan(
@@ -180,7 +179,6 @@ class ShimLauncher(Launcher):
             # The shim's own environment. `-I` makes the interpreter ignore PYTHON* vars in it; the target gets the
             # exact env from the payload regardless.
             env=spec.resolve_env(),
-            cwd=None,
             pass_fds=[payload_fd, status_fd, *keep_fds],
             owned_fds=[payload_fd],
         )

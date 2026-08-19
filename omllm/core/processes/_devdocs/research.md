@@ -21,6 +21,9 @@
 
 ## Stdlib facts the design depends on
 
+(Items 1, 2 and parts of 6 describe `Popen`, which the manager no longer uses at all - see `dev_10`. They are kept as
+the record of *why*: they are the behaviors we had to neutralize, and the reason there is no Popen object anywhere now.)
+
 1. `Popen.__del__` with `returncode is None` calls `waitpid(pid, WNOHANG)` — it would reap a zombie we hold; else it
    appends the object to `subprocess._active`, which every later `Popen()` reaps via `_cleanup()`. `send_signal()`
    calls `poll()` first (reaps), and documents a residual pid-reuse race anyway. `__exit__` waits. => We use a

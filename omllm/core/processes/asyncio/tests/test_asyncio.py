@@ -22,6 +22,7 @@ from ...types.events import ProcessExitedEvent
 from ...types.events import ProcessReapedEvent
 from ...types.events import ProcessSpawnedEvent
 from ...types.options import Credentials
+from ...types.options import PassFd
 from ...types.options import Rlimit
 from ...types.options import SessionMode
 from ...types.options import SpoolPolicy
@@ -119,6 +120,57 @@ async def test_env_cwd_umask_rlimit():
         finally:
             del os.environ['OM_PROCS_TEST_ENV']
         assert run.stdout == b'yes\n'
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_fd_hygiene_and_pass_fds():
+    async with AsyncioProcessManager() as m:
+        # A stray fd that someone made inheritable in this process must not reach the target (the shim closes it)...
+        stray_r, stray_w = os.pipe()
+        os.set_inheritable(stray_w, True)
+        # ...while a PassFd must.
+        pass_r, pass_w = os.pipe()
+        try:
+            code = (
+                'import os\n'
+                f'os.write({pass_w}, b"via-pass\\n")\n'
+                'try:\n'
+                f'    os.write({stray_w}, b"x")\n'
+                '    print("LEAKED")\n'
+                'except OSError:\n'
+                '    pass\n'
+                'print("done")\n'
+            )
+            run = await m.root.run(ProcessSpec([sys.executable, '-c', code]), PassFd(pass_w))
+            assert run.returncode == 0
+            assert run.stdout == b'done\n'
+            os.close(pass_w)
+            assert os.read(pass_r, 100) == b'via-pass\n'
+            # Our own flags were restored after the spawn.
+            assert not os.get_inheritable(pass_r)
+        finally:
+            for fd in (stray_r, stray_w, pass_r):
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            try:
+                os.close(pass_w)
+            except OSError:
+                pass
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_non_utf8_argv_and_env():
+    # OS strings ride the json payload as surrogate-escaped str and come out as the original bytes.
+    async with AsyncioProcessManager() as m:
+        weird = os.fsdecode(b'\xff\xfe')
+        run = await m.root.run(ProcessSpec(
+            ['sh', '-c', 'printf %s "$1" | od -An -tx1; printf %s "$W" | od -An -tx1', 'sh', weird],
+            env={'W': weird, 'PATH': os.environ.get('PATH', '/usr/bin:/bin')},
+        ))
+        assert run.returncode == 0
+        assert run.stdout.split() == [b'ff', b'fe', b'ff', b'fe']
 
 
 @pytest.mark.asyncs('asyncio')

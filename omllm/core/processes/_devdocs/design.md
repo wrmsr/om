@@ -7,7 +7,8 @@
   scope until it is reaped or abandoned. Backgrounding == `scope.adopt(process)` on an ancestor (reparent).
 - Every local spawn: `ShimLauncher` builds `python -I -S -c <bootstrap> <payload_fd>`; the shim (pure stdlib,
   `_spawn/shim.py`) applies `Credentials`/`Umask`/`Rlimit`/`Deathsig`, `chdir`, env, resets signal dispositions,
-  reports pre-exec failures over a status fd, then `os.execvpe`. Session/group creation happens at Popen level.
+  reports pre-exec failures over a status fd, then `os.execvpe`. Session/group creation happens at spawn level
+  (`os.posix_spawn` `setsid` / `setpgroup`).
 - Output: one **spool** per process — an append-only *framed* byte stream (fd, flags, len, t_mono_ns, t_wall_ns,
   seq + payload). Memory holds the suffix (byte cap, `None`-able), a spill file holds the prefix. Cursor == byte offset
   into the framed stream. Renderers are stateful views (raw / arrival-merged / tagged lines).
@@ -65,16 +66,23 @@
 
 - `SpecTransform.transform(spec) -> spec` chain (day 1: `ShellWrapTransform` — debugger-friendly `sh -c` wrap via
   `omcore.subprocesses.wrap`; `EnvScrubTransform`).
-- `ShimLauncher.plan(spec, options) -> ShimLaunch(argv, payload: bytes, env)`: bootstrap `-c` code + marshal'd
-  (source, payload) written to an unlinked temp file (any size, no pipe stalls). Shim source loaded once via
-  `lang.get_relative_resources('.spawn', globals=globals())['shim.py']` (never `__file__`).
-- Status protocol: parent reads the status pipe until EOF. EOF with no data == exec happened. Any data == a
-  marshal'd `(stage, errno, message)` error record from the shim → `SpawnError`; the shim then `os._exit(127)`.
+- `ShimLauncher.plan(spec, options) -> LaunchPlan(argv, env, pass_fds, owned_fds)`: bootstrap `-c` code + one text
+  file on the payload fd - a first line of json (`ShimPayload`, a plain dataclass in `spawn/shim.py` that the rest of
+  the package imports and builds directly; every field round-trips json as is, OS strings as surrogate-escaped str)
+  followed by the shim source. The bootstrap execs the source as module `__procs_shim__` and calls
+  `main(ShimPayload(**payload))`. Unlinked temp file, any size, no pipe stalls. Shim source loaded once via
+  `lang.get_relative_resources('..spawn', globals=globals())['shim.py']` (never `__file__`).
+- Status protocol: parent reads the status pipe until EOF. EOF with no data == exec happened. Any data == a json
+  `[stage, errno, message]` error record from the shim → `SpawnError`; the shim then `os._exit(127)`.
+- Division of labor: `spawn_child` (`os.posix_spawn`) does only what must happen between fork and exec - dup2 of 0/1/2,
+  setsid / setpgroup, default signal dispositions; the shim (a full python of ours) does everything else, including
+  closing every fd >= 3 except `status_fd` + `keep_fds` (so a stray inheritable fd can reach the shim, never the
+  target). `pass_fds` are made inheritable in the parent for the duration of the spawn and restored.
 
 ## Managers (`managers/`) and the asyncio impl (`asyncio/`)
 
 - `BaseProcessManager(config, *, asynclite)` (runtime-agnostic): `start()` (SIGCHLD guard + self-test spawn, mkdtemp,
-  validate shim python), `spawn` (`setup_stdio` fd plumbing, launcher plan, `fork_exec`, handle + watcher, pipe
+  validate shim python), `spawn` (`setup_stdio` fd plumbing, launcher plan, `spawn_child`, handle + watcher, pipe
   connects, status handshake, registry, events), the ordered event drain, scope hooks, `close_processes` backstop,
   `aclose()`. Its runtime hooks - all an implementation provides - are `_start_runtime`, `_spawn_task` / `_join_tasks`,
   `_run_all_bounded`, `_new_spool_notifier`, `_new_process`, `_connect_stdin` / `_connect_output` /
@@ -82,8 +90,8 @@
 - `BaseProcess` (runtime-agnostic): per-handle `threading.Lock` for the signal/reap syscall critical section, asynclite
   events for exited / output-ended / reaped and an asynclite lock for close, state machine, poison flag, the whole
   teardown algorithm; one hook, `_post_threadsafe` (exit-watcher thread -> owner thread).
-- `managers/spawn.py::fork_exec`: our own spawner over `_posixsubprocess.fork_exec` returning a bare pid - there is no
-  `Popen` object anywhere.
+- `managers/spawn.py::spawn_child`: our own spawner over `os.posix_spawn` returning a bare pid - there is no `Popen`
+  object (nor any `_posixsubprocess` use) anywhere.
 - `AsyncioProcessManager` / `AsyncioProcess`: the hooks above with asyncio tasks, `connect_read_pipe` /
   `connect_write_pipe` transports (`asyncio/pipes.py`), `AsyncioSpoolNotifier`, `call_soon_threadsafe`.
 - Teardown of one handle (`aclose`): close stdin → (if alive) TERM → wait grace → KILL → wait kill_s → stuck →
@@ -95,7 +103,7 @@
 
 ## Invariants (repeat in code comments)
 
-1. There is no `Popen`: `fork_exec` returns a pid and nothing but the handle's deliberate `_reap` ever waits on it.
+1. There is no `Popen`: `spawn_child` returns a pid and nothing but the handle's deliberate `_reap` ever waits on it.
 2. Signal only under the handle lock, only while `not reaped and not poisoned`; `killpg` only our own leader pids.
 3. Readers always drain into the spool regardless of subscribers.
 4. Every handle is in exactly one scope until reaped/abandoned; the registry mirrors scopes.

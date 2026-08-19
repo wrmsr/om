@@ -44,8 +44,9 @@ def apply_transforms(
 @dc.dataclass(frozen=True, kw_only=True)
 class LaunchPlan:
     """
-    Everything Popen needs. Owns `owned_fds` (created for this launch, e.g. the payload file) - the spawner must close
-    them in the parent after `Popen()` returns, whether or not it succeeded, via `close()`.
+    Everything the spawner needs. Owns `owned_fds` (created for this launch, e.g. the payload file) - the spawner must
+    close them in the parent after the spawn, whether or not it succeeded, via `close()`. (No cwd: the launched program
+    - the shim - changes directory itself.)
     """
 
     # The spec after transforms - what the target will actually be.
@@ -53,9 +54,8 @@ class LaunchPlan:
 
     argv: ta.Sequence[str]
     env: ta.Mapping[str, str]
-    cwd: str | None = None
 
-    # Extra fds Popen must pass through (owned fds plus caller `PassFd`s and the status fd).
+    # Extra fds the spawner must pass through (owned fds plus caller `PassFd`s and the status fd).
     pass_fds: ta.Sequence[int] = ()
 
     owned_fds: ta.Sequence[int] = ()

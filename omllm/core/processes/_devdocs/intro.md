@@ -25,9 +25,9 @@ omllm/core/processes/
   handles.py abstract handle roles (ProcessInfo/Control/Stdin/Output/Waiter -> Process)
   managers/  the manager proper, runtime-agnostic: types (ProcessManager + ManagerConfig), base (BaseProcessManager:
              lifecycle, spawn, events, close), process (BaseProcess: state machine, signal/reap, teardown), spawn
-             (fork_exec - no Popen), stdio (fd plumbing), pty, reaper (exit watcher thread)
+             (os.posix_spawn - no Popen), stdio (fd plumbing), pty, reaper (exit watcher thread)
   launch/    Launcher / SpecTransform / ShimLauncher
-  spawn/     the pure-stdlib spawn shim (runs in the child before exec)
+  spawn/     the pure-stdlib spawn shim (runs in the child before exec) + ShimPayload, its json-able config
   asyncio/   AsyncioProcessManager: only the asyncio bits (tasks, pipe transports, notifier, handle callbacks)
   sandbox/   bwrap / sandbox-exec confinement;  targets/  docker exec / ssh
   tests/     pytest
