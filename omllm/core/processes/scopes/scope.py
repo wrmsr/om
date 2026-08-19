@@ -71,7 +71,11 @@ class ScopeManager(lang.Abstract):
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 class ProcessRun:
-    """The result of `ProcessScope.run`: the process has exited and been fully closed; its spool remains readable."""
+    """
+    The result of `ProcessScope.run`: the process has exited and been fully closed, and its entire output has been
+    collected into `output` (the spool itself has been closed and released - a kept spill file, if any, is still at
+    `process.spool.spill_path`).
+    """
 
     process: Process
     returncode: int
@@ -224,7 +228,7 @@ class ProcessScope:
     ) -> ProcessRun:
         """
         Spawns, waits for exit (bounded by `timeout` or a `RunTimeout` option), then fully closes the handle - sweeping
-        the process group per its TerminationPolicy - and returns the collected output.
+        the process group per its TerminationPolicy - and returns the collected output, releasing the spool.
         """
 
         proc = await self.spawn(spec, *options)
@@ -240,10 +244,14 @@ class ProcessScope:
         except BaseException:
             await proc.aclose()
             raise
+        try:
+            output = proc.spool.read_available(0)
+        finally:
+            proc.spool.close()
         return ProcessRun(
             process=proc,
             returncode=rc,
-            output=proc.spool.read_available(0),
+            output=output,
         )
 
     #

@@ -128,6 +128,10 @@ class ProcessOutput(lang.Abstract):
     Output is tracked separately from process lifetime: `output_ended` means all output pipes have closed, which is
     *not* the same as the process having exited (a process can close its stdio and keep running, and output EOF and
     exit are separate events on different threads). For exit / the exit code use `ProcessWaiter` / `ProcessInfo`.
+
+    The spool outlives the process so its output can be read after `aclose()`; whoever collects that output should
+    `spool.close()` when done (`ProcessScope.run` does), which drops the memory and the spill file. A spool nobody
+    closes is released when its handle is dropped, or at the latest when the manager closes.
     """
 
     @property

@@ -271,6 +271,9 @@ class ProcessKillTool(ToolClass[ProcessKillToolParams]):
         else:
             await proc.aclose()
 
+        # Reaped and unregistered - no further process_read can reach it, so release its output now.
+        proc.spool.close()
+
         return f'Terminated process {proc.id} (rc {proc.returncode}).'
 
 

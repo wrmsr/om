@@ -40,12 +40,46 @@ with a probe first, then fixed with a regression test in `asyncio/tests/test_asy
    ('closing' no longer short-circuits; the sync tail is guarded so it runs once).
    - Test: `test_scope_close_retry_after_cancel_and_concurrent_close`.
 
-## Also found, not yet fixed (see the review notes for details)
+## Second pass: retention, caps, bwrap
 
-- Spools (memory suffix + spill fd/file) are retained in `manager._spools` for the manager's lifetime - a per-command
-  leak in a long session; needs a retention policy.
-- `bwrap` on merged-usr distros: `/lib64` etc. are realpath'd to `/usr/...` and never recreated in the sandbox, so no
-  dynamically linked binary can exec; `--tmpfs /tmp` is emitted after the binds (shadows roots under `/tmp`);
-  `--new-session` means only bwrap itself sees our TERM.
-- `read_available(max_bytes=…)` overshoots by a record per 64 KiB chunk; `_wait_exited` timeout/exit race; Targets treat
-  `env={}` as inherit; poisoned handles leave their stdin transport open (abandoned ones now abort it).
+5. **Spools were retained for the manager's lifetime** (`manager._spools` was a strong list, closed only at manager
+   close): every command that produced output pinned its memory suffix, spill fd and spill file until the session
+   ended. Spools are now owned by their handles: `ProcessScope.run` (and `ProcessesExecOps.exec`, `process_kill`)
+   `spool.close()` once they have collected the output; the manager tracks spools in a `WeakSet` (for the close-time
+   sweep) with a `weakref.finalize` backstop that releases a spool nobody closed when its handle is dropped.
+   `SpoolStorage.close()` now also drops the memory suffix, and reads on a closed storage fail with a clear
+   `check.state` rather than tripping on the missing spill fd. `keep_spill` still survives all of that (and the manager
+   won't remove its spill dir if anything was kept).
+   - Test: `test_spools_released`.
+
+6. **`max_bytes` was a floor, not a cap**: `read_available` took at least one record *per 64 KiB chunk*, so it returned
+   the smallest whole-record prefix reaching `max_bytes` (60_000 over 50_000-byte records -> 100_000). The spool tests
+   actually asserted that, but both docstrings and the `process_read` tool ("Maximum number of output bytes") promised a
+   cap. It is a cap now: records are taken while they fit, the first always is (`decode_frames(at_least_one=)`), a
+   capped read reports `more`, and `read(wait=)` returns as soon as a read is capped.
+   - Tests: `test_spool_max_bytes_across_chunks`, updated `test_spool_basic_reads` / `test_spool_wait_and_subscribe`.
+
+7. **bwrap on merged-/usr hosts**: roots were bound at their `realpath` only, so `/lib64` (-> `usr/lib64`), `/bin`,
+   ... never existed inside the sandbox and no dynamically linked binary could exec (`/lib64/ld-linux-*.so` is the ELF
+   interpreter of everything). `build_bwrap_argv` now recreates every symlink on the way to a root with `--symlink`
+   (`iter_symlink_prefixes`), binds the real path, and keeps `--chdir` at the given (symlinked) name.
+   - Test: `test_bwrap_recreates_symlink_prefixes`. **Still not live-tested** (no userns here); the live test's
+     usability probe now uses our own rendering, so it no longer self-skips on merged-/usr hosts once userns works.
+
+8. **`--tmpfs /tmp` (and `--dev`/`--proc`) came after the binds**, shadowing any root under `/tmp` - including every
+   pytest `tmp_path`. Fresh mounts now go first so binds land inside them.
+   - Test: `test_bwrap_mounts_before_binds`.
+
+9. **`--new-session` is now opt-in** (`BwrapSandbox.new_session`, default off): the setsid detached a `PtyStdio` from
+   its controlling tty (no job control, `tty` fails) and diverted our TERM to the outer bwrap only. It was there for
+   TIOCSTI hardening, but the manager already makes every child a session leader without a controlling terminal (or
+   with our own pty), so there is no user terminal to inject into. Documented in the module: bwrap does not forward
+   signals, and `--die-with-parent` (kept - it also binds the sandbox to *our* lifetime) SIGKILLs the sandbox when the
+   outer bwrap dies of our TERM, so a sandboxed command effectively gets no grace period. A graceful remote stop needs
+   the in-sandbox pid - the same open item as the docker/ssh targets.
+
+## Still open (low)
+
+- `_wait_exited` timeout/exit race (a `wait_for` timing out just as the exit lands); Targets treat `env={}` as inherit
+  and the pty `TERM` injection lands on the local docker/ssh client; poisoned handles leave their stdin transport open
+  (abandoned ones now abort it); `TaggedLinesRenderer.flush()` returns an unprefixed tail.

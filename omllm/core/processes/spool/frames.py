@@ -88,7 +88,14 @@ def decode_frames(
         base_offset: int,
         *,
         max_payload: int | None = None,
+        at_least_one: bool = True,
 ) -> FrameDecodeResult:
+    """
+    Decodes whole frames from `buf`, stopping before the frame that would push the decoded payload past `max_payload`.
+    With `at_least_one` (the default) the first frame is taken regardless, so a caller with an empty result always
+    makes progress; a caller that has already accumulated records elsewhere passes False to enforce the budget strictly.
+    """
+
     mv = memoryview(buf)
     records: list[SpoolRecord] = []
     pos = 0
@@ -99,7 +106,7 @@ def decode_frames(
         end = pos + FRAME_HEADER_SIZE + ln
         if end > n:
             break
-        if max_payload is not None and records and payload + ln > max_payload:
+        if max_payload is not None and (records or not at_least_one) and payload + ln > max_payload:
             break
         records.append(SpoolRecord(
             fd,

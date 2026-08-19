@@ -151,6 +151,7 @@ class SpoolStorage:
         Reads may end mid-frame if `end` is not on a boundary; decoders tolerate a trailing partial frame.
         """
 
+        check.state(not self._closed, 'spool storage is closed')
         check.arg(start >= 0)
         end = min(end, self._total)
         if end <= start:
@@ -188,9 +189,14 @@ class SpoolStorage:
     #
 
     def close(self, *, keep_spill: bool | None = None) -> None:
+        """Releases everything: the memory suffix is dropped and the spill file closed (and unlinked unless kept)."""
+
         if self._closed:
             return
         self._closed = True
+
+        self._frames.clear()
+        self._mem_size = 0
 
         if (fd := self._spill_fd) is not None:
             self._spill_fd = None

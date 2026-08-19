@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import types
 import typing as ta
+import weakref
 
 from omcore import check
 from omcore import lang
@@ -105,8 +106,14 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
         self._loop: asyncio.AbstractEventLoop | None = None
 
         self._processes: dict[ProcessId, AsyncioProcess] = {}
-        self._spools: list[OutputSpool] = []
         self._tasks: set[asyncio.Task] = set()
+
+        # Spools are owned by their handles, not the manager: a spool is released (memory dropped, spill fd closed,
+        # spill file unlinked unless kept) when it is explicitly closed - `ProcessScope.run` and the exec/tool paths do
+        # so once they have collected the output - or, as a backstop, when the last reference to it goes away. The
+        # manager only tracks them weakly, to sweep whatever is still alive at close.
+        self._spools: weakref.WeakSet[OutputSpool] = weakref.WeakSet()
+        self._any_spill_kept = False
 
         # Events are published strictly in the order they were raised, from one drain task, whether they came from a
         # sync callback (exit watcher, reparent) or an async path.
@@ -253,6 +260,16 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
             if t is asyncio.current_task():
                 return
             await asyncio.shield(t)
+
+    def _release_storage(self, storage: SpoolStorage) -> None:
+        """Backstop release of a spool nobody closed: runs when its `OutputSpool` is garbage collected."""
+
+        try:
+            storage.close()
+        except Exception:  # noqa
+            log.exception('processes: error releasing spool storage %r', storage)
+        if storage.spill_path is not None:
+            self._any_spill_kept = True
 
     def _process_finished(self, process: AsyncioProcess) -> None:
         self._processes.pop(process.id, None)
@@ -479,7 +496,8 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
             keep_spill=spool_policy.keep_spill,
         )
         spool = OutputSpool(storage, AsyncioSpoolNotifier(loop))
-        self._spools.append(spool)
+        self._spools.add(spool)
+        weakref.finalize(spool, self._release_storage, storage)
 
         proc = AsyncioProcess(
             id=pid_id,
@@ -615,8 +633,8 @@ class AsyncioProcessManager(ProcessManager, ScopeManager):
         # The first closer to get here finishes up (this block does not suspend, so concurrent closers cannot
         # interleave in it).
         if self._state != 'closed':
-            any_kept = False
-            for sp in self._spools:
+            any_kept = self._any_spill_kept
+            for sp in list(self._spools):
                 try:
                     sp.close()
                 except Exception as e:  # noqa

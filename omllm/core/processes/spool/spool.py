@@ -171,8 +171,9 @@ class OutputSpool:
             max_bytes: int | None = None,
     ) -> SpoolRead:
         """
-        Synchronously returns whatever is currently available at or after `cursor` (payload-bounded by `max_bytes`,
-        always at least one whole record if any is available).
+        Synchronously returns whatever is currently available at or after `cursor`. `max_bytes` caps the returned
+        payload: records are taken while they fit, except that the first one is always taken (so a read never stalls on
+        an oversized record); a read stopped by the cap reports `more`.
         """
 
         check.arg(cursor >= 0)
@@ -198,6 +199,8 @@ class OutputSpool:
                 buf,
                 pos,
                 max_payload=(max_bytes - payload) if max_bytes is not None else None,
+                # The "at least one record" allowance is per read, not per chunk.
+                at_least_one=not records,
             )
             if not recs:
                 break
@@ -231,8 +234,8 @@ class OutputSpool:
     ) -> SpoolRead:
         """
         Reads at or after `cursor`. With `wait`, keeps collecting for up to that many seconds - returning early only
-        when the spool ends or `max_bytes` of payload has accumulated - so a caller polling on behalf of a model gets
-        naturally batched output. Without `wait`, returns whatever is available right now.
+        when the spool ends or the `max_bytes` cap has been reached (the read could take no more) - so a caller polling
+        on behalf of a model gets naturally batched output. Without `wait`, returns whatever is available right now.
         """
 
         if not wait or wait <= 0:
@@ -241,7 +244,7 @@ class OutputSpool:
         deadline = time.monotonic() + wait
         while True:
             r = self.read_available(cursor, max_bytes=max_bytes)
-            if r.ended or (max_bytes is not None and sum(len(x.data) for x in r.records) >= max_bytes):
+            if r.ended or r.more or (max_bytes is not None and sum(len(x.data) for x in r.records) >= max_bytes):
                 return r
             remaining = deadline - time.monotonic()
             if remaining <= 0:

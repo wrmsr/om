@@ -81,14 +81,38 @@ def test_spool_basic_reads():
     assert r2.empty
     assert r2.start == r2.end == sp.total
 
+    # max_bytes is a cap: records are taken while they fit (the first always is).
     r3 = sp.read_available(0, max_bytes=7)
-    assert [x.data for x in r3.records] == [b'hello ', b'err\n']
+    assert [x.data for x in r3.records] == [b'hello ']
     assert r3.more
     r4 = sp.read_available(r3.end)
-    assert [x.data for x in r4.records] == [b'world\n']
+    assert [x.data for x in r4.records] == [b'err\n', b'world\n']
+    r5 = sp.read_available(0, max_bytes=2)
+    assert [x.data for x in r5.records] == [b'hello ']  # oversized first record still returned
+    assert r5.more
+    r6 = sp.read_available(0, max_bytes=10)
+    assert [x.data for x in r6.records] == [b'hello ', b'err\n']  # exactly fits
+    assert r6.more
 
     sp.mark_ended()
     assert sp.read_available(0).ended
+
+
+def test_spool_max_bytes_across_chunks():
+    # Regression: the "first record is always taken" allowance used to re-apply per 64 KiB read chunk, so a cap of
+    # 60_000 over 50_000-byte records returned 100_000 bytes.
+    sp = _spool(memory_cap=None)
+    for i in range(3):
+        sp.append(1, bytes([65 + i]) * 50_000)
+    r = sp.read_available(0, max_bytes=60_000)
+    assert [len(x.data) for x in r.records] == [50_000]
+    assert r.more
+    r = sp.read_available(r.end, max_bytes=60_000)
+    assert [len(x.data) for x in r.records] == [50_000]
+    r = sp.read_available(0, max_bytes=100_000)
+    assert [len(x.data) for x in r.records] == [50_000, 50_000]
+    r = sp.read_available(0)
+    assert len(r.records) == 3 and not r.more
 
 
 def test_spool_memory_cap_drops_without_spill():
@@ -196,8 +220,8 @@ async def test_spool_wait_and_subscribe():
 
     t2 = asyncio.create_task(producer2())
     r = await sp2.read(0, wait=5., max_bytes=25)
-    assert len(r.data()) >= 25
-    assert r.more or len(r.records) == 3
+    assert len(r.data()) == 20  # two 10-byte records fit, the third would not - and that ends the wait
+    assert r.more
     await t2
 
     # timeout returns what is there.

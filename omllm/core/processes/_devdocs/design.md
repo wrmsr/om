@@ -37,6 +37,9 @@
 - `storage.py`: `SpoolStorage(memory_cap, spill_dir)`: `append(frame)`, `read(start, end) -> bytes`,
   properties `total`, `available_start` (bytes before it are gone: dropped only when spill is disabled or a spill
   write fails), `spilled_end`, `spill_path`.
+- Lifetime: a spool outlives its process (so output can be read after `aclose()`); it is released by `close()` -
+  `ProcessScope.run` and the exec/tool paths do that once they have the output - or, failing that, when its handle is
+  dropped (weakref finalizer) or the manager closes. `SpoolPolicy.keep_spill` exempts the spill file.
 - `spool.py`: `OutputSpool(storage, notifier)`: `append(fd, data) -> SpoolRecord`, `mark_ended()`,
   `read(cursor=None, *, wait=None, max_bytes=None) -> SpoolRead`, `subscribe(from_cursor=None) -> async iterator of
   SpoolRead`, `head(n)`/`tail(n)` helpers. `Notifier` is a tiny abstract (`notify()`, `async wait(timeout) -> bool`)

@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import os
 import signal
 import sys
@@ -300,6 +301,51 @@ async def test_big_output_spills_and_cursor_reads(tmp_path):
         assert r.dropped_before > 0
         assert r.dropped_before + sum(len(x.data) for x in r.records) + 32 * len(r.records) <= p2.spool.total
     assert not os.path.exists(spill_path)  # closed and not kept
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_spools_released(tmp_path):
+    # Regression: every spool (memory suffix + spill fd + spill file) used to be held by the manager until it closed -
+    # a per-command leak over a long session. `run()` releases the spool once it has collected the output; a spool
+    # nobody closes is released when its handle is dropped.
+    n = 300_000
+    async with AsyncioProcessManager(ManagerConfig(spill_dir=str(tmp_path))) as m:
+        fd0 = len(os.listdir('/proc/self/fd')) if os.path.isdir('/proc/self/fd') else None
+
+        for _ in range(3):
+            run = await m.root.run(_sh(f'head -c {n} /dev/zero'), SpoolPolicy(memory_cap=64 * 1024))
+            assert len(run.stdout) == n
+            assert run.process.spool.storage.closed
+            assert run.process.spool.spill_path is None
+        assert not os.listdir(tmp_path)  # spill files gone as each run finished
+        assert all(sp.storage.closed for sp in m._spools)  # noqa
+
+        # An unread, unreleased handle keeps its spool exactly as long as the handle is referenced.
+        p = await m.root.spawn(_sh(f'head -c {n} /dev/zero'), SpoolPolicy(memory_cap=64 * 1024))
+        await p.wait(30.)
+        await p.aclose()
+        spill_path = p.spool.spill_path
+        assert spill_path is not None and os.path.exists(spill_path)
+        assert not p.spool.storage.closed
+        del p
+        # (The handle's exit-watcher thread and asyncio callbacks may still be unwinding; give the GC a moment.)
+        for _ in range(50):
+            gc.collect()
+            if not os.path.exists(spill_path):
+                break
+            await asyncio.sleep(.02)
+        assert not os.path.exists(spill_path)
+        assert all(sp.storage.closed for sp in m._spools)  # noqa
+
+        if fd0 is not None:
+            assert len(os.listdir('/proc/self/fd')) <= fd0 + 2
+
+        # keep_spill survives release, and is honored by the manager's own cleanup.
+        run = await m.root.run(_sh('echo kept'), SpoolPolicy(memory_cap=0, keep_spill=True))
+        kept = run.process.spool.spill_path
+        assert kept is not None and os.path.exists(kept)
+    assert os.path.exists(kept)
+    assert os.path.exists(tmp_path)
 
 
 @pytest.mark.asyncs('asyncio')

@@ -1,4 +1,5 @@
 import functools
+import os
 import shutil
 import subprocess
 
@@ -9,6 +10,7 @@ from ...types.specs import ProcessSpec
 from ...types.specs import PtyStdio
 from ..bwrap import BwrapSandbox
 from ..bwrap import build_bwrap_argv
+from ..bwrap import iter_symlink_prefixes
 from ..policy import SandboxPolicy
 from ..sandboxexec import SandboxExecSandbox
 from ..sandboxexec import build_sandbox_exec_profile
@@ -47,6 +49,56 @@ def test_build_bwrap_argv(tmp_path):
     # network allowed -> no --unshare-net
     argv2 = build_bwrap_argv('bwrap', SandboxPolicy(read_roots=[str(ro)], allow_network=True))
     assert '--unshare-net' not in argv2
+
+    # --new-session is opt-in (it would detach a pty and swallow our TERM).
+    assert '--new-session' not in argv
+    assert '--new-session' in build_bwrap_argv('bwrap', pol, new_session=True)
+
+
+def test_bwrap_mounts_before_binds(tmp_path):
+    # Regression: `--tmpfs /tmp` (and --dev/--proc) used to come *after* the binds, shadowing any root under /tmp -
+    # such as every pytest tmp_path.
+    root = tmp_path / 'r'
+    root.mkdir()
+    argv = build_bwrap_argv('bwrap', SandboxPolicy(read_roots=[str(root)], system_read_roots=[]))
+    assert argv.index('--tmpfs') < argv.index('--ro-bind')
+    assert argv.index('--dev') < argv.index('--ro-bind')
+    assert argv.index('--proc') < argv.index('--ro-bind')
+
+
+def test_bwrap_recreates_symlink_prefixes(tmp_path):
+    # Regression: paths were bound only at their realpath, so on merged-/usr hosts `/lib64` (-> usr/lib64) never
+    # existed in the sandbox and no dynamically linked binary could exec. Every symlink on the way to a root must be
+    # recreated with --symlink, and the real path bound.
+    real = tmp_path / 'real'
+    (real / 'sub').mkdir(parents=True)
+    link = tmp_path / 'link'
+    link.symlink_to('real')  # relative target, like /lib64 -> usr/lib64
+
+    assert list(iter_symlink_prefixes(str(link / 'sub'))) == [('real', str(link))]
+    assert list(iter_symlink_prefixes(str(real / 'sub'))) == []
+
+    argv = build_bwrap_argv(
+        'bwrap',
+        SandboxPolicy(read_roots=[str(link / 'sub')], write_roots=[str(link)], system_read_roots=[]),
+        cwd=str(link / 'sub'),
+    )
+    i = argv.index('--symlink')
+    assert argv[i:i + 3] == ['--symlink', 'real', str(link)]
+    assert argv.count('--symlink') == 1  # deduplicated across roots and cwd
+    j = argv.index('--ro-bind')
+    assert argv[j:j + 3] == ['--ro-bind', str(real / 'sub'), str(real / 'sub')]
+    k = argv.index('--bind')
+    assert argv[k:k + 3] == ['--bind', str(real), str(real)]
+    # cwd keeps its given (symlinked) name - it resolves once the prefixes exist.
+    c = argv.index('--chdir')
+    assert argv[c + 1] == str(link / 'sub')
+
+    # The real thing, on a merged-/usr host.
+    if os.path.islink('/lib64'):
+        argv = build_bwrap_argv('bwrap', SandboxPolicy(system_read_roots=['/usr', '/lib64']))
+        i = argv.index('--symlink')
+        assert argv[i:i + 3] == ['--symlink', os.readlink('/lib64'), '/lib64']
 
 
 def test_bwrap_wraps_spec(tmp_path):
@@ -88,8 +140,9 @@ def test_sandbox_preserves_stdio(tmp_path):
 def _bwrap_usable() -> bool:
     if not shutil.which('bwrap'):
         return False
+    # Probe with our own rendering (a bare `--ro-bind /usr /usr` can't even exec /bin/true on a merged-/usr host).
     r = subprocess.run(  # noqa
-        ['bwrap', '--ro-bind', '/usr', '/usr', '--unshare-net', '--die-with-parent', '--', '/bin/true'],
+        [*build_bwrap_argv('bwrap', SandboxPolicy()), 'true'],
         capture_output=True,
     )
     return r.returncode == 0

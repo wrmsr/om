@@ -83,7 +83,11 @@ class ProcessesExecOps(ExecOps):
             # Reaps the process (and, on timeout, kills it and its group first).
             await proc.aclose()
 
-        read = proc.spool.read_available(0)
+        try:
+            read = proc.spool.read_available(0)
+        finally:
+            # Output collected: release the spool (memory + spill file).
+            proc.spool.close()
 
         return ExecResult(
             rc=proc.returncode if proc.returncode is not None else -1,
