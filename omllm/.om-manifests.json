@@ -156,5 +156,19 @@
         "module": "omllm.interop.ollama.cli"
       }
     }
+  },
+  {
+    "module": ".ui.tui.__main__",
+    "attr": null,
+    "file": "omllm/ui/tui/__main__.py",
+    "line": 1,
+    "value": {
+      "!omdev.cli.types.CliModule": {
+        "name": [
+          "llm"
+        ],
+        "module": "omllm.ui.tui.__main__"
+      }
+    }
   }
 ]

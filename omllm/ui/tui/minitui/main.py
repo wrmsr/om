@@ -10,6 +10,7 @@ import os.path
 
 from omcore import dataclasses as dc
 from omcore import inject as inj
+from omcore import lang
 from omdev.tui import minitui as mt
 
 from .... import agent as agn
@@ -97,8 +98,8 @@ class PromptPump:
 ##
 
 
-async def _a_main() -> None:
-    config = parse_config()
+async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
+    config = parse_config(argv)
 
     if config.stream is None:
         config = dc.replace(config, stream=True)
@@ -183,9 +184,9 @@ async def _a_main() -> None:
             await pump.aclose()
 
 
-def _main() -> None:
+def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
     try:
-        asyncio.run(_a_main())
+        asyncio.run(_a_main(argv))
     except KeyboardInterrupt:
         pass
 

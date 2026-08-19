@@ -3,6 +3,7 @@ import os.path
 
 from omcore import dataclasses as dc
 from omcore import inject as inj
+from omcore import lang
 
 from .... import agent as agn
 from .... import harness as har
@@ -19,8 +20,8 @@ from .output import bind_output
 ##
 
 
-async def _a_main() -> None:
-    config = parse_config()
+async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
+    config = parse_config(argv)
 
     #
 
@@ -90,8 +91,8 @@ async def _a_main() -> None:
             await session.prompt(entry)
 
 
-def _main() -> None:
-    asyncio.run(_a_main())
+def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
+    asyncio.run(_a_main(argv))
 
 
 if __name__ == '__main__':
