@@ -44,9 +44,12 @@ def apply_transforms(
 @dc.dataclass(frozen=True, kw_only=True)
 class LaunchPlan:
     """
-    Everything the spawner needs. Owns `owned_fds` (created for this launch, e.g. the payload file) - the spawner must
-    close them in the parent after the spawn, whether or not it succeeded, via `close()`. (No cwd: the launched program
-    - the shim - changes directory itself.)
+    Everything the spawner needs. The contract: the spawner creates an AF_UNIX stream socket pair, queues `send_fds` on
+    it (`managers/spawn.py::send_control_fds`), delivers the child end at fd `control_fd` in the child (a dup2 at
+    spawn - nothing is made inheritable in the parent), and reads exec status from the parent end until EOF. Owns
+    `owned_fds` (created for this launch, e.g. the payload file) - the spawner must close them in the parent after the
+    spawn, whether or not it succeeded, via `close()`. (No cwd: the launched program - the shim - changes directory
+    itself.)
     """
 
     # The spec after transforms - what the target will actually be.
@@ -55,8 +58,12 @@ class LaunchPlan:
     argv: ta.Sequence[str]
     env: ta.Mapping[str, str]
 
-    # Extra fds the spawner must pass through (owned fds plus caller `PassFd`s and the status fd).
-    pass_fds: ta.Sequence[int] = ()
+    # Where the child expects the control socket.
+    control_fd: int
+
+    # Fds to send over the control socket before the child runs, in order (owned fds such as the payload blob, then the
+    # caller's `PassFd`s).
+    send_fds: ta.Sequence[int] = ()
 
     owned_fds: ta.Sequence[int] = ()
 
@@ -74,9 +81,5 @@ class Launcher(lang.Abstract):
             self,
             spec: ProcessSpec,
             options: ProcessOptions,
-            *,
-            status_fd: int,
     ) -> LaunchPlan:
-        """`status_fd` is the write end of the exec-status pipe, already created by the caller."""
-
         raise NotImplementedError

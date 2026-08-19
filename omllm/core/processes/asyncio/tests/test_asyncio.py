@@ -159,6 +159,21 @@ async def test_fd_hygiene_and_pass_fds():
             except OSError:
                 pass
 
+        # Two at once, one at a high number (the control socket must sit above it; the shim relocates both).
+        import fcntl
+        r1, w1 = os.pipe()
+        r2, w2 = os.pipe()
+        hi = fcntl.fcntl(w2, fcntl.F_DUPFD_CLOEXEC, 300)
+        try:
+            code = f'import os\nos.write({w1}, b"one")\nos.write({hi}, b"two")\n'
+            run = await m.root.run(ProcessSpec([sys.executable, '-c', code]), PassFd(w1), PassFd(hi))
+            assert run.returncode == 0, run.stderr
+            assert os.read(r1, 10) == b'one'
+            assert os.read(r2, 10) == b'two'
+        finally:
+            for fd in (r1, w1, r2, w2, hi):
+                os.close(fd)
+
 
 @pytest.mark.asyncs('asyncio')
 async def test_non_utf8_argv_and_env():

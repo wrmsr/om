@@ -60,6 +60,8 @@ from ..types.specs import PtyStdio
 from ..types.states import ProcessState
 from .process import BaseProcess
 from .process import ProcessStdinWriter
+from .spawn import make_control_socketpair
+from .spawn import send_control_fds
 from .spawn import spawn_child
 from .stdio import close_fds_quietly
 from .stdio import setup_stdio
@@ -203,9 +205,9 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
     @abc.abstractmethod
     def _read_exec_status(self, fd: int, timeout: float) -> ta.Awaitable[bytes | None]:
         """
-        Takes ownership of the read end `fd` of the exec-status pipe and returns everything written to it up to EOF (an
-        empty bytes == the exec happened), or None if that does not happen within `timeout` (the pipe is then left to
-        close itself once the child dies).
+        Takes ownership of `fd`, our end of the child's control socket, and returns everything the child writes to it up
+        to EOF (an empty bytes == the exec happened), or None if that does not happen within `timeout` (the socket is
+        then left to close itself once the child dies).
         """
 
         raise NotImplementedError
@@ -452,21 +454,24 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             session_mode = 'session'
 
         try:
-            status_r, status_w = os.pipe()
+            ctl_parent, ctl_child = make_control_socketpair()
         except BaseException:
             sio.close_all()
             raise
 
         try:
-            plan = self._launcher.plan(spec, options, status_fd=status_w)
+            plan = self._launcher.plan(spec, options)
             try:
+                # Queued before the child exists: the payload blob and the caller's pass-fds travel as SCM_RIGHTS - the
+                # only way anything but 0/1/2 and the control socket itself reaches the child.
+                send_control_fds(ctl_parent, plan.send_fds)
                 pid = spawn_child(
                     plan.argv,
                     env=plan.env,
                     stdin_fd=sio.stdin_fd,
                     stdout_fd=sio.stdout_fd,
                     stderr_fd=sio.stderr_fd,
-                    pass_fds=plan.pass_fds,
+                    control=(ctl_child.fileno(), plan.control_fd),
                     session_mode=session_mode,
                 )
             except OSError as e:
@@ -476,12 +481,17 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
 
         except BaseException:
             # (Runs before the `finally` below - together they close everything exactly once.)
-            close_fds_quietly([status_r, *sio.parent_fds])
+            ctl_parent.close()
+            close_fds_quietly(sio.parent_fds)
             raise
 
         finally:
             # The child's ends are its own now (or it never came to be): ours to close either way.
-            close_fds_quietly([status_w, *sio.child_fds])
+            ctl_child.close()
+            close_fds_quietly(sio.child_fds)
+
+        # From here on the parent end of the control socket is just an fd: the exec-status channel.
+        status_r = ctl_parent.detach()
 
         # From here the child exists: whatever happens, it must end up managed and eventually reaped. Its handle and
         # exit watcher are set up synchronously right here; everything below that can suspend (pipe connects, the exec

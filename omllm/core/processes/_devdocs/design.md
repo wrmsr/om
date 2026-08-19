@@ -66,18 +66,23 @@
 
 - `SpecTransform.transform(spec) -> spec` chain (day 1: `ShellWrapTransform` — debugger-friendly `sh -c` wrap via
   `omcore.subprocesses.wrap`; `EnvScrubTransform`).
-- `ShimLauncher.plan(spec, options) -> LaunchPlan(argv, env, pass_fds, owned_fds)`: bootstrap `-c` code + one text
-  file on the payload fd - a first line of json (`ShimPayload`, a plain dataclass in `spawn/shim.py` that the rest of
-  the package imports and builds directly; every field round-trips json as is, OS strings as surrogate-escaped str)
-  followed by the shim source. The bootstrap execs the source as module `__procs_shim__` and calls
-  `main(ShimPayload(**payload))`. Unlinked temp file, any size, no pipe stalls. Shim source loaded once via
-  `lang.get_relative_resources('..spawn', globals=globals())['shim.py']` (never `__file__`).
-- Status protocol: parent reads the status pipe until EOF. EOF with no data == exec happened. Any data == a json
-  `[stage, errno, message]` error record from the shim → `SpawnError`; the shim then `os._exit(127)`.
-- Division of labor: `spawn_child` (`os.posix_spawn`) does only what must happen between fork and exec - dup2 of 0/1/2,
-  setsid / setpgroup, default signal dispositions; the shim (a full python of ours) does everything else, including
-  closing every fd >= 3 except `status_fd` + `keep_fds` (so a stray inheritable fd can reach the shim, never the
-  target). `pass_fds` are made inheritable in the parent for the duration of the spawn and restored.
+- `ShimLauncher.plan(spec, options) -> LaunchPlan(argv, env, control_fd, send_fds, owned_fds)`: bootstrap `-c` code
+  + one text file, the *payload blob* - a first line of json (`ShimPayload`, a plain dataclass in `launch/_shim.py`
+  that the rest of the package imports and builds directly; every field round-trips json as is; argv / env / cwd are
+  base64 of their OS bytes, `encode_os` / `decode_os`, so they are byte-exact on both sides) followed by the shim
+  source. Unlinked temp file, any size. Shim source loaded once via
+  `lang.get_relative_resources('.', globals=globals())['_shim.py']` (never `__file__`).
+- Control socket: the child gets exactly one fd from the parent - an AF_UNIX stream socket dup2'd to `control_fd` at
+  spawn. Before spawning, `send_control_fds` queues on it a `{"n": N}` header and N fds via SCM_RIGHTS: the payload blob,
+  then the caller's `PassFd`s. The bootstrap drains that, reads the blob, execs the source as module `__procs_shim__`
+  and calls `main(payload, passed_fds)`; the shim dup2's the passed fds onto `keep_fds` (the numbers the target
+  expects), closes everything else, does its work, and execs. **No fd is ever made inheritable in the parent.**
+- Status protocol: the parent reads its end of the control socket until EOF. EOF with no data == exec happened (the
+  shim keeps the socket close-on-exec). Any data == a json `[stage, errno, message]` error record → `SpawnError`; the
+  shim then `os._exit(127)`.
+- Division of labor: `spawn_child` (`os.posix_spawn`) does only what must happen between fork and exec - dup2 of 0/1/2
+  and the control socket, setsid / setpgroup, default signal dispositions; the shim (a full python of ours) does
+  everything else.
 
 ## Managers (`managers/`) and the asyncio impl (`asyncio/`)
 

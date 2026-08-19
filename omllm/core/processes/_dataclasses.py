@@ -25,32 +25,35 @@ def _register(**kwargs):
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('spec', 'argv', 'env', 'pass_fds', 'owned_fds')), EqPlan(fields=('spec', 'argv', '"
-        "env', 'pass_fds', 'owned_fds')), FrozenPlan(fields=('spec', 'argv', 'env', 'pass_fds', 'owned_fds'), allow_dyn"
-        "amic_dunder_attrs=False), HashPlan(action='add', fields=('spec', 'argv', 'env', 'pass_fds', 'owned_fds'), cach"
-        "e=False), InitPlan(fields=(InitPlan.Field(name='spec', annotation=OpRef(name='init.fields.0.annotation'), defa"
-        "ult=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validat"
-        "e=None, check_type=None), InitPlan.Field(name='argv', annotation=OpRef(name='init.fields.1.annotation'), defau"
-        "lt=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate"
-        "=None, check_type=None), InitPlan.Field(name='env', annotation=OpRef(name='init.fields.2.annotation'), default"
-        "=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
-        "one, check_type=None), InitPlan.Field(name='pass_fds', annotation=OpRef(name='init.fields.3.annotation'), defa"
-        "ult=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType"
-        ".INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='owned_fds', annotation=OpRef(nam"
-        "e='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self'"
-        ", std_params=(), kw_only_params=('spec', 'argv', 'env', 'pass_fds', 'owned_fds'), frozen=True, slots=False, po"
-        "st_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='spec', kw_only=True,"
-        " fn=None), ReprPlan.Field(name='argv', kw_only=True, fn=None), ReprPlan.Field(name='env', kw_only=True, fn=Non"
-        "e), ReprPlan.Field(name='pass_fds', kw_only=True, fn=None), ReprPlan.Field(name='owned_fds', kw_only=True, fn="
-        "None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('spec', 'argv', 'env', 'control_fd', 'send_fds', 'owned_fds')), EqPlan(fields=('sp"
+        "ec', 'argv', 'env', 'control_fd', 'send_fds', 'owned_fds')), FrozenPlan(fields=('spec', 'argv', 'env', 'contro"
+        "l_fd', 'send_fds', 'owned_fds'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('spec', 'ar"
+        "gv', 'env', 'control_fd', 'send_fds', 'owned_fds'), cache=False), InitPlan(fields=(InitPlan.Field(name='spec',"
+        " annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=Fa"
+        "lse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='argv', "
+        "annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=Fal"
+        "se, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='env', an"
+        "notation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False"
+        ", field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='control_fd"
+        "', annotation=OpRef(name='init.fields.3.annotation'), default=None, default_factory=None, init=True, override="
+        "False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='send_"
+        "fds', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_"
+        "factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type"
+        "=None), InitPlan.Field(name='owned_fds', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name"
+        "='init.fields.5.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coe"
+        "rce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('spec', 'argv', "
+        "'env', 'control_fd', 'send_fds', 'owned_fds'), frozen=True, slots=False, post_init_params=None, init_fns=(), v"
+        "alidate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='spec', kw_only=True, fn=None), ReprPlan.Field(name='arg"
+        "v', kw_only=True, fn=None), ReprPlan.Field(name='env', kw_only=True, fn=None), ReprPlan.Field(name='control_fd"
+        "', kw_only=True, fn=None), ReprPlan.Field(name='send_fds', kw_only=True, fn=None), ReprPlan.Field(name='owned_"
+        "fds', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='574c63b9fc06006de57195c1e42fa9e6c23d6126',
+    plan_repr_sha1='4bc1b57adcea5798c1143724d439bb79fef3b28a',
     cls_names=(
         ('omllm.core.processes.launch.launcher', 'LaunchPlan'),
     ),
 )
-def _process_dataclass__574c63b9fc06006de57195c1e42fa9e6c23d6126():
+def _process_dataclass__4bc1b57adcea5798c1143724d439bb79fef3b28a():
     def _process_dataclass(
         *,
         __class__,
@@ -58,9 +61,10 @@ def _process_dataclass__574c63b9fc06006de57195c1e42fa9e6c23d6126():
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__2__annotation,
         __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
         __dataclass__init__fields__4__annotation,
         __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -74,7 +78,8 @@ def _process_dataclass__574c63b9fc06006de57195c1e42fa9e6c23d6126():
                 spec=self.spec,
                 argv=self.argv,
                 env=self.env,
-                pass_fds=self.pass_fds,
+                control_fd=self.control_fd,
+                send_fds=self.send_fds,
                 owned_fds=self.owned_fds,
             )
 
@@ -89,7 +94,8 @@ def _process_dataclass__574c63b9fc06006de57195c1e42fa9e6c23d6126():
                 self.spec == other.spec and
                 self.argv == other.argv and
                 self.env == other.env and
-                self.pass_fds == other.pass_fds and
+                self.control_fd == other.control_fd and
+                self.send_fds == other.send_fds and
                 self.owned_fds == other.owned_fds
             )
 
@@ -99,7 +105,8 @@ def _process_dataclass__574c63b9fc06006de57195c1e42fa9e6c23d6126():
             'spec',
             'argv',
             'env',
-            'pass_fds',
+            'control_fd',
+            'send_fds',
             'owned_fds',
         }
 
@@ -128,7 +135,8 @@ def _process_dataclass__574c63b9fc06006de57195c1e42fa9e6c23d6126():
                 self.spec,
                 self.argv,
                 self.env,
-                self.pass_fds,
+                self.control_fd,
+                self.send_fds,
                 self.owned_fds,
             ))
 
@@ -140,13 +148,15 @@ def _process_dataclass__574c63b9fc06006de57195c1e42fa9e6c23d6126():
             spec: __dataclass__init__fields__0__annotation,
             argv: __dataclass__init__fields__1__annotation,
             env: __dataclass__init__fields__2__annotation,
-            pass_fds: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            owned_fds: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            control_fd: __dataclass__init__fields__3__annotation,
+            send_fds: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            owned_fds: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'spec', spec)
             __dataclass__object_setattr(self, 'argv', argv)
             __dataclass__object_setattr(self, 'env', env)
-            __dataclass__object_setattr(self, 'pass_fds', pass_fds)
+            __dataclass__object_setattr(self, 'control_fd', control_fd)
+            __dataclass__object_setattr(self, 'send_fds', send_fds)
             __dataclass__object_setattr(self, 'owned_fds', owned_fds)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -157,7 +167,8 @@ def _process_dataclass__574c63b9fc06006de57195c1e42fa9e6c23d6126():
             parts.append(f"spec={self.spec!r}")
             parts.append(f"argv={self.argv!r}")
             parts.append(f"env={self.env!r}")
-            parts.append(f"pass_fds={self.pass_fds!r}")
+            parts.append(f"control_fd={self.control_fd!r}")
+            parts.append(f"send_fds={self.send_fds!r}")
             parts.append(f"owned_fds={self.owned_fds!r}")
             return (
                 f"{self.__class__.__qualname__}("
