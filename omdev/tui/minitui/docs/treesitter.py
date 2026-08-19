@@ -1,12 +1,11 @@
 """
 The tree-sitter incremental highlighter - the 'big boy' the highlighting architecture was carved out for.
 
-Strictly quarantined optional dependency (`tree-sitter` plus per-language `tree_sitter_<name>` grammar packages,
-probed without importing). Document range edits translate directly onto `Tree.edit()` - `TextEdit` was shaped for
-exactly this - so a keystroke costs an incremental reparse of the damaged region instead of a full pass. The
-highlighter tracks its own copy of the source: if the fed edits ever mismatch reality (missed edit, external change),
-`highlight()` detects it and silently falls back to a full parse - incrementality is an optimization, never a
-correctness dependency.
+Strictly quarantined optional dependency (`tree-sitter` plus per-language `tree_sitter_<name>` grammar packages, probed
+without importing). Document range edits translate directly onto `Tree.edit()` - `TextEdit` was shaped for exactly this
+- so a keystroke costs an incremental reparse of the damaged region instead of a full pass. The highlighter tracks its
+own copy of the source: if the fed edits ever mismatch reality (missed edit, external change), `highlight()` detects it
+and silently falls back to a full parse - incrementality is an optimization, never a correctness dependency.
 
 Capture names from each grammar's bundled highlights query map onto the same `code.*` tags the zero-dep highlighters
 emit, so themes are shared.

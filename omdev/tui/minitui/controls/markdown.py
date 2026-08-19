@@ -3,8 +3,8 @@ The live markdown tail: the unsettled remainder of a streaming markdown backend,
 
 The commit-model pairing is the whole point: the app feeds the stream, commits whatever `pop_settled()` returns
 (rendered at the current width), and stacks this control to show the rest. Backends are swappable via
-`get_markdown_stream`: omcore's pdcmark (pulldown-cmark translated - the default; omcore is always present), the
-even tinier zero-dep internal line parser, or markdown-it - all producing the same MdBlock model.
+`get_markdown_stream`: omcore's pdcmark (pulldown-cmark translated - the default; omcore is always present), the even
+tinier zero-dep internal line parser, or markdown-it - all producing the same MdBlock model.
 """
 import typing as ta
 
@@ -44,9 +44,9 @@ _MARKDOWN_BACKEND_ALIASES: ta.Mapping[str, str] = {
 
 def get_markdown_stream(name: str | None = None) -> MarkdownStreamBackend:
     """
-    A fresh streaming backend by name: 'pdcmark' (omcore's pulldown-cmark translation, the default), 'internal'
-    (the tinier zero-dep line parser), or 'markdown-it' (external, optional). Raises LookupError for unknown or
-    unavailable backends.
+    A fresh streaming backend by name: 'pdcmark' (omcore's pulldown-cmark translation, the default), 'internal' (the
+    tinier zero-dep line parser), or 'markdown-it' (external, optional). Raises LookupError for unknown or unavailable
+    backends.
     """
 
     if (resolved := _MARKDOWN_BACKEND_ALIASES.get((name or 'pdcmark').strip().lower())) is None:

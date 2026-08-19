@@ -254,9 +254,9 @@ def test_extended_ctrl_aliases_leave_distinctions_intact():
 
 
 def test_ss3_tail_survives_delay():
-    # F1-F4 are SS3-encoded (ESC O P..S); their final byte may lag well past the bare-ESC window (relays, load).
-    # The SS3 continuation window is generous, like the CSI path - a 50ms window silently ate F1-F4 while F5+
-    # (CSI-form) kept working.
+    # F1-F4 are SS3-encoded (ESC O P..S); their final byte may lag well past the bare-ESC window (relays, load). The SS3
+    # continuation window is generous, like the CSI path - a 50ms window silently ate F1-F4 while F5+ (CSI-form) kept
+    # working.
     p = XtermEventParser()
     evs = list(p.feed('\x1bO'))
     assert p.pending_timeout_s == SS3_TIMEOUT_S
@@ -287,8 +287,8 @@ def test_iterm2_kitty_fkeys_csi_tilde():
 
 
 def test_unambiguous_escape_mode_waits_indefinitely():
-    # With kitty disambiguation confirmed, a bare ESC byte can only begin a sequence: no timeout races, and the
-    # escape key itself arrives as CSI 27u with zero latency.
+    # With kitty disambiguation confirmed, a bare ESC byte can only begin a sequence: no timeout races, and the escape
+    # key itself arrives as CSI 27u with zero latency.
     p = XtermEventParser()
     p.set_escape_unambiguous(True)
 

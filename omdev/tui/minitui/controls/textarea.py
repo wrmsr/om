@@ -1,16 +1,16 @@
 """
 The vim-powered text area: a scrolled vim window as a control.
 
-Full width, minimum one row, growing with content up to `max_height`, then scrolling - the viewport follows the
-cursor, so arbitrarily large pasted content stays motion- and search-accessible instead of being truncated away.
-Lines hard-wrap at the width (cell-exact, mid-word, like vim's 'wrap' without 'linebreak') so document<->screen
-position math stays trivial.
+Full width, minimum one row, growing with content up to `max_height`, then scrolling - the viewport follows the cursor,
+so arbitrarily large pasted content stays motion- and search-accessible instead of being truncated away. Lines hard-wrap
+at the width (cell-exact, mid-word, like vim's 'wrap' without 'linebreak') so document<->screen position math stays
+trivial.
 
 Enter semantics (per design): insert mode Enter inserts a newline (vim-pure); normal mode Enter submits; from insert
 mode, ctrl+j (universal - the other newline byte), ctrl/shift+enter (extended-key terminals), or alt+enter submit.
 Insert mode additionally honors the common readline/emacs chord subset (`_INSERT_CHORD_TOKENS`): ctrl+a/e/f/b/p/n
-movement, alt+f/b word motion, and the ctrl+w / alt+backspace / alt+d / ctrl+k / ctrl+u kill family.
-Engine decorations (visual selection, search matches) render as style tags resolved by the composition theme.
+movement, alt+f/b word motion, and the ctrl+w / alt+backspace / alt+d / ctrl+k / ctrl+u kill family. Engine decorations
+(visual selection, search matches) render as style tags resolved by the composition theme.
 """
 import typing as ta
 
@@ -54,8 +54,8 @@ _KEY_TOKENS: ta.Mapping[str, str] = {
 }
 
 # Readline/emacs chords honored in INSERT mode - the most common movement + kill subset. Chords not listed still fall
-# through to the app (ctrl+d, ctrl+o, ...); an app wanting ctrl+p/n for history should claim them only at the
-# first/last line, arrow-style, so mid-buffer they reach the editor as line movement.
+# through to the app (ctrl+d, ctrl+o, ...); an app wanting ctrl+p/n for history should claim them only at the first/last
+# line, arrow-style, so mid-buffer they reach the editor as line movement.
 _INSERT_CHORD_TOKENS: ta.Mapping[Key, str] = {
     Key('a', ctrl=True): '<home>',
     Key('e', ctrl=True): '<end>',
@@ -65,7 +65,7 @@ _INSERT_CHORD_TOKENS: ta.Mapping[Key, str] = {
     Key('n', ctrl=True): '<down>',
     Key('b', alt=True): '<a-b>',
     Key('f', alt=True): '<a-f>',
-    Key('w', ctrl=True): '<c-w>',        # delete word back (vim's own insert chord)
+    Key('w', ctrl=True): '<c-w>',         # delete word back (vim's own insert chord)
     Key('backspace', alt=True): '<c-w>',  # readline M-backspace, same kill
     Key('d', alt=True): '<a-d>',
     Key('k', ctrl=True): '<c-k>',

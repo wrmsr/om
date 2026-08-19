@@ -31,13 +31,13 @@ from .types import UnknownSequenceEvent
 ##
 
 
-# The ESC byte is fundamentally overloaded on the legacy wire: the escape KEY, the intro of every escape sequence,
-# and the alt prefix - and only elapsed time can tell them apart. Every program picks a timeout and thereby picks its
+# The ESC byte is fundamentally overloaded on the legacy wire: the escape KEY, the intro of every escape sequence, and
+# the alt prefix - and only elapsed time can tell them apart. Every program picks a timeout and thereby picks its
 # failure mode: vim waits ~1000ms for key codes by default (sequence-favoring; the famous "delay after ESC"), neovim
-# picks ttimeoutlen=50 (ESC-favoring; splits break on laggy links), tmux's escape-time (historically 500ms) makes it
-# the classic splitter of sequences it misjudged. The kitty keyboard protocol deletes the ambiguity entirely - the
-# escape key arrives as CSI 27u - so when the terminal confirms it (see `set_escape_unambiguous`) these timeouts stop
-# applying and escape parsing waits indefinitely, like the CSI path always has.
+# picks ttimeoutlen=50 (ESC-favoring; splits break on laggy links), tmux's escape-time (historically 500ms) makes it the
+# classic splitter of sequences it misjudged. The kitty keyboard protocol deletes the ambiguity entirely - the escape
+# key arrives as CSI 27u - so when the terminal confirms it (see `set_escape_unambiguous`) these timeouts stop applying
+# and escape parsing waits indefinitely, like the CSI path always has.
 
 # How long a lone ESC waits for a following byte before resolving as the escape key. The default sides with sequence
 # integrity over ESC latency (closer to vim's ~1000ms than neovim's 50) - the sole cost is bare-ESC resolution latency
@@ -47,8 +47,8 @@ from .types import UnknownSequenceEvent
 ESCAPE_TIMEOUT_S = .5
 
 # How long an SS3 intro (ESC O) waits for its final byte. Kept at least as long as the bare-ESC timeout (vim waits
-# ~1000ms here): the CSI path waits indefinitely for its final, and an SS3 tail delayed past a too-short window
-# silently breaks F1-F4 while F5+ (CSI-form) keep working. The fallback meaning of a lone ESC O on the legacy wire is
+# ~1000ms here): the CSI path waits indefinitely for its final, and an SS3 tail delayed past a too-short window silently
+# breaks F1-F4 while F5+ (CSI-form) keep working. The fallback meaning of a lone ESC O on the legacy wire is
 # alt+shift+o, so that's what a timeout resolves to. Injectable per-instance like the escape timeout.
 SS3_TIMEOUT_S = .5
 

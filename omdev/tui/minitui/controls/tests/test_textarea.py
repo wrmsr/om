@@ -146,8 +146,8 @@ def test_arrows_in_insert():
 
 
 def test_tab_and_control_display():
-    # noexpandtab profile (go): the document holds a real tab; the display shows tabstop spaces, and the cursor
-    # math agrees.
+    # noexpandtab profile (go): the document holds a real tab; the display shows tabstop spaces, and the cursor math
+    # agrees.
     ta_ = TextArea(options=get_language_options('go'))
     press(ta_, 'tab')
     type_text(ta_, 'x')

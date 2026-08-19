@@ -3,9 +3,9 @@ Range edits: the single mutation primitive and the algebra everything leans on.
 
 A `TextEdit` replaces the charwise range [start, end) with `text` (which may contain newlines) - insert is start==end,
 delete is text=''. This is deliberately the same shape as tree-sitter's `edit()` and LSP's TextEdit, so incremental
-consumers translate directly. Applying yields an `AppliedEdit` carrying the exact inverse, which is what undo, redo,
-and transactional grouping are made of; `remap_pos` moves positions (cursors, match spans, decoration anchors) through
-an edit, which is what makes multi-cursor and durable spans possible.
+consumers translate directly. Applying yields an `AppliedEdit` carrying the exact inverse, which is what undo, redo, and
+transactional grouping are made of; `remap_pos` moves positions (cursors, match spans, decoration anchors) through an
+edit, which is what makes multi-cursor and durable spans possible.
 """
 import typing as ta
 

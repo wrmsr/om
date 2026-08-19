@@ -8,6 +8,7 @@ Long-lived / background / streaming processes are spawned directly against a sco
 
 FIXME:
  - pointless ProcessesExecOps abstraction with 'processes.ProcessScope' and whatnot baked right into the interface lol
+  - or? retain as a 'simplified' (if leaky) interface?
 """
 import abc
 import typing as ta
