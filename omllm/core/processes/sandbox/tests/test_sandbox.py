@@ -12,8 +12,8 @@ from ..bwrap import BwrapSandbox
 from ..bwrap import build_bwrap_argv
 from ..bwrap import iter_symlink_prefixes
 from ..policy import SandboxPolicy
-from ..sandboxexec import SandboxExecSandbox
-from ..sandboxexec import build_sandbox_exec_profile
+from ..seatbelt import SeatbeltSandbox
+from ..seatbelt import build_seatbelt_profile
 
 
 def test_build_bwrap_argv(tmp_path):
@@ -113,19 +113,19 @@ def test_bwrap_wraps_spec(tmp_path):
 
 def test_sandbox_exec_profile():
     pol = SandboxPolicy(read_roots=['/a b'], write_roots=['/w'], system_read_roots=['/usr'], allow_network=False)
-    prof = build_sandbox_exec_profile(pol)
+    prof = build_seatbelt_profile(pol)
     assert '(deny default)' in prof
     assert '(allow file-read* (subpath "/usr"))' in prof
     assert '(allow file-read* (subpath "/a b"))' in prof  # spaces handled
     assert '(allow file* (subpath "/w"))' in prof
     assert '(allow network*)' not in prof                 # denied
 
-    argv = SandboxExecSandbox(policy=pol).transform_spec(ProcessSpec(['rg', 'x'])).argv
+    argv = SeatbeltSandbox(policy=pol).transform_spec(ProcessSpec(['rg', 'x'])).argv
     assert argv[0] == '/usr/bin/sandbox-exec'
     assert argv[1] == '-p'
     assert list(argv[-2:]) == ['rg', 'x']
 
-    prof2 = build_sandbox_exec_profile(SandboxPolicy(allow_network=True))
+    prof2 = build_seatbelt_profile(SandboxPolicy(allow_network=True))
     assert '(allow network*)' in prof2
 
 
