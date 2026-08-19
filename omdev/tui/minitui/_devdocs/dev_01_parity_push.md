@@ -511,3 +511,19 @@ itself (ESCAPE_TIMEOUT_S raised .05 -> .5, vim-leaning, per the owner - sole use
 links) plus injectable kwargs on XtermEventParser (escape_timeout_s / ss3_timeout_s, defaulting to the globals;
 nothing constructs with overrides yet, prewired on purpose). Kitty-confirmed unambiguous mode is unchanged and
 still moots the timeouts entirely on modern terminals.
+
+## 2026-08-19: multi-tool turns rendered an empty final response - one-shot stream backends
+
+Owner report: single tool call then text works; more than one tool call in a row -> empty response ("I think it
+is streaming content, it's just not rendering anything"). Exactly right: the chat app holds ONE MarkdownTail for
+its whole life and stream_break() finalizes the backend at every content-block boundary. PdcmarkStream.finalize()
+latched self._finished = True and feed() silently dropped everything after - one-shot. First TextEnd (the
+interleaved commentary models emit between back-to-back tool calls) tripped the latch; the real final response
+then streamed into a dead parser. Single-tool-no-preamble worked only because the final text was the first-ever
+cycle. Surfaced now because the default backend flipped internal -> pdcmark (nested-list fix): the internal
+MarkdownStream was accidentally reusable (finalize just clears its buffer); pdcmark and markdown-it both latched.
+Fix: the contract is now explicit - finalize drains AND resets; backends are reusable across stream cycles.
+PdcmarkStream and MarkdownItStream construct a fresh parser on finalize (options retained); _finished deleted.
+Regression: per-backend feed/finalize/feed-again test (incl. no-leakage + empty-tail asserts) and a MarkdownTail
+three-cycle test mirroring the text/tool/text/tool/text turn shape.
+Not a timing bug for once - a lifecycle-contract mismatch between a long-lived holder and a one-shot resource.

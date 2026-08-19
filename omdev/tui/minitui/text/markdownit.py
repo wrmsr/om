@@ -201,10 +201,9 @@ class MarkdownItStream(MarkdownStreamBackend):
         self._inc = incparse.IncrementalMarkdownParser()
         self._new_stable: list[ta.Any] = []
         self._unstable: list[ta.Any] = []
-        self._finished = False
 
     def feed(self, chunk: str) -> None:
-        if self._finished:
+        if not chunk:
             return
         out = self._inc.feed2(chunk)
         self._new_stable.extend(out.new_stable)
@@ -218,12 +217,11 @@ class MarkdownItStream(MarkdownStreamBackend):
         return tokens_to_blocks(self._unstable)
 
     def finalize(self) -> list[MdBlock]:
-        if not self._finished:
-            out = self._inc.feed2('')
-            self._new_stable.extend(out.new_stable)
-            self._unstable = list(out.unstable)
-            self._finished = True
-        tokens = [*self._new_stable, *self._unstable]
+        out = self._inc.feed2('')
+        self._new_stable.extend(out.new_stable)
+        tokens = [*self._new_stable, *out.unstable]
         self._new_stable = []
         self._unstable = []
+        # Reusable per the backend contract: a fresh parser for the next stream cycle.
+        self._inc = incparse.IncrementalMarkdownParser()
         return tokens_to_blocks(tokens)

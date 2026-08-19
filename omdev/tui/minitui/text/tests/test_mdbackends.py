@@ -135,3 +135,29 @@ def test_nested_list_depth_equivalence_across_backends():
                 expected = items
             assert items == expected, (name, len(chunks), items, expected)
     assert expected  # at least one backend ran and produced items
+
+
+@pytest.mark.parametrize('name', backend_names())
+def test_backend_reusable_across_finalize_cycles(name):
+    # The chat tail is long-lived: it finalizes at every content-block boundary (text, tool call, text, ...) and
+    # keeps feeding the same instance. A one-shot backend silently eats every cycle after the first - the
+    # "multi-tool turn renders an empty response" bug.
+    s = get_markdown_stream(name)
+
+    s.feed('# first\n\nalpha\n')
+    first = s.finalize()
+    assert any('first' in seg for b in first for seg in _plain_rows(b))
+
+    s.feed('# second\n\nbeta\n')
+    second = list(s.pop_settled())
+    second.extend(s.finalize())
+    rows = [seg for b in second for seg in _plain_rows(b)]
+    assert any('second' in r for r in rows)
+    assert any('beta' in r for r in rows)
+    assert not any('first' in r for r in rows)  # no leakage from the previous cycle
+
+    assert s.tail_blocks() == []
+
+
+def _plain_rows(block):
+    return [segments_text(row) for row in render_blocks([block], 40)]

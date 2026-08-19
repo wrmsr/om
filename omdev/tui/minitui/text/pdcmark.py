@@ -242,13 +242,16 @@ class PdcmarkStream(MarkdownStreamBackend):
     def __init__(self, options: ta.Any | None = None) -> None:
         super().__init__()
 
-        self._parser = pdcmark.StreamingParser(**({'options': options} if options is not None else {}))
+        self._options = options
+        self._parser = self._new_parser()
         self._pending: list[pdcmark.Event] = []  # committed events not yet forming a complete group
         self._tentative: list[pdcmark.Event] = []
-        self._finished = False
+
+    def _new_parser(self) -> pdcmark.StreamingParser:
+        return pdcmark.StreamingParser(**({'options': self._options} if self._options is not None else {}))
 
     def feed(self, chunk: str) -> None:
-        if self._finished or not chunk:
+        if not chunk:
             return
         out = self._parser.feed(chunk)
         self._pending.extend(out.committed)
@@ -268,10 +271,10 @@ class PdcmarkStream(MarkdownStreamBackend):
         return events_to_blocks([*self._pending, *self._tentative])
 
     def finalize(self) -> list[MdBlock]:
-        if not self._finished:
-            out = self._parser.finish()
-            self._pending.extend(out.committed)
-            self._finished = True
+        out = self._parser.finish()
+        self._pending.extend(out.committed)
         events, self._pending = self._pending, []
         self._tentative = []
+        # Reusable per the backend contract: a fresh parser for the next stream cycle.
+        self._parser = self._new_parser()
         return events_to_blocks(events)

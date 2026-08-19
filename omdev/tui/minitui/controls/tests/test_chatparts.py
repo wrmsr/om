@@ -145,3 +145,17 @@ def test_confirmation_card_resolves_to_soft_truecolor():
     assert button_styles, 'confirmation buttons must carry background styles'
     for style in button_styles:
         assert isinstance(style.bg, RgbColor), style
+
+
+def test_markdown_tail_reusable_across_stream_cycles():
+    # The chat app holds ONE tail for its whole life and finalizes it at every content-block boundary - a turn shaped
+    # like text / tool / text / tool / text must render every text block, not just the first (the "multi-tool turn
+    # renders an empty response" bug: the default backend latched closed on its first finalize).
+    t = MarkdownTail()
+
+    for i, chunk in enumerate(['first block\n', 'second block\n', 'third block\n']):
+        t.feed(chunk)
+        blocks = [*t.pop_settled(), *t.finalize()]
+        rows = [segments_text(row) for row in t.render_settled(blocks, 40)]
+        assert any(f'{("first", "second", "third")[i]} block' in r for r in rows), (i, rows)
+        assert t.is_empty

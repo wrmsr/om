@@ -85,7 +85,10 @@ class MarkdownTail(Control):
         return self._stream.pop_settled()
 
     def finalize(self) -> list[MdBlock]:
-        """End of stream: drain everything remaining for the final commit."""
+        """
+        End of the current stream: drain everything remaining for the final commit. The tail is reusable - the next
+        `feed` starts a fresh stream cycle (backends reset on finalize per their contract).
+        """
 
         return self._stream.finalize()
 
