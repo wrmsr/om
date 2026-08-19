@@ -6,6 +6,7 @@ import transformers as tfm
 
 from omcore import check
 from omcore import lang
+from omcore.testing import pytest as ptu
 
 from ..filecache import file_cache_patch_context
 
@@ -70,6 +71,7 @@ class TransformersChatChoicesService(BaseTransformersChatChoicesService):
 
 @pytest.mark.not_docker_guest
 @pytest.mark.high_mem
+@ptu.skip.if_cant_import('torch')
 def test_transformers_chat():
     with TransformersChatChoicesService(
         'meta-llama/Llama-3.2-1B-Instruct',

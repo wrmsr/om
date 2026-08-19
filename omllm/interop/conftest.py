@@ -12,7 +12,10 @@ BACKEND_DEPSKIP_MODULES: ta.Mapping[str, ta.Sequence[str]] = {
     ],
     'tinygrad': ['tinygrad'],
     'torch': ['torch'],
-    'transformers': ['transformers'],
+    'transformers': [
+        'torch',
+        'transformers',
+    ],
 }
 
 
