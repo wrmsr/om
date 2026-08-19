@@ -708,3 +708,70 @@ def test_insert_readline_word_motions():
     e.feed('<a-b>')
     check('a-b again', e, cursor=(0, 0))
     check('motions do not edit', e, text='foo bar')
+
+
+def test_paragraph_motions():
+    s = 'a\nb\n\nc\nd\n\n\ne'
+    check('} to next boundary',        make(s, '}'),               cursor=(2, 0))
+    check('}} hops paragraphs',        make(s, '}}'),              cursor=(5, 0))
+    check('2} == }}',                  make(s, '2}'),              cursor=(5, 0))
+    check('} from empty line',         make(s, '}', (5, 0)),       cursor=(7, 0))
+    check('} at end: buffer end',      make(s, '}}}}'),            cursor=(7, 0))
+    check('{ to prev boundary',        make(s, '{', (4, 0)),       cursor=(2, 0))
+    check('{ from empty line',         make(s, '{', (2, 0)),       cursor=(0, 0))
+    check('{ at start: buffer start',  make(s, '{{{{', (7, 0)),    cursor=(0, 0))
+    check('} then { round trips',      make(s, '}{'),              cursor=(0, 0))
+
+
+def test_paragraph_operator_composition():
+    check('d} deletes paragraph',   make('a\nb\n\nc', 'd}'),          text='\nc')
+    check('d{ deletes back',        make('a\n\nb\nc', 'd{', (3, 0)),  text='a\nc')
+    e = make('a\nb\n\nc', 'y}p')
+    check('y} yanks linewise', e, text='a\na\nb\nb\n\nc')
+
+
+def test_shift_tabs_and_counts():
+    # Dedent eats tabs by column width (reindent-to-column), not just literal spaces.
+    check('<< dedents a tab',      make('\tfoo', '<<'),      text='foo')
+    check('<< mixed indent',       make(' \tfoo', '<<'),     text='foo')
+    check('>> normalizes mixed',   make(' \tfoo', '>>'),     text='        foo')
+    # Visual count multiplies the shift (vim's 3>).
+    check('visual 3> triples',     make('foo', 'v3>'),       text='            foo')
+    # Default profile is expandtab, so the surviving indent is rebuilt as spaces (vim does the same).
+    check('visual < on tabs',      make('\t\tfoo', 'v<'),    text='    foo')
+
+
+def test_options_expandtab_and_autoindent():
+    from ..engine import VimEngine  # noqa: PLC0415
+    from ..options import get_language_options  # noqa: PLC0415
+
+    # Default profile: tab inserts spaces to the next tabstop column.
+    e = VimEngine('')
+    e.send('i')
+    e.feed('\t')
+    check('expandtab tab', e, text='    ')
+    e.send('x')
+    e.feed('\t')
+    check('expandtab to next stop', e, text='    x   ')
+
+    # go profile: real tabs; > indents by one tab.
+    g = VimEngine('foo', options=get_language_options('go'))
+    g.send('i')
+    g.feed('\t')
+    check('noexpandtab literal', g, text='\tfoo')
+    g.feed(ESC)
+    g.send('>>')
+    check('> adds a real tab', g, text='\t\tfoo')
+    g.send('<<')
+    check('< removes one tab', g, text='\tfoo')
+
+    # Autoindent: Enter carries leading whitespace, capped at the cursor column.
+    a = VimEngine('    foo')
+    a.send('A')
+    a.feed('\r')
+    a.send('bar')
+    check('autoindent carries', a, text='    foo\n    bar')
+    b = VimEngine('    foo')
+    b.send('i')
+    b.feed('\r')
+    check('enter at col 0 drags nothing', b, text='\n    foo', cursor=(1, 0))

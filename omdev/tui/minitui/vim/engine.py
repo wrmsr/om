@@ -37,6 +37,10 @@ from .motions import MOTION_NEEDS_ARG
 from .motions import WANT_EOL
 from .motions import MotionResult
 from .motions import resolve
+from .options import DEFAULT_OPTIONS
+from .options import VimOptions
+from .options import indent_columns
+from .options import make_indent
 from .parsing import CMDLINE_STARTERS
 from .parsing import ESC
 from .parsing import Command
@@ -53,6 +57,8 @@ from .scans import find_char
 from .scans import first_nonblank
 from .scans import llen
 from .scans import match_bracket
+from .scans import para_back
+from .scans import para_fwd
 from .scans import retreat
 from .scans import word_back
 from .scans import word_end
@@ -77,8 +83,6 @@ ExHandler: ta.TypeAlias = ta.Callable[[str], str | None]
 
 
 BACKSPACES: ta.AbstractSet[str] = frozenset(('\x7f', '\x08'))
-
-SHIFTWIDTH = 4
 
 # Special-key tokens fed by frontends; mapped to motions in normal/visual mode, handled directly in insert mode.
 TOKEN_MOTIONS: ta.Mapping[str, str] = {
@@ -115,11 +119,13 @@ class VimEngine:
             doc: Document | str = '',
             *,
             ex_handler: ExHandler | None = None,
+            options: VimOptions = DEFAULT_OPTIONS,
     ) -> None:
         super().__init__()
 
         self._doc = Document(doc) if isinstance(doc, str) else doc
         self._ex_handler = ex_handler
+        self._options = options
 
         self._cursors: tuple[Cursor, ...] = (Cursor(Pos(0, 0)),)
         self._mode = Mode.NORMAL
@@ -158,6 +164,15 @@ class VimEngine:
     @property
     def doc(self) -> Document:
         return self._doc
+
+    @property
+    def options(self) -> VimOptions:
+        return self._options
+
+    def set_options(self, options: VimOptions) -> None:
+        """Swap the editor options at runtime (a language change); applies from the next keystroke."""
+
+        self._options = options
 
     @property
     def mode(self) -> Mode:
@@ -421,6 +436,32 @@ class VimEngine:
             lambda a: a.edit.new_end,
         )
 
+    def _newline_at_cursors(self) -> None:
+        doc = self._doc
+        opts = self._options
+
+        def make(pos: Pos) -> tuple[Pos, Pos, str]:
+            text = '\n'
+            if opts.autoindent:
+                # Carry the line's leading whitespace, capped at the cursor column: Enter at col 0 drags no indent,
+                # Enter at EOL carries it all. (Vim's remove-autoindent-on-immediate-Esc cleanup is skipped.)
+                line = doc.line(pos.row)
+                lead = line[:len(line) - len(line.lstrip(' \t'))]
+                text += lead[:pos.col]
+            return (pos, pos, text)
+
+        self._edit_at_cursors(make, lambda a: a.edit.new_end)
+
+    def _tab_at_cursors(self) -> None:
+        # expandtab: spaces to the next tabstop column. Char columns, not display columns - they agree whenever the
+        # text before the cursor is tab-free, which expandtab is busy ensuring.
+        ts = self._options.tabstop
+
+        def make(pos: Pos) -> tuple[Pos, Pos, str]:
+            return (pos, pos, ' ' * (ts - pos.col % ts))
+
+        self._edit_at_cursors(make, lambda a: a.edit.new_end)
+
     def _backspace_at_cursors(self) -> None:
         doc = self._doc
 
@@ -523,7 +564,7 @@ class VimEngine:
             return
 
         if key in ('\r', '\n'):
-            self._insert_at_cursors('\n')
+            self._newline_at_cursors()
             return
 
         if key in BACKSPACES:
@@ -548,7 +589,10 @@ class VimEngine:
             return
 
         if len(key) == 1 and (key.isprintable() or key == '\t'):
-            self._insert_at_cursors(key)
+            if key == '\t' and self._options.expandtab:
+                self._tab_at_cursors()
+            else:
+                self._insert_at_cursors(key)
 
     ##
     # Cmdline mode (/ ? :)
@@ -748,7 +792,7 @@ class VimEngine:
         if opkey:
             span = self._visual_span()
             self._leave_visual()
-            self._apply_op(opkey, span, cmd.register)
+            self._apply_op(opkey, span, cmd.register, count=cmd.count)
             if self._open_group is not None and self._mode is not Mode.INSERT:
                 self._end_change()
             return
@@ -871,6 +915,10 @@ class VimEngine:
         if k == '0':
             return MotionResult(Pos(p.row, 0), exc)
 
+        if k in ('{', '}'):
+            t = para_fwd(doc, p, n) if k == '}' else para_back(doc, p, n)
+            return None if t == p else MotionResult(t, exc)
+
         if k == '^':
             return MotionResult(Pos(p.row, first_nonblank(doc, p.row)), exc)
 
@@ -965,7 +1013,7 @@ class VimEngine:
     ##
     # Operators
 
-    def _apply_op(self, op: str, span: Span, reg: str | None) -> bool:  # noqa: C901
+    def _apply_op(self, op: str, span: Span, reg: str | None, count: int = 1) -> bool:  # noqa: C901
         doc = self._doc
 
         if op != 'y':
@@ -979,15 +1027,20 @@ class VimEngine:
             return False
 
         if op in '><':
+            # Reindent-to-column, like vim: measure the leading whitespace in display columns (tabs advance to the
+            # next tabstop multiple), shift the width by count*shiftwidth, and rebuild the indent per expandtab -
+            # so dedent eats tabs correctly and mixed indentation normalizes. `count` is the visual `3>` multiplier
+            # (normal-mode counts pick lines instead and arrive here as the span).
+            opts = self._options
+            delta = opts.shiftwidth * max(count, 1) * (1 if op == '>' else -1)
             for r in range(span.start.row, span.end.row + 1):
                 line = doc.line(r)
-                if op == '>':
-                    if line:  # vim skips empty lines
-                        doc.insert(Pos(r, 0), ' ' * SHIFTWIDTH)
-                else:
-                    lead = len(line) - len(line.lstrip(' '))
-                    if (strip := min(SHIFTWIDTH, lead)):
-                        doc.delete(Pos(r, 0), Pos(r, strip))
+                if not line:  # vim skips empty lines
+                    continue
+                lead = len(line) - len(line.lstrip(' \t'))
+                new = make_indent(indent_columns(line[:lead], opts.tabstop) + delta, opts)
+                if new != line[:lead]:
+                    doc.replace(Pos(r, 0), Pos(r, lead), new)
             col = first_nonblank(doc, span.start.row)
             self._set_cursor(Pos(span.start.row, col), want=col)
             return True

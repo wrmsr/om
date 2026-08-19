@@ -32,6 +32,8 @@ from ..text.widths import ascii_control_repr
 from ..text.widths import char_width
 from ..vim.engine import VimEngine
 from ..vim.modes import Mode
+from ..vim.options import DEFAULT_OPTIONS
+from ..vim.options import VimOptions
 from .base import Control
 
 
@@ -71,11 +73,14 @@ _INSERT_CHORD_TOKENS: ta.Mapping[Key, str] = {
 }
 
 
-def _display_char(c: str) -> tuple[str, int]:
-    """What one document character displays as: tabs become four spaces, control chars caret notation."""
+def _display_char(c: str, tab_width: int) -> tuple[str, int]:
+    """
+    What one document character displays as: tabs become `tab_width` spaces (a fixed expansion, not true col%ts tab
+    stops - identical for leading tabs, the case that matters), control chars caret notation.
+    """
 
     if c == '\t':
-        return ('    ', 4)
+        return (' ' * tab_width, tab_width)
     if (caret := ascii_control_repr(c)) is not None:
         return (caret, len(caret))
     return (c, char_width(c))
@@ -106,10 +111,15 @@ class TextArea(Control):
             ex_handler: ta.Callable[[str], str | None] | None = None,
             start_in_normal: bool = False,
             highlighter: Highlighter | None = None,
+            options: VimOptions | None = None,
     ) -> None:
         super().__init__()
 
-        self._engine = VimEngine(doc if doc is not None else Document(), ex_handler=ex_handler)
+        self._engine = VimEngine(
+            doc if doc is not None else Document(),
+            ex_handler=ex_handler,
+            options=options if options is not None else DEFAULT_OPTIONS,
+        )
         self._max_height = max_height
         self._prompt = prompt
         self._prompt_style = prompt_style
@@ -171,8 +181,9 @@ class TextArea(Control):
             start = 0
             col = 0
             budget = 0
+            tw = self._engine.options.tabstop
             while col < len(line):
-                _, w = _display_char(line[col])
+                _, w = _display_char(line[col], tw)
                 if budget + w > text_width and col > start:
                     rows.append(_WrapRow(r, start, col, first=start == 0))
                     start = col
@@ -274,7 +285,7 @@ class TextArea(Control):
                 segments.append(Segment(text, style))
                 text = ''
             style = c_tag
-            text += _display_char(line[col])[0]
+            text += _display_char(line[col], self._engine.options.tabstop)[0]
         if text:
             segments.append(Segment(text, style))
 
@@ -307,7 +318,8 @@ class TextArea(Control):
         cur = self._engine.cursor
         line = self.doc.line(row.doc_row)
         x = len(self._prompt) + sum(
-            _display_char(c)[1] for c in line[row.start_col: min(cur.col, row.end_col)]
+            _display_char(c, self._engine.options.tabstop)[1]
+            for c in line[row.start_col: min(cur.col, row.end_col)]
         )
         return (x, cursor_row - top)
 
@@ -329,12 +341,21 @@ class TextArea(Control):
         col = min(max(cur.col, row.start_col), max(row.end_col - 1, row.start_col))
         self._engine.set_cursor(Pos(row.doc_row, col))
 
-    def _scroll_half_page(self, *, down: bool) -> None:
+    def _scroll_rows(self, delta: int) -> None:
+        """Move the view and cursor together by `delta` wrapped screen rows (the ctrl+d/u/f/b family)."""
+
         rows, top, height = self._viewport()
-        half = max(height // 2, 1)
-        delta = half if down else -half
         self._cursor_to_wrap_row(rows, self._cursor_screen_row(rows) + delta)
         self._top = min(max(top + delta, 0), max(len(rows) - height, 0))
+
+    def _scroll_half_page(self, *, down: bool) -> None:
+        half = max(self._viewport()[2] // 2, 1)
+        self._scroll_rows(half if down else -half)
+
+    def _scroll_page(self, *, down: bool) -> None:
+        # Vim's ctrl+f/b: a full page less a two-line overlap for continuity.
+        page = max(self._viewport()[2] - 2, 1)
+        self._scroll_rows(page if down else -page)
 
     def _scroll_line(self, *, down: bool) -> None:
         rows, top, height = self._viewport()
@@ -383,6 +404,9 @@ class TextArea(Control):
 
         if key == Key('d', ctrl=True) or key == Key('u', ctrl=True):
             self._scroll_half_page(down=key.base == 'd')
+            return True
+        if key == Key('f', ctrl=True) or key == Key('b', ctrl=True):
+            self._scroll_page(down=key.base == 'f')
             return True
         if key == Key('e', ctrl=True) or key == Key('y', ctrl=True):
             self._scroll_line(down=key.base == 'e')

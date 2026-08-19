@@ -404,6 +404,12 @@ with _lang.auto_proxy_init(
         apply_substitute,
     )
 
+    from .vim.options import (  # noqa
+        VimOptions,
+        DEFAULT_OPTIONS,
+        get_language_options,
+    )
+
     from .vim.engine import (  # noqa
         ExHandler,
         VimEngine,

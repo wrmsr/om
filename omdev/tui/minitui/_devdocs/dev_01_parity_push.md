@@ -542,3 +542,29 @@ QoL per the owner (viper-mode-emacsy muscle memory): insert mode now honors the 
   reach the editor as line movement; at the edge they're readline previous/next-history. No lost functionality.
 Deliberately skipped: ctrl+d (app quit), ctrl+t/ctrl+y transpose/yank, cmdline-mode emacs keys.
 Next up per the owner: resurrecting the old textual-ui harness's input history.
+
+## 2026-08-19 (later): paragraph motions, page scroll, and the language-settings carveout
+
+Owner QoL round two, plus the settings design conversation (AskUserQuestion-settled: vim trio, small language
+registry, expandtab + autoindent in scope, 4-space default, go = real tabs).
+- New vim/options.py: VimOptions(tabstop/shiftwidth/expandtab/autoindent), DEFAULT_OPTIONS,
+  get_language_options() mirroring the highlighter registry's alias style (go/make -> tabs, yaml/json -> 2-space,
+  unknown -> defaults - lenient since chat callers feed arbitrary strings), indent_columns()/make_indent()
+  helpers. Engine takes options (property + set_options prewired); TextArea passes through and reads
+  engine.options.tabstop for tab display (single source of truth, so runtime swaps repaint correctly).
+- Shift ops rewritten reindent-to-column: measure leading whitespace in display columns, +-count*shiftwidth,
+  rebuild per expandtab. Fixes the dedent-never-strips-tabs gap, makes go '>' add a real tab, normalizes mixed
+  indentation (vim does the same), and the visual-count drop (3> acted as >) - _apply_op grew count, the visual
+  operator path passes cmd.count. SHIFTWIDTH constant deleted.
+- Insert mode: tab honors expandtab (spaces to the next tabstop column, per-cursor); Enter autoindents (leading
+  whitespace capped at the cursor column, so col-0 Enter drags nothing). Both via _edit_at_cursors: multi-cursor,
+  undo grouping, and dot-repeat for free. Vim's remove-autoindent-on-Esc cleanup deliberately skipped.
+- { } paragraph motions: para_fwd/para_back in scans.py (skip empties, cross the block, land on the boundary;
+  truly-empty lines only, like vim), one EXCLUSIVE branch in _eval_motion, {} added to MOTION_KEYS. d}/d{/y}
+  came out linewise-correct through the existing resolve() exclusive adjustments with zero extra code -
+  the two-rule payoff paying off again.
+- ctrl+f/b full-page scroll in the textarea view layer (page = height-2, vim's overlap), via a _scroll_rows
+  generalization of the half-page path. Insert-mode ctrl+f/b remain readline column movement (disjoint mode gates).
+- vimdemo: indent profile follows the file extension automatically; --lang=... overrides. Also re-applied the
+  ctrl+p/n boundary-conditional history in chatdemo - the demo relocation to tests/apps/ was cut from a pre-edit
+  copy and had resurrected the old unconditional binding (external-sync hazard, again).

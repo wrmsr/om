@@ -31,6 +31,7 @@ from ...text.themes import PRIMARY
 from ...text.themes import SURFACE
 from ...text.themes import TEXT_PRIMARY
 from ...text.themes import TEXT_SECONDARY
+from ...vim.options import get_language_options
 
 
 ##
@@ -82,12 +83,13 @@ class TildeFiller(Control):
 
 
 class VimDemoApp(App):
-    def __init__(self, driver: SyncDriver, path: str | None) -> None:
+    def __init__(self, driver: SyncDriver, path: str | None, lang: str | None = None) -> None:
         super().__init__()
 
         self._driver = driver
         self._path = path
 
+        ext: str | None = None
         highlighter = None
         if path is not None and '.' in os.path.basename(path):
             ext = os.path.basename(path).rsplit('.', 1)[-1]
@@ -98,6 +100,8 @@ class VimDemoApp(App):
             start_in_normal=True,
             ex_handler=self._ex,
             highlighter=highlighter,
+            # Indent style follows the file extension ('go' edits with real tabs); --lang overrides.
+            options=get_language_options(lang if lang is not None else ext),
         )
         self._filler = TildeFiller()
         self._status = StatusBar()
@@ -191,9 +195,13 @@ class VimDemoApp(App):
 
 
 def _main() -> None:
-    path = sys.argv[1] if len(sys.argv) > 1 else None
+    args = sys.argv[1:]
+    lang: str | None = None
+    if args and args[0].startswith('--lang='):
+        lang = args.pop(0).partition('=')[2]
+    path = args[0] if args else None
     driver = SyncDriver(AltSurface(kitty_keys=True))
-    app = VimDemoApp(driver, path)
+    app = VimDemoApp(driver, path, lang)
     try:
         driver.run(app)
     except KeyboardInterrupt:

@@ -208,3 +208,37 @@ def match_bracket(doc: Document, pos: Pos) -> Pos | None:
                 return q
         q = advance(doc, q) if forward else retreat(doc, q)
     return None
+
+
+##
+
+
+def para_fwd(doc: Document, p: Pos, count: int) -> Pos:
+    """
+    The `}` target: the next empty line after the current paragraph (skipping empties first when starting on one);
+    the buffer end when no boundary remains. Empty means truly empty - vim doesn't treat whitespace-only lines as
+    paragraph boundaries.
+    """
+
+    row = p.row
+    last = doc.line_count() - 1
+    for _ in range(count):
+        while row < last and not doc.line(row):
+            row += 1
+        while row < last and doc.line(row):
+            row += 1
+    if row == last and doc.line(row):
+        return Pos(last, llen(doc, last))
+    return Pos(row, 0)
+
+
+def para_back(doc: Document, p: Pos, count: int) -> Pos:
+    """The `{` target: the previous empty line before the current paragraph; the buffer start when none remains."""
+
+    row = p.row
+    for _ in range(count):
+        while row > 0 and not doc.line(row):
+            row -= 1
+        while row > 0 and doc.line(row):
+            row -= 1
+    return Pos(row, 0)

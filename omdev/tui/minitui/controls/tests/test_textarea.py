@@ -6,6 +6,7 @@ from ...events.types import PasteEvent
 from ...text.highlights import PythonHighlighter
 from ...text.segments import segments_text
 from ...vim.modes import Mode
+from ...vim.options import get_language_options
 from ...vim.status import CURSOR_TAG
 from ...vim.status import SEARCH_MATCH_TAG
 from ...vim.status import SEARCH_MATCH_TAG as _SM
@@ -145,13 +146,21 @@ def test_arrows_in_insert():
 
 
 def test_tab_and_control_display():
-    ta_ = TextArea()
+    # noexpandtab profile (go): the document holds a real tab; the display shows tabstop spaces, and the cursor
+    # math agrees.
+    ta_ = TextArea(options=get_language_options('go'))
     press(ta_, 'tab')
     type_text(ta_, 'x')
-    # The document holds a real tab; the display shows four spaces, and the cursor math agrees.
     assert ta_.doc.text() == '\tx'
     assert rows(ta_) == ['    x']
     assert ta_.cursor(20) == (5, 0)
+
+    # Default profile: expandtab - the tab key writes spaces to the next tabstop column.
+    ta3 = TextArea()
+    press(ta3, 'tab')
+    type_text(ta3, 'x')
+    press(ta3, 'tab')
+    assert ta3.doc.text() == '    x   '
 
     ta2 = TextArea()
     ta2.handle_event(PasteEvent('a\x01b'))
@@ -198,6 +207,19 @@ def test_ctrl_d_u_half_page():
     assert ta_.engine.cursor.row == 4
     press(ta_, Key('u', ctrl=True))
     assert ta_.engine.cursor.row == 2
+
+
+def test_ctrl_f_b_full_page():
+    # Vim's ctrl+f/b: a full page less the two-line overlap (height 5 -> 3 rows per press).
+    ta_ = make_tall()
+    press(ta_, Key('f', ctrl=True))
+    assert ta_.engine.cursor.row == 3
+    press(ta_, Key('f', ctrl=True))
+    assert ta_.engine.cursor.row == 6
+    press(ta_, Key('b', ctrl=True))
+    assert ta_.engine.cursor.row == 3
+    press(ta_, Key('b', ctrl=True), Key('b', ctrl=True))
+    assert ta_.engine.cursor.row == 0
 
 
 def test_ctrl_e_y_scrolls_view():
