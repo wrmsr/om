@@ -1,18 +1,18 @@
 # ruff: noqa: UP006 UP007 UP045
 """
 The spawn shim: the first thing every child execs. It runs in the child, before the real exec, applying everything the
-parent asked for that cannot (or should not) be done between fork and exec in the parent's address space - receiving
-the passed fds and putting them where the target expects them, closing every other fd, privilege drop, umask, rlimits,
+parent asked for that cannot (or should not) be done between fork and exec in the parent's address space - receiving the
+passed fds and putting them where the target expects them, closing every other fd, privilege drop, umask, rlimits,
 deathsig, signal disposition cleanup, chdir, controlling tty - then `execvpe`s the target. Failures at any stage are
 reported as a single JSON record over the control socket, which is otherwise closed-on-exec so that EOF alone means
 "exec happened".
 
 **Pure stdlib, zero om imports, py3.8-safe syntax.** The source is loaded as a resource and shipped to the child (or,
 later, to a remote host) as text and exec'd as a module, so nothing here may depend on the om codebase or on a modern
-interpreter. It is intentionally *not* marked `@om-lite` (that would subject it to a lite-import precheck, and it
-lives under the non-lite `omllm.core` package which cannot be imported under 3.8) - but the same constraints apply: keep
-it stdlib-only and syntactically valid back to Python 3.8. `# type:` comment annotations and the `UP*` noqa above exist
-for exactly that reason.
+interpreter. It is intentionally *not* marked `@om-lite` (that would subject it to a lite-import precheck, and it lives
+under the non-lite `omllm.core` package which cannot be imported under 3.8) - but the same constraints apply: keep it
+stdlib-only and syntactically valid back to Python 3.8. `# type:` comment annotations and the `UP*` noqa above exist for
+exactly that reason.
 
 ## Protocol
 
@@ -21,16 +21,16 @@ number in `argv[1]`, delivered by a dup2 at spawn. Queued on it - sent by the pa
 header line `{"n": N}` followed by N fds via SCM_RIGHTS: first the *payload blob* (one line of json `ShimPayload`, then
 this source), then the caller's pass-fds in `ShimPayload.keep_fds` order, which the shim dup2's onto the numbers listed
 there. The bootstrap (`shim.py::BOOTSTRAP`) does the receive, reads the blob, execs the source as module
-`__procs_shim__`, and calls `main(payload, passed_fds)`. On failure the shim writes `[stage, errno, message]` as json
-to the control socket and exits 127; on success the socket closes at exec.
+`__procs_shim__`, and calls `main(payload, passed_fds)`. On failure the shim writes `[stage, errno, message]` as json to
+the control socket and exits 127; on success the socket closes at exec.
 
 ## Payload
 
 `ShimPayload` is a plain dataclass whose fields are all json-able as they are (`dataclasses.asdict` one way,
 `ShimPayload(**json.loads(...))` the other). The rest of the `processes` package imports this module to build one
-(importing it runs nothing). OS strings that must round-trip *byte-exactly* - argv, env, cwd - travel as base64 of
-their `os.fsencode`d bytes (`encode_os` / `decode_os`) and are handed to the OS as bytes here, so neither side's
-filesystem encoding nor json's handling of odd code points can ever alter them. User / group *names* are plain str.
+(importing it runs nothing). OS strings that must round-trip *byte-exactly* - argv, env, cwd - travel as base64 of their
+`os.fsencode`d bytes (`encode_os` / `decode_os`) and are handed to the OS as bytes here, so neither side's filesystem
+encoding nor json's handling of odd code points can ever alter them. User / group *names* are plain str.
 """
 import array
 import base64

@@ -119,9 +119,15 @@ def _wait_container_ready(cid: str, timeout: float = 20.0) -> bool:
 @pytest.mark.asyncs('asyncio')
 async def test_docker_exec_target_live():
     # Start a throwaway container, exec into it through the Target, and stream output.
-    cid = subprocess.check_output(  # noqa: ASYNC221
-        ['docker', 'run', '-d', '--rm', 'busybox', 'sleep', '60'],
-    ).decode().strip()
+    cid = subprocess.check_output([  # noqa: ASYNC221
+        'docker',
+        'run',
+        '-d',
+        '--rm',
+        'busybox',
+        'sleep',
+        '60',
+    ]).decode().strip()
     try:
         if not _wait_container_ready(cid):
             pytest.skip('container did not become exec-ready')

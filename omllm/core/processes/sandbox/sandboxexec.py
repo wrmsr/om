@@ -4,7 +4,7 @@ default and allows reads/writes only under the permitted subpaths. Cannot be exe
 simple.
 
 TODO:
- - rename
+ - rename this thing
  - bring back sexp lol
 """
 import typing as ta

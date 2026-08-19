@@ -4,14 +4,14 @@ Forking the child: a small spawner over `os.posix_spawn` that returns nothing bu
 `subprocess._active` for a later `Popen()` to reap, `send_signal` polls first, `__exit__` waits, ...) that is exactly
 what the manager must own itself in order to keep a pid provably ours until it deliberately reaps it.
 
-Division of labor with the spawn shim (`../launch/_shim.py`, the first thing every child execs): `posix_spawn` does
-only what must happen between fork and exec - wire up 0/1/2, deliver the control socket, new session / process group,
-default signal dispositions - and the shim, a full python process of our own, does everything else: receiving the
-passed fds and putting them in place, closing every other fd, umask, rlimits, credentials, deathsig, chdir, controlling
-tty, then the real exec.
+Division of labor with the spawn shim (`../launch/_shim.py`, the first thing every child execs): `posix_spawn` does only
+what must happen between fork and exec - wire up 0/1/2, deliver the control socket, new session / process group, default
+signal dispositions - and the shim, a full python process of our own, does everything else: receiving the passed fds and
+putting them in place, closing every other fd, umask, rlimits, credentials, deathsig, chdir, controlling tty, then the
+real exec.
 
-No fd is ever made inheritable in this process. Stdio and the control socket reach the child through dup2 file
-actions (a dup2 always yields a non-close-on-exec descriptor, and it happens in the child's own table); everything else
+No fd is ever made inheritable in this process. Stdio and the control socket reach the child through dup2 file actions
+(a dup2 always yields a non-close-on-exec descriptor, and it happens in the child's own table); everything else
 - the payload blob, the caller's pass-fds - is *sent* over the control socket with SCM_RIGHTS (`send_control_fds`),
 queued before the child even runs: the kernel duplicates them straight into the child, and nothing about this process's
 fd table changes. There is no window in which another thread's fork+exec could pick anything up.
@@ -60,8 +60,8 @@ def make_control_socketpair() -> tuple[socket.socket, socket.socket]:
 def send_control_fds(sock: socket.socket, fds: ta.Sequence[int]) -> None:
     """
     Queues the handshake the shim (`_shim.receive_control` / the bootstrap) expects on the control socket: one line
-    `{"n": N}` then the N fds via SCM_RIGHTS, chunked to the per-message cap. Safe to call before the child exists -
-    the messages, fds included, wait in the socket.
+    `{"n": N}` then the N fds via SCM_RIGHTS, chunked to the per-message cap. Safe to call before the child exists - the
+    messages, fds included, wait in the socket.
     """
 
     header = (json.dumps({'n': len(fds)}) + '\n').encode('ascii')

@@ -1,6 +1,6 @@
 """
-The process handle, split into narrow roles so that code can depend on exactly the capability it needs (a tool that
-only reads output takes a `ProcessOutput`; a supervisor takes a `ProcessControl`). `Process` composes them.
+The process handle, split into narrow roles so that code can depend on exactly the capability it needs (a tool that only
+reads output takes a `ProcessOutput`; a supervisor takes a `ProcessControl`). `Process` composes them.
 
 All methods are async and loop-agnostic in signature; the only implementation today is asyncio-based.
 """
@@ -126,8 +126,8 @@ class ProcessStdin(lang.Abstract):
 class ProcessOutput(lang.Abstract):
     """
     Output is tracked separately from process lifetime: `output_ended` means all output pipes have closed, which is
-    *not* the same as the process having exited (a process can close its stdio and keep running, and output EOF and
-    exit are separate events on different threads). For exit / the exit code use `ProcessWaiter` / `ProcessInfo`.
+    *not* the same as the process having exited (a process can close its stdio and keep running, and output EOF and exit
+    are separate events on different threads). For exit / the exit code use `ProcessWaiter` / `ProcessInfo`.
 
     The spool outlives the process so its output can be read after `aclose()`; whoever collects that output should
     `spool.close()` when done (`ProcessScope.run` does), which drops the memory and the spill file. A spool nobody

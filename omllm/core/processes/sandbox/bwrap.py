@@ -8,10 +8,10 @@ bound at its *real* location, and each symlink on the way to it is recreated ins
 `/bin/sh` and the ELF interpreter `/lib64/ld-linux-*.so` resolve exactly as on the host. Without that, nothing
 dynamically linked can even exec.
 
-Termination: bwrap does not forward signals. Our TERM to the process group reaches the sandboxed command *and* the
-outer bwrap, which dies of it - and `--die-with-parent` then SIGKILLs the whole sandbox - so a sandboxed command gets no
-real grace period; the manager's escalation still guarantees the sandbox is gone. (A graceful remote stop would need
-the in-sandbox pid, the same open item as the docker / ssh targets.)
+Termination: bwrap does not forward signals. Our TERM to the process group reaches the sandboxed command *and* the outer
+bwrap, which dies of it - and `--die-with-parent` then SIGKILLs the whole sandbox - so a sandboxed command gets no real
+grace period; the manager's escalation still guarantees the sandbox is gone. (A graceful remote stop would need the
+in-sandbox pid, the same open item as the docker / ssh targets.)
 """
 import os.path
 import typing as ta

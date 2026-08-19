@@ -146,13 +146,13 @@ class ShimLauncher(Launcher):
     #
 
     def _write_payload_file(self, payload: ShimPayload) -> int:
-        # SECURITY: this blob carries the target's *entire environment* - which routinely holds secrets (tokens, keys)
-        # - and its argv. It goes into a `tempfile.TemporaryFile`: mode 0600, and on Linux an `O_TMPFILE` file that
-        # never has a name (nlink 0 from birth, nothing to race); elsewhere mkstemp + immediate unlink. Only a
-        # same-uid process going through /proc/<pid>/fd could read it, which could already read the child's
-        # /proc/<pid>/environ. It does however live on the temp filesystem (page cache, potentially disk) for the few
-        # milliseconds until the child has read it and both ends are closed. `os.memfd_create` (Linux, memory-only,
-        # sealable) is the next step if that window ever matters.
+        # SECURITY: this blob carries the target's *entire environment* - which routinely holds secrets (tokens, keys) -
+        # and its argv. It goes into a `tempfile.TemporaryFile`: mode 0600, and on Linux an `O_TMPFILE` file that never
+        # has a name (nlink 0 from birth, nothing to race); elsewhere mkstemp + immediate unlink. Only a same-uid
+        # process going through /proc/<pid>/fd could read it, which could already read the child's /proc/<pid>/environ.
+        # It does however live on the temp filesystem (page cache, potentially disk) for the few milliseconds until the
+        # child has read it and both ends are closed. `os.memfd_create` (Linux, memory-only, sealable) is the next step
+        # if that window ever matters.
         f = tempfile.TemporaryFile(prefix='om-processes-payload-')  # noqa: SIM115
         try:
             # `json.dumps` escapes everything non-ascii, so the payload is exactly one line.

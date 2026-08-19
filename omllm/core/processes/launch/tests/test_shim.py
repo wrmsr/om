@@ -8,6 +8,7 @@ import tempfile
 
 import pytest
 
+from ...managers.spawn import send_control_fds
 from .._shim import ShimPayload
 from .._shim import decode_os
 from .._shim import encode_error
@@ -70,7 +71,13 @@ def test_shim_source_is_py38_syntax():
     # (Cheap proxy: compile it under the oldest interpreter around, if there is one.)
     src = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_shim.py')
     code = 'import sys; compile(open(sys.argv[1]).read(), sys.argv[1], "exec")'
-    exes = [sys.executable, *filter(None, (shutil.which(n) for n in ('python3.8', 'python3.9')))]
+    exes = [sys.executable]
+    for xn in ('python3.8', 'python3.9'):
+        if (wn := shutil.which(xn)) is not None:
+            exes.append(wn)
+    for vn in ('8', '9', '10', '11', '12'):
+        if os.path.isfile(vx := f'.venvs/{vn}/bin/python'):
+            exes.append(vx)
     for exe in exes:
         r = subprocess.run([exe, '-c', code, src], capture_output=True)  # noqa
         assert r.returncode == 0, (exe, r.stderr)
@@ -79,7 +86,6 @@ def test_shim_source_is_py38_syntax():
 def _handshake(payload, pass_fds):
     """Queues the handshake on a fresh socketpair the way the manager does; returns (parent_end, child_end)."""
 
-    from ...managers.spawn import send_control_fds
     a, b = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
     blob = tempfile.TemporaryFile()  # noqa: SIM115
     blob.write(payload.to_json().encode('ascii') + b'\n# (no source - already running)\n')
@@ -114,7 +120,6 @@ def test_receive_control_roundtrip():
 def test_debug_entrypoint_runs(tmp_path):
     # `python -m ...launch._shim <control_fd>` with the handshake queued on that socket execs the target, with a passed
     # fd relocated to the number the target expects.
-    from ...managers.spawn import send_control_fds
     out = tmp_path / 'out'
     r, w = os.pipe()
     # The control socket keeps its number across `subprocess.run(pass_fds=...)`, and that number is the shim's status

@@ -11,8 +11,17 @@ from omcore import dataclasses as dc
 ##
 
 
-# fd (u8), flags (u8), pad (u16), len (u32), t_mono_ns (i64), t_wall_ns (i64), seq (u64)
-FRAME_HEADER: ta.Final = struct.Struct('<BBHIqqQ')
+FRAME_HEADER: ta.Final = struct.Struct(
+    '<'
+    'B'  # fd (u8)
+    'B'  # flags (u8)
+    'H'  # pad (u16)
+    'I'  # len (u32)
+    'q'  # t_mono_ns (i64)
+    'q'  # t_wall_ns (i64)
+    'Q',  # seq (u64)
+)
+
 FRAME_HEADER_SIZE: ta.Final[int] = FRAME_HEADER.size
 
 MAX_FRAME_PAYLOAD: ta.Final[int] = 0xFFFFFFFF
@@ -92,8 +101,8 @@ def decode_frames(
 ) -> FrameDecodeResult:
     """
     Decodes whole frames from `buf`, stopping before the frame that would push the decoded payload past `max_payload`.
-    With `at_least_one` (the default) the first frame is taken regardless, so a caller with an empty result always
-    makes progress; a caller that has already accumulated records elsewhere passes False to enforce the budget strictly.
+    With `at_least_one` (the default) the first frame is taken regardless, so a caller with an empty result always makes
+    progress; a caller that has already accumulated records elsewhere passes False to enforce the budget strictly.
     """
 
     mv = memoryview(buf)

@@ -24,6 +24,7 @@ from ...types.events import ProcessSpawnedEvent
 from ...types.options import Credentials
 from ...types.options import PassFd
 from ...types.options import Rlimit
+from ...types.options import RunTimeout
 from ...types.options import SessionMode
 from ...types.options import SpoolPolicy
 from ...types.options import Tag
@@ -273,7 +274,6 @@ async def test_run_timeout():
         assert not m.processes
 
         # And via the RunTimeout option
-        from ...types.options import RunTimeout
         with pytest.raises(ProcessTimeoutError):
             await m.root.run(_sh('sleep 10'), RunTimeout(.2))
         assert not m.processes
@@ -375,9 +375,9 @@ async def test_big_output_spills_and_cursor_reads(tmp_path):
 
 @pytest.mark.asyncs('asyncio')
 async def test_spools_released(tmp_path):
-    # Regression: every spool (memory suffix + spill fd + spill file) used to be held by the manager until it closed -
-    # a per-command leak over a long session. `run()` releases the spool once it has collected the output; a spool
-    # nobody closes is released when its handle is dropped.
+    # Regression: every spool (memory suffix + spill fd + spill file) used to be held by the manager until it closed - a
+    # per-command leak over a long session. `run()` releases the spool once it has collected the output; a spool nobody
+    # closes is released when its handle is dropped.
     n = 300_000
     async with AsyncioProcessManager(ManagerConfig(spill_dir=str(tmp_path))) as m:
         fd0 = len(os.listdir('/proc/self/fd')) if os.path.isdir('/proc/self/fd') else None

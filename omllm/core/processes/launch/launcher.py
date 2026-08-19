@@ -45,11 +45,10 @@ def apply_transforms(
 class LaunchPlan:
     """
     Everything the spawner needs. The contract: the spawner creates an AF_UNIX stream socket pair, queues `send_fds` on
-    it (`managers/spawn.py::send_control_fds`), delivers the child end at fd `control_fd` in the child (a dup2 at
-    spawn - nothing is made inheritable in the parent), and reads exec status from the parent end until EOF. Owns
-    `owned_fds` (created for this launch, e.g. the payload file) - the spawner must close them in the parent after the
-    spawn, whether or not it succeeded, via `close()`. (No cwd: the launched program - the shim - changes directory
-    itself.)
+    it (`managers/spawn.py::send_control_fds`), delivers the child end at fd `control_fd` in the child (a dup2 at spawn
+    - nothing is made inheritable in the parent), and reads exec status from the parent end until EOF. Owns `owned_fds`
+    (created for this launch, e.g. the payload file) - the spawner must close them in the parent after the spawn,
+    whether or not it succeeded, via `close()`. (No cwd: the launched program - the shim - changes directory itself.)
     """
 
     # The spec after transforms - what the target will actually be.
