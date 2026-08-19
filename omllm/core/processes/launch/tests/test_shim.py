@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -69,13 +70,10 @@ def test_shim_source_is_py38_syntax():
     # (Cheap proxy: compile it under the oldest interpreter around, if there is one.)
     src = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_shim.py')
     code = 'import sys; compile(open(sys.argv[1]).read(), sys.argv[1], "exec")'
-    for exe in ('python3.8', 'python3.9'):
+    exes = [sys.executable, *filter(None, (shutil.which(n) for n in ('python3.8', 'python3.9')))]
+    for exe in exes:
         r = subprocess.run([exe, '-c', code, src], capture_output=True)  # noqa
-        if r.returncode == 127 or b'No such file' in r.stderr:
-            continue
-        assert r.returncode == 0, r.stderr
-    r = subprocess.run([sys.executable, '-c', code, src], capture_output=True)  # noqa
-    assert r.returncode == 0, r.stderr
+        assert r.returncode == 0, (exe, r.stderr)
 
 
 def _handshake(payload, pass_fds):

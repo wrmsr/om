@@ -338,7 +338,11 @@ def place_passed_fds(received, wanted, status_fd):  # type: (ta.List[int], ta.Li
     floor = max([status_fd, *received, *wanted]) + 1
     lifted = []
     for fd in received:
-        lifted.append(fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, floor))
+        try:
+            lifted.append(fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, floor))
+        except OSError as e:
+            # EINVAL / EMFILE: the floor is at or above RLIMIT_NOFILE (a pass-fd target right below the limit).
+            raise OSError(e.errno, f'cannot relocate pass-fds above fd {floor - 1}: {e.strerror}') from e
         os.close(fd)
     for fd, w in zip(lifted, wanted):
         os.dup2(fd, w)  # inheritable by default
