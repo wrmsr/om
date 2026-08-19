@@ -17,6 +17,7 @@ import os
 import typing as ta
 
 from omcore import check
+from omcore import lang
 
 
 ##
@@ -66,6 +67,44 @@ def _raise_child_error(errpipe_data: bytes, *, executable: bytes, cwd: str | Non
     raise RuntimeError(msg)
 
 
+##
+
+
+class _PosixSubprocesses(ta.Protocol):
+    def fork_exec(
+        self,
+        args: ta.Sequence[str | bytes | None],
+        executable_list: ta.Sequence[bytes],
+        close_fds: bool,
+        pass_fds: tuple[int, ...],
+        cwd: str | None,
+        env: ta.Sequence[bytes] | None,
+        p2cread: int,
+        p2cwrite: int,
+        c2pread: int,
+        c2pwrite: int,
+        errread: int,
+        errwrite: int,
+        errpipe_read: int,
+        errpipe_write: int,
+        restore_signals: int,
+        call_setsid: int,
+        pgid_to_set: int,
+        gid: lang.SupportsIndex | None,
+        extra_groups: list[int] | None,
+        uid: lang.SupportsIndex | None,
+        child_umask: int,
+        preexec_fn: ta.Callable[[], None] | None,
+        /,
+    ) -> int: ...
+
+
+_POSIX_SUBPROCESSES: _PosixSubprocesses = ta.cast(ta.Any, _posixsubprocess)
+
+
+##
+
+
 def fork_exec(
         argv: ta.Sequence[str | bytes],
         *,
@@ -80,9 +119,9 @@ def fork_exec(
 ) -> int:
     """
     Forks and execs `argv[0]` (resolved against `env`'s PATH - or ours - when it has no directory part), returning the
-    child's pid. `stdin_fd` / `stdout_fd` / `stderr_fd` are dup2'd onto 0/1/2 in the child (-1 inherits ours);
-    every other fd is closed there except `pass_fds` (which are made inheritable). `env=None` inherits ours. An exec
-    (or chdir) failure in the child is raised here as the corresponding `OSError`; the failed child is reaped.
+    child's pid. `stdin_fd` / `stdout_fd` / `stderr_fd` are dup2'd onto 0/1/2 in the child (-1 inherits ours); every
+    other fd is closed there except `pass_fds` (which are made inheritable). `env=None` inherits ours. An exec (or
+    chdir) failure in the child is raised here as the corresponding `OSError`; the failed child is reaped.
     """
 
     args = [os.fsencode(a) for a in check.not_empty(argv)]
@@ -119,12 +158,12 @@ def fork_exec(
             fds_to_keep = {int(fd) for fd in pass_fds}
             fds_to_keep.add(errpipe_write)
 
-            pid = _posixsubprocess.fork_exec(
+            pid = _POSIX_SUBPROCESSES.fork_exec(
                 args,
                 executable_list,
                 True,  # close_fds
                 tuple(sorted(fds_to_keep)),
-                cwd,  # type: ignore[arg-type]  # str, bytes or None all fine (typeshed says str)
+                cwd,
                 env_list,
                 stdin_fd,  # p2cread
                 -1,  # p2cwrite
@@ -141,7 +180,7 @@ def fork_exec(
                 None,  # extra_groups
                 None,  # uid
                 -1,  # umask
-                None,  # type: ignore[arg-type]  # preexec_fn (typeshed says non-optional)
+                None,
             )
         finally:
             os.close(errpipe_write)

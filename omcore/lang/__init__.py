@@ -583,6 +583,7 @@ with _auto_proxy_init(globals(), update_exports=True):
 
         SupportsRead,
         SupportsWrite,
+        SupportsIndex,
     )
 
     from .unicode import (  # noqa

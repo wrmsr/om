@@ -224,3 +224,7 @@ class SupportsRead(ta.Protocol[T_co]):
 
 class SupportsWrite(ta.Protocol[T_contra]):
     def write(self, s: T_contra, /) -> object: ...
+
+
+class SupportsIndex(ta.Protocol):
+    def __index__(self) -> int: ...

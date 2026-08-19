@@ -6,8 +6,8 @@ handshake, registration), the ordered event stream, scope hooks, teardown and th
 
 What an implementation supplies is deliberately narrow, and named `_..._runtime`-ish below: an `Asynclite` for events
 and locks, task spawning / joining, a bounded concurrent run (for scope close), a spool notifier, the process handle
-subclass (which knows how to post callbacks from the exit-watcher thread), and the three pipe connections (stdin
-writer, output readers, the exec-status pipe). See `../asyncio/manager.py` for the only implementation today.
+subclass (which knows how to post callbacks from the exit-watcher thread), and the three pipe connections (stdin writer,
+output readers, the exec-status pipe). See `../asyncio/manager.py` for the only implementation today.
 """
 import abc
 import collections
