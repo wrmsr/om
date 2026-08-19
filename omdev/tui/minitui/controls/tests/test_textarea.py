@@ -307,3 +307,50 @@ def test_all_modified_enters_submit():
         type_text(ta_, f'm{i}')
         press(ta_, key)
     assert submitted == ['m0', 'm1', 'm2']
+
+
+def test_insert_readline_chords():
+    ta_ = TextArea()
+    type_text(ta_, 'foo bar')
+
+    press(ta_, Key('a', ctrl=True))
+    assert ta_.engine.cursor == Pos(0, 0)
+    press(ta_, Key('e', ctrl=True))
+    assert ta_.engine.cursor == Pos(0, 7)
+    press(ta_, Key('b', ctrl=True), Key('b', ctrl=True))
+    assert ta_.engine.cursor == Pos(0, 5)
+    press(ta_, Key('f', ctrl=True))
+    assert ta_.engine.cursor == Pos(0, 6)
+
+    press(ta_, Key('b', alt=True))
+    assert ta_.engine.cursor == Pos(0, 4)
+    press(ta_, Key('f', alt=True))
+    assert ta_.engine.cursor == Pos(0, 7)
+
+    press(ta_, Key('backspace', alt=True))
+    assert ta_.doc.text() == 'foo '
+    press(ta_, Key('u', ctrl=True))
+    assert ta_.doc.text() == ''
+
+
+def test_insert_ctrl_p_n_move_lines():
+    ta_ = TextArea()
+    type_text(ta_, 'one')
+    press(ta_, 'enter')
+    type_text(ta_, 'two')
+    assert ta_.engine.cursor == Pos(1, 3)
+
+    press(ta_, Key('p', ctrl=True))
+    assert ta_.engine.cursor == Pos(0, 3)
+    press(ta_, Key('n', ctrl=True))
+    assert ta_.engine.cursor == Pos(1, 3)
+
+
+def test_readline_chords_are_insert_only():
+    # In NORMAL mode the emacs chords stay the app's business (return False, unhandled).
+    ta_ = TextArea()
+    type_text(ta_, 'foo')
+    press(ta_, 'escape')
+    assert not ta_.handle_event(KeyEvent(Key('a', ctrl=True), text=None))
+    assert not ta_.handle_event(KeyEvent(Key('p', ctrl=True), text=None))
+    assert ta_.doc.text() == 'foo'

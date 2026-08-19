@@ -290,10 +290,12 @@ class MinituiChatApp(mt.App):
         at_first_line = cursor.row == 0
         at_last_line = cursor.row == self._input.doc.line_count() - 1
 
-        if key == mt.Key('p', ctrl=True) or (key == mt.Key('up') and at_first_line):
+        # History only at the buffer edge, arrow-style - mid-buffer, ctrl+p/n fall through to the editor as
+        # readline line movement.
+        if key in (mt.Key('p', ctrl=True), mt.Key('up')) and at_first_line:
             self._history_step(back=True)
             return True
-        if key == mt.Key('n', ctrl=True) or (key == mt.Key('down') and at_last_line):
+        if key in (mt.Key('n', ctrl=True), mt.Key('down')) and at_last_line:
             self._history_step(back=False)
             return True
 

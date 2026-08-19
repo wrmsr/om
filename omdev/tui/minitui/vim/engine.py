@@ -449,9 +449,62 @@ class VimEngine:
                 return Pos(pos.row, 0)
             if key == '<end>':
                 return Pos(pos.row, llen(doc, pos.row))
+            if key == '<a-b>':  # emacs backward-word: start of the current/previous word
+                return word_back(doc, pos, 1, False)
+            if key == '<a-f>':  # emacs forward-word: just past the end of the current/next word
+                end = word_end(doc, pos, 1, False)
+                return Pos(end.row, min(end.col + 1, llen(doc, end.row)))
             return pos
 
         self._set_all_cursors([move(c.pos) for c in self._cursors])
+
+    ##
+    # Insert-mode kill family (readline/emacs flavored; vim's insert ctrl+w coincides). Range edits through
+    # `_edit_at_cursors` like backspace, so they join the open undo group and replay through dot-repeat taping.
+
+    def _delete_word_back_at_cursors(self) -> None:
+        doc = self._doc
+
+        def make(pos: Pos) -> tuple[Pos, Pos, str] | None:
+            if pos.col == 0:  # at BOL: join with the previous line, like backspace
+                if pos.row > 0:
+                    return (Pos(pos.row - 1, llen(doc, pos.row - 1)), pos, '')
+                return None
+            start = word_back(doc, pos, 1, False)
+            if start.row < pos.row:  # word-back crossed the newline; the kill stops at BOL (vim ctrl+w does too)
+                start = Pos(pos.row, 0)
+            return (start, pos, '')
+
+        self._edit_at_cursors(make, lambda a: a.edit.start)
+
+    def _delete_word_fwd_at_cursors(self) -> None:
+        doc = self._doc
+
+        def make(pos: Pos) -> tuple[Pos, Pos, str] | None:
+            if pos.col >= llen(doc, pos.row):  # at EOL: kill the newline
+                if pos.row + 1 < doc.line_count():
+                    return (pos, Pos(pos.row + 1, 0), '')
+                return None
+            end = word_end(doc, pos, 1, False)  # emacs M-d kills through to the end of the next word
+            return (pos, Pos(end.row, end.col + 1), '')
+
+        self._edit_at_cursors(make, lambda a: a.edit.start)
+
+    def _kill_to_line_edge_at_cursors(self, *, to_end: bool) -> None:
+        doc = self._doc
+
+        def make(pos: Pos) -> tuple[Pos, Pos, str] | None:
+            if to_end:
+                if pos.col < (eol := llen(doc, pos.row)):
+                    return (pos, Pos(pos.row, eol), '')
+                if pos.row + 1 < doc.line_count():  # emacs C-k at EOL kills the newline
+                    return (pos, Pos(pos.row + 1, 0), '')
+                return None
+            if pos.col > 0:
+                return (Pos(pos.row, 0), pos, '')
+            return None
+
+        self._edit_at_cursors(make, lambda a: a.edit.start)
 
     def _feed_insert(self, key: str) -> None:
         if self._rec_insert and not self._replaying:
@@ -475,6 +528,19 @@ class VimEngine:
 
         if key in BACKSPACES:
             self._backspace_at_cursors()
+            return
+
+        if key == '<c-w>':
+            self._delete_word_back_at_cursors()
+            return
+        if key == '<a-d>':
+            self._delete_word_fwd_at_cursors()
+            return
+        if key == '<c-k>':
+            self._kill_to_line_edge_at_cursors(to_end=True)
+            return
+        if key == '<c-u>':
+            self._kill_to_line_edge_at_cursors(to_end=False)
             return
 
         if key.startswith('<'):

@@ -527,3 +527,18 @@ PdcmarkStream and MarkdownItStream construct a fresh parser on finalize (options
 Regression: per-backend feed/finalize/feed-again test (incl. no-leakage + empty-tail asserts) and a MarkdownTail
 three-cycle test mirroring the text/tool/text/tool/text turn shape.
 Not a timing bug for once - a lifecycle-contract mismatch between a long-lived holder and a one-shot resource.
+
+## 2026-08-19 (later): readline/emacs insert-mode chords
+
+QoL per the owner (viper-mode-emacsy muscle memory): insert mode now honors the common readline subset. Layering:
+- Engine: new insert-mode tokens - the kill family <c-w> (word back; vim's own insert chord), <a-d> (word fwd,
+  emacs M-d incl. newline-at-EOL), <c-k> / <c-u> (to line edge; C-k at EOL eats the newline), and <a-f> / <a-b>
+  word motions in _move_cursors_insert. Kills go through _edit_at_cursors like backspace, so multi-cursor works
+  and they join the open undo group + dot-repeat taping for free. word_back/word_end reused from scans.
+- TextArea: _INSERT_CHORD_TOKENS maps chords -> tokens, INSERT-only, placed after the view keys and before the
+  ctrl-falls-to-app rule. Movement chords reuse existing tokens (ctrl+a/e -> <home>/<end>, ctrl+f/b ->
+  <right>/<left>, ctrl+p/n -> <up>/<down>); alt+backspace aliases <c-w>.
+- Apps (omllm + chatdemo): ctrl+p/n history-step now only at the first/last line, arrow-style - mid-buffer they
+  reach the editor as line movement; at the edge they're readline previous/next-history. No lost functionality.
+Deliberately skipped: ctrl+d (app quit), ctrl+t/ctrl+y transpose/yank, cmdline-mode emacs keys.
+Next up per the owner: resurrecting the old textual-ui harness's input history.

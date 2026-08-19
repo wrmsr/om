@@ -8,6 +8,8 @@ position math stays trivial.
 
 Enter semantics (per design): insert mode Enter inserts a newline (vim-pure); normal mode Enter submits; from insert
 mode, ctrl+j (universal - the other newline byte), ctrl/shift+enter (extended-key terminals), or alt+enter submit.
+Insert mode additionally honors the common readline/emacs chord subset (`_INSERT_CHORD_TOKENS`): ctrl+a/e/f/b/p/n
+movement, alt+f/b word motion, and the ctrl+w / alt+backspace / alt+d / ctrl+k / ctrl+u kill family.
 Engine decorations (visual selection, search matches) render as style tags resolved by the composition theme.
 """
 import typing as ta
@@ -47,6 +49,25 @@ _KEY_TOKENS: ta.Mapping[str, str] = {
     'escape': '\x1b',
     'backspace': '\x7f',
     'tab': '\t',
+}
+
+# Readline/emacs chords honored in INSERT mode - the most common movement + kill subset. Chords not listed still fall
+# through to the app (ctrl+d, ctrl+o, ...); an app wanting ctrl+p/n for history should claim them only at the
+# first/last line, arrow-style, so mid-buffer they reach the editor as line movement.
+_INSERT_CHORD_TOKENS: ta.Mapping[Key, str] = {
+    Key('a', ctrl=True): '<home>',
+    Key('e', ctrl=True): '<end>',
+    Key('b', ctrl=True): '<left>',
+    Key('f', ctrl=True): '<right>',
+    Key('p', ctrl=True): '<up>',
+    Key('n', ctrl=True): '<down>',
+    Key('b', alt=True): '<a-b>',
+    Key('f', alt=True): '<a-f>',
+    Key('w', ctrl=True): '<c-w>',        # delete word back (vim's own insert chord)
+    Key('backspace', alt=True): '<c-w>',  # readline M-backspace, same kill
+    Key('d', alt=True): '<a-d>',
+    Key('k', ctrl=True): '<c-k>',
+    Key('u', ctrl=True): '<c-u>',
 }
 
 
@@ -426,6 +447,10 @@ class TextArea(Control):
             return True
 
         if self._handle_view_key(key):
+            return True
+
+        if engine.mode is Mode.INSERT and (token := _INSERT_CHORD_TOKENS.get(key)) is not None:
+            engine.feed(token)
             return True
 
         if key.ctrl or key.super_:

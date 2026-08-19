@@ -651,3 +651,60 @@ def test_non_builtin_ex_still_delegates():
     # 'set' starts with 's' but has no separator - must reach the app handler, not the substitute parser.
     e.send(':set number\r')
     assert seen == ['w somefile', 'set number']
+
+
+def test_insert_readline_kills():
+    # <c-w>: delete word back (vim's own insert chord; alt+backspace aliases it at the control layer).
+    e = make('foo bar', 'A')
+    e.feed('<c-w>')
+    check('c-w kills word back', e, text='foo ', cursor=(0, 4), mode='INSERT')
+    e.feed('<c-w>')
+    check('c-w again', e, text='', cursor=(0, 0))
+
+    e = make('ab\ncd')
+    e.set_cursor(Pos(1, 0))
+    e.send('i')
+    e.feed('<c-w>')
+    check('c-w at BOL joins', e, text='abcd', cursor=(0, 2))
+
+    # <a-d>: kill word forward, emacs M-d style (through to the end of the next word; the newline at EOL).
+    e = make('foo bar', 'i', cursor=(0, 0))
+    e.feed('<a-d>')
+    check('a-d kills word fwd', e, text=' bar', cursor=(0, 0))
+
+    e = make('foo\nbar', 'A')
+    e.feed('<a-d>')
+    check('a-d at EOL joins', e, text='foobar', cursor=(0, 3))
+
+    # <c-k> / <c-u>: kill to line edge; C-k at EOL eats the newline like emacs.
+    e = make('foo bar', 'i', cursor=(0, 4))
+    e.feed('<c-k>')
+    check('c-k kills to EOL', e, text='foo ', cursor=(0, 4))
+
+    e = make('foo\nbar', 'A')
+    e.feed('<c-k>')
+    check('c-k at EOL joins', e, text='foobar', cursor=(0, 3))
+
+    e = make('foo bar', 'i', cursor=(0, 4))
+    e.feed('<c-u>')
+    check('c-u kills to BOL', e, text='bar', cursor=(0, 0))
+
+    # The kills join the insert session's undo group.
+    e = make('foo bar', 'A')
+    e.feed('<c-w>')
+    e.feed(ESC)
+    e.send('u')
+    check('kill undoes with group', e, text='foo bar')
+
+
+def test_insert_readline_word_motions():
+    e = make('foo bar', 'i', cursor=(0, 0))
+    e.feed('<a-f>')
+    check('a-f to word end', e, cursor=(0, 3), mode='INSERT')
+    e.feed('<a-f>')
+    check('a-f again to EOL slot', e, cursor=(0, 7))
+    e.feed('<a-b>')
+    check('a-b to word start', e, cursor=(0, 4))
+    e.feed('<a-b>')
+    check('a-b again', e, cursor=(0, 0))
+    check('motions do not edit', e, text='foo bar')
