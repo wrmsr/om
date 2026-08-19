@@ -1,3 +1,4 @@
+# ruff: noqa: S108
 """
 macOS `sandbox-exec` confinement backend. Renders a `SandboxPolicy` into a Scheme-ish sandbox profile that denies by
 default and allows reads/writes only under the permitted subpaths. Cannot be exercised off macOS; kept structurally
@@ -83,31 +84,34 @@ def _quote(s: str) -> str:
 
 
 def build_seatbelt_profile(policy: SandboxPolicy) -> str:
-    lines: list[str] = [
-        '(version 1)',
-        '(deny default)',
-        '(allow process-exec)',
-        '(allow process-fork)',
-        '(allow sysctl-read)',
-        '(allow mach-lookup)',
-        '(allow signal (target self))',
-        '(allow file-read-metadata)',
+    lines: list[_Sx] = [
+        ['version', 1],
+        ['deny', 'default'],
+        ['allow', 'process-exec'],
+        ['allow', 'process-fork'],
+        ['allow', 'sysctl-read'],
+        ['allow', 'mach-lookup'],
+        ['allow', 'signal', ['target', 'self']],
+        ['allow', 'file-read-metadata'],
     ]
 
     for d in (*policy.system_read_roots, *policy.read_roots):
-        lines.append(f'(allow file-read* (subpath {_quote(d)}))')
+        lines.append(['allow', 'file-read*', ['subpath', _sxq(d)]])
     for w in policy.write_roots:
-        lines.append(f'(allow file* (subpath {_quote(w)}))')
+        lines.append(['allow', 'file*', ['subpath', _sxq(w)]])
 
     if policy.tmpfs_tmp:
-        lines.append('(allow file* (subpath "/tmp"))')
-        lines.append('(allow file* (subpath "/private/tmp"))')
+        lines.append(['allow', 'file*', ['subpath', _sxq('/tmp')]])
+        lines.append(['allow', 'file*', ['subpath', _sxq('/private/tmp')]])
     if policy.allow_dev:
-        lines.append('(allow file* (subpath "/dev"))')
+        lines.append(['allow', 'file*', ['subpath', _sxq('/dev')]])
     if policy.allow_network:
-        lines.append('(allow network*)')
+        lines.append(['allow', 'network*'])
 
-    return '\n'.join(lines) + '\n'
+    out = io.StringIO()
+    _sx_render_to(out, *lines)
+    out.write('\n')
+    return out.getvalue()
 
 
 ##
