@@ -6,8 +6,6 @@ normal mode (motions, dw/ciw/u, visual, `/` incremental search with live highlig
 Enter in insert mode is a newline, ctrl+enter (kitty terminals) or alt+enter submits from insert. Paste something big:
 the input grows to its max height then scrolls like a vim window. The status bar shows the spinner, the vim
 mode/pending-keys/cmdline, and the last event. Ctrl-d exits.
-
-Run: ./python -m x.minitui.apps.inputdemo
 """
 import itertools
 import typing as ta

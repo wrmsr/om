@@ -340,7 +340,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         st = dict(specs.setuptools)
 
-        exts = [
+        children = [
             k
             for k in [
                 'cext',
@@ -362,6 +362,9 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
         prj = specs.pyproject
         prj['name'] += self._pkg_suffix
 
+        if prj.pop('cli-scripts', None):
+            children.append('cli')
+
         pyp_dct['project'] = prj
 
         self._move_dict_key(
@@ -371,12 +374,12 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
             extrask := 'project.optional-dependencies',
         )
 
-        if exts:
+        if children:
             pyp_dct[extrask] = {
                 **(pyp_dct.get(extrask, {})),
                 **{
                     ext: [f'{prj["name"]}-{ext} == {prj["version"]}']
-                    for ext in exts
+                    for ext in children
                 },
             }
 
@@ -395,8 +398,6 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         if (scs := prj.pop('scripts', None)):
             pyp_dct['project.scripts'] = scs
-
-        prj.pop('cli-scripts', None)
 
         ##
 

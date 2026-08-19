@@ -156,7 +156,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='ab333ee6ed39490d3169324e4b36887d5b990247'),
+            dict(path='pkg.py', sha1='0662a0ee6a75a207d76cccd69f48fedb4eda3df8'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -12963,7 +12963,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         st = dict(specs.setuptools)
 
-        exts = [
+        children = [
             k
             for k in [
                 'cext',
@@ -12985,6 +12985,9 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
         prj = specs.pyproject
         prj['name'] += self._pkg_suffix
 
+        if prj.pop('cli-scripts', None):
+            children.append('cli')
+
         pyp_dct['project'] = prj
 
         self._move_dict_key(
@@ -12994,12 +12997,12 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
             extrask := 'project.optional-dependencies',
         )
 
-        if exts:
+        if children:
             pyp_dct[extrask] = {
                 **(pyp_dct.get(extrask, {})),
                 **{
                     ext: [f'{prj["name"]}-{ext} == {prj["version"]}']
-                    for ext in exts
+                    for ext in children
                 },
             }
 
@@ -13018,8 +13021,6 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         if (scs := prj.pop('scripts', None)):
             pyp_dct['project.scripts'] = scs
-
-        prj.pop('cli-scripts', None)
 
         ##
 

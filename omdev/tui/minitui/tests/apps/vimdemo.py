@@ -5,8 +5,6 @@ The same engine, document, and TextArea that power the chat input, composed diff
 '~' filler rows, a vim status line (mode / pending keys / cmdline, filename + modified flag + ruler), and file ex
 commands - :w [name], :q, :q!, :wq, ZZ-free minimalism. `/` search with live highlighting works exactly as in the input
 textarea, because it's the same code.
-
-Run: ./python -m x.minitui.apps.vimdemo [path]
 """
 import os.path
 import sys

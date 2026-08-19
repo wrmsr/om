@@ -8,8 +8,8 @@ a standalone event), since block conversion needs whole groups.
 
 Flattenings (the render model is deliberately simpler than commonmark): nested quote/item content joins into the
 parent's inline spans, with non-paragraph children (code blocks in quotes, etc.) emitted as sibling blocks; nested lists
-merge into their parent list with increased item depth; tables render as pipe-joined rows. Hard breaks soften to
-spaces (blocks re-wrap).
+merge into their parent list with increased item depth; tables render as pipe-joined rows. Hard breaks soften to spaces
+(blocks re-wrap).
 """
 import typing as ta
 

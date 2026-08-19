@@ -1,8 +1,8 @@
 """
 Word wrapping over styled segments.
 
-Wraps a single logical line (no newlines - split those first) to a column width, breaking at spaces, hard-breaking
-words wider than the whole line, dropping whitespace at wrap points, and preserving per-character styles throughout.
+Wraps a single logical line (no newlines - split those first) to a column width, breaking at spaces, hard-breaking words
+wider than the whole line, dropping whitespace at wrap points, and preserving per-character styles throughout.
 """
 import typing as ta
 

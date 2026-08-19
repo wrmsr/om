@@ -75,6 +75,9 @@ cext = [
 rs = [
     'omdev-rs == 0.0.46',
 ]
+cli = [
+    'omdev-cli == 0.0.46',
+]
 all = [
     'ominfra == 0.0.46',
     'omllm == 0.0.46',
@@ -97,6 +100,7 @@ all = [
     'textual-speedups ~= 0.2',
     'omdev-cext == 0.0.46',
     'omdev-rs == 0.0.46',
+    'omdev-cli == 0.0.46',
 ]
 
 [project.entry-points]

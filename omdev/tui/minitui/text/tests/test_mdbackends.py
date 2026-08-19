@@ -139,9 +139,9 @@ def test_nested_list_depth_equivalence_across_backends():
 
 @pytest.mark.parametrize('name', backend_names())
 def test_backend_reusable_across_finalize_cycles(name):
-    # The chat tail is long-lived: it finalizes at every content-block boundary (text, tool call, text, ...) and
-    # keeps feeding the same instance. A one-shot backend silently eats every cycle after the first - the
-    # "multi-tool turn renders an empty response" bug.
+    # The chat tail is long-lived: it finalizes at every content-block boundary (text, tool call, text, ...) and keeps
+    # feeding the same instance. A one-shot backend silently eats every cycle after the first - the "multi-tool turn
+    # renders an empty response" bug.
     s = get_markdown_stream(name)
 
     s.feed('# first\n\nalpha\n')

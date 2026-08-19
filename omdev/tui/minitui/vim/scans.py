@@ -215,9 +215,9 @@ def match_bracket(doc: Document, pos: Pos) -> Pos | None:
 
 def para_fwd(doc: Document, p: Pos, count: int) -> Pos:
     """
-    The `}` target: the next empty line after the current paragraph (skipping empties first when starting on one);
-    the buffer end when no boundary remains. Empty means truly empty - vim doesn't treat whitespace-only lines as
-    paragraph boundaries.
+    The `}` target: the next empty line after the current paragraph (skipping empties first when starting on one); the
+    buffer end when no boundary remains. Empty means truly empty - vim doesn't treat whitespace-only lines as paragraph
+    boundaries.
     """
 
     row = p.row

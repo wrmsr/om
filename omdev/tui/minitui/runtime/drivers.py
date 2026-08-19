@@ -94,8 +94,8 @@ class SyncDriver:
     def commit(self, lines: ta.Sequence[Line]) -> None:
         surface = check.isinstance(self._surface, InlineSurface)
         if not self._running or self._awaiting_origin:
-            # Nothing may touch the terminal until run() has prepared it and the origin has resolved; committed
-            # content queues in order and flushes through the origin-resolution path.
+            # Nothing may touch the terminal until run() has prepared it and the origin has resolved; committed content
+            # queues in order and flushes through the origin-resolution path.
             self._pending_commits.append(tuple(lines))
         else:
             surface.commit(lines)

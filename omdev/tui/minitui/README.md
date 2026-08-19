@@ -11,12 +11,12 @@ Built primarily for llm coding-agent chat TUIs, deliberately generalized for any
 ## Try it
 
 ```bash
-./python -m x.minitui.apps.chatdemo      # streaming markdown chat: tool cards (f10/f2), /help, history, search
-./python -m x.minitui.apps.chatdemo --md=pdcmark  # swap the streaming markdown backend (internal|pdcmark|markdown-it)
-./python -m x.minitui.apps.chatdemo --mouse  # + click-to-expand cards / click suggestions (trades wheel scrollback)
-./python -m x.minitui.apps.inputdemo     # minimal typing-while-streaming proof
-./python -m x.minitui.apps.streamdemo    # the bare commit model, no input
-./python -m x.minitui.apps.vimdemo f.py  # fullscreen vim clone (:w/:q, ctrl+v blocks, %/~/zz), tree-sitter highlighted
+./python -m omdev.tui.minitui.apps.chatdemo               # streaming markdown chat: tool cards (f10/f2), /help, history, search
+./python -m omdev.tui.minitui.apps.chatdemo --md=pdcmark  # swap the streaming markdown backend (internal|pdcmark|markdown-it)
+./python -m omdev.tui.minitui.apps.chatdemo --mouse       # + click-to-expand cards / click suggestions (trades wheel scrollback)
+./python -m omdev.tui.minitui.apps.inputdemo              # minimal typing-while-streaming proof
+./python -m omdev.tui.minitui.apps.streamdemo             # the bare commit model, no input
+./python -m omdev.tui.minitui.apps.vimdemo f.py           # fullscreen vim clone (:w/:q, ctrl+v blocks, %/~/zz), tree-sitter highlighted
 ```
 
 Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to watch damage regions.
@@ -55,4 +55,3 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
 - Files with PSF license headers derive from cpython via `x/term/pyrepl`; they stay coherent units.
 - Tests run against the `omcore.term.vt100` emulator (screen + scrollback assertions on real emitted bytes) plus
   pty-level end-to-end runs of the demo apps.
-- `./python -mruff check x/minitui && ./python -m mypy x/minitui` (x/ is outside the make targets).

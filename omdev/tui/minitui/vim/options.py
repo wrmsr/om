@@ -16,9 +16,9 @@ from omcore import lang
 
 @dc.dataclass(frozen=True)
 class VimOptions(lang.Final):
-    tabstop: int = 4        # display width of a literal tab
-    shiftwidth: int = 4     # indent step for < / >
-    expandtab: bool = True  # insert-mode tab inserts spaces (to the next tabstop column)
+    tabstop: int = 4         # display width of a literal tab
+    shiftwidth: int = 4      # indent step for < / >
+    expandtab: bool = True   # insert-mode tab inserts spaces (to the next tabstop column)
     autoindent: bool = True  # insert-mode Enter carries the current line's leading whitespace
 
 

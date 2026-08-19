@@ -5,8 +5,6 @@ Paragraphs stream word-by-word into the live region (a bounded tail + spinner st
 committed into the terminal's native scrollback and never touched again. Watch it in tmux: scrollback works, the history
 survives exit, and only the live tail repaints.
 
-Run: ./python -m x.minitui.apps.streamdemo [--visualize-redraws]
-
 Ctrl-c exits (cleanly restoring the terminal).
 """
 import sys

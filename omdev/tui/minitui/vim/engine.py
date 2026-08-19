@@ -272,9 +272,12 @@ class VimEngine:
 
         query: str | None = None
         forward = True
-        if self._mode is Mode.CMDLINE and self._cmdline_kind in (
+        if (
+            self._mode is Mode.CMDLINE and
+            self._cmdline_kind in (
                 CmdlineKind.SEARCH_FORWARD,
                 CmdlineKind.SEARCH_BACKWARD,
+            )
         ):
             query = self._cmdline_text
             forward = self._cmdline_kind is CmdlineKind.SEARCH_FORWARD
@@ -453,8 +456,8 @@ class VimEngine:
         self._edit_at_cursors(make, lambda a: a.edit.new_end)
 
     def _tab_at_cursors(self) -> None:
-        # expandtab: spaces to the next tabstop column. Char columns, not display columns - they agree whenever the
-        # text before the cursor is tab-free, which expandtab is busy ensuring.
+        # expandtab: spaces to the next tabstop column. Char columns, not display columns - they agree whenever the text
+        # before the cursor is tab-free, which expandtab is busy ensuring.
         ts = self._options.tabstop
 
         def make(pos: Pos) -> tuple[Pos, Pos, str]:
@@ -1027,10 +1030,10 @@ class VimEngine:
             return False
 
         if op in '><':
-            # Reindent-to-column, like vim: measure the leading whitespace in display columns (tabs advance to the
-            # next tabstop multiple), shift the width by count*shiftwidth, and rebuild the indent per expandtab -
-            # so dedent eats tabs correctly and mixed indentation normalizes. `count` is the visual `3>` multiplier
-            # (normal-mode counts pick lines instead and arrive here as the span).
+            # Reindent-to-column, like vim: measure the leading whitespace in display columns (tabs advance to the next
+            # tabstop multiple), shift the width by count*shiftwidth, and rebuild the indent per expandtab - so dedent
+            # eats tabs correctly and mixed indentation normalizes. `count` is the visual `3>` multiplier (normal-mode
+            # counts pick lines instead and arrive here as the span).
             opts = self._options
             delta = opts.shiftwidth * max(count, 1) * (1 if op == '>' else -1)
             for r in range(span.start.row, span.end.row + 1):

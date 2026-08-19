@@ -259,9 +259,9 @@ class MarkdownStreamBackend(lang.Abstract):
 
     Settled blocks will never change again (commit them); `tail_blocks` is the current best-effort parse of the
     unsettled remainder (re-render it each frame); `finalize` ends the current stream, drains everything left, and
-    resets for a fresh one. Backends are REUSABLE across stream cycles - long-lived holders (a chat tail fed one
-    content block after another) finalize at every block boundary and keep feeding the same instance.
-    Implementations: the internal line-based parser (below), pdcmark (`.pdcmark`), markdown-it (`.markdownit`).
+    resets for a fresh one. Backends are REUSABLE across stream cycles - long-lived holders (a chat tail fed one content
+    block after another) finalize at every block boundary and keep feeding the same instance. Implementations: the
+    internal line-based parser (below), pdcmark (`.pdcmark`), markdown-it (`.markdownit`).
     """
 
     @abc.abstractmethod

@@ -258,8 +258,8 @@ class InlineSurface(Surface):
 
     def _handle_resize(self) -> None:
         self._term_height, self._term_width = self._tty.get_size()
-        # Erase and forget the live region; redrawn from scratch by the caller's next frame. Committed content above
-        # is the terminal's problem (native rewrap), as it should be.
+        # Erase and forget the live region; redrawn from scratch by the caller's next frame. Committed content above is
+        # the terminal's problem (native rewrap), as it should be.
         self._move(0, 0)
         self._writer.erase_down()
         self._frame = EMPTY_FRAME

@@ -9,8 +9,6 @@ re-commits a message's raw source, standing in for '/pbcopy').
 Input is the vim textarea (Esc for normal mode, /search, u/ctrl+r, ...). Up/ctrl+p and down/ctrl+n walk history when the
 cursor is on the first/last line (vim j/k still work inside multi-line drafts). '/' opens the command popup - tab
 cycles, enter runs. Ctrl-d quits.
-
-Run: ./python -m x.minitui.apps.chatdemo
 """
 import typing as ta
 
