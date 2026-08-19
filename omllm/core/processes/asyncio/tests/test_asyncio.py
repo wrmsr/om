@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from ...manager import ManagerConfig
+from ...managers.types import ManagerConfig
 from ...scopes.policies import ScopeClosePolicy
 from ...spool.render import ArrivalMergedRenderer
 from ...types.errors import ManagerNotStartedError

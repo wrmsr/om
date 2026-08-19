@@ -44,6 +44,19 @@ def shim_source() -> str:
     return lang.get_relative_resources('..spawn', globals=globals())['shim.py'].read_text()
 
 
+def decode_shim_status(status: bytes) -> tuple[str, int | None, str]:
+    """
+    Decodes a non-empty exec-status record written by the shim: a marshal'd `(stage, errno, message)`. Anything
+    undecodable is reported as a 'status' stage failure carrying the raw bytes.
+    """
+
+    try:
+        stage, err_no, msg = marshal.loads(status)  # noqa: S302
+    except Exception:  # noqa
+        return 'status', None, repr(status)
+    return str(stage), err_no if isinstance(err_no, int) else None, str(msg)
+
+
 ##
 
 

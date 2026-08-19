@@ -1,8 +1,9 @@
 """
 `ProcessManager` is the one top-level object: it owns the root `ProcessScope`, the registry of live handles, and the
 event bus. There is no global instance - it is created (usually by an injector), started, used, and closed; a new one
-may then be created. The interface is loop-agnostic; `asyncio/` holds the only implementation for now, and a
-threads-backed implementation with the same async interface is an intended future extension.
+may then be created. The interface is loop-agnostic. `base.py` holds the implementation-agnostic bulk of the manager
+(`BaseProcessManager`); `../asyncio/` fills in the asyncio-specific primitives, and a threads-backed implementation with
+the same async interface is an intended future extension.
 """
 import abc
 import typing as ta
@@ -10,13 +11,13 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ..eventbus import EventPublisher
-from .handles import Process
-from .scopes.policies import ScopeClosePolicy
-from .scopes.scope import ProcessScope
-from .types.events import ProcessEvent
-from .types.ids import ProcessId
-from .types.options import ProcessOption
+from ...eventbus import EventPublisher
+from ..handles import Process
+from ..scopes.policies import ScopeClosePolicy
+from ..scopes.scope import ProcessScope
+from ..types.events import ProcessEvent
+from ..types.ids import ProcessId
+from ..types.options import ProcessOption
 
 
 ##

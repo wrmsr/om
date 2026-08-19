@@ -1,10 +1,12 @@
 """
-Pipe plumbing without asyncio's subprocess transport (which would hand reaping to its child watcher). We create the
-pipes, and use `loop.connect_read_pipe` / `loop.connect_write_pipe` on our ends. Note the transports take ownership of
-(and close) the file objects handed to them.
+Pipe plumbing without asyncio's subprocess transport (which would hand reaping to its child watcher). The manager
+creates the pipes, and uses `loop.connect_read_pipe` / `loop.connect_write_pipe` on our ends. Note the transports take
+ownership of (and close) the file objects handed to them.
 """
 import asyncio
 import typing as ta
+
+from ..managers.process import ProcessStdinWriter
 
 
 ##
@@ -93,7 +95,7 @@ class WritePipeProtocol(asyncio.BaseProtocol):
             raise self._exc
 
 
-class StdinWriter:
+class StdinWriter(ProcessStdinWriter):
     def __init__(self, transport: asyncio.WriteTransport, protocol: WritePipeProtocol) -> None:
         super().__init__()
 
@@ -124,3 +126,23 @@ class StdinWriter:
         self._eof = True
         if not self._transport.is_closing():
             self._transport.abort()
+
+
+##
+
+
+class StatusPipeProtocol(asyncio.Protocol):
+    """Collects the exec-status pipe: EOF with nothing == exec happened; any bytes == a marshal'd shim error."""
+
+    def __init__(self, fut: asyncio.Future[bytes]) -> None:
+        super().__init__()
+
+        self._fut = fut
+        self._buf = bytearray()
+
+    def data_received(self, data: bytes) -> None:
+        self._buf += data
+
+    def connection_lost(self, exc: BaseException | None) -> None:
+        if not self._fut.done():
+            self._fut.set_result(bytes(self._buf))

@@ -5,13 +5,13 @@ import tempfile
 import pytest
 
 from ...asyncio.notifier import AsyncioSpoolNotifier
-from ...asyncio.notifier import ImmediateSpoolNotifier
 from ..frames import FRAME_HEADER_SIZE
 from ..frames import decode_frames
 from ..frames import encode_frame
 from ..render import ArrivalMergedRenderer
 from ..render import RawRenderer
 from ..render import TaggedLinesRenderer
+from ..spool import ImmediateSpoolNotifier
 from ..spool import OutputSpool
 from ..storage import SpoolStorage
 

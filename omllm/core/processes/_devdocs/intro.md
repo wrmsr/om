@@ -23,10 +23,13 @@ omllm/core/processes/
   spool/     framed output log: frames, storage (memory + spill), spool, renderers, text
   scopes/    ProcessScope tree + close policy
   handles.py abstract handle roles (ProcessInfo/Control/Stdin/Output/Waiter -> Process)
-  manager.py ProcessManager (abstract) + ManagerConfig
+  managers/  the manager proper, runtime-agnostic: types (ProcessManager + ManagerConfig), base (BaseProcessManager:
+             lifecycle, spawn, events, close), process (BaseProcess: state machine, signal/reap, teardown), spawn
+             (fork_exec - no Popen), stdio (fd plumbing), pty, reaper (exit watcher thread)
   launch/    Launcher / SpecTransform / ShimLauncher
-  _spawn/    the pure-stdlib spawn shim (runs in the child before exec)
-  asyncio/   AsyncioProcessManager and friends (the only impl for now)
+  spawn/     the pure-stdlib spawn shim (runs in the child before exec)
+  asyncio/   AsyncioProcessManager: only the asyncio bits (tasks, pipe transports, notifier, handle callbacks)
+  sandbox/   bwrap / sandbox-exec confinement;  targets/  docker exec / ssh
   tests/     pytest
   _devdocs/  these notes
 ```

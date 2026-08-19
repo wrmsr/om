@@ -4,8 +4,8 @@ from omcore import inject as inj
 
 from ..asyncio.manager import AsyncioProcessManager
 from ..inject import bind_process_manager
-from ..manager import ManagerConfig
-from ..manager import ProcessManager
+from ..managers.types import ManagerConfig
+from ..managers.types import ProcessManager
 from ..types.specs import ProcessSpec
 
 

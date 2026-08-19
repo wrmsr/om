@@ -28,7 +28,16 @@ with _lang.auto_proxy_init(globals()):
         ProcessWaiter,
     )
 
-    from .manager import (  # noqa
+    from .managers.base import (  # noqa
+        BaseProcessManager,
+    )
+
+    from .managers.process import (  # noqa
+        BaseProcess,
+        ProcessStdinWriter,
+    )
+
+    from .managers.types import (  # noqa
         ManagerConfig,
         ProcessManager,
     )

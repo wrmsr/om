@@ -4,13 +4,13 @@ import signal
 
 import pytest
 
+from ...managers.pty import PTY_OUTPUT_FD
 from ...spool.render import RawRenderer
 from ...types.errors import NotAPtyError
 from ...types.specs import ProcessSpec
 from ...types.specs import PtyStdio
 from ...types.states import ProcessState
 from ..manager import AsyncioProcessManager
-from ..pty import PTY_OUTPUT_FD
 
 
 async def _poll(fn, timeout=5., interval=.02):

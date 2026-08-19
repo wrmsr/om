@@ -7,8 +7,8 @@ manager can be created and torn down cleanly per injector.
 from omcore import inject as inj
 
 from .asyncio.manager import AsyncioProcessManager
-from .manager import ManagerConfig
-from .manager import ProcessManager
+from .managers.types import ManagerConfig
+from .managers.types import ProcessManager
 
 
 ##

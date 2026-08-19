@@ -298,6 +298,186 @@ def _process_dataclass__d5e4f63ce7138d8b3a84c09932de4695692f22a7():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('stdin_fd', 'stdout_fd', 'stderr_fd', 'child_fds', 'parent_fds', 'stdin_w', 'outpu"
+        "t_reads', 'pty_master_fd')), EqPlan(fields=('stdin_fd', 'stdout_fd', 'stderr_fd', 'child_fds', 'parent_fds', '"
+        "stdin_w', 'output_reads', 'pty_master_fd')), FrozenPlan(fields=('stdin_fd', 'stdout_fd', 'stderr_fd', 'child_f"
+        "ds', 'parent_fds', 'stdin_w', 'output_reads', 'pty_master_fd'), allow_dynamic_dunder_attrs=False), HashPlan(ac"
+        "tion='add', fields=('stdin_fd', 'stdout_fd', 'stderr_fd', 'child_fds', 'parent_fds', 'stdin_w', 'output_reads'"
+        ", 'pty_master_fd'), cache=False), InitPlan(fields=(InitPlan.Field(name='stdin_fd', annotation=OpRef(name='init"
+        ".fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.IN"
+        "STANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='stdout_fd', annotation=OpRef(name='"
+        "init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTyp"
+        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='stderr_fd', annotation=OpRef(na"
+        "me='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fiel"
+        "dType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='child_fds', annotation=OpRe"
+        "f(name='init.fields.3.annotation'), default=None, default_factory=None, init=True, override=False, field_type="
+        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='parent_fds', annotation"
+        "=OpRef(name='init.fields.4.annotation'), default=None, default_factory=None, init=True, override=False, field_"
+        "type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='stdin_w', annotati"
+        "on=OpRef(name='init.fields.5.annotation'), default=None, default_factory=None, init=True, override=False, fiel"
+        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='output_reads', a"
+        "nnotation=OpRef(name='init.fields.6.annotation'), default=None, default_factory=None, init=True, override=Fals"
+        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='pty_maste"
+        "r_fd', annotation=OpRef(name='init.fields.7.annotation'), default=OpRef(name='init.fields.7.default'), default"
+        "_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_typ"
+        "e=None)), self_param='self', std_params=(), kw_only_params=('stdin_fd', 'stdout_fd', 'stderr_fd', 'child_fds',"
+        " 'parent_fds', 'stdin_w', 'output_reads', 'pty_master_fd'), frozen=True, slots=False, post_init_params=None, i"
+        "nit_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='stdin_fd', kw_only=True, fn=None), ReprPla"
+        "n.Field(name='stdout_fd', kw_only=True, fn=None), ReprPlan.Field(name='stderr_fd', kw_only=True, fn=None), Rep"
+        "rPlan.Field(name='child_fds', kw_only=True, fn=None), ReprPlan.Field(name='parent_fds', kw_only=True, fn=None)"
+        ", ReprPlan.Field(name='stdin_w', kw_only=True, fn=None), ReprPlan.Field(name='output_reads', kw_only=True, fn="
+        "None), ReprPlan.Field(name='pty_master_fd', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='a0953f5bad341f1112fcab7c77882e0c6d269fa8',
+    cls_names=(
+        ('omllm.core.processes.managers.stdio', 'StdioSetup'),
+    ),
+)
+def _process_dataclass__a0953f5bad341f1112fcab7c77882e0c6d269fa8():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__6__annotation,
+        __dataclass__init__fields__7__annotation,
+        __dataclass__init__fields__7__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                stdin_fd=self.stdin_fd,
+                stdout_fd=self.stdout_fd,
+                stderr_fd=self.stderr_fd,
+                child_fds=self.child_fds,
+                parent_fds=self.parent_fds,
+                stdin_w=self.stdin_w,
+                output_reads=self.output_reads,
+                pty_master_fd=self.pty_master_fd,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.stdin_fd == other.stdin_fd and
+                self.stdout_fd == other.stdout_fd and
+                self.stderr_fd == other.stderr_fd and
+                self.child_fds == other.child_fds and
+                self.parent_fds == other.parent_fds and
+                self.stdin_w == other.stdin_w and
+                self.output_reads == other.output_reads and
+                self.pty_master_fd == other.pty_master_fd
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'stdin_fd',
+            'stdout_fd',
+            'stderr_fd',
+            'child_fds',
+            'parent_fds',
+            'stdin_w',
+            'output_reads',
+            'pty_master_fd',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.stdin_fd,
+                self.stdout_fd,
+                self.stderr_fd,
+                self.child_fds,
+                self.parent_fds,
+                self.stdin_w,
+                self.output_reads,
+                self.pty_master_fd,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            stdin_fd: __dataclass__init__fields__0__annotation,
+            stdout_fd: __dataclass__init__fields__1__annotation,
+            stderr_fd: __dataclass__init__fields__2__annotation,
+            child_fds: __dataclass__init__fields__3__annotation,
+            parent_fds: __dataclass__init__fields__4__annotation,
+            stdin_w: __dataclass__init__fields__5__annotation,
+            output_reads: __dataclass__init__fields__6__annotation,
+            pty_master_fd: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'stdin_fd', stdin_fd)
+            __dataclass__object_setattr(self, 'stdout_fd', stdout_fd)
+            __dataclass__object_setattr(self, 'stderr_fd', stderr_fd)
+            __dataclass__object_setattr(self, 'child_fds', child_fds)
+            __dataclass__object_setattr(self, 'parent_fds', parent_fds)
+            __dataclass__object_setattr(self, 'stdin_w', stdin_w)
+            __dataclass__object_setattr(self, 'output_reads', output_reads)
+            __dataclass__object_setattr(self, 'pty_master_fd', pty_master_fd)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"stdin_fd={self.stdin_fd!r}")
+            parts.append(f"stdout_fd={self.stdout_fd!r}")
+            parts.append(f"stderr_fd={self.stderr_fd!r}")
+            parts.append(f"child_fds={self.child_fds!r}")
+            parts.append(f"parent_fds={self.parent_fds!r}")
+            parts.append(f"stdin_w={self.stdin_w!r}")
+            parts.append(f"output_reads={self.output_reads!r}")
+            parts.append(f"pty_master_fd={self.pty_master_fd!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('shim_python', 'spill_dir', 'default_options', 'close_policy', 'spawn_timeout_s'))"
         ", EqPlan(fields=('shim_python', 'spill_dir', 'default_options', 'close_policy', 'spawn_timeout_s')), FrozenPla"
         "n(fields=('shim_python', 'spill_dir', 'default_options', 'close_policy', 'spawn_timeout_s'), allow_dynamic_dun"
@@ -323,7 +503,7 @@ def _process_dataclass__d5e4f63ce7138d8b3a84c09932de4695692f22a7():
     ),
     plan_repr_sha1='a2b043166b6926b743f271a348e9635f0e81d563',
     cls_names=(
-        ('omllm.core.processes.manager', 'ManagerConfig'),
+        ('omllm.core.processes.managers.types', 'ManagerConfig'),
     ),
 )
 def _process_dataclass__a2b043166b6926b743f271a348e9635f0e81d563():
@@ -451,29 +631,35 @@ def _process_dataclass__a2b043166b6926b743f271a348e9635f0e81d563():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('policy', 'bwrap')), EqPlan(fields=('policy', 'bwrap')), FrozenPlan(fields=('polic"
-        "y', 'bwrap'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('policy', 'bwrap'), cache=Fals"
-        "e), InitPlan(fields=(InitPlan.Field(name='policy', annotation=OpRef(name='init.fields.0.annotation'), default="
-        "None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
-        "ne, check_type=None), InitPlan.Field(name='bwrap', annotation=OpRef(name='init.fields.1.annotation'), default="
-        "OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INS"
-        "TANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('polic"
-        "y', 'bwrap'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields="
-        "(ReprPlan.Field(name='policy', kw_only=True, fn=None), ReprPlan.Field(name='bwrap', kw_only=True, fn=None)), i"
-        "d=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('policy', 'bwrap', 'new_session')), EqPlan(fields=('policy', 'bwrap', 'new_session"
+        "')), FrozenPlan(fields=('policy', 'bwrap', 'new_session'), allow_dynamic_dunder_attrs=False), HashPlan(action="
+        "'add', fields=('policy', 'bwrap', 'new_session'), cache=False), InitPlan(fields=(InitPlan.Field(name='policy',"
+        " annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=Fa"
+        "lse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='bwrap',"
+        " annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_facto"
+        "ry=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None"
+        "), InitPlan.Field(name='new_session', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='i"
+        "nit.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
+        "=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('policy', 'bwrap', "
+        "'new_session'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(field"
+        "s=(ReprPlan.Field(name='policy', kw_only=True, fn=None), ReprPlan.Field(name='bwrap', kw_only=True, fn=None), "
+        "ReprPlan.Field(name='new_session', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr"
+        ".default_fn'))))"
     ),
-    plan_repr_sha1='c6d39796f42bdf9e5bbe2d0b4ba473803660479e',
+    plan_repr_sha1='b0970e45851c1e889b0d27399f609e750cce1e3f',
     cls_names=(
         ('omllm.core.processes.sandbox.bwrap', 'BwrapSandbox'),
     ),
 )
-def _process_dataclass__c6d39796f42bdf9e5bbe2d0b4ba473803660479e():
+def _process_dataclass__b0970e45851c1e889b0d27399f609e750cce1e3f():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
         __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
@@ -487,6 +673,7 @@ def _process_dataclass__c6d39796f42bdf9e5bbe2d0b4ba473803660479e():
             return __class__(  # noqa
                 policy=self.policy,
                 bwrap=self.bwrap,
+                new_session=self.new_session,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -498,7 +685,8 @@ def _process_dataclass__c6d39796f42bdf9e5bbe2d0b4ba473803660479e():
                 return NotImplemented
             return (
                 self.policy == other.policy and
-                self.bwrap == other.bwrap
+                self.bwrap == other.bwrap and
+                self.new_session == other.new_session
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -506,6 +694,7 @@ def _process_dataclass__c6d39796f42bdf9e5bbe2d0b4ba473803660479e():
         __dataclass___frozen_fields = {
             'policy',
             'bwrap',
+            'new_session',
         }
 
         def __setattr__(self, name, value):
@@ -532,6 +721,7 @@ def _process_dataclass__c6d39796f42bdf9e5bbe2d0b4ba473803660479e():
             return hash((
                 self.policy,
                 self.bwrap,
+                self.new_session,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -541,9 +731,11 @@ def _process_dataclass__c6d39796f42bdf9e5bbe2d0b4ba473803660479e():
             *,
             policy: __dataclass__init__fields__0__annotation,
             bwrap: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            new_session: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'policy', policy)
             __dataclass__object_setattr(self, 'bwrap', bwrap)
+            __dataclass__object_setattr(self, 'new_session', new_session)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -554,6 +746,8 @@ def _process_dataclass__c6d39796f42bdf9e5bbe2d0b4ba473803660479e():
                 parts.append(f"policy={s}")
             if (s := __dataclass__repr__default_fn(self.bwrap)) is not None:
                 parts.append(f"bwrap={s}")
+            if (s := __dataclass__repr__default_fn(self.new_session)) is not None:
+                parts.append(f"new_session={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

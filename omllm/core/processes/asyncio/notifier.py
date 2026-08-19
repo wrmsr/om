@@ -1,5 +1,4 @@
 import asyncio
-import typing as ta
 
 from ..spool.spool import SpoolNotifier
 
@@ -41,16 +40,3 @@ class AsyncioSpoolNotifier(SpoolNotifier):
 
     def notify_threadsafe(self) -> None:
         self._get_loop().call_soon_threadsafe(self.notify)
-
-
-class ImmediateSpoolNotifier(SpoolNotifier):
-    """For synchronous tests: never blocks."""
-
-    def notify(self) -> None:
-        pass
-
-    async def wait(self, timeout: float | None) -> bool:
-        return False
-
-
-NULL_SPOOL_NOTIFIER: ta.Final = ImmediateSpoolNotifier()

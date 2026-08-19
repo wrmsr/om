@@ -80,6 +80,6 @@ with a probe first, then fixed with a regression test in `asyncio/tests/test_asy
 
 ## Still open (low)
 
-- `_wait_exited` timeout/exit race (a `wait_for` timing out just as the exit lands); Targets treat `env={}` as inherit
-  and the pty `TERM` injection lands on the local docker/ssh client; poisoned handles leave their stdin transport open
-  (abandoned ones now abort it); `TaggedLinesRenderer.flush()` returns an unprefixed tail.
+- Targets treat `env={}` as inherit and the pty `TERM` injection lands on the local docker/ssh client;
+  `TaggedLinesRenderer.flush()` returns an unprefixed tail. (The `_wait_exited` timeout/exit race and the poisoned
+  handle's open stdin were fixed in dev 09.)

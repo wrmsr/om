@@ -34,6 +34,19 @@ class SpoolNotifier(lang.Abstract):
         raise NotImplementedError
 
 
+class ImmediateSpoolNotifier(SpoolNotifier):
+    """Never blocks: for synchronous use (tests, offline readers of a finished spool)."""
+
+    def notify(self) -> None:
+        pass
+
+    async def wait(self, timeout: float | None) -> bool:
+        return False
+
+
+NULL_SPOOL_NOTIFIER: ta.Final = ImmediateSpoolNotifier()
+
+
 ##
 
 

@@ -1,10 +1,10 @@
 """
 Exit observation without reaping: one small daemon thread per child blocks in `waitid(P_PID, pid, WEXITED | WNOWAIT)`
-and hands the result to the loop. The child stays a zombie - its pid and pgid remain unrecyclable and therefore safe to
-signal - until the handle deliberately reaps it. (This is the same shape as 3.14's own threaded child watcher, but under
-our control: it never reaps.) A Linux pidfd + `add_reader` path is a possible thread-free replacement.
+and hands the result back to the owner via a thread-safe `post` callable (for asyncio, `loop.call_soon_threadsafe`).
+The child stays a zombie - its pid and pgid remain unrecyclable and therefore safe to signal - until the handle
+deliberately reaps it. (This is the same shape as 3.14's own threaded child watcher, but under our control: it never
+reaps.) A Linux pidfd path is a possible thread-free replacement.
 """
-import asyncio
 import os
 import threading
 import typing as ta
@@ -29,15 +29,19 @@ class ExitWatcher:
     def __init__(
             self,
             pid: int,
-            loop: asyncio.AbstractEventLoop,
             *,
+            post: ta.Callable[..., None],
             on_exit: ta.Callable[[int], None],
             on_error: ta.Callable[[BaseException], None],
     ) -> None:
+        """
+        `post(fn, *args)` must schedule `fn(*args)` on the owner's thread, raising RuntimeError if it no longer can.
+        """
+
         super().__init__()
 
         self._pid = pid
-        self._loop = loop
+        self._post = post
         self._on_exit = on_exit
         self._on_error = on_error
 
@@ -55,10 +59,10 @@ class ExitWatcher:
 
     def _call(self, fn: ta.Callable, *args: ta.Any) -> None:
         try:
-            self._loop.call_soon_threadsafe(fn, *args)
+            self._post(fn, *args)
         except RuntimeError:
-            # Loop closed underneath us - nothing to notify.
-            log.warning('processes exit watcher for pid %d: loop closed before exit could be delivered', self._pid)
+            # Owner gone underneath us (loop closed) - nothing to notify.
+            log.warning('processes exit watcher for pid %d: owner gone before exit could be delivered', self._pid)
 
     def _run(self) -> None:
         pid = self._pid
