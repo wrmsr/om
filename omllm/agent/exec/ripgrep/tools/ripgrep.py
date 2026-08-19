@@ -84,10 +84,12 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
 
         await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
 
-        options: tuple[processes.ProcessOption, ...] = ()
+        options: list[processes.ProcessOption] = []
         if self._sandbox:
             # ripgrep only needs to read the search tree - confine it to the cwd, no writes, no network.
-            options = (processes.platform_sandbox(processes.SandboxPolicy(read_roots=[cwd])),)
+            options.append(processes.platform_sandbox(processes.SandboxPolicy(
+                read_roots=[cwd],
+            )))
 
         result = await self._exec.exec(scope, ExecParams(
             cmd,

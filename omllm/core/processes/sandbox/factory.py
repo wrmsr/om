@@ -14,4 +14,5 @@ def platform_sandbox(policy: SandboxPolicy) -> Sandbox:
     if getattr(sys, 'platform') == 'darwin':
         from .seatbelt import SeatbeltSandbox  # noqa
         return SeatbeltSandbox(policy=policy)
+
     return BwrapSandbox(policy=policy)
