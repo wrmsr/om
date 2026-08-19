@@ -14,6 +14,8 @@ import typing as ta
 
 from omcore import check
 from omcore import lang
+from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
+from omcore.subprocesses.wrap import subprocess_shell_wrap_exec
 
 from ..types.options import Credentials
 from ..types.options import Deathsig
@@ -23,7 +25,7 @@ from ..types.options import Rlimit
 from ..types.options import Umask
 from ..types.specs import ProcessSpec
 from ..types.specs import PtyStdio
-from ._shim import MAX_FDS_PER_MESSAGE
+from ._bootstrap import _BootstrapConsts
 from ._shim import ShimPayload
 from ._shim import encode_os
 from .launcher import Launcher
@@ -35,27 +37,28 @@ from .launcher import apply_transforms
 ##
 
 
-SHIM_MODULE_NAME: ta.Final[str] = '__procs_shim__'
+@lang.cached_function
+def bootstrap_source() -> str:
+    import textwrap
 
-# Mirrors `_shim.receive_control` - the one piece of shim logic that has to exist before the shim source has arrived.
-BOOTSTRAP: ta.Final[str] = f"""
-import array,json,os,socket,sys,types
-s=socket.socket(fileno=int(sys.argv[1]))
-b=b'';n=None;fds=array.array('i')
-while n is None or len(fds)<n:
-    m,a,_f,_a=s.recvmsg(4096,socket.CMSG_SPACE({MAX_FDS_PER_MESSAGE}*fds.itemsize))
-    if not m and not a:raise EOFError('control socket closed during handshake')
-    for l,t,d in a:
-        if l==socket.SOL_SOCKET and t==socket.SCM_RIGHTS:fds.frombytes(d[:len(d)-len(d)%fds.itemsize])
-    if n is None:
-        b+=m
-        if b'\\n' in b:n=int(json.loads(b.split(b'\\n',1)[0])['n'])
-s.detach()
-f=os.fdopen(fds[0],'r',encoding='utf-8');p=json.loads(f.readline());src=f.read();f.close()
-mod=types.ModuleType('{SHIM_MODULE_NAME}');sys.modules[mod.__name__]=mod
-exec(compile(src,'<processes-shim>','exec'),mod.__dict__)
-mod.main(mod.ShimPayload(**p),list(fds[1:]))
-""".strip()
+    # We can't technically `inspect.getsource` without a `__file__` - we'll probably never need to run like that, but
+    # let's accomodate it anyway :)
+    bs_mod_src = lang.get_relative_resources('.', globals=globals())['_bootstrap.py'].read_text()
+    bs_mod_lines = bs_mod_src.splitlines(keepends=True)
+    bs_fn_line = check.single(i for i, l in enumerate(bs_mod_lines) if l.startswith('def _bootstrap_body('))
+    bs_src = textwrap.dedent(''.join(bs_mod_lines[bs_fn_line + 1:]))
+
+    for an, av in sorted(_BootstrapConsts.__dict__.items(), key=lambda kv: -len(kv[0])):
+        bs_src = bs_src.replace(f'_BootstrapConsts.{an}', repr(av))
+
+    bs_src = '\n'.join(
+        cl
+        for l in bs_src.splitlines()
+        if (cl := (l.split('#')[0]).rstrip())
+        if cl.strip()
+    )
+
+    return bs_src
 
 
 @lang.cached_function
@@ -127,12 +130,14 @@ class ShimLauncher(Launcher):
             *,
             python: ta.Sequence[str] | None = None,
             transforms: ta.Sequence[SpecTransform] = (),
+            shell_wrap_shim: bool | ta.Literal['maybe'] = False,
     ) -> None:
         super().__init__()
 
         self._python = tuple(python) if python is not None else (sys.executable,)
         check.arg(all(self._python))
         self._transforms = tuple(transforms)
+        self._shell_wrap_shim = shell_wrap_shim
 
     @property
     def python(self) -> ta.Sequence[str]:
@@ -188,14 +193,19 @@ class ShimLauncher(Launcher):
 
         payload_fd = self._write_payload_file(payload)
 
-        argv = [
+        argv: ta.Sequence[str] = [
             *self._python,
             '-I',
             '-S',
             '-c',
-            BOOTSTRAP,
+            bootstrap_source(),
             str(control_fd),
         ]
+
+        if self._shell_wrap_shim == 'maybe':
+            argv = subprocess_maybe_shell_wrap_exec(*argv)
+        elif self._shell_wrap_shim:
+            argv = subprocess_shell_wrap_exec(*argv)
 
         return LaunchPlan(
             spec=spec,

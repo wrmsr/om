@@ -13,7 +13,11 @@ from .... import processes
 
 
 async def _a_main() -> None:
-    async with processes.AsyncioProcessManager() as m:
+    async with processes.AsyncioProcessManager(
+        # launcher=processes.ShimLauncher(
+        #     shell_wrap_shim=True,
+        # ),
+    ) as m:
         m.subscribe(lambda e: print('  event:', type(e).__name__, getattr(e, 'process_id', '')))
 
         print('== foreground run, tagged rendering ==')
