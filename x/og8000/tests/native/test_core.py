@@ -1,6 +1,7 @@
 from io import BytesIO
 
 import pytest
+
 from ...core import NULL_BYTE
 from ...core import PASSWORD
 from ...core import Context

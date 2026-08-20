@@ -3,6 +3,7 @@ import os
 import time
 
 import pytest
+
 from ...dbapi import BINARY
 from ...dbapi import Binary
 from ...dbapi import Date

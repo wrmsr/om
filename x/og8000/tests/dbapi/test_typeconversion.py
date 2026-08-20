@@ -12,13 +12,14 @@ from datetime import timezone as Timezone
 from enum import Enum
 from json import dumps
 
-from ... import dbapi
 import pytest
 import pytz
+
+from ... import dbapi
 from ...converters import INTERVAL
 from ...converters import PGInterval
-from ...converters import interval_in
 from ...converters import array_string_escape
+from ...converters import interval_in
 from ...converters import pg_interval_in
 from ...converters import pg_interval_out
 from ...converters import time_in

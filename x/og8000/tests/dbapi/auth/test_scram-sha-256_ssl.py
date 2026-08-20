@@ -2,6 +2,7 @@ from ssl import CERT_NONE
 from ssl import create_default_context
 
 import pytest
+
 from ....dbapi import DatabaseError
 from ....dbapi import connect
 

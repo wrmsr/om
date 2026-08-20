@@ -1,4 +1,5 @@
 import pytest
+
 from ....dbapi import InterfaceError
 from ....dbapi import connect
 

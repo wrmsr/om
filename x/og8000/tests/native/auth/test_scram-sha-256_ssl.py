@@ -3,6 +3,7 @@ from ssl import SSLSocket
 from ssl import create_default_context
 
 import pytest
+
 from ....native import Connection
 from ....native import DatabaseError
 

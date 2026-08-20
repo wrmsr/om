@@ -3,15 +3,14 @@ import hashlib
 import pytest
 
 from .. import scramp
-from ..scramp import ScramClient
-from ..scramp import ScramException
-from ..scramp import ScramMechanism
-from ..scramp import make_channel_binding
-from ..scramp import ServerErrors
 from ..scramp import AuthFn
 from ..scramp import Gs2Header
 from ..scramp import Nonce
 from ..scramp import Salt
+from ..scramp import ScramClient
+from ..scramp import ScramException
+from ..scramp import ScramMechanism
+from ..scramp import ServerErrors
 from ..scramp import Username
 from ..scramp import _check_client_key
 from ..scramp import _get_client_final
@@ -23,6 +22,7 @@ from ..scramp import _username_unescape
 from ..scramp import _validate_channel_binding
 from ..scramp import b64dec
 from ..scramp import b64enc
+from ..scramp import make_channel_binding
 from ..scramp import xor
 
 

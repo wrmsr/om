@@ -1,8 +1,9 @@
 from datetime import datetime as Datetime
 from datetime import timezone as Timezone
 
-from ... import dbapi
 import pytest
+
+from ... import dbapi
 from ...converters import INET_ARRAY
 from ...converters import INTEGER
 

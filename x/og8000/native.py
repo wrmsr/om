@@ -24,51 +24,9 @@
 import collections
 import enum
 
-from .converters import BIGINT
-from .converters import BOOLEAN
-from .converters import BOOLEAN_ARRAY
-from .converters import BYTES
-from .converters import CHAR
-from .converters import CHAR_ARRAY
-from .converters import DATE
-from .converters import FLOAT
-from .converters import FLOAT_ARRAY
-from .converters import INET
-from .converters import INT2VECTOR
-from .converters import INTEGER
-from .converters import INTEGER_ARRAY
-from .converters import INTERVAL
-from .converters import JSON
-from .converters import JSON_ARRAY
-from .converters import JSONB
-from .converters import JSONB_ARRAY
-from .converters import MACADDR
-from .converters import NAME
-from .converters import NAME_ARRAY
-from .converters import NULLTYPE
-from .converters import NUMERIC
-from .converters import NUMERIC_ARRAY
-from .converters import OID
-from .converters import STRING
-from .converters import TEXT
-from .converters import TEXT_ARRAY
-from .converters import TIME
-from .converters import TIMESTAMP
-from .converters import TIMESTAMPTZ
-from .converters import UNKNOWN
-from .converters import UUID_TYPE
-from .converters import VARCHAR
-from .converters import VARCHAR_ARRAY
-from .converters import XID
-from .converters import PGInterval
-from .converters import identifier
-from .converters import literal
 from .converters import make_params
 from .core import CoreConnection
-from .exceptions import DatabaseError
-from .exceptions import Error
 from .exceptions import InterfaceError
-from .types import Range
 
 
 ##

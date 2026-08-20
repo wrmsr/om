@@ -42,8 +42,20 @@ _LANG = [
     ),
 
     Lang(
+        'rust',
+        {'.rs'},
+        comment_pats=(r'//', r'/\*', r'\*/'),
+    ),
+
+    Lang(
         'javascript',
-        {'.js'},
+        {'.js', '.mjs'},
+        comment_pats=(r'//', r'/\*', r'\*/'),
+    ),
+
+    Lang(
+        'typescript',
+        {'.ts'},
         comment_pats=(r'//', r'/\*', r'\*/'),
     ),
 ]

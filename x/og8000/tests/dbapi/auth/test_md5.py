@@ -1,4 +1,5 @@
 import pytest
+
 from ....dbapi import DatabaseError
 from ....dbapi import connect
 

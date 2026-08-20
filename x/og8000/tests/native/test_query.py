@@ -1,4 +1,5 @@
 import pytest
+
 from ...native import DatabaseError
 from ...native import to_statement
 

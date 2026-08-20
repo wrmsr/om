@@ -22,15 +22,9 @@ import operator
 import secrets
 import stringprep
 import unicodedata
-import typing as ta
 
-from omcore import lang
-
-
-if ta.TYPE_CHECKING:
-    import asn1crypto.x509 as asn1crypto_x509
-else:
-    asn1crypto_x509 = lang.proxy_import('asn1crypto.x509')
+from .certs import CertificateBackend
+from .certs import tls_server_end_point
 
 
 ##
@@ -223,30 +217,41 @@ CHANNEL_TYPES = (
 MAX_ITERATION_COUNT = 10_000_000  # DoS guard
 
 
-def _make_cb_data(name, ssl_socket):
+def _make_cb_data(
+        name,
+        ssl_socket,
+        *,
+        certificate_backend: CertificateBackend = 'auto',
+):
     if name == 'tls-unique':
         return ssl_socket.get_channel_binding(name)
 
     elif name == 'tls-server-end-point':
-        cert_bin = ssl_socket.getpeercert(binary_form=True)
-        cert = asn1crypto_x509.Certificate.load(cert_bin)
+        cert_der = ssl_socket.getpeercert(binary_form=True)
 
-        # Find the hash algorithm to use according to https://tools.ietf.org/html/rfc5929#section-4
-        hash_algo = cert.hash_algo
-        if hash_algo in ('md5', 'sha1'):
-            hash_algo = 'sha256'
+        if cert_der is None:
+            raise ValueError(
+                'TLS peer did not provide a certificate',
+            )
 
-        try:
-            hash_obj = hashlib.new(hash_algo, cert_bin)
-        except ValueError as e:
-            raise ScramException(f'Hash algorithm {hash_algo} not supported by hashlib. {e}')
-        return hash_obj.digest()
+        return (
+            name,
+            tls_server_end_point(
+                cert_der,
+                backend=certificate_backend,
+            ),
+        )
 
     else:
         raise ScramException(f'Channel binding name {name} not recognized.')
 
 
-def make_channel_binding(name, ssl_socket):
+def make_channel_binding(
+        name,
+        ssl_socket,
+        *,
+        certificate_backend: CertificateBackend = 'auto',
+):
     return name, _make_cb_data(name, ssl_socket)
 
 

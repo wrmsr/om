@@ -1,4 +1,5 @@
 import pytest
+
 from ..types import PGInterval
 from ..types import Range
 
