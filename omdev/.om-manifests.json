@@ -343,7 +343,7 @@
     "module": ".tools.cloc",
     "attr": "_CLI_MODULE",
     "file": "omdev/tools/cloc.py",
-    "line": 248,
+    "line": 260,
     "value": {
       "!.cli.types.CliModule": {
         "name": "cloc",
