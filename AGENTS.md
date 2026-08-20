@@ -41,6 +41,9 @@
     - `8`: 3.8, for working with lite code
 - Use pytest to run tests via the `python` script: `./python -m pytest ...`. During iterative development, only run
   tests relevant to code changed.
+- Note that if you're in a docker sandbox (which is highly likely) you will not have access to docker compose services
+  like mysql and postgres, causing relevant tests to fail with a failure to connect. As long as you're not working on
+  immediately relevant code (sql code specifically) then this is fine and can be ignored.
 
 ### Makefile targets
 
@@ -59,3 +62,6 @@
 - As mentioned in `CODESTYLE.md` C/C++ extensions should have a `// @om-cext` header line, and otherwise need no
   additional manual build wiring. After adding a new extension source file, run `make gen` to add it to the build, then
   run `make build-cext` to build them in-place. It is not necessary to `make gen` after every source file modification.
+- Note that if you're working on something in the `x/` directory, which is *not* a proper top-level `om*` package, the
+  `make` commands like `fix` and `check` will *not* operate on the code you're modifying. In this case you must manually
+  run the tools via `./python -m ruff check x/<wherever>` and `./python -m mypy x/<wherever>` and such.
