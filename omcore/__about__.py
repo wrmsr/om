@@ -130,14 +130,6 @@ class Project(ProjectBase):
         *_check_dependencies,
 
         'cryptography',
-
-        # 'orjson',  # FIXME: freethreaded
-        # 'pyyaml',  # now using internal goyaml
-
-        'lz4',
-
-        'pg8000',
-        'pymysql',
     ]
 
     _dependency_specs_by_name = (lambda od: {  # noqa

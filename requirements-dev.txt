@@ -17,7 +17,7 @@ pytest-xdist==3.8.0
 
 flake8==7.3.0
 flake8-pyproject==1.2.4
-ruff==0.16.3
+ruff==0.16.4
 
 asyncpg-stubs==0.31.3
 docutils-stubs==0.0.22
@@ -53,7 +53,7 @@ pudb==2025.1.5
 
 cython==3.2.9
 
-lxml==6.1.1
+lxml==6.1.2
 
 # clang
 
@@ -130,10 +130,12 @@ tree-sitter-yaml==0.7.2
 snowflake-connector-python[secure-local-storage]==4.7.2  # @om-venv !15t
 # snowflake-sqlalchemy==1.7.7
 
-trino==0.338.0  # @om-venv !14t !14dt !15t  # orjson
+trino==0.339.0  # @om-venv !14t !14dt !15t  # orjson
 
-huggingface-hub==1.27.0
+huggingface-hub==1.28.0
 hf-xet==1.6.0
+
+greenlet==3.5.5
 
 ## NOTE: the following add a full minute to CI just setting up the deps..
 

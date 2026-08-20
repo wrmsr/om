@@ -211,10 +211,6 @@ gen-pkg:
 gen-gitattributes: venv
 	${PYTHON} -m omdev.tools.git update-generated ${SRCS} x
 
-.PHONY: gen-antlr
-gen-antlr: venv
-	${PYTHON} -m omxtra.text.antlr.cli gen ${SRCS} x
-
 
 ### Fix / Check
 

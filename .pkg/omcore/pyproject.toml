@@ -91,9 +91,6 @@ plus = [
     'asttokens ~= 3.0',
     'executing ~= 2.2',
     'cryptography ~= 50.0',
-    'lz4 ~= 4.4',
-    'pg8000 ~= 1.31',
-    'pymysql ~= 1.2',
 ]
 cext = [
     'omcore-cext == 0.0.47',
@@ -143,9 +140,6 @@ all = [
     'asttokens ~= 3.0',
     'executing ~= 2.2',
     'cryptography ~= 50.0',
-    'lz4 ~= 4.4',
-    'pg8000 ~= 1.31',
-    'pymysql ~= 1.2',
     'omcore-cext == 0.0.47',
     'omcore-mypyc == 0.0.47',
 ]
