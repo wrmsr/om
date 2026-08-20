@@ -586,21 +586,6 @@
     }
   },
   {
-    "module": ".tui.apps.markdown.__main__",
-    "attr": "_CLI_MODULE",
-    "file": "omdev/tui/apps/markdown/__main__.py",
-    "line": 4,
-    "value": {
-      "!.cli.types.CliModule": {
-        "name": [
-          "tui/markdown",
-          "tui/md"
-        ],
-        "module": "omdev.tui.apps.markdown.__main__"
-      }
-    }
-  },
-  {
     "module": ".tui.rich.diff.__main__",
     "attr": "_CLI_MODULE",
     "file": "omdev/tui/rich/diff/__main__.py",

@@ -1,7 +1,7 @@
 from ....cli import CliModule
 
 
-# @om-manifest
+# DISABLED: @om-manifest
 _CLI_MODULE = CliModule(['tui/markdown', 'tui/md'], __name__)
 
 

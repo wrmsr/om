@@ -64,9 +64,25 @@ class Project(ProjectBase):
 
         'tui': [
             'rich ~= 15.0',
-            'textual ~= 8.2',  # [syntax]
-            'textual-dev ~= 1.8',
-            'textual-speedups ~= 0.2',
+        ],
+
+        'tui-syntax': [
+            'tree-sitter ~= 0.26',
+            'tree-sitter-bash ~= 0.24',
+            'tree-sitter-css ~= 0.25',
+            'tree-sitter-go ~= 0.25',
+            'tree-sitter-html ~= 0.23',
+            'tree-sitter-java ~= 0.23',
+            'tree-sitter-javascript ~= 0.25',
+            'tree-sitter-json ~= 0.24',
+            'tree-sitter-markdown ~= 0.5',
+            'tree-sitter-python ~= 0.25',
+            'tree-sitter-regex ~= 0.25',
+            'tree-sitter-rust ~= 0.24',
+            'tree-sitter-sql ~= 0.3',
+            'tree-sitter-toml ~= 0.7',
+            'tree-sitter-xml ~= 0.7',
+            'tree-sitter-yaml ~= 0.7',
         ],
     }
 
