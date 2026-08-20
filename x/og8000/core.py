@@ -39,6 +39,9 @@ from .exceptions import DatabaseError
 from .exceptions import InterfaceError
 
 
+##
+
+
 def pack_funcs(fmt):
     struc = struct.Struct(f'!{fmt}')
     return struc.pack, struc.unpack_from

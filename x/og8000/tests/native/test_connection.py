@@ -4,7 +4,7 @@ from datetime import time as Time
 import pytest
 
 from ...native import Connection
-from ...native import DatabaseError
+from ...exceptions import DatabaseError
 from ...native import InterfaceError
 
 

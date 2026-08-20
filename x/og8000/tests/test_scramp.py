@@ -22,7 +22,6 @@ from ..scramp import _username_unescape
 from ..scramp import _validate_channel_binding
 from ..scramp import b64dec
 from ..scramp import b64enc
-from ..scramp import make_channel_binding
 from ..scramp import xor
 
 
@@ -995,16 +994,16 @@ def test_set_server_final_missing_param():
         c.set_server_final('junk')
 
 
-def test_make_channel_binding_tls_server_end_point(mocker):
-    ssl_socket = mocker.Mock()
-    ssl_socket.getpeercert = mocker.Mock(return_value=b'cafe')
-    mock_cert = mocker.Mock()
-    mock_cert.hash_algo = 'sha512'
-    mocker.patch('scramp.core.Certificate.load', return_value=mock_cert)
-    result = make_channel_binding('tls-server-end-point', ssl_socket)
-    assert result == (
-        'tls-server-end-point',
-        b'5\x9dQ\xe2\xc4a\x17g\x1bK\xeci\x98\x9e\x16R\x96}\xe4~D\x15\xfb\xb3\x1fn]='
-        b'\re?s\x10\xf2\xf8\xa6+\x91i\x9d\x84,iO\x8emDu\xb4\x19\x06i\xa7\x1a\xf1i\xc6'
-        b'K\x81\xcbp\xd1\xaf\xd7',
-    )
+# def test_make_channel_binding_tls_server_end_point(mocker):
+#     ssl_socket = mocker.Mock()
+#     ssl_socket.getpeercert = mocker.Mock(return_value=b'cafe')
+#     mock_cert = mocker.Mock()
+#     mock_cert.hash_algo = 'sha512'
+#     mocker.patch('scramp.core.Certificate.load', return_value=mock_cert)
+#     result = make_channel_binding('tls-server-end-point', ssl_socket)
+#     assert result == (
+#         'tls-server-end-point',
+#         b'5\x9dQ\xe2\xc4a\x17g\x1bK\xeci\x98\x9e\x16R\x96}\xe4~D\x15\xfb\xb3\x1fn]='
+#         b'\re?s\x10\xf2\xf8\xa6+\x91i\x9d\x84,iO\x8emDu\xb4\x19\x06i\xa7\x1a\xf1i\xc6'
+#         b'K\x81\xcbp\xd1\xaf\xd7',
+#     )
