@@ -11,6 +11,16 @@ from .modes import Mode
 ##
 
 
+MODE_TEXT_MAP = {
+    Mode.NORMAL: '',
+    Mode.INSERT: '-- INSERT --',
+    Mode.VISUAL: '-- VISUAL --',
+    Mode.VISUAL_LINE: '-- VISUAL LINE --',
+    Mode.VISUAL_BLOCK: '-- VISUAL BLOCK --',
+    Mode.CMDLINE: '',
+}
+
+
 @dc.dataclass(frozen=True, kw_only=True)
 class VimStatus(lang.Final):
     mode: Mode
@@ -21,14 +31,7 @@ class VimStatus(lang.Final):
 
     @property
     def mode_text(self) -> str:
-        return {
-            Mode.NORMAL: '',
-            Mode.INSERT: '-- INSERT --',
-            Mode.VISUAL: '-- VISUAL --',
-            Mode.VISUAL_LINE: '-- VISUAL LINE --',
-            Mode.VISUAL_BLOCK: '-- VISUAL BLOCK --',
-            Mode.CMDLINE: '',
-        }[self.mode]
+        return MODE_TEXT_MAP[self.mode]
 
 
 ##

@@ -94,15 +94,22 @@ TOKEN_MOTIONS: ta.Mapping[str, str] = {
     '<end>': '$',
 }
 
+
+class Synonym(ta.NamedTuple):
+    op: str
+    mkey: str | None
+    doubled: bool
+
+
 # Synonym commands compile straight to op+motion / doubled op, like vim.
-SYNONYMS: ta.Mapping[str, tuple[str, str | None, bool]] = {
-    'x': ('d', 'l', False),
-    'X': ('d', 'h', False),
-    'D': ('d', '$', False),
-    'C': ('c', '$', False),
-    's': ('c', 'l', False),
-    'S': ('c', None, True),
-    'Y': ('y', None, True),
+SYNONYMS: ta.Mapping[str, Synonym] = {
+    'x': Synonym('d', 'l', False),
+    'X': Synonym('d', 'h', False),
+    'D': Synonym('d', '$', False),
+    'C': Synonym('c', '$', False),
+    's': Synonym('c', 'l', False),
+    'S': Synonym('c', None, True),
+    'Y': Synonym('y', None, True),
 }
 
 
@@ -471,8 +478,10 @@ class VimEngine:
         def make(pos: Pos) -> tuple[Pos, Pos, str] | None:
             if pos.col > 0:
                 return (Pos(pos.row, pos.col - 1), pos, '')
+
             if pos.row > 0:
                 return (Pos(pos.row - 1, llen(doc, pos.row - 1)), Pos(pos.row, 0), '')
+
             return None
 
         self._edit_at_cursors(make, lambda a: a.edit.start)
@@ -483,21 +492,29 @@ class VimEngine:
         def move(pos: Pos) -> Pos:
             if key == '<left>':
                 return Pos(pos.row, max(0, pos.col - 1))
+
             if key == '<right>':
                 return Pos(pos.row, min(pos.col + 1, llen(doc, pos.row)))
+
             if key == '<up>' and pos.row > 0:
                 return Pos(pos.row - 1, min(pos.col, llen(doc, pos.row - 1)))
+
             if key == '<down>' and pos.row + 1 < doc.line_count():
                 return Pos(pos.row + 1, min(pos.col, llen(doc, pos.row + 1)))
+
             if key == '<home>':
                 return Pos(pos.row, 0)
+
             if key == '<end>':
                 return Pos(pos.row, llen(doc, pos.row))
+
             if key == '<a-b>':  # emacs backward-word: start of the current/previous word
                 return word_back(doc, pos, 1, False)
+
             if key == '<a-f>':  # emacs forward-word: just past the end of the current/next word
                 end = word_end(doc, pos, 1, False)
                 return Pos(end.row, min(end.col + 1, llen(doc, end.row)))
+
             return pos
 
         self._set_all_cursors([move(c.pos) for c in self._cursors])
@@ -514,6 +531,7 @@ class VimEngine:
                 if pos.row > 0:
                     return (Pos(pos.row - 1, llen(doc, pos.row - 1)), pos, '')
                 return None
+
             start = word_back(doc, pos, 1, False)
             if start.row < pos.row:  # word-back crossed the newline; the kill stops at BOL (vim ctrl+w does too)
                 start = Pos(pos.row, 0)
@@ -529,6 +547,7 @@ class VimEngine:
                 if pos.row + 1 < doc.line_count():
                     return (pos, Pos(pos.row + 1, 0), '')
                 return None
+
             end = word_end(doc, pos, 1, False)  # emacs M-d kills through to the end of the next word
             return (pos, Pos(end.row, end.col + 1), '')
 
@@ -541,11 +560,15 @@ class VimEngine:
             if to_end:
                 if pos.col < (eol := llen(doc, pos.row)):
                     return (pos, Pos(pos.row, eol), '')
+
                 if pos.row + 1 < doc.line_count():  # emacs C-k at EOL kills the newline
                     return (pos, Pos(pos.row + 1, 0), '')
+
                 return None
+
             if pos.col > 0:
                 return (Pos(pos.row, 0), pos, '')
+
             return None
 
         self._edit_at_cursors(make, lambda a: a.edit.start)
@@ -577,12 +600,15 @@ class VimEngine:
         if key == '<c-w>':
             self._delete_word_back_at_cursors()
             return
+
         if key == '<a-d>':
             self._delete_word_fwd_at_cursors()
             return
+
         if key == '<c-k>':
             self._kill_to_line_edge_at_cursors(to_end=True)
             return
+
         if key == '<c-u>':
             self._kill_to_line_edge_at_cursors(to_end=False)
             return
@@ -649,7 +675,11 @@ class VimEngine:
             return False
 
         if rng is None:
-            rng = parse_ex_range('.', current_row=self.cursor.row, last_row=doc.line_count() - 1)[0]
+            rng = parse_ex_range(
+                '.',
+                current_row=self.cursor.row,
+                last_row=doc.line_count() - 1,
+            )[0]
             rng = check.not_none(rng)
 
         last_query = self._last_search[0] if self._last_search is not None else None
@@ -988,7 +1018,12 @@ class VimEngine:
                 return None
             lk, ch = self._last_ft
             if k == ',':
-                lk = {'f': 'F', 'F': 'f', 't': 'T', 'T': 't'}[lk]
+                lk = {
+                    'f': 'F',
+                    'F': 'f',
+                    't': 'T',
+                    'T': 't',
+                }[lk]
             fwd, till = lk in 'ft', lk in 'tT'
             t_ = find_char(doc, p, ch, n, forward=fwd, till=till, repeat=True)
             if t_ is None:
@@ -1080,9 +1115,11 @@ class VimEngine:
 
     def _extract(self, span: Span) -> tuple[list[str], SpanKind]:
         doc = self._doc
+
         if span.kind is SpanKind.LINEWISE:
             return ([doc.line(r) for r in range(span.start.row, span.end.row + 1)], SpanKind.LINEWISE)
-        if span.kind is SpanKind.BLOCK:
+
+        elif span.kind is SpanKind.BLOCK:
             return (
                 [
                     doc.line(r)[span.start.col: min(span.end.col, llen(doc, r))]
@@ -1090,10 +1127,13 @@ class VimEngine:
                 ],
                 SpanKind.BLOCK,
             )
-        return (doc.get_text(span.start, span.end).split('\n'), SpanKind.EXCLUSIVE)
+
+        else:
+            return (doc.get_text(span.start, span.end).split('\n'), SpanKind.EXCLUSIVE)
 
     def _delete_span(self, span: Span) -> None:
         doc = self._doc
+
         if span.kind is SpanKind.BLOCK:
             # Row-local deletes: column positions on other rows are unaffected, so order doesn't matter.
             for r in range(span.start.row, span.end.row + 1):
@@ -1105,7 +1145,8 @@ class VimEngine:
             pos = clamp_col(doc, self._doc.clamp(Pos(span.start.row, span.start.col)))
             self._set_cursor(pos, want=pos.col)
             return
-        if span.kind is SpanKind.LINEWISE:
+
+        elif span.kind is SpanKind.LINEWISE:
             r1, r2 = span.start.row, span.end.row
             last = doc.line_count() - 1
             if r2 >= last:
@@ -1118,6 +1159,7 @@ class VimEngine:
             row = min(r1, doc.line_count() - 1)
             col = first_nonblank(doc, row)
             self._set_cursor(Pos(row, col), want=col)
+
         else:
             doc.delete(span.start, span.end)
             pos = clamp_col(doc, span.start)
@@ -1141,20 +1183,27 @@ class VimEngine:
         if a and a in 'iIaAoO':
             self._begin_change()
             line = doc.line(cur.row)
+
             if a == 'i':
                 pass
+
             elif a == 'I':
                 self._set_cursor(Pos(cur.row, first_nonblank(doc, cur.row)))
+
             elif a == 'a':
                 self._set_cursor(Pos(cur.row, cur.col + 1 if line else 0))
+
             elif a == 'A':
                 self._set_cursor(Pos(cur.row, len(line)))
+
             elif a == 'o':
                 doc.insert(Pos(cur.row, len(line)), '\n')
                 self._set_cursor(Pos(cur.row + 1, 0))
+
             elif a == 'O':
                 doc.insert(Pos(cur.row, 0), '\n')
                 self._set_cursor(Pos(cur.row, 0))
+
             self._mode = Mode.INSERT
             return True
 

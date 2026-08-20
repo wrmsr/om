@@ -90,12 +90,22 @@ def parse_ex_range(
     if text.startswith('%'):
         return (ExRange(0, last_row), text[1:])
 
-    first, rest = _parse_address(text, current_row=current_row, last_row=last_row, visual=visual)
+    first, rest = _parse_address(
+        text,
+        current_row=current_row,
+        last_row=last_row,
+        visual=visual,
+    )
     if first is None:
         return (None, text)
 
     if rest.startswith(','):
-        second, rest2 = _parse_address(rest[1:], current_row=current_row, last_row=last_row, visual=visual)
+        second, rest2 = _parse_address(
+            rest[1:],
+            current_row=current_row,
+            last_row=last_row,
+            visual=visual,
+        )
         if second is None:
             return (None, text)
         lo, hi = sorted((first, second))
@@ -247,4 +257,8 @@ def apply_substitute(
     if not replaced:
         raise SubstituteError(f'Pattern not found: {pattern}')
 
-    return SubstituteResult(replaced=replaced, lines=lines_changed, last_row=last_changed)
+    return SubstituteResult(
+        replaced=replaced,
+        lines=lines_changed,
+        last_row=last_changed,
+    )

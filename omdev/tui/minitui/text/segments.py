@@ -15,9 +15,9 @@ from omcore import lang
 from .styles import StyleLike
 
 
-Segments: ta.TypeAlias = ta.Sequence['Segment']
+type Segments = ta.Sequence[Segment]
 
-SegmentRows: ta.TypeAlias = ta.Sequence[ta.Sequence['Segment']]
+type SegmentRows = ta.Sequence[ta.Sequence[Segment]]
 
 
 ##

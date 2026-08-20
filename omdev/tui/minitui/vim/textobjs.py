@@ -151,10 +151,27 @@ def _obj_quote(doc: Document, p: Pos, *, around: bool, q: str) -> Span | None:
 
 def textobj(doc: Document, p: Pos, *, around: bool, obj: str, count: int) -> Span | None:
     if obj in 'wW':
-        return _obj_word(doc, p, around=around, big=obj == 'W', count=count)
+        return _obj_word(
+            doc,
+            p,
+            around=around,
+            big=obj == 'W',
+            count=count,
+        )
     if obj in PAIRS:
         pair = PAIRS[obj]
-        return _obj_pair(doc, p, around=around, open_ch=pair[0], close_ch=pair[1])
+        return _obj_pair(
+            doc,
+            p,
+            around=around,
+            open_ch=pair[0],
+            close_ch=pair[1],
+        )
     if obj in QUOTES:
-        return _obj_quote(doc, p, around=around, q=obj)
+        return _obj_quote(
+            doc,
+            p,
+            around=around,
+            q=obj,
+        )
     return None

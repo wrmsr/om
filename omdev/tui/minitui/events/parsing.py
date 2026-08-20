@@ -20,7 +20,7 @@ from omcore import lang
 from .types import Event
 
 
-ParseGenerator: ta.TypeAlias = ta.Generator['Read1', str]
+type ParseGenerator = ta.Generator[Read1, str]
 
 
 ##

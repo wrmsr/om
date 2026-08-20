@@ -19,7 +19,7 @@ from .motions import MOTION_NEEDS_ARG
 from .textobjs import TEXTOBJ_KEYS
 
 
-ParseResult: ta.TypeAlias = tuple[str, ta.Optional['Command']]  # ('more'|'cmd'|'abort', command)
+type ParseResult = tuple[str, Command | None]  # ('more'|'cmd'|'abort', command)
 
 
 ##

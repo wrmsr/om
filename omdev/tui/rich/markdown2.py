@@ -3,8 +3,8 @@ import typing as ta
 
 from omcore import lang
 
-from ...markdown.incparse import IncrementalMarkdownParser
-from ...markdown.tokens import flatten_tokens as _flatten_tokens
+from ...markdownit.incparse import IncrementalMarkdownParser
+from ...markdownit.tokens import flatten_tokens as _flatten_tokens
 from .console2 import console_render
 
 
@@ -306,7 +306,7 @@ class ClaudeIncrementalMarkdownLiveStream(MarkdownLiveStream):
             markdown_kwargs=markdown_kwargs,
         )
 
-        from ...markdown.incparse import ClaudeIncrementalMarkdownParser  # noqa
+        from ...markdownit.incparse import ClaudeIncrementalMarkdownParser  # noqa
         self._inc_parser = ClaudeIncrementalMarkdownParser(parser=self._parser)
         self._last_unstable_line_count = 0
 
@@ -392,7 +392,7 @@ class GptIncrementalMarkdownLiveStream(MarkdownLiveStream):
             markdown_kwargs=markdown_kwargs,
         )
 
-        from ...markdown.incparse import GptIncrementalMarkdownParser  # noqa
+        from ...markdownit.incparse import GptIncrementalMarkdownParser  # noqa
         self._inc_parser = GptIncrementalMarkdownParser(parser=self._parser)
 
     def feed(self, s: str) -> None:

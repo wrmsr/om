@@ -13,7 +13,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
-from ....markdown import incparse
+from ....markdownit import incparse
 from .markdown import MarkdownStreamBackend
 from .markdown import MdBlock
 from .markdown import MdCode

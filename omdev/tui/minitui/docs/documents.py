@@ -14,7 +14,7 @@ from .edits import TextEdit
 from .positions import Pos
 
 
-DocumentListener: ta.TypeAlias = ta.Callable[['Document', AppliedEdit], None]
+type DocumentListener = ta.Callable[[Document, AppliedEdit], None]
 
 
 ##
