@@ -17,7 +17,10 @@ RUN ( \
     gdb \
     iputils-ping \
     libdb-dev \
+    lldb \
     llvm \
+    nginx \
+    nodejs \
 \
   && \
 \
