@@ -2,6 +2,7 @@ import functools
 import os
 import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -55,9 +56,24 @@ def test_build_bwrap_argv(tmp_path):
     assert '--new-session' in build_bwrap_argv('bwrap', pol, new_session=True)
 
 
+def test_bwrap_dev_modes(tmp_path):
+    argv = build_bwrap_argv('bwrap', SandboxPolicy(system_read_roots=[]))
+    assert ['--dev', '/dev'] == argv[argv.index('--dev'):argv.index('--dev') + 2]  # 'minimal' default
+    assert '--dev-bind' not in argv
+
+    argv = build_bwrap_argv('bwrap', SandboxPolicy(system_read_roots=[], dev='all'))
+    assert ['--dev-bind', '/dev', '/dev'] == argv[argv.index('--dev-bind'):argv.index('--dev-bind') + 3]
+
+    argv = build_bwrap_argv('bwrap', SandboxPolicy(system_read_roots=[], dev='none'))
+    assert '--dev' not in argv and '--dev-bind' not in argv
+
+    argv = build_bwrap_argv('bwrap', SandboxPolicy(system_read_roots=[], private_tmp=False))
+    assert '--tmpfs' not in argv
+
+
 def test_bwrap_mounts_before_binds(tmp_path):
-    # Regression: `--tmpfs /tmp` (and --dev/--proc) used to come *after* the binds, shadowing any root under /tmp -
-    # such as every pytest tmp_path.
+    # Regression: `--tmpfs /tmp` (and --dev/--proc) used to come *after* the binds, shadowing any root under /tmp - such
+    # as every pytest tmp_path.
     root = tmp_path / 'r'
     root.mkdir()
     argv = build_bwrap_argv('bwrap', SandboxPolicy(read_roots=[str(root)], system_read_roots=[]))
@@ -67,9 +83,9 @@ def test_bwrap_mounts_before_binds(tmp_path):
 
 
 def test_bwrap_recreates_symlink_prefixes(tmp_path):
-    # Regression: paths were bound only at their realpath, so on merged-/usr hosts `/lib64` (-> usr/lib64) never
-    # existed in the sandbox and no dynamically linked binary could exec. Every symlink on the way to a root must be
-    # recreated with --symlink, and the real path bound.
+    # Regression: paths were bound only at their realpath, so on merged-/usr hosts `/lib64` (-> usr/lib64) never existed
+    # in the sandbox and no dynamically linked binary could exec. Every symlink on the way to a root must be recreated
+    # with --symlink, and the real path bound.
     real = tmp_path / 'real'
     (real / 'sub').mkdir(parents=True)
     link = tmp_path / 'link'
@@ -108,25 +124,80 @@ def test_bwrap_wraps_spec(tmp_path):
     assert out.argv[0] == 'bwrap'
     assert list(out.argv[-2:]) == ['rg', 'foo']
     assert '--' in out.argv
-    assert out.cwd is None                         # applied via --chdir
+    assert out.cwd is None  # applied via --chdir
 
 
-def test_sandbox_exec_profile():
-    pol = SandboxPolicy(read_roots=['/a b'], write_roots=['/w'], system_read_roots=['/usr'], allow_network=False)
-    prof = build_seatbelt_profile(pol)
-    assert '(deny default)' in prof
-    assert '(allow file-read* (subpath "/usr"))' in prof
-    assert '(allow file-read* (subpath "/a b"))' in prof  # spaces handled
-    assert '(allow file* (subpath "/w"))' in prof
-    assert '(allow network*)' not in prof                 # denied
+##
 
-    argv = SeatbeltSandbox(policy=pol).transform_spec(ProcessSpec(['rg', 'x'])).argv
-    assert argv[0] == '/usr/bin/sandbox-exec'
-    assert argv[1] == '-p'
-    assert list(argv[-2:]) == ['rg', 'x']
 
-    prof2 = build_seatbelt_profile(SandboxPolicy(allow_network=True))
-    assert '(allow network*)' in prof2
+def test_sandbox_exec_profile(tmp_path):
+    exe = tmp_path / 'rg'
+    exe.write_text('')
+
+    pol = SandboxPolicy(read_roots=['/a b'], write_roots=['/w'], system_read_roots=['/usr'])
+    prof = build_seatbelt_profile(pol, argv0=str(exe))
+
+    assert '(deny default)' in prof.profile
+
+    # Caller paths travel as -D params, never through the profile text (spaces &c are structurally moot).
+    assert '/a b' not in prof.profile
+    vals = set(prof.params.values())
+    assert '/a b' in vals
+    assert '/w' in vals
+    assert os.path.realpath(str(exe)) in vals
+
+    # Exec is scoped to argv0's literal path(s); nothing broader is granted.
+    assert '(allow process-exec (literal (param "EXEC_0"))' in prof.profile
+    assert '(allow process-exec)' not in prof.profile
+    assert '(allow process-fork)' not in prof.profile
+    assert 'mach-lookup' not in prof.profile
+
+    # Sysctl and metadata are scoped, not blanket.
+    assert '(allow sysctl-read)' not in prof.profile
+    assert 'sysctl-name' in prof.profile
+    assert '(allow file-read-metadata' in prof.profile
+
+    # Writes don't get the full file* wildcard.
+    assert 'file-write*' in prof.profile
+    assert '(allow file* ' not in prof.profile
+
+    assert '(allow network*)' not in prof.profile
+
+    # Opt-ins render.
+    assert '(allow network*)' in build_seatbelt_profile(SandboxPolicy(allow_network=True), argv0=str(exe)).profile
+    assert '(allow process-fork)' in build_seatbelt_profile(SandboxPolicy(allow_fork=True), argv0=str(exe)).profile
+    assert '(allow sysctl-read)' in build_seatbelt_profile(SandboxPolicy(sysctl_names='any'), argv0=str(exe)).profile
+
+
+def test_seatbelt_wraps_spec(tmp_path):
+    exe = tmp_path / 'rg'
+    exe.write_text('')
+
+    pol = SandboxPolicy(read_roots=[str(tmp_path)], private_tmp=False)
+    out = SeatbeltSandbox(policy=pol).transform_spec(ProcessSpec([str(exe), 'x']))
+    assert out.argv[0] == '/usr/bin/sandbox-exec'
+    assert out.argv[1] == '-D'
+    assert '-p' in out.argv
+    assert list(out.argv[-2:]) == [str(exe), 'x']
+    assert out.env is None  # untouched without private_tmp
+
+    # exec_paths='self' needs an absolute argv[0].
+    with pytest.raises(ValueError):  # noqa: PT011
+        SeatbeltSandbox(policy=pol).transform_spec(ProcessSpec(['rg', 'x']))
+
+
+def test_seatbelt_private_tmp(tmp_path):
+    exe = tmp_path / 'rg'
+    exe.write_text('')
+
+    out = SeatbeltSandbox(policy=SandboxPolicy(read_roots=[str(tmp_path)])).transform_spec(ProcessSpec([str(exe)]))
+    assert out.env is not None
+    td = out.env['TMPDIR']
+    try:
+        assert os.path.isdir(td)
+        assert any(a.endswith(td) for a in out.argv if a.startswith(('WR_', 'META_')))  # granted via -D defs
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
 
 
 # pty adds nothing special to the sandbox wrapping, but the wrapped spec must keep its PtyStdio.
@@ -136,13 +207,16 @@ def test_sandbox_preserves_stdio(tmp_path):
     assert isinstance(out.stdio, PtyStdio)
 
 
+##
+
+
 @functools.cache
 def _bwrap_usable() -> bool:
     if not shutil.which('bwrap'):
         return False
     # Probe with our own rendering (a bare `--ro-bind /usr /usr` can't even exec /bin/true on a merged-/usr host).
     r = subprocess.run(  # noqa
-        [*build_bwrap_argv('bwrap', SandboxPolicy()), 'true'],
+        [*build_bwrap_argv('bwrap', SandboxPolicy(exec_paths='any')), 'true'],
         capture_output=True,
     )
     return r.returncode == 0
@@ -182,4 +256,36 @@ async def test_bwrap_confinement_live(tmp_path):
                 cwd=str(allowed)),
             sandbox,
         )
+        assert run.returncode != 0
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='sandbox-exec is macOS-only')
+@pytest.mark.asyncs('asyncio')
+async def test_seatbelt_confinement_live(tmp_path):
+    allowed = tmp_path / 'allowed'
+    allowed.mkdir()
+    (allowed / 'ok.txt').write_text('visible')
+    secret = tmp_path / 'secret'
+    secret.mkdir()
+    (secret / 'nope.txt').write_text('hidden')
+
+    async with AsyncioProcessManager() as m:
+        pol = SandboxPolicy(read_roots=[str(allowed)], private_tmp=False)
+        sandbox = SeatbeltSandbox(policy=pol)
+
+        # can read the allowed root (via its as-given, possibly-symlinked pytest tmp path)
+        run = await m.root.run(ProcessSpec(['/bin/cat', str(allowed / 'ok.txt')], cwd=str(allowed)), sandbox)
+        assert run.returncode == 0 and run.stdout == b'visible'
+
+        # cannot read outside it
+        run = await m.root.run(ProcessSpec(['/bin/cat', str(secret / 'nope.txt')], cwd=str(allowed)), sandbox)
+        assert run.returncode != 0
+        assert b'hidden' not in run.stdout
+
+        # exec is scoped to argv[0]: bash starts, but cannot exec anything else (and cannot fork)
+        run = await m.root.run(ProcessSpec(['/bin/bash', '-c', '/usr/bin/true'], cwd=str(allowed)), sandbox)
+        assert run.returncode != 0
+
+        # no network (literal ip - no dns dependence)
+        run = await m.root.run(ProcessSpec(['/usr/bin/nc', '-G', '2', '-z', '1.1.1.1', '80'], cwd=str(allowed)), sandbox)  # noqa: E501
         assert run.returncode != 0

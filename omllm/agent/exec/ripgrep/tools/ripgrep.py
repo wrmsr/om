@@ -20,6 +20,44 @@ from ...permissions import ExecPermissionTarget
 ##
 
 
+# Appended *after* the model-supplied args - rg is last-flag-wins, so these override rather than trust them. Defense in
+# depth against rg features that read surprising places or spawn helper programs; the sandbox (exec scoped to rg itself,
+# reads scoped to the cwd, env scrubbed) is the actual boundary - these just fail earlier and clearer:
+#
+#  --no-config:            don't read $RIPGREP_CONFIG_PATH (scrubbed from the env anyway)
+#  --no-pre:               don't spawn a preprocessor per file
+#  --no-search-zip:        don't spawn decompressors
+#  --hyperlink-format=none: --hostname-bin is only ever spawned for hyperlink output
+#  --no-follow:            don't follow symlinks out of the tree (seatbelt resolves paths, so they'd only error)
+#  --no-ignore-parent:     don't walk *above* the cwd for ignore files
+#  --no-ignore-global:     don't read ~/.gitignore_global &c (there is no HOME anyway)
+SAFETY_RG_ARGS: ta.Final[ta.Sequence[str]] = (
+    '--no-config',
+    '--no-pre',
+    '--no-search-zip',
+    '--hyperlink-format=none',
+    '--no-follow',
+    '--no-ignore-parent',
+    '--no-ignore-global',
+    '--color=never',
+)
+
+
+def _rg_prefix_read_roots(rg: str) -> list[str]:
+    """Package-manager lib trees for a keg-installed rg (homebrew's rg links pcre2 from its prefix for `-P`)."""
+
+    if rg.startswith('/opt/homebrew/'):
+        return ['/opt/homebrew/Cellar', '/opt/homebrew/lib', '/opt/homebrew/opt']
+    if rg.startswith('/usr/local/'):
+        return ['/usr/local/Cellar', '/usr/local/lib', '/usr/local/opt']
+    if rg.startswith('/opt/local/'):
+        return ['/opt/local/lib', '/opt/local/libexec']
+    return []
+
+
+##
+
+
 @dc.dataclass(frozen=True)
 class RipgrepToolParams:
     args: ta.Sequence[str]
@@ -52,7 +90,7 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
             *,
             permissions: PermissionDecider,
             exec: ExecOps,  # noqa
-            sandbox: bool = False,  # FIXME: really dog?
+            sandbox: bool = True,  # Escape hatch for debugging only - this tool is meant to run confined.
     ) -> None:
         super().__init__()
 
@@ -66,8 +104,15 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
         if (scope := ctx.env.processes) is None:
             raise ValueError('No process scope configured')
 
+        # Seatbelt matches resolved vnode paths, so grant - and search from - the resolved cwd.
+        cwd = os.path.realpath(cwd)
+        if not os.path.isdir(cwd):
+            raise NotADirectoryError(cwd)
+
         #
 
+        # Currently just a smoketest: parse for early, legible failure on malformed args. Intended to grow into
+        # pre-spawn arg policy - but the sandbox below is the boundary, not this.
         from ..args.parsing import RgArgvParser
 
         parser = RgArgvParser()
@@ -77,24 +122,45 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
 
         await self._permissions.check_allowed(ctx, FsPermissionTarget(cwd, 'r'))
 
+        rg = os.path.realpath(check.not_none(shutil.which('rg')))
+
         cmd = [
-            check.not_none(shutil.which('rg')),
+            rg,
             *params.args,
+            *SAFETY_RG_ARGS,
         ]
 
         await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
 
         options: list[processes.ProcessOption] = []
         if self._sandbox:
-            # ripgrep only needs to read the search tree - confine it to the cwd, no writes, no network.
+            # rg is a read-only, non-forking tool: reads scoped to the search tree plus the libs it loads, exec of only
+            # itself, no children, no mach, no writes anywhere, no tmp, no network - all the policy defaults, plus a
+            # minimal library set instead of the wider system roots.
             options.append(processes.platform_sandbox(processes.SandboxPolicy(
                 read_roots=[cwd],
+                system_read_roots=[
+                    *processes.SandboxDefaults.MINIMAL_SYSTEM_READ_ROOTS,
+                    os.path.dirname(rg),
+                    *_rg_prefix_read_roots(rg),
+                ],
+                private_tmp=False,
             )))
+
+        # A minimal environment: rg must not find a real HOME (~/.gitignore_global &c), and the harness's own environ
+        # (api keys...) has no business inside the sandbox. Locale vars pass through for correct unicode handling.
+        env: dict[str, str] = {
+            'PATH': '/usr/bin:/bin',
+            'HOME': '/var/empty',
+        }
+        for k in ('LANG', 'LC_ALL', 'LC_CTYPE'):
+            if (v := os.environ.get(k)) is not None:
+                env[k] = v
 
         result = await self._exec.exec(scope, ExecParams(
             cmd,
             cwd=cwd,
-            env=dict(os.environ),
+            env=env,
             timeout_s=params.timeout_s,
             options=options,
         ))

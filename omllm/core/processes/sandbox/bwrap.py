@@ -8,6 +8,13 @@ bound at its *real* location, and each symlink on the way to it is recreated ins
 `/bin/sh` and the ELF interpreter `/lib64/ld-linux-*.so` resolve exactly as on the host. Without that, nothing
 dynamically linked can even exec.
 
+Policy parity: `exec_paths`, `allow_fork`, `mach_lookup`, and `sysctl_names` are not expressible here and are ignored -
+what the process can exec is only approximated by what happens to be bound (with any system_read_roots that includes
+shells and interpreters), and fork cannot be denied at all without seccomp, which is the open item for real parity with
+the seatbelt backend. `dev='minimal'` maps to bwrap's own fresh minimal `--dev`; `'all'` bind-mounts the host /dev;
+`private_tmp` is a genuinely private tmpfs at /tmp (the seatbelt backend approximates *this* instead, with a fresh
+TMPDIR dir).
+
 Termination: bwrap does not forward signals. Our TERM to the process group reaches the sandboxed command *and* the outer
 bwrap, which dies of it - and `--die-with-parent` then SIGKILLs the whole sandbox - so a sandboxed command gets no real
 grace period; the manager's escalation still guarantees the sandbox is gone. (A graceful remote stop would need the
@@ -67,11 +74,13 @@ def build_bwrap_argv(
 
     # Fresh /dev, /proc and /tmp go first: a later mount at a path shadows everything already mounted beneath it, so
     # binds of roots under /tmp must land *inside* the tmpfs, not under it.
-    if policy.allow_dev:
+    if policy.dev == 'all':
+        a.extend(['--dev-bind', '/dev', '/dev'])
+    elif policy.dev == 'minimal':
         a.extend(['--dev', '/dev'])
     if policy.allow_proc:
         a.extend(['--proc', '/proc'])
-    if policy.tmpfs_tmp:
+    if policy.private_tmp:
         a.extend(['--tmpfs', '/tmp'])  # noqa: S108
 
     seen_binds: set[tuple[str, str]] = set()
