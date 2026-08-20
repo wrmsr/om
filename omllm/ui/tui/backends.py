@@ -17,7 +17,7 @@ MODELS: ta.Final[ta.Mapping[str, tuple[llm.ModelKey, str | None]]] = {
     'openai': (llm.ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key'),
     'groq': (llm.ModelKey('groq', 'openai/gpt-oss-120b'), 'groq_api_key'),
     'cerebras': (llm.ModelKey('cerebras', 'gpt-oss-120b'), 'cerebras_api_key'),
-    'ollama': (llm.ModelKey('ollama', 'qwen3.6:27b'), None),
+    'ollama': (llm.ModelKey('ollama', 'qwen3.8:27b'), None),
 }
 
 

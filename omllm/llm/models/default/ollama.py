@@ -31,9 +31,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='ollama',
-            id='qwen3.6:27b',
+            id='qwen3.8:27b',
         ),
-        name='qwen3.6:27b',
+        name='qwen3.8:27b',
         backend='openai-completions',
         compat=OpenaiCompat(
             url_path='/v1/chat/completions',
