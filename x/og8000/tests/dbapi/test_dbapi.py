@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from ... import dbapi
 from ...dbapi import BINARY
 from ...dbapi import Binary
 from ...dbapi import Date
@@ -60,7 +61,7 @@ def test_parallel_queries(db_table):
 
 
 def test_qmark(mocker, db_table):
-    mocker.patch('pg8000.dbapi.paramstyle', 'qmark')
+    mocker.patch.object(dbapi, 'paramstyle', 'qmark')
     c1 = db_table.cursor()
     c1.execute('SELECT f1, f2, f3 FROM t1 WHERE f1 > ?', (3,))
     while 1:
@@ -71,7 +72,7 @@ def test_qmark(mocker, db_table):
 
 
 def test_numeric(mocker, db_table):
-    mocker.patch('pg8000.dbapi.paramstyle', 'numeric')
+    mocker.patch.object(dbapi, 'paramstyle', 'numeric')
     c1 = db_table.cursor()
     c1.execute('SELECT f1, f2, f3 FROM t1 WHERE f1 > :1', (3,))
     while 1:
@@ -82,7 +83,7 @@ def test_numeric(mocker, db_table):
 
 
 def test_named(mocker, db_table):
-    mocker.patch('pg8000.dbapi.paramstyle', 'named')
+    mocker.patch.object(dbapi, 'paramstyle', 'named')
     c1 = db_table.cursor()
     c1.execute('SELECT f1, f2, f3 FROM t1 WHERE f1 > :f1', {'f1': 3})
     while 1:
@@ -93,7 +94,7 @@ def test_named(mocker, db_table):
 
 
 def test_format(mocker, db_table):
-    mocker.patch('pg8000.dbapi.paramstyle', 'format')
+    mocker.patch.object(dbapi, 'paramstyle', 'format')
     c1 = db_table.cursor()
     c1.execute('SELECT f1, f2, f3 FROM t1 WHERE f1 > %s', (3,))
     while 1:
@@ -104,7 +105,7 @@ def test_format(mocker, db_table):
 
 
 def test_pyformat(mocker, db_table):
-    mocker.patch('pg8000.dbapi.paramstyle', 'pyformat')
+    mocker.patch.object(dbapi, 'paramstyle', 'pyformat')
     c1 = db_table.cursor()
     c1.execute('SELECT f1, f2, f3 FROM t1 WHERE f1 > %(f1)s', {'f1': 3})
     while 1:
@@ -209,4 +210,4 @@ def test_prepared_statement(con):
 
 
 def test_cursor_type(cursor):
-    assert str(type(cursor)) == "<class 'pg8000.dbapi.Cursor'>"
+    assert type(cursor) is dbapi.Cursor

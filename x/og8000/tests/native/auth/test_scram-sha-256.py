@@ -1,7 +1,7 @@
 import pytest
 
+from ....exceptions import DatabaseError
 from ....native import Connection
-from ....native import DatabaseError
 from ....native import InterfaceError
 
 

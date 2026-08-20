@@ -4,8 +4,8 @@ from ssl import create_default_context
 
 import pytest
 
+from ....exceptions import DatabaseError
 from ....native import Connection
-from ....native import DatabaseError
 
 
 # This requires a line in pg_hba.conf that requires scram-sha-256 for the

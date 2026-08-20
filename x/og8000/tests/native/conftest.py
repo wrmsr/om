@@ -1,25 +1,7 @@
-from os import environ
+import pytest
 
 from ... import native
-import pytest
 from ..utils import parse_server_version
-
-
-@pytest.fixture(scope='class')
-def db_kwargs():
-    db_connect = {'user': 'postgres', 'password': 'pw'}
-
-    for kw, var, f in [
-        ('host', 'PGHOST', str),
-        ('password', 'PGPASSWORD', str),
-        ('port', 'PGPORT', int),
-    ]:
-        try:
-            db_connect[kw] = f(environ[var])
-        except KeyError:
-            pass
-
-    return db_connect
 
 
 @pytest.fixture

@@ -321,6 +321,6 @@ def test_null_result(db_table):
 
 
 def test_not_parsed_if_no_params(mocker, cursor):
-    mock_convert_paramstyle = mocker.patch('dbapi.convert_paramstyle')
+    mock_convert_paramstyle = mocker.patch.object(dbapi, 'convert_paramstyle')
     cursor.execute('ROLLBACK')
     mock_convert_paramstyle.assert_not_called()

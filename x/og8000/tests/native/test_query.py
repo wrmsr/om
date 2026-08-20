@@ -1,6 +1,7 @@
 import pytest
 
-from ...native import DatabaseError
+from ... import native
+from ...exceptions import DatabaseError
 from ...native import to_statement
 
 
@@ -224,7 +225,7 @@ def test_to_statement_quotes():
 
 
 def test_not_parsed_if_no_params(mocker, con):
-    mock_to_statement = mocker.patch('pg8000.native.to_statement')
+    mock_to_statement = mocker.patch.object(native, 'to_statement')
     con.run('ROLLBACK')
     mock_to_statement.assert_not_called()
 

@@ -31,9 +31,12 @@ from itertools import islice
 from time import localtime
 from warnings import warn
 
+from .converters import NUMERIC
 from .converters import OID
 from .converters import PY_PG
+from .converters import TIMESTAMP
 from .converters import UNKNOWN
+from .converters import VARCHAR
 from .core import IN_FAILED_TRANSACTION
 from .core import IN_TRANSACTION
 from .core import Context
@@ -59,6 +62,9 @@ Xid: ta.TypeAlias = tuple[int, str, str]
 
 
 ROWID = OID
+STRING = VARCHAR
+NUMBER = NUMERIC
+DATETIME = TIMESTAMP
 
 apilevel = '2.0'
 

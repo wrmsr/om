@@ -1,7 +1,10 @@
+from .dbs import DB_KWARGS
+
+
 def run_native() -> None:
     from .. import native
 
-    con = native.Connection('postgres', '127.0.0.1', port=35224, password='om')
+    con = native.Connection(**DB_KWARGS)
 
     con.run('CREATE TEMPORARY TABLE book (id SERIAL, title TEXT)')
 
@@ -17,7 +20,7 @@ def run_native() -> None:
 def run_dbapi() -> None:
     from .. import dbapi
 
-    conn = dbapi.connect(user="postgres", host='127.0.0.1', port=35224, password="om")
+    conn = dbapi.connect(**DB_KWARGS)
     cursor = conn.cursor()
     cursor.execute("CREATE TEMPORARY TABLE book (id SERIAL, title TEXT)")
     cursor.execute(

@@ -1,8 +1,9 @@
 import time
 import warnings
 
-import pg8000
 import pytest
+
+from ... import dbapi
 
 
 """ Python DB API 2.0 driver compliance unit test suite.
@@ -89,7 +90,7 @@ __author__ = 'Stuart Bishop <zen@shangri-la.dropbear.id.au>'
 
 # The self.driver module. This should be the module where the 'connect'
 # method is to be found
-driver = pg8000
+driver = dbapi
 table_prefix = 'dbapi20test_'  # If you need to specify a prefix for tables
 
 ddl1 = 'create table %sbooze (name varchar(20))' % table_prefix
