@@ -101,6 +101,7 @@ DEPS="$DEPS\
   mercurial\
   moreutils\
   mosh\
+  mysql-server\
   nano\
   ncdu\
   net-tools\
@@ -111,6 +112,7 @@ DEPS="$DEPS\
   ovmf\
   perl\
   pkg-config\
+  postgresql\
   postgresql-client\
   protobuf-compiler\
   qemu-efi-aarch64\
@@ -554,6 +556,51 @@ set -ex
 
 sudo mkdir -p /var/run/dbus /run/dbus
 sudo dbus-daemon --system --nofork --nopidfile
+EOF
+
+
+RUN cat > /om/scripts/run-mysql <<'EOF' && chmod 664 /om/scripts/run-mysql
+#!/bin/bash
+set -ex
+
+if ! sudo test -d /var/lib/mysql/mysql; then
+    sudo mysqld --initialize-insecure --user=mysql
+fi
+
+sudo install -d -o mysql -g mysql -m 0755 /var/run/mysqld
+
+sudo tee /var/run/mysqld/init.sql > /dev/null <<'SQL'
+ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'om';
+CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'om';
+ALTER USER 'root'@'%' IDENTIFIED WITH caching_sha2_password BY 'om';
+GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION;
+CREATE USER IF NOT EXISTS 'om'@'%' IDENTIFIED BY 'om';
+ALTER USER 'om'@'%' IDENTIFIED WITH caching_sha2_password BY 'om';
+SQL
+
+# --skip-log-error overrides the packaged config's log_error file and sends the error log to stderr instead. dumb-init
+# rewrites SIGINT to SIGTERM, as mysqld ignores SIGINT but shuts down cleanly on SIGTERM.
+exec sudo dumb-init --rewrite 2:15 mysqld --user=mysql --init-file=/var/run/mysqld/init.sql --skip-log-error
+EOF
+
+
+RUN cat > /om/scripts/run-postgres <<'EOF' && chmod 664 /om/scripts/run-postgres
+#!/bin/bash
+set -ex
+
+PG_VERSION=$(ls /usr/lib/postgresql | sort -n | tail -n 1)
+PG_BIN=/usr/lib/postgresql/$PG_VERSION/bin
+
+if ! pg_lsclusters -h | grep -q "^$PG_VERSION main "; then
+    sudo pg_createcluster "$PG_VERSION" main
+fi
+
+echo "ALTER USER postgres PASSWORD 'om';" | sudo runuser -u postgres -- "$PG_BIN/postgres" --single \
+    -D "/var/lib/postgresql/$PG_VERSION/main" \
+    -c "config_file=/etc/postgresql/$PG_VERSION/main/postgresql.conf" \
+    postgres
+
+exec sudo pg_ctlcluster "$PG_VERSION" main start --foreground
 EOF
 
 

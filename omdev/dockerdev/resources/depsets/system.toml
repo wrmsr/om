@@ -85,6 +85,8 @@ deps = [
   'libgdbm6',
   'libpq-dev',
   'libsqlite3-dev',
+  'mysql-server',
+  'postgresql',
   'postgresql-client',
   'redis',
   'sqlite3',
