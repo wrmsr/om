@@ -1,0 +1,16 @@
+#!/bin/bash
+set -ex
+
+PG_VERSION=$(ls /usr/lib/postgresql | sort -n | tail -n 1)
+PG_BIN=/usr/lib/postgresql/$PG_VERSION/bin
+
+if ! pg_lsclusters -h | grep -q "^$PG_VERSION main "; then
+    sudo pg_createcluster "$PG_VERSION" main
+fi
+
+echo "ALTER USER postgres PASSWORD 'om';" | sudo runuser -u postgres -- "$PG_BIN/postgres" --single \
+    -D "/var/lib/postgresql/$PG_VERSION/main" \
+    -c "config_file=/etc/postgresql/$PG_VERSION/main/postgresql.conf" \
+    postgres
+
+exec sudo pg_ctlcluster "$PG_VERSION" main start --foreground
