@@ -31,8 +31,14 @@ def bind_backends(config: Config) -> inj.Elements:
     backend: ta.Any
     if (config.model or DEFAULT_MODEL) == 'scripted':
         # Offline development / testing: the scripted backend's built-in canned responses, no keys or network.
-        backend_cls = llm.ScriptedStreamBackend if config.stream else llm.ScriptedImmediateBackend
-        backend = backend_cls(llm.Model(key=llm.ModelKey('scripted', 'scripted'), backend='scripted'))
+        if config.stream:
+            backend_cls = llm.ScriptedStreamBackend
+        else:
+            backend_cls = llm.ScriptedImmediateBackend
+
+        backend = backend_cls(
+            llm.Model(key=llm.ModelKey('scripted', 'scripted'), backend='scripted'),
+        )
 
     else:
         if config.stream:
