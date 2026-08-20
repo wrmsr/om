@@ -23,14 +23,14 @@ class _SxQuote:
     s: str
 
 
-_SxConst: ta.TypeAlias = ta.Union[  # noqa
+_SxConst: ta.TypeAlias = ta.Union[  # noqa: UP007
     int,
     float,
     _SxQuote,
 ]
 
 
-type _Sx = ta.Union[  # noqa
+type _Sx = ta.Union[  # noqa: UP007
     str,
     _SxConst,
     list[_Sx],

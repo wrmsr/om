@@ -29,7 +29,7 @@ SpaceTokenKind: ta.TypeAlias = ta.Literal['SPACE']
 
 CommentTokenKind: ta.TypeAlias = ta.Literal['COMMENT']
 
-TokenKind: ta.TypeAlias = ta.Union[  # noqa
+TokenKind: ta.TypeAlias = ta.Union[  # noqa: UP007
     IdentTokenKind,
     ValueTokenKind,
     ControlTokenKind,

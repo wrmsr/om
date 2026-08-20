@@ -48,12 +48,12 @@ class RpcWireError:
     message: str
 
 
-RpcWireResponse: ta.TypeAlias = ta.Union[  # noqa
+RpcWireResponse: ta.TypeAlias = ta.Union[  # noqa: UP007
     RpcWireResult,
     RpcWireError,
 ]
 
-RpcWireMessage: ta.TypeAlias = ta.Union[  # noqa
+RpcWireMessage: ta.TypeAlias = ta.Union[  # noqa: UP007
     RpcClientHello,
     RpcServerHello,
     RpcWireRequest,

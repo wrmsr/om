@@ -17,7 +17,7 @@ from .names import Name
 ##
 
 
-FuncArg: ta.TypeAlias = ta.Union[  # noqa
+FuncArg: ta.TypeAlias = ta.Union[  # noqa: UP007
     Expr,
     Star,
 ]

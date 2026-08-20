@@ -30,9 +30,9 @@ class FieldCodec(tv.UniqueTypedValue, FieldOption, lang.Final):
 ##
 
 
-CodecSubject: ta.TypeAlias = ta.Union[  # noqa
+type CodecSubject = ta.Union[  # noqa: UP007
     Field,
-    'Mapper',
+    Mapper,
 ]
 
 

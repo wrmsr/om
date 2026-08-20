@@ -119,7 +119,7 @@ class EmptyTypeDef(lang.Final):
     name: str
 
 
-TypeDef: ta.TypeAlias = ta.Union[  # noqa
+TypeDef: ta.TypeAlias = ta.Union[  # noqa: UP007
     ObjectTypeDef,
     StringEnumTypeDef,
     DiscriminatedUnionTypeDef,

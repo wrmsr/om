@@ -8,7 +8,7 @@ from .utils import get_current_task
 ##
 
 
-BackendTask: ta.TypeAlias = ta.Union[  # noqa
+BackendTask: ta.TypeAlias = ta.Union[  # noqa: UP007
     # asyncio.tasks.Task,
     # trio.lowlevel.Task,
     ta.Any,

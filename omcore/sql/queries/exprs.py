@@ -51,7 +51,7 @@ class ParamExpr(Expr, lang.Final):
 
 CanLiteral: ta.TypeAlias = Literal | Value
 
-CanExpr: ta.TypeAlias = ta.Union[  # noqa
+CanExpr: ta.TypeAlias = ta.Union[  # noqa: UP007
     Expr,
     CanParam,
     CanName,

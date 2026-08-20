@@ -37,7 +37,7 @@ class Update(Stmt, lang.Final):
 
 CanField: ta.TypeAlias = Field | tuple[CanIdent, CanExpr]
 
-CanFields: ta.TypeAlias = ta.Union[  # noqa
+CanFields: ta.TypeAlias = ta.Union[  # noqa: UP007
     Fields,
     ta.Mapping[CanIdent, CanExpr],
     ta.Sequence[CanField],

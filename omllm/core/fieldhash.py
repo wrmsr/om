@@ -12,7 +12,7 @@ from omcore import lang
 ##
 
 
-type FieldHashValue = ta.Union[  # noqa
+type FieldHashValue = ta.Union[  # noqa: UP007
     FieldHashable,
     FieldHashObject,
     tuple[FieldHashValue, ...],

@@ -54,7 +54,7 @@ class KeywordParser:
     def __init__(
             self,
             *,
-            keyword_types: ta.Union[  # noqa
+            keyword_types: ta.Union[  # noqa: UP007
                 ta.Iterable[type[KnownKeyword]],
                 ta.Mapping[str, type[KnownKeyword]],
                 None,

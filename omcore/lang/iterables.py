@@ -196,7 +196,7 @@ def flatmap(fn: ta.Callable[[T], ta.Iterable[R]], it: ta.Iterable[T]) -> ta.Iter
 ##
 
 
-Rangeable: ta.TypeAlias = ta.Union[  # noqa
+Rangeable: ta.TypeAlias = ta.Union[  # noqa: UP007
     int,
     tuple[int],
     tuple[int, int],

@@ -14,7 +14,7 @@ with lang.auto_proxy_import(globals()):
     from . import plain
 
 
-type CanText = ta.Union[  # noqa
+type CanText = ta.Union[  # noqa: UP007
     Text,
     str,
     ta.Sequence[CanText],

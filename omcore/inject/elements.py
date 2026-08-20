@@ -42,7 +42,7 @@ class Elements(lang.Final):
         return list(self)
 
 
-Elemental: ta.TypeAlias = ta.Union[  # noqa
+Elemental: ta.TypeAlias = ta.Union[  # noqa: UP007
     Element,
     Elements,
     ElementGenerator,

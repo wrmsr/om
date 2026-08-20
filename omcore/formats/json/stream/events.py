@@ -28,7 +28,7 @@ class EndArray(lang.Marker):
     pass
 
 
-Event: ta.TypeAlias = ta.Union[  # noqa
+Event: ta.TypeAlias = ta.Union[  # noqa: UP007
     type[BeginObject],
     Key,
     type[EndObject],

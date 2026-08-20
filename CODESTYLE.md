@@ -389,6 +389,11 @@ def make_it_a_tuple(t: T) -> tuple[T]:
   explicitly at the top of the module is still the default style.
 - Always quote the type form argument passed to `ta.cast` if it is anything more complex than simple direct
   unparameterized reference.
+- While new-style `A | B` union type forms are permitted (outside of lite code) and preferable for small unions, for
+  unions of many items or unions representing things like related subclasses (like a node hierarchy) it's still often
+  preferable to use an old-style `ta.Union` so the items each be put on a separate line with a uniform trailing comma,
+  rather than an infix pipe operator that must be omitted from the last line.
+  - When this is done the first line (the one with the `ta.Union[`) must be suffixed with `# noqa: UP007` for ruff.
 
 
 ### Async

@@ -105,7 +105,7 @@ class RpcResponseRejected:
     response: RpcWireError
 
 
-RpcResponseClaim: ta.TypeAlias = ta.Union[  # noqa
+RpcResponseClaim: ta.TypeAlias = ta.Union[  # noqa: UP007
     RpcResponseExecute,
     RpcResponsePending,
     RpcResponseReplay,

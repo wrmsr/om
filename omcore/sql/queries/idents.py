@@ -53,7 +53,7 @@ def _(s: str) -> Ident:
 ##
 
 
-CanIdent: ta.TypeAlias = ta.Union[  # noqa
+CanIdent: ta.TypeAlias = ta.Union[  # noqa: UP007
     IdentLike,
     Ident,
     str,
