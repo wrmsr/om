@@ -62,6 +62,8 @@ class MinituiChatApp(mt.App):
         # The submit hook - `main` points this at the session prompt pump.
         self.on_submit: ta.Callable[[str], None] | None = None
 
+        self._refresh_status()
+
         driver.timers.call_every(.1, self._tick)
 
     ##

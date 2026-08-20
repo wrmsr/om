@@ -24,10 +24,10 @@ MODE_TEXT_MAP = {
 @dc.dataclass(frozen=True, kw_only=True)
 class VimStatus(lang.Final):
     mode: Mode
-    pending: str = ''            # keys of an in-progress normal-mode command ('"a2d' ...)
-    cmdline: str | None = None   # full command line incl. its ':'/'/'/'?' prefix, when in CMDLINE mode
-    message: str = ''            # transient message (errors, ex feedback)
-    cursor_count: int = 1        # >1 during multi-cursor (blockwise insert, add_cursor)
+    pending: str = ''           # keys of an in-progress normal-mode command ('"a2d' ...)
+    cmdline: str | None = None  # full command line incl. its ':'/'/'/'?' prefix, when in CMDLINE mode
+    message: str = ''           # transient message (errors, ex feedback)
+    cursor_count: int = 1       # >1 during multi-cursor (blockwise insert, add_cursor)
 
     @property
     def mode_text(self) -> str:
