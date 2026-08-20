@@ -16,10 +16,6 @@ class Project(ProjectBase):
             f'omdev == {__version__}',
         ],
 
-        'async': [
-            'greenlet ~= 3.5',
-        ],
-
         'ssh': [
             'paramiko ~= 5.0',  # !! LGPL
 
