@@ -60,30 +60,32 @@ class SandboxDefaults(lang.Namespace):
         '/private/var/db/dyld',  # dyld caches on older versions
     )
 
-    # Sysctl names (and '.'-terminated prefixes) that common runtimes read at startup: cpu counts and feature flags,
-    # page and memory sizes, os version. Deliberately narrow - unscoped sysctl-read also answers KERN_PROCARGS2, ie the
-    # argv *and environment* of every other same-uid process on the machine.
+    # Sysctl names (and '.'-terminated prefixes) that libSystem and common runtimes read at startup. The kern tree is
+    # kept to exact names because unscoped sysctl-read also answers KERN_PROCARGS2 - the argv *and environment* of every
+    # other same-uid process on the machine; the hw and machdep.cpu trees are pure hardware constants, identical for
+    # every process, and are allowed wholesale (libSystem reads a long, os-version-dependent tail of _compat / perflevel
+    # / optional variants from them). kern.bootargs and security.mac.lockdown_mode_state are probed by libSystem's
+    # security init on current macOS, which SIGABRTs the process if the probe is denied.
     SYSCTL_READ_NAMES: ta.Final[ta.Sequence[str]] = (
-        'hw.activecpu',
-        'hw.cpufamily',
-        'hw.cpusubtype',
-        'hw.cputype',
-        'hw.logicalcpu',
-        'hw.logicalcpu_max',
-        'hw.memsize',
-        'hw.ncpu',
-        'hw.optional.',  # arm feature flags (hw.optional.neon, ...)
-        'hw.pagesize',
-        'hw.pagesize_compat',
-        'hw.physicalcpu',
-        'hw.physicalcpu_max',
+        'hw.',
+        'kern.argmax',
+        'kern.bootargs',
+        'kern.maxfilesperproc',
         'kern.osproductversion',
         'kern.osrelease',
+        'kern.ostype',
         'kern.osvariant_status',
         'kern.osversion',
+        'kern.safeboot',
+        'kern.secure_kernel',
+        'kern.tcsm_available',
+        'kern.usrstack64',
         'kern.version',
-        'machdep.cpu.',  # x86 feature flags
-        'sysctl.proc_translated',  # rosetta check
+        'machdep.cpu.',
+        'security.mac.lockdown_mode_state',
+        'sysctl.proc_cputype',
+        'sysctl.proc_native',
+        'sysctl.proc_translated',
     )
 
 
@@ -138,7 +140,6 @@ class SandboxPolicy:
 
     allow_network: bool = False
 
-    # See SandboxDevAccess.
     dev: SandboxDevAccess = 'minimal'
 
     # Expose /proc (bwrap only; pid-namespaced, so it shows only the sandbox's own processes).

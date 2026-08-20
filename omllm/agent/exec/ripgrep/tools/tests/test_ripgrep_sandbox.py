@@ -45,9 +45,13 @@ async def test_ripgrep_passes_sandbox_option_when_enabled():
 
 @pytest.mark.skipif(shutil.which('rg') is None, reason='no ripgrep')
 @pytest.mark.asyncs('asyncio')
-async def test_ripgrep_no_sandbox_by_default():
+async def test_ripgrep_no_sandbox():
     cap = _CaptureExecOps()
-    rg = RipgrepTool(permissions=StaticPermissionDecider(PermissionState.ALLOW), exec=cap)
+    rg = RipgrepTool(
+        permissions=StaticPermissionDecider(PermissionState.ALLOW),
+        exec=cap,
+        sandbox=False,
+    )
     with tempfile.TemporaryDirectory() as td:
         async with processes.AsyncioProcessManager() as m:
             ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))

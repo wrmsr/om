@@ -760,63 +760,89 @@ def _process_dataclass__b0970e45851c1e889b0d27399f609e750cce1e3f():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('read_roots', 'write_roots', 'system_read_roots', 'allow_network', 'allow_dev', 'a"
-        "llow_proc', 'tmpfs_tmp')), EqPlan(fields=('read_roots', 'write_roots', 'system_read_roots', 'allow_network', '"
-        "allow_dev', 'allow_proc', 'tmpfs_tmp')), FrozenPlan(fields=('read_roots', 'write_roots', 'system_read_roots', "
-        "'allow_network', 'allow_dev', 'allow_proc', 'tmpfs_tmp'), allow_dynamic_dunder_attrs=False), HashPlan(action='"
-        "add', fields=('read_roots', 'write_roots', 'system_read_roots', 'allow_network', 'allow_dev', 'allow_proc', 't"
-        "mpfs_tmp'), cache=False), InitPlan(fields=(InitPlan.Field(name='read_roots', annotation=OpRef(name='init.field"
-        "s.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False"
-        ", field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0.coerce'), validate=None, check_type=None), I"
-        "nitPlan.Field(name='write_roots', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init."
-        "fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpR"
-        "ef(name='init.fields.1.coerce'), validate=None, check_type=None), InitPlan.Field(name='system_read_roots', ann"
-        "otation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=N"
-        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.2.coerce'), vali"
-        "date=None, check_type=None), InitPlan.Field(name='allow_network', annotation=OpRef(name='init.fields.3.annotat"
-        "ion'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_typ"
-        "e=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='allow_dev', annotatio"
-        "n=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
-        "n.Field(name='allow_proc', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields."
-        "5.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
-        "date=None, check_type=None), InitPlan.Field(name='tmpfs_tmp', annotation=OpRef(name='init.fields.6.annotation'"
-        "), default=OpRef(name='init.fields.6.default'), default_factory=None, init=True, override=False, field_type=Fi"
-        "eldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_par"
-        "ams=('read_roots', 'write_roots', 'system_read_roots', 'allow_network', 'allow_dev', 'allow_proc', 'tmpfs_tmp'"
-        "), frozen=True, slots=False, post_init_params=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Fie"
-        "ld(name='read_roots', kw_only=True, fn=None), ReprPlan.Field(name='write_roots', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='system_read_roots', kw_only=True, fn=None), ReprPlan.Field(name='allow_network', kw_only=True,"
-        " fn=None), ReprPlan.Field(name='allow_dev', kw_only=True, fn=None), ReprPlan.Field(name='allow_proc', kw_only="
-        "True, fn=None), ReprPlan.Field(name='tmpfs_tmp', kw_only=True, fn=None)), id=False, terse=False, default_fn=Op"
-        "Ref(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('read_roots', 'write_roots', 'system_read_roots', 'exec_paths', 'allow_fork', 'mac"
+        "h_lookup', 'sysctl_names', 'allow_network', 'dev', 'allow_proc', 'private_tmp')), EqPlan(fields=('read_roots',"
+        " 'write_roots', 'system_read_roots', 'exec_paths', 'allow_fork', 'mach_lookup', 'sysctl_names', 'allow_network"
+        "', 'dev', 'allow_proc', 'private_tmp')), FrozenPlan(fields=('read_roots', 'write_roots', 'system_read_roots', "
+        "'exec_paths', 'allow_fork', 'mach_lookup', 'sysctl_names', 'allow_network', 'dev', 'allow_proc', 'private_tmp'"
+        "), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('read_roots', 'write_roots', 'system_read"
+        "_roots', 'exec_paths', 'allow_fork', 'mach_lookup', 'sysctl_names', 'allow_network', 'dev', 'allow_proc', 'pri"
+        "vate_tmp'), cache=False), InitPlan(fields=(InitPlan.Field(name='read_roots', annotation=OpRef(name='init.field"
+        "s.00.annotation'), default=OpRef(name='init.fields.00.default'), default_factory=None, init=True, override=Fal"
+        "se, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.00.coerce'), validate=None, check_type=None)"
+        ", InitPlan.Field(name='write_roots', annotation=OpRef(name='init.fields.01.annotation'), default=OpRef(name='i"
+        "nit.fields.01.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
+        "e=OpRef(name='init.fields.01.coerce'), validate=None, check_type=None), InitPlan.Field(name='system_read_roots"
+        "', annotation=OpRef(name='init.fields.02.annotation'), default=OpRef(name='init.fields.02.default'), default_f"
+        "actory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.02.coerc"
+        "e'), validate=None, check_type=None), InitPlan.Field(name='exec_paths', annotation=OpRef(name='init.fields.03."
+        "annotation'), default=OpRef(name='init.fields.03.default'), default_factory=None, init=True, override=False, f"
+        "ield_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.03.coerce'), validate=None, check_type=None), Ini"
+        "tPlan.Field(name='allow_fork', annotation=OpRef(name='init.fields.04.annotation'), default=OpRef(name='init.fi"
+        "elds.04.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
+        ", validate=None, check_type=None), InitPlan.Field(name='mach_lookup', annotation=OpRef(name='init.fields.05.an"
+        "notation'), default=OpRef(name='init.fields.05.default'), default_factory=None, init=True, override=False, fie"
+        "ld_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.05.coerce'), validate=None, check_type=None), InitP"
+        "lan.Field(name='sysctl_names', annotation=OpRef(name='init.fields.06.annotation'), default=OpRef(name='init.fi"
+        "elds.06.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRe"
+        "f(name='init.fields.06.coerce'), validate=None, check_type=None), InitPlan.Field(name='allow_network', annotat"
+        "ion=OpRef(name='init.fields.07.annotation'), default=OpRef(name='init.fields.07.default'), default_factory=Non"
+        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Ini"
+        "tPlan.Field(name='dev', annotation=OpRef(name='init.fields.08.annotation'), default=OpRef(name='init.fields.08"
+        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
+        "ate=None, check_type=None), InitPlan.Field(name='allow_proc', annotation=OpRef(name='init.fields.09.annotation"
+        "'), default=OpRef(name='init.fields.09.default'), default_factory=None, init=True, override=False, field_type="
+        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='private_tmp', annotatio"
+        "n=OpRef(name='init.fields.10.annotation'), default=OpRef(name='init.fields.10.default'), default_factory=None,"
+        " init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self"
+        "_param='self', std_params=(), kw_only_params=('read_roots', 'write_roots', 'system_read_roots', 'exec_paths', "
+        "'allow_fork', 'mach_lookup', 'sysctl_names', 'allow_network', 'dev', 'allow_proc', 'private_tmp'), frozen=True"
+        ", slots=False, post_init_params=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='read_"
+        "roots', kw_only=True, fn=None), ReprPlan.Field(name='write_roots', kw_only=True, fn=None), ReprPlan.Field(name"
+        "='system_read_roots', kw_only=True, fn=None), ReprPlan.Field(name='exec_paths', kw_only=True, fn=None), ReprPl"
+        "an.Field(name='allow_fork', kw_only=True, fn=None), ReprPlan.Field(name='mach_lookup', kw_only=True, fn=None),"
+        " ReprPlan.Field(name='sysctl_names', kw_only=True, fn=None), ReprPlan.Field(name='allow_network', kw_only=True"
+        ", fn=None), ReprPlan.Field(name='dev', kw_only=True, fn=None), ReprPlan.Field(name='allow_proc', kw_only=True,"
+        " fn=None), ReprPlan.Field(name='private_tmp', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef"
+        "(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='0e012a6897228640134f468f15aaa62af65d895c',
+    plan_repr_sha1='51c4f658a1a04e8aaf46a6a0f4cb659684c3a8bb',
     cls_names=(
         ('omllm.core.processes.sandbox.policy', 'SandboxPolicy'),
     ),
 )
-def _process_dataclass__0e012a6897228640134f468f15aaa62af65d895c():
+def _process_dataclass__51c4f658a1a04e8aaf46a6a0f4cb659684c3a8bb():
     def _process_dataclass(
         *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__0__coerce,
-        __dataclass__init__fields__0__default,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__coerce,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__coerce,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__init__fields__4__default,
-        __dataclass__init__fields__5__annotation,
-        __dataclass__init__fields__5__default,
-        __dataclass__init__fields__6__annotation,
-        __dataclass__init__fields__6__default,
+        __dataclass__init__fields__00__annotation,
+        __dataclass__init__fields__00__coerce,
+        __dataclass__init__fields__00__default,
+        __dataclass__init__fields__01__annotation,
+        __dataclass__init__fields__01__coerce,
+        __dataclass__init__fields__01__default,
+        __dataclass__init__fields__02__annotation,
+        __dataclass__init__fields__02__coerce,
+        __dataclass__init__fields__02__default,
+        __dataclass__init__fields__03__annotation,
+        __dataclass__init__fields__03__coerce,
+        __dataclass__init__fields__03__default,
+        __dataclass__init__fields__04__annotation,
+        __dataclass__init__fields__04__default,
+        __dataclass__init__fields__05__annotation,
+        __dataclass__init__fields__05__coerce,
+        __dataclass__init__fields__05__default,
+        __dataclass__init__fields__06__annotation,
+        __dataclass__init__fields__06__coerce,
+        __dataclass__init__fields__06__default,
+        __dataclass__init__fields__07__annotation,
+        __dataclass__init__fields__07__default,
+        __dataclass__init__fields__08__annotation,
+        __dataclass__init__fields__08__default,
+        __dataclass__init__fields__09__annotation,
+        __dataclass__init__fields__09__default,
+        __dataclass__init__fields__10__annotation,
+        __dataclass__init__fields__10__default,
         __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
@@ -831,10 +857,14 @@ def _process_dataclass__0e012a6897228640134f468f15aaa62af65d895c():
                 read_roots=self.read_roots,
                 write_roots=self.write_roots,
                 system_read_roots=self.system_read_roots,
+                exec_paths=self.exec_paths,
+                allow_fork=self.allow_fork,
+                mach_lookup=self.mach_lookup,
+                sysctl_names=self.sysctl_names,
                 allow_network=self.allow_network,
-                allow_dev=self.allow_dev,
+                dev=self.dev,
                 allow_proc=self.allow_proc,
-                tmpfs_tmp=self.tmpfs_tmp,
+                private_tmp=self.private_tmp,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -848,10 +878,14 @@ def _process_dataclass__0e012a6897228640134f468f15aaa62af65d895c():
                 self.read_roots == other.read_roots and
                 self.write_roots == other.write_roots and
                 self.system_read_roots == other.system_read_roots and
+                self.exec_paths == other.exec_paths and
+                self.allow_fork == other.allow_fork and
+                self.mach_lookup == other.mach_lookup and
+                self.sysctl_names == other.sysctl_names and
                 self.allow_network == other.allow_network and
-                self.allow_dev == other.allow_dev and
+                self.dev == other.dev and
                 self.allow_proc == other.allow_proc and
-                self.tmpfs_tmp == other.tmpfs_tmp
+                self.private_tmp == other.private_tmp
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -860,10 +894,14 @@ def _process_dataclass__0e012a6897228640134f468f15aaa62af65d895c():
             'read_roots',
             'write_roots',
             'system_read_roots',
+            'exec_paths',
+            'allow_fork',
+            'mach_lookup',
+            'sysctl_names',
             'allow_network',
-            'allow_dev',
+            'dev',
             'allow_proc',
-            'tmpfs_tmp',
+            'private_tmp',
         }
 
         def __setattr__(self, name, value):
@@ -891,10 +929,14 @@ def _process_dataclass__0e012a6897228640134f468f15aaa62af65d895c():
                 self.read_roots,
                 self.write_roots,
                 self.system_read_roots,
+                self.exec_paths,
+                self.allow_fork,
+                self.mach_lookup,
+                self.sysctl_names,
                 self.allow_network,
-                self.allow_dev,
+                self.dev,
                 self.allow_proc,
-                self.tmpfs_tmp,
+                self.private_tmp,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -902,24 +944,35 @@ def _process_dataclass__0e012a6897228640134f468f15aaa62af65d895c():
         def __init__(
             self,
             *,
-            read_roots: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
-            write_roots: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            system_read_roots: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            allow_network: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            allow_dev: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            allow_proc: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            tmpfs_tmp: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            read_roots: __dataclass__init__fields__00__annotation = __dataclass__init__fields__00__default,
+            write_roots: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            system_read_roots: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            exec_paths: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            allow_fork: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            mach_lookup: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            sysctl_names: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            allow_network: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            dev: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            allow_proc: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            private_tmp: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
         ) -> __dataclass__None:
-            read_roots = __dataclass__init__fields__0__coerce(read_roots)
-            write_roots = __dataclass__init__fields__1__coerce(write_roots)
-            system_read_roots = __dataclass__init__fields__2__coerce(system_read_roots)
+            read_roots = __dataclass__init__fields__00__coerce(read_roots)
+            write_roots = __dataclass__init__fields__01__coerce(write_roots)
+            system_read_roots = __dataclass__init__fields__02__coerce(system_read_roots)
+            exec_paths = __dataclass__init__fields__03__coerce(exec_paths)
+            mach_lookup = __dataclass__init__fields__05__coerce(mach_lookup)
+            sysctl_names = __dataclass__init__fields__06__coerce(sysctl_names)
             __dataclass__object_setattr(self, 'read_roots', read_roots)
             __dataclass__object_setattr(self, 'write_roots', write_roots)
             __dataclass__object_setattr(self, 'system_read_roots', system_read_roots)
+            __dataclass__object_setattr(self, 'exec_paths', exec_paths)
+            __dataclass__object_setattr(self, 'allow_fork', allow_fork)
+            __dataclass__object_setattr(self, 'mach_lookup', mach_lookup)
+            __dataclass__object_setattr(self, 'sysctl_names', sysctl_names)
             __dataclass__object_setattr(self, 'allow_network', allow_network)
-            __dataclass__object_setattr(self, 'allow_dev', allow_dev)
+            __dataclass__object_setattr(self, 'dev', dev)
             __dataclass__object_setattr(self, 'allow_proc', allow_proc)
-            __dataclass__object_setattr(self, 'tmpfs_tmp', tmpfs_tmp)
+            __dataclass__object_setattr(self, 'private_tmp', private_tmp)
             self.__post_init__()
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -933,14 +986,134 @@ def _process_dataclass__0e012a6897228640134f468f15aaa62af65d895c():
                 parts.append(f"write_roots={s}")
             if (s := __dataclass__repr__default_fn(self.system_read_roots)) is not None:
                 parts.append(f"system_read_roots={s}")
+            if (s := __dataclass__repr__default_fn(self.exec_paths)) is not None:
+                parts.append(f"exec_paths={s}")
+            if (s := __dataclass__repr__default_fn(self.allow_fork)) is not None:
+                parts.append(f"allow_fork={s}")
+            if (s := __dataclass__repr__default_fn(self.mach_lookup)) is not None:
+                parts.append(f"mach_lookup={s}")
+            if (s := __dataclass__repr__default_fn(self.sysctl_names)) is not None:
+                parts.append(f"sysctl_names={s}")
             if (s := __dataclass__repr__default_fn(self.allow_network)) is not None:
                 parts.append(f"allow_network={s}")
-            if (s := __dataclass__repr__default_fn(self.allow_dev)) is not None:
-                parts.append(f"allow_dev={s}")
+            if (s := __dataclass__repr__default_fn(self.dev)) is not None:
+                parts.append(f"dev={s}")
             if (s := __dataclass__repr__default_fn(self.allow_proc)) is not None:
                 parts.append(f"allow_proc={s}")
-            if (s := __dataclass__repr__default_fn(self.tmpfs_tmp)) is not None:
-                parts.append(f"tmpfs_tmp={s}")
+            if (s := __dataclass__repr__default_fn(self.private_tmp)) is not None:
+                parts.append(f"private_tmp={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('profile', 'params')), EqPlan(fields=('profile', 'params')), FrozenPlan(fields=('p"
+        "rofile', 'params'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('profile', 'params'), ca"
+        "che=False), InitPlan(fields=(InitPlan.Field(name='profile', annotation=OpRef(name='init.fields.0.annotation'),"
+        " default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, va"
+        "lidate=None, check_type=None), InitPlan.Field(name='params', annotation=OpRef(name='init.fields.1.annotation')"
+        ", default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, v"
+        "alidate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('profile', 'params'), froze"
+        "n=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(nam"
+        "e='profile', kw_only=True, fn=None), ReprPlan.Field(name='params', kw_only=True, fn=None)), id=False, terse=Fa"
+        "lse, default_fn=None)))"
+    ),
+    plan_repr_sha1='b552a2229a072b3978f2076ad20c792806d037c3',
+    cls_names=(
+        ('omllm.core.processes.sandbox.seatbelt', 'SeatbeltProfile'),
+    ),
+)
+def _process_dataclass__b552a2229a072b3978f2076ad20c792806d037c3():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                profile=self.profile,
+                params=self.params,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.profile == other.profile and
+                self.params == other.params
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'profile',
+            'params',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.profile,
+                self.params,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            profile: __dataclass__init__fields__0__annotation,
+            params: __dataclass__init__fields__1__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'profile', profile)
+            __dataclass__object_setattr(self, 'params', params)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"profile={self.profile!r}")
+            parts.append(f"params={self.params!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

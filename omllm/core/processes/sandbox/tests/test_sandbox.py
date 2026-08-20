@@ -152,10 +152,11 @@ def test_sandbox_exec_profile(tmp_path):
     assert '(allow process-fork)' not in prof.profile
     assert 'mach-lookup' not in prof.profile
 
-    # Sysctl and metadata are scoped, not blanket.
+    # Sysctl and metadata are scoped, not blanket - but the root dir itself is readable (libSystem startup needs it).
     assert '(allow sysctl-read)' not in prof.profile
-    assert 'sysctl-name' in prof.profile
+    assert '(sysctl-name-prefix "hw.")' in prof.profile
     assert '(allow file-read-metadata' in prof.profile
+    assert '(allow file-read* file-test-existence (literal "/"))' in prof.profile
 
     # Writes don't get the full file* wildcard.
     assert 'file-write*' in prof.profile

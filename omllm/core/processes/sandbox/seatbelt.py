@@ -22,13 +22,11 @@ argv and env), `process-fork` and unscoped `process-exec`, and any grant on the 
 `policy.private_tmp` instead makes a fresh per-spawn directory and exports it as TMPDIR.
 
 `sandbox-exec` has carried a deprecation banner for years but remains the substrate under Chromium's, Bazel's, and
-various agent harnesses' macOS sandboxes; profiles are best iterated empirically against `log stream --style compact
---predicate 'sender == "Sandbox" OR process == "sandboxd"'`, which shows the exact denied operation and path.
+various agent harnesses' macOS sandboxes; profiles are best iterated empirically against:
 
-====
+    log stream --style compact --predicate 'sender == "Sandbox" OR process == "sandboxd"'
 
-To debug:
-  - log stream --style compact --predicate 'sender == "Sandbox" OR process == "sandboxd"'
+which shows the exact denied operation and path.
 """
 import io
 import os.path
@@ -97,6 +95,12 @@ def _sx_render_to(out: lang.SupportsWrite[str], *xs: _Sx) -> None:
         if i:
             out.write('\n')
         rec(x)
+
+
+def _sx_render(*xs: _Sx) -> str:
+    out = io.StringIO()
+    _sx_render_to(out, *xs)
+    return out.getvalue()
 
 
 ##
@@ -169,8 +173,12 @@ def build_seatbelt_profile(
 
         exec_forms = list(dict.fromkeys(f for p in exec_paths for f in _path_forms(p)))
         note_meta(exec_forms)
-        lines.append(['allow', 'process-exec', *[['literal', param('EXEC', f)] for f in exec_forms]])
-        lines.append(['allow', 'file-read*', *[['literal', param('EXEC', f)] for f in exec_forms]])
+        lines.append(['allow', 'process-exec', *[
+            ['literal', param('EXEC', f)] for f in exec_forms
+        ]])
+        lines.append(['allow', 'file-read*', *[
+            ['literal', param('EXEC', f)] for f in exec_forms
+        ]])
 
     if policy.allow_fork:
         lines.append(['allow', 'process-fork'])
@@ -180,7 +188,7 @@ def build_seatbelt_profile(
     if policy.sysctl_names == 'any':
         lines.append(['allow', 'sysctl-read'])
     elif policy.sysctl_names:
-        lines.append(['allow', 'sysctl-read', *[
+        lines.append(['allow', 'sysctl-read', *[  # type: ignore[list-item]
             ['sysctl-name-prefix' if n.endswith('.') else 'sysctl-name', _sxq(n)]
             for n in policy.sysctl_names
         ]])
@@ -188,7 +196,9 @@ def build_seatbelt_profile(
     if policy.mach_lookup == 'any':
         lines.append(['allow', 'mach-lookup'])
     elif policy.mach_lookup:
-        lines.append(['allow', 'mach-lookup', *[['global-name', _sxq(n)] for n in policy.mach_lookup]])
+        lines.append(['allow', 'mach-lookup', *[  # type: ignore[list-item]
+            ['global-name', _sxq(n)] for n in policy.mach_lookup
+        ]])
 
     # Reads.
     read_forms: list[str] = []
@@ -220,15 +230,20 @@ def build_seatbelt_profile(
         note_meta(['/dev'])
     elif policy.dev == 'minimal':
         lines.append(['allow', 'file-read*', 'file-write-data', ['literal', _sxq('/dev/null')]])
-        lines.append(['allow', 'file-read*', *[
+        lines.append(['allow', 'file-read*', *[  # type: ignore[list-item]
             ['literal', _sxq(d)] for d in ('/dev/zero', '/dev/random', '/dev/urandom')
         ]])
         note_meta(['/dev/null'])
 
+    # The root dir needs actual read, not just metadata: dyld / libSystem read "/" itself during startup (observed as a
+    # `file-read-data /` denial that classic minimal profiles all carry a grant for). A read on a directory *literal*
+    # lists only that one directory - never the contents of anything beneath it.
+    lines.append(['allow', 'file-read*', 'file-test-existence', ['literal', _sxq('/')]])
+
     # Ancestor metadata for path resolution: literal dirs only - existence / stat, never contents.
-    if meta_dirs:
+    if md := [a for a in meta_dirs if a != '/']:
         lines.append(['allow', 'file-read-metadata', 'file-test-existence', *[
-            ['literal', param('META', a)] for a in meta_dirs
+            ['literal', param('META', a)] for a in md
         ]])
 
     if policy.allow_network:
