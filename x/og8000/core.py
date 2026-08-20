@@ -28,21 +28,32 @@ import io
 import itertools
 import socket
 import struct
+import types
+import typing as ta
 
 from . import scramp
 from .converters import PG_PY_ENCODINGS
 from .converters import PG_TYPES
 from .converters import PY_TYPES
+from .converters import InAdapter
+from .converters import OutAdapter
 from .converters import make_params
 from .converters import string_in
 from .exceptions import DatabaseError
 from .exceptions import InterfaceError
 
 
+if ta.TYPE_CHECKING:
+    import ssl
+
+
+CopyStream: ta.TypeAlias = ta.IO[ta.Any] | ta.Iterable[str | bytes]
+
+
 ##
 
 
-def pack_funcs(fmt):
+def pack_funcs(fmt: str) -> tuple[ta.Callable[..., bytes], ta.Callable[..., tuple[ta.Any, ...]]]:
     struc = struct.Struct(f'!{fmt}')
     return struc.pack, struc.unpack_from
 
@@ -94,7 +105,7 @@ TERMINATE = b'X'
 CLOSE = b'C'
 
 
-def _create_message(code, data=b''):
+def _create_message(code: bytes, data: bytes = b'') -> bytes:
     return code + i_pack(len(data) + 4) + data
 
 
@@ -128,14 +139,14 @@ IN_TRANSACTION = b'T'
 IN_FAILED_TRANSACTION = b'E'
 
 
-def _flush(sock):
+def _flush(sock: io.BufferedIOBase) -> None:
     try:
         sock.flush()
     except OSError as e:
         raise InterfaceError('network error') from e
 
 
-def _read(sock, size):
+def _read(sock: io.BufferedIOBase, size: int) -> bytes:
     buff = bytearray(sock.read(size))
     try:
         while len(buff) < size:
@@ -149,7 +160,7 @@ def _read(sock, size):
     return bytes(buff)
 
 
-def _write(sock, d):
+def _write(sock: io.BufferedIOBase, d: bytes | bytearray) -> None:
     try:
         sock.write(d)
     except OSError as e:
@@ -157,15 +168,15 @@ def _write(sock, d):
 
 
 def _make_socket(
-    unix_sock,
-    orig_sock,
-    host,
-    port,
-    timeout,
-    source_address,
-    tcp_keepalive,
-    orig_ssl_context,
-):
+    unix_sock: str | None,
+    orig_sock: socket.socket | None,
+    host: str | None,
+    port: int,
+    timeout: float | None,
+    source_address: tuple[str, int] | None,
+    tcp_keepalive: bool,
+    orig_ssl_context: ssl.SSLContext | bool | None,
+) -> tuple[scramp.ChannelBinding | None, socket.socket]:
     if unix_sock is not None:
         if orig_sock is not None:
             raise InterfaceError('If unix_sock is provided, sock must be None')
@@ -201,7 +212,7 @@ def _make_socket(
     else:
         raise InterfaceError('one of host, sock or unix_sock must be provided')
 
-    channel_binding = None
+    channel_binding: scramp.ChannelBinding | None = None
     if orig_ssl_context is not False:
         try:
             import ssl
@@ -231,29 +242,36 @@ def _make_socket(
 
 
 class CoreConnection:
-    def __enter__(self):
+    _usock: socket.socket | None
+
+    def __enter__(self) -> ta.Self:
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_value: BaseException | None,
+            traceback: types.TracebackType | None,
+    ) -> None:
         self.close()
 
     def __init__(
         self,
-        user,
-        host='localhost',
-        database=None,
-        port=5432,
-        password=None,
-        source_address=None,
-        unix_sock=None,
-        ssl_context=None,
-        timeout=None,
-        tcp_keepalive=True,
-        application_name=None,
-        replication=None,
-        startup_params=None,
-        sock=None,
-    ):
+        user: str | bytes,
+        host: str | None = 'localhost',
+        database: str | bytes | None = None,
+        port: int = 5432,
+        password: str | bytes | None = None,
+        source_address: tuple[str, int] | None = None,
+        unix_sock: str | None = None,
+        ssl_context: ssl.SSLContext | bool | None = None,
+        timeout: float | None = None,
+        tcp_keepalive: bool = True,
+        application_name: str | bytes | None = None,
+        replication: str | bytes | None = None,
+        startup_params: ta.Mapping[str, str | bytes] | None = None,
+        sock: socket.socket | None = None,
+    ) -> None:
         self._client_encoding = 'utf8'
         self._commands_with_count = (
             b'INSERT',
@@ -264,14 +282,14 @@ class CoreConnection:
             b'COPY',
             b'SELECT',
         )
-        self.notifications = collections.deque(maxlen=100)
-        self.notices = collections.deque(maxlen=100)
-        self.parameter_statuses = {}
+        self.notifications: collections.deque[tuple[int, str, str]] = collections.deque(maxlen=100)
+        self.notices: collections.deque[dict[bytes, bytes]] = collections.deque(maxlen=100)
+        self.parameter_statuses: dict[str, str] = {}
 
         if user is None:
             raise InterfaceError("The 'user' connection parameter cannot be None")
 
-        init_params = {
+        init_params: dict[str, ta.Any] = {
             'user': user,
             'database': database,
             'application_name': application_name,
@@ -295,17 +313,17 @@ class CoreConnection:
             elif not isinstance(v, (bytes, bytearray)):
                 raise InterfaceError(f"The parameter {k} can't be of type {type(v)}.")
 
-        self.user = init_params['user']
+        self.user: bytes = init_params['user']
 
         if isinstance(password, str):
-            self.password = password.encode('utf8')
+            self.password: bytes | None = password.encode('utf8')
         else:
             self.password = password
 
-        self._xid = None
-        self._statement_nums = set()
+        self._xid: tuple[int, str, str] | None = None
+        self._statement_nums: set[bytes] = set()
 
-        self._caches = {}
+        self._caches: dict[ta.Any, ta.Any] = {}
 
         self.channel_binding, self._usock = _make_socket(
             unix_sock,
@@ -318,14 +336,14 @@ class CoreConnection:
             ssl_context,
         )
 
-        self._sock = self._usock.makefile(mode='rwb')
+        self._sock: io.BufferedRWPair = self._usock.makefile(mode='rwb')
 
-        self._backend_key_data = None
+        self._backend_key_data: bytes | None = None
 
-        self.pg_types = collections.defaultdict(lambda: string_in, PG_TYPES)
-        self.py_types = dict(PY_TYPES)
+        self.pg_types: collections.defaultdict[int, InAdapter] = collections.defaultdict(lambda: string_in, PG_TYPES)
+        self.py_types: dict[type, OutAdapter] = dict(PY_TYPES)
 
-        self.message_types = {
+        self.message_types: dict[bytes, ta.Callable[[bytes, Context], None]] = {
             NOTICE_RESPONSE: self.handle_NOTICE_RESPONSE,
             AUTHENTICATION_REQUEST: self.handle_AUTHENTICATION_REQUEST,
             PARAMETER_STATUS: self.handle_PARAMETER_STATUS,
@@ -365,7 +383,7 @@ class CoreConnection:
         _flush(self._sock)
 
         try:
-            code = None
+            code: bytes | None = None
             context = Context(None)
             while code not in (READY_FOR_QUERY, ERROR_RESPONSE):
                 code, data_len = ci_unpack(_read(self._sock, 5))
@@ -379,15 +397,15 @@ class CoreConnection:
             self.close()
             raise e
 
-        self._transaction_status = None
+        self._transaction_status: bytes | None = None
 
-    def register_out_adapter(self, typ, out_func):
+    def register_out_adapter(self, typ: type, out_func: OutAdapter) -> None:
         self.py_types[typ] = out_func
 
-    def register_in_adapter(self, oid, in_func):
+    def register_in_adapter(self, oid: int, in_func: InAdapter) -> None:
         self.pg_types[oid] = in_func
 
-    def handle_ERROR_RESPONSE(self, data, context):
+    def handle_ERROR_RESPONSE(self, data: bytes, context: Context) -> None:
         msg = {
             s[:1].decode('ascii'): s[1:].decode(self._client_encoding, errors='replace')
             for s in data.split(NULL_BYTE)
@@ -396,33 +414,33 @@ class CoreConnection:
 
         context.error = DatabaseError(msg)
 
-    def handle_EMPTY_QUERY_RESPONSE(self, data, context):
+    def handle_EMPTY_QUERY_RESPONSE(self, data: bytes, context: Context) -> None:
         pass
 
-    def handle_CLOSE_COMPLETE(self, data, context):
+    def handle_CLOSE_COMPLETE(self, data: bytes, context: Context) -> None:
         pass
 
-    def handle_PARSE_COMPLETE(self, data, context):
+    def handle_PARSE_COMPLETE(self, data: bytes, context: Context) -> None:
         # Byte1('1') - Identifier.
         # Int32(4) - Message length, including self.
         pass
 
-    def handle_BIND_COMPLETE(self, data, context):
+    def handle_BIND_COMPLETE(self, data: bytes, context: Context) -> None:
         pass
 
-    def handle_PORTAL_SUSPENDED(self, data, context):
+    def handle_PORTAL_SUSPENDED(self, data: bytes, context: Context) -> None:
         pass
 
-    def handle_PARAMETER_DESCRIPTION(self, data, context):
+    def handle_PARAMETER_DESCRIPTION(self, data: bytes, context: Context) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         # count = h_unpack(data)[0]
         # context.parameter_oids = unpack_from("!" + "i" * count, data, 2)
 
-    def handle_COPY_DONE(self, data, context):
+    def handle_COPY_DONE(self, data: bytes, context: Context) -> None:
         pass
 
-    def handle_COPY_OUT_RESPONSE(self, data, context):
+    def handle_COPY_OUT_RESPONSE(self, data: bytes, context: Context) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         is_binary, num_cols = bh_unpack(data)
@@ -437,18 +455,18 @@ class CoreConnection:
             else:
                 decode = codecs.getdecoder(self._client_encoding)
 
-                def w(data):
-                    context.stream.write(decode(data)[0])
+                def w(data: bytes) -> None:
+                    context.stream.write(decode(data)[0])  # type: ignore[union-attr]
 
                 context.stream_write = w
 
         else:
-            context.stream_write = context.stream.write
+            context.stream_write = context.stream.write  # type: ignore[union-attr]
 
-    def handle_COPY_DATA(self, data, context):
+    def handle_COPY_DATA(self, data: bytes, context: Context) -> None:
         context.stream_write(data)
 
-    def handle_COPY_IN_RESPONSE(self, data, context):
+    def handle_COPY_IN_RESPONSE(self, data: bytes, context: Context) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         is_binary, num_cols = bh_unpack(data)
@@ -467,16 +485,16 @@ class CoreConnection:
 
                 else:
 
-                    def ri(bffr):
+                    def ri(bffr: bytearray) -> int:
                         bffr.clear()
                         bffr.extend(
-                            context.stream.read(4096).encode(self._client_encoding),
+                            context.stream.read(4096).encode(self._client_encoding),  # type: ignore[union-attr]
                         )
                         return len(bffr)
 
                     readinto = ri
             else:
-                readinto = context.stream.readinto
+                readinto = context.stream.readinto  # type: ignore[attr-defined]
 
             bffr = bytearray(8192)
             while True:
@@ -508,7 +526,7 @@ class CoreConnection:
         _write(self._sock, SYNC_MSG)
         _flush(self._sock)
 
-    def handle_NOTIFICATION_RESPONSE(self, data, context):
+    def handle_NOTIFICATION_RESPONSE(self, data: bytes, context: Context) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         backend_pid = i_unpack(data)[0]
@@ -519,7 +537,7 @@ class CoreConnection:
 
         self.notifications.append((backend_pid, channel, payload))
 
-    def close(self):
+    def close(self) -> None:
         """Closes the database connection."""
 
         if self._usock is None:
@@ -534,10 +552,11 @@ class CoreConnection:
             except socket.error as e:
                 raise InterfaceError('network error') from e
             finally:
-                self._sock = None
+                # The AttributeError from using a None sock is relied upon to detect a closed connection.
+                self._sock = None  # type: ignore[assignment]
                 self._usock = None
 
-    def handle_AUTHENTICATION_REQUEST(self, data, context):
+    def handle_AUTHENTICATION_REQUEST(self, data: bytes, context: Context) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         auth_code = i_unpack(data)[0]
@@ -563,6 +582,7 @@ class CoreConnection:
             # AuthenticationSASL
             mechanisms = [m.decode('ascii') for m in data[4:-2].split(NULL_BYTE)]
 
+            # FIXME: self.password may be None here, which raises AttributeError rather than InterfaceError.
             self.auth = scramp.ScramClient(
                 mechanisms,
                 self.user.decode('utf8'),
@@ -595,17 +615,17 @@ class CoreConnection:
         else:
             raise InterfaceError(f'Authentication method {auth_code} not recognized by pg8000.')
 
-    def handle_READY_FOR_QUERY(self, data, context):
+    def handle_READY_FOR_QUERY(self, data: bytes, context: Context) -> None:
         self._transaction_status = data
 
-    def handle_BACKEND_KEY_DATA(self, data, context):
+    def handle_BACKEND_KEY_DATA(self, data: bytes, context: Context) -> None:
         self._backend_key_data = data
 
-    def handle_ROW_DESCRIPTION(self, data, context):
+    def handle_ROW_DESCRIPTION(self, data: bytes, context: Context) -> None:
         count = H_unpack(data)[0]
         idx = 2
-        columns = []
-        input_funcs = []
+        columns: list[dict[str, ta.Any]] = []
+        input_funcs: list[InAdapter] = []
         for i in range(count):
             name = data[idx : data.find(NULL_BYTE, idx)]
             idx += len(name) + 1
@@ -632,7 +652,7 @@ class CoreConnection:
         if context.rows is None:
             context.rows = []
 
-    def send_PARSE(self, statement_name_bin, statement, oids=()):
+    def send_PARSE(self, statement_name_bin: bytes, statement: str, oids: ta.Sequence[int] = ()) -> None:
         val = bytearray(statement_name_bin)
         val.extend(statement.encode(self._client_encoding) + NULL_BYTE)
         val.extend(H_pack(len(oids)))
@@ -642,14 +662,14 @@ class CoreConnection:
         self._send_message(PARSE, val)
         _write(self._sock, FLUSH_MSG)
 
-    def send_DESCRIBE_STATEMENT(self, statement_name_bin):
+    def send_DESCRIBE_STATEMENT(self, statement_name_bin: bytes) -> None:
         self._send_message(DESCRIBE, STATEMENT + statement_name_bin)
         _write(self._sock, FLUSH_MSG)
 
-    def send_QUERY(self, sql):
+    def send_QUERY(self, sql: str) -> None:
         self._send_message(QUERY, sql.encode(self._client_encoding) + NULL_BYTE)
 
-    def execute_simple(self, statement):
+    def execute_simple(self, statement: str) -> Context:
         context = Context(statement)
 
         self.send_QUERY(statement)
@@ -658,7 +678,13 @@ class CoreConnection:
 
         return context
 
-    def execute_unnamed(self, statement, vals=(), oids=(), stream=None):
+    def execute_unnamed(
+            self,
+            statement: str,
+            vals: ta.Iterable[ta.Any] = (),
+            oids: ta.Sequence[int] = (),
+            stream: CopyStream | None = None,
+    ) -> Context:
         context = Context(statement, stream=stream)
 
         self.send_PARSE(NULL_BYTE, statement, oids)
@@ -687,7 +713,11 @@ class CoreConnection:
 
         return context
 
-    def prepare_statement(self, statement, oids=None):
+    def prepare_statement(
+            self,
+            statement: str,
+            oids: ta.Sequence[int] | None = None,
+    ) -> tuple[bytes, ta.Sequence[ta.Mapping[str, ta.Any]] | None, ta.Sequence[InAdapter]]:
         for i in itertools.count():
             statement_name = f'pg8000_statement_{i}'
             statement_name_bin = statement_name.encode('ascii') + NULL_BYTE
@@ -695,6 +725,7 @@ class CoreConnection:
                 self._statement_nums.add(statement_name_bin)
                 break
 
+        # FIXME: the default oids=None is unusable, as send_PARSE calls len(oids).
         self.send_PARSE(statement_name_bin, statement, oids)
         self.send_DESCRIBE_STATEMENT(statement_name_bin)
         _write(self._sock, SYNC_MSG)
@@ -714,12 +745,12 @@ class CoreConnection:
 
     def execute_named(
             self,
-            statement_name_bin,
-            params,
-            columns,
-            input_funcs,
-            statement,
-    ):
+            statement_name_bin: bytes,
+            params: ta.Sequence[str | None],
+            columns: ta.Sequence[ta.Mapping[str, ta.Any]] | None,
+            input_funcs: ta.Sequence[InAdapter],
+            statement: str,
+    ) -> Context:
         context = Context(columns=columns, input_funcs=input_funcs, statement=statement)
 
         self.send_BIND(statement_name_bin, params)
@@ -729,7 +760,7 @@ class CoreConnection:
         self.handle_messages(context)
         return context
 
-    def _send_message(self, code, data):
+    def _send_message(self, code: bytes, data: bytes | bytearray) -> None:
         buff = bytearray(code)
         buff.extend(i_pack(len(data) + 4))
         buff.extend(data)
@@ -743,7 +774,7 @@ class CoreConnection:
         except AttributeError:
             raise InterfaceError('connection is closed')
 
-    def send_BIND(self, statement_name_bin, params):
+    def send_BIND(self, statement_name_bin: bytes, params: ta.Sequence[str | None]) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         retval = bytearray(
@@ -765,18 +796,18 @@ class CoreConnection:
         self._send_message(BIND, retval)
         _write(self._sock, FLUSH_MSG)
 
-    def send_EXECUTE(self):
+    def send_EXECUTE(self) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         _write(self._sock, EXECUTE_MSG)
         _write(self._sock, FLUSH_MSG)
 
-    def handle_NO_DATA(self, msg, context):
+    def handle_NO_DATA(self, msg: bytes, context: Context) -> None:
         pass
 
-    def handle_COMMAND_COMPLETE(self, data, context):
+    def handle_COMMAND_COMPLETE(self, data: bytes, context: Context) -> None:
         if self._transaction_status == IN_FAILED_TRANSACTION and context.error is None:
-            sql = context.statement.split()[0].rstrip(';').upper()
+            sql = context.statement.split()[0].rstrip(';').upper()  # type: ignore[union-attr]
             if sql != 'ROLLBACK':
                 context.error = InterfaceError('in failed transaction block')
 
@@ -790,9 +821,9 @@ class CoreConnection:
         except ValueError:
             pass
 
-    def handle_DATA_ROW(self, data, context):
+    def handle_DATA_ROW(self, data: bytes, context: Context) -> None:
         idx = 2
-        row = []
+        row: list[ta.Any] = []
         for func in context.input_funcs:
             vlen = i_unpack(data, idx)[0]
             idx += 4
@@ -802,10 +833,10 @@ class CoreConnection:
                 v = func(str(data[idx : idx + vlen], encoding=self._client_encoding))
                 idx += vlen
             row.append(v)
-        context.rows.append(row)
+        context.rows.append(row)  # type: ignore[union-attr]
 
-    def handle_messages(self, context):
-        code = None
+    def handle_messages(self, context: Context) -> None:
+        code: bytes | None = None
 
         while code != READY_FOR_QUERY:
             code, data_len = ci_unpack(_read(self._sock, 5))
@@ -815,7 +846,7 @@ class CoreConnection:
         if context.error is not None:
             raise context.error
 
-    def close_prepared_statement(self, statement_name_bin):
+    def close_prepared_statement(self, statement_name_bin: bytes) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         self._send_message(CLOSE, STATEMENT + statement_name_bin)
@@ -826,12 +857,12 @@ class CoreConnection:
         self.handle_messages(context)
         self._statement_nums.remove(statement_name_bin)
 
-    def handle_NOTICE_RESPONSE(self, data, context):
+    def handle_NOTICE_RESPONSE(self, data: bytes, context: Context) -> None:
         """https://www.postgresql.org/docs/current/protocol-message-formats.html"""
 
         self.notices.append({s[0:1]: s[1:] for s in data.split(NULL_BYTE)})
 
-    def handle_PARAMETER_STATUS(self, data, context):
+    def handle_PARAMETER_STATUS(self, data: bytes, context: Context) -> None:
         pos = data.find(NULL_BYTE)
         key, value = data[:pos].decode('ascii'), data[pos + 1 : -1].decode(
             self._client_encoding,
@@ -839,6 +870,7 @@ class CoreConnection:
         self.parameter_statuses[key] = value
         if key == 'client_encoding':
             encoding = value.lower()
+            # FIXME: PG_PY_ENCODINGS maps unsupported encodings to None, which is stored here and fails on later use.
             self._client_encoding = PG_PY_ENCODINGS.get(encoding, encoding)
 
         elif key == 'integer_datetimes':
@@ -853,11 +885,19 @@ class CoreConnection:
 
 
 class Context:
-    def __init__(self, statement, stream=None, columns=None, input_funcs=None):
+    stream_write: ta.Callable[[bytes], ta.Any]
+
+    def __init__(
+            self,
+            statement: str | None,
+            stream: CopyStream | None = None,
+            columns: ta.Sequence[ta.Mapping[str, ta.Any]] | None = None,
+            input_funcs: ta.Sequence[InAdapter] | None = None,
+    ) -> None:
         self.statement = statement
-        self.rows = None if columns is None else []
+        self.rows: list[list[ta.Any]] | None = None if columns is None else []
         self.row_count = -1
         self.columns = columns
         self.stream = stream
-        self.input_funcs = [] if input_funcs is None else input_funcs
-        self.error = None
+        self.input_funcs: ta.Sequence[InAdapter] = [] if input_funcs is None else input_funcs
+        self.error: Exception | None = None

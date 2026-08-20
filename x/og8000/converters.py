@@ -22,6 +22,7 @@
 #
 # Original Author: Mathieu Fenniak
 import datetime
+import typing as ta
 from datetime import date as Date
 from datetime import datetime as Datetime
 from datetime import time as Time
@@ -43,6 +44,14 @@ from uuid import UUID
 from .exceptions import InterfaceError
 from .types import PGInterval
 from .types import Range
+
+
+T = ta.TypeVar('T')
+
+InAdapter: ta.TypeAlias = ta.Callable[[str], ta.Any]
+OutAdapter: ta.TypeAlias = ta.Callable[[ta.Any], str | None]
+
+IpAddressOrNetwork: ta.TypeAlias = IPv4Address | IPv6Address | IPv4Network | IPv6Network
 
 
 ##
@@ -139,31 +148,31 @@ MIN_INT4, MAX_INT4 = -(2**31), 2**31
 MIN_INT8, MAX_INT8 = -(2**63), 2**63
 
 
-def bool_in(data):
+def bool_in(data: str) -> bool:
     return data == 't'
 
 
-def bool_out(v):
+def bool_out(v: bool) -> str:
     return 'true' if v else 'false'
 
 
-def bytes_in(data):
+def bytes_in(data: str) -> bytes:
     return bytes.fromhex(data[2:])
 
 
-def bytes_out(v):
+def bytes_out(v: bytes | bytearray) -> str:
     return '\\x' + v.hex()
 
 
-def cidr_out(v):
+def cidr_out(v: IpAddressOrNetwork) -> str:
     return str(v)
 
 
-def cidr_in(data):
+def cidr_in(data: str) -> IpAddressOrNetwork:
     return ip_network(data, False) if '/' in data else ip_address(data)
 
 
-def date_in(data):
+def date_in(data: str) -> Date | str:
     if data in ('infinity', '-infinity'):
         return data
     else:
@@ -174,42 +183,42 @@ def date_in(data):
             return data
 
 
-def date_out(v):
+def date_out(v: Date) -> str:
     return v.isoformat()
 
 
-def datetime_out(v):
+def datetime_out(v: Datetime) -> str:
     if v.tzinfo is None:
         return v.isoformat()
     else:
         return v.astimezone(Timezone.utc).isoformat()
 
 
-def enum_out(v):
+def enum_out(v: Enum) -> str:
     return str(v.value)
 
 
-def float_out(v):
+def float_out(v: float) -> str:
     return str(v)
 
 
-def inet_in(data):
+def inet_in(data: str) -> IpAddressOrNetwork:
     return ip_network(data, False) if '/' in data else ip_address(data)
 
 
-def inet_out(v):
+def inet_out(v: IpAddressOrNetwork) -> str:
     return str(v)
 
 
-def int_in(data):
+def int_in(data: str) -> int:
     return int(data)
 
 
-def int_out(v):
+def int_out(v: int) -> str:
     return str(v)
 
 
-def interval_in(data):
+def interval_in(data: str) -> Timedelta | PGInterval:
     pg_interval = PGInterval.from_str(data)
     try:
         return pg_interval.to_timedelta()
@@ -217,43 +226,43 @@ def interval_in(data):
         return pg_interval
 
 
-def interval_out(v):
+def interval_out(v: Timedelta) -> str:
     return f'{v.days} days {v.seconds} seconds {v.microseconds} microseconds'
 
 
-def json_in(data):
+def json_in(data: str) -> ta.Any:
     return loads(data)
 
 
-def json_out(v):
+def json_out(v: ta.Any) -> str:
     return dumps(v)
 
 
-def null_out(v):
+def null_out(v: None) -> None:
     return None
 
 
-def numeric_in(data):
+def numeric_in(data: str) -> Decimal:
     return Decimal(data)
 
 
-def numeric_out(d):
+def numeric_out(d: Decimal) -> str:
     return str(d)
 
 
-def point_in(data):
+def point_in(data: str) -> tuple[float, ...]:
     return tuple(map(float, data[1:-1].split(',')))
 
 
-def pg_interval_in(data):
+def pg_interval_in(data: str) -> PGInterval:
     return PGInterval.from_str(data)
 
 
-def pg_interval_out(v):
+def pg_interval_out(v: PGInterval) -> str:
     return str(v)
 
 
-def range_out(v):
+def range_out(v: Range[ta.Any]) -> str:
     if v.is_empty:
         return 'empty'
     else:
@@ -264,24 +273,24 @@ def range_out(v):
         return f'{v.bounds[0]}{val_lower},{val_upper}{v.bounds[1]}'
 
 
-def string_in(data):
+def string_in(data: str) -> str:
     return data
 
 
-def string_out(v):
+def string_out(v: str) -> str:
     return v
 
 
-def time_in(data):
+def time_in(data: str) -> Time:
     pattern = '%H:%M:%S.%f' if '.' in data else '%H:%M:%S'
     return Datetime.strptime(data, pattern).time()
 
 
-def time_out(v):
+def time_out(v: Time) -> str:
     return v.isoformat()
 
 
-def timestamp_in(data):
+def timestamp_in(data: str) -> Datetime | str:
     if data in ('infinity', '-infinity'):
         return data
     try:
@@ -290,28 +299,28 @@ def timestamp_in(data):
         return data
 
 
-def timestamptz_in(data):
+def timestamptz_in(data: str) -> Datetime | str:
     return timestamp_in(data)
 
 
-def unknown_out(v):
+def unknown_out(v: ta.Any) -> str:
     return str(v)
 
 
-def vector_in(data):
+def vector_in(data: str) -> list[int]:
     return [int(v) for v in data.split()]
 
 
-def uuid_out(v):
+def uuid_out(v: UUID) -> str:
     return str(v)
 
 
-def uuid_in(data):
+def uuid_in(data: str) -> UUID:
     return UUID(data)
 
 
-def _range_in(elem_func):
-    def range_in(data):
+def _range_in(elem_func: ta.Callable[[str], T]) -> ta.Callable[[str], Range[T]]:
+    def range_in(data: str) -> Range[T]:
         if data == 'empty':
             return Range(is_empty=True)
         else:
@@ -327,11 +336,11 @@ int8range_in = _range_in(int)
 numrange_in = _range_in(Decimal)
 
 
-def ts_in(data):
+def ts_in(data: str) -> Datetime | str:
     return timestamp_in(data[1:-1])
 
 
-def tstz_in(data):
+def tstz_in(data: str) -> Datetime | str:
     return timestamptz_in(data[1:-1])
 
 
@@ -339,11 +348,11 @@ tsrange_in = _range_in(ts_in)
 tstzrange_in = _range_in(tstz_in)
 
 
-def _multirange_in(adapter):
-    def f(data):
+def _multirange_in(adapter: ta.Callable[[str], T]) -> ta.Callable[[str], list[T]]:
+    def f(data: str) -> list[T]:
         in_range = False
-        result = []
-        val = []
+        result: list[T] = []
+        val: list[str] = []
         for c in data:
             if in_range:
                 val.append(c)
@@ -376,10 +385,10 @@ class ParserState(Enum):
     Out = 4
 
 
-def _parse_array(data, adapter):
+def _parse_array(data: str, adapter: InAdapter) -> list[ta.Any]:
     state = ParserState.Out
-    stack = [[]]
-    val = []
+    stack: list[list[ta.Any]] = [[]]
+    val: list[str] = []
     for c in data:
         if state == ParserState.InValue:
             if c in ('}', ','):
@@ -391,7 +400,7 @@ def _parse_array(data, adapter):
 
         if state == ParserState.Out:
             if c == '{':
-                a = []
+                a: list[ta.Any] = []
                 stack[-1].append(a)
                 stack.append(a)
             elif c == '}':
@@ -420,8 +429,8 @@ def _parse_array(data, adapter):
     return stack[0][0]
 
 
-def _array_in(adapter):
-    def f(data):
+def _array_in(adapter: InAdapter) -> ta.Callable[[str], list[ta.Any]]:
+    def f(data: str) -> list[ta.Any]:
         return _parse_array(data, adapter)
 
     return f
@@ -456,8 +465,8 @@ tstzrange_array_in = _array_in(tstzrange_in)
 uuid_array_in = _array_in(uuid_in)
 
 
-def array_string_escape(v):
-    cs = []
+def array_string_escape(v: str) -> str:
+    cs: list[str] = []
     for c in v:
         if c == '\\':
             cs.append('\\')
@@ -476,63 +485,63 @@ def array_string_escape(v):
 
 
 @singledispatch
-def array_out(val):
-    return make_param(PY_TYPES, val)
+def array_out(val: ta.Any) -> str:
+    return make_param(PY_TYPES, val)  # type: ignore[return-value]
 
 
 @array_out.register
-def _(val: list):
+def _(val: list) -> str:
     result = [array_out(v) for v in val]
     return f'{{{",".join(result)}}}'
 
 
 @array_out.register
-def _(val: tuple):
+def _(val: tuple) -> str:
     return f'"{composite_out(val)}"'
 
 
 @array_out.register
-def _(val: None):
+def _(val: None) -> str:
     return 'NULL'
 
 
 @array_out.register
-def _(val: dict):
+def _(val: dict) -> str:
     return array_string_escape(json_out(val))
 
 
 @array_out.register(bytes)
 @array_out.register(bytearray)
-def _(val):
+def _(val: bytes | bytearray) -> str:
     return f'"\\{bytes_out(val)}"'
 
 
 @array_out.register
-def _(val: str):
+def _(val: str) -> str:
     return array_string_escape(val)
 
 
 @singledispatch
-def composite_out(val):
+def composite_out(val: ta.Any) -> str:
     return array_out(val)
 
 
 @composite_out.register
-def _(val: tuple):
+def _(val: tuple) -> str:
     result = [composite_out(v) for v in val]
 
     return f'({",".join(result)})'
 
 
 @composite_out.register
-def _(val: None):
+def _(val: None) -> str:
     return ''
 
 
-def record_in(data):
+def record_in(data: str) -> tuple[str | None, ...]:
     state = ParserState.Out
-    results = []
-    val = []
+    results: list[str | None] = []
+    val: list[str] = []
     for c in data:
         if state == ParserState.InValue:
             if c in (')', ','):
@@ -569,7 +578,7 @@ def record_in(data):
     return tuple(results)
 
 
-PY_PG = {
+PY_PG: dict[type, int] = {
     Date: DATE,
     Decimal: NUMERIC,
     IPv4Address: INET,
@@ -590,7 +599,7 @@ PY_PG = {
 }
 
 
-PY_TYPES = {
+PY_TYPES: dict[type, OutAdapter] = {
     Date: date_out,  # date
     Datetime: datetime_out,
     Decimal: numeric_out,  # numeric
@@ -599,6 +608,8 @@ PY_TYPES = {
     IPv6Address: inet_out,  # inet
     IPv4Network: inet_out,  # inet
     IPv6Network: inet_out,  # inet
+    # FIXME: interval_out expects a timedelta, so a PGInterval with fields left as None renders as 'None days ...'.
+    # pg_interval_out exists for this type.
     PGInterval: interval_out,  # interval
     Range: range_out,  # range types
     Time: time_out,  # time
@@ -617,7 +628,7 @@ PY_TYPES = {
 }
 
 
-PG_TYPES = {
+PG_TYPES: dict[int, InAdapter] = {
     BIGINT: int,  # int8
     BIGINT_ARRAY: int_array_in,  # int8[]
     BOOLEAN: bool_in,  # bool
@@ -707,7 +718,7 @@ PG_TYPES = {
 #
 # Commented out encodings don't require a name change between PostgreSQL and
 # Python. If the py side is None, then the encoding isn't supported.
-PG_PY_ENCODINGS = {
+PG_PY_ENCODINGS: dict[str, str | None] = {
     # Not supported:
     'mule_internal': None,
     'euc_tw': None,
@@ -754,7 +765,8 @@ PG_PY_ENCODINGS = {
 }
 
 
-def make_param(py_types, value):
+def make_param(py_types: ta.Mapping[type, OutAdapter], value: ta.Any) -> str | None:
+    func: OutAdapter
     try:
         func = py_types[type(value)]
     except KeyError:
@@ -770,11 +782,11 @@ def make_param(py_types, value):
     return func(value)
 
 
-def make_params(py_types, values):
+def make_params(py_types: ta.Mapping[type, OutAdapter], values: ta.Iterable[ta.Any]) -> tuple[str | None, ...]:
     return tuple([make_param(py_types, v) for v in values])
 
 
-def identifier(sql):
+def identifier(sql: str) -> str:
     if not isinstance(sql, str):
         raise InterfaceError('identifier must be a str')
 
@@ -789,54 +801,54 @@ def identifier(sql):
 
 
 @singledispatch
-def literal(value):
+def literal(value: ta.Any) -> str:
     val = str(value).replace("'", "''")
     return f"'{val}'"
 
 
 @literal.register
-def _(value: None):
+def _(value: None) -> str:
     return 'NULL'
 
 
 @literal.register
-def _(value: bool):
+def _(value: bool) -> str:
     return 'TRUE' if value else 'FALSE'
 
 
 @literal.register(int)
 @literal.register(float)
 @literal.register(Decimal)
-def _(value):
+def _(value: float | Decimal) -> str:
     return str(value)
 
 
 @literal.register(bytes)
 @literal.register(bytearray)
-def _(value):
+def _(value: bytes | bytearray) -> str:
     return f"X'{value.hex()}'"
 
 
 @literal.register
-def _(value: Datetime):
+def _(value: Datetime) -> str:
     return f"'{datetime_out(value)}'"
 
 
 @literal.register
-def _(value: Date):
+def _(value: Date) -> str:
     return f"'{date_out(value)}'"
 
 
 @literal.register
-def _(value: Time):
+def _(value: Time) -> str:
     return f"'{time_out(value)}'"
 
 
 @literal.register
-def _(value: Timedelta):
+def _(value: Timedelta) -> str:
     return f"'{interval_out(value)}'"
 
 
 @literal.register
-def _(value: list):
+def _(value: list) -> str:
     return f'{literal(array_out(value))}'

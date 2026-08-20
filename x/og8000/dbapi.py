@@ -21,6 +21,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Original Author: Mathieu Fenniak
+import socket
+import typing as ta
 from datetime import date as Date
 from datetime import datetime as Datetime
 from datetime import time as Time
@@ -35,10 +37,22 @@ from .converters import UNKNOWN
 from .core import IN_FAILED_TRANSACTION
 from .core import IN_TRANSACTION
 from .core import Context
+from .core import CopyStream
 from .core import CoreConnection
 from .exceptions import DatabaseError
 from .exceptions import Error
 from .exceptions import InterfaceError
+
+
+if ta.TYPE_CHECKING:
+    import ssl
+
+
+ExceptionT = ta.TypeVar('ExceptionT', bound=Exception)
+
+QueryArgs: ta.TypeAlias = ta.Sequence[ta.Any] | ta.Mapping[str, ta.Any]
+
+Xid: ta.TypeAlias = tuple[int, str, str]
 
 
 ##
@@ -56,7 +70,7 @@ paramstyle = 'format'
 BINARY = bytes
 
 
-def PgDate(year, month, day):
+def PgDate(year: int, month: int, day: int) -> Date:
     """
     Construct an object holding a date value.
 
@@ -68,7 +82,7 @@ def PgDate(year, month, day):
     return Date(year, month, day)
 
 
-def PgTime(hour, minute, second):
+def PgTime(hour: int, minute: int, second: int) -> Time:
     """
     Construct an object holding a time value.
 
@@ -80,7 +94,7 @@ def PgTime(hour, minute, second):
     return Time(hour, minute, second)
 
 
-def Timestamp(year, month, day, hour, minute, second):
+def Timestamp(year: int, month: int, day: int, hour: int, minute: int, second: int) -> Datetime:
     """
     Construct an object holding a timestamp value.
 
@@ -92,7 +106,7 @@ def Timestamp(year, month, day, hour, minute, second):
     return Datetime(year, month, day, hour, minute, second)
 
 
-def DateFromTicks(ticks):
+def DateFromTicks(ticks: float) -> Date:
     """
     Construct an object holding a date value from the given ticks value
     (number of seconds since the epoch).
@@ -106,7 +120,7 @@ def DateFromTicks(ticks):
     return Date(*localtime(ticks)[:3])
 
 
-def TimeFromTicks(ticks):
+def TimeFromTicks(ticks: float) -> Time:
     """
     Construct an object holding a time value from the given ticks value
     (number of seconds since the epoch).
@@ -120,7 +134,7 @@ def TimeFromTicks(ticks):
     return Time(*localtime(ticks)[3:6])
 
 
-def TimestampFromTicks(ticks):
+def TimestampFromTicks(ticks: float) -> Datetime:
     """
     Construct an object holding a timestamp value from the given ticks value
     (number of seconds since the epoch).
@@ -134,7 +148,7 @@ def TimestampFromTicks(ticks):
     return Timestamp(*localtime(ticks)[:6])
 
 
-def Binary(value):
+def Binary(value: bytes) -> bytes:
     """
     Construct an object holding binary data.
 
@@ -146,21 +160,21 @@ def Binary(value):
 
 
 def connect(
-    user,
-    host='localhost',
-    database=None,
-    port=5432,
-    password=None,
-    source_address=None,
-    unix_sock=None,
-    ssl_context=None,
-    timeout=None,
-    tcp_keepalive=True,
-    application_name=None,
-    replication=None,
-    startup_params=None,
-    sock=None,
-):
+    user: str | bytes,
+    host: str | None = 'localhost',
+    database: str | bytes | None = None,
+    port: int = 5432,
+    password: str | bytes | None = None,
+    source_address: tuple[str, int] | None = None,
+    unix_sock: str | None = None,
+    ssl_context: ssl.SSLContext | bool | None = None,
+    timeout: float | None = None,
+    tcp_keepalive: bool = True,
+    application_name: str | bytes | None = None,
+    replication: str | bytes | None = None,
+    startup_params: ta.Mapping[str, str | bytes] | None = None,
+    sock: socket.socket | None = None,
+) -> Connection:
     return Connection(
         user,
         host=host,
@@ -179,7 +193,7 @@ def connect(
     )
 
 
-def convert_paramstyle(style, query, args):
+def convert_paramstyle(style: str, query: str, args: QueryArgs) -> tuple[str, QueryArgs]:
     # I don't see any way to avoid scanning the query string char by char,
     # so we might as well take that careful approach and create a
     # state-based scanner. We'll use int variables for the state.
@@ -193,11 +207,11 @@ def convert_paramstyle(style, query, args):
 
     in_quote_escape = False
     in_param_escape = False
-    placeholders = []
-    output_query = []
+    placeholders: list[str] = []
+    output_query: list[str] = []
     param_idx = map(lambda x: '$' + str(x), count(1))
     state = OUTSIDE
-    prev_c = None
+    prev_c: str | None = None
 
     for i, c in enumerate(query):
         next_c = query[i + 1] if i + 1 < len(query) else None
@@ -227,6 +241,7 @@ def convert_paramstyle(style, query, args):
             elif style == 'qmark' and c == '?':
                 output_query.append(next(param_idx))
 
+            # FIXME: next_c is None when the query ends with ':', which raises TypeError here.
             elif (
                 style == 'numeric' and
                 c == ':' and
@@ -237,6 +252,7 @@ def convert_paramstyle(style, query, args):
                 # Needed to properly process type conversions i.e. sum(x)::float
                 output_query.append('$')
 
+            # FIXME: next_c is None when the query ends with ':', which raises TypeError here.
             elif style == 'named' and c == ':' and next_c not in ':=' and prev_c != ':':
                 # Same logic for : as in numeric parameters
                 state = INSIDE_PN
@@ -331,28 +347,28 @@ def convert_paramstyle(style, query, args):
     if style in ('numeric', 'qmark', 'format'):
         vals = args
     else:
-        vals = tuple(args[p] for p in placeholders)
+        vals = tuple(args[p] for p in placeholders)  # type: ignore[call-overload]
 
     return ''.join(output_query), vals
 
 
 class Cursor:
-    def __init__(self, connection):
+    def __init__(self, connection: Connection) -> None:
         self._c = connection
         self.arraysize = 1
 
-        self._context = None
-        self._row_iter = None
+        self._context: Context | None = None
+        self._row_iter: ta.Iterator[list[ta.Any]] | None = None
 
-        self._input_oids = ()
+        self._input_oids: ta.Sequence[int] = ()
 
     @property
-    def connection(self):
+    def connection(self) -> Connection:
         warn('DB-API extension cursor.connection used', stacklevel=3)
         return self._c
 
     @property
-    def rowcount(self):
+    def rowcount(self) -> int:
         context = self._context
         if context is None:
             return -1
@@ -360,7 +376,7 @@ class Cursor:
         return context.row_count
 
     @property
-    def description(self):
+    def description(self) -> list[tuple[str, int, None, None, None, None, None]] | None:
         context = self._context
         if context is None:
             return None
@@ -370,14 +386,14 @@ class Cursor:
             return None
         if len(row_desc) == 0:
             return None
-        columns = []
+        columns: list[tuple[str, int, None, None, None, None, None]] = []
         for col in row_desc:
             columns.append((col['name'], col['type_oid'], None, None, None, None, None))
         return columns
 
     # Executes a database operation. Parameters may be provided as a sequence or mapping and will be bound to variables
     # in the operation.
-    def execute(self, operation, args=(), stream=None):
+    def execute(self, operation: str, args: QueryArgs = (), stream: CopyStream | None = None) -> None:
         """
         Executes a database operation. Parameters may be provided as a sequence, or as a mapping, depending upon the
         value of :data:`pg8000.paramstyle`.
@@ -425,9 +441,9 @@ class Cursor:
             else:
                 raise e
 
-        self.input_types = []
+        self.input_types: list[ta.Any] = []
 
-    def executemany(self, operation, param_sets):
+    def executemany(self, operation: str, param_sets: ta.Iterable[QueryArgs]) -> None:
         """
         Prepare a database operation, and then execute it against all
         parameter sequences or mappings provided.
@@ -443,21 +459,21 @@ class Cursor:
             same as the args argument of the :meth:`execute` method.
         """
 
-        rowcounts = []
+        rowcounts: list[int] = []
         input_oids = self._input_oids
         for parameters in param_sets:
             self._input_oids = input_oids
             self.execute(operation, parameters)
-            rowcounts.append(self._context.row_count)
+            rowcounts.append(self._context.row_count)  # type: ignore[union-attr]
 
         if len(rowcounts) == 0:
             self._context = Context(None)
         elif -1 in rowcounts:
-            self._context.row_count = -1
+            self._context.row_count = -1  # type: ignore[union-attr]
         else:
-            self._context.row_count = sum(rowcounts)
+            self._context.row_count = sum(rowcounts)  # type: ignore[union-attr]
 
-    def callproc(self, procname, parameters=None):
+    def callproc(self, procname: str, parameters: ta.Sequence[ta.Any] | None = None) -> None:
         args = [] if parameters is None else parameters
         operation = f'CALL {procname}(' + ', '.join(['%s' for _ in args]) + ')'
 
@@ -479,7 +495,7 @@ class Cursor:
             else:
                 raise e
 
-    def fetchone(self):
+    def fetchone(self) -> list[ta.Any] | None:
         """
         Fetch the next row of a query result set.
 
@@ -498,7 +514,7 @@ class Cursor:
         except TypeError:
             raise ProgrammingError('attempting to use unexecuted cursor')
 
-    def __iter__(self):
+    def __iter__(self) -> ta.Self:
         """
         A cursor object is iterable to retrieve the rows from a query.
 
@@ -507,9 +523,9 @@ class Cursor:
 
         return self
 
-    def __next__(self):
+    def __next__(self) -> list[ta.Any]:
         try:
-            return next(self._row_iter)
+            return next(self._row_iter)  # type: ignore[arg-type]
         except AttributeError:
             if self._context is None:
                 raise ProgrammingError("A query hasn't been issued.")
@@ -518,12 +534,12 @@ class Cursor:
         except StopIteration as e:
             if self._context is None:
                 raise ProgrammingError("A query hasn't been issued.")
-            elif len(self._context.columns) == 0:
+            elif len(self._context.columns) == 0:  # type: ignore[arg-type]
                 raise ProgrammingError('no result set')
             else:
                 raise e
 
-    def fetchmany(self, num=None):
+    def fetchmany(self, num: int | None = None) -> tuple[list[ta.Any], ...]:
         """
         Fetches the next set of rows of a query result.
 
@@ -547,7 +563,7 @@ class Cursor:
         except TypeError:
             raise ProgrammingError('attempting to use unexecuted cursor')
 
-    def fetchall(self):
+    def fetchall(self) -> tuple[list[ta.Any], ...]:
         """
         Fetches all remaining rows of a query result.
 
@@ -565,7 +581,7 @@ class Cursor:
         except TypeError:
             raise ProgrammingError('attempting to use unexecuted cursor')
 
-    def close(self):
+    def close(self) -> None:
         """
         Closes the cursor.
 
@@ -573,12 +589,13 @@ class Cursor:
         <http://www.python.org/dev/peps/pep-0249/>`_.
         """
 
-        self._c = None
+        # The AttributeError from using a None connection is relied upon to detect a closed cursor.
+        self._c = None  # type: ignore[assignment]
 
-    def setinputsizes(self, *sizes):
+    def setinputsizes(self, *sizes: int | type) -> None:
         """This method is part of the `DBAPI 2.0 specification"""
 
-        oids = []
+        oids: list[int] = []
         for size in sizes:
             if isinstance(size, int):
                 oid = size
@@ -591,7 +608,7 @@ class Cursor:
 
         self._input_oids = oids
 
-    def setoutputsize(self, size, column=None):
+    def setoutputsize(self, size: int, column: int | None = None) -> None:
         """
         This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_, however, it is not
@@ -602,7 +619,7 @@ class Cursor:
 
 
 class Connection(CoreConnection):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: ta.Any, **kwargs: ta.Any) -> None:
         super().__init__(*args, **kwargs)
         self.autocommit = False
 
@@ -617,15 +634,15 @@ class Connection(CoreConnection):
     ProgrammingError = property(lambda self: self._getError(ProgrammingError))
     NotSupportedError = property(lambda self: self._getError(NotSupportedError))
 
-    def _getError(self, error):
+    def _getError(self, error: type[ExceptionT]) -> type[ExceptionT]:
         warn(f'DB-API extension connection.{error.__name__} used', stacklevel=3)
         return error
 
     @property
-    def _in_transaction(self):
+    def _in_transaction(self) -> bool:
         return self._transaction_status in (IN_TRANSACTION, IN_FAILED_TRANSACTION)
 
-    def cursor(self):
+    def cursor(self) -> Cursor:
         """
         Creates a :class:`Cursor` object bound to this
         connection.
@@ -636,7 +653,7 @@ class Connection(CoreConnection):
 
         return Cursor(self)
 
-    def commit(self):
+    def commit(self) -> None:
         """
         Commits the current database transaction.
 
@@ -646,7 +663,7 @@ class Connection(CoreConnection):
 
         self.execute_unnamed('commit')
 
-    def rollback(self):
+    def rollback(self) -> None:
         """
         Rolls back the current database transaction.
 
@@ -658,7 +675,7 @@ class Connection(CoreConnection):
             return
         self.execute_unnamed('rollback')
 
-    def xid(self, format_id, global_transaction_id, branch_qualifier):
+    def xid(self, format_id: int, global_transaction_id: str, branch_qualifier: str) -> Xid:
         """
         Create a Transaction IDs (only global_transaction_id is used in pg)
         format_id and branch_qualifier are not used in postgres
@@ -669,7 +686,7 @@ class Connection(CoreConnection):
 
         return (format_id, global_transaction_id, branch_qualifier)
 
-    def tpc_begin(self, xid):
+    def tpc_begin(self, xid: Xid) -> None:
         """
         Begins a TPC transaction with the given transaction ID xid.
 
@@ -688,7 +705,7 @@ class Connection(CoreConnection):
         if self.autocommit:
             self.execute_unnamed('begin transaction')
 
-    def tpc_prepare(self):
+    def tpc_prepare(self) -> None:
         """
         Performs the first phase of a transaction started with .tpc_begin().
         A ProgrammingError is be raised if this method is called outside of a
@@ -701,9 +718,9 @@ class Connection(CoreConnection):
         <http://www.python.org/dev/peps/pep-0249/>`_.
         """
 
-        self.execute_unnamed("PREPARE TRANSACTION '%s';" % (self._xid[1],))
+        self.execute_unnamed("PREPARE TRANSACTION '%s';" % (self._xid[1],))  # type: ignore[index]
 
-    def tpc_commit(self, xid=None):
+    def tpc_commit(self, xid: Xid | None = None) -> None:
         """
         When called with no arguments, .tpc_commit() commits a TPC
         transaction previously prepared with .tpc_prepare().
@@ -741,7 +758,7 @@ class Connection(CoreConnection):
             self.autocommit = previous_autocommit_mode
         self._xid = None
 
-    def tpc_rollback(self, xid=None):
+    def tpc_rollback(self, xid: Xid | None = None) -> None:
         """
         When called with no arguments, .tpc_rollback() rolls back a TPC
         transaction. It may be called before or after .tpc_prepare().
@@ -778,7 +795,7 @@ class Connection(CoreConnection):
             self.autocommit = previous_autocommit_mode
         self._xid = None
 
-    def tpc_recover(self):
+    def tpc_recover(self) -> list[Xid]:
         """
         Returns a list of pending transaction IDs suitable for use with
         .tpc_commit(xid) or .tpc_rollback(xid).

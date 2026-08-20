@@ -23,8 +23,11 @@
 # Original Author: Mathieu Fenniak
 import collections
 import enum
+import typing as ta
 
 from .converters import make_params
+from .core import Context
+from .core import CopyStream
 from .core import CoreConnection
 from .exceptions import InterfaceError
 
@@ -43,15 +46,15 @@ class State(enum.Enum):
     IN_DP = enum.auto()  # inside dollar parameter eg. $1
 
 
-def to_statement(query):
+def to_statement(query: str) -> tuple[str, ta.Callable[[ta.Mapping[str, ta.Any]], tuple[ta.Any, ...]]]:
     in_quote_escape = False
-    placeholders = []
-    output_query = []
+    placeholders: list[str | int] = []
+    output_query: list[str] = []
     state = State.OUT
-    prev_c = None
+    prev_c: str | None = None
     for i, c in enumerate(query):
         if i + 1 < len(query):
-            next_c = query[i + 1]
+            next_c: str | None = query[i + 1]
         else:
             next_c = None
 
@@ -76,10 +79,12 @@ def to_statement(query):
                 output_query.append(c)
                 if prev_c == '$':
                     state = State.IN_DQ
+                # FIXME: next_c is None when the query ends with '$'.
                 elif next_c.isdigit():
                     state = State.IN_DP
                     placeholders.append('')
 
+            # FIXME: next_c is None when the query ends with ':', which raises TypeError here.
             elif c == ':' and next_c not in ':=' and prev_c != ':':
                 state = State.IN_PN
                 placeholders.append('')
@@ -109,7 +114,7 @@ def to_statement(query):
             output_query.append(c)
 
         elif state == State.IN_PN:
-            placeholders[-1] += c
+            placeholders[-1] += c  # type: ignore[operator]
             if next_c is None or (not next_c.isalnum() and next_c != '_'):
                 state = State.OUT
                 try:
@@ -120,7 +125,7 @@ def to_statement(query):
                     output_query.append(f'${len(placeholders)}')
 
         elif state == State.IN_DP:
-            placeholders[-1] += c
+            placeholders[-1] += c  # type: ignore[operator]
             output_query.append(c)
             if next_c is None or not next_c.isdigit():
                 try:
@@ -148,9 +153,9 @@ def to_statement(query):
                 f"used for another purpose.",
             )
 
-    def make_vals(args):
+    def make_vals(args: ta.Mapping[str, ta.Any]) -> tuple[ta.Any, ...]:
         arg_list = [v for _, v in args.items()]
-        vals = []
+        vals: list[ta.Any] = []
         for p in placeholders:
             if isinstance(p, int):
                 vals.append(arg_list[p])
@@ -165,25 +170,31 @@ def to_statement(query):
 
 
 class Connection(CoreConnection):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: ta.Any, **kwargs: ta.Any) -> None:
         super().__init__(*args, **kwargs)
-        self._context = None
+        self._context: Context | None = None
 
     @property
-    def columns(self):
+    def columns(self) -> ta.Sequence[ta.Mapping[str, ta.Any]] | None:
         context = self._context
         if context is None:
             return None
         return context.columns
 
     @property
-    def row_count(self):
+    def row_count(self) -> int | None:
         context = self._context
         if context is None:
             return None
         return context.row_count
 
-    def run(self, sql, stream=None, types=None, **params):
+    def run(
+            self,
+            sql: str,
+            stream: CopyStream | None = None,
+            types: ta.Mapping[str, int] | None = None,
+            **params: ta.Any,
+    ) -> list[list[ta.Any]] | None:
         if len(params) == 0 and stream is None:
             self._context = self.execute_simple(sql)
         else:
@@ -197,27 +208,27 @@ class Connection(CoreConnection):
             )
         return self._context.rows
 
-    def prepare(self, sql):
+    def prepare(self, sql: str) -> PreparedStatement:
         return PreparedStatement(self, sql)
 
 
 class PreparedStatement:
-    def __init__(self, con, sql, types=None):
+    def __init__(self, con: CoreConnection, sql: str, types: ta.Mapping[str, int] | None = None) -> None:
         self.con = con
         self.statement, self.make_vals = to_statement(sql)
         oids = () if types is None else self.make_vals(collections.defaultdict(lambda: None, types))
         self.name_bin, self.cols, self.input_funcs = con.prepare_statement(self.statement, oids)
 
     @property
-    def columns(self):
+    def columns(self) -> ta.Sequence[ta.Mapping[str, ta.Any]] | None:
         return self._context.columns
 
-    def run(self, stream=None, **params):
-        params = make_params(self.con.py_types, self.make_vals(params))
+    def run(self, stream: CopyStream | None = None, **params: ta.Any) -> list[list[ta.Any]] | None:
+        params = make_params(self.con.py_types, self.make_vals(params))  # type: ignore[assignment]
 
         self._context = self.con.execute_named(
             self.name_bin,
-            params,
+            params,  # type: ignore[arg-type]
             self.cols,
             self.input_funcs,
             self.statement,
@@ -225,5 +236,5 @@ class PreparedStatement:
 
         return self._context.rows
 
-    def close(self):
+    def close(self) -> None:
         self.con.close_prepared_statement(self.name_bin)

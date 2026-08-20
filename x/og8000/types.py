@@ -22,13 +22,17 @@
 #
 # Original Author: Mathieu Fenniak
 import datetime
+import typing as ta
+
+
+T = ta.TypeVar('T')
 
 
 ##
 
 
 class PGInterval:
-    UNIT_MAP = {
+    UNIT_MAP: ta.ClassVar[ta.Mapping[str, str]] = {
         'millennia': 'millennia',
         'millennium': 'millennia',
         'centuries': 'centuries',
@@ -57,7 +61,7 @@ class PGInterval:
         'microsecond': 'microseconds',
     }
 
-    ISO_LOOKUP = {
+    ISO_LOOKUP: ta.ClassVar[ta.Mapping[bool, ta.Mapping[str, str]]] = {
         True: {
             'Y': 'years',
             'M': 'months',
@@ -71,11 +75,11 @@ class PGInterval:
     }
 
     @classmethod
-    def from_str_iso_8601(cls, interval_str):
+    def from_str_iso_8601(cls, interval_str: str) -> ta.Self:
         # P[n]Y[n]M[n]DT[n]H[n]M[n]S
-        kwargs = {}
+        kwargs: dict[str, float] = {}
         lookup = cls.ISO_LOOKUP[True]
-        val = []
+        val: list[str] = []
 
         for c in interval_str[1:]:
             if c == 'T':
@@ -92,12 +96,12 @@ class PGInterval:
         return cls(**kwargs)
 
     @classmethod
-    def from_str_postgres(cls, interval_str):
+    def from_str_postgres(cls, interval_str: str) -> ta.Self:
         """Parses both the postgres and postgres_verbose formats"""
 
-        t = {}
+        t: dict[str, float] = {}
 
-        curr_val = None
+        curr_val: int | None = None
         for k in interval_str.split():
             if ':' in k:
                 hours_str, minutes_str, seconds_str = k.split(':')
@@ -124,12 +128,13 @@ class PGInterval:
                 try:
                     curr_val = int(k)
                 except ValueError:
+                    # FIXME: curr_val is None if a unit precedes any number, breaking the 'ago' negation below.
                     t[cls.UNIT_MAP[k]] = curr_val
 
         return cls(**t)
 
     @classmethod
-    def from_str_sql_standard(cls, interval_str):
+    def from_str_sql_standard(cls, interval_str: str) -> ta.Self:
         """
         YYYY-MM
         or
@@ -138,8 +143,8 @@ class PGInterval:
         YYYY-MM DD HH:MM:SS.F
         """
 
-        month_part = None
-        day_parts = None
+        month_part: str | None = None
+        day_parts: list[str] | None = None
         parts = interval_str.split()
 
         if len(parts) == 1:
@@ -150,7 +155,7 @@ class PGInterval:
             month_part = parts[0]
             day_parts = parts[1:]
 
-        kwargs = {}
+        kwargs: dict[str, float] = {}
 
         if month_part is not None:
             if month_part.startswith('-'):
@@ -181,7 +186,7 @@ class PGInterval:
         return cls(**kwargs)
 
     @classmethod
-    def from_str(cls, interval_str):
+    def from_str(cls, interval_str: str) -> ta.Self:
         if interval_str.startswith('P'):
             return cls.from_str_iso_8601(interval_str)
         elif interval_str.startswith('@'):
@@ -198,18 +203,18 @@ class PGInterval:
 
     def __init__(
         self,
-        millennia=None,
-        centuries=None,
-        decades=None,
-        years=None,
-        months=None,
-        weeks=None,
-        days=None,
-        hours=None,
-        minutes=None,
-        seconds=None,
-        microseconds=None,
-    ):
+        millennia: float | None = None,
+        centuries: float | None = None,
+        decades: float | None = None,
+        years: float | None = None,
+        months: float | None = None,
+        weeks: float | None = None,
+        days: float | None = None,
+        hours: float | None = None,
+        minutes: float | None = None,
+        seconds: float | None = None,
+        microseconds: float | None = None,
+    ) -> None:
         self.millennia = millennia
         self.centuries = centuries
         self.decades = decades
@@ -222,10 +227,10 @@ class PGInterval:
         self.seconds = seconds
         self.microseconds = microseconds
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'<PGInterval {self}>'
 
-    def _value_dict(self):
+    def _value_dict(self) -> dict[str, float]:
         return {
             k: v
             for k, v in (
@@ -244,23 +249,23 @@ class PGInterval:
             if v is not None
         }
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ' '.join(f'{v} {n}' for n, v in self._value_dict().items())
 
-    def normalize(self):
-        months = 0
+    def normalize(self) -> PGInterval:
+        months: float = 0
         if self.months is not None:
             months += self.months
         if self.years is not None:
             months += self.years * 12
 
-        days = 0
+        days: float = 0
         if self.days is not None:
             days += self.days
         if self.weeks is not None:
             days += self.weeks * 7
 
-        seconds = 0
+        seconds: float = 0
         if self.hours is not None:
             seconds += self.hours * 60 * 60
         if self.minutes is not None:
@@ -272,7 +277,7 @@ class PGInterval:
 
         return PGInterval(months=months, days=days, seconds=seconds)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, PGInterval):
             s = self.normalize()
             o = other.normalize()
@@ -284,7 +289,7 @@ class PGInterval:
         else:
             return False
 
-    def to_timedelta(self):
+    def to_timedelta(self) -> datetime.timedelta:
         pairs = self._value_dict()
         overlap = pairs.keys() & {
             'weeks',
@@ -295,25 +300,26 @@ class PGInterval:
             'millennia',
         }
         if len(overlap) > 0:
+            # FIXME: this message is not an f-string, so {overlap} is never interpolated.
             raise ValueError("Can't fit the interval fields {overlap} into a datetime.timedelta.")
 
         return datetime.timedelta(**pairs)
 
 
-class Range:
+class Range(ta.Generic[T]):
     def __init__(
         self,
-        lower=None,
-        upper=None,
-        bounds='[)',
-        is_empty=False,
-    ):
+        lower: T | None = None,
+        upper: T | None = None,
+        bounds: str = '[)',
+        is_empty: bool = False,
+    ) -> None:
         self.lower = lower
         self.upper = upper
         self.bounds = bounds
         self.is_empty = is_empty
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Range):
             if self.is_empty or other.is_empty:
                 return self.is_empty == other.is_empty
@@ -325,12 +331,12 @@ class Range:
                 )
         return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.is_empty:
             return 'empty'
         else:
             le, ue = ['' if v is None else v for v in (self.lower, self.upper)]
             return f'{self.bounds[0]}{le},{ue}{self.bounds[1]}'
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'<Range {self}>'

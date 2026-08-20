@@ -3,6 +3,7 @@ import hashlib
 import pytest
 
 from .. import scramp
+from ..certs import tls_server_end_point
 from ..scramp import AuthFn
 from ..scramp import Gs2Header
 from ..scramp import Nonce
@@ -22,6 +23,7 @@ from ..scramp import _username_unescape
 from ..scramp import _validate_channel_binding
 from ..scramp import b64dec
 from ..scramp import b64enc
+from ..scramp import make_channel_binding
 from ..scramp import xor
 
 
@@ -1007,3 +1009,61 @@ def test_set_server_final_missing_param():
 #         b'\re?s\x10\xf2\xf8\xa6+\x91i\x9d\x84,iO\x8emDu\xb4\x19\x06i\xa7\x1a\xf1i\xc6'
 #         b'K\x81\xcbp\xd1\xaf\xd7',
 #     )
+
+
+# A self-signed ECDSA P-256 certificate with a SHA-256 signature, so tls-server-end-point is its plain SHA-256 digest.
+_TEST_CERT_DER = bytes.fromhex(
+    '3082018430820129a0030201020214066c82b1b73a7b99001aee02051b863a02ae596c300a06082a8648ce3d040302301631'
+    '14301206035504030c0b6f67383030302d746573743020170d3236303832303232303535305a180f32313236303732373232'
+    '303535305a30163114301206035504030c0b6f67383030302d746573743059301306072a8648ce3d020106082a8648ce3d03'
+    '010703420004a480dc4432f6d17bb6893a742b3f9000bfd62f6d65c5dce68329ab8cfce3e9d98a03521e6df7ca926e34630d'
+    'f291c43d2f6fa0da0c70e4325677c431289a4943a3533051301d0603551d0e041604142a8d1375cb275f04854a57257328cc'
+    '8b730303c6301f0603551d230418301680142a8d1375cb275f04854a57257328cc8b730303c6300f0603551d130101ff0405'
+    '30030101ff300a06082a8648ce3d0403020349003046022100a70d306145bc05e3404c4294fa1c34c37965d4def196f40684'
+    'ac2ce104f4132a0221008a288761b7c7a965f1f4a550b2d91bc642488075aeffd2e82d748ef47ea8f9e5',
+)
+
+
+class _StaticSslSocket:
+    def __init__(self, *, cert_der=None, channel_binding=None):
+        self._cert_der = cert_der
+        self._channel_binding = channel_binding
+
+    def getpeercert(self, binary_form=False):
+        return self._cert_der
+
+    def get_channel_binding(self, cb_type='tls-unique'):
+        return self._channel_binding
+
+
+def test_make_channel_binding_tls_unique():
+    ssl_socket = _StaticSslSocket(channel_binding=b'cafe')
+    assert make_channel_binding('tls-unique', ssl_socket) == ('tls-unique', b'cafe')
+
+
+def test_make_channel_binding_tls_unique_unavailable():
+    with pytest.raises(ValueError, match='tls-unique'):
+        make_channel_binding('tls-unique', _StaticSslSocket())
+
+
+def test_make_channel_binding_tls_server_end_point():
+    ssl_socket = _StaticSslSocket(cert_der=_TEST_CERT_DER)
+    expected = hashlib.sha256(_TEST_CERT_DER).digest()
+    assert tls_server_end_point(_TEST_CERT_DER) == expected
+    assert make_channel_binding('tls-server-end-point', ssl_socket) == ('tls-server-end-point', expected)
+
+
+def test_make_channel_binding_tls_server_end_point_no_certificate():
+    with pytest.raises(ValueError, match='certificate'):
+        make_channel_binding('tls-server-end-point', _StaticSslSocket())
+
+
+def test_make_channel_binding_certificate_backend_passthrough():
+    ssl_socket = _StaticSslSocket(cert_der=_TEST_CERT_DER)
+    with pytest.raises(ValueError, match='unknown certificate backend'):
+        make_channel_binding('tls-server-end-point', ssl_socket, certificate_backend='bogus')
+
+
+def test_make_channel_binding_unknown_name():
+    with pytest.raises(ScramException, match='not recognized'):
+        make_channel_binding('tls-bogus', _StaticSslSocket())
