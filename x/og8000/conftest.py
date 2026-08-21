@@ -1,7 +1,7 @@
 import pytest
 
-from .. import native
-from .dbs import DB_KWARGS
+from . import native
+from .tests.dbs import DB_KWARGS
 
 
 @pytest.fixture(scope='session')

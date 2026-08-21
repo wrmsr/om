@@ -235,7 +235,7 @@ MAX_ITERATION_COUNT = 10_000_000  # DoS guard
 
 def _make_cb_data(
         name: str,
-        ssl_socket: ssl.SSLSocket,
+        ssl_socket: ssl.SSLSocket | ssl.SSLObject,
         *,
         certificate_backend: CertificateBackend = 'auto',
 ) -> bytes:
@@ -268,7 +268,7 @@ def _make_cb_data(
 
 def make_channel_binding(
         name: str,
-        ssl_socket: ssl.SSLSocket,
+        ssl_socket: ssl.SSLSocket | ssl.SSLObject,
         *,
         certificate_backend: CertificateBackend = 'auto',
 ) -> ChannelBinding:

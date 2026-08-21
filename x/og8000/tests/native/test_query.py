@@ -173,7 +173,7 @@ def test_rollback_no_transaction(con):
     # 25P01 is the code for no_active_sql_tronsaction. It has
     # a message and severity name, but those might be
     # localized/depend on the server version.
-    assert con.notices.pop().get(b'C') == b'25P01'
+    assert con.notices.pop().fields['C'] == '25P01'
 
 
 def test_close_prepared_statement(con):

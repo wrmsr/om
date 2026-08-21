@@ -165,6 +165,15 @@ class SslIoPipelineHandler(
         except AttributeError:
             return None
 
+    @property
+    def ssl_object(self) -> ta.Optional[ssl.SSLObject]:
+        """The underlying engine, once the handshake has been started. Useful for peer certificate inspection."""
+
+        try:
+            return self._ssl_obj
+        except AttributeError:
+            return None
+
     _in_bio: ssl.MemoryBIO
     _out_bio: ssl.MemoryBIO
     _ssl_obj: ssl.SSLObject

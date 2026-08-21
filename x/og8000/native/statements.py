@@ -21,15 +21,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Original Author: Mathieu Fenniak
+"""The query-text side of the native API: converting `:name` / `$n` placeholder queries into what the server wants."""
 import collections
 import enum
 import typing as ta
 
-from .converters import make_params
-from .core import Context
-from .core import CopyStream
-from .core import CoreConnection
-from .exceptions import InterfaceError
+from ..exceptions import InterfaceError
 
 
 ##
@@ -169,72 +166,13 @@ def to_statement(query: str) -> tuple[str, ta.Callable[[ta.Mapping[str, ta.Any]]
     return ''.join(output_query), make_vals
 
 
-class Connection(CoreConnection):
-    def __init__(self, *args: ta.Any, **kwargs: ta.Any) -> None:
-        super().__init__(*args, **kwargs)
-        self._context: Context | None = None
+def plan_run(
+        sql: str,
+        params: ta.Mapping[str, ta.Any],
+        types: ta.Mapping[str, int] | None,
+) -> tuple[str, tuple[ta.Any, ...], tuple[ta.Any, ...]]:
+    """Converts a native-style query plus keyword parameters into the statement, values, and oids to execute."""
 
-    @property
-    def columns(self) -> ta.Sequence[ta.Mapping[str, ta.Any]] | None:
-        context = self._context
-        if context is None:
-            return None
-        return context.columns
-
-    @property
-    def row_count(self) -> int | None:
-        context = self._context
-        if context is None:
-            return None
-        return context.row_count
-
-    def run(
-            self,
-            sql: str,
-            stream: CopyStream | None = None,
-            types: ta.Mapping[str, int] | None = None,
-            **params: ta.Any,
-    ) -> list[list[ta.Any]] | None:
-        if len(params) == 0 and stream is None:
-            self._context = self.execute_simple(sql)
-        else:
-            statement, make_vals = to_statement(sql)
-            oids = () if types is None else make_vals(collections.defaultdict(lambda: None, types))
-            self._context = self.execute_unnamed(
-                statement,
-                make_vals(params),
-                oids=oids,
-                stream=stream,
-            )
-        return self._context.rows
-
-    def prepare(self, sql: str) -> PreparedStatement:
-        return PreparedStatement(self, sql)
-
-
-class PreparedStatement:
-    def __init__(self, con: CoreConnection, sql: str, types: ta.Mapping[str, int] | None = None) -> None:
-        self.con = con
-        self.statement, self.make_vals = to_statement(sql)
-        oids = () if types is None else self.make_vals(collections.defaultdict(lambda: None, types))
-        self.name_bin, self.cols, self.input_funcs = con.prepare_statement(self.statement, oids)
-
-    @property
-    def columns(self) -> ta.Sequence[ta.Mapping[str, ta.Any]] | None:
-        return self._context.columns
-
-    def run(self, stream: CopyStream | None = None, **params: ta.Any) -> list[list[ta.Any]] | None:
-        params = make_params(self.con.py_types, self.make_vals(params))  # type: ignore[assignment]
-
-        self._context = self.con.execute_named(
-            self.name_bin,
-            params,  # type: ignore[arg-type]
-            self.cols,
-            self.input_funcs,
-            self.statement,
-        )
-
-        return self._context.rows
-
-    def close(self) -> None:
-        self.con.close_prepared_statement(self.name_bin)
+    statement, make_vals = to_statement(sql)
+    oids = () if types is None else make_vals(collections.defaultdict(lambda: None, types))
+    return statement, make_vals(params), oids

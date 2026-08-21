@@ -604,7 +604,7 @@ def test_arraysize(cursor):
 
 
 def test_setinputsizes(cursor):
-    cursor.setinputsizes(25)
+    cursor.setinputsizes([25])
 
 
 def test_setoutputsize_basic(cursor):

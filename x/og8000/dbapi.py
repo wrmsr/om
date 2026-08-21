@@ -29,48 +29,51 @@ from itertools import islice
 from time import localtime
 from warnings import warn
 
-from .converters import BIGINT  # noqa: F401
+from omcore import check
+
+from .converters import BIGINT
 from .converters import BOOLEAN  # noqa: F401
 from .converters import BOOLEAN_ARRAY  # noqa: F401
-from .converters import BYTES  # noqa: F401
-from .converters import CHAR  # noqa: F401
+from .converters import BYTES
+from .converters import CHAR
 from .converters import CHAR_ARRAY  # noqa: F401
-from .converters import DATE  # noqa: F401
-from .converters import FLOAT  # noqa: F401
+from .converters import DATE
+from .converters import FLOAT
 from .converters import FLOAT_ARRAY  # noqa: F401
 from .converters import INET  # noqa: F401
 from .converters import INT2VECTOR  # noqa: F401
-from .converters import INTEGER  # noqa: F401
+from .converters import INTEGER
 from .converters import INTEGER_ARRAY  # noqa: F401
-from .converters import INTERVAL  # noqa: F401
+from .converters import INTERVAL
 from .converters import JSON  # noqa: F401
 from .converters import JSONB  # noqa: F401
 from .converters import MACADDR  # noqa: F401
-from .converters import NAME  # noqa: F401
+from .converters import NAME
 from .converters import NAME_ARRAY  # noqa: F401
 from .converters import NULLTYPE  # noqa: F401
 from .converters import NUMERIC
 from .converters import NUMERIC_ARRAY  # noqa: F401
 from .converters import OID
 from .converters import PY_PG
-from .converters import TEXT  # noqa: F401
+from .converters import REAL
+from .converters import SMALLINT
+from .converters import TEXT
 from .converters import TEXT_ARRAY  # noqa: F401
-from .converters import TIME  # noqa: F401
+from .converters import TIME
 from .converters import TIMESTAMP
-from .converters import TIMESTAMPTZ  # noqa: F401
+from .converters import TIMESTAMPTZ
 from .converters import UNKNOWN
 from .converters import UUID_TYPE  # noqa: F401
 from .converters import VARCHAR
 from .converters import VARCHAR_ARRAY  # noqa: F401
 from .converters import XID  # noqa: F401
-from .core import IN_FAILED_TRANSACTION
-from .core import IN_TRANSACTION
-from .core import Context
-from .core import CopyStream
-from .core import CoreConnection
+from .core.sync import SyncCoreConnection
 from .exceptions import DatabaseError
 from .exceptions import Error
 from .exceptions import InterfaceError
+from .protocol.codes import TransactionStatus
+from .protocol.session import Context
+from .protocol.session import CopyStream
 from .types import PGInterval  # noqa: F401
 from .types import Range  # noqa: F401
 
@@ -100,11 +103,51 @@ paramstyle = 'format'
 # Type objects
 
 
-STRING = VARCHAR
-BINARY = bytes
-NUMBER = NUMERIC
-DATETIME = TIMESTAMP
-ROWID = OID
+class DbapiTypeObject:
+    """
+    A DB-API type object: compares equal to every type code (PostgreSQL type oid) of the kind of column it describes.
+    Its first oid is the one used when it is given to `Cursor.setinputsizes`.
+    """
+
+    def __init__(self, name: str, *oids: int) -> None:
+        super().__init__()
+
+        check.not_empty(oids)
+        self._name = name
+        self._oids = tuple(oids)
+        self._oid_set = frozenset(oids)
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def oid(self) -> int:
+        return self._oids[0]
+
+    @property
+    def oids(self) -> ta.Sequence[int]:
+        return self._oids
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}({self._name!r}, {", ".join(map(str, self._oids))})'
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, DbapiTypeObject):
+            return self._oid_set == other._oid_set
+        if isinstance(other, int):
+            return other in self._oid_set
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self._oid_set)
+
+
+STRING = DbapiTypeObject('STRING', VARCHAR, TEXT, CHAR, NAME)
+BINARY = DbapiTypeObject('BINARY', BYTES)
+NUMBER = DbapiTypeObject('NUMBER', NUMERIC, INTEGER, BIGINT, SMALLINT, FLOAT, REAL)
+DATETIME = DbapiTypeObject('DATETIME', TIMESTAMP, TIMESTAMPTZ, DATE, TIME, INTERVAL)
+ROWID = DbapiTypeObject('ROWID', OID)
 
 
 ##
@@ -478,13 +521,10 @@ class Cursor:
             else:
                 self._row_iter = iter(self._context.rows)
             self._input_oids = ()
-        except AttributeError as e:
+        except AttributeError:
             if self._c is None:
-                raise InterfaceError('Cursor closed')
-            elif self._c._sock is None:
-                raise InterfaceError('connection is closed')
-            else:
-                raise e
+                raise InterfaceError('Cursor closed') from None
+            raise
 
         self.input_types: list[ta.Any] = []
 
@@ -532,13 +572,10 @@ class Cursor:
             else:
                 self._row_iter = iter(self._context.rows)
 
-        except AttributeError as e:
+        except AttributeError:
             if self._c is None:
-                raise InterfaceError('Cursor closed')
-            elif self._c._sock is None:
-                raise InterfaceError('connection is closed')
-            else:
-                raise e
+                raise InterfaceError('Cursor closed') from None
+            raise
 
     def fetchone(self) -> list[ta.Any] | None:
         """
@@ -637,13 +674,22 @@ class Cursor:
         # The AttributeError from using a None connection is relied upon to detect a closed cursor.
         self._c = None  # type: ignore[assignment]
 
-    def setinputsizes(self, *sizes: int | type) -> None:
-        """This method is part of the `DBAPI 2.0 specification"""
+    def setinputsizes(self, sizes: ta.Sequence[int | DbapiTypeObject | type | None]) -> None:
+        """
+        This method is part of the `DBAPI 2.0 specification <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Each size may be a PostgreSQL type oid, a DB-API type object, or a Python type with a default oid, and fixes the
+        type of the corresponding parameter of the next `execute` call.
+        """
 
         oids: list[int] = []
         for size in sizes:
-            if isinstance(size, int):
+            if isinstance(size, DbapiTypeObject):
+                oid = size.oid
+            elif isinstance(size, int):
                 oid = size
+            elif size is None:
+                oid = UNKNOWN
             else:
                 try:
                     oid = PY_PG[size]
@@ -663,16 +709,18 @@ class Cursor:
         pass
 
 
-class Connection(CoreConnection):
+class Connection(SyncCoreConnection):
     def __init__(self, *args: ta.Any, **kwargs: ta.Any) -> None:
         super().__init__(*args, **kwargs)
         self.autocommit = False
+        self._xid: Xid | None = None
 
     # DBAPI Extension: supply exceptions as attributes on the connection
     Warning = property(lambda self: self._get_error(Warning))
     Error = property(lambda self: self._get_error(Error))
     InterfaceError = property(lambda self: self._get_error(InterfaceError))
     DatabaseError = property(lambda self: self._get_error(DatabaseError))
+    DataError = property(lambda self: self._get_error(DataError))
     OperationalError = property(lambda self: self._get_error(OperationalError))
     IntegrityError = property(lambda self: self._get_error(IntegrityError))
     InternalError = property(lambda self: self._get_error(InternalError))
@@ -685,7 +733,7 @@ class Connection(CoreConnection):
 
     @property
     def _in_transaction(self) -> bool:
-        return self._transaction_status in (IN_TRANSACTION, IN_FAILED_TRANSACTION)
+        return self.transaction_status in (TransactionStatus.IN_TRANSACTION, TransactionStatus.IN_FAILED_TRANSACTION)
 
     def cursor(self) -> Cursor:
         """

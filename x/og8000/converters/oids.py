@@ -1,0 +1,289 @@
+# Copyright (c) 2007-2009, Mathieu Fenniak
+# Copyright (c) The Contributors
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+# following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+#   disclaimer.
+# * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
+#   disclaimer in the documentation and/or other materials provided with the distribution.
+# * The name of the author may not be used to endorse or promote products derived from this software without specific
+#   prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Original Author: Mathieu Fenniak
+"""PostgreSQL type oids, plus a few related numeric limits."""
+
+
+
+##
+
+
+ANY_ARRAY = 2277
+
+
+BIGINT = 20
+
+
+BIGINT_ARRAY = 1016
+
+
+BOOLEAN = 16
+
+
+BOOLEAN_ARRAY = 1000
+
+
+BYTES = 17
+
+
+BYTES_ARRAY = 1001
+
+
+CHAR = 1042
+
+
+CHAR_ARRAY = 1014
+
+
+CIDR = 650
+
+
+CIDR_ARRAY = 651
+
+
+CSTRING = 2275
+
+
+CSTRING_ARRAY = 1263
+
+
+DATE = 1082
+
+
+DATE_ARRAY = 1182
+
+
+DATEMULTIRANGE = 4535
+
+
+DATEMULTIRANGE_ARRAY = 6155
+
+
+DATERANGE = 3912
+
+
+DATERANGE_ARRAY = 3913
+
+
+FLOAT = 701
+
+
+FLOAT_ARRAY = 1022
+
+
+INET = 869
+
+
+INET_ARRAY = 1041
+
+
+INT2VECTOR = 22
+
+
+INT4MULTIRANGE = 4451
+
+
+INT4MULTIRANGE_ARRAY = 6150
+
+
+INT4RANGE = 3904
+
+
+INT4RANGE_ARRAY = 3905
+
+
+INT8MULTIRANGE = 4536
+
+
+INT8MULTIRANGE_ARRAY = 6157
+
+
+INT8RANGE = 3926
+
+
+INT8RANGE_ARRAY = 3927
+
+
+INTEGER = 23
+
+
+INTEGER_ARRAY = 1007
+
+
+INTERVAL = 1186
+
+
+INTERVAL_ARRAY = 1187
+
+
+OID = 26
+
+
+JSON = 114
+
+
+JSON_ARRAY = 199
+
+
+JSONB = 3802
+
+
+JSONB_ARRAY = 3807
+
+
+MACADDR = 829
+
+
+MONEY = 790
+
+
+MONEY_ARRAY = 791
+
+
+NAME = 19
+
+
+NAME_ARRAY = 1003
+
+
+NUMERIC = 1700
+
+
+NUMERIC_ARRAY = 1231
+
+
+NUMRANGE = 3906
+
+
+NUMRANGE_ARRAY = 3907
+
+
+NUMMULTIRANGE = 4532
+
+
+NUMMULTIRANGE_ARRAY = 6151
+
+
+NULLTYPE = -1
+
+
+OID = 26
+
+
+POINT = 600
+
+
+REAL = 700
+
+
+REAL_ARRAY = 1021
+
+
+RECORD = 2249
+
+
+SMALLINT = 21
+
+
+SMALLINT_ARRAY = 1005
+
+
+SMALLINT_VECTOR = 22
+
+
+STRING = 1043
+
+
+TEXT = 25
+
+
+TEXT_ARRAY = 1009
+
+
+TIME = 1083
+
+
+TIME_ARRAY = 1183
+
+
+TIMESTAMP = 1114
+
+
+TIMESTAMP_ARRAY = 1115
+
+
+TIMESTAMPTZ = 1184
+
+
+TIMESTAMPTZ_ARRAY = 1185
+
+
+TSMULTIRANGE = 4533
+
+
+TSMULTIRANGE_ARRAY = 6152
+
+
+TSRANGE = 3908
+
+
+TSRANGE_ARRAY = 3909
+
+
+TSTZMULTIRANGE = 4534
+
+
+TSTZMULTIRANGE_ARRAY = 6153
+
+
+TSTZRANGE = 3910
+
+
+TSTZRANGE_ARRAY = 3911
+
+
+UNKNOWN = 705
+
+
+UUID_TYPE = 2950
+
+
+UUID_ARRAY = 2951
+
+
+VARCHAR = 1043
+
+
+VARCHAR_ARRAY = 1015
+
+
+XID = 28
+
+
+MIN_INT2, MAX_INT2 = -(2**15), 2**15
+
+
+MIN_INT4, MAX_INT4 = -(2**31), 2**31
+
+
+MIN_INT8, MAX_INT8 = -(2**63), 2**63

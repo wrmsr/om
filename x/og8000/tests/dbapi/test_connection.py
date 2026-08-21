@@ -133,7 +133,8 @@ def test_notify(con):
 
     cursor.execute('VALUES (1, 2), (3, 4), (5, 6)')
     assert len(con.notifications) == 1
-    assert con.notifications[0] == (backend_pid, 'test', '')
+    notification = con.notifications[0]
+    assert (notification.process_id, notification.channel, notification.payload) == (backend_pid, 'test', '')
 
 
 def test_notify_with_payload(con):
@@ -147,7 +148,8 @@ def test_notify_with_payload(con):
 
     cursor.execute('VALUES (1, 2), (3, 4), (5, 6)')
     assert len(con.notifications) == 1
-    assert con.notifications[0] == (backend_pid, 'test', 'Parnham')
+    notification = con.notifications[0]
+    assert (notification.process_id, notification.channel, notification.payload) == (backend_pid, 'test', 'Parnham')
 
 
 def test_broken_pipe_read(con, db_kwargs):
@@ -196,8 +198,8 @@ def test_broken_pipe_unpack(con):
         cur.execute('select pg_terminate_backend(%s)', (pid1,))
 
 
-def test_py_value_fail(con, mocker):
-    # Ensure that if types.py_value throws an exception, the original
+def test_py_value_fail(con):
+    # Ensure that if an out adapter throws an exception, the original
     # exception is raised (PG8000TestException), and the connection is
     # still usable after the error.
 
@@ -207,17 +209,15 @@ def test_py_value_fail(con, mocker):
     def raise_exception(val):
         raise PG8000TestException('oh noes!')
 
-    mocker.patch.object(con, 'py_types')
-    con.py_types = {datetime.time: raise_exception}
+    con.register_out_adapter(datetime.time, raise_exception)
 
+    c = con.cursor()
     with pytest.raises(PG8000TestException):
-        c = con.cursor()
         c.execute('SELECT CAST(%s AS TIME) AS f1', (datetime.time(10, 30),))
-        c.fetchall()
 
-        # ensure that the connection is still usable for a new query
-        c.execute("VALUES ('hw3'::text)")
-        assert c.fetchone()[0] == 'hw3'
+    # ensure that the connection is still usable for a new query
+    c.execute("VALUES ('hw3'::text)")
+    assert c.fetchone()[0] == 'hw3'
 
 
 def test_no_data_error_recovery(con):

@@ -21,23 +21,63 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Original Author: Mathieu Fenniak
+"""The mapping of PostgreSQL encoding names to Python codec names."""
 
 
-class Error(Exception):
-    """Generic exception that is the base exception of all other error exceptions."""
+
+##
 
 
-class InterfaceError(Error):
-    """
-    Generic exception raised for errors that are related to the database interface rather than the database itself. For
-    example, if the interface attempts to use an SSL connection but the server refuses, an InterfaceError will be
-    raised.
-    """
-
-
-class DatabaseError(Error):
-    """Generic exception raised for errors that are related to the database."""
-
-
-class ProtocolError(InterfaceError):
-    """Raised when the server sends something this client cannot make sense of."""
+# PostgreSQL encodings:
+# https://www.postgresql.org/docs/current/multibyte.html
+#
+# Python encodings:
+# https://docs.python.org/3/library/codecs.html
+#
+# Commented out encodings don't require a name change between PostgreSQL and
+# Python. If the py side is None, then the encoding isn't supported.
+PG_PY_ENCODINGS: dict[str, str | None] = {
+    # Not supported:
+    'mule_internal': None,
+    'euc_tw': None,
+    # Name fine as-is:
+    # "euc_jp",
+    # "euc_jis_2004",
+    # "euc_kr",
+    # "gb18030",
+    # "gbk",
+    # "johab",
+    # "sjis",
+    # "shift_jis_2004",
+    # "uhc",
+    # "utf8",
+    # Different name:
+    'euc_cn': 'gb2312',
+    'iso_8859_5': 'is8859_5',
+    'iso_8859_6': 'is8859_6',
+    'iso_8859_7': 'is8859_7',
+    'iso_8859_8': 'is8859_8',
+    'koi8': 'koi8_r',
+    'latin1': 'iso8859-1',
+    'latin2': 'iso8859_2',
+    'latin3': 'iso8859_3',
+    'latin4': 'iso8859_4',
+    'latin5': 'iso8859_9',
+    'latin6': 'iso8859_10',
+    'latin7': 'iso8859_13',
+    'latin8': 'iso8859_14',
+    'latin9': 'iso8859_15',
+    'sql_ascii': 'ascii',
+    'win866': 'cp886',
+    'win874': 'cp874',
+    'win1250': 'cp1250',
+    'win1251': 'cp1251',
+    'win1252': 'cp1252',
+    'win1253': 'cp1253',
+    'win1254': 'cp1254',
+    'win1255': 'cp1255',
+    'win1256': 'cp1256',
+    'win1257': 'cp1257',
+    'win1258': 'cp1258',
+    'unicode': 'utf-8',  # Needed for Amazon Redshift
+}

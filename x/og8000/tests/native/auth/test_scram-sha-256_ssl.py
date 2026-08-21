@@ -1,5 +1,4 @@
 from ssl import CERT_NONE
-from ssl import SSLSocket
 from ssl import create_default_context
 
 import pytest
@@ -26,7 +25,7 @@ def test_scram_sha_256_plus(setup, db_kwargs):
     db_kwargs['database'] = DB
 
     with Connection(**db_kwargs) as con:
-        assert isinstance(con._usock, SSLSocket)
+        assert con.is_ssl
 
 
 def test_scram_sha_256_plus_ssl_True(setup, db_kwargs):
@@ -34,7 +33,7 @@ def test_scram_sha_256_plus_ssl_True(setup, db_kwargs):
     db_kwargs['database'] = DB
 
     with Connection(**db_kwargs) as con:
-        assert isinstance(con._usock, SSLSocket)
+        assert con.is_ssl
 
 
 def test_scram_sha_256_plus_ssl_custom(setup, db_kwargs):
@@ -46,7 +45,7 @@ def test_scram_sha_256_plus_ssl_custom(setup, db_kwargs):
     db_kwargs['database'] = DB
 
     with Connection(**db_kwargs) as con:
-        assert isinstance(con._usock, SSLSocket)
+        assert con.is_ssl
 
 
 def test_scram_sha_256_plus_ssl_False(setup, db_kwargs):
@@ -54,4 +53,4 @@ def test_scram_sha_256_plus_ssl_False(setup, db_kwargs):
     db_kwargs['database'] = DB
 
     with Connection(**db_kwargs) as con:
-        assert not isinstance(con._usock, SSLSocket)
+        assert not con.is_ssl

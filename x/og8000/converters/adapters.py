@@ -21,23 +21,20 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Original Author: Mathieu Fenniak
+"""The shapes of type adapters: functions between the text wire format of a value and its Python form."""
+
+import typing as ta
+from ipaddress import IPv4Address
+from ipaddress import IPv4Network
+from ipaddress import IPv6Address
+from ipaddress import IPv6Network
 
 
-class Error(Exception):
-    """Generic exception that is the base exception of all other error exceptions."""
+InAdapter: ta.TypeAlias = ta.Callable[[str], ta.Any]
+OutAdapter: ta.TypeAlias = ta.Callable[[ta.Any], str | None]
+
+IpAddressOrNetwork: ta.TypeAlias = IPv4Address | IPv6Address | IPv4Network | IPv6Network
 
 
-class InterfaceError(Error):
-    """
-    Generic exception raised for errors that are related to the database interface rather than the database itself. For
-    example, if the interface attempts to use an SSL connection but the server refuses, an InterfaceError will be
-    raised.
-    """
 
-
-class DatabaseError(Error):
-    """Generic exception raised for errors that are related to the database."""
-
-
-class ProtocolError(InterfaceError):
-    """Raised when the server sends something this client cannot make sense of."""
+##

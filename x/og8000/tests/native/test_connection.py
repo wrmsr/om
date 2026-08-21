@@ -56,7 +56,8 @@ def test_notify(con):
 
     con.run('VALUES (1, 2), (3, 4), (5, 6)')
     assert len(con.notifications) == 1
-    assert con.notifications[0] == (backend_pid, 'test', '')
+    notification = con.notifications[0]
+    assert (notification.process_id, notification.channel, notification.payload) == (backend_pid, 'test', '')
 
 
 def test_notify_with_payload(con):
@@ -67,7 +68,8 @@ def test_notify_with_payload(con):
 
     con.run('VALUES (1, 2), (3, 4), (5, 6)')
     assert len(con.notifications) == 1
-    assert con.notifications[0] == (backend_pid, 'test', 'Parnham')
+    notification = con.notifications[0]
+    assert (notification.process_id, notification.channel, notification.payload) == (backend_pid, 'test', 'Parnham')
 
 
 # This requires a line in pg_hba.conf that requires md5 for the database
@@ -202,19 +204,18 @@ def raise_exception(val):
     raise PG8000TestException('oh noes!')
 
 
-def test_py_value_fail(con, mocker):
-    # Ensure that if types.py_value throws an exception, the original
+def test_py_value_fail(con):
+    # Ensure that if an out adapter throws an exception, the original
     # exception is raised (PG8000TestException), and the connection is
     # still usable after the error.
-    mocker.patch.object(con, 'py_types')
-    con.py_types = {Time: raise_exception}
+    con.register_out_adapter(Time, raise_exception)
 
     with pytest.raises(PG8000TestException):
         con.run('SELECT CAST(:v AS TIME)', v=Time(10, 30))
 
-        # ensure that the connection is still usable for a new query
-        res = con.run("VALUES ('hw3'::text)")
-        assert res[0][0] == 'hw3'
+    # ensure that the connection is still usable for a new query
+    res = con.run("VALUES ('hw3'::text)")
+    assert res[0][0] == 'hw3'
 
 
 def test_no_data_error_recovery(con):

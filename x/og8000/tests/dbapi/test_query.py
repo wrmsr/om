@@ -194,7 +194,7 @@ def test_executemany_setinputsizes(cursor):
         'CREATE TEMPORARY TABLE t1 (f1 int primary key, f2 inet[] not null) ',
     )
 
-    cursor.setinputsizes(INTEGER, INET_ARRAY)
+    cursor.setinputsizes([INTEGER, INET_ARRAY])
     cursor.executemany(
         'INSERT INTO t1 (f1, f2) VALUES (%s, %s)', ((1, ['1.1.1.1']), (2, ['0.0.0.0'])),
     )
@@ -267,7 +267,7 @@ def test_rollback_no_transaction(con):
     # 25P01 is the code for no_active_sql_tronsaction. It has
     # a message and severity name, but those might be
     # localized/depend on the server version.
-    assert con.notices.pop().get(b'C') == b'25P01'
+    assert con.notices.pop().fields['C'] == '25P01'
 
     # Now going through the rollback method doesn't produce
     # any notices because it knows we're not in a transaction.
@@ -279,7 +279,7 @@ def test_rollback_no_transaction(con):
 @pytest.mark.parametrize('sizes,oids', [([0], [0]), ([float], [701])])
 def test_setinputsizes(con, sizes, oids):
     cursor = con.cursor()
-    cursor.setinputsizes(*sizes)
+    cursor.setinputsizes(sizes)
     assert cursor._input_oids == oids
     cursor.execute('select %s', (None,))
     retval = cursor.fetchall()

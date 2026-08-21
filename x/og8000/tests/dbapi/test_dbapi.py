@@ -5,7 +5,6 @@ import time
 import pytest
 
 from ... import dbapi
-from ...dbapi import BINARY
 from ...dbapi import Binary
 from ...dbapi import Date
 from ...dbapi import DateFromTicks
@@ -159,7 +158,7 @@ def test_timestamp_from_ticks(has_tzset):
 def test_binary():
     v = Binary(b'\x00\x01\x02\x03\x02\x01\x00')
     assert v == b'\x00\x01\x02\x03\x02\x01\x00'
-    assert isinstance(v, BINARY)
+    assert isinstance(v, bytes)
 
 
 def test_row_count(db_table):
