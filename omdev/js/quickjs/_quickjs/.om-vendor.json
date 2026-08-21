@@ -1,7 +1,7 @@
 {
   "url": "https://github.com/quickjs-ng/quickjs",
-  "rev": "954dc53628e36891f93c359aa60895c2ae3dac6b",
-  "ref": "v0.16.1",
+  "rev": "05b2db95d9b8a088a203950727d1c3459fe0ec47",
+  "ref": null,
   "files": [
     "LICENSE",
     "builtin-array-fromasync.h",
