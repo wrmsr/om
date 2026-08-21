@@ -2,6 +2,7 @@
 Backwards compatible connection surface. The Connection class and connect() are thin aliases over the synchronous core
 connection; the real implementation lives in og8000-style `core` and `protocol` packages.
 """
+import os.path
 import typing as ta
 
 from . import err
@@ -155,8 +156,6 @@ def _apply_option_file(
         read_default_file: str | None,
         read_default_group: str | None,
 ) -> None:
-    import os.path  # noqa: PLC0415
-
     from .optionfile import Parser  # noqa: PLC0415
 
     path = read_default_file or ('/etc/my.cnf')

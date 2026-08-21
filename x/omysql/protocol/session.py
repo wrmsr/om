@@ -148,8 +148,8 @@ class UnbufferedResult:
     has_next: bool = False
     active: bool = True
 
-    # The maximum value of a 64 bit unsigned integer, which is what MySQLdb reports for an unbuffered result's
-    # unknown row count.
+    # The maximum value of a 64 bit unsigned integer, which is what MySQLdb reports for an unbuffered result's unknown
+    # row count.
     affected_rows: int = 18446744073709551615
     insert_id: int = 0
     rows: tuple[Row, ...] | None = None
