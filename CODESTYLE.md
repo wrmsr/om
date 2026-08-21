@@ -217,26 +217,24 @@
   - Then, finally, arbitrary module source code.
 - Source files may be divided into logical sections by divider line comments, with or without a 'title'.
   - Do *NOT* add leading or trailing hyphens / equal signs / etc. in the divider line comment. For example, *don't*
-    write `# --- Stuff ---`, *do* write `## Stuff`.
+    write `# --- Stuff ---`, *do* write `## Stuff`. As an example:
 
-As an example:
+    ```python
+      import typing as ta
 
-```python
-import typing as ta
-
-from omcore import lang
+      from omcore import lang
 
 
-T = ta.TypeVar('T')
+      T = ta.TypeVar('T')
 
 
-##
+      ##
 
 
-@lang.cached_function
-def make_it_a_tuple(t: T) -> tuple[T]:
-  return (t,)
-```
+      @lang.cached_function
+      def make_it_a_tuple(t: T) -> tuple[T]:
+        return (t,)
+      ```
 
 
 ### Classes
@@ -535,6 +533,18 @@ def make_it_a_tuple(t: T) -> tuple[T]:
 
 ### Misc. Linguistic Pedantry
 
+- For multiline `if` statements put the `or` / `and` operator at the **end** of each line, **not** at the beginning. For
+  example:
+  ```python
+  if (
+      condition_one and
+      condition_two
+  ):
+      ...
+  ```
+
+- Don't avoid technically-redundant parens for the sake of compactness if it helps readability: a reader shouldn't have
+  to be wary of misinterpreting operator precedence to understand the code.
 - Put only a single space after a punctuation between sentences.
 - Spell it 'falsey' not 'falsy'.
 - Unless specifically referring to something unicode-y, don't use em dashes in comments and docstrings! 🤖
