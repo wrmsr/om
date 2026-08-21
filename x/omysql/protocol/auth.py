@@ -55,7 +55,7 @@ def sha2_rsa_encrypt(password: bytes, salt: bytes, public_key: bytes) -> bytes:
 
     message = xor_password(password + b'\0', salt)
     rsa_key = chp_ser.load_pem_public_key(public_key)
-    return ta.cast('ta.Any', rsa_key).encrypt(
+    return ta.cast(ta.Any, rsa_key).encrypt(
         message,
         chp_pad.OAEP(
             mgf=chp_pad.MGF1(algorithm=chp_hash.SHA1()),  # noqa: S303
@@ -74,15 +74,15 @@ def ed25519_password(password: bytes, scramble: bytes) -> bytes:
     """Signs a scramble with Ed25519 keys derived from the password, as the client_ed25519 plugin does."""
 
     try:
-        from nacl import bindings  # noqa: PLC0415
+        from nacl import bindings as nb  # noqa: PLC0415
     except ImportError:
         raise RuntimeError("'pynacl' package is required for ed25519_password auth method") from None
 
     h = hashlib.sha512(password).digest()
     s = _scalar_clamp(h[:32])
-    r = bindings.crypto_core_ed25519_scalar_reduce(hashlib.sha512(h[32:] + scramble).digest())
-    R = bindings.crypto_scalarmult_ed25519_base_noclamp(r)  # noqa: N806
-    A = bindings.crypto_scalarmult_ed25519_base_noclamp(s)  # noqa: N806
-    k = bindings.crypto_core_ed25519_scalar_reduce(hashlib.sha512(R + A + scramble).digest())
-    S = bindings.crypto_core_ed25519_scalar_add(bindings.crypto_core_ed25519_scalar_mul(k, s), r)  # noqa: N806
+    r = nb.crypto_core_ed25519_scalar_reduce(hashlib.sha512(h[32:] + scramble).digest())
+    R = nb.crypto_scalarmult_ed25519_base_noclamp(r)  # noqa: N806
+    A = nb.crypto_scalarmult_ed25519_base_noclamp(s)  # noqa: N806
+    k = nb.crypto_core_ed25519_scalar_reduce(hashlib.sha512(R + A + scramble).digest())
+    S = nb.crypto_core_ed25519_scalar_add(nb.crypto_core_ed25519_scalar_mul(k, s), r)  # noqa: N806
     return R + S

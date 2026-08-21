@@ -35,7 +35,7 @@ T = ta.TypeVar('T')
 Row: ta.TypeAlias = tuple[ta.Any, ...]
 
 # Yields the next Step, receives the next server packet payload (or None after a more/tls step), returns the result.
-type OperationGenerator = ta.Generator[Step, bytes, T]
+OperationGenerator: ta.TypeAlias = ta.Generator['Step', bytes, T]
 
 
 ##

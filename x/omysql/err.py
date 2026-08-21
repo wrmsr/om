@@ -12,17 +12,11 @@ class MySQLError(Exception):
 
 
 class Warning(Warning, MySQLError):
-    """
-    Exception raised for important warnings like data truncations
-    while inserting, etc.
-    """
+    """Exception raised for important warnings like data truncations while inserting, etc."""
 
 
 class Error(MySQLError):
-    """
-    Exception that is the base class of all other error exceptions
-    (not Warning).
-    """
+    """Exception that is the base class of all other error exceptions (not Warning)."""
 
     def __init__(self, *args, sqlstate=None):
         super().__init__(*args)
@@ -30,67 +24,53 @@ class Error(MySQLError):
 
 
 class InterfaceError(Error):
-    """
-    Exception raised for errors that are related to the database
-    interface rather than the database itself.
-    """
+    """Exception raised for errors that are related to the database interface rather than the database itself."""
 
 
 class DatabaseError(Error):
-    """
-    Exception raised for errors that are related to the
-    database.
-    """
+    """Exception raised for errors that are related to the database."""
 
 
 class DataError(DatabaseError):
     """
-    Exception raised for errors that are due to problems with the
-    processed data like division by zero, numeric value out of range,
-    etc.
+    Exception raised for errors that are due to problems with the processed data like division by zero, numeric value
+    out of range, etc.
     """
 
 
 class OperationalError(DatabaseError):
     """
-    Exception raised for errors that are related to the database's
-    operation and not necessarily under the control of the programmer,
-    e.g. an unexpected disconnect occurs, the data source name is not
-    found, a transaction could not be processed, a memory allocation
-    error occurred during processing, etc.
+    Exception raised for errors that are related to the database's operation and not necessarily under the control of
+    the programmer, e.g. an unexpected disconnect occurs, the data source name is not found, a transaction could not be
+    processed, a memory allocation error occurred during processing, etc.
     """
 
 
 class IntegrityError(DatabaseError):
     """
-    Exception raised when the relational integrity of the database
-    is affected, e.g. a foreign key check fails, duplicate key,
-    etc.
+    Exception raised when the relational integrity of the database is affected, e.g. a foreign key check fails,
+    duplicate key, etc.
     """
 
 
 class InternalError(DatabaseError):
     """
-    Exception raised when the database encounters an internal
-    error, e.g. the cursor is not valid anymore, the transaction is
-    out of sync, etc.
+    Exception raised when the database encounters an internal error, e.g. the cursor is not valid anymore, the
+    transaction is out of sync, etc.
     """
 
 
 class ProgrammingError(DatabaseError):
     """
-    Exception raised for programming errors, e.g. table not found
-    or already exists, syntax error in the SQL statement, wrong number
-    of parameters specified, etc.
+    Exception raised for programming errors, e.g. table not found or already exists, syntax error in the SQL statement,
+    wrong number of parameters specified, etc.
     """
 
 
 class NotSupportedError(DatabaseError):
     """
-    Exception raised in case a method or database API was used
-    which is not supported by the database, e.g. requesting a
-    .rollback() on a connection that does not support transaction or
-    has transactions turned off.
+    Exception raised in case a method or database API was used which is not supported by the database, e.g. requesting a
+    .rollback() on a connection that does not support transaction or has transactions turned off.
     """
 
 
@@ -118,6 +98,7 @@ _map_error(
     ER.WRONG_DB_NAME,
     ER.WRONG_COLUMN_NAME,
 )
+
 _map_error(
     DataError,
     ER.WARN_DATA_TRUNCATED,
@@ -130,6 +111,7 @@ _map_error(
     ER.TRUNCATED_WRONG_VALUE_FOR_FIELD,
     ER.ILLEGAL_VALUE_FOR_TYPE,
 )
+
 _map_error(
     IntegrityError,
     ER.DUP_ENTRY,
@@ -140,6 +122,7 @@ _map_error(
     ER.CANNOT_ADD_FOREIGN,
     ER.BAD_NULL_ERROR,
 )
+
 _map_error(
     NotSupportedError,
     ER.WARNING_NOT_COMPLETE_ROLLBACK,
@@ -147,6 +130,7 @@ _map_error(
     ER.FEATURE_DISABLED,
     ER.UNKNOWN_STORAGE_ENGINE,
 )
+
 _map_error(
     OperationalError,
     ER.DBACCESS_DENIED_ERROR,
