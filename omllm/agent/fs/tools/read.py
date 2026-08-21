@@ -6,6 +6,7 @@ import typing as ta
 from omcore import dataclasses as dc
 
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -83,7 +84,10 @@ class ReadTool(ToolClass[ReadToolParams]):
         if params.num_lines > ABSOLUTE_MAX_NUM_LINES:
             raise ValueError(f'Number of lines exceeds maximum of {ABSOLUTE_MAX_NUM_LINES}')
 
-        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'r'))
+        await self._permissions.check_allowed(
+            PermissionRequestor(tool_context=ctx),
+            FsPermissionTarget(params.file_path, 'r'),
+        )
 
         if not os.path.exists(params.file_path):
             raise ValueError('Path does not exist')

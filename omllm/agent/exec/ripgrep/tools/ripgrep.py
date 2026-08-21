@@ -8,6 +8,7 @@ from omcore import dataclasses as dc
 from .....core import processes
 from ....fs.permissions import FsPermissionTarget
 from ....permissions.types import PermissionDecider
+from ....permissions.types import PermissionRequestor
 from ....tools.classes import ToolClass
 from ....types.tools import ToolContext
 from ....types.tools import ToolDescription
@@ -120,7 +121,10 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
 
         #
 
-        await self._permissions.check_allowed(ctx, FsPermissionTarget(cwd, 'r'))
+        await self._permissions.check_allowed(
+            permission_requestor := PermissionRequestor(tool_context=ctx),
+            FsPermissionTarget(cwd, 'r'),
+        )
 
         rg = os.path.realpath(check.not_none(shutil.which('rg')))
 
@@ -130,7 +134,10 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
             *SAFETY_RG_ARGS,
         ]
 
-        await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
+        await self._permissions.check_allowed(
+            permission_requestor,
+            ExecPermissionTarget(cmd),
+        )
 
         options: list[processes.ProcessOption] = []
         if self._sandbox:

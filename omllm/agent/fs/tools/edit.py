@@ -13,6 +13,7 @@ import typing as ta
 from omcore import dataclasses as dc
 
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -91,7 +92,10 @@ class EditTool(ToolClass[EditToolParams]):
         if not params.old_string:
             raise ValueError('The requested edit to was given an empty "old_string" parameter.')
 
-        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'w'))
+        await self._permissions.check_allowed(
+            PermissionRequestor(tool_context=ctx),
+            FsPermissionTarget(params.file_path, 'w'),
+        )
 
         old_file_b = await self._fs.read_file(params.file_path)
         old_file = old_file_b.decode('utf-8')

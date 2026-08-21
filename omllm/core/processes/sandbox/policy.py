@@ -158,6 +158,7 @@ class SandboxPolicy:
         if isinstance(self.exec_paths, str):
             check.arg(self.exec_paths in ('self', 'any'))
         else:
+            check.not_empty(self.exec_paths)
             for p in self.exec_paths:
                 check.non_empty_str(p)
                 check.arg(os.path.isabs(p), f'exec paths must be absolute: {p!r}')

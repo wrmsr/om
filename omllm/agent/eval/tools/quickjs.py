@@ -5,6 +5,7 @@ from omcore import lang
 from omcore.formats.json import all as json
 
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -51,10 +52,13 @@ class QuickjsTool(ToolClass[QuickjsToolParams]):
         self._permissions = permissions
 
     async def execute(self, ctx: ToolContext, params: QuickjsToolParams) -> str:
-        await self._permissions.check_allowed(ctx, EvalPermissionTarget(
-            language=EvalLanguage.JS,
-            code=params.code,
-        ))
+        await self._permissions.check_allowed(
+            PermissionRequestor(tool_context=ctx),
+            EvalPermissionTarget(
+                language=EvalLanguage.JS,
+                code=params.code,
+            ),
+        )
 
         js_ctx = quickjs.Context()
         if params.timeout_s is not None:

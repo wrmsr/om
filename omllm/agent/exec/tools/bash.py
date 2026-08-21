@@ -12,6 +12,7 @@ from omcore import check
 from omcore import dataclasses as dc
 
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -69,7 +70,10 @@ class BashTool(ToolClass[BashToolParams]):
             params.command,
         ]
 
-        await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
+        await self._permissions.check_allowed(
+            PermissionRequestor(tool_context=ctx),
+            ExecPermissionTarget(cmd),
+        )
 
         result = await self._exec.exec(scope, ExecParams(
             cmd,

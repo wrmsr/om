@@ -15,6 +15,10 @@ from omcore import marshal as msh
 from ...core import fieldhash as fh
 
 
+if ta.TYPE_CHECKING:
+    from ..types.tools import ToolContext
+
+
 ##
 
 
@@ -30,7 +34,11 @@ class PermissionState(enum.Enum):
 ##
 
 
-PermissionRequestor: ta.TypeAlias = ta.Any
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
+class PermissionRequestor:
+    tool_context: ToolContext | None = None
 
 
 DecidedPermissionState: ta.TypeAlias = ta.Literal[

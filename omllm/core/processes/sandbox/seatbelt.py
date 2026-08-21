@@ -172,6 +172,8 @@ def build_seatbelt_profile(
             exec_paths = policy.exec_paths
 
         exec_forms = list(dict.fromkeys(f for p in exec_paths for f in _path_forms(p)))
+        if not exec_forms:
+            raise ValueError('empty finite exec allowlist')
         note_meta(exec_forms)
         lines.append(['allow', 'process-exec', *[
             ['literal', param('EXEC', f)] for f in exec_forms

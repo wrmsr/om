@@ -5,6 +5,7 @@ import typing as ta
 from omcore import dataclasses as dc
 
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -55,7 +56,10 @@ class LsTool(ToolClass[LsToolParams]):
         if not dir_path.endswith('/'):
             dir_path += '/'
 
-        await self._permissions.check_allowed(ctx, FsPermissionTarget(dir_path, 'r'))
+        await self._permissions.check_allowed(
+            PermissionRequestor(tool_context=ctx),
+            FsPermissionTarget(dir_path, 'r'),
+        )
 
         if not os.path.exists(dir_path):
             raise ValueError('Path does not exist')

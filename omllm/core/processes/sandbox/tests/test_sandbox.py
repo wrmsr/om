@@ -290,3 +290,8 @@ async def test_seatbelt_confinement_live(tmp_path):
         # no network (literal ip - no dns dependence)
         run = await m.root.run(ProcessSpec(['/usr/bin/nc', '-G', '2', '-z', '1.1.1.1', '80'], cwd=str(allowed)), sandbox)  # noqa: E501
         assert run.returncode != 0
+
+
+def test_empty_exec_paths_rejected():
+    with pytest.raises(ValueError):  # noqa
+        SandboxPolicy(exec_paths=())

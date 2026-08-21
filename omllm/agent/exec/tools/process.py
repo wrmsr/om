@@ -17,6 +17,7 @@ from omcore import dataclasses as dc
 
 from ....core import processes
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -112,7 +113,10 @@ class ProcessSpawnTool(ToolClass[ProcessSpawnToolParams]):
             params.command,
         ]
 
-        await self._permissions.check_allowed(ctx, ExecPermissionTarget(cmd))
+        await self._permissions.check_allowed(
+            PermissionRequestor(tool_context=ctx),
+            ExecPermissionTarget(cmd),
+        )
 
         proc = await scope.spawn(processes.ProcessSpec(
             cmd,

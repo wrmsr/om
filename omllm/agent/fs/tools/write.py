@@ -4,6 +4,7 @@ import typing as ta
 from omcore import dataclasses as dc
 
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
@@ -62,7 +63,10 @@ class WriteTool(ToolClass[WriteToolParams]):
         if os.path.commonpath((cwd, params.file_path)) != cwd:
             raise ValueError('Path not under configured working directory')
 
-        await self._permissions.check_allowed(ctx, FsPermissionTarget(params.file_path, 'w'))
+        await self._permissions.check_allowed(
+            PermissionRequestor(tool_context=ctx),
+            FsPermissionTarget(params.file_path, 'w'),
+        )
 
         if os.path.exists(params.file_path):
             if not params.overwrite:
