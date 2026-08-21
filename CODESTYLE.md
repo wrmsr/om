@@ -530,6 +530,12 @@
 - See `omdev/cexts/_boilerplate.cc` for a simple C++ extension template.
 
 
+### Javascript
+
+- As with C/C++, always enclose the bodies of control-flow statements (`if`, `else`, `for`, `while`, `do`) in braces,
+  even for a single statement.
+
+
 ### Misc. Linguistic Pedantry
 
 - For multiline `if` statements put the `or` / `and` operator at the **end** of each line, **not** at the beginning. For
