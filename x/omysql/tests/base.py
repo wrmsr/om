@@ -1,31 +1,13 @@
-import json
-import os
 import re
 import unittest
 import warnings
 
 from ... import omysql
+from .dbs import DATABASES
 
 
 class PyMySQLTestCase(unittest.TestCase):
-    # You can specify your test environment creating a file named
-    #  "databases.json" or editing the `databases` variable below.
-    fname = os.path.join(os.path.dirname(__file__), "databases.json")
-    if os.path.exists(fname):
-        with open(fname) as f:
-            databases = json.load(f)
-    else:
-        databases = [
-            {
-                "host": "localhost",
-                "user": "root",
-                "passwd": "",
-                "database": "test1",
-                "use_unicode": True,
-                "local_infile": True,
-            },
-            {"host": "localhost", "user": "root", "passwd": "", "database": "test2"},
-        ]
+    databases = DATABASES
 
     def mysql_server_is(self, conn, version_tuple):
         """Return True if the given connection is on the version given or

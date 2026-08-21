@@ -1,4 +1,4 @@
-# ruff: noqa: S608
+# ruff: noqa: S101 S608
 """
 A DB-API 2.0 (PEP 249) compliance suite, written against the spec and omcore's Dbapi* protocols rather than any one
 driver. A driver binds it by subclassing DbapiComplianceSuite in a test module of its own:
@@ -15,9 +15,10 @@ import typing as ta
 
 import pytest
 
-from ...abc import DbapiConnection
-from ...abc import DbapiCursor
-from ...abc import DbapiModule
+from omcore.sql.dbapi.abc import DbapiConnection
+from omcore.sql.dbapi.abc import DbapiCursor
+from omcore.sql.dbapi.abc import DbapiModule
+
 from .bindings import DbapiComplianceBinding
 
 
@@ -293,8 +294,9 @@ class CursorComplianceMixin(DbapiComplianceBase):
                 cur.fetchone()
 
             cur.execute(f"insert into {t} values ('Victoria Bitter')")
-            with pytest.raises(self.m.Error):
-                cur.fetchone()
+            if self.b.strict_fetch_without_result:
+                with pytest.raises(self.m.Error):
+                    cur.fetchone()
 
             cur.execute(f"select name from {t} where name = 'nope'")
             assert cur.fetchone() is None
@@ -351,8 +353,9 @@ class CursorComplianceMixin(DbapiComplianceBase):
 
             self.insert_names(con, t, names)
             cur.execute(f"insert into {t} values ('z')")
-            with pytest.raises(self.m.Error):
-                cur.fetchall()
+            if self.b.strict_fetch_without_result:
+                with pytest.raises(self.m.Error):
+                    cur.fetchall()
 
             cur.execute(f"delete from {t} where name = 'z'")
             cur.execute(f'select name from {t} order by name')
@@ -484,7 +487,11 @@ class OperationalComplianceMixin(DbapiComplianceBase):
         assert self.round_trip(self.b.date_type, self.m.Date(2020, 2, 29)) == datetime.date(2020, 2, 29)
 
     def test_time_round_trip(self):
-        assert self.round_trip(self.b.time_type, self.m.Time(23, 59, 58)) == datetime.time(23, 59, 58)
+        v = self.round_trip(self.b.time_type, self.m.Time(23, 59, 58))
+        if self.b.time_is_timedelta:
+            assert v == datetime.timedelta(hours=23, minutes=59, seconds=58)
+        else:
+            assert v == datetime.time(23, 59, 58)
 
     def test_timestamp_round_trip(self):
         ts = self.round_trip(self.b.timestamp_type, self.m.Timestamp(2020, 2, 29, 23, 59, 58))

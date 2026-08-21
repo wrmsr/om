@@ -1,4 +1,5 @@
 import struct
+import typing as ta
 
 from .constants import ER
 
@@ -138,7 +139,7 @@ _map_error(
 del _map_error, ER
 
 
-def raise_mysql_exception(data):
+def raise_mysql_exception(data) -> ta.NoReturn:
     errno = struct.unpack("<h", data[1:3])[0]
     # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html
     # Error packet has optional sqlstate that is 5 bytes and starts with '#'.
@@ -152,3 +153,7 @@ def raise_mysql_exception(data):
     if errorclass is None:
         errorclass = InternalError if errno < 1000 else OperationalError
     raise errorclass(errno, errval, sqlstate=sqlstate)
+
+
+class ProtocolError(InterfaceError):
+    """Raised when the server sends something this client cannot make sense of."""

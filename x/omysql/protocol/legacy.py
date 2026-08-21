@@ -4,9 +4,9 @@
 import struct
 import sys
 
-from . import err
-from .charset import MBLENGTH
-from .constants import FIELD_TYPE, SERVER_STATUS
+from .. import err
+from ..charset import MBLENGTH
+from ..constants import FIELD_TYPE, SERVER_STATUS
 
 DEBUG = False
 

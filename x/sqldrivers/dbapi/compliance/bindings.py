@@ -1,4 +1,4 @@
-# ruff: noqa: S608
+# ruff: noqa: S101 S608
 """
 Describes a DB-API 2.0 driver to the compliance suite: how to get a connection, and the few dialect-specific bits the
 suite needs. Everything else is derived from the module itself, as the spec intends.
@@ -7,8 +7,8 @@ import contextlib
 import types
 import typing as ta
 
-from ..... import check
-from ..... import dataclasses as dc
+from omcore import check
+from omcore import dataclasses as dc
 
 
 ##
@@ -39,6 +39,12 @@ class DbapiComplianceBinding:
 
     # A stored procedure, taking no arguments, that `cursor.callproc` can invoke - or None to skip callproc tests.
     callproc_name: str | None = None
+
+    # Whether a fetch after a non-result-set statement raises (the spec) rather than returning empty (some drivers).
+    strict_fetch_without_result: bool = True
+
+    # Whether the driver returns TIME columns as datetime.time rather than datetime.timedelta (MySQL does the latter).
+    time_is_timedelta: bool = False
 
     #
 
