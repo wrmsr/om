@@ -216,27 +216,25 @@
   - **TWO blank lines, always**
   - Then, finally, arbitrary module source code.
 - Source files may be divided into logical sections by divider line comments, with or without a 'title'.
-  - As an example:
-    ```python
-      import typing as ta
-
-      from omcore import lang
-
-
-      T = ta.TypeVar('T')
-
-
-      ##
-
-
-      @lang.cached_function
-      def make_it_a_tuple(t: T) -> tuple[T]:
-        return (t,)
-      ```
-
   - Do *NOT* add leading or trailing hyphens / equal signs / etc. in the divider line comment. For example, *don't*
     write `# --- Stuff ---`, *do* write `## Stuff`.
+- As an example:
+  ```python
+    import typing as ta
 
+    from omcore import lang
+
+
+    T = ta.TypeVar('T')
+
+
+    ##
+
+
+    @lang.cached_function
+    def make_it_a_tuple(t: T) -> tuple[T]:
+      return (t,)
+    ```
 
 ### Classes
 
