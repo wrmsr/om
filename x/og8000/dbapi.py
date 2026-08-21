@@ -21,22 +21,48 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Original Author: Mathieu Fenniak
+import datetime
 import socket
 import typing as ta
-from datetime import date as Date
-from datetime import datetime as Datetime
-from datetime import time as Time
 from itertools import count
 from itertools import islice
 from time import localtime
 from warnings import warn
 
+from .converters import BIGINT  # noqa: F401
+from .converters import BOOLEAN  # noqa: F401
+from .converters import BOOLEAN_ARRAY  # noqa: F401
+from .converters import BYTES  # noqa: F401
+from .converters import CHAR  # noqa: F401
+from .converters import CHAR_ARRAY  # noqa: F401
+from .converters import DATE  # noqa: F401
+from .converters import FLOAT  # noqa: F401
+from .converters import FLOAT_ARRAY  # noqa: F401
+from .converters import INET  # noqa: F401
+from .converters import INT2VECTOR  # noqa: F401
+from .converters import INTEGER  # noqa: F401
+from .converters import INTEGER_ARRAY  # noqa: F401
+from .converters import INTERVAL  # noqa: F401
+from .converters import JSON  # noqa: F401
+from .converters import JSONB  # noqa: F401
+from .converters import MACADDR  # noqa: F401
+from .converters import NAME  # noqa: F401
+from .converters import NAME_ARRAY  # noqa: F401
+from .converters import NULLTYPE  # noqa: F401
 from .converters import NUMERIC
+from .converters import NUMERIC_ARRAY  # noqa: F401
 from .converters import OID
 from .converters import PY_PG
+from .converters import TEXT  # noqa: F401
+from .converters import TEXT_ARRAY  # noqa: F401
+from .converters import TIME  # noqa: F401
 from .converters import TIMESTAMP
+from .converters import TIMESTAMPTZ  # noqa: F401
 from .converters import UNKNOWN
+from .converters import UUID_TYPE  # noqa: F401
 from .converters import VARCHAR
+from .converters import VARCHAR_ARRAY  # noqa: F401
+from .converters import XID  # noqa: F401
 from .core import IN_FAILED_TRANSACTION
 from .core import IN_TRANSACTION
 from .core import Context
@@ -45,6 +71,8 @@ from .core import CoreConnection
 from .exceptions import DatabaseError
 from .exceptions import Error
 from .exceptions import InterfaceError
+from .types import PGInterval  # noqa: F401
+from .types import Range  # noqa: F401
 
 
 if ta.TYPE_CHECKING:
@@ -61,11 +89,6 @@ Xid: ta.TypeAlias = tuple[int, str, str]
 ##
 
 
-ROWID = OID
-STRING = VARCHAR
-NUMBER = NUMERIC
-DATETIME = TIMESTAMP
-
 apilevel = '2.0'
 
 threadsafety = 1
@@ -73,10 +96,26 @@ threadsafety = 1
 paramstyle = 'format'
 
 
+##
+# Type objects
+
+
+STRING = VARCHAR
 BINARY = bytes
+NUMBER = NUMERIC
+DATETIME = TIMESTAMP
+ROWID = OID
 
 
-def PgDate(year: int, month: int, day: int) -> Date:
+##
+# Type constructors
+
+
+Date = datetime.date
+Time = datetime.time
+
+
+def PgDate(year: int, month: int, day: int) -> Date:  # noqa: N802
     """
     Construct an object holding a date value.
 
@@ -88,7 +127,7 @@ def PgDate(year: int, month: int, day: int) -> Date:
     return Date(year, month, day)
 
 
-def PgTime(hour: int, minute: int, second: int) -> Time:
+def PgTime(hour: int, minute: int, second: int) -> Time:  # noqa: N802
     """
     Construct an object holding a time value.
 
@@ -100,7 +139,7 @@ def PgTime(hour: int, minute: int, second: int) -> Time:
     return Time(hour, minute, second)
 
 
-def Timestamp(year: int, month: int, day: int, hour: int, minute: int, second: int) -> Datetime:
+def Timestamp(year: int, month: int, day: int, hour: int, minute: int, second: int) -> datetime.datetime:  # noqa: N802
     """
     Construct an object holding a timestamp value.
 
@@ -109,10 +148,10 @@ def Timestamp(year: int, month: int, day: int, hour: int, minute: int, second: i
     :rtype: :class:`datetime.datetime`
     """
 
-    return Datetime(year, month, day, hour, minute, second)
+    return datetime.datetime(year, month, day, hour, minute, second)
 
 
-def DateFromTicks(ticks: float) -> Date:
+def DateFromTicks(ticks: float) -> Date:  # noqa: N802
     """
     Construct an object holding a date value from the given ticks value
     (number of seconds since the epoch).
@@ -126,7 +165,7 @@ def DateFromTicks(ticks: float) -> Date:
     return Date(*localtime(ticks)[:3])
 
 
-def TimeFromTicks(ticks: float) -> Time:
+def TimeFromTicks(ticks: float) -> Time:  # noqa: N802
     """
     Construct an object holding a time value from the given ticks value
     (number of seconds since the epoch).
@@ -140,7 +179,7 @@ def TimeFromTicks(ticks: float) -> Time:
     return Time(*localtime(ticks)[3:6])
 
 
-def TimestampFromTicks(ticks: float) -> Datetime:
+def TimestampFromTicks(ticks: float) -> datetime.datetime:  # noqa: N802
     """
     Construct an object holding a timestamp value from the given ticks value
     (number of seconds since the epoch).
@@ -154,7 +193,7 @@ def TimestampFromTicks(ticks: float) -> Datetime:
     return Timestamp(*localtime(ticks)[:6])
 
 
-def Binary(value: bytes) -> bytes:
+def Binary(value: bytes) -> bytes:  # noqa: N802
     """
     Construct an object holding binary data.
 
@@ -630,17 +669,17 @@ class Connection(CoreConnection):
         self.autocommit = False
 
     # DBAPI Extension: supply exceptions as attributes on the connection
-    Warning = property(lambda self: self._getError(Warning))
-    Error = property(lambda self: self._getError(Error))
-    InterfaceError = property(lambda self: self._getError(InterfaceError))
-    DatabaseError = property(lambda self: self._getError(DatabaseError))
-    OperationalError = property(lambda self: self._getError(OperationalError))
-    IntegrityError = property(lambda self: self._getError(IntegrityError))
-    InternalError = property(lambda self: self._getError(InternalError))
-    ProgrammingError = property(lambda self: self._getError(ProgrammingError))
-    NotSupportedError = property(lambda self: self._getError(NotSupportedError))
+    Warning = property(lambda self: self._get_error(Warning))
+    Error = property(lambda self: self._get_error(Error))
+    InterfaceError = property(lambda self: self._get_error(InterfaceError))
+    DatabaseError = property(lambda self: self._get_error(DatabaseError))
+    OperationalError = property(lambda self: self._get_error(OperationalError))
+    IntegrityError = property(lambda self: self._get_error(IntegrityError))
+    InternalError = property(lambda self: self._get_error(InternalError))
+    ProgrammingError = property(lambda self: self._get_error(ProgrammingError))
+    NotSupportedError = property(lambda self: self._get_error(NotSupportedError))
 
-    def _getError(self, error: type[ExceptionT]) -> type[ExceptionT]:
+    def _get_error(self, error: type[ExceptionT]) -> type[ExceptionT]:
         warn(f'DB-API extension connection.{error.__name__} used', stacklevel=3)
         return error
 
@@ -820,7 +859,7 @@ class Connection(CoreConnection):
             self.autocommit = previous_autocommit_mode
 
 
-class Warning(Exception):
+class Warning(Exception):  # noqa: A001,N818
     """
     Generic exception raised for important database warnings like data
     truncations. This exception is not currently used by pg8000.
