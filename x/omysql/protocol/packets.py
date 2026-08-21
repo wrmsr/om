@@ -45,8 +45,8 @@ def pack_packet(seq: int, payload: bytes) -> bytes:
 
 def split_payload(payload: bytes) -> list[bytes]:
     """
-    Splits a command payload into the payloads of the packets needed to send it, including the empty terminating
-    packet required when its size is a multiple of the maximum.
+    Splits a command payload into the payloads of the packets needed to send it, including the empty terminating packet
+    required when its size is a multiple of the maximum.
     """
 
     chunks = [payload[i:i + MAX_PACKET_LENGTH] for i in range(0, len(payload), MAX_PACKET_LENGTH)]

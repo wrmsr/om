@@ -165,8 +165,13 @@ def _apply_option_file(
     cfg.read(os.path.expanduser(path))
 
     for key, arg in [
-        ('user', 'user'), ('password', 'password'), ('host', 'host'), ('database', 'database'),
-        ('socket', 'unix_socket'), ('port', 'port'), ('bind-address', 'bind_address'),
+        ('user', 'user'),
+        ('password', 'password'),
+        ('host', 'host'),
+        ('database', 'database'),
+        ('socket', 'unix_socket'),
+        ('port', 'port'),
+        ('bind-address', 'bind_address'),
         ('default-character-set', 'charset'),
     ]:
         if not kwargs.get(arg):

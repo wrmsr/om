@@ -10,14 +10,15 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
+from . import auth
+from . import parsing
 from ..charset import charset_by_name
 from ..constants import CLIENT
 from ..constants import COMMAND
 from ..constants import SERVER_STATUS
 from ..err import OperationalError
 from ..err import ProtocolError
-from . import auth
-from . import parsing
+from ..err import raise_mysql_exception
 from .messages import ColumnDefinition
 from .messages import Handshake
 from .packets import MAX_PACKET_LENGTH
@@ -34,7 +35,11 @@ T = ta.TypeVar('T')
 Row: ta.TypeAlias = tuple[ta.Any, ...]
 
 # Yields the next Step, receives the next server packet payload (or None after a more/tls step), returns the result.
-OperationGenerator: ta.TypeAlias = ta.Generator['Step', bytes, T]
+type OperationGenerator = ta.Generator[Step, bytes, T]
+
+
+##
+
 
 DEFAULT_CHARSET = 'utf8mb4'
 CLIENT_VERSION = '2.2.8'
@@ -497,7 +502,6 @@ class ProtocolSession:
         return ok
 
     def _raise_err(self, payload: bytes) -> ta.NoReturn:
-        from ..err import raise_mysql_exception  # noqa: PLC0415
         raise_mysql_exception(payload)
 
     def _query_flow(

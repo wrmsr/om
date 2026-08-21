@@ -12,6 +12,7 @@ from .. import converters
 from ..charset import charset_by_name
 from ..constants import CLIENT
 from ..err import Error
+from ..err import OperationalError
 from ..protocol.session import ProtocolSession
 from ..protocol.session import QueryResult
 from ..protocol.session import UnbufferedResult
@@ -193,7 +194,6 @@ class BaseConnection(lang.Abstract):
         packet_size = min(self._max_allowed_packet, 16 * 1024)
 
         def read(filename: bytes) -> ta.Iterable[bytes]:
-            from ..err import OperationalError  # noqa: PLC0415
             try:
                 f = open(filename.decode(self._encoding), 'rb')  # noqa: SIM115,PTH123
             except OSError as e:

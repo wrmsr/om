@@ -8,27 +8,27 @@ from . import base
 
 def test_re_insert_values_with_on_duplicate_key_alias():
     m = cursors.RE_INSERT_VALUES.match(
-        "INSERT INTO t1 (a,b,c) VALUES (%s,%s,%s) AS new "
-        "ON DUPLICATE KEY UPDATE c = new.a + new.b"
+        'INSERT INTO t1 (a,b,c) VALUES (%s,%s,%s) AS new '
+        'ON DUPLICATE KEY UPDATE c = new.a + new.b',
     )
     assert m is not None
-    assert m.group(1) == "INSERT INTO t1 (a,b,c) VALUES "
-    assert m.group(2) == "(%s,%s,%s)"
-    assert m.group(3) == " AS new ON DUPLICATE KEY UPDATE c = new.a + new.b"
+    assert m.group(1) == 'INSERT INTO t1 (a,b,c) VALUES '
+    assert m.group(2) == '(%s,%s,%s)'
+    assert m.group(3) == ' AS new ON DUPLICATE KEY UPDATE c = new.a + new.b'
 
     m = cursors.RE_INSERT_VALUES.match(
-        "INSERT INTO t1 (a,b,c) VALUES (%s,%s,%s) AS new(n1,n2,n3) "
-        "ON DUPLICATE KEY UPDATE c = n1 + n2"
+        'INSERT INTO t1 (a,b,c) VALUES (%s,%s,%s) AS new(n1,n2,n3) '
+        'ON DUPLICATE KEY UPDATE c = n1 + n2',
     )
     assert m is not None
-    assert m.group(3) == " AS new(n1,n2,n3) ON DUPLICATE KEY UPDATE c = n1 + n2"
+    assert m.group(3) == ' AS new(n1,n2,n3) ON DUPLICATE KEY UPDATE c = n1 + n2'
 
     m = cursors.RE_INSERT_VALUES.match(
-        "INSERT INTO t1 (a,b,c) VALUES (%s,%s,%s) "
-        "ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b)"
+        'INSERT INTO t1 (a,b,c) VALUES (%s,%s,%s) '
+        'ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b)',
     )
     assert m is not None
-    assert m.group(3) == " ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b)"
+    assert m.group(3) == ' ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b)'
 
 
 class CursorTest(base.PyMySQLTestCase):
@@ -38,12 +38,12 @@ class CursorTest(base.PyMySQLTestCase):
         conn = self.connect()
         self.safe_create_table(
             conn,
-            "test",
-            "create table test (data varchar(10))",
+            'test',
+            'create table test (data varchar(10))',
         )
         cursor = conn.cursor()
         cursor.execute(
-            "insert into test (data) values ('row1'), ('row2'), ('row3'), ('row4'), ('row5')"
+            "insert into test (data) values ('row1'), ('row2'), ('row3'), ('row4'), ('row5')",
         )
         conn.commit()
         cursor.close()
@@ -52,17 +52,18 @@ class CursorTest(base.PyMySQLTestCase):
 
     def test_cursor_is_iterator(self):
         """Test that the cursor is an iterator"""
+
         conn = self.test_connection
         cursor = conn.cursor()
-        cursor.execute("select * from test")
+        cursor.execute('select * from test')
         self.assertEqual(cursor.__iter__(), cursor)
-        self.assertEqual(cursor.__next__(), ("row1",))
+        self.assertEqual(cursor.__next__(), ('row1',))
 
     def test_cleanup_rows_unbuffered(self):
         conn = self.test_connection
         cursor = conn.cursor(cursors.SSCursor)
 
-        cursor.execute("select * from test as t1, test as t2")
+        cursor.execute('select * from test as t1, test as t2')
         for counter, row in enumerate(cursor):
             if counter > 10:
                 break
@@ -71,7 +72,7 @@ class CursorTest(base.PyMySQLTestCase):
 
         c2 = conn.cursor()
 
-        c2.execute("select 1")
+        c2.execute('select 1')
         self.assertEqual(c2.fetchone(), (1,))
         self.assertIsNone(c2.fetchone())
 
@@ -79,7 +80,7 @@ class CursorTest(base.PyMySQLTestCase):
         conn = self.test_connection
         cursor = conn.cursor(cursors.Cursor)
 
-        cursor.execute("select * from test as t1, test as t2")
+        cursor.execute('select * from test as t1, test as t2')
         for counter, row in enumerate(cursor):
             if counter > 10:
                 break
@@ -87,7 +88,7 @@ class CursorTest(base.PyMySQLTestCase):
         del cursor
 
         c2 = conn.cursor()
-        c2.execute("select 1")
+        c2.execute('select 1')
 
         self.assertEqual(c2.fetchone(), (1,))
         self.assertIsNone(c2.fetchone())
@@ -97,36 +98,36 @@ class CursorTest(base.PyMySQLTestCase):
         cursor = conn.cursor(cursors.Cursor)
 
         m = cursors.RE_INSERT_VALUES.match(
-            "INSERT INTO TEST (ID, NAME) VALUES (%s, %s)"
+            'INSERT INTO TEST (ID, NAME) VALUES (%s, %s)',
         )
-        self.assertIsNotNone(m, "error parse %s")
-        self.assertEqual(m.group(3), "", "group 3 not blank, bug in RE_INSERT_VALUES?")
+        self.assertIsNotNone(m, 'error parse %s')
+        self.assertEqual(m.group(3), '', 'group 3 not blank, bug in RE_INSERT_VALUES?')
 
         m = cursors.RE_INSERT_VALUES.match(
-            "INSERT INTO TEST (ID, NAME) VALUES (%(id)s, %(name)s)"
+            'INSERT INTO TEST (ID, NAME) VALUES (%(id)s, %(name)s)',
         )
-        self.assertIsNotNone(m, "error parse %(name)s")
-        self.assertEqual(m.group(3), "", "group 3 not blank, bug in RE_INSERT_VALUES?")
+        self.assertIsNotNone(m, 'error parse %(name)s')
+        self.assertEqual(m.group(3), '', 'group 3 not blank, bug in RE_INSERT_VALUES?')
 
         m = cursors.RE_INSERT_VALUES.match(
-            "INSERT INTO TEST (ID, NAME) VALUES (%(id_name)s, %(name)s)"
+            'INSERT INTO TEST (ID, NAME) VALUES (%(id_name)s, %(name)s)',
         )
-        self.assertIsNotNone(m, "error parse %(id_name)s")
-        self.assertEqual(m.group(3), "", "group 3 not blank, bug in RE_INSERT_VALUES?")
+        self.assertIsNotNone(m, 'error parse %(id_name)s')
+        self.assertEqual(m.group(3), '', 'group 3 not blank, bug in RE_INSERT_VALUES?')
 
         m = cursors.RE_INSERT_VALUES.match(
-            "INSERT INTO TEST (ID, NAME) VALUES (%(id_name)s, %(name)s) ON duplicate update"
+            'INSERT INTO TEST (ID, NAME) VALUES (%(id_name)s, %(name)s) ON duplicate update',
         )
-        self.assertIsNotNone(m, "error parse %(id_name)s")
+        self.assertIsNotNone(m, 'error parse %(id_name)s')
         self.assertEqual(
             m.group(3),
-            " ON duplicate update",
-            "group 3 not ON duplicate update, bug in RE_INSERT_VALUES?",
+            ' ON duplicate update',
+            'group 3 not ON duplicate update, bug in RE_INSERT_VALUES?',
         )
 
         # https://github.com/PyMySQL/PyMySQL/pull/597
         m = cursors.RE_INSERT_VALUES.match(
-            "INSERT INTO bloup(foo, bar)VALUES(%s, %s)"
+            'INSERT INTO bloup(foo, bar)VALUES(%s, %s)',
         )
         assert m is not None
 
@@ -134,18 +135,18 @@ class CursorTest(base.PyMySQLTestCase):
         #  values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)"
         # list args
         data = range(10)
-        cursor.executemany("insert into test (data) values (%s)", data)
+        cursor.executemany('insert into test (data) values (%s)', data)
         self.assertTrue(
-            cursor._executed.endswith(b",(7),(8),(9)"),
-            "execute many with %s not in one query",
+            cursor._executed.endswith(b',(7),(8),(9)'),
+            'execute many with %s not in one query',
         )
 
         # dict args
-        data_dict = [{"data": i} for i in range(10)]
-        cursor.executemany("insert into test (data) values (%(data)s)", data_dict)
+        data_dict = [{'data': i} for i in range(10)]
+        cursor.executemany('insert into test (data) values (%(data)s)', data_dict)
         self.assertTrue(
-            cursor._executed.endswith(b",(7),(8),(9)"),
-            "execute many with %(data)s not in one query",
+            cursor._executed.endswith(b',(7),(8),(9)'),
+            'execute many with %(data)s not in one query',
         )
 
         # %% in column set
@@ -153,18 +154,18 @@ class CursorTest(base.PyMySQLTestCase):
             """\
             CREATE TABLE percent_test (
                 `A%` INTEGER,
-                `B%` INTEGER)"""
+                `B%` INTEGER)""",
         )
         try:
-            q = "INSERT INTO percent_test (`A%%`, `B%%`) VALUES (%s, %s)"
+            q = 'INSERT INTO percent_test (`A%%`, `B%%`) VALUES (%s, %s)'
             self.assertIsNotNone(cursors.RE_INSERT_VALUES.match(q))
             cursor.executemany(q, [(3, 4), (5, 6)])
             self.assertTrue(
-                cursor._executed.endswith(b"(3, 4),(5, 6)"),
-                "executemany with %% not in one query",
+                cursor._executed.endswith(b'(3, 4),(5, 6)'),
+                'executemany with %% not in one query',
             )
         finally:
-            cursor.execute("DROP TABLE IF EXISTS percent_test")
+            cursor.execute('DROP TABLE IF EXISTS percent_test')
 
     def test_execution_time_limit(self):
         # this method is similarly implemented in test_SScursor
@@ -177,49 +178,49 @@ class CursorTest(base.PyMySQLTestCase):
             # MariaDB max_statement_time takes seconds as int/float, introduced in 10.1
 
             # this will sleep 0.01 seconds per row
-            if db_type == "mysql":
+            if db_type == 'mysql':
                 sql = (
-                    "SELECT /*+ MAX_EXECUTION_TIME(2000) */ data, sleep(0.01) FROM test"
+                    'SELECT /*+ MAX_EXECUTION_TIME(2000) */ data, sleep(0.01) FROM test'
                 )
             else:
-                sql = "SET STATEMENT max_statement_time=2 FOR SELECT data, sleep(0.01) FROM test"
+                sql = 'SET STATEMENT max_statement_time=2 FOR SELECT data, sleep(0.01) FROM test'
 
             cur.execute(sql)
             # unlike SSCursor, Cursor returns a tuple of tuples here
             self.assertEqual(
                 cur.fetchall(),
                 (
-                    ("row1", 0),
-                    ("row2", 0),
-                    ("row3", 0),
-                    ("row4", 0),
-                    ("row5", 0),
+                    ('row1', 0),
+                    ('row2', 0),
+                    ('row3', 0),
+                    ('row4', 0),
+                    ('row5', 0),
                 ),
             )
 
-            if db_type == "mysql":
+            if db_type == 'mysql':
                 sql = (
-                    "SELECT /*+ MAX_EXECUTION_TIME(2000) */ data, sleep(0.01) FROM test"
+                    'SELECT /*+ MAX_EXECUTION_TIME(2000) */ data, sleep(0.01) FROM test'
                 )
             else:
-                sql = "SET STATEMENT max_statement_time=2 FOR SELECT data, sleep(0.01) FROM test"
+                sql = 'SET STATEMENT max_statement_time=2 FOR SELECT data, sleep(0.01) FROM test'
             cur.execute(sql)
-            self.assertEqual(cur.fetchone(), ("row1", 0))
+            self.assertEqual(cur.fetchone(), ('row1', 0))
 
             # this discards the previous unfinished query
-            cur.execute("SELECT 1")
+            cur.execute('SELECT 1')
             self.assertEqual(cur.fetchone(), (1,))
 
-            if db_type == "mysql":
-                sql = "SELECT /*+ MAX_EXECUTION_TIME(1) */ data, sleep(1) FROM test"
+            if db_type == 'mysql':
+                sql = 'SELECT /*+ MAX_EXECUTION_TIME(1) */ data, sleep(1) FROM test'
             else:
-                sql = "SET STATEMENT max_statement_time=0.001 FOR SELECT data, sleep(1) FROM test"
+                sql = 'SET STATEMENT max_statement_time=0.001 FOR SELECT data, sleep(1) FROM test'
             with pytest.raises(omysql.err.OperationalError) as cm:
                 # in a buffered cursor this should reliably raise an
                 # OperationalError
                 cur.execute(sql)
 
-            if db_type == "mysql":
+            if db_type == 'mysql':
                 # this constant was only introduced in MySQL 5.7, not sure
                 # what was returned before, may have been ER_QUERY_INTERRUPTED
                 self.assertEqual(cm.value.args[0], ER.QUERY_TIMEOUT)
@@ -227,22 +228,22 @@ class CursorTest(base.PyMySQLTestCase):
                 self.assertEqual(cm.value.args[0], ER.STATEMENT_TIMEOUT)
 
             # connection should still be fine at this point
-            cur.execute("SELECT 1")
+            cur.execute('SELECT 1')
             self.assertEqual(cur.fetchone(), (1,))
 
     def test_warnings(self):
         con = self.connect()
         cur = con.cursor()
-        cur.execute("DROP TABLE IF EXISTS `no_exists_table`")
+        cur.execute('DROP TABLE IF EXISTS `no_exists_table`')
         self.assertEqual(cur.warning_count, 1)
 
-        cur.execute("SHOW WARNINGS")
+        cur.execute('SHOW WARNINGS')
         w = cur.fetchone()
         self.assertEqual(w[1], ER.BAD_TABLE_ERROR)
         self.assertIn(
-            "no_exists_table",
+            'no_exists_table',
             w[2],
         )
 
-        cur.execute("SELECT 1")
+        cur.execute('SELECT 1')
         self.assertEqual(cur.warning_count, 0)

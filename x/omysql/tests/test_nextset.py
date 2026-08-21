@@ -12,7 +12,7 @@ class TestNextset(base.PyMySQLTestCase):
             client_flag=CLIENT.MULTI_STATEMENTS,
         )
         cur = con.cursor()
-        cur.execute("SELECT 1; SELECT 2;")
+        cur.execute('SELECT 1; SELECT 2;')
         self.assertEqual([(1,)], list(cur))
 
         r = cur.nextset()
@@ -23,10 +23,10 @@ class TestNextset(base.PyMySQLTestCase):
 
     def test_skip_nextset(self):
         cur = self.connect(client_flag=CLIENT.MULTI_STATEMENTS).cursor()
-        cur.execute("SELECT 1; SELECT 2;")
+        cur.execute('SELECT 1; SELECT 2;')
         self.assertEqual([(1,)], list(cur))
 
-        cur.execute("SELECT 42")
+        cur.execute('SELECT 42')
         self.assertEqual([(42,)], list(cur))
 
     def test_nextset_error(self):
@@ -34,7 +34,7 @@ class TestNextset(base.PyMySQLTestCase):
         cur = con.cursor()
 
         for i in range(3):
-            cur.execute("SELECT %s; xyzzy;", (i,))
+            cur.execute('SELECT %s; xyzzy;', (i,))
             self.assertEqual([(i,)], list(cur))
             with self.assertRaises(omysql.ProgrammingError):
                 cur.nextset()
@@ -42,7 +42,7 @@ class TestNextset(base.PyMySQLTestCase):
 
     def test_ok_and_next(self):
         cur = self.connect(client_flag=CLIENT.MULTI_STATEMENTS).cursor()
-        cur.execute("SELECT 1; commit; SELECT 2;")
+        cur.execute('SELECT 1; commit; SELECT 2;')
         self.assertEqual([(1,)], list(cur))
         self.assertTrue(cur.nextset())
         self.assertTrue(cur.nextset())
@@ -55,8 +55,8 @@ class TestNextset(base.PyMySQLTestCase):
         cur1 = con.cursor()
         cur2 = con.cursor()
 
-        cur1.execute("SELECT 1; SELECT 2;")
-        cur2.execute("SELECT 42")
+        cur1.execute('SELECT 1; SELECT 2;')
+        cur2.execute('SELECT 42')
 
         self.assertEqual([(1,)], list(cur1))
         self.assertEqual([(42,)], list(cur2))
@@ -75,7 +75,7 @@ class TestNextset(base.PyMySQLTestCase):
         cursor = con.cursor()
 
         try:
-            cursor.execute("DROP TABLE IF EXISTS a; DROP TABLE IF EXISTS b;")
+            cursor.execute('DROP TABLE IF EXISTS a; DROP TABLE IF EXISTS b;')
         except TypeError:
             self.fail()
 

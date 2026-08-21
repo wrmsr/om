@@ -13,11 +13,11 @@ class TempUser:
         self._c = c
         self._user = user
         self._db = db
-        create = "CREATE USER " + user
+        create = 'CREATE USER ' + user
         if password is not None:
             create += " IDENTIFIED BY '%s'" % password
         elif auth is not None:
-            create += " IDENTIFIED WITH %s" % auth
+            create += ' IDENTIFIED WITH %s' % auth
             if authdata is not None:
                 create += " AS '%s'" % authdata
         try:
@@ -27,7 +27,7 @@ class TempUser:
             # already exists - TODO need to check the same plugin applies
             self._created = False
         try:
-            c.execute(f"GRANT SELECT ON {db}.* TO {user}")
+            c.execute(f'GRANT SELECT ON {db}.* TO {user}')
             self._grant = True
         except omysql.err.InternalError:
             self._grant = False
@@ -37,9 +37,9 @@ class TempUser:
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self._grant:
-            self._c.execute(f"REVOKE SELECT ON {self._db}.* FROM {self._user}")
+            self._c.execute(f'REVOKE SELECT ON {self._db}.* FROM {self._user}')
         if self._created:
-            self._c.execute("DROP USER %s" % self._user)
+            self._c.execute('DROP USER %s' % self._user)
 
 
 class TestAuthentication(base.PyMySQLTestCase):
@@ -54,36 +54,36 @@ class TestAuthentication(base.PyMySQLTestCase):
 
     import os
 
-    osuser = os.environ.get("USER")
+    osuser = os.environ.get('USER')
 
     # socket auth requires the current user and for the connection to be a socket
     # rest do grants @localhost due to incomplete logic - TODO change to @% then
     db = base.PyMySQLTestCase.databases[0].copy()
 
-    socket_auth = db.get("unix_socket") is not None and db.get("host") in (
-        "localhost",
-        "127.0.0.1",
+    socket_auth = db.get('unix_socket') is not None and db.get('host') in (
+        'localhost',
+        '127.0.0.1',
     )
 
     cur = omysql.connect(**db).cursor()
-    del db["user"]
-    cur.execute("SHOW PLUGINS")
+    del db['user']
+    cur.execute('SHOW PLUGINS')
     for r in cur:
-        if (r[1], r[2]) != ("ACTIVE", "AUTHENTICATION"):
+        if (r[1], r[2]) != ('ACTIVE', 'AUTHENTICATION'):
             continue
-        if r[3] == "auth_socket.so" or r[0] == "unix_socket":
+        if r[3] == 'auth_socket.so' or r[0] == 'unix_socket':
             socket_plugin_name = r[0]
             socket_found = True
-        elif r[3] == "dialog_examples.so":
-            if r[0] == "two_questions":
+        elif r[3] == 'dialog_examples.so':
+            if r[0] == 'two_questions':
                 two_questions_found = True
-            elif r[0] == "three_attempts":
+            elif r[0] == 'three_attempts':
                 three_attempts_found = True
-        elif r[0] == "pam":
+        elif r[0] == 'pam':
             pam_found = True
-            pam_plugin_name = r[3].split(".")[0]
-            if pam_plugin_name == "auth_pam":
-                pam_plugin_name = "pam"
+            pam_plugin_name = r[3].split('.')[0]
+            if pam_plugin_name == 'auth_pam':
+                pam_plugin_name = 'pam'
             # MySQL: authentication_pam
             # https://dev.mysql.com/doc/refman/5.5/en/pam-authentication-plugin.html
 
@@ -91,48 +91,48 @@ class TestAuthentication(base.PyMySQLTestCase):
             # https://mariadb.com/kb/en/mariadb/pam-authentication-plugin/
 
             # Names differ but functionality is close
-        elif r[0] == "mysql_old_password":
+        elif r[0] == 'mysql_old_password':
             mysql_old_password_found = True
-        elif r[0] == "sha256_password":
+        elif r[0] == 'sha256_password':
             sha256_password_found = True
-        elif r[0] == "ed25519":
+        elif r[0] == 'ed25519':
             ed25519_found = True
         # else:
         #    print("plugin: %r" % r[0])
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
-    @pytest.mark.skipif(socket_found, reason="socket plugin already installed")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
+    @pytest.mark.skipif(socket_found, reason='socket plugin already installed')
     def testSocketAuthInstallPlugin(self):
         # needs plugin. lets install it.
         cur = self.connect().cursor()
         try:
             cur.execute("install plugin auth_socket soname 'auth_socket.so'")
             TestAuthentication.socket_found = True
-            self.socket_plugin_name = "auth_socket"
+            self.socket_plugin_name = 'auth_socket'
             self.realtestSocketAuth()
         except omysql.err.InternalError:
             try:
                 cur.execute("install soname 'auth_socket'")
                 TestAuthentication.socket_found = True
-                self.socket_plugin_name = "unix_socket"
+                self.socket_plugin_name = 'unix_socket'
                 self.realtestSocketAuth()
             except omysql.err.InternalError:
                 TestAuthentication.socket_found = False
                 pytest.skip("we couldn't install the socket plugin")
         finally:
             if TestAuthentication.socket_found:
-                cur.execute("uninstall plugin %s" % self.socket_plugin_name)
+                cur.execute('uninstall plugin %s' % self.socket_plugin_name)
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
-    @pytest.mark.skipif(not socket_found, reason="no socket plugin")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
+    @pytest.mark.skipif(not socket_found, reason='no socket plugin')
     def testSocketAuth(self):
         self.realtestSocketAuth()
 
     def realtestSocketAuth(self):
         with TempUser(
             self.connect().cursor(),
-            TestAuthentication.osuser + "@localhost",
-            self.databases[0]["database"],
+            TestAuthentication.osuser + '@localhost',
+            self.databases[0]['database'],
             self.socket_plugin_name,
         ):
             omysql.connect(user=TestAuthentication.osuser, **self.db)
@@ -146,7 +146,7 @@ class TestAuthentication(base.PyMySQLTestCase):
         def prompt(self, echo, prompt):
             if self.fail:
                 self.fail = False
-                return b"bad guess at a password"
+                return b'bad guess at a password'
             return self.m.get(prompt)
 
     class DialogHandler:
@@ -160,10 +160,10 @@ class TestAuthentication(base.PyMySQLTestCase):
                 last = (flag & 0x01) == 0x01
                 prompt = pkt.read_all()
 
-                if prompt == b"Password, please:":
-                    self.con.write_packet(b"stillnotverysecret\0")
+                if prompt == b'Password, please:':
+                    self.con.write_packet(b'stillnotverysecret\0')
                 else:
-                    self.con.write_packet(b"no idea what to do with this prompt\0")
+                    self.con.write_packet(b'no idea what to do with this prompt\0')
                 pkt = self.con._read_packet()
                 pkt.check_error()
                 if pkt.is_ok_packet() or last:
@@ -174,9 +174,9 @@ class TestAuthentication(base.PyMySQLTestCase):
         def __init__(self, con):
             self.con = con
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
     @pytest.mark.skipif(
-        two_questions_found, reason="two_questions plugin already installed"
+        two_questions_found, reason='two_questions plugin already installed',
     )
     def testDialogAuthTwoQuestionsInstallPlugin(self):
         # needs plugin. lets install it.
@@ -189,37 +189,37 @@ class TestAuthentication(base.PyMySQLTestCase):
             pytest.skip("we couldn't install the two_questions plugin")
         finally:
             if TestAuthentication.two_questions_found:
-                cur.execute("uninstall plugin two_questions")
+                cur.execute('uninstall plugin two_questions')
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
-    @pytest.mark.skipif(not two_questions_found, reason="no two questions auth plugin")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
+    @pytest.mark.skipif(not two_questions_found, reason='no two questions auth plugin')
     def testDialogAuthTwoQuestions(self):
         self.realTestDialogAuthTwoQuestions()
 
     def realTestDialogAuthTwoQuestions(self):
         TestAuthentication.Dialog.fail = False
         TestAuthentication.Dialog.m = {
-            b"Password, please:": b"notverysecret",
-            b"Are you sure ?": b"yes, of course",
+            b'Password, please:': b'notverysecret',
+            b'Are you sure ?': b'yes, of course',
         }
         with TempUser(
             self.connect().cursor(),
-            "omysql@localhost",
-            self.databases[0]["database"],
-            "two_questions",
-            "notverysecret",
+            'omysql@localhost',
+            self.databases[0]['database'],
+            'two_questions',
+            'notverysecret',
         ):
             with self.assertRaises(omysql.err.OperationalError):
-                omysql.connect(user="omysql", **self.db)
+                omysql.connect(user='omysql', **self.db)
             omysql.connect(
-                user="omysql",
-                auth_plugin_map={b"dialog": TestAuthentication.Dialog},
+                user='omysql',
+                auth_plugin_map={b'dialog': TestAuthentication.Dialog},
                 **self.db,
             )
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
     @pytest.mark.skipif(
-        three_attempts_found, reason="three_attempts plugin already installed"
+        three_attempts_found, reason='three_attempts plugin already installed',
     )
     def testDialogAuthThreeAttemptsQuestionsInstallPlugin(self):
         # needs plugin. lets install it.
@@ -232,74 +232,74 @@ class TestAuthentication(base.PyMySQLTestCase):
             pytest.skip("we couldn't install the three_attempts plugin")
         finally:
             if TestAuthentication.three_attempts_found:
-                cur.execute("uninstall plugin three_attempts")
+                cur.execute('uninstall plugin three_attempts')
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
-    @pytest.mark.skipif(not three_attempts_found, reason="no three attempts plugin")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
+    @pytest.mark.skipif(not three_attempts_found, reason='no three attempts plugin')
     def testDialogAuthThreeAttempts(self):
         self.realTestDialogAuthThreeAttempts()
 
     def realTestDialogAuthThreeAttempts(self):
-        TestAuthentication.Dialog.m = {b"Password, please:": b"stillnotverysecret"}
+        TestAuthentication.Dialog.m = {b'Password, please:': b'stillnotverysecret'}
         TestAuthentication.Dialog.fail = (
             True  # fail just once. We've got three attempts after all
         )
         with TempUser(
             self.connect().cursor(),
-            "omysql@localhost",
-            self.databases[0]["database"],
-            "three_attempts",
-            "stillnotverysecret",
+            'omysql@localhost',
+            self.databases[0]['database'],
+            'three_attempts',
+            'stillnotverysecret',
         ):
             omysql.connect(
-                user="omysql",
-                auth_plugin_map={b"dialog": TestAuthentication.Dialog},
+                user='omysql',
+                auth_plugin_map={b'dialog': TestAuthentication.Dialog},
                 **self.db,
             )
             omysql.connect(
-                user="omysql",
-                auth_plugin_map={b"dialog": TestAuthentication.DialogHandler},
+                user='omysql',
+                auth_plugin_map={b'dialog': TestAuthentication.DialogHandler},
                 **self.db,
             )
             with self.assertRaises(omysql.err.OperationalError):
                 omysql.connect(
-                    user="omysql", auth_plugin_map={b"dialog": object}, **self.db
+                    user='omysql', auth_plugin_map={b'dialog': object}, **self.db,
                 )
 
             with self.assertRaises(omysql.err.OperationalError):
                 omysql.connect(
-                    user="omysql",
-                    auth_plugin_map={b"dialog": TestAuthentication.DefectiveHandler},
+                    user='omysql',
+                    auth_plugin_map={b'dialog': TestAuthentication.DefectiveHandler},
                     **self.db,
                 )
             with self.assertRaises(omysql.err.OperationalError):
                 omysql.connect(
-                    user="omysql",
-                    auth_plugin_map={b"notdialogplugin": TestAuthentication.Dialog},
+                    user='omysql',
+                    auth_plugin_map={b'notdialogplugin': TestAuthentication.Dialog},
                     **self.db,
                 )
-            TestAuthentication.Dialog.m = {b"Password, please:": b"I do not know"}
+            TestAuthentication.Dialog.m = {b'Password, please:': b'I do not know'}
             with self.assertRaises(omysql.err.OperationalError):
                 omysql.connect(
-                    user="omysql",
-                    auth_plugin_map={b"dialog": TestAuthentication.Dialog},
+                    user='omysql',
+                    auth_plugin_map={b'dialog': TestAuthentication.Dialog},
                     **self.db,
                 )
-            TestAuthentication.Dialog.m = {b"Password, please:": None}
+            TestAuthentication.Dialog.m = {b'Password, please:': None}
             with self.assertRaises(omysql.err.OperationalError):
                 omysql.connect(
-                    user="omysql",
-                    auth_plugin_map={b"dialog": TestAuthentication.Dialog},
+                    user='omysql',
+                    auth_plugin_map={b'dialog': TestAuthentication.Dialog},
                     **self.db,
                 )
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
-    @pytest.mark.skipif(pam_found, reason="pam plugin already installed")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
+    @pytest.mark.skipif(pam_found, reason='pam plugin already installed')
     @pytest.mark.skipif(
-        os.environ.get("PASSWORD") is None, reason="PASSWORD env var required"
+        os.environ.get('PASSWORD') is None, reason='PASSWORD env var required',
     )
     @pytest.mark.skipif(
-        os.environ.get("PAMSERVICE") is None, reason="PAMSERVICE env var required"
+        os.environ.get('PAMSERVICE') is None, reason='PAMSERVICE env var required',
     )
     def testPamAuthInstallPlugin(self):
         # needs plugin. lets install it.
@@ -312,15 +312,15 @@ class TestAuthentication(base.PyMySQLTestCase):
             pytest.skip("we couldn't install the auth_pam plugin")
         finally:
             if TestAuthentication.pam_found:
-                cur.execute("uninstall plugin pam")
+                cur.execute('uninstall plugin pam')
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
-    @pytest.mark.skipif(not pam_found, reason="no pam plugin")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
+    @pytest.mark.skipif(not pam_found, reason='no pam plugin')
     @pytest.mark.skipif(
-        os.environ.get("PASSWORD") is None, reason="PASSWORD env var required"
+        os.environ.get('PASSWORD') is None, reason='PASSWORD env var required',
     )
     @pytest.mark.skipif(
-        os.environ.get("PAMSERVICE") is None, reason="PAMSERVICE env var required"
+        os.environ.get('PAMSERVICE') is None, reason='PAMSERVICE env var required',
     )
     def testPamAuth(self):
         self.realTestPamAuth()
@@ -329,31 +329,31 @@ class TestAuthentication(base.PyMySQLTestCase):
         db = self.db.copy()
         import os
 
-        db["password"] = os.environ.get("PASSWORD")
+        db['password'] = os.environ.get('PASSWORD')
         cur = self.connect().cursor()
         try:
-            cur.execute("show grants for " + TestAuthentication.osuser + "@localhost")
+            cur.execute('show grants for ' + TestAuthentication.osuser + '@localhost')
             grants = cur.fetchone()[0]
-            cur.execute("drop user " + TestAuthentication.osuser + "@localhost")
+            cur.execute('drop user ' + TestAuthentication.osuser + '@localhost')
         except omysql.OperationalError as e:
             # assuming the user doesn't exist which is ok too
             self.assertEqual(1045, e.args[0])
             grants = None
         with TempUser(
             cur,
-            TestAuthentication.osuser + "@localhost",
-            self.databases[0]["database"],
-            "pam",
-            os.environ.get("PAMSERVICE"),
+            TestAuthentication.osuser + '@localhost',
+            self.databases[0]['database'],
+            'pam',
+            os.environ.get('PAMSERVICE'),
         ):
             try:
                 omysql.connect(user=TestAuthentication.osuser, **db)
-                db["password"] = "very bad guess at password"
+                db['password'] = 'very bad guess at password'
                 with self.assertRaises(omysql.err.OperationalError):
                     omysql.connect(
                         user=TestAuthentication.osuser,
                         auth_plugin_map={
-                            b"mysql_cleartext_password": TestAuthentication.DefectiveHandler
+                            b'mysql_cleartext_password': TestAuthentication.DefectiveHandler,
                         },
                         **self.db,
                     )
@@ -365,7 +365,7 @@ class TestAuthentication(base.PyMySQLTestCase):
                     omysql.connect(
                         user=TestAuthentication.osuser,
                         auth_plugin_map={
-                            b"mysql_cleartext_password": TestAuthentication.DefectiveHandler
+                            b'mysql_cleartext_password': TestAuthentication.DefectiveHandler,
                         },
                         **self.db,
                     )
@@ -373,88 +373,90 @@ class TestAuthentication(base.PyMySQLTestCase):
             # recreate the user
             cur.execute(grants)
 
-    @pytest.mark.skipif(not socket_auth, reason="connection to unix_socket required")
+    @pytest.mark.skipif(not socket_auth, reason='connection to unix_socket required')
     @pytest.mark.skipif(
         not sha256_password_found,
-        reason="no sha256 password authentication plugin found",
+        reason='no sha256 password authentication plugin found',
     )
     def testAuthSHA256(self):
         conn = self.connect()
         c = conn.cursor()
         with TempUser(
             c,
-            "omysql@localhost",
-            self.databases[0]["database"],
-            "sha256_password",
+            'omysql@localhost',
+            self.databases[0]['database'],
+            'sha256_password',
         ):
             c.execute("SET PASSWORD FOR 'omysql'@'localhost' ='Sh@256Pa33'")
-            c.execute("FLUSH PRIVILEGES")
+            c.execute('FLUSH PRIVILEGES')
             db = self.db.copy()
-            db["password"] = "Sh@256Pa33"
+            db['password'] = 'Sh@256Pa33'
             # Although SHA256 is supported, need the configuration of public key of
             # the mysql server. Currently will get error by this test.
             with self.assertRaises(omysql.err.OperationalError):
-                omysql.connect(user="omysql", **db)
+                omysql.connect(user='omysql', **db)
 
-    @pytest.mark.skipif(not ed25519_found, reason="no ed25519 authention plugin")
+    @pytest.mark.skipif(not ed25519_found, reason='no ed25519 authention plugin')
     def testAuthEd25519(self):
         db = self.db.copy()
-        del db["password"]
+        del db['password']
         conn = self.connect()
         c = conn.cursor()
         c.execute("select ed25519_password(''), ed25519_password('ed25519_password')")
         for r in c:
-            empty_pass = r[0].decode("ascii")
-            non_empty_pass = r[1].decode("ascii")
+            empty_pass = r[0].decode('ascii')
+            non_empty_pass = r[1].decode('ascii')
 
         with TempUser(
             c,
-            "omysql",
-            self.databases[0]["database"],
-            "ed25519",
+            'omysql',
+            self.databases[0]['database'],
+            'ed25519',
             empty_pass,
         ):
-            omysql.connect(user="omysql", password="", **db)
+            omysql.connect(user='omysql', password='', **db)
 
         with TempUser(
             c,
-            "omysql",
-            self.databases[0]["database"],
-            "ed25519",
+            'omysql',
+            self.databases[0]['database'],
+            'ed25519',
             non_empty_pass,
         ):
-            omysql.connect(user="omysql", password="ed25519_password", **db)
+            omysql.connect(user='omysql', password='ed25519_password', **db)
 
 
 class TestConnection(base.PyMySQLTestCase):
     def test_utf8mb4(self):
         """This test requires MySQL >= 5.5"""
+
         arg = self.databases[0].copy()
-        arg["charset"] = "utf8mb4"
+        arg['charset'] = 'utf8mb4'
         omysql.connect(**arg)
 
     def test_set_character_set(self):
         con = self.connect()
         cur = con.cursor()
 
-        con.set_character_set("latin1")
-        cur.execute("SELECT @@character_set_connection")
-        self.assertEqual(cur.fetchone(), ("latin1",))
-        self.assertEqual(con.encoding, "cp1252")
+        con.set_character_set('latin1')
+        cur.execute('SELECT @@character_set_connection')
+        self.assertEqual(cur.fetchone(), ('latin1',))
+        self.assertEqual(con.encoding, 'cp1252')
 
-        con.set_character_set("utf8mb4", "utf8mb4_general_ci")
-        cur.execute("SELECT @@character_set_connection, @@collation_connection")
-        self.assertEqual(cur.fetchone(), ("utf8mb4", "utf8mb4_general_ci"))
-        self.assertEqual(con.encoding, "utf8")
+        con.set_character_set('utf8mb4', 'utf8mb4_general_ci')
+        cur.execute('SELECT @@character_set_connection, @@collation_connection')
+        self.assertEqual(cur.fetchone(), ('utf8mb4', 'utf8mb4_general_ci'))
+        self.assertEqual(con.encoding, 'utf8')
 
     def test_largedata(self):
         """Large query and response (>=16MB)"""
+
         cur = self.connect().cursor()
-        cur.execute("SELECT @@max_allowed_packet")
+        cur.execute('SELECT @@max_allowed_packet')
         if cur.fetchone()[0] < 16 * 1024 * 1024 + 10:
-            print("Set max_allowed_packet to bigger than 17MB")
+            print('Set max_allowed_packet to bigger than 17MB')
             return
-        t = "a" * (16 * 1024 * 1024)
+        t = 'a' * (16 * 1024 * 1024)
         cur.execute("SELECT '" + t + "'")
         assert cur.fetchone()[0] == t
 
@@ -463,25 +465,25 @@ class TestConnection(base.PyMySQLTestCase):
         self.assertFalse(con.get_autocommit())
 
         cur = con.cursor()
-        cur.execute("SET AUTOCOMMIT=1")
+        cur.execute('SET AUTOCOMMIT=1')
         self.assertTrue(con.get_autocommit())
 
         con.autocommit(False)
         self.assertFalse(con.get_autocommit())
-        cur.execute("SELECT @@AUTOCOMMIT")
+        cur.execute('SELECT @@AUTOCOMMIT')
         self.assertEqual(cur.fetchone()[0], 0)
 
     def test_select_db(self):
         con = self.connect()
-        current_db = self.databases[0]["database"]
-        other_db = self.databases[1]["database"]
+        current_db = self.databases[0]['database']
+        other_db = self.databases[1]['database']
 
         cur = con.cursor()
-        cur.execute("SELECT database()")
+        cur.execute('SELECT database()')
         self.assertEqual(cur.fetchone()[0], current_db)
 
         con.select_db(other_db)
-        cur.execute("SELECT database()")
+        cur.execute('SELECT database()')
         self.assertEqual(cur.fetchone()[0], other_db)
 
     def test_connection_gone_away(self):
@@ -489,12 +491,13 @@ class TestConnection(base.PyMySQLTestCase):
         http://dev.mysql.com/doc/refman/5.0/en/gone-away.html
         http://dev.mysql.com/doc/refman/5.0/en/error-messages-client.html#error_cr_server_gone_error
         """
+
         con = self.connect()
         cur = con.cursor()
-        cur.execute("SET wait_timeout=1")
+        cur.execute('SET wait_timeout=1')
         time.sleep(2)
         with self.assertRaises(omysql.OperationalError) as cm:
-            cur.execute("SELECT 1+1")
+            cur.execute('SELECT 1+1')
         # error occurs while reading, not writing because of socket buffer.
         # self.assertEqual(cm.exception.args[0], 2006)
         self.assertIn(cm.exception.args[0], (2006, 2013))
@@ -506,20 +509,20 @@ class TestConnection(base.PyMySQLTestCase):
         )
         c = conn.cursor()
         c.execute('select "foobar";')
-        self.assertEqual(("foobar",), c.fetchone())
+        self.assertEqual(('foobar',), c.fetchone())
         conn.close()
         with self.assertRaises(omysql.err.Error):
             conn.ping(reconnect=False)
 
     def test_read_default_group(self):
         conn = self.connect(
-            read_default_group="client",
+            read_default_group='client',
         )
         self.assertTrue(conn.open)
 
     def test_set_charset(self):
         c = self.connect()
-        c.set_charset("utf8mb4")
+        c.set_charset('utf8mb4')
         # TODO validate setting here
 
     def test_defer_connect(self):
@@ -528,13 +531,13 @@ class TestConnection(base.PyMySQLTestCase):
         d = self.databases[0].copy()
         try:
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.connect(d["unix_socket"])
+            sock.connect(d['unix_socket'])
         except KeyError:
             sock.close()
             sock = socket.create_connection(
-                (d.get("host", "localhost"), d.get("port", 3306))
+                (d.get('host', 'localhost'), d.get('port', 3306)),
             )
-        for k in ["unix_socket", "host", "port"]:
+        for k in ['unix_socket', 'host', 'port']:
             try:
                 del d[k]
             except KeyError:
@@ -548,7 +551,7 @@ class TestConnection(base.PyMySQLTestCase):
 
 # A custom type and function to escape it
 class Foo:
-    value = "bar"
+    value = 'bar'
 
 
 def escape_foo(x, d):
@@ -579,7 +582,7 @@ class TestEscape(base.PyMySQLTestCase):
         con = self.connect()
 
         mapping = {Foo: escape_foo}
-        self.assertEqual(con.escape(Foo(), mapping), "bar")
+        self.assertEqual(con.escape(Foo(), mapping), 'bar')
 
     def test_escape_fallback_encoder(self):
         con = self.connect()
@@ -588,7 +591,7 @@ class TestEscape(base.PyMySQLTestCase):
             pass
 
         mapping = {str: omysql.converters.escape_string}
-        self.assertEqual(con.escape(Custom("foobar"), mapping), "'foobar'")
+        self.assertEqual(con.escape(Custom('foobar'), mapping), "'foobar'")
 
     def test_escape_no_default(self):
         con = self.connect()
@@ -597,20 +600,21 @@ class TestEscape(base.PyMySQLTestCase):
 
     def test_escape_dict_raise_typeerror(self):
         """con.escape(dict) should raise TypeError"""
+
         con = self.connect()
 
         mapping = con.encoders.copy()
         mapping[Foo] = escape_foo
         # self.assertEqual(con.escape({"foo": Foo()}, mapping), {"foo": "bar"})
         with self.assertRaises(TypeError):
-            con.escape({"foo": Foo()})
+            con.escape({'foo': Foo()})
 
     def test_escape_list_item(self):
         con = self.connect()
 
         mapping = con.encoders.copy()
         mapping[Foo] = escape_foo
-        self.assertEqual(con.escape([Foo()], mapping), "(bar)")
+        self.assertEqual(con.escape([Foo()], mapping), '(bar)')
 
     def test_previous_cursor_not_closed(self):
         con = self.connect(
@@ -618,15 +622,15 @@ class TestEscape(base.PyMySQLTestCase):
             client_flag=CLIENT.MULTI_STATEMENTS,
         )
         cur1 = con.cursor()
-        cur1.execute("SELECT 1; SELECT 2")
+        cur1.execute('SELECT 1; SELECT 2')
         cur2 = con.cursor()
-        cur2.execute("SELECT 3")
+        cur2.execute('SELECT 3')
         self.assertEqual(cur2.fetchone()[0], 3)
 
     def test_commit_during_multi_result(self):
         con = self.connect(client_flag=CLIENT.MULTI_STATEMENTS)
         cur = con.cursor()
-        cur.execute("SELECT 1; SELECT 2")
+        cur.execute('SELECT 1; SELECT 2')
         con.commit()
-        cur.execute("SELECT 3")
+        cur.execute('SELECT 3')
         self.assertEqual(cur.fetchone()[0], 3)

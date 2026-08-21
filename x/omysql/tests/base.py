@@ -10,7 +10,8 @@ class PyMySQLTestCase(unittest.TestCase):
     databases = DATABASES
 
     def mysql_server_is(self, conn, version_tuple):
-        """Return True if the given connection is on the version given or
+        """
+        Return True if the given connection is on the version given or
         greater.
 
         This only checks the server version string provided when the
@@ -23,20 +24,21 @@ class PyMySQLTestCase(unittest.TestCase):
             if self.mysql_server_is(conn, (5, 6, 4)):
                 # do something for MySQL 5.6.4 and above
         """
+
         server_version = conn.get_server_info()
         server_version_tuple = tuple(
             (int(dig) if dig is not None else 0)
-            for dig in re.match(r"(\d+)\.(\d+)\.(\d+)", server_version).group(1, 2, 3)
+            for dig in re.match(r'(\d+)\.(\d+)\.(\d+)', server_version).group(1, 2, 3)
         )
         return server_version_tuple >= version_tuple
 
     def get_mysql_vendor(self, conn):
         server_version = conn.get_server_info()
 
-        if "MariaDB" in server_version:
-            return "mariadb"
+        if 'MariaDB' in server_version:
+            return 'mariadb'
 
-        return "mysql"
+        return 'mysql'
 
     _connections = None
 
@@ -69,18 +71,20 @@ class PyMySQLTestCase(unittest.TestCase):
             self._connections = None
 
     def safe_create_table(self, connection, tablename, ddl, cleanup=True):
-        """create a table.
+        """
+        create a table.
 
         Ensures any existing version of that table is first dropped.
 
         Also adds a cleanup rule to drop the table after the test
         completes.
         """
+
         cursor = connection.cursor()
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            cursor.execute(f"drop table if exists `{tablename}`")
+            warnings.simplefilter('ignore')
+            cursor.execute(f'drop table if exists `{tablename}`')
         cursor.execute(ddl)
         cursor.close()
         if cleanup:
@@ -89,6 +93,6 @@ class PyMySQLTestCase(unittest.TestCase):
     def drop_table(self, connection, tablename):
         cursor = connection.cursor()
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            cursor.execute(f"drop table if exists `{tablename}`")
+            warnings.simplefilter('ignore')
+            cursor.execute(f'drop table if exists `{tablename}`')
         cursor.close()

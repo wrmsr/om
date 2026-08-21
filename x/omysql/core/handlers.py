@@ -16,7 +16,9 @@ from omcore.io.pipelines.errors import IncompleteDecodingIoPipelineError
 from omcore.io.streambufs.types import ByteStreamBuffer
 
 from ..err import InterfaceError
+from ..err import OperationalError
 from ..protocol.packets import HEADER_SIZE
+from ..protocol.packets import MAX_PACKET_LENGTH
 from ..protocol.packets import pack_packet
 from ..protocol.packets import split_payload
 from ..protocol.packets import unpack_header
@@ -88,7 +90,6 @@ class MysqlFramingIoPipelineHandler(BufferedBytesToMessageDecoderIoPipelineHandl
             if seq != self._seq:
                 if seq == 0:
                     # The server reset the sequence, which happens when it drops the connection (e.g. wait_timeout).
-                    from ..err import OperationalError  # noqa: PLC0415
                     raise OperationalError(2013, 'Lost connection to MySQL server during query')
                 raise InterfaceError(f'Packet sequence number wrong - got {seq} expected {self._seq}')
             self._seq = (self._seq + 1) % 256
@@ -97,7 +98,6 @@ class MysqlFramingIoPipelineHandler(BufferedBytesToMessageDecoderIoPipelineHandl
             self._pending += buf.split_to(length).tobytes() if length else b''
 
             # A packet whose payload fills the maximum is continued by the next packet.
-            from ..protocol.packets import MAX_PACKET_LENGTH  # noqa: PLC0415
             if length < MAX_PACKET_LENGTH:
                 out.append(ServerPacket(bytes(self._pending)))
                 self._pending = bytearray()

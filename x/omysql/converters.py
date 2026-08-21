@@ -7,6 +7,9 @@ from .constants import FIELD_TYPE
 from .err import ProgrammingError
 
 
+##
+
+
 def escape_item(val, charset, mapping=None):
     if mapping is None:
         mapping = encoders
@@ -17,7 +20,7 @@ def escape_item(val, charset, mapping=None):
         try:
             encoder = mapping[str]
         except KeyError:
-            raise TypeError("no default type converter defined")
+            raise TypeError('no default type converter defined')
 
     if encoder in (escape_dict, escape_sequence):
         val = encoder(val, charset, mapping)
@@ -27,7 +30,7 @@ def escape_item(val, charset, mapping=None):
 
 
 def escape_dict(val, charset, mapping=None):
-    raise TypeError("dict can not be used as parameter")
+    raise TypeError('dict can not be used as parameter')
 
 
 def escape_sequence(val, charset, mapping=None):
@@ -35,11 +38,11 @@ def escape_sequence(val, charset, mapping=None):
     for item in val:
         quoted = escape_item(item, charset, mapping)
         n.append(quoted)
-    return "(" + ",".join(n) + ")"
+    return '(' + ','.join(n) + ')'
 
 
 def escape_set(val, charset, mapping=None):
-    return ",".join([escape_item(x, charset, mapping) for x in val])
+    return ','.join([escape_item(x, charset, mapping) for x in val])
 
 
 def escape_bool(value, mapping=None):
@@ -52,39 +55,39 @@ def escape_int(value, mapping=None):
 
 def escape_float(value, mapping=None):
     s = repr(value)
-    if s in ("inf", "-inf", "nan"):
-        raise ProgrammingError("%s can not be used with MySQL" % s)
-    if "e" not in s:
-        s += "e0"
+    if s in ('inf', '-inf', 'nan'):
+        raise ProgrammingError('%s can not be used with MySQL' % s)
+    if 'e' not in s:
+        s += 'e0'
     return s
 
 
 _escape_table = [chr(x) for x in range(128)]
-_escape_table[0] = "\\0"
-_escape_table[ord("\\")] = "\\\\"
-_escape_table[ord("\n")] = "\\n"
-_escape_table[ord("\r")] = "\\r"
-_escape_table[ord("\032")] = "\\Z"
+_escape_table[0] = '\\0'
+_escape_table[ord('\\')] = '\\\\'
+_escape_table[ord('\n')] = '\\n'
+_escape_table[ord('\r')] = '\\r'
+_escape_table[ord('\032')] = '\\Z'
 _escape_table[ord('"')] = '\\"'
 _escape_table[ord("'")] = "\\'"
 
 
 def escape_string(value, mapping=None):
-    """escapes *value* without adding quote.
+    """
+    escapes *value* without adding quote.
 
     Value should be unicode
     """
+
     return value.translate(_escape_table)
 
 
 def escape_bytes_prefixed(value, mapping=None):
-    return "_binary'%s'" % value.decode("ascii", "surrogateescape").translate(
-        _escape_table
-    )
+    return "_binary'%s'" % value.decode('ascii', 'surrogateescape').translate(_escape_table)
 
 
 def escape_bytes(value, mapping=None):
-    return "'%s'" % value.decode("ascii", "surrogateescape").translate(_escape_table)
+    return "'%s'" % value.decode('ascii', 'surrogateescape').translate(_escape_table)
 
 
 def escape_str(value, mapping=None):
@@ -92,17 +95,16 @@ def escape_str(value, mapping=None):
 
 
 def escape_None(value, mapping=None):
-    return "NULL"
+    return 'NULL'
 
 
 def escape_timedelta(obj, mapping=None):
-    # timedelta normalizes a negative value so that seconds/microseconds are
-    # non-negative and the sign lives entirely in days, so the signed magnitude
-    # must be reconstructed before it is split into hours/minutes/seconds --
-    # otherwise a negative TIME comes out with complemented sub-hour fields.
-    sign = ""
+    # timedelta normalizes a negative value so that seconds/microseconds are non-negative and the sign lives entirely in
+    # days, so the signed magnitude must be reconstructed before it is split into hours/minutes/seconds -- otherwise a
+    # negative TIME comes out with complemented sub-hour fields.
+    sign = ''
     if obj.days < 0:
-        sign = "-"
+        sign = '-'
         obj = abs(obj)
 
     micros = obj.microseconds
@@ -125,10 +127,7 @@ def escape_time(obj, mapping=None):
 
 def escape_datetime(obj, mapping=None):
     if obj.microsecond:
-        fmt = (
-            "'{0.year:04}-{0.month:02}-{0.day:02}"
-            + " {0.hour:02}:{0.minute:02}:{0.second:02}.{0.microsecond:06}'"
-        )
+        fmt = "'{0.year:04}-{0.month:02}-{0.day:02} {0.hour:02}:{0.minute:02}:{0.second:02}.{0.microsecond:06}'"
     else:
         fmt = "'{0.year:04}-{0.month:02}-{0.day:02} {0.hour:02}:{0.minute:02}:{0.second:02}'"
     return fmt.format(obj)
@@ -145,25 +144,32 @@ def escape_struct_time(obj, mapping=None):
 
 def Decimal2Literal(o, d):
     if not o.is_finite():
-        raise ProgrammingError("%s can not be used with MySQL" % str(o).lower())
-    return format(o, "f")
+        raise ProgrammingError('%s can not be used with MySQL' % str(o).lower())
+    return format(o, 'f')
 
 
 def _convert_second_fraction(s):
     if not s:
         return 0
     # Pad zeros to ensure the fraction length in microseconds
-    s = s.ljust(6, "0")
+    s = s.ljust(6, '0')
     return int(s[:6])
 
 
 DATETIME_RE = re.compile(
-    r"(\d{1,4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2}):(\d{1,2})(?:.(\d{1,6}))?"
+    r'(\d{1,4})-'
+    r'(\d{1,2})-'
+    r'(\d{1,2})[T ]'
+    r'(\d{1,2}):'
+    r'(\d{1,2}):'
+    r'(\d{1,2})'
+    r'(?:.(\d{1,6}))?',
 )
 
 
 def convert_datetime(obj):
-    """Returns a DATETIME or TIMESTAMP column value as a datetime object:
+    """
+    Returns a DATETIME or TIMESTAMP column value as a datetime object:
 
       >>> convert_datetime('2007-02-25 23:06:20')
       datetime.datetime(2007, 2, 25, 23, 6, 20)
@@ -177,8 +183,9 @@ def convert_datetime(obj):
       >>> convert_datetime('0000-00-00 00:00:00')
       '0000-00-00 00:00:00'
     """
+
     if isinstance(obj, (bytes, bytearray)):
-        obj = obj.decode("ascii")
+        obj = obj.decode('ascii')
 
     m = DATETIME_RE.match(obj)
     if not m:
@@ -192,11 +199,12 @@ def convert_datetime(obj):
         return convert_date(obj)
 
 
-TIMEDELTA_RE = re.compile(r"(-)?(\d{1,3}):(\d{1,2}):(\d{1,2})(?:.(\d{1,6}))?")
+TIMEDELTA_RE = re.compile(r'(-)?(\d{1,3}):(\d{1,2}):(\d{1,2})(?:.(\d{1,6}))?')
 
 
 def convert_timedelta(obj):
-    """Returns a TIME column as a timedelta object:
+    """
+    Returns a TIME column as a timedelta object:
 
       >>> convert_timedelta('25:06:17')
       datetime.timedelta(days=1, seconds=3977)
@@ -208,12 +216,12 @@ def convert_timedelta(obj):
       >>> convert_timedelta('random crap')
       'random crap'
 
-    Note that MySQL always returns TIME columns as (+|-)HH:MM:SS, but
-    can accept values as (+|-)DD HH:MM:SS. The latter format will not
-    be parsed correctly by this function.
+    Note that MySQL always returns TIME columns as (+|-)HH:MM:SS, but can accept values as (+|-)DD HH:MM:SS. The latter
+    format will not be parsed correctly by this function.
     """
+
     if isinstance(obj, (bytes, bytearray)):
-        obj = obj.decode("ascii")
+        obj = obj.decode('ascii')
 
     m = TIMEDELTA_RE.match(obj)
     if not m:
@@ -239,33 +247,29 @@ def convert_timedelta(obj):
         return obj
 
 
-TIME_RE = re.compile(r"(\d{1,2}):(\d{1,2}):(\d{1,2})(?:.(\d{1,6}))?")
+TIME_RE = re.compile(r'(\d{1,2}):(\d{1,2}):(\d{1,2})(?:.(\d{1,6}))?')
 
 
 def convert_time(obj):
-    """Returns a TIME column as a time object:
+    """
+    Returns a TIME column as a time object:
 
-      >>> convert_time('15:06:17')
-      datetime.time(15, 6, 17)
+      >>> convert_time('15:06:17') datetime.time(15, 6, 17)
 
     Illegal values are returned as str:
 
-      >>> convert_time('-25:06:17')
-      '-25:06:17'
-      >>> convert_time('random crap')
-      'random crap'
+      >>> convert_time('-25:06:17') '-25:06:17' >>> convert_time('random crap') 'random crap'
 
-    Note that MySQL always returns TIME columns as (+|-)HH:MM:SS, but
-    can accept values as (+|-)DD HH:MM:SS. The latter format will not
-    be parsed correctly by this function.
+    Note that MySQL always returns TIME columns as (+|-)HH:MM:SS, but can accept values as (+|-)DD HH:MM:SS. The latter
+    format will not be parsed correctly by this function.
 
-    Also note that MySQL's TIME column corresponds more closely to
-    Python's timedelta and not time. However if you want TIME columns
-    to be treated as time-of-day and not a time offset, then you can
-    use set this function as the converter for FIELD_TYPE.TIME.
+    Also note that MySQL's TIME column corresponds more closely to Python's timedelta and not time. However if you want
+    TIME columns to be treated as time-of-day and not a time offset, then you can use set this function as the converter
+    for FIELD_TYPE.TIME.
     """
+
     if isinstance(obj, (bytes, bytearray)):
-        obj = obj.decode("ascii")
+        obj = obj.decode('ascii')
 
     m = TIME_RE.match(obj)
     if not m:
@@ -286,7 +290,8 @@ def convert_time(obj):
 
 
 def convert_date(obj):
-    """Returns a DATE column as a date object:
+    """
+    Returns a DATE column as a date object:
 
       >>> convert_date('2007-02-26')
       datetime.date(2007, 2, 26)
@@ -298,10 +303,11 @@ def convert_date(obj):
       >>> convert_date('0000-00-00')
       '0000-00-00'
     """
+
     if isinstance(obj, (bytes, bytearray)):
-        obj = obj.decode("ascii")
+        obj = obj.decode('ascii')
     try:
-        return datetime.date(*[int(x) for x in obj.split("-", 2)])
+        return datetime.date(*[int(x) for x in obj.split('-', 2)])
     except ValueError:
         return obj
 

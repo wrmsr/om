@@ -1,9 +1,12 @@
 import configparser
 
 
+##
+
+
 class Parser(configparser.RawConfigParser):
     def __init__(self, **kwargs):
-        kwargs["allow_no_value"] = True
+        kwargs['allow_no_value'] = True
         configparser.RawConfigParser.__init__(self, **kwargs)
 
     def __remove_quotes(self, value):
@@ -14,7 +17,7 @@ class Parser(configparser.RawConfigParser):
         return value
 
     def optionxform(self, key):
-        return key.lower().replace("_", "-")
+        return key.lower().replace('_', '-')
 
     def get(self, section, option):
         value = configparser.RawConfigParser.get(self, section, option)

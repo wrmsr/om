@@ -22,14 +22,14 @@ def run_dbapi() -> None:
 
     conn = dbapi.connect(**DB_KWARGS)
     cursor = conn.cursor()
-    cursor.execute("CREATE TEMPORARY TABLE book (id SERIAL, title TEXT)")
+    cursor.execute('CREATE TEMPORARY TABLE book (id SERIAL, title TEXT)')
     cursor.execute(
-        "INSERT INTO book (title) VALUES (%s), (%s) RETURNING id, title",
-        ("Ender's Game", "Speaker for the Dead"))
+        'INSERT INTO book (title) VALUES (%s), (%s) RETURNING id, title',
+        ("Ender's Game", 'Speaker for the Dead'))
     results = cursor.fetchall()
     for row in results:
         id, title = row
-        print("id = %s, title = %s" % (id, title))
+        print('id = %s, title = %s' % (id, title))
     conn.commit()
 
     conn.close()

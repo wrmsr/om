@@ -4,18 +4,25 @@ import typing as ta
 from .constants import ER
 
 
+##
+
+
 class MySQLError(Exception):
     """Exception related to operation with MySQL."""
 
 
 class Warning(Warning, MySQLError):
-    """Exception raised for important warnings like data truncations
-    while inserting, etc."""
+    """
+    Exception raised for important warnings like data truncations
+    while inserting, etc.
+    """
 
 
 class Error(MySQLError):
-    """Exception that is the base class of all other error exceptions
-    (not Warning)."""
+    """
+    Exception that is the base class of all other error exceptions
+    (not Warning).
+    """
 
     def __init__(self, *args, sqlstate=None):
         super().__init__(*args)
@@ -23,52 +30,68 @@ class Error(MySQLError):
 
 
 class InterfaceError(Error):
-    """Exception raised for errors that are related to the database
-    interface rather than the database itself."""
+    """
+    Exception raised for errors that are related to the database
+    interface rather than the database itself.
+    """
 
 
 class DatabaseError(Error):
-    """Exception raised for errors that are related to the
-    database."""
+    """
+    Exception raised for errors that are related to the
+    database.
+    """
 
 
 class DataError(DatabaseError):
-    """Exception raised for errors that are due to problems with the
+    """
+    Exception raised for errors that are due to problems with the
     processed data like division by zero, numeric value out of range,
-    etc."""
+    etc.
+    """
 
 
 class OperationalError(DatabaseError):
-    """Exception raised for errors that are related to the database's
+    """
+    Exception raised for errors that are related to the database's
     operation and not necessarily under the control of the programmer,
     e.g. an unexpected disconnect occurs, the data source name is not
     found, a transaction could not be processed, a memory allocation
-    error occurred during processing, etc."""
+    error occurred during processing, etc.
+    """
 
 
 class IntegrityError(DatabaseError):
-    """Exception raised when the relational integrity of the database
+    """
+    Exception raised when the relational integrity of the database
     is affected, e.g. a foreign key check fails, duplicate key,
-    etc."""
+    etc.
+    """
 
 
 class InternalError(DatabaseError):
-    """Exception raised when the database encounters an internal
+    """
+    Exception raised when the database encounters an internal
     error, e.g. the cursor is not valid anymore, the transaction is
-    out of sync, etc."""
+    out of sync, etc.
+    """
 
 
 class ProgrammingError(DatabaseError):
-    """Exception raised for programming errors, e.g. table not found
+    """
+    Exception raised for programming errors, e.g. table not found
     or already exists, syntax error in the SQL statement, wrong number
-    of parameters specified, etc."""
+    of parameters specified, etc.
+    """
 
 
 class NotSupportedError(DatabaseError):
-    """Exception raised in case a method or database API was used
+    """
+    Exception raised in case a method or database API was used
     which is not supported by the database, e.g. requesting a
     .rollback() on a connection that does not support transaction or
-    has transactions turned off."""
+    has transactions turned off.
+    """
 
 
 error_map = {}
@@ -140,15 +163,15 @@ del _map_error, ER
 
 
 def raise_mysql_exception(data) -> ta.NoReturn:
-    errno = struct.unpack("<h", data[1:3])[0]
+    errno = struct.unpack('<h', data[1:3])[0]
     # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html
     # Error packet has optional sqlstate that is 5 bytes and starts with '#'.
     sqlstate = None
     if data[3] == 0x23:  # '#'
         sqlstate = data[4:9].decode()
-        errval = data[9:].decode("utf-8", "replace")
+        errval = data[9:].decode('utf-8', 'replace')
     else:
-        errval = data[3:].decode("utf-8", "replace")
+        errval = data[3:].decode('utf-8', 'replace')
     errorclass = error_map.get(errno)
     if errorclass is None:
         errorclass = InternalError if errno < 1000 else OperationalError

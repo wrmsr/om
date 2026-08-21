@@ -8,6 +8,12 @@ from .messages import ColumnDefinition
 from .parsing import parse_text_row
 
 
+RowConverter: ta.TypeAlias = ta.Callable[[str], ta.Any]
+
+# Per column: the encoding to decode its bytes with (None to leave as bytes), and an optional value converter.
+ColumnCoder: ta.TypeAlias = tuple[str | None, RowConverter | None]
+
+
 ##
 
 
@@ -25,11 +31,6 @@ TEXT_TYPES = frozenset({
 })
 
 BINARY_CHARSETNR = 63
-
-RowConverter: ta.TypeAlias = ta.Callable[[str], ta.Any]
-
-# Per column: the encoding to decode its bytes with (None to leave as bytes), and an optional value converter.
-ColumnCoder: ta.TypeAlias = tuple[str | None, RowConverter | None]
 
 
 @dc.dataclass(frozen=True)

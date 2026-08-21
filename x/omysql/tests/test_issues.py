@@ -12,171 +12,180 @@ from . import base
 class TestOldIssues(base.PyMySQLTestCase):
     def test_issue_3(self):
         """undefined methods datetime_or_None, date_or_None"""
+
         conn = self.connect()
         c = conn.cursor()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            c.execute("drop table if exists issue3")
-        c.execute("create table issue3 (d date, t time, dt datetime, ts timestamp)")
+            warnings.filterwarnings('ignore')
+            c.execute('drop table if exists issue3')
+        c.execute('create table issue3 (d date, t time, dt datetime, ts timestamp)')
         try:
             c.execute(
-                "insert into issue3 (d, t, dt, ts) values (%s,%s,%s,%s)",
+                'insert into issue3 (d, t, dt, ts) values (%s,%s,%s,%s)',
                 (None, None, None, None),
             )
-            c.execute("select d from issue3")
+            c.execute('select d from issue3')
             self.assertEqual(None, c.fetchone()[0])
-            c.execute("select t from issue3")
+            c.execute('select t from issue3')
             self.assertEqual(None, c.fetchone()[0])
-            c.execute("select dt from issue3")
+            c.execute('select dt from issue3')
             self.assertEqual(None, c.fetchone()[0])
-            c.execute("select ts from issue3")
+            c.execute('select ts from issue3')
             self.assertIn(
                 type(c.fetchone()[0]),
                 (type(None), datetime.datetime),
-                "expected Python type None or datetime from SQL timestamp",
+                'expected Python type None or datetime from SQL timestamp',
             )
         finally:
-            c.execute("drop table issue3")
+            c.execute('drop table issue3')
 
     def test_issue_4(self):
         """can't retrieve TIMESTAMP fields"""
+
         conn = self.connect()
         c = conn.cursor()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            c.execute("drop table if exists issue4")
-        c.execute("create table issue4 (ts timestamp)")
+            warnings.filterwarnings('ignore')
+            c.execute('drop table if exists issue4')
+        c.execute('create table issue4 (ts timestamp)')
         try:
-            c.execute("insert into issue4 (ts) values (now())")
-            c.execute("select ts from issue4")
+            c.execute('insert into issue4 (ts) values (now())')
+            c.execute('select ts from issue4')
             self.assertTrue(isinstance(c.fetchone()[0], datetime.datetime))
         finally:
-            c.execute("drop table issue4")
+            c.execute('drop table issue4')
 
     def test_issue_5(self):
         """query on information_schema.tables fails"""
+
         con = self.connect()
         cur = con.cursor()
-        cur.execute("select * from information_schema.tables")
+        cur.execute('select * from information_schema.tables')
 
     def test_issue_6(self):
         """exception: TypeError: ord() expected a character, but string of length 0 found"""
+
         # ToDo: this test requires access to db 'mysql'.
         kwargs = self.databases[0].copy()
-        kwargs["database"] = "mysql"
+        kwargs['database'] = 'mysql'
         conn = omysql.connect(**kwargs)
         c = conn.cursor()
-        c.execute("select * from user")
+        c.execute('select * from user')
         conn.close()
 
     def test_issue_8(self):
         """Primary Key and Index error when selecting data"""
+
         conn = self.connect()
         c = conn.cursor()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            c.execute("drop table if exists test")
+            warnings.filterwarnings('ignore')
+            c.execute('drop table if exists test')
         c.execute(
             """CREATE TABLE `test` (`station` int NOT NULL DEFAULT '0', `dh`
 datetime NOT NULL DEFAULT '2015-01-01 00:00:00', `echeance` int NOT NULL
 DEFAULT '0', `me` double DEFAULT NULL, `mo` double DEFAULT NULL, PRIMARY
-KEY (`station`,`dh`,`echeance`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;"""
+KEY (`station`,`dh`,`echeance`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;""",
         )
         try:
-            self.assertEqual(0, c.execute("SELECT * FROM test"))
-            c.execute("ALTER TABLE `test` ADD INDEX `idx_station` (`station`)")
-            self.assertEqual(0, c.execute("SELECT * FROM test"))
+            self.assertEqual(0, c.execute('SELECT * FROM test'))
+            c.execute('ALTER TABLE `test` ADD INDEX `idx_station` (`station`)')
+            self.assertEqual(0, c.execute('SELECT * FROM test'))
         finally:
-            c.execute("drop table test")
+            c.execute('drop table test')
 
     def test_issue_13(self):
         """can't handle large result fields"""
+
         conn = self.connect()
         cur = conn.cursor()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            cur.execute("drop table if exists issue13")
+            warnings.filterwarnings('ignore')
+            cur.execute('drop table if exists issue13')
         try:
-            cur.execute("create table issue13 (t text)")
+            cur.execute('create table issue13 (t text)')
             # ticket says 18k
             size = 18 * 1024
-            cur.execute("insert into issue13 (t) values (%s)", ("x" * size,))
-            cur.execute("select t from issue13")
+            cur.execute('insert into issue13 (t) values (%s)', ('x' * size,))
+            cur.execute('select t from issue13')
             # use assertTrue so that obscenely huge error messages don't print
             r = cur.fetchone()[0]
-            self.assertTrue("x" * size == r)
+            self.assertTrue('x' * size == r)
         finally:
-            cur.execute("drop table issue13")
+            cur.execute('drop table issue13')
 
     def test_issue_15(self):
         """query should be expanded before perform character encoding"""
+
         conn = self.connect()
         c = conn.cursor()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            c.execute("drop table if exists issue15")
-        c.execute("create table issue15 (t varchar(32))")
+            warnings.filterwarnings('ignore')
+            c.execute('drop table if exists issue15')
+        c.execute('create table issue15 (t varchar(32))')
         try:
-            c.execute("insert into issue15 (t) values (%s)", ("\xe4\xf6\xfc",))
-            c.execute("select t from issue15")
-            self.assertEqual("\xe4\xf6\xfc", c.fetchone()[0])
+            c.execute('insert into issue15 (t) values (%s)', ('\xe4\xf6\xfc',))
+            c.execute('select t from issue15')
+            self.assertEqual('\xe4\xf6\xfc', c.fetchone()[0])
         finally:
-            c.execute("drop table issue15")
+            c.execute('drop table issue15')
 
     def test_issue_16(self):
         """Patch for string and tuple escaping"""
+
         conn = self.connect()
         c = conn.cursor()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            c.execute("drop table if exists issue16")
+            warnings.filterwarnings('ignore')
+            c.execute('drop table if exists issue16')
         c.execute(
-            "create table issue16 (name varchar(32) primary key, email varchar(32))"
+            'create table issue16 (name varchar(32) primary key, email varchar(32))',
         )
         try:
             c.execute(
-                "insert into issue16 (name, email) values ('pete', 'floydophone')"
+                "insert into issue16 (name, email) values ('pete', 'floydophone')",
             )
-            c.execute("select email from issue16 where name=%s", ("pete",))
-            self.assertEqual("floydophone", c.fetchone()[0])
+            c.execute('select email from issue16 where name=%s', ('pete',))
+            self.assertEqual('floydophone', c.fetchone()[0])
         finally:
-            c.execute("drop table issue16")
+            c.execute('drop table issue16')
 
     @pytest.mark.skip(
-        "test_issue_17() requires a custom, legacy MySQL configuration and will not be run."
+        'test_issue_17() requires a custom, legacy MySQL configuration and will not be run.',
     )
     def test_issue_17(self):
         """could not connect mysql use password"""
+
         conn = self.connect()
-        host = self.databases[0]["host"]
-        db = self.databases[0]["database"]
+        host = self.databases[0]['host']
+        db = self.databases[0]['database']
         c = conn.cursor()
 
         # grant access to a table to a user with a password
         try:
             with warnings.catch_warnings():
-                warnings.filterwarnings("ignore")
-                c.execute("drop table if exists issue17")
-            c.execute("create table issue17 (x varchar(32) primary key)")
+                warnings.filterwarnings('ignore')
+                c.execute('drop table if exists issue17')
+            c.execute('create table issue17 (x varchar(32) primary key)')
             c.execute("insert into issue17 (x) values ('hello, world!')")
             c.execute(
                 "grant all privileges on %s.issue17 to 'issue17user'@'%%' identified by '1234'"
-                % db
+                % db,
             )
             conn.commit()
 
-            conn2 = omysql.connect(host=host, user="issue17user", passwd="1234", db=db)
+            conn2 = omysql.connect(host=host, user='issue17user', passwd='1234', db=db)
             c2 = conn2.cursor()
-            c2.execute("select x from issue17")
-            self.assertEqual("hello, world!", c2.fetchone()[0])
+            c2.execute('select x from issue17')
+            self.assertEqual('hello, world!', c2.fetchone()[0])
         finally:
-            c.execute("drop table issue17")
+            c.execute('drop table issue17')
 
 
 class TestNewIssues(base.PyMySQLTestCase):
     def test_issue_34(self):
         try:
-            omysql.connect(host="localhost", port=1237, user="root")
+            omysql.connect(host='localhost', port=1237, user='root')
             self.fail()
         except omysql.OperationalError as e:
             self.assertEqual(2003, e.args[0])
@@ -184,22 +193,22 @@ class TestNewIssues(base.PyMySQLTestCase):
             self.fail()
 
     def test_issue_33(self):
-        conn = omysql.connect(charset="utf8", **self.databases[0])
+        conn = omysql.connect(charset='utf8', **self.databases[0])
         self.safe_create_table(
-            conn, "hei\xdfe", "create table hei\xdfe (name varchar(32))"
+            conn, 'hei\xdfe', 'create table hei\xdfe (name varchar(32))',
         )
         c = conn.cursor()
         c.execute("insert into hei\xdfe (name) values ('Pi\xdfata')")
-        c.execute("select name from hei\xdfe")
-        self.assertEqual("Pi\xdfata", c.fetchone()[0])
+        c.execute('select name from hei\xdfe')
+        self.assertEqual('Pi\xdfata', c.fetchone()[0])
 
-    @pytest.mark.skip("This test requires manual intervention")
+    @pytest.mark.skip('This test requires manual intervention')
     def test_issue_35(self):
         conn = self.connect()
         c = conn.cursor()
-        print("sudo killall -9 mysqld within the next 10 seconds")
+        print('sudo killall -9 mysqld within the next 10 seconds')
         try:
-            c.execute("select sleep(10)")
+            c.execute('select sleep(10)')
             self.fail()
         except omysql.OperationalError as e:
             self.assertEqual(2013, e.args[0])
@@ -208,12 +217,12 @@ class TestNewIssues(base.PyMySQLTestCase):
         # connection 0 is super user, connection 1 isn't
         conn = self.connections[1]
         c = conn.cursor()
-        c.execute("show processlist")
+        c.execute('show processlist')
         kill_id = None
         for row in c.fetchall():
             id = row[0]
             info = row[7]
-            if info == "show processlist":
+            if info == 'show processlist':
                 kill_id = id
                 break
         self.assertEqual(kill_id, conn.thread_id())
@@ -221,7 +230,7 @@ class TestNewIssues(base.PyMySQLTestCase):
         self.connections[0].kill(kill_id)
         # make sure this connection has broken
         with pytest.raises(omysql.Error):
-            c.execute("show tables")
+            c.execute('show tables')
         c.close()
         conn.close()
 
@@ -231,7 +240,7 @@ class TestNewIssues(base.PyMySQLTestCase):
             time.sleep(0.1)
 
             c = self.connections[0].cursor()
-            c.execute("show processlist")
+            c.execute('show processlist')
             ids = [row[0] for row in c.fetchall()]
             self.assertFalse(kill_id in ids)
         finally:
@@ -240,7 +249,7 @@ class TestNewIssues(base.PyMySQLTestCase):
     def test_issue_37(self):
         conn = self.connect()
         c = conn.cursor()
-        self.assertEqual(1, c.execute("SELECT @foo"))
+        self.assertEqual(1, c.execute('SELECT @foo'))
         self.assertEqual((None,), c.fetchone())
         self.assertEqual(0, c.execute("SET @foo = 'bar'"))
         c.execute("set @foo = 'bar'")
@@ -248,93 +257,96 @@ class TestNewIssues(base.PyMySQLTestCase):
     def test_issue_38(self):
         conn = self.connect()
         c = conn.cursor()
-        datum = "a" * 1024 * 1023  # reduced size for most default mysql installs
+        datum = 'a' * 1024 * 1023  # reduced size for most default mysql installs
 
         try:
             with warnings.catch_warnings():
-                warnings.filterwarnings("ignore")
-                c.execute("drop table if exists issue38")
-            c.execute("create table issue38 (id integer, data mediumblob)")
-            c.execute("insert into issue38 values (1, %s)", (datum,))
+                warnings.filterwarnings('ignore')
+                c.execute('drop table if exists issue38')
+            c.execute('create table issue38 (id integer, data mediumblob)')
+            c.execute('insert into issue38 values (1, %s)', (datum,))
         finally:
-            c.execute("drop table issue38")
+            c.execute('drop table issue38')
 
     def disabled_test_issue_54(self):
         conn = self.connect()
         c = conn.cursor()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            c.execute("drop table if exists issue54")
-        big_sql = "select * from issue54 where "
-        big_sql += " and ".join("%d=%d" % (i, i) for i in range(100000))
+            warnings.filterwarnings('ignore')
+            c.execute('drop table if exists issue54')
+        big_sql = 'select * from issue54 where '
+        big_sql += ' and '.join('%d=%d' % (i, i) for i in range(100000))
 
         try:
-            c.execute("create table issue54 (id integer primary key)")
-            c.execute("insert into issue54 (id) values (7)")
+            c.execute('create table issue54 (id integer primary key)')
+            c.execute('insert into issue54 (id) values (7)')
             c.execute(big_sql)
             self.assertEqual(7, c.fetchone()[0])
         finally:
-            c.execute("drop table issue54")
+            c.execute('drop table issue54')
 
 
 class TestGitHubIssues(base.PyMySQLTestCase):
     def test_issue_66(self):
         """'Connection' object has no attribute 'insert_id'"""
+
         conn = self.connect()
         c = conn.cursor()
         self.assertEqual(0, conn.insert_id())
         try:
             with warnings.catch_warnings():
-                warnings.filterwarnings("ignore")
-                c.execute("drop table if exists issue66")
+                warnings.filterwarnings('ignore')
+                c.execute('drop table if exists issue66')
             c.execute(
-                "create table issue66 (id integer primary key auto_increment, x integer)"
+                'create table issue66 (id integer primary key auto_increment, x integer)',
             )
-            c.execute("insert into issue66 (x) values (1)")
-            c.execute("insert into issue66 (x) values (1)")
+            c.execute('insert into issue66 (x) values (1)')
+            c.execute('insert into issue66 (x) values (1)')
             self.assertEqual(2, conn.insert_id())
         finally:
-            c.execute("drop table issue66")
+            c.execute('drop table issue66')
 
     def test_issue_79(self):
         """Duplicate field overwrites the previous one in the result of DictCursor"""
+
         conn = self.connect()
         c = conn.cursor(omysql.cursors.DictCursor)
 
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            c.execute("drop table if exists a")
-            c.execute("drop table if exists b")
+            warnings.filterwarnings('ignore')
+            c.execute('drop table if exists a')
+            c.execute('drop table if exists b')
         c.execute("""CREATE TABLE a (id int, value int)""")
         c.execute("""CREATE TABLE b (id int, value int)""")
 
         a = (1, 11)
         b = (1, 22)
         try:
-            c.execute("insert into a values (%s, %s)", a)
-            c.execute("insert into b values (%s, %s)", b)
+            c.execute('insert into a values (%s, %s)', a)
+            c.execute('insert into b values (%s, %s)', b)
 
-            c.execute("SELECT * FROM a inner join b on a.id = b.id")
+            c.execute('SELECT * FROM a inner join b on a.id = b.id')
             r = c.fetchall()[0]
-            self.assertEqual(r["id"], 1)
-            self.assertEqual(r["value"], 11)
-            self.assertEqual(r["b.value"], 22)
+            self.assertEqual(r['id'], 1)
+            self.assertEqual(r['value'], 11)
+            self.assertEqual(r['b.value'], 22)
         finally:
-            c.execute("drop table a")
-            c.execute("drop table b")
+            c.execute('drop table a')
+            c.execute('drop table b')
 
     def test_issue_95(self):
         """Leftover trailing OK packet for "CALL my_sp" queries"""
+
         conn = self.connect()
         cur = conn.cursor()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            cur.execute("DROP PROCEDURE IF EXISTS `foo`")
+            warnings.filterwarnings('ignore')
+            cur.execute('DROP PROCEDURE IF EXISTS `foo`')
         cur.execute(
             """CREATE PROCEDURE `foo` ()
         BEGIN
             SELECT 1;
-        END"""
+        END""",
         )
         try:
             cur.execute("""CALL foo()""")
@@ -342,32 +354,33 @@ class TestGitHubIssues(base.PyMySQLTestCase):
             self.assertEqual(cur.fetchone()[0], 1)
         finally:
             with warnings.catch_warnings():
-                warnings.filterwarnings("ignore")
-                cur.execute("DROP PROCEDURE IF EXISTS `foo`")
+                warnings.filterwarnings('ignore')
+                cur.execute('DROP PROCEDURE IF EXISTS `foo`')
 
     def test_issue_114(self):
         """autocommit is not set after reconnecting with ping()"""
-        conn = omysql.connect(charset="utf8", **self.databases[0])
+
+        conn = omysql.connect(charset='utf8', **self.databases[0])
         conn.autocommit(False)
         c = conn.cursor()
         c.execute("""select @@autocommit;""")
         self.assertFalse(c.fetchone()[0])
         conn.close()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
+            warnings.filterwarnings('ignore')
             conn.ping(reconnect=True)
         c.execute("""select @@autocommit;""")
         self.assertFalse(c.fetchone()[0])
         conn.close()
 
         # Ensure autocommit() is still working
-        conn = omysql.connect(charset="utf8", **self.databases[0])
+        conn = omysql.connect(charset='utf8', **self.databases[0])
         c = conn.cursor()
         c.execute("""select @@autocommit;""")
         self.assertFalse(c.fetchone()[0])
         conn.close()
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
+            warnings.filterwarnings('ignore')
             conn.ping(reconnect=True)
         conn.autocommit(True)
         c.execute("""select @@autocommit;""")
@@ -376,66 +389,69 @@ class TestGitHubIssues(base.PyMySQLTestCase):
 
     def test_issue_175(self):
         """The number of fields returned by server is read in wrong way"""
+
         conn = self.connect()
         cur = conn.cursor()
         for length in (200, 300):
-            columns = ", ".join(f"c{i} integer" for i in range(length))
-            sql = f"create table test_field_count ({columns})"
+            columns = ', '.join(f'c{i} integer' for i in range(length))
+            sql = f'create table test_field_count ({columns})'
             try:
                 cur.execute(sql)
-                cur.execute("select * from test_field_count")
+                cur.execute('select * from test_field_count')
                 assert len(cur.description) == length
             finally:
                 with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore")
-                    cur.execute("drop table if exists test_field_count")
+                    warnings.filterwarnings('ignore')
+                    cur.execute('drop table if exists test_field_count')
 
     def test_issue_321(self):
         """Test iterable as query argument."""
-        conn = omysql.connect(charset="utf8", **self.databases[0])
+
+        conn = omysql.connect(charset='utf8', **self.databases[0])
         self.safe_create_table(
             conn,
-            "issue321",
-            "create table issue321 (value_1 varchar(1), value_2 varchar(1))",
+            'issue321',
+            'create table issue321 (value_1 varchar(1), value_2 varchar(1))',
         )
 
-        sql_insert = "insert into issue321 (value_1, value_2) values (%s, %s)"
+        sql_insert = 'insert into issue321 (value_1, value_2) values (%s, %s)'
         sql_dict_insert = (
-            "insert into issue321 (value_1, value_2) values (%(value_1)s, %(value_2)s)"
+            'insert into issue321 (value_1, value_2) values (%(value_1)s, %(value_2)s)'
         )
-        sql_select = "select * from issue321 where value_1 in %s and value_2=%s"
+        sql_select = 'select * from issue321 where value_1 in %s and value_2=%s'
         data = [
-            [("a",), "\u0430"],
-            [["b"], "\u0430"],
-            {"value_1": [["c"]], "value_2": "\u0430"},
+            [('a',), '\u0430'],
+            [['b'], '\u0430'],
+            {'value_1': [['c']], 'value_2': '\u0430'},
         ]
         cur = conn.cursor()
         self.assertEqual(cur.execute(sql_insert, data[0]), 1)
         self.assertEqual(cur.execute(sql_insert, data[1]), 1)
         self.assertEqual(cur.execute(sql_dict_insert, data[2]), 1)
-        self.assertEqual(cur.execute(sql_select, [("a", "b", "c"), "\u0430"]), 3)
-        self.assertEqual(cur.fetchone(), ("a", "\u0430"))
-        self.assertEqual(cur.fetchone(), ("b", "\u0430"))
-        self.assertEqual(cur.fetchone(), ("c", "\u0430"))
+        self.assertEqual(cur.execute(sql_select, [('a', 'b', 'c'), '\u0430']), 3)
+        self.assertEqual(cur.fetchone(), ('a', '\u0430'))
+        self.assertEqual(cur.fetchone(), ('b', '\u0430'))
+        self.assertEqual(cur.fetchone(), ('c', '\u0430'))
 
     def test_issue_364(self):
         """Test mixed unicode/binary arguments in executemany."""
-        conn = omysql.connect(charset="utf8mb4", **self.databases[0])
+
+        conn = omysql.connect(charset='utf8mb4', **self.databases[0])
         self.safe_create_table(
             conn,
-            "issue364",
-            "create table issue364 (value_1 binary(3), value_2 varchar(3)) "
-            "engine=InnoDB default charset=utf8mb4",
+            'issue364',
+            'create table issue364 (value_1 binary(3), value_2 varchar(3)) '
+            'engine=InnoDB default charset=utf8mb4',
         )
 
-        sql = "insert into issue364 (value_1, value_2) values (_binary %s, %s)"
-        usql = "insert into issue364 (value_1, value_2) values (_binary %s, %s)"
-        values = [omysql.Binary(b"\x00\xff\x00"), "\xe4\xf6\xfc"]
+        sql = 'insert into issue364 (value_1, value_2) values (_binary %s, %s)'
+        usql = 'insert into issue364 (value_1, value_2) values (_binary %s, %s)'
+        values = [omysql.Binary(b'\x00\xff\x00'), '\xe4\xf6\xfc']
 
         # test single insert and select
         cur = conn.cursor()
         cur.execute(sql, args=values)
-        cur.execute("select * from issue364")
+        cur.execute('select * from issue364')
         self.assertEqual(cur.fetchone(), tuple(values))
 
         # test single insert unicode query
@@ -443,7 +459,7 @@ class TestGitHubIssues(base.PyMySQLTestCase):
 
         # test multi insert and select
         cur.executemany(sql, args=(values, values, values))
-        cur.execute("select * from issue364")
+        cur.execute('select * from issue364')
         for row in cur.fetchall():
             self.assertEqual(row, tuple(values))
 
@@ -452,14 +468,15 @@ class TestGitHubIssues(base.PyMySQLTestCase):
 
     def test_issue_363(self):
         """Test binary / geometry types."""
-        conn = omysql.connect(charset="utf8", **self.databases[0])
+
+        conn = omysql.connect(charset='utf8', **self.databases[0])
         self.safe_create_table(
             conn,
-            "issue363",
-            "CREATE TABLE issue363 ( "
-            "id INTEGER PRIMARY KEY, geom LINESTRING NOT NULL /*!80003 SRID 0 */, "
-            "SPATIAL KEY geom (geom)) "
-            "ENGINE=MyISAM",
+            'issue363',
+            'CREATE TABLE issue363 ( '
+            'id INTEGER PRIMARY KEY, geom LINESTRING NOT NULL /*!80003 SRID 0 */, '
+            'SPATIAL KEY geom (geom)) '
+            'ENGINE=MyISAM',
         )
 
         cur = conn.cursor()
@@ -470,38 +487,38 @@ class TestGitHubIssues(base.PyMySQLTestCase):
         cur.execute(query)
 
         # select WKT
-        query = "SELECT ST_AsText(geom) FROM issue363"
+        query = 'SELECT ST_AsText(geom) FROM issue363'
         cur.execute(query)
         row = cur.fetchone()
-        self.assertEqual(row, ("LINESTRING(1.1 1.1,2.2 2.2)",))
+        self.assertEqual(row, ('LINESTRING(1.1 1.1,2.2 2.2)',))
 
         # select WKB
-        query = "SELECT ST_AsBinary(geom) FROM issue363"
+        query = 'SELECT ST_AsBinary(geom) FROM issue363'
         cur.execute(query)
         row = cur.fetchone()
         self.assertEqual(
             row,
             (
-                b"\x01\x02\x00\x00\x00\x02\x00\x00\x00"
-                b"\x9a\x99\x99\x99\x99\x99\xf1?"
-                b"\x9a\x99\x99\x99\x99\x99\xf1?"
-                b"\x9a\x99\x99\x99\x99\x99\x01@"
-                b"\x9a\x99\x99\x99\x99\x99\x01@",
+                b'\x01\x02\x00\x00\x00\x02\x00\x00\x00'
+                b'\x9a\x99\x99\x99\x99\x99\xf1?'
+                b'\x9a\x99\x99\x99\x99\x99\xf1?'
+                b'\x9a\x99\x99\x99\x99\x99\x01@'
+                b'\x9a\x99\x99\x99\x99\x99\x01@',
             ),
         )
 
         # select internal binary
-        cur.execute("SELECT geom FROM issue363")
+        cur.execute('SELECT geom FROM issue363')
         row = cur.fetchone()
         # don't assert the exact internal binary value, as it could
         # vary across implementations
         self.assertTrue(isinstance(row[0], bytes))
 
     def test_issue_1206(self):
-        conn = omysql.connect(charset="utf8", **self.databases[0])
+        conn = omysql.connect(charset='utf8', **self.databases[0])
 
         cur = conn.cursor()
-        cur.execute("DROP PROCEDURE IF EXISTS `foo.bar`")
+        cur.execute('DROP PROCEDURE IF EXISTS `foo.bar`')
         try:
             cur.execute(
                 dedent("""\
@@ -509,10 +526,10 @@ class TestGitHubIssues(base.PyMySQLTestCase):
                 begin
                     select arg1*2;
                 end
-            """)
+            """),
             )
 
-            cur.callproc("foo.bar", args=(123,))
+            cur.callproc('foo.bar', args=(123,))
             self.assertEqual(cur.fetchone()[0], 246)
         finally:
-            cur.execute("DROP PROCEDURE IF EXISTS `foo.bar`")
+            cur.execute('DROP PROCEDURE IF EXISTS `foo.bar`')

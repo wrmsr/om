@@ -3,8 +3,8 @@ from datetime import time as Time
 
 import pytest
 
-from ...native import Connection
 from ...exceptions import DatabaseError
+from ...native import Connection
 from ...native import InterfaceError
 
 

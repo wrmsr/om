@@ -55,6 +55,7 @@ _KNOWN_VECTORS = (
 
 def _reference_ed25519_password(password: bytes, scramble: bytes) -> bytes:
     """The current PyMySQL algorithm, independently expressed with PyNaCl."""
+
     h = hashlib.sha512(password).digest()
     s = bytearray(h[:32])
     s[0] &= 248

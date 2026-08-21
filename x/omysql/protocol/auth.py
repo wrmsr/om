@@ -6,9 +6,9 @@ from omcore import lang
 
 
 with lang.auto_proxy_import(globals()):
-    from cryptography.hazmat.primitives import hashes
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric import padding
+    from cryptography.hazmat.primitives import hashes as chp_hash
+    from cryptography.hazmat.primitives import serialization as chp_ser
+    from cryptography.hazmat.primitives.asymmetric import padding as chp_pad
 
 
 ##
@@ -54,12 +54,12 @@ def sha2_rsa_encrypt(password: bytes, salt: bytes, public_key: bytes) -> bytes:
     """Encrypts a password with the server's public key, as the sha256_password and caching_sha2_password plugins do."""
 
     message = xor_password(password + b'\0', salt)
-    rsa_key = serialization.load_pem_public_key(public_key)
+    rsa_key = chp_ser.load_pem_public_key(public_key)
     return ta.cast('ta.Any', rsa_key).encrypt(
         message,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA1()),  # noqa: S303
-            algorithm=hashes.SHA1(),  # noqa: S303
+        chp_pad.OAEP(
+            mgf=chp_pad.MGF1(algorithm=chp_hash.SHA1()),  # noqa: S303
+            algorithm=chp_hash.SHA1(),  # noqa: S303
             label=None,
         ),
     )

@@ -1,6 +1,6 @@
+from ... import omysql
 from ...sqldrivers.dbapi.compliance.bindings import DbapiComplianceBinding
 from ...sqldrivers.dbapi.compliance.suites import DbapiComplianceSuite
-from ... import omysql
 from .dbs import DATABASES
 
 
