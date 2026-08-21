@@ -9,7 +9,7 @@ from ..dbs import DB_KWARGS
 
 def test_async_native(db_setup):
     async def main():
-        con = await native.AsyncConnection.connect(**DB_KWARGS)
+        con = await native.AsyncioConnection.connect(**DB_KWARGS)
         async with con:
             assert await con.run('select 1 as x') == [[1]]
             assert [c['name'] for c in con.columns] == ['x']
@@ -37,7 +37,7 @@ def test_async_native(db_setup):
 
 def test_async_native_notifications(db_setup):
     async def main():
-        async with await native.AsyncConnection.connect(**DB_KWARGS) as con:
+        async with await native.AsyncioConnection.connect(**DB_KWARGS) as con:
             await con.run('listen chan')
             await con.run("notify chan, 'hi'")
             assert [n.payload for n in con.notifications] == ['hi']

@@ -2,7 +2,7 @@ import collections
 import typing as ta
 
 from ..converters import make_params
-from ..core.asyncio import AsyncCoreConnection
+from ..core.asyncio import AsyncioCoreConnection
 from ..protocol.session import Context
 from ..protocol.session import CopyStream
 from .statements import plan_run
@@ -12,7 +12,7 @@ from .statements import to_statement
 ##
 
 
-class AsyncConnection(AsyncCoreConnection):
+class AsyncioConnection(AsyncioCoreConnection):
     def __init__(self, *args: ta.Any, **kwargs: ta.Any) -> None:
         super().__init__(*args, **kwargs)
         self._context: Context | None = None
@@ -57,7 +57,7 @@ class AsyncPreparedStatement:
 
     def __init__(
             self,
-            con: AsyncCoreConnection,
+            con: AsyncioCoreConnection,
             statement: str,
             make_vals: ta.Callable[[ta.Mapping[str, ta.Any]], tuple[ta.Any, ...]],
             name: str,

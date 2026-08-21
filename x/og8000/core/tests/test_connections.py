@@ -7,7 +7,7 @@ import pytest
 from ...exceptions import DatabaseError
 from ...exceptions import InterfaceError
 from ...tests.dbs import DB_KWARGS
-from ..asyncio import AsyncCoreConnection
+from ..asyncio import AsyncioCoreConnection
 from ..sync import SyncCoreConnection
 
 
@@ -16,7 +16,7 @@ def sync_connect(**kwargs):
 
 
 async def async_connect(**kwargs):
-    return await AsyncCoreConnection.connect(**{**DB_KWARGS, **kwargs})
+    return await AsyncioCoreConnection.connect(**{**DB_KWARGS, **kwargs})
 
 
 ##

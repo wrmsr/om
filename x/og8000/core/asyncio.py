@@ -25,7 +25,7 @@ T = ta.TypeVar('T')
 ##
 
 
-class AsyncCoreConnection(BaseCoreConnection):
+class AsyncioCoreConnection(BaseCoreConnection):
     """Constructed via `connect`, as establishing the connection requires awaiting."""
 
     def __init__(
