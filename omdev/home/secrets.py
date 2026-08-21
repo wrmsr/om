@@ -1,17 +1,11 @@
 import os.path
 import typing as ta
 
-from omcore import lang
+from omcore.formats.yaml import all as yaml
 from omcore.os.environ import EnvVar
 from omcore.secrets import all as sec
 
 from .paths import get_home_paths
-
-
-if ta.TYPE_CHECKING:
-    import yaml
-else:
-    yaml = lang.proxy_import('yaml')
 
 
 ##
@@ -31,7 +25,7 @@ def load_secrets() -> sec.Secrets:
     dct: dict[str, sec.Secret] = {}
     try:
         with open(get_secrets_file()) as f:
-            for k, v in yaml.safe_load(f).items():
+            for k, v in yaml.loads(f.read()).items():
                 if isinstance(v, str):
                     dct[k] = sec.Secret(key=k, value=v)
     except FileNotFoundError:

@@ -6,12 +6,7 @@ import typing as ta
 
 from .. import check
 from .. import lang
-
-
-if ta.TYPE_CHECKING:
-    import yaml
-else:
-    yaml = lang.proxy_import('yaml')
+from ..formats.yaml import all as yaml
 
 
 ##
@@ -33,7 +28,7 @@ class ComposeConfig:
     def get_config(self) -> ta.Mapping[str, ta.Any]:
         with open(check.not_none(self._file_path)) as f:
             buf = f.read()
-        return yaml.safe_load(buf)
+        return yaml.loads(buf)
 
     @lang.cached_function
     def get_services(self) -> ta.Mapping[str, ta.Any]:

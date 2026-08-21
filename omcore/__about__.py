@@ -42,6 +42,11 @@ class Project(ProjectBase):
             'trio-asyncio ~= 0.15',
         ],
 
+        'check': [
+            'asttokens ~= 3.0',
+            'executing ~= 2.2',
+        ],
+
         'compress': [
             'lz4 ~= 4.4',
 
@@ -51,9 +56,6 @@ class Project(ProjectBase):
         ],
 
         'diag': [
-            'asttokens ~= 3.0',
-            'executing ~= 2.2',
-
             'psutil ~= 7.2',
 
             'memray ~= 1.20',
@@ -121,29 +123,23 @@ class Project(ProjectBase):
 
     #
 
-    _check_dependencies = [
-        'asttokens',
-        'executing',
-    ]
+    _meta_dependencies = {
+        'plus': [
+            'check',
 
-    _plus_dependencies = [
-        *_check_dependencies,
-
-        'cryptography',
-    ]
+            'cryptography',
+        ],
+    }
 
     _dependency_specs_by_name = (lambda od: {  # noqa
-        s.split()[0]: s
-        for l in od.values() for s in l
+        **{s.split()[0]: [s] for l in od.values() for s in l},
+        **od,
     })(optional_dependencies)
 
     optional_dependencies.update((lambda ds, k_pd_tups: {  # noqa
-        k: [ds[n] for n in pd]
+        k: [d for n in pd for d in ds[n]]
         for k, pd in k_pd_tups
-    })(_dependency_specs_by_name, [
-        ('check', _check_dependencies),
-        ('plus', _plus_dependencies),
-    ]))
+    })(_dependency_specs_by_name, _meta_dependencies.items()))
 
     #
 

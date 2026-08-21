@@ -13,11 +13,10 @@ import typing as ta
 import urllib.parse
 import warnings
 
-import yaml
-
 from omcore import check
 from omcore import lang
 from omcore.argparse import all as ap
+from omcore.formats.yaml import all as yaml
 from omcore.logs import all as logs
 
 from ..cli import CliModule
@@ -270,7 +269,7 @@ class Cli(ap.Cli):
             raise Exception(f'unhandled target: {target=}')
 
         with open(l) as f:
-            cfg = yaml.safe_load(f.read())
+            cfg = yaml.loads(f.read())
 
         dialect = self.args.dialect
 

@@ -459,10 +459,10 @@ def _main():
 
     args = parser.parse_args()
 
-    import yaml
+    from ...formats.yaml import all as yaml
 
     with open(args.schema_path) as f:
-        doc = yaml.safe_load(f)
+        doc = yaml.loads(f.read())
 
     api = msh.unmarshal(doc, Openapi)
 

@@ -19,26 +19,24 @@ if ta.TYPE_CHECKING:
     import csv
     import tomllib
 
-    import yaml
-
     from omcore.formats import dotenv
     from omcore.formats import json5
     from omcore.formats import props
     from omcore.formats import xml
     from omcore.formats.json import stream as json_stream
     from omcore.formats.json5 import parsing as json5_parsing
+    from omcore.formats.yaml import all as yaml
 
 else:
     ast = lang.proxy_import('ast')
     csv = lang.proxy_import('csv')
     tomllib = lang.proxy_import('tomllib')
 
-    yaml = lang.proxy_import('yaml')
-
     dotenv = lang.proxy_import('omcore.formats.dotenv')
     json5 = lang.proxy_import('omcore.formats.json5')
     props = lang.proxy_import('omcore.formats.props')
     xml = lang.proxy_import('omcore.formats.xml')
+    yaml = lang.proxy_import('omcore.formats.yaml.all')
     json_stream = lang.proxy_import('omcore.formats.json.stream')
     json5_parsing = lang.proxy_import('omcore.formats.json5.parsing')
 
@@ -74,7 +72,7 @@ class Formats(enum.Enum):
     JSON_STREAM = Format(['jsons'], lambda f: _load_jsons(f))
     JSON5_STREAM = Format(['json5s'], lambda f: _load_json5s(f))
 
-    YAML = Format(['yaml', 'yml'], lambda f: yaml.safe_load(f))
+    YAML = Format(['yaml', 'yml'], lambda f: yaml.loads(f.read()))
 
     TOML = Format(['toml'], lambda f: tomllib.loads(f.read()))
 

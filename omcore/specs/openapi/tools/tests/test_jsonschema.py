@@ -1,8 +1,7 @@
 import os.path
 
-import yaml
-
 from ..... import marshal as msh
+from .....formats.yaml import all as yaml
 from ...openapi import Openapi
 from ..jsonschema import build_jsonschema
 
@@ -10,7 +9,7 @@ from ..jsonschema import build_jsonschema
 def test_build_jsonschema():
     with open(os.path.join(os.path.dirname(__file__), '../../tests/example.yml')) as f:
         yml_src = f.read()
-    doc = yaml.safe_load(yml_src)
+    doc = yaml.loads(yml_src)
 
     api = msh.unmarshal(doc, Openapi)
     js = build_jsonschema(api)

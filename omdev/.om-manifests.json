@@ -577,7 +577,7 @@
     "module": ".tools.sqlrepl",
     "attr": "_CLI_MODULE",
     "file": "omdev/tools/sqlrepl.py",
-    "line": 307,
+    "line": 306,
     "value": {
       "!.cli.types.CliModule": {
         "name": "sqlrepl",
