@@ -5,10 +5,16 @@ from ... import lang
 from ...docker.all import get_compose_port
 from ...docker.all import is_likely_in_docker
 from ...docker.tests.services import ComposeServices
+from ...os.environ import EnvVar
 from ...testing.pytest import inject as pti
 from ..dbs import DbSpec
 from ..dbs import DbTypes
 from ..dbs import UrlDbLoc
+
+
+MYSQL_URL_ENV_VAR = EnvVar('OM_TEST_MYSQL_URL')
+POSTGRES_URL_ENV_VAR = EnvVar('OM_TEST_POSTGRES_URL')
+PGVECTOR_URL_ENV_VAR = EnvVar('OM_TEST_PGVECTOR_URL')
 
 
 @pti.bind('function')
@@ -56,12 +62,31 @@ class HarnessDbs:
         svcs = self._compose_services.config().get_services()
         lst: list[DbSpec] = []
 
-        for name in ['mysql']:
-            if (svc := svcs.get(name)):
+        for name, url_var in [
+            ('mysql', MYSQL_URL_ENV_VAR),
+        ]:
+            if url := url_var.get(None):
+                lst.append(DbSpec(
+                    name,
+                    DbTypes.MYSQL,
+                    UrlDbLoc(url),
+                ))
+
+            elif (svc := svcs.get(name)):
                 lst.append(self._build_mysql_db(name, svc))
 
-        for name in ['postgres', 'pgvector']:
-            if (svc := svcs.get(name)):
+        for name, url_var in [
+            ('postgres', POSTGRES_URL_ENV_VAR),
+            ('pgvector', PGVECTOR_URL_ENV_VAR),
+        ]:
+            if url := url_var.get(None):
+                lst.append(DbSpec(
+                    name,
+                    DbTypes.POSTGRES,
+                    UrlDbLoc(url),
+                ))
+
+            elif (svc := svcs.get(name)):
                 lst.append(self._build_postgres_db(name, svc))
 
         return {s.name: s for s in lst}
