@@ -4,8 +4,7 @@ from ....dbapi import DatabaseError
 from ....dbapi import connect
 
 
-# This requires a line in pg_hba.conf that requires 'password' for the
-# database test_og8000_password
+# This requires a line in pg_hba.conf that requires 'password' for the database test_og8000_password
 
 
 def test_password(db_kwargs):

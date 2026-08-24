@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from ... import native
-from ...exceptions import DatabaseError
+from ...errors import DatabaseError
 
 
 def test_async_native(db_kwargs):

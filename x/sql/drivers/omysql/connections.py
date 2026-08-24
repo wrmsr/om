@@ -6,7 +6,7 @@ import os.path
 import typing as ta
 import warnings
 
-from . import err
+from . import errors
 from .core.sync import SyncConnection
 from .cursors import Cursor
 
@@ -22,16 +22,16 @@ _DEFAULT_AUTH_PLUGIN: str | None = None
 class Connection(SyncConnection):
     """A synchronous MySQL connection. See `core.sync.SyncConnection` for the implementation."""
 
-    Warning = err.Warning
-    Error = err.Error
-    InterfaceError = err.InterfaceError
-    DatabaseError = err.DatabaseError
-    DataError = err.DataError
-    OperationalError = err.OperationalError
-    IntegrityError = err.IntegrityError
-    InternalError = err.InternalError
-    ProgrammingError = err.ProgrammingError
-    NotSupportedError = err.NotSupportedError
+    Warning = errors.Warning
+    Error = errors.Error
+    InterfaceError = errors.InterfaceError
+    DatabaseError = errors.DatabaseError
+    DataError = errors.DataError
+    OperationalError = errors.OperationalError
+    IntegrityError = errors.IntegrityError
+    InternalError = errors.InternalError
+    ProgrammingError = errors.ProgrammingError
+    NotSupportedError = errors.NotSupportedError
 
     def __init__(
             self,

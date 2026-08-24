@@ -3,7 +3,7 @@ import asyncio
 
 import pytest
 
-from ...err import OperationalError
+from ...errors import OperationalError
 from ..asyncio import AsyncioConnection
 from ..sync import SyncConnection
 

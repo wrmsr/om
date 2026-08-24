@@ -3,7 +3,7 @@ from datetime import time as Time
 
 import pytest
 
-from ...exceptions import DatabaseError
+from ...errors import DatabaseError
 from ...native import Connection
 from ...native import InterfaceError
 

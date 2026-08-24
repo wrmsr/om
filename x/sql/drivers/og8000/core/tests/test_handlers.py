@@ -5,8 +5,8 @@ from omcore.io.pipelines.core import IoPipeline
 from omcore.io.pipelines.core import IoPipelineHandler
 from omcore.io.pipelines.core import IoPipelineMessages
 
-from ...exceptions import DatabaseError
-from ...exceptions import InterfaceError
+from ...errors import DatabaseError
+from ...errors import InterfaceError
 from ...protocol import messages as msgs
 from ...protocol.codes import TransactionStatus
 from ...protocol.decoding import BackendMessageDecoder

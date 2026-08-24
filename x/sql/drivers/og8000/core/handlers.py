@@ -14,7 +14,7 @@ from omcore.io.pipelines.core import IoPipelineMessages
 from omcore.io.pipelines.errors import IncompleteDecodingIoPipelineError
 from omcore.io.streambufs.types import ByteStreamBuffer
 
-from ..exceptions import InterfaceError
+from ..errors import InterfaceError
 from ..protocol import messages as msgs
 from ..protocol.decoding import BackendMessageDecoder
 from ..protocol.encoding import FrontendMessageEncoder

@@ -4,8 +4,7 @@ from ....dbapi import DatabaseError
 from ....dbapi import connect
 
 
-# This requires a line in pg_hba.conf that requires md5 for the database
-# test_og8000_md5
+# This requires a line in pg_hba.conf that requires md5 for the database test_og8000_md5
 
 
 def test_md5(db_kwargs):

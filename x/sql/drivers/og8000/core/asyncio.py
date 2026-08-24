@@ -6,7 +6,7 @@ from omcore.io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDrive
 from omcore.io.pipelines.drivers.types import IoPipelineDriverState
 
 from ..converters import InAdapter
-from ..exceptions import InterfaceError
+from ..errors import InterfaceError
 from ..protocol import messages as msgs
 from ..protocol.session import Columns
 from ..protocol.session import Context

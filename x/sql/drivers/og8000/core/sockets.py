@@ -2,7 +2,7 @@ import socket
 import ssl
 import typing as ta
 
-from ..exceptions import InterfaceError
+from ..errors import InterfaceError
 
 
 SslContextArg: ta.TypeAlias = ssl.SSLContext | bool | None

@@ -1,12 +1,11 @@
 import pytest
 
-from ....exceptions import DatabaseError
+from ....errors import DatabaseError
 from ....native import Connection
 from ....native import InterfaceError
 
 
-# This requires a line in pg_hba.conf that requires scram-sha-256 for the
-# database test_og8000_scram_sha_256
+# This requires a line in pg_hba.conf that requires scram-sha-256 for the database test_og8000_scram_sha_256
 
 DB = 'test_og8000_scram_sha_256'
 

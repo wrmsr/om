@@ -10,7 +10,7 @@ from omcore.io.pipelines.ssl.handlers import SslIoPipelineHandler
 from .. import scramp
 from ..converters import InAdapter
 from ..converters import OutAdapter
-from ..exceptions import InterfaceError
+from ..errors import InterfaceError
 from ..protocol import messages as msgs
 from ..protocol.codes import TransactionStatus
 from ..protocol.session import Operation

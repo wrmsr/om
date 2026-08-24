@@ -67,9 +67,9 @@ from .converters import VARCHAR
 from .converters import VARCHAR_ARRAY  # noqa: F401
 from .converters import XID  # noqa: F401
 from .core.sync import SyncCoreConnection
-from .exceptions import DatabaseError
-from .exceptions import Error
-from .exceptions import InterfaceError
+from .errors import DatabaseError
+from .errors import Error
+from .errors import InterfaceError
 from .protocol.codes import TransactionStatus
 from .protocol.session import Context
 from .protocol.session import CopyStream

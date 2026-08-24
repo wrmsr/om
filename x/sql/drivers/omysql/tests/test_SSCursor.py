@@ -3,7 +3,7 @@ import pytest
 from .. import cursors
 from ..constants import CLIENT
 from ..constants import ER
-from ..err import OperationalError
+from ..errors import OperationalError
 from .utils import get_mysql_vendor
 
 

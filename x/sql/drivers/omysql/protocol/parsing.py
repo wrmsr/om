@@ -1,7 +1,7 @@
 """Parsing of server packet payloads into typed messages. Pure functions of the payload and the needed context."""
 import struct
 
-from ..err import ProtocolError
+from ..errors import ProtocolError
 from .messages import AuthMoreData
 from .messages import AuthSwitchRequest
 from .messages import ColumnDefinition

@@ -5,8 +5,7 @@ from ....dbapi import InterfaceError
 from ....dbapi import connect
 
 
-# This requires a line in pg_hba.conf that requires gss for the database
-# test_og8000_gss
+# This requires a line in pg_hba.conf that requires gss for the database test_og8000_gss
 
 
 def test_gss(db_kwargs):

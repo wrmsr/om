@@ -11,8 +11,8 @@ from omcore.io.pipelines.ssl.handlers import SslIoPipelineHandler
 from .. import converters
 from ..charset import charset_by_name
 from ..constants import CLIENT
-from ..err import Error
-from ..err import OperationalError
+from ..errors import Error
+from ..errors import OperationalError
 from ..protocol.session import ProtocolSession
 from ..protocol.session import QueryResult
 from ..protocol.session import UnbufferedResult

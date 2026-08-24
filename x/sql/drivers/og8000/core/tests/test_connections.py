@@ -4,8 +4,8 @@ import io
 
 import pytest
 
-from ...exceptions import DatabaseError
-from ...exceptions import InterfaceError
+from ...errors import DatabaseError
+from ...errors import InterfaceError
 from ..asyncio import AsyncioCoreConnection
 from ..sync import SyncCoreConnection
 

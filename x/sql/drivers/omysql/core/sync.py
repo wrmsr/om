@@ -7,7 +7,7 @@ from omcore.io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from omcore.io.pipelines.drivers.types import IoPipelineDriverState
 
 from ..constants import COMMAND
-from ..err import Error
+from ..errors import Error
 from ..protocol.session import Operation
 from ..protocol.session import QueryResult
 from ..protocol.session import Row

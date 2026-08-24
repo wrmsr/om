@@ -4,7 +4,7 @@ import decimal
 import pytest
 
 from .. import converters
-from ..err import ProgrammingError
+from ..errors import ProgrammingError
 
 
 def test_escape_string():

@@ -2,7 +2,7 @@ import socket
 import ssl
 import typing as ta
 
-from ..err import OperationalError
+from ..errors import OperationalError
 
 
 SslContextArg: ta.TypeAlias = ssl.SSLContext | ta.Mapping[str, ta.Any] | None

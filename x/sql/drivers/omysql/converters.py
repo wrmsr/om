@@ -4,7 +4,7 @@ import re
 import time
 
 from .constants import FIELD_TYPE
-from .err import ProgrammingError
+from .errors import ProgrammingError
 
 
 ##

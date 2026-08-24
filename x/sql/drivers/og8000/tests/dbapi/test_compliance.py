@@ -9,3 +9,4 @@ class TestDbapiCompliance(DbapiComplianceSuite):
         module=dbapi,
         connect=lambda: dbapi.connect(**DB_KWARGS),
     )
+

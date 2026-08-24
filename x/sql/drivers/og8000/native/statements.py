@@ -26,7 +26,7 @@ import collections
 import enum
 import typing as ta
 
-from ..exceptions import InterfaceError
+from ..errors import InterfaceError
 
 
 ##

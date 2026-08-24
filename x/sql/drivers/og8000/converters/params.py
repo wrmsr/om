@@ -31,7 +31,7 @@ import ipaddress
 import typing as ta
 import uuid
 
-from ..exceptions import InterfaceError
+from ..errors import InterfaceError
 from ..types import PGInterval
 from ..types import Range
 from . import ins

@@ -2,7 +2,7 @@
 import struct
 import typing as ta
 
-from ..exceptions import ProtocolError
+from ..errors import ProtocolError
 from . import codes
 from . import messages as msgs
 from .codes import AuthenticationCode

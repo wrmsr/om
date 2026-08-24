@@ -1,6 +1,6 @@
 import pytest
 
-from ...exceptions import ProtocolError
+from ...errors import ProtocolError
 from .. import messages as msgs
 from ..codes import DescribeKind
 from ..codes import TransactionStatus

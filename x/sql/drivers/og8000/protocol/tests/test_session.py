@@ -2,8 +2,8 @@ import io
 
 import pytest
 
-from ...exceptions import DatabaseError
-from ...exceptions import InterfaceError
+from ...errors import DatabaseError
+from ...errors import InterfaceError
 from .. import messages as msgs
 from ..codes import DescribeKind
 from ..codes import TransactionStatus

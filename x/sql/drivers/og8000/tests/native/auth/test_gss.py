@@ -1,15 +1,12 @@
 import pytest
 
-from ....exceptions import DatabaseError
+from ....errors import DatabaseError
 from ....native import Connection
 from ....native import InterfaceError
 
 
 def test_gss(db_kwargs):
-    """
-    This requires a line in pg_hba.conf that requires gss for the database
-    test_og8000_gss
-    """
+    """This requires a line in pg_hba.conf that requires gss for the database test_og8000_gss"""
 
     db_kwargs['database'] = 'test_og8000_gss'
 

@@ -1,7 +1,7 @@
 import pytest
 
 from ... import native
-from ...exceptions import DatabaseError
+from ...errors import DatabaseError
 from ...native import to_statement
 
 

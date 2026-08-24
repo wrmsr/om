@@ -3,7 +3,7 @@ import socket
 import pytest
 
 from ...core.sockets import connect_socket
-from ...exceptions import InterfaceError
+from ...errors import InterfaceError
 
 
 def test_connect_socket_passes_through_given_socket():

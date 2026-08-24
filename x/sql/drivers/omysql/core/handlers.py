@@ -15,8 +15,8 @@ from omcore.io.pipelines.core import IoPipelineMessages
 from omcore.io.pipelines.errors import IncompleteDecodingIoPipelineError
 from omcore.io.streambufs.types import ByteStreamBuffer
 
-from ..err import InterfaceError
-from ..err import OperationalError
+from ..errors import InterfaceError
+from ..errors import OperationalError
 from ..protocol.packets import HEADER_SIZE
 from ..protocol.packets import MAX_PACKET_LENGTH
 from ..protocol.packets import pack_packet

@@ -1,6 +1,6 @@
-from ..exceptions import DatabaseError  # noqa: F401
-from ..exceptions import Error  # noqa: F401
-from ..exceptions import InterfaceError  # noqa: F401
+from ..errors import DatabaseError  # noqa: F401
+from ..errors import Error  # noqa: F401
+from ..errors import InterfaceError  # noqa: F401
 from .asyncio import AsyncioConnection  # noqa: F401
 from .asyncio import AsyncPreparedStatement  # noqa: F401
 from .statements import State  # noqa: F401

@@ -14,9 +14,9 @@ from ..charset import charset_by_name
 from ..constants import CLIENT
 from ..constants import COMMAND
 from ..constants import SERVER_STATUS
-from ..err import OperationalError
-from ..err import ProtocolError
-from ..err import raise_mysql_exception
+from ..errors import OperationalError
+from ..errors import ProtocolError
+from ..errors import raise_mysql_exception
 from . import auth
 from . import ed25519
 from . import parsing

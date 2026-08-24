@@ -4,7 +4,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
-from ..err import ProtocolError
+from ..errors import ProtocolError
 
 
 ##

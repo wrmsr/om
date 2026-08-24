@@ -192,7 +192,7 @@ def test_execution_time_limit(test_table_conn):
             sql = 'SELECT /*+ MAX_EXECUTION_TIME(1) */ data, sleep(1) FROM test'
         else:
             sql = 'SET STATEMENT max_statement_time=0.001 FOR SELECT data, sleep(1) FROM test'
-        with pytest.raises(omysql.err.OperationalError) as cm:
+        with pytest.raises(omysql.errors.OperationalError) as cm:
             # in a buffered cursor this should reliably raise an OperationalError
             cur.execute(sql)
 
