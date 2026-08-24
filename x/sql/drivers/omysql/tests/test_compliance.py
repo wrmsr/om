@@ -1,7 +1,14 @@
+import pytest
+
 from ....dbapi.compliance.bindings import DbapiComplianceBinding
 from ....dbapi.compliance.suites import DbapiComplianceSuite
 from ... import omysql
 from .dbs import DATABASES
+
+
+@pytest.fixture(autouse=True)
+def _bootstrap(mysql_bootstrap):
+    """The binding below connects outside of the fixture system, so the database bootstrap must be forced here."""
 
 
 def _connect():

@@ -22,10 +22,10 @@ async def async_connect(db_kwargs, **kwargs):
 # Sync
 
 
-def test_sync_queries(db_kwargs):
+def test_sync_queries(db_kwargs, pg_server_ssl):
     with sync_connect(db_kwargs) as con:
-        assert con.is_ssl
-        assert con.session.sasl_mechanism == 'SCRAM-SHA-256-PLUS'
+        assert con.is_ssl == pg_server_ssl
+        assert con.session.sasl_mechanism == ('SCRAM-SHA-256-PLUS' if pg_server_ssl else 'SCRAM-SHA-256')
 
         assert con.execute_simple('select 1 as x').rows == [[1]]
         assert con.execute_unnamed('select $1::int + $2::int', (40, 2)).rows == [[42]]
@@ -79,11 +79,11 @@ def test_sync_bad_password(db_kwargs):
 # Async
 
 
-def test_async_queries(db_kwargs):
+def test_async_queries(db_kwargs, pg_server_ssl):
     async def main():
         async with await async_connect(db_kwargs) as con:
-            assert con.is_ssl
-            assert con.session.sasl_mechanism == 'SCRAM-SHA-256-PLUS'
+            assert con.is_ssl == pg_server_ssl
+            assert con.session.sasl_mechanism == ('SCRAM-SHA-256-PLUS' if pg_server_ssl else 'SCRAM-SHA-256')
 
             assert (await con.execute_simple('select 1 as x')).rows == [[1]]
             assert (await con.execute_unnamed('select $1::int + $2::int', (40, 2))).rows == [[42]]

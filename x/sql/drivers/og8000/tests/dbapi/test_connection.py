@@ -56,7 +56,7 @@ def test_database_missing(db_kwargs):
 
 
 def test_database_name_unicode(db_kwargs):
-    db_kwargs['database'] = 'pg8000_sn\uff6fw'
+    db_kwargs['database'] = 'test_og8000_sn\uff6fw'
 
     # Should only raise an exception saying db doesn't exist
     with pytest.raises(DatabaseError, match='3D000'):
@@ -67,7 +67,7 @@ def test_database_name_unicode(db_kwargs):
 def test_database_name_bytes(db_kwargs):
     """Should only raise an exception saying db doesn't exist"""
 
-    db_kwargs['database'] = bytes('pg8000_sn\uff6fw', 'utf8')
+    db_kwargs['database'] = bytes('test_og8000_sn\uff6fw', 'utf8')
     with pytest.raises(DatabaseError, match='3D000'):
         with connect(**db_kwargs):
             pass
@@ -75,21 +75,23 @@ def test_database_name_bytes(db_kwargs):
 
 def test_password_bytes(con, db_kwargs):
     # Create user
-    username = 'boltzmann'
+    username = 'test_og8000_boltzmann'
     password = 'cha\uff6fs'
     cur = con.cursor()
+    cur.execute('drop role if exists ' + username)
     cur.execute('create user ' + username + " with password '" + password + "';")
     con.commit()
 
-    db_kwargs['user'] = username
-    db_kwargs['password'] = password.encode('utf8')
-    db_kwargs['database'] = 'pg8000_md5'
-    with pytest.raises(DatabaseError, match='3D000'):
-        with connect(**db_kwargs):
-            pass
-
-    cur.execute('drop role ' + username)
-    con.commit()
+    try:
+        db_kwargs['user'] = username
+        db_kwargs['password'] = password.encode('utf8')
+        db_kwargs['database'] = 'test_og8000_md5'
+        with pytest.raises(DatabaseError, match='3D000'):
+            with connect(**db_kwargs):
+                pass
+    finally:
+        cur.execute('drop role ' + username)
+        con.commit()
 
 
 def test_application_name(db_kwargs):

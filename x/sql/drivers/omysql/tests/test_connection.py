@@ -219,15 +219,15 @@ def _run_dialog_auth_two_questions(connect, db):
     }
     with TempUser(
         connect().cursor(),
-        'omysql@localhost',
+        'test_omysql_user@localhost',
         db['database'],
         'two_questions',
         'notverysecret',
     ):
         with pytest.raises(omysql.err.OperationalError):
-            omysql.connect(user='omysql', **_without_user(db))
+            omysql.connect(user='test_omysql_user', **_without_user(db))
         omysql.connect(
-            user='omysql',
+            user='test_omysql_user',
             auth_plugin_map={b'dialog': Dialog},
             **_without_user(db),
         )
@@ -267,26 +267,26 @@ def _run_dialog_auth_three_attempts(connect, db):
     Dialog.fail = True  # fail just once. We've got three attempts after all
     with TempUser(
         connect().cursor(),
-        'omysql@localhost',
+        'test_omysql_user@localhost',
         db['database'],
         'three_attempts',
         'stillnotverysecret',
     ):
-        omysql.connect(user='omysql', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
-        omysql.connect(user='omysql', auth_plugin_map={b'dialog': DialogHandler}, **_without_user(db))
+        omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
+        omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': DialogHandler}, **_without_user(db))
         with pytest.raises(omysql.err.OperationalError):
-            omysql.connect(user='omysql', auth_plugin_map={b'dialog': object}, **_without_user(db))
+            omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': object}, **_without_user(db))
 
         with pytest.raises(omysql.err.OperationalError):
-            omysql.connect(user='omysql', auth_plugin_map={b'dialog': DefectiveHandler}, **_without_user(db))
+            omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': DefectiveHandler}, **_without_user(db))
         with pytest.raises(omysql.err.OperationalError):
-            omysql.connect(user='omysql', auth_plugin_map={b'notdialogplugin': Dialog}, **_without_user(db))
+            omysql.connect(user='test_omysql_user', auth_plugin_map={b'notdialogplugin': Dialog}, **_without_user(db))
         Dialog.m = {b'Password, please:': b'I do not know'}
         with pytest.raises(omysql.err.OperationalError):
-            omysql.connect(user='omysql', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
+            omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
         Dialog.m = {b'Password, please:': None}
         with pytest.raises(omysql.err.OperationalError):
-            omysql.connect(user='omysql', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
+            omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
 
 
 def test_dialog_auth_three_attempts_install_plugin(connect, databases):
@@ -402,18 +402,18 @@ def test_auth_sha256(connect, databases):
     c = conn.cursor()
     with TempUser(
         c,
-        'omysql@localhost',
+        'test_omysql_user@localhost',
         db['database'],
         'sha256_password',
     ):
-        c.execute("SET PASSWORD FOR 'omysql'@'localhost' ='Sh@256Pa33'")
+        c.execute("SET PASSWORD FOR 'test_omysql_user'@'localhost' ='Sh@256Pa33'")
         c.execute('FLUSH PRIVILEGES')
         sha_db = _without_user(db)
         sha_db['password'] = 'Sh@256Pa33'
         # Although SHA256 is supported, need the configuration of public key of
         # the mysql server. Currently will get error by this test.
         with pytest.raises(omysql.err.OperationalError):
-            omysql.connect(user='omysql', **sha_db)
+            omysql.connect(user='test_omysql_user', **sha_db)
 
 
 def test_auth_ed25519(connect, databases):
@@ -434,21 +434,21 @@ def test_auth_ed25519(connect, databases):
 
     with TempUser(
         c,
-        'omysql',
+        'test_omysql_user',
         db['database'],
         'ed25519',
         empty_pass,
     ):
-        omysql.connect(user='omysql', password='', **ed_db)
+        omysql.connect(user='test_omysql_user', password='', **ed_db)
 
     with TempUser(
         c,
-        'omysql',
+        'test_omysql_user',
         db['database'],
         'ed25519',
         non_empty_pass,
     ):
-        omysql.connect(user='omysql', password='ed25519_password', **ed_db)
+        omysql.connect(user='test_omysql_user', password='ed25519_password', **ed_db)
 
 
 ##

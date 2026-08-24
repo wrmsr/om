@@ -1,14 +1,15 @@
 import os.path
 
 
-# TODO: wire into the om test harness - for now this is hardcoded to the local server started by run-mysql.
+# TODO: wire into the om test harness - for now this is hardcoded to the local server started by run-mysql. The
+# databases themselves are created by the session bootstrap fixture, using these root credentials.
 DATABASES = [
     {
         'host': '127.0.0.1',
         'port': 3306,
         'user': 'root',
         'passwd': 'om',
-        'database': 'test1',
+        'database': 'test_omysql_1',
         'use_unicode': True,
         'local_infile': True,
     },
@@ -17,7 +18,7 @@ DATABASES = [
         'port': 3306,
         'user': 'root',
         'passwd': 'om',
-        'database': 'test2',
+        'database': 'test_omysql_2',
     },
 ]
 

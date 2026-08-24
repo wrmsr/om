@@ -8,17 +8,22 @@ from ....native import Connection
 
 
 # This requires a line in pg_hba.conf that requires scram-sha-256 for the
-# database pg8000_scram_sha_256
+# database test_og8000_scram_sha_256
 
-DB = 'pg8000_scram_sha_256'
+DB = 'test_og8000_scram_sha_256'
 
 
 @pytest.fixture
-def setup(con):
+def setup(con, pg_server_ssl):
+    if not pg_server_ssl:
+        pytest.skip('server does not accept SSL')
+
     try:
         con.run(f'CREATE DATABASE {DB}')
     except DatabaseError:
         pass
+    yield
+    con.run(f'DROP DATABASE IF EXISTS {DB} WITH (FORCE)')
 
 
 def test_scram_sha_256_plus(setup, db_kwargs):
