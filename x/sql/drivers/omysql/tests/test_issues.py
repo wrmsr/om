@@ -6,7 +6,6 @@ import warnings
 import pytest
 
 from ... import omysql
-from .dbs import DATABASES
 
 
 ##
@@ -66,11 +65,11 @@ def test_issue_5(connect):
     cur.execute('select * from information_schema.tables')
 
 
-def test_issue_6():
+def test_issue_6(databases):
     """Exception: TypeError: ord() expected a character, but string of length 0 found."""
 
     # ToDo: this test requires access to db 'mysql'.
-    kwargs = dict(DATABASES[0])
+    kwargs = databases[0]
     kwargs['database'] = 'mysql'
     conn = omysql.connect(**kwargs)
     c = conn.cursor()
@@ -156,12 +155,12 @@ def test_issue_16(connect):
 
 
 @pytest.mark.skip('test_issue_17() requires a custom, legacy MySQL configuration and will not be run.')
-def test_issue_17(connect):
+def test_issue_17(connect, databases):
     """Could not connect mysql use password."""
 
     conn = connect()
-    host = DATABASES[0]['host']
-    db = DATABASES[0]['database']
+    host = databases[0]['host']
+    db = databases[0]['database']
     c = conn.cursor()
 
     # grant access to a table to a user with a password
@@ -192,8 +191,8 @@ def test_issue_34():
     assert cm.value.args[0] == 2003
 
 
-def test_issue_33(safe_create_table):
-    conn = omysql.connect(charset='utf8', **DATABASES[0])
+def test_issue_33(safe_create_table, databases):
+    conn = omysql.connect(charset='utf8', **databases[0])
     safe_create_table(conn, 'hei\xdfe', 'create table hei\xdfe (name varchar(32))')
     c = conn.cursor()
     c.execute("insert into hei\xdfe (name) values ('Pi\xdfata')")
@@ -359,10 +358,10 @@ def test_issue_95(connect):
             cur.execute('DROP PROCEDURE IF EXISTS `foo`')
 
 
-def test_issue_114():
+def test_issue_114(databases):
     """autocommit is not set after reconnecting with ping()."""
 
-    conn = omysql.connect(charset='utf8', **DATABASES[0])
+    conn = omysql.connect(charset='utf8', **databases[0])
     conn.autocommit(False)
     c = conn.cursor()
     c.execute("""select @@autocommit;""")
@@ -376,7 +375,7 @@ def test_issue_114():
     conn.close()
 
     # Ensure autocommit() is still working
-    conn = omysql.connect(charset='utf8', **DATABASES[0])
+    conn = omysql.connect(charset='utf8', **databases[0])
     c = conn.cursor()
     c.execute("""select @@autocommit;""")
     assert not c.fetchone()[0]
@@ -408,10 +407,10 @@ def test_issue_175(connect):
                 cur.execute('drop table if exists test_field_count')
 
 
-def test_issue_321(safe_create_table):
+def test_issue_321(safe_create_table, databases):
     """Test iterable as query argument."""
 
-    conn = omysql.connect(charset='utf8', **DATABASES[0])
+    conn = omysql.connect(charset='utf8', **databases[0])
     safe_create_table(
         conn,
         'issue321',
@@ -436,10 +435,10 @@ def test_issue_321(safe_create_table):
     assert cur.fetchone() == ('c', '\u0430')
 
 
-def test_issue_364(safe_create_table):
+def test_issue_364(safe_create_table, databases):
     """Test mixed unicode/binary arguments in executemany."""
 
-    conn = omysql.connect(charset='utf8mb4', **DATABASES[0])
+    conn = omysql.connect(charset='utf8mb4', **databases[0])
     safe_create_table(
         conn,
         'issue364',
@@ -470,10 +469,10 @@ def test_issue_364(safe_create_table):
     cur.executemany(usql, args=(values, values, values))
 
 
-def test_issue_363(safe_create_table):
+def test_issue_363(safe_create_table, databases):
     """Test binary / geometry types."""
 
-    conn = omysql.connect(charset='utf8', **DATABASES[0])
+    conn = omysql.connect(charset='utf8', **databases[0])
     safe_create_table(
         conn,
         'issue363',
@@ -515,8 +514,8 @@ def test_issue_363(safe_create_table):
     assert isinstance(row[0], bytes)
 
 
-def test_issue_1206():
-    conn = omysql.connect(charset='utf8', **DATABASES[0])
+def test_issue_1206(databases):
+    conn = omysql.connect(charset='utf8', **databases[0])
 
     cur = conn.cursor()
     cur.execute('DROP PROCEDURE IF EXISTS `foo.bar`')

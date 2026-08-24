@@ -3,7 +3,6 @@ import pytest
 from ... import omysql
 from .. import cursors
 from ..constants import ER
-from .dbs import DATABASES
 from .utils import get_mysql_vendor
 
 
@@ -33,7 +32,7 @@ def test_re_insert_values_with_on_duplicate_key_alias():
 
 
 @pytest.fixture
-def test_table_conn(connect, safe_create_table):
+def test_table_conn(connect, safe_create_table, databases):
     """A dedicated connection to a database holding a populated 5-row `test` table."""
 
     conn = connect()
@@ -49,7 +48,7 @@ def test_table_conn(connect, safe_create_table):
     conn.commit()
     cursor.close()
 
-    test_connection = omysql.connect(**DATABASES[0])
+    test_connection = omysql.connect(**databases[0])
     yield test_connection
     test_connection.close()
 

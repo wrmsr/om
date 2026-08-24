@@ -4,12 +4,11 @@ import pytest
 
 from ... import native
 from ...exceptions import DatabaseError
-from ..dbs import DB_KWARGS
 
 
-def test_async_native(db_setup):
+def test_async_native(db_kwargs):
     async def main():
-        con = await native.AsyncioConnection.connect(**DB_KWARGS)
+        con = await native.AsyncioConnection.connect(**db_kwargs)
         async with con:
             assert await con.run('select 1 as x') == [[1]]
             assert [c['name'] for c in con.columns] == ['x']
@@ -35,9 +34,9 @@ def test_async_native(db_setup):
     asyncio.run(main())
 
 
-def test_async_native_notifications(db_setup):
+def test_async_native_notifications(db_kwargs):
     async def main():
-        async with await native.AsyncioConnection.connect(**DB_KWARGS) as con:
+        async with await native.AsyncioConnection.connect(**db_kwargs) as con:
             await con.run('listen chan')
             await con.run("notify chan, 'hi'")
             assert [n.payload for n in con.notifications] == ['hi']

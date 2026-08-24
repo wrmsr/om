@@ -3,7 +3,6 @@ import warnings
 import pytest
 
 from ... import omysql
-from .dbs import DATABASES
 
 
 def _drop_table(connection, tablename):
@@ -15,10 +14,10 @@ def _drop_table(connection, tablename):
 
 
 @pytest.fixture
-def connections():
+def connections(databases):
     """Open connections to each of the configured test databases, all closed after the test."""
 
-    conns = [omysql.connect(**params) for params in DATABASES]
+    conns = [omysql.connect(**params) for params in databases]
     yield conns
     for conn in conns:
         if conn.open:
@@ -26,13 +25,13 @@ def connections():
 
 
 @pytest.fixture
-def connect():
+def connect(databases):
     """A factory for connections to the first test database, all closed after the test."""
 
     conns = []
 
     def make(**params):
-        p = dict(DATABASES[0])
+        p = dict(databases[0])
         p.update(params)
         conn = omysql.connect(**p)
         conns.append(conn)
@@ -46,7 +45,7 @@ def connect():
 
 
 @pytest.fixture
-def safe_create_table(connect):
+def safe_create_table(connect, databases):
     """
     A factory that creates a table, first dropping any existing version of it, and drops it again after the test.
 
@@ -75,7 +74,7 @@ def safe_create_table(connect):
         if connection.open:
             _drop_table(connection, tablename)
         else:
-            conn = omysql.connect(**DATABASES[0])
+            conn = omysql.connect(**databases[0])
             try:
                 _drop_table(conn, tablename)
             finally:

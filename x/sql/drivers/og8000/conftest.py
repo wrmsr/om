@@ -10,6 +10,8 @@ def db_setup():
         con.run('CREATE EXTENSION IF NOT EXISTS hstore')
 
 
-@pytest.fixture(scope='class')
+@pytest.fixture
 def db_kwargs(db_setup):
+    """A fresh copy of the connection parameters for the test database. The canonical way for tests to obtain them."""
+
     return dict(DB_KWARGS)
