@@ -5,7 +5,7 @@ import pytest
 
 from ...err import OperationalError
 from ...tests.dbs import DATABASES
-from ..asyncio import AsyncConnection
+from ..asyncio import AsyncioConnection
 from ..sync import SyncConnection
 
 
@@ -43,7 +43,7 @@ def test_sync_bad_password():
 
 def test_async_ssl_connect():
     async def main():
-        con = await AsyncConnection.connect(**_kwargs())
+        con = await AsyncioConnection.connect(**_kwargs())
         try:
             assert con.is_ssl
             await con.query('select 1')
@@ -56,7 +56,7 @@ def test_async_ssl_connect():
 
 def test_async_queries_and_unbuffered():
     async def main():
-        async with await AsyncConnection.connect(**_kwargs()) as con:
+        async with await AsyncioConnection.connect(**_kwargs()) as con:
             await con.query('drop table if exists og_async_t')
             await con.query('create temporary table og_async_t (a int)')
             await con.query('insert into og_async_t values (1),(2),(3)')

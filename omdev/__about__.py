@@ -68,7 +68,7 @@ class Project(ProjectBase):
 
         'tui-syntax': [
             'tree-sitter ~= 0.26',
-            'tree-sitter-bash ~= 0.24',
+            'tree-sitter-bash ~= 0.25',
             'tree-sitter-css ~= 0.25',
             'tree-sitter-go ~= 0.25',
             'tree-sitter-html ~= 0.23',
