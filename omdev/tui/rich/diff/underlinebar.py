@@ -47,9 +47,7 @@ class UnderlineBar:
         self.clickable_ranges = clickable_ranges or {}
         self.width = width
 
-    def __rich_console__(
-        self, console: Console, options: ConsoleOptions,
-    ) -> RenderResult:
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         highlight_style = console.get_style(self.highlight_style)
         background_style = console.get_style(self.background_style)
 
@@ -66,7 +64,11 @@ class UnderlineBar:
         output_bar = Text('', end='')
 
         if start == end == 0 or end < 0 or start > end:
-            output_bar.append(Text(bar * width, style=background_style, end=''))
+            output_bar.append(Text(
+                bar * width,
+                style=background_style,
+                end='',
+            ))
             yield output_bar
             return
 
@@ -79,36 +81,58 @@ class UnderlineBar:
         half_end = end - int(end) > 0
 
         # Initial non-highlighted portion of bar
-        output_bar.append(
-            Text(bar * (int(start - 0.5)), style=background_style, end=''),
-        )
+        output_bar.append(Text(
+            bar * (int(start - 0.5)),
+            style=background_style,
+            end='',
+        ))
         if not half_start and start > 0:
-            output_bar.append(Text(half_bar_right, style=background_style, end=''))
+            output_bar.append(Text(
+                half_bar_right,
+                style=background_style,
+                end='',
+            ))
 
         # The highlighted portion
         bar_width = int(end) - int(start)
         if half_start:
-            output_bar.append(
-                Text(
-                    half_bar_left + bar * (bar_width - 1), style=highlight_style, end='',
-                ),
-            )
+            output_bar.append(Text(
+                half_bar_left + bar * (bar_width - 1),
+                style=highlight_style,
+                end='',
+            ))
         else:
-            output_bar.append(Text(bar * bar_width, style=highlight_style, end=''))
+            output_bar.append(Text(
+                bar * bar_width,
+                style=highlight_style,
+                end='',
+            ))
         if half_end:
-            output_bar.append(Text(half_bar_right, style=highlight_style, end=''))
+            output_bar.append(Text(
+                half_bar_right,
+                style=highlight_style,
+                end='',
+            ))
 
         # The non-highlighted tail
         if not half_end and end - width != 0:
-            output_bar.append(Text(half_bar_left, style=background_style, end=''))
-        output_bar.append(
-            Text(bar * (int(width) - int(end) - 1), style=background_style, end=''),
-        )
+            output_bar.append(Text(
+                half_bar_left,
+                style=background_style,
+                end='',
+            ))
+        output_bar.append(Text(
+            bar * (int(width) - int(end) - 1),
+            style=background_style,
+            end='',
+        ))
 
         # Fire actions when certain ranges are clicked (e.g. for tabs)
         for range_name, (start, end) in self.clickable_ranges.items():
             output_bar.apply_meta(
-                {'@click': f"range_clicked('{range_name}')"}, start, end,
+                {'@click': f"range_clicked('{range_name}')"},
+                start,
+                end,
             )
 
         yield output_bar
