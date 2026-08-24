@@ -9,7 +9,6 @@ import warnings
 from . import err
 from .core.sync import SyncConnection
 from .cursors import Cursor
-from .optionfile import Parser
 
 
 # If set (a plugin name), used as the initial client auth plugin instead of the server's default. For testing the
@@ -157,6 +156,8 @@ def _apply_option_file(
         read_default_file: str | None,
         read_default_group: str | None,
 ) -> None:
+    from .optionfile import Parser  # noqa
+
     path = read_default_file or ('/etc/my.cnf')
     group = read_default_group or 'client'
     cfg = Parser()
