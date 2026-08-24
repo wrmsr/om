@@ -2,82 +2,84 @@ import pytest
 
 from ... import omysql
 from ..constants import CLIENT
-from . import base
 
 
-class TestNextset(base.PyMySQLTestCase):
-    def test_nextset(self):
-        con = self.connect(
-            init_command='SELECT "bar"; SELECT "baz"',
-            client_flag=CLIENT.MULTI_STATEMENTS,
-        )
-        cur = con.cursor()
-        cur.execute('SELECT 1; SELECT 2;')
-        self.assertEqual([(1,)], list(cur))
+def test_nextset(connect):
+    con = connect(
+        init_command='SELECT "bar"; SELECT "baz"',
+        client_flag=CLIENT.MULTI_STATEMENTS,
+    )
+    cur = con.cursor()
+    cur.execute('SELECT 1; SELECT 2;')
+    assert list(cur) == [(1,)]
 
-        r = cur.nextset()
-        self.assertTrue(r)
+    r = cur.nextset()
+    assert r
 
-        self.assertEqual([(2,)], list(cur))
-        self.assertIsNone(cur.nextset())
+    assert list(cur) == [(2,)]
+    assert cur.nextset() is None
 
-    def test_skip_nextset(self):
-        cur = self.connect(client_flag=CLIENT.MULTI_STATEMENTS).cursor()
-        cur.execute('SELECT 1; SELECT 2;')
-        self.assertEqual([(1,)], list(cur))
 
-        cur.execute('SELECT 42')
-        self.assertEqual([(42,)], list(cur))
+def test_skip_nextset(connect):
+    cur = connect(client_flag=CLIENT.MULTI_STATEMENTS).cursor()
+    cur.execute('SELECT 1; SELECT 2;')
+    assert list(cur) == [(1,)]
 
-    def test_nextset_error(self):
-        con = self.connect(client_flag=CLIENT.MULTI_STATEMENTS)
-        cur = con.cursor()
+    cur.execute('SELECT 42')
+    assert list(cur) == [(42,)]
 
-        for i in range(3):
-            cur.execute('SELECT %s; xyzzy;', (i,))
-            self.assertEqual([(i,)], list(cur))
-            with self.assertRaises(omysql.ProgrammingError):
-                cur.nextset()
-            self.assertEqual([], cur.fetchall())
 
-    def test_ok_and_next(self):
-        cur = self.connect(client_flag=CLIENT.MULTI_STATEMENTS).cursor()
-        cur.execute('SELECT 1; commit; SELECT 2;')
-        self.assertEqual([(1,)], list(cur))
-        self.assertTrue(cur.nextset())
-        self.assertTrue(cur.nextset())
-        self.assertEqual([(2,)], list(cur))
-        self.assertFalse(bool(cur.nextset()))
+def test_nextset_error(connect):
+    con = connect(client_flag=CLIENT.MULTI_STATEMENTS)
+    cur = con.cursor()
 
-    @pytest.mark.xfail
-    def test_multi_cursor(self):
-        con = self.connect(client_flag=CLIENT.MULTI_STATEMENTS)
-        cur1 = con.cursor()
-        cur2 = con.cursor()
+    for i in range(3):
+        cur.execute('SELECT %s; xyzzy;', (i,))
+        assert list(cur) == [(i,)]
+        with pytest.raises(omysql.ProgrammingError):
+            cur.nextset()
+        assert cur.fetchall() == []
 
-        cur1.execute('SELECT 1; SELECT 2;')
-        cur2.execute('SELECT 42')
 
-        self.assertEqual([(1,)], list(cur1))
-        self.assertEqual([(42,)], list(cur2))
+def test_ok_and_next(connect):
+    cur = connect(client_flag=CLIENT.MULTI_STATEMENTS).cursor()
+    cur.execute('SELECT 1; commit; SELECT 2;')
+    assert list(cur) == [(1,)]
+    assert cur.nextset()
+    assert cur.nextset()
+    assert list(cur) == [(2,)]
+    assert not bool(cur.nextset())
 
-        r = cur1.nextset()
-        self.assertTrue(r)
 
-        self.assertEqual([(2,)], list(cur1))
-        self.assertIsNone(cur1.nextset())
+@pytest.mark.xfail
+def test_multi_cursor(connect):
+    con = connect(client_flag=CLIENT.MULTI_STATEMENTS)
+    cur1 = con.cursor()
+    cur2 = con.cursor()
 
-    def test_multi_statement_warnings(self):
-        con = self.connect(
-            init_command='SELECT "bar"; SELECT "baz"',
-            client_flag=CLIENT.MULTI_STATEMENTS,
-        )
-        cursor = con.cursor()
+    cur1.execute('SELECT 1; SELECT 2;')
+    cur2.execute('SELECT 42')
 
-        try:
-            cursor.execute('DROP TABLE IF EXISTS a; DROP TABLE IF EXISTS b;')
-        except TypeError:
-            self.fail()
+    assert list(cur1) == [(1,)]
+    assert list(cur2) == [(42,)]
 
-    # TODO: How about SSCursor and nextset?
-    # It's very hard to implement correctly...
+    r = cur1.nextset()
+    assert r
+
+    assert list(cur1) == [(2,)]
+    assert cur1.nextset() is None
+
+
+def test_multi_statement_warnings(connect):
+    con = connect(
+        init_command='SELECT "bar"; SELECT "baz"',
+        client_flag=CLIENT.MULTI_STATEMENTS,
+    )
+    cursor = con.cursor()
+
+    # Must not raise (this once raised a TypeError from warning handling).
+    cursor.execute('DROP TABLE IF EXISTS a; DROP TABLE IF EXISTS b;')
+
+
+# TODO: How about SSCursor and nextset?
+# It's very hard to implement correctly...

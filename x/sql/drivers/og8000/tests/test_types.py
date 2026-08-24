@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 
 from ..types import PGInterval
@@ -59,6 +61,28 @@ def test_PGInterval_from_str_iso_8601(value, expected):
 def test_PGInterval_from_str_postgres(value, expected):
     interval = PGInterval.from_str_postgres(value)
     assert interval == expected
+
+
+@pytest.mark.parametrize(
+    'value',
+    [
+        '@ day',
+        '@ day ago',
+        'day 1',
+    ],
+)
+def test_PGInterval_from_str_postgres_unit_without_number(value):
+    with pytest.raises(ValueError, match='not preceded by a number'):
+        PGInterval.from_str_postgres(value)
+
+
+def test_PGInterval_to_timedelta():
+    assert PGInterval(days=1, seconds=30).to_timedelta() == datetime.timedelta(days=1, seconds=30)
+
+
+def test_PGInterval_to_timedelta_unfittable_fields():
+    with pytest.raises(ValueError, match=r"Can't fit the interval fields \['months', 'years'\]"):
+        PGInterval(years=1, months=2, days=3).to_timedelta()
 
 
 @pytest.mark.parametrize(

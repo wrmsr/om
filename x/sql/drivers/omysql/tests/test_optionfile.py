@@ -1,10 +1,9 @@
-from io import StringIO
-from unittest import TestCase
+import io
 
 from ..optionfile import Parser
 
 
-_cfg_file = r"""
+_CFG_FILE = r"""
 [default]
 string = foo
 quoted = "bar"
@@ -13,10 +12,9 @@ skip-slave-start
 """
 
 
-class TestParser(TestCase):
-    def test_string(self):
-        parser = Parser()
-        parser.read_file(StringIO(_cfg_file))
-        self.assertEqual(parser.get('default', 'string'), 'foo')
-        self.assertEqual(parser.get('default', 'quoted'), 'bar')
-        self.assertEqual(parser.get('default', 'single-quoted'), 'foobar')
+def test_string():
+    parser = Parser()
+    parser.read_file(io.StringIO(_CFG_FILE))
+    assert parser.get('default', 'string') == 'foo'
+    assert parser.get('default', 'quoted') == 'bar'
+    assert parser.get('default', 'single-quoted') == 'foobar'

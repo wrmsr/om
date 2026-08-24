@@ -1,5 +1,3 @@
-from unittest import mock
-
 import pytest
 
 from .. import err
@@ -33,10 +31,20 @@ def test_raise_mysql_exception():
 
 
 def test_set_charset_deprecated():
-    con = mock.Mock(spec=Connection)
+    calls = []
+
+    class RecordingConnection(Connection):
+        def __init__(self):
+            # Deliberately does not call super().__init__, so no connection is made.
+            pass
+
+        def set_character_set(self, charset, collation=None):
+            calls.append((charset, collation))
+
+    con = RecordingConnection()
     with pytest.warns(
         DeprecationWarning,
         match="'set_charset' is deprecated, use 'set_character_set' instead",
     ):
-        Connection.set_charset(con, 'utf8mb4')
-    con.set_character_set.assert_called_once_with('utf8mb4')
+        con.set_charset('utf8mb4')
+    assert calls == [('utf8mb4', None)]

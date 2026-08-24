@@ -121,14 +121,15 @@ class PGInterval:
                 continue
 
             elif k == 'ago':
-                for k, v in tuple(t.items()):
-                    t[k] = -1 * v
+                for unit, val in tuple(t.items()):
+                    t[unit] = -1 * val
 
             else:
                 try:
                     curr_val = int(k)
                 except ValueError:
-                    # FIXME: curr_val is None if a unit precedes any number, breaking the 'ago' negation below.
+                    if curr_val is None:
+                        raise ValueError(f'Interval unit {k!r} is not preceded by a number: {interval_str!r}') from None
                     t[cls.UNIT_MAP[k]] = curr_val
 
         return cls(**t)
@@ -300,8 +301,7 @@ class PGInterval:
             'millennia',
         }
         if len(overlap) > 0:
-            # FIXME: this message is not an f-string, so {overlap} is never interpolated.
-            raise ValueError("Can't fit the interval fields {overlap} into a datetime.timedelta.")
+            raise ValueError(f"Can't fit the interval fields {sorted(overlap)} into a datetime.timedelta.")
 
         return datetime.timedelta(**pairs)
 
