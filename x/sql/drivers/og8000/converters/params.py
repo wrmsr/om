@@ -24,15 +24,12 @@
 """The adapter registries, and the rendering of Python values as query parameters and SQL literals."""
 
 import datetime
+import decimal
+import enum
+import functools
+import ipaddress
 import typing as ta
-from decimal import Decimal
-from enum import Enum
-from functools import singledispatch
-from ipaddress import IPv4Address
-from ipaddress import IPv4Network
-from ipaddress import IPv6Address
-from ipaddress import IPv6Network
-from uuid import UUID
+import uuid
 
 from ..exceptions import InterfaceError
 from ..types import PGInterval
@@ -73,7 +70,7 @@ def range_out(v: Range[ta.Any]) -> str:
         return f'{v.bounds[0]}{val_lower},{val_upper}{v.bounds[1]}'
 
 
-@singledispatch
+@functools.singledispatch
 def array_out(val: ta.Any) -> str:
     return make_param(PY_TYPES, val)  # type: ignore[return-value]
 
@@ -110,7 +107,7 @@ def _(val: str) -> str:
     return array_string_escape(val)
 
 
-@singledispatch
+@functools.singledispatch
 def composite_out(val: ta.Any) -> str:
     return array_out(val)
 
@@ -129,15 +126,15 @@ def _(val: None) -> str:
 
 PY_PG: dict[type, int] = {
     datetime.date: oids.DATE,
-    Decimal: oids.NUMERIC,
-    IPv4Address: oids.INET,
-    IPv6Address: oids.INET,
-    IPv4Network: oids.INET,
-    IPv6Network: oids.INET,
+    decimal.Decimal: oids.NUMERIC,
+    ipaddress.IPv4Address: oids.INET,
+    ipaddress.IPv6Address: oids.INET,
+    ipaddress.IPv4Network: oids.INET,
+    ipaddress.IPv6Network: oids.INET,
     PGInterval: oids.INTERVAL,
     datetime.time: oids.TIME,
     datetime.timedelta: oids.INTERVAL,
-    UUID: oids.UUID_TYPE,
+    uuid.UUID: oids.UUID_TYPE,
     bool: oids.BOOLEAN,
     bytearray: oids.BYTES,
     dict: oids.JSONB,
@@ -151,19 +148,19 @@ PY_PG: dict[type, int] = {
 PY_TYPES: dict[type, OutAdapter] = {
     datetime.date: date_out,  # date
     datetime.datetime: datetime_out,
-    Decimal: numeric_out,  # numeric
-    Enum: enum_out,  # enum
-    IPv4Address: inet_out,  # inet
-    IPv6Address: inet_out,  # inet
-    IPv4Network: inet_out,  # inet
-    IPv6Network: inet_out,  # inet
+    decimal.Decimal: numeric_out,  # numeric
+    enum.Enum: enum_out,  # enum
+    ipaddress.IPv4Address: inet_out,  # inet
+    ipaddress.IPv6Address: inet_out,  # inet
+    ipaddress.IPv4Network: inet_out,  # inet
+    ipaddress.IPv6Network: inet_out,  # inet
     # FIXME: interval_out expects a timedelta, so a PGInterval with fields left as None renders as 'None days ...'.
     # pg_interval_out exists for this type.
     PGInterval: interval_out,  # interval
     Range: range_out,  # range types
     datetime.time: time_out,  # time
     datetime.timedelta: interval_out,  # interval
-    UUID: uuid_out,  # uuid
+    uuid.UUID: uuid_out,  # uuid
     bool: bool_out,  # bool
     bytearray: bytes_out,  # bytea
     dict: json_out,  # jsonb
@@ -294,7 +291,7 @@ def identifier(sql: str) -> str:
     return f'"{sql}"'
 
 
-@singledispatch
+@functools.singledispatch
 def literal(value: ta.Any) -> str:
     val = str(value).replace("'", "''")
     return f"'{val}'"
@@ -312,8 +309,8 @@ def _(value: bool) -> str:
 
 @literal.register(int)
 @literal.register(float)
-@literal.register(Decimal)
-def _(value: float | Decimal) -> str:
+@literal.register(decimal.Decimal)
+def _(value: float | decimal.Decimal) -> str:
     return str(value)
 
 

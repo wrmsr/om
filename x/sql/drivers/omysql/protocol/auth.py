@@ -63,26 +63,3 @@ def sha2_rsa_encrypt(password: bytes, salt: bytes, public_key: bytes) -> bytes:
             label=None,
         ),
     )
-
-
-def _scalar_clamp(s32: bytes) -> bytes:
-    ba = bytearray(s32)
-    return bytes([ba[0] & 248]) + bytes(s32[1:31]) + bytes([(ba[31] & 127) | 64])
-
-
-def ed25519_password(password: bytes, scramble: bytes) -> bytes:
-    """Signs a scramble with Ed25519 keys derived from the password, as the client_ed25519 plugin does."""
-
-    try:
-        from nacl import bindings as nb  # noqa: PLC0415
-    except ImportError:
-        raise RuntimeError("'pynacl' package is required for ed25519_password auth method") from None
-
-    h = hashlib.sha512(password).digest()
-    s = _scalar_clamp(h[:32])
-    r = nb.crypto_core_ed25519_scalar_reduce(hashlib.sha512(h[32:] + scramble).digest())
-    R = nb.crypto_scalarmult_ed25519_base_noclamp(r)  # noqa: N806
-    A = nb.crypto_scalarmult_ed25519_base_noclamp(s)  # noqa: N806
-    k = nb.crypto_core_ed25519_scalar_reduce(hashlib.sha512(R + A + scramble).digest())
-    S = nb.crypto_core_ed25519_scalar_add(nb.crypto_core_ed25519_scalar_mul(k, s), r)  # noqa: N806
-    return R + S

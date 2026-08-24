@@ -5,7 +5,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from nacl import bindings
 
-from . import ed25519 as sut
+from .. import ed25519 as sut
 
 
 ##

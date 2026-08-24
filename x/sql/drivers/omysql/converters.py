@@ -1,7 +1,7 @@
 import datetime
+import decimal
 import re
 import time
-from decimal import Decimal
 
 from .constants import FIELD_TYPE
 from .err import ProgrammingError
@@ -342,7 +342,7 @@ encoders = {
     datetime.timedelta: escape_timedelta,
     datetime.time: escape_time,
     time.struct_time: escape_struct_time,
-    Decimal: Decimal2Literal,
+    decimal.Decimal: Decimal2Literal,
 }
 
 
@@ -367,8 +367,8 @@ decoders = {
     FIELD_TYPE.STRING: through,
     FIELD_TYPE.VAR_STRING: through,
     FIELD_TYPE.VARCHAR: through,
-    FIELD_TYPE.DECIMAL: Decimal,
-    FIELD_TYPE.NEWDECIMAL: Decimal,
+    FIELD_TYPE.DECIMAL: decimal.Decimal,
+    FIELD_TYPE.NEWDECIMAL: decimal.Decimal,
 }
 
 

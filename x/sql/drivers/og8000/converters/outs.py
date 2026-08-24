@@ -24,11 +24,11 @@
 """Output adapters: Python values to PostgreSQL text format."""
 
 import datetime
+import decimal
+import enum
+import json
 import typing as ta
-from decimal import Decimal
-from enum import Enum
-from json import dumps
-from uuid import UUID
+import uuid
 
 from ..types import PGInterval
 from .adapters import IpAddressOrNetwork
@@ -60,7 +60,7 @@ def datetime_out(v: datetime.datetime) -> str:
         return v.astimezone(datetime.UTC).isoformat()
 
 
-def enum_out(v: Enum) -> str:
+def enum_out(v: enum.Enum) -> str:
     return str(v.value)
 
 
@@ -81,14 +81,14 @@ def interval_out(v: datetime.timedelta) -> str:
 
 
 def json_out(v: ta.Any) -> str:
-    return dumps(v)
+    return json.dumps(v)
 
 
 def null_out(v: None) -> None:
     return None
 
 
-def numeric_out(d: Decimal) -> str:
+def numeric_out(d: decimal.Decimal) -> str:
     return str(d)
 
 
@@ -108,7 +108,7 @@ def unknown_out(v: ta.Any) -> str:
     return str(v)
 
 
-def uuid_out(v: UUID) -> str:
+def uuid_out(v: uuid.UUID) -> str:
     return str(v)
 
 

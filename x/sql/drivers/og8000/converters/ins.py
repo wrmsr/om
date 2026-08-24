@@ -24,13 +24,12 @@
 """Input adapters: PostgreSQL text format to Python values."""
 
 import datetime
+import decimal
+import enum
+import ipaddress
+import json
 import typing as ta
-from decimal import Decimal
-from enum import Enum
-from ipaddress import ip_address
-from ipaddress import ip_network
-from json import loads
-from uuid import UUID
+import uuid
 
 from ..types import PGInterval
 from ..types import Range
@@ -54,7 +53,7 @@ def bytes_in(data: str) -> bytes:
 
 
 def cidr_in(data: str) -> IpAddressOrNetwork:
-    return ip_network(data, False) if '/' in data else ip_address(data)
+    return ipaddress.ip_network(data, False) if '/' in data else ipaddress.ip_address(data)
 
 
 def date_in(data: str) -> datetime.date | str:
@@ -69,7 +68,7 @@ def date_in(data: str) -> datetime.date | str:
 
 
 def inet_in(data: str) -> IpAddressOrNetwork:
-    return ip_network(data, False) if '/' in data else ip_address(data)
+    return ipaddress.ip_network(data, False) if '/' in data else ipaddress.ip_address(data)
 
 
 def int_in(data: str) -> int:
@@ -85,11 +84,11 @@ def interval_in(data: str) -> datetime.timedelta | PGInterval:
 
 
 def json_in(data: str) -> ta.Any:
-    return loads(data)
+    return json.loads(data)
 
 
-def numeric_in(data: str) -> Decimal:
-    return Decimal(data)
+def numeric_in(data: str) -> decimal.Decimal:
+    return decimal.Decimal(data)
 
 
 def point_in(data: str) -> tuple[float, ...]:
@@ -126,8 +125,8 @@ def vector_in(data: str) -> list[int]:
     return [int(v) for v in data.split()]
 
 
-def uuid_in(data: str) -> UUID:
-    return UUID(data)
+def uuid_in(data: str) -> uuid.UUID:
+    return uuid.UUID(data)
 
 
 def _range_in(elem_func: ta.Callable[[str], T]) -> ta.Callable[[str], Range[T]]:
@@ -150,7 +149,7 @@ int4range_in = _range_in(int)
 int8range_in = _range_in(int)
 
 
-numrange_in = _range_in(Decimal)
+numrange_in = _range_in(decimal.Decimal)
 
 
 def ts_in(data: str) -> datetime.datetime | str:
@@ -207,7 +206,7 @@ tsmultirange_in = _multirange_in(tsrange_in)
 tstzmultirange_in = _multirange_in(tstzrange_in)
 
 
-class ParserState(Enum):
+class ParserState(enum.Enum):
     InString = 1
     InEscape = 2
     InValue = 3

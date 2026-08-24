@@ -23,17 +23,16 @@
 # Original Author: Mathieu Fenniak
 """The shapes of type adapters: functions between the text wire format of a value and its Python form."""
 
+import ipaddress
 import typing as ta
-from ipaddress import IPv4Address
-from ipaddress import IPv4Network
-from ipaddress import IPv6Address
-from ipaddress import IPv6Network
 
 
 InAdapter: ta.TypeAlias = ta.Callable[[str], ta.Any]
 OutAdapter: ta.TypeAlias = ta.Callable[[ta.Any], str | None]
 
-IpAddressOrNetwork: ta.TypeAlias = IPv4Address | IPv6Address | IPv4Network | IPv6Network
+IpAddressOrNetwork: ta.TypeAlias = (
+    ipaddress.IPv4Address | ipaddress.IPv6Address | ipaddress.IPv4Network | ipaddress.IPv6Network
+)
 
 
 

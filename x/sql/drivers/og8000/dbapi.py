@@ -22,12 +22,11 @@
 #
 # Original Author: Mathieu Fenniak
 import datetime
+import itertools
 import socket
+import time
 import typing as ta
-from itertools import count
-from itertools import islice
-from time import localtime
-from warnings import warn
+import warnings
 
 from omcore import check
 
@@ -205,7 +204,7 @@ def DateFromTicks(ticks: float) -> Date:  # noqa: N802
     :rtype: :class:`datetime.date`
     """
 
-    return Date(*localtime(ticks)[:3])
+    return Date(*time.localtime(ticks)[:3])
 
 
 def TimeFromTicks(ticks: float) -> Time:  # noqa: N802
@@ -219,7 +218,7 @@ def TimeFromTicks(ticks: float) -> Time:  # noqa: N802
     :rtype: :class:`datetime.time`
     """
 
-    return Time(*localtime(ticks)[3:6])
+    return Time(*time.localtime(ticks)[3:6])
 
 
 def TimestampFromTicks(ticks: float) -> datetime.datetime:  # noqa: N802
@@ -233,7 +232,7 @@ def TimestampFromTicks(ticks: float) -> datetime.datetime:  # noqa: N802
     :rtype: :class:`datetime.datetime`
     """
 
-    return Timestamp(*localtime(ticks)[:6])
+    return Timestamp(*time.localtime(ticks)[:6])
 
 
 def Binary(value: bytes) -> bytes:  # noqa: N802
@@ -297,7 +296,7 @@ def convert_paramstyle(style: str, query: str, args: QueryArgs) -> tuple[str, Qu
     in_param_escape = False
     placeholders: list[str] = []
     output_query: list[str] = []
-    param_idx = map(lambda x: '$' + str(x), count(1))
+    param_idx = map(lambda x: '$' + str(x), itertools.count(1))
     state = OUTSIDE
     prev_c: str | None = None
 
@@ -452,7 +451,7 @@ class Cursor:
 
     @property
     def connection(self) -> Connection:
-        warn('DB-API extension cursor.connection used', stacklevel=3)
+        warnings.warn('DB-API extension cursor.connection used', stacklevel=3)
         return self._c
 
     @property
@@ -641,7 +640,7 @@ class Cursor:
         """
 
         try:
-            return tuple(islice(self, self.arraysize if num is None else num))
+            return tuple(itertools.islice(self, self.arraysize if num is None else num))
         except TypeError:
             raise ProgrammingError('attempting to use unexecuted cursor')
 
@@ -728,7 +727,7 @@ class Connection(SyncCoreConnection):
     NotSupportedError = property(lambda self: self._get_error(NotSupportedError))
 
     def _get_error(self, error: type[ExceptionT]) -> type[ExceptionT]:
-        warn(f'DB-API extension connection.{error.__name__} used', stacklevel=3)
+        warnings.warn(f'DB-API extension connection.{error.__name__} used', stacklevel=3)
         return error
 
     @property

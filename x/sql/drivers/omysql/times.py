@@ -1,26 +1,23 @@
-from datetime import date
-from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from time import localtime
+import datetime
+import time
 
 
 ##
 
 
-Date = date
-Time = time
-TimeDelta = timedelta
-Timestamp = datetime
+Date = datetime.date
+Time = datetime.time
+TimeDelta = datetime.timedelta
+Timestamp = datetime.datetime
 
 
 def DateFromTicks(ticks):
-    return date(*localtime(ticks)[:3])
+    return datetime.date(*time.localtime(ticks)[:3])
 
 
 def TimeFromTicks(ticks):
-    return time(*localtime(ticks)[3:6])
+    return datetime.time(*time.localtime(ticks)[3:6])
 
 
 def TimestampFromTicks(ticks):
-    return datetime(*localtime(ticks)[:6])
+    return datetime.datetime(*time.localtime(ticks)[:6])

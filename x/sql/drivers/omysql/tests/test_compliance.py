@@ -1,6 +1,6 @@
-from ... import omysql
 from ....dbapi.compliance.bindings import DbapiComplianceBinding
 from ....dbapi.compliance.suites import DbapiComplianceSuite
+from ... import omysql
 from .dbs import DATABASES
 
 

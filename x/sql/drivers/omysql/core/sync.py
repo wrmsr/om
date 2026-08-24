@@ -2,6 +2,7 @@ import socket
 import types
 import typing as ta
 
+from omcore import check
 from omcore.io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 from omcore.io.pipelines.drivers.types import IoPipelineDriverState
 
@@ -103,8 +104,7 @@ class SyncConnection(BaseConnection):
     def _run(self, op: Operation[T]) -> T:
         if not self.open:
             raise Error('Already closed')
-        driver = self._driver
-        assert driver is not None
+        driver = check.not_none(self._driver)
         driver.enqueue(OperationRequest(op))
         while True:
             try:
@@ -118,8 +118,7 @@ class SyncConnection(BaseConnection):
     def close(self) -> None:
         if not self.open:
             raise Error('Already closed')
-        driver = self._driver
-        assert driver is not None
+        driver = check.not_none(self._driver)
         try:
             driver.enqueue(OperationRequest(self._session.quit()))
             driver.next(read=False)

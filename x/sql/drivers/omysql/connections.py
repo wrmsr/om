@@ -4,10 +4,12 @@ connection; the real implementation lives in og8000-style `core` and `protocol` 
 """
 import os.path
 import typing as ta
+import warnings
 
 from . import err
 from .core.sync import SyncConnection
 from .cursors import Cursor
+from .optionfile import Parser
 
 
 # If set (a plugin name), used as the initial client auth plugin instead of the server's default. For testing the
@@ -127,7 +129,6 @@ class Connection(SyncConnection):
         return rows if rows is not None else ()
 
     def set_charset(self, charset: str) -> None:
-        import warnings  # noqa: PLC0415
         warnings.warn("'set_charset' is deprecated, use 'set_character_set' instead", DeprecationWarning, stacklevel=2)
         self.set_character_set(charset)
 
@@ -156,8 +157,6 @@ def _apply_option_file(
         read_default_file: str | None,
         read_default_group: str | None,
 ) -> None:
-    from .optionfile import Parser  # noqa: PLC0415
-
     path = read_default_file or ('/etc/my.cnf')
     group = read_default_group or 'client'
     cfg = Parser()

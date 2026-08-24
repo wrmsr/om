@@ -14,6 +14,7 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import sys
 
+from . import connections
 from .constants import FIELD_TYPE
 from .err import DatabaseError
 from .err import DataError
@@ -62,8 +63,6 @@ def install_as_MySQLdb():
 threadsafety = 1
 apilevel = '2.0'
 paramstyle = 'pyformat'
-
-from . import connections
 
 
 class DBAPISet(frozenset):

@@ -1,18 +1,12 @@
 """
-MariaDB ``client_ed25519`` password authentication with three backends.
+MariaDB ``client_ed25519`` password authentication, with three interchangeable backends:
 
-This is a drop-in replacement for :func:`pymysql._auth.ed25519_password`:
-
-    response = ed25519_password(password, scramble)
-
-The optional ``backend=`` keyword selects one of:
-
-* ``"nacl"`` -- the same PyNaCl/libsodium operations used by PyMySQL.
-* ``"cryptography"`` -- a deliberately private-API-dependent backend that uses
+* ``'nacl'`` - the same PyNaCl/libsodium operations used by PyMySQL.
+* ``'cryptography'`` - a deliberately private-API-dependent backend that uses
   ``cryptography.hazmat.bindings._rust.openssl.x25519`` for native scalar multiplication, then reconstructs and converts
   the Edwards point.
-* ``"stdlib"`` -- a compact pure-Python Ed25519 implementation.
-* ``"auto"`` -- try the preceding backends in that order (the default).
+* ``'stdlib'`` - a compact pure-Python Ed25519 implementation.
+* ``'auto'`` - try the preceding backends in that order (the default).
 
 The stdlib implementation, and the Python glue around the cryptography backend, are not constant-time. Prefer the PyNaCl
 backend where local timing or cache side channels are in scope.
@@ -20,6 +14,11 @@ backend where local timing or cache side channels are in scope.
 import functools
 import hashlib
 import typing as ta
+
+
+# Extended Edwards point (X, Y, Z, T), representing x=X/Z, y=Y/Z, and XY=ZT. These formulas are complete for
+# edwards25519.
+_Point: ta.TypeAlias = tuple[int, int, int, int]
 
 
 ##
@@ -34,9 +33,6 @@ _D = 370957059346694393431380835087545651895421138798432190163887855330859402835
 _BASE_X = 15112221349535400772501151409588531511454012693041857206046113283949847762202
 _BASE_Y = 46316835694926478169428394003475163141307993866256225615783033603165251855960
 
-# Extended Edwards point (X, Y, Z, T), representing x=X/Z, y=Y/Z, and XY=ZT. These formulas are complete for
-# edwards25519.
-_Point: ta.TypeAlias = tuple[int, int, int, int]
 _IDENTITY: _Point = (0, 1, 1, 0)
 _BASE: _Point = (_BASE_X, _BASE_Y, 1, (_BASE_X * _BASE_Y) % _P)
 
@@ -220,7 +216,7 @@ def ed25519_password_stdlib(password: bytes, scramble: bytes) -> bytes:
     return _ed25519_password_with_base_mult(password, scramble, _base_mult_stdlib)
 
 
-def _x25519_clamped_representative(scalar: int) -> ta.Optional[bytes]:
+def _x25519_clamped_representative(scalar: int) -> bytes | None:
     """
     Find an X25519 input whose clamped scalar is congruent to ±scalar mod L.
 
@@ -392,8 +388,8 @@ def _base_mult_cryptography_with_ctx(
 def _load_cryptography_backend() -> _CryptographyX25519:
     ctx = _load_cryptography_x25519()
 
-    # Exercise scalar adaptation, sign recovery, and the birational map—not merely the presence of private function
-    # names—before advertising or automatically selecting this brittle backend.
+    # Exercise scalar adaptation, sign recovery, and the birational map, not merely the presence of private function
+    # names, before advertising or automatically selecting this brittle backend.
     for scalar in (2, 8, _L - 2):
         actual = _base_mult_cryptography_with_ctx(scalar, ctx)
         if actual != _base_mult_stdlib(scalar):
@@ -419,7 +415,7 @@ def ed25519_password_cryptography(password: bytes, scramble: bytes) -> bytes:
     )
 
 
-def available_backends() -> ta.Tuple[str, ...]:
+def available_backends() -> tuple[str, ...]:
     """Return the explicit backend names usable in the current process."""
 
     available = []
@@ -451,9 +447,7 @@ def ed25519_password(
     """
     Return the 64-byte MariaDB ``client_ed25519`` authentication response.
 
-    With its default arguments this has the same two-positional-argument call shape as
-    ``pymysql._auth.ed25519_password``. Explicit backend selection never falls through silently; only ``backend="auto"``
-    does so.
+    Explicit backend selection never falls through silently; only ``backend='auto'`` does so.
     """
 
     implementations = {
@@ -472,13 +466,13 @@ def ed25519_password(
 
         # The stdlib backend has no optional dependencies, so this is only reachable after an internal programming error
         # represented as a BackendUnavailable exception.
-        detail = '; '.join('{}: {}'.format(name, exc) for name, exc in errors)
+        detail = '; '.join(f'{name}: {exc}' for name, exc in errors)
         raise BackendUnavailable('no Ed25519 backend is usable: ' + detail)
 
     try:
         implementation = implementations[backend]
     except KeyError:
-        choices = ', '.join(('auto',) + tuple(implementations))
+        choices = ', '.join(('auto', *tuple(implementations)))
         raise ValueError(f'unknown Ed25519 backend {backend!r}; expected one of {choices}') from None
 
     return implementation(password, scramble)

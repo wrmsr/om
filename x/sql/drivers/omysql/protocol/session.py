@@ -10,8 +10,6 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
-from . import auth
-from . import parsing
 from ..charset import charset_by_name
 from ..constants import CLIENT
 from ..constants import COMMAND
@@ -19,6 +17,9 @@ from ..constants import SERVER_STATUS
 from ..err import OperationalError
 from ..err import ProtocolError
 from ..err import raise_mysql_exception
+from . import auth
+from . import ed25519
+from . import parsing
 from .messages import ColumnDefinition
 from .messages import Handshake
 from .packets import MAX_PACKET_LENGTH
@@ -391,7 +392,7 @@ class ProtocolSession:
         if plugin_name == 'mysql_native_password':
             data = auth.scramble_native_password(self._password, plugin_data)
         elif plugin_name == 'client_ed25519':
-            data = auth.ed25519_password(self._password, plugin_data)
+            data = ed25519.ed25519_password(self._password, plugin_data)
         elif plugin_name == 'mysql_clear_password':
             data = self._password + b'\0'
         elif plugin_name == 'caching_sha2_password':
