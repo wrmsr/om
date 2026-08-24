@@ -1,5 +1,5 @@
-from ....sqldrivers.dbapi.compliance.bindings import DbapiComplianceBinding
-from ....sqldrivers.dbapi.compliance.suites import DbapiComplianceSuite
+from .....dbapi.compliance.bindings import DbapiComplianceBinding
+from .....dbapi.compliance.suites import DbapiComplianceSuite
 from ... import dbapi
 from ..dbs import DB_KWARGS
 
