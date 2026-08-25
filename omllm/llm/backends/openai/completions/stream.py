@@ -7,6 +7,7 @@ from omcore.http import all as http
 
 from .....core.http.sse import SseEvent
 from ....types.backends import StreamBackend
+from ....types.compat import TokenCostMode
 from ....types.context import Context
 from ....types.options import Options
 from ....types.streams import AiStream
@@ -33,6 +34,17 @@ def _stringify_error(error: ta.Any) -> str:
 
 
 class SseEventProcessor(BaseBackendSseEventProcessor):
+    def __init__(
+            self,
+            *,
+            reasoning_field: str | None = None,
+            cost_mode: TokenCostMode | None = None,
+    ) -> None:
+        super().__init__()
+
+        self._reasoning_field = reasoning_field
+        self._cost_mode = cost_mode
+
     def _feed(self, sse: SseEvent) -> None:
         if sse.data == '[DONE]':
             return
@@ -47,7 +59,10 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             raise RuntimeError(_stringify_error(raw_chunk['error']))
 
         if (raw_usage := raw_chunk.get('usage')) is not None:
-            self._message.token_usage = translate_token_usage(check.isinstance(raw_usage, ta.Mapping))
+            self._message.token_usage = translate_token_usage(
+                check.isinstance(raw_usage, ta.Mapping),
+                cost_mode=self._cost_mode,
+            )
 
         # The final usage chunk (requested via stream_options.include_usage) has an empty choices list.
         if not (raw_choices := raw_chunk.get('choices')):
@@ -61,9 +76,10 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             return
         raw_delta = check.isinstance(raw_delta, ta.Mapping)
 
-        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via
-        # reasoning_content, and openrouter normalizes it to reasoning.
-        if raw_reasoning := (raw_delta.get('reasoning_content') or raw_delta.get('reasoning')):
+        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via a delta
+        # field - conventionally reasoning_content, remapped per-model via compat. Only the predeclared field is
+        # probed.
+        if raw_reasoning := raw_delta.get(self._reasoning_field or 'reasoning_content'):
             raw_reasoning = check.isinstance(raw_reasoning, str)
             thinking = self._thinking()
             self._emit(ThinkingDeltaAiStreamEvent(
@@ -145,6 +161,9 @@ class OpenaiCompletionsStreamBackend(BaseOpenaiCompletionsBackend, StreamBackend
                 err_http_response = await http.async_read_http_client_response(http_response)
                 raise http.StatusHttpClientError(err_http_response)
 
-            processor = SseEventProcessor()
+            processor = SseEventProcessor(
+                reasoning_field=self._compat.reasoning_field,
+                cost_mode=self._compat.cost_mode,
+            )
 
             return await processor.stream_http_response(http_response)

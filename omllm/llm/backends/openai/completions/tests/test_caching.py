@@ -66,6 +66,9 @@ async def test_openai_prompt_caching(harness):
     assert partial.input > partial.cache_read
     assert partial.input > full.input
 
+    # Openai reports no money at all, and no cost mode is declared for it - so no cost may ever appear.
+    assert all(u.cost is None for u in (prime, full, partial))
+
 
 ##
 
@@ -138,3 +141,12 @@ async def test_openrouter_prompt_caching(harness, model_id):
     assert partial.input is not None
     assert partial.cache_read >= _MIN_CACHEABLE_PROMPT_TOKENS
     assert partial.input > partial.cache_read
+
+    # Openrouter reports each request's billed cost - authoritative under per-upstream price variance - which rides
+    # usage as a reported TokenCost. Only the prompt/completions split is reported, never cache-level components.
+    for u in (prime, full, partial):
+        assert u.cost is not None
+        assert u.cost.source == 'reported'
+        assert u.cost.input is not None and u.cost.input > 0
+        assert u.cost.output is not None and u.cost.output > 0
+        assert u.cost.total is not None and u.cost.total > 0

@@ -70,9 +70,10 @@ class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateB
 
         content: list[Content] = []
 
-        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via
-        # reasoning_content, and openrouter normalizes it to reasoning.
-        if raw_reasoning := (raw_msg.get('reasoning_content') or raw_msg.get('reasoning')):
+        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via a message
+        # field - conventionally reasoning_content, remapped per-model via compat. Only the predeclared field is
+        # probed.
+        if raw_reasoning := raw_msg.get(self._compat.reasoning_field or 'reasoning_content'):
             content.append(ThinkingContent(check.isinstance(raw_reasoning, str)))
 
         if raw_content := raw_msg.get('content'):
@@ -95,7 +96,10 @@ class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateB
 
         token_usage: TokenUsage | None = None
         if (raw_usage := raw_response.get('usage')) is not None:
-            token_usage = translate_token_usage(check.isinstance(raw_usage, ta.Mapping))
+            token_usage = translate_token_usage(
+                check.isinstance(raw_usage, ta.Mapping),
+                cost_mode=self._compat.cost_mode,
+            )
 
         return AiMessage(
             ta.cast(ta.Any, content),

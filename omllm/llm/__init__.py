@@ -102,6 +102,8 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .types.compat import (  # noqa
+        TokenCostMode,
+
         Compat,
 
         OpenaiCompat,
@@ -133,6 +135,8 @@ with _lang.auto_proxy_init(globals()):
         UserMessageBuilder,
 
         StopReason,
+        TokenCostSource,
+        TokenCost,
         TokenUsage,
 
         AiMessage,

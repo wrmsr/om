@@ -66,6 +66,53 @@ type StopReason = ta.Literal[
 ]
 
 
+#
+
+
+type TokenCostSource = ta.Literal[
+    # Billed figures reported by the provider in the response itself.
+    'reported',
+
+    # Figures computed locally from static rates (USD per million tokens, the models.dev convention).
+    'estimated',
+]
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(cache_hash=True, default_repr_fn=lang.truthy_repr)
+@msh.update_field_options(omit_if=lang.is_none)
+class TokenCost:
+    """
+    A single request's cost in absolute USD (amounts, not rates), broken down mirroring TokenUsage's token counts
+    with the same inclusive/overlapping semantics. As with token counts, providers report or imply varying subsets -
+    a gross total without a breakdown is better than nothing at all.
+    """
+
+    source: TokenCostSource
+
+    # Inclusive prompt-side cost. Cache reads and writes are overlapping details within this value.
+    input: float | None = None
+
+    # Inclusive completion-side cost. Reasoning is an overlapping detail within this value.
+    output: float | None = None
+
+    # Reasoning cost, when known. This is already included in output.
+    reasoning: float | None = None
+
+    # Cost of input tokens read from a prompt cache, when known. This is already included in input.
+    cache_read: float | None = None
+
+    # Cost of input tokens written to a prompt cache, when known. This is already included in input.
+    cache_write: float | None = None
+
+    # The billed total when reported, or the sum of the inclusive components when estimated.
+    total: float | None = None
+
+
+#
+
+
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(cache_hash=True, default_repr_fn=lang.truthy_repr)
@@ -88,6 +135,9 @@ class TokenUsage:
 
     # The provider's authoritative total, or input + output when the provider does not report one.
     total: int | None = None
+
+    # This request's cost, when reported by the provider or computed from static rates.
+    cost: TokenCost | None = None
 
 
 #

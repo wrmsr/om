@@ -1,5 +1,6 @@
 import typing as ta
 
+from ...types.compat import OpenaiCompat
 from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
@@ -18,6 +19,13 @@ _CACHE = CacheCapabilities(
     key=True,
 )
 
+# Openrouter normalizes upstream reasoning text onto a bare reasoning field, and reports each request's actual
+# billed cost (which varies by routed upstream) in its usage.
+_COMPAT = OpenaiCompat(
+    reasoning_field='reasoning',
+    cost_mode='openrouter',
+)
+
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
@@ -28,6 +36,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='DeepSeek V4 Flash 0731',
         backend='openai-completions',
+        compat=_COMPAT,
         cache=_CACHE,
         http=Model.Http(
             base_url=_BASE_URL,
@@ -41,6 +50,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='DeepSeek V4 Pro 0813',
         backend='openai-completions',
+        compat=_COMPAT,
         cache=_CACHE,
         http=Model.Http(
             base_url=_BASE_URL,
@@ -54,6 +64,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='Kimi K3',
         backend='openai-completions',
+        compat=_COMPAT,
         cache=_CACHE,
         http=Model.Http(
             base_url=_BASE_URL,
@@ -67,6 +78,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GLM-5.3',
         backend='openai-completions',
+        compat=_COMPAT,
         cache=_CACHE,
         http=Model.Http(
             base_url=_BASE_URL,
