@@ -49,7 +49,7 @@ def test_date_in(value, expected):
 
 
 def test_null_out():
-    assert null_out(None) is None
+    assert null_out(None) is None  # type: ignore
 
 
 @pytest.mark.parametrize(
@@ -318,7 +318,7 @@ def test_make_param():
 
 def test_identifier_int():
     with pytest.raises(InterfaceError, match='identifier must be a str'):
-        identifier(9)
+        identifier(9)  # type: ignore
 
 
 def test_identifier_empty():

@@ -51,7 +51,7 @@ def _tls_server_end_point_cryptography(cert_der: bytes) -> bytes:
 
 def _tls_server_end_point_asn1crypto(cert_der: bytes) -> bytes:
     try:
-        from asn1crypto.x509 import Certificate
+        from asn1crypto.x509 import Certificate  # type: ignore
 
     except ModuleNotFoundError as exc:
         if exc.name != 'asn1crypto':

@@ -1,3 +1,12 @@
+DATABASE = dict(
+    host='127.0.0.1',
+    port=35225,
+    user='root',
+    password='om',  # noqa
+    database='om',
+)
+
+
 CREATE_TEMP_TABLE_SQL = """ \
 CREATE TEMPORARY TABLE `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -14,13 +23,7 @@ CREATE TEMPORARY TABLE `users` (
 def _main() -> None:
     from ... import omysql
 
-    connection = omysql.Connection(
-        host='127.0.0.1',
-        port=35225,
-        user='root',
-        password='om',  # noqa
-        database='om',
-    )
+    connection = omysql.Connection(**DATABASE)
 
     with connection:
         with connection.cursor() as cursor:

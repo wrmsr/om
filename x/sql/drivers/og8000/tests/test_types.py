@@ -122,8 +122,8 @@ def test_PGInterval_from_str(value, expected):
 
 
 def test_Range_equals():
-    pg_range_a = Range('[', 1, 2, ')')
-    pg_range_b = Range('[', 1, 2, ')')
+    pg_range_a = Range(1, 2, '[)')
+    pg_range_b = Range(1, 2, '[)')
     assert pg_range_a == pg_range_b
 
 

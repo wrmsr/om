@@ -306,12 +306,25 @@ class PGInterval:
         return datetime.timedelta(**pairs)
 
 
+RangeBounds: ta.TypeAlias = ta.Literal[
+    '()',
+    '(]',
+    '[)',
+    '[]',
+]
+
+RANGE_BOUNDS_VALUES: ta.Final[ta.Mapping[str, RangeBounds]] = {
+    s: ta.cast(RangeBounds, s)
+    for s in ['()', '(]', '[)', '[]']
+}
+
+
 class Range(ta.Generic[T]):
     def __init__(
         self,
         lower: T | None = None,
         upper: T | None = None,
-        bounds: str = '[)',
+        bounds: RangeBounds = '[)',
         is_empty: bool = False,
     ) -> None:
         self.lower = lower

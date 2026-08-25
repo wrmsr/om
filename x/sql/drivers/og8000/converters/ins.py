@@ -22,7 +22,6 @@
 #
 # Original Author: Mathieu Fenniak
 """Input adapters: PostgreSQL text format to Python values."""
-
 import datetime
 import decimal
 import enum
@@ -33,6 +32,7 @@ import uuid
 
 from ..types import PGInterval
 from ..types import Range
+from ..types import RANGE_BOUNDS_VALUES
 from .adapters import InAdapter
 from .adapters import IpAddressOrNetwork
 
@@ -135,7 +135,7 @@ def _range_in(elem_func: ta.Callable[[str], T]) -> ta.Callable[[str], Range[T]]:
             return Range(is_empty=True)
         else:
             le, ue = [None if v == '' else elem_func(v) for v in data[1:-1].split(',')]
-            return Range(le, ue, bounds=f'{data[0]}{data[-1]}')
+            return Range(le, ue, bounds=RANGE_BOUNDS_VALUES[f'{data[0]}{data[-1]}'])
 
     return range_in
 

@@ -76,13 +76,16 @@ def to_statement(query: str) -> tuple[str, ta.Callable[[ta.Mapping[str, ta.Any]]
                 output_query.append(c)
                 if prev_c == '$':
                     state = State.IN_DQ
-                # FIXME: next_c is None when the query ends with '$'.
-                elif next_c.isdigit():
+                elif next_c and next_c.isdigit():
                     state = State.IN_DP
                     placeholders.append('')
 
-            # FIXME: next_c is None when the query ends with ':', which raises TypeError here.
-            elif c == ':' and next_c not in ':=' and prev_c != ':':
+            elif (
+                    c == ':' and
+                    next_c and
+                    next_c not in ':=' and
+                    prev_c != ':'
+            ):
                 state = State.IN_PN
                 placeholders.append('')
 

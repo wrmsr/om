@@ -22,7 +22,7 @@ def _database(harness) -> Database:
     spec = harness[HarnessDbs].specs()['postgres']
     url = check.isinstance(spec.loc, sql.UrlDbLoc)
     pu = urllib.parse.urlparse(check.isinstance(url.url, str))
-    return types.MappingProxyType({  # noqa
+    return types.MappingProxyType({  # type: ignore
         'host': pu.hostname,
         'port': pu.port,
         'user': pu.username,

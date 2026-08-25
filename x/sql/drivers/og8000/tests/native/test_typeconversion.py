@@ -1,23 +1,14 @@
 import os
 import time
-from collections import OrderedDict
-from datetime import date as Date
-from datetime import datetime as Datetime
-from datetime import time as Time
-from datetime import timedelta as Timedelta
-from datetime import timezone as Timezone
-from decimal import Decimal
-from enum import Enum
-from ipaddress import IPv4Address
-from ipaddress import IPv4Network
-from json import dumps
-from locale import LC_ALL
-from locale import localeconv
-from locale import setlocale
-from uuid import UUID
+import datetime
+import decimal
+import enum
+import ipaddress
+import json
+import uuid
+import zoneinfo
 
 import pytest
-import pytz
 
 from ...converters import BIGINT
 from ...converters import BIGINT_ARRAY
@@ -112,7 +103,7 @@ def test_bytearray_subclass_round_trip(con):
 
 
 def test_timestamp_roundtrip(con):
-    v = Datetime(2001, 2, 3, 4, 5, 6, 170000)
+    v = datetime.datetime(2001, 2, 3, 4, 5, 6, 170000)
     retval = con.run('SELECT cast(:v as timestamp)', v=v)
     assert retval[0][0] == v
 
@@ -156,7 +147,7 @@ def test_enum_str_round_trip(con):
 def test_enum_custom_round_trip(con):
     class Lepton:
         # Implements PEP 435 in the minimal fashion needed
-        __members__ = OrderedDict()
+        __members__ = {}
 
         def __init__(self, name, value, alias=None):
             self.name = name
@@ -182,7 +173,7 @@ def test_enum_custom_round_trip(con):
 
 
 def test_enum_py_round_trip(con):
-    class Lepton(Enum):
+    class Lepton(enum.Enum):
         electron = '1'
         muon = '2'
         tau = '3'
@@ -221,17 +212,17 @@ def test_int2vector_in(con):
         [
             'UTC',
             '2001-02-03 04:05:06.17 America/Edmonton',
-            Datetime(2001, 2, 3, 11, 5, 6, 170000, Timezone.utc),
+            datetime.datetime(2001, 2, 3, 11, 5, 6, 170000, datetime.timezone.utc),
         ],
         [
             'UTC',
             '2001-02-03 04:05:06.17+01:30',
-            Datetime(2001, 2, 3, 2, 35, 6, 170000, Timezone.utc),
+            datetime.datetime(2001, 2, 3, 2, 35, 6, 170000, datetime.timezone.utc),
         ],
         [
             '01:30',
             '2001-02-03 04:05:06.17+01:30',
-            Datetime(2001, 2, 3, 2, 35, 6, 170000, Timezone.utc),
+            datetime.datetime(2001, 2, 3, 2, 35, 6, 170000, datetime.timezone.utc),
         ],
         [
             'UTC',
@@ -254,8 +245,8 @@ def test_timestamptz_in(con, tz, test_input, test_output):
 
 
 def test_timestamp_tz_roundtrip(con):
-    mst = pytz.timezone('America/Edmonton')
-    v1 = mst.localize(Datetime(2001, 2, 3, 4, 5, 6, 170000))
+    mst = zoneinfo.ZoneInfo('America/Edmonton')
+    v1 = datetime.datetime(2001, 2, 3, 4, 5, 6, 170000, tzinfo=mst)
     retval = con.run('SELECT cast(:v as timestamptz)', v=v1)
     v2 = retval[0][0]
     assert v2.tzinfo is not None
@@ -263,7 +254,7 @@ def test_timestamp_tz_roundtrip(con):
 
 
 def test_timestamp_mismatch(con):
-    mst = pytz.timezone('America/Edmonton')
+    mst = zoneinfo.ZoneInfo('America/Edmonton')
     con.run("SET SESSION TIME ZONE 'America/Edmonton'")
     try:
         con.run(
@@ -273,9 +264,9 @@ def test_timestamp_mismatch(con):
         con.run(
             'INSERT INTO TestTz (f1, f2) VALUES (:v1, :v2)',
             # insert timestamp into timestamptz field (v1)
-            v1=Datetime(2001, 2, 3, 4, 5, 6, 170000),
+            v1=datetime.datetime(2001, 2, 3, 4, 5, 6, 170000),
             # insert timestamptz into timestamp field (v2)
-            v2=mst.localize(Datetime(2001, 2, 3, 4, 5, 6, 170000)),
+            v2=datetime.datetime(2001, 2, 3, 4, 5, 6, 170000, tzinfo=mst),
         )
         retval = con.run('SELECT f1, f2 FROM TestTz')
 
@@ -285,12 +276,12 @@ def test_timestamp_mismatch(con):
         # of v1. We've set the server's TZ to MST, the time should
         # be...
         f1 = retval[0][0]
-        assert f1 == Datetime(2001, 2, 3, 11, 5, 6, 170000, Timezone.utc)
+        assert f1 == datetime.datetime(2001, 2, 3, 11, 5, 6, 170000, datetime.timezone.utc)
 
         # inserting the timestamptz into a timestamp field, pg8000 converts the
         # value into UTC, and then the PG server sends that time back
         f2 = retval[0][1]
-        assert f2 == Datetime(2001, 2, 3, 11, 5, 6, 170000)
+        assert f2 == datetime.datetime(2001, 2, 3, 11, 5, 6, 170000)
     finally:
         con.run('SET SESSION TIME ZONE DEFAULT')
 
@@ -300,8 +291,8 @@ def test_timestamp_mismatch(con):
     [
         ["CAST('t' AS bool)", True],
         ['5000::smallint', 5000],
-        ['5000::numeric', Decimal('5000')],
-        ['50.34::numeric', Decimal('50.34')],
+        ['5000::numeric', decimal.Decimal('5000')],
+        ['50.34::numeric', decimal.Decimal('50.34')],
         ['5000::integer', 5000],
         ['50000000000000::bigint', 50000000000000],
         ['1.1::real', 1.1],
@@ -347,8 +338,8 @@ def test_pg_interval_in(con):
 @pytest.mark.parametrize(
     'test_input,test_output',
     [
-        ['12 days 30 seconds', Timedelta(days=12, seconds=30)],
-        ['30 seconds', Timedelta(seconds=30)],
+        ['12 days 30 seconds', datetime.timedelta(days=12, seconds=30)],
+        ['30 seconds', datetime.timedelta(seconds=30)],
     ],
 )
 def test_interval_in_postgres(con, test_input, test_output):
@@ -360,8 +351,8 @@ def test_interval_in_postgres(con, test_input, test_output):
 @pytest.mark.parametrize(
     'iso_8601,output',
     [
-        ['P12DT30S', Timedelta(days=12, seconds=30)],
-        ['PT30S', Timedelta(seconds=30)],
+        ['P12DT30S', datetime.timedelta(days=12, seconds=30)],
+        ['PT30S', datetime.timedelta(seconds=30)],
         [
             'P-1Y-2M3DT-4H-5M-6S',
             PGInterval(years=-1, months=-2, days=3, hours=-4, minutes=-5, seconds=-6),
@@ -380,7 +371,7 @@ def test_interval_in_iso_8601(con, iso_8601, output):
         ['@ 1 year 2 mons', PGInterval(years=1, months=2)],
         [
             '@ 3 days 4 hours 5 mins 6 secs',
-            Timedelta(days=3, hours=4, minutes=5, seconds=6),
+            datetime.timedelta(days=3, hours=4, minutes=5, seconds=6),
         ],
         [
             '@ 1 year 2 mons -3 days 4 hours 5 mins 6 secs ago',
@@ -398,7 +389,7 @@ def test_interval_in_postgres_verbose(con, postgres_verbose, output):
     'sql_standard,output',
     [
         ['1-2', PGInterval(years=1, months=2)],
-        ['3 4:05:06', Timedelta(days=3, hours=4, minutes=5, seconds=6)],
+        ['3 4:05:06', datetime.timedelta(days=3, hours=4, minutes=5, seconds=6)],
         [
             '-1-2 +3 -4:05:06',
             PGInterval(years=-1, months=-2, days=3, hours=-4, minutes=-5, seconds=-6),
@@ -413,7 +404,7 @@ def test_interval_in_sql_standard(con, sql_standard, output):
 
 def test_timestamp_out(con):
     retval = con.run("SELECT '2001-02-03 04:05:06.17'::timestamp")
-    assert retval[0][0] == Datetime(2001, 2, 3, 4, 5, 6, 170000)
+    assert retval[0][0] == datetime.datetime(2001, 2, 3, 4, 5, 6, 170000)
 
 
 def test_int4_array_out(con):
@@ -489,18 +480,20 @@ def test_float8_array_out(con):
 
 
 # Find the currency string
-setlocale(LC_ALL, '')
-CURRENCY = localeconv()['currency_symbol']
-if CURRENCY == '':
-    CURRENCY = '$'
+# FIXME: WTF
+# locale.setlocale(locale.LC_ALL, '')
+# CURRENCY = locale.localeconv()['currency_symbol']
+# if CURRENCY == '':
+#     CURRENCY = '$'
+CURRENCY = '$'
 
 
 @pytest.mark.parametrize(
     'test_input,oid',
     [
-        [[Datetime(2001, 2, 3, 4, 5, 6)], TIMESTAMP_ARRAY],  # timestamp[]
+        [[datetime.datetime(2001, 2, 3, 4, 5, 6)], TIMESTAMP_ARRAY],  # timestamp[]
         [  # timestamptz[]
-            [Datetime(2001, 2, 3, 4, 5, 6, 0, Timezone.utc)],
+            [datetime.datetime(2001, 2, 3, 4, 5, 6, 0, datetime.timezone.utc)],
             TIMESTAMPTZ_ARRAY,
         ],
         [
@@ -509,15 +502,15 @@ if CURRENCY == '':
             JSON,
         ],
         [{'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}, JSONB],  # jsonb
-        [[IPv4Network('192.168.0.0/28')], CIDR_ARRAY],  # cidr[]
+        [[ipaddress.IPv4Network('192.168.0.0/28')], CIDR_ARRAY],  # cidr[]
         [[1, 2, 3], SMALLINT_ARRAY],  # int2[]
         [[[1, 2], [3, 4]], SMALLINT_ARRAY],  # int2[] multidimensional
         [[1, None, 3], INTEGER_ARRAY],  # int4[] with None
         [[7000000000, 2, 3], BIGINT_ARRAY],  # int8[]
         [[1.1, 2.2, 3.3], FLOAT_ARRAY],  # float8[]
-        [[Decimal('1.1'), None, Decimal('3.3')], NUMERIC_ARRAY],  # numeric[]
+        [[decimal.Decimal('1.1'), None, decimal.Decimal('3.3')], NUMERIC_ARRAY],  # numeric[]
         [[f'{CURRENCY}1.10', None, f'{CURRENCY}3.30'], MONEY_ARRAY],  # money[]
-        [[UUID('911460f2-1f43-fea2-3e2c-e01fd5b5069d')], UUID_ARRAY],  # uuid[]
+        [[uuid.UUID('911460f2-1f43-fea2-3e2c-e01fd5b5069d')], UUID_ARRAY],  # uuid[]
         [  # json[]
             [{'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}],
             JSON_ARRAY,
@@ -526,19 +519,19 @@ if CURRENCY == '':
             [{'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}],
             JSONB_ARRAY,
         ],
-        [Time(4, 5, 6), TIME],  # time
-        [Date(2001, 2, 3), DATE],  # date
-        [Datetime(2001, 2, 3, 4, 5, 6), TIMESTAMP],  # timestamp
-        [Datetime(2001, 2, 3, 4, 5, 6, 0, Timezone.utc), TIMESTAMPTZ],  # timestamptz
+        [datetime.time(4, 5, 6), TIME],  # time
+        [datetime.date(2001, 2, 3), DATE],  # date
+        [datetime.datetime(2001, 2, 3, 4, 5, 6), TIMESTAMP],  # timestamp
+        [datetime.datetime(2001, 2, 3, 4, 5, 6, 0, datetime.timezone.utc), TIMESTAMPTZ],  # timestamptz
         [True, BOOLEAN],  # bool
         [None, BOOLEAN],  # null
-        [Decimal('1.1'), NUMERIC],  # numeric
+        [decimal.Decimal('1.1'), NUMERIC],  # numeric
         [f'{CURRENCY}1.10', MONEY],  # money
         [f'-{CURRENCY}1.10', MONEY],  # money
         [50000000000000, BIGINT],  # int8
-        [UUID('911460f2-1f43-fea2-3e2c-e01fd5b5069d'), UUID_TYPE],  # uuid
-        [IPv4Network('192.168.0.0/28'), INET],  # inet
-        [IPv4Address('192.168.0.1'), INET],  # inet
+        [uuid.UUID('911460f2-1f43-fea2-3e2c-e01fd5b5069d'), UUID_TYPE],  # uuid
+        [ipaddress.IPv4Network('192.168.0.0/28'), INET],  # inet
+        [ipaddress.IPv4Address('192.168.0.1'), INET],  # inet
         [86722, XID],  # xid
         ['infinity', TIMESTAMP],  # timestamp
         [(2.3, 1), POINT],  # point
@@ -559,48 +552,48 @@ def test_roundtrip_oid(con, test_input, oid):
         [[True, False, None], 'bool[]', None],
         [
             [
-                Range(Date(2023, 6, 1), Date(2023, 6, 6)),
-                Range(Date(2023, 6, 10), Date(2023, 6, 13)),
+                Range(datetime.date(2023, 6, 1), datetime.date(2023, 6, 6)),
+                Range(datetime.date(2023, 6, 10), datetime.date(2023, 6, 13)),
             ],
             'datemultirange',
             14,
         ],
-        [Range(Date(1937, 6, 1), Date(2023, 5, 10)), 'daterange', None],
+        [Range(datetime.date(1937, 6, 1), datetime.date(2023, 5, 10)), 'daterange', None],
         ['"a"=>"1"', 'hstore', None],
-        [[IPv4Address('192.168.0.1')], 'inet[]', None],
+        [[ipaddress.IPv4Address('192.168.0.1')], 'inet[]', None],
         [[Range(3, 7), Range(8, 9)], 'int4multirange', 14],
         [Range(3, 7), 'int4range', None],
         [50000000000000, 'int8', None],
         [[Range(3, 7), Range(8, 9)], 'int8multirange', 14],
         [Range(3, 7), 'int8range', None],
         [Range(3, 7), 'numrange', None],
-        [[Range(3, 7), Range(Decimal('9.5'), Decimal('11.4'))], 'nummultirange', 14],
-        [[Date(2021, 3, 1)], 'date[]', None],
-        [[Datetime(2001, 2, 3, 4, 5, 6)], 'timestamp[]', None],
-        [[Datetime(2001, 2, 3, 4, 5, 6, 0, Timezone.utc)], 'timestamptz[]', None],
-        [[Time(4, 5, 6)], 'time[]', None],
+        [[Range(3, 7), Range(decimal.Decimal('9.5'), decimal.Decimal('11.4'))], 'nummultirange', 14],
+        [[datetime.date(2021, 3, 1)], 'date[]', None],
+        [[datetime.datetime(2001, 2, 3, 4, 5, 6)], 'timestamp[]', None],
+        [[datetime.datetime(2001, 2, 3, 4, 5, 6, 0, datetime.timezone.utc)], 'timestamptz[]', None],
+        [[datetime.time(4, 5, 6)], 'time[]', None],
         [
             [
-                Range(Datetime(2001, 2, 3, 4, 5), Datetime(2023, 2, 3, 4, 5)),
-                Range(Datetime(2024, 6, 1), Datetime(2024, 7, 3)),
+                Range(datetime.datetime(2001, 2, 3, 4, 5), datetime.datetime(2023, 2, 3, 4, 5)),
+                Range(datetime.datetime(2024, 6, 1), datetime.datetime(2024, 7, 3)),
             ],
             'tsmultirange',
             14,
         ],
         [
-            Range(Datetime(2001, 2, 3, 4, 5), Datetime(2023, 2, 3, 4, 5)),
+            Range(datetime.datetime(2001, 2, 3, 4, 5), datetime.datetime(2023, 2, 3, 4, 5)),
             'tsrange',
             None,
         ],
         [
             [
                 Range(
-                    Datetime(2001, 2, 3, 4, 5, tzinfo=Timezone.utc),
-                    Datetime(2023, 2, 3, 4, 5, tzinfo=Timezone.utc),
+                    datetime.datetime(2001, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
+                    datetime.datetime(2023, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
                 ),
                 Range(
-                    Datetime(2024, 6, 1, tzinfo=Timezone.utc),
-                    Datetime(2024, 7, 3, tzinfo=Timezone.utc),
+                    datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc),
+                    datetime.datetime(2024, 7, 3, tzinfo=datetime.timezone.utc),
                 ),
             ],
             'tstzmultirange',
@@ -608,17 +601,17 @@ def test_roundtrip_oid(con, test_input, oid):
         ],
         [
             Range(
-                Datetime(2001, 2, 3, 4, 5, tzinfo=Timezone.utc),
-                Datetime(2023, 2, 3, 4, 5, tzinfo=Timezone.utc),
+                datetime.datetime(2001, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2023, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
             ),
             'tstzrange',
             None,
         ],
-        [[Timedelta(seconds=30)], 'interval[]', None],
+        [[datetime.timedelta(seconds=30)], 'interval[]', None],
         [[{'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}], 'jsonb[]', None],
         [[b'\x00\x01\x02\x03\x02\x01\x00'], 'bytea[]', None],
-        [[Decimal('1.1'), None, Decimal('3.3')], 'numeric[]', None],
-        [[UUID('911460f2-1f43-fea2-3e2c-e01fd5b5069d')], 'uuid[]', None],
+        [[decimal.Decimal('1.1'), None, decimal.Decimal('3.3')], 'numeric[]', None],
+        [[uuid.UUID('911460f2-1f43-fea2-3e2c-e01fd5b5069d')], 'uuid[]', None],
         [
             [
                 'Hello!',
@@ -637,13 +630,13 @@ def test_roundtrip_oid(con, test_input, oid):
             None,
         ],
         [[], 'varchar[]', None],
-        [Time(4, 5, 6), 'time', None],
-        [Date(2001, 2, 3), 'date', None],
+        [datetime.time(4, 5, 6), 'time', None],
+        [datetime.date(2001, 2, 3), 'date', None],
         ['infinity', 'date', None],
-        [Datetime(2001, 2, 3, 4, 5, 6), 'timestamp', None],
-        [Datetime(2001, 2, 3, 4, 5, 6, 0, Timezone.utc), 'timestamptz', None],
+        [datetime.datetime(2001, 2, 3, 4, 5, 6), 'timestamp', None],
+        [datetime.datetime(2001, 2, 3, 4, 5, 6, 0, datetime.timezone.utc), 'timestamptz', None],
         [True, 'bool', None],
-        [Decimal('1.1'), 'numeric', None],
+        [decimal.Decimal('1.1'), 'numeric', None],
         [1.756e-12, 'float8', None],
         [float('inf'), 'float8', None],
         ['hello world', 'unknown', None],
@@ -651,9 +644,9 @@ def test_roundtrip_oid(con, test_input, oid):
         [50000000000000, 'int8', None],
         [b'\x00\x01\x02\x03\x02\x01\x00', 'bytea', None],
         [bytearray(b'\x00\x01\x02\x03\x02\x01\x00'), 'bytea', None],
-        [UUID('911460f2-1f43-fea2-3e2c-e01fd5b5069d'), 'uuid', None],
-        [IPv4Network('192.168.0.0/28'), 'inet', None],
-        [IPv4Address('192.168.0.1'), 'inet', None],
+        [uuid.UUID('911460f2-1f43-fea2-3e2c-e01fd5b5069d'), 'uuid', None],
+        [ipaddress.IPv4Network('192.168.0.0/28'), 'inet', None],
+        [ipaddress.IPv4Address('192.168.0.1'), 'inet', None],
     ],
 )
 def test_roundtrip_cast(con, pg_version, test_input, typ, req_ver):
@@ -693,20 +686,20 @@ def test_tsvector_roundtrip(con):
 
 def test_json_access_object(con):
     val = {'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}
-    retval = con.run('SELECT cast(:val as json) -> :name', val=dumps(val), name='name')
+    retval = con.run('SELECT cast(:val as json) -> :name', val=json.dumps(val), name='name')
     assert retval[0][0] == 'Apollo 11 Cave'
 
 
 def test_jsonb_access_object(con):
     val = {'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}
-    retval = con.run('SELECT cast(:val as jsonb) -> :name', val=dumps(val), name='name')
+    retval = con.run('SELECT cast(:val as jsonb) -> :name', val=json.dumps(val), name='name')
     assert retval[0][0] == 'Apollo 11 Cave'
 
 
 def test_json_access_array(con):
     val = [-1, -2, -3, -4, -5]
     retval = con.run(
-        'SELECT cast(:v1 as json) -> cast(:v2 as int)', v1=dumps(val), v2=2,
+        'SELECT cast(:v1 as json) -> cast(:v2 as int)', v1=json.dumps(val), v2=2,
     )
     assert retval[0][0] == -3
 
@@ -714,7 +707,7 @@ def test_json_access_array(con):
 def test_jsonb_access_array(con):
     val = [-1, -2, -3, -4, -5]
     retval = con.run(
-        'SELECT cast(:v1 as jsonb) -> cast(:v2 as int)', v1=dumps(val), v2=2,
+        'SELECT cast(:v1 as jsonb) -> cast(:v2 as int)', v1=json.dumps(val), v2=2,
     )
     assert retval[0][0] == -3
 
@@ -724,7 +717,7 @@ def test_jsonb_access_path(con):
 
     path = ['a', '2']
 
-    retval = con.run('SELECT cast(:v1 as jsonb) #>> :v2', v1=dumps(j), v2=path)
+    retval = con.run('SELECT cast(:v1 as jsonb) #>> :v2', v1=json.dumps(j), v2=path)
     assert retval[0][0] == str(j[path[0]][int(path[1])])
 
 

@@ -328,10 +328,10 @@ def convert_paramstyle(style: str, query: str, args: QueryArgs) -> tuple[str, Qu
             elif style == 'qmark' and c == '?':
                 output_query.append(next(param_idx))
 
-            # FIXME: next_c is None when the query ends with ':', which raises TypeError here.
             elif (
                 style == 'numeric' and
                 c == ':' and
+                next_c and
                 next_c not in ':=' and
                 prev_c != ':'
             ):
@@ -339,8 +339,13 @@ def convert_paramstyle(style: str, query: str, args: QueryArgs) -> tuple[str, Qu
                 # Needed to properly process type conversions i.e. sum(x)::float
                 output_query.append('$')
 
-            # FIXME: next_c is None when the query ends with ':', which raises TypeError here.
-            elif style == 'named' and c == ':' and next_c not in ':=' and prev_c != ':':
+            elif (
+                    style == 'named' and
+                    c == ':' and
+                    next_c and
+                    next_c not in ':=' and
+                    prev_c != ':'
+            ):
                 # Same logic for : as in numeric parameters
                 state = INSIDE_PN
                 placeholders.append('')

@@ -1,19 +1,14 @@
+import datetime
 import decimal
+import enum
 import ipaddress
+import json
 import os
 import time
 import uuid
-from collections import OrderedDict
-from datetime import date as Date
-from datetime import datetime as Datetime
-from datetime import time as Time
-from datetime import timedelta as Timedelta
-from datetime import timezone as Timezone
-from enum import Enum
-from json import dumps
+import zoneinfo
 
 import pytest
-import pytz
 
 from ... import dbapi
 from ...converters import INTERVAL
@@ -29,13 +24,13 @@ from ...converters import time_in
 
 
 def test_time_roundtrip(cursor):
-    t = Time(4, 5, 6)
+    t = datetime.time(4, 5, 6)
     cursor.execute('SELECT cast(%s as time) as f1', (t,))
     assert cursor.fetchall()[0][0] == t
 
 
 def test_date_roundtrip(cursor):
-    v = Date(2001, 2, 3)
+    v = datetime.date(2001, 2, 3)
     cursor.execute('SELECT cast(%s as date) as f1', (v,))
     assert cursor.fetchall()[0][0] == v
 
@@ -177,7 +172,7 @@ def test_bytearray_subclass_round_trip(cursor):
 
 
 def test_timestamp_roundtrip(cursor):
-    v = Datetime(2001, 2, 3, 4, 5, 6, 170000)
+    v = datetime.datetime(2001, 2, 3, 4, 5, 6, 170000)
     cursor.execute('SELECT cast(%s as timestamp)', (v,))
     assert cursor.fetchall()[0][0] == v
 
@@ -218,7 +213,7 @@ def test_pg_interval_roundtrip(con, cursor):
 
 
 def test_interval_roundtrip(cursor):
-    v = Timedelta(seconds=30)
+    v = datetime.timedelta(seconds=30)
     cursor.execute('SELECT cast(%s as interval)', (v,))
     assert cursor.fetchall()[0][0] == v
 
@@ -242,8 +237,7 @@ def test_enum_str_round_trip(cursor):
 
 def test_enum_custom_round_trip(con, cursor):
     class Lepton:
-        # Implements PEP 435 in the minimal fashion needed
-        __members__ = OrderedDict()
+        __members__ = {}
 
         def __init__(self, name, value, alias=None):
             self.name = name
@@ -269,7 +263,7 @@ def test_enum_custom_round_trip(con, cursor):
 
 
 def test_enum_py_round_trip(cursor):
-    class Lepton(Enum):
+    class Lepton(enum.Enum):
         electron = '1'
         muon = '2'
         tau = '3'
@@ -341,14 +335,14 @@ def test_timestamp_tz_out(cursor):
     retval = cursor.fetchall()
     dt = retval[0][0]
     assert dt.tzinfo is not None, 'no tzinfo returned'
-    assert dt.astimezone(Timezone.utc) == Datetime(
-        2001, 2, 3, 11, 5, 6, 170000, Timezone.utc,
+    assert dt.astimezone(datetime.timezone.utc) == datetime.datetime(
+        2001, 2, 3, 11, 5, 6, 170000, datetime.timezone.utc,
     ), 'retrieved value match failed'
 
 
 def test_timestamp_tz_roundtrip(cursor):
-    mst = pytz.timezone('America/Edmonton')
-    v1 = mst.localize(Datetime(2001, 2, 3, 4, 5, 6, 170000))
+    mst = zoneinfo.ZoneInfo('America/Edmonton')
+    v1 = datetime.datetime(2001, 2, 3, 4, 5, 6, 170000, tzinfo=mst)
     cursor.execute('SELECT cast(%s as timestamptz)', (v1,))
     v2 = cursor.fetchall()[0][0]
     assert v2.tzinfo is not None
@@ -356,7 +350,7 @@ def test_timestamp_tz_roundtrip(cursor):
 
 
 def test_timestamp_mismatch(cursor):
-    mst = pytz.timezone('America/Edmonton')
+    mst = zoneinfo.ZoneInfo('America/Edmonton')
     cursor.execute("SET SESSION TIME ZONE 'America/Edmonton'")
     try:
         cursor.execute(
@@ -368,29 +362,25 @@ def test_timestamp_mismatch(cursor):
             'INSERT INTO TestTz (f1, f2) VALUES (%s, %s)',
             (
                 # insert timestamp into timestamptz field (v1)
-                Datetime(2001, 2, 3, 4, 5, 6, 170000),
+                datetime.datetime(2001, 2, 3, 4, 5, 6, 170000),
                 # insert timestamptz into timestamp field (v2)
-                mst.localize(Datetime(2001, 2, 3, 4, 5, 6, 170000)),
+                datetime.datetime(2001, 2, 3, 4, 5, 6, 170000, tzinfo=mst),
             ),
         )
         cursor.execute('SELECT f1, f2 FROM TestTz')
         retval = cursor.fetchall()
 
-        # when inserting a timestamp into a timestamptz field,
-        # postgresql assumes that it is in local time. So the value
-        # that comes out will be the server's local time interpretation
-        # of v1. We've set the server's TZ to MST, the time should
-        # be...
+        # when inserting a timestamp into a timestamptz field, postgresql assumes that it is in local time. So the value
+        # that comes out will be the server's local time interpretation of v1. We've set the server's TZ to MST, the
+        # time should be...
         f1 = retval[0][0]
-        assert f1 == Datetime(2001, 2, 3, 11, 5, 6, 170000, Timezone.utc)
+        assert f1 == datetime.datetime(2001, 2, 3, 11, 5, 6, 170000, datetime.timezone.utc)
 
-        # inserting the timestamptz into a timestamp field, pg8000
-        # converts the value into UTC, and then the PG server converts
-        # it into local time for insertion into the field. When we
-        # query for it, we get the same time back, like the tz was
-        # dropped.
+        # inserting the timestamptz into a timestamp field, pg8000 converts the value into UTC, and then the PG server
+        # converts it into local time for insertion into the field. When we query for it, we get the same time back,
+        # like the tz was dropped.
         f2 = retval[0][1]
-        assert f2 == Datetime(2001, 2, 3, 11, 5, 6, 170000)
+        assert f2 == datetime.datetime(2001, 2, 3, 11, 5, 6, 170000)
     finally:
         cursor.execute('SET SESSION TIME ZONE DEFAULT')
 
@@ -474,18 +464,18 @@ def test_interval_in(con, cursor):
 
 def test_interval_in_30_seconds(cursor):
     cursor.execute("select interval '30 seconds'")
-    assert cursor.fetchall()[0][0] == Timedelta(seconds=30)
+    assert cursor.fetchall()[0][0] == datetime.timedelta(seconds=30)
 
 
 def test_interval_in_12_days_30_seconds(cursor):
     cursor.execute("select interval '12 days 30 seconds'")
-    assert cursor.fetchall()[0][0] == Timedelta(days=12, seconds=30)
+    assert cursor.fetchall()[0][0] == datetime.timedelta(days=12, seconds=30)
 
 
 def test_timestamp_out(cursor):
     cursor.execute("SELECT '2001-02-03 04:05:06.17'::timestamp")
     retval = cursor.fetchall()
-    assert retval[0][0] == Datetime(2001, 2, 3, 4, 5, 6, 170000)
+    assert retval[0][0] == datetime.datetime(2001, 2, 3, 4, 5, 6, 170000)
 
 
 def test_int4_array_out(cursor):
@@ -669,7 +659,7 @@ def test_array_string_escape():
 
 
 def test_empty_array(cursor):
-    v = []
+    v: list = []
     cursor.execute('SELECT cast(%s as varchar[])', (v,))
     assert cursor.fetchall()[0][0] == v
 
@@ -695,40 +685,40 @@ def test_hstore_roundtrip(cursor):
 
 def test_json_roundtrip(cursor):
     val = {'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}
-    cursor.execute('SELECT cast(%s as jsonb)', (dumps(val),))
+    cursor.execute('SELECT cast(%s as jsonb)', (json.dumps(val),))
     assert cursor.fetchall()[0][0] == val
 
 
 def test_jsonb_roundtrip(cursor):
     val = {'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}
-    cursor.execute('SELECT cast(%s as jsonb)', (dumps(val),))
+    cursor.execute('SELECT cast(%s as jsonb)', (json.dumps(val),))
     retval = cursor.fetchall()
     assert retval[0][0] == val
 
 
 def test_json_access_object(cursor):
     val = {'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}
-    cursor.execute('SELECT cast(%s as json) -> %s', (dumps(val), 'name'))
+    cursor.execute('SELECT cast(%s as json) -> %s', (json.dumps(val), 'name'))
     retval = cursor.fetchall()
     assert retval[0][0] == 'Apollo 11 Cave'
 
 
 def test_jsonb_access_object(cursor):
     val = {'name': 'Apollo 11 Cave', 'zebra': True, 'age': 26.003}
-    cursor.execute('SELECT cast(%s as jsonb) -> %s', (dumps(val), 'name'))
+    cursor.execute('SELECT cast(%s as jsonb) -> %s', (json.dumps(val), 'name'))
     retval = cursor.fetchall()
     assert retval[0][0] == 'Apollo 11 Cave'
 
 
 def test_json_access_array(cursor):
     val = [-1, -2, -3, -4, -5]
-    cursor.execute('SELECT cast(%s as json) -> cast(%s as int)', (dumps(val), 2))
+    cursor.execute('SELECT cast(%s as json) -> cast(%s as int)', (json.dumps(val), 2))
     assert cursor.fetchall()[0][0] == -3
 
 
 def test_jsonb_access_array(cursor):
     val = [-1, -2, -3, -4, -5]
-    cursor.execute('SELECT cast(%s as jsonb) -> cast(%s as int)', (dumps(val), 2))
+    cursor.execute('SELECT cast(%s as jsonb) -> cast(%s as int)', (json.dumps(val), 2))
     assert cursor.fetchall()[0][0] == -3
 
 
@@ -737,7 +727,7 @@ def test_jsonb_access_path(cursor):
 
     path = ['a', '2']
 
-    cursor.execute('SELECT cast(%s as jsonb) #>> %s', (dumps(j), path))
+    cursor.execute('SELECT cast(%s as jsonb) #>> %s', (json.dumps(j), path))
     assert cursor.fetchall()[0][0] == str(j[path[0]][int(path[1])])
 
 
@@ -755,4 +745,4 @@ def test_point_roundtrip(cursor):
 
 def test_time_in():
     actual = time_in('12:57:18.000396')
-    assert actual == Time(12, 57, 18, 396)
+    assert actual == datetime.time(12, 57, 18, 396)

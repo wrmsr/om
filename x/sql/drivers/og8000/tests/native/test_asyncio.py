@@ -2,6 +2,8 @@ import asyncio
 
 import pytest
 
+from omcore import check
+
 from ... import native
 from ...errors import DatabaseError
 
@@ -11,7 +13,7 @@ def test_async_native(db_kwargs):
         con = await native.AsyncioConnection.connect(**db_kwargs)
         async with con:
             assert await con.run('select 1 as x') == [[1]]
-            assert [c['name'] for c in con.columns] == ['x']
+            assert [c['name'] for c in check.not_none(con.columns)] == ['x']
 
             assert await con.run('select :a::int + :b::int as s', a=40, b=2) == [[42]]
             assert await con.run('select :v::text', v='x', types={'v': 25}) == [['x']]
@@ -24,7 +26,7 @@ def test_async_native(db_kwargs):
 
             ps = await con.prepare('select :x::int * 2 as d')
             assert await ps.run(x=21) == [[42]]
-            assert [c['name'] for c in ps.columns] == ['d']
+            assert [c['name'] for c in check.not_none(ps.columns)] == ['d']
             await ps.close()
 
             with pytest.raises(DatabaseError):

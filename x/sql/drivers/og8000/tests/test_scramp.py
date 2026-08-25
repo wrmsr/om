@@ -1,4 +1,5 @@
 import hashlib
+import typing as ta
 
 import pytest
 
@@ -570,7 +571,7 @@ def test_set_server_first_error(server_first, c_nonce, min_iteration_count, erro
 
 
 def test_set_server_final_missing_param():
-    x = EXCHANGE_SCRAM_SHA_256
+    x: ta.Any = EXCHANGE_SCRAM_SHA_256
     c = ScramClient(
         x['c_mechanisms'],
         x['username'],
@@ -630,32 +631,32 @@ class _StaticSslSocket:
 
 def test_make_channel_binding_tls_unique():
     ssl_socket = _StaticSslSocket(channel_binding=b'cafe')
-    assert make_channel_binding('tls-unique', ssl_socket) == ('tls-unique', b'cafe')
+    assert make_channel_binding('tls-unique', ssl_socket) == ('tls-unique', b'cafe')  # type: ignore
 
 
 def test_make_channel_binding_tls_unique_unavailable():
     with pytest.raises(ValueError, match='tls-unique'):
-        make_channel_binding('tls-unique', _StaticSslSocket())
+        make_channel_binding('tls-unique', _StaticSslSocket())  # type: ignore
 
 
 def test_make_channel_binding_tls_server_end_point():
     ssl_socket = _StaticSslSocket(cert_der=_TEST_CERT_DER)
     expected = hashlib.sha256(_TEST_CERT_DER).digest()
     assert tls_server_end_point(_TEST_CERT_DER) == expected
-    assert make_channel_binding('tls-server-end-point', ssl_socket) == ('tls-server-end-point', expected)
+    assert make_channel_binding('tls-server-end-point', ssl_socket) == ('tls-server-end-point', expected)  # type: ignore  # noqa
 
 
 def test_make_channel_binding_tls_server_end_point_no_certificate():
     with pytest.raises(ValueError, match='certificate'):
-        make_channel_binding('tls-server-end-point', _StaticSslSocket())
+        make_channel_binding('tls-server-end-point', _StaticSslSocket())  # type: ignore
 
 
 def test_make_channel_binding_certificate_backend_passthrough():
     ssl_socket = _StaticSslSocket(cert_der=_TEST_CERT_DER)
     with pytest.raises(ValueError, match='unknown certificate backend'):
-        make_channel_binding('tls-server-end-point', ssl_socket, certificate_backend='bogus')
+        make_channel_binding('tls-server-end-point', ssl_socket, certificate_backend='bogus')  # type: ignore
 
 
 def test_make_channel_binding_unknown_name():
     with pytest.raises(ScramException, match='not recognized'):
-        make_channel_binding('tls-bogus', _StaticSslSocket())
+        make_channel_binding('tls-bogus', _StaticSslSocket())  # type: ignore

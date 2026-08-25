@@ -1,32 +1,41 @@
-def run_native(_database) -> None:
+DATABASE = dict(
+    host='127.0.0.1',
+    port=35224,
+    user='postgres',
+    password='om',  # noqa
+)
+
+
+def run_native() -> None:
     from .. import native
 
-    con = native.Connection(**_database)
+    con = native.Connection(**DATABASE)
 
     con.run('CREATE TEMPORARY TABLE book (id SERIAL, title TEXT)')
 
     for title in ("Ender's Game", 'The Magus'):
         con.run('INSERT INTO book (title) VALUES (:title)', title=title)
 
-    for row in con.run('SELECT * FROM book'):
+    for row in con.run('SELECT * FROM book'):  # type: ignore
         print(row)
 
     con.close()
 
 
-def run_dbapi(_database) -> None:
+def run_dbapi() -> None:
     from .. import dbapi
 
-    conn = dbapi.connect(**_database)
+    conn = dbapi.connect(**DATABASE)  # type: ignore
     cursor = conn.cursor()
     cursor.execute('CREATE TEMPORARY TABLE book (id SERIAL, title TEXT)')
     cursor.execute(
         'INSERT INTO book (title) VALUES (%s), (%s) RETURNING id, title',
-        ("Ender's Game", 'Speaker for the Dead'))
+        ("Ender's Game", 'Speaker for the Dead'),
+    )
     results = cursor.fetchall()
     for row in results:
         id, title = row
-        print('id = %s, title = %s' % (id, title))
+        print('id = %s, title = %s' % (id, title))  # noqa
     conn.commit()
 
     conn.close()

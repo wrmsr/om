@@ -1,7 +1,9 @@
 import socket
-from datetime import time as Time
+import datetime
 
 import pytest
+
+from omcore import check
 
 from ...errors import DatabaseError
 from ...native import Connection
@@ -39,7 +41,7 @@ def test_Connection_plain_socket(db_kwargs):
 
         with Connection(**conn_params) as con:
             res = con.run('SELECT 1')
-            assert res[0][0] == 1
+            assert check.not_none(res)[0][0] == 1
 
 
 def test_database_missing(db_kwargs):
@@ -72,8 +74,7 @@ def test_notify_with_payload(con):
     assert (notification.process_id, notification.channel, notification.payload) == (backend_pid, 'test', 'Parnham')
 
 
-# This requires a line in pg_hba.conf that requires md5 for the database
-# test_og8000_md5
+# This requires a line in pg_hba.conf that requires md5 for the database test_og8000_md5
 
 
 def test_md5(db_kwargs):
@@ -84,8 +85,7 @@ def test_md5(db_kwargs):
         Connection(**db_kwargs)
 
 
-# This requires a line in pg_hba.conf that requires 'password' for the
-# database test_og8000_password
+# This requires a line in pg_hba.conf that requires 'password' for the database test_og8000_password
 
 
 def test_password(db_kwargs):
@@ -132,7 +132,7 @@ def test_bytes_password(con, db_kwargs):
 def test_broken_pipe_read(con, db_kwargs):
     db1 = Connection(**db_kwargs)
     res = db1.run('select pg_backend_pid()')
-    pid1 = res[0][0]
+    pid1 = check.not_none(res)[0][0]
 
     con.run('select pg_terminate_backend(:v)', v=pid1)
     with pytest.raises(InterfaceError, match='network error'):
@@ -155,7 +155,7 @@ def test_broken_pipe_unpack(con):
 def test_broken_pipe_flush(con, db_kwargs):
     db1 = Connection(**db_kwargs)
     res = db1.run('select pg_backend_pid()')
-    pid1 = res[0][0]
+    pid1 = check.not_none(res)[0][0]
 
     con.run('select pg_terminate_backend(:v)', v=pid1)
     try:
@@ -179,7 +179,7 @@ def test_application_name(db_kwargs):
             ' where pid = pg_backend_pid()',
         )
 
-        application_name = res[0][0]
+        application_name = check.not_none(res)[0][0]
         assert application_name == app_name
 
 
@@ -207,13 +207,12 @@ def raise_exception(val):
 
 
 def test_py_value_fail(con):
-    # Ensure that if an out adapter throws an exception, the original
-    # exception is raised (PG8000TestException), and the connection is
-    # still usable after the error.
-    con.register_out_adapter(Time, raise_exception)
+    # Ensure that if an out adapter throws an exception, the original exception is raised (PG8000TestException), and the
+    # connection is still usable after the error.
+    con.register_out_adapter(datetime.time, raise_exception)
 
     with pytest.raises(PG8000TestException):
-        con.run('SELECT CAST(:v AS TIME)', v=Time(10, 30))
+        con.run('SELECT CAST(:v AS TIME)', v=datetime.time(10, 30))
 
     # ensure that the connection is still usable for a new query
     res = con.run("VALUES ('hw3'::text)")

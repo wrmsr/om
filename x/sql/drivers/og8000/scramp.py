@@ -457,9 +457,13 @@ def _make_cbind_input(channel_binding: ChannelBinding | None, gs2_header: Gs2Hea
     # FIXME: implicitly returns None for an unknown gs2_char (unreachable as bytes(gs2_header) raises first).
     if gs2_header.gs2_char in ('y', 'n'):
         return gs2_header_bin
+
     elif gs2_header.gs2_char == 'p':
         _, cbind_data = channel_binding  # type: ignore[misc]
         return gs2_header_bin + cbind_data
+
+    else:
+        return None
 
 
 def _print_set(s: ta.Iterable[str]) -> str:

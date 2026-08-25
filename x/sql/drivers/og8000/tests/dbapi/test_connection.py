@@ -4,28 +4,36 @@ import warnings
 
 import pytest
 
+from omcore import check
+
 from ...dbapi import DatabaseError
 from ...dbapi import InterfaceError
 from ...dbapi import connect
 
 
 def test_unix_socket_missing():
-    conn_params = {'unix_sock': '/file-does-not-exist', 'user': "doesn't-matter"}
+    conn_params = {
+        'unix_sock': '/file-does-not-exist',
+        'user': "doesn't-matter",
+    }
 
     with pytest.raises(InterfaceError):
-        with connect(**conn_params):
+        with connect(**conn_params):  # type: ignore
             pass
 
 
 def test_internet_socket_connection_refused():
-    conn_params = {'port': 0, 'user': "doesn't-matter"}
+    conn_params = {
+        'port': 0,
+        'user': "doesn't-matter",
+    }
 
     with pytest.raises(
         InterfaceError,
         match="Can't create a connection to host localhost and port 0 "
         "\\(timeout is None and source_address is None\\).",
     ):
-        with connect(**conn_params):
+        with connect(**conn_params):  # type: ignore
             pass
 
 
@@ -104,7 +112,7 @@ def test_application_name(db_kwargs):
             ' where pid = pg_backend_pid()',
         )
 
-        application_name = cur.fetchone()[0]
+        application_name = check.not_none(cur.fetchone())[0]
         assert application_name == app_name
 
 
@@ -159,7 +167,7 @@ def test_broken_pipe_read(con, db_kwargs):
     cur1 = db1.cursor()
     cur2 = con.cursor()
     cur1.execute('select pg_backend_pid()')
-    pid1 = cur1.fetchone()[0]
+    pid1 = check.not_none(cur1.fetchone())[0]
 
     cur2.execute('select pg_terminate_backend(%s)', (pid1,))
     with pytest.raises(InterfaceError, match='network error'):
@@ -176,7 +184,7 @@ def test_broken_pipe_flush(con, db_kwargs):
     cur1 = db1.cursor()
     cur2 = con.cursor()
     cur1.execute('select pg_backend_pid()')
-    pid1 = cur1.fetchone()[0]
+    pid1 = check.not_none(cur1.fetchone())[0]
 
     cur2.execute('select pg_terminate_backend(%s)', (pid1,))
     try:
