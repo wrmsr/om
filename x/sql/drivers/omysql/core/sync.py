@@ -15,6 +15,7 @@
 import socket
 import types
 import typing as ta
+import warnings
 
 from omcore import check
 from omcore.io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
@@ -150,6 +151,9 @@ class SyncConnection(BaseConnection):
     def _drain_pending_results(self) -> None:
         result = self._result
         if isinstance(result, UnbufferedResult) and result.active:
+            # Warned, as pymysql does, because the discarded rows are silently read and thrown away, which is rarely
+            # what the caller meant to do. Explicitly finishing a result (as SSCursor.close does) does not warn.
+            warnings.warn('Previous unbuffered result was left incomplete', stacklevel=2)
             self.finish_unbuffered()
         while (result := self._result) is not None and result.has_next:
             self.next_result(unbuffered=isinstance(result, UnbufferedResult))

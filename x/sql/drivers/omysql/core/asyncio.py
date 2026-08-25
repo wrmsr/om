@@ -15,6 +15,7 @@
 import asyncio
 import types
 import typing as ta
+import warnings
 
 from omcore.io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from omcore.io.pipelines.drivers.types import IoPipelineDriverState
@@ -130,6 +131,9 @@ class AsyncioConnection(BaseConnection):
     async def _drain_pending_results(self) -> None:
         result = self._result
         if isinstance(result, UnbufferedResult) and result.active:
+            # Warned, as pymysql does, because the discarded rows are silently read and thrown away, which is rarely
+            # what the caller meant to do. Explicitly finishing a result does not warn.
+            warnings.warn('Previous unbuffered result was left incomplete', stacklevel=2)
             await self.finish_unbuffered()
         while (result := self._result) is not None and result.has_next:
             await self.next_result(unbuffered=isinstance(result, UnbufferedResult))
