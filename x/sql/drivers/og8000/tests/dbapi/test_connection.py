@@ -234,7 +234,7 @@ def test_no_data_error_recovery(con):
     for _ in range(1, 4):
         with pytest.raises(DatabaseError) as e:  # noqa
             c = con.cursor()
-            c.execute('DROP TABLE t1')
+            c.execute('DROP TABLE test_og8000_no_such_table')
         assert e.value.args[0]['C'] == '42P01'
         con.rollback()
 
