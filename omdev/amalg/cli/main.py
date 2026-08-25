@@ -29,6 +29,7 @@ Targets:
 import argparse
 import os.path
 import stat
+import tempfile
 import typing as ta
 
 from omcore import check
@@ -60,17 +61,23 @@ def _gen_one(
 
     if output_path is not None:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'w') as f:
-            f.write(src)
+        fd, fp = tempfile.mkstemp()
+        try:
+            os.write(fd, src.encode('utf-8'))
 
-        src_mode = os.stat(input_path).st_mode
-        out_mode = (
-            src_mode
-            | (stat.S_IXUSR if src_mode & stat.S_IRUSR else 0)
-            | (stat.S_IXGRP if src_mode & stat.S_IRGRP else 0)
-            | (stat.S_IXOTH if src_mode & stat.S_IROTH else 0)
-        )
-        os.chmod(output_path, out_mode)
+            src_mode = os.stat(input_path).st_mode
+            out_mode = (
+                src_mode
+                | (stat.S_IXUSR if src_mode & stat.S_IRUSR else 0)
+                | (stat.S_IXGRP if src_mode & stat.S_IRGRP else 0)
+                | (stat.S_IXOTH if src_mode & stat.S_IROTH else 0)
+            )
+            os.chmod(fp, out_mode)
+
+            os.rename(fp, output_path)
+
+        finally:
+            os.close(fd)
 
     else:
         print(src)
