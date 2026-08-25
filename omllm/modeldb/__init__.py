@@ -13,6 +13,8 @@ _dc.init_package(
 from .cache import (  # noqa
     load_providers_raw,
     load_providers,
+    load_provider,
+    load_provider_model,
 )
 
 from .types import (  # noqa

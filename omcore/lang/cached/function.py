@@ -1327,11 +1327,29 @@ def _unpickle_bound(instance, name, state):
 
 
 @ta.overload
-def cached_function(fn: None = None, **kwargs: ta.Any) -> ta.Callable[[CallableT], CallableT]: ...
+def cached_function(
+    fn: None = None,
+    *,
+    map_maker: ta.Callable[[], ta.MutableMapping] = dict,
+    lock: DefaultLockable = None,
+    transient: bool = False,
+    no_wrapper_update: bool = False,
+    cache_exceptions: type[BaseException] | tuple[type[BaseException], ...] | None = None,
+    strong_instance: bool = False,
+) -> ta.Callable[[CallableT], CallableT]: ...
 
 
 @ta.overload
-def cached_function(fn: CallableT, **kwargs: ta.Any) -> CallableT: ...
+def cached_function(
+    fn: CallableT,
+    *,
+    map_maker: ta.Callable[[], ta.MutableMapping] = dict,
+    lock: DefaultLockable = None,
+    transient: bool = False,
+    no_wrapper_update: bool = False,
+    cache_exceptions: type[BaseException] | tuple[type[BaseException], ...] | None = None,
+    strong_instance: bool = False,
+) -> CallableT: ...
 
 
 def cached_function(fn=None, **kwargs):  # noqa

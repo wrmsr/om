@@ -1232,11 +1232,11 @@ def test_opts_validation_rejects_non_exception():
         return 1
 
     with pytest.raises(TypeError):
-        cached_function(cache_exceptions=int)(f)
+        cached_function(cache_exceptions=int)(f)  # type: ignore
     with pytest.raises(TypeError):
-        cached_function(cache_exceptions=(ValueError, int))(f)
+        cached_function(cache_exceptions=(ValueError, int))(f)  # type: ignore
     with pytest.raises(TypeError):
-        cached_function(cache_exceptions='nope')(f)
+        cached_function(cache_exceptions='nope')(f)  # type: ignore
 
 
 ##

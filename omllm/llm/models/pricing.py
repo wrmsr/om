@@ -1,6 +1,6 @@
 """Deferred model pricing fed by the baked modeldb cache (USD per million tokens, the models.dev convention)."""
+from omcore import check
 from omcore import lang
-from omcore import marshal as msh
 
 from ..types.models import TokenPricing
 from ..types.models import TokenPricingProvider
@@ -22,12 +22,11 @@ def modeldb_token_pricing(provider: str, model_id: str) -> TokenPricingProvider:
 
     def get() -> TokenPricing | None:
         try:
-            raw_cost = modeldb.load_providers_raw()[provider]['models'][model_id]['cost']
+            model = modeldb.load_provider_model(provider, model_id)
         except KeyError:
             return None
 
-        # Only the one model's cost subtree is unmarshaled - never the whole cache.
-        cost = msh.unmarshal(raw_cost, modeldb.Cost)
+        cost = check.not_none(model.cost)
 
         return TokenPricing(
             input=cost.input,
