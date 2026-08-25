@@ -1,6 +1,5 @@
 import datetime
 import socket
-import warnings
 
 import pytest
 
@@ -241,15 +240,11 @@ def test_no_data_error_recovery(con):
 
 
 def test_closed_connection(db_kwargs):
-    warnings.simplefilter('ignore')
-
     my_db = connect(**db_kwargs)
     cursor = my_db.cursor()
     my_db.close()
     with pytest.raises(my_db.InterfaceError, match='connection is closed'):
         cursor.execute("VALUES ('hw1'::text)")
-
-    warnings.resetwarnings()
 
 
 @pytest.mark.parametrize(

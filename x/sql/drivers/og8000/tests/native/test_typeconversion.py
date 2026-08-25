@@ -4,8 +4,6 @@ import decimal
 import enum
 import ipaddress
 import json
-import os
-import time
 import uuid
 import zoneinfo
 
@@ -42,6 +40,7 @@ from ...converters import PGInterval
 from ...converters import Range
 from ...converters import pg_interval_in
 from ...converters import pg_interval_out
+from ..utils import set_tz
 
 
 def test_str_then_int(con):
@@ -109,18 +108,9 @@ def test_timestamp_roundtrip(con):
     assert retval[0][0] == v
 
     # Test that time zone doesn't affect it
-    orig_tz = os.environ.get('TZ')
-    os.environ['TZ'] = 'America/Edmonton'
-    time.tzset()
-
-    retval = con.run('SELECT cast(:v as timestamp)', v=v)
-    assert retval[0][0] == v
-
-    if orig_tz is None:
-        del os.environ['TZ']
-    else:
-        os.environ['TZ'] = orig_tz
-    time.tzset()
+    with set_tz('America/Edmonton'):
+        retval = con.run('SELECT cast(:v as timestamp)', v=v)
+        assert retval[0][0] == v
 
 
 def test_interval_roundtrip(con):

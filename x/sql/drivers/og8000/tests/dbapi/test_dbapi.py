@@ -1,6 +1,5 @@
 # ruff: noqa: DTZ001
 import datetime
-import os
 import time
 
 import pytest
@@ -13,16 +12,18 @@ from ...dbapi import Time
 from ...dbapi import TimeFromTicks
 from ...dbapi import Timestamp
 from ...dbapi import TimestampFromTicks
+from ..utils import set_tz
 
 
 @pytest.fixture
 def has_tzset():
     # Neither Windows nor Jython 2.5.3 have a time.tzset() so skip
-    if hasattr(time, 'tzset'):
-        os.environ['TZ'] = 'UTC'
-        time.tzset()
-        return True
-    return False
+    if not hasattr(time, 'tzset'):
+        yield False
+        return
+
+    with set_tz('UTC'):
+        yield True
 
 
 # DBAPI compatible interface tests

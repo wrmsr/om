@@ -13,7 +13,6 @@ Author: Stuart Bishop <zen@shangri-la.dropbear.id.au>
 """
 import time
 import typing as ta
-import warnings
 
 import pytest
 
@@ -104,7 +103,6 @@ def test_exceptions_as_connection_attributes(con):
     # Test for the optional DB API 2.0 extension, where the exceptions are exposed as attributes on the Connection
     # object I figure this optional extension will be implemented by any driver author who is using this test suite, so
     # it is enabled by default.
-    warnings.simplefilter('ignore')
     drv = driver
     assert con.Warning is drv.Warning
     assert con.Error is drv.Error
@@ -115,7 +113,6 @@ def test_exceptions_as_connection_attributes(con):
     assert con.InternalError is drv.InternalError
     assert con.ProgrammingError is drv.ProgrammingError
     assert con.NotSupportedError is drv.NotSupportedError
-    warnings.resetwarnings()
 
 
 def test_commit(con):
