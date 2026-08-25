@@ -124,8 +124,7 @@ def test_executemany(test_table_conn):
     m = cursors.RE_INSERT_VALUES.match('INSERT INTO bloup(foo, bar)VALUES(%s, %s)')
     assert m is not None
 
-    # cursor._executed must be "insert into test (data) values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)"
-    # list args
+    # cursor._executed must be "insert into test (data) values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)" list args
     data = range(10)
     cursor.executemany('insert into test (data) values (%s)', data)
     assert cursor._executed.endswith(b',(7),(8),(9)'), 'execute many with %s not in one query'  # noqa: SLF001
@@ -197,8 +196,8 @@ def test_execution_time_limit(test_table_conn):
             cur.execute(sql)
 
         if db_type == 'mysql':
-            # this constant was only introduced in MySQL 5.7, not sure
-            # what was returned before, may have been ER_QUERY_INTERRUPTED
+            # this constant was only introduced in MySQL 5.7, not sure what was returned before, may have been
+            # ER_QUERY_INTERRUPTED
             assert cm.value.args[0] == ER.QUERY_TIMEOUT
         else:
             assert cm.value.args[0] == ER.STATEMENT_TIMEOUT

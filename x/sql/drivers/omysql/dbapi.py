@@ -1,3 +1,21 @@
+# ruff: noqa: DTZ001
+# Copyright (c) 2010, 2013 PyMySQL contributors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+# persons to whom the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+# Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+import datetime
+import time
+
 from . import connections
 from .constants import FIELD_TYPE
 from .cursors import DictCursor  # noqa
@@ -12,12 +30,6 @@ from .errors import NotSupportedError  # noqa
 from .errors import OperationalError  # noqa
 from .errors import ProgrammingError  # noqa
 from .errors import Warning  # noqa
-from .times import Date  # noqa
-from .times import DateFromTicks  # noqa
-from .times import Time  # noqa
-from .times import TimeFromTicks  # noqa
-from .times import Timestamp  # noqa
-from .times import TimestampFromTicks  # noqa
 
 
 ##
@@ -99,3 +111,24 @@ def Binary(x):  # noqa
 Connect = connect = Connection = connections.Connection
 
 NULL = 'NULL'
+
+
+##
+
+
+Date = datetime.date
+Time = datetime.time
+TimeDelta = datetime.timedelta
+Timestamp = datetime.datetime
+
+
+def DateFromTicks(ticks):  # noqa
+    return datetime.date(*time.localtime(ticks)[:3])
+
+
+def TimeFromTicks(ticks):  # noqa
+    return datetime.time(*time.localtime(ticks)[3:6])
+
+
+def TimestampFromTicks(ticks):  # noqa
+    return datetime.datetime(*time.localtime(ticks)[:6])

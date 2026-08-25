@@ -10,8 +10,7 @@ def test_utf8():
         == "Charset(id=33, name='utf8mb3', collation='utf8mb3_general_ci')"
     )
 
-    # MySQL 8.0 changed the default collation for utf8mb4.
-    # But we use old default for compatibility.
+    # MySQL 8.0 changed the default collation for utf8mb4. But we use old default for compatibility.
     utf8mb4 = charset.charset_by_name('utf8mb4')
     assert utf8mb4.name == 'utf8mb4'
     assert utf8mb4.collation == 'utf8mb4_general_ci'

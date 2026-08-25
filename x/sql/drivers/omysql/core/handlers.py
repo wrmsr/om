@@ -125,8 +125,8 @@ class MysqlSessionIoPipelineHandler(IoPipelineHandler):
         super().__init__()
 
         self._session = session
-        # Server packets that arrived with no operation waiting for them (an eager driver reading ahead of an
-        # unbuffered result). They are replayed, in order, into the next operation.
+        # Server packets that arrived with no operation waiting for them (an eager driver reading ahead of an unbuffered
+        # result). They are replayed, in order, into the next operation.
         self._pending: collections.deque[bytes] = collections.deque()
 
     def _emit(self, ctx: IoPipelineHandlerContext, step: Step) -> None:
