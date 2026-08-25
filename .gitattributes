@@ -9,6 +9,9 @@ omcore/specs/jmespath/_dataclasses.py linguist-generated
 omcore/specs/jsonschema/keywords/_dataclasses.py linguist-generated
 omcore/specs/openapi/_dataclasses.py linguist-generated
 omcore/sql/api/_dataclasses.py linguist-generated
+omcore/sql/drivers/base/_dataclasses.py linguist-generated
+omcore/sql/drivers/og8000/_dataclasses.py linguist-generated
+omcore/sql/drivers/omysql/_dataclasses.py linguist-generated
 omcore/sql/queries/_dataclasses.py linguist-generated
 omcore/sql/tabledefs/_dataclasses.py linguist-generated
 omcore/text/abnf/_dataclasses.py linguist-generated
