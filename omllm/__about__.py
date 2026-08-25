@@ -24,7 +24,7 @@ class Project(ProjectBase):
             'mlx ~= 0.32; sys_platform == "darwin"',
             'mlx-lm ~= 0.31; sys_platform == "darwin"',
 
-            'tinygrad ~= 0.13',
+            'tinygrad ~= 0.14',
 
             'torch ~= 2.13',
 

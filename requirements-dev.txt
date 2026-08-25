@@ -155,14 +155,14 @@ segno==1.6.6
 # Used for codegen
 boto3==1.43.79
 botocore==1.43.79
-types-boto3==1.43.78
+types-boto3==1.43.79
 botocore-stubs==1.43.67
 
 antlr4-python3-runtime==4.13.2
 
 pynacl==1.6.2
 
-mlx==0.32.1; sys_platform == "darwin"  # @om-venv !14t !4dt !15 !15t
+mlx==0.32.2; sys_platform == "darwin"  # @om-venv !14t !4dt !15 !15t
 mlx-lm==0.31.3; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
 
 apsw==3.53.4.0
