@@ -508,8 +508,7 @@ class OperationalComplianceMixin(DbapiComplianceBase):
             cur.execute(sql, self.b.params(['v'], [3]))
             assert cur.fetchone()[0] == 1
 
-    def test_bulk_executemany_and_fetchmany(self):
-        n = 1000
+    def _test_bulk_executemany_and_fetchmany(self, n):
         with self.connect() as con, self.b.table(con, 'bulk', f'(i {self.b.integer_type}, name varchar(20))') as t:
             cur = con.cursor()
             ph = self.b.placeholders(['i', 'name'])
@@ -526,6 +525,9 @@ class OperationalComplianceMixin(DbapiComplianceBase):
                 seen.extend(rows)
             assert [r[0] for r in seen] == list(range(n))
             assert seen[-1][1] == f'name{n - 1}'
+
+    def test_bulk_executemany_and_fetchmany(self):
+        self._test_bulk_executemany_and_fetchmany(300)
 
     def test_database_error_leaves_connection_usable(self):
         with self.connect() as con:

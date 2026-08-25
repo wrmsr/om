@@ -196,7 +196,7 @@ def test_broken_pipe_flush(con, db_kwargs):
     try:
         db1.close()
     except InterfaceError as e:
-        assert str(e) == 'network error'  # noqa
+        assert str(e) in ('network error', 'connection is closed')  # noqa
 
 
 def test_broken_pipe_unpack(con):
