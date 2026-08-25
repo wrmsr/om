@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ001
 import datetime
 import os
 import time
@@ -143,7 +144,7 @@ def test_date_from_ticks(has_tzset):
         assert val == datetime.date(2007, 3, 13)
 
 
-def testTimeFromTicks(has_tzset):
+def test_time_from_ticks(has_tzset):
     if has_tzset:
         val = TimeFromTicks(1173804319)
         assert val == datetime.time(16, 45, 19)
@@ -194,8 +195,7 @@ def test_iterator(db_table):
         f1 = next_f1
 
 
-# Vacuum can't be run inside a transaction, so we need to turn
-# autocommit on.
+# Vacuum can't be run inside a transaction, so we need to turn autocommit on.
 def test_vacuum(con):
     con.autocommit = True
     cursor = con.cursor()

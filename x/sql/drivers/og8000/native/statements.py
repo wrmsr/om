@@ -131,7 +131,9 @@ def to_statement(query: str) -> tuple[str, ta.Callable[[ta.Mapping[str, ta.Any]]
                 try:
                     placeholders[-1] = int(placeholders[-1]) - 1
                 except ValueError:
-                    raise InterfaceError(f"Expected an integer for the $ placeholder but found '{placeholders[-1]}'")
+                    raise InterfaceError(
+                        f"Expected an integer for the $ placeholder but found '{placeholders[-1]}'",
+                    ) from None
                 state = State.OUT
 
         elif state == State.IN_CO:
@@ -163,7 +165,9 @@ def to_statement(query: str) -> tuple[str, ta.Callable[[ta.Mapping[str, ta.Any]]
                 try:
                     vals.append(args[p])
                 except KeyError:
-                    raise InterfaceError(f"There's a placeholder '{p}' in the query, but no matching keyword argument.")
+                    raise InterfaceError(
+                        f"There's a placeholder '{p}' in the query, but no matching keyword argument.",
+                    ) from None
         return tuple(vals)
 
     return ''.join(output_query), make_vals

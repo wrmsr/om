@@ -26,38 +26,36 @@ from ... import dbapi
 driver = dbapi
 table_prefix = 'dbapi20test_'  # If you need to specify a prefix for tables
 
-ddl1 = 'create table %sbooze (name varchar(20))' % (table_prefix,)
-ddl2 = 'create table %sbarflys (name varchar(20))' % (table_prefix,)
-xddl1 = 'drop table %sbooze' % (table_prefix,)
-xddl2 = 'drop table %sbarflys' % (table_prefix,)
+ddl1 = 'create table %sbooze (name varchar(20))' % (table_prefix,)  # noqa
+ddl2 = 'create table %sbarflys (name varchar(20))' % (table_prefix,)  # noqa
+xddl1 = 'drop table %sbooze' % (table_prefix,)  # noqa
+xddl2 = 'drop table %sbarflys' % (table_prefix,)  # noqa
 
 # Name of stored procedure to convert string->lowercase
 lowerfunc = 'lower'
 
 
 # Some drivers may need to override these helpers, for example adding a 'commit' after the execute.
-def executeDDL1(cursor):
+def execute_ddl1(cursor):
     cursor.execute(ddl1)
 
 
-def executeDDL2(cursor):
+def execute_ddl2(cursor):
     cursor.execute(ddl2)
 
 
 @pytest.fixture
 def db(request, con):
-    def fin():
-        with con.cursor() as cur:
-            for ddl in (xddl1, xddl2):
-                try:
-                    cur.execute(ddl)
-                    con.commit()
-                except driver.Error:
-                    # Assume table didn't exist. Other tests will check if execute is busted.
-                    pass
+    yield con
 
-    request.addfinalizer(fin)
-    return con
+    with con.cursor() as cur:
+        for ddl in (xddl1, xddl2):
+            try:
+                cur.execute(ddl)
+                con.commit()
+            except driver.Error:
+                # Assume table didn't exist. Other tests will check if execute is busted.
+                pass
 
 
 def test_apilevel():
@@ -75,7 +73,7 @@ def test_threadsafety():
         # Must be a valid value
         assert threadsafety in (0, 1, 2, 3)
     except AttributeError:
-        assert False, "Driver doesn't define threadsafety"
+        assert False, "Driver doesn't define threadsafety"  # noqa
 
 
 def test_paramstyle():
@@ -85,10 +83,10 @@ def test_paramstyle():
         # Must be a valid value
         assert paramstyle in ('qmark', 'numeric', 'named', 'format', 'pyformat')
     except AttributeError:
-        assert False, "Driver doesn't define paramstyle"
+        assert False, "Driver doesn't define paramstyle"  # noqa
 
 
-def test_Exceptions():
+def test_exceptions():
     # Make sure required exceptions exist, and are in the defined hierarchy.
     assert issubclass(driver.Warning, Exception)
     assert issubclass(driver.Error, Exception)
@@ -101,7 +99,7 @@ def test_Exceptions():
     assert issubclass(driver.NotSupportedError, driver.Error)
 
 
-def test_ExceptionsAsConnectionAttributes(con):
+def test_exceptions_as_connection_attributes(con):
     # OPTIONAL EXTENSION
     # Test for the optional DB API 2.0 extension, where the exceptions are exposed as attributes on the Connection
     # object I figure this optional extension will be implemented by any driver author who is using this test suite, so
@@ -142,9 +140,9 @@ def test_cursor_isolation(con):
     # Make sure cursors created from the same connection have the documented transaction isolation level
     cur1 = con.cursor()
     cur2 = con.cursor()
-    executeDDL1(cur1)
-    cur1.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
-    cur2.execute('select name from %sbooze' % (table_prefix,))
+    execute_ddl1(cur1)
+    cur1.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix,))  # noqa
+    cur2.execute('select name from %sbooze' % (table_prefix,))  # noqa
     booze = cur2.fetchall()
     assert len(booze) == 1
     assert len(booze[0]) == 1
@@ -153,51 +151,39 @@ def test_cursor_isolation(con):
 
 def test_description(con):
     cur = con.cursor()
-    executeDDL1(cur)
+    execute_ddl1(cur)
     assert cur.description is None, (
-        'cursor.description should be none after executing a '
-        'statement that can return no rows (such as DDL)'
+        'cursor.description should be none after executing a statement that can return no rows (such as DDL)'
     )
-    cur.execute('select name from %sbooze' % (table_prefix,))
+    cur.execute('select name from %sbooze' % (table_prefix,))  # noqa
     desc: ta.Any = check.not_none(cur.description)
     assert len(desc) == 1, 'cursor.description describes too many columns'
-    assert (
-        len(desc[0]) == 7
-    ), 'cursor.description[x] tuples must have 7 elements'
-    assert (
-        desc[0][0].lower() == 'name'
-    ), 'cursor.description[x][0] must return column name'
-    assert desc[0][1] == driver.STRING, (
-        'cursor.description[x][1] must return column type. Got %r'
-        % (desc[0][1],)
-    )
+    assert len(desc[0]) == 7, 'cursor.description[x] tuples must have 7 elements'
+    assert desc[0][0].lower() == 'name', 'cursor.description[x][0] must return column name'
+    assert desc[0][1] == driver.STRING, 'cursor.description[x][1] must return column type. Got %r' % (desc[0][1],)  # noqa
 
     # Make sure self.description gets reset
-    executeDDL2(cur)
+    execute_ddl2(cur)
     assert cur.description is None, (
-        'cursor.description not being set to None when executing '
-        'no-result statements (eg. DDL)'
+        'cursor.description not being set to None when executing no-result statements (eg. DDL)'
     )
 
 
 def test_rowcount(cursor):
-    executeDDL1(cursor)
-    assert cursor.rowcount == -1, (
-        'cursor.rowcount should be -1 after executing no-result ' 'statements'
-    )
-    cursor.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
+    execute_ddl1(cursor)
+    assert cursor.rowcount == -1, 'cursor.rowcount should be -1 after executing no-result statements'
+    cursor.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix,))  # noqa
     assert cursor.rowcount in (-1, 1), (
         'cursor.rowcount should == number or rows inserted, or '
         'set to -1 after executing an insert statement'
     )
-    cursor.execute('select name from %sbooze' % (table_prefix,))
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     assert cursor.rowcount in (-1, 1), (
-        'cursor.rowcount should == number of rows returned, or '
-        'set to -1 after executing a select statement'
+        'cursor.rowcount should == number of rows returned, or set to -1 after executing a select statement'
     )
-    executeDDL2(cursor)
+    execute_ddl2(cursor)
     assert cursor.rowcount == -1, (
-        'cursor.rowcount not being reset to -1 after executing ' 'no-result statements'
+        'cursor.rowcount not being reset to -1 after executing no-result statements'
     )
 
 
@@ -207,7 +193,7 @@ def test_close(con):
 
     # cursor.execute should raise an Error if called after connection closed
     with pytest.raises(driver.Error):
-        executeDDL1(cur)
+        execute_ddl1(cur)
 
     # connection.commit should raise an Error if called after connection' closed.'
     with pytest.raises(driver.Error):
@@ -224,68 +210,60 @@ def test_execute(con):
 
 
 def _paraminsert(cur):
-    executeDDL1(cur)
-    cur.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
+    execute_ddl1(cur)
+    cur.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix,))  # noqa
     assert cur.rowcount in (-1, 1)
 
     if driver.paramstyle == 'qmark':
-        cur.execute('insert into %sbooze values (?)' % (table_prefix,), ("Cooper's",))
+        cur.execute('insert into %sbooze values (?)' % (table_prefix,), ("Cooper's",))  # noqa
     elif driver.paramstyle == 'numeric':
-        cur.execute('insert into %sbooze values (:1)' % (table_prefix,), ("Cooper's",))
+        cur.execute('insert into %sbooze values (:1)' % (table_prefix,), ("Cooper's",))  # noqa
     elif driver.paramstyle == 'named':
-        cur.execute(
-            'insert into %sbooze values (:beer)' % (table_prefix,), {'beer': "Cooper's"},
-        )
+        cur.execute('insert into %sbooze values (:beer)' % (table_prefix,), {'beer': "Cooper's"})  # noqa
     elif driver.paramstyle == 'format':
-        cur.execute('insert into %sbooze values (%%s)' % (table_prefix,), ("Cooper's",))
+        cur.execute('insert into %sbooze values (%%s)' % (table_prefix,), ("Cooper's",))  # noqa
     elif driver.paramstyle == 'pyformat':
-        cur.execute(
-            'insert into %sbooze values (%%(beer)s)' % (table_prefix,),
-            {'beer': "Cooper's"},
-        )
+        cur.execute('insert into %sbooze values (%%(beer)s)' % (table_prefix,), {'beer': "Cooper's"})  # noqa
     else:
-        assert False, 'Invalid paramstyle'
+        assert False, 'Invalid paramstyle'  # noqa
 
     assert cur.rowcount in (-1, 1)
 
-    cur.execute('select name from %sbooze' % (table_prefix,))
+    cur.execute('select name from %sbooze' % (table_prefix,))  # noqa
     res = cur.fetchall()
     assert len(res) == 2, 'cursor.fetchall returned too few rows'
     beers = [res[0][0], res[1][0]]
     beers.sort()
     assert beers[0] == "Cooper's", (
-        'cursor.fetchall retrieved incorrect data, or data inserted ' 'incorrectly'
+        'cursor.fetchall retrieved incorrect data, or data inserted incorrectly'
     )
     assert beers[1] == 'Victoria Bitter', (
-        'cursor.fetchall retrieved incorrect data, or data inserted ' 'incorrectly'
+        'cursor.fetchall retrieved incorrect data, or data inserted incorrectly'
     )
 
 
 def test_executemany(cursor):
-    executeDDL1(cursor)
+    execute_ddl1(cursor)
     largs = [("Cooper's",), ("Boag's",)]
     margs = [{'beer': "Cooper's"}, {'beer': "Boag's"}]
     if driver.paramstyle == 'qmark':
-        cursor.executemany('insert into %sbooze values (?)' % (table_prefix,), largs)
+        cursor.executemany('insert into %sbooze values (?)' % (table_prefix,), largs)  # noqa
     elif driver.paramstyle == 'numeric':
-        cursor.executemany('insert into %sbooze values (:1)' % (table_prefix,), largs)
+        cursor.executemany('insert into %sbooze values (:1)' % (table_prefix,), largs)  # noqa
     elif driver.paramstyle == 'named':
-        cursor.executemany('insert into %sbooze values (:beer)' % (table_prefix,), margs)
+        cursor.executemany('insert into %sbooze values (:beer)' % (table_prefix,), margs)  # noqa
     elif driver.paramstyle == 'format':
-        cursor.executemany('insert into %sbooze values (%%s)' % (table_prefix,), largs)
+        cursor.executemany('insert into %sbooze values (%%s)' % (table_prefix,), largs)  # noqa
     elif driver.paramstyle == 'pyformat':
-        cursor.executemany(
-            'insert into %sbooze values (%%(beer)s)' % (table_prefix), margs,
-        )
+        cursor.executemany('insert into %sbooze values (%%(beer)s)' % (table_prefix,), margs)  # noqa
     else:
-        assert False, 'Unknown paramstyle'
+        assert False, 'Unknown paramstyle'  # noqa
 
     assert cursor.rowcount in (-1, 2), (
-        'insert using cursor.executemany set cursor.rowcount to '
-        'incorrect value %r' % (cursor.rowcount,)
+        'insert using cursor.executemany set cursor.rowcount to incorrect value %r' % (cursor.rowcount,)  # noqa
     )
 
-    cursor.execute('select name from %sbooze' % (table_prefix,))
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     res = cursor.fetchall()
     assert len(res) == 2, 'cursor.fetchall retrieved incorrect number of rows'
     beers = [res[0][0], res[1][0]]
@@ -300,13 +278,13 @@ def test_fetchone(cursor):
         cursor.fetchone()
 
     # cursor.fetchone should raise an Error if called after executing a query that cannot return rows
-    executeDDL1(cursor)
+    execute_ddl1(cursor)
     with pytest.raises(driver.Error):
         cursor.fetchone()
 
-    cursor.execute('select name from %sbooze' % (table_prefix,))
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     assert cursor.fetchone() is None, (
-        'cursor.fetchone should return None if a query retrieves ' 'no rows'
+        'cursor.fetchone should return None if a query retrieves no rows'
     )
     assert cursor.rowcount in (-1, 0)
 
@@ -350,7 +328,7 @@ def test_fetchmany(cursor):
     with pytest.raises(driver.Error):
         cursor.fetchmany(4)
 
-    executeDDL1(cursor)
+    execute_ddl1(cursor)
     for sql in _populate():
         cursor.execute(sql)
 
@@ -402,7 +380,7 @@ def test_fetchmany(cursor):
     )
     assert cursor.rowcount in (-1, 6)
 
-    executeDDL2(cursor)
+    execute_ddl2(cursor)
     cursor.execute('select name from %sbarflys' % (table_prefix,))  # noqa
     r = cursor.fetchmany()  # Should get empty sequence
     assert len(r) == 0, 'cursor.fetchmany should return an empty sequence if query retrieved no rows'
@@ -414,7 +392,7 @@ def test_fetchall(cursor):
     with pytest.raises(driver.Error):
         cursor.fetchall()
 
-    executeDDL1(cursor)
+    execute_ddl1(cursor)
     for sql in _populate():
         cursor.execute(sql)
 
@@ -437,7 +415,7 @@ def test_fetchall(cursor):
     )
     assert cursor.rowcount in (-1, len(samples))
 
-    executeDDL2(cursor)
+    execute_ddl2(cursor)
     cursor.execute('select name from %sbarflys' % (table_prefix,))  # noqa
     rows = cursor.fetchall()
     assert cursor.rowcount in (-1, 0)
@@ -448,7 +426,7 @@ def test_fetchall(cursor):
 
 
 def test_mixedfetch(cursor):
-    executeDDL1(cursor)
+    execute_ddl1(cursor)
     for sql in _populate():
         cursor.execute(sql)
 
@@ -490,7 +468,7 @@ def test_nextset(cursor):
         return
 
     try:
-        executeDDL1(cursor)
+        execute_ddl1(cursor)
         sql = _populate()
         for sql in _populate():
             cursor.execute(sql)
@@ -526,7 +504,7 @@ def test_setoutputsize_basic(cursor):
 
 
 def test_none(cursor):
-    executeDDL1(cursor)
+    execute_ddl1(cursor)
     cursor.execute('insert into %sbooze values (NULL)' % (table_prefix,))  # noqa
     cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     r = cursor.fetchall()

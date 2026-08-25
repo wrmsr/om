@@ -30,14 +30,16 @@ def test_internet_socket_connection_refused():
 
     with pytest.raises(
         InterfaceError,
-        match="Can't create a connection to host localhost and port 0 "
-        "\\(timeout is None and source_address is None\\).",
+        match=(
+                r"Can't create a connection to host localhost and port 0 "
+                r"\(timeout is None and source_address is None\)."
+        ),
     ):
         with connect(**conn_params):  # type: ignore
             pass
 
 
-def test_Connection_plain_socket(db_kwargs):
+def test_connection_plain_socket(db_kwargs):
     host = db_kwargs.get('host', 'localhost')
     port = db_kwargs.get('port', 5432)
     with socket.create_connection((host, port)) as sock:
@@ -84,7 +86,7 @@ def test_database_name_bytes(db_kwargs):
 def test_password_bytes(con, db_kwargs):
     # Create user
     username = 'test_og8000_boltzmann'
-    password = 'cha\uff6fs'
+    password = 'cha\uff6fs'  # noqa
     cur = con.cursor()
     cur.execute('drop role if exists ' + username)
     cur.execute('create user ' + username + " with password '" + password + "';")
@@ -120,7 +122,7 @@ def test_application_name_integer(db_kwargs):
     db_kwargs['application_name'] = 1
     with pytest.raises(
         InterfaceError,
-        match="The parameter application_name can't be of type " "<class 'int'>.",
+        match=r"The parameter application_name can't be of type <class 'int'>.",
     ):
         with connect(**db_kwargs):
             pass
@@ -189,14 +191,14 @@ def test_broken_pipe_flush(con, db_kwargs):
     cur2.execute('select pg_terminate_backend(%s)', (pid1,))
     try:
         cur1.execute('select 1')
-    except BaseException:
+    except InterfaceError:
         pass
 
     # Sometimes raises and sometime doesn't
     try:
         db1.close()
     except InterfaceError as e:
-        assert str(e) == 'network error'
+        assert str(e) == 'network error'  # noqa
 
 
 def test_broken_pipe_unpack(con):
@@ -230,8 +232,8 @@ def test_py_value_fail(con):
 
 
 def test_no_data_error_recovery(con):
-    for i in range(1, 4):
-        with pytest.raises(DatabaseError) as e:
+    for _ in range(1, 4):
+        with pytest.raises(DatabaseError) as e:  # noqa
             c = con.cursor()
             c.execute('DROP TABLE t1')
         assert e.value.args[0]['C'] == '42P01'

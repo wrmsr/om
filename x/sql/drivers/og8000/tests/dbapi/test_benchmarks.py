@@ -20,8 +20,10 @@ from ...dbapi import connect
 def test_round_trips(db_kwargs, benchmark, txt):
     def torun():
         with connect(**db_kwargs) as con:
-            query = f"""SELECT {txt}, {txt}, {txt}, {txt}, {txt}, {txt}, {txt}
-                FROM (SELECT generate_series(1, 10000) AS id) AS tbl"""
+            query = (
+                f'SELECT {txt}, {txt}, {txt}, {txt}, {txt}, {txt}, {txt} '  # noqa
+                f'FROM (SELECT generate_series(1, 10000) AS id) AS tbl'
+            )
             cursor = con.cursor()
             cursor.execute(query)
             cursor.fetchall()

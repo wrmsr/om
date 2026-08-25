@@ -23,7 +23,7 @@ CREATE TEMPORARY TABLE `users` (
 def _main() -> None:
     from ... import omysql
 
-    connection = omysql.Connection(**DATABASE)
+    connection = omysql.Connection(**DATABASE)  # type: ignore
 
     with connection:
         with connection.cursor() as cursor:

@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ007
 # Copyright (c) 2007-2009, Mathieu Fenniak
 # Copyright (c) The Contributors
 # All rights reserved.

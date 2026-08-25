@@ -25,11 +25,9 @@ def con(request, db_kwargs):
 def cursor(request, con):
     cursor = con.cursor()
 
-    def fin():
-        cursor.close()
+    yield cursor
 
-    request.addfinalizer(fin)
-    return cursor
+    cursor.close()
 
 
 @pytest.fixture

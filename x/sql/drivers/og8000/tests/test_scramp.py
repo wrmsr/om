@@ -10,7 +10,7 @@ from ..scramp import Gs2Header
 from ..scramp import Nonce
 from ..scramp import Salt
 from ..scramp import ScramClient
-from ..scramp import ScramException
+from ..scramp import ScramError
 from ..scramp import Username
 from ..scramp import _get_client_final
 from ..scramp import _parse_message
@@ -32,7 +32,7 @@ from ..scramp import xor
     ],
 )
 def test_b64dec_fails(string, error_msg, server_error):
-    with pytest.raises(ScramException) as exc_info:
+    with pytest.raises(ScramError) as exc_info:
         b64dec(string)
 
     assert str(exc_info.value) == error_msg
@@ -89,7 +89,7 @@ def test_xor_fails(a, b, msg):
     ],
 )
 def test_parse_message_fail(msg, att_sets, error_msg):
-    with pytest.raises(ScramException) as exc_info:
+    with pytest.raises(ScramError) as exc_info:
         _parse_message(msg, 'trial', *att_sets)
 
     assert str(exc_info.value) == error_msg
@@ -122,7 +122,7 @@ def test_parse_message_succeed(msg, att_sets, result):
     ],
 )
 def test_validate_channel_binding_fail(cb, msg):
-    with pytest.raises(ScramException) as exc_info:
+    with pytest.raises(ScramError) as exc_info:
         _validate_channel_binding(cb)
 
     assert str(exc_info.value) == msg
@@ -165,7 +165,7 @@ def test_gs2header_eq(gs2_char, cb_name):
     ],
 )
 def test_salt_init_error(salt, error_msg, server_error):
-    with pytest.raises(ScramException) as exc_info:
+    with pytest.raises(ScramError) as exc_info:
         Salt(salt)
 
     assert str(exc_info.value) == error_msg
@@ -186,7 +186,7 @@ def test_salt_init_error(salt, error_msg, server_error):
     ],
 )
 def test_salt_from_str_error(salt_str, error_msg, server_error):
-    with pytest.raises(ScramException) as exc_info:
+    with pytest.raises(ScramError) as exc_info:
         Salt.from_str(salt_str)
 
     assert str(exc_info.value) == error_msg
@@ -207,7 +207,7 @@ def test_salt_from_str_error(salt_str, error_msg, server_error):
     ],
 )
 def test_nonce_init_error(nonce, error_msg, server_error):
-    with pytest.raises(ScramException) as exc_info:
+    with pytest.raises(ScramError) as exc_info:
         Nonce(nonce)
 
     assert str(exc_info.value) == error_msg
@@ -512,7 +512,7 @@ def test_client_order(x):
         channel_binding=x['c_channel_binding'],
     )
 
-    with pytest.raises(ScramException):
+    with pytest.raises(ScramError):
         c.set_server_first(x['sfirst'])
 
 
@@ -535,7 +535,7 @@ def test_client(x):
 
 def test_check_stage():
     with pytest.raises(
-        ScramException,
+        ScramError,
         match=r'The next method to be called is set_server_first, not this method.',
     ):
         scramp._check_stage(
@@ -579,7 +579,7 @@ def test_check_stage():
     ],
 )
 def test_set_server_first_error(server_first, c_nonce, min_iteration_count, error_msg):
-    with pytest.raises(ScramException) as exc_info:
+    with pytest.raises(ScramError) as exc_info:
         _set_server_first(server_first, c_nonce, min_iteration_count)
     assert str(exc_info.value) == error_msg
 
@@ -596,7 +596,7 @@ def test_set_server_final_missing_param():
     c.set_server_first(x['sfirst'])
     c.get_client_final()
     with pytest.raises(
-        ScramException,
+        ScramError,
         match=(
                 r"Malformed server final message. Attributes must be separated by a ',' "
                 r"and each attribute must start with a letter followed by a '=': other-error"
@@ -674,5 +674,5 @@ def test_make_channel_binding_certificate_backend_passthrough():
 
 
 def test_make_channel_binding_unknown_name():
-    with pytest.raises(ScramException, match='not recognized'):
+    with pytest.raises(ScramError, match='not recognized'):
         make_channel_binding('tls-bogus', _StaticSslSocket())  # type: ignore

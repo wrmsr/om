@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ001
 # Copyright (c) 2007-2009, Mathieu Fenniak
 # Copyright (c) The Contributors
 # All rights reserved.
@@ -158,90 +159,43 @@ Time = datetime.time
 
 
 def PgDate(year: int, month: int, day: int) -> Date:  # noqa: N802
-    """
-    Construct an object holding a date value.
-
-    This function is part of the `DBAPI 2.0 specification <http://www.python.org/dev/peps/pep-0249/>`_.
-
-    :rtype: :class:`datetime.date`
-    """
+    """Construct an object holding a date value."""
 
     return Date(year, month, day)
 
 
 def PgTime(hour: int, minute: int, second: int) -> Time:  # noqa: N802
-    """
-    Construct an object holding a time value.
-
-    This function is part of the `DBAPI 2.0 specification <http://www.python.org/dev/peps/pep-0249/>`_.
-
-    :rtype: :class:`datetime.time`
-    """
+    """Construct an object holding a time value."""
 
     return Time(hour, minute, second)
 
 
 def Timestamp(year: int, month: int, day: int, hour: int, minute: int, second: int) -> datetime.datetime:  # noqa: N802
-    """
-    Construct an object holding a timestamp value.
-
-    This function is part of the `DBAPI 2.0 specification <http://www.python.org/dev/peps/pep-0249/>`_.
-
-    :rtype: :class:`datetime.datetime`
-    """
+    """Construct an object holding a timestamp value."""
 
     return datetime.datetime(year, month, day, hour, minute, second)
 
 
 def DateFromTicks(ticks: float) -> Date:  # noqa: N802
-    """
-    Construct an object holding a date value from the given ticks value
-    (number of seconds since the epoch).
-
-    This function is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
-
-    :rtype: :class:`datetime.date`
-    """
+    """Construct an object holding a date value from the given ticks value (number of seconds since the epoch)."""
 
     return Date(*time.localtime(ticks)[:3])
 
 
 def TimeFromTicks(ticks: float) -> Time:  # noqa: N802
-    """
-    Construct an object holding a time value from the given ticks value
-    (number of seconds since the epoch).
-
-    This function is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
-
-    :rtype: :class:`datetime.time`
-    """
+    """Construct an object holding a time value from the given ticks value (number of seconds since the epoch)."""
 
     return Time(*time.localtime(ticks)[3:6])
 
 
 def TimestampFromTicks(ticks: float) -> datetime.datetime:  # noqa: N802
-    """
-    Construct an object holding a timestamp value from the given ticks value
-    (number of seconds since the epoch).
-
-    This function is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
-
-    :rtype: :class:`datetime.datetime`
-    """
+    """Construct an object holding a timestamp value from the given ticks value (number of seconds since the epoch)."""
 
     return Timestamp(*time.localtime(ticks)[:6])
 
 
 def Binary(value: bytes) -> bytes:  # noqa: N802
-    """
-    Construct an object holding binary data.
-
-    This function is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
-    """
+    """Construct an object holding binary data."""
 
     return value
 
@@ -281,22 +235,21 @@ def connect(
 
 
 def convert_paramstyle(style: str, query: str, args: QueryArgs) -> tuple[str, QueryArgs]:
-    # I don't see any way to avoid scanning the query string char by char,
-    # so we might as well take that careful approach and create a
-    # state-based scanner. We'll use int variables for the state.
-    OUTSIDE = 0  # outside quoted string
-    INSIDE_SQ = 1  # inside single-quote string '...'
-    INSIDE_QI = 2  # inside quoted identifier   "..."
-    INSIDE_ES = 3  # inside escaped single-quote string, E'...'
-    INSIDE_PN = 4  # inside parameter name eg. :name
-    INSIDE_CO = 5  # inside inline comment eg. --
-    INSIDE_DQ = 6  # inside escaped dollar-quote string, $$...$$
+    # I don't see any way to avoid scanning the query string char by char, so we might as well take that careful
+    # approach and create a state-based scanner. We'll use int variables for the state.
+    OUTSIDE = 0  # outside quoted string  # noqa
+    INSIDE_SQ = 1  # inside single-quote string '...'  # noqa
+    INSIDE_QI = 2  # inside quoted identifier   "..."  # noqa
+    INSIDE_ES = 3  # inside escaped single-quote string, E'...'  # noqa
+    INSIDE_PN = 4  # inside parameter name eg. :name  # noqa
+    INSIDE_CO = 5  # inside inline comment eg. --  # noqa
+    INSIDE_DQ = 6  # inside escaped dollar-quote string, $$...$$  # noqa
 
     in_quote_escape = False
     in_param_escape = False
     placeholders: list[str] = []
     output_query: list[str] = []
-    param_idx = map(lambda x: '$' + str(x), itertools.count(1))
+    param_idx = map(lambda x: '$' + str(x), itertools.count(1))  # noqa
     state = OUTSIDE
     prev_c: str | None = None
 
@@ -490,9 +443,6 @@ class Cursor:
         Executes a database operation. Parameters may be provided as a sequence, or as a mapping, depending upon the
         value of :data:`og8000.paramstyle`.
 
-        This method is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-
         :param operation:
             The SQL statement to execute.
 
@@ -509,7 +459,7 @@ class Cursor:
         """
 
         try:
-            if not self._c._in_transaction and not self._c.autocommit:
+            if not self._c._in_transaction and not self._c.autocommit:  # noqa
                 self._c.execute_simple('begin transaction')
 
             if len(args) == 0 and stream is None:
@@ -534,18 +484,13 @@ class Cursor:
 
     def executemany(self, operation: str, param_sets: ta.Iterable[QueryArgs]) -> None:
         """
-        Prepare a database operation, and then execute it against all
-        parameter sequences or mappings provided.
-
-        This method is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
+        Prepare a database operation, and then execute it against all parameter sequences or mappings provided.
 
         :param operation:
             The SQL statement to execute
         :param parameter_sets:
-            A sequence of parameters to execute the statement with. The values
-            in the sequence should be sequences or mappings of parameters, the
-            same as the args argument of the :meth:`execute` method.
+            A sequence of parameters to execute the statement with. The values in the sequence should be sequences or
+            mappings of parameters, the same as the args argument of the :meth:`execute` method.
         """
 
         rowcounts: list[int] = []
@@ -585,9 +530,6 @@ class Cursor:
         """
         Fetch the next row of a query result set.
 
-        This method is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-
         :returns:
             A row as a sequence of field values, or ``None`` if no more rows
             are available.
@@ -598,7 +540,7 @@ class Cursor:
         except StopIteration:
             return None
         except TypeError:
-            raise ProgrammingError('attempting to use unexecuted cursor')
+            raise ProgrammingError('attempting to use unexecuted cursor') from None
 
     def __iter__(self) -> ta.Self:
         """
@@ -614,74 +556,56 @@ class Cursor:
             return next(self._row_iter)  # type: ignore[arg-type]
         except AttributeError:
             if self._context is None:
-                raise ProgrammingError("A query hasn't been issued.")
+                raise ProgrammingError("A query hasn't been issued.") from None
             else:
                 raise
-        except StopIteration as e:
+        except StopIteration:
             if self._context is None:
-                raise ProgrammingError("A query hasn't been issued.")
+                raise ProgrammingError("A query hasn't been issued.") from None
             elif len(self._context.columns) == 0:  # type: ignore[arg-type]
-                raise ProgrammingError('no result set')
+                raise ProgrammingError('no result set') from None
             else:
-                raise e
+                raise
 
     def fetchmany(self, num: int | None = None) -> tuple[list[ta.Any], ...]:
         """
         Fetches the next set of rows of a query result.
 
-        This method is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-
         :param size:
-
-            The number of rows to fetch when called. If not provided, the
-            :attr:`arraysize` attribute value is used instead.
+            The number of rows to fetch when called. If not provided, the :attr:`arraysize` attribute value is used
+            instead.
 
         :returns:
-
-            A sequence, each entry of which is a sequence of field values
-            making up a row. If no more rows are available, an empty sequence
-            will be returned.
+            A sequence, each entry of which is a sequence of field values making up a row. If no more rows are
+            available, an empty sequence will be returned.
         """
 
         try:
             return tuple(itertools.islice(self, self.arraysize if num is None else num))
         except TypeError:
-            raise ProgrammingError('attempting to use unexecuted cursor')
+            raise ProgrammingError('attempting to use unexecuted cursor') from None
 
     def fetchall(self) -> tuple[list[ta.Any], ...]:
         """
         Fetches all remaining rows of a query result.
 
-        This method is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-
         :returns:
-
-            A sequence, each entry of which is a sequence of field values
-            making up a row.
+            A sequence, each entry of which is a sequence of field values making up a row.
         """
 
         try:
             return tuple(self)
         except TypeError:
-            raise ProgrammingError('attempting to use unexecuted cursor')
+            raise ProgrammingError('attempting to use unexecuted cursor') from None
 
     def close(self) -> None:
-        """
-        Closes the cursor.
-
-        This method is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-        """
+        """Closes the cursor."""
 
         # The AttributeError from using a None connection is relied upon to detect a closed cursor.
         self._c = None  # type: ignore[assignment]
 
     def setinputsizes(self, sizes: ta.Sequence[int | DbapiTypeObject | type | None]) -> None:
         """
-        This method is part of the `DBAPI 2.0 specification <http://www.python.org/dev/peps/pep-0249/>`_.
-
         Each size may be a PostgreSQL type oid, a DB-API type object, or a Python type with a default oid, and fixes the
         type of the corresponding parameter of the next `execute` call.
         """
@@ -705,12 +629,9 @@ class Cursor:
 
     def setoutputsize(self, size: int, column: int | None = None) -> None:
         """
-        This method is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_, however, it is not
-        implemented by og8000.
+        This method is part of the `DBAPI 2.0 specification <http://www.python.org/dev/peps/pep-0249/>`_, however, it is
+        not implemented by og8000.
         """
-
-        pass
 
 
 class Connection(SyncCoreConnection):
@@ -740,33 +661,17 @@ class Connection(SyncCoreConnection):
         return self.transaction_status in (TransactionStatus.IN_TRANSACTION, TransactionStatus.IN_FAILED_TRANSACTION)
 
     def cursor(self) -> Cursor:
-        """
-        Creates a :class:`Cursor` object bound to this
-        connection.
-
-        This function is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-        """
+        """Creates a :class:`Cursor` object bound to this connection."""
 
         return Cursor(self)
 
     def commit(self) -> None:
-        """
-        Commits the current database transaction.
-
-        This function is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-        """
+        """Commits the current database transaction."""
 
         self.execute_unnamed('commit')
 
     def rollback(self) -> None:
-        """
-        Rolls back the current database transaction.
-
-        This function is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-        """
+        """Rolls back the current database transaction."""
 
         if not self._in_transaction:
             return
@@ -774,11 +679,9 @@ class Connection(SyncCoreConnection):
 
     def xid(self, format_id: int, global_transaction_id: str, branch_qualifier: str) -> Xid:
         """
-        Create a Transaction IDs (only global_transaction_id is used in pg)
-        format_id and branch_qualifier are not used in postgres
-        global_transaction_id may be any string identifier supported by
-        postgres returns a tuple
-        (format_id, global_transaction_id, branch_qualifier)
+        Create a Transaction IDs (only global_transaction_id is used in pg) format_id and branch_qualifier are not used
+        in postgres global_transaction_id may be any string identifier supported by postgres returns a tuple (format_id,
+        global_transaction_id, branch_qualifier)
         """
 
         return (format_id, global_transaction_id, branch_qualifier)
@@ -787,15 +690,11 @@ class Connection(SyncCoreConnection):
         """
         Begins a TPC transaction with the given transaction ID xid.
 
-        This method should be called outside of a transaction (i.e. nothing may
-        have executed since the last .commit() or .rollback()).
+        This method should be called outside of a transaction (i.e. nothing may have executed since the last .commit()
+        or .rollback()).
 
-        Furthermore, it is an error to call .commit() or .rollback() within the
-        TPC transaction. A ProgrammingError is raised, if the application calls
-        .commit() or .rollback() during an active TPC transaction.
-
-        This function is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
+        Furthermore, it is an error to call .commit() or .rollback() within the TPC transaction. A ProgrammingError is
+        raised, if the application calls .commit() or .rollback() during an active TPC transaction.
         """
 
         self._xid = xid
@@ -804,37 +703,27 @@ class Connection(SyncCoreConnection):
 
     def tpc_prepare(self) -> None:
         """
-        Performs the first phase of a transaction started with .tpc_begin().
-        A ProgrammingError is be raised if this method is called outside of a
-        TPC transaction.
+        Performs the first phase of a transaction started with .tpc_begin(). A ProgrammingError is be raised if this
+        method is called outside of a TPC transaction.
 
-        After calling .tpc_prepare(), no statements can be executed until
-        .tpc_commit() or .tpc_rollback() have been called.
-
-        This function is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
+        After calling .tpc_prepare(), no statements can be executed until .tpc_commit() or .tpc_rollback() have been
+        called.
         """
 
-        self.execute_unnamed("PREPARE TRANSACTION '%s';" % (self._xid[1],))  # type: ignore[index]
+        self.execute_unnamed("PREPARE TRANSACTION '%s';" % (self._xid[1],))  # type: ignore[index]  # noqa
 
     def tpc_commit(self, xid: Xid | None = None) -> None:
         """
-        When called with no arguments, .tpc_commit() commits a TPC
-        transaction previously prepared with .tpc_prepare().
+        When called with no arguments, .tpc_commit() commits a TPC transaction previously prepared with .tpc_prepare().
 
-        If .tpc_commit() is called prior to .tpc_prepare(), a single phase
-        commit is performed. A transaction manager may choose to do this if
-        only a single resource is participating in the global transaction.
+        If .tpc_commit() is called prior to .tpc_prepare(), a single phase commit is performed. A transaction manager
+        may choose to do this if only a single resource is participating in the global transaction.
 
-        When called with a transaction ID xid, the database commits the given
-        transaction. If an invalid transaction ID is provided, a
-        ProgrammingError will be raised. This form should be called outside of
-        a transaction, and is intended for use in recovery.
+        When called with a transaction ID xid, the database commits the given transaction. If an invalid transaction ID
+        is provided, a ProgrammingError will be raised. This form should be called outside of a transaction, and is
+        intended for use in recovery.
 
         On return, the TPC transaction is ended.
-
-        This function is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
         """
 
         if xid is None:
@@ -847,7 +736,7 @@ class Connection(SyncCoreConnection):
             previous_autocommit_mode = self.autocommit
             self.autocommit = True
             if xid in self.tpc_recover():
-                self.execute_unnamed("COMMIT PREPARED '%s';" % (xid[1],))
+                self.execute_unnamed("COMMIT PREPARED '%s';" % (xid[1],))  # noqa
             else:
                 # a single-phase commit
                 self.commit()
@@ -857,34 +746,28 @@ class Connection(SyncCoreConnection):
 
     def tpc_rollback(self, xid: Xid | None = None) -> None:
         """
-        When called with no arguments, .tpc_rollback() rolls back a TPC
-        transaction. It may be called before or after .tpc_prepare().
+        When called with no arguments, .tpc_rollback() rolls back a TPC transaction. It may be called before or after
+        .tpc_prepare().
 
-        When called with a transaction ID xid, it rolls back the given
-        transaction. If an invalid transaction ID is provided, a
-        ProgrammingError is raised. This form should be called outside of a
-        transaction, and is intended for use in recovery.
+        When called with a transaction ID xid, it rolls back the given transaction. If an invalid transaction ID is
+        provided, a ProgrammingError is raised. This form should be called outside of a transaction, and is intended for
+        use in recovery.
 
         On return, the TPC transaction is ended.
-
-        This function is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
         """
 
         if xid is None:
             xid = self._xid
 
         if xid is None:
-            raise ProgrammingError(
-                'Cannot tpc_rollback() without a TPC prepared transaction!',
-            )
+            raise ProgrammingError('Cannot tpc_rollback() without a TPC prepared transaction!')
 
         try:
             previous_autocommit_mode = self.autocommit
             self.autocommit = True
             if xid in self.tpc_recover():
                 # a two-phase rollback
-                self.execute_unnamed("ROLLBACK PREPARED '%s';" % (xid[1],))
+                self.execute_unnamed("ROLLBACK PREPARED '%s';" % (xid[1],))  # noqa
             else:
                 # a single-phase rollback
                 self.rollback()
@@ -893,13 +776,7 @@ class Connection(SyncCoreConnection):
         self._xid = None
 
     def tpc_recover(self) -> list[Xid]:
-        """
-        Returns a list of pending transaction IDs suitable for use with
-        .tpc_commit(xid) or .tpc_rollback(xid).
-
-        This function is part of the `DBAPI 2.0 specification
-        <http://www.python.org/dev/peps/pep-0249/>`_.
-        """
+        """Returns a list of pending transaction IDs suitable for use with .tpc_commit(xid) or .tpc_rollback(xid)."""
 
         try:
             previous_autocommit_mode = self.autocommit
@@ -913,89 +790,48 @@ class Connection(SyncCoreConnection):
 
 class Warning(Exception):  # noqa: A001,N818
     """
-    Generic exception raised for important database warnings like data
-    truncations. This exception is not currently used by og8000.
-
-    This exception is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
+    Generic exception raised for important database warnings like data truncations. This exception is not currently used
+    by og8000.
     """
-
-    pass
 
 
 class DataError(DatabaseError):
     """
-    Generic exception raised for errors that are due to problems with the
-    processed data. This exception is not currently raised by og8000.
-
-    This exception is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
+    Generic exception raised for errors that are due to problems with the processed data. This exception is not
+    currently raised by og8000.
     """
-
-    pass
 
 
 class OperationalError(DatabaseError):
     """
-    Generic exception raised for errors that are related to the database's
-    operation and not necessarily under the control of the programmer. This
-    exception is currently never raised by og8000.
-
-    This exception is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
+    Generic exception raised for errors that are related to the database's operation and not necessarily under the
+    control of the programmer. This exception is currently never raised by og8000.
     """
-
-    pass
 
 
 class IntegrityError(DatabaseError):
     """
-    Generic exception raised when the relational integrity of the database is
-    affected. This exception is not currently raised by og8000.
-
-    This exception is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
+    Generic exception raised when the relational integrity of the database is affected. This exception is not currently
+    raised by og8000.
     """
-
-    pass
 
 
 class InternalError(DatabaseError):
     """
-    Generic exception raised when the database encounters an internal error.
-    This is currently only raised when unexpected state occurs in the og8000
-    interface itself, and is typically the result of a interface bug.
-
-    This exception is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
+    Generic exception raised when the database encounters an internal error. This is currently only raised when
+    unexpected state occurs in the og8000 interface itself, and is typically the result of a interface bug.
     """
-
-    pass
 
 
 class ProgrammingError(DatabaseError):
     """
-    Generic exception raised for programming errors. For example, this
-    exception is raised if more parameter fields are in a query string than
-    there are available parameters.
-
-    This exception is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
+    Generic exception raised for programming errors. For example, this exception is raised if more parameter fields are
+    in a query string than there are available parameters.
     """
-
-    pass
 
 
 class NotSupportedError(DatabaseError):
-    """
-    Generic exception raised in case a method or database API was used which
-    is not supported by the database.
-
-    This exception is part of the `DBAPI 2.0 specification
-    <http://www.python.org/dev/peps/pep-0249/>`_.
-    """
-
-    pass
+    """Generic exception raised in case a method or database API was used which is not supported by the database."""
 
 
 class ArrayContentNotSupportedError(NotSupportedError):
@@ -1003,5 +839,3 @@ class ArrayContentNotSupportedError(NotSupportedError):
     Raised when attempting to transmit an array where the base type is not
     supported for binary data transfer by the interface.
     """
-
-    pass

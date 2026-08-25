@@ -12,11 +12,11 @@ CertificateBackend: ta.TypeAlias = ta.Literal[
 ]
 
 
-class CertificateBackendUnavailable(ImportError):
+class CertificateBackendUnavailableError(ImportError):
     pass
 
 
-class ChannelBindingUndefined(ValueError):
+class ChannelBindingUndefinedError(ValueError):
     pass
 
 
@@ -30,13 +30,13 @@ def _tls_server_end_point_cryptography(cert_der: bytes) -> bytes:
         if exc.name != 'cryptography':
             raise
 
-        raise CertificateBackendUnavailable('cryptography') from exc
+        raise CertificateBackendUnavailableError('cryptography') from exc
 
     cert = x509.load_der_x509_certificate(cert_der)
     hash_algorithm = cert.signature_hash_algorithm
 
     if hash_algorithm is None:
-        raise ChannelBindingUndefined(
+        raise ChannelBindingUndefinedError(
             'tls-server-end-point is undefined for certificate '
             f'signature algorithm {cert.signature_algorithm_oid.dotted_string}',
         )
@@ -57,7 +57,7 @@ def _tls_server_end_point_asn1crypto(cert_der: bytes) -> bytes:
         if exc.name != 'asn1crypto':
             raise
 
-        raise CertificateBackendUnavailable('asn1crypto') from exc
+        raise CertificateBackendUnavailableError('asn1crypto') from exc
 
     cert = Certificate.load(cert_der)
 
@@ -68,7 +68,7 @@ def _tls_server_end_point_asn1crypto(cert_der: bytes) -> bytes:
     # asn1crypto 1.5.1 reports SHA-512 for Ed25519 and SHAKE-256 for Ed448, but RFC 5929 says a signature algorithm with
     # no separate hash makes tls-server-end-point undefined.
     if signature_algorithm in {'ed25519', 'ed448'}:
-        raise ChannelBindingUndefined(
+        raise ChannelBindingUndefinedError(
             'tls-server-end-point is undefined for certificate '
             f'signature algorithm {signature_algorithm}',
         )
@@ -76,7 +76,7 @@ def _tls_server_end_point_asn1crypto(cert_der: bytes) -> bytes:
     try:
         hash_name = cert.hash_algo
     except ValueError as exc:
-        raise ChannelBindingUndefined("couldn't determine the certificate signature hash algorithm") from exc
+        raise ChannelBindingUndefinedError("couldn't determine the certificate signature hash algorithm") from exc
 
     if hash_name in {'md5', 'sha1'}:
         hash_name = 'sha256'
@@ -84,7 +84,7 @@ def _tls_server_end_point_asn1crypto(cert_der: bytes) -> bytes:
     try:
         return hashlib.new(hash_name, cert_der).digest()
     except (TypeError, ValueError) as exc:
-        raise ChannelBindingUndefined(f'unsupported certificate signature hash {hash_name!r}') from exc
+        raise ChannelBindingUndefinedError(f'unsupported certificate signature hash {hash_name!r}') from exc
 
 
 def tls_server_end_point(
@@ -109,12 +109,12 @@ def tls_server_end_point(
     # malformed or its signature algorithm is unsupported.
     try:
         return _tls_server_end_point_cryptography(cert_der)
-    except CertificateBackendUnavailable:
+    except CertificateBackendUnavailableError:
         pass
 
     try:
         return _tls_server_end_point_asn1crypto(cert_der)
-    except CertificateBackendUnavailable:
+    except CertificateBackendUnavailableError:
         pass
 
-    raise CertificateBackendUnavailable('tls-server-end-point requires either cryptography or asn1crypto')
+    raise CertificateBackendUnavailableError('tls-server-end-point requires either cryptography or asn1crypto')

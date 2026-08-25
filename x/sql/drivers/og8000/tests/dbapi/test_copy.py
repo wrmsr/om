@@ -2,13 +2,14 @@ from io import BytesIO
 
 import pytest
 
+from ...errors import DatabaseError
+
 
 @pytest.fixture
 def db_table(request, con):
     cursor = con.cursor()
     cursor.execute(
-        'CREATE TEMPORARY TABLE t1 (f1 int primary key, '
-        'f2 int not null, f3 varchar(50) null) on commit drop',
+        'CREATE TEMPORARY TABLE t1 (f1 int primary key, f2 int not null, f3 varchar(50) null) on commit drop',
     )
     return con
 
@@ -29,8 +30,7 @@ def test_copy_to_with_query(db_table):
     cursor = db_table.cursor()
     stream = BytesIO()
     cursor.execute(
-        "COPY (SELECT 1 as One, 2 as Two) TO STDOUT WITH DELIMITER "
-        "'X' CSV HEADER QUOTE AS 'Y' FORCE QUOTE Two",
+        "COPY (SELECT 1 as One, 2 as Two) TO STDOUT WITH DELIMITER 'X' CSV HEADER QUOTE AS 'Y' FORCE QUOTE Two",
         stream=stream,
     )
     assert stream.getvalue() == b'oneXtwo\n1XY2Y\n'
@@ -52,8 +52,7 @@ def test_copy_from_with_query(db_table):
     cursor = db_table.cursor()
     stream = BytesIO(b'f1Xf2\n1XY1Y\n')
     cursor.execute(
-        "COPY t1 (f1, f2) FROM STDIN WITH DELIMITER 'X' CSV HEADER "
-        "QUOTE AS 'Y' FORCE NOT NULL f1",
+        "COPY t1 (f1, f2) FROM STDIN WITH DELIMITER 'X' CSV HEADER QUOTE AS 'Y' FORCE NOT NULL f1",
         stream=stream,
     )
     assert cursor.rowcount == 1
@@ -66,10 +65,9 @@ def test_copy_from_with_query(db_table):
 def test_copy_from_with_error(db_table):
     cursor = db_table.cursor()
     stream = BytesIO(b'f1Xf2\n\n1XY1Y\n')
-    with pytest.raises(BaseException) as e:
+    with pytest.raises(DatabaseError) as e:
         cursor.execute(
-            "COPY t1 (f1, f2) FROM STDIN WITH DELIMITER 'X' CSV HEADER "
-            "QUOTE AS 'Y' FORCE NOT NULL f1",
+            "COPY t1 (f1, f2) FROM STDIN WITH DELIMITER 'X' CSV HEADER QUOTE AS 'Y' FORCE NOT NULL f1",
             stream=stream,
         )
 
