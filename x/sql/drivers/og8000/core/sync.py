@@ -117,8 +117,11 @@ class SyncCoreConnection(BaseCoreConnection):
             raise InterfaceError('connection is closed')
 
         try:
-            self._driver.enqueue(msgs.Terminate())
-            self._driver.next(read=False)
+            # A failed session means the pipeline is already dead or dying (the transport hit EOF, or an error tore it
+            # down), and would reject the courtesy Terminate.
+            if self._session.fatal_error is None:
+                self._driver.enqueue(msgs.Terminate())
+                self._driver.next(read=False)
         finally:
             self._driver.close()
 

@@ -4,16 +4,13 @@ with no real server behind them at all.
 """
 import asyncio
 import socket
-import struct
 
 import pytest
 
 from omcore.io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
 
-from ...constants import CLIENT
 from ...errors import Error
 from ...errors import OperationalError
-from ...protocol.packets import pack_packet
 from ...protocol.session import ProtocolSession
 from ..asyncio import AsyncioConnection
 from ..handlers import OperationDone
@@ -21,6 +18,8 @@ from ..handlers import OperationRequest
 from ..handlers import OperationTimeoutsIoPipelineHandler
 from ..handlers import make_pipeline_spec
 from ..sync import SyncConnection
+from .utils import make_handshake_packet
+from .utils import tcp_socketpair
 
 
 # An address from a reserved range assumed to blackhole (rather than reject) connection attempts.
@@ -32,45 +31,6 @@ def _kwargs(db, **over):
     params['password'] = params.pop('passwd', '')
     params.update(over)
     return params
-
-
-def _tcp_socketpair():
-    """An AF_INET socketpair, as AF_UNIX sockets are treated as secure transports which never attempt SSL."""
-
-    with socket.create_server(('127.0.0.1', 0)) as server:
-        client = socket.create_connection(server.getsockname())
-        conn, _ = server.accept()
-    return client, conn
-
-
-def _ssl_capable_handshake_packet() -> bytes:
-    """A minimal HandshakeV10 advertising SSL support, to walk a client into a TLS handshake with a silent peer."""
-
-    caps = (
-        CLIENT.LONG_PASSWORD |
-        CLIENT.PROTOCOL_41 |
-        CLIENT.SSL |
-        CLIENT.TRANSACTIONS |
-        CLIENT.SECURE_CONNECTION |
-        CLIENT.MULTI_RESULTS |
-        CLIENT.PLUGIN_AUTH |
-        CLIENT.PLUGIN_AUTH_LENENC_CLIENT_DATA |
-        CLIENT.CONNECT_ATTRS
-    )
-    payload = b''.join([
-        bytes([10]),                                   # protocol version
-        b'8.0.0-test\x00',                             # server version
-        struct.pack('<I', 1),                          # thread id
-        b'salt5678',                                   # auth plugin data, part 1
-        b'\x00',                                       # filler
-        struct.pack('<H', caps & 0xffff),              # capabilities, low
-        struct.pack('<BHHB', 33, 2, caps >> 16, 21),   # charset, status, capabilities high, auth data length
-        b'\x00' * 10,                                  # reserved
-        b'salt90123456',                               # auth plugin data, part 2
-        b'\x00',
-        b'mysql_native_password\x00',
-    ])
-    return pack_packet(0, payload)
 
 
 ##
@@ -180,11 +140,11 @@ def test_write_timeout_sync():
 
 
 def test_read_timeout_through_ssl_sync():
-    client, server = _tcp_socketpair()
+    client, server = tcp_socketpair()
     try:
         # The client reads this handshake, agrees to SSL, and starts a TLS handshake which then stalls as the peer
         # never sends a ServerHello. The authentication operation's read deadline must catch it.
-        server.sendall(_ssl_capable_handshake_packet())
+        server.sendall(make_handshake_packet(with_ssl=True))
         with pytest.raises(OperationalError, match='Read timed out'):
             SyncConnection(user='u', password='p', sock=client, read_timeout=.15)  # noqa: S106
     finally:
@@ -193,10 +153,10 @@ def test_read_timeout_through_ssl_sync():
 
 
 def test_ssl_handshake_timeout_sync():
-    client, server = _tcp_socketpair()
+    client, server = tcp_socketpair()
     try:
         # As above, but with only a connect timeout: the TLS handler's own handshake deadline must catch the stall.
-        server.sendall(_ssl_capable_handshake_packet())
+        server.sendall(make_handshake_packet(with_ssl=True))
         with pytest.raises(OperationalError, match='timed out'):
             SyncConnection(user='u', password='p', sock=client, connect_timeout=.15)  # noqa: S106
     finally:
@@ -206,9 +166,9 @@ def test_ssl_handshake_timeout_sync():
 
 def test_read_timeout_through_ssl_asyncio():
     async def main():
-        client, server = _tcp_socketpair()
+        client, server = tcp_socketpair()
         try:
-            server.sendall(_ssl_capable_handshake_packet())
+            server.sendall(make_handshake_packet(with_ssl=True))
             client.setblocking(False)
             reader, writer = await asyncio.open_connection(sock=client)
             conn = AsyncioConnection(reader, writer, user='u', password='p', read_timeout=.15)  # noqa: S106

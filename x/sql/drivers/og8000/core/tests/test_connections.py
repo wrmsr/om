@@ -1,6 +1,7 @@
 """Live tests of the sync and async core connections. These need the server described by tests/dbs.py."""
 import asyncio
 import io
+import socket
 
 import pytest
 
@@ -131,5 +132,55 @@ def test_async_bad_password(db_kwargs):
         with pytest.raises(DatabaseError) as ei:
             await async_connect(db_kwargs, password='wrong')  # noqa: S106
         assert ei.value.args[0]['C'] == '28P01'
+
+    asyncio.run(main())
+
+
+##
+# Closing after the server disconnects
+
+
+AUTH_OK = b'R\x00\x00\x00\x08\x00\x00\x00\x00'
+READY_FOR_QUERY = b'Z\x00\x00\x00\x05I'
+
+
+def test_close_after_clean_disconnect_sync():
+    """A server which disconnects cleanly (EOF, not a reset) must not break a subsequent close()."""
+
+    sock, peer = socket.socketpair()
+    try:
+        peer.sendall(AUTH_OK + READY_FOR_QUERY)
+
+        con = SyncCoreConnection(user='u', sock=sock, ssl_context=False)
+
+        # A clean EOF (not a reset), with the peer still accepting writes.
+        peer.shutdown(socket.SHUT_WR)
+        with pytest.raises(InterfaceError, match='network error'):
+            con.execute_simple('select 1')
+        con.close()
+        assert con.is_closed
+    finally:
+        sock.close()
+        peer.close()
+
+
+def test_close_after_clean_disconnect_asyncio():
+    async def main():
+        sock, peer = socket.socketpair()
+        try:
+            peer.sendall(AUTH_OK + READY_FOR_QUERY)
+            sock.setblocking(False)
+
+            reader, writer = await asyncio.open_connection(sock=sock)
+            con = AsyncioCoreConnection(reader, writer, user='u', ssl_context=False)
+            await con._start()  # noqa: SLF001
+
+            peer.shutdown(socket.SHUT_WR)
+            with pytest.raises(InterfaceError, match='network error'):
+                await con.execute_simple('select 1')
+            await con.close()
+            assert con.is_closed
+        finally:
+            peer.close()
 
     asyncio.run(main())

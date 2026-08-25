@@ -133,8 +133,11 @@ class SyncConnection(BaseConnection):
             raise Error('Already closed')
         driver = check.not_none(self._driver)
         try:
-            driver.enqueue(OperationRequest(self._session.quit()))
-            driver.next(read=False)
+            # A failed session means the pipeline is already dead or dying (the transport hit EOF, or an error tore it
+            # down), and would reject the courtesy COM_QUIT.
+            if self._session.fatal_error is None:
+                driver.enqueue(OperationRequest(self._session.quit()))
+                driver.next(read=False)
         except BaseException:  # noqa: BLE001,S110  # A broken transport must not prevent teardown.
             pass
         finally:

@@ -251,6 +251,12 @@ class ProtocolSession:
     def current(self) -> Operation | None:
         return self._current
 
+    @property
+    def fatal_error(self) -> BaseException | None:
+        """The error which permanently failed this session, if any. A failed session accepts no new operations."""
+
+        return self._fatal_error
+
     #
     # Driving
 
