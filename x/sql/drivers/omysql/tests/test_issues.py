@@ -5,7 +5,7 @@ import warnings
 
 import pytest
 
-from ... import omysql
+from .. import dbapi
 
 
 ##
@@ -71,7 +71,7 @@ def test_issue_6(databases):
     # TODO: this test requires access to db 'mysql'.
     kwargs = databases[0]
     kwargs['database'] = 'mysql'
-    conn = omysql.connect(**kwargs)
+    conn = dbapi.connect(**kwargs)
     c = conn.cursor()
     c.execute('select * from user')
     conn.close()
@@ -173,7 +173,7 @@ def test_issue_17(connect, databases):
         c.execute(f"grant all privileges on {db}.issue17 to 'issue17user'@'%%' identified by '1234'")
         conn.commit()
 
-        conn2 = omysql.connect(host=host, user='issue17user', passwd='1234', db=db)  # noqa
+        conn2 = dbapi.connect(host=host, user='issue17user', passwd='1234', db=db)  # noqa
         c2 = conn2.cursor()
         c2.execute('select x from issue17')
         assert c2.fetchone()[0] == 'hello, world!'
@@ -186,13 +186,13 @@ def test_issue_17(connect, databases):
 
 
 def test_issue_34():
-    with pytest.raises(omysql.OperationalError) as cm:
-        omysql.connect(host='localhost', port=1237, user='root')
+    with pytest.raises(dbapi.OperationalError) as cm:
+        dbapi.connect(host='localhost', port=1237, user='root')
     assert cm.value.args[0] == 2003
 
 
 def test_issue_33(safe_create_table, databases):
-    conn = omysql.connect(charset='utf8', **databases[0])
+    conn = dbapi.connect(charset='utf8', **databases[0])
     safe_create_table(conn, 'hei\xdfe', 'create table hei\xdfe (name varchar(32))')
     c = conn.cursor()
     c.execute("insert into hei\xdfe (name) values ('Pi\xdfata')")
@@ -205,7 +205,7 @@ def test_issue_35(connect):
     conn = connect()
     c = conn.cursor()
     print('sudo killall -9 mysqld within the next 10 seconds')
-    with pytest.raises(omysql.OperationalError) as cm:
+    with pytest.raises(dbapi.OperationalError) as cm:
         c.execute('select sleep(10)')
     assert cm.value.args[0] == 2013
 
@@ -226,7 +226,7 @@ def test_issue_36(connections):
     # now nuke the connection
     connections[0].kill(kill_id)
     # make sure this connection has broken
-    with pytest.raises(omysql.Error):
+    with pytest.raises(dbapi.Error):
         c.execute('show tables')
     c.close()
     conn.close()
@@ -309,7 +309,7 @@ def test_issue_79(connect):
     """Duplicate field overwrites the previous one in the result of DictCursor."""
 
     conn = connect()
-    c = conn.cursor(omysql.cursors.DictCursor)
+    c = conn.cursor(dbapi.DictCursor)
 
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
@@ -361,7 +361,7 @@ def test_issue_95(connect):
 def test_issue_114(databases):
     """autocommit is not set after reconnecting with ping()."""
 
-    conn = omysql.connect(charset='utf8', **databases[0])
+    conn = dbapi.connect(charset='utf8', **databases[0])
     conn.autocommit(False)
     c = conn.cursor()
     c.execute("""select @@autocommit;""")
@@ -375,7 +375,7 @@ def test_issue_114(databases):
     conn.close()
 
     # Ensure autocommit() is still working
-    conn = omysql.connect(charset='utf8', **databases[0])
+    conn = dbapi.connect(charset='utf8', **databases[0])
     c = conn.cursor()
     c.execute("""select @@autocommit;""")
     assert not c.fetchone()[0]
@@ -410,7 +410,7 @@ def test_issue_175(connect):
 def test_issue_321(safe_create_table, databases):
     """Test iterable as query argument."""
 
-    conn = omysql.connect(charset='utf8', **databases[0])
+    conn = dbapi.connect(charset='utf8', **databases[0])
     safe_create_table(
         conn,
         'issue321',
@@ -438,7 +438,7 @@ def test_issue_321(safe_create_table, databases):
 def test_issue_364(safe_create_table, databases):
     """Test mixed unicode/binary arguments in executemany."""
 
-    conn = omysql.connect(charset='utf8mb4', **databases[0])
+    conn = dbapi.connect(charset='utf8mb4', **databases[0])
     safe_create_table(
         conn,
         'issue364',
@@ -448,7 +448,7 @@ def test_issue_364(safe_create_table, databases):
 
     sql = 'insert into issue364 (value_1, value_2) values (_binary %s, %s)'
     usql = 'insert into issue364 (value_1, value_2) values (_binary %s, %s)'
-    values = [omysql.Binary(b'\x00\xff\x00'), '\xe4\xf6\xfc']
+    values = [dbapi.Binary(b'\x00\xff\x00'), '\xe4\xf6\xfc']
 
     # test single insert and select
     cur = conn.cursor()
@@ -472,7 +472,7 @@ def test_issue_364(safe_create_table, databases):
 def test_issue_363(safe_create_table, databases):
     """Test binary / geometry types."""
 
-    conn = omysql.connect(charset='utf8', **databases[0])
+    conn = dbapi.connect(charset='utf8', **databases[0])
     safe_create_table(
         conn,
         'issue363',
@@ -515,7 +515,7 @@ def test_issue_363(safe_create_table, databases):
 
 
 def test_issue_1206(databases):
-    conn = omysql.connect(charset='utf8', **databases[0])
+    conn = dbapi.connect(charset='utf8', **databases[0])
 
     cur = conn.cursor()
     cur.execute('DROP PROCEDURE IF EXISTS `foo.bar`')

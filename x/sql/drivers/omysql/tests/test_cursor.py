@@ -1,7 +1,7 @@
 import pytest
 
-from ... import omysql
 from .. import cursors
+from .. import dbapi
 from ..constants import ER
 from .utils import get_mysql_vendor
 
@@ -48,7 +48,7 @@ def test_table_conn(connect, safe_create_table, databases):
     conn.commit()
     cursor.close()
 
-    test_connection = omysql.connect(**databases[0])
+    test_connection = dbapi.connect(**databases[0])
     yield test_connection
     test_connection.close()
 
@@ -192,7 +192,7 @@ def test_execution_time_limit(test_table_conn):
             sql = 'SELECT /*+ MAX_EXECUTION_TIME(1) */ data, sleep(1) FROM test'
         else:
             sql = 'SET STATEMENT max_statement_time=0.001 FOR SELECT data, sleep(1) FROM test'
-        with pytest.raises(omysql.errors.OperationalError) as cm:
+        with pytest.raises(dbapi.OperationalError) as cm:
             # in a buffered cursor this should reliably raise an OperationalError
             cur.execute(sql)
 

@@ -23,7 +23,7 @@ from omcore import check
 from omcore.sql.tests.harness import HarnessDbs
 from omcore import sql
 
-from .. import omysql
+from . import dbapi
 
 
 # The server's CA certificate, for the SSL tests. TODO: wire into the om harness.
@@ -86,7 +86,7 @@ def mysql_bootstrap(_databases, mysql_server_params):
     idempotent, so leftovers from a previous run killed at any point are absorbed.
     """
 
-    con = omysql.connect(**mysql_server_params)
+    con = dbapi.connect(**mysql_server_params)
     try:
         cur = con.cursor()
 

@@ -4,7 +4,7 @@ import pytest
 
 from ....dbapi.compliance.bindings import DbapiComplianceBinding
 from ....dbapi.compliance.suites import DbapiComplianceSuite
-from ... import omysql
+from .. import dbapi
 
 
 @pytest.fixture(autouse=True)
@@ -23,10 +23,10 @@ class TestDbapiCompliance(DbapiComplianceSuite):
     def _setup_binding(cls, _databases):
         def _connect():
             params = {k: v for k, v in _databases[0].items() if k not in ('use_unicode', 'local_infile')}
-            return omysql.connect(**params)
+            return dbapi.connect(**params)
 
         cls._binding = DbapiComplianceBinding(
-            module=omysql,
+            module=dbapi,
             connect=_connect,
             float_type='double',
             # A varbinary column shares varchar's type code, so a blob is used where the description must read as

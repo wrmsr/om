@@ -1,7 +1,7 @@
 import pytest
 
-from ... import omysql
 from ..constants import CLIENT
+from ..errors import ProgrammingError
 
 
 def test_nextset(connect):
@@ -36,7 +36,7 @@ def test_nextset_error(connect):
     for i in range(3):
         cur.execute('SELECT %s; xyzzy;', (i,))
         assert list(cur) == [(i,)]
-        with pytest.raises(omysql.ProgrammingError):
+        with pytest.raises(ProgrammingError):
             cur.nextset()
         assert cur.fetchall() == []
 

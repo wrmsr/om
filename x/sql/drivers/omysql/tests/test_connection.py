@@ -7,7 +7,8 @@ import types
 
 import pytest
 
-from ... import omysql
+from .. import converters
+from .. import dbapi
 from ..constants import CLIENT
 from .utils import mysql_server_is
 
@@ -31,13 +32,13 @@ class TempUser:
         try:
             c.execute(create)
             self._created = True
-        except omysql.InternalError:
+        except dbapi.InternalError:
             # already exists - TODO need to check the same plugin applies
             self._created = False
         try:
             c.execute(f'GRANT SELECT ON {db}.* TO {user}')
             self._grant = True
-        except omysql.InternalError:
+        except dbapi.InternalError:
             self._grant = False
 
     def __enter__(self):
@@ -75,7 +76,7 @@ def _auth_info(db):
         ed25519_found=False,
     )
 
-    con = omysql.connect(**db)
+    con = dbapi.connect(**db)
     cur = con.cursor()
     cur.execute('SHOW PLUGINS')
 
@@ -184,7 +185,7 @@ def _run_socket_auth(connect, db, plugin_name):
         db['database'],
         plugin_name,
     ):
-        omysql.connect(user=os_user(), **_without_user(db))
+        dbapi.connect(user=os_user(), **_without_user(db))
 
 
 def test_socket_auth_install_plugin(connect, databases):
@@ -200,11 +201,11 @@ def test_socket_auth_install_plugin(connect, databases):
         try:
             cur.execute("install plugin auth_socket soname 'auth_socket.so'")
             installed_name = 'auth_socket'
-        except omysql.InternalError:
+        except dbapi.InternalError:
             try:
                 cur.execute("install soname 'auth_socket'")
                 installed_name = 'unix_socket'
-            except omysql.InternalError:
+            except dbapi.InternalError:
                 pytest.skip("we couldn't install the socket plugin")
         _run_socket_auth(connect, db, installed_name)
     finally:
@@ -234,9 +235,9 @@ def _run_dialog_auth_two_questions(connect, db):
         'two_questions',
         'notverysecret',
     ):
-        with pytest.raises(omysql.OperationalError):
-            omysql.connect(user='test_omysql_user', **_without_user(db))
-        omysql.connect(
+        with pytest.raises(dbapi.OperationalError):
+            dbapi.connect(user='test_omysql_user', **_without_user(db))
+        dbapi.connect(
             user='test_omysql_user',
             auth_plugin_map={b'dialog': Dialog},
             **_without_user(db),
@@ -256,7 +257,7 @@ def test_dialog_auth_two_questions_install_plugin(connect, databases):
         try:
             cur.execute("install plugin two_questions soname 'dialog_examples.so'")
             installed = True
-        except omysql.InternalError:
+        except dbapi.InternalError:
             pytest.skip("we couldn't install the two_questions plugin")
         _run_dialog_auth_two_questions(connect, db)
     finally:
@@ -282,21 +283,21 @@ def _run_dialog_auth_three_attempts(connect, db):
         'three_attempts',
         'stillnotverysecret',
     ):
-        omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
-        omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': DialogHandler}, **_without_user(db))
-        with pytest.raises(omysql.OperationalError):
-            omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': object}, **_without_user(db))
+        dbapi.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
+        dbapi.connect(user='test_omysql_user', auth_plugin_map={b'dialog': DialogHandler}, **_without_user(db))
+        with pytest.raises(dbapi.OperationalError):
+            dbapi.connect(user='test_omysql_user', auth_plugin_map={b'dialog': object}, **_without_user(db))
 
-        with pytest.raises(omysql.OperationalError):
-            omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': DefectiveHandler}, **_without_user(db))
-        with pytest.raises(omysql.OperationalError):
-            omysql.connect(user='test_omysql_user', auth_plugin_map={b'notdialogplugin': Dialog}, **_without_user(db))
+        with pytest.raises(dbapi.OperationalError):
+            dbapi.connect(user='test_omysql_user', auth_plugin_map={b'dialog': DefectiveHandler}, **_without_user(db))
+        with pytest.raises(dbapi.OperationalError):
+            dbapi.connect(user='test_omysql_user', auth_plugin_map={b'notdialogplugin': Dialog}, **_without_user(db))
         Dialog.m = {b'Password, please:': b'I do not know'}
-        with pytest.raises(omysql.OperationalError):
-            omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
+        with pytest.raises(dbapi.OperationalError):
+            dbapi.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
         Dialog.m = {b'Password, please:': None}
-        with pytest.raises(omysql.OperationalError):
-            omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
+        with pytest.raises(dbapi.OperationalError):
+            dbapi.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
 
 
 def test_dialog_auth_three_attempts_install_plugin(connect, databases):
@@ -312,7 +313,7 @@ def test_dialog_auth_three_attempts_install_plugin(connect, databases):
         try:
             cur.execute("install plugin three_attempts soname 'dialog_examples.so'")
             installed = True
-        except omysql.InternalError:
+        except dbapi.InternalError:
             pytest.skip("we couldn't install the three_attempts plugin")
         _run_dialog_auth_three_attempts(connect, db)
     finally:
@@ -336,7 +337,7 @@ def _run_pam_auth(connect, db):
         cur.execute('show grants for ' + os_user() + '@localhost')
         grants = cur.fetchone()[0]
         cur.execute('drop user ' + os_user() + '@localhost')
-    except omysql.OperationalError as e:
+    except dbapi.OperationalError as e:
         # assuming the user doesn't exist which is ok too
         assert e.args[0] == 1045  # noqa
         grants = None
@@ -348,19 +349,19 @@ def _run_pam_auth(connect, db):
         os.environ.get('PAMSERVICE'),
     ):
         try:
-            omysql.connect(user=os_user(), **pam_db)
+            dbapi.connect(user=os_user(), **pam_db)
             pam_db['password'] = 'very bad guess at password'  # noqa
-            with pytest.raises(omysql.OperationalError):
-                omysql.connect(
+            with pytest.raises(dbapi.OperationalError):
+                dbapi.connect(
                     user=os_user(),
                     auth_plugin_map={b'mysql_cleartext_password': DefectiveHandler},
                     **_without_user(db),
                 )
-        except omysql.OperationalError as e:
+        except dbapi.OperationalError as e:
             assert e.args[0] == 1045  # noqa
             # we had 'bad guess at password' work with pam. Well at least we get a permission denied here
-            with pytest.raises(omysql.OperationalError):
-                omysql.connect(
+            with pytest.raises(dbapi.OperationalError):
+                dbapi.connect(
                     user=os_user(),
                     auth_plugin_map={b'mysql_cleartext_password': DefectiveHandler},
                     **_without_user(db),
@@ -384,7 +385,7 @@ def test_pam_auth_install_plugin(connect, databases):
         try:
             cur.execute("install plugin pam soname 'auth_pam.so'")
             installed = True
-        except omysql.InternalError:
+        except dbapi.InternalError:
             pytest.skip("we couldn't install the auth_pam plugin")
         _run_pam_auth(connect, db)
     finally:
@@ -421,8 +422,8 @@ def test_auth_sha256(connect, databases):
         sha_db['password'] = 'Sh@256Pa33'  # noqa
         # Although SHA256 is supported, need the configuration of public key of the mysql server. Currently will get
         # error by this test.
-        with pytest.raises(omysql.OperationalError):
-            omysql.connect(user='test_omysql_user', **sha_db)
+        with pytest.raises(dbapi.OperationalError):
+            dbapi.connect(user='test_omysql_user', **sha_db)
 
 
 def test_auth_ed25519(connect, databases):
@@ -448,7 +449,7 @@ def test_auth_ed25519(connect, databases):
         'ed25519',
         empty_pass,
     ):
-        omysql.connect(user='test_omysql_user', password='', **ed_db)
+        dbapi.connect(user='test_omysql_user', password='', **ed_db)
 
     with TempUser(
         c,
@@ -457,7 +458,7 @@ def test_auth_ed25519(connect, databases):
         'ed25519',
         non_empty_pass,
     ):
-        omysql.connect(user='test_omysql_user', password='ed25519_password', **ed_db)  # noqa
+        dbapi.connect(user='test_omysql_user', password='ed25519_password', **ed_db)  # noqa
 
 
 ##
@@ -535,7 +536,7 @@ def test_connection_gone_away(connect):
     cur = con.cursor()
     cur.execute('SET wait_timeout=1')
     time.sleep(2)
-    with pytest.raises(omysql.OperationalError) as cm:
+    with pytest.raises(dbapi.OperationalError) as cm:
         cur.execute('SELECT 1+1')
     # error occurs while reading, not writing because of socket buffer.
     # assert cm.value.args[0] == 2006
@@ -551,7 +552,7 @@ def test_init_command(connect):
     c.execute('select "foobar";')
     assert c.fetchone() == ('foobar',)
     conn.close()
-    with pytest.raises(omysql.Error):
+    with pytest.raises(dbapi.Error):
         conn.ping(reconnect=False)
 
 
@@ -583,7 +584,7 @@ def test_defer_connect(databases):
         except KeyError:
             pass
 
-    c = omysql.connect(defer_connect=True, **d)
+    c = dbapi.connect(defer_connect=True, **d)
     assert not c.open
     c.connect(sock)
     c.close()
@@ -638,7 +639,7 @@ def test_escape_fallback_encoder(connect):
     class Custom(str):
         __slots__ = ()
 
-    mapping = {str: omysql.converters.escape_string}
+    mapping = {str: converters.escape_string}
     assert con.escape(Custom('foobar'), mapping) == "'foobar'"
 
 

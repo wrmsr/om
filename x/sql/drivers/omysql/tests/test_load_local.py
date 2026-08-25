@@ -2,9 +2,9 @@ import os.path
 
 import pytest
 
-from .. import OperationalError
 from .. import cursors
 from ..constants import ER
+from ..errors import OperationalError
 
 
 def _data_file(name):

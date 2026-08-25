@@ -2,7 +2,7 @@ import warnings
 
 import pytest
 
-from ... import omysql
+from .. import dbapi
 
 
 def _drop_table(connection, tablename):
@@ -17,7 +17,7 @@ def _drop_table(connection, tablename):
 def connections(databases):
     """Open connections to each of the configured test databases, all closed after the test."""
 
-    conns = [omysql.connect(**params) for params in databases]
+    conns = [dbapi.connect(**params) for params in databases]
     yield conns
     for conn in conns:
         if conn.open:
@@ -33,7 +33,7 @@ class ConnectionMaker:
     def __call__(self, **params):
         p = dict(self.databases[0])
         p.update(params)
-        conn = omysql.connect(**p)
+        conn = dbapi.connect(**p)
         self.conns.append(conn)
         return conn
 
@@ -79,7 +79,7 @@ def safe_create_table(connect, databases):
         if connection.open:
             _drop_table(connection, tablename)
         else:
-            conn = omysql.connect(**databases[0])
+            conn = dbapi.connect(**databases[0])
             try:
                 _drop_table(conn, tablename)
             finally:

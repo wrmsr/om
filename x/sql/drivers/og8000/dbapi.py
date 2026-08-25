@@ -93,9 +93,7 @@ Xid: ta.TypeAlias = tuple[int, str, str]
 
 
 apilevel = '2.0'
-
 threadsafety = 1
-
 paramstyle = 'format'
 
 
