@@ -19,13 +19,13 @@ import time
 from . import connections
 from .constants import FIELD_TYPE
 from .cursors import DictCursor  # noqa
+from .errors import AnyError  # noqa
 from .errors import DatabaseError  # noqa
 from .errors import DataError  # noqa
 from .errors import Error  # noqa
 from .errors import IntegrityError  # noqa
 from .errors import InterfaceError  # noqa
 from .errors import InternalError  # noqa
-from .errors import MySQLError  # noqa
 from .errors import NotSupportedError  # noqa
 from .errors import OperationalError  # noqa
 from .errors import ProgrammingError  # noqa

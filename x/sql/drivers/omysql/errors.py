@@ -12,25 +12,27 @@
 # WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-import builtins
 import struct
 import typing as ta
 
+from ..base.errors import AnyError as BaseAnyError
+from ..base.errors import Error as BaseError
+from ..base.errors import Warning as BaseWarning
 from .constants import ER
 
 
 ##
 
 
-class MySQLError(Exception):
+class AnyError(BaseAnyError):
     """Exception related to operation with MySQL."""
 
 
-class Warning(builtins.Warning, MySQLError):  # noqa
+class Warning(BaseWarning, AnyError):  # noqa
     """Exception raised for important warnings like data truncations while inserting, etc."""
 
 
-class Error(MySQLError):
+class Error(BaseError, AnyError):
     """Exception that is the base class of all other error exceptions (not Warning)."""
 
     def __init__(self, *args, sqlstate=None):

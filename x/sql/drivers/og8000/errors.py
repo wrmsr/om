@@ -21,9 +21,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Original Author: Mathieu Fenniak
+from ..base.errors import Error as BaseError
 
 
-class Error(Exception):
+##
+
+
+class Error(BaseError):
     """Generic exception that is the base exception of all other error exceptions."""
 
 
