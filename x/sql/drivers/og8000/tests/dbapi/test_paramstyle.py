@@ -7,7 +7,7 @@ from ...dbapi import convert_paramstyle
 
 
 @pytest.mark.parametrize(
-    'query,statement',
+    ('query', 'statement'),
     [
         (
             'SELECT ?, ?, "field_?" FROM t '
@@ -28,7 +28,7 @@ def test_qmark(query, statement):
 
 
 @pytest.mark.parametrize(
-    'query,expected',
+    ('query', 'expected'),
     [
         (
             'SELECT sum(x)::decimal(5, 2) :2, :1, * FROM t WHERE a=:3',
@@ -55,7 +55,7 @@ def test_numeric_unchanged(query):
 
 
 @pytest.mark.parametrize(
-    'query,args,expected_query,expected_args',
+    ('query', 'args', 'expected_query', 'expected_args'),
     [
         (
             'SELECT sum(x)::decimal(5, 2) :f_2, :f1 FROM t WHERE a=:f_2',
@@ -72,7 +72,7 @@ def test_named(query, args, expected_query, expected_args):
 
 
 @pytest.mark.parametrize(
-    'query,expected',
+    ('query', 'expected'),
     [
         (
             "SELECT %s, %s, \"f1_%%\", E'txt_%%' "

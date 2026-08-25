@@ -603,7 +603,7 @@ def test_bool_array_roundtrip(cursor):
 
 
 @pytest.mark.parametrize(
-    'test_input,expected',
+    ('test_input', 'expected'),
     [
         ("SELECT '{a,b,c}'::TEXT[] AS f1", ['a', 'b', 'c']),
         ("SELECT '{a,b,c}'::CHAR[] AS f1", ['a', 'b', 'c']),

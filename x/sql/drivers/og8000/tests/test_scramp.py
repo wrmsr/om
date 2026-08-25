@@ -21,7 +21,7 @@ from ..scramp import xor
 
 
 @pytest.mark.parametrize(
-    'string,error_msg,server_error',
+    ('string', 'error_msg', 'server_error'),
     [
         (
             '!!!!',
@@ -39,7 +39,7 @@ def test_b64dec_fails(string, error_msg, server_error):
 
 
 @pytest.mark.parametrize(
-    'a,b,msg',
+    ('a', 'b', 'msg'),
     [
         (b'', b'a', 'zip() argument 2 is longer than argument 1'),
     ],
@@ -52,7 +52,7 @@ def test_xor_fails(a, b, msg):
 
 
 @pytest.mark.parametrize(
-    'msg,att_sets,error_msg',
+    ('msg', 'att_sets', 'error_msg'),
     [
         (
             '',
@@ -94,7 +94,7 @@ def test_parse_message_fail(msg, att_sets, error_msg):
 
 
 @pytest.mark.parametrize(
-    'msg,att_sets,result',
+    ('msg', 'att_sets', 'result'),
     [
         ('c=jk,i=kln', [{'c', 'i'}], {'c': 'jk', 'i': 'kln'}),
         ('c=jk,i=kln', [{'a', 'b', 'c'}, {'c', 'i'}], {'c': 'jk', 'i': 'kln'}),
@@ -107,7 +107,7 @@ def test_parse_message_succeed(msg, att_sets, result):
 
 
 @pytest.mark.parametrize(
-    'cb,msg',
+    ('cb', 'msg'),
     [
         (
             ('c', 'd'),
@@ -125,7 +125,7 @@ def test_validate_channel_binding_fail(cb, msg):
 
 
 @pytest.mark.parametrize(
-    'gs2_char,cb_name,expected',
+    ('gs2_char', 'cb_name', 'expected'),
     [
         ('p', 'aname', 'p=aname,,'),
     ],
@@ -136,7 +136,7 @@ def test_Gs2Header_str(gs2_char, cb_name, expected):
 
 
 @pytest.mark.parametrize(
-    'gs2_char,cb_name',
+    ('gs2_char', 'cb_name'),
     [
         ('p', 'aname'),
     ],
@@ -148,7 +148,7 @@ def test_Gs2Header_eq(gs2_char, cb_name):
 
 
 @pytest.mark.parametrize(
-    'salt,error_msg,server_error',
+    ('salt', 'error_msg', 'server_error'),
     [
         (
             '',  # Must be bytes
@@ -167,7 +167,7 @@ def test_Salt_init_error(salt, error_msg, server_error):
 
 
 @pytest.mark.parametrize(
-    'salt_str,error_msg,server_error',
+    ('salt_str', 'error_msg', 'server_error'),
     [
         (
             '!!!',
@@ -186,7 +186,7 @@ def test_Salt_from_str_error(salt_str, error_msg, server_error):
 
 
 @pytest.mark.parametrize(
-    'nonce,error_msg,server_error',
+    ('nonce', 'error_msg', 'server_error'),
     [
         (
             b'',  # Must be str
@@ -536,7 +536,7 @@ def test_check_stage():
 
 
 @pytest.mark.parametrize(
-    'server_first,c_nonce,min_iteration_count,error_msg',
+    ('server_first', 'c_nonce', 'min_iteration_count', 'error_msg'),
     [
         # Error from server
         (

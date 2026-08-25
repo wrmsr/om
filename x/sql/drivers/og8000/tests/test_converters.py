@@ -36,7 +36,7 @@ from ..native import InterfaceError
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('2022-03-02', Date(2022, 3, 2)),
         ('infinity', 'infinity'),
@@ -53,7 +53,7 @@ def test_null_out():
 
 
 @pytest.mark.parametrize(
-    'array,out',
+    ('array', 'out'),
     [
         ([True, False, None], '{true,false,NULL}'),  # bool[]
         ([IPv4Address('192.168.0.1')], '{192.168.0.1}'),  # inet[]
@@ -108,7 +108,7 @@ def test_numeric_in(value):
 
 
 @pytest.mark.parametrize(
-    'data,expected',
+    ('data', 'expected'),
     [
         ('[6,3]', Range(6, 3, bounds='[]')),
     ],
@@ -118,7 +118,7 @@ def test_int4range_in(data, expected):
 
 
 @pytest.mark.parametrize(
-    'v,expected',
+    ('v', 'expected'),
     [
         (Range(6, 3, bounds='[]'), '[6,3]'),
     ],
@@ -153,7 +153,7 @@ def test_time_in():
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('1 year', PGInterval(years=1)),
         ('2 hours', PGInterval(hours=2)),
@@ -164,7 +164,7 @@ def test_pg_interval_in(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('2 hours', TimeDelta(hours=2)),
         ('00:00:30', TimeDelta(seconds=30)),
@@ -175,7 +175,7 @@ def test_interval_in(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('a', 'a'),
         ('"', '"\\""'),
@@ -190,7 +190,7 @@ def test_array_string_escape(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         (
             '2022-10-08 15:01:39+01:30',
@@ -267,7 +267,7 @@ def test_timestamptz_in(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         (
             '20022-10-08 15:01:39.597026',
@@ -280,7 +280,7 @@ def test_timestamp_in(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         (
             '["2001-02-03 04:05:00","2023-02-03 04:05:00")',
@@ -293,7 +293,7 @@ def test_tsrange_in(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         (
             '{[2023-06-01,2023-06-06),[2023-06-10,2023-06-13)}',
@@ -336,7 +336,7 @@ def test_identifier_quoted_null():
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('top_secret', '"top_secret"'),
         (' Table', '" Table"'),
@@ -354,7 +354,7 @@ def test_identifier_success(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('top_secret', "'top_secret'"),
         (['cove'], "'{cove}'"),

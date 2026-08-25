@@ -207,7 +207,7 @@ def test_int2vector_in(con):
 
 
 @pytest.mark.parametrize(
-    'tz, test_input,test_output',
+    ('tz', 'test_input', 'test_output'),
     [
         (
             'UTC',
@@ -287,7 +287,7 @@ def test_timestamp_mismatch(con):
 
 
 @pytest.mark.parametrize(
-    'select,expected',
+    ('select', 'expected'),
     [
         ("CAST('t' AS bool)", True),
         ('5000::smallint', 5000),
@@ -336,7 +336,7 @@ def test_pg_interval_in(con):
 
 
 @pytest.mark.parametrize(
-    'test_input,test_output',
+    ('test_input', 'test_output'),
     [
         ('12 days 30 seconds', datetime.timedelta(days=12, seconds=30)),
         ('30 seconds', datetime.timedelta(seconds=30)),
@@ -349,7 +349,7 @@ def test_interval_in_postgres(con, test_input, test_output):
 
 
 @pytest.mark.parametrize(
-    'iso_8601,output',
+    ('iso_8601', 'output'),
     [
         ('P12DT30S', datetime.timedelta(days=12, seconds=30)),
         ('PT30S', datetime.timedelta(seconds=30)),
@@ -366,7 +366,7 @@ def test_interval_in_iso_8601(con, iso_8601, output):
 
 
 @pytest.mark.parametrize(
-    'postgres_verbose,output',
+    ('postgres_verbose', 'output'),
     [
         ('@ 1 year 2 mons', PGInterval(years=1, months=2)),
         (
@@ -386,7 +386,7 @@ def test_interval_in_postgres_verbose(con, postgres_verbose, output):
 
 
 @pytest.mark.parametrize(
-    'sql_standard,output',
+    ('sql_standard', 'output'),
     [
         ('1-2', PGInterval(years=1, months=2)),
         ('3 4:05:06', datetime.timedelta(days=3, hours=4, minutes=5, seconds=6)),
@@ -489,7 +489,7 @@ CURRENCY = '$'
 
 
 @pytest.mark.parametrize(
-    'test_input,oid',
+    ('test_input', 'oid'),
     [
         ([datetime.datetime(2001, 2, 3, 4, 5, 6)], TIMESTAMP_ARRAY),  # timestamp[]
         (  # timestamptz[]
@@ -547,7 +547,7 @@ def test_roundtrip_oid(con, test_input, oid):
 
 
 @pytest.mark.parametrize(
-    'test_input,typ,req_ver',
+    ('test_input', 'typ', 'req_ver'),
     [
         ([True, False, None], 'bool[]', None),
         (
@@ -656,7 +656,7 @@ def test_roundtrip_cast(con, pg_version, test_input, typ, req_ver):
 
 
 @pytest.mark.parametrize(
-    'test_input,expected',
+    ('test_input', 'expected'),
     [
         ("SELECT CAST('{a,b,c}' AS TEXT[])", ['a', 'b', 'c']),
         ("SELECT CAST('{a,b,c}' AS CHAR[])", ['a', 'b', 'c']),
@@ -729,7 +729,7 @@ def duple_type(con):
 
 
 @pytest.mark.parametrize(
-    'test_input,expected',
+    ('test_input', 'expected'),
     [
         ((1, 3), '(1,3)'),
         ((1, None), '(1,)'),
@@ -741,7 +741,7 @@ def test_composite_type(con, duple_type, test_input, expected):
 
 
 @pytest.mark.parametrize(
-    'test_input,expected',
+    ('test_input', 'expected'),
     [
         ([(1, 3)], '{"(1,3)"}'),
     ],

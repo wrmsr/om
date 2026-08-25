@@ -276,7 +276,7 @@ def test_rollback_no_transaction(con):
     assert 0 == len(con.notices)
 
 
-@pytest.mark.parametrize('sizes,oids', [([0], [0]), ([float], [701])])
+@pytest.mark.parametrize(('sizes', 'oids'), [([0], [0]), ([float], [701])])
 def test_setinputsizes(con, sizes, oids):
     cursor = con.cursor()
     cursor.setinputsizes(sizes)

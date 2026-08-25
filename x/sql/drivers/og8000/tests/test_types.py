@@ -24,7 +24,7 @@ def test_PGInterval_str():
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('P1Y2M', PGInterval(years=1, months=2)),
         ('P12DT30S', PGInterval(days=12, seconds=30)),
@@ -41,7 +41,7 @@ def test_PGInterval_from_str_iso_8601(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('@ 1 year 2 mons', PGInterval(years=1, months=2)),
         (
@@ -86,7 +86,7 @@ def test_PGInterval_to_timedelta_unfittable_fields():
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('1-2', PGInterval(years=1, months=2)),
         ('3 4:05:06', PGInterval(days=3, hours=4, minutes=5, seconds=6)),
@@ -103,7 +103,7 @@ def test_PGInterval_from_str_sql_standard(value, expected):
 
 
 @pytest.mark.parametrize(
-    'value,expected',
+    ('value', 'expected'),
     [
         ('P12DT30S', PGInterval(days=12, seconds=30)),
         ('@ 1 year 2 mons', PGInterval(years=1, months=2)),
