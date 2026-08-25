@@ -29,7 +29,8 @@ from . import dbapi
 # TODO: extract / generate dynamically
 @pytest.fixture(scope='session')
 def ca_pem() -> str:
-    return 'test_omysql_ca.pem'
+    # return 'test_omysql_ca.pem'
+    pytest.skip('no ca_pem')
 
 
 class Database(ta.TypedDict):
