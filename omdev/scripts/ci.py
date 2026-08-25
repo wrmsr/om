@@ -135,7 +135,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='0a249bfaede012e18fea8cd3b0f239c985a6cfec'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='8b13702756070e8b5faae0ff14e62c5d745de857'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
             dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
@@ -7976,12 +7976,14 @@ class IoPipeline:
             *,
             never_handle_exceptions: ta.Tuple[type, ...] = (),
             message_tap: ta.Optional[IoPipelineMessageTap] = None,
+            on_state_change: ta.Optional[ta.Callable[['IoPipeline'], None]] = None,
     ) -> None:
         super().__init__()
 
         self._config: ta.Final[IoPipeline.Config] = spec.config
         self._never_handle_exceptions = never_handle_exceptions
         self._message_tap = message_tap
+        self._on_state_change = on_state_change
 
         self._metadata: ta.Final[IoPipelineMetadatas] = IoPipelineMetadatas.of(spec.metadata)
         self._services: ta.Final[IoPipelineServices] = IoPipelineServices.of(spec.services)
@@ -8024,7 +8026,7 @@ class IoPipeline:
 
         #
 
-        self._state = IoPipeline.State.READY
+        self._set_state(IoPipeline.State.READY)
 
         #
 
@@ -8059,6 +8061,13 @@ class IoPipeline:
         DESTROYED = 'destroyed'
 
     _state: State = State.NEW
+
+    def _set_state(self, state: State) -> None:
+        if self._state == state:
+            return
+        self._state = state
+        if (cb := self._on_state_change) is not None:
+            cb(self)
 
     @property
     def state(self) -> State:
@@ -8700,7 +8709,7 @@ class IoPipeline:
             return
 
         check.state(self._state == IoPipeline.State.READY)
-        self._state = IoPipeline.State.DESTROYING
+        self._set_state(IoPipeline.State.DESTROYING)
 
         try:
             self._step_in()
@@ -8720,7 +8729,7 @@ class IoPipeline:
             try:
                 self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
             finally:
-                self._state = IoPipeline.State.DESTROYED
+                self._set_state(IoPipeline.State.DESTROYED)
 
     def _fail_pending_completables(self, exc: BaseException) -> None:
         first_listener_exc: ta.Optional[BaseException] = None

@@ -46,7 +46,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='core.py', sha1='8b13702756070e8b5faae0ff14e62c5d745de857'),
+            dict(path='core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
             dict(path='../streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
@@ -2612,12 +2612,14 @@ class IoPipeline:
             *,
             never_handle_exceptions: ta.Tuple[type, ...] = (),
             message_tap: ta.Optional[IoPipelineMessageTap] = None,
+            on_state_change: ta.Optional[ta.Callable[['IoPipeline'], None]] = None,
     ) -> None:
         super().__init__()
 
         self._config: ta.Final[IoPipeline.Config] = spec.config
         self._never_handle_exceptions = never_handle_exceptions
         self._message_tap = message_tap
+        self._on_state_change = on_state_change
 
         self._metadata: ta.Final[IoPipelineMetadatas] = IoPipelineMetadatas.of(spec.metadata)
         self._services: ta.Final[IoPipelineServices] = IoPipelineServices.of(spec.services)
@@ -2660,7 +2662,7 @@ class IoPipeline:
 
         #
 
-        self._state = IoPipeline.State.READY
+        self._set_state(IoPipeline.State.READY)
 
         #
 
@@ -2695,6 +2697,13 @@ class IoPipeline:
         DESTROYED = 'destroyed'
 
     _state: State = State.NEW
+
+    def _set_state(self, state: State) -> None:
+        if self._state == state:
+            return
+        self._state = state
+        if (cb := self._on_state_change) is not None:
+            cb(self)
 
     @property
     def state(self) -> State:
@@ -3336,7 +3345,7 @@ class IoPipeline:
             return
 
         check.state(self._state == IoPipeline.State.READY)
-        self._state = IoPipeline.State.DESTROYING
+        self._set_state(IoPipeline.State.DESTROYING)
 
         try:
             self._step_in()
@@ -3356,7 +3365,7 @@ class IoPipeline:
             try:
                 self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
             finally:
-                self._state = IoPipeline.State.DESTROYED
+                self._set_state(IoPipeline.State.DESTROYED)
 
     def _fail_pending_completables(self, exc: BaseException) -> None:
         first_listener_exc: ta.Optional[BaseException] = None

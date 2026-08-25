@@ -1236,12 +1236,14 @@ class IoPipeline:
             *,
             never_handle_exceptions: ta.Tuple[type, ...] = (),
             message_tap: ta.Optional[IoPipelineMessageTap] = None,
+            on_state_change: ta.Optional[ta.Callable[['IoPipeline'], None]] = None,
     ) -> None:
         super().__init__()
 
         self._config: ta.Final[IoPipeline.Config] = spec.config
         self._never_handle_exceptions = never_handle_exceptions
         self._message_tap = message_tap
+        self._on_state_change = on_state_change
 
         self._metadata: ta.Final[IoPipelineMetadatas] = IoPipelineMetadatas.of(spec.metadata)
         self._services: ta.Final[IoPipelineServices] = IoPipelineServices.of(spec.services)
@@ -1284,7 +1286,7 @@ class IoPipeline:
 
         #
 
-        self._state = IoPipeline.State.READY
+        self._set_state(IoPipeline.State.READY)
 
         #
 
@@ -1319,6 +1321,13 @@ class IoPipeline:
         DESTROYED = 'destroyed'
 
     _state: State = State.NEW
+
+    def _set_state(self, state: State) -> None:
+        if self._state == state:
+            return
+        self._state = state
+        if (cb := self._on_state_change) is not None:
+            cb(self)
 
     @property
     def state(self) -> State:
@@ -1960,7 +1969,7 @@ class IoPipeline:
             return
 
         check.state(self._state == IoPipeline.State.READY)
-        self._state = IoPipeline.State.DESTROYING
+        self._set_state(IoPipeline.State.DESTROYING)
 
         try:
             self._step_in()
@@ -1980,7 +1989,7 @@ class IoPipeline:
             try:
                 self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
             finally:
-                self._state = IoPipeline.State.DESTROYED
+                self._set_state(IoPipeline.State.DESTROYED)
 
     def _fail_pending_completables(self, exc: BaseException) -> None:
         first_listener_exc: ta.Optional[BaseException] = None
