@@ -52,6 +52,7 @@ async def test_loop_anthropic(harness):
 
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.online
+@pytest.mark.xdist_group('google-online')
 async def test_loop_google(harness):
     await _test_loop(harness, GOOGLE)
 
@@ -96,5 +97,6 @@ async def test_loop_with_tool_anthropic(harness):
 
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.online
+@pytest.mark.xdist_group('google-online')
 async def test_loop_with_tool_google(harness):
     await _test_loop_with_tool(harness, GOOGLE)

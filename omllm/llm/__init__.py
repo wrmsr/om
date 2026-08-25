@@ -75,6 +75,10 @@ with _lang.auto_proxy_init(globals()):
         default_model_catalog,
     )
 
+    from .models.pricing import (  # noqa
+        modeldb_token_pricing,
+    )
+
     ##
 
     from .tools.jsonschema import (  # noqa
@@ -147,6 +151,10 @@ with _lang.auto_proxy_init(globals()):
 
     from .types.models import (  # noqa
         CacheCapabilities,
+
+        TokenPricingProvider,
+        TokenPricing,
+        fill_estimated_token_cost,
 
         ModelKey,
         Model,

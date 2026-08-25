@@ -50,6 +50,7 @@ async def test_agent_anthropic(harness):
 
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.online
+@pytest.mark.xdist_group('google-online')
 async def test_agent_google(harness):
     await _test_agent(harness, GOOGLE)
 
@@ -98,5 +99,6 @@ async def test_agent_with_tool_anthropic(harness):
 
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.online
+@pytest.mark.xdist_group('google-online')
 async def test_agent_with_tool_google(harness):
     await _test_agent_with_tool(harness, GOOGLE)

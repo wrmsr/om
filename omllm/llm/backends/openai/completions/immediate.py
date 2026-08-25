@@ -13,6 +13,7 @@ from ....types.context import Context
 from ....types.messages import AiMessage
 from ....types.messages import StopReason
 from ....types.messages import TokenUsage
+from ....types.models import fill_estimated_token_cost
 from ....types.options import Options
 from .base import BaseOpenaiCompletionsBackend
 from .requests import RequestPreparer
@@ -100,6 +101,7 @@ class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateB
                 check.isinstance(raw_usage, ta.Mapping),
                 cost_mode=self._compat.cost_mode,
             )
+        token_usage = fill_estimated_token_cost(token_usage, self._pricing)
 
         return AiMessage(
             ta.cast(ta.Any, content),

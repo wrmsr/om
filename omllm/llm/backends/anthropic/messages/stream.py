@@ -8,6 +8,8 @@ from omcore.http import all as http
 from .....core.http.sse import SseEvent
 from ....types.backends import StreamBackend
 from ....types.context import Context
+from ....types.models import TokenPricing
+from ....types.models import fill_estimated_token_cost
 from ....types.options import Options
 from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
@@ -33,8 +35,14 @@ def _stringify_error(error: ta.Any) -> str:
 
 
 class SseEventProcessor(BaseBackendSseEventProcessor):
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            *,
+            pricing: TokenPricing | None = None,
+    ) -> None:
         super().__init__()
+
+        self._pricing = pricing
 
         # Usage arrives split across events - input tokens on message_start, final output tokens on message_delta - so
         # the raw fields are accumulated and retranslated as they appear.
@@ -42,7 +50,10 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
     def _feed_usage(self, raw_usage: ta.Mapping[str, ta.Any]) -> None:
         self._raw_usage_.update(raw_usage)
-        self._message.token_usage = translate_token_usage(self._raw_usage_)
+        self._message.token_usage = fill_estimated_token_cost(
+            translate_token_usage(self._raw_usage_),
+            self._pricing,
+        )
 
     def _feed_content_block_start(self, raw_event: ta.Mapping[str, ta.Any]) -> None:
         raw_index = check.isinstance(raw_event['index'], int)
@@ -238,6 +249,8 @@ class AnthropicMessagesStreamBackend(BaseAnthropicMessagesBackend, StreamBackend
                 err_http_response = await http.async_read_http_client_response(http_response)
                 raise http.StatusHttpClientError(err_http_response)
 
-            processor = SseEventProcessor()
+            processor = SseEventProcessor(
+                pricing=self._pricing,
+            )
 
             return await processor.stream_http_response(http_response)

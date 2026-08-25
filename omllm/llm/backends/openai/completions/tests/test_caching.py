@@ -66,8 +66,17 @@ async def test_openai_prompt_caching(harness):
     assert partial.input > partial.cache_read
     assert partial.input > full.input
 
-    # Openai reports no money at all, and no cost mode is declared for it - so no cost may ever appear.
-    assert all(u.cost is None for u in (prime, full, partial))
+    # Openai reports no money - cost figures are estimated from the model's static modeldb-fed pricing, and the
+    # cache discount shows up in dollars: the full hit prices its read-back prefix at the (cheaper) cache read rate.
+    for u in (prime, full, partial):
+        assert u.cost is not None
+        assert u.cost.source == 'estimated'
+        assert u.cost.input is not None and u.cost.input > 0
+        assert u.cost.output is not None and u.cost.output > 0
+        assert u.cost.total is not None and u.cost.total > 0
+    assert prime.cost is not None and full.cost is not None
+    assert prime.cost.input is not None and full.cost.input is not None
+    assert full.cost.input < prime.cost.input
 
 
 ##
@@ -144,9 +153,10 @@ async def test_openrouter_prompt_caching(harness, model_id):
 
     # Openrouter reports each request's billed cost - authoritative under per-upstream price variance - which rides
     # usage as a reported TokenCost. Only the prompt/completions split is reported, never cache-level components.
+    # The figures are only non-negative, not positive: routing to free upstream capacity legitimately bills 0.0.
     for u in (prime, full, partial):
         assert u.cost is not None
         assert u.cost.source == 'reported'
-        assert u.cost.input is not None and u.cost.input > 0
-        assert u.cost.output is not None and u.cost.output > 0
-        assert u.cost.total is not None and u.cost.total > 0
+        assert u.cost.input is not None and u.cost.input >= 0
+        assert u.cost.output is not None and u.cost.output >= 0
+        assert u.cost.total is not None and u.cost.total >= 0

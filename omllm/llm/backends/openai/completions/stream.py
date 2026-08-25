@@ -9,6 +9,8 @@ from .....core.http.sse import SseEvent
 from ....types.backends import StreamBackend
 from ....types.compat import TokenCostMode
 from ....types.context import Context
+from ....types.models import TokenPricing
+from ....types.models import fill_estimated_token_cost
 from ....types.options import Options
 from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
@@ -39,11 +41,13 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             *,
             reasoning_field: str | None = None,
             cost_mode: TokenCostMode | None = None,
+            pricing: TokenPricing | None = None,
     ) -> None:
         super().__init__()
 
         self._reasoning_field = reasoning_field
         self._cost_mode = cost_mode
+        self._pricing = pricing
 
     def _feed(self, sse: SseEvent) -> None:
         if sse.data == '[DONE]':
@@ -59,9 +63,12 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             raise RuntimeError(_stringify_error(raw_chunk['error']))
 
         if (raw_usage := raw_chunk.get('usage')) is not None:
-            self._message.token_usage = translate_token_usage(
-                check.isinstance(raw_usage, ta.Mapping),
-                cost_mode=self._cost_mode,
+            self._message.token_usage = fill_estimated_token_cost(
+                translate_token_usage(
+                    check.isinstance(raw_usage, ta.Mapping),
+                    cost_mode=self._cost_mode,
+                ),
+                self._pricing,
             )
 
         # The final usage chunk (requested via stream_options.include_usage) has an empty choices list.
@@ -164,6 +171,7 @@ class OpenaiCompletionsStreamBackend(BaseOpenaiCompletionsBackend, StreamBackend
             processor = SseEventProcessor(
                 reasoning_field=self._compat.reasoning_field,
                 cost_mode=self._compat.cost_mode,
+                pricing=self._pricing,
             )
 
             return await processor.stream_http_response(http_response)

@@ -2,6 +2,7 @@ import typing as ta
 
 from ...types.models import Model
 from ...types.models import ModelKey
+from ..pricing import modeldb_token_pricing
 
 
 ##
@@ -16,6 +17,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GPT OSS 120B',
         backend='openai-completions',
+        pricing=modeldb_token_pricing('groq', 'openai/gpt-oss-120b'),
         http=Model.Http(
             base_url='https://api.groq.com/openai/v1',
             extra_headers={

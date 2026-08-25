@@ -10,6 +10,11 @@ from .....types.options import Options
 from ..immediate import GoogleGenerativeImmediateBackend
 
 
+# Gemini's implicit prompt cache reliably misses under concurrent same-project traffic, so all
+# google-online tests serialize onto one worker.
+pytestmark = pytest.mark.xdist_group('google-online')
+
+
 class BaseBackendTest:
     @pytest.mark.online
     @pytest.mark.asyncs('asyncio')

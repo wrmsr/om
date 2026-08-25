@@ -77,6 +77,9 @@ class TestOpenaiBackend(BaseBackendTest):
         return request.param
 
 
+# Openrouter routes across upstream providers of varying speed - an uncapped generation can exceed the default
+# per-test timeout on a slow one.
+@pytest.mark.timeout(180)
 class TestOpenrouterBackend(BaseBackendTest):
     @pytest.fixture(params=[
         (ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'), 'openrouter_api_key'),

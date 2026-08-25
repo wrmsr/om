@@ -4,6 +4,7 @@ from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
 from ...types.options import CacheRetention
+from ..pricing import modeldb_token_pricing
 
 
 ##
@@ -26,6 +27,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             }),
             key=True,
         ),
+        pricing=modeldb_token_pricing('openai', 'gpt-5.4-mini'),
         http=Model.Http(
             base_url='https://api.openai.com/v1',
         ),

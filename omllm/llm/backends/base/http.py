@@ -5,6 +5,7 @@ from omcore.secrets import all as sec
 
 from ...types.backends import Backend
 from ...types.models import Model
+from ...types.models import TokenPricing
 
 
 ##
@@ -26,6 +27,13 @@ class BaseHttpBackend(Backend, lang.Abstract):
 
         self._model_http = check.not_none(model.http)
         self._base_url = check.non_empty_str(self._model_http.base_url).rstrip('/')
+
+        # Deferred pricing resolves here, at construction - the one point model metadata may do real work, such as a
+        # first read of baked pricing data.
+        pricing = model.pricing
+        if callable(pricing):
+            pricing = pricing()
+        self._pricing = check.isinstance(pricing, (TokenPricing, None))
 
     @property
     def model(self) -> Model:

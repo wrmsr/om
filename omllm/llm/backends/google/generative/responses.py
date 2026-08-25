@@ -19,9 +19,11 @@ def translate_token_usage(m: ta.Mapping[str, ta.Any]) -> TokenUsage:
     if prompt_tokens is not None:
         input_tokens = prompt_tokens + (tool_use_prompt_tokens or 0)
 
+    # A turn may be all reasoning - candidatesTokenCount is then omitted entirely while thoughtsTokenCount is still
+    # reported, and the inclusive output total must still cover it.
     output_tokens: int | None = None
-    if candidate_tokens is not None:
-        output_tokens = candidate_tokens + (reasoning_tokens or 0)
+    if candidate_tokens is not None or reasoning_tokens is not None:
+        output_tokens = (candidate_tokens or 0) + (reasoning_tokens or 0)
 
     return TokenUsage(
         input=input_tokens,

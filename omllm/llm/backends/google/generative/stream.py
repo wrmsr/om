@@ -9,6 +9,8 @@ from omcore.http import all as http
 from .....core.http.sse import SseEvent
 from ....types.backends import StreamBackend
 from ....types.context import Context
+from ....types.models import TokenPricing
+from ....types.models import fill_estimated_token_cost
 from ....types.options import Options
 from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
@@ -34,8 +36,14 @@ def _stringify_error(error: ta.Any) -> str:
 
 
 class SseEventProcessor(BaseBackendSseEventProcessor):
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            *,
+            pricing: TokenPricing | None = None,
+    ) -> None:
         super().__init__()
+
+        self._pricing = pricing
 
         self._next_tool_call_index_ = 0
 
@@ -51,7 +59,10 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
         # Chunks carry cumulative usage - each overwrites the last, leaving the final chunk's totals.
         if (raw_usage := raw_chunk.get('usageMetadata')) is not None:
-            self._message.token_usage = translate_token_usage(check.isinstance(raw_usage, ta.Mapping))
+            self._message.token_usage = fill_estimated_token_cost(
+                translate_token_usage(check.isinstance(raw_usage, ta.Mapping)),
+                self._pricing,
+            )
 
         if not (raw_candidates := raw_chunk.get('candidates')):
             return
@@ -168,6 +179,8 @@ class GoogleGenerativeStreamBackend(BaseGoogleGenerativeBackend, StreamBackend):
                 err_http_response = await http.async_read_http_client_response(http_response)
                 raise http.StatusHttpClientError(err_http_response)
 
-            processor = SseEventProcessor()
+            processor = SseEventProcessor(
+                pricing=self._pricing,
+            )
 
             return await processor.stream_http_response(http_response)

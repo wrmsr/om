@@ -14,6 +14,7 @@ from ....types.context import Context
 from ....types.messages import AiMessage
 from ....types.messages import StopReason
 from ....types.messages import TokenUsage
+from ....types.models import fill_estimated_token_cost
 from ....types.options import Options
 from .base import BaseGoogleGenerativeBackend
 from .requests import RequestPreparer
@@ -113,6 +114,7 @@ class GoogleGenerativeImmediateBackend(BaseGoogleGenerativeBackend, ImmediateBac
         token_usage: TokenUsage | None = None
         if (raw_usage := raw_response.get('usageMetadata')) is not None:
             token_usage = translate_token_usage(check.isinstance(raw_usage, ta.Mapping))
+        token_usage = fill_estimated_token_cost(token_usage, self._pricing)
 
         return AiMessage(
             ta.cast(ta.Any, content),

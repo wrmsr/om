@@ -74,5 +74,9 @@ def translate_stop_reason(s: str) -> StopReason:
     elif s == 'content_filter':
         return 'error'
 
+    # Openrouter normalizes an upstream provider failure mid-generation to this.
+    elif s == 'error':
+        return 'error'
+
     else:
         raise ValueError(s)

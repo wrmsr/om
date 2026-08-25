@@ -46,3 +46,16 @@ async def test_anthropic_prompt_caching(harness):
     assert partial.cache_write < partial.cache_read
     assert partial.input is not None
     assert partial.input > partial.cache_read
+
+    # Anthropic reports no money - cost figures are estimated from the model's static modeldb-fed pricing, and the
+    # cache discount shows up in dollars: the prime pays the cache write rate over the prefix, while the full hit
+    # pays only the (much cheaper) cache read rate over it.
+    for u in (prime, full, partial):
+        assert u.cost is not None
+        assert u.cost.source == 'estimated'
+        assert u.cost.input is not None and u.cost.input > 0
+        assert u.cost.output is not None and u.cost.output > 0
+        assert u.cost.total is not None and u.cost.total > 0
+    assert prime.cost is not None and full.cost is not None
+    assert prime.cost.input is not None and full.cost.input is not None
+    assert full.cost.input < prime.cost.input

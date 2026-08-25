@@ -6,6 +6,7 @@ from ...types.models import Model
 from ...types.models import ModelKey
 from ...types.options import CacheRetention
 from ...types.options import Options
+from ..pricing import modeldb_token_pricing
 
 
 ##
@@ -30,6 +31,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         compat=OpenaiCompat(
             max_tokens_field='max_tokens',
         ),
+        pricing=modeldb_token_pricing('anthropic', 'claude-sonnet-5'),
         http=Model.Http(
             base_url='https://api.anthropic.com/v1',
             extra_headers={
