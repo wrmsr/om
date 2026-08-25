@@ -391,6 +391,9 @@
   preferable to use an old-style `ta.Union` so the items each be put on a separate line with a uniform trailing comma,
   rather than an infix pipe operator that must be omitted from the last line.
   - When this is done the first line (the one with the `ta.Union[`) must be suffixed with `# noqa: UP007` for ruff.
+- Generally prefer to annotate abstract async methods as `def foo(...) -> ta.Awaitable[T]`, not `async def foo(...) ->
+  T`.
+  - Rationale: it's common for implementing methods to return perfectly valid awaitables which are not async functions.
 
 
 ### Async
