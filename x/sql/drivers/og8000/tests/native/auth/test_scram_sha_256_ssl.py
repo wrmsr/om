@@ -1,5 +1,4 @@
-from ssl import CERT_NONE
-from ssl import create_default_context
+import ssl
 
 import pytest
 
@@ -41,9 +40,9 @@ def test_scram_sha_256_plus_ssl_true(setup, db_kwargs):
 
 
 def test_scram_sha_256_plus_ssl_custom(setup, db_kwargs):
-    context = create_default_context()
+    context = ssl.create_default_context()
     context.check_hostname = False
-    context.verify_mode = CERT_NONE
+    context.verify_mode = ssl.CERT_NONE
 
     db_kwargs['ssl_context'] = context
     db_kwargs['database'] = DB

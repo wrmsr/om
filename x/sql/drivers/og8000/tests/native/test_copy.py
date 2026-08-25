@@ -1,5 +1,4 @@
-from io import BytesIO
-from io import StringIO
+import io
 
 import pytest
 
@@ -22,14 +21,14 @@ def test_copy_to_with_table(db_table):
     db_table.run('INSERT INTO t1 (f1, f2, f3) VALUES (:v1, :v1, :v2)', v1=2, v2='2')
     db_table.run('INSERT INTO t1 (f1, f2, f3) VALUES (:v1, :v1, :v2)', v1=3, v2='3')
 
-    stream = BytesIO()
+    stream = io.BytesIO()
     db_table.run('copy t1 to stdout', stream=stream)
     assert stream.getvalue() == b'1\t1\t1\n2\t2\t2\n3\t3\t3\n'
     assert db_table.row_count == 3
 
 
 def test_copy_to_with_query(con):
-    stream = BytesIO()
+    stream = io.BytesIO()
     con.run(
         "COPY (SELECT 1 as One, 2 as Two) TO STDOUT WITH DELIMITER "
         "'X' CSV HEADER QUOTE AS 'Y' FORCE QUOTE Two",
@@ -40,7 +39,7 @@ def test_copy_to_with_query(con):
 
 
 def test_copy_to_with_text_stream(con):
-    stream = StringIO()
+    stream = io.StringIO()
     con.run(
         "COPY (SELECT 1 as One, 2 as Two) TO STDOUT WITH DELIMITER "
         "'X' CSV HEADER QUOTE AS 'Y' FORCE QUOTE Two",
@@ -51,7 +50,7 @@ def test_copy_to_with_text_stream(con):
 
 
 def test_copy_from_with_table(db_table):
-    stream = BytesIO(b'1\t1\t1\n2\t2\t2\n3\t3\t3\n')
+    stream = io.BytesIO(b'1\t1\t1\n2\t2\t2\n3\t3\t3\n')
     db_table.run('copy t1 from STDIN', stream=stream)
     assert db_table.row_count == 3
 
@@ -60,7 +59,7 @@ def test_copy_from_with_table(db_table):
 
 
 def test_copy_from_with_text_stream(db_table):
-    stream = StringIO('1\t1\t1\n2\t2\t2\n3\t3\t3\n')
+    stream = io.StringIO('1\t1\t1\n2\t2\t2\n3\t3\t3\n')
     db_table.run('copy t1 from STDIN', stream=stream)
 
     retval = db_table.run('SELECT * FROM t1 ORDER BY f1')
@@ -68,7 +67,7 @@ def test_copy_from_with_text_stream(db_table):
 
 
 def test_copy_from_with_query(db_table):
-    stream = BytesIO(b'f1Xf2\n1XY1Y\n')
+    stream = io.BytesIO(b'f1Xf2\n1XY1Y\n')
     db_table.run(
         "COPY t1 (f1, f2) FROM STDIN WITH DELIMITER 'X' CSV HEADER "
         "QUOTE AS 'Y' FORCE NOT NULL f1",
@@ -81,7 +80,7 @@ def test_copy_from_with_query(db_table):
 
 
 def test_copy_from_with_error(db_table):
-    stream = BytesIO(b'f1Xf2\n\n1XY1Y\n')
+    stream = io.BytesIO(b'f1Xf2\n\n1XY1Y\n')
     with pytest.raises(DatabaseError) as e:
         db_table.run(
             "COPY t1 (f1, f2) FROM STDIN WITH DELIMITER 'X' CSV HEADER "

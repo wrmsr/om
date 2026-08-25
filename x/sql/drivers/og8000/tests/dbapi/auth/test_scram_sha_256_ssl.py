@@ -1,5 +1,4 @@
-from ssl import CERT_NONE
-from ssl import create_default_context
+import ssl
 
 import pytest
 
@@ -34,9 +33,9 @@ def test_scram_sha_256_ssl_context(setup, db_kwargs, pg_server_ssl):
     if not pg_server_ssl:
         pytest.skip('server does not accept SSL')
 
-    ssl_context = create_default_context()
+    ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
-    ssl_context.verify_mode = CERT_NONE
+    ssl_context.verify_mode = ssl.CERT_NONE
 
     db_kwargs['database'] = DB
     db_kwargs['ssl_context'] = ssl_context
