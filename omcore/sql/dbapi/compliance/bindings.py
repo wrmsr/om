@@ -7,8 +7,8 @@ import contextlib
 import types
 import typing as ta
 
-from omcore import check
-from omcore import dataclasses as dc
+from .... import check
+from .... import dataclasses as dc
 
 
 ##

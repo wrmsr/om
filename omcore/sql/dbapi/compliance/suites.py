@@ -16,10 +16,9 @@ import typing as ta
 
 import pytest
 
-from omcore.sql.dbapi.abc import DbapiConnection
-from omcore.sql.dbapi.abc import DbapiCursor
-from omcore.sql.dbapi.abc import DbapiModule
-
+from ..abc import DbapiConnection
+from ..abc import DbapiCursor
+from ..abc import DbapiModule
 from .bindings import DbapiComplianceBinding
 
 

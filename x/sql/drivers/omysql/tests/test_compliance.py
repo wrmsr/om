@@ -2,8 +2,9 @@ import typing as ta
 
 import pytest
 
-from ....dbapi.compliance.bindings import DbapiComplianceBinding
-from ....dbapi.compliance.suites import DbapiComplianceSuite
+from omcore.sql.dbapi.compliance.bindings import DbapiComplianceBinding
+from omcore.sql.dbapi.compliance.suites import DbapiComplianceSuite
+
 from .. import dbapi
 
 
