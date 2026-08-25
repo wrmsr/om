@@ -25,7 +25,7 @@ class Config:
 
     autoexec: lang.SequenceNotStr[str] | None = None
 
-    stream: bool | None = None
+    immediate: bool | None = None
 
     verbose: bool | None = None
 
@@ -48,7 +48,7 @@ def make_config_parser() -> argparse.ArgumentParser:
 
     parser.add_argument('-X', '--autoexec', action='append')
 
-    parser.add_argument('-S', '--stream', action='store_true')
+    parser.add_argument('-I', '--immediate', action='store_true')
 
     parser.add_argument('-v', '--verbose', action='store_true')
 
@@ -73,7 +73,7 @@ def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
 
         autoexec=args.autoexec,
 
-        stream=args.stream,
+        immediate=args.immediate,
 
         verbose=args.verbose,
     )

@@ -151,11 +151,11 @@ class AgentEventRenderer:
             app.end_ai_turn()
 
         elif isinstance(ev, agn.LlmAiStreamEvent):
-            if self._config.stream:
+            if not self._config.immediate:
                 self._on_stream_event(ev.event)
 
         elif isinstance(ev, agn.TurnEndEvent):
-            if not self._config.stream and isinstance(msg := ev.message, llm.AiMessage):
+            if self._config.immediate and isinstance(msg := ev.message, llm.AiMessage):
                 for c in msg.content:
                     if isinstance(c, llm.TextContent) and (s := c.text.strip()):
                         await self._text_displayer.display_text(ui.MarkdownText(s))

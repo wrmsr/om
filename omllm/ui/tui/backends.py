@@ -32,20 +32,20 @@ def bind_backends(config: Config) -> inj.Elements:
     backend: ta.Any
     if (config.model or DEFAULT_MODEL) == 'scripted':
         # Offline development / testing: the scripted backend's built-in canned responses, no keys or network.
-        if config.stream:
-            backend_cls = llm.ScriptedStreamBackend
-        else:
+        if config.immediate:
             backend_cls = llm.ScriptedImmediateBackend
+        else:
+            backend_cls = llm.ScriptedStreamBackend
 
         backend = backend_cls(
             llm.Model(key=llm.ModelKey('scripted', 'scripted'), backend='scripted'),
         )
 
     else:
-        if config.stream:
-            backend_cls = llm.OpenaiCompletionsStreamBackend
-        else:
+        if config.immediate:
             backend_cls = llm.OpenaiCompletionsImmediateBackend
+        else:
+            backend_cls = llm.OpenaiCompletionsStreamBackend
 
         model_key, api_key_name = MODELS[config.model or DEFAULT_MODEL]
 

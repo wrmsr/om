@@ -7,9 +7,10 @@ from importlib import import_module
 
 from omcore import check
 
-from ...packaging.names import canonicalize_name
-from ...packaging.requirements import InvalidRequirementError as _InvalidRequirementError
-from ...packaging.requirements import Requirement
+from omdev.packaging.names import canonicalize_name
+from omdev.packaging.requirements import InvalidRequirementError as _InvalidRequirementError
+from omdev.packaging.requirements import Requirement
+
 from .._parser import distribution_to_specifier
 
 

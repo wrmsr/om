@@ -1818,6 +1818,7 @@ class MarketType(_base.Enum):
     SPOT = 'spot'
     CAPACITY_BLOCK = 'capacity-block'
     INTERRUPTIBLE_CAPACITY_RESERVATION = 'interruptible-capacity-reservation'
+    ON_DEMAND = 'on-demand'
 
 
 MaxIpv4AddrPerInterface = _ta.NewType('MaxIpv4AddrPerInterface', int)

@@ -101,9 +101,6 @@ class PromptPump:
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
     config = parse_config(argv)
 
-    if config.stream is None:
-        config = dc.replace(config, stream=True)
-
     cwd = os.path.abspath(os.path.realpath(config.cwd or os.getcwd()))
     config = dc.replace(config, cwd=cwd)  # noqa
 

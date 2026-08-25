@@ -9,8 +9,9 @@ import typing as ta
 
 from omcore import check
 
-from ...packaging.names import canonicalize_name
-from ...packaging.requirements import Requirement
+from omdev.packaging.names import canonicalize_name
+from omdev.packaging.requirements import Requirement
+
 from .._warning import get_warning_printer
 from .package import DistPackage
 from .package import InvalidRequirementError

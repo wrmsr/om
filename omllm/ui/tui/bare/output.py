@@ -114,16 +114,16 @@ def bind_output(config: Config) -> inj.Elements:
             bind_on_agent_event_subscriber(VerbosePrinter),
         ])
 
-    if config.stream:
+    if config.immediate:
         lst.extend([
-            inj.bind(StreamResponsePrinter, singleton=True),
-            bind_on_agent_event_subscriber(StreamResponsePrinter),
+            inj.bind(ImmediateResponsePrinter, singleton=True),
+            bind_on_agent_event_subscriber(ImmediateResponsePrinter),
         ])
 
     else:
         lst.extend([
-            inj.bind(ImmediateResponsePrinter, singleton=True),
-            bind_on_agent_event_subscriber(ImmediateResponsePrinter),
+            inj.bind(StreamResponsePrinter, singleton=True),
+            bind_on_agent_event_subscriber(StreamResponsePrinter),
         ])
 
     return inj.as_elements(*lst)

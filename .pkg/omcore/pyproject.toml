@@ -58,7 +58,9 @@ mypy = [
     'mypy ~= 2.3',
 ]
 secrets = [
+    'asn1crypto ~= 1.5',
     'cryptography ~= 50.0',
+    'pynacl ~= 1.6',
 ]
 sqlalchemy = [
     'sqlalchemy[asyncio] ~= 2.0',
@@ -115,7 +117,9 @@ all = [
     'cloudpickle ~= 3.1',
     'httpx[http2] ~= 0.28',
     'mypy ~= 2.3',
+    'asn1crypto ~= 1.5',
     'cryptography ~= 50.0',
+    'pynacl ~= 1.6',
     'sqlalchemy[asyncio] ~= 2.0',
     'pg8000 ~= 1.31',
     'psycopg2 ~= 2.9',
