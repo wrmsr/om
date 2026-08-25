@@ -6,19 +6,19 @@ from ..types import PGInterval
 from ..types import Range
 
 
-def test_PGInterval_init():
+def test_pginterval_init():
     i = PGInterval(days=1)
     assert i.months is None
     assert i.days == 1
     assert i.microseconds is None
 
 
-def test_PGInterval_repr():
+def test_pginterval_repr():
     v = PGInterval(microseconds=123456789, days=2, months=24)
     assert repr(v) == '<PGInterval 24 months 2 days 123456789 microseconds>'
 
 
-def test_PGInterval_str():
+def test_pginterval_str():
     v = PGInterval(microseconds=123456789, days=2, months=24, millennia=2)
     assert str(v) == '2 millennia 24 months 2 days 123456789 microseconds'
 
@@ -35,7 +35,7 @@ def test_PGInterval_str():
         ('PT1M32.32S', PGInterval(minutes=1, seconds=32.32)),
     ],
 )
-def test_PGInterval_from_str_iso_8601(value, expected):
+def test_pginterval_from_str_iso_8601(value, expected):
     interval = PGInterval.from_str_iso_8601(value)
     assert interval == expected
 
@@ -58,7 +58,7 @@ def test_PGInterval_from_str_iso_8601(value, expected):
         ),
     ],
 )
-def test_PGInterval_from_str_postgres(value, expected):
+def test_pginterval_from_str_postgres(value, expected):
     interval = PGInterval.from_str_postgres(value)
     assert interval == expected
 
@@ -71,16 +71,16 @@ def test_PGInterval_from_str_postgres(value, expected):
         'day 1',
     ],
 )
-def test_PGInterval_from_str_postgres_unit_without_number(value):
+def test_pginterval_from_str_postgres_unit_without_number(value):
     with pytest.raises(ValueError, match='not preceded by a number'):
         PGInterval.from_str_postgres(value)
 
 
-def test_PGInterval_to_timedelta():
+def test_pginterval_to_timedelta():
     assert PGInterval(days=1, seconds=30).to_timedelta() == datetime.timedelta(days=1, seconds=30)
 
 
-def test_PGInterval_to_timedelta_unfittable_fields():
+def test_pginterval_to_timedelta_unfittable_fields():
     with pytest.raises(ValueError, match=r"Can't fit the interval fields \['months', 'years'\]"):
         PGInterval(years=1, months=2, days=3).to_timedelta()
 
@@ -97,7 +97,7 @@ def test_PGInterval_to_timedelta_unfittable_fields():
         ('8 4:00:32.32', PGInterval(days=8, hours=4, minutes=0, seconds=32.32)),
     ],
 )
-def test_PGInterval_from_str_sql_standard(value, expected):
+def test_pginterval_from_str_sql_standard(value, expected):
     interval = PGInterval.from_str_sql_standard(value)
     assert interval == expected
 
@@ -116,17 +116,17 @@ def test_PGInterval_from_str_sql_standard(value, expected):
         ('00:00:30', PGInterval(seconds=30)),
     ],
 )
-def test_PGInterval_from_str(value, expected):
+def test_pginterval_from_str(value, expected):
     interval = PGInterval.from_str(value)
     assert interval == expected
 
 
-def test_Range_equals():
+def test_range_equals():
     pg_range_a = Range(1, 2, '[)')
     pg_range_b = Range(1, 2, '[)')
     assert pg_range_a == pg_range_b
 
 
-def test_Range_str():
+def test_range_str():
     v = Range(5, 6)
     assert str(v) == '[5,6)'

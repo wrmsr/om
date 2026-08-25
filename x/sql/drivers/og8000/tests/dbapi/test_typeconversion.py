@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ001
 import datetime
 import decimal
 import enum
@@ -335,8 +336,8 @@ def test_timestamp_tz_out(cursor):
     retval = cursor.fetchall()
     dt = retval[0][0]
     assert dt.tzinfo is not None, 'no tzinfo returned'
-    assert dt.astimezone(datetime.timezone.utc) == datetime.datetime(
-        2001, 2, 3, 11, 5, 6, 170000, datetime.timezone.utc,
+    assert dt.astimezone(datetime.UTC) == datetime.datetime(
+        2001, 2, 3, 11, 5, 6, 170000, datetime.UTC,
     ), 'retrieved value match failed'
 
 
@@ -374,9 +375,9 @@ def test_timestamp_mismatch(cursor):
         # that comes out will be the server's local time interpretation of v1. We've set the server's TZ to MST, the
         # time should be...
         f1 = retval[0][0]
-        assert f1 == datetime.datetime(2001, 2, 3, 11, 5, 6, 170000, datetime.timezone.utc)
+        assert f1 == datetime.datetime(2001, 2, 3, 11, 5, 6, 170000, datetime.UTC)
 
-        # inserting the timestamptz into a timestamp field, pg8000 converts the value into UTC, and then the PG server
+        # inserting the timestamptz into a timestamp field, og8000 converts the value into UTC, and then the PG server
         # converts it into local time for insertion into the field. When we query for it, we get the same time back,
         # like the tz was dropped.
         f2 = retval[0][1]

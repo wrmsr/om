@@ -374,9 +374,9 @@ class ProtocolSession:
 
         elif isinstance(msg, msgs.AuthenticationOther):
             if msg.code in (2, 4, 6, 7, 8, 9):
-                raise InterfaceError(f'Authentication method {msg.code} not supported by pg8000.')
+                raise InterfaceError(f'Authentication method {msg.code} not supported by og8000.')
             else:
-                raise InterfaceError(f'Authentication method {msg.code} not recognized by pg8000.')
+                raise InterfaceError(f'Authentication method {msg.code} not recognized by og8000.')
 
         else:
             raise TypeError(msg)

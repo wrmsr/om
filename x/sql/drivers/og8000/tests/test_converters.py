@@ -1,11 +1,7 @@
-from datetime import date as Date
-from datetime import datetime as DateTime
-from datetime import time as Time
-from datetime import timedelta as TimeDelta
-from datetime import timezone as TimeZone
-from decimal import Decimal
-from ipaddress import IPv4Address
-from ipaddress import IPv4Network
+# ruff: noqa: DTZ001
+import datetime
+import decimal
+import ipaddress
 
 import pytest
 
@@ -38,7 +34,7 @@ from ..native import InterfaceError
 @pytest.mark.parametrize(
     ('value', 'expected'),
     [
-        ('2022-03-02', Date(2022, 3, 2)),
+        ('2022-03-02', datetime.date(2022, 3, 2)),
         ('infinity', 'infinity'),
         ('-infinity', '-infinity'),
         ('20022-03-02', '20022-03-02'),
@@ -56,10 +52,10 @@ def test_null_out():
     ('array', 'out'),
     [
         ([True, False, None], '{true,false,NULL}'),  # bool[]
-        ([IPv4Address('192.168.0.1')], '{192.168.0.1}'),  # inet[]
-        ([Date(2021, 3, 1)], '{2021-03-01}'),  # date[]
+        ([ipaddress.IPv4Address('192.168.0.1')], '{192.168.0.1}'),  # inet[]
+        ([datetime.date(2021, 3, 1)], '{2021-03-01}'),  # date[]
         ([b'\x00\x01\x02\x03\x02\x01\x00'], '{"\\\\x00010203020100"}'),  # bytea[]
-        ([IPv4Network('192.168.0.0/28')], '{192.168.0.0/28}'),  # inet[]
+        ([ipaddress.IPv4Network('192.168.0.0/28')], '{192.168.0.0/28}'),  # inet[]
         ([1, 2, 3], '{1,2,3}'),  # int2[]
         ([1, None, 3], '{1,NULL,3}'),  # int2[] with None
         ([[1, 2], [3, 4]], '{{1,2},{3,4}}'),  # int2[] multidimensional
@@ -104,7 +100,7 @@ def test_numeric_out(value):
     ],
 )
 def test_numeric_in(value):
-    assert numeric_in(value) == Decimal(value)
+    assert numeric_in(value) == decimal.Decimal(value)
 
 
 @pytest.mark.parametrize(
@@ -149,7 +145,7 @@ def test_string_in(value):
 
 def test_time_in():
     actual = time_in('12:57:18.000396')
-    assert actual == Time(12, 57, 18, 396)
+    assert actual == datetime.time(12, 57, 18, 396)
 
 
 @pytest.mark.parametrize(
@@ -166,8 +162,8 @@ def test_pg_interval_in(value, expected):
 @pytest.mark.parametrize(
     ('value', 'expected'),
     [
-        ('2 hours', TimeDelta(hours=2)),
-        ('00:00:30', TimeDelta(seconds=30)),
+        ('2 hours', datetime.timedelta(hours=2)),
+        ('00:00:30', datetime.timedelta(seconds=30)),
     ],
 )
 def test_interval_in(value, expected):
@@ -194,33 +190,33 @@ def test_array_string_escape(value, expected):
     [
         (
             '2022-10-08 15:01:39+01:30',
-            DateTime(
-                2022, 10, 8, 15, 1, 39, tzinfo=TimeZone(TimeDelta(hours=1, minutes=30)),
+            datetime.datetime(
+                2022, 10, 8, 15, 1, 39, tzinfo=datetime.timezone(datetime.timedelta(hours=1, minutes=30)),
             ),
         ),
         (
             '2022-10-08 15:01:39-01:30',
-            DateTime(
+            datetime.datetime(
                 2022,
                 10,
                 8,
                 15,
                 1,
                 39,
-                tzinfo=TimeZone(TimeDelta(hours=-1, minutes=-30)),
+                tzinfo=datetime.timezone(datetime.timedelta(hours=-1, minutes=-30)),
             ),
         ),
         (
             '2022-10-08 15:01:39+02',
-            DateTime(2022, 10, 8, 15, 1, 39, tzinfo=TimeZone(TimeDelta(hours=2))),
+            datetime.datetime(2022, 10, 8, 15, 1, 39, tzinfo=datetime.timezone(datetime.timedelta(hours=2))),
         ),
         (
             '2022-10-08 15:01:39-02',
-            DateTime(2022, 10, 8, 15, 1, 39, tzinfo=TimeZone(TimeDelta(hours=-2))),
+            datetime.datetime(2022, 10, 8, 15, 1, 39, tzinfo=datetime.timezone(datetime.timedelta(hours=-2))),
         ),
         (
             '2022-10-08 15:01:39.597026+01:30',
-            DateTime(
+            datetime.datetime(
                 2022,
                 10,
                 8,
@@ -228,12 +224,12 @@ def test_array_string_escape(value, expected):
                 1,
                 39,
                 597026,
-                tzinfo=TimeZone(TimeDelta(hours=1, minutes=30)),
+                tzinfo=datetime.timezone(datetime.timedelta(hours=1, minutes=30)),
             ),
         ),
         (
             '2022-10-08 15:01:39.597026-01:30',
-            DateTime(
+            datetime.datetime(
                 2022,
                 10,
                 8,
@@ -241,19 +237,19 @@ def test_array_string_escape(value, expected):
                 1,
                 39,
                 597026,
-                tzinfo=TimeZone(TimeDelta(hours=-1, minutes=-30)),
+                tzinfo=datetime.timezone(datetime.timedelta(hours=-1, minutes=-30)),
             ),
         ),
         (
             '2022-10-08 15:01:39.597026+02',
-            DateTime(
-                2022, 10, 8, 15, 1, 39, 597026, tzinfo=TimeZone(TimeDelta(hours=2)),
+            datetime.datetime(
+                2022, 10, 8, 15, 1, 39, 597026, tzinfo=datetime.timezone(datetime.timedelta(hours=2)),
             ),
         ),
         (
             '2022-10-08 15:01:39.597026-02',
-            DateTime(
-                2022, 10, 8, 15, 1, 39, 597026, tzinfo=TimeZone(TimeDelta(hours=-2)),
+            datetime.datetime(
+                2022, 10, 8, 15, 1, 39, 597026, tzinfo=datetime.timezone(datetime.timedelta(hours=-2)),
             ),
         ),
         (
@@ -284,7 +280,7 @@ def test_timestamp_in(value, expected):
     [
         (
             '["2001-02-03 04:05:00","2023-02-03 04:05:00")',
-            Range(DateTime(2001, 2, 3, 4, 5), DateTime(2023, 2, 3, 4, 5)),
+            Range(datetime.datetime(2001, 2, 3, 4, 5), datetime.datetime(2023, 2, 3, 4, 5)),
         ),
     ],
 )
@@ -298,8 +294,8 @@ def test_tsrange_in(value, expected):
         (
             '{[2023-06-01,2023-06-06),[2023-06-10,2023-06-13)}',
             [
-                Range(Date(2023, 6, 1), Date(2023, 6, 6)),
-                Range(Date(2023, 6, 10), Date(2023, 6, 13)),
+                Range(datetime.date(2023, 6, 1), datetime.date(2023, 6, 6)),
+                Range(datetime.date(2023, 6, 10), datetime.date(2023, 6, 13)),
             ],
         ),
     ],
@@ -379,7 +375,7 @@ def test_literal_float():
 
 
 def test_literal_decimal():
-    assert literal(Decimal('0.1')) == '0.1'
+    assert literal(decimal.Decimal('0.1')) == '0.1'
 
 
 def test_literal_bytes():
@@ -390,27 +386,27 @@ def test_literal_boolean():
     assert literal(True) == 'TRUE'
 
 
-def test_literal_None():
+def test_literal_none():
     assert literal(None) == 'NULL'
 
 
-def test_literal_Time():
-    assert literal(Time(22, 13, 2)) == "'22:13:02'"
+def test_literal_time():
+    assert literal(datetime.time(22, 13, 2)) == "'22:13:02'"
 
 
-def test_literal_Date():
-    assert literal(Date(2063, 11, 2)) == "'2063-11-02'"
+def test_literal_date():
+    assert literal(datetime.date(2063, 11, 2)) == "'2063-11-02'"
 
 
-def test_literal_TimeDelta():
-    assert literal(TimeDelta(22, 13, 2)) == "'22 days 13 seconds 2 microseconds'"
+def test_literal_timedelta():
+    assert literal(datetime.timedelta(22, 13, 2)) == "'22 days 13 seconds 2 microseconds'"
 
 
-def test_literal_Datetime():
-    assert literal(DateTime(2063, 3, 31, 22, 13, 2)) == "'2063-03-31T22:13:02'"
+def test_literal_datetime():
+    assert literal(datetime.datetime(2063, 3, 31, 22, 13, 2)) == "'2063-03-31T22:13:02'"
 
 
-def test_literal_Trojan():
+def test_literal_trojan():
     class Trojan:
         def __str__(self):
             return 'A Gift'

@@ -30,9 +30,9 @@ import json
 import typing as ta
 import uuid
 
+from ..types import RANGE_BOUNDS_VALUES
 from ..types import PGInterval
 from ..types import Range
-from ..types import RANGE_BOUNDS_VALUES
 from .adapters import InAdapter
 from .adapters import IpAddressOrNetwork
 

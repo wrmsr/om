@@ -278,6 +278,9 @@ class PGInterval:
 
         return PGInterval(months=months, days=days, seconds=seconds)
 
+    def __hash__(self) -> int:
+        raise TypeError(self)
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, PGInterval):
             s = self.normalize()
@@ -331,6 +334,9 @@ class Range(ta.Generic[T]):
         self.upper = upper
         self.bounds = bounds
         self.is_empty = is_empty
+
+    def __hash__(self) -> int:
+        raise TypeError(self)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Range):

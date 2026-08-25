@@ -488,7 +488,7 @@ class Cursor:
     def execute(self, operation: str, args: QueryArgs = (), stream: CopyStream | None = None) -> None:
         """
         Executes a database operation. Parameters may be provided as a sequence, or as a mapping, depending upon the
-        value of :data:`pg8000.paramstyle`.
+        value of :data:`og8000.paramstyle`.
 
         This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
@@ -503,7 +503,7 @@ class Cursor:
             or a mapping.
 
         :param stream:
-             This is a pg8000 extension for use with the PostgreSQL
+             This is a og8000 extension for use with the PostgreSQL
             `COPY <http://www.postgresql.org/docs/current/static/sql-copy.html>`_ command. For a COPY FROM the parameter
             must be a readable file-like object, and for COPY TO it must be writable.
         """
@@ -707,7 +707,7 @@ class Cursor:
         """
         This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_, however, it is not
-        implemented by pg8000.
+        implemented by og8000.
         """
 
         pass
@@ -914,7 +914,7 @@ class Connection(SyncCoreConnection):
 class Warning(Exception):  # noqa: A001,N818
     """
     Generic exception raised for important database warnings like data
-    truncations. This exception is not currently used by pg8000.
+    truncations. This exception is not currently used by og8000.
 
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
@@ -926,7 +926,7 @@ class Warning(Exception):  # noqa: A001,N818
 class DataError(DatabaseError):
     """
     Generic exception raised for errors that are due to problems with the
-    processed data. This exception is not currently raised by pg8000.
+    processed data. This exception is not currently raised by og8000.
 
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
@@ -939,7 +939,7 @@ class OperationalError(DatabaseError):
     """
     Generic exception raised for errors that are related to the database's
     operation and not necessarily under the control of the programmer. This
-    exception is currently never raised by pg8000.
+    exception is currently never raised by og8000.
 
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
@@ -951,7 +951,7 @@ class OperationalError(DatabaseError):
 class IntegrityError(DatabaseError):
     """
     Generic exception raised when the relational integrity of the database is
-    affected. This exception is not currently raised by pg8000.
+    affected. This exception is not currently raised by og8000.
 
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
@@ -963,7 +963,7 @@ class IntegrityError(DatabaseError):
 class InternalError(DatabaseError):
     """
     Generic exception raised when the database encounters an internal error.
-    This is currently only raised when unexpected state occurs in the pg8000
+    This is currently only raised when unexpected state occurs in the og8000
     interface itself, and is typically the result of a interface bug.
 
     This exception is part of the `DBAPI 2.0 specification

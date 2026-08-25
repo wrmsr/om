@@ -5,8 +5,7 @@ from ...errors import DatabaseError
 from ...native import to_statement
 
 
-# Tests relating to the basic operation of the database driver, driven by the
-# pg8000 custom interface.
+# Tests relating to the basic operation of the database driver, driven by the og8000 custom interface.
 
 
 @pytest.fixture
@@ -16,14 +15,12 @@ def db_table(request, con):
         'f2 bigint not null, f3 varchar(50) null) ',
     )
 
-    def fin():
-        try:
-            con.run('drop table t1')
-        except DatabaseError:
-            pass
+    yield con
 
-    request.addfinalizer(fin)
-    return con
+    try:
+        con.run('drop table t1')
+    except DatabaseError:
+        pass
 
 
 def test_database_error(con):
@@ -71,7 +68,7 @@ def test_insert_returning(db_table):
 
     # Test with multiple rows...
     res = db_table.run(
-        'INSERT INTO t2 (data) VALUES (:v1), (:v2), (:v3) ' 'RETURNING id',
+        'INSERT INTO t2 (data) VALUES (:v1), (:v2), (:v3) RETURNING id',
         v1='test2',
         v2='test3',
         v3='test4',
@@ -231,10 +228,10 @@ def test_not_parsed_if_no_params(mocker, con):
 
 
 def test_max_parameters(con):
-    SIZE = 60000
-    kwargs = {f'param_{i}': 1 for i in range(SIZE)}
+    size = 60000
+    kwargs = {f'param_{i}': 1 for i in range(size)}
     con.run(
-        f"SELECT 1 WHERE 1 IN ({','.join([f':param_{i}' for i in range(SIZE)])})",
+        f"SELECT 1 WHERE 1 IN ({','.join([f':param_{i}' for i in range(size)])})",
         **kwargs,
     )
 

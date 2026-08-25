@@ -3,6 +3,8 @@ from io import StringIO
 
 import pytest
 
+from ...errors import DatabaseError
+
 
 @pytest.fixture
 def db_table(request, con):
@@ -80,7 +82,7 @@ def test_copy_from_with_query(db_table):
 
 def test_copy_from_with_error(db_table):
     stream = BytesIO(b'f1Xf2\n\n1XY1Y\n')
-    with pytest.raises(BaseException) as e:
+    with pytest.raises(DatabaseError) as e:
         db_table.run(
             "COPY t1 (f1, f2) FROM STDIN WITH DELIMITER 'X' CSV HEADER "
             "QUOTE AS 'Y' FORCE NOT NULL f1",

@@ -1,3 +1,4 @@
+# ruff: noqa: SLF001
 import hashlib
 import typing as ta
 
@@ -45,7 +46,7 @@ def test_b64dec_fails(string, error_msg, server_error):
     ],
 )
 def test_xor_fails(a, b, msg):
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(ValueError) as exc_info:  # noqa
         xor(a, b)
 
     assert str(exc_info.value) == msg
@@ -57,32 +58,33 @@ def test_xor_fails(a, b, msg):
         (
             '',
             [{'a', 'b', 'c'}],
-            "Malformed trial message. Attributes must be separated by a ',' and each "
-            "attribute must start with a letter followed by a '=': other-error",
+            (
+                "Malformed trial message. Attributes must be separated by a ',' and each "
+                "attribute must start with a letter followed by a '=': other-error"
+            ),
         ),
         (
             'c=jk,d=kln',
             [{'a', 'b', 'c'}],
-            'Malformed trial message. Expected the attribute set to be one of '
-            '[{a, b, c}] but found {c}: other-error',
+            (
+                'Malformed trial message. Expected the attribute set to be one of '
+                '[{a, b, c}] but found {c}: other-error'
+            ),
         ),
         (
             'c=jk,c=kln',
             [{'c'}],
-            'Duplicate attributes not allowed in message. The duplicated attribute '
-            'is c. : other-error',
+            'Duplicate attributes not allowed in message. The duplicated attribute is c. : other-error',
         ),
         (
             'e=error',
             [{'c'}],
-            'Malformed trial message. Expected the attribute set to be one of [{c}] '
-            'but found {e}: other-error',
+            'Malformed trial message. Expected the attribute set to be one of [{c}] but found {e}: other-error',
         ),
         (
             'e=\x00',
             [{'e'}],
-            "Malformed trial message. Attribute values can't contain the NUL "
-            "character: other-error",
+            "Malformed trial message. Attribute values can't contain the NUL character: other-error",
         ),
     ],
 )
@@ -111,9 +113,11 @@ def test_parse_message_succeed(msg, att_sets, result):
     [
         (
             ('c', 'd'),
-            "The channel_binding parameter must either be None or a "
-            "tuple with the first element a str specifying one of the channel types "
-            "('tls-server-end-point', 'tls-unique', 'tls-unique-for-telnet').",
+            (
+                "The channel_binding parameter must either be None or a "
+                "tuple with the first element a str specifying one of the channel types "
+                "('tls-server-end-point', 'tls-unique', 'tls-unique-for-telnet')."
+            ),
         ),
     ],
 )
@@ -130,7 +134,7 @@ def test_validate_channel_binding_fail(cb, msg):
         ('p', 'aname', 'p=aname,,'),
     ],
 )
-def test_Gs2Header_str(gs2_char, cb_name, expected):
+def test_gs2header_str(gs2_char, cb_name, expected):
     gs2_header = Gs2Header(gs2_char, cb_name)
     assert str(gs2_header) == expected
 
@@ -141,7 +145,7 @@ def test_Gs2Header_str(gs2_char, cb_name, expected):
         ('p', 'aname'),
     ],
 )
-def test_Gs2Header_eq(gs2_char, cb_name):
+def test_gs2header_eq(gs2_char, cb_name):
     gs2_header_a = Gs2Header(gs2_char, cb_name)
     gs2_header_b = Gs2Header(gs2_char, cb_name)
     assert gs2_header_a == gs2_header_b
@@ -152,13 +156,15 @@ def test_Gs2Header_eq(gs2_char, cb_name):
     [
         (
             '',  # Must be bytes
-            "The 'salt' must be of type bytes, but found type <class 'str'>: "
-            "other-error",
+            (
+                "The 'salt' must be of type bytes, but found type <class 'str'>: "
+                "other-error"
+            ),
             'other-error',
         ),
     ],
 )
-def test_Salt_init_error(salt, error_msg, server_error):
+def test_salt_init_error(salt, error_msg, server_error):
     with pytest.raises(ScramException) as exc_info:
         Salt(salt)
 
@@ -171,13 +177,15 @@ def test_Salt_init_error(salt, error_msg, server_error):
     [
         (
             '!!!',
-            "Invalid salt encoding: Invalid base 64 encoding '!!!': "
-            "invalid-encoding: invalid-encoding",
+            (
+                "Invalid salt encoding: Invalid base 64 encoding '!!!': "
+                "invalid-encoding: invalid-encoding"
+            ),
             'invalid-encoding',
         ),
     ],
 )
-def test_Salt_from_str_error(salt_str, error_msg, server_error):
+def test_salt_from_str_error(salt_str, error_msg, server_error):
     with pytest.raises(ScramException) as exc_info:
         Salt.from_str(salt_str)
 
@@ -190,13 +198,15 @@ def test_Salt_from_str_error(salt_str, error_msg, server_error):
     [
         (
             b'',  # Must be str
-            "The 'nonce' must be of type str, but found type <class 'bytes'>: "
-            "other-error",
+            (
+                "The 'nonce' must be of type str, but found type <class 'bytes'>: "
+                "other-error"
+            ),
             'other-error',
         ),
     ],
 )
-def test_Nonce_init_error(nonce, error_msg, server_error):
+def test_nonce_init_error(nonce, error_msg, server_error):
     with pytest.raises(ScramException) as exc_info:
         Nonce(nonce)
 
@@ -526,7 +536,7 @@ def test_client(x):
 def test_check_stage():
     with pytest.raises(
         ScramException,
-        match='The next method to be called is set_server_first, not this method.',
+        match=r'The next method to be called is set_server_first, not this method.',
     ):
         scramp._check_stage(
             scramp.ClientStage,
@@ -550,14 +560,18 @@ def test_check_stage():
             'junk',
             'fyko+d2lbbFgONRv9qkxdawL',
             1000,
-            "Malformed server first message. Attributes must be separated by a ',' "
-            "and each attribute must start with a letter followed by a '=': "
-            "other-error",
+            (
+                "Malformed server first message. Attributes must be separated by a ',' "
+                "and each attribute must start with a letter followed by a '=': "
+                "other-error"
+            ),
         ),
         # Malformed iteration count in server first
         (
-            'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
-            's=W22ZaJ0SNY7soEsUEjb6gQ==,i=not_an_integer',
+            (
+                'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
+                's=W22ZaJ0SNY7soEsUEjb6gQ==,i=not_an_integer'
+            ),
             'fyko+d2lbbFgONRv9qkxdawL',
             1000,
             'Server iteration count not_an_integer is not valid',
@@ -583,8 +597,10 @@ def test_set_server_final_missing_param():
     c.get_client_final()
     with pytest.raises(
         ScramException,
-        match="Malformed server final message. Attributes must be separated by a ',' "
-        "and each attribute must start with a letter followed by a '=': other-error",
+        match=(
+                r"Malformed server final message. Attributes must be separated by a ',' "
+                r"and each attribute must start with a letter followed by a '=': other-error"
+        ),
     ):
         c.set_server_final('junk')
 

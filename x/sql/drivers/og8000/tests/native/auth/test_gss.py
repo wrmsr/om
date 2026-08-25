@@ -19,4 +19,4 @@ def test_gss(db_kwargs):
             raise exc_info.value
         pytest.skip("pg_hba.conf does not force gss auth for the database 'test_og8000_gss'")
 
-    assert str(exc_info.value) == 'Authentication method 7 not supported by pg8000.'
+    assert str(exc_info.value) == 'Authentication method 7 not supported by og8000.'

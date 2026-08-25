@@ -1,5 +1,5 @@
-import socket
 import datetime
+import socket
 
 import pytest
 
@@ -198,20 +198,20 @@ def test_application_name_bytearray(db_kwargs):
         pass
 
 
-class PG8000TestException(Exception):
+class OG8000TestError(Exception):
     pass
 
 
 def raise_exception(val):
-    raise PG8000TestException('oh noes!')
+    raise OG8000TestError('oh noes!')
 
 
 def test_py_value_fail(con):
-    # Ensure that if an out adapter throws an exception, the original exception is raised (PG8000TestException), and the
+    # Ensure that if an out adapter throws an exception, the original exception is raised (OG8000TestError), and the
     # connection is still usable after the error.
     con.register_out_adapter(datetime.time, raise_exception)
 
-    with pytest.raises(PG8000TestException):
+    with pytest.raises(OG8000TestError):
         con.run('SELECT CAST(:v AS TIME)', v=datetime.time(10, 30))
 
     # ensure that the connection is still usable for a new query
@@ -220,7 +220,7 @@ def test_py_value_fail(con):
 
 
 def test_no_data_error_recovery(con):
-    for i in range(1, 4):
+    for _ in range(1, 4):
         with pytest.raises(DatabaseError) as e:
             con.run('DROP TABLE t1')
         assert e.value.args[0]['C'] == '42P01'

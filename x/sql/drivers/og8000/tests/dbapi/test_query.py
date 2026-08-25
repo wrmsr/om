@@ -8,8 +8,7 @@ from ...converters import INET_ARRAY
 from ...converters import INTEGER
 
 
-# Tests relating to the basic operation of the database driver, driven by the
-# pg8000 custom interface.
+# Tests relating to the basic operation of the database driver, driven by the og8000 custom interface.
 
 
 @pytest.fixture
