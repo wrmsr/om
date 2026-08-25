@@ -75,7 +75,9 @@ def test_cleanup_rows_unbuffered(test_table_conn):
 
     c2 = conn.cursor()
 
-    c2.execute('select 1')
+    # The abandoned cursor's remaining rows are read off the wire and discarded, which warns.
+    with pytest.warns(UserWarning, match='Previous unbuffered result was left incomplete'):
+        c2.execute('select 1')
     assert c2.fetchone() == (1,)
     assert c2.fetchone() is None
 
