@@ -76,6 +76,14 @@ SWITCHES: ta.Sequence[Switch] = [
     ),
 
     Switch(
+        'serial',
+        SwitchState.ENABLED,
+        add_marks=[
+            pytest.mark.xdist_group('serial'),
+        ],
+    ),
+
+    Switch(
         'slow',
         SwitchState.IF_SINGLE,
     ),
