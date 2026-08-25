@@ -203,20 +203,20 @@ def test_application_name_bytearray(db_kwargs):
         pass
 
 
-class OG8000TestError(Exception):
+class Og8000TestError(Exception):
     pass
 
 
 def raise_exception(val):
-    raise OG8000TestError('oh noes!')
+    raise Og8000TestError('oh noes!')
 
 
 def test_py_value_fail(con):
-    # Ensure that if an out adapter throws an exception, the original exception is raised (OG8000TestError), and the
+    # Ensure that if an out adapter throws an exception, the original exception is raised (Og8000TestError), and the
     # connection is still usable after the error.
     con.register_out_adapter(datetime.time, raise_exception)
 
-    with pytest.raises(OG8000TestError):
+    with pytest.raises(Og8000TestError):
         con.run('SELECT CAST(:v AS TIME)', v=datetime.time(10, 30))
 
     # ensure that the connection is still usable for a new query

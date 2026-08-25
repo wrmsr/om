@@ -210,19 +210,19 @@ def test_broken_pipe_unpack(con):
 
 
 def test_py_value_fail(con):
-    # Ensure that if an out adapter throws an exception, the original exception is raised (OG8000TestError), and the
+    # Ensure that if an out adapter throws an exception, the original exception is raised (Og8000TestError), and the
     # connection is still usable after the error.
 
-    class OG8000TestError(Exception):
+    class Og8000TestError(Exception):
         pass
 
     def raise_exception(val):
-        raise OG8000TestError('oh noes!')
+        raise Og8000TestError('oh noes!')
 
     con.register_out_adapter(datetime.time, raise_exception)
 
     c = con.cursor()
-    with pytest.raises(OG8000TestError):
+    with pytest.raises(Og8000TestError):
         c.execute('SELECT CAST(%s AS TIME) AS f1', (datetime.time(10, 30),))
 
     # ensure that the connection is still usable for a new query
