@@ -77,6 +77,14 @@ class TestOpenaiBackend(BaseBackendTest):
         return request.param
 
 
+class TestOpenrouterBackend(BaseBackendTest):
+    @pytest.fixture(params=[
+        (ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'), 'openrouter_api_key'),
+    ])
+    def model(self, request):
+        return request.param
+
+
 class TestGroqBackend(BaseBackendTest):
     @pytest.fixture(params=[
         (ModelKey('groq', 'openai/gpt-oss-120b'), 'groq_api_key'),

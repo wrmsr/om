@@ -64,13 +64,19 @@ class RequestPreparer:
             return
 
         cache = self._model.cache
-        if cache is None or cache.control_style not in ('openai_legacy', 'openai_ttl'):
+        if cache is None or cache.control_style not in ('openai_legacy', 'openai_ttl', 'openrouter'):
             raise ValueError(f'Model does not support OpenAI prompt cache controls: {self._model.key!r}')
 
         if cache_key is not None:
             if not cache.key:
                 raise ValueError(f'Model does not support prompt cache keys: {self._model.key!r}')
-            raw_request['prompt_cache_key'] = check.non_empty_str(cache_key)
+
+            if cache.control_style == 'openrouter':
+                # Translated to a session affinity header instead - see raw_headers.
+                pass
+
+            else:
+                raw_request['prompt_cache_key'] = check.non_empty_str(cache_key)
 
         if cache_retention is not None:
             if cache_retention not in cache.retentions:
@@ -198,3 +204,20 @@ class RequestPreparer:
         #
 
         return raw_request
+
+    @lang.cached_function
+    def raw_headers(self) -> ta.Mapping[str, str]:
+        raw_headers: dict[str, str] = {}
+
+        # OpenRouter load-balances across upstream providers, whose implicit prompt caches are per-provider. The
+        # session affinity header routes repeat requests to the same upstream, which is what makes cache hits
+        # attainable at all - so the cache key rides it rather than any request body field.
+        if (
+                (cache := self._model.cache) is not None and
+                cache.control_style == 'openrouter' and
+                (cache_key := self._options.cache_key) is not None
+        ):
+            check.state(cache.key)
+            raw_headers['x-session-id'] = check.non_empty_str(cache_key)
+
+        return raw_headers

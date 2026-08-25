@@ -61,8 +61,9 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             return
         raw_delta = check.isinstance(raw_delta, ta.Mapping)
 
-        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via this field.
-        if raw_reasoning := raw_delta.get('reasoning_content'):
+        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via
+        # reasoning_content, and openrouter normalizes it to reasoning.
+        if raw_reasoning := (raw_delta.get('reasoning_content') or raw_delta.get('reasoning')):
             raw_reasoning = check.isinstance(raw_reasoning, str)
             thinking = self._thinking()
             self._emit(ThinkingDeltaAiStreamEvent(
@@ -107,11 +108,13 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
 class OpenaiCompletionsStreamBackend(BaseOpenaiCompletionsBackend, StreamBackend):
     async def stream(self, context: Context, options: Options | None = None) -> AiStream:
-        raw_request = RequestPreparer(  # noqa
+        preparer = RequestPreparer(
             self._model,
             context,
             options,
-        ).raw_request()
+        )
+
+        raw_request = preparer.raw_request()
 
         raw_request['stream'] = True
         raw_request['stream_options'] = {'include_usage': True}
@@ -122,6 +125,7 @@ class OpenaiCompletionsStreamBackend(BaseOpenaiCompletionsBackend, StreamBackend
             **({'authorization': f'Bearer {self._api_key.reveal()}'} if self._api_key is not None else {}),
             'content-type': 'application/json',
             'accept': 'application/json',
+            **preparer.raw_headers(),
             **(self._model_http.extra_headers or {}),
         }
 

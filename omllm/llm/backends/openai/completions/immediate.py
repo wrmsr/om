@@ -25,11 +25,13 @@ from .responses import translate_token_usage
 
 class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateBackend):
     async def immediate(self, context: Context, options: Options | None = None) -> AiMessage:
-        raw_request = RequestPreparer(
+        preparer = RequestPreparer(
             self._model,
             context,
             options,
-        ).raw_request()
+        )
+
+        raw_request = preparer.raw_request()
 
         raw_request['stream'] = False
 
@@ -39,6 +41,7 @@ class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateB
             **({'authorization': f'Bearer {self._api_key.reveal()}'} if self._api_key is not None else {}),
             'content-type': 'application/json',
             'accept': 'application/json',
+            **preparer.raw_headers(),
             **(self._model_http.extra_headers or {}),
         }
 
@@ -67,8 +70,9 @@ class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateB
 
         content: list[Content] = []
 
-        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via this field.
-        if raw_reasoning := raw_msg.get('reasoning_content'):
+        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via
+        # reasoning_content, and openrouter normalizes it to reasoning.
+        if raw_reasoning := (raw_msg.get('reasoning_content') or raw_msg.get('reasoning')):
             content.append(ThinkingContent(check.isinstance(raw_reasoning, str)))
 
         if raw_content := raw_msg.get('content'):

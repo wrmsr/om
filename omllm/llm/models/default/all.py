@@ -13,6 +13,7 @@ with lang.auto_proxy_import(globals()):
     from . import groq
     from . import ollama
     from . import openai
+    from . import openrouter
 
 
 ##
@@ -27,6 +28,7 @@ def default_models() -> ta.Sequence[Model]:
         *groq.MODELS,
         *ollama.MODELS,
         *openai.MODELS,
+        *openrouter.MODELS,
     ]
 
 

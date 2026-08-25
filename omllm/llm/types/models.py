@@ -14,6 +14,10 @@ CacheControlStyle: ta.TypeAlias = ta.Literal[
     'google_implicit',
     'openai_legacy',
     'openai_ttl',
+
+    # Implicit upstream caching behind a load-balancing gateway - no request cache fields, but Options.cache_key is
+    # translated to a session affinity header so repeat requests reach the same upstream (and thus its cache).
+    'openrouter',
 ]
 
 
