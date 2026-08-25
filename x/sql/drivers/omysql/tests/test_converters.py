@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ001
 import datetime
 import decimal
 
@@ -25,10 +26,10 @@ def test_convert_datetime_with_fsp():
 
 def _check_convert_timedelta(*, with_negate=False, with_fsp=False):
     d = {'hours': 789, 'minutes': 12, 'seconds': 34}
-    s = '%(hours)s:%(minutes)s:%(seconds)s' % d
+    s = '%(hours)s:%(minutes)s:%(seconds)s' % d  # noqa
     if with_fsp:
         d['microseconds'] = 511581
-        s += '.%(microseconds)s' % d
+        s += '.%(microseconds)s' % d  # noqa
 
     expected = datetime.timedelta(**d)
     if with_negate:

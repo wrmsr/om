@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ001
 import datetime
 import json
 import time

@@ -1,20 +1,74 @@
+import os.path
+import types
+import typing as ta
+import urllib.parse
+
 import pytest
 
+from omcore import check
+from omcore.sql.tests.harness import HarnessDbs
+from omcore import sql
+
 from .. import omysql
-from .tests.dbs import DATABASES
+
+
+# The server's CA certificate, for the SSL tests. TODO: wire into the om harness.
+@pytest.fixture(scope='session')
+def ca_pem() -> str:
+    return os.path.expanduser('~/ca.pem')
+
+
+class Database(ta.TypedDict):
+    host: str
+    port: int
+    user: str
+    passwd: str
+    database: str
+
+    use_unicode: ta.NotRequired[bool]
+    local_infile: ta.NotRequired[bool]
 
 
 @pytest.fixture(scope='session')
-def mysql_server_params():
-    """Connection parameters for the MySQL server itself, with no database selected. Root credentials, per the config."""
+def _databases(harness) -> ta.Sequence[Database]:
+    spec = harness[HarnessDbs].specs()['mysql']
+    url = check.isinstance(spec.loc, sql.UrlDbLoc)
+    pu = urllib.parse.urlparse(check.isinstance(url.url, str))
 
-    return {k: v for k, v in DATABASES[0].items() if k != 'database'}
+    dbs = [
+        {
+            **(base := {
+                'host': pu.hostname,
+                'port': pu.port,
+                'user': pu.username,
+                'passwd': pu.password,
+            }),
+            'database': 'test_omysql_1',
+            'use_unicode': True,
+            'local_infile': True,
+        },
+        {
+            **base,
+            'database': 'test_omysql_2',
+        },
+    ]
+
+    return list(map(types.MappingProxyType, dbs))  # type: ignore
 
 
 @pytest.fixture(scope='session')
-def mysql_bootstrap(mysql_server_params):
+def mysql_server_params(_databases):
     """
-    Creates the configured test databases and enables local_infile, undoing both afterwards. Everything it does is
+    Connection parameters for the MySQL server itself, with no database selected. Root credentials, per the config.
+    """
+
+    return {k: v for k, v in _databases[0].items() if k != 'database'}
+
+
+@pytest.fixture(scope='session')
+def mysql_bootstrap(_databases, mysql_server_params):
+    """
+    Creates the configured test _databases and enables local_infile, undoing both afterwards. Everything it does is
     idempotent, so leftovers from a previous run killed at any point are absorbed.
     """
 
@@ -26,12 +80,12 @@ def mysql_bootstrap(mysql_server_params):
         prior_local_infile = bool(cur.fetchone()[0])
         cur.execute('set global local_infile = 1')
 
-        for params in DATABASES:
+        for params in _databases:
             cur.execute(f'create database if not exists `{params["database"]}`')
 
         yield
 
-        for params in DATABASES:
+        for params in _databases:
             cur.execute(f'drop database if exists `{params["database"]}`')
 
         cur.execute(f'set global local_infile = {1 if prior_local_infile else 0}')
@@ -40,10 +94,10 @@ def mysql_bootstrap(mysql_server_params):
 
 
 @pytest.fixture
-def databases(mysql_bootstrap):
+def databases(_databases, mysql_bootstrap):
     """
     Fresh copies of the connection parameter sets for the configured test databases. The canonical way for tests to
     obtain them: the first entry is the primary test database, the second a secondary one.
     """
 
-    return [dict(params) for params in DATABASES]
+    return [dict(params) for params in _databases]

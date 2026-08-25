@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ001
 import datetime
 import os
 import socket
@@ -11,7 +12,8 @@ from ..constants import CLIENT
 from .utils import mysql_server_is
 
 
-OSUSER = os.environ.get('USER')
+def os_user() -> str:
+    return os.environ['USER']
 
 
 class TempUser:
@@ -29,13 +31,13 @@ class TempUser:
         try:
             c.execute(create)
             self._created = True
-        except omysql.err.InternalError:
+        except omysql.InternalError:
             # already exists - TODO need to check the same plugin applies
             self._created = False
         try:
             c.execute(f'GRANT SELECT ON {db}.* TO {user}')
             self._grant = True
-        except omysql.err.InternalError:
+        except omysql.InternalError:
             self._grant = False
 
     def __enter__(self):
@@ -43,7 +45,7 @@ class TempUser:
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self._grant:
-            self._c.execute(f'REVOKE SELECT ON {self._db}.* FROM {self._user}')
+            self._c.execute(f'REVOKE SELECT ON {self._db}.* FROM {self._user}')  # noqa
         if self._created:
             self._c.execute(f'DROP USER {self._user}')
 
@@ -76,17 +78,21 @@ def _auth_info(db):
     con = omysql.connect(**db)
     cur = con.cursor()
     cur.execute('SHOW PLUGINS')
+
     for r in cur:
         if (r[1], r[2]) != ('ACTIVE', 'AUTHENTICATION'):
             continue
+
         if r[3] == 'auth_socket.so' or r[0] == 'unix_socket':
             info.socket_plugin_name = r[0]
             info.socket_found = True
+
         elif r[3] == 'dialog_examples.so':
             if r[0] == 'two_questions':
                 info.two_questions_found = True
             elif r[0] == 'three_attempts':
                 info.three_attempts_found = True
+
         elif r[0] == 'pam':
             info.pam_found = True
             pam_plugin_name = r[3].split('.')[0]
@@ -101,12 +107,16 @@ def _auth_info(db):
             # https://mariadb.com/kb/en/mariadb/pam-authentication-plugin/
 
             # Names differ but functionality is close
+
         elif r[0] == 'mysql_old_password':
             info.mysql_old_password_found = True
+
         elif r[0] == 'sha256_password':
             info.sha256_password_found = True
+
         elif r[0] == 'ed25519':
             info.ed25519_found = True
+
     con.close()
 
     return info
@@ -128,7 +138,7 @@ def _require_pam_env():
 
 class Dialog:
     fail = False
-    m = {}
+    m: dict = {}  # noqa
 
     def __init__(self, con):
         self.fail = Dialog.fail
@@ -170,11 +180,11 @@ class DefectiveHandler:
 def _run_socket_auth(connect, db, plugin_name):
     with TempUser(
         connect().cursor(),
-        OSUSER + '@localhost',
+        os_user() + '@localhost',
         db['database'],
         plugin_name,
     ):
-        omysql.connect(user=OSUSER, **_without_user(db))
+        omysql.connect(user=os_user(), **_without_user(db))
 
 
 def test_socket_auth_install_plugin(connect, databases):
@@ -190,11 +200,11 @@ def test_socket_auth_install_plugin(connect, databases):
         try:
             cur.execute("install plugin auth_socket soname 'auth_socket.so'")
             installed_name = 'auth_socket'
-        except omysql.err.InternalError:
+        except omysql.InternalError:
             try:
                 cur.execute("install soname 'auth_socket'")
                 installed_name = 'unix_socket'
-            except omysql.err.InternalError:
+            except omysql.InternalError:
                 pytest.skip("we couldn't install the socket plugin")
         _run_socket_auth(connect, db, installed_name)
     finally:
@@ -224,7 +234,7 @@ def _run_dialog_auth_two_questions(connect, db):
         'two_questions',
         'notverysecret',
     ):
-        with pytest.raises(omysql.err.OperationalError):
+        with pytest.raises(omysql.OperationalError):
             omysql.connect(user='test_omysql_user', **_without_user(db))
         omysql.connect(
             user='test_omysql_user',
@@ -246,7 +256,7 @@ def test_dialog_auth_two_questions_install_plugin(connect, databases):
         try:
             cur.execute("install plugin two_questions soname 'dialog_examples.so'")
             installed = True
-        except omysql.err.InternalError:
+        except omysql.InternalError:
             pytest.skip("we couldn't install the two_questions plugin")
         _run_dialog_auth_two_questions(connect, db)
     finally:
@@ -274,18 +284,18 @@ def _run_dialog_auth_three_attempts(connect, db):
     ):
         omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
         omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': DialogHandler}, **_without_user(db))
-        with pytest.raises(omysql.err.OperationalError):
+        with pytest.raises(omysql.OperationalError):
             omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': object}, **_without_user(db))
 
-        with pytest.raises(omysql.err.OperationalError):
+        with pytest.raises(omysql.OperationalError):
             omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': DefectiveHandler}, **_without_user(db))
-        with pytest.raises(omysql.err.OperationalError):
+        with pytest.raises(omysql.OperationalError):
             omysql.connect(user='test_omysql_user', auth_plugin_map={b'notdialogplugin': Dialog}, **_without_user(db))
         Dialog.m = {b'Password, please:': b'I do not know'}
-        with pytest.raises(omysql.err.OperationalError):
+        with pytest.raises(omysql.OperationalError):
             omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
         Dialog.m = {b'Password, please:': None}
-        with pytest.raises(omysql.err.OperationalError):
+        with pytest.raises(omysql.OperationalError):
             omysql.connect(user='test_omysql_user', auth_plugin_map={b'dialog': Dialog}, **_without_user(db))
 
 
@@ -302,7 +312,7 @@ def test_dialog_auth_three_attempts_install_plugin(connect, databases):
         try:
             cur.execute("install plugin three_attempts soname 'dialog_examples.so'")
             installed = True
-        except omysql.err.InternalError:
+        except omysql.InternalError:
             pytest.skip("we couldn't install the three_attempts plugin")
         _run_dialog_auth_three_attempts(connect, db)
     finally:
@@ -323,36 +333,35 @@ def _run_pam_auth(connect, db):
     pam_db['password'] = os.environ.get('PASSWORD')
     cur = connect().cursor()
     try:
-        cur.execute('show grants for ' + OSUSER + '@localhost')
+        cur.execute('show grants for ' + os_user() + '@localhost')
         grants = cur.fetchone()[0]
-        cur.execute('drop user ' + OSUSER + '@localhost')
+        cur.execute('drop user ' + os_user() + '@localhost')
     except omysql.OperationalError as e:
         # assuming the user doesn't exist which is ok too
-        assert e.args[0] == 1045
+        assert e.args[0] == 1045  # noqa
         grants = None
     with TempUser(
         cur,
-        OSUSER + '@localhost',
+        os_user() + '@localhost',
         db['database'],
         'pam',
         os.environ.get('PAMSERVICE'),
     ):
         try:
-            omysql.connect(user=OSUSER, **pam_db)
-            pam_db['password'] = 'very bad guess at password'
-            with pytest.raises(omysql.err.OperationalError):
+            omysql.connect(user=os_user(), **pam_db)
+            pam_db['password'] = 'very bad guess at password'  # noqa
+            with pytest.raises(omysql.OperationalError):
                 omysql.connect(
-                    user=OSUSER,
+                    user=os_user(),
                     auth_plugin_map={b'mysql_cleartext_password': DefectiveHandler},
                     **_without_user(db),
                 )
         except omysql.OperationalError as e:
-            assert e.args[0] == 1045
-            # we had 'bad guess at password' work with pam. Well at least we get
-            # a permission denied here
-            with pytest.raises(omysql.err.OperationalError):
+            assert e.args[0] == 1045  # noqa
+            # we had 'bad guess at password' work with pam. Well at least we get a permission denied here
+            with pytest.raises(omysql.OperationalError):
                 omysql.connect(
-                    user=OSUSER,
+                    user=os_user(),
                     auth_plugin_map={b'mysql_cleartext_password': DefectiveHandler},
                     **_without_user(db),
                 )
@@ -375,7 +384,7 @@ def test_pam_auth_install_plugin(connect, databases):
         try:
             cur.execute("install plugin pam soname 'auth_pam.so'")
             installed = True
-        except omysql.err.InternalError:
+        except omysql.InternalError:
             pytest.skip("we couldn't install the auth_pam plugin")
         _run_pam_auth(connect, db)
     finally:
@@ -409,10 +418,10 @@ def test_auth_sha256(connect, databases):
         c.execute("SET PASSWORD FOR 'test_omysql_user'@'localhost' ='Sh@256Pa33'")
         c.execute('FLUSH PRIVILEGES')
         sha_db = _without_user(db)
-        sha_db['password'] = 'Sh@256Pa33'
-        # Although SHA256 is supported, need the configuration of public key of
-        # the mysql server. Currently will get error by this test.
-        with pytest.raises(omysql.err.OperationalError):
+        sha_db['password'] = 'Sh@256Pa33'  # noqa
+        # Although SHA256 is supported, need the configuration of public key of the mysql server. Currently will get
+        # error by this test.
+        with pytest.raises(omysql.OperationalError):
             omysql.connect(user='test_omysql_user', **sha_db)
 
 
@@ -448,7 +457,7 @@ def test_auth_ed25519(connect, databases):
         'ed25519',
         non_empty_pass,
     ):
-        omysql.connect(user='test_omysql_user', password='ed25519_password', **ed_db)
+        omysql.connect(user='test_omysql_user', password='ed25519_password', **ed_db)  # noqa
 
 
 ##
@@ -542,7 +551,7 @@ def test_init_command(connect):
     c.execute('select "foobar";')
     assert c.fetchone() == ('foobar',)
     conn.close()
-    with pytest.raises(omysql.err.Error):
+    with pytest.raises(omysql.Error):
         conn.ping(reconnect=False)
 
 
@@ -555,7 +564,7 @@ def test_read_default_group(connect):
 
 def test_set_charset(connect):
     c = connect()
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa
         c.set_charset('utf8mb4')
     # TODO validate setting here
 
@@ -627,7 +636,7 @@ def test_escape_fallback_encoder(connect):
     con = connect()
 
     class Custom(str):
-        pass
+        __slots__ = ()
 
     mapping = {str: omysql.converters.escape_string}
     assert con.escape(Custom('foobar'), mapping) == "'foobar'"

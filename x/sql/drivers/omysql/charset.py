@@ -12,12 +12,14 @@ MBLENGTH = {
 class Charset:
     def __init__(
             self,
-            id,
+            id,  # noqa
             name,
             collation,
             is_default=False,
     ):
-        self.id, self.name, self.collation = id, name, collation
+        self.id = id
+        self.name = name
+        self.collation = collation
         self.is_default = is_default
 
     def __repr__(self):
@@ -57,7 +59,7 @@ class Charsets:
         if c.is_default:
             self._by_name[c.name] = c
 
-    def by_id(self, id):
+    def by_id(self, id):  # noqa
         return self._by_id[id]
 
     def by_name(self, name):

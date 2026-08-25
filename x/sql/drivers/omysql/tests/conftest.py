@@ -7,7 +7,7 @@ from ... import omysql
 
 def _drop_table(connection, tablename):
     cursor = connection.cursor()
-    with warnings.catch_warnings():
+    with warnings.catch_warnings():  # noqa
         warnings.simplefilter('ignore')
         cursor.execute(f'drop table if exists `{tablename}`')
     cursor.close()
@@ -24,22 +24,27 @@ def connections(databases):
             conn.close()
 
 
+class ConnectionMaker:
+    def __init__(self, databases):
+        self.databases = databases
+
+        self.conns = []
+
+    def __call__(self, **params):
+        p = dict(self.databases[0])
+        p.update(params)
+        conn = omysql.connect(**p)
+        self.conns.append(conn)
+        return conn
+
+
 @pytest.fixture
 def connect(databases):
     """A factory for connections to the first test database, all closed after the test."""
 
-    conns = []
-
-    def make(**params):
-        p = dict(databases[0])
-        p.update(params)
-        conn = omysql.connect(**p)
-        conns.append(conn)
-        return conn
-
-    make.conns = conns
+    make = ConnectionMaker(databases)
     yield make
-    for conn in conns:
+    for conn in make.conns:
         if conn.open:
             conn.close()
 

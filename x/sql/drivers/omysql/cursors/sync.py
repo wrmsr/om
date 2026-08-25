@@ -3,7 +3,8 @@ import typing as ta
 
 from omcore import check
 
-from .. import err
+from ..errors import NotSupportedError
+from ..errors import ProgrammingError
 from .formatting import RE_INSERT_VALUES
 from .formatting import backquote_escape
 from .formatting import escape_args
@@ -51,12 +52,12 @@ class Cursor:
 
     def _get_db(self) -> ta.Any:
         if self.connection is None:
-            raise err.ProgrammingError('Cursor closed')
+            raise ProgrammingError('Cursor closed')
         return self.connection
 
     def _check_executed(self) -> None:
         if not self._executed:
-            raise err.ProgrammingError('execute() first')
+            raise ProgrammingError('execute() first')
 
     def setinputsizes(self, *args: ta.Any) -> None:
         """Does nothing, required by the DB-API."""
@@ -162,7 +163,7 @@ class Cursor:
         elif mode == 'absolute':
             r = value
         else:
-            raise err.ProgrammingError(f'unknown scroll mode {mode}')
+            raise ProgrammingError(f'unknown scroll mode {mode}')
         if not (0 <= r < len(check.not_none(self._rows))):
             raise IndexError('out of range')
         self.rownumber = r
@@ -312,14 +313,14 @@ class SSCursor(Cursor):
         self._check_executed()
         if mode == 'relative':
             if value < 0:
-                raise err.NotSupportedError('Backwards scrolling not supported by this cursor')
+                raise NotSupportedError('Backwards scrolling not supported by this cursor')
             steps = value
         elif mode == 'absolute':
             if value < self.rownumber:
-                raise err.NotSupportedError('Backwards scrolling not supported by this cursor')
+                raise NotSupportedError('Backwards scrolling not supported by this cursor')
             steps = value - self.rownumber
         else:
-            raise err.ProgrammingError(f'unknown scroll mode {mode}')
+            raise ProgrammingError(f'unknown scroll mode {mode}')
         for _ in range(steps):
             self.read_next()
         self.rownumber += steps

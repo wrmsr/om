@@ -3,11 +3,12 @@ import ssl
 
 import pytest
 
-from ...tests.dbs import CA_PEM
 from ..sockets import make_ssl_context
 
 
-needs_ca = pytest.mark.skipif(not os.path.exists(CA_PEM), reason='no server CA certificate available')
+def skip_if_no_ca(ca_pem):
+    if not os.path.exists(ca_pem):
+        pytest.skip('no server CA certificate available')
 
 
 def test_make_ssl_context_from_existing_context():
@@ -26,22 +27,22 @@ def test_make_ssl_context_no_ca_verify_mode_strings():
         assert make_ssl_context({'verify_mode': value}).verify_mode == ssl.CERT_NONE
 
 
-@needs_ca
-def test_make_ssl_context_verify_identity_and_mode():
-    ctx = make_ssl_context({'ca': CA_PEM, 'check_hostname': True, 'verify_mode': True})
+def test_make_ssl_context_verify_identity_and_mode(ca_pem):
+    skip_if_no_ca(ca_pem)
+    ctx = make_ssl_context({'ca': ca_pem, 'check_hostname': True, 'verify_mode': True})
     assert ctx.check_hostname is True
     assert ctx.verify_mode == ssl.CERT_REQUIRED
 
 
-@needs_ca
-def test_make_ssl_context_verify_mode_strings():
+def test_make_ssl_context_verify_mode_strings(ca_pem):
+    skip_if_no_ca(ca_pem)
     for value in ('required', '1', 'yes', 'true', True):
-        assert make_ssl_context({'ca': CA_PEM, 'verify_mode': value}).verify_mode == ssl.CERT_REQUIRED
-    assert make_ssl_context({'ca': CA_PEM, 'verify_mode': 'optional'}).verify_mode == ssl.CERT_OPTIONAL
+        assert make_ssl_context({'ca': ca_pem, 'verify_mode': value}).verify_mode == ssl.CERT_REQUIRED
+    assert make_ssl_context({'ca': ca_pem, 'verify_mode': 'optional'}).verify_mode == ssl.CERT_OPTIONAL
 
 
-@needs_ca
-def test_make_ssl_context_relaxes_strict_verification():
+def test_make_ssl_context_relaxes_strict_verification(ca_pem):
+    skip_if_no_ca(ca_pem)
     # MySQL's auto-generated self signed certs don't pass 3.13+ strict verification.
-    ctx = make_ssl_context({'ca': CA_PEM})
+    ctx = make_ssl_context({'ca': ca_pem})
     assert not (ctx.verify_flags & ssl.VERIFY_X509_STRICT)

@@ -7,7 +7,7 @@ from ..errors import OperationalError
 from .utils import get_mysql_vendor
 
 
-def test_SSCursor(connect):
+def test_ss_cursor(connect):
     affected_rows = 18446744073709551615
 
     conn = connect(client_flag=CLIENT.MULTI_STATEMENTS)
@@ -139,30 +139,27 @@ def test_execution_time_limit(connect, safe_create_table):
         cur.execute(sql)
         assert cur.fetchone() == ('row1', 0)
 
-        # this discards the previous unfinished query and raises an
-        # incomplete unbuffered query warning
-        with pytest.warns(UserWarning):
+        # this discards the previous unfinished query and raises an incomplete unbuffered query warning
+        with pytest.warns(UserWarning):  # noqa
             cur.execute('SELECT 1')
         assert cur.fetchone() == (1,)
 
-        # SSCursor will not read the EOF packet until we try to read
-        # another row. Skipping this will raise an incomplete unbuffered
-        # query warning in the next cur.execute().
+        # SSCursor will not read the EOF packet until we try to read another row. Skipping this will raise an incomplete
+        # unbuffered query warning in the next cur.execute().
         assert cur.fetchone() is None
 
         if db_type == 'mysql':
             sql = 'SELECT /*+ MAX_EXECUTION_TIME(1) */ data, sleep(1) FROM test'
         else:
             sql = 'SET STATEMENT max_statement_time=0.001 FOR SELECT data, sleep(1) FROM test'
-        with pytest.raises(OperationalError) as cm:
-            # in an unbuffered cursor the OperationalError may not show up
-            # until fetching the entire result
+        with pytest.raises(OperationalError) as cm:  # noqa
+            # in an unbuffered cursor the OperationalError may not show up until fetching the entire result
             cur.execute(sql)
             cur.fetchall()
 
         if db_type == 'mysql':
-            # this constant was only introduced in MySQL 5.7, not sure
-            # what was returned before, may have been ER_QUERY_INTERRUPTED
+            # this constant was only introduced in MySQL 5.7, not sure what was returned before, may have been
+            # ER_QUERY_INTERRUPTED
             assert cm.value.args[0] == ER.QUERY_TIMEOUT
         else:
             assert cm.value.args[0] == ER.STATEMENT_TIMEOUT

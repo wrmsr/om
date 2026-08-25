@@ -1,5 +1,7 @@
 import re
 
+from omcore import check
+
 
 def mysql_server_is(conn, version_tuple):
     """
@@ -13,7 +15,7 @@ def mysql_server_is(conn, version_tuple):
     server_version = conn.get_server_info()
     server_version_tuple = tuple(
         (int(dig) if dig is not None else 0)
-        for dig in re.match(r'(\d+)\.(\d+)\.(\d+)', server_version).group(1, 2, 3)
+        for dig in check.not_none(re.match(r'(\d+)\.(\d+)\.(\d+)', server_version)).group(1, 2, 3)
     )
     return server_version_tuple >= version_tuple
 

@@ -8,6 +8,7 @@ driver. A driver binds it by subclassing DbapiComplianceSuite in a test module o
 
 The mixins group the checks by area; none is collected on its own.
 """
+import abc
 import datetime
 import decimal
 import time
@@ -26,15 +27,17 @@ from .bindings import DbapiComplianceBinding
 
 
 class DbapiComplianceBase:
-    BINDING: ta.ClassVar[DbapiComplianceBinding]
+    @abc.abstractmethod
+    def binding(self) -> DbapiComplianceBinding:
+        raise NotImplementedError
 
     @property
     def b(self) -> DbapiComplianceBinding:
-        return self.BINDING
+        return self.binding()
 
     @property
     def m(self) -> ta.Any:
-        return self.BINDING.module
+        return self.binding().module
 
     def connect(self):
         return self.b.closing(self.b.connect())

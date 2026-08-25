@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ001
 import datetime
 import warnings
 
@@ -42,7 +43,7 @@ def dictcursor_conn(connect):
 
 
 @pytest.mark.parametrize('cursor_type', CURSOR_TYPES)
-def test_DictCursor(dictcursor_conn, cursor_type):
+def test_dict_cursor(dictcursor_conn, cursor_type):
     bob, jim, fred = BOB.copy(), JIM.copy(), FRED.copy()
     # all assertions compare to the structure as would come out from MySQLdb
     conn = dictcursor_conn
@@ -85,7 +86,7 @@ def test_custom_dict(dictcursor_conn, cursor_type):
     class MyDict(dict):
         pass
 
-    class MyDictCursor(cursor_type):
+    class MyDictCursor(cursor_type):  # type: ignore
         dict_type = MyDict
 
     keys = ['name', 'age', 'DOB']

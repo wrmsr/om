@@ -1,7 +1,9 @@
+# ruff: noqa: DTZ001
 import datetime
 import decimal
 import re
 import time
+import typing as ta
 
 from .constants import FIELD_TYPE
 from .errors import ProgrammingError
@@ -20,7 +22,7 @@ def escape_item(val, charset, mapping=None):
         try:
             encoder = mapping[str]
         except KeyError:
-            raise TypeError('no default type converter defined')
+            raise TypeError('no default type converter defined') from None
 
     if encoder in (escape_dict, escape_sequence):
         val = encoder(val, charset, mapping)
@@ -56,7 +58,7 @@ def escape_int(value, mapping=None):
 def escape_float(value, mapping=None):
     s = repr(value)
     if s in ('inf', '-inf', 'nan'):
-        raise ProgrammingError('%s can not be used with MySQL' % s)
+        raise ProgrammingError(f'{s} can not be used with MySQL')
     if 'e' not in s:
         s += 'e0'
     return s
@@ -83,18 +85,18 @@ def escape_string(value, mapping=None):
 
 
 def escape_bytes_prefixed(value, mapping=None):
-    return "_binary'%s'" % value.decode('ascii', 'surrogateescape').translate(_escape_table)
+    return "_binary'%s'" % value.decode('ascii', 'surrogateescape').translate(_escape_table)  # noqa
 
 
 def escape_bytes(value, mapping=None):
-    return "'%s'" % value.decode('ascii', 'surrogateescape').translate(_escape_table)
+    return "'%s'" % value.decode('ascii', 'surrogateescape').translate(_escape_table)  # noqa
 
 
 def escape_str(value, mapping=None):
-    return "'%s'" % escape_string(str(value), mapping)
+    return "'%s'" % escape_string(str(value), mapping)  # noqa
 
 
-def escape_None(value, mapping=None):
+def escape_none(value, mapping=None):
     return 'NULL'
 
 
@@ -134,17 +136,16 @@ def escape_datetime(obj, mapping=None):
 
 
 def escape_date(obj, mapping=None):
-    fmt = "'{0.year:04}-{0.month:02}-{0.day:02}'"
-    return fmt.format(obj)
+    return "'{0.year:04}-{0.month:02}-{0.day:02}'".format(obj)  # noqa
 
 
 def escape_struct_time(obj, mapping=None):
     return escape_datetime(datetime.datetime(*obj[:6]))
 
 
-def Decimal2Literal(o, d):
+def Decimal2Literal(o, d):  # noqa
     if not o.is_finite():
-        raise ProgrammingError('%s can not be used with MySQL' % str(o).lower())
+        raise ProgrammingError(f'{str(o).lower()} can not be used with MySQL')
     return format(o, 'f')
 
 
@@ -194,7 +195,7 @@ def convert_datetime(obj):
     try:
         groups = list(m.groups())
         groups[-1] = _convert_second_fraction(groups[-1])
-        return datetime.datetime(*[int(x) for x in groups])
+        return datetime.datetime(*[int(x) for x in groups])  # type: ignore[arg-type]
     except ValueError:
         return convert_date(obj)
 
@@ -336,7 +337,7 @@ encoders = {
     set: escape_sequence,
     frozenset: escape_sequence,
     dict: escape_dict,
-    type(None): escape_None,
+    type(None): escape_none,
     datetime.date: escape_date,
     datetime.datetime: escape_datetime,
     datetime.timedelta: escape_timedelta,
@@ -372,9 +373,7 @@ decoders = {
 }
 
 
-# for MySQLdb compatibility
-conversions = encoders.copy()
-conversions.update(decoders)
-Thing2Literal = escape_str
-
-# Run doctests with `pytest --doctest-modules pymysql/converters.py`
+conversions: ta.Mapping = {
+    **encoders,
+    **decoders,
+}

@@ -2,7 +2,6 @@
 import pytest
 
 from ... import omysql
-from .dbs import CA_PEM
 
 
 PASS_SHA256 = 'pass_sha256_01234567890123456789'  # noqa: S105
@@ -43,48 +42,76 @@ def auth_users(mysql_server_params):
 
 
 @pytest.fixture
-def auth_db(databases):
+def auth_db(databases, ca_pem):
     """The host/port of the primary test database, plus the server CA for the ssl variants."""
 
     db = databases[0]
     return {
         'host': db['host'],
         'port': db['port'],
-        'ssl': {'ca': CA_PEM, 'check_hostname': False},
+        'ssl': {'ca': ca_pem, 'check_hostname': False},
     }
 
 
 def test_sha256_no_password(auth_db):
-    con = omysql.connect(user='test_omysql_nopass_sha256', host=auth_db['host'], port=auth_db['port'], ssl=None)
+    con = omysql.connect(
+        user='test_omysql_nopass_sha256',
+        host=auth_db['host'],
+        port=auth_db['port'],
+        ssl=None,
+    )
     con.close()
 
 
 def test_sha256_no_password_ssl(auth_db):
-    con = omysql.connect(user='test_omysql_nopass_sha256', host=auth_db['host'], port=auth_db['port'], ssl=auth_db['ssl'])
+    con = omysql.connect(
+        user='test_omysql_nopass_sha256',
+        host=auth_db['host'],
+        port=auth_db['port'],
+        ssl=auth_db['ssl'],
+    )
     con.close()
 
 
 def test_sha256_password(auth_db):
     con = omysql.connect(
-        user='test_omysql_user_sha256', password=PASS_SHA256, host=auth_db['host'], port=auth_db['port'], ssl=None,
+        user='test_omysql_user_sha256',
+        password=PASS_SHA256,
+        host=auth_db['host'],
+        port=auth_db['port'],
+        ssl=None,
     )
     con.close()
 
 
 def test_sha256_password_ssl(auth_db):
     con = omysql.connect(
-        user='test_omysql_user_sha256', password=PASS_SHA256, host=auth_db['host'], port=auth_db['port'], ssl=auth_db['ssl'],
+        user='test_omysql_user_sha256',
+        password=PASS_SHA256,
+        host=auth_db['host'],
+        port=auth_db['port'],
+        ssl=auth_db['ssl'],
     )
     con.close()
 
 
 def test_caching_sha2_no_password(auth_db):
-    con = omysql.connect(user='test_omysql_nopass_caching_sha2', host=auth_db['host'], port=auth_db['port'], ssl=None)
+    con = omysql.connect(
+        user='test_omysql_nopass_caching_sha2',
+        host=auth_db['host'],
+        port=auth_db['port'],
+        ssl=None,
+    )
     con.close()
 
 
 def test_caching_sha2_no_password_ssl(auth_db):
-    con = omysql.connect(user='test_omysql_nopass_caching_sha2', host=auth_db['host'], port=auth_db['port'], ssl=auth_db['ssl'])
+    con = omysql.connect(
+        user='test_omysql_nopass_caching_sha2',
+        host=auth_db['host'],
+        port=auth_db['port'],
+        ssl=auth_db['ssl'],
+    )
     con.close()
 
 

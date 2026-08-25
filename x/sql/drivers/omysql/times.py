@@ -1,3 +1,4 @@
+# ruff: noqa: DTZ001 N802
 import datetime
 import time
 

@@ -202,7 +202,7 @@ def bind(
 ##
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def harness(request) -> Harness:
     pm = request.session.config.pluginmanager
     hp = check.single(p for n, p in pm.list_name_plugin() if isinstance(p, HarnessPlugin))

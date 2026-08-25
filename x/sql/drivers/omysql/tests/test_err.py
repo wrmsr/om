@@ -1,31 +1,33 @@
 import pytest
 
-from .. import errors
 from ..connections import Connection
+from ..errors import Error
+from ..errors import OperationalError
+from ..errors import raise_mysql_exception
 
 
 def test_error_init_sqlstate():
-    error = errors.Error(1234, 'boom', sqlstate='42000')
+    error = Error(1234, 'boom', sqlstate='42000')
     assert error.args == (1234, 'boom')
     assert error.sqlstate == '42000'
 
-    error = errors.Error(1234, 'boom')
+    error = Error(1234, 'boom')
     assert error.args == (1234, 'boom')
     assert error.sqlstate is None
 
 
 def test_raise_mysql_exception():
     data = b'\xff\x15\x04#28000Access denied'
-    with pytest.raises(errors.OperationalError) as cm:
-        errors.raise_mysql_exception(data)
-    assert cm.type == errors.OperationalError
+    with pytest.raises(OperationalError) as cm:
+        raise_mysql_exception(data)
+    assert cm.type == OperationalError
     assert cm.value.args == (1045, 'Access denied')
     assert cm.value.sqlstate == '28000'
 
     data = b'\xff\x10\x04Too many connections'
-    with pytest.raises(errors.OperationalError) as cm:
-        errors.raise_mysql_exception(data)
-    assert cm.type == errors.OperationalError
+    with pytest.raises(OperationalError) as cm:
+        raise_mysql_exception(data)
+    assert cm.type == OperationalError
     assert cm.value.args == (1040, 'Too many connections')
     assert cm.value.sqlstate is None
 

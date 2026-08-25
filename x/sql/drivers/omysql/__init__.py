@@ -12,8 +12,6 @@
 # WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-import sys
-
 from . import connections
 from .constants import FIELD_TYPE
 from .errors import DatabaseError
@@ -26,7 +24,7 @@ from .errors import MySQLError
 from .errors import NotSupportedError
 from .errors import OperationalError
 from .errors import ProgrammingError
-from .errors import Warning
+from .errors import Warning  # noqa
 from .times import Date
 from .times import DateFromTicks
 from .times import Time
@@ -35,30 +33,8 @@ from .times import Timestamp
 from .times import TimestampFromTicks
 
 
-# PyMySQL version.
-# Used by setuptools and connection_attrs
-VERSION = (1, 2, 0, 'final')
-VERSION_STRING = '1.2.0'
+##
 
-### for mysqlclient compatibility
-### Django checks mysqlclient version.
-version_info = (2, 2, 8, 'final', 1)
-__version__ = '2.2.8'
-
-
-def get_client_info():  # for MySQLdb compatibility
-    return __version__
-
-
-def install_as_MySQLdb():
-    """
-    After this function is called, any application that imports MySQLdb will unwittingly actually use pymysql.
-    """
-
-    sys.modules['MySQLdb'] = sys.modules['omysql']
-
-
-# end of mysqlclient compatibility code
 
 threadsafety = 1
 apilevel = '2.0'
@@ -124,7 +100,7 @@ DATETIME = TIMESTAMP
 ROWID = DBAPISet()
 
 
-def Binary(x):
+def Binary(x):  # noqa
     """Return x as a binary type."""
 
     return bytes(x)

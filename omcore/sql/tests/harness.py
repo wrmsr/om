@@ -17,7 +17,7 @@ POSTGRES_URL_ENV_VAR = EnvVar('OM_TEST_POSTGRES_URL')
 PGVECTOR_URL_ENV_VAR = EnvVar('OM_TEST_PGVECTOR_URL')
 
 
-@pti.bind('function')
+@pti.bind('session')
 class HarnessDbs:
     def __init__(self, compose_services: ComposeServices) -> None:
         super().__init__()

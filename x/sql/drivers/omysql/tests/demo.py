@@ -18,7 +18,7 @@ def _main() -> None:
         host='127.0.0.1',
         port=35225,
         user='root',
-        password='om',
+        password='om',  # noqa
         database='om',
     )
 

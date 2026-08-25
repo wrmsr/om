@@ -68,7 +68,7 @@ def test_issue_5(connect):
 def test_issue_6(databases):
     """Exception: TypeError: ord() expected a character, but string of length 0 found."""
 
-    # ToDo: this test requires access to db 'mysql'.
+    # TODO: this test requires access to db 'mysql'.
     kwargs = databases[0]
     kwargs['database'] = 'mysql'
     conn = omysql.connect(**kwargs)
@@ -173,7 +173,7 @@ def test_issue_17(connect, databases):
         c.execute(f"grant all privileges on {db}.issue17 to 'issue17user'@'%%' identified by '1234'")
         conn.commit()
 
-        conn2 = omysql.connect(host=host, user='issue17user', passwd='1234', db=db)
+        conn2 = omysql.connect(host=host, user='issue17user', passwd='1234', db=db)  # noqa
         c2 = conn2.cursor()
         c2.execute('select x from issue17')
         assert c2.fetchone()[0] == 'hello, world!'
@@ -499,13 +499,13 @@ def test_issue_363(safe_create_table, databases):
     query = 'SELECT ST_AsBinary(geom) FROM issue363'
     cur.execute(query)
     row = cur.fetchone()
-    assert row == (
+    assert row == ((
         b'\x01\x02\x00\x00\x00\x02\x00\x00\x00'
         b'\x9a\x99\x99\x99\x99\x99\xf1?'
         b'\x9a\x99\x99\x99\x99\x99\xf1?'
         b'\x9a\x99\x99\x99\x99\x99\x01@'
-        b'\x9a\x99\x99\x99\x99\x99\x01@',
-    )
+        b'\x9a\x99\x99\x99\x99\x99\x01@'
+   ),)
 
     # select internal binary
     cur.execute('SELECT geom FROM issue363')

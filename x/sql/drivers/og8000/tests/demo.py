@@ -1,10 +1,7 @@
-from .dbs import DB_KWARGS
-
-
-def run_native() -> None:
+def run_native(_database) -> None:
     from .. import native
 
-    con = native.Connection(**DB_KWARGS)
+    con = native.Connection(**_database)
 
     con.run('CREATE TEMPORARY TABLE book (id SERIAL, title TEXT)')
 
@@ -17,10 +14,10 @@ def run_native() -> None:
     con.close()
 
 
-def run_dbapi() -> None:
+def run_dbapi(_database) -> None:
     from .. import dbapi
 
-    conn = dbapi.connect(**DB_KWARGS)
+    conn = dbapi.connect(**_database)
     cursor = conn.cursor()
     cursor.execute('CREATE TEMPORARY TABLE book (id SERIAL, title TEXT)')
     cursor.execute(

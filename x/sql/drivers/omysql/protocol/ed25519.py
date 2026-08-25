@@ -43,7 +43,7 @@ _MONT_BASE_V = 14781619447589544791020593568409986887264606134616475288964881837
 _MONT_TO_EDWARDS_C = 51042569399160536130206135233146329284152202253034631822681833788666877215207
 
 
-class BackendUnavailable(RuntimeError):
+class BackendUnavailableError(RuntimeError):
     """The requested optional backend cannot be used in this environment."""
 
 
@@ -153,7 +153,7 @@ def _load_nacl_bindings() -> ta.Any:
     try:
         from nacl import bindings
     except ImportError as exc:
-        raise BackendUnavailable('PyNaCl is not installed') from exc
+        raise BackendUnavailableError('PyNaCl is not installed') from exc
 
     required = (
         'crypto_core_ed25519_scalar_reduce',
@@ -163,7 +163,7 @@ def _load_nacl_bindings() -> ta.Any:
     )
     missing = [name for name in required if not callable(getattr(bindings, name, None))]
     if missing:
-        raise BackendUnavailable('PyNaCl lacks required libsodium functions: ' + ', '.join(missing))
+        raise BackendUnavailableError('PyNaCl lacks required libsodium functions: ' + ', '.join(missing))
 
     # Minimal libsodium builds can leave wrappers present while making the operations raise UnavailableError, so probe
     # all four required families.
@@ -176,7 +176,7 @@ def _load_nacl_bindings() -> ta.Any:
         total = bindings.crypto_core_ed25519_scalar_add(one, one)
         base = bindings.crypto_scalarmult_ed25519_base_noclamp(one)
     except Exception as exc:
-        raise BackendUnavailable("PyNaCl's required Ed25519 arithmetic is unavailable") from exc
+        raise BackendUnavailableError("PyNaCl's required Ed25519 arithmetic is unavailable") from exc
 
     if (
             reduced != zero or
@@ -184,7 +184,7 @@ def _load_nacl_bindings() -> ta.Any:
             total != two or
             base != _point_encode(_BASE)
     ):
-        raise BackendUnavailable('PyNaCl failed its Ed25519 backend self-test')
+        raise BackendUnavailableError('PyNaCl failed its Ed25519 backend self-test')
 
     return bindings
 
@@ -253,17 +253,17 @@ def _load_cryptography_x25519() -> _CryptographyX25519:
     try:
         from cryptography.hazmat.bindings import _rust
     except ImportError as exc:
-        raise BackendUnavailable("cryptography's Rust bindings are unavailable") from exc
+        raise BackendUnavailableError("cryptography's Rust bindings are unavailable") from exc
 
     try:
         module = _rust.openssl.x25519
         from_private_bytes = module.from_private_bytes
         from_public_bytes = module.from_public_bytes
     except (AttributeError, ImportError) as exc:
-        raise BackendUnavailable("cryptography's private _rust.openssl.x25519 API is unavailable") from exc
+        raise BackendUnavailableError("cryptography's private _rust.openssl.x25519 API is unavailable") from exc
 
     if not callable(from_private_bytes) or not callable(from_public_bytes):
-        raise BackendUnavailable("cryptography's private X25519 constructors are not callable")
+        raise BackendUnavailableError("cryptography's private X25519 constructors are not callable")
 
     base_bytes = _MONT_BASE_U.to_bytes(32, 'little')
     try:
@@ -273,11 +273,11 @@ def _load_cryptography_x25519() -> _CryptographyX25519:
             raise AssertionError('could not represent scalar one')
         probe = bytes(from_private_bytes(private_bytes).exchange(base_public_key))
     except Exception as exc:
-        raise BackendUnavailable("cryptography's private X25519 operations failed their probe") from exc
+        raise BackendUnavailableError("cryptography's private X25519 operations failed their probe") from exc
 
     # The chosen scalar is ±1 modulo L, so its u-coordinate must still be 9.
     if probe != base_bytes:
-        raise BackendUnavailable("cryptography's private X25519 API failed its scalar semantics self-test")
+        raise BackendUnavailableError("cryptography's private X25519 API failed its scalar semantics self-test")
 
     return _CryptographyX25519(module, base_public_key)
 
@@ -285,7 +285,7 @@ def _load_cryptography_x25519() -> _CryptographyX25519:
 def _x25519_base_u(private_bytes: bytes, ctx: _CryptographyX25519) -> int:
     output = bytes(ctx.module.from_private_bytes(private_bytes).exchange(ctx.base_public_key))
     if len(output) != 32:
-        raise BackendUnavailable("cryptography's private X25519 exchange returned a non-32-byte value")
+        raise BackendUnavailableError("cryptography's private X25519 exchange returned a non-32-byte value")
     return int.from_bytes(output, 'little') % _P
 
 
@@ -301,7 +301,7 @@ def _recover_montgomery_v(u: int, u_plus_base: int) -> int:
     """
 
     if u == _MONT_BASE_U:
-        raise BackendUnavailable('cannot recover a Montgomery v-coordinate at ±the base point')
+        raise BackendUnavailableError('cannot recover a Montgomery v-coordinate at ±the base point')
 
     curve_rhs = (u * u * u + _MONT_A * u * u + u) % _P
     delta_u = (_MONT_BASE_U - u) % _P
@@ -312,14 +312,14 @@ def _recover_montgomery_v(u: int, u_plus_base: int) -> int:
     v = (numerator * denominator_inv) % _P
 
     if (v * v - curve_rhs) % _P:
-        raise BackendUnavailable('cryptography X25519 coordinates failed Montgomery point recovery')
+        raise BackendUnavailableError('cryptography X25519 coordinates failed Montgomery point recovery')
 
     return v
 
 
 def _montgomery_to_edwards(u: int, v: int) -> _Point:
     if u == _P - 1 or v == 0:
-        raise BackendUnavailable('encountered a singular Montgomery/Edwards map')
+        raise BackendUnavailableError('encountered a singular Montgomery/Edwards map')
 
     x = (_MONT_TO_EDWARDS_C * u * pow(v, _P - 2, _P)) % _P
     y = ((u - 1) * pow((u + 1) % _P, _P - 2, _P)) % _P
@@ -327,7 +327,7 @@ def _montgomery_to_edwards(u: int, v: int) -> _Point:
     # Validate the conversion before letting a changed private backend produce a plausible-looking but incorrect
     # authentication response.
     if (-x * x + y * y - 1 - _D * x * x * y * y) % _P:
-        raise BackendUnavailable('cryptography X25519 output did not map to an Ed25519 point')
+        raise BackendUnavailableError('cryptography X25519 output did not map to an Ed25519 point')
 
     return (x, y, 1, (x * y) % _P)
 
@@ -379,9 +379,7 @@ def _base_mult_cryptography_with_ctx(
 
         return _point_encode(point)
 
-    raise BackendUnavailable(
-        "could not adapt an Ed25519 scalar to cryptography's private X25519 API",
-    )
+    raise BackendUnavailableError("could not adapt an Ed25519 scalar to cryptography's private X25519 API")
 
 
 @functools.lru_cache(maxsize=1)
@@ -393,7 +391,7 @@ def _load_cryptography_backend() -> _CryptographyX25519:
     for scalar in (2, 8, _L - 2):
         actual = _base_mult_cryptography_with_ctx(scalar, ctx)
         if actual != _base_mult_stdlib(scalar):
-            raise BackendUnavailable("cryptography's private X25519 backend failed its Ed25519 self-test")
+            raise BackendUnavailableError("cryptography's private X25519 backend failed its Ed25519 self-test")
 
     return ctx
 
@@ -422,14 +420,14 @@ def available_backends() -> tuple[str, ...]:
 
     try:
         _load_nacl_bindings()
-    except BackendUnavailable:
+    except BackendUnavailableError:
         pass
     else:
         available.append('nacl')
 
     try:
         _load_cryptography_backend()
-    except BackendUnavailable:
+    except BackendUnavailableError:
         pass
     else:
         available.append('cryptography')
@@ -461,13 +459,13 @@ def ed25519_password(
         for name in ('nacl', 'cryptography', 'stdlib'):
             try:
                 return implementations[name](password, scramble)
-            except BackendUnavailable as exc:
+            except BackendUnavailableError as exc:
                 errors.append((name, exc))
 
         # The stdlib backend has no optional dependencies, so this is only reachable after an internal programming error
-        # represented as a BackendUnavailable exception.
+        # represented as a BackendUnavailableError exception.
         detail = '; '.join(f'{name}: {exc}' for name, exc in errors)
-        raise BackendUnavailable('no Ed25519 backend is usable: ' + detail)
+        raise BackendUnavailableError('no Ed25519 backend is usable: ' + detail)
 
     try:
         implementation = implementations[backend]
