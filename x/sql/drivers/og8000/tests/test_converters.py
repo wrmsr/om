@@ -38,10 +38,10 @@ from ..native import InterfaceError
 @pytest.mark.parametrize(
     'value,expected',
     [
-        ['2022-03-02', Date(2022, 3, 2)],
-        ['infinity', 'infinity'],
-        ['-infinity', '-infinity'],
-        ['20022-03-02', '20022-03-02'],
+        ('2022-03-02', Date(2022, 3, 2)),
+        ('infinity', 'infinity'),
+        ('-infinity', '-infinity'),
+        ('20022-03-02', '20022-03-02'),
     ],
 )
 def test_date_in(value, expected):
@@ -55,20 +55,20 @@ def test_null_out():
 @pytest.mark.parametrize(
     'array,out',
     [
-        [[True, False, None], '{true,false,NULL}'],  # bool[]
-        [[IPv4Address('192.168.0.1')], '{192.168.0.1}'],  # inet[]
-        [[Date(2021, 3, 1)], '{2021-03-01}'],  # date[]
-        [[b'\x00\x01\x02\x03\x02\x01\x00'], '{"\\\\x00010203020100"}'],  # bytea[]
-        [[IPv4Network('192.168.0.0/28')], '{192.168.0.0/28}'],  # inet[]
-        [[1, 2, 3], '{1,2,3}'],  # int2[]
-        [[1, None, 3], '{1,NULL,3}'],  # int2[] with None
-        [[[1, 2], [3, 4]], '{{1,2},{3,4}}'],  # int2[] multidimensional
-        [[70000, 2, 3], '{70000,2,3}'],  # int4[]
-        [[7000000000, 2, 3], '{7000000000,2,3}'],  # int8[]
-        [[0, 7000000000, 2], '{0,7000000000,2}'],  # int8[]
-        [[1.1, 2.2, 3.3], '{1.1,2.2,3.3}'],  # float8[]
-        [['Veni', 'vidi', 'vici'], '{Veni,vidi,vici}'],  # varchar[]
-        [[('Veni', True, 1)], '{"(Veni,true,1)"}'],  # array of composites
+        ([True, False, None], '{true,false,NULL}'),  # bool[]
+        ([IPv4Address('192.168.0.1')], '{192.168.0.1}'),  # inet[]
+        ([Date(2021, 3, 1)], '{2021-03-01}'),  # date[]
+        ([b'\x00\x01\x02\x03\x02\x01\x00'], '{"\\\\x00010203020100"}'),  # bytea[]
+        ([IPv4Network('192.168.0.0/28')], '{192.168.0.0/28}'),  # inet[]
+        ([1, 2, 3], '{1,2,3}'),  # int2[]
+        ([1, None, 3], '{1,NULL,3}'),  # int2[] with None
+        ([[1, 2], [3, 4]], '{{1,2},{3,4}}'),  # int2[] multidimensional
+        ([70000, 2, 3], '{70000,2,3}'),  # int4[]
+        ([7000000000, 2, 3], '{7000000000,2,3}'),  # int8[]
+        ([0, 7000000000, 2], '{0,7000000000,2}'),  # int8[]
+        ([1.1, 2.2, 3.3], '{1.1,2.2,3.3}'),  # float8[]
+        (['Veni', 'vidi', 'vici'], '{Veni,vidi,vici}'),  # varchar[]
+        ([('Veni', True, 1)], '{"(Veni,true,1)"}'),  # array of composites
     ],
 )
 def test_array_out(array, out):
@@ -192,13 +192,13 @@ def test_array_string_escape(value, expected):
 @pytest.mark.parametrize(
     'value,expected',
     [
-        [
+        (
             '2022-10-08 15:01:39+01:30',
             DateTime(
                 2022, 10, 8, 15, 1, 39, tzinfo=TimeZone(TimeDelta(hours=1, minutes=30)),
             ),
-        ],
-        [
+        ),
+        (
             '2022-10-08 15:01:39-01:30',
             DateTime(
                 2022,
@@ -209,16 +209,16 @@ def test_array_string_escape(value, expected):
                 39,
                 tzinfo=TimeZone(TimeDelta(hours=-1, minutes=-30)),
             ),
-        ],
-        [
+        ),
+        (
             '2022-10-08 15:01:39+02',
             DateTime(2022, 10, 8, 15, 1, 39, tzinfo=TimeZone(TimeDelta(hours=2))),
-        ],
-        [
+        ),
+        (
             '2022-10-08 15:01:39-02',
             DateTime(2022, 10, 8, 15, 1, 39, tzinfo=TimeZone(TimeDelta(hours=-2))),
-        ],
-        [
+        ),
+        (
             '2022-10-08 15:01:39.597026+01:30',
             DateTime(
                 2022,
@@ -230,8 +230,8 @@ def test_array_string_escape(value, expected):
                 597026,
                 tzinfo=TimeZone(TimeDelta(hours=1, minutes=30)),
             ),
-        ],
-        [
+        ),
+        (
             '2022-10-08 15:01:39.597026-01:30',
             DateTime(
                 2022,
@@ -243,23 +243,23 @@ def test_array_string_escape(value, expected):
                 597026,
                 tzinfo=TimeZone(TimeDelta(hours=-1, minutes=-30)),
             ),
-        ],
-        [
+        ),
+        (
             '2022-10-08 15:01:39.597026+02',
             DateTime(
                 2022, 10, 8, 15, 1, 39, 597026, tzinfo=TimeZone(TimeDelta(hours=2)),
             ),
-        ],
-        [
+        ),
+        (
             '2022-10-08 15:01:39.597026-02',
             DateTime(
                 2022, 10, 8, 15, 1, 39, 597026, tzinfo=TimeZone(TimeDelta(hours=-2)),
             ),
-        ],
-        [
+        ),
+        (
             '20022-10-08 15:01:39.597026-02',
             '20022-10-08 15:01:39.597026-02',
-        ],
+        ),
     ],
 )
 def test_timestamptz_in(value, expected):
@@ -269,10 +269,10 @@ def test_timestamptz_in(value, expected):
 @pytest.mark.parametrize(
     'value,expected',
     [
-        [
+        (
             '20022-10-08 15:01:39.597026',
             '20022-10-08 15:01:39.597026',
-        ],
+        ),
     ],
 )
 def test_timestamp_in(value, expected):
@@ -282,10 +282,10 @@ def test_timestamp_in(value, expected):
 @pytest.mark.parametrize(
     'value,expected',
     [
-        [
+        (
             '["2001-02-03 04:05:00","2023-02-03 04:05:00")',
             Range(DateTime(2001, 2, 3, 4, 5), DateTime(2023, 2, 3, 4, 5)),
-        ],
+        ),
     ],
 )
 def test_tsrange_in(value, expected):
@@ -295,13 +295,13 @@ def test_tsrange_in(value, expected):
 @pytest.mark.parametrize(
     'value,expected',
     [
-        [
+        (
             '{[2023-06-01,2023-06-06),[2023-06-10,2023-06-13)}',
             [
                 Range(Date(2023, 6, 1), Date(2023, 6, 6)),
                 Range(Date(2023, 6, 10), Date(2023, 6, 13)),
             ],
-        ],
+        ),
     ],
 )
 def test_datemultirange_in(value, expected):

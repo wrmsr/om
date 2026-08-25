@@ -9,16 +9,16 @@ from ...dbapi import convert_paramstyle
 @pytest.mark.parametrize(
     'query,statement',
     [
-        [
+        (
             'SELECT ?, ?, "field_?" FROM t '
             "WHERE a='say ''what?''' AND b=? AND c=E'?\\'test\\'?'",
             'SELECT $1, $2, "field_?" FROM t WHERE '
             "a='say ''what?''' AND b=$3 AND c=E'?\\'test\\'?'",
-        ],
-        [
+        ),
+        (
             "SELECT ?, ?, * FROM t WHERE a=? AND b='are you ''sure?'",
             "SELECT $1, $2, * FROM t WHERE a=$3 AND b='are you ''sure?'",
-        ],
+        ),
     ],
 )
 def test_qmark(query, statement):
@@ -30,10 +30,10 @@ def test_qmark(query, statement):
 @pytest.mark.parametrize(
     'query,expected',
     [
-        [
+        (
             'SELECT sum(x)::decimal(5, 2) :2, :1, * FROM t WHERE a=:3',
             'SELECT sum(x)::decimal(5, 2) $2, $1, * FROM t WHERE a=$3',
-        ],
+        ),
     ],
 )
 def test_numeric(query, expected):
@@ -57,13 +57,13 @@ def test_numeric_unchanged(query):
 @pytest.mark.parametrize(
     'query,args,expected_query,expected_args',
     [
-        [
+        (
             'SELECT sum(x)::decimal(5, 2) :f_2, :f1 FROM t WHERE a=:f_2',
             {'f_2': 1, 'f1': 2},
             'SELECT sum(x)::decimal(5, 2) $1, $2 FROM t WHERE a=$1',
             (1, 2),
-        ],
-        ["SELECT $$'$$ = :v", {'v': "'"}, "SELECT $$'$$ = $1", ("'",)],
+        ),
+        ("SELECT $$'$$ = :v", {'v': "'"}, "SELECT $$'$$ = $1", ("'",)),
     ],
 )
 def test_named(query, args, expected_query, expected_args):
@@ -74,16 +74,16 @@ def test_named(query, args, expected_query, expected_args):
 @pytest.mark.parametrize(
     'query,expected',
     [
-        [
+        (
             "SELECT %s, %s, \"f1_%%\", E'txt_%%' "
             "FROM t WHERE a=%s AND b='75%%' AND c = '%' -- Comment with %",
             "SELECT $1, $2, \"f1_%%\", E'txt_%%' FROM t WHERE a=$3 AND "
             "b='75%%' AND c = '%' -- Comment with %",
-        ],
-        [
+        ),
+        (
             'SELECT -- Comment\n%s FROM t',
             'SELECT -- Comment\n$1 FROM t',
-        ],
+        ),
     ],
 )
 def test_format_changed(query, expected):

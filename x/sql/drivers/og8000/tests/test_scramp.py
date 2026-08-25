@@ -23,11 +23,11 @@ from ..scramp import xor
 @pytest.mark.parametrize(
     'string,error_msg,server_error',
     [
-        [
+        (
             '!!!!',
             "Invalid base 64 encoding '!!!!': invalid-encoding",
             'invalid-encoding',
-        ],
+        ),
     ],
 )
 def test_b64dec_fails(string, error_msg, server_error):
@@ -41,7 +41,7 @@ def test_b64dec_fails(string, error_msg, server_error):
 @pytest.mark.parametrize(
     'a,b,msg',
     [
-        [b'', b'a', 'zip() argument 2 is longer than argument 1'],
+        (b'', b'a', 'zip() argument 2 is longer than argument 1'),
     ],
 )
 def test_xor_fails(a, b, msg):
@@ -54,36 +54,36 @@ def test_xor_fails(a, b, msg):
 @pytest.mark.parametrize(
     'msg,att_sets,error_msg',
     [
-        [
+        (
             '',
             [{'a', 'b', 'c'}],
             "Malformed trial message. Attributes must be separated by a ',' and each "
             "attribute must start with a letter followed by a '=': other-error",
-        ],
-        [
+        ),
+        (
             'c=jk,d=kln',
             [{'a', 'b', 'c'}],
             'Malformed trial message. Expected the attribute set to be one of '
             '[{a, b, c}] but found {c}: other-error',
-        ],
-        [
+        ),
+        (
             'c=jk,c=kln',
             [{'c'}],
             'Duplicate attributes not allowed in message. The duplicated attribute '
             'is c. : other-error',
-        ],
-        [
+        ),
+        (
             'e=error',
             [{'c'}],
             'Malformed trial message. Expected the attribute set to be one of [{c}] '
             'but found {e}: other-error',
-        ],
-        [
+        ),
+        (
             'e=\x00',
             [{'e'}],
             "Malformed trial message. Attribute values can't contain the NUL "
             "character: other-error",
-        ],
+        ),
     ],
 )
 def test_parse_message_fail(msg, att_sets, error_msg):
@@ -96,10 +96,10 @@ def test_parse_message_fail(msg, att_sets, error_msg):
 @pytest.mark.parametrize(
     'msg,att_sets,result',
     [
-        ['c=jk,i=kln', [{'c', 'i'}], {'c': 'jk', 'i': 'kln'}],
-        ['c=jk,i=kln', [{'a', 'b', 'c'}, {'c', 'i'}], {'c': 'jk', 'i': 'kln'}],
-        ['c=b', [{'c'}], {'c': 'b'}],
-        ['k=k,c=b', [{'c'}], {'c': 'b'}],
+        ('c=jk,i=kln', [{'c', 'i'}], {'c': 'jk', 'i': 'kln'}),
+        ('c=jk,i=kln', [{'a', 'b', 'c'}, {'c', 'i'}], {'c': 'jk', 'i': 'kln'}),
+        ('c=b', [{'c'}], {'c': 'b'}),
+        ('k=k,c=b', [{'c'}], {'c': 'b'}),
     ],
 )
 def test_parse_message_succeed(msg, att_sets, result):
@@ -109,12 +109,12 @@ def test_parse_message_succeed(msg, att_sets, result):
 @pytest.mark.parametrize(
     'cb,msg',
     [
-        [
+        (
             ('c', 'd'),
             "The channel_binding parameter must either be None or a "
             "tuple with the first element a str specifying one of the channel types "
             "('tls-server-end-point', 'tls-unique', 'tls-unique-for-telnet').",
-        ],
+        ),
     ],
 )
 def test_validate_channel_binding_fail(cb, msg):
@@ -127,7 +127,7 @@ def test_validate_channel_binding_fail(cb, msg):
 @pytest.mark.parametrize(
     'gs2_char,cb_name,expected',
     [
-        ['p', 'aname', 'p=aname,,'],
+        ('p', 'aname', 'p=aname,,'),
     ],
 )
 def test_Gs2Header_str(gs2_char, cb_name, expected):
@@ -138,7 +138,7 @@ def test_Gs2Header_str(gs2_char, cb_name, expected):
 @pytest.mark.parametrize(
     'gs2_char,cb_name',
     [
-        ['p', 'aname'],
+        ('p', 'aname'),
     ],
 )
 def test_Gs2Header_eq(gs2_char, cb_name):
@@ -150,12 +150,12 @@ def test_Gs2Header_eq(gs2_char, cb_name):
 @pytest.mark.parametrize(
     'salt,error_msg,server_error',
     [
-        [
+        (
             '',  # Must be bytes
             "The 'salt' must be of type bytes, but found type <class 'str'>: "
             "other-error",
             'other-error',
-        ],
+        ),
     ],
 )
 def test_Salt_init_error(salt, error_msg, server_error):
@@ -169,12 +169,12 @@ def test_Salt_init_error(salt, error_msg, server_error):
 @pytest.mark.parametrize(
     'salt_str,error_msg,server_error',
     [
-        [
+        (
             '!!!',
             "Invalid salt encoding: Invalid base 64 encoding '!!!': "
             "invalid-encoding: invalid-encoding",
             'invalid-encoding',
-        ],
+        ),
     ],
 )
 def test_Salt_from_str_error(salt_str, error_msg, server_error):
@@ -188,12 +188,12 @@ def test_Salt_from_str_error(salt_str, error_msg, server_error):
 @pytest.mark.parametrize(
     'nonce,error_msg,server_error',
     [
-        [
+        (
             b'',  # Must be str
             "The 'nonce' must be of type str, but found type <class 'bytes'>: "
             "other-error",
             'other-error',
-        ],
+        ),
     ],
 )
 def test_Nonce_init_error(nonce, error_msg, server_error):
@@ -539,29 +539,29 @@ def test_check_stage():
     'server_first,c_nonce,min_iteration_count,error_msg',
     [
         # Error from server
-        [
+        (
             'e=other-error',
             'fyko+d2lbbFgONRv9qkxdawL',
             1000,
             'The server returned the error: other-error',
-        ],
+        ),
         # Malformed server first
-        [
+        (
             'junk',
             'fyko+d2lbbFgONRv9qkxdawL',
             1000,
             "Malformed server first message. Attributes must be separated by a ',' "
             "and each attribute must start with a letter followed by a '=': "
             "other-error",
-        ],
+        ),
         # Malformed iteration count in server first
-        [
+        (
             'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
             's=W22ZaJ0SNY7soEsUEjb6gQ==,i=not_an_integer',
             'fyko+d2lbbFgONRv9qkxdawL',
             1000,
             'Server iteration count not_an_integer is not valid',
-        ],
+        ),
     ],
 )
 def test_set_server_first_error(server_first, c_nonce, min_iteration_count, error_msg):

@@ -88,13 +88,13 @@ def test_PGInterval_to_timedelta_unfittable_fields():
 @pytest.mark.parametrize(
     'value,expected',
     [
-        ['1-2', PGInterval(years=1, months=2)],
-        ['3 4:05:06', PGInterval(days=3, hours=4, minutes=5, seconds=6)],
-        [
+        ('1-2', PGInterval(years=1, months=2)),
+        ('3 4:05:06', PGInterval(days=3, hours=4, minutes=5, seconds=6)),
+        (
             '-1-2 +3 -4:05:06',
             PGInterval(years=-1, months=-2, days=3, hours=-4, minutes=-5, seconds=-6),
-        ],
-        ['8 4:00:32.32', PGInterval(days=8, hours=4, minutes=0, seconds=32.32)],
+        ),
+        ('8 4:00:32.32', PGInterval(days=8, hours=4, minutes=0, seconds=32.32)),
     ],
 )
 def test_PGInterval_from_str_sql_standard(value, expected):

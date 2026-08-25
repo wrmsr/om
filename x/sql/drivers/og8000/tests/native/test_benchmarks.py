@@ -3,7 +3,7 @@ import pytest
 
 @pytest.mark.parametrize(
     'txt',
-    (
+    [
         ('int2', 'cast(id / 100 as int2)'),
         'cast(id as int4)',
         'cast(id * 100 as int8)',
@@ -13,7 +13,7 @@ import pytest
         'cast(id / 100 as float8)',
         'cast(id / 100 as numeric)',
         "timestamp '2001-09-28'",
-    ),
+    ],
 )
 def test_round_trips(con, benchmark, txt):
     def torun():
