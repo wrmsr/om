@@ -1,24 +1,19 @@
-"""
-The protocol as omcore.io.pipelines handlers: a frontend message encoder, a backend message framer/decoder, and a
-session handler which drives ProtocolSession operations. These are synchronous and transport-agnostic; sync and async
-connections differ only in the pipeline driver they are attached to.
-"""
 import functools
 import math
 import typing as ta
 import weakref
 
-from omcore import check
-from omcore import dataclasses as dc
-from omcore.io.pipelines.core import IoPipelineHandler
-from omcore.io.pipelines.core import IoPipelineHandlerContext
-from omcore.io.pipelines.core import IoPipelineHandlerNotification
-from omcore.io.pipelines.core import IoPipelineHandlerNotifications
-from omcore.io.pipelines.core import IoPipelineMessages
-from omcore.io.pipelines.errors import TimeoutIoPipelineError
-from omcore.io.pipelines.flow.types import IoPipelineFlowMessages
-from omcore.io.pipelines.sched.types import IoPipelineScheduling
-from omcore.io.streambufs.utils import ByteStreamBuffers
+from ..... import check
+from ..... import dataclasses as dc
+from .....io.pipelines.core import IoPipelineHandler
+from .....io.pipelines.core import IoPipelineHandlerContext
+from .....io.pipelines.core import IoPipelineHandlerNotification
+from .....io.pipelines.core import IoPipelineHandlerNotifications
+from .....io.pipelines.core import IoPipelineMessages
+from .....io.pipelines.errors import TimeoutIoPipelineError
+from .....io.pipelines.flow.types import IoPipelineFlowMessages
+from .....io.pipelines.sched.types import IoPipelineScheduling
+from .....io.streambufs.utils import ByteStreamBuffers
 
 
 OperationT = ta.TypeVar('OperationT')

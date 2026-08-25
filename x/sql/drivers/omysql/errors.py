@@ -15,9 +15,10 @@
 import struct
 import typing as ta
 
-from ..base.errors import AnyError as BaseAnyError
-from ..base.errors import Error as BaseError
-from ..base.errors import Warning as BaseWarning
+from omcore.sql.drivers.base.errors import AnyError as BaseAnyError
+from omcore.sql.drivers.base.errors import Error as BaseError
+from omcore.sql.drivers.base.errors import Warning as BaseWarning
+
 from .constants import ER
 
 

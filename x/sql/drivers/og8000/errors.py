@@ -21,7 +21,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Original Author: Mathieu Fenniak
-from ..base.errors import Error as BaseError
+from omcore.sql.drivers.base.errors import Error as BaseError
 
 
 ##

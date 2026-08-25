@@ -14,10 +14,10 @@ from omcore.io.pipelines.core import IoPipelineMessages
 from omcore.io.pipelines.errors import IncompleteDecodingIoPipelineError
 from omcore.io.pipelines.errors import TimeoutIoPipelineError
 from omcore.io.streambufs.types import ByteStreamBuffer
+from omcore.sql.drivers.base.core.handlers import OperationDone
+from omcore.sql.drivers.base.core.handlers import OperationRequest
+from omcore.sql.drivers.base.core.handlers import OperationTimeoutsIoPipelineHandler
 
-from ...base.core.handlers import OperationDone
-from ...base.core.handlers import OperationRequest
-from ...base.core.handlers import OperationTimeoutsIoPipelineHandler
 from ..errors import InterfaceError
 from ..protocol import messages as msgs
 from ..protocol.decoding import BackendMessageDecoder
