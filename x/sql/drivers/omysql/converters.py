@@ -99,15 +99,15 @@ def escape_string(value, mapping=None):
 
 
 def escape_bytes_prefixed(value, mapping=None):
-    return "_binary'%s'" % value.decode('ascii', 'surrogateescape').translate(_escape_table)  # noqa
+    return "_binary'%s'" % (value.decode('ascii', 'surrogateescape').translate(_escape_table),)  # noqa
 
 
 def escape_bytes(value, mapping=None):
-    return "'%s'" % value.decode('ascii', 'surrogateescape').translate(_escape_table)  # noqa
+    return "'%s'" % (value.decode('ascii', 'surrogateescape').translate(_escape_table),)  # noqa
 
 
 def escape_str(value, mapping=None):
-    return "'%s'" % escape_string(str(value), mapping)  # noqa
+    return "'%s'" % (escape_string(str(value), mapping),)  # noqa
 
 
 def escape_none(value, mapping=None):

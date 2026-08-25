@@ -26,10 +26,10 @@ from ... import dbapi
 driver = dbapi
 table_prefix = 'dbapi20test_'  # If you need to specify a prefix for tables
 
-ddl1 = 'create table %sbooze (name varchar(20))' % table_prefix
-ddl2 = 'create table %sbarflys (name varchar(20))' % table_prefix
-xddl1 = 'drop table %sbooze' % table_prefix
-xddl2 = 'drop table %sbarflys' % table_prefix
+ddl1 = 'create table %sbooze (name varchar(20))' % (table_prefix,)
+ddl2 = 'create table %sbarflys (name varchar(20))' % (table_prefix,)
+xddl1 = 'drop table %sbooze' % (table_prefix,)
+xddl2 = 'drop table %sbarflys' % (table_prefix,)
 
 # Name of stored procedure to convert string->lowercase
 lowerfunc = 'lower'
@@ -144,7 +144,7 @@ def test_cursor_isolation(con):
     cur2 = con.cursor()
     executeDDL1(cur1)
     cur1.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
-    cur2.execute('select name from %sbooze' % table_prefix)
+    cur2.execute('select name from %sbooze' % (table_prefix,))
     booze = cur2.fetchall()
     assert len(booze) == 1
     assert len(booze[0]) == 1
@@ -158,7 +158,7 @@ def test_description(con):
         'cursor.description should be none after executing a '
         'statement that can return no rows (such as DDL)'
     )
-    cur.execute('select name from %sbooze' % table_prefix)
+    cur.execute('select name from %sbooze' % (table_prefix,))
     desc: ta.Any = check.not_none(cur.description)
     assert len(desc) == 1, 'cursor.description describes too many columns'
     assert (
@@ -169,7 +169,7 @@ def test_description(con):
     ), 'cursor.description[x][0] must return column name'
     assert desc[0][1] == driver.STRING, (
         'cursor.description[x][1] must return column type. Got %r'
-        % desc[0][1]
+        % (desc[0][1],)
     )
 
     # Make sure self.description gets reset
@@ -190,7 +190,7 @@ def test_rowcount(cursor):
         'cursor.rowcount should == number or rows inserted, or '
         'set to -1 after executing an insert statement'
     )
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))
     assert cursor.rowcount in (-1, 1), (
         'cursor.rowcount should == number of rows returned, or '
         'set to -1 after executing a select statement'
@@ -229,18 +229,18 @@ def _paraminsert(cur):
     assert cur.rowcount in (-1, 1)
 
     if driver.paramstyle == 'qmark':
-        cur.execute('insert into %sbooze values (?)' % table_prefix, ("Cooper's",))
+        cur.execute('insert into %sbooze values (?)' % (table_prefix,), ("Cooper's",))
     elif driver.paramstyle == 'numeric':
-        cur.execute('insert into %sbooze values (:1)' % table_prefix, ("Cooper's",))
+        cur.execute('insert into %sbooze values (:1)' % (table_prefix,), ("Cooper's",))
     elif driver.paramstyle == 'named':
         cur.execute(
-            'insert into %sbooze values (:beer)' % table_prefix, {'beer': "Cooper's"},
+            'insert into %sbooze values (:beer)' % (table_prefix,), {'beer': "Cooper's"},
         )
     elif driver.paramstyle == 'format':
-        cur.execute('insert into %sbooze values (%%s)' % table_prefix, ("Cooper's",))
+        cur.execute('insert into %sbooze values (%%s)' % (table_prefix,), ("Cooper's",))
     elif driver.paramstyle == 'pyformat':
         cur.execute(
-            'insert into %sbooze values (%%(beer)s)' % table_prefix,
+            'insert into %sbooze values (%%(beer)s)' % (table_prefix,),
             {'beer': "Cooper's"},
         )
     else:
@@ -248,7 +248,7 @@ def _paraminsert(cur):
 
     assert cur.rowcount in (-1, 1)
 
-    cur.execute('select name from %sbooze' % table_prefix)
+    cur.execute('select name from %sbooze' % (table_prefix,))
     res = cur.fetchall()
     assert len(res) == 2, 'cursor.fetchall returned too few rows'
     beers = [res[0][0], res[1][0]]
@@ -266,13 +266,13 @@ def test_executemany(cursor):
     largs = [("Cooper's",), ("Boag's",)]
     margs = [{'beer': "Cooper's"}, {'beer': "Boag's"}]
     if driver.paramstyle == 'qmark':
-        cursor.executemany('insert into %sbooze values (?)' % table_prefix, largs)
+        cursor.executemany('insert into %sbooze values (?)' % (table_prefix,), largs)
     elif driver.paramstyle == 'numeric':
-        cursor.executemany('insert into %sbooze values (:1)' % table_prefix, largs)
+        cursor.executemany('insert into %sbooze values (:1)' % (table_prefix,), largs)
     elif driver.paramstyle == 'named':
-        cursor.executemany('insert into %sbooze values (:beer)' % table_prefix, margs)
+        cursor.executemany('insert into %sbooze values (:beer)' % (table_prefix,), margs)
     elif driver.paramstyle == 'format':
-        cursor.executemany('insert into %sbooze values (%%s)' % table_prefix, largs)
+        cursor.executemany('insert into %sbooze values (%%s)' % (table_prefix,), largs)
     elif driver.paramstyle == 'pyformat':
         cursor.executemany(
             'insert into %sbooze values (%%(beer)s)' % (table_prefix), margs,
@@ -282,10 +282,10 @@ def test_executemany(cursor):
 
     assert cursor.rowcount in (-1, 2), (
         'insert using cursor.executemany set cursor.rowcount to '
-        'incorrect value %r' % cursor.rowcount
+        'incorrect value %r' % (cursor.rowcount,)
     )
 
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))
     res = cursor.fetchall()
     assert len(res) == 2, 'cursor.fetchall retrieved incorrect number of rows'
     beers = [res[0][0], res[1][0]]
@@ -304,18 +304,18 @@ def test_fetchone(cursor):
     with pytest.raises(driver.Error):
         cursor.fetchone()
 
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))
     assert cursor.fetchone() is None, (
         'cursor.fetchone should return None if a query retrieves ' 'no rows'
     )
     assert cursor.rowcount in (-1, 0)
 
     # cursor.fetchone should raise an Error if called after executing a query that cannot return rows
-    cursor.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
+    cursor.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix,))  # noqa
     with pytest.raises(driver.Error):
         cursor.fetchone()
 
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     r = cursor.fetchone()
     assert len(r) == 1, 'cursor.fetchone should have retrieved a single row'
     assert r[0] == 'Victoria Bitter', 'cursor.fetchone retrieved incorrect data'
@@ -339,7 +339,8 @@ def _populate():
     """Return a list of sql commands to setup the DB for the fetch tests."""
 
     populate = [
-        "insert into %sbooze values ('%s')" % (table_prefix, s) for s in samples
+        "insert into %sbooze values ('%s')" % (table_prefix, s)  # noqa
+        for s in samples
     ]
     return populate
 
@@ -353,7 +354,7 @@ def test_fetchmany(cursor):
     for sql in _populate():
         cursor.execute(sql)
 
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     r = cursor.fetchmany()
     assert len(r) == 1, (
         'cursor.fetchmany retrieved incorrect number of rows, '
@@ -373,7 +374,7 @@ def test_fetchmany(cursor):
 
     # Same as above, using cursor.arraysize
     cursor.arraysize = 4
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     r = cursor.fetchmany()  # Should get 4 rows
     assert len(r) == 4, 'cursor.arraysize not being honoured by fetchmany'
     r = cursor.fetchmany()  # Should get 2 more
@@ -383,7 +384,7 @@ def test_fetchmany(cursor):
     assert cursor.rowcount in (-1, 6)
 
     cursor.arraysize = 6
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     rows = cursor.fetchmany()  # Should get all rows
     assert cursor.rowcount in (-1, 6)
     assert len(rows) == 6
@@ -392,22 +393,19 @@ def test_fetchmany(cursor):
     rows.sort()
 
     # Make sure we get the right data back out
-    for i in range(0, 6):
+    for i in range(6):
         assert rows[i] == samples[i], 'incorrect data retrieved by cursor.fetchmany'
 
     rows = cursor.fetchmany()  # Should return an empty list
     assert len(rows) == 0, (
-        'cursor.fetchmany should return an empty sequence if '
-        'called after the whole result set has been fetched'
+        'cursor.fetchmany should return an empty sequence if called after the whole result set has been fetched'
     )
     assert cursor.rowcount in (-1, 6)
 
     executeDDL2(cursor)
-    cursor.execute('select name from %sbarflys' % table_prefix)
+    cursor.execute('select name from %sbarflys' % (table_prefix,))  # noqa
     r = cursor.fetchmany()  # Should get empty sequence
-    assert len(r) == 0, (
-        'cursor.fetchmany should return an empty sequence if ' 'query retrieved no rows'
-    )
+    assert len(r) == 0, 'cursor.fetchmany should return an empty sequence if query retrieved no rows'
     assert cursor.rowcount in (-1, 0)
 
 
@@ -424,13 +422,13 @@ def test_fetchall(cursor):
     with pytest.raises(driver.Error):
         cursor.fetchall()
 
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     rows = cursor.fetchall()
     assert cursor.rowcount in (-1, len(samples))
     assert len(rows) == len(samples), 'cursor.fetchall did not retrieve all rows'
     rows = [r[0] for r in rows]
     rows.sort()
-    for i in range(0, len(samples)):
+    for i in range(len(samples)):
         assert rows[i] == samples[i], 'cursor.fetchall retrieved incorrect rows'
     rows = cursor.fetchall()
     assert len(rows) == 0, (
@@ -440,7 +438,7 @@ def test_fetchall(cursor):
     assert cursor.rowcount in (-1, len(samples))
 
     executeDDL2(cursor)
-    cursor.execute('select name from %sbarflys' % table_prefix)
+    cursor.execute('select name from %sbarflys' % (table_prefix,))  # noqa
     rows = cursor.fetchall()
     assert cursor.rowcount in (-1, 0)
     assert len(rows) == 0, (
@@ -454,7 +452,7 @@ def test_mixedfetch(cursor):
     for sql in _populate():
         cursor.execute(sql)
 
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     rows1 = cursor.fetchone()
     rows23 = cursor.fetchmany(2)
     rows4 = cursor.fetchone()
@@ -468,11 +466,11 @@ def test_mixedfetch(cursor):
     rows.append(rows4[0])
     rows.extend([rows56[0][0], rows56[1][0]])
     rows.sort()
-    for i in range(0, len(samples)):
+    for i in range(len(samples)):
         assert rows[i] == samples[i], 'incorrect data retrieved or inserted'
 
 
-def help_nextset_setUp(cur):
+def help_nextset_setup(cur):
     """
     Should create a procedure called deleteme that returns two result sets, first the number of rows in booze then "name
     from booze"
@@ -481,7 +479,7 @@ def help_nextset_setUp(cur):
     raise NotImplementedError('Helper not implemented')
 
 
-def help_nextset_tearDown(cur):
+def help_nextset_teardown(cur):
     """If cleaning up is needed after nextSetTest"""
 
     raise NotImplementedError('Helper not implemented')
@@ -497,7 +495,7 @@ def test_nextset(cursor):
         for sql in _populate():
             cursor.execute(sql)
 
-        help_nextset_setUp(cursor)
+        help_nextset_setup(cursor)
 
         cursor.callproc('deleteme')
         numberofrows = cursor.fetchone()
@@ -508,7 +506,7 @@ def test_nextset(cursor):
         s = cursor.nextset()
         assert s is None, 'No more return sets, should return None'
     finally:
-        help_nextset_tearDown(cursor)
+        help_nextset_teardown(cursor)
 
 
 def test_arraysize(cursor):
@@ -527,57 +525,57 @@ def test_setoutputsize_basic(cursor):
     _paraminsert(cursor)  # Make sure the cursor still works
 
 
-def test_None(cursor):
+def test_none(cursor):
     executeDDL1(cursor)
-    cursor.execute('insert into %sbooze values (NULL)' % table_prefix)
-    cursor.execute('select name from %sbooze' % table_prefix)
+    cursor.execute('insert into %sbooze values (NULL)' % (table_prefix,))  # noqa
+    cursor.execute('select name from %sbooze' % (table_prefix,))  # noqa
     r = cursor.fetchall()
     assert len(r) == 1
     assert len(r[0]) == 1
     assert r[0][0] is None, 'NULL value not returned as None'
 
 
-def test_Date():
+def test_date():
     driver.Date(2002, 12, 25)
     driver.DateFromTicks(time.mktime((2002, 12, 25, 0, 0, 0, 0, 0, 0)))
     # Can we assume this? API doesn't specify, but it seems implied
     # self.assertEqual(str(d1),str(d2))
 
 
-def test_Time():
+def test_time():
     driver.Time(13, 45, 30)
     driver.TimeFromTicks(time.mktime((2001, 1, 1, 13, 45, 30, 0, 0, 0)))
     # Can we assume this? API doesn't specify, but it seems implied
     # self.assertEqual(str(t1),str(t2))
 
 
-def test_Timestamp():
+def test_timestamp():
     driver.Timestamp(2002, 12, 25, 13, 45, 30)
     driver.TimestampFromTicks(time.mktime((2002, 12, 25, 13, 45, 30, 0, 0, 0)))
     # Can we assume this? API doesn't specify, but it seems implied
     # self.assertEqual(str(t1),str(t2))
 
 
-def test_Binary():
+def test_binary():
     driver.Binary(b'Something')
     driver.Binary(b'')
 
 
-def test_STRING():
+def test_string():
     assert hasattr(driver, 'STRING'), 'module.STRING must be defined'
 
 
-def test_BINARY():
+def test_binary_():
     assert hasattr(driver, 'BINARY'), 'module.BINARY must be defined.'
 
 
-def test_NUMBER():
+def test_number():
     assert hasattr(driver, 'NUMBER'), 'module.NUMBER must be defined.'
 
 
-def test_DATETIME():
+def test_datetime():
     assert hasattr(driver, 'DATETIME'), 'module.DATETIME must be defined.'
 
 
-def test_ROWID():
+def test_rowid():
     assert hasattr(driver, 'ROWID'), 'module.ROWID must be defined.'

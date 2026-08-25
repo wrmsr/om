@@ -11,24 +11,29 @@ from ...native import InterfaceError
 
 
 def test_unix_socket_missing():
-    conn_params = {'unix_sock': '/file-does-not-exist', 'user': "doesn't-matter"}
+    conn_params = {
+        'unix_sock': '/file-does-not-exist',
+        'user': "doesn't-matter",
+    }
 
     with pytest.raises(InterfaceError):
         Connection(**conn_params)
 
 
 def test_internet_socket_connection_refused():
-    conn_params = {'port': 0, 'user': "doesn't-matter"}
+    conn_params = {
+        'port': 0,
+        'user': "doesn't-matter",
+    }
 
     with pytest.raises(
         InterfaceError,
-        match="Can't create a connection to host localhost and port 0 "
-        "\\(timeout is None and source_address is None\\).",
+        match=r"Can't create a connection to host localhost and port 0 \(timeout is None and source_address is None\).",
     ):
         Connection(**conn_params)
 
 
-def test_Connection_plain_socket(db_kwargs):
+def test_connection_plain_socket(db_kwargs):
     host = db_kwargs.get('host', 'localhost')
     port = db_kwargs.get('port', 5432)
     with socket.create_connection((host, port)) as sock:
@@ -96,7 +101,7 @@ def test_password(db_kwargs):
         Connection(**db_kwargs)
 
 
-def test_unicode_databaseName(db_kwargs):
+def test_unicode_database_name(db_kwargs):
     db_kwargs['database'] = 'test_og8000_sn\uff6fw'
 
     # Should only raise an exception saying db doesn't exist
@@ -104,7 +109,7 @@ def test_unicode_databaseName(db_kwargs):
         Connection(**db_kwargs)
 
 
-def test_bytes_databaseName(db_kwargs):
+def test_bytes_database_name(db_kwargs):
     """Should only raise an exception saying db doesn't exist"""
 
     db_kwargs['database'] = bytes('test_og8000_sn\uff6fw', 'utf8')
@@ -115,7 +120,7 @@ def test_bytes_databaseName(db_kwargs):
 def test_bytes_password(con, db_kwargs):
     # Create user
     username = 'test_og8000_boltzmann'
-    password = 'cha\uff6fs'
+    password = 'cha\uff6fs'  # noqa
     con.run('drop role if exists ' + username)
     con.run('create user ' + username + " with password '" + password + "';")
 
@@ -160,14 +165,14 @@ def test_broken_pipe_flush(con, db_kwargs):
     con.run('select pg_terminate_backend(:v)', v=pid1)
     try:
         db1.run('select 1')
-    except BaseException:
+    except InterfaceError:
         pass
 
     # Sometimes raises and sometime doesn't
     try:
         db1.close()
     except InterfaceError as e:
-        assert str(e) == 'network error'
+        assert str(e) == 'network error'  # noqa
 
 
 def test_application_name(db_kwargs):
@@ -187,7 +192,7 @@ def test_application_name_integer(db_kwargs):
     db_kwargs['application_name'] = 1
     with pytest.raises(
         InterfaceError,
-        match="The parameter application_name can't be of type <class 'int'>.",
+        match=r"The parameter application_name can't be of type <class 'int'>.",
     ):
         Connection(**db_kwargs)
 

@@ -28,20 +28,14 @@ def test_database_error(con):
         con.run('INSERT INTO t99 VALUES (1, 2, 3)')
 
 
-# Run a query on a table, alter the structure of the table, then run the
-# original query again.
-
-
+# Run a query on a table, alter the structure of the table, then run the original query again.
 def test_alter(db_table):
     db_table.run('select * from t1')
     db_table.run('alter table t1 drop column f3')
     db_table.run('select * from t1')
 
 
-# Run a query on a table, drop then re-create the table, then run the
-# original query again.
-
-
+# Run a query on a table, drop then re-create the table, then run the original query again.
 def test_create(db_table):
     db_table.run('select * from t1')
     db_table.run('drop table t1')
@@ -167,8 +161,7 @@ def test_rollback_no_transaction(con):
 
     assert 1 == len(con.notices)
 
-    # 25P01 is the code for no_active_sql_tronsaction. It has
-    # a message and severity name, but those might be
+    # 25P01 is the code for no_active_sql_tronsaction. It has a message and severity name, but those might be
     # localized/depend on the server version.
     assert con.notices.pop().fields['C'] == '25P01'
 

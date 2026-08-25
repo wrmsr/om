@@ -109,7 +109,7 @@ def test_known_vectors(
 
 
 @pytest.mark.parametrize(('password', 'scramble', '_'), _KNOWN_VECTORS)
-def test_nacl_backend_is_exact_pymysql_reference(
+def test_nacl_backend_is_exact_reference(
         password: bytes,
         scramble: bytes,
         _: str,

@@ -218,7 +218,7 @@ def test_fetch_no_result(connect):
     c = conn.cursor()
     c.execute('create table test_nr (b varchar(32))')
     try:
-        data = 'pymysql'
+        data = 'oymysql'
         c.execute('insert into test_nr (b) values (%s)', (data,))
         assert c.fetchone() is None
     finally:

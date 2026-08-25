@@ -123,7 +123,7 @@ def test_int_roundtrip(con, cursor):
     int4 = 23
     int8 = 20
 
-    MAP = {
+    dct = {
         int2: 'int2',
         int4: 'int4',
         int8: 'int8',
@@ -144,7 +144,7 @@ def test_int_roundtrip(con, cursor):
     ]
 
     for value, typoid in test_values:
-        cursor.execute('SELECT cast(%s as ' + MAP[typoid] + ')', (value,))
+        cursor.execute('SELECT cast(%s as ' + dct[typoid] + ')', (value,))
         assert cursor.fetchall()[0][0] == value
         column_name, column_typeoid = cursor.description[0][0:2]
         assert column_typeoid == typoid
@@ -238,7 +238,7 @@ def test_enum_str_round_trip(cursor):
 
 def test_enum_custom_round_trip(con, cursor):
     class Lepton:
-        __members__ = {}
+        __members__ = {}  # noqa
 
         def __init__(self, name, value, alias=None):
             self.name = name
@@ -331,7 +331,7 @@ def test_int2vector_in(cursor):
 
 def test_timestamp_tz_out(cursor):
     cursor.execute(
-        "SELECT '2001-02-03 04:05:06.17 America/Edmonton'" "::timestamp with time zone",
+        "SELECT '2001-02-03 04:05:06.17 America/Edmonton'::timestamp with time zone",
     )
     retval = cursor.fetchall()
     dt = retval[0][0]

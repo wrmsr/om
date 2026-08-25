@@ -32,7 +32,7 @@ def test_scram_sha_256_plus(setup, db_kwargs):
         assert con.is_ssl
 
 
-def test_scram_sha_256_plus_ssl_True(setup, db_kwargs):
+def test_scram_sha_256_plus_ssl_true(setup, db_kwargs):
     db_kwargs['ssl_context'] = True
     db_kwargs['database'] = DB
 
@@ -52,7 +52,7 @@ def test_scram_sha_256_plus_ssl_custom(setup, db_kwargs):
         assert con.is_ssl
 
 
-def test_scram_sha_256_plus_ssl_False(setup, db_kwargs):
+def test_scram_sha_256_plus_ssl_false(setup, db_kwargs):
     db_kwargs['ssl_context'] = False
     db_kwargs['database'] = DB
 

@@ -1,5 +1,5 @@
-from datetime import datetime as Datetime
-from datetime import timezone as Timezone
+# ruff: noqa: DTZ001 SLF001
+import datetime
 
 import pytest
 
@@ -20,15 +20,13 @@ def db_table(request, con):
         'f2 bigint not null, f3 varchar(50) null) ',
     )
 
-    def fin():
-        try:
-            cursor = con.cursor()
-            cursor.execute('drop table t1')
-        except dbapi.DatabaseError:
-            pass
+    yield con
 
-    request.addfinalizer(fin)
-    return con
+    try:
+        cursor = con.cursor()
+        cursor.execute('drop table t1')
+    except dbapi.DatabaseError:
+        pass
 
 
 def test_database_error(cursor):
@@ -61,18 +59,15 @@ def test_parallel_open_portals(con):
     params = (100,)
     c1.execute(q, params)
     c2.execute(q, params)
-    for c2row in c2.fetchall():
+    for _ in c2.fetchall():
         c2count += 1
-    for c1row in c1.fetchall():
+    for _ in c1.fetchall():
         c1count += 1
 
     assert c1count == c2count
 
 
-# Run a query on a table, alter the structure of the table, then run the
-# original query again.
-
-
+# Run a query on a table, alter the structure of the table, then run the original query again.
 def test_alter(db_table):
     cursor = db_table.cursor()
     cursor.execute('select * from t1')
@@ -80,10 +75,7 @@ def test_alter(db_table):
     cursor.execute('select * from t1')
 
 
-# Run a query on a table, drop then re-create the table, then run the
-# original query again.
-
-
+# Run a query on a table, drop then re-create the table, then run the original query again.
 def test_create(db_table):
     cursor = db_table.cursor()
     cursor.execute('select * from t1')
@@ -106,7 +98,7 @@ def test_insert_returning(db_table):
 
     # Test with multiple rows...
     cursor.execute(
-        'INSERT INTO t2 (data) VALUES (%s), (%s), (%s) ' 'RETURNING id',
+        'INSERT INTO t2 (data) VALUES (%s), (%s), (%s) RETURNING id',
         ('test2', 'test3', 'test4'),
     )
     assert cursor.rowcount == 3
@@ -130,17 +122,15 @@ def test_row_count(db_table):
     # Check row_count without doing any reading first...
     assert expected_count == cursor.rowcount
 
-    # Check rowcount after reading some rows, make sure it still
-    # works...
-    for i in range(expected_count // 2):
+    # Check rowcount after reading some rows, make sure it still works...
+    for _ in range(expected_count // 2):
         cursor.fetchone()
     assert expected_count == cursor.rowcount
 
     cursor = db_table.cursor()
-    # Restart the cursor, read a few rows, and then check rowcount
-    # again...
+    # Restart the cursor, read a few rows, and then check rowcount again...
     cursor.execute('SELECT * FROM t1')
-    for i in range(expected_count // 3):
+    for _ in range(expected_count // 3):
         cursor.fetchone()
     assert expected_count == cursor.rowcount
 
@@ -182,7 +172,7 @@ def test_executemany(db_table):
 
     cursor.executemany(
         'select CAST(%s AS TIMESTAMP)',
-        ((Datetime(2014, 5, 7, tzinfo=Timezone.utc),), (Datetime(2014, 5, 7),)),
+        ((datetime.datetime(2014, 5, 7, tzinfo=datetime.UTC),), (datetime.datetime(2014, 5, 7),)),
     )
 
 
@@ -195,7 +185,7 @@ def test_executemany_setinputsizes(cursor):
 
     cursor.setinputsizes([INTEGER, INET_ARRAY])
     cursor.executemany(
-        'INSERT INTO t1 (f1, f2) VALUES (%s, %s)', ((1, ['1.1.1.1']), (2, ['0.0.0.0'])),
+        'INSERT INTO t1 (f1, f2) VALUES (%s, %s)', ((1, ['1.1.1.1']), (2, ['0.0.0.0'])),  # noqa
     )
 
 
@@ -204,9 +194,8 @@ def test_executemany_no_param_sets(cursor):
     assert cursor.rowcount == -1
 
 
-# Check that autocommit stays off
-# We keep track of whether we're in a transaction or not by using the
-# READY_FOR_QUERY message.
+# Check that autocommit stays off. We keep track of whether we're in a transaction or not by using the READY_FOR_QUERY
+# message.
 def test_transactions(db_table):
     cursor = db_table.cursor()
     cursor.execute('commit')
@@ -263,13 +252,11 @@ def test_rollback_no_transaction(con):
 
     assert 1 == len(con.notices)
 
-    # 25P01 is the code for no_active_sql_tronsaction. It has
-    # a message and severity name, but those might be
+    # 25P01 is the code for no_active_sql_tronsaction. It has a message and severity name, but those might be
     # localized/depend on the server version.
     assert con.notices.pop().fields['C'] == '25P01'
 
-    # Now going through the rollback method doesn't produce
-    # any notices because it knows we're not in a transaction.
+    # Now going through the rollback method doesn't produce any notices because it knows we're not in a transaction.
     con.rollback()
 
     assert 0 == len(con.notices)

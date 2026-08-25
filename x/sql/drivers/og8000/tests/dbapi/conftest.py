@@ -8,19 +8,17 @@ from ..utils import parse_server_version
 def con(request, db_kwargs):
     conn = dbapi.connect(**db_kwargs)
 
-    def fin():
-        try:
-            conn.rollback()
-        except dbapi.InterfaceError:
-            pass
+    yield conn
 
-        try:
-            conn.close()
-        except dbapi.InterfaceError:
-            pass
+    try:
+        conn.rollback()
+    except dbapi.InterfaceError:
+        pass
 
-    request.addfinalizer(fin)
-    return conn
+    try:
+        conn.close()
+    except dbapi.InterfaceError:
+        pass
 
 
 @pytest.fixture

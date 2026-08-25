@@ -34,7 +34,7 @@ def run_dbapi() -> None:
     )
     results = cursor.fetchall()
     for row in results:
-        id, title = row
+        id, title = row  # noqa
         print('id = %s, title = %s' % (id, title))  # noqa
     conn.commit()
 

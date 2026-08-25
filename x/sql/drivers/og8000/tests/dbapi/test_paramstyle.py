@@ -10,10 +10,14 @@ from ...dbapi import convert_paramstyle
     ('query', 'statement'),
     [
         (
-            'SELECT ?, ?, "field_?" FROM t '
-            "WHERE a='say ''what?''' AND b=? AND c=E'?\\'test\\'?'",
-            'SELECT $1, $2, "field_?" FROM t WHERE '
-            "a='say ''what?''' AND b=$3 AND c=E'?\\'test\\'?'",
+            (
+                'SELECT ?, ?, "field_?" FROM t '
+                "WHERE a='say ''what?''' AND b=? AND c=E'?\\'test\\'?'"
+            ),
+            (
+                'SELECT $1, $2, "field_?" FROM t WHERE '
+                "a='say ''what?''' AND b=$3 AND c=E'?\\'test\\'?'"
+            ),
         ),
         (
             "SELECT ?, ?, * FROM t WHERE a=? AND b='are you ''sure?'",
@@ -75,10 +79,8 @@ def test_named(query, args, expected_query, expected_args):
     ('query', 'expected'),
     [
         (
-            "SELECT %s, %s, \"f1_%%\", E'txt_%%' "
-            "FROM t WHERE a=%s AND b='75%%' AND c = '%' -- Comment with %",
-            "SELECT $1, $2, \"f1_%%\", E'txt_%%' FROM t WHERE a=$3 AND "
-            "b='75%%' AND c = '%' -- Comment with %",
+            "SELECT %s, %s, \"f1_%%\", E'txt_%%' FROM t WHERE a=%s AND b='75%%' AND c = '%' -- Comment with %",
+            "SELECT $1, $2, \"f1_%%\", E'txt_%%' FROM t WHERE a=$3 AND b='75%%' AND c = '%' -- Comment with %",
         ),
         (
             'SELECT -- Comment\n%s FROM t',
@@ -95,8 +97,7 @@ def test_format_changed(query, expected):
 @pytest.mark.parametrize(
     'query',
     [
-        r"""COMMENT ON TABLE test_schema.comment_test """
-        r"""IS 'the test % '' " \ table comment'""",
+        r"""COMMENT ON TABLE test_schema.comment_test IS 'the test % '' " \ table comment'""",
     ],
 )
 def test_format_unchanged(query):
@@ -114,7 +115,7 @@ def test_py_format():
         "FROM t WHERE a=%(f2)s AND b='75%%'",
         args,
     )
-    expected = "SELECT $1, $2, \"f1_%%\", E'txt_%%' FROM t WHERE a=$1 AND " "b='75%%'"
+    expected = "SELECT $1, $2, \"f1_%%\", E'txt_%%' FROM t WHERE a=$1 AND b='75%%'"
     assert (new_query, vals) == (expected, (1, 2))
 
 
@@ -124,8 +125,8 @@ def test_pyformat_format():
     args = 1, 2, 3
     new_query, vals = convert_paramstyle(
         'pyformat',
-        "SELECT %s, %s, \"f1_%%\", E'txt_%%' " "FROM t WHERE a=%s AND b='75%%'",
+        "SELECT %s, %s, \"f1_%%\", E'txt_%%' FROM t WHERE a=%s AND b='75%%'",
         args,
     )
-    expected = "SELECT $1, $2, \"f1_%%\", E'txt_%%' FROM t WHERE a=$3 AND " "b='75%%'"
+    expected = "SELECT $1, $2, \"f1_%%\", E'txt_%%' FROM t WHERE a=$3 AND b='75%%'"
     assert (new_query, vals) == (expected, args)

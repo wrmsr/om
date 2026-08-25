@@ -35,7 +35,7 @@ def test_scram_sha_256(setup, db_kwargs):
         pass
 
 
-def test_scram_sha_256_ssl_False(setup, db_kwargs):
+def test_scram_sha_256_ssl_false(setup, db_kwargs):
     db_kwargs['database'] = DB
     db_kwargs['ssl_context'] = False
 
@@ -43,7 +43,7 @@ def test_scram_sha_256_ssl_False(setup, db_kwargs):
         pass
 
 
-def test_scram_sha_256_ssl_True(setup, db_kwargs):
+def test_scram_sha_256_ssl_true(setup, db_kwargs):
     db_kwargs['database'] = DB
     db_kwargs['ssl_context'] = True
 

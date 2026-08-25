@@ -8,19 +8,17 @@ from ..utils import parse_server_version
 def con(request, db_kwargs):
     conn = native.Connection(**db_kwargs)
 
-    def fin():
-        try:
-            conn.run('rollback')
-        except native.InterfaceError:
-            pass
+    yield conn
 
-        try:
-            conn.close()
-        except native.InterfaceError:
-            pass
+    try:
+        conn.run('rollback')
+    except native.InterfaceError:
+        pass
 
-    request.addfinalizer(fin)
-    return conn
+    try:
+        conn.close()
+    except native.InterfaceError:
+        pass
 
 
 @pytest.fixture
