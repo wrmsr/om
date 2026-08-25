@@ -22,13 +22,13 @@ from omcore.io.pipelines.drivers.types import IoPipelineDriverState
 
 from ..constants import COMMAND
 from ..errors import Error
+from ..errors import OperationalError
 from ..protocol.session import Operation
 from ..protocol.session import QueryResult
 from ..protocol.session import Row
 from ..protocol.session import UnbufferedResult
 from .base import BaseConnection
 from .handlers import OperationRequest
-from .handlers import make_pipeline_spec
 
 
 T = ta.TypeVar('T')
@@ -48,7 +48,7 @@ class AsyncioConnection(BaseConnection):
     ) -> None:
         super().__init__(**kwargs)
 
-        self._driver = PollAsyncioStreamIoPipelineDriver(make_pipeline_spec(self._session), reader, writer)
+        self._driver = PollAsyncioStreamIoPipelineDriver(self._make_pipeline_spec(), reader, writer)
 
     @classmethod
     async def connect(
@@ -57,14 +57,19 @@ class AsyncioConnection(BaseConnection):
             host: str | None = None,
             port: int = 3306,
             unix_socket: str | None = None,
+            connect_timeout: float | None = 10,
             **kwargs: ta.Any,
     ) -> ta.Self:
-        if unix_socket is not None:
-            reader, writer = await asyncio.open_unix_connection(unix_socket)
-        else:
-            reader, writer = await asyncio.open_connection(host or 'localhost', port)
+        try:
+            async with asyncio.timeout(connect_timeout):
+                if unix_socket is not None:
+                    reader, writer = await asyncio.open_unix_connection(unix_socket)
+                else:
+                    reader, writer = await asyncio.open_connection(host or 'localhost', port)
+        except TimeoutError as e:
+            raise OperationalError(2003, f"Can't connect to MySQL server on {host!r} (timed out)") from e
 
-        conn = cls(reader, writer, server_hostname=host, **kwargs)
+        conn = cls(reader, writer, server_hostname=host, connect_timeout=connect_timeout, **kwargs)
         if unix_socket is not None:
             conn._mark_secure_transport()  # noqa: SLF001
 

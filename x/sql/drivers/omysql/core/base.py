@@ -20,6 +20,7 @@ whether the pipeline driver is stepped with a blocking socket or awaited on asyn
 import typing as ta
 
 from omcore import lang
+from omcore.io.pipelines.core import IoPipeline
 from omcore.io.pipelines.ssl.handlers import SslIoPipelineHandler
 
 from .. import converters
@@ -31,6 +32,7 @@ from ..protocol.session import ProtocolSession
 from ..protocol.session import QueryResult
 from ..protocol.session import UnbufferedResult
 from .handlers import OperationDone
+from .handlers import make_pipeline_spec
 from .sockets import SslContextArg
 from .sockets import make_ssl_context
 
@@ -62,8 +64,15 @@ class BaseConnection(lang.Abstract):
             ssl_disabled: bool = False,
             server_hostname: str | None = None,
             force_auth_plugin: str | None = None,
+            connect_timeout: float | None = None,
+            read_timeout: float | None = None,
+            write_timeout: float | None = None,
     ) -> None:
         super().__init__()
+
+        self._connect_timeout = connect_timeout
+        self._read_timeout = read_timeout
+        self._write_timeout = write_timeout
 
         self._charset = charset or DEFAULT_CHARSET
         self._collation = collation
@@ -164,11 +173,20 @@ class BaseConnection(lang.Abstract):
             self._session.will_ssl
         )
 
+    def _make_pipeline_spec(self) -> IoPipeline.Spec:
+        return make_pipeline_spec(
+            self._session,
+            read_timeout=self._read_timeout,
+            write_timeout=self._write_timeout,
+        )
+
     def _make_ssl_handler(self) -> SslIoPipelineHandler:
         self._ssl_handler = SslIoPipelineHandler(
             make_ssl_context(self._ssl_arg),
             server_side=False,
             server_hostname=self._server_hostname,
+            # The connect timeout, when given, also bounds the TLS handshake driven by the authentication exchange.
+            config=SslIoPipelineHandler.Config(handshake_timeout_s=self._connect_timeout),
         )
         return self._ssl_handler
 

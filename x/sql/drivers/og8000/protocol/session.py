@@ -190,6 +190,7 @@ class ProtocolSession:
         self._statement_names: set[str] = set()
         self._auth: scramp.ScramClient | None = None
         self._current: Operation | None = None
+        self._fatal_error: BaseException | None = None
 
     #
     # State
@@ -304,15 +305,24 @@ class ProtocolSession:
         return step
 
     def fail(self, exc: BaseException) -> None:
-        """Fails the current operation, if any, typically because the transport is gone."""
+        """
+        Fails the current operation, if any, typically because the transport is gone, and poisons the session against
+        starting further operations.
+        """
 
+        if self._fatal_error is None:
+            self._fatal_error = exc
         if (op := self._current) is not None:
             self._current = None
             if not op.done:
                 op.fail(exc)
 
     def _begin(self, gen: OperationGenerator[T]) -> Operation[T]:
+        if self._fatal_error is not None:
+            gen.close()
+            raise InterfaceError('connection is closed')
         if (cur := self._current) is not None and not cur.done:
+            gen.close()
             raise InterfaceError('An operation is already in progress')
         op: Operation[T] = Operation(gen)
         self._current = op

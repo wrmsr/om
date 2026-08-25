@@ -29,7 +29,6 @@ from ..protocol.session import Row
 from ..protocol.session import UnbufferedResult
 from .base import BaseConnection
 from .handlers import OperationRequest
-from .handlers import make_pipeline_spec
 from .sockets import connect_socket
 
 
@@ -52,12 +51,11 @@ class SyncConnection(BaseConnection):
             defer_connect: bool = False,
             **kwargs: ta.Any,
     ) -> None:
-        super().__init__(server_hostname=host, **kwargs)
+        super().__init__(server_hostname=host, connect_timeout=connect_timeout, **kwargs)
 
         self._host = host
         self._port = port
         self._unix_socket = unix_socket
-        self._connect_timeout = connect_timeout
         self._bind_address = bind_address
         self._driver: SyncSocketIoPipelineDriver | None = None
 
@@ -82,7 +80,7 @@ class SyncConnection(BaseConnection):
         if self._unix_socket is not None or (sock is not None and sock.family == socket.AF_UNIX):
             self._mark_secure_transport()
 
-        self._driver = SyncSocketIoPipelineDriver(make_pipeline_spec(self._session), self._sock)
+        self._driver = SyncSocketIoPipelineDriver(self._make_pipeline_spec(), self._sock)
 
         try:
             self._run(self._session.read_handshake())

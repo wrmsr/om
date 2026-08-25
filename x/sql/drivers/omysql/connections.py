@@ -78,8 +78,8 @@ class Connection(SyncConnection):
         if read_default_file or read_default_group:
             _apply_option_file(kwargs, read_default_file, read_default_group)
 
-        # read_timeout / write_timeout / auth_plugin_map are accepted for compatibility but not yet wired through.
-        _ = (read_timeout, write_timeout, auth_plugin_map)
+        # auth_plugin_map is accepted for compatibility but not yet wired through.
+        _ = (auth_plugin_map,)
 
         if ssl_ca or ssl_cert or ssl_key or ssl_verify_cert or ssl_verify_identity:
             ssl_arg: ta.Any = {
@@ -104,7 +104,12 @@ class Connection(SyncConnection):
         self._init_command = init_command
         self._sql_mode = sql_mode
 
-        super().__init__(defer_connect=defer_connect, **kwargs)
+        super().__init__(
+            defer_connect=defer_connect,
+            read_timeout=read_timeout,
+            write_timeout=write_timeout,
+            **kwargs,
+        )
 
     def _after_connect(self) -> None:
         self.set_character_set(self._charset, self._collation)

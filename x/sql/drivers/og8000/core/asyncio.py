@@ -15,7 +15,6 @@ from ..protocol.session import Operation
 from ..protocol.session import PreparedStatementInfo
 from .base import BaseCoreConnection
 from .handlers import OperationRequest
-from .handlers import make_pipeline_spec
 from .sockets import SslContextArg
 
 
@@ -41,6 +40,9 @@ class AsyncioCoreConnection(BaseCoreConnection):
             startup_params: ta.Mapping[str, str | bytes] | None = None,
             ssl_context: SslContextArg = None,
             server_hostname: str | None = None,
+            connect_timeout: float | None = None,
+            read_timeout: float | None = None,
+            write_timeout: float | None = None,
     ) -> None:
         super().__init__(
             user=user,
@@ -51,9 +53,12 @@ class AsyncioCoreConnection(BaseCoreConnection):
             startup_params=startup_params,
             ssl_context=ssl_context,
             server_hostname=server_hostname,
+            connect_timeout=connect_timeout,
+            read_timeout=read_timeout,
+            write_timeout=write_timeout,
         )
 
-        self._driver = PollAsyncioStreamIoPipelineDriver(make_pipeline_spec(self._session), reader, writer)
+        self._driver = PollAsyncioStreamIoPipelineDriver(self._make_pipeline_spec(), reader, writer)
 
     @classmethod
     async def connect(
@@ -65,16 +70,26 @@ class AsyncioCoreConnection(BaseCoreConnection):
             password: str | bytes | None = None,
             unix_sock: str | None = None,
             ssl_context: SslContextArg = None,
+            connect_timeout: float | None = None,
+            read_timeout: float | None = None,
+            write_timeout: float | None = None,
             application_name: str | bytes | None = None,
             replication: str | bytes | None = None,
             startup_params: ta.Mapping[str, str | bytes] | None = None,
     ) -> ta.Self:
-        if unix_sock is not None:
-            reader, writer = await asyncio.open_unix_connection(unix_sock)
-        elif host is not None:
-            reader, writer = await asyncio.open_connection(host, port)
-        else:
-            raise InterfaceError('one of host or unix_sock must be provided')
+        try:
+            async with asyncio.timeout(connect_timeout):
+                if unix_sock is not None:
+                    reader, writer = await asyncio.open_unix_connection(unix_sock)
+                elif host is not None:
+                    reader, writer = await asyncio.open_connection(host, port)
+                else:
+                    raise InterfaceError('one of host or unix_sock must be provided')
+        except TimeoutError as e:
+            raise InterfaceError(
+                f"Can't create a connection to host {host} and port {port} "
+                f'(timed out after {connect_timeout:g} seconds).',
+            ) from e
 
         conn = cls(
             reader,
@@ -87,6 +102,9 @@ class AsyncioCoreConnection(BaseCoreConnection):
             startup_params=startup_params,
             ssl_context=ssl_context,
             server_hostname=host,
+            connect_timeout=connect_timeout,
+            read_timeout=read_timeout,
+            write_timeout=write_timeout,
         )
 
         try:

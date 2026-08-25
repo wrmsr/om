@@ -26,10 +26,12 @@ def connect_socket(
         sock: socket.socket | None = None,
         host: str | None = None,
         port: int = 5432,
-        timeout: float | None = None,
+        connect_timeout: float | None = None,
         source_address: tuple[str, int] | None = None,
         tcp_keepalive: bool = True,
 ) -> socket.socket:
+    """The connect timeout bounds only connection establishment; sockets created here are left with no timeout."""
+
     if unix_sock is not None:
         if sock is not None:
             raise InterfaceError('If unix_sock is provided, sock must be None')
@@ -39,13 +41,14 @@ def connect_socket(
 
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
-            sock.settimeout(timeout)
+            sock.settimeout(connect_timeout)
             sock.connect(unix_sock)
             if tcp_keepalive:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         except OSError as e:
             sock.close()
             raise InterfaceError('communication error') from e
+        sock.settimeout(None)
         return sock
 
     elif sock is not None:
@@ -53,15 +56,16 @@ def connect_socket(
 
     elif host is not None:
         try:
-            sock = socket.create_connection((host, port), timeout, source_address)
+            sock = socket.create_connection((host, port), connect_timeout, source_address)
         except OSError as e:
             raise InterfaceError(
                 f"Can't create a connection to host {host} and port {port} "
-                f"(timeout is {timeout} and source_address is {source_address}).",
+                f"(timeout is {connect_timeout} and source_address is {source_address}).",
             ) from e
 
         if tcp_keepalive:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        sock.settimeout(None)
         return sock
 
     else:

@@ -5,6 +5,7 @@ the only difference being whether the pipeline driver is stepped with a blocking
 import typing as ta
 
 from omcore import lang
+from omcore.io.pipelines.core import IoPipeline
 from omcore.io.pipelines.ssl.handlers import SslIoPipelineHandler
 
 from .. import scramp
@@ -17,6 +18,7 @@ from ..protocol.session import Operation
 from ..protocol.session import ProtocolSession
 from ..protocol.startup import make_startup_params
 from .handlers import OperationDone
+from .handlers import make_pipeline_spec
 from .sockets import SslContextArg
 from .sockets import make_ssl_context
 
@@ -38,6 +40,9 @@ class BaseCoreConnection(lang.Abstract):
             startup_params: ta.Mapping[str, str | bytes] | None = None,
             ssl_context: SslContextArg = None,
             server_hostname: str | None = None,
+            connect_timeout: float | None = None,
+            read_timeout: float | None = None,
+            write_timeout: float | None = None,
     ) -> None:
         super().__init__()
 
@@ -52,6 +57,10 @@ class BaseCoreConnection(lang.Abstract):
         self._ssl_context_arg = ssl_context
         self._server_hostname = server_hostname
         self._ssl_handler: SslIoPipelineHandler | None = None
+
+        self._connect_timeout = connect_timeout
+        self._read_timeout = read_timeout
+        self._write_timeout = write_timeout
 
         self._session = ProtocolSession(
             user=startup['user'],
@@ -112,6 +121,13 @@ class BaseCoreConnection(lang.Abstract):
     def _wants_ssl(self) -> bool:
         return self._ssl_context_arg is not False
 
+    def _make_pipeline_spec(self) -> IoPipeline.Spec:
+        return make_pipeline_spec(
+            self._session,
+            read_timeout=self._read_timeout,
+            write_timeout=self._write_timeout,
+        )
+
     def _on_ssl_response(self, accepted: bool) -> SslIoPipelineHandler | None:
         """Returns the TLS handler to add outermost to the pipeline, if the server agreed to SSL."""
 
@@ -120,6 +136,8 @@ class BaseCoreConnection(lang.Abstract):
                 make_ssl_context(self._ssl_context_arg),
                 server_side=False,
                 server_hostname=self._server_hostname,
+                # The connect timeout, when given, also bounds the TLS handshake driven by the startup exchange.
+                config=SslIoPipelineHandler.Config(handshake_timeout_s=self._connect_timeout),
             )
             return self._ssl_handler
 

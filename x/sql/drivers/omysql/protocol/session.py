@@ -28,6 +28,7 @@ from ..charset import charset_by_name
 from ..constants import CLIENT
 from ..constants import COMMAND
 from ..constants import SERVER_STATUS
+from ..errors import InterfaceError
 from ..errors import OperationalError
 from ..errors import ProtocolError
 from ..errors import raise_mysql_exception
@@ -238,6 +239,7 @@ class ProtocolSession:
         self._do_ssl = False
 
         self._current: Operation | None = None
+        self._fatal_error: BaseException | None = None
 
     #
     # State
@@ -301,13 +303,24 @@ class ProtocolSession:
         return step
 
     def fail(self, exc: BaseException) -> None:
+        """
+        Fails the current operation, if any, typically because the transport is gone, and poisons the session against
+        starting further operations.
+        """
+
+        if self._fatal_error is None:
+            self._fatal_error = exc
         if (op := self._current) is not None:
             self._current = None
             if not op.done:
                 op.fail(exc)
 
     def _begin(self, gen: OperationGenerator[T]) -> Operation[T]:
+        if self._fatal_error is not None:
+            gen.close()
+            raise InterfaceError(0, 'Connection closed')
         if (cur := self._current) is not None and not cur.done:
+            gen.close()
             raise ProtocolError('An operation is already in progress')
         op: Operation[T] = Operation(gen)
         self._current = op

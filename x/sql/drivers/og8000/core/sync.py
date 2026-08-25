@@ -15,7 +15,6 @@ from ..protocol.session import Operation
 from ..protocol.session import PreparedStatementInfo
 from .base import BaseCoreConnection
 from .handlers import OperationRequest
-from .handlers import make_pipeline_spec
 from .sockets import SslContextArg
 from .sockets import connect_socket
 
@@ -37,7 +36,9 @@ class SyncCoreConnection(BaseCoreConnection):
             source_address: tuple[str, int] | None = None,
             unix_sock: str | None = None,
             ssl_context: SslContextArg = None,
-            timeout: float | None = None,
+            connect_timeout: float | None = None,
+            read_timeout: float | None = None,
+            write_timeout: float | None = None,
             tcp_keepalive: bool = True,
             application_name: str | bytes | None = None,
             replication: str | bytes | None = None,
@@ -53,6 +54,9 @@ class SyncCoreConnection(BaseCoreConnection):
             startup_params=startup_params,
             ssl_context=ssl_context,
             server_hostname=host,
+            connect_timeout=connect_timeout,
+            read_timeout=read_timeout,
+            write_timeout=write_timeout,
         )
 
         self._sock = connect_socket(
@@ -60,12 +64,12 @@ class SyncCoreConnection(BaseCoreConnection):
             sock=sock,
             host=host,
             port=port,
-            timeout=timeout,
+            connect_timeout=connect_timeout,
             source_address=source_address,
             tcp_keepalive=tcp_keepalive,
         )
 
-        self._driver = SyncSocketIoPipelineDriver(make_pipeline_spec(self._session), self._sock)
+        self._driver = SyncSocketIoPipelineDriver(self._make_pipeline_spec(), self._sock)
 
         try:
             if self._wants_ssl():
