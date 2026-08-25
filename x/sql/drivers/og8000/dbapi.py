@@ -27,7 +27,6 @@ import itertools
 import socket
 import time
 import typing as ta
-import warnings
 
 from omcore import check
 
@@ -81,8 +80,6 @@ from .types import Range  # noqa: F401
 if ta.TYPE_CHECKING:
     import ssl
 
-
-ExceptionT = ta.TypeVar('ExceptionT', bound=Exception)
 
 QueryArgs: ta.TypeAlias = ta.Sequence[ta.Any] | ta.Mapping[str, ta.Any]
 
@@ -411,7 +408,6 @@ class Cursor:
 
     @property
     def connection(self) -> Connection:
-        warnings.warn('DB-API extension cursor.connection used', stacklevel=3)
         return self._c
 
     @property
@@ -642,21 +638,19 @@ class Connection(SyncCoreConnection):
         self.autocommit = False
         self._xid: Xid | None = None
 
-    # DBAPI Extension: supply exceptions as attributes on the connection
-    Warning = property(lambda self: self._get_error(Warning))
-    Error = property(lambda self: self._get_error(Error))
-    InterfaceError = property(lambda self: self._get_error(InterfaceError))
-    DatabaseError = property(lambda self: self._get_error(DatabaseError))
-    DataError = property(lambda self: self._get_error(DataError))
-    OperationalError = property(lambda self: self._get_error(OperationalError))
-    IntegrityError = property(lambda self: self._get_error(IntegrityError))
-    InternalError = property(lambda self: self._get_error(InternalError))
-    ProgrammingError = property(lambda self: self._get_error(ProgrammingError))
-    NotSupportedError = property(lambda self: self._get_error(NotSupportedError))
-
-    def _get_error(self, error: type[ExceptionT]) -> type[ExceptionT]:
-        warnings.warn(f'DB-API extension connection.{error.__name__} used', stacklevel=3)
-        return error
+    # DBAPI Extension: supply the exception classes as attributes on the connection. PEP 249 suggests warning on each
+    # use, but like most drivers we stay quiet. These are properties only because the classes are defined further down
+    # this module.
+    Warning = property(lambda self: Warning)
+    Error = property(lambda self: Error)
+    InterfaceError = property(lambda self: InterfaceError)
+    DatabaseError = property(lambda self: DatabaseError)
+    DataError = property(lambda self: DataError)
+    OperationalError = property(lambda self: OperationalError)
+    IntegrityError = property(lambda self: IntegrityError)
+    InternalError = property(lambda self: InternalError)
+    ProgrammingError = property(lambda self: ProgrammingError)
+    NotSupportedError = property(lambda self: NotSupportedError)
 
     @property
     def _in_transaction(self) -> bool:
