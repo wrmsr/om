@@ -76,6 +76,7 @@ cython_debug/
 *.log
 *.pid
 *.sock
+*.tmp
 
 
 # Config

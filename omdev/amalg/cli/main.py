@@ -60,21 +60,32 @@ def _gen_one(
     ).gen_amalg()
 
     if output_path is not None:
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        fd, fp = tempfile.mkstemp()
+        od = os.path.dirname(output_path)
+        os.makedirs(od, exist_ok=True)
+
+        on = os.path.basename(output_path)
+        fd, fp = tempfile.mkstemp(
+            prefix=('.' if not on.startswith('.') else '') + on,
+            suffix='.tmp',
+            dir=od,
+        )
         try:
             os.write(fd, src.encode('utf-8'))
 
             src_mode = os.stat(input_path).st_mode
             out_mode = (
-                src_mode
-                | (stat.S_IXUSR if src_mode & stat.S_IRUSR else 0)
-                | (stat.S_IXGRP if src_mode & stat.S_IRGRP else 0)
-                | (stat.S_IXOTH if src_mode & stat.S_IROTH else 0)
+                src_mode |
+                (stat.S_IXUSR if src_mode & stat.S_IRUSR else 0) |
+                (stat.S_IXGRP if src_mode & stat.S_IRGRP else 0) |
+                (stat.S_IXOTH if src_mode & stat.S_IROTH else 0)
             )
             os.chmod(fp, out_mode)
 
-            os.rename(fp, output_path)
+            os.replace(fp, output_path)
+
+        except BaseException:
+            os.unlink(fp)
+            raise
 
         finally:
             os.close(fd)
