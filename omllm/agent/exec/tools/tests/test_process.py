@@ -35,7 +35,13 @@ async def test_process_tools_interactive():
     spawn, read, write, kill, lst = _tools()
     with tempfile.TemporaryDirectory() as td:
         async with processes.AsyncioProcessManager() as m:
-            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))
+            ctx = ToolContext(
+                args={},
+                env=ToolEnvironment(
+                    cwd=td,
+                    processes=m.root,
+                ),
+            )
 
             out = await spawn.execute(ctx, ProcessSpawnToolParams(command='cat', name='echoer'))
             assert 'Started background process' in out
@@ -76,7 +82,13 @@ async def test_process_read_exited():
     spawn, read, _, kill, _ = _tools()
     with tempfile.TemporaryDirectory() as td:
         async with processes.AsyncioProcessManager() as m:
-            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))
+            ctx = ToolContext(
+                args={},
+                env=ToolEnvironment(
+                    cwd=td,
+                    processes=m.root,
+                ),
+            )
 
             await spawn.execute(ctx, ProcessSpawnToolParams(command='echo one; echo two >&2; exit 4'))
             pid = next(iter(m.root.processes))

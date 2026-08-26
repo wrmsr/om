@@ -40,7 +40,7 @@ class MinituiChatApp(mt.App):
         self._tail = mt.MarkdownTail(backend=mt.get_markdown_stream())
         self._spinner = mt.Spinner()
         self._popup = mt.SuggestionsPopup()
-        self._status = mt.StatusBar(right=[('/ for commands, ctrl+d quits', 'status.dim')])
+        self._status = mt.StatusBar()
         self._input = mt.TextArea(
             prompt='> ',
             prompt_style='input.glyph',

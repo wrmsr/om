@@ -4,6 +4,7 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ...core import fieldhash as fh
+from ..permissions.types import PermissionMatchContext
 from ..permissions.types import PermissionMatcher
 from ..permissions.types import PermissionTarget
 
@@ -32,5 +33,5 @@ class ExecPermissionMatcher(PermissionMatcher, lang.Final):
     def _field_hash(self) -> fh.FieldHashValue:
         return fh.FieldHashObject('exec', ())
 
-    def match(self, target: PermissionTarget) -> bool:
-        return isinstance(target, ExecPermissionTarget)
+    def match(self, ctx: PermissionMatchContext) -> bool:
+        return isinstance(ctx.target, ExecPermissionTarget)

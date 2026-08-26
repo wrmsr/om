@@ -4,8 +4,8 @@ import typing as ta
 from omcore import lang
 
 from .collection import PermissionRules
+from .types import PermissionMatchContext
 from .types import PermissionRule
-from .types import PermissionTarget
 
 
 ##
@@ -21,7 +21,7 @@ class PermissionsManager(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def match_target(self, target: PermissionTarget) -> PermissionRule | None:
+    def match(self, ctx: PermissionMatchContext) -> PermissionRule | None:
         raise NotImplementedError
 
 
@@ -40,8 +40,8 @@ class StandardPermissionsManager(PermissionsManager):
     def add_rule(self, rule: PermissionRule) -> None:
         self._rules = PermissionRules([*self._rules, rule])
 
-    def match_target(self, target: PermissionTarget) -> PermissionRule | None:
+    def match(self, ctx: PermissionMatchContext) -> PermissionRule | None:
         for r in self._rules:
-            if r.matcher.match(target):
+            if r.matcher.match(ctx):
                 return r
         return None

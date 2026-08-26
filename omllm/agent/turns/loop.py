@@ -143,6 +143,8 @@ class TurnLoop:
                 tool = check.not_none(self._context.tools)[tool_call.name]
 
                 tool_context = ToolContext(  # noqa
+                    tool=tool,
+
                     args=tool_call.args,
 
                     llm_tool_call=tool_call,

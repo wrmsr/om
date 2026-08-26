@@ -23,6 +23,17 @@ def bind_permissions(config: Config) -> inj.Elements:
             ),
         ])
 
+    if config.allow_ripgrep_execs:
+        permission_rules.append(
+            agn.PermissionRule(
+                agn.ToolPermissionMatcher(
+                    tool='ripgrep',
+                    child=agn.ExecPermissionMatcher(),
+                ),
+                agn.PermissionState.ALLOW,
+            ),
+        )
+
     if config.exec:
         permission_rules.extend([
             agn.PermissionRule(

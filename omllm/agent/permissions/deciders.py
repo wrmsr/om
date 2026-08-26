@@ -6,6 +6,7 @@ from .managers import PermissionsManager
 from .types import DecidedPermissionState
 from .types import PermissionAsker
 from .types import PermissionDecider
+from .types import PermissionMatchContext
 from .types import PermissionRequestor
 from .types import PermissionState
 from .types import PermissionTarget
@@ -42,7 +43,10 @@ class StandardPermissionDecider(PermissionDecider):
         self._asker = asker
 
     async def decide(self, requestor: PermissionRequestor, target: PermissionTarget) -> DecidedPermissionState:
-        if (m := self._manager.match_target(target)) is None:
+        if (m := self._manager.match(PermissionMatchContext(
+            target,
+            requestor=requestor,
+        ))) is None:
             return PermissionState.DENY
 
         mr = m.result

@@ -8,6 +8,7 @@ from omcore import lang
 from omcore import marshal as msh
 
 from ...core import fieldhash as fh
+from ..permissions.types import PermissionMatchContext
 from ..permissions.types import PermissionMatcher
 from ..permissions.types import PermissionTarget
 
@@ -82,8 +83,8 @@ class GlobFsPermissionMatcher(PermissionMatcher, lang.Final):
 
         return tuple(pats)
 
-    def match(self, target: PermissionTarget) -> bool:
-        if not isinstance(target, FsPermissionTarget):
+    def match(self, ctx: PermissionMatchContext) -> bool:
+        if not isinstance(target := ctx.target, FsPermissionTarget):
             return False
 
         return (

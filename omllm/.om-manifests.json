@@ -3,7 +3,7 @@
     "module": ".agent.eval.permissions",
     "attr": null,
     "file": "omllm/agent/eval/permissions.py",
-    "line": 19,
+    "line": 20,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.eval.permissions",
@@ -18,7 +18,7 @@
     "module": ".agent.eval.permissions",
     "attr": null,
     "file": "omllm/agent/eval/permissions.py",
-    "line": 34,
+    "line": 35,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.eval.permissions",
@@ -33,7 +33,7 @@
     "module": ".agent.exec.permissions",
     "attr": null,
     "file": "omllm/agent/exec/permissions.py",
-    "line": 14,
+    "line": 15,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.exec.permissions",
@@ -48,7 +48,7 @@
     "module": ".agent.exec.permissions",
     "attr": null,
     "file": "omllm/agent/exec/permissions.py",
-    "line": 27,
+    "line": 28,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.exec.permissions",
@@ -63,7 +63,7 @@
     "module": ".agent.fs.permissions",
     "attr": null,
     "file": "omllm/agent/fs/permissions.py",
-    "line": 23,
+    "line": 24,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.fs.permissions",
@@ -78,7 +78,7 @@
     "module": ".agent.fs.permissions",
     "attr": null,
     "file": "omllm/agent/fs/permissions.py",
-    "line": 43,
+    "line": 44,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.fs.permissions",
@@ -90,10 +90,25 @@
     }
   },
   {
+    "module": ".agent.permissions.tools",
+    "attr": null,
+    "file": "omllm/agent/permissions/tools.py",
+    "line": 15,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.permissions.tools",
+        "attr": "ToolPermissionMatcher",
+        "base": "$.agent.permissions.types.PermissionMatcher",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
     "module": ".agent.web.permissions",
     "attr": null,
     "file": "omllm/agent/web/permissions.py",
-    "line": 17,
+    "line": 18,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.web.permissions",
@@ -108,7 +123,7 @@
     "module": ".agent.web.permissions",
     "attr": null,
     "file": "omllm/agent/web/permissions.py",
-    "line": 39,
+    "line": 40,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.web.permissions",

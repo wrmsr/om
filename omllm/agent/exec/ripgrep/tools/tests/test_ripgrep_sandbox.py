@@ -36,7 +36,13 @@ async def test_ripgrep_passes_sandbox_option_when_enabled():
     )
     with tempfile.TemporaryDirectory() as td:
         async with processes.AsyncioProcessManager() as m:
-            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))
+            ctx = ToolContext(
+                args={},
+                env=ToolEnvironment(
+                    cwd=td,
+                    processes=m.root,
+                ),
+            )
             await rg.execute(ctx, RipgrepToolParams(args=['foo']))
 
     assert cap.captured is not None
@@ -54,7 +60,13 @@ async def test_ripgrep_no_sandbox():
     )
     with tempfile.TemporaryDirectory() as td:
         async with processes.AsyncioProcessManager() as m:
-            ctx = ToolContext(args={}, env=ToolEnvironment(cwd=td, processes=m.root))
+            ctx = ToolContext(
+                args={},
+                env=ToolEnvironment(
+                    cwd=td,
+                    processes=m.root,
+                ),
+            )
             await rg.execute(ctx, RipgrepToolParams(args=['foo']))
 
     assert cap.captured is not None

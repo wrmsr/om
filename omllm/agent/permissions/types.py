@@ -47,6 +47,9 @@ DecidedPermissionState: ta.TypeAlias = ta.Literal[
 ]
 
 
+##
+
+
 @dc.dataclass()
 class PermissionDeniedError(Exception):
     target: PermissionTarget
@@ -85,6 +88,19 @@ class PermissionTarget(
     pass
 
 
+##
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class PermissionMatchContext:
+    target: PermissionTarget
+
+    _: dc.KW_ONLY
+
+    requestor: PermissionRequestor | None = None
+
+
 @msh.set_polymorphic(source='manifests', naming='snake', suffix_stripping='required')
 class PermissionMatcher(
     fh.FieldHashable,
@@ -93,8 +109,11 @@ class PermissionMatcher(
     sealed_package='.'.join(__package__.split('.')[:2]),
 ):
     @abc.abstractmethod
-    def match(self, target: PermissionTarget) -> bool:
+    def match(self, ctx: PermissionMatchContext) -> bool:
         raise NotImplementedError
+
+
+##
 
 
 @ta.final
@@ -108,6 +127,9 @@ class PermissionRule(fh.FieldHashable, lang.Final):
             fh.FieldHashField('matcher', self.matcher),
             fh.FieldHashField('result', self.result.name),
         ))
+
+
+##
 
 
 class PermissionAsker(lang.Abstract):

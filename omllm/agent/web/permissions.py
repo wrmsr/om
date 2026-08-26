@@ -7,6 +7,7 @@ from omcore import lang
 from omcore import marshal as msh
 
 from ...core import fieldhash as fh
+from ..permissions.types import PermissionMatchContext
 from ..permissions.types import PermissionMatcher
 from ..permissions.types import PermissionTarget
 
@@ -65,8 +66,8 @@ class RegexUrlPermissionMatcher(PermissionMatcher, lang.Final):
     def compiled_pat(self) -> re.Pattern:
         return re.compile(self.pat)
 
-    def match(self, target: PermissionTarget) -> bool:
-        if not isinstance(target, UrlPermissionTarget):
+    def match(self, ctx: PermissionMatchContext) -> bool:
+        if not isinstance(target := ctx.target, UrlPermissionTarget):
             return False
 
         return (

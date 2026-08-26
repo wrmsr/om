@@ -127,17 +127,26 @@ with _lang.auto_proxy_init(globals()):
         StandardPermissionsManager,
     )
 
+    from .permissions.tools import (  # noqa
+        ToolPermissionMatcher,
+    )
+
     from .permissions.types import (  # noqa
         PermissionState,
 
         PermissionRequestor,
+
         DecidedPermissionState,
         PermissionDeniedError,
         PermissionDecider,
 
         PermissionTarget,
+
+        PermissionMatchContext,
         PermissionMatcher,
+
         PermissionRule,
+
         PermissionAsker,
     )
 

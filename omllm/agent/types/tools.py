@@ -30,6 +30,8 @@ class ToolEnvironment:
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 class ToolContext:
+    tool: Tool | None = None
+
     args: ta.Mapping[str, ta.Any]
 
     llm_tool_call: llm.ToolCall | None = None

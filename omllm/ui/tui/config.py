@@ -17,6 +17,7 @@ class Config:
 
     eval: bool | None = None
     exec: bool | None = None
+    allow_ripgrep_execs: bool | None = None
     fs: bool | None = None
     allow_fs_reads: bool | None = None
     web: bool | None = None
@@ -40,6 +41,7 @@ def make_config_parser() -> argparse.ArgumentParser:
 
     parser.add_argument('--eval', action='store_true')
     parser.add_argument('--exec', action='store_true')
+    parser.add_argument('--allow-ripgrep-execs', action='store_true')
     parser.add_argument('--fs', action='store_true')
     parser.add_argument('--allow-fs-reads', action='store_true')
     parser.add_argument('--web', action='store_true')
@@ -65,6 +67,7 @@ def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
 
         eval=args.eval,
         exec=args.exec,
+        allow_ripgrep_execs=args.allow_ripgrep_execs,
         fs=args.fs,
         allow_fs_reads=args.allow_fs_reads,
         web=args.web,
