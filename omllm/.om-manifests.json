@@ -263,6 +263,36 @@
     }
   },
   {
+    "module": ".llm.backends.openai.responses.immediate",
+    "attr": null,
+    "file": "omllm/llm/backends/openai/responses/immediate.py",
+    "line": 65,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.llm.backends.openai.responses.immediate",
+        "attr": "OpenaiResponsesImmediateBackend",
+        "name": "openai-responses",
+        "aliases": null,
+        "type": "ImmediateBackend"
+      }
+    }
+  },
+  {
+    "module": ".llm.backends.openai.responses.stream",
+    "attr": null,
+    "file": "omllm/llm/backends/openai/responses/stream.py",
+    "line": 218,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.llm.backends.openai.responses.stream",
+        "attr": "OpenaiResponsesStreamBackend",
+        "name": "openai-responses",
+        "aliases": null,
+        "type": "StreamBackend"
+      }
+    }
+  },
+  {
     "module": ".llm.models.default.anthropic",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/anthropic.py",

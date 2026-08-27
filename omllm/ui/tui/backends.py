@@ -5,6 +5,7 @@ from omdev.home.secrets import load_secrets
 
 from ... import agent as agn
 from ... import llm
+from ...core import registry as reg
 from .config import Config
 
 
@@ -45,22 +46,14 @@ def bind_backends(config: Config) -> inj.Elements:
         model_key, api_key_name = MODELS[config.model or DEFAULT_MODEL]
         model = llm.default_model_catalog()[model_key]  # noqa
 
-        if model.backend == 'openai-responses':
-            if config.immediate:
-                backend_cls = llm.OpenaiResponsesImmediateBackend
-            else:
-                backend_cls = llm.OpenaiResponsesStreamBackend
-
-        elif model.backend == 'openai-completions':
-            if config.immediate:
-                backend_cls = llm.OpenaiCompletionsImmediateBackend
-            else:
-                backend_cls = llm.OpenaiCompletionsStreamBackend
-
+        if config.immediate:
+            backend_cls = llm.ImmediateBackend
         else:
-            raise ValueError(model.backend)
+            backend_cls = llm.StreamBackend
 
-        backend = backend_cls(
+        backend_impl_cls = reg.get_registry_cls(backend_cls, model.backend)
+
+        backend = backend_impl_cls(
             model,
             **(dict(api_key=load_secrets().get(api_key_name)) if api_key_name is not None else {}),
         )
