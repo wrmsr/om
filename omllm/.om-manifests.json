@@ -434,7 +434,7 @@
     "module": ".llm.types.backends",
     "attr": null,
     "file": "omllm/llm/types/backends.py",
-    "line": 26,
+    "line": 27,
     "value": {
       "!.core.registry.manifests.RegistryTypeManifest": {
         "module": "omllm.llm.types.backends",
@@ -446,7 +446,7 @@
     "module": ".llm.types.backends",
     "attr": null,
     "file": "omllm/llm/types/backends.py",
-    "line": 36,
+    "line": 40,
     "value": {
       "!.core.registry.manifests.RegistryTypeManifest": {
         "module": "omllm.llm.types.backends",
