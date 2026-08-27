@@ -115,9 +115,9 @@ class Modalities:
 @dc.dataclass(frozen=True, kw_only=True)
 @msh.update_object_options(unknown_field='x')
 class Limit:
-    context: float
-    output: float
-    input: float | None = None
+    context: float | int
+    output: float | int
+    input: float | int | None = None
 
     x: ta.Mapping[str, ta.Any] | None = None
 

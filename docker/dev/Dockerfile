@@ -88,6 +88,7 @@ DEPS="$DEPS\
   libxml2-dev\
   libxslt-dev\
   libyaml-dev\
+  libzstd-dev\
   lld\
   llvm\
   lsb-release\
@@ -143,6 +144,7 @@ DEPS="$DEPS\
   xsltproc\
   zip\
   zsh\
+  zstd\
 " ;\
 \
 # python\

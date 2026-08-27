@@ -125,11 +125,13 @@ deps = [
   # archiving & compression
   'libbz2-dev',
   'liblz4-dev',
+  'libzstd-dev',
   'lz4',
   'lzma',
   'lzma-dev',
   'unzip',
   'zip',
+  'zstd',
 
   # multiarch dev
   'binutils-aarch64-linux-gnu',

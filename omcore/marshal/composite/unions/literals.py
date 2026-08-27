@@ -30,19 +30,25 @@ class DestructuredLiteralUnionType(ta.NamedTuple):
 def _destructure_literal_union_type(rty: rfl.Type) -> DestructuredLiteralUnionType | None:
     if not isinstance(rty, rfl.UnionType):
         return None
+
     lits, non_lits = col.partition(rty.items, lang.isinstance_of(rfl.LiteralType))  # noqa
     if not lits or len(non_lits) != 1:
         return None
+
     lit_tys = [check.isinstance(lit, rfl.LiteralType) for lit in lits]
     if any(lit.fallback.type.is_enum for lit in lit_tys):
         return None
+
     v_tys = {type(lit.value) for lit in lit_tys}
     if len(v_tys) != 1:
         return None
+
     [v_ty] = v_tys
+
     non_lit = check.single(non_lits)
     if rfl.get_runtime_type_or_none(non_lit) is v_ty or v_ty not in LITERAL_UNION_TYPES:
         return None
+
     return DestructuredLiteralUnionType(v_ty, rfl.make_union(list(lits)), non_lit)
 
 
