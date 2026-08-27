@@ -554,6 +554,7 @@
     ```js
     /** @type {string | null} */ this.clientId = null
     ```
+  - However, `@returns` annotations for functions should generally be on their own line above the function definition.
 - Our js indentation is 2 spaces.
 - As with C/C++, always enclose the bodies of control-flow statements (`if`, `else`, `for`, `while`, `do`) in braces,
   even for a single statement.
@@ -568,6 +569,7 @@
     - Single-item imports may be on one single line
     - Multi-item imports must put each item on its own line, as well as put both `import {` and `} from './...'` on
       their own lines. Each item is indented 2 spaces.
+    - Each single-item import line and/or multi-item import block is to be separated by a single blank line.
   - **TWO blank lines**, always
   - A divider line of exactly `////`
   - **TWO blank lines**, always
