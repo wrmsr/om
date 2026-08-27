@@ -10,6 +10,7 @@ from ...types.models import Model
 from ...types.models import ModelKey
 from ...types.options import CacheRetention
 from ...types.options import Options
+from ..manifests import ModelsModuleManifest
 from ..modeldb import modeldb_token_pricing
 
 
@@ -48,3 +49,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
 ]
+
+
+# @om-manifest
+_MANIFEST = ModelsModuleManifest.of(MODELS)

@@ -4,6 +4,7 @@ from ...types.compat import OpenaiCompat
 from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
+from ..manifests import ModelsModuleManifest
 
 
 ##
@@ -11,16 +12,16 @@ from ...types.models import ModelKey
 
 _BASE_URL = 'https://openrouter.ai/api/v1'
 
-# Upstream providers cache implicitly with no request cache fields. Options.cache_key becomes a session affinity
-# header pinning repeat requests to one upstream, without which openrouter's load balancing makes cache hits a matter
-# of routing luck.
+# Upstream providers cache implicitly with no request cache fields. Options.cache_key becomes a session affinity header
+# pinning repeat requests to one upstream, without which openrouter's load balancing makes cache hits a matter of
+# routing luck.
 _CACHE = CacheCapabilities(
     control_style='openrouter',
     key=True,
 )
 
-# Openrouter normalizes upstream reasoning text onto a bare reasoning field, and reports each request's actual
-# billed cost (which varies by routed upstream) in its usage.
+# Openrouter normalizes upstream reasoning text onto a bare reasoning field, and reports each request's actual billed
+# cost (which varies by routed upstream) in its usage.
 _COMPAT = OpenaiCompat(
     reasoning_field='reasoning',
     cost_mode='openrouter',
@@ -28,20 +29,6 @@ _COMPAT = OpenaiCompat(
 
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
-
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='deepseek/deepseek-v4-flash-0731',
-        ),
-        name='DeepSeek V4 Flash 0731',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
-    ),
 
     Model(
         key=ModelKey(
@@ -60,6 +47,22 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='openrouter',
+            id='deepseek/deepseek-v4-flash-0731',
+        ),
+        name='DeepSeek V4 Flash 0731',
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    #
+
+    Model(
+        key=ModelKey(
+            provider='openrouter',
             id='moonshotai/kimi-k3',
         ),
         name='Kimi K3',
@@ -70,6 +73,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             base_url=_BASE_URL,
         ),
     ),
+
+    #
 
     Model(
         key=ModelKey(
@@ -86,3 +91,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
 ]
+
+
+# @om-manifest
+_MANIFEST = ModelsModuleManifest.of(MODELS)

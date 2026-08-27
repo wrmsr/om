@@ -7,6 +7,7 @@ import typing as ta
 from ...types.compat import OpenaiCompat
 from ...types.models import Model
 from ...types.models import ModelKey
+from ..manifests import ModelsModuleManifest
 
 
 ##
@@ -48,3 +49,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
 ]
+
+
+# @om-manifest
+_MANIFEST = ModelsModuleManifest.of(MODELS)
