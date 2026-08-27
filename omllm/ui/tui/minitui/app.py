@@ -31,7 +31,7 @@ THEME = mt.DEFAULT_THEME.extend({
 class MinituiChatApp(mt.App):
     def __init__(
             self,
-            driver: mt.AsyncDriver,
+            driver: mt.AsyncioDriver,
     ) -> None:
         super().__init__()
 
@@ -292,8 +292,8 @@ class MinituiChatApp(mt.App):
         at_first_line = cursor.row == 0
         at_last_line = cursor.row == self._input.doc.line_count() - 1
 
-        # History only at the buffer edge, arrow-style - mid-buffer, ctrl+p/n fall through to the editor as
-        # readline line movement.
+        # History only at the buffer edge, arrow-style - mid-buffer, ctrl+p/n fall through to the editor as readline
+        # line movement.
         if key in (mt.Key('p', ctrl=True), mt.Key('up')) and at_first_line:
             self._history_step(back=True)
             return True
@@ -366,8 +366,8 @@ class MinituiChatApp(mt.App):
 ##
 
 
-def _provide_driver(surface: mt.InlineSurface) -> mt.AsyncDriver:
-    return mt.AsyncDriver(surface)
+def _provide_driver(surface: mt.InlineSurface) -> mt.AsyncioDriver:
+    return mt.AsyncioDriver(surface)
 
 
 def bind_app(config: Config) -> inj.Elements:

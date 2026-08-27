@@ -173,6 +173,20 @@
     }
   },
   {
+    "module": ".modeldb.__main__",
+    "attr": null,
+    "file": "omllm/modeldb/__main__.py",
+    "line": 1,
+    "value": {
+      "!omdev.cli.types.CliModule": {
+        "name": [
+          "modeldb"
+        ],
+        "module": "omllm.modeldb.__main__"
+      }
+    }
+  },
+  {
     "module": ".ui.tui.__main__",
     "attr": null,
     "file": "omllm/ui/tui/__main__.py",

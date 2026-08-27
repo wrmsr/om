@@ -45,7 +45,7 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
   follows the cursor; optional syntax highlighting under engine decorations; ctrl+d/u, zz/zt/zb, H/M/L viewport ops),
   status bar, statics, spinner, suggestions popup, markdown tail, lifecycle cards, input history, stack layout with
   mouse hit regions.
-- **runtime/** - `SyncDriver` (poll + self-pipe) and `AsyncDriver` (asyncio; `post()` is the sole thread-safe entry).
+- **runtime/** - `SyncDriver` (poll + self-pipe) and `AsyncioDriver` (asyncio; `post()` is the sole thread-safe entry).
   Both share the `App` contract: `render(width, max_height) -> Frame` + `handle_event(event)`, with coalescing
   invalidation.
 

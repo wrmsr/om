@@ -168,10 +168,10 @@ with _lang.auto_proxy_init(
         SyncDriver,
     )
 
-    from .runtime.asyncs import (  # noqa
-        AsyncTimer,
-        AsyncTimers,
-        AsyncDriver,
+    from .runtime.asyncio import (  # noqa
+        AsyncioTimer,
+        AsyncioTimers,
+        AsyncioDriver,
     )
 
     ##

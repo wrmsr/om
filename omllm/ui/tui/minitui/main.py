@@ -32,7 +32,7 @@ from .output import bind_output
 class DriverQuitSignal(ui.QuitSignal):
     """Stops the driver (unwinding through its terminal-restore path) instead of raising through the turn."""
 
-    def __init__(self, *, driver: mt.AsyncDriver) -> None:
+    def __init__(self, *, driver: mt.AsyncioDriver) -> None:
         super().__init__()
 
         self._driver = driver
@@ -129,7 +129,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         tool_set = await injector[agn.ToolSet]
         session = await injector[har.Session]
         commands_manager = await injector[har.CommandsManager]
-        driver = await injector[mt.AsyncDriver]
+        driver = await injector[mt.AsyncioDriver]
         app = await injector[MinituiChatApp]
 
         proc_scope = (await injector[processes.ProcessManager]).root if config.exec else None
@@ -144,8 +144,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         pump = PromptPump(session=session, app=app)
         app.on_submit = pump.submit
 
-        # The driver starts before any agent activity: its run prologue prepares the surface, and everything the
-        # setup below causes to display (e.g. verbose-mode StateUpdateEvents) buffers until then.
+        # The driver starts before any agent activity: its run prologue prepares the surface, and everything the setup
+        # below causes to display (e.g. verbose-mode StateUpdateEvents) buffers until then.
         driver_task = asyncio.get_running_loop().create_task(driver.run(app))
         await asyncio.sleep(0)
 
@@ -174,6 +174,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
                 pump.submit(ax)
 
             await driver_task
+
         finally:
             if not driver_task.done():
                 driver.stop()

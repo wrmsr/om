@@ -144,14 +144,14 @@ history/suggestions -> chat-head parity. Then phase 5 (vim clone app on an AltSu
 
 ## 2026-08-14 (session cap): asyncio driver
 
-`runtime/asyncs.py`: `AsyncDriver` - the same `App` contract as SyncDriver, hosted in an asyncio loop. This is the
+`runtime/asyncs.py`: `AsyncioDriver` - the same `App` contract as SyncDriver, hosted in an asyncio loop. This is the
 deliberate asyncio isolation point (the anyio-vs-asyncio flux stops here; apps layer their own tasks above it).
 - `add_reader` on the tty fd; `add_signal_handler(SIGWINCH)` (with a fallback to the tty's own signal handler when
   not on the main thread - `Tty.mark_resized()` added as the public hook since asyncio's handler *replaces* ours).
 - Coalescing `invalidate()`: flag + at most one `call_soon(_render)` per loop turn (the ptk trick).
 - Escape-parser timeouts via `call_later`, keyed on `pending_read` identity like the sync driver.
 - `post(fn)` is the SOLE thread-safe entry point (call_soon_threadsafe); everything else is loop-affine.
-- `AsyncTimers`: call_later/call_every duck-compatible with runtime.timers.Timers, and creatable *before* run - apps
+- `AsyncioTimers`: call_later/call_every duck-compatible with runtime.timers.Timers, and creatable *before* run - apps
   register spinners in __init__, so timers created pre-bind are held and scheduled at loop bind (a test caught this).
 - Tests: dispatch+render parity with the sync driver, escape timeout, pre-run timers + cross-thread post.
 

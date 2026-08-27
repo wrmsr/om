@@ -147,7 +147,7 @@ class Segment(ta.NamedTuple):
                     _Segment(text[:pos] + ' ', style, control),
                     _Segment(' ' + text[pos + 1 :], style, control),
                 )
-            if out_by == +1 and cell_size(text[pos - 1]) == 2:
+            if out_by == 1 and cell_size(text[pos - 1]) == 2:
                 return (
                     _Segment(text[: pos - 1] + ' ', style, control),
                     _Segment(' ' + text[pos:], style, control),

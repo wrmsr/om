@@ -10,7 +10,7 @@ from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface
 from ...text.segments import Segment
 from ...text.styles import EMPTY_THEME
-from ..asyncs import AsyncDriver
+from ..asyncio import AsyncioDriver
 from .test_drivers import PipeTty
 from .test_drivers import RecordingApp
 
@@ -20,7 +20,7 @@ from .test_drivers import RecordingApp
 
 def test_async_driver_dispatch_and_render():
     tty = PipeTty(height=6, width=40)
-    driver = AsyncDriver(InlineSurface(tty, term='xterm-256color'))
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'))
     app = RecordingApp(driver)  # type: ignore[arg-type]  # duck-compatible: invalidate/stop match
 
     async def main():
@@ -48,7 +48,7 @@ def test_async_driver_dispatch_and_render():
 
 def test_async_driver_escape_timeout():
     tty = PipeTty(height=6, width=40)
-    driver = AsyncDriver(InlineSurface(tty, term='xterm-256color'))
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'))
     driver.parser.escape_timeout_s = .05  # shrink the real-time wait so the test stays fast
     app = RecordingApp(driver)  # type: ignore[arg-type]
 
@@ -73,7 +73,7 @@ def test_async_driver_escape_timeout():
 
 def test_async_driver_timers_and_cross_thread_post():
     tty = PipeTty(height=6, width=40)
-    driver = AsyncDriver(InlineSurface(tty, term='xterm-256color'))
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'))
     app = RecordingApp(driver)  # type: ignore[arg-type]
 
     ticks: list[int] = []
@@ -110,7 +110,7 @@ def test_async_driver_timers_and_cross_thread_post():
 def test_async_driver_commit_before_run_buffers():
     # Commits made before run() prepares the surface buffer (like pre-run timers) and flush once running.
     tty = PipeTty(height=6, width=40)
-    driver = AsyncDriver(InlineSurface(tty, term='xterm-256color'))
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'))
     app = RecordingApp(driver)  # type: ignore[arg-type]
 
     driver.commit([line_from_segments([Segment('early bird')], EMPTY_THEME)])  # must not raise
@@ -137,7 +137,7 @@ def test_async_driver_commit_before_run_buffers():
 def test_async_driver_stop_before_origin_flushes_commits():
     # Stopping before the CPR answer (or its fallback) must still land buffered commits, not drop them.
     tty = PipeTty(height=6, width=40)
-    driver = AsyncDriver(InlineSurface(tty, term='xterm-256color'))
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'))
     app = RecordingApp(driver)  # type: ignore[arg-type]
 
     async def main():

@@ -34,7 +34,7 @@ from .drivers import App
 ##
 
 
-class AsyncTimer:
+class AsyncioTimer:
     """Cancellation handle duck-compatible with runtime.timers.Timer."""
 
     def __init__(self) -> None:
@@ -53,7 +53,7 @@ class AsyncTimer:
             self._handle.cancel()
 
 
-class AsyncTimers:
+class AsyncioTimers:
     """
     The call_later/call_every subset of runtime.timers.Timers, backed by the asyncio loop.
 
@@ -65,9 +65,9 @@ class AsyncTimers:
         super().__init__()
 
         self._loop: asyncio.AbstractEventLoop | None = None
-        self._pending: list[tuple[float, ta.Callable[[], None], AsyncTimer]] = []
+        self._pending: list[tuple[float, ta.Callable[[], None], AsyncioTimer]] = []
 
-    def _schedule(self, delay_s: float, fn: ta.Callable[[], None], timer: AsyncTimer) -> None:
+    def _schedule(self, delay_s: float, fn: ta.Callable[[], None], timer: AsyncioTimer) -> None:
         if timer.cancelled:
             return
         if self._loop is None:
@@ -84,13 +84,13 @@ class AsyncTimers:
     def unbind(self) -> None:
         self._loop = None
 
-    def call_later(self, delay_s: float, fn: ta.Callable[[], None]) -> AsyncTimer:
-        timer = AsyncTimer()
+    def call_later(self, delay_s: float, fn: ta.Callable[[], None]) -> AsyncioTimer:
+        timer = AsyncioTimer()
         self._schedule(delay_s, fn, timer)
         return timer
 
-    def call_every(self, interval_s: float, fn: ta.Callable[[], None]) -> AsyncTimer:
-        timer = AsyncTimer()
+    def call_every(self, interval_s: float, fn: ta.Callable[[], None]) -> AsyncioTimer:
+        timer = AsyncioTimer()
 
         def tick() -> None:
             if timer.cancelled:
@@ -102,7 +102,7 @@ class AsyncTimers:
         return timer
 
 
-class AsyncDriver:
+class AsyncioDriver:
     def __init__(self, surface: Surface) -> None:
         super().__init__()
 
@@ -112,7 +112,7 @@ class AsyncDriver:
         self._decoder = codecs.getincrementaldecoder('utf-8')('replace')
 
         self._loop: asyncio.AbstractEventLoop | None = None
-        self._timers = AsyncTimers()
+        self._timers = AsyncioTimers()
         self._app: App | None = None
 
         self._invalidated = False
@@ -131,7 +131,7 @@ class AsyncDriver:
         return self._surface
 
     @property
-    def timers(self) -> AsyncTimers:
+    def timers(self) -> AsyncioTimers:
         return self._timers
 
     @property
