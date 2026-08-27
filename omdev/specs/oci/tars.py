@@ -101,14 +101,17 @@ class OciDataTarWriter(ExitStacked):
                 zc = zstandard.ZstdCompressor(
                     level=self._zstd_level,
                 )
-                self._cf = self._enter_context(zc.stream_writer(self._cw))  # type: ignore
+                self._cf = self._enter_context(zc.stream_writer(
+                    self._cw,  # type: ignore
+                    closefd=False,
+                ))
 
             else:
                 self._cf = self._enter_context(  # noqa
                     compression.zstd.ZstdFile(  # type: ignore
                         self._cw,
                         mode='wb',
-                        compresslevel=self._zstd_level,
+                        level=self._zstd_level,
                     ),
                 )
 

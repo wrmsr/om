@@ -180,7 +180,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/targets.py', sha1='ce67eead8f86eb09dd8f5fd6056ea126401fd60d'),
             dict(path='../specs/oci/data.py', sha1='2509b4754bd1eb14e310e28da15a6fc35d4ad869'),
             dict(path='../specs/oci/repositories.py', sha1='8fe374dd6959417d8908430901ff07f4175d3e84'),
-            dict(path='../specs/oci/tars.py', sha1='dfa1284ff5b4c997c1eacd618710642b4e048f95'),
+            dict(path='../specs/oci/tars.py', sha1='f5e2ff475497de3f5b2f8b4392eeabe7074f7a75'),
             dict(path='../../omcore/formats/yaml/goyaml/ast.py', sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631'),
             dict(path='../../omcore/formats/yaml/goyaml/scanning.py', sha1='58956f9159780d5532d2d61fb6f11c8ac946003d'),
             dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
@@ -16438,7 +16438,7 @@ class OciDataTarWriter(ExitStacked):
 
         elif self._compression is OciCompression.ZSTD:
             try:
-                import compression.zstd
+                import compression.zstd  # noqa
 
             except ImportError:
                 import zstandard  # noqa
@@ -16446,14 +16446,17 @@ class OciDataTarWriter(ExitStacked):
                 zc = zstandard.ZstdCompressor(
                     level=self._zstd_level,
                 )
-                self._cf = self._enter_context(zc.stream_writer(self._cw))  # type: ignore
+                self._cf = self._enter_context(zc.stream_writer(
+                    self._cw,  # type: ignore
+                    closefd=False,
+                ))
 
             else:
                 self._cf = self._enter_context(  # noqa
                     compression.zstd.ZstdFile(  # type: ignore
                         self._cw,
                         mode='wb',
-                        compresslevel=self._zstd_level,
+                        level=self._zstd_level,
                     ),
                 )
 
