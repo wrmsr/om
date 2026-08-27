@@ -1,0 +1,75 @@
+import pytest
+
+from omcore import lang
+from omcore.http import all as http
+from omcore.secrets.tests.harness import HarnessSecrets
+
+from .....models.default import default_model_catalog
+from .....types.context import Context
+from .....types.messages import UserMessage
+from .....types.models import ModelKey
+from .....types.options import Options
+from ..immediate import OpenaiResponsesImmediateBackend
+
+
+class TestOpenaiBackend:
+    @pytest.fixture(params=[
+        (ModelKey('openai', 'gpt-5.6-luna'), 'openai_api_key'),
+    ])
+    def model(self, request):
+        return request.param
+
+    @pytest.mark.online
+    @pytest.mark.asyncs('asyncio')
+    @pytest.mark.parametrize('max_tokens', [None, 1024])
+    async def test_backend(
+            self,
+            harness,
+            model,
+            max_tokens,
+    ):
+        model_key, api_key_name = model
+
+        svc = OpenaiResponsesImmediateBackend(
+            default_model_catalog()[model_key],  # noqa
+            api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
+        )
+
+        out = await svc.immediate(
+            Context(
+                system_prompt='You are a helpful assistant.',
+                messages=[
+                    UserMessage('hi'),
+                ],
+            ),
+            Options(
+                max_tokens=max_tokens,
+            ),
+        )
+
+        print(out)
+
+    @pytest.mark.online
+    def test_backend_sync(
+            self,
+            harness,
+            model,
+    ):
+        model_key, api_key_name = model
+
+        svc = OpenaiResponsesImmediateBackend(
+            default_model_catalog()[model_key],  # noqa
+            api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
+            http_client=http.SyncAsyncHttpClient(http.client()),
+        )
+
+        out = lang.sync_await(svc.immediate(
+            Context(
+                system_prompt='You are a helpful assistant.',
+                messages=[
+                    UserMessage('hi'),
+                ],
+            ),
+        ))
+
+        print(out)

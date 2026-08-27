@@ -37,3 +37,13 @@ class OpenaiCompat(Compat):
     # Which (if any) reported request cost fields to translate out of response usage. Response cost fields are only
     # ever probed as predeclared here, never speculatively.
     cost_mode: TokenCostMode | None = None
+
+
+##
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.truthy_repr)
+class OpenaiResponsesCompat(Compat):
+    url_path: str | None = None

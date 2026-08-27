@@ -2078,6 +2078,110 @@ def _process_dataclass__8af31b6054998dd4ccb2219abb4f0e8df90d62fa():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('url_path',)), EqPlan(fields=('url_path',)), FrozenPlan(fields=('url_path',), allo"
+        "w_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('url_path',), cache=False), InitPlan(fields=(Ini"
+        "tPlan.Field(name='url_path', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.field"
+        "s.0.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, va"
+        "lidate=None, check_type=None),), self_param='self', std_params=(), kw_only_params=('url_path',), frozen=True, "
+        "slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='url_p"
+        "ath', kw_only=True, fn=None),), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='d0f647a82e689876f62ad2bb03d2c36faa264ac9',
+    cls_names=(
+        ('omllm.llm.types.compat', 'OpenaiResponsesCompat'),
+    ),
+)
+def _process_dataclass__d0f647a82e689876f62ad2bb03d2c36faa264ac9():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                url_path=self.url_path,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.url_path == other.url_path
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'url_path',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.url_path,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            url_path: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'url_path', url_path)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.url_path)) is not None:
+                parts.append(f"url_path={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('text', 'backend_signature')), EqPlan(fields=('text', 'backend_signature')), Froze"
         "nPlan(fields=('text', 'backend_signature'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=("
         "'text', 'backend_signature'), cache=True), InitPlan(fields=(InitPlan.Field(name='text', annotation=OpRef(name="

@@ -29,7 +29,7 @@ _MIN_CACHEABLE_PROMPT_TOKENS = 1024
 @pytest.mark.timeout(180)
 async def test_openai_prompt_caching(harness):
     svc = OpenaiCompletionsImmediateBackend(
-        default_model_catalog()[ModelKey('openai', 'gpt-5.6-luna')],  # noqa
+        default_model_catalog()[ModelKey('openai', 'gpt-5.4-nano')],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip('openai_api_key'),
     )
 

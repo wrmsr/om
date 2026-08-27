@@ -42,6 +42,14 @@ with _lang.auto_proxy_init(globals()):
         OpenaiCompletionsStreamBackend,
     )
 
+    from .backends.openai.responses.immediate import (  # noqa
+        OpenaiResponsesImmediateBackend,
+    )
+
+    from .backends.openai.responses.stream import (  # noqa
+        OpenaiResponsesStreamBackend,
+    )
+
     ##
 
     from .backends.scripted.backend import (  # noqa
@@ -116,6 +124,7 @@ with _lang.auto_proxy_init(globals()):
         Compat,
 
         OpenaiCompat,
+        OpenaiResponsesCompat,
     )
 
     from .types.content import (  # noqa

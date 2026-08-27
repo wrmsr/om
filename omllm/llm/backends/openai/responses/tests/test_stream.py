@@ -10,22 +10,28 @@ from .....types.messages import AiMessage
 from .....types.messages import UserMessage
 from .....types.models import ModelKey
 from .....types.options import Options
-from ..stream import OpenaiCompletionsStreamBackend
+from ..stream import OpenaiResponsesStreamBackend
 
 
-class BaseBackendTest:
+class TestOpenaiBackend:
+    @pytest.fixture(params=[
+        (ModelKey('openai', 'gpt-5.6-luna'), 'openai_api_key'),
+    ])
+    def model(self, request):
+        return request.param
+
     @pytest.mark.asyncs('asyncio')
     @pytest.mark.online
-    async def test_openai_chat_stream_model_async(
+    async def test_openai_responses_stream_model_async(
             self,
             harness,
             model,
     ):
         model_key, api_key_name = model
 
-        svc = OpenaiCompletionsStreamBackend(
+        svc = OpenaiResponsesStreamBackend(
             default_model_catalog()[model_key],  # noqa
-            **(dict(api_key=harness[HarnessSecrets].get_or_skip(api_key_name)) if api_key_name is not None else {}),
+            api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
         )
 
         #
@@ -56,16 +62,16 @@ class BaseBackendTest:
         assert isinstance(out, AiMessage)
 
     @pytest.mark.online
-    def test_openai_chat_stream_model_sync(
+    def test_openai_responses_stream_model_sync(
             self,
             harness,
             model,
     ):
         model_key, api_key_name = model
 
-        svc = OpenaiCompletionsStreamBackend(
+        svc = OpenaiResponsesStreamBackend(
             default_model_catalog()[model_key],  # noqa
-            **(dict(api_key=harness[HarnessSecrets].get_or_skip(api_key_name)) if api_key_name is not None else {}),
+            api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
             http_client=http.SyncAsyncHttpClient(http.client()),
         )
 
@@ -99,53 +105,3 @@ class BaseBackendTest:
         out = lang.sync_await(svc.immediate(ctx, opts))
 
         assert isinstance(out, AiMessage)
-
-
-class TestOpenaiBackend(BaseBackendTest):
-    @pytest.fixture(params=[
-        (ModelKey('openai', 'gpt-5.4-nano'), 'openai_api_key'),
-    ])
-    def model(self, request):
-        return request.param
-
-
-# Openrouter routes across upstream providers of varying speed - an uncapped generation can exceed the default
-# per-test timeout on a slow one.
-@pytest.mark.timeout(180)
-class TestOpenrouterBackend(BaseBackendTest):
-    @pytest.fixture(params=[
-        (ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'), 'openrouter_api_key'),
-    ])
-    def model(self, request):
-        return request.param
-
-
-class TestGroqBackend(BaseBackendTest):
-    @pytest.fixture(params=[
-        (ModelKey('groq', 'openai/gpt-oss-120b'), 'groq_api_key'),
-    ])
-    def model(self, request):
-        return request.param
-
-
-class TestCerebrasBackend(BaseBackendTest):
-    @pytest.fixture(params=[
-        (ModelKey('cerebras', 'gpt-oss-120b'), 'cerebras_api_key'),
-    ])
-    def model(self, request):
-        return request.param
-
-
-class TestOllamaBackend(BaseBackendTest):
-    @pytest.fixture(params=[
-        (ModelKey('ollama', 'qwen3.5:2b'), None),
-    ])
-    def model(self, request):
-        from .....models.default.ollama import DEFAULT_OLLAMA_URL
-
-        try:
-            http.request(DEFAULT_OLLAMA_URL)
-        except http.HttpClientError:
-            pytest.skip('No ollama server')
-
-        return request.param

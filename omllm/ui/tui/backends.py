@@ -14,7 +14,7 @@ from .config import Config
 DEFAULT_MODEL: ta.Final = 'openai'
 
 MODELS: ta.Final[ta.Mapping[str, tuple[llm.ModelKey, str | None]]] = {
-    'openai': (llm.ModelKey('openai', 'gpt-5.4-nano'), 'openai_api_key'),
+    'openai': (llm.ModelKey('openai', 'gpt-5.6-luna'), 'openai_api_key'),
     'openrouter': (llm.ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'), 'openrouter_api_key'),
     'groq': (llm.ModelKey('groq', 'openai/gpt-oss-120b'), 'groq_api_key'),
     'cerebras': (llm.ModelKey('cerebras', 'gpt-oss-120b'), 'cerebras_api_key'),
@@ -42,15 +42,26 @@ def bind_backends(config: Config) -> inj.Elements:
         )
 
     else:
-        if config.immediate:
-            backend_cls = llm.OpenaiCompletionsImmediateBackend
-        else:
-            backend_cls = llm.OpenaiCompletionsStreamBackend
-
         model_key, api_key_name = MODELS[config.model or DEFAULT_MODEL]
+        model = llm.default_model_catalog()[model_key]  # noqa
+
+        if model.backend == 'openai-responses':
+            if config.immediate:
+                backend_cls = llm.OpenaiResponsesImmediateBackend
+            else:
+                backend_cls = llm.OpenaiResponsesStreamBackend
+
+        elif model.backend == 'openai-completions':
+            if config.immediate:
+                backend_cls = llm.OpenaiCompletionsImmediateBackend
+            else:
+                backend_cls = llm.OpenaiCompletionsStreamBackend
+
+        else:
+            raise ValueError(model.backend)
 
         backend = backend_cls(
-            llm.default_model_catalog()[model_key],  # noqa
+            model,
             **(dict(api_key=load_secrets().get(api_key_name)) if api_key_name is not None else {}),
         )
 

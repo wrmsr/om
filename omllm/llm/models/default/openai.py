@@ -26,7 +26,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='gpt-5.6-sol',
         ),
         name='GPT 5.6 Sol',
-        backend='openai-completions',
+        backend='openai-responses',
         cache=CacheCapabilities(
             control_style='openai_ttl',
             retentions=frozenset({
@@ -46,7 +46,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='gpt-5.6-terra',
         ),
         name='GPT 5.6 Terra',
-        backend='openai-completions',
+        backend='openai-responses',
         cache=CacheCapabilities(
             control_style='openai_ttl',
             retentions=frozenset({
@@ -66,7 +66,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='gpt-5.6-luna',
         ),
         name='GPT 5.6 Luna',
-        backend='openai-completions',
+        backend='openai-responses',
         cache=CacheCapabilities(
             control_style='openai_ttl',
             retentions=frozenset({
