@@ -2,7 +2,7 @@ import typing as ta
 
 from ...types.models import Model
 from ...types.models import ModelKey
-from ..pricing import modeldb_token_pricing
+from ..modeldb import modeldb_token_pricing
 
 
 ##

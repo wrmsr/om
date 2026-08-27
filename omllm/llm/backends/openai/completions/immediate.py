@@ -4,6 +4,7 @@ from omcore import check
 from omcore.formats.json import all as json
 from omcore.http import all as http
 
+from ....models.pricing import fill_estimated_token_cost
 from ....types.backends import ImmediateBackend
 from ....types.content import Content
 from ....types.content import TextContent
@@ -13,7 +14,6 @@ from ....types.context import Context
 from ....types.messages import AiMessage
 from ....types.messages import StopReason
 from ....types.messages import TokenUsage
-from ....types.models import fill_estimated_token_cost
 from ....types.options import Options
 from .base import BaseOpenaiCompletionsBackend
 from .requests import RequestPreparer
