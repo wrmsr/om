@@ -2,6 +2,9 @@
 TODO:
  - sqlite
  - unify-ish with omcore.sql
+ - un-comment deps in __about__.py to pin vers
+  - uhh.. is this.. good?
+  - also they'd need to be kept up to date
 """
 import abc
 import configparser

@@ -70,6 +70,12 @@ class Project(ProjectBase):
             'ruff ~= 0.16',
         ],
 
+        # 'sqlrepl': [
+        #     'litecli ~= 1.17',
+        #     'mycli ~= 2.17',
+        #     'pgcli ~= 4.6',
+        # ],
+
         'tui': [
             'rich ~= 15.0',
         ],
