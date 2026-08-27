@@ -3659,6 +3659,18 @@ class InstanceState(
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
+class InstanceTypeItem(
+    _base.Shape,
+    shape_name='InstanceTypeItem',
+):
+    instance_type: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='InstanceType',
+        serialization_name='instanceType',
+        shape_name='String',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
 class InternetGatewayAttachment(
     _base.Shape,
     shape_name='InternetGatewayAttachment',
@@ -5434,6 +5446,8 @@ class SubnetIpv6CidrBlockAssociation(
     ))
 
 
+SupportedInstanceTypeSet: _ta.TypeAlias = _ta.Sequence[InstanceTypeItem]
+
 TagSpecificationList: _ta.TypeAlias = _ta.Sequence[TagSpecification]
 
 
@@ -5465,6 +5479,8 @@ class TerminateInstancesRequest(
         shape_name='Boolean',
     ))
 
+
+UnsupportedInstanceTypeSet: _ta.TypeAlias = _ta.Sequence[InstanceTypeItem]
 
 UserIdGroupPairList: _ta.TypeAlias = _ta.Sequence[UserIdGroupPair]
 
@@ -6149,6 +6165,26 @@ class InstanceStorageInfo(
         member_name='EncryptionSupport',
         serialization_name='encryptionSupport',
         shape_name='InstanceStorageEncryptionSupport',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
+class InstanceTypeSpecification(
+    _base.Shape,
+    shape_name='InstanceTypeSpecification',
+):
+    supported_instance_types: SupportedInstanceTypeSet | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='SupportedInstanceTypes',
+        serialization_name='supportedInstanceTypeSet',
+        value_type=_base.ListValueType(InstanceTypeItem),
+        shape_name='SupportedInstanceTypeSet',
+    ))
+
+    unsupported_instance_types: UnsupportedInstanceTypeSet | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='UnsupportedInstanceTypes',
+        serialization_name='unsupportedInstanceTypeSet',
+        value_type=_base.ListValueType(InstanceTypeItem),
+        shape_name='UnsupportedInstanceTypeSet',
     ))
 
 
@@ -7138,6 +7174,12 @@ class Image(
         serialization_name='imageWatermarkSet',
         value_type=_base.ListValueType(ImageWatermark),
         shape_name='ImageWatermarkList',
+    ))
+
+    instance_type_specification: InstanceTypeSpecification | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='InstanceTypeSpecification',
+        serialization_name='instanceTypeSpecification',
+        shape_name='InstanceTypeSpecification',
     ))
 
     image_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
@@ -9200,6 +9242,8 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     InstanceStateChange,
     InstanceStorageInfo,
     InstanceTypeInfo,
+    InstanceTypeItem,
+    InstanceTypeSpecification,
     InternetGateway,
     InternetGatewayAttachment,
     IpPermission,
