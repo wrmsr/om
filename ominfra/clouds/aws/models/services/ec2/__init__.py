@@ -2288,6 +2288,7 @@ VpcPeeringConnectionId = _ta.NewType('VpcPeeringConnectionId', str)
 class VpcState(_base.Enum):
     PENDING = 'pending'
     AVAILABLE = 'available'
+    DELETING = 'deleting'
 
 
 Workload = _ta.NewType('Workload', str)

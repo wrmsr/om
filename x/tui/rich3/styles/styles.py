@@ -581,7 +581,13 @@ class Style:
                 except ColorParseError as error:
                     raise StyleSyntaxError(f'unable to parse {word!r} as color; {error}') from None
                 color = word
-        style = Style(color=color, bgcolor=bgcolor, link=link, **attributes)
+
+        style = Style(
+            color=color,
+            bgcolor=bgcolor,
+            link=link,
+            **attributes,
+        )
         return style
 
     @functools.lru_cache(maxsize=1024)
@@ -597,12 +603,8 @@ class Style:
         if self.reverse:
             color, bgcolor = bgcolor, color
         if self.dim:
-            foreground_color = (
-                theme.foreground_color if color is None else color.get_truecolor(theme)
-            )
-            color = Color.from_triplet(
-                blend_rgb(foreground_color, theme.background_color, 0.5),
-            )
+            foreground_color = theme.foreground_color if color is None else color.get_truecolor(theme)
+            color = Color.from_triplet(blend_rgb(foreground_color, theme.background_color, 0.5))
         if color is not None:
             theme_color = color.get_truecolor(theme)
             append(f'color: {theme_color.hex}')
