@@ -80,9 +80,7 @@ class RequestPreparer:
 
         if cache_retention is not None:
             if cache_retention not in cache.retentions:
-                raise ValueError(
-                    f'Model does not support cache retention {cache_retention.name}: {self._model.key!r}',
-                )
+                raise ValueError(f'Model does not support cache retention {cache_retention.name}: {self._model.key!r}')
 
             if cache.control_style == 'openai_legacy':
                 raw_request['prompt_cache_retention'] = _LEGACY_CACHE_RETENTIONS[cache_retention]
@@ -209,9 +207,9 @@ class RequestPreparer:
     def raw_headers(self) -> ta.Mapping[str, str]:
         raw_headers: dict[str, str] = {}
 
-        # OpenRouter load-balances across upstream providers, whose implicit prompt caches are per-provider. The
-        # session affinity header routes repeat requests to the same upstream, which is what makes cache hits
-        # attainable at all - so the cache key rides it rather than any request body field.
+        # OpenRouter load-balances across upstream providers, whose implicit prompt caches are per-provider. The session
+        # affinity header routes repeat requests to the same upstream, which is what makes cache hits attainable at all
+        # - so the cache key rides it rather than any request body field.
         if (
                 (cache := self._model.cache) is not None and
                 cache.control_style == 'openrouter' and

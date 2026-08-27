@@ -1,3 +1,7 @@
+"""
+.
+https://ai.google.dev/gemini-api/docs/models
+"""
 import typing as ta
 
 from ...types.models import CacheCapabilities

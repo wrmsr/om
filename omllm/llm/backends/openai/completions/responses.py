@@ -23,8 +23,8 @@ def _translate_openrouter_token_cost(m: ta.Mapping[str, ta.Any]) -> TokenCost | 
     if raw_total is None and raw_input is None and raw_output is None:
         return None
 
-    # Reported figures pass through as billed - including a legitimate 0.0, such as for free models or byok requests.
-    # No cache-level breakdown is reported, only the prompt/completions split.
+    # Reported figures pass through as billed - including a legitimate 0.0, such as for free models or byok requests. No
+    # cache-level breakdown is reported, only the prompt/completions split.
     return TokenCost(
         source='reported',
         input=float(raw_input) if raw_input is not None else None,

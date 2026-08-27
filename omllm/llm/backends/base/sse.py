@@ -76,8 +76,8 @@ class BaseBackendSseEventProcessor:
     #
 
     # Content is an interleaving-significant sequence: at most one non-tool content block is 'open' at a time, and
-    # opening one type closes any other. Only contiguous runs of the same type merge into a single content - a new
-    # block of a closed type starts a fresh content. End events are emitted at close time, in stream order.
+    # opening one type closes any other. Only contiguous runs of the same type merge into a single content - a new block
+    # of a closed type starts a fresh content. End events are emitted at close time, in stream order.
 
     def _close_text(self) -> None:
         if (b := self._text_) is not None:

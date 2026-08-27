@@ -116,8 +116,8 @@ class RequestPreparer:
                     elif isinstance(c, ToolCall):
                         # Tool call ids are not sent - google does not reliably issue them, so they may be locally
                         # fabricated, and those must not be echoed back. Function responses are matched by name. Thought
-                        # signatures however must be echoed back with their function calls - gemini rejects
-                        # tool-calling requests whose replayed function calls lack them.
+                        # signatures however must be echoed back with their function calls - gemini rejects tool-calling
+                        # requests whose replayed function calls lack them.
                         raw_parts.append({
                             'functionCall': {
                                 'name': c.name,

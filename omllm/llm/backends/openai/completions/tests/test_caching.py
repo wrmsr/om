@@ -29,7 +29,7 @@ _MIN_CACHEABLE_PROMPT_TOKENS = 1024
 @pytest.mark.timeout(180)
 async def test_openai_prompt_caching(harness):
     svc = OpenaiCompletionsImmediateBackend(
-        default_model_catalog()[ModelKey('openai', 'gpt-5.4-mini')],  # noqa
+        default_model_catalog()[ModelKey('openai', 'gpt-5.6-luna')],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip('openai_api_key'),
     )
 
@@ -52,8 +52,8 @@ async def test_openai_prompt_caching(harness):
     # The run-unique nonce guarantees the prime starts cold.
     assert not prime.cache_read
 
-    # Full hit: the identical request reads a large block-rounded prefix, strictly less than the inclusive input
-    # total (the tail past the last block boundary is never cached).
+    # Full hit: the identical request reads a large block-rounded prefix, strictly less than the inclusive input total
+    # (the tail past the last block boundary is never cached).
     assert full.cache_read is not None
     assert full.input is not None
     assert full.cache_read >= _MIN_CACHEABLE_PROMPT_TOKENS
@@ -66,8 +66,8 @@ async def test_openai_prompt_caching(harness):
     assert partial.input > partial.cache_read
     assert partial.input > full.input
 
-    # Openai reports no money - cost figures are estimated from the model's static modeldb-fed pricing, and the
-    # cache discount shows up in dollars: the full hit prices its read-back prefix at the (cheaper) cache read rate.
+    # Openai reports no money - cost figures are estimated from the model's static modeldb-fed pricing, and the cache
+    # discount shows up in dollars: the full hit prices its read-back prefix at the (cheaper) cache read rate.
     for u in (prime, full, partial):
         assert u.cost is not None
         assert u.cost.source == 'estimated'
@@ -114,9 +114,9 @@ async def test_openrouter_prompt_caching(harness, model_id):
         api_key=harness[HarnessSecrets].get_or_skip('openrouter_api_key'),
     )
 
-    # OpenRouter passes through its upstream providers' implicit caching, and load-balances across them - the cache
-    # key pins repeat requests to one upstream via session affinity, without which a hit is routing luck. Only cache
-    # reads are reported for these models - their upstreams cache implicitly, with no write count.
+    # OpenRouter passes through its upstream providers' implicit caching, and load-balances across them - the cache key
+    # pins repeat requests to one upstream via session affinity, without which a hit is routing luck. Only cache reads
+    # are reported for these models - their upstreams cache implicitly, with no write count.
     usages = await caching.run_caching_scenario(
         svc,
         Options(
@@ -143,17 +143,17 @@ async def test_openrouter_prompt_caching(harness, model_id):
     assert full.cache_read >= _MIN_CACHEABLE_PROMPT_TOKENS
     assert full.cache_read <= full.input
 
-    # Partial hit: the primed prefix is still read while the conversation extension goes uncached. Input totals are
-    # not compared across steps here - upstream providers tokenize differently, so counts are only self-consistent
-    # within a response.
+    # Partial hit: the primed prefix is still read while the conversation extension goes uncached. Input totals are not
+    # compared across steps here - upstream providers tokenize differently, so counts are only self-consistent within a
+    # response.
     assert partial.cache_read is not None
     assert partial.input is not None
     assert partial.cache_read >= _MIN_CACHEABLE_PROMPT_TOKENS
     assert partial.input > partial.cache_read
 
     # Openrouter reports each request's billed cost - authoritative under per-upstream price variance - which rides
-    # usage as a reported TokenCost. Only the prompt/completions split is reported, never cache-level components.
-    # The figures are only non-negative, not positive: routing to free upstream capacity legitimately bills 0.0.
+    # usage as a reported TokenCost. Only the prompt/completions split is reported, never cache-level components. The
+    # figures are only non-negative, not positive: routing to free upstream capacity legitimately bills 0.0.
     for u in (prime, full, partial):
         assert u.cost is not None
         assert u.cost.source == 'reported'

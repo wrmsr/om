@@ -30,7 +30,7 @@ _OPENROUTER_RAW_USAGE = {
     },
 }
 
-# Captured from a live openai chat completion response (gpt-5.4-mini) - no cost fields on the wire.
+# Captured from a live openai chat completion response (gpt-5.6-luna) - no cost fields on the wire.
 _OPENAI_RAW_USAGE = {
     'prompt_tokens': 7253,
     'completion_tokens': 4,

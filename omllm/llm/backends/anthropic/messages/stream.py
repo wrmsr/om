@@ -80,14 +80,14 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
             tool_call.name = check.non_empty_str(raw_block['name'])
 
-            # A tool call with empty input may receive no input_json_delta events at all - the initial input given
-            # here, usually an empty mapping, must be taken as potentially final.
+            # A tool call with empty input may receive no input_json_delta events at all - the initial input given here,
+            # usually an empty mapping, must be taken as potentially final.
             if (raw_input := raw_block.get('input')) is not None:
                 tool_call.args = check.isinstance(raw_input, ta.Mapping)
 
         elif raw_block_type == 'thinking':
-            # Note thinking blocks may appear even when not requested, and may carry no text at all - some models
-            # stream only a signature_delta, which must still be preserved for replay.
+            # Note thinking blocks may appear even when not requested, and may carry no text at all - some models stream
+            # only a signature_delta, which must still be preserved for replay.
             thinking = self._thinking()
 
             if raw_thinking := raw_block.get('thinking'):
@@ -191,8 +191,8 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             self._feed_content_block_delta(raw_event)
 
         elif raw_event_type == 'content_block_stop':
-            # Block boundaries are explicit - closing here keeps adjacent blocks of the same type (and their
-            # individual signatures) distinct rather than merged.
+            # Block boundaries are explicit - closing here keeps adjacent blocks of the same type (and their individual
+            # signatures) distinct rather than merged.
             self._close_text()
             self._close_thinking()
 

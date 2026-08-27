@@ -14,7 +14,9 @@ type TokenPricingProvider = ta.Callable[[], TokenPricing | None]
 
 CacheControlStyle: ta.TypeAlias = ta.Literal[
     'anthropic',
+
     'google_implicit',
+
     'openai_legacy',
     'openai_ttl',
 

@@ -83,9 +83,8 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
             return
         raw_delta = check.isinstance(raw_delta, ta.Mapping)
 
-        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via a delta
-        # field - conventionally reasoning_content, remapped per-model via compat. Only the predeclared field is
-        # probed.
+        # Openai itself returns no reasoning content, but openai-compat backends commonly surface it via a delta field -
+        # conventionally reasoning_content, remapped per-model via compat. Only the predeclared field is probed.
         if raw_reasoning := raw_delta.get(self._reasoning_field or 'reasoning_content'):
             raw_reasoning = check.isinstance(raw_reasoning, str)
             thinking = self._thinking()

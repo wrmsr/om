@@ -103,7 +103,7 @@ class BaseBackendTest:
 
 class TestOpenaiBackend(BaseBackendTest):
     @pytest.fixture(params=[
-        (ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key'),
+        (ModelKey('openai', 'gpt-5.6-luna'), 'openai_api_key'),
     ])
     def model(self, request):
         return request.param

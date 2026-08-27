@@ -1,3 +1,7 @@
+"""
+.
+https://console.groq.com/docs/models
+"""
 import typing as ta
 
 from ...types.compat import OpenaiCompat

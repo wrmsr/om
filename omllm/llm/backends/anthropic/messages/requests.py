@@ -132,10 +132,9 @@ class RequestPreparer:
                             })
 
                     elif isinstance(c, ThinkingContent):
-                        # Signed thinking blocks must be replayed verbatim for validity in subsequent tool use.
-                        # Unsigned ones (such as from a different backend) cannot be replayed, and are dropped. For
-                        # redacted blocks the opaque data blob rides backend_signature, and the placeholder text is
-                        # not sent.
+                        # Signed thinking blocks must be replayed verbatim for validity in subsequent tool use. Unsigned
+                        # ones (such as from a different backend) cannot be replayed, and are dropped. For redacted
+                        # blocks the opaque data blob rides backend_signature, and the placeholder text is not sent.
                         if c.redacted:
                             if c.backend_signature:
                                 raw_content.append({

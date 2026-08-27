@@ -1,3 +1,7 @@
+"""
+.
+https://inference-docs.cerebras.ai/models/overview
+"""
 import typing as ta
 
 from ...types.models import Model
