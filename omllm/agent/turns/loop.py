@@ -117,6 +117,43 @@ class TurnLoop:
 
     #
 
+    async def _execute_tool_call(self, tool_call: llm.ToolCall) -> None:
+        tool = check.not_none(self._context.tools)[tool_call.name]
+
+        tool_context = ToolContext(  # noqa
+            tool=tool,
+
+            args=tool_call.args,
+
+            llm_tool_call=tool_call,
+
+            env=self._tool_env,
+        )
+
+        await self._publish(ToolExecutionStartEvent(
+            tool=tool,
+            context=tool_context,
+        ))
+
+        tool_result = await tool.executor(tool_context)
+
+        await self._publish(ToolExecutionEndEvent(
+            tool=tool,
+            context=tool_context,
+            result=tool_result,
+        ))
+
+        tool_result_message = llm.ToolResultMessage(
+            tool_call_id=tool_call.id,
+            tool_name=tool_call.name,
+
+            content=(tool_result.content,),
+        )
+
+        self._add_new_message(tool_result_message)
+
+    #
+
     @dc.dataclass(frozen=True, kw_only=True)
     class _TurnResult:
         should_continue: bool
@@ -140,39 +177,7 @@ class TurnLoop:
         tool_calls = [c for c in message.content if isinstance(c, llm.ToolCall)]
         if tool_calls:
             for tool_call in tool_calls:
-                tool = check.not_none(self._context.tools)[tool_call.name]
-
-                tool_context = ToolContext(  # noqa
-                    tool=tool,
-
-                    args=tool_call.args,
-
-                    llm_tool_call=tool_call,
-
-                    env=self._tool_env,
-                )
-
-                await self._publish(ToolExecutionStartEvent(
-                    tool=tool,
-                    context=tool_context,
-                ))
-
-                tool_result = await tool.executor(tool_context)
-
-                await self._publish(ToolExecutionEndEvent(
-                    tool=tool,
-                    context=tool_context,
-                    result=tool_result,
-                ))
-
-                tool_result_message = llm.ToolResultMessage(
-                    tool_call_id=tool_call.id,
-                    tool_name=tool_call.name,
-
-                    content=(tool_result.content,),
-                )
-
-                self._add_new_message(tool_result_message)
+                await self._execute_tool_call(tool_call)
 
         await self._publish(TurnEndEvent(
             message=message,

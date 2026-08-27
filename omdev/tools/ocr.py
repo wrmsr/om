@@ -29,7 +29,7 @@ with lang.auto_proxy_import(globals()):
 @dc.dataclass(frozen=True, kw_only=True)
 class OcrBackend:
     name: str
-    fn: ta.Callable[['Image.Image'], str]
+    fn: ta.Callable[[Image.Image], str]
     deps: ta.Sequence[str] | None = None
 
 

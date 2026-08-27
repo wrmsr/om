@@ -58,8 +58,16 @@ class Project(ProjectBase):
             'gprof2dot ~= 2025.4',
         ],
 
+        'pyright': [
+            'basedpyright ~= 1.39',
+        ],
+
         'qr': [
             'segno ~= 1.6',
+        ],
+
+        'ruff': [
+            'ruff ~= 0.16',
         ],
 
         'tui': [

@@ -212,7 +212,7 @@
       - `FooOrBarOrStr: ta.TypeAlias = ta.Union['Foo', 'Bar']` - lite code must use old style, must quote forward refs
     - These should generally be grouped semantically, and may or may not be separated by blank lines.
   - **TWO blank lines, always**
-  - A divider line of specifically `##`
+  - A divider line of exactly `##`
   - **TWO blank lines, always**
   - Then, finally, arbitrary module source code.
 - Source files may be divided into logical sections by divider line comments, with or without a 'title'.
@@ -535,8 +535,64 @@
 
 ### Javascript
 
+- Our 'big' javascript is to be written as `.mjs` files.
+  - Self-contained or one-off scripts may still be simple `.js` files.
+- Absolutely no js package manager of any kind is permitted. All deps must be vendored into the repo (and must thus be
+  compatibly licensed with BSD-3).
+  - As a sole exception, the typescript typechecker `tsc` will be invoked via `npx` during type checking, but absolutely
+    no other use of any javascript ecosystem package manager or installer is permitted - this includes but is not
+    limited to: `npm`, `pnpm`, `yarn`, `bun`.
+  - NOTE: The dep vendoring tool has not yet been integrated into this repo.
+- There is no compilation step of any kind permitted for javascript code: our `.mjs` files are shipped directly to a
+  browser, unmodified - as are vendored deps.
+  - We do **NOT** use typescript, but it is acceptable to interact when them if appropriately vendored.
+- Our `.mjs` files are to be type-annotated in the
+  [JSDoc style](https://www.typescriptlang.org/docs/handbook/jsdoc-supported-types.html?utm_source=chatgpt.com), and
+  should expect to be type checked by the typescript type checker `tsc` in `checkJs` mode.
+  - Inline type annotations should generally be on the same line as the item being annotated - *not* on the line above.
+    For example:
+    ```js
+    /** @type {string | null} */ this.clientId = null
+    ```
+- Our js indentation is 2 spaces.
 - As with C/C++, always enclose the bodies of control-flow statements (`if`, `else`, `for`, `while`, `do`) in braces,
   even for a single statement.
+- *Most* inline functions deserve to be wrapped in braces and have their bodies - even if a single expression - on their
+  own lines.
+  - This is *more* true for effectful code like event callbacks, but *less* true for things like `.map` and `.filter`
+    bodies.
+- The structure of a `.mjs` file should follow thusly:
+  - A single `// @ts-check` comment.
+  - **TWO blank lines**, if the following is present:
+  - Imports, if present:
+    - Single-item imports may be on one single line
+    - Multi-item imports must put each item on its own line, as well as put both `import {` and `} from './...'` on
+      their own lines. Each item is indented 2 spaces.
+  - **TWO blank lines**, always
+  - A divider line of exactly `////`
+  - **TWO blank lines**, always
+  - Then, finally, arbitrary module source code.
+- As an example:
+  ```js
+  // @ts-check
+  
+  
+  import {ConnectionState} from './core/connection.mjs'
+  
+  import {
+    VimMode,
+    vimModeLabel,
+  } from './ui/vim.mjs'
+  
+  
+  ////
+  
+  
+  /** @returns {string} */
+  function errorDetails(/** @type {unknown} */ error) {
+    return error instanceof Error ? error.stack ?? error.message : String(error)
+  }
+  ```
 
 
 ### Misc. Linguistic Pedantry

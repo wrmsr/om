@@ -152,7 +152,10 @@ def process_run_args(
         run_args.append(f'--mount=type=bind,src={git_path},dst=/git,ro')
 
         if args.clone_mount_git:
-            autoexecs.append('git clone -q /git /work/git')
+            autoexecs.extend([
+                'git config --global --add safe.directory /git',
+                'git clone -q /git /work/git',
+            ])
 
     if not args.no_host_platform:
         run_args.extend([f'--env=DOCKER_HOST_PLATFORM={platform.system().lower()}'])

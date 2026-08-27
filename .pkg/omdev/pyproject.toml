@@ -60,8 +60,14 @@ pillow = [
 prof = [
     'gprof2dot ~= 2025.4',
 ]
+pyright = [
+    'basedpyright ~= 1.39',
+]
 qr = [
     'segno ~= 1.6',
+]
+ruff = [
+    'ruff ~= 0.16',
 ]
 tui = [
     'rich ~= 15.0',
@@ -108,7 +114,9 @@ all = [
     'rapidocr-onnxruntime ~= 1.4',
     'pillow ~= 12.3',
     'gprof2dot ~= 2025.4',
+    'basedpyright ~= 1.39',
     'segno ~= 1.6',
+    'ruff ~= 0.16',
     'rich ~= 15.0',
     'tree-sitter ~= 0.26',
     'tree-sitter-bash ~= 0.25',
@@ -153,6 +161,9 @@ exclude = [
     '*.cu',
     '*.h',
     '*.hh',
+    '*.js',
+    '*.mjs',
+    '*.ts',
     '*.abnf',
     '*.g4',
     '.om-manifests.json',

@@ -177,6 +177,10 @@ class SetuptoolsBase:
             '*.h',
             '*.hh',
 
+            '*.js',
+            '*.mjs',
+            '*.ts',
+
             '*.abnf',
             '*.g4',
 
