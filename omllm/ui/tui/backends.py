@@ -14,7 +14,7 @@ from .config import Config
 DEFAULT_MODEL: ta.Final = 'openai'
 
 MODELS: ta.Final[ta.Mapping[str, tuple[llm.ModelKey, str | None]]] = {
-    'openai': (llm.ModelKey('openai', 'gpt-5.4-mini'), 'openai_api_key'),
+    'openai': (llm.ModelKey('openai', 'gpt-5.4-nano'), 'openai_api_key'),
     'openrouter': (llm.ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'), 'openrouter_api_key'),
     'groq': (llm.ModelKey('groq', 'openai/gpt-oss-120b'), 'groq_api_key'),
     'cerebras': (llm.ModelKey('cerebras', 'gpt-oss-120b'), 'cerebras_api_key'),

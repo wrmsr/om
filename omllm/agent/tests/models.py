@@ -13,7 +13,7 @@ class ModelForTest(ta.NamedTuple):
 
 
 OPENAI = ModelForTest(
-    llm.ModelKey('openai', 'gpt-5.4-mini'),
+    llm.ModelKey('openai', 'gpt-5.4-nano'),
     'openai_api_key',
     llm.OpenaiCompletionsStreamBackend,
 )

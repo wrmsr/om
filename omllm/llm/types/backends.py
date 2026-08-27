@@ -23,6 +23,7 @@ class Backend(lang.Abstract):
 ##
 
 
+# @om-manifest $.core.registry.manifests.RegistryTypeManifest
 class ImmediateBackend(Backend, lang.Abstract):
     @abc.abstractmethod
     def immediate(self, context: Context, options: Options | None = None) -> ta.Awaitable[AiMessage]:
@@ -32,6 +33,7 @@ class ImmediateBackend(Backend, lang.Abstract):
 ##
 
 
+# @om-manifest $.core.registry.manifests.RegistryTypeManifest
 class StreamBackend(ImmediateBackend, lang.Abstract):
     @abc.abstractmethod
     def stream(self, context: Context, options: Options | None = None) -> ta.Awaitable[AiStream]:

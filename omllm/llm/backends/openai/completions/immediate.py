@@ -24,6 +24,10 @@ from .responses import translate_token_usage
 ##
 
 
+# @om-manifest $.core.registry.manifests.RegistryManifest(
+#     name='openai-completions',
+#     type='ImmediateBackend',
+# )
 class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateBackend):
     async def immediate(self, context: Context, options: Options | None = None) -> AiMessage:
         preparer = RequestPreparer(

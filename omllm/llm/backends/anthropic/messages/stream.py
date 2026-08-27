@@ -214,6 +214,10 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 ##
 
 
+# @om-manifest $.core.registry.manifests.RegistryManifest(
+#     name='anthropic-messages',
+#     type='StreamBackend',
+# )
 class AnthropicMessagesStreamBackend(BaseAnthropicMessagesBackend, StreamBackend):
     async def stream(self, context: Context, options: Options | None = None) -> AiStream:
         raw_request = RequestPreparer(  # noqa

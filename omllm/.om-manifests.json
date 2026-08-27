@@ -173,6 +173,96 @@
     }
   },
   {
+    "module": ".llm.backends.anthropic.messages.immediate",
+    "attr": null,
+    "file": "omllm/llm/backends/anthropic/messages/immediate.py",
+    "line": 27,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.llm.backends.anthropic.messages.immediate",
+        "attr": "AnthropicMessagesImmediateBackend",
+        "name": "anthropic-messages",
+        "aliases": null,
+        "type": "ImmediateBackend"
+      }
+    }
+  },
+  {
+    "module": ".llm.backends.anthropic.messages.stream",
+    "attr": null,
+    "file": "omllm/llm/backends/anthropic/messages/stream.py",
+    "line": 217,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.llm.backends.anthropic.messages.stream",
+        "attr": "AnthropicMessagesStreamBackend",
+        "name": "anthropic-messages",
+        "aliases": null,
+        "type": "StreamBackend"
+      }
+    }
+  },
+  {
+    "module": ".llm.backends.google.generative.immediate",
+    "attr": null,
+    "file": "omllm/llm/backends/google/generative/immediate.py",
+    "line": 28,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.llm.backends.google.generative.immediate",
+        "attr": "GoogleGenerativeImmediateBackend",
+        "name": "google-generative",
+        "aliases": null,
+        "type": "ImmediateBackend"
+      }
+    }
+  },
+  {
+    "module": ".llm.backends.google.generative.stream",
+    "attr": null,
+    "file": "omllm/llm/backends/google/generative/stream.py",
+    "line": 149,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.llm.backends.google.generative.stream",
+        "attr": "GoogleGenerativeStreamBackend",
+        "name": "google-generative",
+        "aliases": null,
+        "type": "StreamBackend"
+      }
+    }
+  },
+  {
+    "module": ".llm.backends.openai.completions.immediate",
+    "attr": null,
+    "file": "omllm/llm/backends/openai/completions/immediate.py",
+    "line": 27,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.llm.backends.openai.completions.immediate",
+        "attr": "OpenaiCompletionsImmediateBackend",
+        "name": "openai-completions",
+        "aliases": null,
+        "type": "ImmediateBackend"
+      }
+    }
+  },
+  {
+    "module": ".llm.backends.openai.completions.stream",
+    "attr": null,
+    "file": "omllm/llm/backends/openai/completions/stream.py",
+    "line": 131,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.llm.backends.openai.completions.stream",
+        "attr": "OpenaiCompletionsStreamBackend",
+        "name": "openai-completions",
+        "aliases": null,
+        "type": "StreamBackend"
+      }
+    }
+  },
+  {
     "module": ".llm.models.default.anthropic",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/anthropic.py",
@@ -337,6 +427,30 @@
             "backend": "openai-completions"
           }
         ]
+      }
+    }
+  },
+  {
+    "module": ".llm.types.backends",
+    "attr": null,
+    "file": "omllm/llm/types/backends.py",
+    "line": 26,
+    "value": {
+      "!.core.registry.manifests.RegistryTypeManifest": {
+        "module": "omllm.llm.types.backends",
+        "attr": "ImmediateBackend"
+      }
+    }
+  },
+  {
+    "module": ".llm.types.backends",
+    "attr": null,
+    "file": "omllm/llm/types/backends.py",
+    "line": 36,
+    "value": {
+      "!.core.registry.manifests.RegistryTypeManifest": {
+        "module": "omllm.llm.types.backends",
+        "attr": "StreamBackend"
       }
     }
   },
