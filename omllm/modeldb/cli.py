@@ -2,11 +2,10 @@
 https://models.dev/
 https://github.com/anomalyco/models.dev
 """
+import compression.zstd
 import os.path
 import typing as ta
 import urllib.request
-
-import zstandard
 
 from omcore.argparse import all as ap
 from omcore.formats.json import all as json
@@ -45,7 +44,7 @@ class Cli(ap.Cli):
     def fetch(self) -> None:
         models = fetch_models()
 
-        compressed = zstandard.compress(json.dumps_compact(models).encode('utf-8'))
+        compressed = compression.zstd.compress(json.dumps_compact(models).encode('utf-8'))
 
         cache_file = os.path.join(os.path.dirname(__file__), 'cache.json.zstd')
         with open(cache_file, 'wb') as f:
