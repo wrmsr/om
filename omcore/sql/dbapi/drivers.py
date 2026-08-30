@@ -86,6 +86,12 @@ class DbapiDrivers(lang.Namespace):
     ##
     # mysql
 
+    OMYSQL = DbapiDriver(
+        name='omysql',
+        dialect=DbapiDialect.MYSQL,
+        param_style=ParamStyle.PYFORMAT,
+    )
+
     PYMYSQL = DbapiDriver(
         name='pymysql',
         dialect=DbapiDialect.MYSQL,
@@ -110,6 +116,12 @@ class DbapiDrivers(lang.Namespace):
 
     ##
     # postgres
+
+    OG8000 = DbapiDriver(
+        name='og8000',
+        dialect=DbapiDialect.POSTGRES,
+        param_style=ParamStyle.FORMAT,
+    )
 
     PG8000 = DbapiDriver(
         name='pg8000',
