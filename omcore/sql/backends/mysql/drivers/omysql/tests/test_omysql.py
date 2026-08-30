@@ -3,15 +3,15 @@ import urllib.parse
 
 import pytest
 
-from ..... import check
-from ....api import querierfuncs as qf
-from ....dbs import UrlDbLoc
-from ....drivers.omysql.core.asyncio import AsyncioConnection
-from ....drivers.omysql.core.sync import SyncConnection
-from ....queries import Q
-from ....tests.harness import HarnessDbs
-from ..drivers.omysql.asyncio import AsyncioOmysqlDb
-from ..drivers.omysql.sync import OmysqlDb
+from ....... import check
+from ......api import querierfuncs as qf
+from ......dbs import UrlDbLoc
+from ......drivers.omysql.core.asyncio import AsyncioConnection
+from ......drivers.omysql.core.sync import SyncConnection
+from ......queries import Q
+from ......tests.harness import HarnessDbs
+from ..asyncio import AsyncioOmysqlDb
+from ..sync import OmysqlDb
 
 
 ##

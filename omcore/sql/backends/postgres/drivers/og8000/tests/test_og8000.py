@@ -3,15 +3,15 @@ import urllib.parse
 
 import pytest
 
-from ..... import check
-from ....api import querierfuncs as qf
-from ....dbs import UrlDbLoc
-from ....drivers.og8000.core.asyncio import AsyncioCoreConnection
-from ....drivers.og8000.core.sync import SyncCoreConnection
-from ....queries import Q
-from ....tests.harness import HarnessDbs
-from ..drivers.og8000.asyncio import AsyncioOg8000Db
-from ..drivers.og8000.sync import Og8000Db
+from ....... import check
+from ......api import querierfuncs as qf
+from ......dbs import UrlDbLoc
+from ......drivers.og8000.core.asyncio import AsyncioCoreConnection
+from ......drivers.og8000.core.sync import SyncCoreConnection
+from ......queries import Q
+from ......tests.harness import HarnessDbs
+from ..asyncio import AsyncioOg8000Db
+from ..sync import Og8000Db
 
 
 ##
