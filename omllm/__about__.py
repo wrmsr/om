@@ -17,7 +17,7 @@ class Project(ProjectBase):
         ],
 
         'interop': [
-            'huggingface-hub ~= 1.28',
+            'huggingface-hub ~= 1.29',
 
             'llama-cpp-python ~= 0.3',
 
@@ -28,7 +28,7 @@ class Project(ProjectBase):
 
             'torch ~= 2.13',
 
-            'transformers ~= 5.15',
+            'transformers ~= 5.16',
         ],
     }
 

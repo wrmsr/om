@@ -44,7 +44,7 @@ guppy3==3.1.7  # @om-venv !14t !14dt !15 !15t
 objgraph==3.6.2
 memray==1.20.0
 
-ipython==9.16.1
+ipython==9.17.0
 
 pudb==2025.1.5
 
@@ -132,7 +132,7 @@ snowflake-connector-python[secure-local-storage]==4.7.2  # @om-venv !15t
 
 trino==0.339.0  # @om-venv !14t !14dt !15t  # orjson
 
-huggingface-hub==1.28.0
+huggingface-hub==1.29.0
 hf-xet==1.6.0
 
 greenlet==3.5.5
@@ -141,21 +141,21 @@ greenlet==3.5.5
 
 datasets==5.0.1  # @om-venv !15 !15t  # !! includes arrow and pandas and shit
 
-transformers==5.15.1  # @om-venv !14t !14dt !15t
+transformers==5.16.1  # @om-venv !14t !14dt !15t
 sentence-transformers==6.0.0  # @om-venv !14t !14dt !15 !15t
 
 sentencepiece==0.2.2
 tiktoken==0.14.0  # @om-venv !15 !15t
-tokenizers==0.22.2  # @om-venv !14t !14dt !15t
+tokenizers==0.23.1  # @om-venv !14t !14dt !15t
 
 llama-cpp-python; sys_platform == "darwin"
 
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.82
-botocore==1.43.82
-types-boto3==1.43.81
+boto3==1.43.83
+botocore==1.43.83
+types-boto3==1.43.83
 botocore-stubs==1.43.67
 
 antlr4-python3-runtime==4.13.2
@@ -175,7 +175,7 @@ pillow==12.3.0
 
 # accelerate==1.13.0  # @om-venv !15 !15t
 
-bitsandbytes==0.50.1  # @om-venv !15 !15t
+bitsandbytes==0.50.2  # @om-venv !15 !15t
 
 regex==2026.7.19
 

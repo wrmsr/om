@@ -32,23 +32,23 @@ omdev = [
     'omdev == 0.0.51',
 ]
 interop = [
-    'huggingface-hub ~= 1.28',
+    'huggingface-hub ~= 1.29',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
     'tinygrad ~= 0.14',
     'torch ~= 2.13',
-    'transformers ~= 5.15',
+    'transformers ~= 5.16',
 ]
 all = [
     'omdev == 0.0.51',
-    'huggingface-hub ~= 1.28',
+    'huggingface-hub ~= 1.29',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
     'tinygrad ~= 0.14',
     'torch ~= 2.13',
-    'transformers ~= 5.15',
+    'transformers ~= 5.16',
 ]
 
 [project.entry-points]
