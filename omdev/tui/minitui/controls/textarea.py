@@ -25,7 +25,7 @@ from ..events.keys import Key
 from ..events.types import Event
 from ..events.types import KeyEvent
 from ..events.types import PasteEvent
-from ..text.highlights import Highlighter
+from ..text.highlights.base import Highlighter
 from ..text.segments import Segment
 from ..text.styles import StyleLike
 from ..text.widths import ascii_control_repr

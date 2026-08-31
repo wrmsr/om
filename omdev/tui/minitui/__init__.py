@@ -219,6 +219,22 @@ with _lang.auto_proxy_init(
     ##
     # text
 
+    from .text.highlights.base import (  # noqa
+        Highlighter,
+        PythonHighlighter,
+        DiffHighlighter,
+        get_highlighter,
+        highlight_code,
+    )
+
+    from .text.highlights.pygments import (  # noqa
+        pygments_available,
+        PygmentsHighlighter,
+        get_pygments_highlighter,
+    )
+
+    #
+
     from .text.markdown.base import (  # noqa
         MdBlock,
         MdHeading,
@@ -349,20 +365,6 @@ with _lang.auto_proxy_init(
         ANSI_ESCAPE_PAT,
         apply_sgr_params,
         parse_ansi_segments,
-    )
-
-    from .text.highlights import (  # noqa
-        Highlighter,
-        PythonHighlighter,
-        DiffHighlighter,
-        get_highlighter,
-        highlight_code,
-    )
-
-    from .text.pygments import (  # noqa
-        pygments_available,
-        PygmentsHighlighter,
-        get_pygments_highlighter,
     )
 
     ##

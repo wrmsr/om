@@ -17,8 +17,8 @@ import typing as ta
 
 from omcore import lang
 
-from .segments import Segment
-from .segments import SegmentRows
+from ..segments import Segment
+from ..segments import SegmentRows
 
 
 if ta.TYPE_CHECKING:

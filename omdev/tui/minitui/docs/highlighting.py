@@ -10,7 +10,7 @@ import abc
 
 from omcore import lang
 
-from ..text.highlights import Highlighter
+from ..text.highlights.base import Highlighter
 from .edits import TextEdit
 
 

@@ -17,7 +17,7 @@ import typing as ta
 
 from omcore import lang
 
-from ..text.highlights import SegmentRows
+from ..text.highlights.base import SegmentRows
 from ..text.segments import Segment
 from .edits import TextEdit
 from .highlighting import IncrementalHighlighter

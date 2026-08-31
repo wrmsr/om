@@ -3,7 +3,7 @@ import importlib.util
 
 import pytest
 
-from ...highlights import highlight_code
+from ...highlights.base import highlight_code
 from ...segments import segments_text
 from ..base import MarkdownStream
 from ..base import MdCode

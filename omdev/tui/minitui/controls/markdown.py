@@ -10,7 +10,7 @@ import typing as ta
 
 from omcore import lang
 
-from ..text.highlights import highlight_code
+from ..text.highlights.base import highlight_code
 from ..text.markdown.base import MarkdownCodeHighlighter
 from ..text.markdown.base import MarkdownStream
 from ..text.markdown.base import MarkdownStreamBackend

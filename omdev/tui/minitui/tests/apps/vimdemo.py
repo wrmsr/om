@@ -20,7 +20,7 @@ from ...runtime.drivers import App
 from ...runtime.drivers import SyncDriver
 from ...screens.cells import Frame
 from ...surfaces.alts import AltSurface
-from ...text.highlights import get_highlighter
+from ...text.highlights.base import get_highlighter
 from ...text.segments import Segment
 from ...text.styles import Style
 from ...text.themes import DEFAULT_THEME

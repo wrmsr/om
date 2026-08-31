@@ -11,9 +11,9 @@ import typing as ta
 
 from omcore import lang
 
-from .highlights import Highlighter
-from .highlights import SegmentRows
-from .segments import Segment
+from ..segments import Segment
+from .base import Highlighter
+from .base import SegmentRows
 
 
 with lang.auto_proxy_import(globals()):
