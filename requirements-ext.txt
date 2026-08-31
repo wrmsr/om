@@ -60,7 +60,11 @@ blobfile==3.2.0
 
 pydantic-monty==0.0.21
 
-# TODO: quickjs
+
+##
+# runtimes
+
+wasmtime==48.0.0
 
 
 ##

@@ -22,8 +22,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.5.1
 blobfile==3.2.0
-boto3==1.43.83
-botocore==1.43.83
+boto3==1.43.84
+botocore==1.43.84
 botocore-stubs==1.43.67
 brotli==1.2.0
 build==1.6.0
@@ -52,11 +52,11 @@ emoji==2.15.0
 execnet==2.1.2
 executing==2.2.1
 fake-useragent==2.2.0
-filelock==3.32.4
+filelock==3.32.5
 flake8==7.3.0
 Flake8-pyproject==1.2.4
 flatbuffers==25.12.19
-fonttools==4.63.0
+fonttools==4.64.0
 frozenlist==1.8.0
 fsspec==2026.6.0
 gguf==0.19.0
@@ -95,7 +95,7 @@ jaraco.functools==4.6.0
 jedi==0.20.0
 Jinja2==3.1.6
 jmespath==1.1.0
-joblib==1.5.3
+joblib==1.6.0
 json5==0.15.0
 keyring==25.7.0
 kiwisolver==1.5.1
@@ -297,9 +297,10 @@ urwid_readline==0.15.1
 uv==0.12.7
 uvicorn==0.52.4
 uvloop==0.22.1
+wasmtime==48.0.0
 watchdog==6.0.0
 watchfiles==1.2.0
-wcwidth==0.8.2
+wcwidth==0.8.3
 websockets==17.1
 wheel==0.48.0
 wikitextparser==1.0.3
