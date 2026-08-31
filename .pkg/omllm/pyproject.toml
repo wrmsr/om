@@ -92,5 +92,5 @@ exclude = [
     'AUTHORS',
 ]
 'omllm.modeldb' = [
-    'cache.json.bz2',
+    '_cache/*.json.*',
 ]

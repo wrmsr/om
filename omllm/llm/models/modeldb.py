@@ -21,7 +21,7 @@ def modeldb_token_pricing(provider: str, model_id: str) -> TokenPricingProvider:
 
     def get() -> TokenPricing | None:
         try:
-            model = modeldb.load_provider_model(provider, model_id)
+            model = modeldb.get_provider_model(provider, model_id)
         except KeyError:
             return None
 
