@@ -83,7 +83,7 @@ class MinituiChatApp(mt.App):
         self._driver.invalidate()
 
     def display_markdown(self, text: str) -> None:
-        self.display_rows(mt.render_blocks(mt.parse_markdown(text), self.width, highlighter=mt.highlight_code))
+        self.display_rows(mt.render_markdown_blocks(mt.parse_markdown(text), self.width, highlighter=mt.highlight_code))
 
     def display_inline(self, segments: ta.Sequence[mt.Segment]) -> None:
         self.display_rows(mt.wrap_segments(segments, self.width) if segments else [[]])

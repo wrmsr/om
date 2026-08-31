@@ -545,7 +545,7 @@
   - NOTE: The dep vendoring tool has not yet been integrated into this repo.
 - There is no compilation step of any kind permitted for javascript code: our `.mjs` files are shipped directly to a
   browser, unmodified - as are vendored deps.
-  - We do **NOT** use typescript, but it is acceptable to interact when them if appropriately vendored.
+  - We do **NOT** use typescript, but it is acceptable to interact libraries written in it if appropriately vendored.
 - Our `.mjs` files are to be type-annotated in the
   [JSDoc style](https://www.typescriptlang.org/docs/handbook/jsdoc-supported-types.html?utm_source=chatgpt.com), and
   should expect to be type checked by the typescript type checker `tsc` in `checkJs` mode.

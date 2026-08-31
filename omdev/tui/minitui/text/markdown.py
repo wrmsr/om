@@ -56,7 +56,7 @@ class MdParagraph(MdBlock, lang.Final):
 
     @classmethod
     def of(cls, text: str) -> MdParagraph:
-        return cls(tuple(parse_inlines(text)))
+        return cls(tuple(parse_markdown_inlines(text)))
 
 
 @dc.dataclass(frozen=True)
@@ -71,7 +71,7 @@ class MdQuote(MdBlock, lang.Final):
 
     @classmethod
     def of(cls, text: str) -> MdQuote:
-        return cls(tuple(parse_inlines(text, base='md.quote')))
+        return cls(tuple(parse_markdown_inlines(text, base='md.quote')))
 
 
 @dc.dataclass(frozen=True)
@@ -82,7 +82,7 @@ class MdListItem(lang.Final):
 
     @classmethod
     def of(cls, marker: str, text: str, depth: int = 0) -> MdListItem:
-        return cls(marker, tuple(parse_inlines(text)), depth)
+        return cls(marker, tuple(parse_markdown_inlines(text)), depth)
 
 
 @dc.dataclass(frozen=True)
@@ -119,7 +119,7 @@ def _is_block_start(line: str) -> bool:
     )
 
 
-def parse_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list[MdBlock], int]:  # noqa: C901
+def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list[MdBlock], int]:  # noqa: C901
     """
     Parse complete lines into blocks, returning (blocks, settled_line_count).
 
@@ -245,7 +245,7 @@ def parse_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list[MdBlock]
 
 
 def parse_markdown(text: str) -> list[MdBlock]:
-    blocks, _ = parse_lines(text.split('\n'), at_eof=True)
+    blocks, _ = parse_markdown_lines(text.split('\n'), at_eof=True)
     return blocks
 
 
@@ -303,7 +303,7 @@ class MarkdownStream(MarkdownStreamBackend):
     def pop_settled(self) -> list[MdBlock]:
         lines = self._buffer.split('\n')
         complete = lines[:-1]  # the final element is the partial (possibly empty) last line
-        blocks, settled = parse_lines(complete, at_eof=False)
+        blocks, settled = parse_markdown_lines(complete, at_eof=False)
         if settled:
             drop = sum(len(line) + 1 for line in complete[:settled])
             self._buffer = self._buffer[drop:]
@@ -337,7 +337,7 @@ _INLINE_PAT = re.compile(
 )
 
 
-def parse_inlines(text: str, *, base: StyleLike = None) -> list[Segment]:
+def parse_markdown_inlines(text: str, *, base: StyleLike = None) -> list[Segment]:
     """One pass, no nesting: the outermost marker wins (terminal styling doesn't stack much anyway)."""
 
     segments: list[Segment] = []
@@ -366,14 +366,20 @@ def parse_inlines(text: str, *, base: StyleLike = None) -> list[Segment]:
 # Rendering
 
 
-CodeHighlighter: ta.TypeAlias = ta.Callable[[str, ta.Sequence[str]], SegmentRows | None]
+class MarkdownCodeHighlighter(ta.Protocol):
+    def __call__(
+            self,
+            info: str,
+            lines: ta.Sequence[str],
+    ) -> SegmentRows | None:
+        ...
 
 
 def _expand_tabs(line: str) -> str:
     return line.replace('\t', '    ')
 
 
-def _render_code(block: MdCode, width: int, highlighter: CodeHighlighter | None) -> list[list[Segment]]:
+def _render_code(block: MdCode, width: int, highlighter: MarkdownCodeHighlighter | None) -> list[list[Segment]]:
     body_rows: SegmentRows | None = None
     if highlighter is not None and block.info:
         body_rows = highlighter(block.info, block.lines)
@@ -419,11 +425,11 @@ def _retag(spans: ta.Sequence[Segment], base: str) -> list[Segment]:
 _LIST_BULLETS = '•◦▪'  # bullet glyph per nesting depth (cycling)
 
 
-def render_block(
+def render_markdown_block(
         block: MdBlock,
         width: int,
         *,
-        highlighter: CodeHighlighter | None = None,
+        highlighter: MarkdownCodeHighlighter | None = None,
 ) -> list[list[Segment]]:
     if isinstance(block, MdHeading):
         tag = f'md.h{min(block.level, 6)}'
@@ -453,11 +459,11 @@ def render_block(
     raise TypeError(block)
 
 
-def render_blocks(
+def render_markdown_blocks(
         blocks: ta.Sequence[MdBlock],
         width: int,
         *,
-        highlighter: CodeHighlighter | None = None,
+        highlighter: MarkdownCodeHighlighter | None = None,
 ) -> list[list[Segment]]:
     """Render blocks with a single blank row between them."""
 
@@ -465,5 +471,5 @@ def render_blocks(
     for i, block in enumerate(blocks):
         if i:
             rows.append([])
-        rows.extend(render_block(block, width, highlighter=highlighter))
+        rows.extend(render_markdown_block(block, width, highlighter=highlighter))
     return rows

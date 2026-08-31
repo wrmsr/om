@@ -6,7 +6,7 @@ import pytest
 from ...controls.markdown import get_markdown_stream
 from ..markdown import MdCode
 from ..markdown import MdHeading
-from ..markdown import render_blocks
+from ..markdown import render_markdown_blocks
 from ..segments import segments_text
 
 
@@ -69,7 +69,7 @@ def test_backend_equivalence(name, chunk_size):
         blocks.extend(s.pop_settled())
     blocks.extend(s.finalize())
 
-    rows = [segments_text(r) for r in render_blocks(blocks, 40)]
+    rows = [segments_text(r) for r in render_markdown_blocks(blocks, 40)]
     assert rows == EXPECTED_ROWS, f'{name} (chunk={chunk_size})'
 
 
@@ -83,7 +83,7 @@ def test_backend_settles_incrementally(name):
     assert any(isinstance(b, MdHeading) for b in settled), name
 
     # The open paragraph shows in the tail, live.
-    tail_text = ' '.join(segments_text(r) for r in render_blocks(s.tail_blocks(), 60))
+    tail_text = ' '.join(segments_text(r) for r in render_markdown_blocks(s.tail_blocks(), 60))
     assert 'still going' in tail_text
 
     # An open fence appears in the tail; once closed (and drained) it comes through exactly once.
@@ -160,4 +160,4 @@ def test_backend_reusable_across_finalize_cycles(name):
 
 
 def _plain_rows(block):
-    return [segments_text(row) for row in render_blocks([block], 40)]
+    return [segments_text(row) for row in render_markdown_blocks([block], 40)]

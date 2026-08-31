@@ -12,10 +12,10 @@ from ..markdown import MdListItem
 from ..markdown import MdParagraph
 from ..markdown import MdQuote
 from ..markdown import MdRule
-from ..markdown import parse_inlines
 from ..markdown import parse_markdown
-from ..markdown import render_block
-from ..markdown import render_blocks
+from ..markdown import parse_markdown_inlines
+from ..markdown import render_markdown_block
+from ..markdown import render_markdown_blocks
 from ..segments import segments_text
 
 
@@ -96,7 +96,7 @@ def test_stream_partial_line_never_settles():
 
 
 def test_inlines():
-    segs = parse_inlines('plain **bold** and `code` plus [x](http://y)')
+    segs = parse_markdown_inlines('plain **bold** and `code` plus [x](http://y)')
     assert segments_text(segs) == 'plain bold and code plus x (http://y)'
     styles = [seg.style for seg in segs]
     assert 'md.bold' in styles
@@ -106,21 +106,21 @@ def test_inlines():
 
 def test_render_paragraph_wraps():
     (block,) = parse_markdown('some **bold** words that wrap')
-    rows = render_block(block, 12)
+    rows = render_markdown_block(block, 12)
     assert all(sum(len(seg.text) for seg in row) <= 12 for row in rows)
     assert 'md.bold' in {seg.style for row in rows for seg in row}
 
 
 def test_render_list_hanging_indent():
     (block,) = parse_markdown('- a rather long item that wraps around')
-    rows = render_block(block, 16)
+    rows = render_markdown_block(block, 16)
     assert segments_text(rows[0]).startswith('• ')
     assert segments_text(rows[1]).startswith('  ')
 
 
 def test_render_code_highlighted():
     (block,) = parse_markdown('```python\ndef f():\n    return "s"  # c\n```')
-    rows = render_block(block, 40, highlighter=highlight_code)
+    rows = render_markdown_block(block, 40, highlighter=highlight_code)
     styles = {seg.style for row in rows for seg in row}
     assert 'code.keyword' in styles
     assert 'code.def' in styles
@@ -131,7 +131,7 @@ def test_render_code_highlighted():
 
 
 def test_render_blocks_spacing():
-    rows = render_blocks(parse_markdown('a\n\nb'), 10)
+    rows = render_markdown_blocks(parse_markdown('a\n\nb'), 10)
     assert [segments_text(r) for r in rows] == ['a', '', 'b']
 
 
@@ -211,13 +211,13 @@ def test_nested_list_depths():
 
 def test_nested_list_renders_indented():
     blocks = parse_markdown('- a\n  - b\n    - c\n')
-    rows = [''.join(seg.text for seg in row) for row in render_block(blocks[0], 40)]
+    rows = [''.join(seg.text for seg in row) for row in render_markdown_block(blocks[0], 40)]
     assert rows == ['• a', '  ◦ b', '    ▪ c']
 
 
 def test_nested_list_wrapped_lines_align_under_content():
     blocks = parse_markdown('- ' + 'word ' * 12 + '\n  - ' + 'nest ' * 12 + '\n')
-    rows = [''.join(seg.text for seg in row) for row in render_block(blocks[0], 24)]
+    rows = [''.join(seg.text for seg in row) for row in render_markdown_block(blocks[0], 24)]
     conts = [r for r in rows if not r.lstrip().startswith(('•', '◦'))]
     assert conts, rows
     # Continuations hang under the item's content, past its indent + marker.

@@ -82,7 +82,7 @@ class MinituiTextDisplayer(ui.TextDisplayer):
             self._app.display_markdown(t.s)
 
         elif isinstance(t, ui.DiffText):
-            self._app.display_rows(mt.render_block(
+            self._app.display_rows(mt.render_markdown_block(
                 mt.MdCode('diff', tuple(ln.rstrip('\n') for ln in t.diff_lines)),
                 self._app.width,
                 highlighter=mt.highlight_code,

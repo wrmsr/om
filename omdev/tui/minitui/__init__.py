@@ -342,16 +342,16 @@ with _lang.auto_proxy_init(
         MdList,
         MdRule,
 
-        parse_lines,
+        parse_markdown_lines,
         parse_markdown,
-        parse_inlines,
+        parse_markdown_inlines,
 
         MarkdownStreamBackend,
         MarkdownStream,
 
-        CodeHighlighter,
-        render_block,
-        render_blocks,
+        MarkdownCodeHighlighter,
+        render_markdown_block,
+        render_markdown_blocks,
     )
 
     from .text.markdownit import (  # noqa

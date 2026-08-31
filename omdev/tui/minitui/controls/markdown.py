@@ -11,11 +11,11 @@ import typing as ta
 from omcore import lang
 
 from ..text.highlights import highlight_code
-from ..text.markdown import CodeHighlighter
+from ..text.markdown import MarkdownCodeHighlighter
 from ..text.markdown import MarkdownStream
 from ..text.markdown import MarkdownStreamBackend
 from ..text.markdown import MdBlock
-from ..text.markdown import render_blocks
+from ..text.markdown import render_markdown_blocks
 from ..text.segments import Segment
 from .base import Control
 
@@ -65,7 +65,7 @@ class MarkdownTail(Control):
             self,
             *,
             backend: MarkdownStreamBackend | None = None,
-            highlighter: CodeHighlighter | None = highlight_code,
+            highlighter: MarkdownCodeHighlighter | None = highlight_code,
     ) -> None:
         super().__init__()
 
@@ -93,7 +93,7 @@ class MarkdownTail(Control):
         return self._stream.finalize()
 
     def render_settled(self, blocks: ta.Sequence[MdBlock], width: int) -> list[list[Segment]]:
-        return render_blocks(blocks, width, highlighter=self._highlighter)
+        return render_markdown_blocks(blocks, width, highlighter=self._highlighter)
 
     def render(self, width: int) -> ta.Sequence[ta.Sequence[Segment]]:
-        return render_blocks(self._stream.tail_blocks(), width, highlighter=self._highlighter)
+        return render_markdown_blocks(self._stream.tail_blocks(), width, highlighter=self._highlighter)
