@@ -14,6 +14,7 @@
 
 typedef struct {
     PyObject *cached_hash_type;
+    PyObject *object_setattr;
     PyObject *str_default_attr;
 } module_state;
 
@@ -31,6 +32,32 @@ typedef struct {
     PyObject *attr;
 } cached_hash_object;
 
+// The store goes through the real object.__setattr__ descriptor rather than PyObject_GenericSetAttr directly: the two
+// differ on instances of type subclasses, where the descriptor's guard raises TypeError but raw generic setattr would
+// scribble on the type's dict behind the type cache's back. This is a cache-miss-only path - speed is moot.
+static int set_hash_attr(PyObject *op, PyObject *obj, PyObject *h)
+{
+    cached_hash_object *self = (cached_hash_object *) op;
+
+    module_state *state = (module_state *) PyType_GetModuleState(Py_TYPE(op));
+    if (state == NULL) {
+        return -1;
+    }
+    if (state->object_setattr == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, _MODULE_FULL_NAME " module state cleared");
+        return -1;
+    }
+
+    PyObject *stack[] = {obj, self->attr, h};
+    PyObject *res = PyObject_Vectorcall(state->object_setattr, stack, 3, NULL);
+    if (res == NULL) {
+        return -1;
+    }
+
+    Py_DECREF(res);
+    return 0;
+}
+
 static PyObject * cached_hash_object_vectorcall(PyObject *op, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
     cached_hash_object *self = (cached_hash_object *) op;
@@ -46,33 +73,37 @@ static PyObject * cached_hash_object_vectorcall(PyObject *op, PyObject *const *a
     }
     PyObject *obj = args[0];
 
-    PyObject *h;
-    int found = PyObject_GetOptionalAttr(obj, self->attr, &h);
-    if (found < 0) {
+    // Unlike tp_call, vectorcall performs no implicit recursion check - the callee is responsible.
+    if (Py_EnterRecursiveCall(" while hashing")) {
         return NULL;
     }
-    if (found) {
-        return h;
+
+    PyObject *h = NULL;
+    int found = PyObject_GetOptionalAttr(obj, self->attr, &h);
+    if (found != 0) {
+        // Attribute hit (h set) or non-AttributeError failure (h NULL) - either way we're done.
+        goto done;
     }
 
     h = PyObject_CallOneArg(self->fn, obj);
     if (h == NULL) {
-        return NULL;
+        goto done;
     }
 
-    // PyObject_GenericSetAttr is object.__setattr__ - deliberately bypassing any frozen __setattr__. Under
-    // free-threading concurrent first hashes may each compute and store - harmless duplicate initialization.
-    if (PyObject_GenericSetAttr(obj, self->attr, h) < 0) {
-        Py_DECREF(h);
-        return NULL;
+    // Concurrent first hashes may each compute and store - harmless duplicate initialization given a pure fn.
+    if (set_hash_attr(op, obj, h) < 0) {
+        Py_CLEAR(h);
+        goto done;
     }
 
+done:
+    Py_LeaveRecursiveCall();
     return h;
 }
 
 // Binds like a plain function so `__hash__ = cached_hash(...)` in a class body receives the instance - also required by
 // Py_TPFLAGS_METHOD_DESCRIPTOR, which lets the tp_hash slot skip the temporary bound method.
-static PyObject * cached_hash_object_descr_get(PyObject *op, PyObject *obj, PyObject *type)
+static PyObject * cached_hash_object_descr_get(PyObject *op, PyObject *obj, PyObject *Py_UNUSED(type))
 {
     if (obj == NULL || obj == Py_None) {
         return Py_NewRef(op);
@@ -126,6 +157,7 @@ static PyType_Slot cached_hash_object_type_slots[] = {
 static PyType_Spec cached_hash_object_type_spec = {
     .name = _MODULE_FULL_NAME ".cached_hash",
     .basicsize = sizeof(cached_hash_object),
+    .itemsize = 0,
     .flags =
         Py_TPFLAGS_DEFAULT |
         Py_TPFLAGS_HAVE_GC |
@@ -161,12 +193,7 @@ static PyObject * cached_hash(PyObject *module, PyObject *args, PyObject *kwargs
 
     self->vectorcall = cached_hash_object_vectorcall;
     self->fn = Py_NewRef(fn);
-    if (attr != NULL) {
-        self->attr = Py_NewRef(attr);
-        PyUnicode_InternInPlace(&self->attr);
-    } else {
-        self->attr = Py_NewRef(state->str_default_attr);
-    }
+    self->attr = Py_NewRef(attr != NULL ? attr : state->str_default_attr);
 
     return (PyObject *) self;
 }
@@ -184,6 +211,7 @@ static int module_traverse(PyObject *module, visitproc visit, void *arg)
 {
     module_state *state = get_module_state(module);
     Py_VISIT(state->cached_hash_type);
+    Py_VISIT(state->object_setattr);
     Py_VISIT(state->str_default_attr);
     return 0;
 }
@@ -192,6 +220,7 @@ static int module_clear(PyObject *module)
 {
     module_state *state = get_module_state(module);
     Py_CLEAR(state->cached_hash_type);
+    Py_CLEAR(state->object_setattr);
     Py_CLEAR(state->str_default_attr);
     return 0;
 }
@@ -204,6 +233,11 @@ static void module_free(void *module)
 static int module_exec(PyObject *module)
 {
     module_state *state = get_module_state(module);
+
+    state->object_setattr = PyObject_GetAttrString((PyObject *) &PyBaseObject_Type, "__setattr__");
+    if (!state->object_setattr) {
+        return -1;
+    }
 
     state->str_default_attr = PyUnicode_InternFromString("_hash");
     if (!state->str_default_attr) {
