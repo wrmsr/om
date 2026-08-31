@@ -71,7 +71,7 @@ class RequestPreparer:
             raw_request['prompt_cache_key'] = check.non_empty_str(cache_key)
 
         if cache_retention is not None:
-            if cache_retention not in cache.retentions:
+            if cache_retention not in (cache.retentions or ()):
                 raise ValueError(f'Model does not support cache retention {cache_retention.name}: {self._model.key!r}')
 
             if cache.control_style == 'openai_legacy':

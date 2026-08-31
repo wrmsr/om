@@ -65,7 +65,7 @@ class RequestPreparer:
         if (
                 cache is None or
                 cache.control_style != 'anthropic' or
-                cache_retention not in cache.retentions
+                cache_retention not in (cache.retentions or ())
         ):
             raise ValueError(
                 f'Model does not support cache retention {cache_retention.name}: {self._model.key!r}',

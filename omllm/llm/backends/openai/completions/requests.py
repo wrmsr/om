@@ -79,7 +79,7 @@ class RequestPreparer:
                 raw_request['prompt_cache_key'] = check.non_empty_str(cache_key)
 
         if cache_retention is not None:
-            if cache_retention not in cache.retentions:
+            if cache_retention not in (cache.retentions or ()):
                 raise ValueError(f'Model does not support cache retention {cache_retention.name}: {self._model.key!r}')
 
             if cache.control_style == 'openai_legacy':
@@ -215,7 +215,7 @@ class RequestPreparer:
                 cache.control_style == 'openrouter' and
                 (cache_key := self._options.cache_key) is not None
         ):
-            check.state(cache.key)
+            check.state(bool(cache.key))
             raw_headers['x-session-id'] = check.non_empty_str(cache_key)
 
         return raw_headers

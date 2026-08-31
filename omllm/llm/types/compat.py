@@ -2,6 +2,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore import marshal as msh
 
 
 TokenCostMode: ta.TypeAlias = ta.Literal[
@@ -14,8 +15,9 @@ TokenCostMode: ta.TypeAlias = ta.Literal[
 ##
 
 
+@msh.set_polymorphic(naming='snake', suffix_stripping='required')
 @dc.dataclass(frozen=True, kw_only=True)
-class Compat(lang.Abstract):
+class Compat(lang.Abstract, lang.Sealed):
     pass
 
 
@@ -25,6 +27,7 @@ class Compat(lang.Abstract):
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.truthy_repr)
+@msh.update_field_options(omit_if=lang.is_none)
 class OpenaiCompletionsCompat(Compat):
     url_path: str | None = None
 
@@ -45,5 +48,6 @@ class OpenaiCompletionsCompat(Compat):
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.truthy_repr)
+@msh.update_field_options(omit_if=lang.is_none)
 class OpenaiResponsesCompat(Compat):
     url_path: str | None = None

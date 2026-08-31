@@ -3,6 +3,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore import marshal as msh
 
 from .compat import Compat
 from .options import CacheRetention
@@ -32,15 +33,16 @@ CacheControlStyle: ta.TypeAlias = ta.Literal[
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
+@msh.update_field_options(omit_if=lang.is_none)
 class CacheCapabilities:
     # The provider request shape, including implicit-only providers which expose no request controls.
     control_style: CacheControlStyle
 
     # Exact retention policies which may be requested through Options.
-    retentions: ta.AbstractSet[CacheRetention] = frozenset()
+    retentions: ta.AbstractSet[CacheRetention] | None = None
 
     # Whether Options.cache_key can be translated for this model.
-    key: bool = False
+    key: bool | None = None
 
 
 ##
@@ -49,6 +51,7 @@ class CacheCapabilities:
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
+@msh.update_field_options(omit_if=lang.is_none)
 class TokenPricing:
     """Static per-component prices, in USD per million tokens (the models.dev convention)."""
 
@@ -83,6 +86,7 @@ class ModelKey:
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
+@msh.update_field_options(omit_if=lang.is_none)
 class Model:
     key: ModelKey
 
@@ -102,13 +106,20 @@ class Model:
 
     # Static pricing, or a deferred provider of it. Resolved once, at backend construction - catalog definitions must
     # never eagerly load pricing data. Reported response costs, where available, take precedence over estimates.
-    pricing: TokenPricing | TokenPricingProvider | None = None
+    pricing: TokenPricing | TokenPricingProvider | None = dc.xfield(
+        default=None,
+    ) | msh.dc_field_options(
+        omit_if=lang.is_none,
+        marshal_via=msh.MarshalVia(TokenPricing | None),
+        unmarshal_via=msh.UnmarshalVia(TokenPricing | None),
+    )
 
     #
 
     @ta.final
     @dc.dataclass(frozen=True, kw_only=True)
     @dc.extra_class_params(default_repr_fn=lang.opt_repr)
+    @msh.update_field_options(omit_if=lang.is_none)
     class Http:
         base_url: str | None = None
 
