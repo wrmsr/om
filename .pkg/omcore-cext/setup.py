@@ -128,6 +128,16 @@ st.setup(
         ),
 
         st.Extension(
+            name='omcore.lang.cached._hash',
+            sources=[
+                'omcore/lang/cached/_hash.cc',
+            ],
+            extra_compile_args=[
+                '-std=c++20',
+            ],
+        ),
+
+        st.Extension(
             name='omcore.lang.imports._capture',
             sources=[
                 'omcore/lang/imports/_capture.cc',

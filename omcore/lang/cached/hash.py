@@ -4,7 +4,7 @@ import typing as ta
 ##
 
 
-def cached_hash(
+def _cached_hash(
     fn: ta.Callable[[ta.Any], int],
     *,
     attr: str = '_hash',
@@ -21,3 +21,19 @@ def cached_hash(
         return h
 
     return __hash__
+
+
+##
+
+
+cached_hash = _cached_hash
+
+
+try:
+    from . import _hash as cext  # type: ignore
+
+except ImportError:
+    pass
+
+else:
+    cached_hash = cext.cached_hash

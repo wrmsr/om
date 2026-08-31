@@ -508,7 +508,7 @@
   should be spawning a temporary subprocess with a modified `PYTHONPATH` env var.
 
 
-### C Extensions
+### C/C++ Extensions
 
 - As with python code - but more importantly - **target only CPython 3.14+**. API's which have been removed or rendered
   obsolete in or before 3.14 (like `Py_TRASHCAN_BEGIN`) should be avoided, and no version guard is necessary for
@@ -530,6 +530,8 @@
   Modules should strive to be written to support both if at all possible.
 - Always enclose the bodies of control-flow statements (`if`, `else`, `for`, `while`, `do`) in braces, even for a single
   statement.
+- Provide vectorcall implementations as appropriate: generally if we're writing an extension it's for performance
+  anyway.
 - See `omdev/cexts/_boilerplate.cc` for a simple C++ extension template.
 
 
