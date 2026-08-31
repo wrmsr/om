@@ -74,8 +74,6 @@ dependencies of any kind**.
   - **[goyaml](https://github.com/wrmsr/om/blob/master/omcore/formats/yaml/goyaml)** - A **manual**, near-direct,
     'lite'-compatible translation of [go-yaml](https://github.com/goccy/go-yaml/).
 
-  https://github.com/goccy/go-yaml/tree/8dd51ebb7f36f616b85f7b0e54539afa4341f22a
-
 - **[http](https://github.com/wrmsr/om/blob/master/omcore/http)** - HTTP code, including:
 
   - **[clients](https://github.com/wrmsr/om/blob/master/omcore/http/clients)** - An abstraction over HTTP clients, with
@@ -92,9 +90,8 @@ dependencies of any kind**.
   - **[fdio](https://github.com/wrmsr/om/blob/master/omcore/io/fdio)** - An implementation of classic
     [selector](https://docs.python.org/3/library/selectors.html)-style IO dispatch, akin to the deprecated
     [asyncore](https://docs.python.org/3.11/library/asyncore.html). While more modern asyncio style code is generally
-    preferred, it nearly always involves [background
-    threads](https://github.com/python/cpython/blob/95d9dea1c4ed1b1de80074b74301cee0b38d5541/Lib/asyncio/uni
-    x_events.py#L1349) making it [unsuitable for forking processes](https://rachelbythebay.com/w/2011/06/07/forked/).
+    preferred, it nearly always involves [background threads](https://github.com/python/cpython/blob/95d9dea1c4ed1b1de80074b74301cee0b38d5541/Lib/asyncio/unix_events.py#L1349)
+    making it [unsuitable for forking processes](https://rachelbythebay.com/w/2011/06/07/forked/).
 
 - **[jmespath](https://github.com/wrmsr/om/blob/master/omcore/specs/jmespath)** - A vendoring of [jmespath community
   edition](https://github.com/jmespath-community/python-jmespath), modernized and adapted to this codebase.
