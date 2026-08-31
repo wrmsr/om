@@ -5928,6 +5928,107 @@ def _process_dataclass__d8cd9b543e3e280695523fcb05b7483616a3e008():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('url',)), EqPlan(fields=('url',)), FrozenPlan(fields=('url',), allow_dynamic_dunde"
+        "r_attrs=False), HashPlan(action='add', fields=('url',), cache=False), InitPlan(fields=(InitPlan.Field(name='ur"
+        "l', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override"
+        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_"
+        "params=('url',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns"
+        "=()), ReprPlan(fields=(ReprPlan.Field(name='url', kw_only=False, fn=None),), id=False, terse=False, default_fn"
+        "=None)))"
+    ),
+    plan_repr_sha1='28219c001b7d52b63a0a24620d30ca550b2fa0a6',
+    cls_names=(
+        ('omllm.agent.web.fetching', 'WebFetchRequest'),
+        ('omllm.agent.web.tools.fetch', 'WebFetchToolParams'),
+    ),
+)
+def _process_dataclass__28219c001b7d52b63a0a24620d30ca550b2fa0a6():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                url=self.url,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.url == other.url
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'url',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.url,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            url: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'url', url)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"url={self.url!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('url', 'status', 'body')), EqPlan(fields=('url', 'status', 'body')), FrozenPlan(fi"
         "elds=('url', 'status', 'body'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('url', 'stat"
         "us', 'body'), cache=False), InitPlan(fields=(InitPlan.Field(name='url', annotation=OpRef(name='init.fields.0.a"
@@ -6423,6 +6524,107 @@ def _process_dataclass__f8383b0455fb7c3ce8ec3dace2df263307387c53():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('query',)), EqPlan(fields=('query',)), FrozenPlan(fields=('query',), allow_dynamic"
+        "_dunder_attrs=False), HashPlan(action='add', fields=('query',), cache=False), InitPlan(fields=(InitPlan.Field("
+        "name='query', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True"
+        ", override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='s"
+        "elf', std_params=('query',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), "
+        "validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='query', kw_only=False, fn=None),), id=False, terse=Fal"
+        "se, default_fn=None)))"
+    ),
+    plan_repr_sha1='7b6162f320c8cf3e30f52de150ffe7e9adf35005',
+    cls_names=(
+        ('omllm.agent.web.search', 'WebSearchRequest'),
+        ('omllm.agent.web.tools.search', 'WebSearchToolParams'),
+    ),
+)
+def _process_dataclass__7b6162f320c8cf3e30f52de150ffe7e9adf35005():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                query=self.query,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.query == other.query
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'query',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.query,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            query: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'query', query)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"query={self.query!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('hits', 'total_results')), EqPlan(fields=('hits', 'total_results')), FrozenPlan(fi"
         "elds=('hits', 'total_results'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('hits', 'tot"
         "al_results'), cache=False), InitPlan(fields=(InitPlan.Field(name='hits', annotation=OpRef(name='init.fields.0."
@@ -6523,206 +6725,6 @@ def _process_dataclass__709c5aa5661c68d77c22dbfdec7c84e186571e47():
             parts = []
             parts.append(f"hits={self.hits!r}")
             parts.append(f"total_results={self.total_results!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('url',)), EqPlan(fields=('url',)), FrozenPlan(fields=('url',), allow_dynamic_dunde"
-        "r_attrs=False), HashPlan(action='add', fields=('url',), cache=False), InitPlan(fields=(InitPlan.Field(name='ur"
-        "l', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override"
-        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_"
-        "params=('url',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns"
-        "=()), ReprPlan(fields=(ReprPlan.Field(name='url', kw_only=False, fn=None),), id=False, terse=False, default_fn"
-        "=None)))"
-    ),
-    plan_repr_sha1='28219c001b7d52b63a0a24620d30ca550b2fa0a6',
-    cls_names=(
-        ('omllm.agent.web.tools.fetch', 'WebFetchToolParams'),
-    ),
-)
-def _process_dataclass__28219c001b7d52b63a0a24620d30ca550b2fa0a6():
-    def _process_dataclass(
-        *,
-        __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
-    ):
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                url=self.url,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.url == other.url
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'url',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.url,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            url: __dataclass__init__fields__0__annotation,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'url', url)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"url={self.url!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('query',)), EqPlan(fields=('query',)), FrozenPlan(fields=('query',), allow_dynamic"
-        "_dunder_attrs=False), HashPlan(action='add', fields=('query',), cache=False), InitPlan(fields=(InitPlan.Field("
-        "name='query', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True"
-        ", override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='s"
-        "elf', std_params=('query',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), "
-        "validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='query', kw_only=False, fn=None),), id=False, terse=Fal"
-        "se, default_fn=None)))"
-    ),
-    plan_repr_sha1='7b6162f320c8cf3e30f52de150ffe7e9adf35005',
-    cls_names=(
-        ('omllm.agent.web.tools.search', 'WebSearchToolParams'),
-    ),
-)
-def _process_dataclass__7b6162f320c8cf3e30f52de150ffe7e9adf35005():
-    def _process_dataclass(
-        *,
-        __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
-    ):
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                query=self.query,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.query == other.query
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'query',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.query,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            query: __dataclass__init__fields__0__annotation,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'query', query)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"query={self.query!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

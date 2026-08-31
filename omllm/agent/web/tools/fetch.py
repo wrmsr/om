@@ -10,6 +10,7 @@ from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ..fetching import WebFetcher
+from ..fetching import WebFetchRequest
 from ..fetching import page_to_text
 from ..permissions import UrlPermissionTarget
 
@@ -57,7 +58,7 @@ class WebFetchTool(ToolClass[WebFetchToolParams]):
             UrlPermissionTarget(url, method='GET'),
         )
 
-        page = await self._fetcher.fetch(url)
+        page = await self._fetcher.fetch(WebFetchRequest(url))
         if not (200 <= page.status < 300):
             raise ValueError(f'fetching {url!r} returned HTTP {page.status}')
 

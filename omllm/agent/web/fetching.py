@@ -7,8 +7,15 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.http import all as http
 
+from ...core import registry as reg
+
 
 ##
+
+
+@dc.dataclass(frozen=True)
+class WebFetchRequest(lang.Final):
+    url: str
 
 
 @dc.dataclass(frozen=True)
@@ -18,10 +25,14 @@ class WebFetchedPage(lang.Final):
     body: bytes
 
 
+# @om-manifest $.core.registry.manifests.RegistryTypeManifest
 class WebFetcher(lang.Abstract):
     @abc.abstractmethod
-    def fetch(self, url: str) -> ta.Awaitable[WebFetchedPage]:
+    def fetch(self, request: WebFetchRequest) -> ta.Awaitable[WebFetchedPage]:
         raise NotImplementedError
+
+
+reg.register_type(WebFetcher, module=__name__)
 
 
 ##
@@ -39,15 +50,15 @@ class HttpWebFetcher(WebFetcher):
         self._http_client = http_client
         self._timeout_s = timeout_s
 
-    async def fetch(self, url: str) -> WebFetchedPage:
+    async def fetch(self, request: WebFetchRequest) -> WebFetchedPage:
         resp = await http.async_request(
-            url,
+            request.url,
             client=self._http_client,
             timeout_s=self._timeout_s,
         )
         data = resp.data
         body = data.encode('utf-8') if isinstance(data, str) else (data or b'')
-        return WebFetchedPage(url, resp.status, body)
+        return WebFetchedPage(request.url, resp.status, body)
 
 
 ##
@@ -61,11 +72,11 @@ class DictWebFetcher(WebFetcher):
 
         self._pages = dict(pages)
 
-    async def fetch(self, url: str) -> WebFetchedPage:
+    async def fetch(self, request: WebFetchRequest) -> WebFetchedPage:
         try:
-            return self._pages[url]
+            return self._pages[request.url]
         except KeyError:
-            return WebFetchedPage(url, 404, b'')
+            return WebFetchedPage(request.url, 404, b'')
 
 
 ##

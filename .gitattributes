@@ -42,6 +42,8 @@ ominfra/clouds/aws/models/services/s3/_dataclasses.py linguist-generated
 ominfra/scripts/journald2aws.py linguist-generated
 ominfra/scripts/manage.py linguist-generated
 omllm/agent/_dataclasses.py linguist-generated
+omllm/agent/web/backends/google/_dataclasses.py linguist-generated
+omllm/agent/web/backends/tavily/_dataclasses.py linguist-generated
 omllm/core/_dataclasses.py linguist-generated
 omllm/core/processes/_dataclasses.py linguist-generated
 omllm/harness/_dataclasses.py linguist-generated

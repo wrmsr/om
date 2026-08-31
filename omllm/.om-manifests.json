@@ -105,6 +105,65 @@
     }
   },
   {
+    "module": ".agent.web.backends.duckduckgo.search",
+    "attr": null,
+    "file": "omllm/agent/web/backends/duckduckgo/search.py",
+    "line": 16,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.agent.web.backends.duckduckgo.search",
+        "attr": "DuckduckgoWebSearcher",
+        "name": "duckduckgo",
+        "aliases": [
+          "ddg"
+        ],
+        "type": "WebSearcher"
+      }
+    }
+  },
+  {
+    "module": ".agent.web.backends.google.search",
+    "attr": null,
+    "file": "omllm/agent/web/backends/google/search.py",
+    "line": 24,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.agent.web.backends.google.search",
+        "attr": "GoogleCseWebSearcher",
+        "name": "google-cse",
+        "aliases": null,
+        "type": "WebSearcher"
+      }
+    }
+  },
+  {
+    "module": ".agent.web.backends.tavily.search",
+    "attr": null,
+    "file": "omllm/agent/web/backends/tavily/search.py",
+    "line": 17,
+    "value": {
+      "!.core.registry.manifests.RegistryManifest": {
+        "module": "omllm.agent.web.backends.tavily.search",
+        "attr": "TavilyWebSearcher",
+        "name": "tavily",
+        "aliases": null,
+        "type": "WebSearcher"
+      }
+    }
+  },
+  {
+    "module": ".agent.web.fetching",
+    "attr": null,
+    "file": "omllm/agent/web/fetching.py",
+    "line": 28,
+    "value": {
+      "!.core.registry.manifests.RegistryTypeManifest": {
+        "module": "omllm.agent.web.fetching",
+        "attr": "WebFetcher"
+      }
+    }
+  },
+  {
     "module": ".agent.web.permissions",
     "attr": null,
     "file": "omllm/agent/web/permissions.py",
@@ -131,6 +190,18 @@
         "base": "$.agent.permissions.types.PermissionMatcher",
         "tag": null,
         "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.web.search",
+    "attr": null,
+    "file": "omllm/agent/web/search.py",
+    "line": 33,
+    "value": {
+      "!.core.registry.manifests.RegistryTypeManifest": {
+        "module": "omllm.agent.web.search",
+        "attr": "WebSearcher"
       }
     }
   },

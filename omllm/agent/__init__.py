@@ -242,6 +242,7 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .web.fetching import (  # noqa
+        WebFetchRequest,
         WebFetchedPage,
         WebFetcher,
 
@@ -256,6 +257,7 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .web.search import (  # noqa
+        WebSearchRequest,
         WebSearchHit,
         WebSearchResult,
         WebSearcher,

@@ -8,6 +8,7 @@ from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ..search import WebSearcher
+from ..search import WebSearchRequest
 
 
 ##
@@ -47,7 +48,7 @@ class WebSearchTool(ToolClass[WebSearchToolParams]):
     async def execute(self, ctx: ToolContext, params: WebSearchToolParams) -> str:
         # TODO: permission lol
 
-        result = await self._searcher.search(params.query)
+        result = await self._searcher.search(WebSearchRequest(params.query))
 
         out = io.StringIO()
         out.write('<results>\n')
