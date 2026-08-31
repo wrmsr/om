@@ -7,6 +7,9 @@ sequence tables: modifier parameters (CSI 1;5A etc.) are decoded arithmetically 
 
 The bare-ESC-vs-sequence ambiguity is resolved by a read timeout (the classic `ttimeoutlen`); bracketed paste
 bodies bypass per-character parsing entirely.
+
+A relay that doesn't recognize a CSI (tmux, for the bare CSI P..S some terminals send for F1-F4) delivers it as alt+[
+plus its tail; the extended-key form of that alt+[ is held for one escape window so the tail can be reassembled.
 """
 import typing as ta
 
@@ -131,6 +134,21 @@ _CTRL_ALIAS_BASES: ta.Mapping[int, str] = {
     109: 'enter',  # ctrl+m
 }
 
+# CSI-letter finals a relay may fail to recognize as keys. tmux's key table has SS3 P..S, CSI 11~..14~ and the modified
+# CSI 1;m P..S forms of F1-F4, but not the bare CSI P..S that iTerm2's "Report keys using CSI u" mode sends: it
+# resolves such a sequence as meta-[ plus the final byte, and (since 3.5) re-encodes a meta-[ in an extended-keys pane
+# as a self-contained CSI 27;3;91~ or CSI 91;3u - so the app sees alt+[ then a plain letter. Arrow/home/end letters are
+# absent because every relay knows those.
+_RELAY_SPLIT_CSI_BASES: ta.Mapping[str, str] = {
+    'P': 'f1',
+    'Q': 'f2',
+    'R': 'f3',
+    'S': 'f4',
+}
+
+# The extended-form key a relay-split CSI arrives behind.
+_RELAY_SPLIT_HEAD = Key('[', alt=True)
+
 
 def _decode_modifiers(m: int) -> dict[str, bool]:
     bits = max(m - 1, 0)
@@ -208,10 +226,13 @@ class XtermEventParser(EventParser):
     def _run(self) -> ParseGenerator:
         while True:
             c = yield Read1()
-            if c == '\x1b':
-                yield from self._parse_escape()
-            else:
-                self._emit_char(c)
+            yield from self._parse_char(c)
+
+    def _parse_char(self, c: str) -> ParseGenerator:
+        if c == '\x1b':
+            yield from self._parse_escape()
+        else:
+            self._emit_char(c)
 
     def _parse_escape(self) -> ParseGenerator:
         while True:
@@ -262,8 +283,8 @@ class XtermEventParser(EventParser):
             elif '@' <= c <= '~':
                 if c == '~' and params == '200' and not intermediates:
                     yield from self._parse_paste()
-                else:
-                    self._dispatch_csi(params, intermediates, c)
+                elif (head := self._dispatch_csi(params, intermediates, c)) is not None:
+                    yield from self._parse_relay_split_csi(head)
                 return
             else:
                 # A control character mid-sequence aborts it.
@@ -273,9 +294,35 @@ class XtermEventParser(EventParser):
                 self.emit(UnknownSequenceEvent('\x1b[' + params + intermediates))
                 return
 
+    def _parse_relay_split_csi(self, head: Key) -> ParseGenerator:
+        """
+        An extended-form alt+[ may be a relay's rendering of a CSI it didn't recognize (see `_RELAY_SPLIT_CSI_BASES`),
+        in which case the tail is the very next byte. Wait one escape window for it; anything else, or a timeout, means
+        alt+[ was really pressed. A kitty-confirmed terminal is talking to us directly - nothing in between splits
+        sequences - so there the key is delivered at once.
+        """
+
+        if self._escape_unambiguous:
+            self._emit_key(head)
+            return
+
+        try:
+            c = yield Read1(self.escape_timeout_s)
+        except ParseTimeoutError:
+            self._emit_key(head)
+            return
+
+        if (base := _RELAY_SPLIT_CSI_BASES.get(c)) is not None:
+            self._emit_key(Key(base))
+        else:
+            self._emit_key(head)
+            yield from self._parse_char(c)
+
     #
 
-    def _dispatch_csi(self, params: str, intermediates: str, final: str) -> None:  # noqa: C901
+    def _dispatch_csi(self, params: str, intermediates: str, final: str) -> Key | None:  # noqa: C901
+        """Decodes and emits a complete CSI - except a relay-split head, which is returned unemitted for lookahead."""
+
         raw = '\x1b[' + params + intermediates + final
 
         if intermediates == '$' and final == 'y' and params.startswith('?'):
@@ -284,35 +331,35 @@ class XtermEventParser(EventParser):
                 self.emit(ModeReportEvent(ints[0], ints[1]))
             else:
                 self.emit(UnknownSequenceEvent(raw))
-            return
+            return None
 
         if intermediates:
             self.emit(UnknownSequenceEvent(raw))
-            return
+            return None
 
         if params.startswith('<') and final in 'Mm':
             self._dispatch_mouse(params[1:], release=final == 'm', raw=raw)
-            return
+            return None
 
         if params.startswith('?'):
             if final == 'u':
                 ints = _int_params(params[1:])
                 if ints and ints[0] is not None:
                     self.emit(KittyFlagsEvent(ints[0]))
-                    return
+                    return None
             self.emit(UnknownSequenceEvent(raw))
-            return
+            return None
 
         if final == 'I' and not params:
             self.emit(FocusEvent(True))
-            return
+            return None
         if final == 'O' and not params:
             self.emit(FocusEvent(False))
-            return
+            return None
 
         if final == 'Z':
             self._emit_key(Key('tab', shift=True))
-            return
+            return None
 
         ints = _int_params(params)
 
@@ -324,20 +371,18 @@ class XtermEventParser(EventParser):
                     self.emit(CursorPositionEvent(ints[1] - 1, ints[0] - 1))
                 else:
                     self.emit(UnknownSequenceEvent(raw))
-                return
+                return None
             # Otherwise fall through: an unrequested R is a modified F3.
 
         if final == 'u':
-            self._dispatch_kitty_key(params, raw=raw)
-            return
+            return self._dispatch_kitty_key(params, raw=raw)
 
         if final == '~' and len(ints) == 3 and ints[0] == 27:
             # xterm modifyOtherKeys (formatOtherKeys=0): CSI 27 ; modifier ; codepoint ~
             if ints[1] is not None and ints[2] is not None:
-                self._emit_codepoint_key(ints[2], _decode_modifiers(ints[1]), raw=raw)
-            else:
-                self.emit(UnknownSequenceEvent(raw))
-            return
+                return self._emit_codepoint_key(ints[2], _decode_modifiers(ints[1]), raw=raw)
+            self.emit(UnknownSequenceEvent(raw))
+            return None
 
         if final == '~':
             if ints and ints[0] is not None and (base := _CSI_TILDE_BASES.get(ints[0])) is not None:
@@ -345,14 +390,15 @@ class XtermEventParser(EventParser):
                 self._emit_key(Key(base, **mods))
             else:
                 self.emit(UnknownSequenceEvent(raw))
-            return
+            return None
 
         if (base := _CSI_LETTER_BASES.get(final)) is not None:
             mods = _decode_modifiers(ints[1]) if len(ints) > 1 and ints[1] is not None else {}
             self._emit_key(Key(base, **mods))
-            return
+            return None
 
         self.emit(UnknownSequenceEvent(raw))
+        return None
 
     def _dispatch_mouse(self, params: str, *, release: bool, raw: str) -> None:
         ints = _int_params(params)
@@ -392,12 +438,12 @@ class XtermEventParser(EventParser):
             **mods,
         ))
 
-    def _dispatch_kitty_key(self, params: str, *, raw: str) -> None:
+    def _dispatch_kitty_key(self, params: str, *, raw: str) -> Key | None:
         parts = params.split(';')
         code_part = parts[0].split(':')[0]
         if not code_part.isdigit():
             self.emit(UnknownSequenceEvent(raw))
-            return
+            return None
         code = int(code_part)
 
         mods: dict[str, bool] = {}
@@ -406,17 +452,21 @@ class XtermEventParser(EventParser):
             if mod_fields[0].isdigit():
                 mods = _decode_modifiers(int(mod_fields[0]))
             if len(mod_fields) > 1 and mod_fields[1] == '3':
-                return  # key release - ignored
+                return None  # key release - ignored
 
-        self._emit_codepoint_key(code, mods, raw=raw)
+        return self._emit_codepoint_key(code, mods, raw=raw)
 
-    def _emit_codepoint_key(self, code: int, mods: dict[str, bool], *, raw: str) -> None:
-        """Shared by the kitty protocol and modifyOtherKeys: a unicode codepoint plus modifier flags."""
+    def _emit_codepoint_key(self, code: int, mods: dict[str, bool], *, raw: str) -> Key | None:
+        """
+        Shared by the kitty protocol and modifyOtherKeys: a unicode codepoint plus modifier flags.
+
+        A relay-split head (`_RELAY_SPLIT_HEAD`) is returned instead of emitted - see `_parse_relay_split_csi`.
+        """
 
         if (base := _KITTY_SPECIAL_BASES.get(code)) is not None:
             # Named keys keep explicit shift; a shifted printable would already be its shifted character.
             self._emit_key(Key(base, **mods))
-            return
+            return None
 
         if (
             mods.get('ctrl') and
@@ -426,20 +476,24 @@ class XtermEventParser(EventParser):
         ):
             # The ctrl folds into the named key exactly as the legacy wire would have reported it; alt survives.
             self._emit_key(Key(base, alt=mods.get('alt', False)))
-            return
+            return None
 
         if 0 < code < 0x110000 and (c := chr(code)).isprintable():
             if mods.pop('shift', False):
                 c = c.upper()
-            self._emit_key(Key(c if c != ' ' else 'space', **mods))
-            return
+            key = Key(c if c != ' ' else 'space', **mods)
+            if key == _RELAY_SPLIT_HEAD:
+                return key
+            self._emit_key(key)
+            return None
 
         if 0 < code < 0x20:
             # A modified control character (modifyOtherKeys reports e.g. ctrl+enter-with-shift this way too).
             self._emit_key(key_from_char(chr(code), alt=mods.get('alt', False)))
-            return
+            return None
 
         self.emit(UnknownSequenceEvent(raw))
+        return None
 
     #
 

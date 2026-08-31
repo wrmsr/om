@@ -568,3 +568,25 @@ registry, expandtab + autoindent in scope, 4-space default, go = real tabs).
 - vimdemo: indent profile follows the file extension automatically; --lang=... overrides. Also re-applied the
   ctrl+p/n boundary-conditional history in chatdemo - the demo relocation to tests/apps/ was cut from a pre-edit
   copy and had resurrected the old unconditional binding (external-sync hazard, again).
+
+## 2026-08-31: F2 deny dead again on mac tmux - iTerm2's CSI-u F-keys split by tmux, not SS3 timing
+
+Owner report: F2 -> 'Q', F1 -> 'P', F3 -> 'R' in iTerm2 -> local tmux; fine outside tmux and through
+iterm->tmux->mosh->linux-tmux. `cat -v` + F2 on the mac prints `^[[Q`: iTerm2's "Report keys using CSI u" profile
+mode (its libtickit mapper, `reallySpecialSequenceWithCode:`) sends unmodified F1-F4 as bare CSI P..S; its kitty
+mapper sends CSI 11~..14~ and its modifyOtherKeys/standard mappers SS3, all of which tmux knows. tmux has no key for
+bare CSI P..S (tty-keys.c), resolves them as meta-[ plus the letter, and since 3.5 ("revamp extended keys") re-encodes
+a meta-[ in a modifyOtherKeys-2 pane - which we request (CSI >4;2m, 8c3347dac) and `extended-keys on` honors - as a
+self-contained CSI 27;3;91~ (CSI 91;3u under extended-keys-format csi-u). The parser saw alt+[ then a plain letter.
+Verified on locally built tmux 3.5a and 3.7c via a pty-attached client answering XTVERSION as iTerm2; tmux 3.4 passes
+CSI Q through intact (which decodes as f2 - a pre-3.5 server masks the bug). Our kitty push and ?u query are dropped
+by tmux (input.c has no >u/?u entries), so no confirmation ever arrives under tmux and the legacy timeouts apply. The
+Aug 18 SS3-timeout fix addressed a wire the mac never sends. Note tmux >= 3.5 with `extended-keys on` also asks
+iTerm2 for modifyOtherKeys 2 at attach, which iTerm2 honors (switching to SS3 F-keys) only if the profile's "Apps can
+change how keys are reported" box is on.
+Fix: an extended-form alt+[ is held for one escape window; a following P/Q/R/S final reassembles F1-F4
+(`_RELAY_SPLIT_CSI_BASES`, `_parse_relay_split_csi`); anything else or a timeout delivers the real alt+[ and the
+follower is parsed normally. Under kitty-confirmed terminals (no relay in the path) alt+[ is delivered at once.
+Terminal-side alternatives, not taken: untick iTerm2's CSI u box, or tmux `user-keys` bindings for CSI P..S.
+Regressions: both extended formats, lagging tail, lone head -> alt+[, non-tail followers (letter, sequence, second
+head, ctrl+alt+[), kitty-unambiguous passthrough.

@@ -286,6 +286,47 @@ def test_iterm2_kitty_fkeys_csi_tilde():
     assert keys(p.feed('\x1b[11~\x1b[12~\x1b[13~\x1b[14~')) == [Key('f1'), Key('f2'), Key('f3'), Key('f4')]
 
 
+def test_relay_split_csi_fkeys():
+    # iTerm2's "Report keys using CSI u" mode sends unmodified F1-F4 as bare CSI P..S. tmux (>= 3.5) has no key for
+    # those: it resolves them as meta-[ plus the letter and, in an extended-keys pane, re-encodes the meta-[ as a
+    # self-contained extended sequence - so the app sees alt+[ then a plain letter. Reassemble.
+    p = XtermEventParser()
+    assert keys(p.feed('\x1b[27;3;91~Q')) == [Key('f2')]  # extended-keys-format xterm
+    assert keys(p.feed('\x1b[91;3uQ')) == [Key('f2')]     # extended-keys-format csi-u
+    assert keys(p.feed('\x1b[27;3;91~P\x1b[91;3uR\x1b[27;3;91~S')) == [Key('f1'), Key('f3'), Key('f4')]
+
+
+def test_relay_split_csi_tail_may_lag():
+    p = XtermEventParser()
+    assert p.feed('\x1b[27;3;91~') == []
+    assert p.pending_timeout_s == ESCAPE_TIMEOUT_S
+    assert keys(p.feed('Q')) == [Key('f2')]
+
+
+def test_relay_split_csi_head_alone_is_alt_bracket():
+    # A real alt+[ press: nothing follows within the window, or what follows isn't a split tail - and that follower is
+    # parsed normally, whatever it is.
+    p = XtermEventParser()
+    assert p.feed('\x1b[91;3u') == []
+    assert keys(p.flush_timeout()) == [Key('[', alt=True)]
+
+    assert keys(p.feed('\x1b[91;3ux')) == [Key('[', alt=True), Key('x')]
+    assert keys(p.feed('\x1b[91;3uq')) == [Key('[', alt=True), Key('q')]  # lowercase is not a CSI final
+    assert keys(p.feed('\x1b[91;3u\x1b[A')) == [Key('[', alt=True), Key('up')]
+    assert keys(p.feed('\x1b[91;3u\x1b[91;3uQ')) == [Key('[', alt=True), Key('f2')]
+    assert keys(p.feed('\x1b[91;7uQ')) == [Key('escape', alt=True), Key('Q')]  # only the alt-only form is a head
+
+
+def test_relay_split_csi_not_under_kitty():
+    # A kitty-confirmed terminal is talking to us directly - nothing in between splits sequences - so alt+[ is delivered
+    # at once, with no window.
+    p = XtermEventParser()
+    p.set_escape_unambiguous(True)
+    assert keys(p.feed('\x1b[91;3u')) == [Key('[', alt=True)]
+    assert p.pending_timeout_s is None
+    assert keys(p.feed('\x1b[91;3uQ')) == [Key('[', alt=True), Key('Q')]
+
+
 def test_unambiguous_escape_mode_waits_indefinitely():
     # With kitty disambiguation confirmed, a bare ESC byte can only begin a sequence: no timeout races, and the escape
     # key itself arrives as CSI 27u with zero latency.
