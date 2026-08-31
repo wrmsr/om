@@ -5,7 +5,7 @@ from omcore import lang
 from omcore.formats.json import all as json
 
 from ....tools.jsonschema import build_tool_json_schema
-from ....types.compat import OpenaiCompat
+from ....types.compat import OpenaiCompletionsCompat
 from ....types.content import TextContent
 from ....types.content import ThinkingContent
 from ....types.content import ToolCall
@@ -53,9 +53,9 @@ class RequestPreparer:
         )
 
         if model.compat is not None:
-            self._compat = check.isinstance(model.compat, OpenaiCompat)
+            self._compat = check.isinstance(model.compat, OpenaiCompletionsCompat)
         else:
-            self._compat = OpenaiCompat()
+            self._compat = OpenaiCompletionsCompat()
 
     def _add_cache_options(self, raw_request: dict[str, ta.Any]) -> None:
         cache_key = self._options.cache_key

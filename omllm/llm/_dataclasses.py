@@ -128,7 +128,7 @@ def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
     ),
     plan_repr_sha1='8af31b6054998dd4ccb2219abb4f0e8df90d62fa',
     cls_names=(
-        ('omllm.llm.types.compat', 'OpenaiCompat'),
+        ('omllm.llm.types.compat', 'OpenaiCompletionsCompat'),
     ),
 )
 def _process_dataclass__8af31b6054998dd4ccb2219abb4f0e8df90d62fa():

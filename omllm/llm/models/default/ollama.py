@@ -4,7 +4,7 @@ https://console.groq.com/docs/models
 """
 import typing as ta
 
-from ...types.compat import OpenaiCompat
+from ...types.compat import OpenaiCompletionsCompat
 from ...types.models import Model
 from ...types.models import ModelKey
 from ..manifests import ModelsModuleManifest
@@ -25,7 +25,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='qwen3.5:2b',
         backend='openai-completions',
-        compat=OpenaiCompat(
+        compat=OpenaiCompletionsCompat(
             url_path='/v1/chat/completions',
         ),
         http=Model.Http(
@@ -40,7 +40,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='qwen3.8:27b-mlx',
         backend='openai-completions',
-        compat=OpenaiCompat(
+        compat=OpenaiCompletionsCompat(
             url_path='/v1/chat/completions',
         ),
         http=Model.Http(

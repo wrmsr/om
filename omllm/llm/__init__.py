@@ -123,7 +123,7 @@ with _lang.auto_proxy_init(globals()):
 
         Compat,
 
-        OpenaiCompat,
+        OpenaiCompletionsCompat,
         OpenaiResponsesCompat,
     )
 

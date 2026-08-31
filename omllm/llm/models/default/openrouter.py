@@ -1,6 +1,6 @@
 import typing as ta
 
-from ...types.compat import OpenaiCompat
+from ...types.compat import OpenaiCompletionsCompat
 from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
@@ -22,7 +22,7 @@ _CACHE = CacheCapabilities(
 
 # Openrouter normalizes upstream reasoning text onto a bare reasoning field, and reports each request's actual billed
 # cost (which varies by routed upstream) in its usage.
-_COMPAT = OpenaiCompat(
+_COMPAT = OpenaiCompletionsCompat(
     reasoning_field='reasoning',
     cost_mode='openrouter',
 )
