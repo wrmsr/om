@@ -26,7 +26,7 @@ from .responses import translate_token_usage
 
 # @om-manifest $.core.registry.manifests.RegistryManifest(
 #     name='anthropic-messages',
-#     type='ImmediateBackend',
+#     type='$.llm.types.backends.ImmediateBackend',
 # )
 class AnthropicMessagesImmediateBackend(BaseAnthropicMessagesBackend, ImmediateBackend):
     async def immediate(self, context: Context, options: Options | None = None) -> AiMessage:

@@ -3,7 +3,6 @@ import typing as ta
 
 from omcore import lang
 
-from ...core import registry as reg
 from .context import Context
 from .messages import AiMessage
 from .models import Model
@@ -31,9 +30,6 @@ class ImmediateBackend(Backend, lang.Abstract):
         raise NotImplementedError
 
 
-reg.register_type(ImmediateBackend, module=__name__)
-
-
 ##
 
 
@@ -50,6 +46,3 @@ class StreamBackend(ImmediateBackend, lang.Abstract):
             async for _ in it:
                 pass
             return it.result.must()
-
-
-reg.register_type(StreamBackend, module=__name__)

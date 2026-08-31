@@ -23,7 +23,7 @@ from . import protocol as pt
 
 # @om-manifest $.core.registry.manifests.RegistryManifest(
 #     name='google-cse',
-#     type='WebSearcher',
+#     type='$.agent.web.search.WebSearcher',
 # )
 class GoogleCseWebSearcher(WebSearcher):
     def __init__(

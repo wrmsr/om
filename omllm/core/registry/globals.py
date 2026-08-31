@@ -17,6 +17,8 @@ from .registry import Registry
 T = ta.TypeVar('T')
 U = ta.TypeVar('U')
 
+TypeT = ta.TypeVar('TypeT', bound=type)
+
 
 ##
 
@@ -41,41 +43,7 @@ class _GlobalRegistry(lang.Final, lang.NotInstantiable):
             GlobalManifestLoader.load_values_of(RegistryManifest),
         )
 
-        for qrt in check.not_none(cls._register_type_queue):
-            r.register_type(
-                qrt.cls,
-                module=qrt.module,
-            )
-        cls._register_type_queue = None
-
         return r
-
-    #
-
-    class _QueuedRegisterType(ta.NamedTuple):
-        cls: ta.Any
-        module: str | None = None
-
-    _register_type_queue: ta.ClassVar[list[_QueuedRegisterType] | None] = []
-
-    @classmethod
-    def register_type(
-            cls,
-            clz: T,
-            *,
-            module: str | None = None,
-    ) -> None:
-        with cls._lock:
-            if (i := cls._instance) is not None:
-                i.register_type(
-                    clz,
-                    module=module,
-                )
-            else:
-                check.not_none(cls._register_type_queue).append(_GlobalRegistry._QueuedRegisterType(
-                    clz,
-                    module=module,
-                ))
 
 
 def get_global_registry() -> Registry:
@@ -83,18 +51,6 @@ def get_global_registry() -> Registry:
 
 
 ##
-
-
-def register_type(
-        cls: T,
-        *,
-        module: str | None = None,
-) -> T:
-    _GlobalRegistry.register_type(
-        cls,
-        module=module,
-    )
-    return cls
 
 
 @ta.overload
@@ -116,6 +72,9 @@ def get_registry_cls(cls, name):
     if isinstance(cls, type):
         be_cls = check.issubclass(be_cls, cls)  # noqa
     return be_cls
+
+
+#
 
 
 @ta.overload

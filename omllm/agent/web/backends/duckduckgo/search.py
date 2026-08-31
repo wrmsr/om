@@ -16,7 +16,7 @@ with lang.auto_proxy_import(globals()):
 # @om-manifest $.core.registry.manifests.RegistryManifest(
 #     name='duckduckgo',
 #     aliases=['ddg'],
-#     type='WebSearcher',
+#     type='$.agent.web.search.WebSearcher',
 # )
 class DuckduckgoWebSearcher(WebSearcher):
     async def search(self, request: WebSearchRequest) -> WebSearchResult:

@@ -4,8 +4,6 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ...core import registry as reg
-
 
 ##
 
@@ -35,6 +33,3 @@ class WebSearcher(lang.Abstract):
     @abc.abstractmethod
     def search(self, request: WebSearchRequest) -> ta.Awaitable[WebSearchResult]:
         raise NotImplementedError
-
-
-reg.register_type(WebSearcher, module=__name__)

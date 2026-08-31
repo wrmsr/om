@@ -217,7 +217,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
 # @om-manifest $.core.registry.manifests.RegistryManifest(
 #     name='openai-responses',
-#     type='StreamBackend',
+#     type='$.llm.types.backends.StreamBackend',
 # )
 class OpenaiResponsesStreamBackend(BaseOpenaiResponsesBackend, StreamBackend):
     async def stream(self, context: Context, options: Options | None = None) -> AiStream:

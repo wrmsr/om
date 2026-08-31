@@ -117,7 +117,7 @@
         "aliases": [
           "ddg"
         ],
-        "type": "WebSearcher"
+        "type": "$.agent.web.search.WebSearcher"
       }
     }
   },
@@ -132,7 +132,7 @@
         "attr": "GoogleCseWebSearcher",
         "name": "google-cse",
         "aliases": null,
-        "type": "WebSearcher"
+        "type": "$.agent.web.search.WebSearcher"
       }
     }
   },
@@ -147,7 +147,7 @@
         "attr": "TavilyWebSearcher",
         "name": "tavily",
         "aliases": null,
-        "type": "WebSearcher"
+        "type": "$.agent.web.search.WebSearcher"
       }
     }
   },
@@ -155,7 +155,7 @@
     "module": ".agent.web.fetching",
     "attr": null,
     "file": "omllm/agent/web/fetching.py",
-    "line": 28,
+    "line": 26,
     "value": {
       "!.core.registry.manifests.RegistryTypeManifest": {
         "module": "omllm.agent.web.fetching",
@@ -197,7 +197,7 @@
     "module": ".agent.web.search",
     "attr": null,
     "file": "omllm/agent/web/search.py",
-    "line": 33,
+    "line": 31,
     "value": {
       "!.core.registry.manifests.RegistryTypeManifest": {
         "module": "omllm.agent.web.search",
@@ -254,7 +254,7 @@
         "attr": "AnthropicMessagesImmediateBackend",
         "name": "anthropic-messages",
         "aliases": null,
-        "type": "ImmediateBackend"
+        "type": "$.llm.types.backends.ImmediateBackend"
       }
     }
   },
@@ -269,7 +269,7 @@
         "attr": "AnthropicMessagesStreamBackend",
         "name": "anthropic-messages",
         "aliases": null,
-        "type": "StreamBackend"
+        "type": "$.llm.types.backends.StreamBackend"
       }
     }
   },
@@ -284,7 +284,7 @@
         "attr": "GoogleGenerativeImmediateBackend",
         "name": "google-generative",
         "aliases": null,
-        "type": "ImmediateBackend"
+        "type": "$.llm.types.backends.ImmediateBackend"
       }
     }
   },
@@ -299,7 +299,7 @@
         "attr": "GoogleGenerativeStreamBackend",
         "name": "google-generative",
         "aliases": null,
-        "type": "StreamBackend"
+        "type": "$.llm.types.backends.StreamBackend"
       }
     }
   },
@@ -314,7 +314,7 @@
         "attr": "OpenaiCompletionsImmediateBackend",
         "name": "openai-completions",
         "aliases": null,
-        "type": "ImmediateBackend"
+        "type": "$.llm.types.backends.ImmediateBackend"
       }
     }
   },
@@ -329,7 +329,7 @@
         "attr": "OpenaiCompletionsStreamBackend",
         "name": "openai-completions",
         "aliases": null,
-        "type": "StreamBackend"
+        "type": "$.llm.types.backends.StreamBackend"
       }
     }
   },
@@ -344,7 +344,7 @@
         "attr": "OpenaiResponsesImmediateBackend",
         "name": "openai-responses",
         "aliases": null,
-        "type": "ImmediateBackend"
+        "type": "$.llm.types.backends.ImmediateBackend"
       }
     }
   },
@@ -359,7 +359,7 @@
         "attr": "OpenaiResponsesStreamBackend",
         "name": "openai-responses",
         "aliases": null,
-        "type": "StreamBackend"
+        "type": "$.llm.types.backends.StreamBackend"
       }
     }
   },
@@ -535,7 +535,7 @@
     "module": ".llm.types.backends",
     "attr": null,
     "file": "omllm/llm/types/backends.py",
-    "line": 27,
+    "line": 26,
     "value": {
       "!.core.registry.manifests.RegistryTypeManifest": {
         "module": "omllm.llm.types.backends",
@@ -547,7 +547,7 @@
     "module": ".llm.types.backends",
     "attr": null,
     "file": "omllm/llm/types/backends.py",
-    "line": 40,
+    "line": 36,
     "value": {
       "!.core.registry.manifests.RegistryTypeManifest": {
         "module": "omllm.llm.types.backends",

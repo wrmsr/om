@@ -148,7 +148,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
 # @om-manifest $.core.registry.manifests.RegistryManifest(
 #     name='google-generative',
-#     type='StreamBackend',
+#     type='$.llm.types.backends.StreamBackend',
 # )
 class GoogleGenerativeStreamBackend(BaseGoogleGenerativeBackend, StreamBackend):
     async def stream(self, context: Context, options: Options | None = None) -> AiStream:

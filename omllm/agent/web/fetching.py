@@ -7,8 +7,6 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.http import all as http
 
-from ...core import registry as reg
-
 
 ##
 
@@ -30,9 +28,6 @@ class WebFetcher(lang.Abstract):
     @abc.abstractmethod
     def fetch(self, request: WebFetchRequest) -> ta.Awaitable[WebFetchedPage]:
         raise NotImplementedError
-
-
-reg.register_type(WebFetcher, module=__name__)
 
 
 ##

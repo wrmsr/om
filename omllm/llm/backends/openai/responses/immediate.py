@@ -64,7 +64,7 @@ def _translate_message_text(raw_item: ta.Mapping[str, ta.Any]) -> str:
 
 # @om-manifest $.core.registry.manifests.RegistryManifest(
 #     name='openai-responses',
-#     type='ImmediateBackend',
+#     type='$.llm.types.backends.ImmediateBackend',
 # )
 class OpenaiResponsesImmediateBackend(BaseOpenaiResponsesBackend, ImmediateBackend):
     async def immediate(self, context: Context, options: Options | None = None) -> AiMessage:

@@ -130,7 +130,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
 # @om-manifest $.core.registry.manifests.RegistryManifest(
 #     name='openai-completions',
-#     type='StreamBackend',
+#     type='$.llm.types.backends.StreamBackend',
 # )
 class OpenaiCompletionsStreamBackend(BaseOpenaiCompletionsBackend, StreamBackend):
     async def stream(self, context: Context, options: Options | None = None) -> AiStream:
