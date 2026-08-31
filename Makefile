@@ -562,16 +562,29 @@ docker-dev-temp-bash:
 
 ### Docker Wheel
 
-DOCKER_WHEEL_ARCHS?=amd64 arm64
-DOCKER_WHEEL_PYTHONS?=cp314-cp314 cp314-cp314t
 DOCKER_WHEEL_DOCKERFILE:=docker/wheel/Dockerfile
 DOCKER_WHEEL_DIST:=dist
-
 DOCKER_WHEEL_REPO_ROOT:=$(abspath .)
-DOCKER_WHEEL_PKGS?=omcore-cext omdev-cext omcore-mypyc
+
+DOCKER_WHEEL_ARCHS?=\
+	amd64 \
+	arm64 \
+
+DOCKER_WHEEL_PYTHONS?=\
+	cp314-cp314 \
+	cp314-cp314t \
+
+DOCKER_WHEEL_PKGS?=\
+	omcore-cext \
+	omcore-mypyc \
+	omdev-cext \
+
+.PHONY: docker-pull-wheel-builder
+docker-pull-wheel-builder:
+	grep -e '^FROM quay\.io' ${DOCKER_WHEEL_DOCKERFILE} | cut -d ' ' -f 2 | xargs -n1 docker pull
 
 .PHONY: docker-build-wheels
-docker-build-wheels: venv
+docker-build-wheels: venv docker-pull-wheel-builder
 	${PYTHON} -m omdev.tools.shell doall \
 		-E DOCKER_WHEEL_ARCH="${DOCKER_WHEEL_ARCHS}" \
 		-E DOCKER_WHEEL_PKG="${DOCKER_WHEEL_PKGS}" \
