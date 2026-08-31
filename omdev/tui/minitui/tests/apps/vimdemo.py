@@ -16,8 +16,8 @@ from ...controls.status import StatusBar
 from ...controls.textarea import TextArea
 from ...docs.treesitter import get_tree_sitter_highlighter
 from ...events.types import Event
-from ...runtime.drivers import App
-from ...runtime.drivers import SyncDriver
+from ...runtime.base import App
+from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
 from ...surfaces.alts import AltSurface
 from ...text.highlights.base import get_highlighter

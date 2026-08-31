@@ -20,8 +20,8 @@ from ...events.types import Event
 from ...events.types import KeyEvent
 from ...events.types import PasteEvent
 from ...events.types import ResizeEvent
-from ...runtime.drivers import App
-from ...runtime.drivers import SyncDriver
+from ...runtime.base import App
+from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
 from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface
@@ -30,7 +30,7 @@ from ...text.styles import Style
 from ...text.themes import DEFAULT_THEME
 from ...text.themes import SUCCESS
 from ...text.themes import TEXT_SECONDARY
-from ...text.wraps import wrap_segments
+from ...text.wrap import wrap_segments
 from .streamdemo import PARAGRAPHS
 
 

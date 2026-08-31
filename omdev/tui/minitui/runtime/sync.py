@@ -8,7 +8,6 @@ retained-frame diff downstream makes even that render cheap when nothing visibly
 Wakeups: input fd readability, timer deadlines, the escape-parser's pending timeout, and a self-pipe written by the
 signal machinery (Python's poll retries EINTR per PEP 475, so SIGWINCH would otherwise not wake the loop at all).
 """
-import abc
 import codecs
 import os
 import select
@@ -17,7 +16,6 @@ import time
 import typing as ta
 
 from omcore import check
-from omcore import lang
 
 from ..events.parsing import Read1
 from ..events.types import CursorPositionEvent
@@ -26,26 +24,14 @@ from ..events.types import KittyFlagsEvent
 from ..events.types import ModeReportEvent
 from ..events.types import ResizeEvent
 from ..events.xterm import XtermEventParser
-from ..screens.cells import Frame
 from ..screens.cells import Line
 from ..surfaces.base import Surface
 from ..surfaces.inlines import InlineSurface
+from .base import App
 from .timers import Timers
 
 
 ##
-
-
-class App(lang.Abstract):
-    @abc.abstractmethod
-    def render(self, width: int, max_height: int) -> Frame:
-        """Build the live-region frame. Must fit: height <= max_height, content wrapped to width."""
-
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def handle_event(self, event: Event) -> None:
-        raise NotImplementedError
 
 
 class SyncDriver:

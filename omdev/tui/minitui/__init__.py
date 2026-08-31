@@ -28,8 +28,6 @@ with _lang.auto_proxy_init(
     )
 
     from .controls.static import (  # noqa
-        TextParts,
-        parts_to_segment_lines,
         Static,
     )
 
@@ -68,8 +66,6 @@ with _lang.auto_proxy_init(
     )
 
     from .controls.markdown import (  # noqa
-        MARKDOWN_BACKEND_NAMES,
-        get_markdown_stream,
         MarkdownTail,
     )
 
@@ -158,20 +154,23 @@ with _lang.auto_proxy_init(
     ##
     # runtime
 
-    from .runtime.timers import (  # noqa
-        Timer,
-        Timers,
-    )
-
-    from .runtime.drivers import (  # noqa
-        App,
-        SyncDriver,
-    )
-
     from .runtime.asyncio import (  # noqa
         AsyncioTimer,
         AsyncioTimers,
         AsyncioDriver,
+    )
+
+    from .runtime.base import (  # noqa
+        App,
+    )
+
+    from .runtime.sync import (  # noqa
+        SyncDriver,
+    )
+
+    from .runtime.timers import (  # noqa
+        Timer,
+        Timers,
     )
 
     ##
@@ -234,6 +233,11 @@ with _lang.auto_proxy_init(
     )
 
     #
+
+    from .text.markdown.backends import (  # noqa
+        MARKDOWN_BACKEND_NAMES,
+        get_markdown_stream,
+    )
 
     from .text.markdown.base import (  # noqa
         MdBlock,
@@ -301,6 +305,11 @@ with _lang.auto_proxy_init(
         downgrade_color,
     )
 
+    from .text.parts import (  # noqa
+        TextParts,
+        parts_to_segment_lines,
+    )
+
     from .text.styles import (  # noqa
         Style,
         EMPTY_STYLE,
@@ -352,7 +361,7 @@ with _lang.auto_proxy_init(
         ascii_control_repr,
     )
 
-    from .text.wraps import (  # noqa
+    from .text.wrap import (  # noqa
         wrap_segments,
     )
 

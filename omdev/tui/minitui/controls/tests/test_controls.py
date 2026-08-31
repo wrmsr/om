@@ -3,7 +3,7 @@ from ...runtime.timers import Timers
 from ...text.segments import Segment
 from ...text.segments import segments_text
 from ...text.styles import EMPTY_THEME
-from ...text.wraps import wrap_segments
+from ...text.wrap import wrap_segments
 from ..stacks import stack_frame
 from ..static import Static
 from ..status import StatusBar

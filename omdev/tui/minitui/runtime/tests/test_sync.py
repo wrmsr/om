@@ -14,8 +14,8 @@ from ...surfaces.inlines import InlineSurface
 from ...tests.harness import RecordingTty
 from ...text.segments import Segment
 from ...text.styles import EMPTY_THEME
-from ..drivers import App
-from ..drivers import SyncDriver
+from ..base import App
+from ..sync import SyncDriver
 
 
 ##

@@ -24,7 +24,7 @@ from omcore import lang
 from ..segments import Segment
 from ..segments import SegmentRows
 from ..styles import StyleLike
-from ..wraps import wrap_segments
+from ..wrap import wrap_segments
 
 
 ##

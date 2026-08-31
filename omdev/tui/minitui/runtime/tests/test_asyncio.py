@@ -11,8 +11,8 @@ from ...surfaces.inlines import InlineSurface
 from ...text.segments import Segment
 from ...text.styles import EMPTY_THEME
 from ..asyncio import AsyncioDriver
-from .test_drivers import PipeTty
-from .test_drivers import RecordingApp
+from .test_sync import PipeTty
+from .test_sync import RecordingApp
 
 
 ##

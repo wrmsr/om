@@ -32,8 +32,8 @@ from ...events.keys import Key
 from ...events.types import Event
 from ...events.types import KeyEvent
 from ...events.types import MouseEvent
-from ...runtime.drivers import App
-from ...runtime.drivers import SyncDriver
+from ...runtime.base import App
+from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
 from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface

@@ -28,7 +28,7 @@ from ..events.xterm import XtermEventParser
 from ..screens.cells import Line
 from ..surfaces.base import Surface
 from ..surfaces.inlines import InlineSurface
-from .drivers import App
+from .base import App
 
 
 ##

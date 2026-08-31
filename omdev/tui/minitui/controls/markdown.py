@@ -8,11 +8,9 @@ tinier zero-dep internal line parser, or markdown-it - all producing the same Md
 """
 import typing as ta
 
-from omcore import lang
-
 from ..text.highlights.base import highlight_code
+from ..text.markdown.backends import get_markdown_stream
 from ..text.markdown.base import MarkdownCodeHighlighter
-from ..text.markdown.base import MarkdownStream
 from ..text.markdown.base import MarkdownStreamBackend
 from ..text.markdown.base import MdBlock
 from ..text.markdown.base import render_markdown_blocks
@@ -20,44 +18,7 @@ from ..text.segments import Segment
 from .base import Control
 
 
-if ta.TYPE_CHECKING:
-    from ..text.markdown import markdownit
-    from ..text.markdown import pdcmark
-else:
-    markdownit = lang.proxy_import('..text.markdown.markdownit', __package__)
-    pdcmark = lang.proxy_import('..text.markdown.pdcmark', __package__)
-
-
 ##
-
-
-MARKDOWN_BACKEND_NAMES: ta.Sequence[str] = ('pdcmark', 'internal', 'markdown-it')
-
-_MARKDOWN_BACKEND_ALIASES: ta.Mapping[str, str] = {
-    'internal': 'internal',
-    'pdcmark': 'pdcmark',
-    'markdown-it': 'markdown-it',
-    'markdownit': 'markdown-it',
-    'mdit': 'markdown-it',
-}
-
-
-def get_markdown_stream(name: str | None = None) -> MarkdownStreamBackend:
-    """
-    A fresh streaming backend by name: 'pdcmark' (omcore's pulldown-cmark translation, the default), 'internal' (the
-    tinier zero-dep line parser), or 'markdown-it' (external, optional). Raises LookupError for unknown or unavailable
-    backends.
-    """
-
-    if (resolved := _MARKDOWN_BACKEND_ALIASES.get((name or 'pdcmark').strip().lower())) is None:
-        raise LookupError(f'unknown markdown backend: {name!r}')
-    if resolved == 'internal':
-        return MarkdownStream()
-    if resolved == 'pdcmark':
-        return pdcmark.PdcmarkStream()
-    if not markdownit.markdown_it_available():
-        raise LookupError('markdown-it backend requested but markdown_it is not installed')
-    return markdownit.MarkdownItStream()
 
 
 class MarkdownTail(Control):

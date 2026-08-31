@@ -13,10 +13,10 @@ import typing as ta
 from ..events.types import Event
 from ..events.types import MouseEvent
 from ..events.types import MouseEventKind
+from ..text.parts import TextParts
 from ..text.segments import Segment
-from ..text.wraps import wrap_segments
+from ..text.wrap import wrap_segments
 from .base import Control
-from .static import TextParts
 
 
 ##

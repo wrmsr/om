@@ -1,31 +1,15 @@
 """Static text controls."""
 import typing as ta
 
+from ..text.parts import TextParts
+from ..text.parts import parts_to_segment_lines
 from ..text.segments import Segment
 from ..text.styles import StyleLike
-from ..text.wraps import wrap_segments
+from ..text.wrap import wrap_segments
 from .base import Control
 
 
-TextParts: ta.TypeAlias = ta.Sequence[tuple[str, StyleLike]]
-
-
 ##
-
-
-def parts_to_segment_lines(parts: TextParts) -> list[list[Segment]]:
-    """Split styled (text, style) parts on newlines into per-line segment lists."""
-
-    lines: list[list[Segment]] = [[]]
-    for text, style in parts:
-        first = True
-        for chunk in text.split('\n'):
-            if not first:
-                lines.append([])
-            first = False
-            if chunk:
-                lines[-1].append(Segment(chunk, style))
-    return lines
 
 
 class Static(Control):

@@ -3,7 +3,7 @@ import typing as ta
 
 from ..text.segments import Segment
 from ..text.widths import str_width
-from ..text.wraps import wrap_segments
+from ..text.wrap import wrap_segments
 from .base import Control
 from .static import TextParts
 
