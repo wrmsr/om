@@ -30,6 +30,10 @@ class Project(ProjectBase):
 
             'transformers ~= 5.16',
         ],
+
+        'search': [
+            'ddgs ~= 9.16',
+        ],
     }
 
     entry_points = {

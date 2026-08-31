@@ -40,6 +40,9 @@ interop = [
     'torch ~= 2.13',
     'transformers ~= 5.16',
 ]
+search = [
+    'ddgs ~= 9.16',
+]
 all = [
     'omdev == 0.0.51',
     'huggingface-hub ~= 1.29',
@@ -49,6 +52,7 @@ all = [
     'tinygrad ~= 0.14',
     'torch ~= 2.13',
     'transformers ~= 5.16',
+    'ddgs ~= 9.16',
 ]
 
 [project.entry-points]
