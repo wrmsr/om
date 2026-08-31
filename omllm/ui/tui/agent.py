@@ -31,9 +31,30 @@ def bind_on_agent_event_subscriber(cls: type[HasOnEventAgent]) -> inj.Elements:
 ##
 
 
+class TURN_SCOPED(lang.Marker):  # noqa
+    pass
+
+
 _TURN_SCOPE_CONTEXT: contextvars.ContextVar = contextvars.ContextVar(f'{__name__}._TURN_SCOPE_CONTEXT')
 
-TURN_SCOPE: ta.Final = inj.DelimitedScope(context=inj.ContextVarScopeContext(_TURN_SCOPE_CONTEXT))
+TURN_SCOPE: ta.Final = inj.DelimitedScope(TURN_SCOPED, context=inj.ContextVarScopeContext(_TURN_SCOPE_CONTEXT))
+
+
+#
+
+
+class ScopedTurnRunner(agn.TurnRunner):
+    def __init__(
+            self,
+            *,
+            injector: inj.AsyncInjector,
+    ) -> None:
+        super().__init__()
+
+        self._injector = injector
+
+    async def run_turn(self, params: agn.TurnParams) -> agn.TurnResult:
+        raise NotImplementedError
 
 
 ##
@@ -52,13 +73,11 @@ def bind_agent(config: Config) -> inj.Elements:
 
     lst.extend([
         inj.bind_scope(TURN_SCOPE),
-        inj.bind_scope_seed(float, TURN_SCOPE),
-    ])
+        inj.bind_scope_seed(agn.TurnParams, TURN_SCOPE),
 
-    #
+        inj.bind(ScopedTurnRunner, singleton=True),
 
-    lst.extend([
-        inj.bind(agn.TurnLoopRunner, singleton=True),
+        inj.bind(agn.TurnLoop, in_=TURN_SCOPE),
     ])
 
     #
