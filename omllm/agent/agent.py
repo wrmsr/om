@@ -10,6 +10,7 @@ from .types.events import StateUpdateEvent
 from .types.messages import MESSAGE_TYPES
 from .types.messages import Message
 from .types.states import State
+from .types.turns import TurnParams
 from .types.turns import TurnRunner
 
 
@@ -57,14 +58,14 @@ class Agent(
 
         in_state = self._state
 
-        result = await self._turn_runner.run_turn(
-            in_state,
-            new_messages,
+        result = await self._turn_runner.run_turn(TurnParams(
+            in_state=in_state,
+            new_messages=new_messages,
             subscriber=self._publish,
-        )
+        ))
 
         await self.update_state(lambda old_state: dc.replace(
-            old_state,
+            old_state,  # noqa
 
             turn_config=result.config,
             context=result.context,

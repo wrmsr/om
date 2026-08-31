@@ -222,6 +222,7 @@ with _lang.auto_proxy_init(globals()):
     from .types.turns import (  # noqa
         TurnConfig,
         TurnResult,
+        TurnParams,
 
         TurnRunner,
     )

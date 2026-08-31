@@ -15,10 +15,10 @@ from ..types.events import ToolExecutionStartEvent
 from ..types.events import TurnEndEvent
 from ..types.events import TurnStartEvent
 from ..types.messages import Message
-from ..types.states import State
 from ..types.tools import ToolContext
 from ..types.tools import ToolEnvironment
 from ..types.turns import TurnConfig
+from ..types.turns import TurnParams
 from ..types.turns import TurnResult
 from ..types.turns import TurnRunner
 
@@ -231,22 +231,19 @@ class TurnLoopRunner(TurnRunner):
 
         self._backends = backends
 
-    async def run_turn(
-            self,
-            state: State,
-            new_messages: ta.Sequence[Message],
-            *,
-            subscriber: EventSubscriber[Event] | None = None,
-    ) -> TurnResult:
-        llm_backend = self._backends.get_backend(llm.ImmediateBackend, state.model)  # type: ignore[type-abstract]
+    async def run_turn(self, params: TurnParams) -> TurnResult:
+        llm_backend = self._backends.get_backend(
+            llm.ImmediateBackend,  # type: ignore[type-abstract]
+            params.in_state.model,
+        )
 
         loop = TurnLoop(
-            new_messages=new_messages,
-            config=state.turn_config,
-            context=state.context,
-            subscriber=subscriber,
+            new_messages=params.new_messages,
+            config=params.in_state.turn_config,
+            context=params.in_state.context,
+            subscriber=params.subscriber,
             llm_backend=llm_backend,
-            tool_env=state.tool_env,
+            tool_env=params.in_state.tool_env,
         )
 
         return await loop.run()

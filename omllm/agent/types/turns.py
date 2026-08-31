@@ -28,6 +28,16 @@ class TurnConfig:
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
+class TurnParams:
+    in_state: State
+    new_messages: ta.Sequence[Message]
+
+    subscriber: EventSubscriber[Event] | None = None
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class TurnResult:
     config: TurnConfig
     context: Context
@@ -40,11 +50,5 @@ class TurnResult:
 
 class TurnRunner(lang.Abstract):
     @abc.abstractmethod
-    def run_turn(
-            self,
-            state: State,
-            new_messages: ta.Sequence[Message],
-            *,
-            subscriber: EventSubscriber[Event] | None = None,
-    ) -> ta.Awaitable[TurnResult]:
+    def run_turn(self, params: TurnParams) -> ta.Awaitable[TurnResult]:
         raise NotImplementedError
