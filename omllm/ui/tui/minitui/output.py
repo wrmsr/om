@@ -14,8 +14,8 @@ from omdev.tui import minitui as mt
 from .... import agent as agn
 from .... import llm
 from ....core import ui
-from ..agent import bind_on_agent_event_subscriber
 from ..config import Config
+from ..inject import bind_on_agent_event_subscriber
 from .app import MinituiChatApp
 
 

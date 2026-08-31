@@ -4,8 +4,8 @@ import uuid
 from omcore import inject as inj
 from omdev.home.paths import get_home_paths
 
-from ... import harness as har
-from .config import Config
+from .... import harness as har
+from ..config import Config
 
 
 ##

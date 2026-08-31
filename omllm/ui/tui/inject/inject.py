@@ -1,9 +1,9 @@
 from omcore import inject as inj
 
+from ..config import Config
 from .agent import bind_agent
 from .backends import bind_backends
 from .commands import bind_commands
-from .config import Config
 from .permissions import bind_permissions
 from .session import bind_sessions
 from .tools import bind_tools

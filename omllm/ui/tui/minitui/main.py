@@ -17,8 +17,8 @@ from .... import agent as agn
 from .... import harness as har
 from ....core import processes
 from ....core import ui
-from ..agent import AgentEventSubscribers
 from ..config import parse_config
+from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
 from .app import MinituiChatApp
 from .app import bind_app

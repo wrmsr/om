@@ -3,10 +3,10 @@ import typing as ta
 from omcore import inject as inj
 from omdev.home.secrets import load_secrets
 
-from ... import agent as agn
-from ... import llm
-from ...core import registry as reg
-from .config import Config
+from .... import agent as agn
+from .... import llm
+from ....core import registry as reg
+from ..config import Config
 
 
 ##

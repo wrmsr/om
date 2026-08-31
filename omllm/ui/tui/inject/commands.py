@@ -1,8 +1,8 @@
 from omcore import inject as inj
 from omcore import lang
 
-from ... import harness as har
-from .config import Config
+from .... import harness as har
+from ..config import Config
 
 
 ##
