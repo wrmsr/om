@@ -34,6 +34,8 @@ def bind_agent(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     lst.extend([
+        inj.bind(agn.TurnLoopRunner, singleton=True),
+
         agent_event_subscribers().bind_items_provider(singleton=True),
 
         inj.bind(agn.Agent, singleton=True),

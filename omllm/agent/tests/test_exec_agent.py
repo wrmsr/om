@@ -12,6 +12,7 @@ from ..exec.ops import ProcessesExecOps
 from ..exec.tools.bash import BashTool
 from ..permissions.deciders import StaticPermissionDecider
 from ..permissions.types import PermissionState
+from ..turns.loop import TurnLoopRunner
 from ..types.contexts import Context
 from ..types.events import AgentEndEvent
 from ..types.tools import ToolEnvironment
@@ -35,7 +36,11 @@ def _scripted_backend():
 
 async def _run_agent(td, m):
     backend = _scripted_backend()
-    agent = Agent(backends=DictBackendManager({llm.ImmediateBackend: {None: backend}}))  # type: ignore[type-abstract]  # noqa
+    agent = Agent(
+        turn_runner=TurnLoopRunner(
+            backends=DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
+        ),
+    )
 
     bash = BashTool(
         permissions=StaticPermissionDecider(PermissionState.ALLOW),

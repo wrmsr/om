@@ -5,13 +5,12 @@ from omcore import dataclasses as dc
 
 from .. import llm
 from ..core.eventbus import EventPublisher
-from .backends import BackendManager
-from .turns.loop import TurnLoop
 from .types.events import Event
 from .types.events import StateUpdateEvent
 from .types.messages import MESSAGE_TYPES
 from .types.messages import Message
 from .types.states import State
+from .types.turns import TurnRunner
 
 
 ##
@@ -23,11 +22,11 @@ class Agent(
     def __init__(
             self,
             *,
-            backends: BackendManager,
+            turn_runner: TurnRunner,
     ) -> None:
         super().__init__()
 
-        self._backends = backends
+        self._turn_runner = turn_runner
 
         self._state = State()
 
@@ -58,18 +57,11 @@ class Agent(
 
         in_state = self._state
 
-        llm_backend = self._backends.get_backend(llm.ImmediateBackend, in_state.model)  # type: ignore[type-abstract]
-
-        loop = TurnLoop(
-            new_messages=new_messages,
-            config=in_state.turn_config,
-            context=in_state.context,
+        result = await self._turn_runner.run_turn(
+            in_state,
+            new_messages,
             subscriber=self._publish,
-            llm_backend=llm_backend,
-            tool_env=in_state.tool_env,
         )
-
-        result = await loop.run()
 
         await self.update_state(lambda old_state: dc.replace(
             old_state,

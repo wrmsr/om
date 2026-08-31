@@ -163,6 +163,12 @@ with _lang.auto_proxy_init(globals()):
         reflect_tool_fn,
     )
 
+    from .turns.loop import (  # noqa
+        TurnLoop,
+
+        TurnLoopRunner,
+    )
+
     ##
 
     from .types.contexts import (  # noqa
@@ -216,6 +222,8 @@ with _lang.auto_proxy_init(globals()):
     from .types.turns import (  # noqa
         TurnConfig,
         TurnResult,
+
+        TurnRunner,
     )
 
     ##

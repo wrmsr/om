@@ -1,11 +1,18 @@
+import abc
 import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
 
 from ... import llm
+from ...core.eventbus import EventSubscriber
 from .contexts import Context
 from .messages import Message
+
+
+if ta.TYPE_CHECKING:
+    from .events import Event
+    from .states import State
 
 
 ##
@@ -26,3 +33,18 @@ class TurnResult:
     context: Context
 
     new_messages: ta.Sequence[Message] | None = None
+
+
+##
+
+
+class TurnRunner(lang.Abstract):
+    @abc.abstractmethod
+    def run_turn(
+            self,
+            state: State,
+            new_messages: ta.Sequence[Message],
+            *,
+            subscriber: EventSubscriber[Event] | None = None,
+    ) -> ta.Awaitable[TurnResult]:
+        raise NotImplementedError
