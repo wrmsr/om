@@ -3,20 +3,20 @@ import importlib.util
 
 import pytest
 
-from ..highlights import highlight_code
-from ..markdown import MarkdownStream
-from ..markdown import MdCode
-from ..markdown import MdHeading
-from ..markdown import MdList
-from ..markdown import MdListItem
-from ..markdown import MdParagraph
-from ..markdown import MdQuote
-from ..markdown import MdRule
-from ..markdown import parse_markdown
-from ..markdown import parse_markdown_inlines
-from ..markdown import render_markdown_block
-from ..markdown import render_markdown_blocks
-from ..segments import segments_text
+from ...highlights import highlight_code
+from ...segments import segments_text
+from ..base import MarkdownStream
+from ..base import MdCode
+from ..base import MdHeading
+from ..base import MdList
+from ..base import MdListItem
+from ..base import MdParagraph
+from ..base import MdQuote
+from ..base import MdRule
+from ..base import parse_markdown
+from ..base import parse_markdown_inlines
+from ..base import render_markdown_block
+from ..base import render_markdown_blocks
 
 
 ##

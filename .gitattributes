@@ -29,6 +29,7 @@ omdev/scripts/lib/marshal.py linguist-generated
 omdev/scripts/pidfiles.py linguist-generated
 omdev/scripts/pyproject.py linguist-generated
 omdev/tui/minitui/_dataclasses.py linguist-generated
+omdev/tui/minitui/vim/_dataclasses.py linguist-generated
 ominfra/clouds/aws/models/base/_dataclasses.py linguist-generated
 ominfra/clouds/aws/models/services/ec2/__init__.py linguist-generated
 ominfra/clouds/aws/models/services/ec2/_dataclasses.py linguist-generated

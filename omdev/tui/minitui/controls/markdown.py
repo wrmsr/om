@@ -11,21 +11,21 @@ import typing as ta
 from omcore import lang
 
 from ..text.highlights import highlight_code
-from ..text.markdown import MarkdownCodeHighlighter
-from ..text.markdown import MarkdownStream
-from ..text.markdown import MarkdownStreamBackend
-from ..text.markdown import MdBlock
-from ..text.markdown import render_markdown_blocks
+from ..text.markdown.base import MarkdownCodeHighlighter
+from ..text.markdown.base import MarkdownStream
+from ..text.markdown.base import MarkdownStreamBackend
+from ..text.markdown.base import MdBlock
+from ..text.markdown.base import render_markdown_blocks
 from ..text.segments import Segment
 from .base import Control
 
 
 if ta.TYPE_CHECKING:
-    from ..text import markdownit
-    from ..text import pdcmark
+    from ..text.markdown import markdownit
+    from ..text.markdown import pdcmark
 else:
-    markdownit = lang.proxy_import('..text.markdownit', __package__)
-    pdcmark = lang.proxy_import('..text.pdcmark', __package__)
+    markdownit = lang.proxy_import('..text.markdown.markdownit', __package__)
+    pdcmark = lang.proxy_import('..text.markdown.pdcmark', __package__)
 
 
 ##

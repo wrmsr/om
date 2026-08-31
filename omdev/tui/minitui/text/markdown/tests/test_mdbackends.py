@@ -3,11 +3,13 @@ import importlib.util
 
 import pytest
 
-from ...controls.markdown import get_markdown_stream
-from ..markdown import MdCode
-from ..markdown import MdHeading
-from ..markdown import render_markdown_blocks
-from ..segments import segments_text
+from ....controls.markdown import get_markdown_stream
+from ...segments import segments_text
+from ..base import MdCode
+from ..base import MdHeading
+from ..base import MdList
+from ..base import render_markdown_blocks
+from ..pdcmark import PdcmarkStream
 
 
 ##
@@ -113,7 +115,6 @@ def test_registry_errors():
 
 
 def test_default_backend_is_pdcmark():
-    from ..pdcmark import PdcmarkStream  # noqa: PLC0415
     assert isinstance(get_markdown_stream(), PdcmarkStream)
 
 
@@ -129,7 +130,6 @@ def test_nested_list_depth_equivalence_across_backends():
                 s.feed(c)
                 blocks.extend(s.pop_settled())
             blocks.extend(s.finalize())
-            from ..markdown import MdList  # noqa: PLC0415
             items = [(it.marker, it.depth) for b in blocks if isinstance(b, MdList) for it in b.items]
             if expected is None:
                 expected = items

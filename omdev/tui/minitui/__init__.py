@@ -219,6 +219,39 @@ with _lang.auto_proxy_init(
     ##
     # text
 
+    from .text.markdown.base import (  # noqa
+        MdBlock,
+        MdHeading,
+        MdParagraph,
+        MdCode,
+        MdQuote,
+        MdListItem,
+        MdList,
+        MdRule,
+
+        parse_markdown_lines,
+        parse_markdown,
+        parse_markdown_inlines,
+
+        MarkdownStreamBackend,
+        MarkdownStream,
+
+        MarkdownCodeHighlighter,
+        render_markdown_block,
+        render_markdown_blocks,
+    )
+
+    from .text.markdown.markdownit import (  # noqa
+        markdown_it_available,
+        MarkdownItStream,
+    )
+
+    from .text.markdown.pdcmark import (  # noqa
+        PdcmarkStream,
+    )
+
+    #
+
     from .text.colors import (  # noqa
         ColorDepth,
         Color,
@@ -332,37 +365,6 @@ with _lang.auto_proxy_init(
         get_pygments_highlighter,
     )
 
-    from .text.markdown import (  # noqa
-        MdBlock,
-        MdHeading,
-        MdParagraph,
-        MdCode,
-        MdQuote,
-        MdListItem,
-        MdList,
-        MdRule,
-
-        parse_markdown_lines,
-        parse_markdown,
-        parse_markdown_inlines,
-
-        MarkdownStreamBackend,
-        MarkdownStream,
-
-        MarkdownCodeHighlighter,
-        render_markdown_block,
-        render_markdown_blocks,
-    )
-
-    from .text.markdownit import (  # noqa
-        markdown_it_available,
-        MarkdownItStream,
-    )
-
-    from .text.pdcmark import (  # noqa
-        PdcmarkStream,
-    )
-
     ##
     # tty
 
@@ -373,44 +375,4 @@ with _lang.auto_proxy_init(
     ##
     # vim
 
-    from .vim.modes import (  # noqa
-        Mode,
-        CmdlineKind,
-    )
-
-    from .vim.status import (  # noqa
-        VimStatus,
-        Decoration,
-        Decorations,
-
-        SELECTION_TAG,
-        CURSOR_TAG,
-        SEARCH_MATCH_TAG,
-        SEARCH_CURRENT_TAG,
-    )
-
-    from .vim.registers import (  # noqa
-        RegValue,
-        Registers,
-    )
-
-    from .vim.substitutes import (  # noqa
-        SubstituteError,
-        ExRange,
-        SubstituteResult,
-        SubstituteSpec,
-        parse_ex_range,
-        parse_substitute,
-        apply_substitute,
-    )
-
-    from .vim.options import (  # noqa
-        VimOptions,
-        DEFAULT_OPTIONS,
-        get_language_options,
-    )
-
-    from .vim.engine import (  # noqa
-        ExHandler,
-        VimEngine,
-    )
+    from . import vim  # noqa

@@ -37,7 +37,7 @@ from ...runtime.drivers import SyncDriver
 from ...screens.cells import Frame
 from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface
-from ...text.markdown import parse_markdown
+from ...text.markdown.base import parse_markdown
 from ...text.segments import Segment
 from ...text.styles import Style
 from ...text.themes import DEFAULT_THEME

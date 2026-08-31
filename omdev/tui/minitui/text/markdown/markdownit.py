@@ -13,17 +13,17 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
-from ....markdownit import incparse
-from .markdown import MarkdownStreamBackend
-from .markdown import MdBlock
-from .markdown import MdCode
-from .markdown import MdHeading
-from .markdown import MdList
-from .markdown import MdListItem
-from .markdown import MdParagraph
-from .markdown import MdQuote
-from .markdown import MdRule
-from .segments import Segment
+from .....markdownit import incparse
+from ..segments import Segment
+from .base import MarkdownStreamBackend
+from .base import MdBlock
+from .base import MdCode
+from .base import MdHeading
+from .base import MdList
+from .base import MdListItem
+from .base import MdParagraph
+from .base import MdQuote
+from .base import MdRule
 
 
 ##
