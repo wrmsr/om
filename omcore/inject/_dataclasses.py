@@ -4553,28 +4553,29 @@ def _process_dataclass__083ec344646e0978c8cae2d547583c1e10c636ff():
         "Plans(tup=(CopyPlan(fields=('tag', 'context')), EqPlan(fields=('tag', 'context')), FrozenPlan(fields=('tag', '"
         "context'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('tag', 'context'), cache=True), I"
         "nitPlan(fields=(InitPlan.Field(name='tag', annotation=OpRef(name='init.fields.0.annotation'), default=None, de"
-        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.0"
-        ".coerce'), validate=None, check_type=None), InitPlan.Field(name='context', annotation=OpRef(name='init.fields."
-        "1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, "
-        "field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.1.coerce'), validate=None, check_type=None)), se"
-        "lf_param='self', std_params=('tag', 'context'), kw_only_params=(), frozen=True, slots=False, post_init_params="
-        "None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='tag', kw_only=False, fn=None), Repr"
-        "Plan.Field(name='context', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=OpRef(name"
+        "='init.fields.0.validate'), check_type=None), InitPlan.Field(name='context', annotation=OpRef(name='init.field"
+        "s.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False"
+        ", field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.1.coerce'), validate=None, check_type=None)), "
+        "self_param='self', std_params=('tag',), kw_only_params=('context',), frozen=True, slots=False, post_init_param"
+        "s=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='tag', kw_only=False, fn=None), Re"
+        "prPlan.Field(name='context', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='eab2820178916c47be4a808bb5899f59530b7e39',
+    plan_repr_sha1='30b3c945faf3ad93269aacc01152205faa5c583b',
     cls_names=(
         ('omcore.inject.scopes', 'DelimitedScope'),
     ),
 )
-def _process_dataclass__eab2820178916c47be4a808bb5899f59530b7e39():
+def _process_dataclass__30b3c945faf3ad93269aacc01152205faa5c583b():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__0__coerce,
+        __dataclass__init__fields__0__validate,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__coerce,
         __dataclass__init__fields__1__default,
+        __dataclass__FieldFnValidationError,  # noqa
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -4648,10 +4649,17 @@ def _process_dataclass__eab2820178916c47be4a808bb5899f59530b7e39():
         def __init__(
             self,
             tag: __dataclass__init__fields__0__annotation,
+            *,
             context: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
-            tag = __dataclass__init__fields__0__coerce(tag)
             context = __dataclass__init__fields__1__coerce(context)
+            if not __dataclass__init__fields__0__validate(tag): 
+                raise __dataclass__FieldFnValidationError(
+                    obj=self,
+                    fn=__dataclass__init__fields__0__validate,
+                    field='tag',
+                    value=tag,
+                )
             __dataclass__object_setattr(self, 'tag', tag)
             __dataclass__object_setattr(self, 'context', context)
 

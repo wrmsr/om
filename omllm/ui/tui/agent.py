@@ -54,7 +54,16 @@ class ScopedTurnRunner(agn.TurnRunner):
         self._injector = injector
 
     async def run_turn(self, params: agn.TurnParams) -> agn.TurnResult:
-        raise NotImplementedError
+        async with inj.async_enter_scope(
+                self._injector,
+                TURN_SCOPE,
+                {
+                    inj.as_key(agn.TurnParams): params,
+                },
+        ):
+            runner = await self._injector[agn.TurnLoopRunner]
+
+            return await runner.run_turn(params)
 
 
 ##
@@ -76,8 +85,10 @@ def bind_agent(config: Config) -> inj.Elements:
         inj.bind_scope_seed(agn.TurnParams, TURN_SCOPE),
 
         inj.bind(ScopedTurnRunner, singleton=True),
+        inj.bind(agn.TurnRunner, to_key=ScopedTurnRunner),
 
         inj.bind(agn.TurnLoop, in_=TURN_SCOPE),
+        inj.bind(agn.TurnLoopRunner, in_=TURN_SCOPE),
     ])
 
     #

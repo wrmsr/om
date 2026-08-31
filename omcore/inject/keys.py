@@ -43,19 +43,10 @@ class Key(lang.Final, ta.Generic[T]):
     def __post_init__(self) -> None:
         object.__setattr__(self, '_rtk', self.rty.type_key())
 
-    def __hash__(self) -> int:
-        try:
-            return getattr(self, '_hash')
-        except AttributeError:
-            pass
-
-        h = hash((
-            self._rtk,  # type: ignore[attr-defined]
-            self.tag,
-        ))
-
-        object.__setattr__(self, '_hash', h)
-        return h
+    __hash__ = lang.cached_hash(lambda self: hash((
+        self._rtk,
+        self.tag,
+    )))
 
     def __eq__(self, o: object) -> bool:
         if self is o:

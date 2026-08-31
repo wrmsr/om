@@ -12,7 +12,7 @@ from ..exec.ops import ProcessesExecOps
 from ..exec.tools.bash import BashTool
 from ..permissions.deciders import StaticPermissionDecider
 from ..permissions.types import PermissionState
-from ..turns.loop import TurnLoopRunner
+from ..turns.runner import TurnLoopRunner
 from ..types.contexts import Context
 from ..types.events import AgentEndEvent
 from ..types.tools import ToolEnvironment

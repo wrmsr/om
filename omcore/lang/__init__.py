@@ -38,6 +38,10 @@ with _auto_proxy_init(globals(), update_exports=True):
         static_init,
     )
 
+    from .cached.hash import (  # noqa
+        cached_hash,
+    )
+
     from .cached.property import (  # noqa
         cached_property,
     )

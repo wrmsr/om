@@ -106,7 +106,20 @@ class DelimitedScopeContext(lang.Abstract):
 @dc.dataclass(frozen=True)
 @dc.extra_class_params(cache_hash=True)
 class DelimitedScope(Scope, lang.Final):
-    tag: ta.Any = dc.xfield(coerce=check.not_none)
+    """
+    Note that despite not otherwise interacting with `Key`'s (for example by automatically binding keys tagged with the
+    scope's tag as inside the scope), the `tag` field serves to dictate the identity of the scope: these dataclasses are
+    not `eq=False`, so without the `tag` field they would all be considered the same (aside from their given context
+    storage, if any).
+
+    TODO: it's probably worth making these `eq=False` and removing the `tag` field (and thus relying on identity
+      comparison) - disambiguation could be boosted by allowing subclassing of this class.
+    """
+
+    tag: ta.Any = dc.xfield(validate=lambda o: o is not None and not isinstance(o, Scope))
+
+    _: dc.KW_ONLY
+
     context: DelimitedScopeContext | None = dc.xfield(
         default=None,
         coerce=check.of_isinstance((DelimitedScopeContext, None)),

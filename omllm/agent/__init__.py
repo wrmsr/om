@@ -165,7 +165,9 @@ with _lang.auto_proxy_init(globals()):
 
     from .turns.loop import (  # noqa
         TurnLoop,
+    )
 
+    from .turns.runner import (  # noqa
         TurnLoopRunner,
     )
 
