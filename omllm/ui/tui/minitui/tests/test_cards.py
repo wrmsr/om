@@ -1,4 +1,3 @@
-import asyncio
 import typing as ta
 
 import pytest
@@ -8,123 +7,48 @@ from omdev.tui import minitui as mt
 from ..... import agent as agn
 from ..... import harness as har
 from ..... import llm
-from ..app import APP_KEY_MAP
 from ..app import AppKey
-from ..app import MinituiChatApp
 from ..main import PromptPump
 from ..toolcards import tool_card_key
+from .utils import BlockingSession
+from .utils import app_key
+from .utils import commit_texts
+from .utils import frame_lines
+from .utils import make_app
 
 
 ##
 
 
-class _Clock:
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.now = 0.
-
-    def __call__(self) -> float:
-        return self.now
-
-    def advance(self, seconds: float) -> None:
-        self.now += seconds
-
-
-class _Surface:
-    def __init__(self, width: int = 80) -> None:
-        super().__init__()
-
-        self.width = width
-
-
-class _Driver:
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.clock = _Clock()
-        self.surface = _Surface()
-        self.timers = mt.Timers(self.clock)
-        self.commits: list[tuple[mt.Line, ...]] = []
-        self.invalidations = 0
-        self.stopped = False
-
-    def commit(self, lines) -> None:
-        self.commits.append(tuple(lines))
-
-    def invalidate(self) -> None:
-        self.invalidations += 1
-
-    def stop(self) -> None:
-        self.stopped = True
-
-
-class _BlockingSession:
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.prompts: list[str] = []
-        self.first_started = asyncio.Event()
-        self.first_stopped = asyncio.Event()
-        self.second_done = asyncio.Event()
-        self._never = asyncio.Event()
-
-    async def prompt(self, text: str) -> None:
-        self.prompts.append(text)
-        if len(self.prompts) == 1:
-            self.first_started.set()
-            try:
-                await self._never.wait()
-            finally:
-                self.first_stopped.set()
-        else:
-            self.second_done.set()
-
-
-def _make_app():
-    driver = _Driver()
-    return MinituiChatApp(ta.cast(mt.AsyncioDriver, driver)), driver
-
-
-def _frame_lines(app):
-    return [line.text for line in app.render(80, 24).lines]
-
-
-def _commit_texts(driver):
-    return ['\n'.join(line.text for line in commit) for commit in driver.commits]
-
-
 def test_tool_cards_update_independently_and_commit_in_start_order():
-    app, driver = _make_app()
+    app, driver = make_app()
 
     app.tool_started('call-a', 'alpha', [[mt.Segment('args: a')]])
     app.tool_started('call-b', 'beta', [[mt.Segment('args: b')]])
-    running_lines = [line for line in _frame_lines(app) if 'running...' in line]
+    running_lines = [line for line in frame_lines(app) if 'running...' in line]
     assert len(running_lines) == 2
     assert 'alpha  running...' in running_lines[0]
     assert 'beta  running...' in running_lines[1]
 
     app.tool_finished('call-b', 'beta', ok=True)
-    lines = _frame_lines(app)
+    lines = frame_lines(app)
     assert any('alpha  running...' in line for line in lines)
     assert any('beta  done' in line for line in lines)
 
-    driver.clock.advance(.8)
-    driver.timers.fire_due()
+    driver.fire_after(.8)
     assert driver.commits == []
 
     app.tool_finished('call-a', 'alpha', ok=True)
-    driver.clock.advance(.8)
-    driver.timers.fire_due()
+    driver.fire_after(.8)
 
-    committed = _commit_texts(driver)
+    committed = commit_texts(driver)
     assert len(committed) == 2
     assert 'alpha  done' in committed[0]
     assert 'beta  done' in committed[1]
 
 
 def test_permission_cards_queue_without_orphaning_responses():
-    app, _ = _make_app()
+    app, _ = make_app()
     responses = []
 
     app.tool_started('call-a', 'alpha', ())
@@ -142,26 +66,26 @@ def test_permission_cards_queue_without_orphaning_responses():
         lambda allowed: responses.append(('call-b', allowed)),
     )
 
-    lines = _frame_lines(app)
+    lines = frame_lines(app)
     assert sum('allow (f10)' in line for line in lines) == 1
     assert any('alpha  awaiting confirmation' in line for line in lines)
     assert any('beta  queued for confirmation' in line for line in lines)
 
-    app.handle_event(mt.KeyEvent(mt.Key('f10')))
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_ALLOW)))
     assert responses == [('call-a', True)]
-    lines = _frame_lines(app)
+    lines = frame_lines(app)
     assert any('alpha  running...' in line for line in lines)
     assert any('beta  awaiting confirmation' in line for line in lines)
     assert sum('allow (f10)' in line for line in lines) == 1
 
-    app.handle_event(mt.KeyEvent(mt.Key('f2')))
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_DENY)))
     assert responses == [('call-a', True), ('call-b', False)]
-    assert any('beta  denied' in line for line in _frame_lines(app))
+    assert any('beta  denied' in line for line in frame_lines(app))
 
 
 @pytest.mark.parametrize(('cancelled', 'status'), [(True, 'cancelled'), (False, 'failed')])
 def test_aborted_turn_cancels_permissions_and_finalizes_cards(cancelled, status):
-    app, driver = _make_app()
+    app, driver = make_app()
     responses = []
     cancellations = []
 
@@ -169,30 +93,31 @@ def test_aborted_turn_cancels_permissions_and_finalizes_cards(cancelled, status)
     driver.commits.clear()
     for key, title in [('call-a', 'alpha'), ('call-b', 'beta')]:
         app.tool_started(key, title, ())
-        app.begin_permission_card(
-            key,
-            title,
-            (),
-            lambda allowed, key=key: responses.append((key, allowed)),
-            on_cancel=lambda key=key: cancellations.append(key),
-        )
+
+        def on_respond(allowed, *, key=key):
+            responses.append((key, allowed))
+
+        def on_cancel(*, key=key):
+            cancellations.append(key)
+
+        app.begin_permission_card(key, title, (), on_respond, on_cancel=on_cancel)
 
     app.abort_ai_turn(cancelled=cancelled)
 
     assert cancellations == ['call-a', 'call-b']
     assert responses == []
     assert not app.is_busy
-    committed = _commit_texts(driver)
+    committed = commit_texts(driver)
     assert len(committed) == 2
     assert f'alpha  {status}' in committed[0]
     assert f'beta  {status}' in committed[1]
-    assert not any(title in line for title in ('alpha', 'beta') for line in _frame_lines(app))
+    assert not any(title in line for title in ('alpha', 'beta') for line in frame_lines(app))
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_key_cancels_current_prompt_and_runs_next():
-    app, _ = _make_app()
-    session = _BlockingSession()
+    app, _ = make_app()
+    session = BlockingSession()
     pump = PromptPump(session=ta.cast(har.Session, session), app=app)
     app.on_cancel = pump.cancel_current
 
@@ -200,13 +125,9 @@ async def test_key_cancels_current_prompt_and_runs_next():
     await session.first_started.wait()
     pump.submit('second')
 
-    key: ta.Any = APP_KEY_MAP[AppKey.CANCEL]
-    if isinstance(key, ta.Sequence):
-        [key] = key
-
     app.begin_ai_turn()
-    app.handle_event(mt.KeyEvent(key))
-    app.handle_event(mt.KeyEvent(key))
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
 
     await session.first_stopped.wait()
     await session.second_done.wait()
@@ -219,8 +140,8 @@ async def test_key_cancels_current_prompt_and_runs_next():
 
 @pytest.mark.asyncs('asyncio')
 async def test_prompt_pump_shutdown_drops_queued_prompts():
-    app, _ = _make_app()
-    session = _BlockingSession()
+    app, _ = make_app()
+    session = BlockingSession()
     pump = PromptPump(session=ta.cast(har.Session, session), app=app)
 
     pump.submit('first')

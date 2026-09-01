@@ -76,16 +76,22 @@ class PromptPump:
         if self._closing or self._task is not None or not self._queue:
             return
         text = self._queue.pop(0)
-        self._task = asyncio.get_running_loop().create_task(self._run_one(text))
+        task = asyncio.get_running_loop().create_task(self._run_one(text))
+        self._task = task
+        # Slot bookkeeping lives in a done callback rather than in _run_one's finally: a task cancelled before its first
+        # step never runs its body at all, and the pump must not wedge on it.
+        task.add_done_callback(self._on_task_done)
 
     async def _run_one(self, text: str) -> None:
         try:
             await self._session.prompt(text)
         except Exception as e:  # noqa: BLE001
             self._app.display_text(f'error: {e!r}', 'error')
-        finally:
+
+    def _on_task_done(self, task: asyncio.Task) -> None:
+        if self._task is task:
             self._task = None
-            self._maybe_start()
+        self._maybe_start()
 
     def cancel_current(self) -> bool:
         if (task := self._task) is None or task.done():

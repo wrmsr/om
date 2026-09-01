@@ -48,7 +48,11 @@ class _ToolCardEntry:
 class _PermissionCardRequest:
     key: str
     title: str
+    detail: CardRows
     on_respond: ta.Callable[[bool], None]
+
+    # Invoked only when the turn is over (`abort_ai_turn`) - never because of UI bookkeeping. Any task still parked on
+    # the ask at that point is dead or detached, so the asker may unwind it as a cancellation.
     on_cancel: ta.Callable[[], None] | None = None
 
 
@@ -196,6 +200,7 @@ class MinituiChatApp(mt.App):
     def begin_ai_turn(self) -> None:
         self._busy = True
         self._commit_rows([[mt.Segment('ai', 'speaker.ai')]])
+        self._refresh_status()
         self._driver.invalidate()
 
     def end_ai_turn(self) -> None:
@@ -292,24 +297,26 @@ class MinituiChatApp(mt.App):
             return
 
         # F10/F2 are global bindings, so only one queued card may advertise them at a time.
-        while self._permission_queue:
-            request = self._permission_queue.popleft()
-            if (entry := self._cards.get(request.key)) is None:
-                if request.on_cancel is not None:
-                    request.on_cancel()
-                continue
-
-            def respond(allowed: bool, *, request: _PermissionCardRequest = request) -> None:
-                self._respond_permission(request, allowed)
-
-            self._active_permission = request
-            entry.card.set_state(mt.CardState.CONFIRMING)
-            entry.card.set_summary([
-                (request.title, 'card.summary'),
-                ('  awaiting confirmation', 'card.summary.dim'),
-            ])
-            entry.card.set_on_confirm(respond)
+        if not self._permission_queue:
             return
+        request = self._permission_queue.popleft()
+
+        # The card is display; the ask is a tool parked mid-execution. If the card was finalized out from under a queued
+        # ask, re-present it on a fresh card - withdrawing a live turn's ask would surface in its executor as a
+        # cancellation indistinguishable from the user's.
+        if (entry := self._cards.get(request.key)) is None:
+            entry = self._add_tool_card(request.key, request.title, request.detail, state=mt.CardState.PENDING)
+
+        def respond(allowed: bool) -> None:
+            self._respond_permission(request, allowed)
+
+        self._active_permission = request
+        entry.card.set_state(mt.CardState.CONFIRMING)
+        entry.card.set_summary([
+            (request.title, 'card.summary'),
+            ('  awaiting confirmation', 'card.summary.dim'),
+        ])
+        entry.card.set_on_confirm(respond)
 
     def _respond_permission(self, request: _PermissionCardRequest, allowed: bool) -> None:
         if self._active_permission is not request:
@@ -371,6 +378,7 @@ class MinituiChatApp(mt.App):
         self._permission_queue.append(_PermissionCardRequest(
             key=key,
             title=title,
+            detail=frozen_detail,
             on_respond=on_respond,
             on_cancel=on_cancel,
         ))
