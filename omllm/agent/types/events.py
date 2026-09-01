@@ -1,3 +1,4 @@
+import enum
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -38,12 +39,21 @@ class AgentStartEvent(Event):
     pass
 
 
+class AgentEndReason(enum.Enum):
+    COMPLETED = enum.auto()
+    FAILED = enum.auto()
+    CANCELLED = enum.auto()
+
+
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 class AgentEndEvent(Event):
     context: Context
 
     new_messages: ta.Sequence[Message] | None = None
+
+    reason: AgentEndReason = AgentEndReason.COMPLETED
+    error: BaseException | None = None
 
 
 ##

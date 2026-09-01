@@ -183,6 +183,7 @@ with _lang.auto_proxy_init(globals()):
         LlmAiStreamEvent,
 
         AgentStartEvent,
+        AgentEndReason,
         AgentEndEvent,
 
         TurnEvent,

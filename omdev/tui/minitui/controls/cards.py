@@ -2,10 +2,10 @@
 The card: an updatable, expandable, lifecycle-bearing panel - the warm-window shape of a tool use.
 
 A card lives in the live region while its subject is in flight: state advances (confirming -> running -> complete /
-denied / failed), the summary and detail mutate freely, the detail expands and collapses (keyboard or click). When its
-subject finalizes, the app commits the card's rendered rows to scrollback and drops it from the stack - the full
-warm-window lifecycle. Confirmation is a callback the app resolves (bound keys, clicks); the card itself just displays
-and remembers.
+denied / failed / cancelled), the summary and detail mutate freely, the detail expands and collapses (keyboard or
+click). When its subject finalizes, the app commits the card's rendered rows to scrollback and drops it from the stack -
+the full warm-window lifecycle. Confirmation is a callback the app resolves (bound keys, clicks); the card itself just
+displays and remembers.
 """
 import enum
 import typing as ta
@@ -29,6 +29,7 @@ class CardState(enum.Enum):
     COMPLETE = enum.auto()
     DENIED = enum.auto()
     FAILED = enum.auto()
+    CANCELLED = enum.auto()
 
 
 _STATE_GLYPHS: ta.Mapping[CardState, str] = {
@@ -38,12 +39,14 @@ _STATE_GLYPHS: ta.Mapping[CardState, str] = {
     CardState.COMPLETE: '✓',
     CardState.DENIED: '✗',
     CardState.FAILED: '✗',
+    CardState.CANCELLED: '×',
 }
 
 TERMINAL_CARD_STATES: ta.AbstractSet[CardState] = frozenset([
     CardState.COMPLETE,
     CardState.DENIED,
     CardState.FAILED,
+    CardState.CANCELLED,
 ])
 
 
@@ -85,6 +88,9 @@ class Card(Control):
 
     def set_detail(self, detail: ta.Sequence[ta.Sequence[Segment]]) -> None:
         self._detail = tuple(tuple(row) for row in detail)
+
+    def set_on_confirm(self, on_confirm: ta.Callable[[bool], None] | None) -> None:
+        self._on_confirm = on_confirm
 
     def toggle_expanded(self) -> None:
         if self._detail:

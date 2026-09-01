@@ -7,6 +7,7 @@ from ... import llm
 from ...core.eventbus import EventSubscriber
 from ..types.contexts import Context
 from ..types.events import AgentEndEvent
+from ..types.events import AgentEndReason
 from ..types.events import AgentStartEvent
 from ..types.events import Event
 from ..types.events import LlmAiStreamEvent
@@ -190,19 +191,37 @@ class TurnLoop:
     #
 
     async def run(self) -> TurnResult:
-        await self._publish(AgentStartEvent())
+        end_reason = AgentEndReason.COMPLETED
+        end_error: BaseException | None = None
 
-        while True:
-            turn_result = await self._turn()
+        try:
+            await self._publish(AgentStartEvent())
 
-            if not turn_result.should_continue:
-                break
+            while True:
+                turn_result = await self._turn()
 
-        await self._publish(AgentEndEvent(
-            context=self._context,
+                if not turn_result.should_continue:
+                    break
 
-            new_messages=self._new_messages,
-        ))
+        except Exception as e:
+            end_reason = AgentEndReason.FAILED
+            end_error = e
+            raise
+
+        except BaseException as e:
+            end_reason = AgentEndReason.CANCELLED
+            end_error = e
+            raise
+
+        finally:
+            await self._publish(AgentEndEvent(
+                context=self._context,
+
+                new_messages=self._new_messages,
+
+                reason=end_reason,
+                error=end_error,
+            ))
 
         return TurnResult(
             config=self._config,

@@ -60,9 +60,10 @@ class PromptPump:
 
         self._queue: list[str] = []
         self._task: asyncio.Task | None = None
+        self._closing = False
 
     def submit(self, text: str) -> None:
-        if not text.strip():
+        if self._closing or not text.strip():
             return
         if text.startswith('/'):
             self._app.show_command_echo(text)
@@ -72,7 +73,7 @@ class PromptPump:
         self._maybe_start()
 
     def _maybe_start(self) -> None:
-        if self._task is not None or not self._queue:
+        if self._closing or self._task is not None or not self._queue:
             return
         text = self._queue.pop(0)
         self._task = asyncio.get_running_loop().create_task(self._run_one(text))
@@ -86,9 +87,19 @@ class PromptPump:
             self._task = None
             self._maybe_start()
 
-    async def aclose(self) -> None:
-        if (task := self._task) is not None:
+    def cancel_current(self) -> bool:
+        if (task := self._task) is None or task.done():
+            return False
+        if not task.cancelling():
             task.cancel()
+        return True
+
+    async def aclose(self) -> None:
+        self._closing = True
+        self._queue.clear()
+        if (task := self._task) is not None:
+            if not task.cancelling():
+                task.cancel()
             try:
                 await task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001, S110
@@ -143,6 +154,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
         pump = PromptPump(session=session, app=app)
         app.on_submit = pump.submit
+        app.on_cancel = pump.cancel_current
 
         # The driver starts before any agent activity: its run prologue prepares the surface, and everything the setup
         # below causes to display (e.g. verbose-mode StateUpdateEvents) buffers until then.

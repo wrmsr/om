@@ -2,8 +2,8 @@
 Output side of the minitui backend: the `ui.TextDisplayer` that renders the shared `Text` node family through the
 minitui commit model, and the agent-event subscriber that drives streaming markdown and tool cards.
 
-Event handlers are awaited serially inside the agent's turn - everything here mutates control state and invalidates,
-never blocks.
+Agent callbacks run on the driver's asyncio loop. Tool-event handling mutates control state synchronously and
+invalidates; concurrent tool tasks may interleave events, but never individual card updates.
 """
 import json
 import typing as ta
@@ -17,6 +17,7 @@ from ....core import ui
 from ..config import Config
 from ..inject import bind_on_agent_event_subscriber
 from .app import MinituiChatApp
+from .toolcards import tool_card_key
 
 
 ##
@@ -148,7 +149,10 @@ class AgentEventRenderer:
             app.begin_ai_turn()
 
         elif isinstance(ev, agn.AgentEndEvent):
-            app.end_ai_turn()
+            if ev.reason is agn.AgentEndReason.COMPLETED:
+                app.end_ai_turn()
+            else:
+                app.abort_ai_turn(cancelled=ev.reason is agn.AgentEndReason.CANCELLED)
 
         elif isinstance(ev, agn.LlmAiStreamEvent):
             if not self._config.immediate:
@@ -161,11 +165,12 @@ class AgentEventRenderer:
                         await self._text_displayer.display_text(ui.MarkdownText(s))
 
         elif isinstance(ev, agn.ToolExecutionStartEvent):
-            app.tool_started(self._tool_title(ev.tool), self._tool_detail(ev.context))
+            app.tool_started(tool_card_key(ev.context), self._tool_title(ev.tool), self._tool_detail(ev.context))
 
         elif isinstance(ev, agn.ToolExecutionEndEvent):
             result_text = ev.result.content.text if ev.result.error is None else repr(ev.result.error)
             app.tool_finished(
+                tool_card_key(ev.context),
                 self._tool_title(ev.tool),
                 ok=ev.result.error is None,
                 detail_rows=[

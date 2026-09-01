@@ -6,6 +6,7 @@ This module is pure UI - it knows nothing of agents or sessions. `main` wires `o
 `output` drives the streaming / display methods from agent events, and `input` drives the permission-card flow. All
 methods here are loop-side (the agent shares the asyncio loop with the driver); none block.
 """
+import collections
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -13,6 +14,9 @@ from omcore import inject as inj
 from omdev.tui import minitui as mt
 
 from ..config import Config
+
+
+CardRows: ta.TypeAlias = tuple[tuple[mt.Segment, ...], ...]
 
 
 ##
@@ -23,6 +27,27 @@ THEME = mt.DEFAULT_THEME.extend({
     'speaker.you': mt.Style(fg=mt.TEXT_SECONDARY, bold=True),
     'echo.command': mt.Style(fg=mt.TEXT_SECONDARY, italic=True),
 })
+
+
+def _freeze_rows(rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> CardRows:
+    return tuple(tuple(row) for row in rows)
+
+
+@dc.dataclass()
+class _ToolCardEntry:
+    title: str
+    base_detail: CardRows
+    card: mt.Card
+
+    ready_to_finalize: bool = False
+
+
+@dc.dataclass(frozen=True)
+class _PermissionCardRequest:
+    key: str
+    title: str
+    on_respond: ta.Callable[[bool], None]
+    on_cancel: ta.Callable[[], None] | None = None
 
 
 ##
@@ -50,7 +75,9 @@ class MinituiChatApp(mt.App):
         )
         self._history = mt.InputHistory()
 
-        self._card: mt.Card | None = None
+        self._cards: dict[str, _ToolCardEntry] = {}
+        self._permission_queue: collections.deque[_PermissionCardRequest] = collections.deque()
+        self._active_permission: _PermissionCardRequest | None = None
         self._layout: mt.StackLayout | None = None
 
         self._busy = False
@@ -61,6 +88,7 @@ class MinituiChatApp(mt.App):
 
         # The submit hook - `main` points this at the session prompt pump.
         self.on_submit: ta.Callable[[str], None] | None = None
+        self.on_cancel: ta.Callable[[], bool] | None = None
 
         self._refresh_status()
 
@@ -72,6 +100,10 @@ class MinituiChatApp(mt.App):
     @property
     def width(self) -> int:
         return max(self._driver.surface.width, 8)
+
+    @property
+    def is_busy(self) -> bool:
+        return self._busy
 
     def _commit_rows(self, rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> None:
         self._driver.commit([mt.line_from_segments(row, THEME) for row in rows])
@@ -122,6 +154,34 @@ class MinituiChatApp(mt.App):
         self._refresh_status()
         self._driver.invalidate()
 
+    def abort_ai_turn(self, *, cancelled: bool) -> None:
+        self.stream_break()
+
+        requests = [
+            *([self._active_permission] if self._active_permission is not None else []),
+            *self._permission_queue,
+        ]
+        self._active_permission = None
+        self._permission_queue.clear()
+        for request in requests:
+            if request.on_cancel is not None:
+                request.on_cancel()
+
+        state = mt.CardState.CANCELLED if cancelled else mt.CardState.FAILED
+        status = 'cancelled' if cancelled else 'failed'
+        for entry in self._cards.values():
+            entry.card.set_on_confirm(None)
+            if not entry.card.is_terminal:
+                entry.card.set_state(state)
+                entry.card.set_summary([(entry.title, 'card.summary'), (f'  {status}', 'card.summary.dim')])
+            entry.ready_to_finalize = True
+        self._flush_ready_cards()
+
+        self._busy = False
+        self._thinking = False
+        self._refresh_status()
+        self._driver.invalidate()
+
     ##
     # Streaming markdown
 
@@ -150,85 +210,173 @@ class MinituiChatApp(mt.App):
         self._driver.invalidate()
 
     ##
-    # Tool cards. Tools execute sequentially within a turn, so a single live-card slot suffices; a new card displaces
-    # (finalizes) any leftover one.
+    # Tool cards
+
+    def _add_tool_card(
+            self,
+            key: str,
+            title: str,
+            detail_rows: ta.Sequence[ta.Sequence[mt.Segment]],
+            *,
+            state: mt.CardState,
+    ) -> _ToolCardEntry:
+        frozen_detail = _freeze_rows(detail_rows)
+        entry = _ToolCardEntry(
+            title=title,
+            base_detail=frozen_detail,
+            card=mt.Card(
+                [(title, 'card.summary'), ('  running...', 'card.summary.dim')],
+                state=state,
+                detail=frozen_detail,
+            ),
+        )
+        self._cards[key] = entry
+        return entry
+
+    def _activate_next_permission(self) -> None:
+        if self._active_permission is not None:
+            return
+
+        # F10/F2 are global bindings, so only one queued card may advertise them at a time.
+        while self._permission_queue:
+            request = self._permission_queue.popleft()
+            if (entry := self._cards.get(request.key)) is None:
+                if request.on_cancel is not None:
+                    request.on_cancel()
+                continue
+
+            def respond(allowed: bool, *, request: _PermissionCardRequest = request) -> None:
+                self._respond_permission(request, allowed)
+
+            self._active_permission = request
+            entry.card.set_state(mt.CardState.CONFIRMING)
+            entry.card.set_summary([
+                (request.title, 'card.summary'),
+                ('  awaiting confirmation', 'card.summary.dim'),
+            ])
+            entry.card.set_on_confirm(respond)
+            return
+
+    def _respond_permission(self, request: _PermissionCardRequest, allowed: bool) -> None:
+        if self._active_permission is not request:
+            return
+
+        self._active_permission = None
+        if (entry := self._cards.get(request.key)) is not None:
+            entry.card.set_on_confirm(None)
+            if allowed:
+                entry.card.set_state(mt.CardState.RUNNING)
+                entry.card.set_summary([
+                    (request.title, 'card.summary'),
+                    ('  running...', 'card.summary.dim'),
+                ])
+            else:
+                entry.card.set_state(mt.CardState.DENIED)
+                entry.card.set_summary([
+                    (request.title, 'card.summary'),
+                    ('  denied', 'card.summary.dim'),
+                ])
+                self._finalize_card_later(request.key, entry, .6)
+
+        try:
+            request.on_respond(allowed)
+        finally:
+            self._activate_next_permission()
+            self._driver.invalidate()
 
     def begin_permission_card(
             self,
+            key: str,
             title: str,
             detail_rows: ta.Sequence[ta.Sequence[mt.Segment]],
             on_respond: ta.Callable[[bool], None],
+            *,
+            on_cancel: ta.Callable[[], None] | None = None,
     ) -> None:
-        self.finalize_card()
+        if (
+                (self._active_permission is not None and self._active_permission.key == key) or
+                any(request.key == key for request in self._permission_queue)
+        ):
+            raise RuntimeError(f'Tool card already has a pending permission request: {key!r}')
 
-        def respond(allowed: bool) -> None:
-            # Act only on this closure's own card - the slot may hold a successor by now.
-            if self._card is new_card:
-                if allowed:
-                    new_card.set_state(mt.CardState.RUNNING)
-                    new_card.set_summary([(title, 'card.summary'), ('  running...', 'card.summary.dim')])
-                else:
-                    new_card.set_state(mt.CardState.DENIED)
-                    new_card.set_summary([(title, 'card.summary'), ('  denied', 'card.summary.dim')])
-                    self._finalize_card_later(new_card, .6)
-            on_respond(allowed)
-            self._driver.invalidate()
+        if (entry := self._cards.get(key)) is None:
+            entry = self._add_tool_card(key, title, (), state=mt.CardState.PENDING)
+        else:
+            entry.title = title
+            entry.ready_to_finalize = False
 
-        new_card = mt.Card(
-            [(title, 'card.summary'), ('  awaiting confirmation', 'card.summary.dim')],
-            state=mt.CardState.CONFIRMING,
-            detail=list(detail_rows),
-            on_confirm=respond,
-        )
-        self._card = new_card
+        frozen_detail = _freeze_rows(detail_rows)
+        entry.card.set_state(mt.CardState.PENDING)
+        entry.card.set_summary([(title, 'card.summary'), ('  queued for confirmation', 'card.summary.dim')])
+        entry.card.set_detail([*entry.base_detail, *frozen_detail])
+        entry.card.set_on_confirm(None)
+
+        self._permission_queue.append(_PermissionCardRequest(
+            key=key,
+            title=title,
+            on_respond=on_respond,
+            on_cancel=on_cancel,
+        ))
+        self._activate_next_permission()
         self._driver.invalidate()
 
-    def tool_started(self, title: str, detail_rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> None:
-        card = self._card
-        if card is not None and card.state is mt.CardState.RUNNING:
-            # The permission card already covers this execution.
-            return
-        self.finalize_card()
-        self._card = mt.Card(
-            [(title, 'card.summary'), ('  running...', 'card.summary.dim')],
-            state=mt.CardState.RUNNING,
-            detail=list(detail_rows),
-        )
+    def tool_started(
+            self,
+            key: str,
+            title: str,
+            detail_rows: ta.Sequence[ta.Sequence[mt.Segment]],
+    ) -> None:
+        frozen_detail = _freeze_rows(detail_rows)
+        if (entry := self._cards.get(key)) is None:
+            self._add_tool_card(key, title, frozen_detail, state=mt.CardState.RUNNING)
+        else:
+            entry.title = title
+            entry.base_detail = frozen_detail
+            entry.ready_to_finalize = False
+            if entry.card.state not in (mt.CardState.PENDING, mt.CardState.CONFIRMING):
+                entry.card.set_state(mt.CardState.RUNNING)
+                entry.card.set_summary([(title, 'card.summary'), ('  running...', 'card.summary.dim')])
+                entry.card.set_detail(frozen_detail)
+                entry.card.set_on_confirm(None)
         self._driver.invalidate()
 
     def tool_finished(
             self,
+            key: str,
             title: str,
             *,
             ok: bool,
             detail_rows: ta.Sequence[ta.Sequence[mt.Segment]] | None = None,
     ) -> None:
-        card = self._card
-        if card is None:
-            return
-        card.set_state(mt.CardState.COMPLETE if ok else mt.CardState.FAILED)
-        card.set_summary([(title, 'card.summary'), ('  done' if ok else '  failed', 'card.summary.dim')])
+        if (entry := self._cards.get(key)) is None:
+            entry = self._add_tool_card(key, title, (), state=mt.CardState.RUNNING)
+
+        entry.title = title
+        entry.card.set_on_confirm(None)
+        entry.card.set_state(mt.CardState.COMPLETE if ok else mt.CardState.FAILED)
+        entry.card.set_summary([(title, 'card.summary'), ('  done' if ok else '  failed', 'card.summary.dim')])
         if detail_rows is not None:
-            card.set_detail(list(detail_rows))
-        self._finalize_card_later(card, .8)
+            entry.card.set_detail(detail_rows)
+        self._finalize_card_later(key, entry, .8)
         self._driver.invalidate()
 
-    def _finalize_card_later(self, card: mt.Card, delay_s: float) -> None:
-        # Identity-guarded: by the time the warm-window delay elapses, the slot may already hold the NEXT tool's card
-        # (back-to-back tool uses); a stale timer must never finalize a successor out from under the user.
+    def _flush_ready_cards(self) -> None:
+        # A later tool may finish first, but scrollback should retain the model's tool-call order.
+        while self._cards:
+            key, entry = next(iter(self._cards.items()))
+            if not entry.ready_to_finalize:
+                return
+            del self._cards[key]
+            self._commit_rows([*entry.card.render(self.width), []])
+
+    def _finalize_card_later(self, key: str, entry: _ToolCardEntry, delay_s: float) -> None:
         def fn() -> None:
-            if self._card is card:
-                self.finalize_card()
+            if self._cards.get(key) is entry:
+                entry.ready_to_finalize = True
+                self._flush_ready_cards()
+                self._driver.invalidate()
 
         self._driver.timers.call_later(delay_s, fn)
-
-    def finalize_card(self) -> None:
-        card = self._card
-        if card is None:
-            return
-        self._card = None
-        self._commit_rows([*card.render(self.width), []])
-        self._driver.invalidate()
 
     ##
     # Input
@@ -268,17 +416,32 @@ class MinituiChatApp(mt.App):
     def _handle_app_key(self, event: mt.KeyEvent) -> bool:
         key = event.key
 
+        if key == mt.Key('escape') and (cancel := self.on_cancel) is not None and cancel():
+            return True
+
         if key == mt.Key('d', ctrl=True):
             self._driver.stop()
             return True
 
-        if (card := self._card) is not None:
-            if key == mt.Key('f10') and card.state is mt.CardState.CONFIRMING:
-                card.respond(True)
+        permission_card = None
+        if (
+                (permission := self._active_permission) is not None and
+                (entry := self._cards.get(permission.key)) is not None
+        ):
+            permission_card = entry.card
+
+        if permission_card is not None:
+            if key == mt.Key('f10'):
+                permission_card.respond(True)
                 return True
-            if key == mt.Key('f2') and card.state is mt.CardState.CONFIRMING:
-                card.respond(False)
+            if key == mt.Key('f2'):
+                permission_card.respond(False)
                 return True
+
+        card = permission_card
+        if card is None and self._cards:
+            card = next(reversed(self._cards.values())).card
+        if card is not None:
             if key == mt.Key('o', ctrl=True):
                 card.toggle_expanded()
                 return True
@@ -346,9 +509,19 @@ class MinituiChatApp(mt.App):
         self._driver.invalidate()
 
     def render(self, width: int, max_height: int) -> mt.Frame:
+        permission_card = None
+        if (
+                (permission := self._active_permission) is not None and
+                (entry := self._cards.get(permission.key)) is not None
+        ):
+            permission_card = entry.card
+        cards = [entry.card for entry in self._cards.values() if entry.card is not permission_card]
+        if permission_card is not None:
+            cards.append(permission_card)
+
         controls: list[mt.Control] = [
             self._tail,
-            *([self._card] if self._card is not None else []),
+            *cards,
             self._popup,
             self._input,
             self._status,

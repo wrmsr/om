@@ -15,6 +15,7 @@ from ..permissions.types import PermissionState
 from ..turns.runner import TurnLoopRunner
 from ..types.contexts import Context
 from ..types.events import AgentEndEvent
+from ..types.events import AgentEndReason
 from ..types.tools import ToolEnvironment
 from ..types.tools import ToolSet
 
@@ -57,6 +58,7 @@ async def _run_agent(td, m):
     agent.subscribe(lambda e: ended.append(e) if isinstance(e, AgentEndEvent) else None)
 
     await agent.prompt('please run the echo')
+    assert ended[-1].reason is AgentEndReason.COMPLETED
     return ended[-1].new_messages
 
 

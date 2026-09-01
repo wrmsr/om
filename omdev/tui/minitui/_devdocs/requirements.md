@@ -11,7 +11,7 @@ tiny fullscreen vim clone demo app.
 - **Streaming markdown messages**: append-only content stream into a message, then finalize (re-render final form).
   States: new / streaming / finalized.
 - **Tool cards**: a single updatable widget following one tool use through its lifecycle
-  (streaming/pending/running/complete/confirming/denied/failed), expandable inner content while warm.
+  (streaming/pending/running/complete/confirming/denied/failed/cancelled), expandable inner content while warm.
 - **Tool confirmations**: block on a future resolved by keyboard (allow-all / deny-all bindings) or click while warm.
 - **Input**: multi-line text entry, history (prev/next), slash-command suggestions popup with tab cycling, mode glyph.
 - **Status bar**: spinner while active, driver state display; now also vim mode/pending-keys display.

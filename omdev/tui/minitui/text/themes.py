@@ -104,6 +104,7 @@ DARK_THEME = Theme({
     'card.glyph.complete': Style(fg=SUCCESS),
     'card.glyph.denied': Style(fg=TEXT_ERROR),
     'card.glyph.failed': Style(fg=TEXT_ERROR),
+    'card.glyph.cancelled': Style(fg=TEXT_SECONDARY),
     'card.allow': Style(fg=BACKGROUND, bg=SUCCESS, bold=True),
     'card.deny': Style(fg=FOREGROUND, bg=ERROR, bold=True),
 
