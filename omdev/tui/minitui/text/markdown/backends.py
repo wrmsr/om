@@ -4,6 +4,7 @@ from omcore import lang
 
 from .base import MarkdownStream
 from .base import MarkdownStreamBackend
+from .base import MdBlock
 
 
 if ta.TYPE_CHECKING:
@@ -44,3 +45,14 @@ def get_markdown_stream(name: str | None = None) -> MarkdownStreamBackend:
     if not markdownit.markdown_it_available():
         raise LookupError('markdown-it backend requested but markdown_it is not installed')
     return markdownit.MarkdownItStream()
+
+
+def parse_markdown_with(backend: MarkdownStreamBackend, text: str) -> list[MdBlock]:
+    """
+    A one-shot parse through a streaming backend: feed everything, drain it with `finalize`. For non-streamed content
+    (a whole response in immediate mode, an echoed user message) that should render with the same fidelity as the live
+    tail - pass a fresh instance (`get_markdown_stream()`), not a tail's own mid-stream backend.
+    """
+
+    backend.feed(text)
+    return backend.finalize()

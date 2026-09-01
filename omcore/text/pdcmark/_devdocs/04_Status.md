@@ -163,8 +163,12 @@ parser doesn't emit corresponding events:
 - The `[foo][bar][baz]` bracket-chaining pair (CM 569/571): a failed `[foo][bar]`'s re-tokenized
   `[bar]` cannot pair with the following `[baz]` - the suffix rescan is bounded at its own span.
   The last two prescan-mode failures.
-- Pulldown's own `specs/table.txt` is a stricter suite than the GFM spec; most of its cases
-  exercise interactions with constructs we don't implement.
+- Pulldown's own `specs/table.txt` is a stricter suite than the GFM spec. Compared structurally
+  (ignoring whitespace between tags - its fixtures compact table markup onto one line) 25/28 pass
+  by default, 26/28 under prescan. Two misses are deliberate cmark-gfm / GitHub-compatible choices:
+  a header row may be the last line of a multi-line paragraph without a leading pipe (pulldown
+  requires the pipe), and a `- | -` delimiter row is a list item (pulldown reads it as a table).
+  The third is the forward-reference streaming tradeoff (refdefs below the tables that use them).
 - Forward-reference resolution in streaming mode degrades to `LinkType.*_UNKNOWN` /
   `BrokenLinkResolver`. Documented; oneshot's `prescan_refdefs=True` recovers full spec behavior.
 - Pathological bracket floods (`[` × N + `]` × N) are polynomial (list splicing), not linear —

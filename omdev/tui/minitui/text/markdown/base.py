@@ -8,13 +8,16 @@ closing code fence), and `MarkdownStream` uses that to split an incoming stream 
 scrollback forever versus a tail that re-renders live each frame.
 
 Supported: atx headings, paragraphs, fenced code blocks (with an info string routed to a highlighter), block quotes,
-flat unordered/ordered lists, thematic breaks, and the inline set (bold / italic / strike / inline code / links).
-Deliberately unsupported (so far): setext headings, nested lists/quotes, tables, reference links, html.
+indent-nested unordered/ordered lists, thematic breaks, GFM pipe tables (a header row, an alignment row, body rows),
+and the inline set (bold / italic / strike / inline code / links).
+Deliberately unsupported (so far): setext headings, nested quotes, tables inside other blocks (their lines just join the
+enclosing paragraph text), reference links, html.
 
 (The optional markdown-it-py/incparse path can slot in later behind the same block/renderer types; this internal
 implementation is the always-available default, per the codestyle's dependency policy.)
 """
 import abc
+import enum
 import re
 import typing as ta
 
@@ -23,7 +26,9 @@ from omcore import lang
 
 from ..segments import Segment
 from ..segments import SegmentRows
+from ..segments import segments_text
 from ..styles import StyleLike
+from ..widths import str_width
 from ..wrap import wrap_segments
 
 
@@ -95,6 +100,43 @@ class MdRule(MdBlock, lang.Final):
     pass
 
 
+class MdTableAlign(enum.Enum):
+    NONE = 'none'
+    LEFT = 'left'
+    CENTER = 'center'
+    RIGHT = 'right'
+
+
+@dc.dataclass(frozen=True)
+class MdTableRow(lang.Final):
+    cells: tuple[tuple[Segment, ...], ...]
+
+    @classmethod
+    def of(cls, *texts: str) -> MdTableRow:
+        return cls(tuple(tuple(parse_markdown_inlines(t)) for t in texts))
+
+
+@dc.dataclass(frozen=True)
+class MdTable(MdBlock, lang.Final):
+    """
+    A GFM pipe table: one header row, body rows, and per-column alignments. Rendering tolerates ragged input - short
+    rows pad with empty cells and a short `aligns` pads with NONE - so backends needn't normalize.
+    """
+
+    head: MdTableRow
+    rows: tuple[MdTableRow, ...] = ()
+    aligns: tuple[MdTableAlign, ...] = ()
+
+    @classmethod
+    def of(
+            cls,
+            head: ta.Sequence[str],
+            rows: ta.Sequence[ta.Sequence[str]] = (),
+            aligns: ta.Sequence[MdTableAlign] = (),
+    ) -> MdTable:
+        return cls(MdTableRow.of(*head), tuple(MdTableRow.of(*r) for r in rows), tuple(aligns))
+
+
 ##
 # Line-level parsing
 
@@ -104,6 +146,10 @@ _FENCE_PAT = re.compile(r'(```+|~~~+)\s*(\S*)\s*$')
 _RULE_PAT = re.compile(r'(\*\s*){3,}$|(-\s*){3,}$|(_\s*){3,}$')
 _QUOTE_PAT = re.compile(r'>\s?(.*)$')
 _LIST_PAT = re.compile(r'([-*+]|\d{1,9}[.)])\s+(.*)$')
+
+_TABLE_ALIGN_CELL = r'\s*:?-+:?\s*'
+_TABLE_ALIGN_PAT = re.compile(rf'\|?{_TABLE_ALIGN_CELL}(?:\|{_TABLE_ALIGN_CELL})*\|?$')
+_TABLE_PIPE_PAT = re.compile(r'(?<!\\)\|')  # a pipe not escaped by a backslash
 
 
 def _is_block_start(line: str) -> bool:
@@ -117,6 +163,54 @@ def _is_block_start(line: str) -> bool:
         _QUOTE_PAT.match(s) or
         _LIST_PAT.match(s),
     )
+
+
+def _split_table_cells(line: str) -> list[str]:
+    """
+    GFM cell splitting: unescaped pipes delimit, a leading / trailing pipe is decoration, `\\|` is a literal pipe. A
+    line with no cell content (a lone `|`) yields no cells - it is not a row.
+    """
+
+    s = line.strip().removeprefix('|')
+    if s.endswith('|') and not s.endswith('\\|'):
+        s = s[:-1]
+    if not s:
+        return []
+    return [c.strip().replace('\\|', '|') for c in _TABLE_PIPE_PAT.split(s)]
+
+
+def _parse_table_align(cell: str) -> MdTableAlign:
+    left = cell.startswith(':')
+    right = cell.endswith(':')
+    if left and right:
+        return MdTableAlign.CENTER
+    if left:
+        return MdTableAlign.LEFT
+    if right:
+        return MdTableAlign.RIGHT
+    return MdTableAlign.NONE
+
+
+def _match_table_head(lines: ta.Sequence[str], i: int) -> tuple[list[str], list[MdTableAlign]] | None:
+    """
+    `lines[i]` as a table header iff `lines[i + 1]` is an alignment row of the same cell count. The header must contain
+    an unescaped pipe and the alignment row must contain a pipe at all (a bare `---` stays a rule / paragraph text), and
+    a line that opens another block (`- | -` is a list item) never counts as the alignment row - matching pdcmark.
+    """
+
+    if i + 1 >= len(lines):
+        return None
+    align_s = lines[i + 1].strip()
+    if '|' not in align_s or _TABLE_ALIGN_PAT.match(align_s) is None or _is_block_start(align_s):
+        return None
+    head_s = lines[i].strip()
+    if _TABLE_PIPE_PAT.search(head_s) is None:
+        return None
+    aligns = [_parse_table_align(c) for c in _split_table_cells(align_s)]
+    head = _split_table_cells(head_s)
+    if len(head) != len(aligns):
+        return None
+    return head, aligns
 
 
 def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list[MdBlock], int]:  # noqa: C901
@@ -226,14 +320,40 @@ def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list
             settle(i)
             continue
 
-        # Paragraph: accumulate until a blank line or another block's start.
+        if (th := _match_table_head(lines, i)) is not None:
+            head, aligns = th
+            ncols = len(aligns)
+            rows: list[list[str]] = []
+            j = i + 2
+            while j < n and lines[j].strip() and not _is_block_start(lines[j]):
+                cells = _split_table_cells(lines[j])
+                if not cells:
+                    break  # a lone `|` is not a row: it ends the table
+                rows.append((cells + [''] * ncols)[:ncols])
+                j += 1
+            terminated = j < n or at_eof
+            if not terminated:
+                break
+            blocks.append(MdTable.of(head, rows, aligns))
+            i = j
+            settle(i)
+            continue
+
+        # Paragraph: accumulate until a blank line or another block's start - including a table whose header row is
+        # the paragraph's last line (GFM lets a table split off a paragraph that way).
         parts = [s]
         j = i + 1
+        table_follows = False
         while j < n and lines[j].strip() and not _is_block_start(lines[j]):
+            if _match_table_head(lines, j - 1) is not None:
+                table_follows = True
+                break
             parts.append(lines[j].strip())
             j += 1
-        terminated = j < n or at_eof
-        if not terminated:
+        if table_follows:
+            parts.pop()
+            j -= 1
+        elif not (j < n or at_eof):
             break
         blocks.append(MdParagraph.of(' '.join(parts)))
         i = j
@@ -425,6 +545,119 @@ def _retag(spans: ta.Sequence[Segment], base: str) -> list[Segment]:
 _LIST_BULLETS = '•◦▪'  # bullet glyph per nesting depth (cycling)
 
 
+#
+
+
+_TABLE_COL_SEP = ' │ '
+_TABLE_RULE_SEP = '─┼─'
+_TABLE_MIN_COL_WIDTH = 3  # columns shrink no narrower than this (or their natural width, if narrower) before giving up
+
+
+def _segments_width(segments: ta.Sequence[Segment]) -> int:
+    return str_width(segments_text(segments))
+
+
+def _fit_table_columns(natural: ta.Sequence[int], avail: int) -> list[int] | None:
+    """
+    Column widths summing to at most `avail`: the natural widths if they fit, else the widest column shrinks first
+    (cells wrap within it), down to a per-column floor. None if even the floors don't fit.
+    """
+
+    widths = list(natural)
+    floors = [min(w, _TABLE_MIN_COL_WIDTH) for w in widths]
+    while sum(widths) > avail:
+        shrinkable = [c for c in range(len(widths)) if widths[c] > floors[c]]
+        if not shrinkable:
+            return None
+        widths[max(shrinkable, key=lambda c: widths[c])] -= 1
+    return widths
+
+
+def _pad_table_cell(segments: list[Segment], pad: int, align: MdTableAlign, *, last: bool) -> list[Segment]:
+    if align is MdTableAlign.RIGHT:
+        left, right = pad, 0
+    elif align is MdTableAlign.CENTER:
+        left, right = pad // 2, pad - pad // 2
+    else:
+        left, right = 0, pad
+    if last:
+        right = 0  # no trailing whitespace past the last column
+    return [
+        *([Segment(' ' * left)] if left else []),
+        *segments,
+        *([Segment(' ' * right)] if right else []),
+    ]
+
+
+def _render_table_row(
+        cells: ta.Sequence[ta.Sequence[Segment]],
+        widths: ta.Sequence[int],
+        aligns: ta.Sequence[MdTableAlign],
+) -> list[list[Segment]]:
+    """One logical row -> one or more display rows: each cell wraps within its column, short cells pad with blanks."""
+
+    wrapped = [wrap_segments(list(cell), w) for cell, w in zip(cells, widths)]
+    height = max(len(lines) for lines in wrapped)
+    out: list[list[Segment]] = []
+    for k in range(height):
+        row: list[Segment] = []
+        for c, (lines, w) in enumerate(zip(wrapped, widths)):
+            if c:
+                row.append(Segment(_TABLE_COL_SEP, 'md.table.border'))
+            segs = list(lines[k]) if k < len(lines) else []
+            pad = max(w - _segments_width(segs), 0)
+            row.extend(_pad_table_cell(segs, pad, aligns[c], last=c == len(widths) - 1))
+        out.append(row)
+    return out
+
+
+def _render_table_narrow(
+        head: ta.Sequence[ta.Sequence[Segment]],
+        body: ta.Sequence[ta.Sequence[ta.Sequence[Segment]]],
+        width: int,
+) -> list[list[Segment]]:
+    """Too narrow for columns: each row wraps as one pipe-joined line, the header rule spanning the width."""
+
+    def joined(cells: ta.Sequence[ta.Sequence[Segment]]) -> list[list[Segment]]:
+        segs: list[Segment] = []
+        for c, cell in enumerate(cells):
+            if c:
+                segs.append(Segment(' | ', 'md.table.border'))
+            segs.extend(cell)
+        return [list(row) for row in wrap_segments(segs, width)]
+
+    rows = joined(head)
+    rows.append([Segment('─' * max(width, 1), 'md.table.border')])
+    for cells in body:
+        rows.extend(joined(cells))
+    return rows
+
+
+def _render_table(block: MdTable, width: int) -> list[list[Segment]]:
+    ncols = max(len(block.head.cells), *(len(r.cells) for r in block.rows), 1)
+
+    def cells_of(row: MdTableRow) -> list[list[Segment]]:
+        return [list(row.cells[c]) if c < len(row.cells) else [] for c in range(ncols)]
+
+    head = [_retag(cell, 'md.table.head') for cell in cells_of(block.head)]
+    body = [cells_of(r) for r in block.rows]
+    aligns = [block.aligns[c] if c < len(block.aligns) else MdTableAlign.NONE for c in range(ncols)]
+
+    natural = [max(1, *(_segments_width(row[c]) for row in (head, *body))) for c in range(ncols)]
+    widths = _fit_table_columns(natural, width - str_width(_TABLE_COL_SEP) * (ncols - 1))
+    if widths is None:
+        return _render_table_narrow(head, body, width)
+
+    rows = _render_table_row(head, widths, aligns)
+    rows.append([Segment(_TABLE_RULE_SEP.join('─' * w for w in widths), 'md.table.border')])
+    for cells in body:
+        rows.extend(_render_table_row(cells, widths, aligns))
+    return rows
+
+
+#
+
+
 def render_markdown_block(
         block: MdBlock,
         width: int,
@@ -455,6 +688,9 @@ def render_markdown_block(
 
     if isinstance(block, MdRule):
         return [[Segment('─' * max(width, 1), 'md.rule')]]
+
+    if isinstance(block, MdTable):
+        return _render_table(block, width)
 
     raise TypeError(block)
 

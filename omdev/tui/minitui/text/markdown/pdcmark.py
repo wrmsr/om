@@ -4,16 +4,17 @@ The pdcmark streaming backend: omcore's pure-python pulldown-cmark translation d
 pdcmark's `StreamingParser` contract is exactly this layer's contract - committed events are append-only, the tentative
 tail replaces itself, and any chunking of input commits the same stream a oneshot parse would - so the adapter here is
 pure event->block conversion. Committed events buffer until a complete top-level group closes (a block's Start..End, or
-a standalone event), since block conversion needs whole groups.
+a standalone event), since block conversion needs whole groups. The parser runs with the GFM preset by default (tables,
+strikethrough, task lists, admonitions) - llm output is GFM-flavored.
 
-Flattenings (the render model is deliberately simpler than commonmark): nested quote/item content joins into the
-parent's inline spans, with non-paragraph children (code blocks in quotes, etc.) emitted as sibling blocks; nested lists
-merge into their parent list with increased item depth; tables render as pipe-joined rows. Hard breaks soften to spaces
+Flattenings (the render model is deliberately simpler than commonmark; see `.flattening`): nested quote/item content
+joins into the parent's inline spans, with block-level children (a table or code block in a quote or item, etc.)
+emitted as sibling blocks - splitting a list where necessary so nothing is dropped; nested lists merge into their
+parent list with increased item depth; tables become `MdTable`s with inline-styled cells. Hard breaks soften to spaces
 (blocks re-wrap).
 """
 import typing as ta
 
-from omcore import dataclasses as dc
 from omcore.text import pdcmark
 
 from ..segments import Segment
@@ -21,11 +22,16 @@ from .base import MarkdownStreamBackend
 from .base import MdBlock
 from .base import MdCode
 from .base import MdHeading
-from .base import MdList
-from .base import MdListItem
 from .base import MdParagraph
 from .base import MdQuote
 from .base import MdRule
+from .base import MdTable
+from .base import MdTableAlign
+from .base import MdTableRow
+from .flattening import ListPart
+from .flattening import assemble_list_parts
+from .flattening import flatten_list_item
+from .flattening import join_span_groups
 
 
 ##
@@ -47,15 +53,12 @@ def _inline_style(tag: ta.Any) -> str | None:
     return None
 
 
-def _join_spans(groups: ta.Sequence[ta.Sequence[Segment]]) -> tuple[Segment, ...]:
-    out: list[Segment] = []
-    for group in groups:
-        if not group:
-            continue
-        if out:
-            out.append(Segment(' '))
-        out.extend(group)
-    return tuple(out)
+_TABLE_ALIGNS: ta.Mapping[pdcmark.Alignment, MdTableAlign] = {
+    pdcmark.Alignment.NONE: MdTableAlign.NONE,
+    pdcmark.Alignment.LEFT: MdTableAlign.LEFT,
+    pdcmark.Alignment.CENTER: MdTableAlign.CENTER,
+    pdcmark.Alignment.RIGHT: MdTableAlign.RIGHT,
+}
 
 
 class _EventWalker:
@@ -123,48 +126,46 @@ class _EventWalker:
                 blocks.extend(block_list)
         return blocks
 
-    def _list_items(self, list_tag: pdcmark.List) -> list[MdListItem]:
-        items: list[MdListItem] = []
+    def _list_parts(self, list_tag: pdcmark.List) -> list[ListPart]:
+        parts: list[ListPart] = []
         index = list_tag.start if list_tag.start is not None else None
         while (e := self._next()) is not None:
             if isinstance(e, pdcmark.End) and isinstance(e.tag, pdcmark.List):
                 break
             if isinstance(e, pdcmark.Start) and isinstance(e.tag, pdcmark.Item):
                 children = self._children_until(e.tag)
-                spans_groups: list[ta.Sequence[Segment]] = []
-                nested: list[MdListItem] = []
-                for child in children:
-                    if isinstance(child, MdParagraph):
-                        spans_groups.append(child.spans)
-                    elif isinstance(child, MdList):
-                        # Nested lists merge into the parent, one level deeper.
-                        nested.extend(dc.replace(it, depth=it.depth + 1) for it in child.items)
-                    elif isinstance(child, (MdHeading, MdQuote)):
-                        spans_groups.append(child.spans)
                 marker = f'{index}.' if index is not None else '-'
                 if index is not None:
                     index += 1
-                items.append(MdListItem(marker, _join_spans(spans_groups)))
-                items.extend(nested)
-        return items
+                parts.extend(flatten_list_item(marker, children))
+        return parts
 
-    def _table_rows(self, table_tag: pdcmark.Table) -> list[MdBlock]:
-        rows: list[MdBlock] = []
+    def _table(self, table_tag: pdcmark.Table) -> MdTable:
+        head: tuple[tuple[Segment, ...], ...] = ()
+        rows: list[MdTableRow] = []
         cells: list[tuple[Segment, ...]] = []
+        in_head = False
         while (e := self._next()) is not None:
             if isinstance(e, pdcmark.End) and isinstance(e.tag, pdcmark.Table):
                 break
-            if isinstance(e, pdcmark.Start) and isinstance(e.tag, pdcmark.TableCell):
+            if isinstance(e, pdcmark.Start) and isinstance(e.tag, pdcmark.TableHead):
+                in_head = True
+            elif isinstance(e, pdcmark.Start) and isinstance(e.tag, pdcmark.TableCell):
                 cells.append(self._inline_spans(e.tag))
-            elif isinstance(e, pdcmark.End) and isinstance(e.tag, (pdcmark.TableRow, pdcmark.TableHead)):
-                spans: list[Segment] = []
-                for ci, cell in enumerate(cells):
-                    if ci:
-                        spans.append(Segment(' | ', 'md.rule'))
-                    spans.extend(cell)
-                rows.append(MdParagraph(tuple(spans)))
+            elif isinstance(e, pdcmark.End) and isinstance(e.tag, pdcmark.TableHead):
+                head = tuple(cells)
                 cells = []
-        return rows
+                in_head = False
+            elif isinstance(e, pdcmark.End) and isinstance(e.tag, pdcmark.TableRow):
+                rows.append(MdTableRow(tuple(cells)))
+                cells = []
+        if cells:
+            # A row cut off by the end of the events (a partial view) still shows.
+            if in_head:
+                head = tuple(cells)
+            else:
+                rows.append(MdTableRow(tuple(cells)))
+        return MdTable(MdTableRow(head), tuple(rows), tuple(_TABLE_ALIGNS[a] for a in table_tag.alignments))
 
     ##
 
@@ -196,13 +197,13 @@ class _EventWalker:
             extras = [c for c in children if not isinstance(c, MdParagraph)]
             out: list[MdBlock] = []
             if spans_groups:
-                out.append(MdQuote(_join_spans(spans_groups)))
+                out.append(MdQuote(join_span_groups(spans_groups)))
             out.extend(extras)
             return out
         if isinstance(tag, pdcmark.List):
-            return [MdList(tuple(self._list_items(tag)))]
+            return assemble_list_parts(self._list_parts(tag))
         if isinstance(tag, pdcmark.Table):
-            return self._table_rows(tag)
+            return [self._table(tag)]
 
         # Unknown/inline Start at block level: skip through to its End defensively.
         self._children_until(tag)
@@ -239,16 +240,20 @@ def _complete_group_split(events: ta.Sequence[pdcmark.Event]) -> int:
 
 
 class PdcmarkStream(MarkdownStreamBackend):
-    def __init__(self, options: ta.Any | None = None) -> None:
+    def __init__(self, options: pdcmark.Options | None = None) -> None:
         super().__init__()
 
-        self._options = options
+        self._options = options if options is not None else pdcmark.GFM
         self._parser = self._new_parser()
         self._pending: list[pdcmark.Event] = []  # committed events not yet forming a complete group
         self._tentative: list[pdcmark.Event] = []
 
+    @property
+    def options(self) -> pdcmark.Options:
+        return self._options
+
     def _new_parser(self) -> pdcmark.StreamingParser:
-        return pdcmark.StreamingParser(**({'options': self._options} if self._options is not None else {}))
+        return pdcmark.StreamingParser(self._options)
 
     def feed(self, chunk: str) -> None:
         if not chunk:

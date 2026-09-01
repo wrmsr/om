@@ -237,6 +237,7 @@ with _lang.auto_proxy_init(
     from .text.markdown.backends import (  # noqa
         MARKDOWN_BACKEND_NAMES,
         get_markdown_stream,
+        parse_markdown_with,
     )
 
     from .text.markdown.base import (  # noqa
@@ -248,6 +249,9 @@ with _lang.auto_proxy_init(
         MdListItem,
         MdList,
         MdRule,
+        MdTableAlign,
+        MdTableRow,
+        MdTable,
 
         parse_markdown_lines,
         parse_markdown,

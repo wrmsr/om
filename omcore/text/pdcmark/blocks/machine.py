@@ -821,6 +821,14 @@ class BlockMachine:
             self._dispatch_leaf(bl, ls, events)
             return
 
+        # A line with no cell content at all (a lone `|`) is not a row: it ends the table and re-dispatches as ordinary
+        # content (cf. cmark-gfm's table `matches`, which rejects a zero-column row).
+        if _count_table_cells(content) == 0:
+            events.extend(self._close_to_events(open_, bl.line_start))
+            self._open = None
+            self._dispatch_leaf(bl, ls, events)
+            return
+
         cells = parse_table_row(content, len(open_.alignments))
         row_line = BufferedLine(
             text=content,

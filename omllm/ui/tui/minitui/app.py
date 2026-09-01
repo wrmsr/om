@@ -155,8 +155,18 @@ class MinituiChatApp(mt.App):
         self._commit_rows([*rows, []])
         self._driver.invalidate()
 
+    def _parse_markdown(self, text: str) -> list[mt.MdBlock]:
+        # Non-streamed content parses one-shot through a fresh instance of the same backend the streaming tail uses,
+        # so immediate-mode responses and echoed prompts get full fidelity (pdcmark's real inline engine, tables) rather
+        # than the internal fallback parser - without touching the live tail's state.
+        return mt.parse_markdown_with(mt.get_markdown_stream(), text)
+
     def display_markdown(self, text: str) -> None:
-        self.display_rows(mt.render_markdown_blocks(mt.parse_markdown(text), self.width, highlighter=mt.highlight_code))
+        self.display_rows(mt.render_markdown_blocks(
+            self._parse_markdown(text),
+            self.width,
+            highlighter=mt.highlight_code,
+        ))
 
     def display_inline(self, segments: ta.Sequence[mt.Segment]) -> None:
         self.display_rows(mt.wrap_segments(segments, self.width) if segments else [[]])
@@ -175,7 +185,7 @@ class MinituiChatApp(mt.App):
     def show_user_message(self, text: str) -> None:
         self._commit_rows([
             [mt.Segment('you', 'speaker.you')],
-            *self._tail.render_settled(mt.parse_markdown(text), self.width),
+            *self._tail.render_settled(self._parse_markdown(text), self.width),
             [],
         ])
         self._driver.invalidate()

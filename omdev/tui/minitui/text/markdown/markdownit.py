@@ -2,16 +2,17 @@
 The markdown-it streaming backend: `markdown_it` tokens (via omdev's incremental parser) driving the shared MdBlock
 model.
 
-Strictly quarantined optional dependency: markdown_it is proxy-imported through omdev's incparse; availability is probed
-without importing. omdev's `IncrementalMarkdownParser` supplies the stable/unstable token split - its stability rule
-(everything before the second-to-last top-level token) is markdown-it's own block structure, so settling fidelity comes
-from the real parser. The same flattenings as the pdcmark backend apply.
+Strictly quarantined optional dependency: markdown_it is proxy-imported; availability is probed without importing.
+omdev's `IncrementalMarkdownParser` supplies the stable/unstable token split - its stability rule (everything before the
+second-to-last top-level token) is markdown-it's own block structure, so settling fidelity comes from the real parser.
+The parser is the `commonmark` preset with the GFM table and strikethrough rules enabled (llm output is GFM-flavored).
+The same flattenings as the pdcmark backend apply (see `.flattening`).
 """
 import functools
 import importlib.util
 import typing as ta
 
-from omcore import dataclasses as dc
+from omcore import lang
 
 from .....markdownit import incparse
 from ..segments import Segment
@@ -19,11 +20,20 @@ from .base import MarkdownStreamBackend
 from .base import MdBlock
 from .base import MdCode
 from .base import MdHeading
-from .base import MdList
-from .base import MdListItem
 from .base import MdParagraph
 from .base import MdQuote
 from .base import MdRule
+from .base import MdTable
+from .base import MdTableAlign
+from .base import MdTableRow
+from .flattening import ListPart
+from .flattening import assemble_list_parts
+from .flattening import flatten_list_item
+from .flattening import join_span_groups
+
+
+with lang.auto_proxy_import(globals()):
+    import markdown_it as md
 
 
 ##
@@ -34,11 +44,22 @@ def markdown_it_available() -> bool:
     return importlib.util.find_spec('markdown_it') is not None
 
 
+def new_markdown_it_parser() -> md.MarkdownIt:
+    return md.MarkdownIt('commonmark').enable(['table', 'strikethrough'])
+
+
 _INLINE_OPEN_STYLES: ta.Mapping[str, str] = {
     'strong_open': 'md.bold',
     'em_open': 'md.italic',
     's_open': 'md.strike',
     'link_open': 'md.link',
+}
+
+
+_TABLE_ALIGN_STYLES: ta.Mapping[str, MdTableAlign] = {
+    'text-align:left': MdTableAlign.LEFT,
+    'text-align:center': MdTableAlign.CENTER,
+    'text-align:right': MdTableAlign.RIGHT,
 }
 
 
@@ -111,34 +132,52 @@ class _TokenWalker:
                 blocks.extend(converted)
         return blocks
 
-    def _list_items(self, close_type: str, start: int | None) -> list[MdListItem]:
-        items: list[MdListItem] = []
+    def _list_parts(self, close_type: str, start: int | None) -> list[ListPart]:
+        parts: list[ListPart] = []
         index = start
         while (tok := self._next()) is not None:
             if tok.type == close_type:
                 break
             if tok.type == 'list_item_open':
                 children = self._children_until('list_item_close')
-                groups: list[ta.Sequence[Segment]] = []
-                nested: list[MdListItem] = []
-                for child in children:
-                    if isinstance(child, MdParagraph):
-                        groups.append(child.spans)
-                    elif isinstance(child, MdList):
-                        nested.extend(dc.replace(it, depth=it.depth + 1) for it in child.items)
-                    elif isinstance(child, (MdHeading, MdQuote)):
-                        groups.append(child.spans)
-                joined: list[Segment] = []
-                for gi, group in enumerate(groups):
-                    if gi:
-                        joined.append(Segment(' '))
-                    joined.extend(group)
                 marker = f'{index}.' if index is not None else '-'
                 if index is not None:
                     index += 1
-                items.append(MdListItem(marker, tuple(joined)))
-                items.extend(nested)
-        return items
+                parts.extend(flatten_list_item(marker, children))
+        return parts
+
+    def _table(self) -> MdTable:
+        head: tuple[tuple[Segment, ...], ...] = ()
+        rows: list[MdTableRow] = []
+        aligns: list[MdTableAlign] = []
+        cells: list[tuple[Segment, ...]] = []
+        in_head = False
+        while (tok := self._next()) is not None:
+            t = tok.type
+            if t == 'table_close':
+                break
+            if t == 'thead_open':
+                in_head = True
+            elif t == 'thead_close':
+                in_head = False
+            elif t in ('th_open', 'td_open'):
+                if in_head:
+                    style = str(dict(tok.attrs or {}).get('style', '')).replace(' ', '')
+                    aligns.append(_TABLE_ALIGN_STYLES.get(style, MdTableAlign.NONE))
+                cells.append(self._inline_until(t[:2] + '_close'))
+            elif t == 'tr_close':
+                if in_head:
+                    head = tuple(cells)
+                else:
+                    rows.append(MdTableRow(tuple(cells)))
+                cells = []
+        if cells:
+            # A row cut off by the end of the tokens (a partial view) still shows.
+            if in_head:
+                head = tuple(cells)
+            else:
+                rows.append(MdTableRow(tuple(cells)))
+        return MdTable(MdTableRow(head), tuple(rows), tuple(aligns))
 
     def _convert_one(self, tok: ta.Any) -> list[MdBlock] | None:  # noqa: C901
         t = tok.type
@@ -156,21 +195,18 @@ class _TokenWalker:
             children = self._children_until('blockquote_close')
             groups = [c.spans for c in children if isinstance(c, MdParagraph)]
             extras = [c for c in children if not isinstance(c, MdParagraph)]
-            joined: list[Segment] = []
-            for gi, group in enumerate(groups):
-                if gi:
-                    joined.append(Segment(' '))
-                joined.extend(group)
             out: list[MdBlock] = []
-            if joined:
-                out.append(MdQuote(tuple(joined)))
+            if groups:
+                out.append(MdQuote(join_span_groups(groups)))
             out.extend(extras)
             return out
         if t == 'bullet_list_open':
-            return [MdList(tuple(self._list_items('bullet_list_close', None)))]
+            return assemble_list_parts(self._list_parts('bullet_list_close', None))
         if t == 'ordered_list_open':
             start = int(dict(tok.attrs or {}).get('start', 1))
-            return [MdList(tuple(self._list_items('ordered_list_close', start)))]
+            return assemble_list_parts(self._list_parts('ordered_list_close', start))
+        if t == 'table_open':
+            return [self._table()]
         if t == 'hr':
             return [MdRule()]
         if t == 'html_block':
@@ -198,9 +234,12 @@ class MarkdownItStream(MarkdownStreamBackend):
     def __init__(self) -> None:
         super().__init__()
 
-        self._inc = incparse.IncrementalMarkdownParser()
+        self._inc = self._new_parser()
         self._new_stable: list[ta.Any] = []
         self._unstable: list[ta.Any] = []
+
+    def _new_parser(self) -> incparse.IncrementalMarkdownParser:
+        return incparse.IncrementalMarkdownParser(parser=new_markdown_it_parser())
 
     def feed(self, chunk: str) -> None:
         if not chunk:
@@ -223,5 +262,5 @@ class MarkdownItStream(MarkdownStreamBackend):
         self._new_stable = []
         self._unstable = []
         # Reusable per the backend contract: a fresh parser for the next stream cycle.
-        self._inc = incparse.IncrementalMarkdownParser()
+        self._inc = self._new_parser()
         return tokens_to_blocks(tokens)

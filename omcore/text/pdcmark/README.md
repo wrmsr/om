@@ -154,7 +154,8 @@ and is tunable via `Options.link_ref_expansion_min`.
 |---|---|---|
 | CommonMark spec.txt | 459/572 | 503/572 (88%) |
 | GFM strikethrough | 3/3 | — |
-| GFM table | 8/9 | — |
+| GFM table | 9/9 | — |
+| pulldown-cmark `specs/table.txt` (structural) | 25/28 | 26/28 |
 | GFM tasklist | 2/2 | — |
 
 The remaining gap is mostly pulldown-specific extensions we deliberately don't support (definition lists, math, metadata

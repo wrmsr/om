@@ -4,6 +4,7 @@ third_party/GitHub/). Tables / strikethrough / tasklists are required to be enab
 the extensions these tests are not meaningful.
 """
 import os.path
+import re
 
 import pytest
 
@@ -49,3 +50,41 @@ def test_gfm_file_meets_floor(gfm_caseses, name):
     assert passes >= _GFM_FLOORS[name], (
         f'{name}: {passes}/{len(cases)} below floor {_GFM_FLOORS[name]}'
     )
+
+
+##
+
+
+def _structural(html: str) -> str:
+    """Whitespace between tags dropped: pulldown's own fixtures compact table markup onto single lines."""
+
+    return re.sub(r'>\s+<', '><', html).strip()
+
+
+@pytest.fixture(scope='module')
+def pulldown_table_cases(pulldown_cmark_root) -> list[SpecCase]:
+    return load_spec_file(os.path.join(pulldown_cmark_root, 'specs', 'table.txt'))
+
+
+# pulldown-cmark's `specs/table.txt` is stricter than the GFM fixtures. Three cases miss by design: two deliberate
+# divergences that follow cmark-gfm / GitHub instead of pulldown (a header row may be the last line of a multi-line
+# paragraph without a leading pipe; a `- | -` delimiter row is a list item), and one that references refdefs defined
+# below the tables - the documented forward-reference tradeoff of default (streaming-equivalent) mode, which
+# `prescan_refdefs=True` recovers.
+_PULLDOWN_TABLE_FLOOR = 25
+
+
+def test_pulldown_table_suite_meets_floor(pulldown_table_cases):
+    passes = 0
+    total = 0
+    for c in pulldown_table_cases:
+        if c.disabled:
+            continue
+        total += 1
+        try:
+            got = render_html(parse(c.markdown, GFM))
+        except Exception:  # noqa
+            continue
+        if _structural(got) == _structural(c.expected_html):
+            passes += 1
+    assert passes >= _PULLDOWN_TABLE_FLOOR, f'table.txt: {passes}/{total} below floor {_PULLDOWN_TABLE_FLOOR}'

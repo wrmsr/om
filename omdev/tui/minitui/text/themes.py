@@ -78,6 +78,8 @@ DARK_THEME = Theme({
     'md.link': Style(fg=TEXT_PRIMARY, underline=True),
     'md.link.url': Style(fg=TEXT_SECONDARY),
     'md.rule': Style(fg=TEXT_SECONDARY, dim=True),
+    'md.table.head': Style(bold=True),
+    'md.table.border': Style(fg=TEXT_SECONDARY, dim=True),
 
     # syntax (from the dump's resolved pygments token styles)
     'code.keyword': _code(TEXT_WARNING),

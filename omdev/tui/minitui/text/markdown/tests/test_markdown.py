@@ -5,6 +5,7 @@ import pytest
 
 from ...highlights.base import highlight_code
 from ...segments import segments_text
+from ...widths import str_width
 from ..base import MarkdownStream
 from ..base import MdCode
 from ..base import MdHeading
@@ -13,6 +14,8 @@ from ..base import MdListItem
 from ..base import MdParagraph
 from ..base import MdQuote
 from ..base import MdRule
+from ..base import MdTable
+from ..base import MdTableAlign
 from ..base import parse_markdown
 from ..base import parse_markdown_inlines
 from ..base import render_markdown_block
@@ -222,3 +225,116 @@ def test_nested_list_wrapped_lines_align_under_content():
     assert conts, rows
     # Continuations hang under the item's content, past its indent + marker.
     assert all(r.startswith('  ') for r in conts), rows
+
+
+##
+# Tables
+
+
+def test_parse_table():
+    blocks = parse_markdown(
+        'Intro line\n'
+        '| Name | Value |\n'
+        '|:-----|------:|\n'
+        '| **a** | 1 |\n'
+        '| b | `2` |\n'
+        '\n'
+        'after\n',
+    )
+    assert blocks == [
+        MdParagraph.of('Intro line'),
+        MdTable.of(
+            ['Name', 'Value'],
+            [['**a**', '1'], ['b', '`2`']],
+            [MdTableAlign.LEFT, MdTableAlign.RIGHT],
+        ),
+        MdParagraph.of('after'),
+    ]
+
+
+def test_parse_table_requires_matching_alignment_row():
+    assert parse_markdown('| a | b |\n| --- |\n| c |') == [MdParagraph.of('| a | b | | --- | | c |')]
+    assert parse_markdown('| a | b |') == [MdParagraph.of('| a | b |')]
+    # A bare `---` is a rule, not a one-column alignment row.
+    assert parse_markdown('| a |\n---') == [MdParagraph.of('| a |'), MdRule()]
+    # A list marker wins over a delimiter row (as in pdcmark).
+    assert [type(b) for b in parse_markdown('a | b\n- | -\n')] == [MdParagraph, MdList]
+
+
+def test_parse_table_cells_escapes_and_ragged_rows():
+    (tbl,) = parse_markdown('| a \\| b | c |\n|---|---|\n| only |\n| 1 | 2 | 3 |\n')
+    assert tbl == MdTable.of(['a | b', 'c'], [['only', ''], ['1', '2']], [MdTableAlign.NONE, MdTableAlign.NONE])
+
+
+def test_parse_table_terminators():
+    blocks = parse_markdown('| a |\n|---|\n| 1 |\n# head\n| b |\n|---|\n|\ntext\n')
+    assert blocks == [
+        MdTable.of(['a'], [['1']], [MdTableAlign.NONE]),
+        MdHeading.of(1, 'head'),
+        MdTable.of(['b'], [], [MdTableAlign.NONE]),  # a lone `|` is not a row
+        MdParagraph.of('| text'),
+    ]
+
+
+def test_stream_table_settles_on_terminator():
+    s = MarkdownStream()
+    s.feed('| a | b |\n|---|---|\n| 1 | 2 |\n')
+    assert s.pop_settled() == []  # still open: the next line may be another row
+    assert [type(b) for b in s.tail_blocks()] == [MdTable]
+    s.feed('\n')
+    assert s.pop_settled() == [MdTable.of(['a', 'b'], [['1', '2']], [MdTableAlign.NONE] * 2)]
+    assert s.finalize() == []
+
+
+def test_stream_table_head_splits_off_paragraph():
+    s = MarkdownStream()
+    s.feed('intro\n| a | b |\n')
+    assert s.pop_settled() == []  # the pipe line may still turn out to be a table header
+    s.feed('|---|---|\n')
+    assert s.pop_settled() == [MdParagraph.of('intro')]
+    assert [type(b) for b in s.tail_blocks()] == [MdTable]
+
+
+def test_render_table_columns_and_alignment():
+    (tbl,) = parse_markdown('| Name | N |\n|:-----|--:|\n| ab | 1 |\n| c | 22 |\n')
+    rows = render_markdown_block(tbl, 40)
+    assert [segments_text(r) for r in rows] == [
+        'Name │  N',
+        '─────┼───',
+        'ab   │  1',
+        'c    │ 22',
+    ]
+    assert {seg.style for seg in rows[0] if seg.text.strip()} == {'md.table.head', 'md.table.border'}
+    assert all(seg.style == 'md.table.border' for seg in rows[1])
+
+
+def test_render_table_center_and_wide_chars():
+    (tbl,) = parse_markdown('| x | 名前 |\n|:-:|---|\n| abcde | ✓ |\n')
+    rows = [segments_text(r) for r in render_markdown_block(tbl, 40)]
+    assert rows == [
+        '  x   │ 名前',
+        '──────┼─────',
+        'abcde │ ✓',
+    ]
+
+
+def test_render_table_wraps_wide_cells():
+    (tbl,) = parse_markdown('| k | description |\n|---|---|\n| x | ' + 'word ' * 10 + '|\n')
+    rows = render_markdown_block(tbl, 30)
+    assert all(str_width(segments_text(row)) <= 30 for row in rows)
+    texts = [segments_text(r) for r in rows]
+    assert len(texts) > 3  # the wide cell wrapped onto several display rows
+    assert all('│' in t for t in texts if '┼' not in t)  # continuation rows keep the column separator
+
+
+def test_render_table_too_narrow_falls_back_to_joined_rows():
+    (tbl,) = parse_markdown('| a | b | c | d |\n|---|---|---|---|\n| 1 | 2 | 3 | 4 |\n')
+    rows = [segments_text(r) for r in render_markdown_block(tbl, 8)]
+    assert all(len(r) <= 8 for r in rows)
+    text = ' '.join(rows)
+    assert all(cell in text for cell in 'abcd1234')
+
+
+def test_render_blocks_table_between_paragraphs():
+    rows = render_markdown_blocks(parse_markdown('a\n\n| h |\n|---|\n| 1 |\n\nb'), 10)
+    assert [segments_text(r) for r in rows] == ['a', '', 'h', '─', '1', '', 'b']

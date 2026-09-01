@@ -37,7 +37,7 @@ from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
 from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface
-from ...text.markdown.base import parse_markdown
+from ...text.markdown.backends import parse_markdown_with
 from ...text.segments import Segment
 from ...text.styles import Style
 from ...text.themes import DEFAULT_THEME
@@ -91,6 +91,19 @@ CANNED_RESPONSES: ta.Sequence[str] = [
         '\n'
         '---\n'
     ),
+    (
+        '### Tables\n'
+        '\n'
+        'Pipe tables lay out in columns, wrap long cells, and honor alignment:\n'
+        '\n'
+        '| Backend | Deps | Notes |\n'
+        '|:--------|:----:|------:|\n'
+        '| `internal` | none | the tiny line parser - tables are best-effort |\n'
+        '| `pdcmark` | omcore | pulldown-cmark translated, GFM preset |\n'
+        '| `markdown-it` | optional | **external**, when installed |\n'
+        '\n'
+        'The whole table stays live until its terminator lands - column widths depend on every row.\n'
+    ),
 ]
 
 
@@ -113,6 +126,7 @@ class ChatDemoApp(App):
         self._driver = driver
 
         self._spinner = Spinner()
+        self._md_backend = md_backend
         self._tail = MarkdownTail(backend=get_markdown_stream(md_backend))
         self._tail_header = Static()
         self._popup = SuggestionsPopup()
@@ -290,7 +304,7 @@ class ChatDemoApp(App):
         msg = self._register('you', text)
         self._commit_header('you', msg.number)
         self._commit_rows([
-            *self._tail.render_settled(parse_markdown(text), self._width()),
+            *self._tail.render_settled(parse_markdown_with(get_markdown_stream(self._md_backend), text), self._width()),
             [],
         ])
 

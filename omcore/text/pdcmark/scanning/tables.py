@@ -28,6 +28,9 @@ def parse_alignment_row(line: str) -> tuple[Alignment, ...] | None:
     i = 0
     while i < n and line[i] == ' ' and i < 3:
         i += 1
+    if i < n and (line[i] == ' ' or line[i] == '\t'):
+        # Indented 4+ columns: paragraph continuation text, never a delimiter row (cf. cmark-gfm's `!indented` gate).
+        return None
     # Trim trailing whitespace.
     end = n
     while end > i and (line[end - 1] == ' ' or line[end - 1] == '\t'):
@@ -127,8 +130,11 @@ def parse_table_row(line: str, n_cols: int) -> list[str]:
 
 def count_table_cells(line: str) -> int:
     """
-    Count the cell positions in `line`, ignoring leading / trailing pipes. Returns 0 if the line contains no pipes (and
-    is therefore not a candidate table row).
+    Count the cell positions in `line`, ignoring leading / trailing pipes. Returns 0 if nothing remains once the outer
+    pipes and whitespace are stripped (a lone `|`) - such a line is not a table row.
+
+    Escaping matches `parse_table_row`: only a pipe directly preceded by a backslash is escaped, so `\\|` is a literal
+    backslash followed by an escaped pipe, not a separator.
     """
 
     n = len(line)
@@ -151,7 +157,7 @@ def count_table_cells(line: str) -> int:
     j = i
     while j < end:
         c = line[j]
-        if c == '\\' and j + 1 < end:
+        if c == '\\' and j + 1 < end and line[j + 1] == '|':
             j += 2
             continue
         if c == '|':
@@ -170,7 +176,7 @@ def line_could_be_table_row(line: str) -> bool:
     n = len(line)
     while i < n:
         c = line[i]
-        if c == '\\' and i + 1 < n:
+        if c == '\\' and i + 1 < n and line[i + 1] == '|':
             i += 2
             continue
         if c == '|':
