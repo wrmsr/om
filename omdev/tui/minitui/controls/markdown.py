@@ -7,9 +7,8 @@ The commit-model pairing is the whole point: the app feeds the stream, commits w
 tinier zero-dep internal line parser, or markdown-it - all producing the same MdBlock model.
 
 Blocks separate with one blank row - what `render_markdown_blocks` puts between the blocks of a single call. A stream
-settles its blocks one call at a time though, so the separator across calls is this control's job: within a stream
-cycle every commit after the first leads with the blank row, and so does the live tail while committed blocks precede
-it.
+settles its blocks one call at a time though, so the separator across calls is this control's job: within a stream cycle
+every commit after the first leads with the blank row, and so does the live tail while committed blocks precede it.
 """
 import typing as ta
 
