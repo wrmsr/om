@@ -710,30 +710,36 @@ def _process_dataclass__ba17cf6d4b72f343a67190bab2265616e5cbaebc():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('arn', 'local_mount_path')), EqPlan(fields=('arn', 'local_mount_path')), FrozenPla"
-        "n(fields=('__shape__', 'arn', 'local_mount_path'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', f"
-        "ields=('arn', 'local_mount_path'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation="
-        "OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_t"
-        "ype=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='arn', annotation=O"
-        "pRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_ty"
-        "pe=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='local_mount_path', a"
-        "nnotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=Fals"
-        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params"
-        "=(), kw_only_params=('arn', 'local_mount_path'), frozen=True, slots=False, post_init_params=None, init_fns=(),"
-        " validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='arn', kw_only=True, fn=None), ReprPlan.Field(name='lo"
-        "cal_mount_path', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('arn', 'local_mount_path', 's3_files_config')), EqPlan(fields=('arn', 'local_mount"
+        "_path', 's3_files_config')), FrozenPlan(fields=('__shape__', 'arn', 'local_mount_path', 's3_files_config'), al"
+        "low_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('arn', 'local_mount_path', 's3_files_config'),"
+        " cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotati"
+        "on'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=No"
+        "ne, validate=None, check_type=None), InitPlan.Field(name='arn', annotation=OpRef(name='init.fields.1.annotatio"
+        "n'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
+        ", validate=None, check_type=None), InitPlan.Field(name='local_mount_path', annotation=OpRef(name='init.fields."
+        "2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, "
+        "coerce=None, validate=None, check_type=None), InitPlan.Field(name='s3_files_config', annotation=OpRef(name='in"
+        "it.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, overri"
+        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std"
+        "_params=(), kw_only_params=('arn', 'local_mount_path', 's3_files_config'), frozen=True, slots=False, post_init"
+        "_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='arn', kw_only=True, fn=None"
+        "), ReprPlan.Field(name='local_mount_path', kw_only=True, fn=None), ReprPlan.Field(name='s3_files_config', kw_o"
+        "nly=True, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='782e9b5d3cf1915925c20121ed1c830c7d6ccaf2',
+    plan_repr_sha1='d11e627992b6a523df6496f598aed02a0fb88033',
     cls_names=(
         ('ominfra.clouds.aws.models.services.lambda_', 'FileSystemConfig'),
     ),
 )
-def _process_dataclass__782e9b5d3cf1915925c20121ed1c830c7d6ccaf2():
+def _process_dataclass__d11e627992b6a523df6496f598aed02a0fb88033():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -746,6 +752,7 @@ def _process_dataclass__782e9b5d3cf1915925c20121ed1c830c7d6ccaf2():
             return __class__(  # noqa
                 arn=self.arn,
                 local_mount_path=self.local_mount_path,
+                s3_files_config=self.s3_files_config,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -757,7 +764,8 @@ def _process_dataclass__782e9b5d3cf1915925c20121ed1c830c7d6ccaf2():
                 return NotImplemented
             return (
                 self.arn == other.arn and
-                self.local_mount_path == other.local_mount_path
+                self.local_mount_path == other.local_mount_path and
+                self.s3_files_config == other.s3_files_config
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -766,6 +774,7 @@ def _process_dataclass__782e9b5d3cf1915925c20121ed1c830c7d6ccaf2():
             '__shape__',
             'arn',
             'local_mount_path',
+            's3_files_config',
         }
 
         def __setattr__(self, name, value):
@@ -792,6 +801,7 @@ def _process_dataclass__782e9b5d3cf1915925c20121ed1c830c7d6ccaf2():
             return hash((
                 self.arn,
                 self.local_mount_path,
+                self.s3_files_config,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -801,9 +811,11 @@ def _process_dataclass__782e9b5d3cf1915925c20121ed1c830c7d6ccaf2():
             *,
             arn: __dataclass__init__fields__1__annotation,
             local_mount_path: __dataclass__init__fields__2__annotation,
+            s3_files_config: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'arn', arn)
             __dataclass__object_setattr(self, 'local_mount_path', local_mount_path)
+            __dataclass__object_setattr(self, 's3_files_config', s3_files_config)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -812,6 +824,7 @@ def _process_dataclass__782e9b5d3cf1915925c20121ed1c830c7d6ccaf2():
             parts = []
             parts.append(f"arn={self.arn!r}")
             parts.append(f"local_mount_path={self.local_mount_path!r}")
+            parts.append(f"s3_files_config={self.s3_files_config!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -2582,6 +2595,112 @@ def _process_dataclass__f7b1a123934c098577316105a6d2620d7d9e6557():
             parts = []
             parts.append(f"runtime_version_arn={self.runtime_version_arn!r}")
             parts.append(f"error={self.error!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('direct_s3_read',)), EqPlan(fields=('direct_s3_read',)), FrozenPlan(fields=('__sha"
+        "pe__', 'direct_s3_read'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('direct_s3_read',)"
+        ", cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotat"
+        "ion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=N"
+        "one, validate=None, check_type=None), InitPlan.Field(name='direct_s3_read', annotation=OpRef(name='init.fields"
+        ".1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False,"
+        " field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=("
+        "), kw_only_params=('direct_s3_read',), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_"
+        "fns=()), ReprPlan(fields=(ReprPlan.Field(name='direct_s3_read', kw_only=True, fn=None),), id=False, terse=Fals"
+        "e, default_fn=None)))"
+    ),
+    plan_repr_sha1='fe44866cc77136286093fb9788849701a569b8f9',
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.lambda_', 'S3FilesConfig'),
+    ),
+)
+def _process_dataclass__fe44866cc77136286093fb9788849701a569b8f9():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                direct_s3_read=self.direct_s3_read,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.direct_s3_read == other.direct_s3_read
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'direct_s3_read',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.direct_s3_read,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            direct_s3_read: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'direct_s3_read', direct_s3_read)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"direct_s3_read={self.direct_s3_read!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

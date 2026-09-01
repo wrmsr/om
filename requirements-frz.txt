@@ -22,8 +22,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.5.1
 blobfile==3.2.0
-boto3==1.43.85
-botocore==1.43.85
+boto3==1.43.86
+botocore==1.43.86
 botocore-stubs==1.43.67
 brotli==1.2.0
 build==1.6.0
@@ -61,7 +61,7 @@ frozenlist==1.8.0
 fsspec==2026.6.0
 gguf==0.19.0
 google-api-core==2.34.0
-google-api-python-client==2.199.0
+google-api-python-client==2.200.0
 google-auth==2.57.0
 google-auth-httplib2==0.4.2
 google-cloud-compute==1.51.0
@@ -273,7 +273,7 @@ trio==0.34.0
 twine==7.0.0
 typer==0.27.2
 types-awscrt==0.36.2
-types-boto3==1.43.85
+types-boto3==1.43.86
 types-docutils==0.23.0.20260827
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20260724

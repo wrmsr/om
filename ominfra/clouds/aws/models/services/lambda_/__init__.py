@@ -38,6 +38,13 @@ CapacityProviderArn = _ta.NewType('CapacityProviderArn', str)
 
 Description = _ta.NewType('Description', str)
 
+
+class DirectS3Read(_base.Enum):
+    ENABLED = 'ENABLED'
+    DISABLED = 'DISABLED'
+    AUTO = 'AUTO'
+
+
 EnvironmentVariableName = _ta.NewType('EnvironmentVariableName', str)
 
 EnvironmentVariableValue = _ta.NewType('EnvironmentVariableValue', str)
@@ -381,22 +388,6 @@ class EphemeralStorage(
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
-class FileSystemConfig(
-    _base.Shape,
-    shape_name='FileSystemConfig',
-):
-    arn: FileSystemArn = _dc.field(metadata=_base.field_metadata(
-        member_name='Arn',
-        shape_name='FileSystemArn',
-    ))
-
-    local_mount_path: LocalMountPath = _dc.field(metadata=_base.field_metadata(
-        member_name='LocalMountPath',
-        shape_name='LocalMountPath',
-    ))
-
-
-@_dc.dataclass(frozen=True, kw_only=True)
 class ImageConfigError(
     _base.Shape,
     shape_name='ImageConfigError',
@@ -547,6 +538,17 @@ class RuntimeVersionError(
     ))
 
 
+@_dc.dataclass(frozen=True, kw_only=True)
+class S3FilesConfig(
+    _base.Shape,
+    shape_name='S3FilesConfig',
+):
+    direct_s3_read: DirectS3Read | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DirectS3Read',
+        shape_name='DirectS3Read',
+    ))
+
+
 SecurityGroupIds: _ta.TypeAlias = _ta.Sequence[SecurityGroupId]
 
 
@@ -664,7 +666,25 @@ class EnvironmentResponse(
     ))
 
 
-FileSystemConfigList: _ta.TypeAlias = _ta.Sequence[FileSystemConfig]
+@_dc.dataclass(frozen=True, kw_only=True)
+class FileSystemConfig(
+    _base.Shape,
+    shape_name='FileSystemConfig',
+):
+    arn: FileSystemArn = _dc.field(metadata=_base.field_metadata(
+        member_name='Arn',
+        shape_name='FileSystemArn',
+    ))
+
+    local_mount_path: LocalMountPath = _dc.field(metadata=_base.field_metadata(
+        member_name='LocalMountPath',
+        shape_name='LocalMountPath',
+    ))
+
+    s3_files_config: S3FilesConfig | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='S3FilesConfig',
+        shape_name='S3FilesConfig',
+    ))
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -735,6 +755,9 @@ class VpcConfigResponse(
         member_name='Ipv6AllowedForDualStack',
         shape_name='NullableBoolean',
     ))
+
+
+FileSystemConfigList: _ta.TypeAlias = _ta.Sequence[FileSystemConfig]
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -1002,6 +1025,7 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     LoggingConfig,
     RuntimeVersionConfig,
     RuntimeVersionError,
+    S3FilesConfig,
     ServiceException,
     SnapStartResponse,
     TenancyConfig,
