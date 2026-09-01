@@ -355,6 +355,7 @@ def _process_dataclass__0b7c599a0f2a96be2b8ec1deb71c628ceff4a2e4():
     ),
     plan_repr_sha1='1e6864e478d12ae160365d172d422405f59c8e3f',
     cls_names=(
+        ('omllm.agent.permissions.types', 'PermissionAskAbortedError'),
         ('omllm.agent.permissions.types', 'PermissionDeniedError'),
     ),
 )
