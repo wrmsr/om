@@ -13,6 +13,7 @@ from ....types.content import TextContentBuilder
 from ....types.content import ThinkingContentBuilder
 from ....types.content import ToolCallBuilder
 from ....types.context import Context
+from ....types.errors import BackendError
 from ....types.models import TokenPricing
 from ....types.options import Options
 from ....types.streams import AiStream
@@ -147,7 +148,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
         raw_event_type = raw_event.get('type')
 
         if raw_event_type == 'error':
-            raise RuntimeError(stringify_error(raw_event))
+            raise BackendError(stringify_error(raw_event))
 
         elif raw_event_type == 'response.output_item.added':
             self._feed_output_item_added(raw_event)
@@ -203,7 +204,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
         elif raw_event_type == 'response.failed':
             raw_response = check.isinstance(raw_event['response'], ta.Mapping)
-            raise RuntimeError(stringify_error(raw_response.get('error')))
+            raise BackendError(stringify_error(raw_response.get('error')))
 
         else:
             # The remaining known event types - lifecycle progress, part boundaries, and whole-value .done restatements

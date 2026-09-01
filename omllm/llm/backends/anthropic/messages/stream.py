@@ -9,6 +9,7 @@ from .....core.http.sse import SseEvent
 from ....models.pricing import fill_estimated_token_cost
 from ....types.backends import StreamBackend
 from ....types.context import Context
+from ....types.errors import BackendError
 from ....types.models import TokenPricing
 from ....types.options import Options
 from ....types.streams import AiStream
@@ -174,7 +175,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
         raw_event_type = raw_event.get('type')
 
         if raw_event_type == 'error':
-            raise RuntimeError(_stringify_error(raw_event.get('error')))
+            raise BackendError(_stringify_error(raw_event.get('error')))
 
         elif raw_event_type == 'message_start':
             raw_message = check.isinstance(raw_event['message'], ta.Mapping)

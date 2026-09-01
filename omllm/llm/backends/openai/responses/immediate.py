@@ -11,6 +11,7 @@ from ....types.content import TextContent
 from ....types.content import ThinkingContent
 from ....types.content import ToolCall
 from ....types.context import Context
+from ....types.errors import BackendError
 from ....types.messages import AiMessage
 from ....types.messages import TokenUsage
 from ....types.options import Options
@@ -107,7 +108,7 @@ class OpenaiResponsesImmediateBackend(BaseOpenaiResponsesBackend, ImmediateBacke
 
         raw_status = check.non_empty_str(raw_response['status'])
         if raw_status == 'failed':
-            raise RuntimeError(stringify_error(raw_response.get('error')))
+            raise BackendError(stringify_error(raw_response.get('error')))
 
         content: list[Content] = []
 

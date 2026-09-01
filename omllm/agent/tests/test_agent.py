@@ -8,6 +8,7 @@ from ... import llm
 from ..agent import Agent
 from ..backends import DictBackendManager
 from ..dummy.weather import GetWeatherTool
+from ..turns.runner import TurnLoopRunner
 from ..types.tools import ToolSet
 from .models import ANTHROPIC
 from .models import GOOGLE
@@ -28,7 +29,9 @@ async def _test_agent(
     )
 
     agent = Agent(
-        backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+        turn_runner=TurnLoopRunner(
+            backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+        ),
     )
 
     await agent.prompt(
@@ -65,7 +68,9 @@ async def _test_agent_with_tool(harness: Harness, model: ModelForTest) -> None:
     )
 
     agent = Agent(
-        backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+        turn_runner=TurnLoopRunner(
+            backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+        ),
     )
 
     await agent.update_state(

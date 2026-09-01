@@ -9,6 +9,7 @@ from ....types.content import TextContent
 from ....types.content import ThinkingContent
 from ....types.content import ToolCall
 from ....types.context import Context
+from ....types.errors import BackendError
 from ....types.messages import AiMessage
 from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
@@ -85,7 +86,7 @@ class RequestPreparer:
                 }
 
             else:
-                raise RuntimeError(cache.control_style)
+                raise BackendError(cache.control_style)
 
     def _add_ai_message_content(self, raw_input: list[dict], msg: AiMessage) -> None:
         for c in msg.content:

@@ -10,6 +10,7 @@ from ....models.pricing import fill_estimated_token_cost
 from ....types.backends import StreamBackend
 from ....types.compat import TokenCostMode
 from ....types.context import Context
+from ....types.errors import BackendError
 from ....types.models import TokenPricing
 from ....types.options import Options
 from ....types.streams import AiStream
@@ -60,7 +61,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
         raw_chunk = check.isinstance(raw_chunk, ta.Mapping)
 
         if 'error' in raw_chunk and raw_chunk.get('error'):
-            raise RuntimeError(_stringify_error(raw_chunk['error']))
+            raise BackendError(_stringify_error(raw_chunk['error']))
 
         if (raw_usage := raw_chunk.get('usage')) is not None:
             self._message.token_usage = fill_estimated_token_cost(

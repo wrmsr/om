@@ -145,6 +145,11 @@ with _lang.auto_proxy_init(globals()):
         Context,
     )
 
+    from .types.errors import (  # noqa
+        Error,
+        BackendError,
+    )
+
     from .types.messages import (  # noqa
         Message,
         MessageBuilder,

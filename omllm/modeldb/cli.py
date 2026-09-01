@@ -4,6 +4,7 @@ https://models.dev/
 https://github.com/anomalyco/models.dev
 """
 import compression.zstd
+import datetime
 import os.path
 import typing as ta
 import urllib.request
@@ -18,7 +19,7 @@ from . import consts
 ##
 
 
-def fetch_models(url: str | None = None) -> dict[str, dict[str, ta.Any]]:
+def fetch_providers(url: str | None = None) -> dict[str, dict[str, ta.Any]]:
     if url is None:
         url = consts.MODELS_URL
 
@@ -30,11 +31,20 @@ def fetch_models(url: str | None = None) -> dict[str, dict[str, ta.Any]]:
     )) as f:
         src = f.read()
 
-    models = json.loads(src.decode('utf-8'))
-    return models
+    providers = json.loads(src.decode('utf-8'))
+    return providers
 
 
 ##
+
+
+def _render_cache_data(data: ta.Any) -> bytes:
+    dct = {
+        'fetched_at': datetime.datetime.now(datetime.UTC).isoformat(),
+        'data': data,
+    }
+
+    return compression.zstd.compress(json.dumps_compact(dct).encode('utf-8'))  # noqa
 
 
 class Cli(ap.Cli):
@@ -43,7 +53,7 @@ class Cli(ap.Cli):
         ap.arg('-u', '--url'),
     )
     def fetch(self) -> None:
-        models = fetch_models(self.args.url)
+        providers = fetch_providers(self.args.url)
 
         cache_dir = os.path.join(os.path.dirname(__file__), '_cache')
         os.makedirs(cache_dir, exist_ok=True)
@@ -52,12 +62,12 @@ class Cli(ap.Cli):
                 os.unlink(fp)
 
         for pp in self.args.primary:
-            v = models.pop(pp, {})
+            v = providers.pop(pp, {})
             with open(os.path.join(cache_dir, pp + consts._CACHE_FILE_SUFFIX), 'wb') as f:
-                f.write(compression.zstd.compress(json.dumps_compact(v).encode('utf-8')))
+                f.write(_render_cache_data(v))
 
         with open(os.path.join(cache_dir, consts._OTHER_PROVIDERS_KEY + consts._CACHE_FILE_SUFFIX), 'wb') as f:
-            f.write(compression.zstd.compress(json.dumps_compact(models).encode('utf-8')))
+            f.write(_render_cache_data(providers))
 
     @ap.cmd(
         ap.arg('-m', '--marshal', action='store_true'),
