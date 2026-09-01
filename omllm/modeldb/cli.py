@@ -54,8 +54,8 @@ class Cli(ap.Cli):
         os.makedirs(cache_dir, exist_ok=True)
         for fn in os.listdir(cache_dir):
             if (
-                    fn == consts._CACHE_METADATA_FILE_NAME or
-                    (fn.endswith(consts._CACHE_FILE_SUFFIX) and os.path.isfile(fp := os.path.join(cache_dir, fn)))
+                    os.path.isfile(fp := os.path.join(cache_dir, fn)) and
+                    (fn == consts._CACHE_METADATA_FILE_NAME or fn.endswith(consts._CACHE_FILE_SUFFIX))
             ):
                 os.unlink(fp)
 
