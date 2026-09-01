@@ -73,8 +73,8 @@ APP_KEY_MAP: ta.Final[ta.Mapping[AppKey, mt.Key | ta.Sequence[mt.Key]]] = {
     AppKey.CANCEL: mt.Key('q', ctrl=True),
     AppKey.EXIT: mt.Key('d', ctrl=True),
 
-    AppKey.CARD_ALLOW: mt.Key('f2'),
-    AppKey.CARD_DENY: mt.Key('f10'),
+    AppKey.CARD_ALLOW: mt.Key('f10'),
+    AppKey.CARD_DENY: mt.Key('f2'),
     AppKey.CARD_EXPAND: mt.Key('o', ctrl=True),
 
     AppKey.POPUP_CYCLE: mt.Key('tab'),
