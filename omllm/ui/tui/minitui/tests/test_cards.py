@@ -8,6 +8,8 @@ from omdev.tui import minitui as mt
 from ..... import agent as agn
 from ..... import harness as har
 from ..... import llm
+from ..app import APP_KEY_MAP
+from ..app import AppKey
 from ..app import MinituiChatApp
 from ..main import PromptPump
 from ..toolcards import tool_card_key
@@ -188,7 +190,7 @@ def test_aborted_turn_cancels_permissions_and_finalizes_cards(cancelled, status)
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_escape_cancels_current_prompt_and_runs_next():
+async def test_key_cancels_current_prompt_and_runs_next():
     app, _ = _make_app()
     session = _BlockingSession()
     pump = PromptPump(session=ta.cast(har.Session, session), app=app)
@@ -198,9 +200,13 @@ async def test_escape_cancels_current_prompt_and_runs_next():
     await session.first_started.wait()
     pump.submit('second')
 
+    key: ta.Any = APP_KEY_MAP[AppKey.CANCEL]
+    if isinstance(key, ta.Sequence):
+        [key] = key
+
     app.begin_ai_turn()
-    app.handle_event(mt.KeyEvent(mt.Key('escape')))
-    app.handle_event(mt.KeyEvent(mt.Key('escape')))
+    app.handle_event(mt.KeyEvent(key))
+    app.handle_event(mt.KeyEvent(key))
 
     await session.first_stopped.wait()
     await session.second_done.wait()

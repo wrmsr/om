@@ -7,8 +7,10 @@ This module is pure UI - it knows nothing of agents or sessions. `main` wires `o
 methods here are loop-side (the agent shares the asyncio loop with the driver); none block.
 """
 import collections
+import enum
 import typing as ta
 
+from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import inject as inj
 from omdev.tui import minitui as mt
@@ -48,6 +50,45 @@ class _PermissionCardRequest:
     title: str
     on_respond: ta.Callable[[bool], None]
     on_cancel: ta.Callable[[], None] | None = None
+
+
+##
+
+
+class AppKey(enum.StrEnum):
+    CANCEL = enum.auto()
+    EXIT = enum.auto()
+
+    CARD_ALLOW = enum.auto()
+    CARD_DENY = enum.auto()
+    CARD_EXPAND = enum.auto()
+
+    POPUP_CYCLE = enum.auto()
+
+    HISTORY_PREV = enum.auto()
+    HISTORY_NEXT = enum.auto()
+
+
+APP_KEY_MAP: ta.Final[ta.Mapping[AppKey, mt.Key | ta.Sequence[mt.Key]]] = {
+    AppKey.CANCEL: mt.Key('q', ctrl=True),
+    AppKey.EXIT: mt.Key('d', ctrl=True),
+
+    AppKey.CARD_ALLOW: mt.Key('f2'),
+    AppKey.CARD_DENY: mt.Key('f10'),
+    AppKey.CARD_EXPAND: mt.Key('o', ctrl=True),
+
+    AppKey.POPUP_CYCLE: mt.Key('tab'),
+
+    AppKey.HISTORY_PREV: (mt.Key('p', ctrl=True), mt.Key('up')),
+    AppKey.HISTORY_NEXT: (mt.Key('n', ctrl=True), mt.Key('down')),
+}
+
+
+APP_KEY_REVERSE_MAP: ta.Final[ta.Mapping[mt.Key, AppKey]] = col.make_map((
+    (mk, ak)
+    for ak, mks in APP_KEY_MAP.items()
+    for mk in ([mks] if isinstance(mks, mt.Key) else mks)
+), strict=True)
 
 
 ##
@@ -173,7 +214,10 @@ class MinituiChatApp(mt.App):
             entry.card.set_on_confirm(None)
             if not entry.card.is_terminal:
                 entry.card.set_state(state)
-                entry.card.set_summary([(entry.title, 'card.summary'), (f'  {status}', 'card.summary.dim')])
+                entry.card.set_summary([
+                    (entry.title, 'card.summary'),
+                    (f'  {status}', 'card.summary.dim'),
+                ])
             entry.ready_to_finalize = True
         self._flush_ready_cards()
 
@@ -307,7 +351,10 @@ class MinituiChatApp(mt.App):
 
         frozen_detail = _freeze_rows(detail_rows)
         entry.card.set_state(mt.CardState.PENDING)
-        entry.card.set_summary([(title, 'card.summary'), ('  queued for confirmation', 'card.summary.dim')])
+        entry.card.set_summary([
+            (title, 'card.summary'),
+            ('  queued for confirmation', 'card.summary.dim'),
+        ])
         entry.card.set_detail([*entry.base_detail, *frozen_detail])
         entry.card.set_on_confirm(None)
 
@@ -335,7 +382,10 @@ class MinituiChatApp(mt.App):
             entry.ready_to_finalize = False
             if entry.card.state not in (mt.CardState.PENDING, mt.CardState.CONFIRMING):
                 entry.card.set_state(mt.CardState.RUNNING)
-                entry.card.set_summary([(title, 'card.summary'), ('  running...', 'card.summary.dim')])
+                entry.card.set_summary([
+                    (title, 'card.summary'),
+                    ('  running...', 'card.summary.dim'),
+                ])
                 entry.card.set_detail(frozen_detail)
                 entry.card.set_on_confirm(None)
         self._driver.invalidate()
@@ -354,7 +404,10 @@ class MinituiChatApp(mt.App):
         entry.title = title
         entry.card.set_on_confirm(None)
         entry.card.set_state(mt.CardState.COMPLETE if ok else mt.CardState.FAILED)
-        entry.card.set_summary([(title, 'card.summary'), ('  done' if ok else '  failed', 'card.summary.dim')])
+        entry.card.set_summary([
+            (title, 'card.summary'),
+            ('  done' if ok else '  failed', 'card.summary.dim'),
+        ])
         if detail_rows is not None:
             entry.card.set_detail(detail_rows)
         self._finalize_card_later(key, entry, .8)
@@ -417,10 +470,12 @@ class MinituiChatApp(mt.App):
     def _handle_app_key(self, event: mt.KeyEvent) -> bool:
         key = event.key
 
-        if key == mt.Key('escape') and (cancel := self.on_cancel) is not None and cancel():
+        app_key = APP_KEY_REVERSE_MAP.get(key)
+
+        if app_key is AppKey.CANCEL and (cancel := self.on_cancel) is not None and cancel():
             return True
 
-        if key == mt.Key('d', ctrl=True):
+        if app_key is AppKey.EXIT:
             self._driver.stop()
             return True
 
@@ -432,10 +487,10 @@ class MinituiChatApp(mt.App):
             permission_card = entry.card
 
         if permission_card is not None:
-            if key == mt.Key('f10'):
+            if app_key is AppKey.CARD_ALLOW:
                 permission_card.respond(True)
                 return True
-            if key == mt.Key('f2'):
+            if app_key is AppKey.CARD_DENY:
                 permission_card.respond(False)
                 return True
 
@@ -445,11 +500,11 @@ class MinituiChatApp(mt.App):
             self._cards[card_key] = entry
             card = entry.card
         if card is not None:
-            if key == mt.Key('o', ctrl=True):
+            if app_key is AppKey.CARD_EXPAND:
                 card.toggle_expanded()
                 return True
 
-        if key == mt.Key('tab') and self._popup.visible:
+        if app_key is AppKey.POPUP_CYCLE and self._popup.visible:
             if (item := self._popup.cycle()) is not None:
                 self._input.set_text(item.label)
             return True
@@ -460,10 +515,10 @@ class MinituiChatApp(mt.App):
 
         # History only at the buffer edge, arrow-style - mid-buffer, ctrl+p/n fall through to the editor as readline
         # line movement.
-        if key in (mt.Key('p', ctrl=True), mt.Key('up')) and at_first_line:
+        if app_key is AppKey.HISTORY_PREV and at_first_line:
             self._history_step(back=True)
             return True
-        if key in (mt.Key('n', ctrl=True), mt.Key('down')) and at_last_line:
+        if app_key is AppKey.HISTORY_NEXT and at_last_line:
             self._history_step(back=False)
             return True
 
