@@ -98,6 +98,42 @@ async def test_loop_publishes_cancelled_terminal_event():
     assert isinstance(end.error, asyncio.CancelledError)
 
 
+class _RaisingBackend(llm.ImmediateBackend):
+    def __init__(self, e: type[BaseException] | BaseException) -> None:
+        super().__init__()
+
+        self._model = llm.Model(key=llm.ModelKey('test', 'blocking'), backend='test')
+        self._e = e
+
+    @property
+    def model(self) -> llm.Model:
+        return self._model
+
+    async def immediate(self, context, options=None):
+        raise self._e
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_loop_does_not_publish_on_base_exception():
+    class FooError(BaseException):
+        pass
+
+    backend = _RaisingBackend(FooError)
+    events: list[Event] = []
+    loop = TurnLoop(
+        new_messages=[llm.UserMessage('hi')],
+        subscriber=events.append,
+        llm_backend=backend,
+    )
+
+    task = asyncio.create_task(loop.run())
+    with pytest.raises(FooError):
+        await task
+
+    ends = [event for event in events if isinstance(event, AgentEndEvent)]
+    assert not ends
+
+
 ##
 
 

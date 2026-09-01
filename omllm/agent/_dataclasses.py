@@ -503,29 +503,40 @@ def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('context', 'new_messages')), EqPlan(fields=('context', 'new_messages')), FrozenPla"
-        "n(fields=('context', 'new_messages'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('conte"
-        "xt', 'new_messages'), cache=False), InitPlan(fields=(InitPlan.Field(name='context', annotation=OpRef(name='ini"
-        "t.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.I"
-        "NSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='new_messages', annotation=OpRef(na"
-        "me='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, "
-        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self"
-        "', std_params=(), kw_only_params=('context', 'new_messages'), frozen=True, slots=False, post_init_params=None,"
-        " init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='context', kw_only=True, fn=None), ReprPl"
-        "an.Field(name='new_messages', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('context', 'new_messages', 'reason', 'error')), EqPlan(fields=('context', 'new_mes"
+        "sages', 'reason', 'error')), FrozenPlan(fields=('context', 'new_messages', 'reason', 'error'), allow_dynamic_d"
+        "under_attrs=False), HashPlan(action='add', fields=('context', 'new_messages', 'reason', 'error'), cache=False)"
+        ", InitPlan(fields=(InitPlan.Field(name='context', annotation=OpRef(name='init.fields.0.annotation'), default=N"
+        "one, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=Non"
+        "e, check_type=None), InitPlan.Field(name='new_messages', annotation=OpRef(name='init.fields.1.annotation'), de"
+        "fault=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldTy"
+        "pe.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='reason', annotation=OpRef(name"
+        "='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, ov"
+        "erride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name"
+        "='error', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), defa"
+        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
+        "type=None)), self_param='self', std_params=(), kw_only_params=('context', 'new_messages', 'reason', 'error'), "
+        "frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Fiel"
+        "d(name='context', kw_only=True, fn=None), ReprPlan.Field(name='new_messages', kw_only=True, fn=None), ReprPlan"
+        ".Field(name='reason', kw_only=True, fn=None), ReprPlan.Field(name='error', kw_only=True, fn=None)), id=False, "
+        "terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='a7e8b94632cba817ea037f8a050831fae253e501',
+    plan_repr_sha1='35b591970c8f7fba484df86b065f1aeebab85673',
     cls_names=(
         ('omllm.agent.types.events', 'AgentEndEvent'),
     ),
 )
-def _process_dataclass__a7e8b94632cba817ea037f8a050831fae253e501():
+def _process_dataclass__35b591970c8f7fba484df86b065f1aeebab85673():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -538,6 +549,8 @@ def _process_dataclass__a7e8b94632cba817ea037f8a050831fae253e501():
             return __class__(  # noqa
                 context=self.context,
                 new_messages=self.new_messages,
+                reason=self.reason,
+                error=self.error,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -549,7 +562,9 @@ def _process_dataclass__a7e8b94632cba817ea037f8a050831fae253e501():
                 return NotImplemented
             return (
                 self.context == other.context and
-                self.new_messages == other.new_messages
+                self.new_messages == other.new_messages and
+                self.reason == other.reason and
+                self.error == other.error
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -557,6 +572,8 @@ def _process_dataclass__a7e8b94632cba817ea037f8a050831fae253e501():
         __dataclass___frozen_fields = {
             'context',
             'new_messages',
+            'reason',
+            'error',
         }
 
         def __setattr__(self, name, value):
@@ -583,6 +600,8 @@ def _process_dataclass__a7e8b94632cba817ea037f8a050831fae253e501():
             return hash((
                 self.context,
                 self.new_messages,
+                self.reason,
+                self.error,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -592,9 +611,13 @@ def _process_dataclass__a7e8b94632cba817ea037f8a050831fae253e501():
             *,
             context: __dataclass__init__fields__0__annotation,
             new_messages: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            reason: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            error: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'context', context)
             __dataclass__object_setattr(self, 'new_messages', new_messages)
+            __dataclass__object_setattr(self, 'reason', reason)
+            __dataclass__object_setattr(self, 'error', error)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -603,6 +626,8 @@ def _process_dataclass__a7e8b94632cba817ea037f8a050831fae253e501():
             parts = []
             parts.append(f"context={self.context!r}")
             parts.append(f"new_messages={self.new_messages!r}")
+            parts.append(f"reason={self.reason!r}")
+            parts.append(f"error={self.error!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

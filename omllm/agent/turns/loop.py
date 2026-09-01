@@ -4,6 +4,7 @@ from omcore import check
 from omcore import dataclasses as dc
 
 from ... import llm
+from ...core.errors import is_cancelled_error
 from ...core.eventbus import EventSubscriber
 from ..types.contexts import Context
 from ..types.events import AgentEndEvent
@@ -203,17 +204,19 @@ class TurnLoop:
                 if not turn_result.should_continue:
                     break
 
-        except Exception as e:
-            end_reason = AgentEndReason.FAILED
-            end_error = e
-            raise
-
         except BaseException as e:
-            end_reason = AgentEndReason.CANCELLED
             end_error = e
             raise
 
         finally:
+            if end_error is not None:
+                if is_cancelled_error(end_error):
+                    end_reason = AgentEndReason.CANCELLED
+                elif isinstance(end_error, Exception):
+                    end_reason = AgentEndReason.FAILED
+                else:
+                    raise  # noqa
+
             await self._publish(AgentEndEvent(
                 context=self._context,
 
