@@ -108,9 +108,10 @@ def test_aborted_turn_cancels_permissions_and_finalizes_cards(cancelled, status)
     assert responses == []
     assert not app.is_busy
     committed = commit_texts(driver)
-    assert len(committed) == 2
+    assert len(committed) == 3
     assert f'alpha  {status}' in committed[0]
     assert f'beta  {status}' in committed[1]
+    assert committed[2].endswith(f' {status}\n')
     assert not any(title in line for title in ('alpha', 'beta') for line in frame_lines(app))
 
 

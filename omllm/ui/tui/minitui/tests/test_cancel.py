@@ -16,10 +16,15 @@ from .....agent.eval.permissions import EvalLanguage
 from .....agent.eval.permissions import EvalPermissionTarget
 from ...config import Config
 from ..app import AppKey
+from ..app import MinituiChatApp
 from ..input import CardPermissionAsker
+from ..main import AppQuitSignal
 from ..main import PromptPump
+from ..main import Shutdown
 from ..output import AgentEventRenderer
 from ..output import MinituiTextDisplayer
+from .utils import BlockingSession
+from .utils import Driver
 from .utils import FailingSession
 from .utils import RecordingSession
 from .utils import app_key
@@ -47,6 +52,7 @@ def test_abort_mid_stream_settles_tail_and_resets_state():
 
     committed = commit_texts(driver)
     assert any('Hello' in c and 'wor' in c for c in committed)
+    assert committed[-1] == '× cancelled\n'
     lines = frame_lines(app)
     assert not any('Hello' in line for line in lines)
     assert not app.is_busy
@@ -70,6 +76,8 @@ def test_abort_while_thinking_resets_status_and_stops_spinner():
 
     app.abort_ai_turn(cancelled=True)
 
+    # The open `ai` block is closed visibly even though nothing streamed.
+    assert commit_texts(driver) == ['ai', '× cancelled\n']
     assert not app.is_busy
     assert any(' idle ' in line for line in frame_lines(app))
     before = driver.invalidations
@@ -120,11 +128,33 @@ def test_new_turn_after_abort_is_unaffected_by_stale_finalize_timers():
     assert any('beta  running...' in line for line in lines)
 
 
+def test_reactivated_card_survives_its_stale_finalize_timer():
+    app, driver = make_app()
+
+    # The key comes back to life before the finalize scheduled by its earlier completion fires.
+    app.tool_started('call-a', 'alpha', ())
+    app.tool_finished('call-a', 'alpha', ok=True)
+    app.tool_started('call-a', 'alpha', ())
+    driver.fire_after(.8)
+    assert driver.commits == []
+    assert any('alpha  running...' in line for line in frame_lines(app))
+
+    # Likewise a denial's finalize must not race the failure result that follows it.
+    app.begin_permission_card('call-a', 'alpha', (), lambda allowed: None)
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_DENY)))
+    app.tool_finished('call-a', 'alpha', ok=False)
+    driver.fire_after(.6)
+    assert driver.commits == []
+    driver.fire_after(.3)
+    assert len(driver.commits) == 1
+    assert 'alpha  failed' in commit_texts(driver)[0]
+
+
 def test_cancel_key_when_idle_falls_through_harmlessly():
     app, driver = make_app()
     app.on_cancel = lambda: False
 
-    app.handle_event(mt.KeyEvent(mt.Key('a')))
+    app.handle_event(mt.KeyEvent(mt.Key('a'), text='a'))
     app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
 
     assert app.render(80, 24).lines
@@ -133,14 +163,11 @@ def test_cancel_key_when_idle_falls_through_harmlessly():
 
 
 def test_queued_ask_whose_card_vanished_is_re_presented():
-    app, driver = make_app()
+    app, _ = make_app()
     responses = []
     cancellations = []
 
-    # A finished card's finalize timer is still pending when its key asks for permission again, and fires while that ask
-    # is queued behind another card's: the card is committed out from under the queued ask.
     app.tool_started('call-a', 'alpha', ())
-    app.tool_finished('call-a', 'alpha', ok=True)
     app.tool_started('call-b', 'beta', ())
     app.begin_permission_card('call-b', 'beta', (), lambda allowed: responses.append(('call-b', allowed)))
     app.begin_permission_card(
@@ -150,10 +177,13 @@ def test_queued_ask_whose_card_vanished_is_re_presented():
         lambda allowed: responses.append(('call-a', allowed)),
         on_cancel=lambda: cancellations.append('call-a'),
     )
-    driver.fire_after(.8)
+
+    # No public path drops a card out from under a queued ask any more (finalize timers are cancelled on reactivation);
+    # this is the safety net should one ever appear. The ask is a tool parked mid-execution, not display: it must be
+    # presented, not withdrawn as a cancellation.
+    app._cards.pop('call-a')  # noqa: SLF001
     assert not any('alpha' in line for line in frame_lines(app))
 
-    # The ask is a tool parked mid-execution, not display: it must be presented, not withdrawn as a cancellation.
     app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_ALLOW)))
 
     assert responses == [('call-b', True)]
@@ -398,7 +428,9 @@ async def test_cancel_key_unwinds_running_tool_into_cancelled_card():
     await session.finished.wait()
 
     assert not app.is_busy
-    assert any('block  cancelled' in c for c in commit_texts(driver))
+    committed = commit_texts(driver)
+    assert any('block  cancelled' in c for c in committed)
+    assert committed[-1] == '× cancelled\n'
     assert not any('block' in line for line in frame_lines(app))
     assert not pump.cancel_current()
     await pump.aclose()
@@ -423,3 +455,106 @@ async def test_cancel_key_during_model_call_ends_turn_idle():
     assert any(' idle ' in line for line in frame_lines(app))
     assert not pump.cancel_current()
     await pump.aclose()
+
+
+##
+# Quitting
+
+
+class _QuitDriver(Driver):
+    """Snapshots `probe(self)` at the moment `stop` is called, to assert what had already happened by then."""
+
+    def __init__(self, probe) -> None:
+        super().__init__()
+
+        self._probe = probe
+        self.at_stop: ta.Any = None
+
+    def stop(self) -> None:
+        self.at_stop = self._probe(self)
+        super().stop()
+
+
+def test_request_quit_without_hook_stops_driver():
+    app, driver = make_app()
+
+    app.request_quit()
+
+    assert driver.stopped
+
+
+def test_quit_keys_route_through_hook():
+    app, driver = make_app()
+    quits = []
+    app.on_quit = lambda: quits.append('quit')
+
+    app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))
+    app.handle_event(mt.KeyEvent(mt.Key('escape')))
+    app.handle_event(mt.KeyEvent(mt.Key(':'), text=':'))
+    app.handle_event(mt.KeyEvent(mt.Key('q'), text='q'))
+    app.handle_event(mt.KeyEvent(mt.Key('enter')))
+
+    assert quits == ['quit', 'quit']
+    assert not driver.stopped
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_quit_signal_routes_through_hook():
+    app, driver = make_app()
+    quits = []
+    app.on_quit = lambda: quits.append('quit')
+
+    await AppQuitSignal(app=app).quit()
+
+    assert quits == ['quit']
+    assert not driver.stopped
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_quit_drains_pump_before_stopping_driver():
+    session = BlockingSession()
+    driver = _QuitDriver(lambda d: session.first_stopped.is_set())
+    app = MinituiChatApp(ta.cast(mt.AsyncioDriver, driver))
+    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+    shutdown = Shutdown(pump=pump, driver=ta.cast(mt.AsyncioDriver, driver))
+    app.on_quit = shutdown.request
+
+    pump.submit('first')
+    await session.first_started.wait()
+    pump.submit('second')
+
+    app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))
+    app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))  # a repeat is a no-op, not a second shutdown
+    await settle(lambda: driver.stopped)
+
+    assert driver.stopped
+    assert driver.at_stop is True
+    assert session.prompts == ['first']
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_quit_commits_cancelled_cards_before_driver_stops():
+    driver = _QuitDriver(commit_texts)
+    app = MinituiChatApp(ta.cast(mt.AsyncioDriver, driver))
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    tool = _BlockingTool()
+    session = _TurnLoopSession(
+        backend=_tool_call_backend('t1', 'block'),
+        tools=[tool.tool()],
+        subscriber=renderer.on_agent_event,
+    )
+    pump = _wire(app, session)
+    shutdown = Shutdown(pump=pump, driver=ta.cast(mt.AsyncioDriver, driver))
+    app.on_quit = shutdown.request
+
+    pump.submit('go')
+    await tool.started.wait()
+    driver.commits.clear()
+
+    await AppQuitSignal(app=app).quit()
+    await settle(lambda: driver.stopped)
+
+    assert driver.stopped
+    assert any('block  cancelled' in c for c in driver.at_stop)
+    assert driver.at_stop[-1] == '× cancelled\n'
+    assert not app.is_busy

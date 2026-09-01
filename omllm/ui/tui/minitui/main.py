@@ -3,7 +3,8 @@ Entry point for the minitui chat backend: `python -m omllm.ui.tui.minitui`.
 
 Structural difference from `bare`: there is no blocking read loop - `AsyncDriver.run(app)` owns the terminal for the
 process lifetime, and prompts run as concurrent tasks so the surface keeps rendering stream deltas (and accepting input)
-while a turn is in flight. Submissions made mid-turn queue and run in order.
+while a turn is in flight. Submissions made mid-turn queue and run in order. Quitting (ctrl+d, `:q`, `/quit`) drains the
+pump before the driver stops, so an interrupted turn's cards and marker land in scrollback rather than being dropped.
 """
 import asyncio
 import os.path
@@ -29,16 +30,19 @@ from .output import bind_output
 ##
 
 
-class DriverQuitSignal(ui.QuitSignal):
-    """Stops the driver (unwinding through its terminal-restore path) instead of raising through the turn."""
+class AppQuitSignal(ui.QuitSignal):
+    """
+    Routes `/quit` through the app's quit funnel, so it sequences like ctrl+d and `:q` instead of raising through the
+    turn.
+    """
 
-    def __init__(self, *, driver: mt.AsyncioDriver) -> None:
+    def __init__(self, *, app: MinituiChatApp) -> None:
         super().__init__()
 
-        self._driver = driver
+        self._app = app
 
     async def quit(self) -> None:
-        self._driver.stop()
+        self._app.request_quit()
 
 
 ##
@@ -112,6 +116,37 @@ class PromptPump:
                 pass  # unwound at shutdown; errors already surfaced by _run_one
 
 
+class Shutdown:
+    """
+    The quit sequence: drain the pump first - cancelling any in-flight turn while the driver is still bound, so the
+    abort's cards and marker reach scrollback - then stop the driver. Runs as its own task because `/quit` arrives from
+    inside the pump's own task, which cannot await its own teardown.
+    """
+
+    def __init__(
+            self,
+            *,
+            pump: PromptPump,
+            driver: mt.AsyncioDriver,
+    ) -> None:
+        super().__init__()
+
+        self._pump = pump
+        self._driver = driver
+
+        self._task: asyncio.Task | None = None
+
+    async def _run(self) -> None:
+        try:
+            await self._pump.aclose()
+        finally:
+            self._driver.stop()
+
+    def request(self) -> None:
+        if self._task is None:
+            self._task = asyncio.get_running_loop().create_task(self._run())
+
+
 ##
 
 
@@ -132,8 +167,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         bind_input(config),
         bind_output(config),
 
-        inj.bind(DriverQuitSignal, singleton=True),
-        inj.bind(ui.QuitSignal, to_key=DriverQuitSignal),
+        inj.bind(AppQuitSignal, singleton=True),
+        inj.bind(ui.QuitSignal, to_key=AppQuitSignal),
     ]
 
     #
@@ -161,6 +196,9 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         pump = PromptPump(session=session, app=app)
         app.on_submit = pump.submit
         app.on_cancel = pump.cancel_current
+
+        shutdown = Shutdown(pump=pump, driver=driver)
+        app.on_quit = shutdown.request
 
         # The driver starts before any agent activity: its run prologue prepares the surface, and everything the setup
         # below causes to display (e.g. verbose-mode StateUpdateEvents) buffers until then.
@@ -194,6 +232,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             await driver_task
 
         finally:
+            # Fallback for the paths that bypass the quit funnel - stdin EOF (the driver stops itself) and errors - in
+            # which the pump may still hold a turn.
             if not driver_task.done():
                 driver.stop()
                 await driver_task

@@ -28,6 +28,7 @@ THEME = mt.DEFAULT_THEME.extend({
     'speaker.ai': mt.Style(fg=mt.SUCCESS, bold=True),
     'speaker.you': mt.Style(fg=mt.TEXT_SECONDARY, bold=True),
     'echo.command': mt.Style(fg=mt.TEXT_SECONDARY, italic=True),
+    'turn.aborted': mt.Style(fg=mt.TEXT_SECONDARY, italic=True),
 })
 
 
@@ -42,6 +43,7 @@ class _ToolCardEntry:
     card: mt.Card
 
     ready_to_finalize: bool = False
+    finalize_timer: mt.AsyncioTimer | None = None
 
 
 @dc.dataclass(frozen=True)
@@ -134,6 +136,7 @@ class MinituiChatApp(mt.App):
         # The submit hook - `main` points this at the session prompt pump.
         self.on_submit: ta.Callable[[str], None] | None = None
         self.on_cancel: ta.Callable[[], bool] | None = None
+        self.on_quit: ta.Callable[[], None] | None = None
 
         self._refresh_status()
 
@@ -236,6 +239,11 @@ class MinituiChatApp(mt.App):
             entry.ready_to_finalize = True
         self._flush_ready_cards()
 
+        if self._busy:
+            # Close the open `ai` block visibly even when nothing streamed - a bare header would otherwise run straight
+            # into the next prompt.
+            self._commit_rows([[mt.Segment('× cancelled' if cancelled else '✗ failed', 'turn.aborted')], []])
+
         self._busy = False
         self._thinking = False
         self._refresh_status()
@@ -337,7 +345,7 @@ class MinituiChatApp(mt.App):
                     (request.title, 'card.summary'),
                     ('  denied', 'card.summary.dim'),
                 ])
-                self._finalize_card_later(request.key, entry, .6)
+                self._finalize_card_later(entry, .6)
 
         try:
             request.on_respond(allowed)
@@ -365,6 +373,7 @@ class MinituiChatApp(mt.App):
         else:
             entry.title = title
             entry.ready_to_finalize = False
+            self._cancel_finalize(entry)
 
         frozen_detail = _freeze_rows(detail_rows)
         entry.card.set_state(mt.CardState.PENDING)
@@ -398,6 +407,7 @@ class MinituiChatApp(mt.App):
             entry.title = title
             entry.base_detail = frozen_detail
             entry.ready_to_finalize = False
+            self._cancel_finalize(entry)
             if entry.card.state not in (mt.CardState.PENDING, mt.CardState.CONFIRMING):
                 entry.card.set_state(mt.CardState.RUNNING)
                 entry.card.set_summary([
@@ -428,7 +438,7 @@ class MinituiChatApp(mt.App):
         ])
         if detail_rows is not None:
             entry.card.set_detail(detail_rows)
-        self._finalize_card_later(key, entry, .8)
+        self._finalize_card_later(entry, .8)
         self._driver.invalidate()
 
     def _flush_ready_cards(self) -> None:
@@ -439,16 +449,26 @@ class MinituiChatApp(mt.App):
                 self._cards[key] = entry
                 self._cards.move_to_end(key, last=False)
                 return
+            self._cancel_finalize(entry)
             self._commit_rows([*entry.card.render(self.width), []])
 
-    def _finalize_card_later(self, key: str, entry: _ToolCardEntry, delay_s: float) -> None:
-        def fn() -> None:
-            if self._cards.get(key) is entry:
-                entry.ready_to_finalize = True
-                self._flush_ready_cards()
-                self._driver.invalidate()
+    def _cancel_finalize(self, entry: _ToolCardEntry) -> None:
+        if (timer := entry.finalize_timer) is not None:
+            timer.cancel()
+            entry.finalize_timer = None
 
-        self._driver.timers.call_later(delay_s, fn)
+    def _finalize_card_later(self, entry: _ToolCardEntry, delay_s: float) -> None:
+        # One pending finalize per entry: reactivation (`tool_started`, `begin_permission_card`) and flushing cancel it,
+        # so a timer from an earlier lifecycle of the same key can never finalize a live successor.
+        self._cancel_finalize(entry)
+
+        def fn() -> None:
+            entry.finalize_timer = None
+            entry.ready_to_finalize = True
+            self._flush_ready_cards()
+            self._driver.invalidate()
+
+        entry.finalize_timer = self._driver.timers.call_later(delay_s, fn)
 
     ##
     # Input
@@ -462,9 +482,19 @@ class MinituiChatApp(mt.App):
         if (cb := self.on_submit) is not None:
             cb(text)
 
+    def request_quit(self) -> None:
+        """
+        Every quit path funnels here. `main` points `on_quit` at its shutdown sequence; unwired, the driver just stops.
+        """
+
+        if (fn := self.on_quit) is not None:
+            fn()
+        else:
+            self._driver.stop()
+
     def _ex(self, line: str) -> str | None:
         if line in ('q', 'q!', 'wq'):
-            self._driver.stop()
+            self.request_quit()
             return None
         return f'Not an editor command: {line}'
 
@@ -494,7 +524,7 @@ class MinituiChatApp(mt.App):
             return True
 
         if app_key is AppKey.EXIT:
-            self._driver.stop()
+            self.request_quit()
             return True
 
         permission_card = None
