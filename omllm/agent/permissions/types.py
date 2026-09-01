@@ -55,6 +55,16 @@ class PermissionDeniedError(Exception):
     target: PermissionTarget
 
 
+@dc.dataclass()
+class PermissionAskAbortedError(Exception):
+    """
+    An ask could not be answered: the asker withdrew it - the surface presenting it went away, or its turn ended - while
+    the requesting tool was still live. Tools treat it as an execution error: it is neither a denial nor a cancellation.
+    """
+
+    target: PermissionTarget
+
+
 class PermissionDecider(lang.Abstract):
     @abc.abstractmethod
     def decide(
@@ -133,6 +143,17 @@ class PermissionRule(fh.FieldHashable, lang.Final):
 
 
 class PermissionAsker(lang.Abstract):
+    """
+    Resolves an ASK rule into a decision by consulting someone - a user at a terminal, a policy service.
+
+    Contract for implementations. Every ask must be resolved, in exactly one of three ways: `ask` returns a decision; it
+    raises `PermissionAskAbortedError` because the ask can no longer be answered (the surface presenting it went away,
+    its turn ended); or it unwinds because the *requesting task itself* was cancelled. An asker must never inject a
+    cancellation error into a live requesting task that did not ask to be cancelled - the turn loop cannot tell that
+    apart from the user cancelling the turn, and would report the turn CANCELLED and drop its messages. Withdraw with
+    `PermissionAskAbortedError` instead.
+    """
+
     @abc.abstractmethod
     def ask(
             self,

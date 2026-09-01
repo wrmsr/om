@@ -138,6 +138,7 @@ with _lang.auto_proxy_init(globals()):
 
         DecidedPermissionState,
         PermissionDeniedError,
+        PermissionAskAbortedError,
         PermissionDecider,
 
         PermissionTarget,

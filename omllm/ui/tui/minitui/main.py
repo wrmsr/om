@@ -95,6 +95,11 @@ class PromptPump:
     def _on_task_done(self, task: asyncio.Task) -> None:
         if self._task is task:
             self._task = None
+        if self._app.is_busy:
+            # Backstop for a lost terminal event: a cancellation landing inside the agent's AgentEndEvent publish is
+            # thrown into whichever subscriber was suspended, and the renderer behind it never closes the turn. The
+            # prompt task is over either way, so close it here.
+            self._app.abort_ai_turn(cancelled=task.cancelled())
         self._maybe_start()
 
     def cancel_current(self) -> bool:

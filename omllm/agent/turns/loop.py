@@ -178,6 +178,21 @@ class TurnLoop:
 
         tool_calls = [c for c in message.content if isinstance(c, llm.ToolCall)]
         if tool_calls:
+            # FIXME: parallel tool calls. When these run concurrently, cancellation semantics must hold for the group,
+            # not per call:
+            #  - A failing sibling must cancel the others *before* control reaches `run`'s terminal publish, so their
+            #    pending permission asks unwind inside their own tasks as genuine cancellations. Otherwise those asks
+            #    are still parked when frontends receive the AgentEndEvent and the frontend has to withdraw them, which
+            #    (per the PermissionAsker contract) surfaces to a still-live tool as PermissionAskAbortedError - and a
+            #    detached tool then runs to completion, publishing ToolExecution*Events into a turn that has ended
+            #    (minitui's renderer drops such stragglers; other frontends may not).
+            #  - A cancellation of the loop itself must reach every child before the terminal publish, for the same
+            #    reason.
+            #  - Tool result messages must still be appended in tool-call order regardless of completion order;
+            #    frontends already finalize cards in that order.
+            # This layer is sans-io and must stay usable with asyncio absent from sys.modules: no TaskGroup / gather
+            # here. The concurrency primitive is to be decided, and is explicitly *not* an injectable sync/async
+            # abstraction for now.
             for tool_call in tool_calls:
                 await self._execute_tool_call(tool_call)
 
@@ -210,6 +225,16 @@ class TurnLoop:
 
         finally:
             if end_error is not None:
+                # FIXME: cancellation classification is coarse. `is_cancelled_error` answers "is this a cancellation
+                # error", not "was this task cancelled": a CancelledError raised because *something else* cancelled a
+                # future this task was awaiting (a frontend withdrawing a permission ask, a tool cancelling its own
+                # awaitable) is indistinguishable here from the user cancelling the turn. It is reported CANCELLED, and
+                # everything gating on that reason then drops the turn's messages (Session storage, Agent.prompt's state
+                # update). The precise test is asyncio-specific - `asyncio.current_task().cancelling() > 0` - and this
+                # layer must stay usable without asyncio loaded at all, so it is not done here. The consequence is
+                # pushed to the edges: askers must never inject a bare cancellation into a live turn (see the
+                # PermissionAsker contract; minitui's CardPermissionAsker converts a withdrawn ask into
+                # PermissionAskAbortedError when its own task was not cancelled).
                 if is_cancelled_error(end_error):
                     end_reason = AgentEndReason.CANCELLED
                 elif isinstance(end_error, Exception):
@@ -217,6 +242,18 @@ class TurnLoop:
                 else:
                     raise  # noqa
 
+            # FIXME: this terminal publish is not atomic under cancellation. If a cancellation lands while a subscriber
+            # is suspended inside it, the CancelledError is thrown into that subscriber and every subscriber after it
+            # never sees the AgentEndEvent: a frontend can be left mid-turn forever, and a COMPLETED turn can be
+            # half-recorded (Session has stored it, then the task unwinds before Agent.prompt applies it to state). The
+            # fix is to shield the publish so a cancellation arriving during it is deferred until every subscriber has
+            # run and then re-raised - `omcore.asyncs.asyncio.shielded_finally` does exactly this - but it is
+            # asyncio-specific and this layer must not depend on asyncio. Until a sans-io equivalent exists:
+            #  - A subscriber that may suspend (storage, network) widens the window for every subscriber behind it. The
+            #    harness Session subscribes at construction, ahead of UI subscribers, and its JSONL storage does
+            #    synchronous file IO, so today the window is nil - keep it that way, or reorder.
+            #  - Frontends must backstop a lost terminal event. minitui's PromptPump closes the surface's turn from the
+            #    prompt task's done callback if the renderer never saw the end event.
             await self._publish(AgentEndEvent(
                 context=self._context,
 

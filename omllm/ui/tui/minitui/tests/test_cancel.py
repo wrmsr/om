@@ -269,7 +269,7 @@ async def test_asker_task_cancel_unwinds_and_abort_finalizes_card():
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_abort_cancels_active_and_queued_asks():
+async def test_abort_withdraws_active_and_queued_asks_as_errors():
     app, _ = make_app()
     asker = CardPermissionAsker(app=app)
 
@@ -281,8 +281,10 @@ async def test_abort_cancels_active_and_queued_asks():
 
     app.abort_ai_turn(cancelled=False)
 
+    # The requesting tasks were not themselves cancelled, so the withdrawal must not look like a cancellation to them:
+    # the turn loop would misreport the turn as cancelled by the user.
     for task in tasks:
-        with pytest.raises(asyncio.CancelledError):
+        with pytest.raises(agn.PermissionAskAbortedError):
             await task
     assert not any(title in line for title in ('alpha', 'beta') for line in frame_lines(app))
 
@@ -455,6 +457,77 @@ async def test_cancel_key_during_model_call_ends_turn_idle():
     assert any(' idle ' in line for line in frame_lines(app))
     assert not pump.cancel_current()
     await pump.aclose()
+
+
+def _text_backend(text):
+    model = llm.Model(key=llm.ModelKey('scripted', 'test'), backend='scripted')
+    return llm.ScriptedImmediateBackend(model, llm.BackendScript([
+        llm.BackendScriptTurn(llm.AiMessage([llm.TextContent(text)], stop_reason='stop')),
+    ]))
+
+
+class _StallingEndSubscriber:
+    """Suspends inside the AgentEndEvent, standing in for a storage subscriber ahead of the renderer."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.stalled = asyncio.Event()
+        self._never = asyncio.Event()
+
+    async def __call__(self, ev) -> None:
+        if isinstance(ev, agn.AgentEndEvent):
+            self.stalled.set()
+            await self._never.wait()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_cancel_landing_in_end_event_publish_still_closes_turn():
+    app, driver = make_app()
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    stalling = _StallingEndSubscriber()
+
+    async def subscriber(ev):
+        await stalling(ev)
+        await renderer.on_agent_event(ev)
+
+    session = _TurnLoopSession(backend=_text_backend('done'), tools=[], subscriber=subscriber)
+    pump = _wire(app, session)
+
+    pump.submit('go')
+    await stalling.stalled.wait()
+    assert any(' streaming ' in line for line in frame_lines(app))
+
+    # The cancel is thrown into the stalled subscriber; the renderer never sees the end event. The pump's done callback
+    # must close the turn anyway.
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
+    await settle(lambda: not app.is_busy)
+
+    assert not app.is_busy
+    assert commit_texts(driver)[-1] == '× cancelled\n'
+    assert not pump.cancel_current()
+    await pump.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_renderer_drops_stragglers_after_turn_ends():
+    app, _ = make_app()
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    tool = agn.Tool(llm_tool=llm.Tool(name='late'), executor=_unused_executor)
+    context = agn.ToolContext(tool=tool, args={}, llm_tool_call=llm.ToolCall('t9', 'late', {}))
+
+    # No turn is open: a tool finishing late or a stray delta must not resurrect a card or reopen the tail.
+    await renderer.on_agent_event(agn.ToolExecutionStartEvent(tool=tool, context=context))
+    await renderer.on_agent_event(agn.LlmAiStreamEvent(llm.TextDeltaAiStreamEvent('late text', content_index=0)))
+    assert not any('late' in line for line in frame_lines(app))
+
+    # Inside a turn the same events render.
+    await renderer.on_agent_event(agn.AgentStartEvent())
+    await renderer.on_agent_event(agn.ToolExecutionStartEvent(tool=tool, context=context))
+    await renderer.on_agent_event(agn.LlmAiStreamEvent(llm.TextDeltaAiStreamEvent('live text', content_index=0)))
+    lines = frame_lines(app)
+    assert any('late  running...' in line for line in lines)
+    assert any('live text' in line for line in lines)
 
 
 ##

@@ -3,7 +3,9 @@ Input side of the minitui backend: the permission asker.
 
 `PermissionAsker.ask` is awaited from deep inside a tool executor, mid-turn. Here it surfaces as a warm-window
 confirmation card (allow f10 / deny f2) whose response resolves an asyncio future - the driver keeps rendering (and the
-user keeps typing) while that execution is parked on the decision. Concurrent requests queue behind the active card.
+user keeps typing) while that execution is parked on the decision. Concurrent requests queue behind the active card. An
+ask withdrawn by the app (its turn ended while the tool was still live) surfaces as `PermissionAskAbortedError`, never
+as a cancellation the requesting task did not ask for.
 """
 import asyncio
 
@@ -53,7 +55,17 @@ class CardPermissionAsker(agn.PermissionAsker):
             on_cancel=cancel,
         )
 
-        return agn.PermissionState.ALLOW if await fut else agn.PermissionState.DENY
+        try:
+            allowed = await fut
+        except asyncio.CancelledError:
+            # The future was cancelled but this task was not: the app withdrew the ask (its turn ended) while the tool
+            # was still live. Per the PermissionAsker contract that is an execution error for the tool, not a
+            # cancellation of the turn - the turn loop could not tell the two apart.
+            if not check.not_none(asyncio.current_task()).cancelling():
+                raise agn.PermissionAskAbortedError(target) from None
+            raise
+
+        return agn.PermissionState.ALLOW if allowed else agn.PermissionState.DENY
 
 
 ##

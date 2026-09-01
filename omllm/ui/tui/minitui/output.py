@@ -154,6 +154,11 @@ class AgentEventRenderer:
             else:
                 app.abort_ai_turn(cancelled=ev.reason is agn.AgentEndReason.CANCELLED)
 
+        elif not app.is_busy:
+            # A straggler from a turn that already ended - a detached tool finishing after its turn aborted, a delta
+            # racing the end event. It must not reopen the tail or resurrect a finalized card.
+            return
+
         elif isinstance(ev, agn.LlmAiStreamEvent):
             if not self._config.immediate:
                 self._on_stream_event(ev.event)

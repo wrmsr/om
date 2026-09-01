@@ -58,6 +58,17 @@ class Agent(
 
         in_state = self._state
 
+        # FIXME: the state update below is skipped whenever `run_turn` raises - including when it raises *after* the
+        # turn loop has completed. The loop publishes AgentEndEvent(COMPLETED) from inside `run_turn` (subscribers such
+        # as the harness Session store the turn's messages on it), and a runner may still suspend after that: the TUI's
+        # ScopedTurnRunner exits an async injector scope, whose `__aexit__` is an await point. A cancellation landing
+        # there unwinds through here with the completed result in hand but discarded, leaving the turn stored but never
+        # applied to agent state - the next prompt runs without it. A sans-io fix is to capture the terminal event's
+        # context from the subscriber path and apply it in a `finally` when `run_turn` raised after completion; that
+        # trades this inconsistency for its mirror image when the cancellation instead lands inside the publish, ahead
+        # of storage. Neither is right without an atomic terminal publish (see the FIXME in TurnLoop.run), which needs
+        # cancellation shielding this layer must not take on. Today the window is nil in practice - the scope exit has
+        # nothing to await - so this is left as documentation until the publish is made atomic.
         result = await self._turn_runner.run_turn(TurnParams(
             in_state=in_state,
             new_messages=new_messages,
