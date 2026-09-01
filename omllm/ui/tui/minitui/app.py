@@ -156,8 +156,8 @@ class MinituiChatApp(mt.App):
         self._driver.invalidate()
 
     def _parse_markdown(self, text: str) -> list[mt.MdBlock]:
-        # Non-streamed content parses one-shot through a fresh instance of the same backend the streaming tail uses,
-        # so immediate-mode responses and echoed prompts get full fidelity (pdcmark's real inline engine, tables) rather
+        # Non-streamed content parses one-shot through a fresh instance of the same backend the streaming tail uses, so
+        # immediate-mode responses and echoed prompts get full fidelity (pdcmark's real inline engine, tables) rather
         # than the internal fallback parser - without touching the live tail's state.
         return mt.parse_markdown_with(mt.get_markdown_stream(), text)
 

@@ -139,7 +139,7 @@ class RequestPreparer:
     @lang.cached_function
     def raw_request(self) -> dict[str, ta.Any]:
         raw_request: dict = {
-            'model': self._model.key.id,
+            'model': self._model.key_.id,
 
             # This backend is stateless: the full context is replayed each turn, nothing is retained server-side, and
             # reasoning is returned encrypted so replaying it is possible at all (these models reason by default, even

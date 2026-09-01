@@ -8,8 +8,9 @@ closing code fence), and `MarkdownStream` uses that to split an incoming stream 
 scrollback forever versus a tail that re-renders live each frame.
 
 Supported: atx headings, paragraphs, fenced code blocks (with an info string routed to a highlighter), block quotes,
-indent-nested unordered/ordered lists, thematic breaks, GFM pipe tables (a header row, an alignment row, body rows),
-and the inline set (bold / italic / strike / inline code / links).
+indent-nested unordered/ordered lists, thematic breaks, GFM pipe tables (a header row, an alignment row, body rows), and
+the inline set (bold / italic / strike / inline code / links).
+
 Deliberately unsupported (so far): setext headings, nested quotes, tables inside other blocks (their lines just join the
 enclosing paragraph text), reference links, html.
 

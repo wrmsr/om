@@ -373,8 +373,8 @@
         "models": [
           {
             "provider": "anthropic",
-            "id": "claude-fable-5",
-            "name": "Claude Fable 5",
+            "id": "claude-fable-5.1",
+            "name": "Claude Fable 5.1",
             "backend": "anthropic-messages"
           },
           {
@@ -457,7 +457,7 @@
     "module": ".llm.models.default.ollama",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/ollama.py",
-    "line": 54,
+    "line": 65,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -465,6 +465,12 @@
             "provider": "ollama",
             "id": "qwen3.5:2b",
             "name": "qwen3.5:2b",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "ollama",
+            "id": "qwen3.8:27b",
+            "name": "qwen3.8:27b",
             "backend": "openai-completions"
           },
           {

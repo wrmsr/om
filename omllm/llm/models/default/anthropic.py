@@ -30,9 +30,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='anthropic',
-            id='claude-fable-5',
+            id='claude-fable-5.1',
         ),
-        name='Claude Fable 5',
+        name='Claude Fable 5.1',
         backend='anthropic-messages',
         cache=CacheCapabilities(
             control_style='anthropic',

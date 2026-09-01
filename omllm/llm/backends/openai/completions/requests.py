@@ -99,7 +99,7 @@ class RequestPreparer:
     @lang.cached_function
     def raw_request(self) -> dict[str, ta.Any]:
         raw_request: dict = {
-            'model': self._model.key.id,
+            'model': self._model.key_.id,
         }
 
         if self._options.max_tokens is not None:

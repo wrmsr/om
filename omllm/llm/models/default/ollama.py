@@ -13,7 +13,15 @@ from ..manifests import ModelsModuleManifest
 ##
 
 
-DEFAULT_OLLAMA_URL = 'http://localhost:11434/'
+_DEFAULT_COMPAT = OpenaiCompletionsCompat(
+    url_path='/v1/chat/completions',
+)
+
+_BASE_URL = 'http://localhost:11434/'
+
+_DEFAULT_HTTP = Model.Http(
+    base_url=_BASE_URL,
+)
 
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
@@ -25,12 +33,19 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='qwen3.5:2b',
         backend='openai-completions',
-        compat=OpenaiCompletionsCompat(
-            url_path='/v1/chat/completions',
+        compat=_DEFAULT_COMPAT,
+        http=_DEFAULT_HTTP,
+    ),
+
+    Model(
+        key=ModelKey(
+            provider='ollama',
+            id='qwen3.8:27b',
         ),
-        http=Model.Http(
-            base_url=DEFAULT_OLLAMA_URL,
-        ),
+        name='qwen3.8:27b',
+        backend='openai-completions',
+        compat=_DEFAULT_COMPAT,
+        http=_DEFAULT_HTTP,
     ),
 
     Model(
@@ -40,12 +55,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='qwen3.8:27b-mlx',
         backend='openai-completions',
-        compat=OpenaiCompletionsCompat(
-            url_path='/v1/chat/completions',
-        ),
-        http=Model.Http(
-            base_url=DEFAULT_OLLAMA_URL,
-        ),
+        compat=_DEFAULT_COMPAT,
+        http=_DEFAULT_HTTP,
     ),
 
 ]

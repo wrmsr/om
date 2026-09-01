@@ -19,9 +19,9 @@ class ModelCatalog(ta.Sequence[Model]):
         lst: list[Model] = []
         by_key: dict[ModelKey, Model] = {}
         for m in models:
-            check.not_in(m.key, by_key)
+            check.not_in(m.key_, by_key)
             lst.append(m)
-            by_key[m.key] = m
+            by_key[m.key_] = m
 
         self._seq = lst
         self._by_key = by_key

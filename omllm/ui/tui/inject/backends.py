@@ -8,7 +8,7 @@ from .... import llm
 from ....core import registry as reg
 from ..config import Config
 from ..models import DEFAULT_MODEL_NAME
-from ..models import MODELS_BY_NAME
+from ..models import models_by_name
 
 
 ##
@@ -31,7 +31,7 @@ def bind_backends(config: Config) -> inj.Elements:
         )
 
     else:
-        model = MODELS_BY_NAME[config.model or DEFAULT_MODEL_NAME]
+        model = models_by_name()[config.model or DEFAULT_MODEL_NAME]
         llm_model = llm.default_model_catalog()[model.key]
         api_key_name = model.api_key_name
 
@@ -40,7 +40,7 @@ def bind_backends(config: Config) -> inj.Elements:
         else:
             backend_cls = llm.StreamBackend
 
-        backend_impl_cls = reg.get_registry_cls(backend_cls, llm_model.backend)
+        backend_impl_cls = reg.get_registry_cls(backend_cls, llm_model.backend_)
 
         backend = backend_impl_cls(
             llm_model,

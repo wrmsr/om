@@ -1,8 +1,8 @@
 """
 Shared flattening for the parser backends. The render model is deliberately simpler than commonmark, so the pdcmark and
 markdown-it adapters squash nested structure the same way: inline groups join with spaces, and a list item carries
-inline content only - its nested lists merge into the parent one level deeper, and any other block-level child (a
-table, a code block, a rule) surfaces as a sibling block that splits the list, so nothing is dropped.
+inline content only - its nested lists merge into the parent one level deeper, and any other block-level child (a table,
+a code block, a rule) surfaces as a sibling block that splits the list, so nothing is dropped.
 """
 import typing as ta
 
@@ -36,8 +36,8 @@ def join_span_groups(groups: ta.Iterable[ta.Sequence[Segment]]) -> tuple[Segment
 
 def flatten_list_item(marker: str, children: ta.Sequence[MdBlock]) -> list[ListPart]:
     """
-    An item's converted children -> the item itself (inline-ish children joined into its text), then in order its
-    nested lists' items one level deeper and any block-level extras.
+    An item's converted children -> the item itself (inline-ish children joined into its text), then in order its nested
+    lists' items one level deeper and any block-level extras.
     """
 
     groups: list[ta.Sequence[Segment]] = []

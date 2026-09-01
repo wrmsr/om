@@ -88,11 +88,20 @@ class ModelKey:
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 @msh.update_field_options(omit_if=lang.is_none)
 class Model:
-    key: ModelKey
+    # Must be present for actual use but may be None for temporary or base instances (and must be explicitly set to None
+    # for such cases).
+    key: ModelKey | None
+    backend: str | None
+
+    @property
+    def key_(self) -> ModelKey:
+        return check.not_none(self.key)
+
+    @property
+    def backend_(self) -> str:
+        return check.not_none(self.backend)
 
     name: str | None = ''
-
-    backend: str
 
     #
 

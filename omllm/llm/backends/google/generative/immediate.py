@@ -47,7 +47,7 @@ class GoogleGenerativeImmediateBackend(BaseGoogleGenerativeBackend, ImmediateBac
         }
 
         http_request = http.HttpClientRequest(
-            f'{self._base_url}/models/{self._model.key.id}:generateContent',
+            f'{self._base_url}/models/{self._model.key_.id}:generateContent',
             headers=http_headers,
             data=json.dumps(raw_request).encode('utf-8'),
         )

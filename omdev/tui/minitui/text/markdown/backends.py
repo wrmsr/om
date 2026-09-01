@@ -49,9 +49,9 @@ def get_markdown_stream(name: str | None = None) -> MarkdownStreamBackend:
 
 def parse_markdown_with(backend: MarkdownStreamBackend, text: str) -> list[MdBlock]:
     """
-    A one-shot parse through a streaming backend: feed everything, drain it with `finalize`. For non-streamed content
-    (a whole response in immediate mode, an echoed user message) that should render with the same fidelity as the live
-    tail - pass a fresh instance (`get_markdown_stream()`), not a tail's own mid-stream backend.
+    A one-shot parse through a streaming backend: feed everything, drain it with `finalize`. For non-streamed content (a
+    whole response in immediate mode, an echoed user message) that should render with the same fidelity as the live tail
+    - pass a fresh instance (`get_markdown_stream()`), not a tail's own mid-stream backend.
     """
 
     backend.feed(text)

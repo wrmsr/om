@@ -110,10 +110,10 @@ class TestOllamaTools(BaseToolsTest):
         (ModelKey('ollama', 'qwen3.5:2b'), None),
     ])
     def model(self, request):
-        from .....models.default.ollama import DEFAULT_OLLAMA_URL
+        from .....models.default.ollama import _BASE_URL
 
         try:
-            http.request(DEFAULT_OLLAMA_URL)
+            http.request(_BASE_URL)
         except http.HttpClientError:
             pytest.skip('No ollama server')
 

@@ -519,6 +519,8 @@ RUN cat > /om/scripts/install-claude <<'EOF' && chmod 664 /om/scripts/install-cl
 #!/bin/bash
 set -e
 
+command -v claude >/dev/null 2>&1 && exit 0
+
 curl -fsSL 'https://claude.ai/install.sh' | bash
 EOF
 
@@ -527,6 +529,8 @@ RUN cat > /om/scripts/install-codex <<'EOF' && chmod 664 /om/scripts/install-cod
 #!/bin/bash
 set -e
 
+command -v codex >/dev/null 2>&1 && exit 0
+
 npm i -g @openai/codex
 EOF
 
@@ -534,6 +538,8 @@ EOF
 RUN cat > /om/scripts/install-pi <<'EOF' && chmod 664 /om/scripts/install-pi
 #!/bin/bash
 set -e
+
+command -v pi >/dev/null 2>&1 && exit 0
 
 curl -fsSL https://pi.dev/install.sh | sh
 EOF

@@ -8,10 +8,10 @@ a standalone event), since block conversion needs whole groups. The parser runs 
 strikethrough, task lists, admonitions) - llm output is GFM-flavored.
 
 Flattenings (the render model is deliberately simpler than commonmark; see `.flattening`): nested quote/item content
-joins into the parent's inline spans, with block-level children (a table or code block in a quote or item, etc.)
-emitted as sibling blocks - splitting a list where necessary so nothing is dropped; nested lists merge into their
-parent list with increased item depth; tables become `MdTable`s with inline-styled cells. Hard breaks soften to spaces
-(blocks re-wrap).
+joins into the parent's inline spans, with block-level children (a table or code block in a quote or item, etc.) emitted
+as sibling blocks - splitting a list where necessary so nothing is dropped; nested lists merge into their parent list
+with increased item depth; tables become `MdTable`s with inline-styled cells. Hard breaks soften to spaces (blocks
+re-wrap).
 """
 import typing as ta
 
@@ -84,60 +84,80 @@ class _EventWalker:
 
         spans: list[Segment] = []
         stack: list[str | None] = []
+
         while (e := self._next()) is not None:
             if isinstance(e, pdcmark.End) and type(e.tag) is type(end_tag) and not stack:
                 break
+
             if isinstance(e, pdcmark.Start):
                 stack.append(_inline_style(e.tag))
+
             elif isinstance(e, pdcmark.End):
                 style = stack.pop() if stack else None
                 if style == 'md.link' and isinstance(e.tag, (pdcmark.Link, pdcmark.Image)) and e.tag.dest_url:
                     spans.append(Segment(f' ({e.tag.dest_url})', 'md.link.url'))
+
             elif isinstance(e, pdcmark.Text):
                 if e.text:
-                    spans.append(Segment(e.text.replace('\n', ' '), next(
-                        (s for s in reversed(stack) if s is not None), None)))
+                    spans.append(Segment(
+                        e.text.replace('\n', ' '),
+                        next((s for s in reversed(stack) if s is not None), None),
+                    ))
+
             elif isinstance(e, pdcmark.Code):
                 spans.append(Segment(e.text, 'md.code.inline'))
+
             elif isinstance(e, (pdcmark.SoftBreak, pdcmark.HardBreak)):
                 spans.append(Segment(' '))
+
             elif isinstance(e, pdcmark.InlineHtml):
                 if e.text:
                     spans.append(Segment(e.text.replace('\n', ' ')))
+
             elif isinstance(e, pdcmark.TaskListMarker):
                 spans.append(Segment('[x] ' if e.checked else '[ ] ', 'md.list.marker'))
+
         return tuple(spans)
 
     def _code_lines(self, end_tag: ta.Any) -> tuple[str, ...]:
         text = ''
+
         while (e := self._next()) is not None:
             if isinstance(e, pdcmark.End) and type(e.tag) is type(end_tag):
                 break
+
             if isinstance(e, (pdcmark.Text, pdcmark.Html)):
                 text += e.text
+
         return tuple(text.rstrip('\n').split('\n')) if text else ()
 
     def _children_until(self, end_tag: ta.Any) -> list[MdBlock]:
         blocks: list[MdBlock] = []
+
         while (e := self._next()) is not None:
             if isinstance(e, pdcmark.End) and type(e.tag) is type(end_tag):
                 break
+
             if (block_list := self._convert_one(e)) is not None:
                 blocks.extend(block_list)
+
         return blocks
 
     def _list_parts(self, list_tag: pdcmark.List) -> list[ListPart]:
         parts: list[ListPart] = []
         index = list_tag.start if list_tag.start is not None else None
+
         while (e := self._next()) is not None:
             if isinstance(e, pdcmark.End) and isinstance(e.tag, pdcmark.List):
                 break
+
             if isinstance(e, pdcmark.Start) and isinstance(e.tag, pdcmark.Item):
                 children = self._children_until(e.tag)
                 marker = f'{index}.' if index is not None else '-'
                 if index is not None:
                     index += 1
                 parts.extend(flatten_list_item(marker, children))
+
         return parts
 
     def _table(self, table_tag: pdcmark.Table) -> MdTable:
@@ -145,26 +165,33 @@ class _EventWalker:
         rows: list[MdTableRow] = []
         cells: list[tuple[Segment, ...]] = []
         in_head = False
+
         while (e := self._next()) is not None:
             if isinstance(e, pdcmark.End) and isinstance(e.tag, pdcmark.Table):
                 break
+
             if isinstance(e, pdcmark.Start) and isinstance(e.tag, pdcmark.TableHead):
                 in_head = True
+
             elif isinstance(e, pdcmark.Start) and isinstance(e.tag, pdcmark.TableCell):
                 cells.append(self._inline_spans(e.tag))
+
             elif isinstance(e, pdcmark.End) and isinstance(e.tag, pdcmark.TableHead):
                 head = tuple(cells)
                 cells = []
                 in_head = False
+
             elif isinstance(e, pdcmark.End) and isinstance(e.tag, pdcmark.TableRow):
                 rows.append(MdTableRow(tuple(cells)))
                 cells = []
+
         if cells:
             # A row cut off by the end of the events (a partial view) still shows.
             if in_head:
                 head = tuple(cells)
             else:
                 rows.append(MdTableRow(tuple(cells)))
+
         return MdTable(MdTableRow(head), tuple(rows), tuple(_TABLE_ALIGNS[a] for a in table_tag.alignments))
 
     ##
@@ -180,17 +207,23 @@ class _EventWalker:
             return None
 
         tag = e.tag
+
         if isinstance(tag, pdcmark.Paragraph):
             return [MdParagraph(self._inline_spans(tag))]
+
         if isinstance(tag, pdcmark.Heading):
             return [MdHeading(tag.level, self._inline_spans(tag))]
+
         if isinstance(tag, pdcmark.FencedCodeBlock):
             return [MdCode(tag.info.strip(), self._code_lines(tag))]
+
         if isinstance(tag, pdcmark.IndentedCodeBlock):
             return [MdCode('', self._code_lines(tag))]
+
         if isinstance(tag, pdcmark.HtmlBlock):
             lines = self._code_lines(tag)
             return [MdCode('html', lines)] if any(line.strip() for line in lines) else []
+
         if isinstance(tag, pdcmark.BlockQuote):
             children = self._children_until(tag)
             spans_groups = [c.spans for c in children if isinstance(c, MdParagraph)]
@@ -200,8 +233,10 @@ class _EventWalker:
                 out.append(MdQuote(join_span_groups(spans_groups)))
             out.extend(extras)
             return out
+
         if isinstance(tag, pdcmark.List):
             return assemble_list_parts(self._list_parts(tag))
+
         if isinstance(tag, pdcmark.Table):
             return [self._table(tag)]
 

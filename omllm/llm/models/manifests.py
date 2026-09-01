@@ -33,12 +33,12 @@ class ModelsModuleManifest:
         return ModelsModuleManifest(
             models=[
                 ModuleManifestModel(
-                    provider=m.key.provider,
-                    id=m.key.id,
+                    provider=m.key_.provider,
+                    id=m.key_.id,
 
                     name=m.name,
 
-                    backend=m.backend,
+                    backend=m.backend_,
                 )
                 for m in models
             ],

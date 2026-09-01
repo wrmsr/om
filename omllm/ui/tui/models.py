@@ -1,3 +1,4 @@
+import sys
 import typing as ta
 
 from omcore import collections as col
@@ -10,7 +11,7 @@ from ... import llm
 ##
 
 
-DEFAULT_MODEL_NAME: ta.Final = 'gpt-luna'
+DEFAULT_MODEL_NAME: ta.Final = 'gpt'
 
 
 @dc.dataclass(frozen=True, kw_only=True)
@@ -22,15 +23,18 @@ class Model:
 
     api_key_name: str | None = None
 
+    include_platforms: ta.AbstractSet[str] | None = None
+    exclude_platforms: ta.AbstractSet[str] | None = None
 
-MODELS: ta.Final[ta.Sequence[Model]] = [
+
+ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
 
     ##
     # anthropic
 
     Model(
         name='claude-fable',
-        key=llm.ModelKey('anthropic', 'claude-fable-5'),
+        key=llm.ModelKey('anthropic', 'claude-fable-5.1'),
         api_key_name='anthropic_api_key',
     ),
 
@@ -87,12 +91,16 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
 
     Model(
         name='ollama-qwen',
+        aliases=['qwen'],
         key=llm.ModelKey('ollama', 'qwen3.8:27b'),
+        exclude_platforms={'darwin'},
     ),
 
     Model(
-        name='ollama-qwen-mlx',
+        name='ollama-qwen',
+        aliases=['qwen'],
         key=llm.ModelKey('ollama', 'qwen3.8:27b-mlx'),
+        include_platforms={'darwin'},
     ),
 
     ##
@@ -154,8 +162,21 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
 ]
 
 
-MODELS_BY_NAME: ta.Final[ta.Mapping[str, Model]] = col.make_map((
-    (n, m)
-    for m in MODELS
-    for n in [m.name, *(m.aliases or [])]
-), strict=True)
+##
+
+
+@lang.cached_function
+def models_by_name(
+        *,
+        platform: str | None = None,
+) -> ta.Mapping[str, Model]:
+    if platform is None:
+        platform = sys.platform
+
+    return col.make_map((
+        (n, m)
+        for m in ALL_MODELS
+        if (ip := m.include_platforms) is None or platform in ip
+        if (ep := m.exclude_platforms) is None or platform not in ep
+        for n in [m.name, *(m.aliases or [])]
+    ), strict=True)

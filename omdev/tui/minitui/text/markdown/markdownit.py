@@ -44,8 +44,19 @@ def markdown_it_available() -> bool:
     return importlib.util.find_spec('markdown_it') is not None
 
 
-def new_markdown_it_parser() -> md.MarkdownIt:
-    return md.MarkdownIt('commonmark').enable(['table', 'strikethrough'])
+DEFAULT_ENABLED_RULES: ta.Sequence[str] = (
+    'table',
+    'strikethrough',
+)
+
+
+def new_markdown_it_parser(
+        *,
+        enabled_rules: ta.Iterable[str] | None = None,
+) -> md.MarkdownIt:
+    if enabled_rules is None:
+        enabled_rules = DEFAULT_ENABLED_RULES
+    return md.MarkdownIt('commonmark').enable(enabled_rules)
 
 
 _INLINE_OPEN_STYLES: ta.Mapping[str, str] = {
@@ -74,29 +85,38 @@ def _link_aware_spans(tokens: ta.Sequence[ta.Any]) -> tuple[Segment, ...]:
 
     for tok in tokens or ():
         t = tok.type
+
         if t == 'link_open':
             stack.append(('md.link', dict(tok.attrs or {}).get('href')))
+
         elif t in _INLINE_OPEN_STYLES:
             stack.append((_INLINE_OPEN_STYLES[t], None))
+
         elif t.endswith('_close') and stack:
             _, url = stack.pop()
             if url:
                 spans.append(Segment(f' ({url})', 'md.link.url'))
+
         elif t == 'text':
             if tok.content:
                 spans.append(Segment(tok.content, top()))
+
         elif t == 'code_inline':
             spans.append(Segment(tok.content, 'md.code.inline'))
+
         elif t in ('softbreak', 'hardbreak'):
             spans.append(Segment(' '))
+
         elif t == 'image':
             alt = tok.content or 'image'
             spans.append(Segment(alt, 'md.link'))
             if (src := dict(tok.attrs or {}).get('src')):
                 spans.append(Segment(f' ({src})', 'md.link.url'))
+
         elif t == 'html_inline':
             if tok.content:
                 spans.append(Segment(tok.content.replace('\n', ' ')))
+
     return tuple(spans)
 
 
@@ -152,31 +172,39 @@ class _TokenWalker:
         aligns: list[MdTableAlign] = []
         cells: list[tuple[Segment, ...]] = []
         in_head = False
+
         while (tok := self._next()) is not None:
             t = tok.type
+
             if t == 'table_close':
                 break
+
             if t == 'thead_open':
                 in_head = True
+
             elif t == 'thead_close':
                 in_head = False
+
             elif t in ('th_open', 'td_open'):
                 if in_head:
                     style = str(dict(tok.attrs or {}).get('style', '')).replace(' ', '')
                     aligns.append(_TABLE_ALIGN_STYLES.get(style, MdTableAlign.NONE))
                 cells.append(self._inline_until(t[:2] + '_close'))
+
             elif t == 'tr_close':
                 if in_head:
                     head = tuple(cells)
                 else:
                     rows.append(MdTableRow(tuple(cells)))
                 cells = []
+
         if cells:
             # A row cut off by the end of the tokens (a partial view) still shows.
             if in_head:
                 head = tuple(cells)
             else:
                 rows.append(MdTableRow(tuple(cells)))
+
         return MdTable(MdTableRow(head), tuple(rows), tuple(aligns))
 
     def _convert_one(self, tok: ta.Any) -> list[MdBlock] | None:  # noqa: C901
@@ -185,12 +213,16 @@ class _TokenWalker:
         if t == 'heading_open':
             level = int(tok.tag[1:]) if tok.tag[1:].isdigit() else 1
             return [MdHeading(level, self._inline_until('heading_close'))]
+
         if t == 'paragraph_open':
             return [MdParagraph(self._inline_until('paragraph_close'))]
+
         if t == 'fence':
             return [MdCode((tok.info or '').strip(), tuple(tok.content.rstrip('\n').split('\n')))]
+
         if t == 'code_block':
             return [MdCode('', tuple(tok.content.rstrip('\n').split('\n')))]
+
         if t == 'blockquote_open':
             children = self._children_until('blockquote_close')
             groups = [c.spans for c in children if isinstance(c, MdParagraph)]
@@ -200,15 +232,20 @@ class _TokenWalker:
                 out.append(MdQuote(join_span_groups(groups)))
             out.extend(extras)
             return out
+
         if t == 'bullet_list_open':
             return assemble_list_parts(self._list_parts('bullet_list_close', None))
+
         if t == 'ordered_list_open':
             start = int(dict(tok.attrs or {}).get('start', 1))
             return assemble_list_parts(self._list_parts('ordered_list_close', start))
+
         if t == 'table_open':
             return [self._table()]
+
         if t == 'hr':
             return [MdRule()]
+
         if t == 'html_block':
             content = tok.content.rstrip('\n')
             return [MdCode('html', tuple(content.split('\n')))] if content.strip() else []
