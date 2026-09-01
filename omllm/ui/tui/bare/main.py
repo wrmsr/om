@@ -9,7 +9,7 @@ from .... import agent as agn
 from .... import harness as har
 from ....core import processes
 from ....core import ui
-from ..config import parse_config
+from ..config import Config
 from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
 from .input import InputManager
@@ -21,7 +21,7 @@ from .output import bind_output
 
 
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
-    config = parse_config(argv)
+    config = Config.parse_from_arguments(argv)
 
     #
 
