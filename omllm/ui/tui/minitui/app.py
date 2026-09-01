@@ -75,7 +75,7 @@ class MinituiChatApp(mt.App):
         )
         self._history = mt.InputHistory()
 
-        self._cards: dict[str, _ToolCardEntry] = {}
+        self._cards: collections.OrderedDict[str, _ToolCardEntry] = collections.OrderedDict()
         self._permission_queue: collections.deque[_PermissionCardRequest] = collections.deque()
         self._active_permission: _PermissionCardRequest | None = None
         self._layout: mt.StackLayout | None = None
@@ -363,10 +363,11 @@ class MinituiChatApp(mt.App):
     def _flush_ready_cards(self) -> None:
         # A later tool may finish first, but scrollback should retain the model's tool-call order.
         while self._cards:
-            key, entry = next(iter(self._cards.items()))
+            key, entry = self._cards.popitem(last=False)
             if not entry.ready_to_finalize:
+                self._cards[key] = entry
+                self._cards.move_to_end(key, last=False)
                 return
-            del self._cards[key]
             self._commit_rows([*entry.card.render(self.width), []])
 
     def _finalize_card_later(self, key: str, entry: _ToolCardEntry, delay_s: float) -> None:
@@ -440,7 +441,9 @@ class MinituiChatApp(mt.App):
 
         card = permission_card
         if card is None and self._cards:
-            card = next(reversed(self._cards.values())).card
+            card_key, entry = self._cards.popitem(last=True)
+            self._cards[card_key] = entry
+            card = entry.card
         if card is not None:
             if key == mt.Key('o', ctrl=True):
                 card.toggle_expanded()
