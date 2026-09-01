@@ -64,6 +64,7 @@ TODO:
  - use __transient_dict__ to support common state nuking
  - on_compute
  - max_recursion?
+ - `self_lock=lambda self: self._lock`
 """
 import dataclasses as dc
 import enum

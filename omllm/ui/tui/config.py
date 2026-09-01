@@ -34,9 +34,7 @@ class Config:
 ##
 
 
-def make_config_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
-
+def configure_argument_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument('-m', '--model')
 
     parser.add_argument('--eval', action='store_true')
@@ -57,11 +55,7 @@ def make_config_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
-    parser = make_config_parser()
-
-    args = parser.parse_args(argv)
-
+def build_config_from_args(args: argparse.Namespace) -> Config:
     return Config(
         model=args.model,
 
@@ -80,3 +74,13 @@ def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
 
         verbose=args.verbose,
     )
+
+
+##
+
+
+def parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
+    parser = argparse.ArgumentParser()
+    configure_argument_parser(parser)
+    args = parser.parse_args(argv)
+    return build_config_from_args(args)
