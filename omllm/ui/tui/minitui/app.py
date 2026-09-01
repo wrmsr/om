@@ -168,12 +168,11 @@ class MinituiChatApp(mt.App):
         # than the internal fallback parser - without touching the live tail's state.
         return mt.parse_markdown_with(mt.get_markdown_stream(), text)
 
+    def _render_markdown(self, text: str) -> list[list[mt.Segment]]:
+        return mt.render_markdown_blocks(self._parse_markdown(text), self.width, highlighter=mt.highlight_code)
+
     def display_markdown(self, text: str) -> None:
-        self.display_rows(mt.render_markdown_blocks(
-            self._parse_markdown(text),
-            self.width,
-            highlighter=mt.highlight_code,
-        ))
+        self.display_rows(self._render_markdown(text))
 
     def display_inline(self, segments: ta.Sequence[mt.Segment]) -> None:
         self.display_rows(mt.wrap_segments(segments, self.width) if segments else [[]])
@@ -190,9 +189,11 @@ class MinituiChatApp(mt.App):
     # Chat flow
 
     def show_user_message(self, text: str) -> None:
+        # Not the tail's `render_settled`: that path separates a stream cycle's commits from each other, and a queued
+        # submission lands mid-stream.
         self._commit_rows([
             [mt.Segment('you', 'speaker.you')],
-            *self._tail.render_settled(self._parse_markdown(text), self.width),
+            *self._render_markdown(text),
             [],
         ])
         self._driver.invalidate()

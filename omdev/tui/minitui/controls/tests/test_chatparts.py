@@ -159,3 +159,25 @@ def test_markdown_tail_reusable_across_stream_cycles():
         rows = [segments_text(row) for row in t.render_settled(blocks, 40)]
         assert any(f'{("first", "second", "third")[i]} block' in r for r in rows), (i, rows)
         assert t.is_empty
+
+
+def test_markdown_tail_separates_blocks_across_commits():
+    # Blocks settle one commit at a time, so the blank row `render_markdown_blocks` puts between the blocks of a single
+    # call has to come from the tail: every commit after a cycle's first leads with it, and so does the live tail while
+    # committed blocks precede it.
+    t = MarkdownTail()
+
+    t.feed('# H\n\n')
+    assert [segments_text(r) for r in t.render_settled(t.pop_settled(), 30)] == ['# H']
+    assert t.render(30) == []
+
+    t.feed('para one\n\npara two')
+    assert [segments_text(r) for r in t.render_settled(t.pop_settled(), 30)] == ['', 'para one']
+    assert [segments_text(r) for r in t.render(30)] == ['', 'para two']
+
+    assert [segments_text(r) for r in t.render_settled(t.finalize(), 30)] == ['', 'para two']
+    assert t.render(30) == []
+
+    # The next cycle starts unseparated - the caller's own break stands between streams.
+    t.feed('next\n')
+    assert [segments_text(r) for r in t.render_settled([*t.pop_settled(), *t.finalize()], 30)] == ['next']

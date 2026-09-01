@@ -37,7 +37,9 @@ from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
 from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface
+from ...text.highlights.base import highlight_code
 from ...text.markdown.backends import parse_markdown_with
+from ...text.markdown.base import render_markdown_blocks
 from ...text.segments import Segment
 from ...text.styles import Style
 from ...text.themes import DEFAULT_THEME
@@ -304,7 +306,11 @@ class ChatDemoApp(App):
         msg = self._register('you', text)
         self._commit_header('you', msg.number)
         self._commit_rows([
-            *self._tail.render_settled(parse_markdown_with(get_markdown_stream(self._md_backend), text), self._width()),
+            *render_markdown_blocks(
+                parse_markdown_with(get_markdown_stream(self._md_backend), text),
+                self._width(),
+                highlighter=highlight_code,
+            ),
             [],
         ])
 
