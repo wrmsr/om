@@ -39,12 +39,7 @@ def fetch_providers(url: str | None = None) -> dict[str, dict[str, ta.Any]]:
 
 
 def _render_cache_data(data: ta.Any) -> bytes:
-    dct = {
-        'fetched_at': datetime.datetime.now(datetime.UTC).isoformat(),
-        'data': data,
-    }
-
-    return compression.zstd.compress(json.dumps_compact(dct).encode('utf-8'))  # noqa
+    return compression.zstd.compress(json.dumps_compact(data).encode('utf-8'))  # noqa
 
 
 class Cli(ap.Cli):
@@ -58,7 +53,10 @@ class Cli(ap.Cli):
         cache_dir = os.path.join(os.path.dirname(__file__), '_cache')
         os.makedirs(cache_dir, exist_ok=True)
         for fn in os.listdir(cache_dir):
-            if fn.endswith(consts._CACHE_FILE_SUFFIX) and os.path.isfile(fp := os.path.join(cache_dir, fn)):
+            if (
+                    fn == consts._CACHE_METADATA_FILE_NAME or
+                    (fn.endswith(consts._CACHE_FILE_SUFFIX) and os.path.isfile(fp := os.path.join(cache_dir, fn)))
+            ):
                 os.unlink(fp)
 
         for pp in self.args.primary:
@@ -68,6 +66,11 @@ class Cli(ap.Cli):
 
         with open(os.path.join(cache_dir, consts._OTHER_PROVIDERS_KEY + consts._CACHE_FILE_SUFFIX), 'wb') as f:
             f.write(_render_cache_data(providers))
+
+        with open(os.path.join(cache_dir, consts._CACHE_METADATA_FILE_NAME), 'w') as f:
+            f.write(json.dumps_pretty({
+                'fetched_at': datetime.datetime.now(datetime.UTC).isoformat(),
+            }))
 
     @ap.cmd(
         ap.arg('-m', '--marshal', action='store_true'),

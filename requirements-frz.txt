@@ -294,7 +294,7 @@ uritemplate==4.2.0
 urllib3==2.7.0
 urwid==4.0.13
 urwid_readline==0.15.1
-uv==0.12.8
+uv==0.12.9
 uvicorn==0.52.4
 uvloop==0.22.1
 wasmtime==48.0.0

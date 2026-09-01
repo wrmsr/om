@@ -47,8 +47,7 @@ class _Cache:
 
     def _load_raw(self, key: str) -> Raw:
         resource = self._resources[key + consts._CACHE_FILE_SUFFIX]
-        cd = json.loads(compression.zstd.decompress(resource.read_bytes()))  # noqa
-        return cd['data']
+        return json.loads(compression.zstd.decompress(resource.read_bytes()))  # noqa
 
     def _get_other_providers_raw(self) -> ta.Mapping[str, Raw]:
         if (opr := self._other_providers_raw) is None:

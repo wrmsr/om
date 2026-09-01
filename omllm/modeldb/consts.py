@@ -20,3 +20,5 @@ DEFAULT_PRIMARY_PROVIDERS: ta.Final[ta.Sequence[str]] = (
 _OTHER_PROVIDERS_KEY: ta.Final = '__other__'
 
 _CACHE_FILE_SUFFIX: ta.Final = '.json.zstd'
+
+_CACHE_METADATA_FILE_NAME: ta.Final = '.metadata.json'
