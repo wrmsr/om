@@ -43,6 +43,7 @@ def test_payload_json_roundtrip():
         group=0,
         extra_groups=[1, 'adm'],
         deathsig=15,
+        setsid=True,
         set_ctty=True,
     )
     s = p.to_json()
@@ -54,7 +55,7 @@ def test_payload_json_roundtrip():
     # Defaults, and tuples coming back as lists are fine for everything that iterates them.
     p2 = ShimPayload(argv=[encode_os('x')], env={}, status_fd=3)
     assert ShimPayload.from_json(p2.to_json()) == p2
-    assert p2.close_fds and p2.keep_fds == [] and p2.rlimits == []
+    assert p2.close_fds and p2.keep_fds == [] and p2.rlimits == [] and not p2.setsid
 
 
 def test_status_record_roundtrip():

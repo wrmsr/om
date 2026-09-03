@@ -6,9 +6,10 @@
 - It owns a **tree of `ProcessScope`s** rooted at `manager.root`. Every spawned `Process` handle lives in exactly one
   scope until it is reaped or abandoned. Backgrounding == `scope.adopt(process)` on an ancestor (reparent).
 - Every local spawn: `ShimLauncher` builds `python -I -S -c <bootstrap> <payload_fd>`; the shim (pure stdlib,
-  `_spawn/shim.py`) applies `Credentials`/`Umask`/`Rlimit`/`Deathsig`, `chdir`, env, resets signal dispositions,
+  `launch/_shim.py`) applies `Credentials`/`Umask`/`Rlimit`/`Deathsig`, `chdir`, env, resets signal dispositions,
   reports pre-exec failures over a status fd, then `os.execvpe`. Session/group creation happens at spawn level
-  (`os.posix_spawn` `setsid` / `setpgroup`).
+  (`os.posix_spawn` `setsid` / `setpgroup`) when supported. Portable CPython builds whose libc headers lacked
+  `POSIX_SPAWN_SETSID` spawn without group changes and have the shim call `setsid()` before target exec instead.
 - Output: one **spool** per process — an append-only *framed* byte stream (fd, flags, len, t_mono_ns, t_wall_ns,
   seq + payload). Memory holds the suffix (byte cap, `None`-able), a spill file holds the prefix. Cursor == byte offset
   into the framed stream. Renderers are stateful views (raw / arrival-merged / tagged lines).
@@ -80,14 +81,14 @@
 - Status protocol: the parent reads its end of the control socket until EOF. EOF with no data == exec happened (the
   shim keeps the socket close-on-exec). Any data == a json `[stage, errno, message]` error record → `SpawnError`; the
   shim then `os._exit(127)`.
-- Division of labor: `spawn_child` (`os.posix_spawn`) does only what must happen between fork and exec - dup2 of 0/1/2
-  and the control socket, setsid / setpgroup, default signal dispositions; the shim (a full python of ours) does
-  everything else.
+- Division of labor: `spawn_child` (`os.posix_spawn`) does only what must happen inside spawn - dup2 of 0/1/2 and the
+  control socket, setsid / setpgroup when supported, default signal dispositions; the shim (a full python of ours) does
+  everything else. If spawn-time setsid is unavailable, the shim also creates the session before target exec.
 
 ## Managers (`managers/`) and the asyncio impl (`asyncio/`)
 
-- `BaseProcessManager(config, *, asynclite)` (runtime-agnostic): `start()` (SIGCHLD guard + self-test spawn, mkdtemp,
-  validate shim python), `spawn` (`setup_stdio` fd plumbing, launcher plan, `spawn_child`, handle + watcher, pipe
+- `BaseProcessManager(config, *, asynclite)` (runtime-agnostic): `start()` (SIGCHLD guard + self-test/capability spawn,
+  mkdtemp, validate shim python), `spawn` (`setup_stdio` fd plumbing, launcher plan, `spawn_child`, handle + watcher, pipe
   connects, status handshake, registry, events), the ordered event drain, scope hooks, `close_processes` backstop,
   `aclose()`. Its runtime hooks - all an implementation provides - are `_start_runtime`, `_spawn_task` / `_join_tasks`,
   `_run_all_bounded`, `_new_spool_notifier`, `_new_process`, `_connect_stdin` / `_connect_output` /
@@ -109,7 +110,8 @@
 ## Invariants (repeat in code comments)
 
 1. There is no `Popen`: `spawn_child` returns a pid and nothing but the handle's deliberate `_reap` ever waits on it.
-2. Signal only under the handle lock, only while `not reaped and not poisoned`; `killpg` only our own leader pids.
+2. Signal only under the handle lock, only while `not reaped and not poisoned`; `killpg` only with the held child pid.
+   During shim-based setsid, terminate the pid directly and also sweep the possibly-created pgid.
 3. Readers always drain into the spool regardless of subscribers.
 4. Every handle is in exactly one scope until reaped/abandoned; the registry mirrors scopes.
 5. No module-level state; everything hangs off a manager instance.

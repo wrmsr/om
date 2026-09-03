@@ -36,6 +36,7 @@ from ...types.specs import PtyStdio
 from ...types.states import ProcessState
 from ..manager import AsyncioProcessManager
 from ..process import AsyncioProcess
+from .utils import disable_posix_spawn_setsid
 
 
 def _sh(script, **kwargs):
@@ -200,6 +201,24 @@ async def test_session_modes():
         assert run.stdout == b'True True\n'
         run = await m.root.run(ProcessSpec([sys.executable, '-c', code]), SessionMode(mode='group'))
         assert run.stdout == b'True False\n'
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_session_mode_shim_fallback(monkeypatch):
+    setsid_calls = disable_posix_spawn_setsid(monkeypatch)
+
+    async with AsyncioProcessManager() as m:
+        assert m._posix_spawn_setsid is False  # noqa
+
+        code = 'import os; print(os.getpgrp() == os.getpid(), os.getsid(0) == os.getpid())'
+        run = await m.root.run(ProcessSpec([sys.executable, '-c', code]))
+        assert run.stdout == b'True True\n'
+
+        run = await m.root.run(ProcessSpec([sys.executable, '-c', code]), SessionMode(mode='group'))
+        assert run.stdout == b'True False\n'
+
+    # Only the startup capability probe asks posix_spawn itself for a session. Later session launches use the shim.
+    assert len(setsid_calls) == 1
 
 
 @pytest.mark.asyncs('asyncio')
@@ -549,6 +568,24 @@ async def test_spawn_cancelled_during_setup_is_torn_down():
                 await t
         assert await _poll(lambda: len([e for e in events if isinstance(e, ProcessReapedEvent)]) == 2, timeout=10.)
         assert not m.processes
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_spawn_cancelled_during_shim_setsid_fallback_is_torn_down(monkeypatch):
+    disable_posix_spawn_setsid(monkeypatch)
+
+    events: list = []
+    async with AsyncioProcessManager() as m:
+        m.subscribe(events.append)
+        loop = asyncio.get_running_loop()
+        t = loop.create_task(m.root.spawn(_sh('exec sleep 100'), TerminationPolicy(grace_s=1.)))
+        loop.call_soon(t.cancel)
+        with pytest.raises(asyncio.CancelledError):
+            await t
+        assert await _poll(lambda: len([e for e in events if isinstance(e, ProcessReapedEvent)]) == 1, timeout=10.)
+        assert not m.processes
+
+    assert _reaped(next(e.pid for e in events if isinstance(e, ProcessReapedEvent)))
 
 
 @pytest.mark.asyncs('asyncio')

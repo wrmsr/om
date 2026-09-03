@@ -88,6 +88,7 @@ def build_payload(
         *,
         status_fd: int,
         keep_fds: ta.Sequence[int] = (),
+        setsid: bool = False,
         set_ctty: bool = False,
 ) -> ShimPayload:
     kw: dict[str, ta.Any] = {}
@@ -116,6 +117,7 @@ def build_payload(
         status_fd=status_fd,
         cwd=encode_os(spec.cwd) if spec.cwd is not None else None,
         keep_fds=list(keep_fds),
+        setsid=setsid,
         set_ctty=set_ctty,
         **kw,
     )
@@ -175,6 +177,8 @@ class ShimLauncher(Launcher):
             self,
             spec: ProcessSpec,
             options: ProcessOptions,
+            *,
+            child_setsid: bool = False,
     ) -> LaunchPlan:
         spec = apply_transforms(self._transforms, spec, options)
 
@@ -188,6 +192,7 @@ class ShimLauncher(Launcher):
             options,
             status_fd=control_fd,
             keep_fds=keep_fds,
+            setsid=child_setsid,
             set_ctty=isinstance(spec.stdio, PtyStdio),
         )
 

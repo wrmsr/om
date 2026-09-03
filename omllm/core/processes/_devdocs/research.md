@@ -41,11 +41,12 @@ the record of *why*: they are the behaviors we had to neutralize, and the reason
    → pid immediately recyclable. Guard at manager start + poison handles on runtime ECHILD.
 6. Shim: `python -I -S -c pass` ≈ 9 ms; `+os,sys,json` ≈ 20 ms; `marshal`/`_signal`/`resource`/`pwd`/`grp` ≈ 0 ms;
    `ctypes` +8 ms. => marshal payload, `_signal`, ctypes only for deathsig. `os.setsid()` in the shim fails (EPERM)
-   after `process_group=0`/`start_new_session=True` — group creation happens at Popen level. `pass_fds` clears
-   FD_CLOEXEC in the child → shim must re-set non-inheritable on the status fd and close the payload fd. Python
-   ignores `SIGPIPE`/`SIGXFSZ` at startup and exec preserves the blocked mask → shim resets to `SIG_DFL` and clears
-   the mask. `PR_SET_PDEATHSIG` binds to the forking *thread* (spawn from the loop thread) and is cleared by
-   uid/gid changes (set it after). `os.execvpe` resolves `argv[0]` against the *passed* env's PATH.
+   after `process_group=0`/`start_new_session=True` — group creation happens at Popen level. When `posix_spawn` lacks
+   setsid support, spawning without group changes lets the shim create the session itself. `pass_fds` clears FD_CLOEXEC
+   in the child → shim must re-set non-inheritable on the status fd and close the payload fd. Python ignores
+   `SIGPIPE`/`SIGXFSZ` at startup and exec preserves the blocked mask → shim resets to `SIG_DFL` and clears the mask.
+   `PR_SET_PDEATHSIG` binds to the forking *thread* (spawn from the loop thread) and is cleared by uid/gid changes (set
+   it after). `os.execvpe` resolves `argv[0]` against the *passed* env's PATH.
 7. `loop.connect_read_pipe(proto, open(fd, 'rb', buffering=0))` accepts FIFO/socket/char device (pty master ok), sets
    non-blocking, and closes the file object itself on EOF/close. `connect_write_pipe`: `close()` flushes then EOF;
    writes after peer exit → `BrokenPipeError` → `connection_lost(exc)`.

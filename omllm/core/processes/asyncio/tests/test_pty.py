@@ -11,6 +11,7 @@ from ...types.specs import ProcessSpec
 from ...types.specs import PtyStdio
 from ...types.states import ProcessState
 from ..manager import AsyncioProcessManager
+from .utils import disable_posix_spawn_setsid
 
 
 async def _poll(fn, timeout=5., interval=.02):
@@ -40,6 +41,21 @@ async def test_pty_controlling_terminal_and_winsize():
         # pty output is a single merged stream tagged as fd 1.
         assert all(r.fd == PTY_OUTPUT_FD for r in run.output.records)
         assert run.process.has_pty
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_pty_controlling_terminal_with_shim_setsid_fallback(monkeypatch):
+    disable_posix_spawn_setsid(monkeypatch)
+
+    async with AsyncioProcessManager() as m:
+        run = await m.root.run(ProcessSpec(
+            ['sh', '-c', 'tty; ps -o sid= -p $$; ps -o pgid= -p $$; echo $$'],
+            stdio=PtyStdio(),
+        ))
+        assert run.returncode == 0
+        lines = RawRenderer().render(run.output.records).splitlines()
+        assert lines[0].startswith('/dev/')
+        assert len({line.strip() for line in lines[1:]}) == 1
 
 
 @pytest.mark.asyncs('asyncio')

@@ -1,11 +1,11 @@
 # ruff: noqa: UP006 UP007 UP045
 """
 The spawn shim: the first thing every child execs. It runs in the child, before the real exec, applying everything the
-parent asked for that cannot (or should not) be done between fork and exec in the parent's address space - receiving the
-passed fds and putting them where the target expects them, closing every other fd, privilege drop, umask, rlimits,
-deathsig, signal disposition cleanup, chdir, controlling tty - then `execvpe`s the target. Failures at any stage are
-reported as a single JSON record over the control socket, which is otherwise closed-on-exec so that EOF alone means
-"exec happened".
+parent asked for that cannot (or should not) be done inside `posix_spawn` - receiving the passed fds and putting them
+where the target expects them, closing every other fd, session creation when the interpreter's `posix_spawn` lacks it,
+privilege drop, umask, rlimits, deathsig, signal disposition cleanup, chdir, controlling tty - then `execvpe`s the
+target. Failures at any stage are reported as a single JSON record over the control socket, which is otherwise
+closed-on-exec so that EOF alone means "exec happened".
 
 **Pure stdlib, zero om imports, py3.8-safe syntax.** The source is loaded as a resource and shipped to the child (or,
 later, to a remote host) as text and exec'd as a module, so nothing here may depend on the om codebase or on a modern
@@ -113,6 +113,9 @@ class ShimPayload:
 
     # Linux: `PR_SET_PDEATHSIG` signal (None: none). Applied after the credential change, which would clear it.
     deathsig: ta.Optional[int] = None
+
+    # Create a new session before target exec. Used when the parent's `os.posix_spawn` build lacks a setsid flag.
+    setsid: bool = False
 
     # Make fd 0 (a pty slave, dup2'd there by the parent) the controlling terminal.
     set_ctty: bool = False
@@ -377,6 +380,12 @@ def main(payload, passed_fds):  # type: (ShimPayload, ta.List[int]) -> None
         argv = [decode_os(a) for a in payload.argv]
         env = {decode_os(k): decode_os(v) for k, v in payload.env.items()}
         cwd = decode_os(payload.cwd) if payload.cwd is not None else None
+
+        # This fallback is used only when posix_spawn did not create a process group, so this process is not a group
+        # leader and setsid can succeed. It must happen before the target can run or acquire a controlling terminal.
+        stage = 'setsid'
+        if payload.setsid:
+            os.setsid()
 
         stage = 'pass_fds'
         place_passed_fds(list(passed_fds), list(payload.keep_fds), status_fd)

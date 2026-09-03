@@ -25,7 +25,8 @@ omllm/core/processes/
   handles.py abstract handle roles (ProcessInfo/Control/Stdin/Output/Waiter -> Process)
   managers/  the manager proper, runtime-agnostic: types (ProcessManager + ManagerConfig), base (BaseProcessManager:
              lifecycle, spawn, events, close), process (BaseProcess: state machine, signal/reap, teardown), spawn
-             (os.posix_spawn - no Popen), stdio (fd plumbing), pty, reaper (exit watcher thread)
+             (os.posix_spawn - no Popen), stdio (fd plumbing), pty, reaper (exit watcher thread); session creation
+             falls back to the shim when the interpreter's posix_spawn was built without setsid support
   launch/    Launcher / SpecTransform / ShimLauncher, and `_shim.py`: the pure-stdlib spawn shim (runs in the child
              before exec) + ShimPayload, its json-able config
   asyncio/   AsyncioProcessManager: only the asyncio bits (tasks, pipe transports, notifier, handle callbacks)

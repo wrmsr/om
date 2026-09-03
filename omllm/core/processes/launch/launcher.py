@@ -1,6 +1,6 @@
 """
-A `Launcher` turns a `ProcessSpec` (+ options) into what `subprocess.Popen` is actually asked to run. The only launcher
-today is the `ShimLauncher`; remote targets will be further launchers/transforms layered on the same seam.
+A `Launcher` turns a `ProcessSpec` (+ options) into what the process spawner is actually asked to run. The only launcher
+today is the `ShimLauncher`; remote targets are transforms layered on the same seam.
 """
 import abc
 import os
@@ -80,5 +80,9 @@ class Launcher(lang.Abstract):
             self,
             spec: ProcessSpec,
             options: ProcessOptions,
+            *,
+            child_setsid: bool = False,
     ) -> LaunchPlan:
+        """Builds a launch plan; `child_setsid` asks the launched child to create its own session before target exec."""
+
         raise NotImplementedError

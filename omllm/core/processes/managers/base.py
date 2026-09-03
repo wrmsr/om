@@ -98,6 +98,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
 
         self._state: ta.Literal['new', 'started', 'closing', 'closed'] = 'new'
         self._runtime_ready = False
+        self._posix_spawn_setsid: bool | None = None
 
         self._processes: dict[ProcessId, BaseProcess] = {}
 
@@ -247,10 +248,11 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
     #
 
     @staticmethod
-    def check_child_signal_disposition() -> None:
+    def check_child_signal_disposition() -> bool:
         """
         If SIGCHLD is ignored the kernel auto-reaps children and `waitid`/`waitpid` fail with ECHILD - pids would be
         recyclable the instant a child exits and nothing could be signaled safely. Refuse to run in such a process.
+        Returns whether this Python build can ask `posix_spawn` to create a new session.
         """
 
         h = signal.getsignal(signal.SIGCHLD)
@@ -260,13 +262,26 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
         # A live check catches SA_NOCLDWAIT and foreign C-level handlers too.
         devnull = os.open(os.devnull, os.O_RDWR)
         try:
-            pid = spawn_child(
-                ['sh', '-c', ':'],
-                stdin_fd=devnull,
-                stdout_fd=devnull,
-                stderr_fd=devnull,
-                session_mode='session',
-            )
+            try:
+                pid = spawn_child(
+                    ['sh', '-c', ':'],
+                    stdin_fd=devnull,
+                    stdout_fd=devnull,
+                    stderr_fd=devnull,
+                    session_mode='session',
+                )
+            except NotImplementedError:
+                posix_spawn_setsid = False
+                # The child-disposition check itself does not require a session. A real session launch will ask the
+                # shim to call setsid before target exec.
+                pid = spawn_child(
+                    ['sh', '-c', ':'],
+                    stdin_fd=devnull,
+                    stdout_fd=devnull,
+                    stderr_fd=devnull,
+                )
+            else:
+                posix_spawn_setsid = True
         finally:
             os.close(devnull)
         try:
@@ -274,13 +289,14 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             os.waitpid(pid, 0)
         except ChildProcessError as e:
             raise UnsafeChildSignalDispositionError(f'children are auto-reaped in this process: {e!r}') from e
+        return posix_spawn_setsid
 
     async def start(self) -> None:
         check.state(self._state == 'new')
         await self._start_runtime()
         self._runtime_ready = True
 
-        self.check_child_signal_disposition()
+        self._posix_spawn_setsid = self.check_child_signal_disposition()
 
         if isinstance(self._launcher, ShimLauncher):
             self._launcher.validate()
@@ -453,6 +469,12 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             # A pty needs the child to be a session leader to acquire the slave as its controlling terminal.
             session_mode = 'session'
 
+        # Some portable CPython builds (notably uv's python-build-standalone Linux interpreters) were compiled against
+        # libc headers without POSIX_SPAWN_SETSID even when the runtime libc supports it. Spawn the shim without group
+        # changes in that case; it will call setsid itself before the target can execute.
+        child_setsid = session_mode == 'session' and not check.not_none(self._posix_spawn_setsid)
+        spawn_session_mode = None if child_setsid else session_mode
+
         try:
             ctl_parent, ctl_child = make_control_socketpair()
         except BaseException:
@@ -460,7 +482,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             raise
 
         try:
-            plan = self._launcher.plan(spec, options)
+            plan = self._launcher.plan(spec, options, child_setsid=child_setsid)
             try:
                 # Queued before the child exists: the payload blob and the caller's pass-fds travel as SCM_RIGHTS - the
                 # only way anything but 0/1/2 and the control socket itself reaches the child.
@@ -472,7 +494,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
                     stdout_fd=sio.stdout_fd,
                     stderr_fd=sio.stderr_fd,
                     control=(ctl_child.fileno(), plan.control_fd),
-                    session_mode=session_mode,
+                    session_mode=spawn_session_mode,
                 )
             except OSError as e:
                 raise SpawnError('spawn', e.errno, str(e), argv=list(spec.argv)) from e
@@ -516,6 +538,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             pid=pid,
             spool=spool,
             pty_master_fd=sio.pty_master_fd,
+            process_group_ready=not child_setsid,
             owner=self,
             asynclite=self._asynclite,
         )

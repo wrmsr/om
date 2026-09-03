@@ -9,9 +9,10 @@ The `threading.Lock` guards the tiny signal/reap syscall critical sections so th
 under a future free-threaded / multi-thread arrangement.
 
 INVARIANTS:
-- Signals are sent only while the process is unreaped and unpoisoned (SPAWNING/RUNNING/EXITED/ABANDONED) - in all of
-  those the pid (and hence pgid) is still ours.
-- `killpg` is only ever called with our own leader's pid.
+- Signals are sent only while the process is unreaped and unpoisoned (SPAWNING/RUNNING/EXITED/ABANDONED) - the held pid
+  is therefore still ours.
+- `killpg` is only ever called with that held pid. Once a group exists with that id it can only be the child's group;
+  before the shim's setsid fallback creates it, signaling it harmlessly reports ESRCH.
 - Reaping is the deliberate last step of `aclose()`, after the group sweep, under the lock.
 """
 import abc
@@ -105,6 +106,7 @@ class BaseProcess(Process, lang.Abstract):
             pid: int,
             spool: OutputSpool,
             pty_master_fd: int | None = None,
+            process_group_ready: bool = True,
             owner: ProcessOwner,
             asynclite: Asynclite,
     ) -> None:
@@ -118,6 +120,7 @@ class BaseProcess(Process, lang.Abstract):
         self._spool = spool
         self._pty_master_fd = pty_master_fd
         self._is_pty = pty_master_fd is not None
+        self._process_group_ready = process_group_ready
         self._owner = owner
 
         self._created_at = time.time()
@@ -233,6 +236,8 @@ class BaseProcess(Process, lang.Abstract):
 
     def _mark_running(self) -> None:
         with self._lock:
+            # A successful exec-status handshake proves the shim completed its setsid fallback before target exec.
+            self._process_group_ready = True
             if self._state is ProcessState.SPAWNING:
                 self._state = ProcessState.RUNNING
 
@@ -348,6 +353,15 @@ class BaseProcess(Process, lang.Abstract):
             return False
         return True
 
+    def _signal_for_termination(self, sig: int, process_group: bool) -> None:
+        if process_group and not self._process_group_ready:
+            # The shim may be either side of setsid. Signal the owned pid so it cannot escape before creating the
+            # group, then sweep pgid==pid in case the session already exists (and may contain target descendants).
+            self._signal_if_owned(sig, False)
+            self._signal_if_owned(sig, True)
+        else:
+            self._signal_if_owned(sig, process_group)
+
     def _reap(self) -> None:
         with self._lock:
             if self._state in (ProcessState.REAPED, ProcessState.POISONED):
@@ -392,7 +406,7 @@ class BaseProcess(Process, lang.Abstract):
 
         if kill:
             try:
-                self._signal_if_owned(signal.SIGKILL, self.termination_policy.process_group)
+                self._signal_for_termination(signal.SIGKILL, self.termination_policy.process_group)
             except OSError:
                 log.exception('processes: error killing %r at abandonment', self)
         if (w := self._stdin) is not None:
@@ -527,9 +541,9 @@ class BaseProcess(Process, lang.Abstract):
                     except Exception:  # noqa
                         pass
 
-                self._signal_locked(pol.signal, pg)
+                self._signal_for_termination(pol.signal, pg)
                 if not await self._wait_exited(pol.grace_s):
-                    self._signal_locked(signal.SIGKILL, pg)
+                    self._signal_for_termination(signal.SIGKILL, pg)
                     if not await self._wait_exited(pol.kill_s):
                         if self._state is ProcessState.POISONED:
                             return
