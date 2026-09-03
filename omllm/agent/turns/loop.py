@@ -2,7 +2,7 @@ import typing as ta
 
 from omcore import check
 from omcore import dataclasses as dc
-from omcore.asyncs.asynclite.sleeps import AsyncliteSleeps
+from omcore.asyncs.asynclite import all as asl
 
 from ... import llm
 from ...core.errors import is_cancelled_error
@@ -56,7 +56,7 @@ class TurnLoop:
             subscriber: EventSubscriber[Event] | None = None,
             llm_backend: llm.ImmediateBackend,
             tool_env: ToolEnvironment | None = None,
-            sleeps: AsyncliteSleeps | None = None,
+            sleeps: asl.Sleeps | None = None,
     ) -> None:
         super().__init__()
 

@@ -13,6 +13,16 @@ from ..modeldb import modeldb_token_pricing
 ##
 
 
+_BASE_URL = 'https://api.cerebras.ai/v1'
+
+_DEFAULT_HTTP = Model.Http(
+    base_url=_BASE_URL,
+    extra_headers={
+        'User-Agent': 'python-httpx/0.28.1',  # required or it 403's lol
+    },
+)
+
+
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
     Model(
@@ -23,12 +33,18 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         name='GPT OSS 120B',
         backend='openai-completions',
         pricing=modeldb_token_pricing('cerebras', 'gpt-oss-120b'),
-        http=Model.Http(
-            base_url='https://api.cerebras.ai/v1',
-            extra_headers={
-                'User-Agent': 'python-httpx/0.28.1',  # required or it 403's lol
-            },
+        http=_DEFAULT_HTTP,
+    ),
+
+    Model(
+        key=ModelKey(
+            provider='cerebras',
+            id='qwen-3.8-27b',
         ),
+        name='Qwen 3.8 27B',
+        backend='openai-completions',
+        pricing=modeldb_token_pricing('cerebras', 'qwen-3.8-27b'),
+        http=_DEFAULT_HTTP,
     ),
 
 ]

@@ -403,7 +403,7 @@
     "module": ".llm.models.default.cerebras",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/cerebras.py",
-    "line": 37,
+    "line": 53,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -411,6 +411,12 @@
             "provider": "cerebras",
             "id": "gpt-oss-120b",
             "name": "GPT OSS 120B",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "cerebras",
+            "id": "qwen-3.8-27b",
+            "name": "Qwen 3.8 27B",
             "backend": "openai-completions"
           }
         ]

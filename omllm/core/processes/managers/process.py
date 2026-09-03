@@ -24,7 +24,7 @@ import typing as ta
 
 from omcore import check
 from omcore import lang
-from omcore.asyncs.asynclite.api import Asynclite
+from omcore.asyncs.asynclite import all as asl
 from omcore.logs import all as logs
 
 from ..handles import Process
@@ -108,7 +108,7 @@ class BaseProcess(Process, lang.Abstract):
             pty_master_fd: int | None = None,
             process_group_ready: bool = True,
             owner: ProcessOwner,
-            asynclite: Asynclite,
+            asynclite: asl.All,
     ) -> None:
         super().__init__()
 

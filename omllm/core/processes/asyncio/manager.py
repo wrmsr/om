@@ -9,7 +9,7 @@ import functools
 import typing as ta
 
 from omcore import check
-from omcore.asyncs.asynclite.asyncio.api import AsyncioAsynclite
+from omcore.asyncs.asynclite import all as asl
 
 from ..launch.launcher import Launcher
 from ..managers.base import BaseProcessManager
@@ -39,7 +39,7 @@ class AsyncioProcessManager(BaseProcessManager):
     ) -> None:
         super().__init__(
             config,
-            asynclite=AsyncioAsynclite(),
+            asynclite=asl.asyncio.All(),
             launcher=launcher,
             id_generator=id_generator,
         )

@@ -6,7 +6,14 @@ from ... import llm
 ##
 
 
-class AgentError(Exception):
+class Error(Exception):
+    pass
+
+
+##
+
+
+class AgentError(Error):
     pass
 
 

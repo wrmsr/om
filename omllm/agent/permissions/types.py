@@ -13,6 +13,7 @@ from omcore import lang
 from omcore import marshal as msh
 
 from ...core import fieldhash as fh
+from ..types.errors import Error
 
 
 if ta.TYPE_CHECKING:
@@ -51,12 +52,12 @@ DecidedPermissionState: ta.TypeAlias = ta.Literal[
 
 
 @dc.dataclass()
-class PermissionDeniedError(Exception):
+class PermissionDeniedError(Error):
     target: PermissionTarget
 
 
 @dc.dataclass()
-class PermissionAskAbortedError(Exception):
+class PermissionAskAbortedError(Error):
     """
     An ask could not be answered: the asker withdrew it - the surface presenting it went away, or its turn ended - while
     the requesting tool was still live. Tools treat it as an execution error: it is neither a denial nor a cancellation.

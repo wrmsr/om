@@ -179,6 +179,8 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .types.errors import (  # noqa
+        Error,
+
         AgentError,
         AgentBusyError,
 

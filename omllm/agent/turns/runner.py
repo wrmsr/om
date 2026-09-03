@@ -1,4 +1,4 @@
-from omcore.asyncs.asynclite.sleeps import AsyncliteSleeps
+from omcore.asyncs.asynclite import all as asl
 
 from ... import llm
 from ..backends import BackendManager
@@ -16,7 +16,7 @@ class TurnLoopRunner(TurnRunner):
             self,
             *,
             backends: BackendManager,
-            sleeps: AsyncliteSleeps | None = None,
+            sleeps: asl.Sleeps | None = None,
     ) -> None:
         super().__init__()
 

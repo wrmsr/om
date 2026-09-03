@@ -23,7 +23,7 @@ import weakref
 
 from omcore import check
 from omcore import lang
-from omcore.asyncs.asynclite.api import Asynclite
+from omcore.asyncs.asynclite import all as asl
 from omcore.logs import all as logs
 
 from ..handles import Process
@@ -85,7 +85,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             self,
             config: ManagerConfig | None = None,
             *,
-            asynclite: Asynclite,
+            asynclite: asl.All,
             launcher: Launcher | None = None,
             id_generator: ProcessIdGenerator | None = None,
     ) -> None:

@@ -1,10 +1,10 @@
-from omcore.asyncs.asynclite.sleeps import AsyncliteSleeps
+from omcore.asyncs.asynclite import all as asl
 
 
 ##
 
 
-class RecordingSleeps(AsyncliteSleeps):
+class RecordingSleeps(asl.Sleeps):
     """Records each requested delay and returns at once, so backoff is asserted on rather than waited out."""
 
     def __init__(self) -> None:
