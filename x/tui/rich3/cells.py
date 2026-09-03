@@ -371,7 +371,7 @@ def chop_cells(text: str, width: int) -> list[str]:
     lines: list[str] = []
     line_offset = 0  # Offset (in codepoints) of start of line
 
-    for start, end, cell_size in spans:
+    for start, _end, cell_size in spans:
         if line_size + cell_size > width:
             lines.append(text[line_offset:start])
             line_offset = start

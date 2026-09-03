@@ -1,3 +1,4 @@
+# ruff: noqa: SLF001
 # Copyright (c) 2020 Will McGugan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -409,7 +410,7 @@ class Style:
         return self._style_definition
 
     # maps bits on to SGR parameter
-    _STYLE_MAP = {
+    _STYLE_MAP: ta.ClassVar[ta.Mapping[int, str]] = {
         0: '1',
         1: '2',
         2: '3',
@@ -740,7 +741,8 @@ class Style:
 
         Args:
             text (str, optional): A string to style. Defaults to "".
-            color_system (Optional[ColorSystem], optional): Color system to render to. Defaults to ColorSystem.TRUECOLOR.
+            color_system (Optional[ColorSystem], optional): Color system to render to. Defaults to
+                ColorSystem.TRUECOLOR.
 
         Returns:
             str: A string containing ANSI style codes.

@@ -1,3 +1,4 @@
+# ruff: noqa: SLF001
 # Copyright (c) 2020 Will McGugan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -13,6 +14,7 @@
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import functools
+import itertools
 import math
 import operator
 import re
@@ -51,8 +53,8 @@ GetStyleCallable: ta.TypeAlias = ta.Callable[[str], StyleType | None]
 ##
 
 
-DEFAULT_JUSTIFY: 'JustifyMethod' = 'default'
-DEFAULT_OVERFLOW: 'OverflowMethod' = 'fold'
+DEFAULT_JUSTIFY: JustifyMethod = 'default'
+DEFAULT_OVERFLOW: OverflowMethod = 'fold'
 
 
 _WHITESPACE_PAT = re.compile(r'\s+$')
@@ -206,6 +208,9 @@ class Text:
             return result
         return NotImplemented
 
+    def __hash__(self) -> int:
+        raise TypeError(self)
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Text):
             return NotImplemented
@@ -218,13 +223,13 @@ class Text:
             return other.plain in self.plain
         return False
 
-    def __getitem__(self, slice: int | slice) -> Text:
+    def __getitem__(self, slice: int | slice) -> Text:  # noqa
         def get_text_at(offset: int) -> Text:
-            _Span = Span
+            _span = Span
             text = Text(
                 self.plain[offset],
                 spans=[
-                    _Span(0, 1, style)
+                    _span(0, 1, style)
                     for start, end, style in self._spans
                     if end > offset >= start
                 ],
@@ -422,9 +427,9 @@ class Text:
             tab_size=tab_size,
         )
         append = text.append
-        _Text = Text
+        _text = Text
         for part in parts:
-            if isinstance(part, (_Text, str)):
+            if isinstance(part, (_text, str)):
                 append(part)
             else:
                 append(*part)
@@ -674,7 +679,7 @@ class Text:
 
         count = 0
         append_span = self._spans.append
-        _Span = Span
+        _span = Span
         plain = self.plain
         if isinstance(highlight_pat, str):
             highlight_pat = re.compile(highlight_pat)
@@ -686,17 +691,17 @@ class Text:
                 start, end = get_span()
                 match_style = style(plain[start:end]) if callable(style) else style
                 if match_style is not None and end > start:
-                    append_span(_Span(
+                    append_span(_span(
                         start,
                         end,
                         match_style,
                     ))
 
             count += 1
-            for name in match.groupdict().keys():
+            for name in match.groupdict():
                 start, end = get_span(name)
                 if start != -1 and end > start:
-                    append_span(_Span(
+                    append_span(_span(
                         start,
                         end,
                         f'{style_prefix}{name}',
@@ -726,7 +731,7 @@ class Text:
         words_pat = '|'.join(re.escape(word) for word in words)
         add_span = self._spans.append
         count = 0
-        _Span = Span
+        _span = Span
 
         for match in re.finditer(
                 words_pat,
@@ -734,7 +739,7 @@ class Text:
                 flags=0 if case_sensitive else re.IGNORECASE,
         ):
             start, end = match.span(0)
-            add_span(_Span(
+            add_span(_span(
                 start,
                 end,
                 style,
@@ -810,12 +815,12 @@ class Text:
             Iterable[Segment]: Result of render that may be written to the console.
         """
 
-        _Segment = Segment
+        _segment = Segment
         text = self.plain
         if not self._spans:
             yield Segment(text)
             if end:
-                yield _Segment(end)
+                yield _segment(end)
             return
         get_style = functools.partial(console.get_style, default=Style.null())
 
@@ -850,15 +855,15 @@ class Text:
             style_cache[styles] = current_style
             return current_style
 
-        for (offset, leaving, style_id), (next_offset, _, _) in zip(spans, spans[1:]):
+        for (offset, leaving, style_id), (next_offset, _, _) in itertools.pairwise(spans):
             if leaving:
                 stack_pop(style_id)
             else:
                 stack_append(style_id)
             if next_offset > offset:
-                yield _Segment(text[offset:next_offset], get_current_style())
+                yield _segment(text[offset:next_offset], get_current_style())
         if end:
-            yield _Segment(end)
+            yield _segment(end)
 
     def join(self, lines: ta.Iterable[Text]) -> Text:
         """
@@ -886,19 +891,19 @@ class Text:
         append_span = new_text._spans.append
         extend_spans = new_text._spans.extend
         offset = 0
-        _Span = Span
+        _span = Span
 
         for text in iter_text():
             extend_text(text._text)
             if text.style:
-                append_span(_Span(
+                append_span(_span(
                     offset,
                     offset + len(text),
                     text.style,
                 ))
 
             extend_spans(
-                _Span(
+                _span(
                     offset + start,
                     offset + end,
                     style,
@@ -987,12 +992,12 @@ class Text:
         """Remove or modify any spans that are over the end of the text."""
 
         max_offset = len(self.plain)
-        _Span = Span
+        _span = Span
         self._spans[:] = [
             (
                 span
                 if span.end < max_offset
-                else _Span(
+                else _span(
                     span.start,
                     min(max_offset, span.end),
                     span.style,
@@ -1015,9 +1020,9 @@ class Text:
         if count:
             pad_characters = character * count
             self.plain = f'{pad_characters}{self.plain}{pad_characters}'
-            _Span = Span
+            _span = Span
             self._spans[:] = [
-                _Span(
+                _span(
                     start + count,
                     end + count,
                     style,
@@ -1037,9 +1042,9 @@ class Text:
         check.equal(len(character), 1, 'Character must be a string of length 1')
         if count:
             self.plain = f'{character * count}{self.plain}'
-            _Span = Span
+            _span = Span
             self._spans[:] = [
-                _Span(
+                _span(
                     start + count,
                     end + count,
                     style,
@@ -1116,13 +1121,13 @@ class Text:
                 self._length += text_length
 
             elif isinstance(text, Text):
-                _Span = Span
+                _span = Span
                 if style is not None:
                     raise ValueError('style must not be set when appending Text instance')
 
                 text_length = self._length
                 if text.style:
-                    self._spans.append(_Span(
+                    self._spans.append(_span(
                         text_length,
                         text_length + len(text),
                         text.style,
@@ -1130,7 +1135,7 @@ class Text:
 
                 self._text.append(text.plain)
                 self._spans.extend(
-                    _Span(
+                    _span(
                         start + text_length,
                         end + text_length,
                         style,
@@ -1153,11 +1158,11 @@ class Text:
             Text: Returns self for chaining.
         """
 
-        _Span = Span
+        _span = Span
         text_length = self._length
 
         if text.style:
-            self._spans.append(_Span(
+            self._spans.append(_span(
                 text_length,
                 text_length + len(text),
                 text.style,
@@ -1165,7 +1170,7 @@ class Text:
         self._text.append(text.plain)
 
         self._spans.extend(
-            _Span(
+            _span(
                 start + text_length,
                 end + text_length,
                 style,
@@ -1192,13 +1197,13 @@ class Text:
 
         append_text = self._text.append
         append_span = self._spans.append
-        _Span = Span
+        _span = Span
         offset = len(self)
         for content, style in tokens:
             content = strip_control_codes(content)
             append_text(content)
             if style:
-                append_span(_Span(
+                append_span(_span(
                     offset,
                     offset + len(content),
                     style,
@@ -1282,14 +1287,14 @@ class Text:
         text = self.plain
         text_length = len(text)
         divide_offsets = [0, *_offsets, text_length]
-        line_ranges = list(zip(divide_offsets, divide_offsets[1:]))
+        line_ranges = list(itertools.pairwise(divide_offsets))
 
         style = self.style
         justify = self.justify
         overflow = self.overflow
-        _Text = Text
+        _text = Text
         new_lines = Lines(
-            _Text(
+            _text(
                 text[start:end],
                 style=style,
                 justify=justify,
@@ -1302,7 +1307,7 @@ class Text:
 
         _line_appends = [line._spans.append for line in new_lines._lines]
         line_count = len(line_ranges)
-        _Span = Span
+        _span = Span
 
         for span_start, span_end, style in self._spans:
             lower_bound = 0
@@ -1340,7 +1345,7 @@ class Text:
                 new_start = max(0, span_start - line_start)
                 new_end = min(span_end - line_start, line_end - line_start)
                 if new_end > new_start:
-                    _line_appends[line_no](_Span(
+                    _line_appends[line_no](_span(
                         new_start,
                         new_end,
                         style,
@@ -1352,12 +1357,12 @@ class Text:
         """Remove a number of characters from the end of the text."""
 
         max_offset = len(self.plain) - amount
-        _Span = Span
+        _span = Span
         self._spans[:] = [
             (
                 span
                 if span.end < max_offset else
-                _Span(
+                _span(
                     span.start,
                     min(max_offset, span.end),
                     span.style,

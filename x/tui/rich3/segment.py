@@ -124,10 +124,10 @@ class Segment(ta.NamedTuple):
         """
 
         text, style, control = segment
-        _Segment = Segment
+        _segment = Segment
         cell_length = segment.cell_length
         if cut >= cell_length:
-            return segment, _Segment('', style, control)
+            return segment, _segment('', style, control)
 
         cell_size = get_character_cell_size
 
@@ -139,18 +139,18 @@ class Segment(ta.NamedTuple):
             out_by = cell_pos - cut
             if not out_by:
                 return (
-                    _Segment(before, style, control),
-                    _Segment(text[pos:], style, control),
+                    _segment(before, style, control),
+                    _segment(text[pos:], style, control),
                 )
             if out_by == -1 and cell_size(text[pos]) == 2:
                 return (
-                    _Segment(text[:pos] + ' ', style, control),
-                    _Segment(' ' + text[pos + 1 :], style, control),
+                    _segment(text[:pos] + ' ', style, control),
+                    _segment(' ' + text[pos + 1 :], style, control),
                 )
             if out_by == 1 and cell_size(text[pos - 1]) == 2:
                 return (
-                    _Segment(text[: pos - 1] + ' ', style, control),
-                    _Segment(' ' + text[pos:], style, control),
+                    _segment(text[: pos - 1] + ' ', style, control),
+                    _segment(' ' + text[pos:], style, control),
                 )
             if cell_pos < cut:
                 pos += 1
@@ -599,10 +599,10 @@ class Segment(ta.NamedTuple):
         except StopIteration:
             return
 
-        _Segment = Segment
+        _segment = Segment
         for segment in iter_segments:
             if last_segment.style == segment.style and not segment.control:
-                last_segment = _Segment(
+                last_segment = _segment(
                     last_segment.text + segment.text, last_segment.style,
                 )
             else:

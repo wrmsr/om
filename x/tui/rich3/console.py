@@ -1,3 +1,4 @@
+# ruff: noqa: SLF001
 # Copyright (c) 2020 Will McGugan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,6 +24,7 @@ import time
 import types
 import typing as ta
 
+from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
@@ -337,7 +339,7 @@ class Capture:
         self._console = console
         self._result: str | None = None
 
-    def __enter__(self) -> Capture:
+    def __enter__(self) -> ta.Self:
         self._console.begin_capture()
         return self
 
@@ -365,7 +367,7 @@ class ThemeContext:
         self.theme = theme
         self.inherit = inherit
 
-    def __enter__(self) -> ThemeContext:
+    def __enter__(self) -> ta.Self:
         self.console.push_theme(self.theme)
         return self
 
@@ -393,7 +395,7 @@ class PagerContext:
         self.styles = styles
         self.links = links
 
-    def __enter__(self) -> PagerContext:
+    def __enter__(self) -> ta.Self:
         self._console._enter_buffer()
         return self
 
@@ -451,7 +453,7 @@ class ScreenContext:
             self.screen.style = style
         self.console.print(self.screen, end='')
 
-    def __enter__(self) -> ScreenContext:
+    def __enter__(self) -> ta.Self:
         self._changed = self.console.set_alt_screen(True)
         if self._changed and self.hide_cursor:
             self.console.show_cursor(False)
@@ -780,7 +782,7 @@ class Console:
         with self._lock:
             self._render_hooks.pop()
 
-    def __enter__(self) -> Console:
+    def __enter__(self) -> ta.Self:
         """Own context manager to enter buffer context."""
 
         self._enter_buffer()
@@ -1091,7 +1093,7 @@ class Console:
             count (int, optional): Number of new lines. Defaults to 1.
         """
 
-        assert count >= 0, 'count must be >= 0'
+        check.arg(count >= 0, 'count must be >= 0')
         self.print(NewLine(count))
 
     def clear(self, home: bool = True) -> None:
@@ -1269,10 +1271,10 @@ class Console:
             raise NotRenderableError(
                 f'object {render_iterable!r} is not renderable',
             )
-        _Segment = Segment
+        _segment = Segment
         _options = _options.reset_height()
         for render_output in iter_render:
-            if isinstance(render_output, _Segment):
+            if isinstance(render_output, _segment):
                 yield render_output
             else:
                 yield from self.render(render_output, _options)
@@ -1786,7 +1788,10 @@ class Console:
                 try:
                     self.file.write(text)
                 except UnicodeEncodeError as error:
-                    error.reason = f'{error.reason}\n*** You may need to add PYTHONIOENCODING=utf-8 to your environment ***'
+                    error.reason = (
+                        f'{error.reason}\n'
+                        f'*** You may need to add PYTHONIOENCODING=utf-8 to your environment ***'
+                    )
                     raise
 
                 self.file.flush()

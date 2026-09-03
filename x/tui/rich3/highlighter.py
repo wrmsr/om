@@ -202,7 +202,10 @@ class ISO8601Highlighter(RegexHighlighter):
         r'^(?P<timezone>(Z|[+-](?:2[0-3]|[01][0-9])(?::?(?:[0-5][0-9]))?))$',
         # Hours, minutes, and seconds with time zone designator (e.g., 17:21:59+07:00). All the colons are optional. The
         # minutes in the time zone designator are also optional
-        r'^(?P<time>(?P<hour>2[0-3]|[01][0-9])(?P<minute>[0-5][0-9])(?P<second>[0-5][0-9]))(?P<timezone>Z|[+-](?:2[0-3]|[01][0-9])(?::?(?:[0-5][0-9]))?)$',
+        (
+            r'^(?P<time>(?P<hour>2[0-3]|[01][0-9])(?P<minute>[0-5][0-9])(?P<second>[0-5][0-9]))'
+            r'(?P<timezone>Z|[+-](?:2[0-3]|[01][0-9])(?::?(?:[0-5][0-9]))?)$'
+        ),
 
         ##
         # Date and Time
@@ -210,18 +213,31 @@ class ISO8601Highlighter(RegexHighlighter):
         # Calendar date with hours, minutes, and seconds (e.g., 2008-08-30 17:21:59 or 20080830 172159). A space is
         # required between the date and the time. The hyphens and colons are optional. This regex matches dates and
         # times that specify some hyphens or colons but omit others. This does not follow ISO 8601
-        r'^(?P<date>(?P<year>[0-9]{4})(?P<hyphen>-)?(?P<month>1[0-2]|0[1-9])(?(hyphen)-)(?P<day>3[01]|0[1-9]|[12][0-9])) (?P<time>(?P<hour>2[0-3]|[01][0-9])(?(hyphen):)(?P<minute>[0-5][0-9])(?(hyphen):)(?P<second>[0-5][0-9]))$',
+        (
+            r'^(?P<date>(?P<year>[0-9]{4})(?P<hyphen>-)?(?P<month>1[0-2]|0[1-9])(?(hyphen)-)(?P<day>3[01]|0[1-9]|[12][0-9])) '  # noqa
+            r'(?P<time>(?P<hour>2[0-3]|[01][0-9])(?(hyphen):)(?P<minute>[0-5][0-9])(?(hyphen):)(?P<second>[0-5][0-9]))$'
+        ),
 
         ##
         # XML Schema dates and times
 
         # Date, with optional time zone (e.g., 2008-08-30 or 2008-08-30+07:00). Hyphens are required. This is the XML
         # Schema 'date' type
-        r'^(?P<date>(?P<year>-?(?:[1-9][0-9]*)?[0-9]{4})-(?P<month>1[0-2]|0[1-9])-(?P<day>3[01]|0[1-9]|[12][0-9]))(?P<timezone>Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$',
+        (
+            r'^(?P<date>(?P<year>-?(?:[1-9][0-9]*)?[0-9]{4})-(?P<month>1[0-2]|0[1-9])-(?P<day>3[01]|0[1-9]|[12][0-9]))'
+            r'(?P<timezone>Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$'
+        ),
         # Time, with optional fractional seconds and time zone (e.g., 01:45:36 or 01:45:36.123+07:00). There is no limit
         # on the number of digits for the fractional seconds. This is the XML Schema 'time' type
-        r'^(?P<time>(?P<hour>2[0-3]|[01][0-9]):(?P<minute>[0-5][0-9]):(?P<second>[0-5][0-9])(?P<frac>\.[0-9]+)?)(?P<timezone>Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$',
+        (
+            r'^(?P<time>(?P<hour>2[0-3]|[01][0-9]):(?P<minute>[0-5][0-9]):(?P<second>[0-5][0-9])(?P<frac>\.[0-9]+)?)'
+            r'(?P<timezone>Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$'
+        ),
         # Date and time, with optional fractional seconds and time zone (e.g., 2008-08-30T01:45:36 or
         # 2008-08-30T01:45:36.123Z). This is the XML Schema 'dateTime' type
-        r'^(?P<date>(?P<year>-?(?:[1-9][0-9]*)?[0-9]{4})-(?P<month>1[0-2]|0[1-9])-(?P<day>3[01]|0[1-9]|[12][0-9]))T(?P<time>(?P<hour>2[0-3]|[01][0-9]):(?P<minute>[0-5][0-9]):(?P<second>[0-5][0-9])(?P<ms>\.[0-9]+)?)(?P<timezone>Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$',
+        (
+            r'^(?P<date>(?P<year>-?(?:[1-9][0-9]*)?[0-9]{4})-(?P<month>1[0-2]|0[1-9])-(?P<day>3[01]|0[1-9]|[12][0-9]))T'
+            r'(?P<time>(?P<hour>2[0-3]|[01][0-9]):(?P<minute>[0-5][0-9]):(?P<second>[0-5][0-9])(?P<ms>\.[0-9]+)?)'
+            r'(?P<timezone>Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$'
+        ),
     ]

@@ -32,7 +32,8 @@ class Theme:
     A container for style information, used by :class:`~rich.console.Console`.
 
     Args:
-        styles (dict[str, Style], optional): A mapping of style names on to styles. Defaults to None for a theme with no styles.
+        styles (dict[str, Style], optional): A mapping of style names on to styles. Defaults to None for a theme with no
+            styles.
         inherit (bool, optional): Inherit default styles. Defaults to True.
     """
 

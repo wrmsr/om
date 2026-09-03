@@ -27,7 +27,8 @@ from .text import Text
 
 
 class Rule:
-    """A console renderable to draw a horizontal rule (line).
+    """
+    A console renderable to draw a horizontal rule (line).
 
     Args:
         title (Union[str, Text], optional): Text to render in the rule. Defaults to "".

@@ -101,7 +101,7 @@ def _parse(markup: str) -> ta.Iterable[tuple[int, str | None, Tag | None]]:
 
     position = 0
     _divmod = divmod
-    _Tag = Tag
+    _tag = Tag
     for match in TAGS_PAT.finditer(markup):
         full_text, escapes, tag_text = match.groups()
         start, end = match.span()
@@ -119,7 +119,7 @@ def _parse(markup: str) -> ta.Iterable[tuple[int, str | None, Tag | None]]:
                 position = end
                 continue
         text, equals, parameters = tag_text.partition('=')
-        yield start, None, _Tag(text, parameters if equals else None)
+        yield start, None, _tag(text, parameters if equals else None)
         position = end
     if position < len(markup):
         yield position, markup[position:], None
@@ -164,8 +164,8 @@ def render(
     spans: list[Span] = []
     append_span = spans.append
 
-    _Span = Span
-    _Tag = Tag
+    _span = Span
+    _tag = Tag
 
     def pop_style(style_name: str) -> tuple[int, Tag]:
         """Pop tag matching given style name."""
@@ -235,16 +235,16 @@ def render(
                         meta_params = ()
 
                     append_span(
-                        _Span(
+                        _span(
                             start, len(text), Style(meta={open_tag.name: meta_params}),
                         ),
                     )
 
                 else:
-                    append_span(_Span(start, len(text), str(open_tag)))
+                    append_span(_span(start, len(text), str(open_tag)))
 
             else:  # Opening tag
-                normalized_tag = _Tag(normalize(tag.name), tag.parameters)
+                normalized_tag = _tag(normalize(tag.name), tag.parameters)
                 style_stack.append((len(text), normalized_tag))
 
     text_length = len(text)
@@ -252,7 +252,7 @@ def render(
         start, tag = style_stack.pop()
         style = str(tag)
         if style:
-            append_span(_Span(start, text_length, style))
+            append_span(_span(start, text_length, style))
 
     text.spans = sorted(spans[::-1], key=operator.attrgetter('start'))
     return text
