@@ -45,15 +45,8 @@ jobs:
           make ci
 
       - name: 'Report JUnit results'
-        uses: 'mikepenz/action-junit-report@v6.4.2'
-        if: 'always()'
-        with:
-          report_paths: '${{ github.workspace }}/test-results.xml'
-          include_passed: true
-
-      - name: 'Report JUnit results 2'
         run: >
-          python3 x/gha_junit.py \
+          python3 omdev/scripts/ghajunit.py \
             --annotations \
             --fail-on-failure \
             '${{ github.workspace }}/test-results.xml'

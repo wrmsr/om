@@ -319,7 +319,7 @@
     "module": ".scripts.slowcat",
     "attr": "_CLI_MODULE",
     "file": "omdev/scripts/slowcat.py",
-    "line": 117,
+    "line": 120,
     "value": {
       "!.cli.types.CliModule": {
         "name": "slowcat",
@@ -331,7 +331,7 @@
     "module": ".scripts.tmpexec",
     "attr": "_CLI_MODULE",
     "file": "omdev/scripts/tmpexec.py",
-    "line": 50,
+    "line": 53,
     "value": {
       "!.cli.types.CliModule": {
         "name": "tmpexec",

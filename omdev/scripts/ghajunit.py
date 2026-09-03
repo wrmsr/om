@@ -1,44 +1,12 @@
 #!/usr/bin/env python3
-r"""
-junit_gha_summary.py
-
+# @om-script
+# @om-precheck-allow-any-unicode
+"""
 Pure-stdlib JUnit XML -> GitHub Actions job summary + optional annotations.
-
-Usage:
-    python .github/scripts/junit_gha_summary.py test-results/*.xml \
-        --annotations \
-        --max-annotations 50 \
-        --fail-on-failure
 
 ====
 
 https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands
-
-====
-
-name: ci
-
-on:
-  pull_request:
-  push:
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run tests
-        run: |
-          python -m pytest --junitxml=.reports/junit.xml
-
-      - name: Publish test summary
-        if: always()
-        run: |
-          python .github/scripts/junit_gha_summary.py '.reports/*.xml' \
-            --annotations \
-            --max-annotations 50
 """
 import argparse
 import collections
@@ -80,6 +48,7 @@ def gha_command(name: str, message: str = '', **props: object) -> None:
     Example:
         gha_command("error", "boom", file="tests/test_foo.py", line=12)
     """
+
     prop_s = ''
     clean_props = {k: v for k, v in props.items() if v is not None and v != ''}
     if clean_props:
@@ -97,6 +66,7 @@ def append_step_summary(markdown: str) -> bool:
 
     Returns True if written to the summary file, False if not in GHA.
     """
+
     path = os.environ.get('GITHUB_STEP_SUMMARY')
     if not path:
         return False
@@ -266,9 +236,8 @@ def expand_paths(patterns: list[str]) -> list[pathlib.Path]:
 
 
 def md_cell(s: object) -> str:
-    """
-    Escape enough for GitHub Markdown tables.
-    """
+    """Escape enough for GitHub Markdown tables."""
+
     return (
         str(s)
         .replace('\\', '\\\\')
