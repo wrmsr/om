@@ -58,6 +58,13 @@ class _PermissionCardRequest:
     on_cancel: ta.Callable[[], None] | None = None
 
 
+class _CardSpacer(mt.Control):
+    """The blank row that follows every tool card, live and committed alike."""
+
+    def render(self, width: int) -> ta.Sequence[ta.Sequence[mt.Segment]]:
+        return [[]]
+
+
 ##
 
 
@@ -128,6 +135,7 @@ class MinituiChatApp(mt.App):
         self._history = mt.InputHistory()
 
         self._cards: collections.OrderedDict[str, _ToolCardEntry] = collections.OrderedDict()
+        self._card_spacer = _CardSpacer()
         self._permission_queue: collections.deque[_PermissionCardRequest] = collections.deque()
         self._active_permission: _PermissionCardRequest | None = None
         self._layout: mt.StackLayout | None = None
@@ -456,7 +464,7 @@ class MinituiChatApp(mt.App):
                 self._cards.move_to_end(key, last=False)
                 return
             self._cancel_finalize(entry)
-            self._commit_rows([*entry.card.render(self.width), []])
+            self._commit_rows([*entry.card.render(self.width), []])  # as displayed: the card and its spacer row
 
     def _cancel_finalize(self, entry: _ToolCardEntry) -> None:
         if (timer := entry.finalize_timer) is not None:
@@ -635,13 +643,12 @@ class MinituiChatApp(mt.App):
         if permission_card is not None:
             cards.append(permission_card)
 
-        controls: list[mt.Control] = [
-            self._tail,
-            *cards,
-            self._popup,
-            self._input,
-            self._status,
-        ]
+        # Every live card is followed by the blank row its committed form gets in `_flush_ready_cards`, so finalizing
+        # a card never changes the live region's geometry - it commits exactly as displayed.
+        controls: list[mt.Control] = [self._tail]
+        for card in cards:
+            controls.extend((card, self._card_spacer))
+        controls.extend((self._popup, self._input, self._status))
         self._layout = mt.stack_layout(
             controls,
             width=width,

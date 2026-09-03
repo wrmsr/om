@@ -47,6 +47,29 @@ def test_tool_cards_update_independently_and_commit_in_start_order():
     assert 'beta  done' in committed[1]
 
 
+def test_tool_cards_commit_exactly_as_displayed():
+    # A live card carries the trailing blank row its committed form gets, so finalizing it moves nothing on screen.
+    app, driver = make_app()
+
+    app.tool_started('call-a', 'alpha', ())
+    app.tool_started('call-b', 'beta', ())
+    lines = frame_lines(app)
+    a = next(i for i, line in enumerate(lines) if 'alpha  running...' in line)
+    assert lines[a + 1] == ''
+    assert 'beta  running...' in lines[a + 2]
+    assert lines[a + 3] == ''
+
+    app.tool_finished('call-a', 'alpha', ok=True)
+    lines = frame_lines(app)
+    a = next(i for i, line in enumerate(lines) if 'alpha  done' in line)
+    live_card = lines[a:a + 2]
+    assert live_card[1] == ''
+
+    driver.fire_after(.8)
+    assert commit_texts(driver) == ['\n'.join(live_card)]
+    assert len(frame_lines(app)) == len(lines) - len(live_card)
+
+
 def test_permission_cards_queue_without_orphaning_responses():
     app, _ = make_app()
     responses = []
