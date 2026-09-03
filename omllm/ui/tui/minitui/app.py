@@ -130,6 +130,7 @@ class MinituiChatApp(mt.App):
             ex_handler=self._ex,
             options=mt.vim.VimOptions(
                 number=True,
+                numberwidth=1,
             ),
         )
         self._history = mt.InputHistory()
