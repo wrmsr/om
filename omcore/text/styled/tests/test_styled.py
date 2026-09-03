@@ -1,18 +1,18 @@
 import pytest
 
-from .. import DEFAULT_COLOR
-from .. import EMPTY_STYLE_PATCH
-from .. import PLAIN_STYLE
-from .. import ResolvedStyle
-from .. import RgbColor
-from .. import StyledText
-from .. import StyledTextBuilder
-from .. import StyledTextRun
-from .. import StyleName
-from .. import StylePatch
-from .. import StyleSpan
-from .. import StyleTheme
-from .. import parse_rgb
+from ..builders import StyledTextBuilder
+from ..colors import RgbColor
+from ..colors import parse_rgb
+from ..styles import DEFAULT_COLOR
+from ..styles import EMPTY_STYLE_PATCH
+from ..styles import PLAIN_STYLE
+from ..styles import ResolvedStyle
+from ..styles import StyleName
+from ..styles import StylePatch
+from ..styles import StyleTheme
+from ..text import StyledText
+from ..text import StyledTextRun
+from ..text import StyleSpan
 
 
 ##

@@ -1,5 +1,4 @@
 """Target-neutral color values."""
-
 from ... import dataclasses as dc
 from ... import lang
 

@@ -19,10 +19,10 @@ class ColorDefault(enum.Enum):
 DEFAULT_COLOR = ColorDefault.DEFAULT
 
 
-type StyleColor = Color | ColorDefault | None
+type StyleColor = Color | ColorDefault
 
 
-_STYLE_FLAG_NAMES = (
+_STYLE_FLAG_NAMES: ta.Final[ta.Sequence[str]] = (
     'bold',
     'dim',
     'italic',
@@ -33,8 +33,10 @@ _STYLE_FLAG_NAMES = (
     'hidden',
 )
 
+_STYLE_FLAG_NAME_SET: ta.Final[ta.AbstractSet[str]] = frozenset(_STYLE_FLAG_NAMES)
 
-def _check_style_color(value: StyleColor) -> None:
+
+def _check_style_color(value: StyleColor | None) -> None:
     if value is not None and not isinstance(value, (Color, ColorDefault)):
         raise TypeError(value)
 
@@ -48,7 +50,7 @@ def _overlay_value(base: ta.Any, overlay: ta.Any) -> ta.Any:
     return base if overlay is None else overlay
 
 
-def _resolve_color(value: StyleColor, inherited: Color | None) -> Color | None:
+def _resolve_color(value: StyleColor | None, inherited: Color | None) -> Color | None:
     if value is None:
         return inherited
     if value is DEFAULT_COLOR:
@@ -61,6 +63,7 @@ def _resolve_flag(value: bool | None, inherited: bool) -> bool:
 
 
 @dc.dataclass(frozen=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class StylePatch(lang.Final):
     """
     A partial style layered over another style.
@@ -69,8 +72,8 @@ class StylePatch(lang.Final):
     clears an inherited foreground or background color.
     """
 
-    fg: StyleColor = None
-    bg: StyleColor = None
+    fg: StyleColor | None = None
+    bg: StyleColor | None = None
 
     bold: bool | None = None
     dim: bool | None = None
@@ -144,6 +147,7 @@ EMPTY_STYLE_PATCH = StylePatch()
 
 
 @dc.dataclass(frozen=True)
+@dc.extra_class_params(default_repr_fn=lang.truthy_repr)
 class ResolvedStyle(lang.Final):
     """A concrete target-neutral style with no inherited properties remaining."""
 

@@ -3,10 +3,10 @@ from ... import lang
 from .styles import StyleLike
 from .styles import StylePatch
 from .styles import as_style_ref
-from .texts import StyledText
-from .texts import StyledTextLike
-from .texts import StyleSpan
-from .texts import _normalize_style_range
+from .text import StyledText
+from .text import StyledTextLike
+from .text import StyleSpan
+from .text import _normalize_style_range
 
 
 ##
