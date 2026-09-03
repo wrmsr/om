@@ -47,6 +47,7 @@ with _lang.auto_proxy_init(
     )
 
     from .controls.textarea import (  # noqa
+        LINENR_TAG,
         TextArea,
     )
 

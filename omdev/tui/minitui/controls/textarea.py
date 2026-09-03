@@ -4,7 +4,8 @@ The vim-powered text area: a scrolled vim window as a control.
 Full width, minimum one row, growing with content up to `max_height`, then scrolling - the viewport follows the cursor,
 so arbitrarily large pasted content stays motion- and search-accessible instead of being truncated away. Lines hard-wrap
 at the width (cell-exact, mid-word, like vim's 'wrap' without 'linebreak') so document<->screen position math stays
-trivial.
+trivial. With `options.number` a vim-style line number column leads each row (right-aligned, at least `numberwidth`
+wide, blank on wrapped continuation rows), ahead of any prompt.
 
 Enter semantics (per design): insert mode Enter inserts a newline (vim-pure); normal mode Enter submits; from insert
 mode, ctrl+j (universal - the other newline byte), ctrl/shift+enter (extended-key terminals), or alt+enter submit.
@@ -38,6 +39,10 @@ from .base import Control
 
 
 ##
+
+
+# The line number column's theme tag (vim's LineNr group). A view concern, unlike the engine's decoration tags.
+LINENR_TAG = 'vim.linenr'
 
 
 _KEY_TOKENS: ta.Mapping[str, str] = {
@@ -169,8 +174,19 @@ class TextArea(Control):
     ##
     # Wrapping
 
+    def _gutter_width(self) -> int:
+        """Per vim: at least `numberwidth` columns, or the last line number's digits plus the separating space."""
+
+        opts = self._engine.options
+        if not opts.number:
+            return 0
+        return max(opts.numberwidth, len(str(self.doc.line_count())) + 1)
+
+    def _left_width(self) -> int:
+        return self._gutter_width() + len(self._prompt)
+
     def _text_width(self, width: int) -> int:
-        return max(width - len(self._prompt), 1)
+        return max(width - self._left_width(), 1)
 
     def _wrap_rows(self, width: int) -> list[_WrapRow]:
         text_width = self._text_width(width)
@@ -266,6 +282,11 @@ class TextArea(Control):
         line = self.doc.line(row.doc_row)
         segments: list[Segment] = []
 
+        if gutter := self._gutter_width():
+            # Continuation rows of a wrapped line get a blank column, as vim does without 'showbreak'.
+            number = f'{row.doc_row + 1:>{gutter - 1}} ' if row.first else ' ' * gutter
+            segments.append(Segment(number, LINENR_TAG))
+
         if self._prompt:
             prefix = self._prompt if row.first and row.doc_row == 0 else ' ' * len(self._prompt)
             segments.append(Segment(prefix, self._prompt_style))
@@ -317,7 +338,7 @@ class TextArea(Control):
         row = rows[cursor_row]
         cur = self._engine.cursor
         line = self.doc.line(row.doc_row)
-        x = len(self._prompt) + sum(
+        x = self._left_width() + sum(
             _display_char(c, self._engine.options.tabstop)[1]
             for c in line[row.start_col: min(cur.col, row.end_col)]
         )

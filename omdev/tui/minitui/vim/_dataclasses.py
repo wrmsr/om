@@ -297,30 +297,37 @@ def _process_dataclass__59d23a89b75e09cb04c128ef1ce8cd105c66a91b():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('tabstop', 'shiftwidth', 'expandtab', 'autoindent')), EqPlan(fields=('tabstop', 's"
-        "hiftwidth', 'expandtab', 'autoindent')), FrozenPlan(fields=('tabstop', 'shiftwidth', 'expandtab', 'autoindent'"
-        "), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('tabstop', 'shiftwidth', 'expandtab', 'au"
-        "toindent'), cache=False), InitPlan(fields=(InitPlan.Field(name='tabstop', annotation=OpRef(name='init.fields.0"
-        ".annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, f"
-        "ield_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='shiftwidth', "
-        "annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factor"
-        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
-        ", InitPlan.Field(name='expandtab', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init"
-        ".fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
-        "ne, validate=None, check_type=None), InitPlan.Field(name='autoindent', annotation=OpRef(name='init.fields.3.an"
-        "notation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, fiel"
-        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('tabs"
-        "top', 'shiftwidth', 'expandtab', 'autoindent'), kw_only_params=(), frozen=True, slots=False, post_init_params="
-        "None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='tabstop', kw_only=False, fn=None), "
-        "ReprPlan.Field(name='shiftwidth', kw_only=False, fn=None), ReprPlan.Field(name='expandtab', kw_only=False, fn="
-        "None), ReprPlan.Field(name='autoindent', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('tabstop', 'shiftwidth', 'expandtab', 'autoindent', 'number', 'numberwidth')), EqP"
+        "lan(fields=('tabstop', 'shiftwidth', 'expandtab', 'autoindent', 'number', 'numberwidth')), FrozenPlan(fields=("
+        "'tabstop', 'shiftwidth', 'expandtab', 'autoindent', 'number', 'numberwidth'), allow_dynamic_dunder_attrs=False"
+        "), HashPlan(action='add', fields=('tabstop', 'shiftwidth', 'expandtab', 'autoindent', 'number', 'numberwidth')"
+        ", cache=False), InitPlan(fields=(InitPlan.Field(name='tabstop', annotation=OpRef(name='init.fields.0.annotatio"
+        "n'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type="
+        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='shiftwidth', annotation"
+        "=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, in"
+        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan"
+        ".Field(name='expandtab', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2."
+        "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
+        "te=None, check_type=None), InitPlan.Field(name='autoindent', annotation=OpRef(name='init.fields.3.annotation')"
+        ", default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=Fie"
+        "ldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='number', annotation=OpRef("
+        "name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True"
+        ", override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field("
+        "name='numberwidth', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.defau"
+        "lt'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
+        "ne, check_type=None)), self_param='self', std_params=('tabstop', 'shiftwidth', 'expandtab', 'autoindent', 'num"
+        "ber', 'numberwidth'), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validat"
+        "e_fns=()), ReprPlan(fields=(ReprPlan.Field(name='tabstop', kw_only=False, fn=None), ReprPlan.Field(name='shift"
+        "width', kw_only=False, fn=None), ReprPlan.Field(name='expandtab', kw_only=False, fn=None), ReprPlan.Field(name"
+        "='autoindent', kw_only=False, fn=None), ReprPlan.Field(name='number', kw_only=False, fn=None), ReprPlan.Field("
+        "name='numberwidth', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='4da2f356e163321849c88f0996b39eb7176112c9',
+    plan_repr_sha1='be9f15be09dba37e58af2e8a9ebf213913e2cd8a',
     cls_names=(
         ('omdev.tui.minitui.vim.options', 'VimOptions'),
     ),
 )
-def _process_dataclass__4da2f356e163321849c88f0996b39eb7176112c9():
+def _process_dataclass__be9f15be09dba37e58af2e8a9ebf213913e2cd8a():
     def _process_dataclass(
         *,
         __class__,
@@ -332,6 +339,10 @@ def _process_dataclass__4da2f356e163321849c88f0996b39eb7176112c9():
         __dataclass__init__fields__2__default,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -346,6 +357,8 @@ def _process_dataclass__4da2f356e163321849c88f0996b39eb7176112c9():
                 shiftwidth=self.shiftwidth,
                 expandtab=self.expandtab,
                 autoindent=self.autoindent,
+                number=self.number,
+                numberwidth=self.numberwidth,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -359,7 +372,9 @@ def _process_dataclass__4da2f356e163321849c88f0996b39eb7176112c9():
                 self.tabstop == other.tabstop and
                 self.shiftwidth == other.shiftwidth and
                 self.expandtab == other.expandtab and
-                self.autoindent == other.autoindent
+                self.autoindent == other.autoindent and
+                self.number == other.number and
+                self.numberwidth == other.numberwidth
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -369,6 +384,8 @@ def _process_dataclass__4da2f356e163321849c88f0996b39eb7176112c9():
             'shiftwidth',
             'expandtab',
             'autoindent',
+            'number',
+            'numberwidth',
         }
 
         def __setattr__(self, name, value):
@@ -397,6 +414,8 @@ def _process_dataclass__4da2f356e163321849c88f0996b39eb7176112c9():
                 self.shiftwidth,
                 self.expandtab,
                 self.autoindent,
+                self.number,
+                self.numberwidth,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -407,11 +426,15 @@ def _process_dataclass__4da2f356e163321849c88f0996b39eb7176112c9():
             shiftwidth: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             expandtab: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             autoindent: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            number: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            numberwidth: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'tabstop', tabstop)
             __dataclass__object_setattr(self, 'shiftwidth', shiftwidth)
             __dataclass__object_setattr(self, 'expandtab', expandtab)
             __dataclass__object_setattr(self, 'autoindent', autoindent)
+            __dataclass__object_setattr(self, 'number', number)
+            __dataclass__object_setattr(self, 'numberwidth', numberwidth)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -422,6 +445,8 @@ def _process_dataclass__4da2f356e163321849c88f0996b39eb7176112c9():
             parts.append(f"shiftwidth={self.shiftwidth!r}")
             parts.append(f"expandtab={self.expandtab!r}")
             parts.append(f"autoindent={self.autoindent!r}")
+            parts.append(f"number={self.number!r}")
+            parts.append(f"numberwidth={self.numberwidth!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

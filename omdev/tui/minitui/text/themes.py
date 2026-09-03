@@ -121,6 +121,7 @@ DARK_THEME = Theme({
     'vim.cursor': Style(reverse=True),
     'vim.search.match': Style(fg=TEXT_WARNING, bg=CODE_INLINE_BG),
     'vim.search.current': Style(fg=BACKGROUND, bg=WARNING),
+    'vim.linenr': Style(fg=TEXT_SECONDARY),
 
     # status line / input (bg-less: inline-friendly; bar-style apps extend with surface-backed variants)
     'status.mode': Style(fg=PRIMARY, bold=True),

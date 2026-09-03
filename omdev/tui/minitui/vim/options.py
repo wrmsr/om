@@ -1,5 +1,6 @@
 """
-Editor options - the vim trio (tabstop / shiftwidth / expandtab) plus autoindent - and a small language registry.
+Editor options - the vim trio (tabstop / shiftwidth / expandtab), autoindent, and the line number column - plus a small
+language registry.
 
 This is deliberately a carveout, not a full 'set' system: a general-purpose code editor isn't the point, but the
 stack shouldn't preclude one. Language profiles mirror the highlighter registry's alias style (text/highlights.py):
@@ -20,6 +21,8 @@ class VimOptions(lang.Final):
     shiftwidth: int = 4      # indent step for < / >
     expandtab: bool = True   # insert-mode tab inserts spaces (to the next tabstop column)
     autoindent: bool = True  # insert-mode Enter carries the current line's leading whitespace
+    number: bool = False     # show a line number column (a view concern - the engine never reads it)
+    numberwidth: int = 4     # that column's minimum width, trailing space included; grows to fit the last line number
 
 
 DEFAULT_OPTIONS = VimOptions()

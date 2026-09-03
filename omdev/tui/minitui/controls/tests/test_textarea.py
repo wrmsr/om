@@ -6,10 +6,12 @@ from ...events.types import PasteEvent
 from ...text.highlights.base import PythonHighlighter
 from ...text.segments import segments_text
 from ...vim.modes import Mode
+from ...vim.options import VimOptions
 from ...vim.options import get_language_options
 from ...vim.status import CURSOR_TAG
 from ...vim.status import SEARCH_MATCH_TAG
 from ...vim.status import SEARCH_MATCH_TAG as _SM
+from ..textarea import LINENR_TAG
 from ..textarea import TextArea
 
 
@@ -376,3 +378,45 @@ def test_readline_chords_are_insert_only():
     assert not ta_.handle_event(KeyEvent(Key('a', ctrl=True), text=None))
     assert not ta_.handle_event(KeyEvent(Key('p', ctrl=True), text=None))
     assert ta_.doc.text() == 'foo'
+
+
+##
+# Line numbers (vim's 'number': a right-aligned column, blank on continuation rows, ahead of the prompt).
+
+
+def test_line_numbers():
+    ta_ = TextArea(options=VimOptions(number=True))
+    ta_.handle_event(PasteEvent('a\nb\nc'))
+    assert rows(ta_) == ['  1 a', '  2 b', '  3 c']
+    # numberwidth 4 = three digit cells plus the separating space; the cursor sits past the column.
+    assert ta_.cursor(20) == (5, 2)
+
+    styles = {seg.style for row in ta_.render(20) for seg in row}
+    assert LINENR_TAG in styles
+
+
+def test_line_numbers_wrap_and_prompt():
+    ta_ = TextArea(prompt='> ', options=VimOptions(number=True))
+    type_text(ta_, 'abcdefgh')
+    # width 10, column 4, prompt 2 -> text width 4; the continuation row carries a blank column and prompt pad.
+    assert rows(ta_, 10) == ['  1 > abcd', '      efgh']
+    assert ta_.cursor(10) == (10, 1)
+
+
+def test_line_numbers_widen_past_numberwidth():
+    ta_ = TextArea(max_height=20, options=VimOptions(number=True, numberwidth=2))
+    ta_.handle_event(PasteEvent('\n'.join(f'l{i}' for i in range(12))))
+    r = rows(ta_)
+    assert r[0] == ' 1 l0'
+    assert r[-1] == '12 l11'
+
+
+def test_line_numbers_toggle_at_runtime():
+    ta_ = TextArea()
+    type_text(ta_, 'x')
+    assert rows(ta_) == ['x']
+    ta_.engine.set_options(VimOptions(number=True))
+    assert rows(ta_) == ['  1 x']
+    assert ta_.cursor(20) == (5, 0)
+    ta_.engine.set_options(VimOptions())
+    assert rows(ta_) == ['x']

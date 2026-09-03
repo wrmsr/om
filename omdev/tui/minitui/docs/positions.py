@@ -20,7 +20,7 @@ class SpanKind(enum.Enum):
     EXCLUSIVE = enum.auto()  # charwise, target char NOT covered (w, b, h, 0, F, T)
     INCLUSIVE = enum.auto()  # charwise, target char covered     (e, f, t, $)
     LINEWISE = enum.auto()   # whole lines                       (j, k, G, gg, dd)
-    BLOCK = enum.auto()      # rectangular (blockwise visual) - reserved, not yet implemented
+    BLOCK = enum.auto()      # rectangular (blockwise visual: ctrl+v)
 
 
 @dc.dataclass(frozen=True)
@@ -29,7 +29,8 @@ class Span(lang.Final):
     A range over a document.
 
     Charwise (EXCLUSIVE kind after resolution): [start, end), end.col may equal the line length. LINEWISE: whole rows
-    start.row..end.row inclusive, cols ignored. BLOCK: reserved.
+    start.row..end.row inclusive, cols ignored. BLOCK: rows start.row..end.row inclusive, cols [start.col, end.col) on
+    each row, clipped to each line's length.
     """
 
     kind: SpanKind

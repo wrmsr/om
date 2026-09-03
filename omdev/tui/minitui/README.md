@@ -11,12 +11,12 @@ Built primarily for llm coding-agent chat TUIs, deliberately generalized for any
 ## Try it
 
 ```bash
-./python -m omdev.tui.minitui.apps.chatdemo               # streaming markdown chat: tool cards (f10/f2), /help, history, search
-./python -m omdev.tui.minitui.apps.chatdemo --md=pdcmark  # swap the streaming markdown backend (internal|pdcmark|markdown-it)
-./python -m omdev.tui.minitui.apps.chatdemo --mouse       # + click-to-expand cards / click suggestions (trades wheel scrollback)
-./python -m omdev.tui.minitui.apps.inputdemo              # minimal typing-while-streaming proof
-./python -m omdev.tui.minitui.apps.streamdemo             # the bare commit model, no input
-./python -m omdev.tui.minitui.apps.vimdemo f.py           # fullscreen vim clone (:w/:q, ctrl+v blocks, %/~/zz), tree-sitter highlighted
+./python -m omdev.tui.minitui.tests.apps.chatdemo               # streaming markdown chat: tool cards (f10/f2), /help, history, search
+./python -m omdev.tui.minitui.tests.apps.chatdemo --md=pdcmark  # swap the streaming markdown backend (internal|pdcmark|markdown-it)
+./python -m omdev.tui.minitui.tests.apps.chatdemo --mouse       # + click-to-expand cards / click suggestions (trades wheel scrollback)
+./python -m omdev.tui.minitui.tests.apps.inputdemo              # minimal typing-while-streaming proof
+./python -m omdev.tui.minitui.tests.apps.streamdemo             # the bare commit model, no input
+./python -m omdev.tui.minitui.tests.apps.vimdemo f.py           # fullscreen vim clone (:w/:q, :set nu, ctrl+v blocks, %/~/zz), tree-sitter highlighted
 ```
 
 Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to watch damage regions.
@@ -42,9 +42,9 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
   undo/redo, CMDLINE mode with incremental search, blockwise visual (ctrl+v) with live multi-cursor I/A/c replication,
   `%`/`~`, `status()`/`decorations()` as its only outputs. Never renders, never reads a keyboard.
 - **controls/** - small and passive: `TextArea` (a scrolled vim window - grows to a max height, then the viewport
-  follows the cursor; optional syntax highlighting under engine decorations; ctrl+d/u, zz/zt/zb, H/M/L viewport ops),
-  status bar, statics, spinner, suggestions popup, markdown tail, lifecycle cards, input history, stack layout with
-  mouse hit regions.
+  follows the cursor; optional syntax highlighting under engine decorations; ctrl+d/u, zz/zt/zb, H/M/L viewport ops;
+  vim's line number column), status bar, statics, spinner, suggestions popup, markdown tail, lifecycle cards, input
+  history, stack layout with mouse hit regions.
 - **runtime/** - `SyncDriver` (poll + self-pipe) and `AsyncioDriver` (asyncio; `post()` is the sole thread-safe entry).
   Both share the `App` contract: `render(width, max_height) -> Frame` + `handle_event(event)`, with coalescing
   invalidation.

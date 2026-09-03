@@ -2,13 +2,15 @@
 A tiny fullscreen vim clone on the alt-screen surface - the demotty successor, sharing the whole headless stack.
 
 The same engine, document, and TextArea that power the chat input, composed differently: full screen, normal mode first,
-'~' filler rows, a vim status line (mode / pending keys / cmdline, filename + modified flag + ruler), and file ex
-commands - :w [name], :q, :q!, :wq, ZZ-free minimalism. `/` search with live highlighting works exactly as in the input
-textarea, because it's the same code.
+'~' filler rows, a vim status line (mode / pending keys / cmdline, filename + modified flag + ruler), file ex commands -
+:w [name], :q, :q!, :wq, ZZ-free minimalism - and a `:set [no]number` sliver (`--number` starts with it on). `/` search
+with live highlighting works exactly as in the input textarea, because it's the same code.
 """
 import os.path
 import sys
 import typing as ta
+
+from omcore import dataclasses as dc
 
 from ...controls.base import Control
 from ...controls.stacks import stack_frame
@@ -81,7 +83,14 @@ class TildeFiller(Control):
 
 
 class VimDemoApp(App):
-    def __init__(self, driver: SyncDriver, path: str | None, lang: str | None = None) -> None:
+    def __init__(
+            self,
+            driver: SyncDriver,
+            path: str | None,
+            lang: str | None = None,
+            *,
+            number: bool = False,
+    ) -> None:
         super().__init__()
 
         self._driver = driver
@@ -99,7 +108,7 @@ class VimDemoApp(App):
             ex_handler=self._ex,
             highlighter=highlighter,
             # Indent style follows the file extension ('go' edits with real tabs); --lang overrides.
-            options=get_language_options(lang if lang is not None else ext),
+            options=dc.replace(get_language_options(lang if lang is not None else ext), number=number),
         )
         self._filler = TildeFiller()
         self._status = StatusBar()
@@ -127,6 +136,21 @@ class VimDemoApp(App):
         self._saved_version = self._editor.doc.version
         return f'"{target}" written'
 
+    def _set(self, arg: str) -> str | None:
+        """A sliver of :set - just the boolean 'number' option, with vim's 'no' prefix and '!' toggle suffix."""
+
+        name = arg.removesuffix('!')
+        toggle = name != arg
+        off = name.startswith('no')
+        name = name.removeprefix('no')
+        if name not in ('number', 'nu'):
+            return f'Unknown option: {arg}'
+
+        engine = self._editor.engine
+        opts = engine.options
+        engine.set_options(dc.replace(opts, number=(not opts.number) if toggle else not off))
+        return None
+
     def _ex(self, line: str) -> str | None:
         name, _, arg = line.partition(' ')
         arg = arg.strip()
@@ -146,6 +170,8 @@ class VimDemoApp(App):
         if name == 'q!':
             self._driver.stop()
             return None
+        if name in ('set', 'se'):
+            return self._set(arg)
         return f'Not an editor command: {name}'
 
     ##
@@ -195,11 +221,18 @@ class VimDemoApp(App):
 def _main() -> None:
     args = sys.argv[1:]
     lang: str | None = None
-    if args and args[0].startswith('--lang='):
-        lang = args.pop(0).partition('=')[2]
+    number = False
+    while args and args[0].startswith('--'):
+        opt = args.pop(0)
+        if opt.startswith('--lang='):
+            lang = opt.partition('=')[2]
+        elif opt == '--number':
+            number = True
+        else:
+            raise ValueError(f'Unknown option: {opt}')
     path = args[0] if args else None
     driver = SyncDriver(AltSurface(kitty_keys=True))
-    app = VimDemoApp(driver, path, lang)
+    app = VimDemoApp(driver, path, lang, number=number)
     try:
         driver.run(app)
     except KeyboardInterrupt:
