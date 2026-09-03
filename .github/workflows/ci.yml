@@ -50,3 +50,11 @@ jobs:
         with:
           report_paths: '${{ github.workspace }}/test-results.xml'
           include_passed: true
+
+      - name: 'Report JUnit results 2'
+        run: >
+          python3 x/gha_junit.py \
+            --annotations \
+            --fail-on-failure \
+            '${{ github.workspace }}/test-results.xml'
+        if: 'always()'

@@ -1,11 +1,11 @@
 """
 Job control: the suspend / resume sequence shared by the drivers.
 
-A stop must hand the terminal back the way the shell expects it, so the teardown runs first and only then is the
-process stopped for real; SIGCONT re-enters application mode. Two triggers converge here: a legacy-wire ctrl+z, which
-the kernel turns into SIGTSTP because raw mode keeps ISIG on, and an app binding on extended-key terminals, where the
-chord arrives as a key event instead and the app calls the driver's `suspend()`. The drivers own the signal wiring -
-each applies it at its own safe point, between renders and never inside one - and this holds the sequence and state.
+A stop must hand the terminal back the way the shell expects it, so the teardown runs first and only then is the process
+stopped for real; SIGCONT re-enters application mode. Two triggers converge here: a legacy-wire ctrl+z, which the kernel
+turns into SIGTSTP because raw mode keeps ISIG on, and an app binding on extended-key terminals, where the chord arrives
+as a key event instead and the app calls the driver's `suspend()`. The drivers own the signal wiring - each applies it
+at its own safe point, between renders and never inside one - and this holds the sequence and state.
 
 The `bg` case: a job continued in the background gets SIGCONT too but may not touch the tty. A resume probes for that
 first (textual's trick) and stays suspended when the probe fails; the `fg` that eventually follows delivers another

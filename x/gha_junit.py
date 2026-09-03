@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 junit_gha_summary.py
 
 Pure-stdlib JUnit XML -> GitHub Actions job summary + optional annotations.
@@ -51,7 +51,7 @@ import typing as ta
 import xml.etree.ElementTree as ET
 
 
-# ---------------------------------------------------------------------------
+##
 # GitHub Actions helpers
 
 
@@ -108,7 +108,7 @@ def append_step_summary(markdown: str) -> bool:
     return True
 
 
-# ---------------------------------------------------------------------------
+##
 # JUnit parsing
 
 
@@ -188,7 +188,7 @@ def iter_testsuites(root: ET.Element) -> ta.Iterator[ET.Element]:
 
 
 def parse_junit_file(path: pathlib.Path) -> list[TestCase]:
-    root = ET.parse(path).getroot()
+    root = ET.parse(path).getroot()  # noqa  #  FIXME: defuesedxml?
     out: list[TestCase] = []
 
     for suite_el in iter_testsuites(root):
@@ -261,7 +261,7 @@ def expand_paths(patterns: list[str]) -> list[pathlib.Path]:
     return out
 
 
-# ---------------------------------------------------------------------------
+##
 # Markdown rendering
 
 
@@ -419,7 +419,7 @@ def render_summary(
     return '\n'.join(lines).rstrip() + '\n'
 
 
-# ---------------------------------------------------------------------------
+##
 # Annotations
 
 
@@ -446,7 +446,7 @@ def emit_failure_annotations(cases: list[TestCase], *, max_annotations: int) -> 
         n += 1
 
 
-# ---------------------------------------------------------------------------
+##
 # Main
 
 
@@ -478,8 +478,8 @@ def main(argv: list[str]) -> int:
     for p in existing:
         try:
             cases.extend(parse_junit_file(p))
-        except Exception as e:
-            parse_errors.append((p, e))
+        except Exception as ex:  # noqa
+            parse_errors.append((p, ex))
 
     if parse_errors:
         for p, e in parse_errors:
