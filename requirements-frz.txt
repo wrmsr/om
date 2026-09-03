@@ -10,7 +10,7 @@ anyio==4.14.2
 apsw==3.53.4.0
 asgiref==3.12.1
 asn1crypto==1.5.1
-ast_serialize==0.8.0
+ast_serialize==0.9.0
 astpretty==3.0.0
 asttokens==3.0.2
 asyncpg==0.31.0
@@ -22,8 +22,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.5.1
 blobfile==3.2.0
-boto3==1.43.86
-botocore==1.43.86
+boto3==1.43.87
+botocore==1.43.87
 botocore-stubs==1.43.67
 brotli==1.2.0
 build==1.6.0
@@ -222,7 +222,7 @@ scikit-learn==1.9.0
 scipy==1.18.1
 scramp==1.4.17
 segno==1.6.6
-sentence-transformers==6.0.0
+sentence-transformers==6.0.1
 sentencepiece==0.2.2
 setuptools==84.0.0
 shapely==2.1.2
@@ -273,7 +273,7 @@ trio==0.34.0
 twine==7.0.0
 typer==0.27.2
 types-awscrt==0.36.2
-types-boto3==1.43.86
+types-boto3==1.43.87
 types-docutils==0.23.0.20260827
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20260724
@@ -292,7 +292,7 @@ ujson==5.13.0
 unicorn==2.1.4
 uritemplate==4.2.0
 urllib3==2.7.0
-urwid==4.0.13
+urwid==4.1.1
 urwid_readline==0.15.1
 uv==0.12.9
 uvicorn==0.52.4
