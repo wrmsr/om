@@ -15,6 +15,8 @@ from ....types.errors import BackendError
 from ....types.messages import AiMessage
 from ....types.messages import TokenUsage
 from ....types.options import Options
+from ...base.http import raise_for_http_status
+from ...base.http import translating_http_client_errors
 from .base import BaseOpenaiResponsesBackend
 from .requests import RequestPreparer
 from .responses import stringify_error
@@ -94,13 +96,14 @@ class OpenaiResponsesImmediateBackend(BaseOpenaiResponsesBackend, ImmediateBacke
             data=json.dumps(raw_request).encode('utf-8'),
         )
 
-        http_response = await http.async_request(
-            http_request,
-            client=self._http_client,
-        )
+        async with translating_http_client_errors():
+            http_response = await http.async_request(
+                http_request,
+                client=self._http_client,
+            )
 
         if http_response.status != 200:
-            raise http.StatusHttpClientError(http_response)
+            raise_for_http_status(http_response)
 
         raw_response = json.loads(check.not_none(http_response.data).decode('utf-8'))
 

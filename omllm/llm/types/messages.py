@@ -190,3 +190,7 @@ class ToolResultMessage(Message):
     tool_name: str
 
     content: ta.Sequence[TextContent] = ()
+
+    # Whether the content describes a failure rather than a result. Providers which distinguish the two are told so;
+    # for the rest the content alone has to say.
+    is_error: bool = False

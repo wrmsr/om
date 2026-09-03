@@ -31,10 +31,10 @@ class Session(
     async def _on_agent_event(self, agn_event: agn.Event) -> None:
         await self._publish(AgentSessionEvent(agn_event))
 
-        if (
-                isinstance(agn_event, agn.AgentEndEvent) and
-                agn_event.reason is agn.AgentEndReason.COMPLETED
-        ):
+        if isinstance(agn_event, agn.AgentEndEvent):
+            # Every outcome is stored, not only completion: the loop keeps the transcript up to a failure or
+            # cancellation, repaired so it can be built on, and the agent applies it to its state - the store has to
+            # match what the next prompt will see.
             await self._storage.add_entry(*[
                 MessageSessionEntry(m)
                 for m in agn_event.new_messages or []

@@ -65,23 +65,23 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
     )
 
     def _build_error_result(self, e: BaseException) -> ToolResult:
-        return ToolResult(
-            content=llm.TextContent(f'Error executing tool:\n\n{e!r}'),
-
-            error=e,
-        )
+        return ToolResult.of_error(e)
 
     async def execute_context(self, ctx: ToolContext) -> ToolResult:
-        params = instantiate_tool_params(
-            self.params_cls,
-            self.llm_tool().params,
-            ctx,
-        )
-
+        # Argument binding is inside the try: the model sending malformed or missing arguments is an error result for
+        # it to correct, not a fault in the loop.
         try:
+            params = instantiate_tool_params(
+                self.params_cls,
+                self.llm_tool().params,
+                ctx,
+            )
+
             out = await self.execute(ctx, params)
+
         except self._error_exception_types as e:
             return self._build_error_result(e)
+
         else:
             return self._build_result(out)
 

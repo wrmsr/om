@@ -46,6 +46,15 @@ class ToolResult:
 
     error: BaseException | None = None
 
+    @classmethod
+    def of_error(cls, e: BaseException) -> ToolResult:
+        """The result handed back to the model for a call which raised, worded so it can recover."""
+
+        return cls(
+            content=llm.TextContent(f'Error executing tool:\n\n{e!r}'),
+            error=e,
+        )
+
 
 ##
 

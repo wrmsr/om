@@ -5,13 +5,39 @@ from omcore import dataclasses as dc
 
 from .. import llm
 from ..core.eventbus import EventPublisher
+from .types.contexts import Context
+from .types.errors import AgentBusyError
+from .types.events import AgentEndEvent
 from .types.events import Event
 from .types.events import StateUpdateEvent
 from .types.messages import MESSAGE_TYPES
 from .types.messages import Message
 from .types.states import State
+from .types.turns import TurnConfig
 from .types.turns import TurnParams
+from .types.turns import TurnResult
 from .types.turns import TurnRunner
+
+
+##
+
+
+class _TerminalEventCapture:
+    """Forwards a run's events to the agent's bus, keeping hold of the terminal one for the exceptional exit path."""
+
+    def __init__(self, publish: ta.Callable[[Event], ta.Awaitable[None]]) -> None:
+        super().__init__()
+
+        self._publish = publish
+
+        self.end_event: AgentEndEvent | None = None
+
+    async def __call__(self, event: Event) -> None:
+        # Recorded ahead of forwarding, so a cancellation thrown into a later subscriber still leaves it recorded.
+        if isinstance(event, AgentEndEvent):
+            self.end_event = event
+
+        await self._publish(event)
 
 
 ##
@@ -20,6 +46,12 @@ from .types.turns import TurnRunner
 class Agent(
     EventPublisher[Event],
 ):
+    """
+    Holds the conversation state and runs prompts against it, one at a time: a `prompt` submitted while another is
+    running raises AgentBusyError rather than interleaving on the state. Belongs to one event loop, and is not
+    thread-safe.
+    """
+
     def __init__(
             self,
             *,
@@ -30,6 +62,16 @@ class Agent(
         self._turn_runner = turn_runner
 
         self._state = State()
+
+        self._running = False
+
+    @property
+    def is_running(self) -> bool:
+        return self._running
+
+    @property
+    def state(self) -> State:
+        return self._state
 
     async def update_state(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> None:
         old_state = self._state
@@ -45,10 +87,57 @@ class Agent(
             old_state=old_state,
         ))
 
+    #
+
+    async def _apply_turn(self, *, config: TurnConfig | None = None, context: Context) -> None:
+        def fn(old_state: State) -> State:
+            new_state = dc.replace(old_state, context=context)
+            if config is not None:
+                new_state = dc.replace(new_state, turn_config=config)
+            return new_state
+
+        await self.update_state(fn)
+
+    async def _prompt(self, new_messages: ta.Sequence[Message]) -> TurnResult:
+        in_state = self._state
+
+        capture = _TerminalEventCapture(self._publish)
+
+        try:
+            result = await self._turn_runner.run_turn(TurnParams(
+                in_state=in_state,
+                new_messages=new_messages,
+                subscriber=capture,
+            ))
+
+        except BaseException:
+            # The run raised - a cancellation, in practice - possibly after getting as far as its terminal event. That
+            # event carries the transcript as the loop left it, repaired, and it is applied here so the next prompt
+            # builds on what actually happened rather than on the state from before this one. The state assignment
+            # itself is synchronous; only the StateUpdateEvent publish can be lost to a second cancellation.
+            if (end := capture.end_event) is not None:
+                await self._apply_turn(context=end.context)
+
+            raise
+
+        else:
+            await self._apply_turn(config=result.config, context=result.context)
+
+            return result
+
     async def prompt(
             self,
             input: str | Message | ta.Sequence[Message],  # noqa
-    ) -> None:
+    ) -> TurnResult:
+        """
+        Runs one prompt to its end and returns its result. Every outcome the loop decides - completion, truncation, the
+        turn limit, a failure - comes back as a result, its reason and any error on it; the state reflects the run
+        either way. Only the caller's own cancellation raises out.
+        """
+
+        if self._running:
+            raise AgentBusyError
+
         if isinstance(input, str):
             new_messages: list[Message] = [llm.UserMessage(input)]
         elif isinstance(input, MESSAGE_TYPES):
@@ -56,28 +145,8 @@ class Agent(
         else:
             new_messages = [check.isinstance(m, MESSAGE_TYPES) for m in check.isinstance(input, ta.Sequence)]
 
-        in_state = self._state
-
-        # FIXME: the state update below is skipped whenever `run_turn` raises - including when it raises *after* the
-        # turn loop has completed. The loop publishes AgentEndEvent(COMPLETED) from inside `run_turn` (subscribers such
-        # as the harness Session store the turn's messages on it), and a runner may still suspend after that: the TUI's
-        # ScopedTurnRunner exits an async injector scope, whose `__aexit__` is an await point. A cancellation landing
-        # there unwinds through here with the completed result in hand but discarded, leaving the turn stored but never
-        # applied to agent state - the next prompt runs without it. A sans-io fix is to capture the terminal event's
-        # context from the subscriber path and apply it in a `finally` when `run_turn` raised after completion; that
-        # trades this inconsistency for its mirror image when the cancellation instead lands inside the publish, ahead
-        # of storage. Neither is right without an atomic terminal publish (see the FIXME in TurnLoop.run), which needs
-        # cancellation shielding this layer must not take on. Today the window is nil in practice - the scope exit has
-        # nothing to await - so this is left as documentation until the publish is made atomic.
-        result = await self._turn_runner.run_turn(TurnParams(
-            in_state=in_state,
-            new_messages=new_messages,
-            subscriber=self._publish,
-        ))
-
-        await self.update_state(lambda old_state: dc.replace(
-            old_state,  # noqa
-
-            turn_config=result.config,
-            context=result.context,
-        ))
+        self._running = True
+        try:
+            return await self._prompt(new_messages)
+        finally:
+            self._running = False

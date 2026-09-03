@@ -43,6 +43,13 @@ def _truncate(s: str, n: int) -> str:
     return s if len(s) <= n else s[:n - 3] + '...'
 
 
+# The end reasons which close a turn normally but deserve a word: the model did not finish of its own accord.
+_END_REASON_NOTES: ta.Mapping[agn.AgentEndReason, str] = {
+    agn.AgentEndReason.LENGTH: 'output cut off by the token limit',
+    agn.AgentEndReason.MAX_TURNS: 'turn limit reached',
+}
+
+
 def _detail_rows(text: str, *, limit_lines: int = 8) -> list[list[mt.Segment]]:
     """Card-detail rows from possibly-multiline text: newline-split (segments are single-line), line-capped."""
 
@@ -135,8 +142,8 @@ class AgentEventRenderer:
         elif isinstance(lev, llm.ThinkingEndAiStreamEvent):
             app.set_thinking(False)
 
-    def _tool_title(self, tool: agn.Tool) -> str:
-        return tool.name
+    def _tool_title(self, ev: agn.ToolExecutionEvent) -> str:
+        return ev.tool_name
 
     def _tool_detail(self, context: agn.ToolContext) -> list[list[mt.Segment]]:
         args = json.dumps(dict(context.args), default=repr)
@@ -151,8 +158,16 @@ class AgentEventRenderer:
         elif isinstance(ev, agn.AgentEndEvent):
             if ev.reason is agn.AgentEndReason.COMPLETED:
                 app.end_ai_turn()
+
+            elif (note := _END_REASON_NOTES.get(ev.reason)) is not None:
+                # The run stopped short but nothing went wrong: the turn closes normally, with a note saying why.
+                app.end_ai_turn()
+                app.display_text(note, 'status.dim')
+
             else:
                 app.abort_ai_turn(cancelled=ev.reason is agn.AgentEndReason.CANCELLED)
+                if ev.reason is agn.AgentEndReason.FAILED:
+                    app.display_text(f'error: {ev.error!r}', 'error')
 
         elif not app.is_busy:
             # A straggler from a turn that already ended - a detached tool finishing after its turn aborted, a delta
@@ -163,6 +178,9 @@ class AgentEventRenderer:
             if not self._config.immediate:
                 self._on_stream_event(ev.event)
 
+        elif isinstance(ev, agn.LlmRetryEvent):
+            app.display_text(f'retrying in {ev.delay_s:.0f}s: {ev.error!r}', 'status.dim')
+
         elif isinstance(ev, agn.TurnEndEvent):
             if self._config.immediate and isinstance(msg := ev.message, llm.AiMessage):
                 for c in msg.content:
@@ -170,13 +188,13 @@ class AgentEventRenderer:
                         await self._text_displayer.display_text(ui.MarkdownText(s))
 
         elif isinstance(ev, agn.ToolExecutionStartEvent):
-            app.tool_started(tool_card_key(ev.context), self._tool_title(ev.tool), self._tool_detail(ev.context))
+            app.tool_started(tool_card_key(ev.context), self._tool_title(ev), self._tool_detail(ev.context))
 
         elif isinstance(ev, agn.ToolExecutionEndEvent):
             result_text = ev.result.content.text if ev.result.error is None else repr(ev.result.error)
             app.tool_finished(
                 tool_card_key(ev.context),
-                self._tool_title(ev.tool),
+                self._tool_title(ev),
                 ok=ev.result.error is None,
                 detail_rows=[
                     *self._tool_detail(ev.context),

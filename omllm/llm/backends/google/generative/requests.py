@@ -139,8 +139,10 @@ class RequestPreparer:
                     'parts': [{
                         'functionResponse': {
                             'name': msg.tool_name,
+                            # The response object is free-form; the provider's own convention is an 'error' key for a
+                            # failed call.
                             'response': {
-                                'result': '\n'.join([c.text for c in msg.content]),
+                                ('error' if msg.is_error else 'result'): '\n'.join([c.text for c in msg.content]),
                             },
                         },
                     }],

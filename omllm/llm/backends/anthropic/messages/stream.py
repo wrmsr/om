@@ -10,12 +10,15 @@ from ....models.pricing import fill_estimated_token_cost
 from ....types.backends import StreamBackend
 from ....types.context import Context
 from ....types.errors import BackendError
+from ....types.errors import TransientBackendError
 from ....types.models import TokenPricing
 from ....types.options import Options
 from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
 from ....types.streams import ThinkingDeltaAiStreamEvent
 from ....types.streams import ToolCallDeltaAiStreamEvent
+from ...base.http import raise_for_http_status
+from ...base.http import translating_http_client_errors
 from ...base.sse import BaseBackendSseEventProcessor
 from .base import BaseAnthropicMessagesBackend
 from .requests import RequestPreparer
@@ -33,6 +36,22 @@ def _stringify_error(error: ta.Any) -> str:
         return json.dumps(error)
     except (TypeError, ValueError):
         return str(error)
+
+
+# The error types the provider documents as worth retrying as-is: transient overload, rate limiting, and its own
+# internal faults. Anything else describes the request, and recurs on retry.
+_TRANSIENT_ERROR_TYPES: ta.Final[ta.AbstractSet[str]] = frozenset([
+    'overloaded_error',
+    'rate_limit_error',
+    'api_error',
+])
+
+
+def _build_error(raw_error: ta.Any) -> BackendError:
+    desc = _stringify_error(raw_error)
+    if isinstance(raw_error, ta.Mapping) and raw_error.get('type') in _TRANSIENT_ERROR_TYPES:
+        return TransientBackendError(desc)
+    return BackendError(desc)
 
 
 class SseEventProcessor(BaseBackendSseEventProcessor):
@@ -175,7 +194,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
         raw_event_type = raw_event.get('type')
 
         if raw_event_type == 'error':
-            raise BackendError(_stringify_error(raw_event.get('error')))
+            raise _build_error(raw_event.get('error'))
 
         elif raw_event_type == 'message_start':
             raw_message = check.isinstance(raw_event['message'], ta.Mapping)
@@ -248,11 +267,12 @@ class AnthropicMessagesStreamBackend(BaseAnthropicMessagesBackend, StreamBackend
 
         async with await rs.async_contextual_or_new(bind=True) as rm:  # noqa
             http_client = await rm.enter_async_context(http.manage_async_client(self._http_client))
-            http_response = await rm.enter_async_context(await http_client.stream_request(http_request))
+            async with translating_http_client_errors():
+                http_response = await rm.enter_async_context(await http_client.stream_request(http_request))
 
             if http_response.status != 200:
                 err_http_response = await http.async_read_http_client_response(http_response)
-                raise http.StatusHttpClientError(err_http_response)
+                raise_for_http_status(err_http_response)
 
             processor = SseEventProcessor(
                 pricing=self._pricing,

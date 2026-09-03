@@ -228,6 +228,9 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
                         cwd=cwd,
                         processes=proc_scope,
                     ),
+                    turn_config=agn.TurnConfig(
+                        llm_retry=agn.LlmRetryConfig(),
+                    ),
                 ),
             )
 

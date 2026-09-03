@@ -172,6 +172,7 @@ class RequestPreparer:
                         'type': 'tool_result',
                         'tool_use_id': msg.tool_call_id,
                         'content': '\n'.join([c.text for c in msg.content]),
+                        **({'is_error': True} if msg.is_error else {}),
                     }],
                 })
 

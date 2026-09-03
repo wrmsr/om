@@ -1,6 +1,6 @@
-import enum
 import typing as ta
 
+from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
@@ -11,6 +11,7 @@ from .states import State
 from .tools import Tool
 from .tools import ToolContext
 from .tools import ToolResult
+from .turns import AgentEndReason
 
 
 ##
@@ -30,6 +31,19 @@ class LlmAiStreamEvent(Event):
     event: llm.AiStreamEvent
 
 
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+class LlmRetryEvent(Event):
+    """Published between a transiently failed LLM call and its retry, ahead of the backoff delay."""
+
+    # The number of attempts made so far, counting the one which just failed.
+    attempts: int
+
+    delay_s: float
+
+    error: BaseException
+
+
 ##
 
 
@@ -39,18 +53,13 @@ class AgentStartEvent(Event):
     pass
 
 
-class AgentEndReason(enum.Enum):
-    COMPLETED = enum.auto()
-    FAILED = enum.auto()
-    CANCELLED = enum.auto()
-
-
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 class AgentEndEvent(Event):
     context: Context
 
-    new_messages: ta.Sequence[Message] | None = None
+    # Everything the run appended, the prompt included, in order.
+    new_messages: ta.Sequence[Message] = ()
 
     reason: AgentEndReason = AgentEndReason.COMPLETED
     error: BaseException | None = None
@@ -81,8 +90,16 @@ class TurnEndEvent(TurnEvent):
 
 @dc.dataclass(frozen=True, kw_only=True)
 class ToolExecutionEvent(Event, lang.Abstract):
-    tool: Tool
+    # None when the model called a tool the context does not have: the call is still surfaced, and gets an error
+    # result, but there is no tool to name here.
+    tool: Tool | None
     context: ToolContext
+
+    @property
+    def tool_name(self) -> str:
+        if (tool := self.tool) is not None:
+            return tool.name
+        return check.not_none(self.context.llm_tool_call).name
 
 
 @ta.final

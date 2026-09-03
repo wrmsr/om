@@ -12,6 +12,7 @@ from .....types.content import TextContent
 from .....types.content import ThinkingContent
 from .....types.content import ToolCall
 from .....types.context import Context
+from .....types.errors import TransientBackendError
 from .....types.messages import UserMessage
 from .....types.models import CacheCapabilities
 from .....types.models import ModelKey
@@ -193,9 +194,10 @@ def test_mutable_queue_expectation_raw_response_and_errors():
     ).text == 'raw'
 
     client.set_responses([ScriptedHttpError(status=429, message='rate limited')])
-    with pytest.raises(http.StatusHttpClientError) as exc_info:
+    # A 429 is a transient failure: the status error itself rides along as the cause.
+    with pytest.raises(TransientBackendError) as exc_info:
         lang.sync_await(backend.immediate(_context()))
-    assert exc_info.value.response.status == 429
+    assert check.isinstance(exc_info.value.__cause__, http.StatusHttpClientError).response.status == 429
 
     client.set_responses([ScriptedHttpException(error=OSError('connection failed'))])
     with pytest.raises(OSError, match='connection failed'):

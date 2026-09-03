@@ -15,9 +15,9 @@ from ..permissions.types import PermissionState
 from ..turns.runner import TurnLoopRunner
 from ..types.contexts import Context
 from ..types.events import AgentEndEvent
-from ..types.events import AgentEndReason
 from ..types.tools import ToolEnvironment
 from ..types.tools import ToolSet
+from ..types.turns import AgentEndReason
 
 
 def _scripted_backend():

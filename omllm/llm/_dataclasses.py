@@ -1424,26 +1424,30 @@ def _process_dataclass__79d9675f68939e252c61967b5a3eba4415a8c341():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('tool_call_id', 'tool_name', 'content')), EqPlan(fields=('tool_call_id', 'tool_nam"
-        "e', 'content')), FrozenPlan(fields=('tool_call_id', 'tool_name', 'content'), allow_dynamic_dunder_attrs=False)"
-        ", HashPlan(action='add', fields=('tool_call_id', 'tool_name', 'content'), cache=True), InitPlan(fields=(InitPl"
-        "an.Field(name='tool_call_id', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory"
-        "=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),"
-        " InitPlan.Field(name='tool_name', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_fac"
-        "tory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=No"
-        "ne), InitPlan.Field(name='content', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='ini"
-        "t.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=N"
-        "one, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('tool_call_id', 'tool"
-        "_name', 'content'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(f"
-        "ields=(ReprPlan.Field(name='tool_call_id', kw_only=True, fn=None), ReprPlan.Field(name='tool_name', kw_only=Tr"
-        "ue, fn=None), ReprPlan.Field(name='content', kw_only=True, fn=None)), id=False, terse=True, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('tool_call_id', 'tool_name', 'content', 'is_error')), EqPlan(fields=('tool_call_id"
+        "', 'tool_name', 'content', 'is_error')), FrozenPlan(fields=('tool_call_id', 'tool_name', 'content', 'is_error'"
+        "), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('tool_call_id', 'tool_name', 'content', '"
+        "is_error'), cache=True), InitPlan(fields=(InitPlan.Field(name='tool_call_id', annotation=OpRef(name='init.fiel"
+        "ds.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANC"
+        "E, coerce=None, validate=None, check_type=None), InitPlan.Field(name='tool_name', annotation=OpRef(name='init."
+        "fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INS"
+        "TANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='content', annotation=OpRef(name='ini"
+        "t.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, overrid"
+        "e=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='is_"
+        "error', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), defaul"
+        "t_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_ty"
+        "pe=None)), self_param='self', std_params=(), kw_only_params=('tool_call_id', 'tool_name', 'content', 'is_error"
+        "'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan."
+        "Field(name='tool_call_id', kw_only=True, fn=None), ReprPlan.Field(name='tool_name', kw_only=True, fn=None), Re"
+        "prPlan.Field(name='content', kw_only=True, fn=None), ReprPlan.Field(name='is_error', kw_only=True, fn=None)), "
+        "id=False, terse=True, default_fn=None)))"
     ),
-    plan_repr_sha1='56a267900b9bd6d479eb65c8d8f0b3792a866284',
+    plan_repr_sha1='07492b02410ebd9390a00a488ca74fc7ce4fc825',
     cls_names=(
         ('omllm.llm.types.messages', 'ToolResultMessage'),
     ),
 )
-def _process_dataclass__56a267900b9bd6d479eb65c8d8f0b3792a866284():
+def _process_dataclass__07492b02410ebd9390a00a488ca74fc7ce4fc825():
     def _process_dataclass(
         *,
         __class__,
@@ -1451,6 +1455,8 @@ def _process_dataclass__56a267900b9bd6d479eb65c8d8f0b3792a866284():
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__2__annotation,
         __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -1464,6 +1470,7 @@ def _process_dataclass__56a267900b9bd6d479eb65c8d8f0b3792a866284():
                 tool_call_id=self.tool_call_id,
                 tool_name=self.tool_name,
                 content=self.content,
+                is_error=self.is_error,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1476,7 +1483,8 @@ def _process_dataclass__56a267900b9bd6d479eb65c8d8f0b3792a866284():
             return (
                 self.tool_call_id == other.tool_call_id and
                 self.tool_name == other.tool_name and
-                self.content == other.content
+                self.content == other.content and
+                self.is_error == other.is_error
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -1485,6 +1493,7 @@ def _process_dataclass__56a267900b9bd6d479eb65c8d8f0b3792a866284():
             'tool_call_id',
             'tool_name',
             'content',
+            'is_error',
         }
 
         def __setattr__(self, name, value):
@@ -1519,6 +1528,7 @@ def _process_dataclass__56a267900b9bd6d479eb65c8d8f0b3792a866284():
                     self.tool_call_id,
                     self.tool_name,
                     self.content,
+                    self.is_error,
                 ))
             )
             return h
@@ -1531,10 +1541,12 @@ def _process_dataclass__56a267900b9bd6d479eb65c8d8f0b3792a866284():
             tool_call_id: __dataclass__init__fields__0__annotation,
             tool_name: __dataclass__init__fields__1__annotation,
             content: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            is_error: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'tool_call_id', tool_call_id)
             __dataclass__object_setattr(self, 'tool_name', tool_name)
             __dataclass__object_setattr(self, 'content', content)
+            __dataclass__object_setattr(self, 'is_error', is_error)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1544,6 +1556,7 @@ def _process_dataclass__56a267900b9bd6d479eb65c8d8f0b3792a866284():
             parts.append(f"tool_call_id={self.tool_call_id!r}")
             parts.append(f"tool_name={self.tool_name!r}")
             parts.append(f"content={self.content!r}")
+            parts.append(f"is_error={self.is_error!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

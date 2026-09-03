@@ -17,6 +17,8 @@ from ....types.streams import AiStream
 from ....types.streams import TextDeltaAiStreamEvent
 from ....types.streams import ThinkingDeltaAiStreamEvent
 from ....types.streams import ToolCallDeltaAiStreamEvent
+from ...base.http import raise_for_http_status
+from ...base.http import translating_http_client_errors
 from ...base.sse import BaseBackendSseEventProcessor
 from .base import BaseOpenaiCompletionsBackend
 from .requests import RequestPreparer
@@ -166,11 +168,12 @@ class OpenaiCompletionsStreamBackend(BaseOpenaiCompletionsBackend, StreamBackend
 
         async with await rs.async_contextual_or_new(bind=True) as rm:  # noqa
             http_client = await rm.enter_async_context(http.manage_async_client(self._http_client))
-            http_response = await rm.enter_async_context(await http_client.stream_request(http_request))
+            async with translating_http_client_errors():
+                http_response = await rm.enter_async_context(await http_client.stream_request(http_request))
 
             if http_response.status != 200:
                 err_http_response = await http.async_read_http_client_response(http_response)
-                raise http.StatusHttpClientError(err_http_response)
+                raise_for_http_status(err_http_response)
 
             processor = SseEventProcessor(
                 reasoning_field=self._compat.reasoning_field,

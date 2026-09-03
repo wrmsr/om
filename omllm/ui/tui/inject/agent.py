@@ -3,6 +3,8 @@ import typing as ta
 
 from omcore import inject as inj
 from omcore import lang
+from omcore.asyncs.asynclite.asyncio.sleeps import AsyncioAsyncliteSleeps
+from omcore.asyncs.asynclite.sleeps import AsyncliteSleeps
 
 from .... import agent as agn
 from ....core.eventbus import EventSubscriber
@@ -89,6 +91,10 @@ def bind_agent(config: Config) -> inj.Elements:
 
         inj.bind(ScopedTurnRunner, singleton=True),
         inj.bind(agn.TurnRunner, to_key=ScopedTurnRunner),
+
+        # The loop's retry backoff sleeps through this; the ui is asyncio, so the loop gets asyncio's sleep.
+        inj.bind(AsyncioAsyncliteSleeps, singleton=True),
+        inj.bind(AsyncliteSleeps, to_key=AsyncioAsyncliteSleeps),
 
         inj.bind(agn.TurnLoop, in_=TURN_SCOPE),
         inj.bind(agn.TurnLoopRunner, in_=TURN_SCOPE),

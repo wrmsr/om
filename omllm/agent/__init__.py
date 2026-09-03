@@ -178,13 +178,22 @@ with _lang.auto_proxy_init(globals()):
         Context,
     )
 
+    from .types.errors import (  # noqa
+        AgentError,
+        AgentBusyError,
+
+        TurnError,
+        UnknownToolError,
+        ErrorStopReasonError,
+    )
+
     from .types.events import (  # noqa
         Event,
 
         LlmAiStreamEvent,
+        LlmRetryEvent,
 
         AgentStartEvent,
-        AgentEndReason,
         AgentEndEvent,
 
         TurnEvent,
@@ -224,9 +233,13 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .types.turns import (  # noqa
+        LlmRetryConfig,
         TurnConfig,
-        TurnResult,
+
+        AgentEndReason,
+
         TurnParams,
+        TurnResult,
 
         TurnRunner,
     )

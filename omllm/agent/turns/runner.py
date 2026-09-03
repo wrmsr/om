@@ -1,3 +1,5 @@
+from omcore.asyncs.asynclite.sleeps import AsyncliteSleeps
+
 from ... import llm
 from ..backends import BackendManager
 from ..types.turns import TurnParams
@@ -14,10 +16,12 @@ class TurnLoopRunner(TurnRunner):
             self,
             *,
             backends: BackendManager,
+            sleeps: AsyncliteSleeps | None = None,
     ) -> None:
         super().__init__()
 
         self._backends = backends
+        self._sleeps = sleeps
 
     async def run_turn(self, params: TurnParams) -> TurnResult:
         llm_backend = self._backends.get_backend(
@@ -32,6 +36,7 @@ class TurnLoopRunner(TurnRunner):
             subscriber=params.subscriber,
             llm_backend=llm_backend,
             tool_env=params.in_state.tool_env,
+            sleeps=self._sleeps,
         )
 
         return await loop.run()

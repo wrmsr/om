@@ -39,10 +39,10 @@ def instantiate_tool_params[T](
         params_kwargs[tp.name] = av
 
     if missing:
-        raise TypeError(f'Missing arguments: {missing}!r')
+        raise TypeError(f'Missing arguments: {missing!r}')
 
     if (unexpected := list(args)):
-        raise TypeError(f'Unexpected arguments: {unexpected}!r')
+        raise TypeError(f'Unexpected arguments: {unexpected!r}')
 
     return params_cls(**params_kwargs)
 
@@ -60,25 +60,29 @@ class _ReflectedToolExecutor:
     ctx_param: str | None = None
 
     async def __call__(self, ctx: ToolContext) -> ToolResult:
-        params: ta.Any = instantiate_tool_params(
-            self.params_cls,
-            self.llm_tool.params,
-            ctx,
-        )
+        try:
+            params: ta.Any = instantiate_tool_params(
+                self.params_cls,
+                self.llm_tool.params,
+                ctx,
+            )
 
-        kwargs: dict[str, ta.Any] = {
-            self.params_param: params,
-        }
+            kwargs: dict[str, ta.Any] = {
+                self.params_param: params,
+            }
 
-        if self.ctx_param is not None:
-            kwargs[self.ctx_param] = ctx
+            if self.ctx_param is not None:
+                kwargs[self.ctx_param] = ctx
 
-        rv = await self.fn(**kwargs)
+            rv = await self.fn(**kwargs)
+
+            text = check.isinstance(rv, str)  # FIXME: lol
+
+        except Exception as e:  # noqa: BLE001
+            return ToolResult.of_error(e)
 
         return ToolResult(
-            content=llm.TextContent(
-                check.isinstance(rv, str),  # FIXME: lol
-            ),
+            content=llm.TextContent(text),
         )
 
 
