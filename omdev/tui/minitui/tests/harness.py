@@ -31,6 +31,7 @@ class RecordingTty(Tty):
         self._height = height
         self._width = width
         self.writes: list[bytes] = []
+        self.foreground = True
 
     def write_bytes(self, data: bytes) -> None:
         self.writes.append(data)
@@ -46,6 +47,9 @@ class RecordingTty(Tty):
 
     def watch_resize(self) -> None:
         pass
+
+    def probe_foreground(self) -> bool:
+        return self.foreground
 
     def resize(self, *, height: int, width: int) -> None:
         self._height = height

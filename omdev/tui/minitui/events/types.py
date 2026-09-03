@@ -66,6 +66,22 @@ class ResizeEvent(Event, lang.Final):
     width: int
 
 
+@dc.dataclass(frozen=True)
+class SuspendEvent(Event, lang.Final):
+    """
+    Synthesized by the runtime just before the process stops (ctrl+z / SIGTSTP), while the terminal is still in
+    application mode. The stop follows synchronously; nothing rendered after this reaches the screen until resume.
+    """
+
+
+@dc.dataclass(frozen=True)
+class ResumeEvent(Event, lang.Final):
+    """
+    Synthesized by the runtime after SIGCONT, once the surface is back in application mode. A full repaint follows on
+    its own (the retained frame was forgotten); a ResizeEvent precedes this if the terminal changed size meanwhile.
+    """
+
+
 ##
 # Terminal responses to queries we send. These flow through the input stream like everything else.
 

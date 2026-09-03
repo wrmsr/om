@@ -232,3 +232,80 @@ def test_kitty_query_sent_when_enabled():
     surface.prepare(defer_origin=True)
     assert b'\x1b[?u' in b''.join(tty.writes)
     surface.restore()
+
+
+##
+# Job control
+
+
+def test_driver_suspend_resume_cycle():
+    tty = PipeTty(height=6, width=40)
+    stops: list[int] = []
+
+    def stop_process() -> None:
+        # Stand in for SIGSTOP: 'continue' at once, the way SIGCONT's handler would.
+        stops.append(1)
+        driver.job_control.resume()
+
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'), stop_process=stop_process)
+    app = RecordingApp(driver)
+    tty.send(b'\x1b[3;1R')
+
+    def answer_cpr_and_quit() -> None:
+        tty.send(b'\x1b[2;1R')  # after `fg` the shell left the cursor at column 0
+        driver.timers.call_later(.02, quit_later)
+
+    def quit_later() -> None:
+        tty.send(b'\x04')
+        tty.close_input()
+
+    def suspend_later() -> None:
+        driver.suspend()
+        driver.timers.call_later(.02, answer_cpr_and_quit)
+
+    driver.timers.call_later(.02, suspend_later)
+    try:
+        driver.run(app)
+    finally:
+        os.close(tty.read_fd)
+
+    assert stops == [1]
+    assert not driver.job_control.suspended
+    names = [type(e).__name__ for e in app.events]
+    assert names.index('SuspendEvent') < names.index('ResumeEvent')
+
+    # Application mode was left and re-entered (bracketed paste off, then on again), and rendering came back.
+    data = b''.join(tty.writes)
+    assert data.count(b'\x1b[?2004l') == 2  # suspend + final restore
+    assert data.count(b'\x1b[?2004h') == 2  # startup + resume
+    term = Vt100Terminal(rows=6, cols=40)
+    term.feed(data)
+    assert 'events: 2' in term.all_lines()
+
+
+def test_driver_resume_waits_for_foreground():
+    # Continued with `bg`: the probe fails, so we stay suspended (no escape sequences over the shell) until the `fg`.
+    tty = PipeTty(height=6, width=40)
+    tty.foreground = False
+    surface = InlineSurface(tty, term='xterm-256color')
+    driver = SyncDriver(surface, stop_process=lambda: None)
+    surface.prepare(defer_origin=True)
+    jc = driver.job_control
+
+    jc.suspend()
+    stopped = jc.suspended
+    written = len(tty.writes)
+
+    jc.resume()
+    still_stopped = jc.suspended
+    quiet = len(tty.writes) == written
+
+    tty.foreground = True
+    jc.resume()
+    assert (stopped, still_stopped, quiet) == (True, True, True)
+    assert not jc.suspended
+    assert len(tty.writes) > written
+
+    surface.restore()
+    os.close(tty.read_fd)
+    os.close(tty.write_fd)

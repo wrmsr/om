@@ -88,3 +88,18 @@ def test_alt_content_never_touches_scrollback():
     for i in range(10):
         h.present(h.frame(*(f'r{i}-{j}' for j in range(4))))
     assert h.terminal.scrollback_lines() == []
+
+
+def test_alt_suspend_and_resume():
+    h = AltHarness()
+    h.present(h.frame('fullscreen stuff'))
+
+    h.surface.suspend()
+    h.pump()
+    left_alt_screen = not h.terminal.in_alt_screen
+
+    h.surface.resume()
+    h.pump()
+    h.present(h.frame('back'))
+    assert (left_alt_screen, h.terminal.in_alt_screen) == (True, True)
+    assert h.terminal.screen_lines()[0] == 'back'

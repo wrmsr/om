@@ -64,6 +64,7 @@ class _PermissionCardRequest:
 class AppKey(enum.StrEnum):
     CANCEL = enum.auto()
     EXIT = enum.auto()
+    SUSPEND = enum.auto()
 
     CARD_ALLOW = enum.auto()
     CARD_DENY = enum.auto()
@@ -78,6 +79,9 @@ class AppKey(enum.StrEnum):
 APP_KEY_MAP: ta.Final[ta.Mapping[AppKey, mt.Key | ta.Sequence[mt.Key]]] = {
     AppKey.CANCEL: mt.Key('q', ctrl=True),
     AppKey.EXIT: mt.Key('d', ctrl=True),
+    # Reaches here only on extended-key terminals; on the legacy wire the kernel turns ctrl+z into SIGTSTP itself and
+    # the driver's handler takes the same path.
+    AppKey.SUSPEND: mt.Key('z', ctrl=True),
 
     AppKey.CARD_ALLOW: mt.Key('f10'),
     AppKey.CARD_DENY: mt.Key('f2'),
@@ -527,6 +531,10 @@ class MinituiChatApp(mt.App):
 
         if app_key is AppKey.EXIT:
             self.request_quit()
+            return True
+
+        if app_key is AppKey.SUSPEND:
+            self._driver.suspend()
             return True
 
         permission_card = None

@@ -117,6 +117,12 @@ class AltSurface(Surface):
 
         self._tty.restore()
 
+    def suspend(self) -> None:
+        self.restore()  # leaving the alt screen brings the main screen back by itself; nothing of ours survives
+
+    def resume(self) -> None:
+        self.prepare()
+
     ##
     # Painting
 

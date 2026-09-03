@@ -14,9 +14,10 @@ class Surface(lang.Abstract):
     """
     An output target for frames.
 
-    Implementations own the tty lifecycle (raw mode, autowrap, cursor visibility) between `prepare` and `restore`, and
-    turn each `present` into a minimal byte stream via retained-frame diffing. Coordinates in frames are always
-    surface-relative; nothing above the surface knows absolute terminal positions.
+    Implementations own the tty lifecycle (raw mode, autowrap, cursor visibility) between `prepare` and `restore` - or
+    `suspend` and `resume`, around a process stop - and turn each `present` into a minimal byte stream via
+    retained-frame diffing. Coordinates in frames are always surface-relative; nothing above the surface knows absolute
+    terminal positions.
     """
 
     @property
@@ -60,6 +61,18 @@ class Surface(lang.Abstract):
 
     @abc.abstractmethod
     def restore(self) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def suspend(self) -> None:
+        """Leave application mode for a process stop (ctrl+z): like `restore`, but expecting a `resume`."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def resume(self) -> None:
+        """Re-enter application mode after a stop. The retained frame is forgotten: the next present repaints fully."""
+
         raise NotImplementedError
 
     @abc.abstractmethod

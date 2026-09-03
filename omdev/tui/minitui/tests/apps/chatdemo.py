@@ -387,6 +387,10 @@ class ChatDemoApp(App):
             self._driver.stop()
             return True
 
+        if key == Key('z', ctrl=True):  # arrives as a key only on extended-key terminals; the kernel handles the rest
+            self._driver.suspend()
+            return True
+
         if self._card is not None:
             if key == Key('f10') and self._card.state is CardState.CONFIRMING:
                 self._card.respond(True)

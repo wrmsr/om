@@ -47,6 +47,7 @@ class Driver:
         self.commits: list[tuple[mt.Line, ...]] = []
         self.invalidations = 0
         self.stopped = False
+        self.suspends = 0
 
     def commit(self, lines) -> None:
         self.commits.append(tuple(lines))
@@ -56,6 +57,9 @@ class Driver:
 
     def stop(self) -> None:
         self.stopped = True
+
+    def suspend(self) -> None:
+        self.suspends += 1
 
     def fire_after(self, seconds: float) -> int:
         self.clock.advance(seconds)

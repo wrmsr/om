@@ -157,3 +157,45 @@ def test_async_driver_stop_before_origin_flushes_commits():
     term = Vt100Terminal(rows=6, cols=40)
     term.feed(b''.join(tty.writes))
     assert 'parting words' in term.all_lines()
+
+
+def test_async_driver_suspend_resume_cycle():
+    tty = PipeTty(height=6, width=40)
+    stops: list[int] = []
+
+    def stop_process() -> None:
+        stops.append(1)
+        driver.job_control.resume()  # stand in for SIGSTOP + SIGCONT
+
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'), stop_process=stop_process)
+    app = RecordingApp(driver)  # type: ignore[arg-type]
+
+    async def main():
+        tty.send(b'\x1b[3;1R')
+
+        async def later():
+            await asyncio.sleep(.02)
+            driver.suspend()
+            await asyncio.sleep(.02)
+            tty.send(b'\x1b[2;1R')  # the post-`fg` origin
+            await asyncio.sleep(.02)
+            driver.stop()
+
+        task = asyncio.get_running_loop().create_task(later())
+        await driver.run(app)
+        await task
+
+    asyncio.run(main())
+    os.close(tty.read_fd)
+    os.close(tty.write_fd)
+
+    assert stops == [1]
+    assert not driver.job_control.suspended
+    names = [type(e).__name__ for e in app.events]
+    assert names.index('SuspendEvent') < names.index('ResumeEvent')
+
+    data = b''.join(tty.writes)
+    assert data.count(b'\x1b[?2004h') == 2  # startup + resume
+    term = Vt100Terminal(rows=6, cols=40)
+    term.feed(data)
+    assert 'events: 2' in term.all_lines()

@@ -155,3 +155,34 @@ def test_cursor_position_and_visibility():
 
     h.present(h.frame('input: x', cursor=(8, 0), cursor_visible=False))
     assert not h.terminal.cursor_visible
+
+
+##
+# Job control
+
+
+def test_suspend_erases_live_region_and_resume_repaints():
+    h = SurfaceHarness(height=6, width=20)
+
+    h.commit([h.line('done')])
+    h.present(h.frame('live', 'status'))
+    assert h.all_lines()[:3] == ['done', 'live', 'status']
+
+    h.surface.suspend()
+    data = h.pump()
+    # The live region is gone and the committed line stays; the cursor waits at the origin for the shell's chatter, and
+    # the terminal modes are back to normal.
+    assert h.all_lines()[:3] == ['done', '', '']
+    assert (h.terminal.cursor_row, h.terminal.cursor_col) == (1, 0)
+    assert b'\x1b[?2004l' in data
+    assert b'\x1b[?7h' in data
+    assert h.terminal.cursor_visible
+
+    # Resume defers the origin like startup; the driver resolves it from the CPR answer.
+    h.surface.resume()
+    data = h.pump()
+    assert b'\x1b[?2004h' in data
+    h.surface.resolve_origin(0)
+    h.pump()
+    h.present(h.frame('live again', 'status'))
+    assert h.all_lines()[:3] == ['done', 'live again', 'status']

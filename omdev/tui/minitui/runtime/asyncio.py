@@ -9,6 +9,9 @@ loop.
 
 asyncio-specific by design (this is the isolation point the rest of the codebase's anyio-vs-asyncio flux doesn't reach):
 apps that want structured concurrency layer their own tasks above and talk to the driver through post().
+
+Job control (SIGTSTP / SIGCONT, and `suspend()` for terminals that deliver ctrl+z as a key) runs as loop callbacks, so
+a stop never lands mid-render; see `jobcontrol.py`.
 """
 import asyncio
 import codecs
@@ -24,11 +27,14 @@ from ..events.types import Event
 from ..events.types import KittyFlagsEvent
 from ..events.types import ModeReportEvent
 from ..events.types import ResizeEvent
+from ..events.types import ResumeEvent
+from ..events.types import SuspendEvent
 from ..events.xterm import XtermEventParser
 from ..screens.cells import Line
 from ..surfaces.base import Surface
 from ..surfaces.inlines import InlineSurface
 from .base import App
+from .jobcontrol import JobControl
 
 
 ##
@@ -103,7 +109,12 @@ class AsyncioTimers:
 
 
 class AsyncioDriver:
-    def __init__(self, surface: Surface) -> None:
+    def __init__(
+            self,
+            surface: Surface,
+            *,
+            stop_process: ta.Callable[[], None] | None = None,
+    ) -> None:
         super().__init__()
 
         self._surface = surface
@@ -125,6 +136,14 @@ class AsyncioDriver:
         self._awaiting_origin = False
         self._origin_fallback_handle: asyncio.TimerHandle | None = None
         self._pending_commits: list[ta.Sequence[Line]] = []
+
+        self._has_winch_handler = False
+        self._job_control = JobControl(
+            suspend=self._suspend_now,
+            resume=self._resume_now,
+            stop_process=stop_process,
+        )
+        self._job_signals: list[int] = []
 
     @property
     def surface(self) -> Surface:
@@ -149,9 +168,9 @@ class AsyncioDriver:
 
     def commit(self, lines: ta.Sequence[Line]) -> None:
         surface = check.isinstance(self._surface, InlineSurface)
-        if self._loop is None or self._awaiting_origin:
+        if self._loop is None or self._awaiting_origin or self._job_control.suspended:
             # Buffered while the origin is unresolved - and likewise before run() has prepared the surface at all
-            # (matching AsyncTimers' pre-run buffering): run() flushes via the origin-resolution path.
+            # (matching AsyncTimers' pre-run buffering) or while suspended: the origin-resolution path flushes.
             self._pending_commits.append(tuple(lines))
         else:
             surface.commit(lines)
@@ -174,7 +193,7 @@ class AsyncioDriver:
 
     def _render(self) -> None:
         self._render_scheduled = False
-        if not self._invalidated or self._app is None or self._awaiting_origin:
+        if not self._invalidated or self._app is None or self._awaiting_origin or self._job_control.suspended:
             return
         self._invalidated = False
 
@@ -248,6 +267,82 @@ class AsyncioDriver:
         self._surface.tty.mark_resized()
         self.invalidate()
 
+    def _watch_winch(self) -> None:
+        try:
+            check.not_none(self._loop).add_signal_handler(signal.SIGWINCH, self._on_winch)
+            self._has_winch_handler = True
+        except (ValueError, NotImplementedError):
+            pass  # not the main thread; the tty's own handler (installed by prepare) still sets the flag
+
+    def _unwatch_winch(self) -> None:
+        if self._has_winch_handler:
+            check.not_none(self._loop).remove_signal_handler(signal.SIGWINCH)
+            self._has_winch_handler = False
+
+    def _negotiate(self) -> None:
+        """On every entry into application mode (startup and resume): the inline origin CPR, the sync-output query."""
+
+        surface = self._surface
+        if isinstance(surface, InlineSurface):
+            surface.request_origin(self._parser)
+            self._awaiting_origin = True
+            if self._origin_fallback_handle is not None:
+                self._origin_fallback_handle.cancel()
+            self._origin_fallback_handle = check.not_none(self._loop).call_later(
+                .25,
+                lambda: self._resolve_origin(None),
+            )
+        surface.request_sync_output_report()
+
+    ##
+    # Job control
+
+    @property
+    def job_control(self) -> JobControl:
+        return self._job_control
+
+    def suspend(self) -> None:
+        """Suspend the process as ctrl+z would, on the next loop turn - between callbacks, never inside a render."""
+
+        if self._loop is not None:
+            self._loop.call_soon(self._job_control.suspend)
+
+    def _install_job_control(self, loop: asyncio.AbstractEventLoop) -> None:
+        for signum, handler in (
+                (signal.SIGTSTP, self._job_control.suspend),
+                (signal.SIGCONT, self._job_control.resume),
+        ):
+            try:
+                loop.add_signal_handler(signum, handler)
+            except (ValueError, NotImplementedError):
+                break  # not the main thread: job control stays the kernel's
+            self._job_signals.append(signum)
+
+    def _uninstall_job_control(self, loop: asyncio.AbstractEventLoop) -> None:
+        signums, self._job_signals = self._job_signals, []
+        for signum in signums:
+            loop.remove_signal_handler(signum)
+
+    def _suspend_now(self) -> None:
+        if (app := self._app) is not None:
+            app.handle_event(SuspendEvent())
+        self._surface.suspend()
+
+    def _resume_now(self) -> bool:
+        surface = self._surface
+        if not surface.tty.probe_foreground():
+            return False
+        size = (surface.height, surface.width)
+        surface.resume()
+        self._watch_winch()  # the tty's restore/prepare pair put its own handler over the loop's
+        self._negotiate()
+        if (app := self._app) is not None:
+            if (surface.height, surface.width) != size:
+                app.handle_event(ResizeEvent(surface.height, surface.width))
+            app.handle_event(ResumeEvent())
+        self.invalidate()
+        return True
+
     ##
     # Lifecycle
 
@@ -263,23 +358,14 @@ class AsyncioDriver:
         surface = self._surface
         if isinstance(surface, InlineSurface):
             surface.prepare(defer_origin=True)
-            surface.request_origin(self._parser)
-            surface.request_sync_output_report()
-            self._awaiting_origin = True
-            self._origin_fallback_handle = loop.call_later(.25, lambda: self._resolve_origin(None))
         else:
             surface.prepare()
-            surface.request_sync_output_report()
+        self._negotiate()
 
         input_fd = surface.tty.input_fd
         loop.add_reader(input_fd, self._on_readable)
-
-        has_winch_handler = False
-        try:
-            loop.add_signal_handler(signal.SIGWINCH, self._on_winch)
-            has_winch_handler = True
-        except (ValueError, NotImplementedError):
-            pass  # not the main thread; the tty's own handler (installed by prepare) still sets the flag
+        self._watch_winch()
+        self._install_job_control(loop)
 
         self.invalidate()
 
@@ -295,8 +381,8 @@ class AsyncioDriver:
                 self._origin_fallback_handle = None
             if self._parser_flush_handle is not None:
                 self._parser_flush_handle.cancel()
-            if has_winch_handler:
-                loop.remove_signal_handler(signal.SIGWINCH)
+            self._uninstall_job_control(loop)
+            self._unwatch_winch()
             loop.remove_reader(input_fd)
             surface.restore()
             self._loop = None

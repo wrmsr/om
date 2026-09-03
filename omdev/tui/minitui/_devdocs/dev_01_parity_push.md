@@ -590,3 +590,21 @@ follower is parsed normally. Under kitty-confirmed terminals (no relay in the pa
 Terminal-side alternatives, not taken: untick iTerm2's CSI u box, or tmux `user-keys` bindings for CSI P..S.
 Regressions: both extended formats, lagging tail, lone head -> alt+[, non-tail followers (letter, sequence, second
 head, ctrl+alt+[), kitty-unambiguous passthrough.
+
+## 2026-09-03: line numbers, and job control (ctrl+z suspend / resume)
+
+- `VimOptions.number` / `numberwidth` (vim's defaults: off, 4). TextArea renders the column ahead of the prompt:
+  right-aligned, widening past numberwidth to fit the last line number plus its space, blank on wrapped continuation
+  rows - through a `_left_width()` that wrapping and the cursor both use, so runtime toggles repaint correctly. Theme
+  tag `vim.linenr` (LineNr). vimdemo: a `:set [no]nu[mber]` / `:set nu!` sliver in its ex handler, plus `--number`.
+- Suspend, in textual's shape. Drivers install SIGTSTP/SIGCONT: SIGTSTP delivers `SuspendEvent`, the surface leaves
+  application mode (inline: erases the live region first so the shell's "Stopped" lands where the region was, not below
+  a stale copy; alt: leaves the alt screen), then SIGSTOP for real. SIGCONT probes the tty (a no-op tcsetattr, textual's
+  `bg` guard: from the background it re-stops us or fails, and we stay suspended until the `fg` SIGCONT), re-prepares,
+  re-runs the startup negotiation (inline origin CPR + sync-output query, reusing the awaiting-origin gating so commits
+  buffer), re-adds asyncio's SIGWINCH handler (the tty's restore/prepare pair had clobbered it), then `ResizeEvent` if
+  the size changed and `ResumeEvent`. `Driver.suspend()` serves the extended-key wire, where ctrl+z arrives as a key
+  rather than a kernel SIGTSTP (raw mode keeps ISIG on): sync applies it at the loop top, asyncio via call_soon - never
+  mid-render. `runtime/jobcontrol.py` holds the state machine, with the stop injectable for tests. Bound in the omllm
+  app (`AppKey.SUSPEND`), chatdemo, and vimdemo. No shell-out context manager: nothing asks for one yet.
+- Drift fixes: README demo module paths (`tests/apps/`), `SpanKind.BLOCK` comments.

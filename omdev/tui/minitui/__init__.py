@@ -129,6 +129,8 @@ with _lang.auto_proxy_init(
         MouseEvent,
         FocusEvent,
         ResizeEvent,
+        SuspendEvent,
+        ResumeEvent,
         CursorPositionEvent,
         ModeReportEvent,
         KittyFlagsEvent,
@@ -163,6 +165,10 @@ with _lang.auto_proxy_init(
 
     from .runtime.base import (  # noqa
         App,
+    )
+
+    from .runtime.jobcontrol import (  # noqa
+        JobControl,
     )
 
     from .runtime.sync import (  # noqa

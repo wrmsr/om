@@ -167,15 +167,8 @@ class InlineSurface(Surface):
         w.flush()
         self._cursor = (0, 0)
 
-    def restore(self) -> None:
-        if not self._prepared:
-            return
-        self._prepared = False
-
+    def _leave(self) -> None:
         w = self._writer
-        # Leave the shell on a fresh line below everything we drew.
-        self._move(0, max(self._frame.height - 1, 0))
-        w.crlf()
         self._show_cursor()
         if self._mouse:
             w.mouse_tracking(False)
@@ -187,6 +180,35 @@ class InlineSurface(Surface):
         w.flush()
 
         self._tty.restore()
+
+    def restore(self) -> None:
+        if not self._prepared:
+            return
+        self._prepared = False
+
+        # Leave the shell on a fresh line below everything we drew.
+        self._move(0, max(self._frame.height - 1, 0))
+        self._writer.crlf()
+        self._leave()
+
+    def suspend(self) -> None:
+        """
+        Leave application mode for a process stop. The live region is erased rather than left behind: it is transient
+        by definition, and the shell's job-control chatter should land where it was, not below a stale copy. Committed
+        content above is untouched. The driver re-establishes the origin on resume exactly as at startup.
+        """
+
+        if not self._prepared:
+            return
+        self._prepared = False
+
+        self._move(0, 0)
+        self._writer.erase_down()
+        self._frame = EMPTY_FRAME
+        self._leave()
+
+    def resume(self) -> None:
+        self.prepare(defer_origin=True)
 
     ##
     # Movement (relative to the live region origin)

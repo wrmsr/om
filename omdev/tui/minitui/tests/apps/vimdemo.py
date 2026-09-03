@@ -17,7 +17,9 @@ from ...controls.stacks import stack_frame
 from ...controls.status import StatusBar
 from ...controls.textarea import TextArea
 from ...docs.treesitter import get_tree_sitter_highlighter
+from ...events.keys import Key
 from ...events.types import Event
+from ...events.types import KeyEvent
 from ...runtime.base import App
 from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
@@ -178,6 +180,9 @@ class VimDemoApp(App):
     # Events & rendering
 
     def handle_event(self, event: Event) -> None:
+        if isinstance(event, KeyEvent) and event.key == Key('z', ctrl=True):
+            self._driver.suspend()  # vim's ctrl+z (as a key only on extended-key terminals; else the kernel's)
+            return
         self._editor.handle_event(event)
         self._driver.invalidate()
 

@@ -7,6 +7,9 @@ retained-frame diff downstream makes even that render cheap when nothing visibly
 
 Wakeups: input fd readability, timer deadlines, the escape-parser's pending timeout, and a self-pipe written by the
 signal machinery (Python's poll retries EINTR per PEP 475, so SIGWINCH would otherwise not wake the loop at all).
+
+Job control (SIGTSTP / SIGCONT, and `suspend()` for terminals that deliver ctrl+z as a key) is applied at the top of
+the loop, so a stop never lands mid-render; see `jobcontrol.py`.
 """
 import codecs
 import os
@@ -23,11 +26,14 @@ from ..events.types import Event
 from ..events.types import KittyFlagsEvent
 from ..events.types import ModeReportEvent
 from ..events.types import ResizeEvent
+from ..events.types import ResumeEvent
+from ..events.types import SuspendEvent
 from ..events.xterm import XtermEventParser
 from ..screens.cells import Line
 from ..surfaces.base import Surface
 from ..surfaces.inlines import InlineSurface
 from .base import App
+from .jobcontrol import JobControl
 from .timers import Timers
 
 
@@ -40,6 +46,7 @@ class SyncDriver:
             surface: Surface,
             *,
             clock: ta.Callable[[], float] = time.monotonic,
+            stop_process: ta.Callable[[], None] | None = None,
     ) -> None:
         super().__init__()
 
@@ -52,6 +59,15 @@ class SyncDriver:
 
         self._invalidated = True
         self._running = False
+        self._app: App | None = None
+
+        self._job_control = JobControl(
+            suspend=self._suspend_now,
+            resume=self._resume_now,
+            stop_process=stop_process,
+        )
+        self._suspend_requested = False
+        self._saved_signals: dict[int, ta.Any] = {}
 
         self._parser_deadline: float | None = None
         self._parser_pending: Read1 | None = None
@@ -79,7 +95,7 @@ class SyncDriver:
 
     def commit(self, lines: ta.Sequence[Line]) -> None:
         surface = check.isinstance(self._surface, InlineSurface)
-        if not self._running or self._awaiting_origin:
+        if not self._running or self._awaiting_origin or self._job_control.suspended:
             # Nothing may touch the terminal until run() has prepared it and the origin has resolved; committed content
             # queues in order and flushes through the origin-resolution path.
             self._pending_commits.append(tuple(lines))
@@ -146,22 +162,87 @@ class SyncDriver:
         frame = app.render(surface.width, surface.height)
         surface.present(frame)
 
-    def run(self, app: App) -> None:
-        check.state(not self._running)
-        self._running = True
+    def _negotiate(self) -> None:
+        """
+        On every entry into application mode (startup and resume). For an inline surface, learn where the shell left
+        the cursor before touching the terminal: a mid-line prompt gets a fresh line instead of being overwritten, and
+        rendering and commits hold until the answer (or a short timeout). Then ask about synchronized output.
+        """
 
         surface = self._surface
         if isinstance(surface, InlineSurface):
-            # Learn where the shell left the cursor before touching the terminal: a mid-line prompt gets a fresh line
-            # instead of being overwritten. Rendering and commits hold until the answer (or a short timeout).
-            surface.prepare(defer_origin=True)
             surface.request_origin(self._parser)
-            surface.request_sync_output_report()
             self._awaiting_origin = True
             self._origin_deadline = self._clock() + .25
+        surface.request_sync_output_report()
+
+    ##
+    # Job control
+
+    @property
+    def job_control(self) -> JobControl:
+        return self._job_control
+
+    def suspend(self) -> None:
+        """Suspend the process as ctrl+z would, at the top of the next loop iteration - never mid-render."""
+
+        self._suspend_requested = True
+
+    def _install_job_control(self) -> None:
+        def on_tstp(*_: ta.Any) -> None:
+            self._suspend_requested = True  # the wakeup fd breaks the poll; the loop top does the rest
+
+        def on_cont(*_: ta.Any) -> None:
+            self._job_control.resume()  # a stray SIGCONT while running is a no-op
+
+        for signum, handler in ((signal.SIGTSTP, on_tstp), (signal.SIGCONT, on_cont)):
+            try:
+                self._saved_signals[signum] = signal.signal(signum, handler)
+            except ValueError:
+                break  # not the main thread: job control stays the kernel's
+
+    def _uninstall_job_control(self) -> None:
+        saved, self._saved_signals = self._saved_signals, {}
+        for signum, handler in saved.items():
+            try:
+                signal.signal(signum, handler)
+            except ValueError:
+                pass
+
+    def _suspend_now(self) -> None:
+        if (app := self._app) is not None:
+            app.handle_event(SuspendEvent())
+        self._surface.suspend()
+
+    def _resume_now(self) -> bool:
+        surface = self._surface
+        if not surface.tty.probe_foreground():
+            return False
+        size = (surface.height, surface.width)
+        surface.resume()
+        self._negotiate()
+        if (app := self._app) is not None:
+            if (surface.height, surface.width) != size:
+                app.handle_event(ResizeEvent(surface.height, surface.width))
+            app.handle_event(ResumeEvent())
+        self._invalidated = True
+        return True
+
+    ##
+
+    def run(self, app: App) -> None:
+        check.state(not self._running)
+        self._running = True
+        self._app = app
+        self._suspend_requested = False
+
+        surface = self._surface
+        if isinstance(surface, InlineSurface):
+            surface.prepare(defer_origin=True)
         else:
             surface.prepare()
-            surface.request_sync_output_report()
+        self._negotiate()
+        self._install_job_control()
 
         # PEP 475 makes poll() retry on EINTR, so signals need a self-pipe to actually wake the loop.
         wake_r, wake_w = os.pipe()
@@ -176,13 +257,18 @@ class SyncDriver:
 
         try:
             while self._running:
+                if self._suspend_requested:
+                    self._suspend_requested = False
+                    self._job_control.suspend()  # returns once continued; the resume ran from SIGCONT's handler
+                    continue
+
                 if surface.take_resized():
                     app.handle_event(ResizeEvent(surface.height, surface.width))
                     self._invalidated = True
                     if self._stopped():
                         continue
 
-                if self._invalidated and not self._awaiting_origin:
+                if self._invalidated and not self._awaiting_origin and not self._job_control.suspended:
                     self._render(app)
 
                 now = self._clock()
@@ -223,6 +309,7 @@ class SyncDriver:
 
         finally:
             self._running = False
+            self._uninstall_job_control()
             if self._awaiting_origin:
                 # Stopped before the CPR answer (or its deadline): resolve via the fallback now so buffered commits
                 # reach the terminal instead of being dropped.
@@ -231,3 +318,4 @@ class SyncDriver:
             os.close(wake_r)
             os.close(wake_w)
             surface.restore()
+            self._app = None

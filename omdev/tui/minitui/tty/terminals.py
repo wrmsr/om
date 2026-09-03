@@ -108,6 +108,19 @@ class Tty:
                 pass  # not the main thread
             self._saved_sigwinch = None
 
+    def probe_foreground(self) -> bool:
+        """
+        A no-op termios round trip: from the foreground it succeeds; from a job continued with `bg` it either stops us
+        again (SIGTTOU's default action) or fails outright - so a resume path learns it may not touch the terminal
+        before writing escape sequences over the shell's screen.
+        """
+
+        try:
+            set_term_state(self._input_fd, get_term_state(self._input_fd))
+        except (termios.error, OSError):
+            return False
+        return True
+
     #
 
     def watch_resize(self) -> None:
