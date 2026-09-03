@@ -114,11 +114,12 @@ class MinituiChatApp(mt.App):
         self._popup = mt.SuggestionsPopup()
         self._status = mt.StatusBar()
         self._input = mt.TextArea(
-            prompt='> ',
-            prompt_style='input.glyph',
-            max_height=8,
+            max_height=16,
             on_submit=self._on_submit_text,
             ex_handler=self._ex,
+            options=mt.vim.VimOptions(
+                number=True,
+            ),
         )
         self._history = mt.InputHistory()
 
