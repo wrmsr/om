@@ -46,8 +46,8 @@ jobs:
 
       - name: 'Report JUnit results'
         run: >
-          python3 omdev/scripts/ghajunit.py
-            --annotations
-            --fail-on-failure
+          python3 omdev/scripts/ghajunit.py \
+            --annotations \
+            --fail-on-failure \
             '${{ github.workspace }}/test-results.xml'
         if: 'always()'
