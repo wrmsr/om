@@ -62,6 +62,7 @@ class PygmentsHighlighter(Highlighter):
     def highlight(self, lines: ta.Sequence[str]) -> SegmentRows:
         source = '\n'.join(lines)
         rows: list[list[Segment]] = [[]]
+
         for token_type, value in self._lexer.get_tokens(source):
             tag = _tag_for(token_type)
             first = True
@@ -71,6 +72,7 @@ class PygmentsHighlighter(Highlighter):
                 first = False
                 if part:
                     rows[-1].append(Segment(part, tag))
+
         # get_tokens appends a trailing newline's worth of row; trim to the input's line count.
         return rows[: len(lines)] if len(rows) > len(lines) else rows
 
@@ -80,8 +82,10 @@ def get_pygments_highlighter(info: str) -> Highlighter | None:
 
     if not info or not pygments_available():
         return None
+
     try:
         lexer = pygments.lexers.get_lexer_by_name(info.strip().lower(), stripnl=False)
     except pygments.util.ClassNotFound:
         return None
+
     return PygmentsHighlighter(lexer)

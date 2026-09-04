@@ -1,6 +1,7 @@
 import asyncio
 import os
 import signal
+import sys
 
 import pytest
 
@@ -44,6 +45,7 @@ async def test_pty_controlling_terminal_and_winsize():
 
 
 @pytest.mark.asyncs('asyncio')
+@pytest.mark.skipif(sys.platform != 'linux', reason='linux only')
 async def test_pty_controlling_terminal_with_shim_setsid_fallback(monkeypatch):
     disable_posix_spawn_setsid(monkeypatch)
 

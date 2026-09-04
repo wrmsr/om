@@ -256,6 +256,7 @@ def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list
             fence = m.group(1)[0] * 3
             info = m.group(2)
             body: list[str] = []
+
             j = i + 1
             closed = False
             while j < n:
@@ -264,27 +265,33 @@ def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list
                     break
                 body.append(lines[j])
                 j += 1
+
             if closed:
                 blocks.append(MdCode(info, tuple(body)))
                 i = j + 1
                 settle(i)
                 continue
+
             if at_eof:
                 blocks.append(MdCode(info, tuple(body)))
                 i = n
                 settle(i)
                 continue
+
             break  # open fence: everything from here is unsettled
 
         if _QUOTE_PAT.match(s) is not None:
             parts: list[str] = []
+
             j = i
             while j < n and (qm := _QUOTE_PAT.match(lines[j].strip())) is not None:
                 parts.append(qm.group(1))
                 j += 1
+
             terminated = j < n or at_eof
             if not terminated:
                 break
+
             blocks.append(MdQuote.of(' '.join(p for p in parts if p)))
             i = j
             settle(i)
@@ -293,6 +300,7 @@ def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list
         if _LIST_PAT.match(s) is not None:
             raw_items: list[tuple[str, str, int]] = []
             indent_stack: list[int] = []
+
             j = i
             while j < n:
                 item_s = lines[j].strip()
@@ -306,16 +314,20 @@ def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list
                         indent_stack.append(indent)
                     raw_items.append((im.group(1), im.group(2), len(indent_stack) - 1))
                     j += 1
+
                 elif item_s and not _is_block_start(lines[j]) and raw_items and lines[j][:1] in (' ', '\t'):
                     # An indented continuation joins the previous item.
                     marker, text, depth = raw_items[-1]
                     raw_items[-1] = (marker, text + ' ' + item_s, depth)
                     j += 1
+
                 else:
                     break
+
             terminated = j < n or at_eof
             if not terminated:
                 break
+
             blocks.append(MdList(tuple(MdListItem.of(marker, text, depth) for marker, text, depth in raw_items)))
             i = j
             settle(i)
@@ -325,6 +337,7 @@ def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list
             head, aligns = th
             ncols = len(aligns)
             rows: list[list[str]] = []
+
             j = i + 2
             while j < n and lines[j].strip() and not _is_block_start(lines[j]):
                 cells = _split_table_cells(lines[j])
@@ -332,16 +345,18 @@ def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list
                     break  # a lone `|` is not a row: it ends the table
                 rows.append((cells + [''] * ncols)[:ncols])
                 j += 1
+
             terminated = j < n or at_eof
             if not terminated:
                 break
+
             blocks.append(MdTable.of(head, rows, aligns))
             i = j
             settle(i)
             continue
 
-        # Paragraph: accumulate until a blank line or another block's start - including a table whose header row is
-        # the paragraph's last line (GFM lets a table split off a paragraph that way).
+        # Paragraph: accumulate until a blank line or another block's start - including a table whose header row is the
+        # paragraph's last line (GFM lets a table split off a paragraph that way).
         parts = [s]
         j = i + 1
         table_follows = False
@@ -349,19 +364,24 @@ def parse_markdown_lines(lines: ta.Sequence[str], *, at_eof: bool) -> tuple[list
             if _match_table_head(lines, j - 1) is not None:
                 table_follows = True
                 break
+
             parts.append(lines[j].strip())
             j += 1
+
         if table_follows:
             parts.pop()
             j -= 1
+
         elif not (j < n or at_eof):
             break
+
         blocks.append(MdParagraph.of(' '.join(parts)))
         i = j
         settle(i)
 
     if at_eof:
         settle(n)
+
     return blocks, settled
 
 
@@ -458,7 +478,7 @@ _INLINE_PAT = re.compile(
 )
 
 
-def parse_markdown_inlines(text: str, *, base: StyleLike = None) -> list[Segment]:
+def parse_markdown_inlines(text: str, *, base: StyleLike | None = None) -> list[Segment]:
     """One pass, no nesting: the outermost marker wins (terminal styling doesn't stack much anyway)."""
 
     segments: list[Segment] = []
@@ -524,7 +544,7 @@ def _render_code(block: MdCode, width: int, highlighter: MarkdownCodeHighlighter
 
 def _render_hanging(
         prefix: str,
-        prefix_style: StyleLike,
+        prefix_style: StyleLike | None,
         segments: ta.Sequence[Segment],
         width: int,
 ) -> list[list[Segment]]:

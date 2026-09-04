@@ -30,7 +30,7 @@ type SegmentRows = ta.Sequence[ta.Sequence[Segment]]
 @dc.dataclass(frozen=True)
 class Segment(lang.Final):
     text: str
-    style: StyleLike = None
+    style: StyleLike | None = None
 
     def __post_init__(self) -> None:
         check.arg('\x1b' not in self.text and '\n' not in self.text and '\r' not in self.text)
@@ -41,7 +41,7 @@ def segments_text(segments: Segments) -> str:
 
 
 def split_segment_lines(
-        parts: ta.Iterable[tuple[str, StyleLike]],
+        parts: ta.Iterable[tuple[str, StyleLike | None]],
 ) -> list[list[Segment]]:
     """Split (text, style) runs which may contain newlines into per-line segment lists."""
 
@@ -65,7 +65,7 @@ def styled_text_to_segment_lines(
 ) -> list[list[Segment]]:
     """Resolve target-neutral styled text into driver-free minitui segment rows."""
 
-    parts: list[tuple[str, StyleLike]] = []
+    parts: list[tuple[str, StyleLike | None]] = []
     for run in text.runs():
         style = theme.resolve_refs(run.styles, base)
         segment_style = None if style.is_plain else style

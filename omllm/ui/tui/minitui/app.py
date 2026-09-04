@@ -191,7 +191,7 @@ class MinituiChatApp(mt.App):
     def display_inline(self, segments: ta.Sequence[mt.Segment]) -> None:
         self.display_rows(mt.wrap_segments(segments, self.width) if segments else [[]])
 
-    def display_text(self, text: str, style: mt.StyleLike = None) -> None:
+    def display_text(self, text: str, style: mt.StyleLike | None = None) -> None:
         """Newline-safe plain-text display: splits into rows, wraps each, commits as one block."""
 
         out: list[ta.Sequence[mt.Segment]] = []

@@ -91,7 +91,7 @@ def _display_char(c: str, tab_width: int) -> tuple[str, int]:
     return (c, char_width(c))
 
 
-_TagInterval: ta.TypeAlias = tuple[int, int, StyleLike]  # [start_col, end_col) -> style/tag
+_TagInterval: ta.TypeAlias = tuple[int, int, StyleLike | None]  # [start_col, end_col) -> style/tag
 
 
 @dc.dataclass(frozen=True)
@@ -111,7 +111,7 @@ class TextArea(Control):
             *,
             max_height: int = 8,
             prompt: str = '',
-            prompt_style: StyleLike = None,
+            prompt_style: StyleLike | None = None,
             on_submit: ta.Callable[[str], None] | None = None,
             ex_handler: ta.Callable[[str], str | None] | None = None,
             start_in_normal: bool = False,
@@ -291,15 +291,15 @@ class TextArea(Control):
             prefix = self._prompt if row.first and row.doc_row == 0 else ' ' * len(self._prompt)
             segments.append(Segment(prefix, self._prompt_style))
 
-        def tag_at(col: int) -> StyleLike:
-            found: StyleLike = None
+        def tag_at(col: int) -> StyleLike | None:
+            found: StyleLike | None = None
             for a, b, tag in tags:
                 if a <= col < b:
                     found = tag
             return found
 
         text = ''
-        style: StyleLike = None
+        style: StyleLike | None = None
         for col in range(row.start_col, row.end_col):
             c_tag = tag_at(col)
             if text and c_tag != style:

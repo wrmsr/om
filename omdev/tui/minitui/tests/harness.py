@@ -89,7 +89,7 @@ class SurfaceHarness:
 
     #
 
-    def line(self, *parts: str | tuple[str, StyleLike]) -> Line:
+    def line(self, *parts: str | tuple[str, StyleLike | None]) -> Line:
         segments = [
             Segment(part) if isinstance(part, str) else Segment(part[0], part[1])
             for part in parts

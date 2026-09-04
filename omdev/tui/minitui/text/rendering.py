@@ -1,5 +1,4 @@
 """Headless terminal rendering for styled segments and documents."""
-
 from omcore.text import styled as st
 
 from .colors import ColorDepth

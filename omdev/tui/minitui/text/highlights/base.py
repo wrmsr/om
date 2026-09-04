@@ -115,19 +115,26 @@ class PythonHighlighter(Highlighter):
                 end = (tok.end[0] - 1, tok.end[1])
 
                 tag: str | None = None
+
                 if tok.type == tokenize.COMMENT:
                     tag = 'code.comment'
+
                 elif tok.type in _STRING_TOKEN_TYPES:
                     tag = 'code.string'
+
                 elif tok.type == tokenize.NUMBER:
                     tag = 'code.number'
+
                 elif tok.type == tokenize.NAME:
                     if keyword.iskeyword(tok.string) or keyword.issoftkeyword(tok.string):
                         tag = 'code.keyword'
+
                     elif prev_was_def:
                         tag = 'code.def'
+
                     elif tok.string in _BUILTIN_NAMES:
                         tag = 'code.builtin'
+
                 elif tok.type == tokenize.OP and tok.string == '@':
                     tag = 'code.decorator'
 
@@ -135,6 +142,7 @@ class PythonHighlighter(Highlighter):
 
                 if tag is not None:
                     sink.add_multiline(start, end, tag)
+
         except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
             return [[Segment(line)] if line else [] for line in lines]
 
@@ -148,16 +156,23 @@ class DiffHighlighter(Highlighter):
             if not line:
                 rows.append([])
                 continue
+
             tag: str | None = None
+
             if line.startswith(('+++', '---', 'diff ', 'index ')):
                 tag = 'code.diff.meta'
+
             elif line.startswith('@@'):
                 tag = 'code.diff.hunk'
+
             elif line.startswith('+'):
                 tag = 'code.diff.add'
+
             elif line.startswith('-'):
                 tag = 'code.diff.del'
+
             rows.append([Segment(line, tag)])
+
         return rows
 
 

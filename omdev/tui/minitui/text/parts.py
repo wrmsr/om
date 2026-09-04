@@ -4,7 +4,7 @@ from .segments import Segment
 from .styles import StyleLike
 
 
-TextParts: ta.TypeAlias = ta.Sequence[tuple[str, StyleLike]]
+TextParts: ta.TypeAlias = ta.Sequence[tuple[str, StyleLike | None]]
 
 
 ##

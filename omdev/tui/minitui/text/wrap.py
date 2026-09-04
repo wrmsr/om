@@ -12,7 +12,7 @@ from .styles import StyleLike
 from .widths import char_width
 
 
-_Char: ta.TypeAlias = tuple[str, StyleLike, int]  # (char, style, width)
+_Char: ta.TypeAlias = tuple[str, StyleLike | None, int]  # (char, style, width)
 
 
 ##
@@ -42,7 +42,7 @@ def _tokenize(chars: ta.Sequence[_Char]) -> list[list[_Char]]:
 def _chars_to_segments(chars: ta.Sequence[_Char]) -> list[Segment]:
     segments: list[Segment] = []
     text = ''
-    style: StyleLike = None
+    style: StyleLike | None = None
     for c, c_style, _ in chars:
         if text and c_style != style:
             segments.append(Segment(text, style))

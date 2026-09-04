@@ -19,7 +19,7 @@ Style = st.ResolvedStyle
 EMPTY_STYLE = st.PLAIN_STYLE
 
 
-type StyleLike = st.ResolvedStyle | st.StyleLike | None
+type StyleLike = st.ResolvedStyle | st.StyleLike
 type ThemeStyle = st.ResolvedStyle | st.StylePatch
 
 
@@ -56,7 +56,7 @@ class Theme(lang.Final):
             for name, style in (styles or {}).items()
         })
 
-    def resolve(self, style: StyleLike, base: st.ResolvedStyle | None = None) -> st.ResolvedStyle:
+    def resolve(self, style: StyleLike | None, base: st.ResolvedStyle | None = None) -> st.ResolvedStyle:
         if style is None:
             return EMPTY_STYLE if base is None else base
         if isinstance(style, st.ResolvedStyle):

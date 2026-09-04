@@ -26,7 +26,7 @@ class Static(Control):
     def set_parts(self, parts: TextParts) -> None:
         self._lines = parts_to_segment_lines(parts)
 
-    def set_text(self, text: str, style: StyleLike = None) -> None:
+    def set_text(self, text: str, style: StyleLike | None = None) -> None:
         self.set_parts([(text, style)])
 
     def render(self, width: int) -> ta.Sequence[ta.Sequence[Segment]]:
