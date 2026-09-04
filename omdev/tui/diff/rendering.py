@@ -24,6 +24,8 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.text import diffs
 from omcore.text import styled as st
+from omcore.text.widths import char_width
+from omcore.text.widths import str_width
 
 from .. import minitui as mt
 
@@ -83,17 +85,17 @@ def _truncate(text: st.StyledText, width: int) -> st.StyledText:
     current = 0
     end = 0
     for index, char in enumerate(text.text):
-        char_width = mt.char_width(char)
-        if current + char_width > width:
+        cw = char_width(char)
+        if current + cw > width:
             break
-        current += char_width
+        current += cw
         end = index + 1
     return text if end == len(text) else text.slice(0, end)
 
 
 def _fit(text: st.StyledTextLike, width: int, style: st.StyleLike | None = None) -> st.StyledText:
     value = _truncate(st.StyledText.of(text), width)
-    pad = max(width - mt.str_width(value.text), 0)
+    pad = max(width - str_width(value.text), 0)
     builder = st.StyledTextBuilder()
     builder.append(value, style)
     if pad:
@@ -103,14 +105,14 @@ def _fit(text: st.StyledTextLike, width: int, style: st.StyleLike | None = None)
 
 def _center(text: st.StyledTextLike, width: int) -> st.StyledText:
     value = _truncate(st.StyledText.of(text), width)
-    remaining = max(width - mt.str_width(value.text), 0)
+    remaining = max(width - str_width(value.text), 0)
     left = remaining // 2
     return st.StyledText.of(' ' * left, value, ' ' * (remaining - left))
 
 
 def _right(text: st.StyledTextLike, width: int) -> st.StyledText:
     value = _truncate(st.StyledText.of(text), width)
-    return st.StyledText.of(' ' * max(width - mt.str_width(value.text), 0), value)
+    return st.StyledText.of(' ' * max(width - str_width(value.text), 0), value)
 
 
 def _rule(
@@ -124,7 +126,7 @@ def _rule(
         return _style(character * width, style)
 
     value = _truncate(st.StyledText.of(title), max(width - 2, 0))
-    remaining = max(width - mt.str_width(value.text) - 2, 0)
+    remaining = max(width - str_width(value.text) - 2, 0)
     left = remaining // 2
     return st.StyledText.of(
         _style(character * left, style),
@@ -606,7 +608,7 @@ class DiffRenderer(lang.Final):
         builder = st.StyledTextBuilder()
         builder.append(f'{line.number:>{gutter_width - 1}} ', 'diff.gutter')
         builder.append(code)
-        builder.append(' ' * max(content_width - mt.str_width(code.text), 0))
+        builder.append(' ' * max(content_width - str_width(code.text), 0))
         rendered = builder.build().styled('diff.code')
         if line.changed:
             rendered = rendered.styled('diff.line.remove' if intraline_style.endswith('remove') else 'diff.line.add')

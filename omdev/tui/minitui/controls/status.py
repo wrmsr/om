@@ -1,8 +1,9 @@
 """The elastic status bar: left and right styled parts, right-aligned when they fit on one row."""
 import typing as ta
 
+from omcore.text.widths import str_width
+
 from ..text.segments import Segment
-from ..text.widths import str_width
 from ..text.wrap import wrap_segments
 from .base import Control
 from .static import TextParts

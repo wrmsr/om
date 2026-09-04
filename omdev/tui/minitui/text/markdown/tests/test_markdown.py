@@ -3,9 +3,10 @@ import importlib.util
 
 import pytest
 
+from omcore.text.widths import str_width
+
 from ...highlights.base import highlight_code
 from ...segments import segments_text
-from ...widths import str_width
 from ..base import MarkdownStream
 from ..base import MdCode
 from ..base import MdHeading

@@ -374,12 +374,6 @@ with _lang.auto_proxy_init(
         render_ansi_styled_document,
     )
 
-    from .text.widths import (  # noqa
-        char_width,
-        str_width,
-        ascii_control_repr,
-    )
-
     from .text.wrap import (  # noqa
         wrap_segments,
     )

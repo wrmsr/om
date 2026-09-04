@@ -1,5 +1,6 @@
 from omcore.text import diffs
 from omcore.text import styled as st
+from omcore.text.widths import str_width
 
 from ... import minitui as mt
 from ..rendering import render_diff_document
@@ -53,7 +54,7 @@ def test_plain_output_matches_rich_characterization() -> None:
 
     assert st.render_plain(document) == EXPECTED_MODIFIED_PLAIN
     assert document.trailing_newline
-    assert all(mt.str_width(line.text) == 60 for line in document.lines if line)
+    assert all(str_width(line.text) == 60 for line in document.lines if line)
 
 
 def test_equal_change_streaks_receive_intraline_highlighting() -> None:

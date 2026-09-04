@@ -6,10 +6,11 @@ wider than the whole line, dropping whitespace at wrap points, and preserving pe
 """
 import typing as ta
 
+from omcore.text.widths import char_width
+
 from .segments import Segment
 from .segments import Segments
 from .styles import StyleLike
-from .widths import char_width
 
 
 _Char: ta.TypeAlias = tuple[str, StyleLike | None, int]  # (char, style, width)

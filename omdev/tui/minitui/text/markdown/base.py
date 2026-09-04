@@ -24,12 +24,12 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.text.widths import str_width
 
 from ..segments import Segment
 from ..segments import SegmentRows
 from ..segments import segments_text
 from ..styles import StyleLike
-from ..widths import str_width
 from ..wrap import wrap_segments
 
 

@@ -17,6 +17,8 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.term.repr import ascii_control_repr
+from omcore.text.widths import char_width
 
 from ..docs.documents import Document
 from ..docs.highlighting import IncrementalHighlighter
@@ -29,8 +31,6 @@ from ..events.types import PasteEvent
 from ..text.highlights.base import Highlighter
 from ..text.segments import Segment
 from ..text.styles import StyleLike
-from ..text.widths import ascii_control_repr
-from ..text.widths import char_width
 from ..vim.engine import VimEngine
 from ..vim.modes import Mode
 from ..vim.options import DEFAULT_OPTIONS
