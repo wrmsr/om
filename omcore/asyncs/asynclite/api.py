@@ -1,5 +1,6 @@
 # @om-lite
 from ...lite.abstract import Abstract
+from .cancellation import AsyncliteCancellation
 from .events import AsyncliteEvents
 from .identities import AsyncliteIdentities
 from .locks import AsyncliteLocks
@@ -13,6 +14,7 @@ from .sleeps import AsyncliteSleeps
 
 
 class Asynclite(
+    AsyncliteCancellation,
     AsyncliteEvents,
     AsyncliteIdentities,
     AsyncliteLocks,

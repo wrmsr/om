@@ -21,6 +21,10 @@ with _lang.auto_proxy_init(globals()):
         AsyncliteCloseable as Closeable,
     )
 
+    from .cancellation import (  # noqa
+        AsyncliteCancellation as Cancellation,
+    )
+
     from .events import (  # noqa
         AsyncliteEvent as Event,
         AsyncliteEvents as Events,

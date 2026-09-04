@@ -13,6 +13,10 @@ with _lang.auto_proxy_init(globals()):
         SyncAsyncliteApi as Api,
     )
 
+    from .cancellation import (  # noqa
+        SyncAsyncliteCancellation as Cancellation,
+    )
+
     from .events import (  # noqa
         SyncAsyncliteEvent as Event,
         SyncAsyncliteEvents as Events,

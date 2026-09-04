@@ -13,6 +13,10 @@ with _lang.auto_proxy_init(globals()):
         AnyioAsyncliteApi as Api,
     )
 
+    from .cancellation import (  # noqa
+        AnyioAsyncliteCancellation as Cancellation,
+    )
+
     from .events import (  # noqa
         AnyioAsyncliteEvent as Event,
         AnyioAsyncliteEvents as Events,
