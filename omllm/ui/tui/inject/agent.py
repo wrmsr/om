@@ -8,6 +8,7 @@ from omcore.asyncs.asynclite import all as asl
 from .... import agent as agn
 from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ....core.asyncs.base import AsyncGroupRunner
+from ....core.asyncs.inject import bind_job_runner
 from ....core.eventbus import EventSubscriber
 from ..config import Config
 
@@ -116,6 +117,9 @@ def bind_agent(config: Config) -> inj.Elements:
         inj.bind(AsyncGroupRunner, to_key=AsyncioGroupRunner),
         inj.bind(asl.asyncio.Sleeps, singleton=True),
         inj.bind(asl.Sleeps, to_key=asl.asyncio.Sleeps),
+
+        # Blocking work (the quickjs tool's evals) runs off the loop through this, one per injector, closed with it.
+        bind_job_runner(),
 
         # The model's view of the transcript. The map binder is bound even with no entries so the mapping resolves.
         inj.map_binder[type[agn.AgentMessage], agn.AgentMessageProjector](),

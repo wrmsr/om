@@ -90,3 +90,64 @@ class AsyncGroupRunner(lang.Abstract):
     @abc.abstractmethod
     def run(self, fns: ta.Sequence[ta.Callable[[], ta.Awaitable[T]]]) -> ta.Awaitable[ta.Sequence[T]]:
         raise NotImplementedError
+
+
+##
+
+
+class AsyncJob(lang.Abstract, ta.Generic[T]):
+    """
+    A unit of blocking work - CPU-bound, or IO with no async form - for an AsyncJobRunner to run off the event loop.
+    `run` does the work, on whatever thread the runner gives it; `interrupt` asks a running `run` to stop, from another
+    thread. It is best effort: a job which cannot be stopped leaves it as the no-op it is by default, and simply runs to
+    its end.
+    """
+
+    @abc.abstractmethod
+    def run(self) -> T:
+        raise NotImplementedError
+
+    def interrupt(self) -> None:
+        """Thread-safe, and safe to call more than once or after `run` has returned."""
+
+
+class AsyncJobError(Exception):
+    pass
+
+
+class AsyncJobTimeoutError(AsyncJobError, TimeoutError):
+    """The job was interrupted for running past its timeout."""
+
+
+class AsyncJobRunnerClosedError(AsyncJobError):
+    pass
+
+
+class AsyncJobRunner(lang.Abstract):
+    """
+    Runs jobs off the event loop, and gives up on them without waiting:
+
+     - The job completes: its result, or its exception.
+     - Its timeout is up first: the job is interrupted, and AsyncJobTimeoutError raised.
+     - The calling task is cancelled first: the job is interrupted, and the cancellation propagates.
+
+    In the latter two the job's thread may well still be running - it stops when it notices the interruption, or, if it
+    cannot be interrupted, when it is done. From then on it is the runner's: it is tracked, and joined - for as long as
+    the runner is willing to wait - when the runner closes. Nothing here knows which async runtime it runs under.
+    """
+
+    @abc.abstractmethod
+    def run(self, job: AsyncJob[T], *, timeout: float | None = None) -> ta.Awaitable[T]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def aclose(self) -> ta.Awaitable[None]:
+        """Interrupts whatever is still running and waits for it, within bounds. Idempotent."""
+
+        raise NotImplementedError
+
+    async def __aenter__(self) -> ta.Self:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        await self.aclose()
