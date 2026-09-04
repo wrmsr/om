@@ -5,12 +5,14 @@ import threading
 from omcore.term.vt100.terminal import Vt100Terminal
 
 from ...events.keys import Key
+from ...events.types import InputEofEvent
 from ...events.types import KeyEvent
 from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface
 from ...text.segments import Segment
 from ...text.styles import EMPTY_THEME
 from ..asyncio import AsyncioDriver
+from .test_sync import EofApp
 from .test_sync import PipeTty
 from .test_sync import RecordingApp
 
@@ -44,6 +46,43 @@ def test_async_driver_dispatch_and_render():
     term = Vt100Terminal(rows=6, cols=40)
     term.feed(b''.join(tty.writes))
     assert 'events: 3' in term.all_lines()
+
+
+def test_async_driver_eof_is_an_event():
+    tty = PipeTty(height=6, width=40)
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'))
+    app = RecordingApp(driver)  # type: ignore[arg-type]
+
+    async def main():
+        tty.send(b'\x1b[3;1R')
+        tty.send(b'x')
+        tty.close_input()
+        await driver.run(app)
+
+    asyncio.run(main())
+    os.close(tty.read_fd)
+
+    assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('x')]
+    assert isinstance(app.events[-1], InputEofEvent)
+
+
+def test_async_driver_eof_left_to_app():
+    tty = PipeTty(height=6, width=40)
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'), app_handles_eof=True)
+    app = EofApp(driver)  # type: ignore[arg-type]
+
+    async def main():
+        tty.send(b'\x1b[3;1R')
+        tty.send(b'x')
+        tty.close_input()
+        await driver.run(app)
+
+    asyncio.run(main())
+    os.close(tty.read_fd)
+
+    assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('x')]
+    assert isinstance(app.events[-1], InputEofEvent)
+    assert app.stopped_by_timer
 
 
 def test_async_driver_escape_timeout():

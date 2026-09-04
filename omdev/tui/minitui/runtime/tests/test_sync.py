@@ -5,6 +5,7 @@ from omcore.term.vt100.terminal import Vt100Terminal
 
 from ...events.keys import Key
 from ...events.types import Event
+from ...events.types import InputEofEvent
 from ...events.types import KeyEvent
 from ...events.types import ModeReportEvent
 from ...events.types import PasteEvent
@@ -57,16 +58,35 @@ class RecordingApp(App):
         return Frame((line_from_segments([Segment(text)], EMPTY_THEME),))
 
 
+class EofApp(RecordingApp):
+    """Takes the end of input as its own business: stops a moment later, from a timer, as an app winding down would."""
+
+    def __init__(self, driver: SyncDriver) -> None:
+        super().__init__(driver)
+
+        self.stopped_by_timer = False
+
+    def handle_event(self, event: Event) -> None:
+        super().handle_event(event)
+        if isinstance(event, InputEofEvent):
+            def stop() -> None:
+                self.stopped_by_timer = True
+                self._driver.stop()
+
+            self._driver.timers.call_later(.01, stop)
+
+
 def run_driver(
         data: bytes,
         *,
         then: bytes | None = None,
         height: int = 6,
         width: int = 40,
+        app_handles_eof: bool = False,
 ) -> tuple[RecordingApp, PipeTty]:
     tty = PipeTty(height=height, width=width)
-    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
-    app = RecordingApp(driver)
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'), app_handles_eof=app_handles_eof)
+    app = EofApp(driver) if app_handles_eof else RecordingApp(driver)
     # Answer the startup origin CPR like a real terminal (row 3, col 1) so rendering isn't timeout-delayed.
     tty.send(b'\x1b[3;1R')
     tty.send(data)
@@ -101,6 +121,16 @@ def test_driver_dispatches_and_renders():
 def test_driver_eof_stops():
     app, _ = run_driver(b'x')
     assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('x')]
+    # The end of input is the last thing the app hears of.
+    assert isinstance(app.events[-1], InputEofEvent)
+
+
+def test_driver_eof_left_to_app():
+    app, _ = run_driver(b'x', app_handles_eof=True)
+    assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('x')]
+    assert isinstance(app.events[-1], InputEofEvent)
+    # The loop ran on past the EOF: it was the app's timer that ended the run.
+    assert isinstance(app, EofApp) and app.stopped_by_timer
 
 
 def test_driver_paste_roundtrip():

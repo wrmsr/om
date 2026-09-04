@@ -51,7 +51,9 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
 - **runtime/** - `SyncDriver` (poll + self-pipe) and `AsyncioDriver` (asyncio; `post()` is the sole thread-safe entry).
   Both share the `App` contract: `render(width, max_height) -> Frame` + `handle_event(event)`, with coalescing
   invalidation. Both do job control: ctrl+z / SIGTSTP hands the terminal back clean before the stop, SIGCONT re-enters
-  application mode and re-anchors the inline origin, and the app sees `SuspendEvent` / `ResumeEvent`.
+  application mode and re-anchors the inline origin, and the app sees `SuspendEvent` / `ResumeEvent`. The end of input
+  arrives as an `InputEofEvent`, after which the driver stops on its own - unless constructed with `app_handles_eof`,
+  which leaves ending the run to the app, so it can wind down work first.
 
 ## Notes
 

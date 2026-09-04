@@ -131,6 +131,7 @@ with _lang.auto_proxy_init(
         ResizeEvent,
         SuspendEvent,
         ResumeEvent,
+        InputEofEvent,
         CursorPositionEvent,
         ModeReportEvent,
         KittyFlagsEvent,

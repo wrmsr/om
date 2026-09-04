@@ -671,7 +671,11 @@ class MinituiChatApp(mt.App):
         control.handle_event(local)
 
     def handle_event(self, event: mt.Event) -> None:
-        if isinstance(event, mt.MouseEvent):
+        if isinstance(event, mt.InputEofEvent):
+            # The input is gone for good: the same way out as ctrl+d, so a turn in flight is wound down while the driver
+            # is still bound and what it leaves behind reaches scrollback.
+            self.request_quit()
+        elif isinstance(event, mt.MouseEvent):
             self._handle_mouse(event)
         elif not (isinstance(event, mt.KeyEvent) and self._handle_app_key(event)):
             self._input.handle_event(event)
@@ -711,7 +715,8 @@ class MinituiChatApp(mt.App):
 
 
 def _provide_driver(surface: mt.InlineSurface) -> mt.AsyncioDriver:
-    return mt.AsyncioDriver(surface)
+    # EOF goes through the app's quit funnel, like every other way out, rather than stopping the driver on the spot.
+    return mt.AsyncioDriver(surface, app_handles_eof=True)
 
 
 def bind_app(config: Config) -> inj.Elements:

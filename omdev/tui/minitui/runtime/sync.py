@@ -23,6 +23,7 @@ from omcore import check
 from ..events.parsing import Read1
 from ..events.types import CursorPositionEvent
 from ..events.types import Event
+from ..events.types import InputEofEvent
 from ..events.types import KittyFlagsEvent
 from ..events.types import ModeReportEvent
 from ..events.types import ResizeEvent
@@ -47,11 +48,18 @@ class SyncDriver:
             *,
             clock: ta.Callable[[], float] = time.monotonic,
             stop_process: ta.Callable[[], None] | None = None,
+            app_handles_eof: bool = False,
     ) -> None:
+        """
+        With `app_handles_eof`, the end of input is the app's to act on: it gets the InputEofEvent and the run goes on
+        until it stops the driver, so it can wind down work first. Otherwise the driver stops right after delivering it.
+        """
+
         super().__init__()
 
         self._surface = surface
         self._clock = clock
+        self._app_handles_eof = app_handles_eof
 
         self._parser = XtermEventParser()
         self._timers = Timers(clock)
@@ -290,11 +298,17 @@ class SyncDriver:
                 if input_fd in ready:
                     data = os.read(input_fd, 4096)
                     if not data:
-                        # Input EOF: no more bytes are ever coming, so resolve any pending escape immediately.
+                        # Input EOF: no more bytes are ever coming. An fd at EOF stays readable, so stop polling it;
+                        # resolve any pending escape; then tell the app - and end the run here, unless that is the
+                        # app's to do.
+                        poller.unregister(input_fd)
                         self._dispatch(app, self._parser.flush_timeout())
-                        break
-                    self._dispatch(app, self._parser.feed(self._decoder.decode(data)))
-                    self._track_parser_deadline()
+                        self._dispatch(app, [InputEofEvent()])
+                        if not self._app_handles_eof:
+                            break
+                    else:
+                        self._dispatch(app, self._parser.feed(self._decoder.decode(data)))
+                        self._track_parser_deadline()
 
                 now = self._clock()
                 if self._parser_deadline is not None and now >= self._parser_deadline:

@@ -24,6 +24,7 @@ from omcore import check
 from ..events.parsing import Read1
 from ..events.types import CursorPositionEvent
 from ..events.types import Event
+from ..events.types import InputEofEvent
 from ..events.types import KittyFlagsEvent
 from ..events.types import ModeReportEvent
 from ..events.types import ResizeEvent
@@ -114,10 +115,17 @@ class AsyncioDriver:
             surface: Surface,
             *,
             stop_process: ta.Callable[[], None] | None = None,
+            app_handles_eof: bool = False,
     ) -> None:
+        """
+        With `app_handles_eof`, the end of input is the app's to act on: it gets the InputEofEvent and the run goes on
+        until it stops the driver, so it can wind down work first. Otherwise the driver stops right after delivering it.
+        """
+
         super().__init__()
 
         self._surface = surface
+        self._app_handles_eof = app_handles_eof
 
         self._parser = XtermEventParser()
         self._decoder = codecs.getincrementaldecoder('utf-8')('replace')
@@ -137,6 +145,7 @@ class AsyncioDriver:
         self._origin_fallback_handle: asyncio.TimerHandle | None = None
         self._pending_commits: list[ta.Sequence[Line]] = []
 
+        self._input_fd: int | None = None
         self._has_winch_handler = False
         self._job_control = JobControl(
             suspend=self._suspend_now,
@@ -254,11 +263,25 @@ class AsyncioDriver:
         self._dispatch(self._parser.flush_timeout())
         self._track_parser_deadline()
 
+    def _watch_input(self, loop: asyncio.AbstractEventLoop, fd: int) -> None:
+        loop.add_reader(fd, self._on_readable)
+        self._input_fd = fd
+
+    def _unwatch_input(self) -> None:
+        if (fd := self._input_fd) is not None:
+            check.not_none(self._loop).remove_reader(fd)
+            self._input_fd = None
+
     def _on_readable(self) -> None:
         data = os.read(self._surface.tty.input_fd, 4096)
         if not data:
+            # Input EOF: no more bytes are ever coming. An fd at EOF stays readable, so stop watching it; resolve any
+            # pending escape; then tell the app - and end the run here, unless that is the app's to do.
+            self._unwatch_input()
             self._dispatch(self._parser.flush_timeout())
-            self.stop()
+            self._dispatch([InputEofEvent()])
+            if not self._app_handles_eof:
+                self.stop()
             return
         self._dispatch(self._parser.feed(self._decoder.decode(data)))
         self._track_parser_deadline()
@@ -362,8 +385,7 @@ class AsyncioDriver:
             surface.prepare()
         self._negotiate()
 
-        input_fd = surface.tty.input_fd
-        loop.add_reader(input_fd, self._on_readable)
+        self._watch_input(loop, surface.tty.input_fd)
         self._watch_winch()
         self._install_job_control(loop)
 
@@ -383,7 +405,7 @@ class AsyncioDriver:
                 self._parser_flush_handle.cancel()
             self._uninstall_job_control(loop)
             self._unwatch_winch()
-            loop.remove_reader(input_fd)
+            self._unwatch_input()
             surface.restore()
             self._loop = None
             self._timers.unbind()

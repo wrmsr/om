@@ -3,8 +3,9 @@ Entry point for the minitui chat backend: `python -m omllm.ui.tui.minitui`.
 
 Structural difference from `bare`: there is no blocking read loop - `AsyncDriver.run(app)` owns the terminal for the
 process lifetime, and prompts run as concurrent tasks so the surface keeps rendering stream deltas (and accepting input)
-while a turn is in flight. Submissions made mid-turn queue and run in order. Quitting (ctrl+d, `:q`, `/quit`) drains the
-pump before the driver stops, so an interrupted turn's cards and marker land in scrollback rather than being dropped.
+while a turn is in flight. Submissions made mid-turn queue and run in order. Quitting (ctrl+d, `:q`, `/quit`, and the
+end of input) drains the pump before the driver stops, so an interrupted turn's cards and marker land in scrollback
+rather than being dropped.
 """
 import asyncio
 import os.path
@@ -247,8 +248,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             await driver_task
 
         finally:
-            # Fallback for the paths that bypass the quit funnel - stdin EOF (the driver stops itself) and errors - in
-            # which the pump may still hold a turn.
+            # Fallback for the paths that bypass the quit funnel - errors, in practice - in which the pump may still
+            # hold a turn.
             if not driver_task.done():
                 driver.stop()
                 await driver_task

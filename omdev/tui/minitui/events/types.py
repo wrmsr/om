@@ -82,6 +82,15 @@ class ResumeEvent(Event, lang.Final):
     """
 
 
+@dc.dataclass(frozen=True)
+class InputEofEvent(Event, lang.Final):
+    """
+    Synthesized by the runtime when the input stream ends: no more bytes are ever coming, and any pending escape has
+    been resolved ahead of this. The last event a run delivers - the driver stops right after it, unless it was told the
+    app handles EOF, in which case the run goes on until the app stops it.
+    """
+
+
 ##
 # Terminal responses to queries we send. These flow through the input stream like everything else.
 

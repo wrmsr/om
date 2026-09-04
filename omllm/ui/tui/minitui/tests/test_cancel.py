@@ -730,6 +730,17 @@ def test_quit_keys_route_through_hook():
     assert not driver.stopped
 
 
+def test_input_eof_routes_through_quit_hook():
+    app, driver = make_app()
+    quits = []
+    app.on_quit = lambda: quits.append('quit')
+
+    app.handle_event(mt.InputEofEvent())
+
+    assert quits == ['quit']
+    assert not driver.stopped
+
+
 @pytest.mark.asyncs('asyncio')
 async def test_quit_signal_routes_through_hook():
     app, driver = make_app()
@@ -762,6 +773,36 @@ async def test_quit_drains_pump_before_stopping_driver():
     assert driver.stopped
     assert driver.at_stop is True
     assert session.prompts == ['first']
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_input_eof_mid_turn_commits_cancelled_cards_before_driver_stops():
+    driver = _QuitDriver(commit_texts)
+    app = MinituiChatApp(ta.cast(mt.AsyncioDriver, driver))
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    tool = _BlockingTool()
+    session = _TurnLoopSession(
+        backend=_tool_call_backend('t1', 'block'),
+        tools=[tool.tool()],
+        subscriber=renderer.on_agent_event,
+    )
+    pump = _wire(app, session)
+    shutdown = Shutdown(pump=pump, driver=ta.cast(mt.AsyncioDriver, driver))
+    app.on_quit = shutdown.request
+
+    pump.submit('go')
+    await tool.started.wait()
+    driver.commits.clear()
+
+    # The input ends mid-turn. It is the driver's event, not its decision: the turn is cancelled and its abort reaches
+    # scrollback while the driver is still bound, and only then does the driver stop.
+    app.handle_event(mt.InputEofEvent())
+    await settle(lambda: driver.stopped)
+
+    assert driver.stopped
+    assert any('block  cancelled' in c for c in driver.at_stop)
+    assert driver.at_stop[-1] == '× cancelled\n'
+    assert not app.is_busy
 
 
 @pytest.mark.asyncs('asyncio')
