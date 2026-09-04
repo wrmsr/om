@@ -13,8 +13,8 @@ import importlib.util
 import typing as ta
 
 from omcore import lang
+from omcore.text.markdownit import incparse
 
-from .....markdownit import incparse
 from ..segments import Segment
 from .base import MarkdownStreamBackend
 from .base import MdBlock

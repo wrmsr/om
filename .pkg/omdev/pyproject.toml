@@ -43,8 +43,6 @@ c = [
 ]
 doc = [
     'docutils ~= 0.23',
-    'markdown-it-py ~= 4.2',
-    'mdit-py-plugins ~= 0.6',
     'pygments ~= 2.21',
 ]
 mypy = [
@@ -68,9 +66,6 @@ qr = [
 ]
 ruff = [
     'ruff ~= 0.16',
-]
-tui = [
-    'rich ~= 15.0',
 ]
 tui-syntax = [
     'tree-sitter ~= 0.26',
@@ -106,8 +101,6 @@ all = [
     'pycparser ~= 3.0',
     'pcpp ~= 1.30',
     'docutils ~= 0.23',
-    'markdown-it-py ~= 4.2',
-    'mdit-py-plugins ~= 0.6',
     'pygments ~= 2.21',
     'mypy ~= 2.3',
     'pytesseract ~= 0.3',
@@ -117,7 +110,6 @@ all = [
     'basedpyright ~= 1.39',
     'segno ~= 1.6',
     'ruff ~= 0.16',
-    'rich ~= 15.0',
     'tree-sitter ~= 0.26',
     'tree-sitter-bash ~= 0.25',
     'tree-sitter-css ~= 0.25',

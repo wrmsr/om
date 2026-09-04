@@ -35,9 +35,6 @@ class Project(ProjectBase):
         'doc': [
             'docutils ~= 0.23',
 
-            'markdown-it-py ~= 4.2',
-            'mdit-py-plugins ~= 0.6',
-
             'pygments ~= 2.21',
         ],
 
@@ -76,10 +73,6 @@ class Project(ProjectBase):
         #     'mycli ~= 2.17',
         #     'pgcli ~= 4.6',
         # ],
-
-        'tui': [
-            'rich ~= 15.0',
-        ],
 
         'tui-syntax': [
             'tree-sitter ~= 0.26',

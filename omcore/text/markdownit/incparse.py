@@ -1,7 +1,7 @@
-import dataclasses as dc
 import typing as ta
 
-from omcore import lang
+from ... import dataclasses as dc
+from ... import lang
 
 
 with lang.auto_proxy_import(globals()):

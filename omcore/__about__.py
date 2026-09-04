@@ -114,14 +114,17 @@ class Project(ProjectBase):
             'duckdb ~= 1.5',
         ],
 
-        'templates': [
-            'markupsafe ~= 3.0',
-
-            'jinja2 ~= 3.1',
-        ],
-
         'testing': [
             'pytest ~= 9.1',
+        ],
+
+        'text': [
+            'markupsafe ~= 3.0',
+
+            'markdown-it-py ~= 4.2',
+            'mdit-py-plugins ~= 0.6',
+
+            'jinja2 ~= 3.1',
         ],
     }
 
