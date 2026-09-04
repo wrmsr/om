@@ -1,94 +1,82 @@
 """
 Structured text styling.
 
-A `Style` is a plain frozen dataclass - never an SGR string, never a stylesheet entry. Content-producing code should
-usually emit *semantic tags* (plain strings like 'status.mode' or 'syntax.keyword') and let a `Theme` resolve them to
-concrete styles at render time; concrete `Style` values are for when the content really does mean a specific look.
+The target-neutral style values live in `omcore.text.styled`; this module is minitui's compatibility facade and theme
+adapter. Content-producing code should usually emit semantic tags and let a `Theme` resolve them at render time.
 """
 import typing as ta
 
-from omcore import dataclasses as dc
 from omcore import lang
-
-from .colors import Color
-
-
-##
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class Style(lang.Final):
-    fg: Color | None = None
-    bg: Color | None = None
-
-    bold: bool = False
-    dim: bool = False
-    italic: bool = False
-    underline: bool = False
-    blink: bool = False
-    reverse: bool = False
-    strike: bool = False
-    hidden: bool = False
-
-    @property
-    def is_plain(self) -> bool:
-        return self == EMPTY_STYLE
-
-    def overlay(self, other: Style) -> Style:
-        """
-        Return this style with `other`'s set fields applied over it.
-
-        Colors overlay when non-None; attribute flags are or'd. This is the merge rule used when compositing style spans
-        from multiple producers (syntax under selection under search, etc.).
-        """
-
-        if other.is_plain:
-            return self
-        if self.is_plain:
-            return other
-        return Style(
-            fg=other.fg if other.fg is not None else self.fg,
-            bg=other.bg if other.bg is not None else self.bg,
-            bold=self.bold or other.bold,
-            dim=self.dim or other.dim,
-            italic=self.italic or other.italic,
-            underline=self.underline or other.underline,
-            blink=self.blink or other.blink,
-            reverse=self.reverse or other.reverse,
-            strike=self.strike or other.strike,
-            hidden=self.hidden or other.hidden,
-        )
-
-
-EMPTY_STYLE = Style()
-
-
-# What content code may attach to text: nothing, a concrete style, or a semantic theme tag.
-StyleLike: ta.TypeAlias = Style | str | None
+from omcore.text import styled as st
 
 
 ##
 
 
-class Theme:
-    """Resolves semantic tags to concrete styles. Unknown tags resolve to the empty style, deliberately."""
+Style = st.ResolvedStyle
 
-    def __init__(self, styles: ta.Mapping[str, Style] | None = None) -> None:
+
+EMPTY_STYLE = st.PLAIN_STYLE
+
+
+type StyleLike = st.ResolvedStyle | st.StyleLike | None
+type ThemeStyle = st.ResolvedStyle | st.StylePatch
+
+
+def _as_style_patch(style: ThemeStyle) -> st.StylePatch:
+    if isinstance(style, st.StylePatch):
+        return style
+    if not isinstance(style, st.ResolvedStyle):
+        raise TypeError(style)
+    return st.StylePatch(
+        fg=style.fg,
+        bg=style.bg,
+        bold=True if style.bold else None,
+        dim=True if style.dim else None,
+        italic=True if style.italic else None,
+        underline=True if style.underline else None,
+        blink=True if style.blink else None,
+        reverse=True if style.reverse else None,
+        strike=True if style.strike else None,
+        hidden=True if style.hidden else None,
+    )
+
+
+##
+
+
+class Theme(lang.Final):
+    """Resolve minitui style values through a target-neutral `StyleTheme`."""
+
+    def __init__(self, styles: ta.Mapping[ta.Any, ThemeStyle] | None = None) -> None:
         super().__init__()
 
-        self._styles: dict[str, Style] = dict(styles or {})
+        self._theme = st.StyleTheme({
+            name: _as_style_patch(style)
+            for name, style in (styles or {}).items()
+        })
 
-    def resolve(self, style: StyleLike) -> Style:
+    def resolve(self, style: StyleLike, base: st.ResolvedStyle | None = None) -> st.ResolvedStyle:
         if style is None:
-            return EMPTY_STYLE
-        if isinstance(style, Style):
+            return EMPTY_STYLE if base is None else base
+        if isinstance(style, st.ResolvedStyle):
             return style
-        return self._styles.get(style, EMPTY_STYLE)
+        return self._theme.resolve_refs((st.as_style_ref(style),), base)
 
-    def extend(self, styles: ta.Mapping[str, Style]) -> Theme:
+    def resolve_refs(
+            self,
+            styles: ta.Iterable[st.StyleRef],
+            base: st.ResolvedStyle | None = None,
+    ) -> st.ResolvedStyle:
+        return self._theme.resolve_refs(styles, base)
+
+    def extend(self, styles: ta.Mapping[ta.Any, ThemeStyle]) -> Theme:
         """A new Theme with `styles` layered over this one's entries (whole-entry replacement per tag)."""
 
-        return Theme({**self._styles, **styles})
+        return Theme(self._theme.extend({
+            name: _as_style_patch(style)
+            for name, style in styles.items()
+        }).as_dict())
 
 
 EMPTY_THEME = Theme()

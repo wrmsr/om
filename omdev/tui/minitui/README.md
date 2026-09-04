@@ -6,7 +6,8 @@ bottom few rows - the streaming tail, a vim-powered input, a status bar - are re
 on the main screen. No alternate screen required (one exists for genuinely-fullscreen apps), no CSS, no reactive layer,
 no DOM, no string-eval dispatch: dataclasses, direct calls, and typed events throughout.
 
-Built primarily for llm coding-agent chat TUIs, deliberately generalized for any interactive-repl-ish thing.
+Built primarily for llm coding-agent chat TUIs, deliberately generalized for interactive and driver-free terminal
+rendering.
 
 ## Try it
 
@@ -25,9 +26,11 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
 
     apps -> runtime -> controls -> { surfaces, events, docs+vim } -> screens -> text
 
-- **text/** - structured `Style`/`Color` (+ depth downgrade), styled segments, word wrap, width measurement, SGR
-  emit/parse, streaming markdown with swappable backends (zero-dep internal / omcore pdcmark / markdown-it) over a
-  shared block model, the `Highlighter` protocol with python (stdlib tokenize) and diff highlighters.
+- **text/** - adapts the target-neutral `omcore.text.styled` RGB/style/theme model into terminal segments; owns
+  terminal-only named/indexed colors and depth downgrade, word wrap, width measurement, SGR emit/parse, streaming
+  markdown with swappable backends (zero-dep internal / omcore pdcmark / markdown-it) over a shared block model, and
+  the `Highlighter` protocol with python (stdlib tokenize) and diff highlighters. `StyledText` can render through
+  segments, cells, and ANSI synchronously without a driver.
 - **screens/** - `Cell`/`Line`/`Frame` and retained-frame diffing: the correctness ground truth. Spurious redraws cost a
   re-render and an empty diff, never visible output.
 - **surfaces/** - `InlineSurface` (the commit model: relative cursor tracking, `\r\n`-forced scrolling, commit-above

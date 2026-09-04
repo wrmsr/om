@@ -9,6 +9,7 @@ import json
 import typing as ta
 
 from omcore import inject as inj
+from omcore.text import styled as st
 from omdev.tui import minitui as mt
 
 from .... import agent as agn
@@ -24,18 +25,21 @@ from .toolcards import tool_card_key
 
 
 # The shared Text family's deliberately-dumb color channel, mapped onto the theme's soft palette.
-_TEXT_COLOR_STYLES: ta.Mapping[str, mt.Style] = {
-    'red': mt.Style(fg=mt.TEXT_ERROR),
-    'green': mt.Style(fg=mt.SUCCESS),
-    'yellow': mt.Style(fg=mt.WARNING),
-    'blue': mt.Style(fg=mt.TEXT_PRIMARY),
+_TEXT_COLOR_STYLES: ta.Mapping[str, st.StylePatch] = {
+    'red': st.StylePatch(fg=mt.TEXT_ERROR),
+    'green': st.StylePatch(fg=mt.SUCCESS),
+    'yellow': st.StylePatch(fg=mt.WARNING),
+    'blue': st.StylePatch(fg=mt.TEXT_PRIMARY),
 }
 
 
-def _text_style(y: ui.TextStyle) -> mt.Style:
-    base = _TEXT_COLOR_STYLES.get(y.color or '', mt.EMPTY_STYLE)
+def _text_style(y: ui.TextStyle) -> st.StylePatch:
+    base = _TEXT_COLOR_STYLES.get(y.color or '', st.StylePatch())
     if y.bold or y.italic:
-        base = base.overlay(mt.Style(bold=bool(y.bold), italic=bool(y.italic)))
+        base = base.overlay(st.StylePatch(
+            bold=True if y.bold else None,
+            italic=True if y.italic else None,
+        ))
     return base
 
 
@@ -69,7 +73,7 @@ def _inline_parts(t: ui.Text, style: mt.Style) -> ta.Iterator[tuple[str, mt.Styl
             yield from _inline_parts(c, style)
 
     elif isinstance(t, ui.StyleText):
-        yield from _inline_parts(t.c, style.overlay(_text_style(t.y)))
+        yield from _inline_parts(t.c, style.apply(_text_style(t.y)))
 
     elif isinstance(t, ui.JsonText):
         indent = None if t.y.mode == 'compact' else 2

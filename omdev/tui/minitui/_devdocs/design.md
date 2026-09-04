@@ -3,8 +3,8 @@
 ## Package layout
 
     omdev/tui/minitui/
-      text/        styled text: Color/Style + semantic tags + themes, styled segments/lines,
-                   width measurement, SGR emit/parse, color downgrade
+      text/        adapter from omcore.text.styled into terminal segments/lines; terminal-only
+                   named/indexed colors, width measurement, SGR emit/parse, color downgrade
       screens/     Cell/Line/Frame, retained-frame line diff, update planning        [pyrepl-derived, PSFL]
       surfaces/    Surface abstract; InlineSurface (live region + commit-above);
                    AltSurface; terminfo write layer                                  [writer PSFL-derived]
@@ -22,7 +22,8 @@
       tests/       vt100-emulator harness, scripted surfaces, terminfo cross-validation
 
 Dependency direction (strictly inward): apps -> runtime -> controls -> {surfaces, events, docs+vim} -> screens ->
-text. `docs/` and `vim/` import nothing from surfaces/controls - rendering-agnosticism enforced by import direction.
+text -> `omcore.text.styled`. `docs/` and `vim/` import nothing from surfaces/controls - rendering-agnosticism enforced
+by import direction.
 
 ## The commit model (the core idea)
 
@@ -45,9 +46,14 @@ anywhere).
 
 ## Rendering data model
 
-- `text.Style`: frozen dataclass - fg/bg `Color | None` + attr flags. `Color` = named-16 | indexed-256 | rgb.
-  Semantic styling via tags (`StyleTag`) resolved through a `Theme` (tag -> Style) at render time; controls emit tags,
-  not colors, wherever reasonable.
+- `omcore.text.styled`: owns target-neutral `RgbColor`, tri-state `StylePatch`, concrete `ResolvedStyle`, semantic
+  `StyleName`/`StyleTheme`, and immutable overlapping-span `StyledText`.
+- `text.styles`: a compatibility facade (`Style` is `ResolvedStyle`) and minitui `Theme` adapter. Theme definitions are
+  patches, so layered spans can explicitly disable attributes or clear colors; legacy concrete `Style` entries remain
+  accepted. Controls emit semantic tags rather than colors wherever reasonable.
+- `text.colors`: owns only terminal-specific named-16/indexed-256 colors and color-depth downgrade; RGB is the shared
+  `omcore` type. `styled_text_to_segment_lines` resolves and splits a `StyledText` synchronously. From there
+  segments -> cells -> SGR is entirely driver-free; drivers add lifecycle, input, scheduling, and terminal commits.
 - `screens.Cell`: grapheme cluster + display width + resolved Style. `screens.Line`: tuple of cells (+ cached
   rendered string). `screens.Frame`: tuple of lines + cursor xy + cursor visibility.
 - Diff: per-line prefix/suffix trim with combining-char extension (pyrepl-derived), producing typed updates consumed

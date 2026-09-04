@@ -14,6 +14,12 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.text import styled as st
+
+
+Color = st.Color
+RgbColor = st.RgbColor
+parse_rgb = st.parse_rgb
 
 
 ##
@@ -26,16 +32,9 @@ class ColorDepth(enum.Enum):
     TRUE = enum.auto()
 
 
-##
-
-
-class Color(lang.Abstract):
-    """A terminal color. A closed family: named 16-color, indexed 256-color, or true-color rgb."""
-
-
 @ta.final
 @dc.dataclass(frozen=True)
-class NamedColor(Color, lang.Final):
+class NamedColor(st.Color, lang.Final):
     """One of the 16 classic ansi colors, by index (0-7 normal, 8-15 bright)."""
 
     index: int
@@ -46,41 +45,13 @@ class NamedColor(Color, lang.Final):
 
 @ta.final
 @dc.dataclass(frozen=True)
-class IndexedColor(Color, lang.Final):
+class IndexedColor(st.Color, lang.Final):
     """An xterm 256-palette color, by index."""
 
     index: int
 
     def __post_init__(self) -> None:
         check.arg(0 <= self.index <= 255)
-
-
-@ta.final
-@dc.dataclass(frozen=True)
-class RgbColor(Color, lang.Final):
-    r: int
-    g: int
-    b: int
-
-    def __post_init__(self) -> None:
-        check.arg(0 <= self.r <= 255 and 0 <= self.g <= 255 and 0 <= self.b <= 255)
-
-
-##
-
-
-def parse_rgb(s: str) -> RgbColor:
-    """
-    Parse a `#RRGGBB` (or shorthand `#RGB`) hex string. Alpha forms are deliberately rejected - theme sources are
-    expected to pre-blend alpha against their intended background.
-    """
-
-    check.arg(s.startswith('#'), s)
-    hx = s[1:]
-    if len(hx) == 3:
-        hx = ''.join(c * 2 for c in hx)
-    check.arg(len(hx) == 6, s)
-    return RgbColor(int(hx[0:2], 16), int(hx[2:4], 16), int(hx[4:6], 16))
 
 
 ##
@@ -186,7 +157,7 @@ def _cube_component(c: int) -> int:
 
 
 @functools.cache
-def rgb_to_indexed(color: RgbColor) -> IndexedColor:
+def rgb_to_indexed(color: st.RgbColor) -> IndexedColor:
     r, g, b = color.r, color.g, color.b
     _, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)  # noqa: E741
 
@@ -223,7 +194,7 @@ def _nearest_named(r: int, g: int, b: int) -> NamedColor:
 
 
 @functools.cache
-def _rgb_to_named(color: RgbColor) -> NamedColor:
+def _rgb_to_named(color: st.RgbColor) -> NamedColor:
     return _nearest_named(color.r, color.g, color.b)
 
 
@@ -234,7 +205,7 @@ def _indexed_to_named(color: IndexedColor) -> NamedColor:
     return _nearest_named(*indexed_color_rgb(color.index))
 
 
-def downgrade_color(color: Color, depth: ColorDepth) -> Color | None:
+def downgrade_color(color: st.Color, depth: ColorDepth) -> st.Color | None:
     """Return `color` representable at `depth`, or None if colors are unavailable at that depth."""
 
     if depth is ColorDepth.MONO:
@@ -244,11 +215,11 @@ def downgrade_color(color: Color, depth: ColorDepth) -> Color | None:
         return color
 
     if depth is ColorDepth.ANSI_256:
-        if isinstance(color, RgbColor):
+        if isinstance(color, st.RgbColor):
             return rgb_to_indexed(color)
         return color
 
-    if isinstance(color, RgbColor):
+    if isinstance(color, st.RgbColor):
         return _rgb_to_named(color)
     if isinstance(color, IndexedColor):
         return _indexed_to_named(color)

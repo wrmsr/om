@@ -364,6 +364,7 @@ with _lang.auto_proxy_init(
 
         segments_text,
         split_segment_lines,
+        styled_text_to_segment_lines,
     )
 
     from .text.widths import (  # noqa

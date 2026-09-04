@@ -1,5 +1,7 @@
 import pytest
 
+from omcore.text import styled as st
+
 from ..colors import ColorDepth
 from ..colors import IndexedColor
 from ..colors import NamedColor
@@ -10,6 +12,7 @@ from ..colors import parse_rgb
 
 
 def test_parse_rgb():
+    assert RgbColor is st.RgbColor
     assert parse_rgb('#0178D4') == RgbColor(0x01, 0x78, 0xD4)
     assert parse_rgb('#000000') == RgbColor(0, 0, 0)
     assert parse_rgb('#ffffff') == RgbColor(255, 255, 255)

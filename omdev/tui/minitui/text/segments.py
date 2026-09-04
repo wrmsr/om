@@ -11,8 +11,12 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.text import styled as st
 
+from .styles import EMPTY_THEME
+from .styles import Style
 from .styles import StyleLike
+from .styles import Theme
 
 
 type Segments = ta.Sequence[Segment]
@@ -51,3 +55,23 @@ def split_segment_lines(
             if chunk:
                 lines[-1].append(Segment(chunk, style))
     return lines
+
+
+def styled_text_to_segment_lines(
+        text: st.StyledText,
+        *,
+        theme: Theme = EMPTY_THEME,
+        base: Style | None = None,
+) -> list[list[Segment]]:
+    """Resolve target-neutral styled text into driver-free minitui segment rows."""
+
+    parts: list[tuple[str, StyleLike]] = []
+    for run in text.runs():
+        style = theme.resolve_refs(run.styles, base)
+        segment_style = None if style.is_plain else style
+        if parts and parts[-1][1] == segment_style:
+            previous_text, _ = parts[-1]
+            parts[-1] = (previous_text + run.text, segment_style)
+        else:
+            parts.append((run.text, segment_style))
+    return split_segment_lines(parts)
