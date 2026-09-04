@@ -18,6 +18,7 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore.term.repr import ascii_control_repr
+from omcore.text.highlights import Highlighter
 from omcore.text.widths import char_width
 
 from ..docs.documents import Document
@@ -28,8 +29,8 @@ from ..events.keys import Key
 from ..events.types import Event
 from ..events.types import KeyEvent
 from ..events.types import PasteEvent
-from ..text.highlights.base import Highlighter
 from ..text.segments import Segment
+from ..text.segments import styled_text_to_segments
 from ..text.styles import StyleLike
 from ..vim.engine import VimEngine
 from ..vim.modes import Mode
@@ -239,7 +240,7 @@ class TextArea(Control):
             return ()
         if self._hl_version != self.doc.version:
             self._hl_tags = []
-            for row in self._highlighter.highlight(self.doc.lines()):
+            for row in map(styled_text_to_segments, self._highlighter.highlight(self.doc.lines())):
                 intervals: list[_TagInterval] = []
                 col = 0
                 for seg in row:

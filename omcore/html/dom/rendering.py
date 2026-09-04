@@ -2,9 +2,9 @@ import io
 import textwrap
 import typing as ta
 
-from .. import check
-from .. import dispatch
-from .. import lang
+from ... import check
+from ... import dispatch
+from ... import lang
 from .content import Dom
 from .content import iter_content
 

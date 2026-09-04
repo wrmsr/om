@@ -1,11 +1,7 @@
 # @om-precheck-allow-any-unicode
-import importlib.util
-
-import pytest
-
+from omcore.text.highlights import highlight_code
 from omcore.text.widths import str_width
 
-from ...highlights.base import highlight_code
 from ...segments import segments_text
 from ..base import MarkdownStream
 from ..base import MdCode
@@ -137,62 +133,6 @@ def test_render_code_highlighted():
 def test_render_blocks_spacing():
     rows = render_markdown_blocks(parse_markdown('a\n\nb'), 10)
     assert [segments_text(r) for r in rows] == ['a', '', 'b']
-
-
-##
-
-
-def test_python_highlighter_tolerates_garbage():
-    rows = highlight_code('python', ['def broken(:', '  "unclosed'])
-    assert rows is not None
-    assert [segments_text(r) for r in rows] == ['def broken(:', '  "unclosed']
-
-
-def test_python_highlighter_multiline_string():
-    rows = highlight_code('python', ['x = """', 'inside', '"""'])
-    assert rows is not None
-    assert all(
-        seg.style == 'code.string'
-        for seg in rows[1]
-    )
-
-
-def test_diff_highlighter():
-    rows = highlight_code('diff', ['--- a', '+++ b', '@@ -1 +1 @@', '-old', '+new', ' ctx'])
-    assert rows is not None
-    styles = [row[0].style if row else None for row in rows]
-    assert styles == [
-        'code.diff.meta',
-        'code.diff.meta',
-        'code.diff.hunk',
-        'code.diff.del',
-        'code.diff.add',
-        None,
-    ]
-
-
-def test_unknown_language_returns_none():
-    # (Not 'brainfuck' - pygments actually has a lexer for that.)
-    assert highlight_code('zz-no-such-lang-zz', ['+++']) is None
-
-
-def test_pygments_fallback_highlighter():
-    if importlib.util.find_spec('pygments') is None:
-        pytest.skip('pygments not installed')
-
-    rows = highlight_code('rust', ['fn main() { let x = "s"; } // c'])
-    assert rows is not None
-    styles = {seg.style for row in rows for seg in row}
-    assert 'code.keyword' in styles
-    assert 'code.string' in styles
-
-    # Multi-line + row-count invariant.
-    rows = highlight_code('json', ['{', '  "k": 1', '}'])
-    assert rows is not None
-    assert len(rows) == 3
-
-    # Still None for total nonsense.
-    assert highlight_code('no-such-language-zzz', ['x']) is None
 
 
 def test_heading_tags_reach_h6():

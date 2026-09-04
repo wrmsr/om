@@ -9,8 +9,8 @@ slower) with a non-incremental one.
 import abc
 
 from omcore import lang
+from omcore.text.highlights import Highlighter
 
-from ..text.highlights.base import Highlighter
 from .edits import TextEdit
 
 

@@ -3,17 +3,16 @@ The optional pygments highlighter - the long-tail language catalog behind the sa
 
 Strictly quarantined per the dependency policy: pygments is proxy-imported, availability is probed without importing,
 and everything degrades to None (caller falls back to plain rendering) when it's absent or doesn't know the language.
-The internal zero-dep highlighters (python, diff) take precedence in `text.highlights`; this covers everything else.
+The internal zero-dep highlighters take precedence in `base`; this covers everything else.
 """
 import functools
 import importlib.util
 import typing as ta
 
-from omcore import lang
-
-from ..segments import Segment
+from ... import lang
+from .. import styled as st
+from .base import HighlightedLines
 from .base import Highlighter
-from .base import SegmentRows
 
 
 with lang.auto_proxy_import(globals()):
@@ -59,9 +58,9 @@ class PygmentsHighlighter(Highlighter):
 
         self._lexer = lexer
 
-    def highlight(self, lines: ta.Sequence[str]) -> SegmentRows:
+    def highlight(self, lines: ta.Sequence[str]) -> HighlightedLines:
         source = '\n'.join(lines)
-        rows: list[list[Segment]] = [[]]
+        rows: list[list[st.StyledTextPart]] = [[]]
 
         for token_type, value in self._lexer.get_tokens(source):
             tag = _tag_for(token_type)
@@ -71,10 +70,12 @@ class PygmentsHighlighter(Highlighter):
                     rows.append([])
                 first = False
                 if part:
-                    rows[-1].append(Segment(part, tag))
+                    rows[-1].append((part, tag))
 
         # get_tokens appends a trailing newline's worth of row; trim to the input's line count.
-        return rows[: len(lines)] if len(rows) > len(lines) else rows
+        if len(rows) > len(lines):
+            rows = rows[: len(lines)]
+        return [st.StyledText.assemble(*row) for row in rows]
 
 
 def get_pygments_highlighter(info: str) -> Highlighter | None:

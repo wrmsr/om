@@ -1,12 +1,12 @@
 import typing as ta
 
+from omcore.term.styled import ColorDepth
 from omcore.term.vt100.terminal import Vt100Terminal
 
 from ..screens.cells import Frame
 from ..screens.cells import Line
 from ..screens.cells import line_from_segments
 from ..surfaces.inlines import InlineSurface
-from ..text.colors import ColorDepth
 from ..text.segments import Segment
 from ..text.styles import EMPTY_THEME
 from ..text.styles import StyleLike

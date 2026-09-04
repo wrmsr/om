@@ -125,6 +125,8 @@ class Project(ProjectBase):
             'mdit-py-plugins ~= 0.6',
 
             'jinja2 ~= 3.1',
+
+            'pygments ~= 2.21',
         ],
     }
 

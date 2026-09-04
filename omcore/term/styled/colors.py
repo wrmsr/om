@@ -1,9 +1,11 @@
 """
 Terminal color model and depth downgrading.
 
-Colors are structured values, never raw SGR strings. Downgrade paths (rgb -> 256 -> 16) follow the well-known analytic
-approaches: the 6x6x6 cube's non-linear ramp with a greyscale branch for low-saturation colors, and nearest-match over a
-concrete palette table for 16-color terminals (excluding greys for saturated colors so they don't wash out).
+Colors are structured values, never raw SGR strings. The named-16 and indexed-256 palettes are terminal concepts and
+so live here rather than in the target-neutral core, as `Color` subclasses. Downgrade paths (rgb -> 256 -> 16) follow
+the well-known analytic approaches: the 6x6x6 cube's non-linear ramp with a greyscale branch for low-saturation colors,
+and nearest-match over a concrete palette table for 16-color terminals (excluding greys for saturated colors so they
+don't wash out).
 """
 import colorsys
 import enum
@@ -11,15 +13,10 @@ import functools
 import os
 import typing as ta
 
-from omcore import check
-from omcore import dataclasses as dc
-from omcore import lang
-from omcore.text import styled as st
-
-
-Color = st.Color
-RgbColor = st.RgbColor
-parse_rgb = st.parse_rgb
+from ... import check
+from ... import dataclasses as dc
+from ... import lang
+from ...text import styled as st
 
 
 ##

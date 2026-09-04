@@ -3,9 +3,9 @@ import pathlib
 import shutil
 import sys
 
+from omcore.term import styled as tst
 from omcore.text import diffs
 
-from .. import minitui as mt
 from .terminal import render_diff_ansi
 
 
@@ -42,7 +42,7 @@ def _main() -> None:
             diff = sys.stdin.read()
 
         width = args.width or shutil.get_terminal_size((80, 24)).columns
-        color_depth = mt.ColorDepth.MONO if args.no_color else mt.detect_color_depth()
+        color_depth = tst.ColorDepth.MONO if args.no_color else tst.detect_color_depth()
         sys.stdout.write(render_diff_ansi(
             diffs.parse_patch(diff),
             project_root,

@@ -24,11 +24,13 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.text.highlights import HighlightedLines
 from omcore.text.widths import str_width
 
 from ..segments import Segment
 from ..segments import SegmentRows
 from ..segments import segments_text
+from ..segments import styled_text_to_segments
 from ..styles import StyleLike
 from ..wrap import wrap_segments
 
@@ -512,7 +514,7 @@ class MarkdownCodeHighlighter(ta.Protocol):
             self,
             info: str,
             lines: ta.Sequence[str],
-    ) -> SegmentRows | None:
+    ) -> HighlightedLines | None:
         ...
 
 
@@ -522,8 +524,8 @@ def _expand_tabs(line: str) -> str:
 
 def _render_code(block: MdCode, width: int, highlighter: MarkdownCodeHighlighter | None) -> list[list[Segment]]:
     body_rows: SegmentRows | None = None
-    if highlighter is not None and block.info:
-        body_rows = highlighter(block.info, block.lines)
+    if highlighter is not None and block.info and (highlighted := highlighter(block.info, block.lines)) is not None:
+        body_rows = [styled_text_to_segments(line) for line in highlighted]
     if body_rows is None:
         body_rows = [[Segment(_expand_tabs(line), 'md.code')] if line else [] for line in block.lines]
 

@@ -9,17 +9,13 @@ with _lang.auto_proxy_init(globals()):
     from .colors import (  # noqa
         Color,
         RgbColor,
+        blend_rgb,
         parse_rgb,
     )
 
     from .documents import (  # noqa
         StyledContent,
         StyledDocument,
-    )
-
-    from .html import (  # noqa
-        render_html,
-        style_to_css,
     )
 
     from .plain import (  # noqa
@@ -47,6 +43,7 @@ with _lang.auto_proxy_init(globals()):
         ResolvedStyledTextRun,
         StyledText,
         StyledTextLike,
+        StyledTextPart,
         StyledTextRun,
         StyleSpan,
     )

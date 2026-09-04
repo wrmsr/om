@@ -51,9 +51,9 @@ class Renderer(lang.Abstract):
 
 def term_color(o: ta.Any, state: JsonRenderer.State) -> tuple[str, str] | None:
     if state is JsonRenderer.State.KEY:
-        return tc.SGR(tc.SGRs.FG.BRIGHT_BLUE), tc.SGR(tc.SGRs.RESET)
+        return tc.SGR(tc.SGRs.Fg.BRIGHT_BLUE), tc.SGR(tc.SGRs.RESET)
     elif isinstance(o, str):
-        return tc.SGR(tc.SGRs.FG.GREEN), tc.SGR(tc.SGRs.RESET)
+        return tc.SGR(tc.SGRs.Fg.GREEN), tc.SGR(tc.SGRs.RESET)
     else:
         return None
 

@@ -1,9 +1,9 @@
 import keyword
 import typing as ta
 
-from .. import check
-from .. import dataclasses as dc
-from .. import lang
+from ... import check
+from ... import dataclasses as dc
+from ... import lang
 
 
 if ta.TYPE_CHECKING:

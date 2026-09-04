@@ -14,6 +14,8 @@ while active so a width-exact line can never desync the relative tracking.
 import typing as ta
 
 from omcore import check
+from omcore.term.styled import ColorDepth
+from omcore.term.styled import detect_color_depth
 
 from ..screens.cells import EMPTY_FRAME
 from ..screens.cells import CursorXY
@@ -23,8 +25,6 @@ from ..screens.cells import render_cells
 from ..screens.diffs import LineUpdate
 from ..screens.diffs import diff_frames
 from ..screens.diffs import diff_lines
-from ..text.colors import ColorDepth
-from ..text.colors import detect_color_depth
 from ..tty.terminals import Tty
 from .base import Surface
 from .writers import TermWriter

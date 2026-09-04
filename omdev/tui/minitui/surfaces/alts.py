@@ -7,6 +7,8 @@ the tradeoff fullscreen apps opt into. The inline surface remains the primary ci
 genuinely-fullscreen cases (the vim clone, a future browse mode).
 """
 from omcore import check
+from omcore.term.styled import ColorDepth
+from omcore.term.styled import detect_color_depth
 
 from ..screens.cells import EMPTY_FRAME
 from ..screens.cells import Frame
@@ -14,8 +16,6 @@ from ..screens.cells import Line
 from ..screens.cells import render_cells
 from ..screens.diffs import LineUpdate
 from ..screens.diffs import diff_frames
-from ..text.colors import ColorDepth
-from ..text.colors import detect_color_depth
 from ..tty.terminals import Tty
 from .base import Surface
 from .writers import TermWriter

@@ -1,8 +1,8 @@
+from omcore.term.styled import ColorDepth
 from omcore.text import styled as st
 
 from ...screens.cells import line_from_segments
 from ...screens.cells import render_cells
-from ..colors import ColorDepth
 from ..segments import Segment
 from ..segments import styled_text_to_segment_lines
 from ..styles import EMPTY_THEME

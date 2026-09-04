@@ -1,6 +1,7 @@
 import io
 
 from omcore import lang
+from omcore.term import styled as tst
 from omdev.tui import minitui as mt
 
 from ....core import ui
@@ -34,8 +35,8 @@ def test_terminal_text_renderer_inline_plain_and_ansi():
     text = ui.Text.of('danger').style(color='red', bold=True)
 
     assert TerminalTextRenderer(color_depth=None).render(text) == 'danger'
-    assert TerminalTextRenderer(color_depth=mt.ColorDepth.MONO).render(text) == '\x1b[0;1mdanger\x1b[0m'
-    assert TerminalTextRenderer(color_depth=mt.ColorDepth.TRUE).render(text) == (
+    assert TerminalTextRenderer(color_depth=tst.ColorDepth.MONO).render(text) == '\x1b[0;1mdanger\x1b[0m'
+    assert TerminalTextRenderer(color_depth=tst.ColorDepth.TRUE).render(text) == (
         '\x1b[0;1;38;2;209;126;146mdanger\x1b[0m'
     )
 

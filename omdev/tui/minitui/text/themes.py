@@ -4,7 +4,8 @@ The built-in theme: a soft dark scheme derived from Textual's default "textual-d
 Color values were copied from a resolved dump of that theme (Textual's `$variable` references and alpha blending
 pre-computed against its `#121212` page background). The dump and its tooling have since been removed along with the
 rich dependency - see git history for details. Colors are authored as truecolor and downgrade automatically on lesser
-terminals via `colors.downgrade_color`; surfaces pick the depth from the environment (`colors.detect_color_depth`).
+terminals via `omcore.term.styled.downgrade_color`; surfaces pick the depth from the environment
+(`omcore.term.styled.detect_color_depth`).
 
 Deliberate divergences from the dump, for terminal reality:
 

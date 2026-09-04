@@ -10,6 +10,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.html import styled as hst
 from omcore.text import diffs
 from omcore.text import pdcmark
 from omcore.text import styled as st
@@ -100,12 +101,12 @@ class HtmlTextRenderer(TextRenderer[str]):
         self._styled_renderer = styled_renderer if styled_renderer is not None else StyledTextRenderer(options)
 
     def _render_inline(self, text: st.StyledText) -> str:
-        return f'<span style="white-space:pre-wrap">{st.render_html(text, theme=self._theme)}</span>'
+        return f'<span style="white-space:pre-wrap">{hst.render_html(text, theme=self._theme)}</span>'
 
     def _render_markdown(self, block: MarkdownText, base: st.ResolvedStyle) -> str:
         # Markdown carries its own newlines between tags, so a pre-wrap ancestor must not get to interpret them.
         css = 'white-space:normal'
-        if base_css := st.style_to_css(base):
+        if base_css := hst.style_to_css(base):
             css = f'{css};{base_css}'
 
         return f'<div style="{css}">{render_markdown_html(block.s)}</div>'
@@ -123,8 +124,8 @@ class HtmlTextRenderer(TextRenderer[str]):
             bg=tdiff_themes.DIFF_BACKGROUND,
         ))
 
-        rendered = st.render_html(document, theme=tdiff.DIFF_STYLE_THEME, base=ambient)
-        return f'<pre style="{st.style_to_css(ambient)}">{rendered}</pre>'
+        rendered = hst.render_html(document, theme=tdiff.DIFF_STYLE_THEME, base=ambient)
+        return f'<pre style="{hst.style_to_css(ambient)}">{rendered}</pre>'
 
     def _render_block(self, part: StyledTextBlock) -> str:
         block = part.block

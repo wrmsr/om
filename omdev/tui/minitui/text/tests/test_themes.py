@@ -1,6 +1,7 @@
 """DEFAULT_THEME must cover the full library tag vocabulary with soft (non-ANSI-named) colors."""
+from omcore.term.styled import NamedColor
+
 from ...controls.cards import CardState
-from ..colors import NamedColor
 from ..styles import EMPTY_STYLE
 from ..styles import Style
 from ..themes import DEFAULT_THEME

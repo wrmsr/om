@@ -14,6 +14,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.text.highlights import highlight_code
 
 from ...controls.cards import Card
 from ...controls.cards import CardState
@@ -37,7 +38,6 @@ from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
 from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface
-from ...text.highlights.base import highlight_code
 from ...text.markdown.backends import parse_markdown_with
 from ...text.markdown.base import render_markdown_blocks
 from ...text.segments import Segment

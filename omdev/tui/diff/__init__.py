@@ -12,7 +12,6 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .terminal import (  # noqa
-        DIFF_TERMINAL_THEME,
         render_diff_ansi,
     )
 

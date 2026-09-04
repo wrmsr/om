@@ -1,29 +1,19 @@
-"""HTML fragment rendering."""
-import html
-
-from .colors import Color
-from .colors import RgbColor
-from .documents import StyledContent
-from .documents import StyledDocument
-from .styles import EMPTY_STYLE_THEME
-from .styles import PLAIN_STYLE
-from .styles import ResolvedStyle
-from .styles import StyleTheme
-from .text import StyledText
+"""Inline css for resolved styles."""
+from ...text import styled as st
 
 
 ##
 
 
-def _color_css(color: Color | None) -> str | None:
+def _color_css(color: st.Color | None) -> str | None:
     if color is None:
         return None
-    if isinstance(color, RgbColor):
+    if isinstance(color, st.RgbColor):
         return color.hex
     raise TypeError(color)
 
 
-def _visual_colors(style: ResolvedStyle) -> tuple[str | None, str | None]:
+def _visual_colors(style: st.ResolvedStyle) -> tuple[str | None, str | None]:
     fg = _color_css(style.fg)
     bg = _color_css(style.bg)
     if style.reverse:
@@ -44,7 +34,7 @@ def _append_css_difference(
         declarations.append((name, 'initial' if value is None else value))
 
 
-def _text_decoration(style: ResolvedStyle) -> str:
+def _text_decoration(style: st.ResolvedStyle) -> str:
     lines: list[str] = []
     if style.underline:
         lines.append('underline')
@@ -56,15 +46,15 @@ def _text_decoration(style: ResolvedStyle) -> str:
 
 
 def style_to_css(
-        style: ResolvedStyle,
+        style: st.ResolvedStyle,
         *,
-        base: ResolvedStyle = PLAIN_STYLE,
+        base: st.ResolvedStyle = st.PLAIN_STYLE,
 ) -> str:
-    """Render the effective differences between `style` and the ambient `base` as inline CSS."""
+    """Render the effective differences between `style` and the ambient `base` as inline css."""
 
-    if not isinstance(style, ResolvedStyle):
+    if not isinstance(style, st.ResolvedStyle):
         raise TypeError(style)
-    if not isinstance(base, ResolvedStyle):
+    if not isinstance(base, st.ResolvedStyle):
         raise TypeError(base)
 
     declarations: list[tuple[str, str]] = []
@@ -90,27 +80,3 @@ def style_to_css(
         declarations.append(('visibility', 'hidden' if style.hidden else 'visible'))
 
     return ';'.join(f'{name}:{value}' for name, value in declarations)
-
-
-def render_html(
-        text: StyledContent,
-        *,
-        theme: StyleTheme = EMPTY_STYLE_THEME,
-        base: ResolvedStyle = PLAIN_STYLE,
-) -> str:
-    """
-    Render styled text as an escaped HTML fragment with deterministic inline CSS.
-
-    Literal whitespace is preserved in the fragment. Its containing element should use `white-space: pre-wrap` when
-    the browser must display that whitespace exactly.
-    """
-
-    value = text.text if isinstance(text, StyledDocument) else StyledText.of(text)
-    rendered: list[str] = []
-    for run in value.resolved_runs(theme, base):
-        escaped = html.escape(run.text, quote=False)
-        if css := style_to_css(run.style, base=base):
-            rendered.append(f'<span style="{css}">{escaped}</span>')
-        else:
-            rendered.append(escaped)
-    return ''.join(rendered)

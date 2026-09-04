@@ -226,22 +226,6 @@ with _lang.auto_proxy_init(
     ##
     # text
 
-    from .text.highlights.base import (  # noqa
-        Highlighter,
-        PythonHighlighter,
-        DiffHighlighter,
-        get_highlighter,
-        highlight_code,
-    )
-
-    from .text.highlights.pygments import (  # noqa
-        pygments_available,
-        PygmentsHighlighter,
-        get_pygments_highlighter,
-    )
-
-    #
-
     from .text.markdown.backends import (  # noqa
         MARKDOWN_BACKEND_NAMES,
         get_markdown_stream,
@@ -283,39 +267,6 @@ with _lang.auto_proxy_init(
     )
 
     #
-
-    from .text.colors import (  # noqa
-        ColorDepth,
-        Color,
-        NamedColor,
-        IndexedColor,
-        RgbColor,
-
-        parse_rgb,
-        detect_color_depth,
-
-        BLACK,
-        RED,
-        GREEN,
-        YELLOW,
-        BLUE,
-        MAGENTA,
-        CYAN,
-        WHITE,
-        BRIGHT_BLACK,
-        BRIGHT_RED,
-        BRIGHT_GREEN,
-        BRIGHT_YELLOW,
-        BRIGHT_BLUE,
-        BRIGHT_MAGENTA,
-        BRIGHT_CYAN,
-        BRIGHT_WHITE,
-
-        NAMED_COLOR_RGBS,
-        indexed_color_rgb,
-        rgb_to_indexed,
-        downgrade_color,
-    )
 
     from .text.parts import (  # noqa
         TextParts,
@@ -365,29 +316,18 @@ with _lang.auto_proxy_init(
 
         segments_text,
         split_segment_lines,
+        segments_to_styled_text,
+        styled_text_to_segments,
         styled_text_to_segment_lines,
     )
 
     from .text.rendering import (  # noqa
         render_ansi_segments,
         render_ansi_segment_rows,
-        render_ansi_styled_text,
-        render_ansi_styled_document,
     )
 
     from .text.wrap import (  # noqa
         wrap_segments,
-    )
-
-    from .text.sgr import (  # noqa
-        RESET_SGR,
-        style_sgr_params,
-        style_sgr,
-        sgr_transition,
-
-        ANSI_ESCAPE_PAT,
-        apply_sgr_params,
-        parse_ansi_segments,
     )
 
     ##

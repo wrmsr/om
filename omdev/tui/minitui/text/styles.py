@@ -56,6 +56,12 @@ class Theme(lang.Final):
             for name, style in (styles or {}).items()
         })
 
+    @property
+    def style_theme(self) -> st.StyleTheme:
+        """The underlying target-neutral theme, for the headless core renderers."""
+
+        return self._theme
+
     def resolve(self, style: StyleLike | None, base: st.ResolvedStyle | None = None) -> st.ResolvedStyle:
         if style is None:
             return EMPTY_STYLE if base is None else base

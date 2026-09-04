@@ -3,7 +3,9 @@ import shutil
 import sys
 
 from omcore import lang
+from omcore.term import styled as tst
 from omcore.text import diffs
+from omcore.text import highlights as hl
 from omcore.text import styled as st
 from omdev.tui import diff as df
 from omdev.tui import minitui as mt
@@ -73,7 +75,7 @@ def render_text_part_rows(
         rows = mt.render_markdown_blocks(
             mt.parse_markdown_with(mt.get_markdown_stream(), block.s),
             width,
-            highlighter=mt.highlight_code,
+            highlighter=hl.highlight_code,
         )
         return _resolve_segment_rows(rows, theme=UI_TEXT_THEME, base=base)
 
@@ -82,7 +84,7 @@ def render_text_part_rows(
             rows = mt.render_markdown_block(
                 mt.MdCode('diff', tuple(line.rstrip('\n') for line in block.diff_lines)),
                 width,
-                highlighter=mt.highlight_code,
+                highlighter=hl.highlight_code,
             )
             return _resolve_segment_rows(rows, theme=UI_TEXT_THEME, base=base)
 
@@ -127,14 +129,14 @@ class TerminalTextRenderer(ui.TextRenderer[str]):
             options: ui.TextRenderingOptions | None = None,
             *,
             width: int = 80,
-            color_depth: mt.ColorDepth | None = mt.ColorDepth.TRUE,
+            color_depth: tst.ColorDepth | None = tst.ColorDepth.TRUE,
             styled_renderer: ui.StyledTextRenderer | None = None,
     ) -> None:
         super().__init__()
 
         if width < 1:
             raise ValueError(width)
-        if color_depth is not None and not isinstance(color_depth, mt.ColorDepth):
+        if color_depth is not None and not isinstance(color_depth, tst.ColorDepth):
             raise TypeError(color_depth)
 
         self._width = width
@@ -164,9 +166,9 @@ class TerminalTextRenderer(ui.TextRenderer[str]):
                 if self._color_depth is None:
                     write(part.plain)
                 else:
-                    write(mt.render_ansi_styled_text(
+                    write(tst.render_ansi(
                         part,
-                        theme=UI_TEXT_THEME,
+                        theme=UI_TEXT_THEME.style_theme,
                         depth=self._color_depth,
                     ))
             else:
@@ -201,7 +203,7 @@ class TerminalTextDisplayer(ui.TextDisplayer):
             terminal = bool(isatty()) if callable(isatty) else False
             renderer = TerminalTextRenderer(
                 width=shutil.get_terminal_size((80, 24)).columns if terminal else 80,
-                color_depth=mt.detect_color_depth() if terminal else None,
+                color_depth=tst.detect_color_depth() if terminal else None,
             )
         self._renderer = renderer
 

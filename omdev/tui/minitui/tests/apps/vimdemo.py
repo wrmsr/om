@@ -11,6 +11,7 @@ import sys
 import typing as ta
 
 from omcore import dataclasses as dc
+from omcore.text.highlights import get_highlighter
 
 from ...controls.base import Control
 from ...controls.stacks import stack_frame
@@ -24,7 +25,6 @@ from ...runtime.base import App
 from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
 from ...surfaces.alts import AltSurface
-from ...text.highlights.base import get_highlighter
 from ...text.segments import Segment
 from ...text.styles import Style
 from ...text.themes import DEFAULT_THEME

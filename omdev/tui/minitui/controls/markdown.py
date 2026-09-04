@@ -12,7 +12,8 @@ every commit after the first leads with the blank row, and so does the live tail
 """
 import typing as ta
 
-from ..text.highlights.base import highlight_code
+from omcore.text.highlights import highlight_code
+
 from ..text.markdown.backends import get_markdown_stream
 from ..text.markdown.base import MarkdownCodeHighlighter
 from ..text.markdown.base import MarkdownStreamBackend

@@ -51,10 +51,11 @@ anywhere).
 - `text.styles`: a compatibility facade (`Style` is `ResolvedStyle`) and minitui `Theme` adapter. Theme definitions are
   patches, so layered spans can explicitly disable attributes or clear colors; legacy concrete `Style` entries remain
   accepted. Controls emit semantic tags rather than colors wherever reasonable.
-- `text.colors`: owns only terminal-specific named-16/indexed-256 colors and color-depth downgrade; RGB is the shared
-  `omcore` type. `styled_text_to_segment_lines` resolves and splits a `StyledText` synchronously; the headless ANSI
-  renderer accepts segments, styled text, or a styled document directly. Segments -> cells -> SGR is entirely
-  driver-free; drivers add lifecycle, input, scheduling, and terminal commits.
+- `omcore.term.styled`: owns the terminal-specific named-16/indexed-256 colors, color-depth downgrade, SGR emit/parse,
+  and headless ANSI rendering of styled text and documents; RGB is the shared `omcore.text.styled` type.
+  `styled_text_to_segment_lines` resolves and splits a `StyledText` synchronously; `render_ansi_segments` renders
+  segment rows. Segments -> cells -> SGR is entirely driver-free; drivers add lifecycle, input, scheduling, and
+  terminal commits.
 - `screens.Cell`: grapheme cluster + display width + resolved Style. `screens.Line`: tuple of cells (+ cached
   rendered string). `screens.Frame`: tuple of lines + cursor xy + cursor visibility.
 - Diff: per-line prefix/suffix trim with combining-char extension (pyrepl-derived), producing typed updates consumed

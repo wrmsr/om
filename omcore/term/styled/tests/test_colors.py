@@ -1,28 +1,11 @@
-import pytest
-
-from omcore.text import styled as st
-
+from ....text import styled as st
+from ..colors import BRIGHT_RED
 from ..colors import ColorDepth
 from ..colors import IndexedColor
 from ..colors import NamedColor
-from ..colors import RgbColor
 from ..colors import detect_color_depth
 from ..colors import downgrade_color
-from ..colors import parse_rgb
-
-
-def test_parse_rgb():
-    assert RgbColor is st.RgbColor
-    assert parse_rgb('#0178D4') == RgbColor(0x01, 0x78, 0xD4)
-    assert parse_rgb('#000000') == RgbColor(0, 0, 0)
-    assert parse_rgb('#ffffff') == RgbColor(255, 255, 255)
-    assert parse_rgb('#abc') == RgbColor(0xAA, 0xBB, 0xCC)
-
-
-def test_parse_rgb_rejects():
-    for bad in ('0178D4', '#0178D', '#0178D4FF', '#12', '', '#'):
-        with pytest.raises(Exception):  # noqa: B017, PT011
-            parse_rgb(bad)
+from ..colors import rgb_to_indexed
 
 
 def test_detect_color_depth():
@@ -37,8 +20,18 @@ def test_detect_color_depth():
 
 
 def test_parsed_rgb_downgrades():
-    c = parse_rgb('#71AC84')
-    assert isinstance(downgrade_color(c, ColorDepth.TRUE), RgbColor)
+    c = st.parse_rgb('#71AC84')
+    assert isinstance(downgrade_color(c, ColorDepth.TRUE), st.RgbColor)
     assert isinstance(downgrade_color(c, ColorDepth.ANSI_256), IndexedColor)
     assert isinstance(downgrade_color(c, ColorDepth.ANSI_16), NamedColor)
     assert downgrade_color(c, ColorDepth.MONO) is None
+
+
+def test_downgrade_specifics():
+    red = st.RgbColor(255, 0, 0)
+    assert rgb_to_indexed(red) == IndexedColor(196)
+    assert downgrade_color(red, ColorDepth.ANSI_16) == BRIGHT_RED
+    assert downgrade_color(IndexedColor(196), ColorDepth.ANSI_16) == BRIGHT_RED
+    assert downgrade_color(NamedColor(3), ColorDepth.ANSI_256) == NamedColor(3)
+    assert rgb_to_indexed(st.RgbColor(0, 0, 0)) == IndexedColor(16)
+    assert rgb_to_indexed(st.RgbColor(255, 255, 255)) == IndexedColor(231)

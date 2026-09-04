@@ -23,11 +23,9 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore.text import diffs
+from omcore.text import highlights as hl
 from omcore.text import styled as st
-from omcore.text.widths import char_width
-from omcore.text.widths import str_width
-
-from .. import minitui as mt
+from omcore.text.styled import grid
 
 
 ##
@@ -67,80 +65,10 @@ def simple_pluralise(word: str, number: int) -> str:
     return word if number == 1 else word + 's'
 
 
-def _style(text: st.StyledTextLike, style: st.StyleLike) -> st.StyledText:
-    return st.StyledText.of(text).styled(style)
-
-
-def _styled_parts(*parts: tuple[st.StyledTextLike, st.StyleLike | None]) -> st.StyledText:
-    builder = st.StyledTextBuilder()
-    for text, style in parts:
-        builder.append(text, style)
-    return builder.build()
-
-
-def _truncate(text: st.StyledText, width: int) -> st.StyledText:
-    if width <= 0:
-        return st.StyledText()
-
-    current = 0
-    end = 0
-    for index, char in enumerate(text.text):
-        cw = char_width(char)
-        if current + cw > width:
-            break
-        current += cw
-        end = index + 1
-    return text if end == len(text) else text.slice(0, end)
-
-
-def _fit(text: st.StyledTextLike, width: int, style: st.StyleLike | None = None) -> st.StyledText:
-    value = _truncate(st.StyledText.of(text), width)
-    pad = max(width - str_width(value.text), 0)
-    builder = st.StyledTextBuilder()
-    builder.append(value, style)
-    if pad:
-        builder.append(' ' * pad, style)
-    return builder.build()
-
-
-def _center(text: st.StyledTextLike, width: int) -> st.StyledText:
-    value = _truncate(st.StyledText.of(text), width)
-    remaining = max(width - str_width(value.text), 0)
-    left = remaining // 2
-    return st.StyledText.of(' ' * left, value, ' ' * (remaining - left))
-
-
-def _right(text: st.StyledTextLike, width: int) -> st.StyledText:
-    value = _truncate(st.StyledText.of(text), width)
-    return st.StyledText.of(' ' * max(width - str_width(value.text), 0), value)
-
-
-def _rule(
-        title: st.StyledTextLike | None,
-        *,
-        width: int,
-        character: str,
-        style: st.StyleLike,
-) -> st.StyledText:
-    if title is None:
-        return _style(character * width, style)
-
-    value = _truncate(st.StyledText.of(title), max(width - 2, 0))
-    remaining = max(width - str_width(value.text) - 2, 0)
-    left = remaining // 2
-    return st.StyledText.of(
-        _style(character * left, style),
-        _style(' ', style),
-        value,
-        _style(' ', style),
-        _style(character * (remaining - left), style),
-    )
-
-
 def _underline_bar(width: int, end: float) -> st.StyledText:
     end = min(max(end, 0), width)
     if end == 0:
-        return _style('━' * width, 'diff.bar.removed')
+        return st.StyledText.assemble(('━' * width, 'diff.bar.removed'))
 
     end = round(end * 2) / 2
     half_end = end - int(end) > 0
@@ -171,32 +99,12 @@ def _source_path(patch: diffs.FilePatch) -> str:
 
 def _default_highlighter(path: str, lines: ta.Sequence[str]) -> ta.Sequence[st.StyledText]:
     info = pathlib.PurePath(path).suffix.removeprefix('.')
-    if not info or (highlighter := mt.get_highlighter(info)) is None:
+    if not info or (highlighter := hl.get_highlighter(info)) is None:
         return tuple(st.StyledText(line) for line in lines)
 
-    styled: list[st.StyledText] = []
-    for line, segments in zip(lines, highlighter.highlight(lines), strict=True):
-        builder = st.StyledTextBuilder()
-        for segment in segments:
-            style = segment.style
-            if isinstance(style, st.ResolvedStyle):
-                style = st.StylePatch(
-                    fg=style.fg if style.fg is not None else st.DEFAULT_COLOR,
-                    bg=style.bg if style.bg is not None else st.DEFAULT_COLOR,
-                    bold=style.bold,
-                    dim=style.dim,
-                    italic=style.italic,
-                    underline=style.underline,
-                    blink=style.blink,
-                    reverse=style.reverse,
-                    strike=style.strike,
-                    hidden=style.hidden,
-                )
-            builder.append(segment.text, style)
-        value = builder.build()
-        check.state(value.text == line)
-        styled.append(value)
-    return tuple(styled)
+    highlighted = tuple(highlighter.highlight(lines))
+    check.state(all(value.text == line for value, line in zip(highlighted, lines, strict=True)))
+    return highlighted
 
 
 def _reconstruct_source(target: ta.Sequence[str], patch: diffs.FilePatch, tab_size: int) -> list[str]:
@@ -314,22 +222,6 @@ def _intraline_ranges(source: str, target: str) -> tuple[list[tuple[int, int]], 
     return removed, added
 
 
-def _indent_guides(text: st.StyledText, tab_size: int) -> st.StyledText:
-    leading = len(text.text) - len(text.text.lstrip(' '))
-    if leading < tab_size:
-        return text
-
-    chars = list(text.text)
-    positions = range(0, leading, tab_size)
-    for position in positions:
-        chars[position] = '│'
-
-    guided = st.StyledText(''.join(chars), text.spans)
-    for position in range(0, leading, tab_size):
-        guided = guided.styled('diff.indent', position, position + 1)
-    return guided
-
-
 class DiffRenderer(lang.Final):
     """Lay out a patch set as a target-neutral styled document."""
 
@@ -354,12 +246,12 @@ class DiffRenderer(lang.Final):
         lines.extend(self._render_patch_set_header(patch_set))
         for patch in patch_set.files:
             lines.extend(self._render_file(patch))
-        lines.append(_right(_styled_parts(
+        lines.append(grid.fit(st.StyledText.assemble(
             ('/', 'diff.summary.changed'),
             ('/', 'diff.summary.removed'),
             ('/', 'diff.summary.added'),
             (' diff   ', st.StylePatch(dim=True)),
-        ), self._options.width))
+        ), self._options.width, align='right'))
         return st.StyledDocument(tuple(lines), trailing_newline=True)
 
     def _render_patch_set_header(self, patch_set: diffs.PatchSet) -> list[st.StyledText]:
@@ -374,19 +266,19 @@ class DiffRenderer(lang.Final):
                 (removed, 'removed', 'diff.summary.removed'),
         ):
             if count:
-                lines.append(_center(_styled_parts(
+                lines.append(grid.fit(st.StyledText.assemble(
                     (str(count), 'diff.summary.count'),
                     (f" {simple_pluralise('file', count)} {word}", style),
-                ), self._options.width))
+                ), self._options.width, align='center'))
 
         bar_width = self._options.width // 5
         changed_lines = max(1, patch_set.added_count + patch_set.removed_count)
         bar = _underline_bar(bar_width, patch_set.added_count / changed_lines * bar_width)
-        lines.append(_center(_styled_parts(
+        lines.append(grid.fit(st.StyledText.assemble(
             (f'+{patch_set.added_count} ', 'diff.bar.added'),
             (bar, None),
             (f' -{patch_set.removed_count}', 'diff.bar.removed'),
-        ), self._options.width))
+        ), self._options.width, align='center'))
         lines.append(st.StyledText())
         return lines
 
@@ -436,7 +328,7 @@ class DiffRenderer(lang.Final):
                 source_max=source_max,
                 target_max=target_max,
             ))
-        lines.append(_rule(None, width=self._options.width, character='▔', style='diff.border'))
+        lines.append(grid.rule(self._options.width, character='▔', style='diff.border'))
         return lines
 
     def _render_file_header(self, patch: diffs.FilePatch) -> st.StyledText:
@@ -456,19 +348,24 @@ class DiffRenderer(lang.Final):
             (str(patch.removed_count), 'diff.header.removals'),
             (' removals)', None),
         ])
-        return _rule(
-            _styled_parts(*parts),
-            width=self._options.width,
+        return grid.rule(
+            self._options.width,
+            title=st.StyledText.assemble(*parts),
             character='▁',
             style='diff.border',
         )
 
     def _render_message_body(self, message: str, style: st.StyleLike) -> list[st.StyledText]:
         return [
-            _rule(None, width=self._options.width, character='╲', style='diff.hatched'),
-            _rule(_style(message, style), width=self._options.width, character='╲', style='diff.hatched'),
-            _rule(None, width=self._options.width, character='╲', style='diff.hatched'),
-            _rule(None, width=self._options.width, character='▔', style='diff.border'),
+            grid.rule(self._options.width, character='╲', style='diff.hatched'),
+            grid.rule(
+                self._options.width,
+                title=st.StyledText.assemble((message, style)),
+                character='╲',
+                style='diff.hatched',
+            ),
+            grid.rule(self._options.width, character='╲', style='diff.hatched'),
+            grid.rule(self._options.width, character='▔', style='diff.border'),
         ]
 
     def _binary_size(self, patch: diffs.FilePatch) -> int | None:
@@ -545,14 +442,14 @@ class DiffRenderer(lang.Final):
             source_max: int,
             target_max: int,
     ) -> list[st.StyledText]:
-        title = _styled_parts(
+        title = st.StyledText.assemble(
             ('@@ ', 'diff.hunk.marker'),
             (f'-{hunk.old_start},{hunk.old_count}', 'diff.hunk.remove'),
             (' ', None),
             (f'+{hunk.new_start},{hunk.new_count}', 'diff.hunk.add'),
             (f" @@ {hunk.section or ''}", 'diff.hunk.section'),
         )
-        lines = [_rule(title, width=self._options.width, character='╲', style='diff.hunk')]
+        lines = [grid.rule(self._options.width, title=title, character='╲', style='diff.hunk')]
 
         source_width = self._options.width // 2
         target_width = self._options.width - source_width
@@ -596,19 +493,19 @@ class DiffRenderer(lang.Final):
             intraline_style: str,
     ) -> st.StyledText:
         if line is None:
-            return _style(' ' * width, 'diff.padding')
+            return st.StyledText.assemble((' ' * width, 'diff.padding'))
         if not line.number:
-            return _style('╲' * width, 'diff.padding')
+            return st.StyledText.assemble(('╲' * width, 'diff.padding'))
 
         code = highlighted.get(line.number, st.StyledText(line.text))
-        code = _indent_guides(code, self._options.tab_size)
+        code = grid.indent_guides(code, self._options.tab_size, style='diff.indent')
         content_width = max(width - gutter_width, 0)
-        code = _truncate(code, content_width)
+        code = grid.truncate(code, content_width)
 
         builder = st.StyledTextBuilder()
         builder.append(f'{line.number:>{gutter_width - 1}} ', 'diff.gutter')
         builder.append(code)
-        builder.append(' ' * max(content_width - str_width(code.text), 0))
+        builder.append(' ' * max(content_width - grid.cell_width(code), 0))
         rendered = builder.build().styled('diff.code')
         if line.changed:
             rendered = rendered.styled('diff.line.remove' if intraline_style.endswith('remove') else 'diff.line.add')

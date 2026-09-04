@@ -1,5 +1,4 @@
 from ..documents import StyledDocument
-from ..html import render_html
 from ..plain import render_plain
 from ..styles import StylePatch
 from ..text import StyledText
@@ -49,11 +48,10 @@ def test_document_rejects_embedded_newlines() -> None:
         raise AssertionError
 
 
-def test_document_uses_shared_renderers() -> None:
+def test_document_renders_plain() -> None:
     document = StyledDocument.of_lines([
         StyledText('<one>').styled(StylePatch(bold=True)),
         'two',
     ], trailing_newline=True)
 
     assert render_plain(document) == '<one>\ntwo\n'
-    assert render_html(document) == '<span style="font-weight:bold">&lt;one&gt;</span>\ntwo\n'

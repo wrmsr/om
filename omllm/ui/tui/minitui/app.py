@@ -13,6 +13,7 @@ import typing as ta
 from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import inject as inj
+from omcore.text import highlights as hl
 from omdev.tui import minitui as mt
 
 from ..config import Config
@@ -188,7 +189,7 @@ class MinituiChatApp(mt.App):
         return mt.parse_markdown_with(mt.get_markdown_stream(), text)
 
     def _render_markdown(self, text: str) -> list[list[mt.Segment]]:
-        return mt.render_markdown_blocks(self._parse_markdown(text), self.width, highlighter=mt.highlight_code)
+        return mt.render_markdown_blocks(self._parse_markdown(text), self.width, highlighter=hl.highlight_code)
 
     def display_markdown(self, text: str) -> None:
         self.display_rows(self._render_markdown(text))

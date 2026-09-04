@@ -48,3 +48,22 @@ def parse_rgb(s: str) -> RgbColor:
         )
     except ValueError:
         raise ValueError(s) from None
+
+
+def blend_rgb(first: RgbColor, second: RgbColor, amount: float) -> RgbColor:
+    """Linearly interpolate from `first` (amount 0) to `second` (amount 1)."""
+
+    if not isinstance(first, RgbColor):
+        raise TypeError(first)
+    if not isinstance(second, RgbColor):
+        raise TypeError(second)
+    if not 0 <= amount <= 1:
+        raise ValueError(amount)
+
+    return RgbColor(*(
+        round(a + (b - a) * amount)
+        for a, b in zip(
+            (first.r, first.g, first.b),
+            (second.r, second.g, second.b),
+        )
+    ))

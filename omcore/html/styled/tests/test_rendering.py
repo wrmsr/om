@@ -1,26 +1,8 @@
 import pytest
 
-from ..colors import Color
-from ..colors import RgbColor
-from ..html import render_html
-from ..html import style_to_css
-from ..plain import render_plain
-from ..styles import DEFAULT_COLOR
-from ..styles import ResolvedStyle
-from ..styles import StylePatch
-from ..styles import StyleTheme
-from ..text import StyledText
-from ..text import StyleSpan
-
-
-##
-
-
-def test_render_plain():
-    text = StyledText('<hello>\nworld').styled(StylePatch(bold=True))
-
-    assert render_plain(text) == '<hello>\nworld'
-    assert render_plain('plain') == 'plain'
+from ....text import styled as st
+from ..css import style_to_css
+from ..rendering import render_html
 
 
 def test_render_html_escapes_text_but_not_quotes():
@@ -28,18 +10,18 @@ def test_render_html_escapes_text_but_not_quotes():
 
 
 def test_render_html_resolves_overlapping_styles():
-    red = RgbColor(255, 0, 0)
-    theme = StyleTheme({
-        'outer': StylePatch(fg=red, bold=True),
-        'inner': StylePatch(
-            fg=DEFAULT_COLOR,
+    red = st.RgbColor(255, 0, 0)
+    theme = st.StyleTheme({
+        'outer': st.StylePatch(fg=red, bold=True),
+        'inner': st.StylePatch(
+            fg=st.DEFAULT_COLOR,
             bold=False,
             underline=True,
         ),
     })
-    text = StyledText('abc', (
-        StyleSpan.of(0, 3, 'outer'),
-        StyleSpan.of(1, 2, 'inner'),
+    text = st.StyledText('abc', (
+        st.StyleSpan.of(0, 3, 'outer'),
+        st.StyleSpan.of(1, 2, 'inner'),
     ))
 
     assert render_html(text, theme=theme) == (
@@ -50,31 +32,40 @@ def test_render_html_resolves_overlapping_styles():
 
 
 def test_render_html_coalesces_equivalent_resolved_runs():
-    theme = StyleTheme({
-        'left': StylePatch(bold=True),
-        'right': StylePatch(bold=True),
+    theme = st.StyleTheme({
+        'left': st.StylePatch(bold=True),
+        'right': st.StylePatch(bold=True),
     })
-    text = StyledText('ab', (
-        StyleSpan.of(0, 1, 'left'),
-        StyleSpan.of(1, 2, 'right'),
+    text = st.StyledText('ab', (
+        st.StyleSpan.of(0, 1, 'left'),
+        st.StyleSpan.of(1, 2, 'right'),
     ))
 
     assert render_html(text, theme=theme) == '<span style="font-weight:bold">ab</span>'
 
 
+def test_render_html_document():
+    document = st.StyledDocument.of_lines([
+        st.StyledText('<one>').styled(st.StylePatch(bold=True)),
+        'two',
+    ], trailing_newline=True)
+
+    assert render_html(document) == '<span style="font-weight:bold">&lt;one&gt;</span>\ntwo\n'
+
+
 def test_style_to_css_resets_to_base():
-    base = ResolvedStyle(
-        fg=RgbColor(255, 0, 0),
-        bg=RgbColor(0, 0, 255),
+    base = st.ResolvedStyle(
+        fg=st.RgbColor(255, 0, 0),
+        bg=st.RgbColor(0, 0, 255),
         bold=True,
         dim=True,
         italic=True,
         underline=True,
         hidden=True,
     )
-    style = StylePatch(
-        fg=DEFAULT_COLOR,
-        bg=DEFAULT_COLOR,
+    style = st.StylePatch(
+        fg=st.DEFAULT_COLOR,
+        bg=st.DEFAULT_COLOR,
         bold=False,
         dim=False,
         italic=False,
@@ -89,7 +80,7 @@ def test_style_to_css_resets_to_base():
 
 
 def test_style_to_css_combines_decorations_and_other_attributes():
-    assert style_to_css(ResolvedStyle(
+    assert style_to_css(st.ResolvedStyle(
         dim=True,
         italic=True,
         underline=True,
@@ -102,12 +93,12 @@ def test_style_to_css_combines_decorations_and_other_attributes():
 
 
 def test_style_to_css_reverse_uses_css_system_colors_without_explicit_colors():
-    assert style_to_css(ResolvedStyle(reverse=True)) == 'color:Canvas;background-color:CanvasText'
+    assert style_to_css(st.ResolvedStyle(reverse=True)) == 'color:Canvas;background-color:CanvasText'
 
 
 def test_render_html_rejects_target_specific_color():
-    class TargetColor(Color):
+    class TargetColor(st.Color):
         pass
 
     with pytest.raises(TypeError, match='TargetColor'):
-        render_html(StyledText('x').styled(StylePatch(fg=TargetColor())))
+        render_html(st.StyledText('x').styled(st.StylePatch(fg=TargetColor())))

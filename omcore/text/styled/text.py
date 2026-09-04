@@ -91,6 +91,8 @@ class ResolvedStyledTextRun(lang.Final):
 
 type StyledTextLike = str | StyledText
 
+type StyledTextPart = StyledTextLike | tuple[StyledTextLike, StyleLike | None]
+
 
 def _normalize_style_range(length: int, start: int, end: int | None) -> tuple[int, int]:
     if not isinstance(start, int) or isinstance(start, bool):
@@ -108,6 +110,31 @@ def _normalize_style_range(length: int, start: int, end: int | None) -> tuple[in
     if not 0 <= start <= end <= length:
         raise ValueError((start, end))
     return start, end
+
+
+def _dedupe_styles(styles: ta.Sequence[StyleRef]) -> tuple[StyleRef, ...]:
+    """Keeps the last occurrence of each reference: an earlier copy is fully shadowed by the later one."""
+
+    seen: set[StyleRef] = set()
+    kept: list[StyleRef] = []
+    for style in reversed(styles):
+        if style not in seen:
+            seen.add(style)
+            kept.append(style)
+    kept.reverse()
+    return tuple(kept)
+
+
+def _style_beneath(text: StyledText, style: StyleLike | None) -> StyledText:
+    """Applies a style beneath the text's own spans, as a base style would."""
+
+    if style is None or not text.text:
+        return text
+
+    ref = as_style_ref(style)
+    if isinstance(ref, StylePatch) and ref.is_empty:
+        return text
+    return StyledText(text.text, (StyleSpan(0, len(text.text), ref), *text.spans))
 
 
 @dc.dataclass(frozen=True)
@@ -172,6 +199,22 @@ class StyledText(lang.Final):
             raise TypeError(only)
         return _concat_styled_text(parts)
 
+    @classmethod
+    def assemble(cls, *parts: StyledTextPart) -> StyledText:
+        """
+        Concatenate parts, each a string, styled text, or a (text, style) pair. A pair's style applies beneath the
+        text's own spans, as a base style would.
+        """
+
+        values: list[StyledTextLike] = []
+        for part in parts:
+            if isinstance(part, tuple):
+                text, style = part
+                values.append(_style_beneath(cls.of(text), style))
+            else:
+                values.append(part)
+        return cls.of(*values)
+
     def join(self, parts: ta.Iterable[StyledTextLike]) -> StyledText:
         """Join strings and styled text using this value as the separator."""
 
@@ -225,6 +268,39 @@ class StyledText(lang.Final):
                 ))
 
         return StyledText(self.text[slice_start:slice_end], tuple(spans))
+
+    def lstrip(self, chars: str | None = None) -> StyledText:
+        return self.slice(len(self.text) - len(self.text.lstrip(chars)))
+
+    def rstrip(self, chars: str | None = None) -> StyledText:
+        return self.slice(0, len(self.text.rstrip(chars)))
+
+    def strip(self, chars: str | None = None) -> StyledText:
+        return self.lstrip(chars).rstrip(chars)
+
+    def unstyled(self) -> StyledText:
+        return StyledText(self.text)
+
+    def map_styles(self, fn: ta.Callable[[StyleRef], StyleLike | None]) -> StyledText:
+        """Rewrite every span's style in place, preserving order and ranges; a None result drops the span."""
+
+        spans: list[StyleSpan] = []
+        for span in self.spans:
+            if (style := fn(span.style)) is not None:
+                spans.append(StyleSpan(span.start, span.end, as_style_ref(style)))
+        return StyledText(self.text, tuple(spans))
+
+    def style_at(self, offset: int) -> tuple[StyleRef, ...]:
+        """The ordered style references active at a character offset."""
+
+        if not isinstance(offset, int) or isinstance(offset, bool):
+            raise TypeError(offset)
+        if offset < 0:
+            offset += len(self.text)
+        if not 0 <= offset < len(self.text):
+            raise IndexError(offset)
+
+        return tuple(span.style for span in self.spans if span.start <= offset < span.end)
 
     def runs(self) -> tuple[StyledTextRun, ...]:
         """Flatten overlapping spans into text runs carrying ordered active style references."""
@@ -286,6 +362,32 @@ class StyledText(lang.Final):
             else:
                 runs.append(ResolvedStyledTextRun(run.text, style))
         return tuple(runs)
+
+    def canonical(self) -> StyledText:
+        """
+        A normal form in which texts rendering identically under every theme have equal spans.
+
+        Equality is otherwise deliberately structural. Each run keeps only the last occurrence of a repeated reference
+        (an earlier copy is fully shadowed by the later one), adjacent runs with equal stacks merge, and the result is
+        re-encoded with one span per run and reference, so canonical forms compare with plain equality. The operation
+        is idempotent.
+        """
+
+        merged: list[tuple[str, tuple[StyleRef, ...]]] = []
+        for run in self.runs():
+            styles = _dedupe_styles(run.styles)
+            if merged and merged[-1][1] == styles:
+                merged[-1] = (merged[-1][0] + run.text, styles)
+            else:
+                merged.append((run.text, styles))
+
+        spans: list[StyleSpan] = []
+        position = 0
+        for text, styles in merged:
+            end = position + len(text)
+            spans.extend(StyleSpan(position, end, style) for style in styles)
+            position = end
+        return StyledText(self.text, tuple(spans))
 
 
 def _concat_styled_text(parts: ta.Iterable[StyledTextLike]) -> StyledText:

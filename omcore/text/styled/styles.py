@@ -98,6 +98,16 @@ class StylePatch(lang.Final):
             all(getattr(self, name) is None for name in _STYLE_FLAG_NAMES)
         )
 
+    @property
+    def is_complete(self) -> bool:
+        """Whether every property is specified, so the patch resolves identically over any base."""
+
+        return (
+            self.fg is not None and
+            self.bg is not None and
+            all(getattr(self, name) is not None for name in _STYLE_FLAG_NAMES)
+        )
+
     def overlay(self, other: StylePatch) -> StylePatch:
         """Apply `other` over this patch, with its specified properties taking priority."""
 
@@ -185,6 +195,22 @@ class ResolvedStyle(lang.Final):
         if not isinstance(patch, StylePatch):
             raise TypeError(patch)
         return patch.resolve(self)
+
+    def to_patch(self) -> StylePatch:
+        """A complete patch reproducing this style over any base: unset colors clear and every flag is explicit."""
+
+        return StylePatch(
+            fg=self.fg if self.fg is not None else DEFAULT_COLOR,
+            bg=self.bg if self.bg is not None else DEFAULT_COLOR,
+            bold=self.bold,
+            dim=self.dim,
+            italic=self.italic,
+            underline=self.underline,
+            blink=self.blink,
+            reverse=self.reverse,
+            strike=self.strike,
+            hidden=self.hidden,
+        )
 
 
 PLAIN_STYLE = ResolvedStyle()

@@ -1,12 +1,9 @@
-"""Headless terminal rendering for styled segments and documents."""
+"""Headless terminal rendering for styled segments. Styled text and documents render through `omcore.term.styled`."""
+from omcore.term import styled as tst
 from omcore.text import styled as st
 
-from .colors import ColorDepth
 from .segments import SegmentRows
 from .segments import Segments
-from .segments import styled_text_to_segment_lines
-from .sgr import RESET_SGR
-from .sgr import style_sgr
 from .styles import EMPTY_THEME
 from .styles import Style
 from .styles import Theme
@@ -20,23 +17,18 @@ def render_ansi_segments(
         *,
         theme: Theme = EMPTY_THEME,
         base: Style | None = None,
-        depth: ColorDepth = ColorDepth.TRUE,
+        depth: tst.ColorDepth = tst.ColorDepth.TRUE,
 ) -> str:
     """Render one segment row to ANSI without a screen, surface, driver, or event loop."""
 
-    active = ''
-    rendered: list[str] = []
-    for segment in segments:
-        style = theme.resolve(segment.style, base)
-        target = style_sgr(style, depth)
-        if target != active:
-            rendered.append(target or RESET_SGR)
-            active = target
-        rendered.append(segment.text)
-
-    if active:
-        rendered.append(RESET_SGR)
-    return ''.join(rendered)
+    return tst.render_ansi_runs(
+        (
+            st.ResolvedStyledTextRun(segment.text, theme.resolve(segment.style, base))
+            for segment in segments
+            if segment.text
+        ),
+        depth=depth,
+    )
 
 
 def render_ansi_segment_rows(
@@ -44,7 +36,7 @@ def render_ansi_segment_rows(
         *,
         theme: Theme = EMPTY_THEME,
         base: Style | None = None,
-        depth: ColorDepth = ColorDepth.TRUE,
+        depth: tst.ColorDepth = tst.ColorDepth.TRUE,
         trailing_newline: bool = False,
 ) -> str:
     """Render already-split segment rows as a newline-delimited ANSI string."""
@@ -56,43 +48,3 @@ def render_ansi_segment_rows(
     if trailing_newline and rows:
         rendered += '\n'
     return rendered
-
-
-def render_ansi_styled_text(
-        text: st.StyledTextLike,
-        *,
-        theme: Theme = EMPTY_THEME,
-        base: Style | None = None,
-        depth: ColorDepth = ColorDepth.TRUE,
-) -> str:
-    """Resolve and render target-neutral styled text directly to an ANSI string."""
-
-    return render_ansi_segment_rows(
-        styled_text_to_segment_lines(st.StyledText.of(text), theme=theme, base=base),
-        theme=EMPTY_THEME,
-        depth=depth,
-    )
-
-
-def render_ansi_styled_document(
-        document: st.StyledDocument,
-        *,
-        theme: Theme = EMPTY_THEME,
-        base: Style | None = None,
-        depth: ColorDepth = ColorDepth.TRUE,
-) -> str:
-    """Resolve and render a target-neutral styled document directly to an ANSI string."""
-
-    if not isinstance(document, st.StyledDocument):
-        raise TypeError(document)
-
-    rows = [
-        styled_text_to_segment_lines(line, theme=theme, base=base)[0]
-        for line in document.lines
-    ]
-    return render_ansi_segment_rows(
-        rows,
-        theme=EMPTY_THEME,
-        depth=depth,
-        trailing_newline=document.trailing_newline,
-    )

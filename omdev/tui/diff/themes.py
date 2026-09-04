@@ -5,16 +5,6 @@ from omcore.text import styled as st
 ##
 
 
-def _blend(first: st.RgbColor, second: st.RgbColor, amount: float) -> st.RgbColor:
-    return st.RgbColor(*(
-        round(a + (b - a) * amount)
-        for a, b in zip(
-            (first.r, first.g, first.b),
-            (second.r, second.g, second.b),
-        )
-    ))
-
-
 DIFF_BACKGROUND = st.parse_rgb('#0d0f0b')
 CODE_BACKGROUND = st.parse_rgb('#272822')
 CODE_FOREGROUND = st.parse_rgb('#f8f8f2')
@@ -28,12 +18,12 @@ PURPLE = st.parse_rgb('#ae81ff')
 YELLOW = st.parse_rgb('#e6db74')
 COMMENT = st.parse_rgb('#75715e')
 
-REMOVED_BACKGROUND = _blend(st.RgbColor(255, 0, 0), CODE_BACKGROUND, .85)
-ADDED_BACKGROUND = _blend(st.RgbColor(0, 255, 0), CODE_BACKGROUND, .85)
-REMOVED_INTRALINE_BACKGROUND = _blend(st.RgbColor(255, 0, 0), CODE_BACKGROUND, .6)
-ADDED_INTRALINE_BACKGROUND = _blend(st.RgbColor(0, 255, 0), CODE_BACKGROUND, .6)
-REMOVED_INTRALINE_FOREGROUND = _blend(REMOVED_INTRALINE_BACKGROUND, st.RgbColor(255, 255, 255), .8)
-ADDED_INTRALINE_FOREGROUND = _blend(ADDED_INTRALINE_BACKGROUND, st.RgbColor(255, 255, 255), .8)
+REMOVED_BACKGROUND = st.blend_rgb(st.RgbColor(255, 0, 0), CODE_BACKGROUND, .85)
+ADDED_BACKGROUND = st.blend_rgb(st.RgbColor(0, 255, 0), CODE_BACKGROUND, .85)
+REMOVED_INTRALINE_BACKGROUND = st.blend_rgb(st.RgbColor(255, 0, 0), CODE_BACKGROUND, .6)
+ADDED_INTRALINE_BACKGROUND = st.blend_rgb(st.RgbColor(0, 255, 0), CODE_BACKGROUND, .6)
+REMOVED_INTRALINE_FOREGROUND = st.blend_rgb(REMOVED_INTRALINE_BACKGROUND, st.RgbColor(255, 255, 255), .8)
+ADDED_INTRALINE_FOREGROUND = st.blend_rgb(ADDED_INTRALINE_BACKGROUND, st.RgbColor(255, 255, 255), .8)
 
 
 DIFF_STYLE_THEME = st.StyleTheme({

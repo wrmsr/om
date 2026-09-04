@@ -1,9 +1,10 @@
+from omcore.text.highlights import PythonHighlighter
+
 from ...docs.positions import Pos
 from ...events.keys import Key
 from ...events.keys import key_text
 from ...events.types import KeyEvent
 from ...events.types import PasteEvent
-from ...text.highlights.base import PythonHighlighter
 from ...text.segments import segments_text
 from ...vim.modes import Mode
 from ...vim.options import VimOptions

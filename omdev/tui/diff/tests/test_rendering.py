@@ -1,8 +1,9 @@
+from omcore.html import styled as hst
+from omcore.term import styled as tst
 from omcore.text import diffs
 from omcore.text import styled as st
 from omcore.text.widths import str_width
 
-from ... import minitui as mt
 from ..rendering import render_diff_document
 from ..terminal import render_diff_ansi
 from ..themes import ADDED_INTRALINE_BACKGROUND
@@ -90,7 +91,7 @@ def test_markup_shaped_source_text_is_literal() -> None:
 
     assert 'list[str]' in document.plain
     assert 'value: list[int]' in document.plain
-    assert '<span style=' in st.render_html(document, theme=DIFF_STYLE_THEME)
+    assert '<span style=' in hst.render_html(document, theme=DIFF_STYLE_THEME)
 
 
 def test_special_file_bodies() -> None:
@@ -125,5 +126,5 @@ def test_headless_ansi_has_same_visible_text() -> None:
 
     ansi = render_diff_ansi(patch, width=60)
 
-    assert mt.ANSI_ESCAPE_PAT.sub('', ansi) == document.plain
+    assert tst.strip_ansi_escapes(ansi) == document.plain
     assert '\x1b[' in ansi

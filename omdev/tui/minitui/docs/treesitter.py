@@ -16,9 +16,9 @@ import importlib.util
 import typing as ta
 
 from omcore import lang
+from omcore.text import styled as st
+from omcore.text.highlights import HighlightedLines
 
-from ..text.highlights.base import SegmentRows
-from ..text.segments import Segment
 from .edits import TextEdit
 from .highlighting import IncrementalHighlighter
 
@@ -140,7 +140,7 @@ class TreeSitterHighlighter(IncrementalHighlighter):
     ##
     # Highlighting
 
-    def highlight(self, lines: ta.Sequence[str]) -> SegmentRows:
+    def highlight(self, lines: ta.Sequence[str]) -> HighlightedLines:
         line_list = list(lines)
         source = '\n'.join(line_list).encode('utf-8') + b'\n'
 
@@ -176,22 +176,22 @@ class TreeSitterHighlighter(IncrementalHighlighter):
                         if prev is None or prev[0] <= order:
                             row_tags[col] = (order, tag)
 
-        rows: list[list[Segment]] = []
+        out: list[st.StyledText] = []
         for line, row_tags in zip(line_list, tags):
-            segments: list[Segment] = []
+            parts: list[st.StyledTextPart] = []
             text = ''
             current: str | None = None
             for c, entry in zip(line, row_tags):
                 char_tag = entry[1] if entry is not None else None
                 if text and char_tag != current:
-                    segments.append(Segment(text, current))
+                    parts.append((text, current))
                     text = ''
                 current = char_tag
                 text += c
             if text:
-                segments.append(Segment(text, current))
-            rows.append(segments)
-        return rows
+                parts.append((text, current))
+            out.append(st.StyledText.assemble(*parts))
+        return out
 
 
 ##

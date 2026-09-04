@@ -1,12 +1,12 @@
 """
-Syntax highlighting: code lines in, styled segment rows out.
+Syntax highlighting: source lines in, styled lines out.
 
-The protocol is deliberately small and text-shaped for now; the incremental path (tree-sitter consuming Document change
-events, which are already shaped like its `edit()` API) will extend it rather than replace it - a full-retokenize
-implementation of the same protocol is always the zero-dependency fallback.
+The protocol is deliberately small and text-shaped. Incremental variants (an editor feeding document edits) extend it
+rather than replace it, and a full-retokenize implementation of the same protocol is always the zero-dependency
+fallback. Highlighters emit the shared semantic `code.*` style names and never choose colors - themes do.
 
 Included zero-dep highlighters: python (stdlib tokenize, error-tolerant - malformed source falls back to plain) and
-unified diffs. pygments slots in later as an optional quarantined implementation covering the long-tail catalog.
+unified diffs. pygments is the optional, quarantined implementation covering the long-tail catalog.
 """
 import abc
 import builtins
@@ -15,10 +15,8 @@ import keyword
 import tokenize
 import typing as ta
 
-from omcore import lang
-
-from ..segments import Segment
-from ..segments import SegmentRows
+from ... import lang
+from .. import styled as st
 
 
 if ta.TYPE_CHECKING:
@@ -27,13 +25,16 @@ else:
     pygments = lang.proxy_import('.pygments', __package__)
 
 
+type HighlightedLines = ta.Sequence[st.StyledText]
+
+
 ##
 
 
 class Highlighter(lang.Abstract):
     @abc.abstractmethod
-    def highlight(self, lines: ta.Sequence[str]) -> SegmentRows:
-        """One output row per input line; untagged (plain) text uses style None."""
+    def highlight(self, lines: ta.Sequence[str]) -> HighlightedLines:
+        """One styled line per input line, with identical text; unhighlighted text carries no spans."""
 
         raise NotImplementedError
 
@@ -42,7 +43,7 @@ class Highlighter(lang.Abstract):
 
 
 class _SpanSink:
-    """Accumulates (start_col, end_col, tag) spans per row and assembles segment rows."""
+    """Accumulates (start_col, end_col, tag) spans per line and assembles styled lines."""
 
     def __init__(self, lines: ta.Sequence[str]) -> None:
         super().__init__()
@@ -65,23 +66,19 @@ class _SpanSink:
                 self.add(row, 0, len(self._lines[row]), tag)
         self.add(erow, 0, ecol, tag)
 
-    def rows(self) -> list[list[Segment]]:
-        out: list[list[Segment]] = []
+    def lines(self) -> list[st.StyledText]:
+        out: list[st.StyledText] = []
         for line, spans in zip(self._lines, self._spans):
             spans.sort()
-            segments: list[Segment] = []
+            styled: list[st.StyleSpan] = []
             pos = 0
             for start, end, tag in spans:
                 start = max(start, pos)
                 if start >= end:
                     continue
-                if start > pos:
-                    segments.append(Segment(line[pos: start]))
-                segments.append(Segment(line[start: end], tag))
+                styled.append(st.StyleSpan.of(start, end, tag))
                 pos = end
-            if pos < len(line):
-                segments.append(Segment(line[pos:]))
-            out.append(segments)
+            out.append(st.StyledText(line, tuple(styled)))
         return out
 
 
@@ -101,9 +98,9 @@ _STRING_TOKEN_TYPES: ta.AbstractSet[int] = frozenset([
 class PythonHighlighter(Highlighter):
     """stdlib-tokenize based. Streams and broken snippets are the norm: any tokenize error falls back to plain."""
 
-    def highlight(self, lines: ta.Sequence[str]) -> SegmentRows:
+    def highlight(self, lines: ta.Sequence[str]) -> HighlightedLines:
         # NB: no tab expansion - output columns must stay source-true (editors map them back to document positions).
-        # Display-layer tab handling is the renderer's job.
+        # Display-layer tab handling is the grid lowering's job.
         sink = _SpanSink(lines)
         source = '\n'.join(lines) + '\n'
 
@@ -144,19 +141,15 @@ class PythonHighlighter(Highlighter):
                     sink.add_multiline(start, end, tag)
 
         except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
-            return [[Segment(line)] if line else [] for line in lines]
+            return [st.StyledText(line) for line in lines]
 
-        return sink.rows()
+        return sink.lines()
 
 
 class DiffHighlighter(Highlighter):
-    def highlight(self, lines: ta.Sequence[str]) -> SegmentRows:
-        rows: list[list[Segment]] = []
+    def highlight(self, lines: ta.Sequence[str]) -> HighlightedLines:
+        out: list[st.StyledText] = []
         for line in lines:
-            if not line:
-                rows.append([])
-                continue
-
             tag: str | None = None
 
             if line.startswith(('+++', '---', 'diff ', 'index ')):
@@ -171,9 +164,10 @@ class DiffHighlighter(Highlighter):
             elif line.startswith('-'):
                 tag = 'code.diff.del'
 
-            rows.append([Segment(line, tag)])
+            value = st.StyledText(line)
+            out.append(value.styled(tag) if tag is not None else value)
 
-        return rows
+        return out
 
 
 ##
@@ -207,8 +201,8 @@ def get_highlighter(info: str) -> Highlighter | None:
     return pygments.get_pygments_highlighter(info)
 
 
-def highlight_code(info: str, lines: ta.Sequence[str]) -> SegmentRows | None:
-    """The markdowns.CodeHighlighter adapter: None when no highlighter covers `info`."""
+def highlight_code(info: str, lines: ta.Sequence[str]) -> HighlightedLines | None:
+    """The code-block adapter: None when no highlighter covers `info`."""
 
     if (highlighter := get_highlighter(info)) is None:
         return None

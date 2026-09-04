@@ -1,7 +1,8 @@
+from omcore.text.styled import RgbColor
+
 from ...events.types import MouseEvent
 from ...events.types import MouseEventKind
 from ...screens.cells import line_from_segments
-from ...text.colors import RgbColor
 from ...text.segments import Segment
 from ...text.segments import segments_text
 from ...text.styles import EMPTY_THEME

@@ -2,11 +2,12 @@ import importlib.util
 
 import pytest
 
+from omcore.text import styled as st
+
 from ...controls.textarea import TextArea
 from ...events.keys import Key
 from ...events.types import KeyEvent
 from ...events.types import PasteEvent
-from ...text.segments import segments_text
 from ..documents import Document
 from ..positions import Pos
 from ..treesitter import get_tree_sitter_highlighter
@@ -23,20 +24,30 @@ def make_highlighter():
     return h
 
 
-def styles_of(rows):
+def names_of(lines):
+    return {
+        ref.name
+        for line in lines
+        for run in line.runs()
+        for ref in run.styles
+        if isinstance(ref, st.StyleName)
+    }
+
+
+def segment_styles_of(rows):
     return {seg.style for row in rows for seg in row}
 
 
 def test_basic_highlight():
     h = make_highlighter()
-    rows = h.highlight(['def foo(x):', '    return "s"  # c'])
-    assert len(rows) == 2
-    assert [segments_text(r) for r in rows] == ['def foo(x):', '    return "s"  # c']
-    st = styles_of(rows)
-    assert 'code.keyword' in st
-    assert 'code.def' in st
-    assert 'code.string' in st
-    assert 'code.comment' in st
+    lines = h.highlight(['def foo(x):', '    return "s"  # c'])
+    assert len(lines) == 2
+    assert [line.text for line in lines] == ['def foo(x):', '    return "s"  # c']
+    names = names_of(lines)
+    assert 'code.keyword' in names
+    assert 'code.def' in names
+    assert 'code.string' in names
+    assert 'code.comment' in names
 
 
 def test_incremental_reparse_engages_and_matches_full():
@@ -49,14 +60,13 @@ def test_incremental_reparse_engages_and_matches_full():
     doc.add_listener(lambda d, applied: h.note_edit(applied.edit))
     doc.insert(Pos(1, 11), '23  # hi')
 
-    rows = h.highlight(doc.lines())
+    lines = h.highlight(doc.lines())
     full, incremental = h.parse_counts
     assert (full, incremental) == (1, 1)  # the second parse was incremental
 
     # And the result matches a from-scratch highlighter exactly.
     h2 = make_highlighter()
-    rows2 = h2.highlight(doc.lines())
-    assert [list(r) for r in rows] == [list(r) for r in rows2]
+    assert list(lines) == list(h2.highlight(doc.lines()))
 
 
 def test_missed_edit_falls_back_to_full_parse():
@@ -65,9 +75,9 @@ def test_missed_edit_falls_back_to_full_parse():
     h.highlight(doc.lines())
     doc.set_text('y = 2')  # NOT fed via note_edit
 
-    rows = h.highlight(doc.lines())
+    lines = h.highlight(doc.lines())
     assert h.parse_counts == (2, 0)  # mismatch detected -> full parse, still correct
-    assert segments_text(rows[0]) == 'y = 2'
+    assert lines[0].text == 'y = 2'
 
 
 def test_multiline_and_unicode_edit():
@@ -77,11 +87,11 @@ def test_multiline_and_unicode_edit():
     h.highlight(doc.lines())
 
     doc.replace(Pos(0, 4), Pos(1, 5), '"wörld"\ndef f():\n    pass')
-    rows = h.highlight(doc.lines())
+    lines = h.highlight(doc.lines())
     assert h.parse_counts[1] == 1
 
     h2 = make_highlighter()
-    assert [list(r) for r in rows] == [list(r) for r in h2.highlight(doc.lines())]
+    assert list(lines) == list(h2.highlight(doc.lines()))
 
 
 def test_textarea_integration_incremental():
@@ -100,5 +110,4 @@ def test_textarea_integration_incremental():
     assert full == baseline_full
     assert incremental >= 2
 
-    st = styles_of(ta_.render(40))
-    assert 'code.keyword' in st
+    assert 'code.keyword' in segment_styles_of(ta_.render(40))

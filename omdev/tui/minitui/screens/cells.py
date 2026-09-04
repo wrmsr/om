@@ -48,12 +48,12 @@ import dataclasses as dc
 import typing as ta
 
 from omcore import check
+from omcore.term.styled import RESET_SGR
+from omcore.term.styled import ColorDepth
+from omcore.term.styled import style_sgr
 from omcore.text.widths import char_width
 
-from ..text.colors import ColorDepth
 from ..text.segments import Segments
-from ..text.sgr import RESET_SGR
-from ..text.sgr import style_sgr
 from ..text.styles import EMPTY_STYLE
 from ..text.styles import Style
 from ..text.styles import Theme

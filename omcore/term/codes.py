@@ -102,32 +102,35 @@ SGR = ControlSequence(lambda n: CSI + _str_val(n) + 'm', 'Select Graphic Renditi
 
 class SGRs(lang.Namespace, lang.Final):
     RESET = 0
-    NORMAL_COLOR_AND_INTENSITY = 22
 
-    class FONT(enum.Enum):
+    class Attr(enum.Enum):
         BOLD = 1
-        FAINT = 2
+        DIM = 2
         ITALIC = 3
-        UNTERLINE = 4
-
+        UNDERLINE = 4
         SLOW_BLINK = 5
         RAPID_BLINK = 6
-
-        REVERSE_VIDEO = 7
-
-        PRIMARY_FONT = 10
-        ITALIC_OFF = 23
-        UNDERLINE_OFF = 24
-        BLINK_OFF = 25
-        INVERSE_OFF = 27
+        REVERSE = 7
+        CONCEAL = 8
+        STRIKE = 9
 
         FRAMED = 51
         ENCIRCLED = 52
         OVERLINED = 53
-        NOT_FRAMED_OR_ENCIRCLED = 54
-        NOT_OVERLINED = 55
 
-    class FG(enum.Enum):
+    class AttrOff(enum.Enum):
+        NORMAL_INTENSITY = 22  # neither bold nor dim
+        ITALIC = 23
+        UNDERLINE = 24
+        BLINK = 25
+        REVERSE = 27
+        CONCEAL = 28
+        STRIKE = 29
+
+        FRAMED_OR_ENCIRCLED = 54
+        OVERLINED = 55
+
+    class Fg(enum.Enum):
         BLACK = 30
         RED = 31
         GREEN = 32
@@ -136,6 +139,9 @@ class SGRs(lang.Namespace, lang.Final):
         MAGENTA = 35
         CYAN = 36
         WHITE = 37
+
+        EXTENDED = 38
+        DEFAULT = 39
 
         BRIGHT_BLACK = 90
         BRIGHT_RED = 91
@@ -146,7 +152,7 @@ class SGRs(lang.Namespace, lang.Final):
         BRIGHT_CYAN = 96
         BRIGHT_WHITE = 97
 
-    class BG(enum.Enum):
+    class Bg(enum.Enum):
         BLACK = 40
         RED = 41
         GREEN = 42
@@ -156,6 +162,9 @@ class SGRs(lang.Namespace, lang.Final):
         CYAN = 46
         WHITE = 47
 
+        EXTENDED = 48
+        DEFAULT = 49
+
         BRIGHT_BLACK = 100
         BRIGHT_RED = 101
         BRIGHT_GREEN = 102
@@ -164,6 +173,10 @@ class SGRs(lang.Namespace, lang.Final):
         BRIGHT_MAGENTA = 105
         BRIGHT_CYAN = 106
         BRIGHT_WHITE = 107
+
+    # The sub-parameter following an EXTENDED color selector, choosing the form of what follows it.
+    EXTENDED_INDEXED = 5  # ;n
+    EXTENDED_RGB = 2  # ;r;g;b
 
 
 def _clamp_ofs(v: int, hi: int, ofs: int) -> str:
@@ -235,7 +248,7 @@ BG24_RGB = ControlSequence(
 ##
 
 
-def main() -> None:
+def _main() -> None:
     import sys
 
     sys.stdout.write(SGR(SGRs.RESET))
@@ -251,4 +264,4 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    _main()

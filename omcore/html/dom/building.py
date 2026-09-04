@@ -1,6 +1,6 @@
 import typing as ta
 
-from .. import dataclasses as dc
+from ... import dataclasses as dc
 from .content import Content
 from .content import Dom
 from .content import kwargs_to_attrs
