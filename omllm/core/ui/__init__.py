@@ -10,6 +10,13 @@ with _lang.auto_proxy_init(globals()):
         PrintTextDisplayer,
     )
 
+    from .text.html import (  # noqa
+        HtmlTextRenderer,
+        literalize_raw_markdown_html,
+        render_html_text,
+        render_markdown_html,
+    )
+
     from .text.json import (  # noqa
         JsonTokenKind,
         render_json_tokens,
@@ -33,6 +40,10 @@ with _lang.auto_proxy_init(globals()):
         StyledTextPart,
         StyledTextRendering,
         StyledTextRenderer,
+    )
+
+    from .text.themes import (  # noqa
+        UI_TEXT_STYLE_THEME,
     )
 
     from .text.types import (  # noqa

@@ -14,17 +14,7 @@ from ...core import ui
 ##
 
 
-UI_TEXT_THEME = mt.DEFAULT_THEME.extend({
-    'text.color.red': st.StylePatch(fg=mt.TEXT_ERROR),
-    'text.color.green': st.StylePatch(fg=mt.SUCCESS),
-    'text.color.yellow': st.StylePatch(fg=mt.WARNING),
-    'text.color.blue': st.StylePatch(fg=mt.TEXT_PRIMARY),
-
-    'json.key': st.StylePatch(fg=mt.TEXT_PRIMARY),
-    'json.string': st.StylePatch(fg=mt.STRING_GREEN),
-    'json.number': st.StylePatch(fg=mt.TEXT_WARNING),
-    'json.literal': st.StylePatch(fg=mt.TEXT_PRIMARY),
-})
+UI_TEXT_THEME = mt.DEFAULT_THEME.extend(ui.UI_TEXT_STYLE_THEME.as_dict())
 
 UI_DIFF_THEME = mt.Theme(df.DIFF_STYLE_THEME.as_dict())
 
