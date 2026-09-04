@@ -119,9 +119,9 @@ class Agent(
             input: str | Message | ta.Sequence[Message],  # noqa
     ) -> None:
         """
-        Queues messages for the run in progress, delivered at the start of its next turn - after the current tool
-        batch, unless the turn config says to cut it short. With no run in progress they are delivered at the start
-        of the next prompt.
+        Queues messages for the run in progress, delivered at the start of its next turn - after the current tool batch,
+        unless the turn config says to cut it short. With no run in progress they are delivered at the start of the next
+        prompt.
         """
 
         self._inbox.add_steering(*self._coerce_messages(input))
