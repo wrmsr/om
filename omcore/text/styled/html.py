@@ -3,12 +3,13 @@ import html
 
 from .colors import Color
 from .colors import RgbColor
+from .documents import StyledContent
+from .documents import StyledDocument
 from .styles import EMPTY_STYLE_THEME
 from .styles import PLAIN_STYLE
 from .styles import ResolvedStyle
 from .styles import StyleTheme
 from .text import StyledText
-from .text import StyledTextLike
 
 
 ##
@@ -92,7 +93,7 @@ def style_to_css(
 
 
 def render_html(
-        text: StyledTextLike,
+        text: StyledContent,
         *,
         theme: StyleTheme = EMPTY_STYLE_THEME,
         base: ResolvedStyle = PLAIN_STYLE,
@@ -104,8 +105,9 @@ def render_html(
     the browser must display that whitespace exactly.
     """
 
+    value = text.text if isinstance(text, StyledDocument) else StyledText.of(text)
     rendered: list[str] = []
-    for run in StyledText.of(text).resolved_runs(theme, base):
+    for run in value.resolved_runs(theme, base):
         escaped = html.escape(run.text, quote=False)
         if css := style_to_css(run.style, base=base):
             rendered.append(f'<span style="{css}">{escaped}</span>')

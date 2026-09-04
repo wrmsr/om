@@ -29,8 +29,8 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
 - **text/** - adapts the target-neutral `omcore.text.styled` RGB/style/theme model into terminal segments; owns
   terminal-only named/indexed colors and depth downgrade, word wrap, width measurement, SGR emit/parse, streaming
   markdown with swappable backends (zero-dep internal / omcore pdcmark / markdown-it) over a shared block model, and
-  the `Highlighter` protocol with python (stdlib tokenize) and diff highlighters. `StyledText` can render through
-  segments, cells, and ANSI synchronously without a driver.
+  the `Highlighter` protocol with python (stdlib tokenize) and diff highlighters. `StyledText` and `StyledDocument`
+  can render straight to ANSI synchronously without a screen, surface, driver, or event loop.
 - **screens/** - `Cell`/`Line`/`Frame` and retained-frame diffing: the correctness ground truth. Spurious redraws cost a
   re-render and an empty diff, never visible output.
 - **surfaces/** - `InlineSurface` (the commit model: relative cursor tracking, `\r\n`-forced scrolling, commit-above

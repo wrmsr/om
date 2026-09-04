@@ -94,7 +94,7 @@ class RichTextRenderer(TextRenderer[ta.Any]):
         return rich.Markdown(n.s, **kw)
 
     def _render_diff(self, n: DiffText, sty: TextStyle) -> rich.Text:
-        # TODO: use omdev.tui.rich.diff - needs a renderable-returning, filesystem-free variant.
+        # TODO: use the filesystem-free omdev.tui.diff document renderer when this legacy Rich adapter is retired.
         dt = rich.Text()
 
         for l in n.diff_lines:

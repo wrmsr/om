@@ -367,6 +367,13 @@ with _lang.auto_proxy_init(
         styled_text_to_segment_lines,
     )
 
+    from .text.rendering import (  # noqa
+        render_ansi_segments,
+        render_ansi_segment_rows,
+        render_ansi_styled_text,
+        render_ansi_styled_document,
+    )
+
     from .text.widths import (  # noqa
         char_width,
         str_width,

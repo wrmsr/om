@@ -1,4 +1,4 @@
-from ....cli import CliModule
+from ...cli import CliModule
 
 
 # @om-manifest

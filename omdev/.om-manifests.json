@@ -586,14 +586,14 @@
     }
   },
   {
-    "module": ".tui.rich.diff.__main__",
+    "module": ".tui.diff.__main__",
     "attr": "_CLI_MODULE",
-    "file": "omdev/tui/rich/diff/__main__.py",
+    "file": "omdev/tui/diff/__main__.py",
     "line": 4,
     "value": {
       "!.cli.types.CliModule": {
         "name": "tui/diff",
-        "module": "omdev.tui.rich.diff.__main__"
+        "module": "omdev.tui.diff.__main__"
       }
     }
   }

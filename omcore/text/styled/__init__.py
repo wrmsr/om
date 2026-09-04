@@ -12,6 +12,11 @@ with _lang.auto_proxy_init(globals()):
         parse_rgb,
     )
 
+    from .documents import (  # noqa
+        StyledContent,
+        StyledDocument,
+    )
+
     from .html import (  # noqa
         render_html,
         style_to_css,
