@@ -1,13 +1,10 @@
-import io
-
-from omcore import lang
-from omdev.tui import rich
+from omcore.text import styled as st
 
 from ..plain import PlainTextRenderer
 from ..rendering import TextRenderingOptions
-from ..rich import RichJsonStyles
-from ..rich import RichTextDisplayer
-from ..rich import RichTextRenderer
+from ..styled import StyledJsonStyles
+from ..styled import StyledTextBlock
+from ..styled import StyledTextRenderer
 from ..types import DiffText
 from ..types import JsonText
 from ..types import JsonTextStyle
@@ -35,77 +32,82 @@ def test_plain_json_density():
     assert '\n' in PlainTextRenderer(TextRenderingOptions(density='pretty')).render(t)
 
 
-def test_rich_inline_only_returns_text():
-    r = RichTextRenderer().render(Text.of('a').style(color='red'))
+def test_styled_inline_only_returns_text():
+    r = StyledTextRenderer().render(Text.of('a').style(color='red'))
 
-    assert isinstance(r, rich.Text)
-    assert r.plain == 'a'
-
-
-def test_rich_blocks_return_group():
-    r = RichTextRenderer().render(Text.of('a', MarkdownText('# h'), 'b'))
-
-    assert isinstance(r, rich.Group)
+    assert r.is_inline
+    assert r.inline == st.StyledText('a', (
+        st.StyleSpan.of(0, 1, 'text.color.red'),
+    ))
 
 
-def test_rich_compact_degrades_blocks():
-    r = RichTextRenderer(TextRenderingOptions(density='compact')).render(
+def test_styled_blocks_are_retained():
+    r = StyledTextRenderer().render(Text.of('a', MarkdownText('# h').style(italic=True), 'b'))
+
+    assert r.inline is None
+    assert r.parts == (
+        st.StyledText('a'),
+        StyledTextBlock(
+            MarkdownText('# h'),
+            (st.StylePatch(italic=True),),
+        ),
+        st.StyledText('b'),
+    )
+
+
+def test_styled_compact_degrades_blocks():
+    r = StyledTextRenderer(TextRenderingOptions(density='compact')).render(
         Text.of('a ', MarkdownText('# h'), ' b'),
     )
 
-    assert isinstance(r, rich.Text)
-    assert r.plain == 'a # h b'
+    assert r.inline is not None
+    assert r.inline.plain == 'a # h b'
 
 
-def _span_styles(t):
-    return {t.plain[sp.start:sp.end]: str(sp.style) for sp in t.spans}
+def _run_styles(t: st.StyledText) -> dict[str, tuple[st.StyleRef, ...]]:
+    return {run.text: run.styles for run in t.runs()}
 
 
-def test_rich_json_colorized_by_default():
-    r = RichTextRenderer().render(JsonText({'a': 'x'}))
+def test_styled_json_has_semantic_styles_by_default():
+    r = StyledTextRenderer().render(JsonText({'a': ['x', 1, True, None]}))
 
-    assert isinstance(r, rich.Text)
-    assert r.plain == '{"a": "x"}'
+    assert r.inline is not None
+    assert r.inline.plain == '{"a": ["x", 1, true, null]}'
 
-    spans = _span_styles(r)
-    assert spans['"a"'] == 'blue'
-    assert spans['"x"'] == 'green'
+    runs = _run_styles(r.inline)
+    assert runs['"a"'] == (st.StyleName('json.key'),)
+    assert runs['"x"'] == (st.StyleName('json.string'),)
+    assert runs['1'] == (st.StyleName('json.number'),)
+    assert runs['true'] == (st.StyleName('json.literal'),)
+    assert runs['null'] == (st.StyleName('json.literal'),)
 
 
-def test_rich_json_styles_injectable():
-    r = RichTextRenderer(
-        json_styles=RichJsonStyles(
-            key='magenta',
-            number='cyan',
-            literal='bold red',
+def test_styled_json_styles_injectable():
+    r = StyledTextRenderer(
+        json_styles=StyledJsonStyles(
+            key='test.key',
+            string=None,
+            number=st.StylePatch(underline=True),
+            literal='test.literal',
         ),
-    ).render(JsonText({'a': [1, True, None]}))
+    ).render(JsonText({'a': ['x', 1, True]}))
 
-    spans = _span_styles(r)
-    assert spans['"a"'] == 'magenta'
-    assert spans['1'] == 'cyan'
-    assert spans['true'] == 'bold red'
-    assert spans['null'] == 'bold red'
-
-
-def test_rich_json_merges_inherited_style():
-    r = RichTextRenderer().render(Text.of(JsonText({'a': 1})).style(bold=True))
-
-    spans = _span_styles(r)
-    assert spans['"a"'] == 'bold blue'
-    assert spans['{'] == 'bold'
+    assert r.inline is not None
+    runs = _run_styles(r.inline)
+    assert runs['"a"'] == (st.StyleName('test.key'),)
+    assert next(run.styles for run in r.inline.runs() if '"x"' in run.text) == ()
+    assert runs['1'] == (st.StylePatch(underline=True),)
+    assert runs['true'] == (st.StyleName('test.literal'),)
 
 
-def test_rich_text_displayer():
-    buf = io.StringIO()
+def test_styled_json_merges_inherited_style():
+    r = StyledTextRenderer().render(Text.of(JsonText({'a': 1})).style(color='red', bold=True))
 
-    d = RichTextDisplayer(
-        console=rich.Console(file=buf, force_terminal=False, width=80),
-    )
-
-    lang.sync_await(d.display_text(Text.of('hi ', JsonText({'a': 1}))))
-
-    assert buf.getvalue() == 'hi {"a": 1}'
+    assert r.inline is not None
+    runs = _run_styles(r.inline)
+    base = (st.StyleName('text.color.red'), st.StylePatch(bold=True))
+    assert runs['"a"'] == (*base, st.StyleName('json.key'))
+    assert runs['{'] == base
 
 
 def test_json_node_style():

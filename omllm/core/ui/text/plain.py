@@ -1,21 +1,15 @@
 import io
 
 from omcore import lang
+from omcore.text import styled as st
 
-from .json import render_obj_json_text
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
-from .rendering import resolve_json_text_style
-from .rendering import squash_markdown_text
-from .rendering import summarize_diff_text
+from .styled import StyledTextBlock
+from .styled import StyledTextRenderer
 from .types import CanText
-from .types import ConcatText
 from .types import DiffText
-from .types import JsonText
 from .types import MarkdownText
-from .types import StrText
-from .types import StyleText
-from .types import Text
 
 
 ##
@@ -26,14 +20,11 @@ class PlainTextRenderer(TextRenderer[str]):
         super().__init__()
 
         self._options = options if options is not None else TextRenderingOptions()
+        self._styled_renderer = StyledTextRenderer(self._options)
 
     #
 
     def render(self, *ts: CanText) -> str:
-        root = Text.of(*ts)
-
-        compact = self._options.density == 'compact'
-
         out = io.StringIO()
         last = ''
 
@@ -47,44 +38,29 @@ class PlainTextRenderer(TextRenderer[str]):
             if last and last != '\n':
                 write('\n')
 
-        stack: list[Text] = [root]
-        while stack:
-            n = stack.pop()
+        for part in self._styled_renderer.render(*ts).parts:
+            if isinstance(part, st.StyledText):
+                write(part.plain)
 
-            if not n:
-                continue
+            elif isinstance(part, StyledTextBlock):
+                node = part.block
 
-            if isinstance(n, StrText):
-                write(n.s)
-
-            elif isinstance(n, ConcatText):
-                stack.extend(reversed(n.l))
-
-            elif isinstance(n, StyleText):
-                stack.append(n.c)
-
-            elif isinstance(n, JsonText):
-                stack.append(render_obj_json_text(n.v, resolve_json_text_style(self._options, n.y)))
-
-            elif isinstance(n, MarkdownText):
-                if compact:
-                    write(squash_markdown_text(n))
-                else:
+                if isinstance(node, MarkdownText):
                     begin_block()
-                    write(n.s)
+                    write(node.s)
                     if last != '\n':
                         write('\n')
 
-            elif isinstance(n, DiffText):
-                if compact:
-                    write(summarize_diff_text(n))
-                else:
+                elif isinstance(node, DiffText):
                     begin_block()
-                    for l in n.diff_lines:
-                        write(l if l.endswith('\n') else l + '\n')
+                    for line in node.diff_lines:
+                        write(line if line.endswith('\n') else line + '\n')
+
+                else:
+                    raise TypeError(node)
 
             else:
-                raise TypeError(n)
+                raise TypeError(part)
 
         return out.getvalue()
 

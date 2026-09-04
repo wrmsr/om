@@ -9,7 +9,6 @@ import json
 import typing as ta
 
 from omcore import inject as inj
-from omcore.text import styled as st
 from omdev.tui import minitui as mt
 
 from .... import agent as agn
@@ -17,30 +16,12 @@ from .... import llm
 from ....core import ui
 from ..config import Config
 from ..inject import bind_on_agent_event_subscriber
+from ..rendering import render_text_rows
 from .app import MinituiChatApp
 from .toolcards import tool_card_key
 
 
 ##
-
-
-# The shared Text family's deliberately-dumb color channel, mapped onto the theme's soft palette.
-_TEXT_COLOR_STYLES: ta.Mapping[str, st.StylePatch] = {
-    'red': st.StylePatch(fg=mt.TEXT_ERROR),
-    'green': st.StylePatch(fg=mt.SUCCESS),
-    'yellow': st.StylePatch(fg=mt.WARNING),
-    'blue': st.StylePatch(fg=mt.TEXT_PRIMARY),
-}
-
-
-def _text_style(y: ui.TextStyle) -> st.StylePatch:
-    base = _TEXT_COLOR_STYLES.get(y.color or '', st.StylePatch())
-    if y.bold or y.italic:
-        base = base.overlay(st.StylePatch(
-            bold=True if y.bold else None,
-            italic=True if y.italic else None,
-        ))
-    return base
 
 
 def _truncate(s: str, n: int) -> str:
@@ -63,53 +44,15 @@ def _detail_rows(text: str, *, limit_lines: int = 8) -> list[list[mt.Segment]]:
     return rows
 
 
-def _inline_parts(t: ui.Text, style: mt.Style) -> ta.Iterator[tuple[str, mt.StyleLike]]:
-    # Yields (text, style) runs - text may contain newlines; `mt.split_segment_lines` rows them up.
-    if isinstance(t, ui.StrText):
-        yield t.s, (style if not style.is_plain else None)
-
-    elif isinstance(t, ui.ConcatText):
-        for c in t.l:
-            yield from _inline_parts(c, style)
-
-    elif isinstance(t, ui.StyleText):
-        yield from _inline_parts(t.c, style.apply(_text_style(t.y)))
-
-    elif isinstance(t, ui.JsonText):
-        indent = None if t.y.mode == 'compact' else 2
-        yield json.dumps(t.v, indent=indent, default=repr), 'md.code.inline'
-
-    else:
-        yield str(t), (style if not style.is_plain else None)
-
-
 class MinituiTextDisplayer(ui.TextDisplayer):
     def __init__(self, *, app: MinituiChatApp) -> None:
         super().__init__()
 
         self._app = app
 
-    def _display_one(self, t: ui.Text) -> None:
-        if isinstance(t, ui.MarkdownText):
-            self._app.display_markdown(t.s)
-
-        elif isinstance(t, ui.DiffText):
-            self._app.display_rows(mt.render_markdown_block(
-                mt.MdCode('diff', tuple(ln.rstrip('\n') for ln in t.diff_lines)),
-                self._app.width,
-                highlighter=mt.highlight_code,
-            ))
-
-        else:
-            # Inline nodes - possibly multi-line; rows wrap individually and commit as one block.
-            rows: list[ta.Sequence[mt.Segment]] = []
-            for row in mt.split_segment_lines(_inline_parts(t, mt.EMPTY_STYLE)):
-                rows.extend(mt.wrap_segments(row, self._app.width) if row else [[]])
-            self._app.display_rows(rows)
-
     async def display_text(self, *texts: ui.CanText) -> None:
-        for t in texts:
-            self._display_one(ui.Text.of(t))
+        rendering = ui.StyledTextRenderer().render(*texts)
+        self._app.display_rows(render_text_rows(rendering, self._app.width))
 
 
 ##

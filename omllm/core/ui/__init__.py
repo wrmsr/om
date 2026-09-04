@@ -27,10 +27,12 @@ with _lang.auto_proxy_init(globals()):
         TextRenderingOptions,
     )
 
-    from .text.rich import (  # noqa
-        RichJsonStyles,
-        RichTextRenderer,
-        RichTextDisplayer,
+    from .text.styled import (  # noqa
+        StyledJsonStyles,
+        StyledTextBlock,
+        StyledTextPart,
+        StyledTextRendering,
+        StyledTextRenderer,
     )
 
     from .text.types import (  # noqa

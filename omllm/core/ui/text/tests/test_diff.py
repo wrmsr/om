@@ -1,6 +1,7 @@
 from omcore import marshal as msh
 
-from ..rich import RichTextRenderer
+from ..styled import StyledTextBlock
+from ..styled import StyledTextRenderer
 from ..types import DiffText
 from ..types import StrText
 from ..types import Text
@@ -18,8 +19,8 @@ def test_diff_text():
     assert '-b' in s
     assert '+B' in s
 
-    rt = RichTextRenderer().render(d)
-    assert '+B' in rt.plain
+    rendered = StyledTextRenderer().render(d)
+    assert rendered.parts == (StyledTextBlock(d),)
 
     m = msh.marshal(d, Text)
     d2 = msh.unmarshal(m, Text)

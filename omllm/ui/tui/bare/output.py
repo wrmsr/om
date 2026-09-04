@@ -1,59 +1,16 @@
 import abc
 import typing as ta
 
-from omcore import check
-from omcore import dataclasses as dc
 from omcore import inject as inj
 from omcore import lang
-from omdev.tui import rich
-from omdev.tui.rich import textual as rich_tx
 
 from .... import agent as agn
 from .... import llm
 from ....core import ui
 from ..config import Config
 from ..inject import bind_on_agent_event_subscriber
-
-
-##
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RichUiStyles:
-    theme: ta.Any
-    code_theme: ta.Any
-    json_styles: ui.RichJsonStyles
-
-
-@lang.cached_function
-def rich_ui_styles() -> RichUiStyles:
-    dtx = rich_tx.TEXTUAL_DARK
-
-    ps = check.not_none(dtx.pygments_styles)
-
-    return RichUiStyles(
-        theme=rich_tx.build_theme(dtx),
-        code_theme=rich_tx.build_pygments_theme(dtx),
-        json_styles=ui.RichJsonStyles(
-            # Match the theme's code-block highlighting of json source.
-            key=ps['Token.Name.Tag'],
-            string=ps['Token.Literal.String.Double'],
-            number=ps['Token.Literal.Number'],
-            literal=ps['Token.Keyword.Constant'],
-        ),
-    )
-
-
-def build_rich_text_displayer() -> ui.RichTextDisplayer:
-    rs = rich_ui_styles()
-
-    return ui.RichTextDisplayer(
-        console=rich.Console(theme=rs.theme),
-        renderer=ui.RichTextRenderer(
-            markdown_code_theme=rs.code_theme,
-            json_styles=rs.json_styles,
-        ),
-    )
+from ..rendering import TerminalTextDisplayer
+from ..rendering import build_terminal_text_displayer
 
 
 ##
@@ -125,8 +82,8 @@ def bind_output(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     lst.extend([
-        inj.bind(build_rich_text_displayer, singleton=True),
-        inj.bind(ui.TextDisplayer, to_key=ui.RichTextDisplayer),
+        inj.bind(build_terminal_text_displayer, singleton=True),
+        inj.bind(ui.TextDisplayer, to_key=TerminalTextDisplayer),
 
         inj.bind(EndReasonPrinter, singleton=True),
         bind_on_agent_event_subscriber(EndReasonPrinter),
