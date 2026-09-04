@@ -160,7 +160,7 @@ def _process_dataclass__b5106a4194f68d00d15fd2bb40cebeed8201ffe7():
     ),
     plan_repr_sha1='740ef1d687b72cbd89bb75df281286101a0a0b80',
     cls_names=(
-        ('omllm.core.ui.text.rich', 'RichJsonStyles'),
+        ('omllm.core.ui.text.styled', 'StyledJsonStyles'),
     ),
 )
 def _process_dataclass__740ef1d687b72cbd89bb75df281286101a0a0b80():
@@ -266,6 +266,221 @@ def _process_dataclass__740ef1d687b72cbd89bb75df281286101a0a0b80():
             parts.append(f"string={self.string!r}")
             parts.append(f"number={self.number!r}")
             parts.append(f"literal={self.literal!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('block', 'styles')), EqPlan(fields=('block', 'styles')), FrozenPlan(fields=('block"
+        "', 'styles'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('block', 'styles'), cache=Fals"
+        "e), InitPlan(fields=(InitPlan.Field(name='block', annotation=OpRef(name='init.fields.0.annotation'), default=N"
+        "one, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=Non"
+        "e, check_type=None), InitPlan.Field(name='styles', annotation=OpRef(name='init.fields.1.annotation'), default="
+        "OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INS"
+        "TANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('block', 'styles'), kw_on"
+        "ly_params=(), frozen=True, slots=False, post_init_params=(), init_fns=(), validate_fns=()), ReprPlan(fields=(R"
+        "eprPlan.Field(name='block', kw_only=False, fn=None), ReprPlan.Field(name='styles', kw_only=False, fn=None)), i"
+        "d=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='d88c19ce4d76aca811552c3f211b6c4fa9d30461',
+    cls_names=(
+        ('omllm.core.ui.text.styled', 'StyledTextBlock'),
+    ),
+)
+def _process_dataclass__d88c19ce4d76aca811552c3f211b6c4fa9d30461():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                block=self.block,
+                styles=self.styles,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.block == other.block and
+                self.styles == other.styles
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'block',
+            'styles',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.block,
+                self.styles,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            block: __dataclass__init__fields__0__annotation,
+            styles: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'block', block)
+            __dataclass__object_setattr(self, 'styles', styles)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"block={self.block!r}")
+            parts.append(f"styles={self.styles!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('parts',)), EqPlan(fields=('parts',)), FrozenPlan(fields=('parts',), allow_dynamic"
+        "_dunder_attrs=False), HashPlan(action='add', fields=('parts',), cache=False), InitPlan(fields=(InitPlan.Field("
+        "name='parts', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), "
+        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
+        "eck_type=None),), self_param='self', std_params=('parts',), kw_only_params=(), frozen=True, slots=False, post_"
+        "init_params=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='parts', kw_only=False, fn"
+        "=None),), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='a9794e1148c0dcb906f9c38bc69eeebe237ea73b',
+    cls_names=(
+        ('omllm.core.ui.text.styled', 'StyledTextRendering'),
+    ),
+)
+def _process_dataclass__a9794e1148c0dcb906f9c38bc69eeebe237ea73b():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                parts=self.parts,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.parts == other.parts
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'parts',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.parts,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            parts: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'parts', parts)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"parts={self.parts!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
