@@ -34,8 +34,6 @@ class Project(ProjectBase):
 
         'doc': [
             'docutils ~= 0.23',
-
-            'pygments ~= 2.21',
         ],
 
         'mypy': [

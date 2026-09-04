@@ -22,8 +22,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.5.1
 blobfile==3.2.0
-boto3==1.43.88
-botocore==1.43.88
+boto3==1.43.89
+botocore==1.43.89
 botocore-stubs==1.43.67
 brotli==1.2.0
 build==1.6.0
@@ -215,7 +215,7 @@ requests-toolbelt==1.0.0
 rfc3986==2.0.0
 rich==15.0.0
 ripgrep==15.1.0
-ruff==0.16.5
+ruff==0.16.6
 s3transfer==0.19.2
 safetensors==0.8.0
 scikit-image==0.26.0
@@ -274,7 +274,7 @@ trio==0.34.0
 twine==7.0.0
 typer==0.27.2
 types-awscrt==0.36.2
-types-boto3==1.43.88
+types-boto3==1.43.89
 types-docutils==0.23.0.20260827
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20260724

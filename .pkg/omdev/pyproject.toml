@@ -43,7 +43,6 @@ c = [
 ]
 doc = [
     'docutils ~= 0.23',
-    'pygments ~= 2.21',
 ]
 mypy = [
     'mypy ~= 2.3',
@@ -101,7 +100,6 @@ all = [
     'pycparser ~= 3.0',
     'pcpp ~= 1.30',
     'docutils ~= 0.23',
-    'pygments ~= 2.21',
     'mypy ~= 2.3',
     'pytesseract ~= 0.3',
     'rapidocr-onnxruntime ~= 1.4',
