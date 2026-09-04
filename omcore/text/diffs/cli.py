@@ -1,4 +1,3 @@
-# @om-llm-author "gpt-5.4-thinking"
 import argparse
 import sys
 import typing as ta

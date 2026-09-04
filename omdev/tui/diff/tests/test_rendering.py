@@ -1,6 +1,6 @@
+from omcore.text import diffs
 from omcore.text import styled as st
 
-from ....diffs.parsing import parse_patch
 from ... import minitui as mt
 from ..rendering import render_diff_document
 from ..terminal import render_diff_ansi
@@ -49,7 +49,7 @@ def _style_at(text: st.StyledText, position: int) -> st.ResolvedStyle:
 
 
 def test_plain_output_matches_rich_characterization() -> None:
-    document = render_diff_document(parse_patch(MODIFIED_DIFF), width=60)
+    document = render_diff_document(diffs.parse_patch(MODIFIED_DIFF), width=60)
 
     assert st.render_plain(document) == EXPECTED_MODIFIED_PLAIN
     assert document.trailing_newline
@@ -57,7 +57,7 @@ def test_plain_output_matches_rich_characterization() -> None:
 
 
 def test_equal_change_streaks_receive_intraline_highlighting() -> None:
-    document = render_diff_document(parse_patch("""\
+    document = render_diff_document(diffs.parse_patch("""\
 --- a/message.txt
 +++ b/message.txt
 @@ -1 +1 @@
@@ -73,13 +73,13 @@ def test_equal_change_streaks_receive_intraline_highlighting() -> None:
 
 
 def test_uneven_change_streak_uses_hatched_alignment_padding() -> None:
-    document = render_diff_document(parse_patch(MODIFIED_DIFF), width=60)
+    document = render_diff_document(diffs.parse_patch(MODIFIED_DIFF), width=60)
 
     assert any(line.text.startswith('╲' * 30) and 'print(message)' in line.text for line in document.lines)
 
 
 def test_markup_shaped_source_text_is_literal() -> None:
-    document = render_diff_document(parse_patch("""\
+    document = render_diff_document(diffs.parse_patch("""\
 --- a/types.py
 +++ b/types.py
 @@ -1 +1 @@ list[str]
@@ -93,17 +93,17 @@ def test_markup_shaped_source_text_is_literal() -> None:
 
 
 def test_special_file_bodies() -> None:
-    deleted = render_diff_document(parse_patch("""\
+    deleted = render_diff_document(diffs.parse_patch("""\
 diff --git a/old.txt b/old.txt
 deleted file mode 100644
 --- a/old.txt
 +++ /dev/null
 """), width=60)
-    binary = render_diff_document(parse_patch("""\
+    binary = render_diff_document(diffs.parse_patch("""\
 diff --git a/image.png b/image.png
 Binary files a/image.png and b/image.png differ
 """), width=60)
-    renamed = render_diff_document(parse_patch("""\
+    renamed = render_diff_document(diffs.parse_patch("""\
 diff --git a/old.txt b/new.txt
 similarity index 100%
 rename from old.txt
@@ -119,7 +119,7 @@ rename to new.txt
 
 
 def test_headless_ansi_has_same_visible_text() -> None:
-    patch = parse_patch(MODIFIED_DIFF)
+    patch = diffs.parse_patch(MODIFIED_DIFF)
     document = render_diff_document(patch, width=60)
 
     ansi = render_diff_ansi(patch, width=60)

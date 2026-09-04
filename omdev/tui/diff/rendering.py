@@ -22,13 +22,9 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.text import diffs
 from omcore.text import styled as st
 
-from ...diffs.types import ExtendedHeaderKind
-from ...diffs.types import FilePatch
-from ...diffs.types import Hunk
-from ...diffs.types import HunkLineKind
-from ...diffs.types import PatchSet
 from .. import minitui as mt
 
 
@@ -158,16 +154,16 @@ def _underline_bar(width: int, end: float) -> st.StyledText:
     return builder.build()
 
 
-def _is_rename(patch: FilePatch) -> bool:
+def _is_rename(patch: diffs.FilePatch) -> bool:
     kinds = {header.kind for header in patch.extended_headers}
-    return ExtendedHeaderKind.RENAME_FROM in kinds and ExtendedHeaderKind.RENAME_TO in kinds
+    return diffs.ExtendedHeaderKind.RENAME_FROM in kinds and diffs.ExtendedHeaderKind.RENAME_TO in kinds
 
 
-def _patch_path(patch: FilePatch) -> str:
+def _patch_path(patch: diffs.FilePatch) -> str:
     return patch.new_path or patch.old_path or '<unknown>'
 
 
-def _source_path(patch: FilePatch) -> str:
+def _source_path(patch: diffs.FilePatch) -> str:
     return patch.old_path or _patch_path(patch)
 
 
@@ -201,7 +197,7 @@ def _default_highlighter(path: str, lines: ta.Sequence[str]) -> ta.Sequence[st.S
     return tuple(styled)
 
 
-def _reconstruct_source(target: ta.Sequence[str], patch: FilePatch, tab_size: int) -> list[str]:
+def _reconstruct_source(target: ta.Sequence[str], patch: diffs.FilePatch, tab_size: int) -> list[str]:
     source: list[str] = []
     target_index = 0
     for hunk in patch.hunks:
@@ -210,14 +206,14 @@ def _reconstruct_source(target: ta.Sequence[str], patch: FilePatch, tab_size: in
         source.extend(
             line.text.expandtabs(tab_size)
             for line in hunk.lines
-            if line.kind in (HunkLineKind.CONTEXT, HunkLineKind.REMOVE)
+            if line.kind in (diffs.HunkLineKind.CONTEXT, diffs.HunkLineKind.REMOVE)
         )
         target_index = hunk_target_index + hunk.new_count
     source.extend(target[target_index:])
     return source
 
 
-def _aligned_hunk_rows(hunk: Hunk, tab_size: int) -> list[_AlignedRow]:
+def _aligned_hunk_rows(hunk: diffs.Hunk, tab_size: int) -> list[_AlignedRow]:
     source: list[_SideLine] = []
     target: list[_SideLine] = []
     contexts: list[tuple[int, int]] = []
@@ -226,16 +222,16 @@ def _aligned_hunk_rows(hunk: Hunk, tab_size: int) -> list[_AlignedRow]:
 
     for line in hunk.lines:
         text = line.text.expandtabs(tab_size)
-        if line.kind is HunkLineKind.CONTEXT:
+        if line.kind is diffs.HunkLineKind.CONTEXT:
             source.append(_SideLine(source_number, text, False))
             target.append(_SideLine(target_number, text, False))
             contexts.append((source_number, target_number))
             source_number += 1
             target_number += 1
-        elif line.kind is HunkLineKind.REMOVE:
+        elif line.kind is diffs.HunkLineKind.REMOVE:
             source.append(_SideLine(source_number, text, True))
             source_number += 1
-        elif line.kind is HunkLineKind.ADD:
+        elif line.kind is diffs.HunkLineKind.ADD:
             target.append(_SideLine(target_number, text, True))
             target_number += 1
         else:
@@ -348,8 +344,8 @@ class DiffRenderer(lang.Final):
         self._project_root = project_root
         self._highlighter = highlighter or _default_highlighter
 
-    def render(self, patch_set: PatchSet) -> st.StyledDocument:
-        if not isinstance(patch_set, PatchSet):
+    def render(self, patch_set: diffs.PatchSet) -> st.StyledDocument:
+        if not isinstance(patch_set, diffs.PatchSet):
             raise TypeError(patch_set)
 
         lines: list[st.StyledText] = []
@@ -364,7 +360,7 @@ class DiffRenderer(lang.Final):
         ), self._options.width))
         return st.StyledDocument(tuple(lines), trailing_newline=True)
 
-    def _render_patch_set_header(self, patch_set: PatchSet) -> list[st.StyledText]:
+    def _render_patch_set_header(self, patch_set: diffs.PatchSet) -> list[st.StyledText]:
         modified = sum(not patch.is_new_file and not patch.is_deleted_file for patch in patch_set.files)
         added = sum(patch.is_new_file for patch in patch_set.files)
         removed = sum(patch.is_deleted_file for patch in patch_set.files)
@@ -392,7 +388,7 @@ class DiffRenderer(lang.Final):
         lines.append(st.StyledText())
         return lines
 
-    def _render_file(self, patch: FilePatch) -> list[st.StyledText]:
+    def _render_file(self, patch: diffs.FilePatch) -> list[st.StyledText]:
         lines = [self._render_file_header(patch)]
         if patch.is_deleted_file:
             lines.extend(self._render_message_body('File was removed', 'diff.message.removed'))
@@ -441,7 +437,7 @@ class DiffRenderer(lang.Final):
         lines.append(_rule(None, width=self._options.width, character='▔', style='diff.border'))
         return lines
 
-    def _render_file_header(self, patch: FilePatch) -> st.StyledText:
+    def _render_file_header(self, patch: diffs.FilePatch) -> st.StyledText:
         parts: list[tuple[st.StyledTextLike, st.StyleLike | None]] = []
         if _is_rename(patch):
             parts.extend([
@@ -473,7 +469,7 @@ class DiffRenderer(lang.Final):
             _rule(None, width=self._options.width, character='▔', style='diff.border'),
         ]
 
-    def _binary_size(self, patch: FilePatch) -> int | None:
+    def _binary_size(self, patch: diffs.FilePatch) -> int | None:
         if self._project_root is not None:
             try:
                 return (self._project_root / _patch_path(patch)).stat().st_size
@@ -483,7 +479,7 @@ class DiffRenderer(lang.Final):
             return sum(record.size for record in patch.git_binary_patch.records)
         return None
 
-    def _load_file_lines(self, patch: FilePatch) -> tuple[list[str], list[str]] | None:
+    def _load_file_lines(self, patch: diffs.FilePatch) -> tuple[list[str], list[str]] | None:
         if self._project_root is not None:
             try:
                 target = (self._project_root / _patch_path(patch)).read_text().splitlines()
@@ -494,7 +490,7 @@ class DiffRenderer(lang.Final):
                 return _reconstruct_source(target, patch, self._options.tab_size), target
         return None
 
-    def _highlight_patch_lines(self, patch: FilePatch) -> tuple[HighlightedLines, HighlightedLines]:
+    def _highlight_patch_lines(self, patch: diffs.FilePatch) -> tuple[HighlightedLines, HighlightedLines]:
         source_highlighted: dict[int, st.StyledText] = {}
         target_highlighted: dict[int, st.StyledText] = {}
         for hunk in patch.hunks:
@@ -540,7 +536,7 @@ class DiffRenderer(lang.Final):
 
     def _render_hunk(
             self,
-            hunk: Hunk,
+            hunk: diffs.Hunk,
             source_highlighted: HighlightedLines,
             target_highlighted: HighlightedLines,
             *,
@@ -625,7 +621,7 @@ class DiffRenderer(lang.Final):
 
 
 def render_diff_document(
-        patch_set: PatchSet,
+        patch_set: diffs.PatchSet,
         project_root: pathlib.Path | None = None,
         *,
         width: int = 80,

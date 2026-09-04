@@ -1,4 +1,3 @@
-# @om-llm-author "gpt-5.4-thinking"
 import dataclasses as dc
 import enum
 

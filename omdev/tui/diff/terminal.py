@@ -1,7 +1,8 @@
 """Headless terminal rendering for styled diff documents."""
 import pathlib
 
-from ...diffs.types import PatchSet
+from omcore.text import diffs
+
 from .. import minitui as mt
 from .rendering import render_diff_document
 from .themes import DIFF_STYLE_THEME
@@ -14,7 +15,7 @@ DIFF_TERMINAL_THEME = mt.Theme(DIFF_STYLE_THEME.as_dict())
 
 
 def render_diff_ansi(
-        patch_set: PatchSet,
+        patch_set: diffs.PatchSet,
         project_root: pathlib.Path | None = None,
         *,
         width: int = 80,

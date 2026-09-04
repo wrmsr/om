@@ -1,8 +1,8 @@
-from ..cli import CliModule
-
-
 # @om-manifest
-_CLI_MODULE = CliModule('diffs', __name__)
+_CLI_MODULE = {'!omdev.cli.types.CliModule': {
+    'name': 'diffs',
+    'module': __name__,
+}}
 
 
 if __name__ == '__main__':

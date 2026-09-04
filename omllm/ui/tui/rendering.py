@@ -3,8 +3,8 @@ import shutil
 import sys
 
 from omcore import lang
+from omcore.text import diffs
 from omcore.text import styled as st
-from omdev.diffs.parsing import parse_patch
 from omdev.tui import diff as df
 from omdev.tui import minitui as mt
 
@@ -97,7 +97,7 @@ def render_text_part_rows(
             return _resolve_segment_rows(rows, theme=UI_TEXT_THEME, base=base)
 
         document = df.render_diff_document(
-            parse_patch(''.join(block.diff_lines)),
+            diffs.parse_patch(''.join(block.diff_lines)),
             width=width,
         )
         return [
