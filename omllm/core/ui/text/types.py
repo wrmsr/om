@@ -26,8 +26,8 @@ type CanText = ta.Union[  # noqa: UP007
 
 # A deliberately dumb, limited signaling channel for the wide range of internal machinery that needs to tell the user
 # something - render an ASK permission as yellow, DENY as red, ALLOW as green. The canned handful of colors is a
-# conscious choice to not (yet?) abstract it into semantic notions like WARNING / INFO / BAD / MAYBE-BAD and
-# immediately wind up reinventing CSS.
+# conscious choice to not (yet?) abstract it into semantic notions like WARNING / INFO / BAD / MAYBE-BAD and immediately
+# wind up reinventing CSS.
 type TextColor = ta.Literal[
     'red',
     'green',

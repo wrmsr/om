@@ -82,7 +82,9 @@ class Project(ProjectBase):
 
         'secrets': [
             'asn1crypto ~= 1.5',
+
             'cryptography ~= 50.0',
+
             'pynacl ~= 1.6',
         ],
 

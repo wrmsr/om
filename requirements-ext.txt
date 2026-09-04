@@ -11,7 +11,7 @@
 # infra
 
 google-api-python-client==2.200.0
-google-cloud-compute==1.51.0
+google-cloud-compute==1.52.0
 
 
 ##
@@ -19,8 +19,8 @@ google-cloud-compute==1.51.0
 
 matplotlib==3.11.1
 
-torch==2.13.0
-torchvision==0.28.0
+torch==2.14.0
+torchvision==0.29.0
 # torchcodec==0.7.0
 
 diffusers==0.40.0  # @om-venv !14t !14dt !15t
@@ -58,7 +58,7 @@ basedpyright==1.39.10
 
 blobfile==3.2.0
 
-pydantic-monty==0.0.21
+pydantic-monty==0.0.22
 
 
 ##

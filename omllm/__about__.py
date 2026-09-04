@@ -26,7 +26,7 @@ class Project(ProjectBase):
 
             'tinygrad ~= 0.14',
 
-            'torch ~= 2.13',
+            'torch ~= 2.14',
 
             'transformers ~= 5.16',
         ],

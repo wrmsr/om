@@ -37,7 +37,7 @@ interop = [
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
     'tinygrad ~= 0.14',
-    'torch ~= 2.13',
+    'torch ~= 2.14',
     'transformers ~= 5.16',
 ]
 search = [
@@ -50,7 +50,7 @@ all = [
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
     'tinygrad ~= 0.14',
-    'torch ~= 2.13',
+    'torch ~= 2.14',
     'transformers ~= 5.16',
     'ddgs ~= 9.16',
 ]
