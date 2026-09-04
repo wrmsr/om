@@ -3,10 +3,12 @@ import asyncio
 import pytest
 
 from omcore import check
+from omcore.asyncs.asynclite import all as asl
 from omcore.secrets.tests.harness import HarnessSecrets
 from omcore.testing.pytest.inject import Harness
 
 from .... import llm
+from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...dummy.weather import GetWeatherTool
 from ...tests.models import ANTHROPIC
 from ...tests.models import GOOGLE
@@ -71,6 +73,8 @@ async def test_loop_returns_failed_result_and_publishes_terminal_event():
     loop = TurnLoop(
         new_messages=[llm.UserMessage('hi')],
         subscriber=events.append,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=scripted_backend(error),
     )
 
@@ -102,6 +106,8 @@ async def test_loop_failure_after_tool_keeps_the_work():
     loop = TurnLoop(
         new_messages=[llm.UserMessage('go')],
         context=Context(tools=ToolSet([bare_tool('act', executor)])),
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=scripted_backend(
             tool_call_message(llm.ToolCall('t1', 'act', {'n': 1})),
             RuntimeError('boom'),
@@ -126,6 +132,8 @@ async def test_loop_publishes_cancelled_terminal_event():
     loop = TurnLoop(
         new_messages=[llm.UserMessage('hi')],
         subscriber=events.append,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=backend,
     )
 
@@ -151,6 +159,8 @@ async def test_loop_cancelled_mid_tool_repairs_transcript():
         new_messages=[llm.UserMessage('go')],
         context=Context(tools=ToolSet([bare_tool('block', executor)])),
         subscriber=events.append,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=scripted_backend(
             tool_call_message(
                 llm.ToolCall('t1', 'block', {}),
@@ -192,6 +202,8 @@ async def test_loop_does_not_publish_on_base_exception():
     loop = TurnLoop(
         new_messages=[llm.UserMessage('hi')],
         subscriber=events.append,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=scripted_backend(FooError()),
     )
 
@@ -208,6 +220,8 @@ async def test_loop_completes_with_text():
     loop = TurnLoop(
         new_messages=[llm.UserMessage('hi')],
         subscriber=events.append,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=scripted_backend(text_message('hello')),
     )
 
@@ -237,6 +251,8 @@ async def _test_loop(
         new_messages=[
             llm.UserMessage('Hi there!'),
         ],
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=svc,
     )
 
@@ -277,6 +293,8 @@ async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
         new_messages=[
             llm.UserMessage('What is the weather in Edinburgh, Scotland?'),
         ],
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=svc,
         context=Context(
             tools=ToolSet([

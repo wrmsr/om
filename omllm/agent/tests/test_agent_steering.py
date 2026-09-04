@@ -2,8 +2,10 @@
 import pytest
 
 from omcore import dataclasses as dc
+from omcore.asyncs.asynclite import all as asl
 
 from ... import llm
+from ...core.asyncs.asyncio import AsyncioGroupRunner
 from ..agent import Agent
 from ..backends import DictBackendManager
 from ..turns.runner import TurnLoopRunner
@@ -23,6 +25,8 @@ from .tools import bare_tool
 def _agent(backend):
     return Agent(
         turn_runner=TurnLoopRunner(
+            cancellation=asl.asyncio.Cancellation(),
+            group_runner=AsyncioGroupRunner(),
             backends=DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
         ),
     )

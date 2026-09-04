@@ -1,6 +1,7 @@
 from omcore.asyncs.asynclite import all as asl
 
 from ... import llm
+from ...core.asyncs.base import AsyncGroupRunner
 from ..backends import BackendManager
 from ..projection.types import LlmContextBuilder
 from ..types.turns import TurnParams
@@ -17,12 +18,16 @@ class TurnLoopRunner(TurnRunner):
             self,
             *,
             backends: BackendManager,
+            cancellation: asl.Cancellation,
+            group_runner: AsyncGroupRunner,
             sleeps: asl.Sleeps | None = None,
             context_builder: LlmContextBuilder | None = None,
     ) -> None:
         super().__init__()
 
         self._backends = backends
+        self._cancellation = cancellation
+        self._group_runner = group_runner
         self._sleeps = sleeps
         self._context_builder = context_builder
 
@@ -39,6 +44,8 @@ class TurnLoopRunner(TurnRunner):
             subscriber=params.subscriber,
             llm_backend=llm_backend,
             tool_env=params.in_state.tool_env,
+            cancellation=self._cancellation,
+            group_runner=self._group_runner,
             sleeps=self._sleeps,
             context_builder=self._context_builder,
             inbox=params.inbox,

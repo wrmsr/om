@@ -4,9 +4,11 @@ import tempfile
 import pytest
 
 from omcore import check
+from omcore.asyncs.asynclite import all as asl
 
 from ..... import llm
 from .....core import processes
+from .....core.asyncs.asyncio import AsyncioGroupRunner
 from ....permissions.deciders import StaticPermissionDecider
 from ....permissions.types import PermissionState
 from ....tests.scripted import scripted_backend
@@ -43,6 +45,8 @@ async def _run(command, *, timeout_s=None):
                 new_messages=[llm.UserMessage('go')],
                 context=Context(tools=ToolSet([tool.tool()])),
                 subscriber=events.append,
+                cancellation=asl.asyncio.Cancellation(),
+                group_runner=AsyncioGroupRunner(),
                 llm_backend=scripted_backend(
                     tool_call_message(llm.ToolCall('t1', 'bash', args)),
                     text_message('done'),

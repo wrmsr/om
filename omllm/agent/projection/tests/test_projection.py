@@ -1,8 +1,10 @@
 import pytest
 
 from omcore import check
+from omcore.asyncs.asynclite import all as asl
 
 from .... import llm
+from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.tools import EchoTool
@@ -100,6 +102,8 @@ async def test_loop_sends_the_builders_view():
     loop = TurnLoop(
         new_messages=[llm.UserMessage('hi')],
         context=Context(messages=[InfoAgentMessage('earlier')]),
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=scripted_backend(llm.BackendScriptTurn(text_message('ok'), expect=expect)),
         context_builder=StandardLlmContextBuilder(
             projector=TypeMapAgentMessageProjector({InfoAgentMessage: _NoteProjector()}),

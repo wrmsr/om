@@ -6,6 +6,8 @@ from omcore import lang
 from omcore.asyncs.asynclite import all as asl
 
 from .... import agent as agn
+from ....core.asyncs.asyncio import AsyncioGroupRunner
+from ....core.asyncs.base import AsyncGroupRunner
 from ....core.eventbus import EventSubscriber
 from ..config import Config
 
@@ -106,7 +108,12 @@ def bind_agent(config: Config) -> inj.Elements:
         inj.bind(ScopedTurnRunner, singleton=True),
         inj.bind(agn.TurnRunner, to_key=ScopedTurnRunner),
 
-        # The loop's retry backoff sleeps through this; the ui is asyncio, so the loop gets asyncio's sleep.
+        # What the loop needs of its runtime: the ui is asyncio, so the loop gets asyncio's cancellation, task groups,
+        # and sleeps.
+        inj.bind(asl.asyncio.Cancellation, singleton=True),
+        inj.bind(asl.Cancellation, to_key=asl.asyncio.Cancellation),
+        inj.bind(AsyncioGroupRunner, singleton=True),
+        inj.bind(AsyncGroupRunner, to_key=AsyncioGroupRunner),
         inj.bind(asl.asyncio.Sleeps, singleton=True),
         inj.bind(asl.Sleeps, to_key=asl.asyncio.Sleeps),
 

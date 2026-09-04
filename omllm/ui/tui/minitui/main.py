@@ -100,9 +100,9 @@ class PromptPump:
         if self._task is task:
             self._task = None
         if self._app.is_busy:
-            # Backstop for a lost terminal event: a cancellation landing inside the agent's AgentEndEvent publish is
-            # thrown into whichever subscriber was suspended, and the renderer behind it never closes the turn. The
-            # prompt task is over either way, so close it here.
+            # Backstop for a lost terminal event. The loop shields its AgentEndEvent publish from cancellation, so this
+            # is for a subscriber ahead of the renderer raising out of it. The prompt task is over either way, so close
+            # the turn here.
             self._app.abort_ai_turn(cancelled=task.cancelled())
         self._maybe_start()
 

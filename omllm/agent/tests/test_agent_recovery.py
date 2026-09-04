@@ -8,9 +8,11 @@ import tempfile
 import pytest
 
 from omcore import dataclasses as dc
+from omcore.asyncs.asynclite import all as asl
 
 from ... import llm
 from ...core import processes
+from ...core.asyncs.asyncio import AsyncioGroupRunner
 from ..agent import Agent
 from ..backends import DictBackendManager
 from ..exec.ops import ProcessesExecOps
@@ -46,6 +48,8 @@ def _bash_tool():
 async def _agent(backend, tools, *, cwd, scope, sleeps=None, turn_config=None):
     agent = Agent(
         turn_runner=TurnLoopRunner(
+            cancellation=asl.asyncio.Cancellation(),
+            group_runner=AsyncioGroupRunner(),
             backends=DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
             sleeps=sleeps,
         ),

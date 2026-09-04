@@ -3,7 +3,10 @@ import asyncio
 
 import pytest
 
+from omcore.asyncs.asynclite import all as asl
+
 from .... import llm
+from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
@@ -45,6 +48,8 @@ async def test_messages_are_announced_in_order_with_indices():
         new_messages=[llm.UserMessage('go')],
         context=Context(tools=ToolSet([echo.tool()])),
         subscriber=events.append,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=scripted_backend(
             tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'hi'})),
             text_message('done'),
@@ -76,6 +81,8 @@ async def test_repair_messages_are_not_announced_but_carried():
         new_messages=[llm.UserMessage('go')],
         context=Context(tools=ToolSet([bare_tool('block', executor)])),
         subscriber=events.append,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=scripted_backend(tool_call_message(llm.ToolCall('t1', 'block', {}))),
     )
 

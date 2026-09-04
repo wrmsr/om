@@ -1,7 +1,10 @@
 """The loop's handling of tool calls which cannot be executed as asked: every one is an error result the model sees."""
 import pytest
 
+from omcore.asyncs.asynclite import all as asl
+
 from .... import llm
+from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
@@ -31,6 +34,8 @@ async def _run(backend, tools, events=None):
         new_messages=[llm.UserMessage('go')],
         context=Context(tools=ToolSet(list(tools))),
         subscriber=events.append if events is not None else None,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=backend,
     )
     return await loop.run()

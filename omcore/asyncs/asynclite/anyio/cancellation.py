@@ -1,4 +1,4 @@
-# ruff: noqa: UP006 UP045
+# ruff: noqa: UP045
 import typing as ta
 
 import anyio
@@ -7,17 +7,23 @@ from ..cancellation import AsyncliteCancellation
 from .base import AnyioAsyncliteApi
 
 
+T = ta.TypeVar('T')
+
+
 ##
 
 
 class AnyioAsyncliteCancellation(AsyncliteCancellation, AnyioAsyncliteApi):
-    def get_cancelled_exception_types(self) -> ta.Tuple[ta.Type[BaseException], ...]:
+    def get_cancelled_exception_types(self) -> tuple[type[BaseException], ...]:
         return (anyio.get_cancelled_exc_class(),)
 
-    def cancellation_shielded_finally(
+    def is_self_cancelling(self) -> bool:
+        raise NotImplementedError
+
+    def cancellation_shield(
             self,
-            fn: ta.Callable[[], ta.Awaitable[ta.Any]],
+            fn: ta.Callable[[], ta.Awaitable[T]],
             *,
-            timeout: ta.Optional[float] = None,
-    ) -> ta.AsyncContextManager[None]:
+            timeout: float | None = None,
+    ) -> ta.Awaitable[T]:
         raise NotImplementedError

@@ -1,7 +1,10 @@
 """Retry of transiently failing LLM calls, with the backoff asserted on rather than waited out."""
 import pytest
 
+from omcore.asyncs.asynclite import all as asl
+
 from .... import llm
+from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.sleeps import RecordingSleeps
@@ -31,6 +34,8 @@ async def _run(backend, *, retry=None, sleeps=None, events=None):
         new_messages=[llm.UserMessage('hi')],
         config=TurnConfig(llm_retry=retry),
         subscriber=events.append if events is not None else None,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=backend,
         sleeps=sleeps,
     )
@@ -130,6 +135,8 @@ def test_retry_config_needs_a_sleeper():
         TurnLoop(
             new_messages=[llm.UserMessage('hi')],
             config=TurnConfig(llm_retry=_retry_config()),
+            cancellation=asl.asyncio.Cancellation(),
+            group_runner=AsyncioGroupRunner(),
             llm_backend=scripted_backend(text_message('ok')),
         )
 

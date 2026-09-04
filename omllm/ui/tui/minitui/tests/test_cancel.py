@@ -7,6 +7,7 @@ import typing as ta
 
 import pytest
 
+from omcore.asyncs.asynclite import all as asl
 from omdev.tui import minitui as mt
 
 from ..... import agent as agn
@@ -14,6 +15,7 @@ from ..... import harness as har
 from ..... import llm
 from .....agent.eval.permissions import EvalLanguage
 from .....agent.eval.permissions import EvalPermissionTarget
+from .....core.asyncs.asyncio import AsyncioGroupRunner
 from ...config import Config
 from ..app import AppKey
 from ..app import MinituiChatApp
@@ -392,6 +394,8 @@ class _TurnLoopSession:
             new_messages=[llm.UserMessage(text)],
             context=agn.Context(tools=agn.ToolSet(list(self._tools))),
             subscriber=self._subscriber,
+            cancellation=asl.asyncio.Cancellation(),
+            group_runner=AsyncioGroupRunner(),
             llm_backend=self._backend,
         )
         try:
@@ -467,18 +471,18 @@ def _text_backend(text):
 
 
 class _StallingEndSubscriber:
-    """Suspends inside the AgentEndEvent, standing in for a storage subscriber ahead of the renderer."""
+    """Suspends inside the AgentEndEvent until released, standing in for a storage subscriber ahead of the renderer."""
 
     def __init__(self) -> None:
         super().__init__()
 
         self.stalled = asyncio.Event()
-        self._never = asyncio.Event()
+        self.release = asyncio.Event()
 
     async def __call__(self, ev) -> None:
         if isinstance(ev, agn.AgentEndEvent):
             self.stalled.set()
-            await self._never.wait()
+            await self.release.wait()
 
 
 @pytest.mark.asyncs('asyncio')
@@ -498,13 +502,102 @@ async def test_cancel_landing_in_end_event_publish_still_closes_turn():
     await stalling.stalled.wait()
     assert any(' streaming ' in line for line in frame_lines(app))
 
-    # The cancel is thrown into the stalled subscriber; the renderer never sees the end event. The pump's done callback
-    # must close the turn anyway.
+    # The cancel lands while the subscriber ahead of the renderer is suspended in the end event. The loop's terminal
+    # publish is shielded, so the turn stays open until that subscriber is done, and the renderer then sees the event
+    # and closes the turn as the completed one it is.
     app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
-    await settle(lambda: not app.is_busy)
+    await settle()
+    still_busy = app.is_busy
+
+    stalling.release.set()
+    await session.finished.wait()
+
+    assert still_busy
 
     assert not app.is_busy
-    assert commit_texts(driver)[-1] == '× cancelled\n'
+    assert any(' idle ' in line for line in frame_lines(app))
+    assert '× cancelled\n' not in commit_texts(driver)
+    assert not pump.cancel_current()
+    await pump.aclose()
+
+
+class _AskingTool:
+    """A tool which asks permission through the card asker, recording how its ask came back."""
+
+    def __init__(self, name: str, asker: CardPermissionAsker) -> None:
+        super().__init__()
+
+        self.name = name
+        self._asker = asker
+
+        self.started = asyncio.Event()
+        self.seen: list[type[BaseException]] = []
+
+    async def execute(self, ctx):
+        self.started.set()
+        try:
+            await self._asker.ask(
+                agn.PermissionRequestor(tool_context=ctx),
+                EvalPermissionTarget(language=EvalLanguage.JS, code=self.name),
+                agn.PermissionRule(agn.EvalPermissionMatcher(), agn.PermissionState.ASK),
+            )
+        except BaseException as e:
+            self.seen.append(type(e))
+            raise
+        raise AssertionError
+
+    def tool(self):
+        return agn.Tool(llm_tool=llm.Tool(name=self.name), executor=self.execute)
+
+
+def _tool_calls_backend(*calls: tuple[str, str]):
+    model = llm.Model(key=llm.ModelKey('scripted', 'test'), backend='scripted')
+    return llm.ScriptedImmediateBackend(model, llm.BackendScript([
+        llm.BackendScriptTurn(llm.AiMessage(
+            [llm.ToolCall(id=call_id, name=name, args={}) for call_id, name in calls],
+            stop_reason='tool_use',
+        )),
+    ]))
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_cancel_key_unwinds_parallel_asks_as_cancellations_before_the_turn_ends():
+    app, driver = make_app()
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    asker = CardPermissionAsker(app=app)
+    alpha, beta = _AskingTool('alpha', asker), _AskingTool('beta', asker)
+    at_end = []
+
+    async def subscriber(ev):
+        if isinstance(ev, agn.AgentEndEvent):
+            at_end.append((list(alpha.seen), list(beta.seen)))
+        await renderer.on_agent_event(ev)
+
+    session = _TurnLoopSession(
+        backend=_tool_calls_backend(('t1', 'alpha'), ('t2', 'beta')),
+        tools=[alpha.tool(), beta.tool()],
+        subscriber=subscriber,
+    )
+    pump = _wire(app, session)
+
+    pump.submit('go')
+    await alpha.started.wait()
+    await beta.started.wait()
+    await settle(_shows(app, 'beta  queued for confirmation'))
+    assert any('alpha  awaiting confirmation' in line for line in frame_lines(app))
+    driver.commits.clear()
+
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
+    await session.finished.wait()
+
+    # Both asks - the active one and the queued one - unwound inside their own tasks as cancellations of those tasks,
+    # not as withdrawn asks, and had done so by the time the turn ended: nothing was left for the app to withdraw.
+    assert at_end == [([asyncio.CancelledError], [asyncio.CancelledError])]
+    assert not app.is_busy
+    committed = commit_texts(driver)
+    assert any('alpha  cancelled' in c for c in committed)
+    assert any('beta  cancelled' in c for c in committed)
+    assert committed[-1] == '× cancelled\n'
     assert not pump.cancel_current()
     await pump.aclose()
 

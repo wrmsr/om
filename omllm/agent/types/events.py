@@ -73,9 +73,10 @@ class AgentEndEvent(Event):
 @dc.dataclass(frozen=True, kw_only=True)
 class MessageAddedEvent(Event):
     """
-    A message appended to the run's transcript, announced as it lands. The repair messages an interrupted run appends
-    on its way out are not announced this way - that path is deliberately synchronous - and reach subscribers only
-    through the terminal event's `new_messages`.
+    A message appended to the run's transcript, announced as it lands. What an interrupted run appends on its way out -
+    the results of tool calls which completed as their batch was cancelled, and the repair messages - is not announced
+    this way, that path being deliberately synchronous, and reaches subscribers only through the terminal event's
+    `new_messages`.
     """
 
     message: Message

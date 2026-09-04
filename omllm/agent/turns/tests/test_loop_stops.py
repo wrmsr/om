@@ -1,7 +1,10 @@
 """How the loop ends: every stop reason, and the turn limit."""
 import pytest
 
+from omcore.asyncs.asynclite import all as asl
+
 from .... import llm
+from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
@@ -30,6 +33,8 @@ async def _run(backend, tools, *, config=None, events=None):
         config=config,
         context=Context(tools=ToolSet(list(tools))),
         subscriber=events.append if events is not None else None,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=backend,
     )
     return await loop.run()

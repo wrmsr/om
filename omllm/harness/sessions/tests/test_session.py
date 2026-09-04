@@ -4,6 +4,7 @@ import asyncio
 import pytest
 
 from omcore import dataclasses as dc
+from omcore.asyncs.asynclite import all as asl
 
 from .... import agent as agn
 from .... import llm
@@ -13,6 +14,7 @@ from ....agent.tests.scripted import tool_call_message
 from ....agent.tests.tools import EchoTool
 from ....agent.tests.tools import bare_tool
 from ....core import ui
+from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...commands.base import Commands
 from ...commands.manager import CommandsManager
 from ..entries import MessageSessionEntry
@@ -67,6 +69,8 @@ class _BlockingExecutor:
 async def _session(backend, tools=()):
     agent = agn.Agent(
         turn_runner=agn.TurnLoopRunner(
+            cancellation=asl.asyncio.Cancellation(),
+            group_runner=AsyncioGroupRunner(),
             backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
         ),
     )

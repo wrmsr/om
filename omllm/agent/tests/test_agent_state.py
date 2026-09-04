@@ -5,7 +5,10 @@ import asyncio
 
 import pytest
 
+from omcore.asyncs.asynclite import all as asl
+
 from ... import llm
+from ...core.asyncs.asyncio import AsyncioGroupRunner
 from ..agent import Agent
 from ..backends import DictBackendManager
 from ..turns.runner import TurnLoopRunner
@@ -42,6 +45,8 @@ class _BlockingBackend(llm.ImmediateBackend):
 def _agent(backend):
     return Agent(
         turn_runner=TurnLoopRunner(
+            cancellation=asl.asyncio.Cancellation(),
+            group_runner=AsyncioGroupRunner(),
             backends=DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
         ),
     )
@@ -106,12 +111,14 @@ async def test_state_is_applied_when_a_cancel_lands_in_a_later_subscriber():
     class StallingSubscriber:
         def __init__(self):
             self.stalled = asyncio.Event()
-            self._never = asyncio.Event()
+            self.release = asyncio.Event()
+            self.ended = False
 
         async def __call__(self, ev):
             if isinstance(ev, AgentEndEvent):
                 self.stalled.set()
-                await self._never.wait()
+                await self.release.wait()
+                self.ended = True
 
     stalling = StallingSubscriber()
     agent = _agent(scripted_backend(text_message('hello')))
@@ -120,11 +127,17 @@ async def test_state_is_applied_when_a_cancel_lands_in_a_later_subscriber():
     task = asyncio.create_task(agent.prompt('hi'))
     await stalling.stalled.wait()
     task.cancel()
+
+    # The terminal publish is shielded: the cancellation waits for the subscriber rather than being thrown into it.
+    await asyncio.sleep(0)
+    assert not task.done()
+    stalling.release.set()
     with pytest.raises(asyncio.CancelledError):
         await task
 
-    # The run itself completed; the cancellation only interrupted its terminal publish. The completed transcript is
-    # what gets applied.
+    # The run itself completed; the cancellation only landed during its terminal publish, which still ran to its end.
+    # The completed transcript is what gets applied.
+    assert stalling.ended
     assert _message_types(agent) == [llm.UserMessage, llm.AiMessage]
     assert not agent.is_running
 

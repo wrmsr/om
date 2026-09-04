@@ -1,3 +1,4 @@
+import functools
 import typing as ta
 
 from omcore import check
@@ -5,7 +6,8 @@ from omcore import dataclasses as dc
 from omcore.asyncs.asynclite import all as asl
 
 from ... import llm
-from ...core.errors import is_cancelled_error
+from ...core.asyncs.base import AsyncGroupCancelledError
+from ...core.asyncs.base import AsyncGroupRunner
 from ...core.eventbus import EventSubscriber
 from ..projection.builders import StandardLlmContextBuilder
 from ..projection.types import LlmContextBuilder
@@ -78,10 +80,15 @@ class TurnLoop:
     Runs one prompt: LLM calls and the tool calls they make, around again until the model ends its turn or a limit is
     reached.
 
-    Sans-io: nothing here depends on asyncio being loaded, and the one concurrency primitive used - the sleeper for
-    retry backoff - is handed in. Every outcome the loop decides for itself, a failure included, is returned as a
-    TurnResult and published as an AgentEndEvent; only the run's own cancellation (or a non-Exception BaseException)
-    propagates, and it does so after that same terminal publish.
+    Sans-io: nothing here depends on asyncio being loaded. What the loop needs of its runtime is handed in - the
+    backend's notion of cancellation, a group runner for a message's tool calls, and a sleeper for retry backoff.
+    Every outcome the loop decides for itself, a failure included, is returned as a TurnResult and published as an
+    AgentEndEvent; only the run's own cancellation (or a non-Exception BaseException) propagates, and it does so after
+    that same terminal publish, which is shielded so that a cancellation landing during it waits for every subscriber.
+
+    A cancellation error which is not the run's own - something it awaited was cancelled out from under it - is never
+    reported as a cancellation, which would unwind into a task nobody cancelled: inside a tool call it is that call's
+    error result, and anywhere else it is a failure of the run.
 
     Whatever the outcome, the transcript left behind is one the next request can be built on: every tool call in the
     last AI message has a result, synthesized as an error wherever the call was never executed, and an interrupted run
@@ -100,6 +107,8 @@ class TurnLoop:
             subscriber: EventSubscriber[Event] | None = None,
             llm_backend: llm.ImmediateBackend,
             tool_env: ToolEnvironment | None = None,
+            cancellation: asl.Cancellation,
+            group_runner: AsyncGroupRunner,
             sleeps: asl.Sleeps | None = None,
             context_builder: LlmContextBuilder | None = None,
             inbox: TurnInbox | None = None,
@@ -116,6 +125,8 @@ class TurnLoop:
         self._subscriber = subscriber
         self._llm_backend = llm_backend
         self._tool_env = tool_env
+        self._cancellation = cancellation
+        self._group_runner = group_runner
         if config.llm_retry is not None:
             check.state(sleeps is not None, 'Retries need a sleeper for their backoff')
         self._sleeps = sleeps
@@ -265,7 +276,17 @@ class TurnLoop:
 
     #
 
-    async def _execute_tool_call(self, tool_call: llm.ToolCall) -> None:
+    def _is_own_cancellation(self, e: BaseException) -> bool:
+        """
+        Whether `e` is the current task's own cancellation. A cancellation error while no cancellation of the task is
+        outstanding is a stray one: something the task awaited was cancelled out from under it.
+        """
+
+        return self._cancellation.is_cancelled_exception(e) and self._cancellation.is_self_cancelling()
+
+    async def _execute_tool_call(self, tool_call: llm.ToolCall) -> llm.ToolResultMessage:
+        """Executes one call, announcing its execution. Its result message is returned, not appended - see the batch."""
+
         tool = self._context.tools.by_name.get(tool_call.name) if self._context.tools is not None else None
 
         progress = _PublishingToolProgressSink(self._publish, tool)
@@ -299,12 +320,24 @@ class TurnLoop:
 
         else:
             # Any Exception out of an executor is an error result for the model to see and recover from. Tool classes
-            # do this for themselves; this is the backstop for bare executors. Cancellation is a BaseException, and
-            # propagates.
+            # do this for themselves; this is the backstop for bare executors. The task's own cancellation propagates.
             try:
                 tool_result = await tool.executor(tool_context)
+
             except Exception as e:  # noqa: BLE001
                 tool_result = ToolResult.of_error(e)
+
+            except BaseException as e:
+                if not self._cancellation.is_cancelled_exception(e) or self._is_own_cancellation(e):
+                    raise
+
+                # A cancellation error which is not this task's own: something the executor awaited was cancelled out
+                # from under it - an ask withdrawn by the surface presenting it, a future a tool shares with something
+                # else. That is an error of this call, not a cancellation of the run, and must not unwind as one.
+                tool_result = ToolResult(
+                    content=llm.TextContent(f'Tool execution was interrupted:\n\n{e!r}'),
+                    error=e,
+                )
 
         await self._publish(ToolExecutionEndEvent(
             tool=tool,
@@ -312,43 +345,62 @@ class TurnLoop:
             result=tool_result,
         ))
 
-        await self._append(llm.ToolResultMessage(
+        return llm.ToolResultMessage(
             tool_call_id=tool_call.id,
             tool_name=tool_call.name,
 
             content=(tool_result.content,),
 
             is_error=tool_result.error is not None,
-        ))
+        )
+
+    async def _execute_tool_call_group(self, tool_calls: ta.Sequence[llm.ToolCall]) -> list[llm.ToolResultMessage]:
+        """
+        Executes the calls as one group: every one of them starts, every one of them finishes before this returns, and
+        a cancellation of the run reaches each of them before it propagates - so an execution parked on something (a
+        permission ask) unwinds inside its own task, as a cancellation, ahead of the terminal publish. The results come
+        back in call order whatever the order of completion, and are appended by the caller, so they land on the
+        transcript in that order too.
+        """
+
+        try:
+            results = await self._group_runner.run([
+                functools.partial(self._execute_tool_call, tc)
+                for tc in tool_calls
+            ])
+
+        except AsyncGroupCancelledError as e:
+            # Every call has finished. Those which completed have results, kept here - unannounced, this being the
+            # cancellation path - so the repair on the way out synthesizes results only for the rest.
+            self._add_new_message(*[
+                check.isinstance(o.must(), llm.ToolResultMessage)
+                for o in e.outcomes
+                if o.present
+            ])
+
+            raise
+
+        return [check.isinstance(r, llm.ToolResultMessage) for r in results]
 
     async def _execute_tool_calls(self, tool_calls: ta.Sequence[llm.ToolCall]) -> None:
-        # FIXME: parallel tool calls. When these run concurrently, cancellation semantics must hold for the group, not
-        # per call:
-        #  - A failing sibling must cancel the others *before* control reaches `run`'s terminal publish, so their
-        #    pending permission asks unwind inside their own tasks as genuine cancellations. Otherwise those asks are
-        #    still parked when frontends receive the AgentEndEvent and the frontend has to withdraw them, which (per
-        #    the PermissionAsker contract) surfaces to a still-live tool as PermissionAskAbortedError - and a detached
-        #    tool then runs to completion, publishing ToolExecution*Events into a turn that has ended (minitui's
-        #    renderer drops such stragglers; other frontends may not).
-        #  - A cancellation of the loop itself must reach every child before the terminal publish, for the same
-        #    reason.
-        #  - Tool result messages must still be appended in tool-call order regardless of completion order; frontends
-        #    already finalize cards in that order.
-        # This layer is sans-io and must stay usable with asyncio absent from sys.modules: no TaskGroup / gather here.
-        # The concurrency primitive is to be decided, and is explicitly *not* an injectable sync/async abstraction for
-        # now.
-        for i, tool_call in enumerate(tool_calls):
-            await self._execute_tool_call(tool_call)
+        groups: list[list[llm.ToolCall]]
+        if self._config.steering_skips_pending_tool_calls:
+            # One at a time, so steering can cut in between them.
+            groups = [[tc] for tc in tool_calls]
+        else:
+            groups = [list(tool_calls)]
 
+        for i, group in enumerate(groups):
             if (
-                    self._config.steering_skips_pending_tool_calls and
-                    i < len(tool_calls) - 1 and
+                    i and
                     self._inbox is not None and
                     self._inbox.has_steering()
             ):
                 # The steering itself is taken at the top of the next turn, like any other.
                 await self._append(*self._unexecuted_tool_call_results('the user interjected'))
                 break
+
+            await self._append(*await self._execute_tool_call_group(group))
 
     #
 
@@ -461,53 +513,40 @@ class TurnLoop:
             end_error = e
 
         except BaseException as e:
-            # FIXME: cancellation classification is coarse. `is_cancelled_error` answers "is this a cancellation
-            # error", not "was this task cancelled": a CancelledError raised because *something else* cancelled a
-            # future this task was awaiting (a frontend withdrawing a permission ask, a tool cancelling its own
-            # awaitable) is indistinguishable here from the user cancelling the turn. It is reported CANCELLED, and
-            # re-raised as such into a task which was never cancelled. The precise test is asyncio-specific -
-            # `asyncio.current_task().cancelling() > 0` - and this layer must stay usable without asyncio loaded at
-            # all, so it is not done here. The consequence is pushed to the edges: askers must never inject a bare
-            # cancellation into a live turn (see the PermissionAsker contract; minitui's CardPermissionAsker converts a
-            # withdrawn ask into PermissionAskAbortedError when its own task was not cancelled).
-            if not is_cancelled_error(e):
+            if not self._cancellation.is_cancelled_exception(e):
                 # Not the loop's to report: a KeyboardInterrupt or SystemExit passes straight through, terminal event
                 # and all.
                 raise
 
-            # Cancellation is reported like any other outcome, but must still unwind through the caller's task.
-            end_reason = AgentEndReason.CANCELLED
-            end_error = e
-            raise
+            if not self._is_own_cancellation(e):
+                # A cancellation error which is not this task's own: something the run awaited - a subscriber, a backend
+                # - was cancelled out from under it. That is a failure of the run, reported like any other. As a
+                # cancellation it would unwind into a task nobody cancelled.
+                end_reason = AgentEndReason.FAILED
+                end_error = e
+
+            else:
+                # Cancellation is reported like any other outcome, but must still unwind through the caller's task.
+                end_reason = AgentEndReason.CANCELLED
+                end_error = e
+                raise
 
         finally:
             if end_reason is not None:
                 if end_error is not None:
                     self._note_interruption(end_reason, end_error)
 
-                # FIXME: this terminal publish is not atomic under cancellation. If a cancellation lands while a
-                # subscriber is suspended inside it, the CancelledError is thrown into that subscriber and every
-                # subscriber after it never sees the AgentEndEvent: a frontend can be left mid-turn forever, and a
-                # completed run can be half-recorded. The fix is to shield the publish so a cancellation arriving
-                # during it is deferred until every subscriber has run and then re-raised -
-                # `omcore.asyncs.asyncio.shielded_finally` does exactly this - but it is asyncio-specific and this
-                # layer must not depend on asyncio. Until a sans-io equivalent exists:
-                #  - A subscriber that may suspend (storage, network) widens the window for every subscriber behind it.
-                #    The harness Session subscribes at construction, ahead of UI subscribers, and its JSONL storage
-                #    does synchronous file IO, so today the window is nil - keep it that way, or reorder.
-                #  - Frontends must backstop a lost terminal event. minitui's PromptPump closes the surface's turn from
-                #    the prompt task's done callback if the renderer never saw the end event.
-                #  - Agent.prompt captures this event ahead of forwarding it, so its state is applied even when the
-                #    cancellation lands in a later subscriber.
-                #  - Messages are announced as they land, so what is at stake here is only the repair tail.
-                await self._publish(AgentEndEvent(
+                # Shielded: a cancellation landing while a subscriber is suspended in it is delivered only once every
+                # subscriber has seen the event. Otherwise it would be thrown into that subscriber, and the ones after
+                # it would never see the run end - a frontend left mid-turn, a completed run half-recorded.
+                await self._cancellation.cancellation_shield(functools.partial(self._publish, AgentEndEvent(
                     context=self._context,
 
                     new_messages=tuple(self._new_messages),
 
                     reason=end_reason,
                     error=end_error,
-                ))
+                )))
 
         return TurnResult(
             config=self._config,

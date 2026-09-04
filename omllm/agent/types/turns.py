@@ -56,7 +56,8 @@ class TurnConfig:
     llm_retry: LlmRetryConfig | None = None
 
     # Whether steering which arrives mid-batch cuts the batch short: the tool calls not yet executed get an error
-    # result saying the user interjected, and the model sees the steering right away. Off, the batch finishes first.
+    # result saying the user interjected, and the model sees the steering right away. For there to be calls not yet
+    # executed, this runs a message's tool calls one at a time. Off, they run concurrently and the batch finishes first.
     steering_skips_pending_tool_calls: bool = False
 
 

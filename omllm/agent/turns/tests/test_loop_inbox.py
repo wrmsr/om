@@ -2,8 +2,10 @@
 import pytest
 
 from omcore import check
+from omcore.asyncs.asynclite import all as asl
 
 from .... import llm
+from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
@@ -44,6 +46,8 @@ async def _run(backend, tools, inbox, *, config=None):
         new_messages=[llm.UserMessage('go')],
         config=config,
         context=Context(tools=ToolSet(list(tools))),
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
         llm_backend=backend,
         inbox=inbox,
     )

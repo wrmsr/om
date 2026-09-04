@@ -7,6 +7,9 @@ from ...lite.abstract import Abstract
 from .base import AsyncliteApi
 
 
+T = ta.TypeVar('T')
+
+
 ##
 
 
@@ -22,10 +25,14 @@ class AsyncliteCancellation(AsyncliteApi, Abstract):
             return isinstance(ex, self.get_cancelled_exception_types())
 
     @abc.abstractmethod
-    def cancellation_shielded_finally(
+    def is_self_cancelling(self) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def cancellation_shield(
             self,
-            fn: ta.Callable[[], ta.Awaitable[ta.Any]],
+            fn: ta.Callable[[], ta.Awaitable[T]],
             *,
             timeout: ta.Optional[float] = None,
-    ) -> ta.AsyncContextManager[None]:
+    ) -> ta.Awaitable[T]:
         raise NotImplementedError

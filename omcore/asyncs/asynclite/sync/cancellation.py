@@ -6,6 +6,9 @@ from ..cancellation import AsyncliteCancellation
 from .base import SyncAsyncliteApi
 
 
+T = ta.TypeVar('T')
+
+
 ##
 
 
@@ -13,10 +16,13 @@ class SyncAsyncliteCancellation(AsyncliteCancellation, SyncAsyncliteApi):
     def get_cancelled_exception_types(self) -> ta.Tuple[ta.Type[BaseException], ...]:
         return ()
 
-    def cancellation_shielded_finally(
+    def is_self_cancelling(self) -> bool:
+        return False
+
+    def cancellation_shield(
             self,
-            fn: ta.Callable[[], ta.Awaitable[ta.Any]],
+            fn: ta.Callable[[], ta.Awaitable[T]],
             *,
             timeout: ta.Optional[float] = None,
-    ) -> ta.AsyncContextManager[None]:
+    ) -> ta.Awaitable[T]:
         raise NotImplementedError

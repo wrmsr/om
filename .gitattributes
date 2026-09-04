@@ -51,6 +51,7 @@ omllm/agent/web/_dataclasses.py linguist-generated
 omllm/agent/web/backends/google/_dataclasses.py linguist-generated
 omllm/agent/web/backends/tavily/_dataclasses.py linguist-generated
 omllm/core/_dataclasses.py linguist-generated
+omllm/core/asyncs/_dataclasses.py linguist-generated
 omllm/core/http/_dataclasses.py linguist-generated
 omllm/core/processes/_dataclasses.py linguist-generated
 omllm/core/ui/text/_dataclasses.py linguist-generated
