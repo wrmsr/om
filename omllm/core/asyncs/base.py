@@ -28,6 +28,35 @@ class AsyncGroupCancelledError(BaseException):
     outcomes: ta.Sequence[lang.Maybe[ta.Any]]
 
 
+class AsyncGroupFailedError(ExceptionGroup):
+    """
+    One or more members of the group raised. By the time this is raised every member has finished: the ones which
+    raised are its exceptions, the rest were cancelled or had completed - and those which completed are present in
+    `outcomes`, in the order the members were given.
+    """
+
+    outcomes: ta.Sequence[lang.Maybe[ta.Any]]
+
+    def __new__(
+            cls,
+            errors: ta.Sequence[Exception],
+            outcomes: ta.Sequence[lang.Maybe[ta.Any]],
+    ) -> ta.Self:
+        self = super().__new__(cls, 'Failed members of an async group', list(errors))
+        self.outcomes = tuple(outcomes)
+        return self
+
+    def __init__(
+            self,
+            errors: ta.Sequence[Exception],
+            outcomes: ta.Sequence[lang.Maybe[ta.Any]],
+    ) -> None:
+        super().__init__('Failed members of an async group', list(errors))
+
+    def derive(self, excs: ta.Sequence[Exception]) -> AsyncGroupFailedError:  # type: ignore[override]
+        return AsyncGroupFailedError(excs, self.outcomes)
+
+
 @dc.dataclass()
 class AsyncGroupMemberCancelledError(Exception):
     """
@@ -47,8 +76,9 @@ class AsyncGroupRunner(lang.Abstract):
     raises, however it does so:
 
      - All complete: their results, in the order given.
-     - One raises: the rest are cancelled and waited for, then an ExceptionGroup of what was raised - a
-       BaseExceptionGroup if any of it is not an Exception.
+     - One raises: the rest are cancelled and waited for, then AsyncGroupFailedError - an ExceptionGroup of what was
+       raised, carrying what had completed by then. Should any of what was raised not be an Exception, a plain
+       BaseExceptionGroup instead.
      - The calling task is cancelled: all of them are cancelled and waited for, then AsyncGroupCancelledError, carrying
        what had completed by then.
      - One ends cancelled without the group having cancelled it: that is its failure, reported as above with an

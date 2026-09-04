@@ -307,7 +307,7 @@ class ProcessListTool(ToolClass[ProcessListToolParams]):
         now = time.time()
         lines: list[str] = []
         for p in procs_:
-            state = p.state.name.lower()
+            state = p.state.name.lower() + (' (closing)' if p.closing else '')
             rc = f' rc={p.returncode}' if p.returncode is not None else ''
             label = f' ({p.name})' if p.name else ''
             elapsed = f'{now - p.created_at:.0f}s'

@@ -5,6 +5,7 @@ import typing as ta
 from omcore import lang
 
 from .base import AsyncGroupCancelledError
+from .base import AsyncGroupFailedError
 from .base import AsyncGroupMemberCancelledError
 from .base import AsyncGroupRunner
 
@@ -39,12 +40,17 @@ class AsyncioGroupRunner(AsyncGroupRunner):
             # keep its count.
             raise AsyncioGroupCancelledError(outcomes) from e
 
+        except ExceptionGroup as eg:
+            # Every member is done here too. The group's own is rewrapped to carry the outcomes; a BaseExceptionGroup
+            # which is not an ExceptionGroup holds something no ExceptionGroup can, and passes as it is.
+            raise AsyncGroupFailedError(eg.exceptions, outcomes) from eg
+
         # A member which ended cancelled is passed over by the group, so is found here. The group only cancels members
         # while aborting, after which it raises - so on this path any cancelled member was cancelled from under it.
         if strays := [i for i, t in enumerate(tasks) if t.cancelled()]:
-            raise ExceptionGroup(
-                'Cancelled members of an async group',
+            raise AsyncGroupFailedError(
                 [AsyncGroupMemberCancelledError(i) for i in strays],
+                outcomes,
             )
 
         return [o.must() for o in outcomes]

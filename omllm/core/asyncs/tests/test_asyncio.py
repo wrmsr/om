@@ -8,6 +8,7 @@ from omcore import check
 
 from ..asyncio import AsyncioGroupRunner
 from ..base import AsyncGroupCancelledError
+from ..base import AsyncGroupFailedError
 from ..base import AsyncGroupMemberCancelledError
 
 
@@ -109,11 +110,46 @@ async def test_a_member_raising_cancels_the_rest_and_comes_out_as_a_group():
         raise RuntimeError('boom')
 
     fns: list[ta.Callable[[], ta.Awaitable[ta.Any]]] = [a, boom]
-    with pytest.raises(ExceptionGroup) as ei:
+    with pytest.raises(AsyncGroupFailedError) as ei:
         await AsyncioGroupRunner().run(fns)
 
     assert [type(e) for e in ei.value.exceptions] == [RuntimeError]
     assert a.seen == [('cancelled', True)]
+    assert [o.present for o in ei.value.outcomes] == [False, False]
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_a_failure_reports_what_had_completed():
+    a, b = _Gate('a'), _Gate('b')
+
+    async def boom():
+        await a.started.wait()
+        await b.started.wait()
+        await asyncio.sleep(0)
+        raise RuntimeError('boom')
+
+    async def run():
+        return await AsyncioGroupRunner().run([a, boom, b])
+
+    task = asyncio.create_task(run())
+    await b.started.wait()
+    a.release.set()
+
+    with pytest.raises(AsyncGroupFailedError) as ei:
+        await task
+
+    # It is an ExceptionGroup, and splits as one, keeping its outcomes.
+    assert isinstance(ei.value, ExceptionGroup)
+    [oa, ob2, ob] = ei.value.outcomes
+    assert oa.must() == 'a'
+    assert not ob2.present
+    assert not ob.present
+    assert a.seen == ['done']
+    assert b.seen == [('cancelled', True)]
+    matched, rest = ei.value.split(RuntimeError)
+    assert isinstance(matched, AsyncGroupFailedError)
+    assert matched.outcomes == ei.value.outcomes
+    assert rest is None
 
 
 @pytest.mark.asyncs('asyncio')
@@ -134,10 +170,11 @@ async def test_a_member_cancelled_from_under_it_is_its_own_failure():
 
     # The caller was not cancelled, so nothing propagates as a cancellation: the stray member is reported as failed
     # and the other ran to completion.
-    with pytest.raises(ExceptionGroup) as ei:
+    with pytest.raises(AsyncGroupFailedError) as ei:
         await task
     [e] = ei.value.exceptions
     assert isinstance(e, AsyncGroupMemberCancelledError)
     assert e.index == 0
     assert b.seen == ['done']
+    assert [o.present for o in ei.value.outcomes] == [False, True]
     assert not task.cancelled()

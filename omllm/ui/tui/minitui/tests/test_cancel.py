@@ -442,6 +442,72 @@ async def test_cancel_key_unwinds_running_tool_into_cancelled_card():
     await pump.aclose()
 
 
+class _LingeringTool:
+    """A tool slow to unwind, as one stopping a process is: it holds on to its cancellation until released."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self._never = asyncio.Event()
+
+    async def execute(self, ctx):
+        self.started.set()
+        try:
+            await self._never.wait()
+        except asyncio.CancelledError:
+            await self.release.wait()
+            raise
+        raise AssertionError
+
+    def tool(self):
+        return agn.Tool(llm_tool=llm.Tool(name='linger'), executor=self.execute)
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_cancel_key_shows_cancelling_until_the_turn_ends():
+    app, driver = make_app()
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    tool = _LingeringTool()
+    session = _TurnLoopSession(
+        backend=_tool_call_backend('t1', 'linger'),
+        tools=[tool.tool()],
+        subscriber=renderer.on_agent_event,
+    )
+    pump = _wire(app, session)
+
+    pump.submit('go')
+    await tool.started.wait()
+    driver.commits.clear()
+
+    # The turn does not end until the tool has unwound; meanwhile the surface says what is going on.
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
+    await settle()
+    assert (app.is_busy, app.is_cancelling) == (True, True)
+    lines = frame_lines(app)
+    assert any(' cancelling ' in line for line in lines)
+    assert any('linger  cancelling...' in line for line in lines)
+    assert driver.commits == []
+
+    # A repeat of the key changes nothing.
+    app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
+    await settle()
+    assert (app.is_busy, app.is_cancelling) == (True, True)
+
+    tool.release.set()
+    await session.finished.wait()
+
+    assert (app.is_busy, app.is_cancelling) == (False, False)
+    lines = frame_lines(app)
+    assert any(' idle ' in line for line in lines)
+    committed = commit_texts(driver)
+    assert any('linger  cancelled' in c for c in committed)
+    assert committed[-1] == '× cancelled\n'
+    assert not pump.cancel_current()
+    await pump.aclose()
+
+
 @pytest.mark.asyncs('asyncio')
 async def test_cancel_key_during_model_call_ends_turn_idle():
     app, _ = make_app()

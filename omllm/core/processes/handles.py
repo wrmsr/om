@@ -68,6 +68,13 @@ class ProcessInfo(lang.Abstract):
         raise NotImplementedError
 
     @property
+    @abc.abstractmethod
+    def closing(self) -> bool:
+        """Whether a teardown is in flight: `aclose` was called, and has not finished."""
+
+        raise NotImplementedError
+
+    @property
     def name(self) -> str | None:
         return self.spec.name
 
@@ -91,11 +98,21 @@ class ProcessControl(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def aclose(self, policy: TerminationPolicy | None = None) -> ta.Awaitable[None]:
+    def aclose(
+            self,
+            policy: TerminationPolicy | None = None,
+            *,
+            wait_s: float | None = None,
+    ) -> ta.Awaitable[None]:
         """
         Full teardown: stop the process if alive (signal -> grace -> SIGKILL -> hard timeout), sweep its group,
         drain/close output, reap, unregister. Idempotent. Never hangs beyond the policy's bounds; a process that
         survives SIGKILL is abandoned (or raises StuckProcessError per policy).
+
+        The teardown runs as the manager's own task: a caller which is cancelled cannot take it down with it, and one
+        which stops waiting leaves it to run to its end. With `wait_s`, this waits at most that long for it and then
+        returns, the process still `closing` under the manager - which finishes it, or gives up on it, per the policy
+        just the same.
         """
 
         raise NotImplementedError

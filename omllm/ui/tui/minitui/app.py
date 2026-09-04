@@ -144,6 +144,7 @@ class MinituiChatApp(mt.App):
         self._busy = False
         self._thinking = False
         self._streaming = False
+        self._cancelling = False
 
         self._commands: ta.Sequence[tuple[str, str]] = ()
 
@@ -166,6 +167,10 @@ class MinituiChatApp(mt.App):
     @property
     def is_busy(self) -> bool:
         return self._busy
+
+    @property
+    def is_cancelling(self) -> bool:
+        return self._cancelling
 
     def _commit_rows(self, rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> None:
         self._driver.commit([mt.line_from_segments(row, THEME) for row in rows])
@@ -217,6 +222,7 @@ class MinituiChatApp(mt.App):
 
     def begin_ai_turn(self) -> None:
         self._busy = True
+        self._cancelling = False
         self._commit_rows([[mt.Segment('ai', 'speaker.ai')]])
         self._refresh_status()
         self._driver.invalidate()
@@ -225,6 +231,26 @@ class MinituiChatApp(mt.App):
         self.stream_break()
         self._busy = False
         self._thinking = False
+        self._cancelling = False
+        self._refresh_status()
+        self._driver.invalidate()
+
+    def set_cancelling(self) -> None:
+        """
+        A cancellation is under way but the turn has not ended yet: the run is still unwinding - a tool's process being
+        stopped, a parked ask - and the turn closes only when its terminal event arrives. Until then, say so.
+        """
+
+        if not self._busy or self._cancelling:
+            return
+
+        self._cancelling = True
+        for entry in self._cards.values():
+            if not entry.card.is_terminal:
+                entry.card.set_summary([
+                    (entry.title, 'card.summary'),
+                    ('  cancelling...', 'card.summary.dim'),
+                ])
         self._refresh_status()
         self._driver.invalidate()
 
@@ -261,6 +287,7 @@ class MinituiChatApp(mt.App):
 
         self._busy = False
         self._thinking = False
+        self._cancelling = False
         self._refresh_status()
         self._driver.invalidate()
 
@@ -616,7 +643,14 @@ class MinituiChatApp(mt.App):
     def _refresh_status(self) -> None:
         st = self._input.engine.status()
         mode_part = st.cmdline if st.cmdline is not None else st.mode_text
-        activity = 'thinking' if self._thinking else ('streaming' if self._busy else 'idle')
+        if self._cancelling:
+            activity = 'cancelling'
+        elif self._thinking:
+            activity = 'thinking'
+        elif self._busy:
+            activity = 'streaming'
+        else:
+            activity = 'idle'
         self._status.set_left([
             (self._spinner.frame if self._busy else ' ', 'status.spinner'),
             (f' {activity}  ', 'status.dim'),

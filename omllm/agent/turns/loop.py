@@ -5,9 +5,11 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore.asyncs.asynclite import all as asl
+from omcore.logs import all as logs
 
 from ... import llm
 from ...core.asyncs.base import AsyncGroupCancelledError
+from ...core.asyncs.base import AsyncGroupFailedError
 from ...core.asyncs.base import AsyncGroupRunner
 from ...core.eventbus import EventSubscriber
 from ..projection.builders import StandardLlmContextBuilder
@@ -38,6 +40,9 @@ from ..types.tools import ToolResult
 from ..types.turns import AgentEndReason
 from ..types.turns import TurnConfig
 from ..types.turns import TurnResult
+
+
+log = logs.get_module_logger(globals())
 
 
 ##
@@ -370,9 +375,9 @@ class TurnLoop:
                 for tc in tool_calls
             ])
 
-        except AsyncGroupCancelledError as e:
-            # Every call has finished. Those which completed have results, kept here - unannounced, this being the
-            # cancellation path - so the repair on the way out synthesizes results only for the rest.
+        except (AsyncGroupCancelledError, AsyncGroupFailedError) as e:
+            # Every call has finished. Those which completed have results, kept here - unannounced, the run being on
+            # its way out - so the repair there synthesizes results only for the rest.
             self._add_new_message(*[
                 check.isinstance(o.must(), llm.ToolResultMessage)
                 for o in e.outcomes
@@ -542,14 +547,28 @@ class TurnLoop:
                 # Shielded: a cancellation landing while a subscriber is suspended in it is delivered only once every
                 # subscriber has seen the event. Otherwise it would be thrown into that subscriber, and the ones after
                 # it would never see the run end - a frontend left mid-turn, a completed run half-recorded.
-                await self._cancellation.cancellation_shield(functools.partial(self._publish, AgentEndEvent(
-                    context=self._context,
+                try:
+                    await self._cancellation.cancellation_shield(
+                        functools.partial(self._publish, AgentEndEvent(
+                            context=self._context,
 
-                    new_messages=tuple(self._new_messages),
+                            new_messages=tuple(self._new_messages),
 
-                    reason=end_reason,
-                    error=end_error,
-                )))
+                            reason=end_reason,
+                            error=end_error,
+                        )),
+                        timeout=self._config.cancel_timeout_s,
+                    )
+
+                except TimeoutError:
+                    # A subscriber hung in it past the configured bound, and the publish was cut short - the subscribers
+                    # behind it never saw the run end. What the run decided stands, and it finishes as it was going to:
+                    # a cancellation in flight goes on unwinding, a result is returned.
+                    log.warning(
+                        'Terminal publish of a %s run cut short after %ss',
+                        end_reason.name.lower(),
+                        self._config.cancel_timeout_s,
+                    )
 
         return TurnResult(
             config=self._config,

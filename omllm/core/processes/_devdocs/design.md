@@ -102,7 +102,10 @@
   `connect_write_pipe` transports (`asyncio/pipes.py`), `AsyncioSpoolNotifier`, `call_soon_threadsafe`.
 - Teardown of one handle (`aclose`): close stdin → (if alive) TERM → wait grace → KILL → wait kill_s → stuck →
   abandon/raise; (exited) sweep group: `killpg(TERM)` then wait output EOF up to `drain_s`, `killpg(KILL)`, force
-  close read transports; reap; unregister; events.
+  close read transports; reap; unregister; events. It runs as a manager task (`_spawn_task`), so a cancelled caller
+  cannot abort it midway; callers wait on it fully, or for `wait_s` and then leave it `closing` under the manager,
+  which joins it at close. A scope-close backstop abandoning the process overtakes it: every wait is followed by a
+  terminal-state check.
 - Scope close: children reverse-order sequential, then all processes concurrently under `asyncio.timeout(overall)`,
   exceptions gathered into an `ExceptionGroup`.
 - Manager close: root scope close, await pending event tasks, remove spill dir (unless kept), mark closed.

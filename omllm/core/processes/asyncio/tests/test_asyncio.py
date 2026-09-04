@@ -748,3 +748,76 @@ async def test_events_order():
     pe = [e for e in events if getattr(e, 'process_id', None) == run.process.id]
     assert [type(e) for e in pe] == [ProcessSpawnedEvent, ProcessExitedEvent, ProcessReapedEvent]
     assert pe[1].returncode == 0
+
+
+##
+# The teardown as the manager's task
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_close_with_a_wait_hands_the_rest_to_the_manager():
+    events: list = []
+    async with AsyncioProcessManager() as m:
+        m.subscribe(events.append)
+        p = await m.root.spawn(
+            _sh('trap "" TERM; echo ready; while :; do sleep 0.05; done'),
+            TerminationPolicy(grace_s=.3),
+        )
+        await _read_first_line(p)
+
+        # Back at once, the process still registered and closing under the manager.
+        t0 = time.monotonic()
+        await p.aclose(wait_s=0.)
+        assert time.monotonic() - t0 < .2
+        assert (p.closing, p.state.name, p.id in m.processes) == (True, 'RUNNING', True)
+
+        # A later close joins the one in flight, which escalates past the ignored TERM on its own.
+        await p.aclose()
+        assert time.monotonic() - t0 >= .3
+        assert (p.closing, p.state.name) == (False, 'REAPED')
+        assert p.returncode == -signal.SIGKILL
+        assert _reaped(p.pid)
+        assert not m.processes
+    assert any(isinstance(e, ProcessReapedEvent) and e.process_id == p.id for e in events)
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_close_survives_its_callers_cancellation():
+    async with AsyncioProcessManager() as m:
+        p = await m.root.spawn(
+            _sh('trap "" TERM; echo ready; while :; do sleep 0.05; done'),
+            TerminationPolicy(grace_s=.3),
+        )
+        await _read_first_line(p)
+
+        t = asyncio.ensure_future(p.aclose())
+        await asyncio.sleep(.05)  # inside the grace wait
+        t.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await t
+
+        # The teardown was never the caller's to take down with it.
+        assert p.closing
+        assert await _poll(lambda: p.state.name == 'REAPED')
+        assert p.returncode == -signal.SIGKILL
+        assert _reaped(p.pid)
+        assert not m.processes
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_manager_close_joins_a_close_in_flight():
+    m = AsyncioProcessManager()
+    await m.start()
+    p = await m.root.spawn(
+        _sh('trap "" TERM; echo ready; while :; do sleep 0.05; done'),
+        TerminationPolicy(grace_s=.3),
+    )
+    await _read_first_line(p)
+    await p.aclose(wait_s=0.)
+    assert p.closing
+
+    await m.aclose()
+
+    assert p.state.name == 'REAPED'
+    assert _reaped(p.pid)
+    assert not m.processes

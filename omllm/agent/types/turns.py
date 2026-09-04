@@ -57,6 +57,11 @@ class TurnConfig:
 
     max_concurrent_tool_calls: int | None = dc.xfield(None, validate=lambda v: v != 0)
 
+    # How long the run's terminal publish may take. It is shielded, so a cancellation landing in it waits for every
+    # subscriber; past this it is cut short instead, and the run finishes without the subscribers still in it. None is
+    # unbounded.
+    cancel_timeout_s: float | None = dc.xfield(None, validate=lambda v: v is None or v > 0)
+
     # Whether steering which arrives mid-batch cuts the batch short: the tool calls not yet executed get an error result
     # saying the user interjected, and the model sees the steering right away. For there to be calls not yet executed,
     # this runs a message's tool calls one at a time. Off, they run concurrently and the batch finishes first.

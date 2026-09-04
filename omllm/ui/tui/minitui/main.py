@@ -111,6 +111,9 @@ class PromptPump:
             return False
         if not task.cancelling():
             task.cancel()
+        # The turn closes on its terminal event, which comes only once the run has unwound - a tool's process stopped, a
+        # parked ask released. That can take a moment, and a repeat of the key does nothing more.
+        self._app.set_cancelling()
         return True
 
     async def aclose(self) -> None:

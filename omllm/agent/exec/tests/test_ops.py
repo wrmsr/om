@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 import pytest
 
 from ....core import processes
@@ -93,3 +96,39 @@ async def test_procs_exec_ops_applies_options(tmp_path):
         assert r.rc == 0
         assert r.stdout == b'hi\n'
         assert r.stderr == b'SANDBOXED\n'
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_cancelled_exec_returns_at_once_and_the_manager_finishes_the_process(tmp_path):
+    spawned = asyncio.Event()
+    reaped = asyncio.Event()
+
+    def on_event(e):
+        if isinstance(e, processes.ProcessSpawnedEvent):
+            spawned.set()
+        elif isinstance(e, processes.ProcessReapedEvent):
+            reaped.set()
+
+    async with processes.AsyncioProcessManager() as m:
+        m.subscribe(on_event)
+        task = asyncio.create_task(ProcessesExecOps().exec(m.root, ExecParams(
+            ['sh', '-c', 'trap "" TERM; while :; do sleep 0.05; done'],
+            cwd=str(tmp_path),
+            env={'PATH': '/usr/bin:/bin'},
+            options=(processes.TerminationPolicy(grace_s=.3),),
+        )))
+        await spawned.wait()
+        [proc] = m.processes.values()
+
+        # The cancel comes back well inside the grace the TERM-immune process is given, ...
+        t0 = time.monotonic()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert time.monotonic() - t0 < .2
+        assert proc.closing
+
+        # ... and the manager sees the kill through.
+        await reaped.wait()
+        assert proc.state is processes.ProcessState.REAPED
+        assert not m.processes

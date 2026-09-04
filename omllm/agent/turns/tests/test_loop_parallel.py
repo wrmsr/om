@@ -272,3 +272,43 @@ async def test_steering_skips_pending_runs_calls_one_at_a_time():
 
     assert result.reason is AgentEndReason.COMPLETED
     assert [(m.tool_call_id, m.is_error) for m in _tool_results(result.new_messages)] == [('t1', False), ('t2', False)]
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_completed_calls_keep_their_results_when_the_batch_fails():
+    a, b = _GatedTool('a'), _GatedTool('b')
+    go = asyncio.Event()
+    events: list = []
+
+    def subscriber(ev):
+        # An executor's own exceptions are results; the failure here is a subscriber raising as the call ends.
+        if isinstance(ev, ToolExecutionEndEvent) and ev.tool_name == 'boom':
+            raise RuntimeError('subscriber boom')
+        events.append(ev)
+
+    async def boom(ctx):
+        await go.wait()
+        return ToolResult(content=llm.TextContent('ran boom'))
+
+    loop = _loop(
+        scripted_backend(_calls('a', 'b', 'boom')),
+        [a.tool(), b.tool(), bare_tool('boom', boom)],
+        subscriber=subscriber,
+    )
+
+    task = asyncio.create_task(loop.run())
+    await a.started.wait()
+    await b.started.wait()
+    a.release.set()
+    await _settle(lambda: a.seen == ['done'])
+    go.set()
+    result = await task
+
+    assert result.reason is AgentEndReason.FAILED
+
+    # The call which completed before the failure kept its real result; the rest were repaired.
+    ra, rb, rboom = _tool_results(result.new_messages)
+    assert ra.tool_call_id == 't1' and not ra.is_error and ra.content[0].text == 'ran a'
+    assert rb.tool_call_id == 't2' and rb.is_error and 'failed' in rb.content[0].text
+    assert rboom.tool_call_id == 't3' and rboom.is_error and 'failed' in rboom.content[0].text
+    assert b.seen == [('cancelled', True)]

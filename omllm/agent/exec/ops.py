@@ -141,7 +141,14 @@ class ProcessesExecOps(ExecOps):
                     await self._wait_streaming(proc, params.timeout_s, output)
             except processes.ProcessTimeoutError:
                 timed_out = True
-        finally:
+
+        except BaseException:
+            # Cancelled, or worse: the caller is unwinding, and no result of this is wanted. The process is stopped
+            # under the manager, which sees the teardown through however long it takes, and this returns at once.
+            await proc.aclose(wait_s=0.)
+            raise
+
+        else:
             # Reaps the process (and, on timeout, kills it and its group first).
             await proc.aclose()
 

@@ -21,6 +21,7 @@ from ...types.events import TurnStartEvent
 from ...types.messages import InfoAgentMessage
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
+from ...types.turns import TurnConfig
 from ..loop import TurnLoop
 
 
@@ -190,3 +191,48 @@ async def test_a_second_cancellation_landing_in_the_terminal_publish_waits_too()
     [end] = stalling.end_events()
     assert end.reason is AgentEndReason.CANCELLED
     assert [type(m) for m in end.new_messages] == [llm.UserMessage, InfoAgentMessage]
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_cancel_timeout_cuts_a_hung_terminal_publish_short():
+    stalling = _StallingEndSubscriber()
+    loop = TurnLoop(
+        new_messages=[llm.UserMessage('go')],
+        config=TurnConfig(cancel_timeout_s=.05),
+        subscriber=stalling,
+        llm_backend=scripted_backend(text_message('hello')),
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
+    )
+
+    # Nothing releases the subscriber: past the bound the publish is cut short, and the run finishes regardless.
+    result = await loop.run()
+
+    assert result.reason is AgentEndReason.COMPLETED
+    assert stalling.stalled.is_set()
+    assert not stalling.end_events()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_cancel_timeout_bounds_how_long_a_cancellation_waits():
+    backend = _BlockingBackend()
+    stalling = _StallingEndSubscriber()
+    loop = TurnLoop(
+        new_messages=[llm.UserMessage('go')],
+        config=TurnConfig(cancel_timeout_s=.05),
+        subscriber=stalling,
+        llm_backend=backend,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
+    )
+
+    task = asyncio.create_task(loop.run())
+    await backend.started.wait()
+    task.cancel()
+    await stalling.stalled.wait()
+
+    # The cancellation is still what comes out, once the bound is up.
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert task.cancelled()
+    assert not stalling.end_events()

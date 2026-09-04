@@ -66,6 +66,8 @@ class ProcessOwner(ta.Protocol):
 
     def _process_finished(self, process: BaseProcess) -> None: ...
 
+    def _spawn_task(self, coro: ta.Coroutine[ta.Any, ta.Any, ta.Any]) -> None: ...
+
 
 class ProcessStdinWriter(lang.Abstract):
     """The implementation's write side of the child's stdin (a pipe or the pty master)."""
@@ -122,6 +124,7 @@ class BaseProcess(Process, lang.Abstract):
         self._is_pty = pty_master_fd is not None
         self._process_group_ready = process_group_ready
         self._owner = owner
+        self._asynclite = asynclite
 
         self._created_at = time.time()
 
@@ -132,7 +135,10 @@ class BaseProcess(Process, lang.Abstract):
         self._exited_ev = asynclite.make_event()
         self._output_ended_ev = asynclite.make_event()
         self._reaped_ev = asynclite.make_event()
-        self._close_lock = asynclite.make_lock()
+
+        # The teardown in flight, if any: set while its manager task runs, and what waiters wait on.
+        self._close_attempt: asl.Event | None = None
+        self._close_error: BaseException | None = None
 
         self._stdin: ProcessStdinWriter | None = None
 
@@ -525,48 +531,109 @@ class BaseProcess(Process, lang.Abstract):
 
     #
 
-    async def aclose(self, policy: TerminationPolicy | None = None) -> None:
-        async with self._close_lock:
-            if self._state.is_terminal:
+    @property
+    def closing(self) -> bool:
+        return self._close_attempt is not None
+
+    async def aclose(
+            self,
+            policy: TerminationPolicy | None = None,
+            *,
+            wait_s: float | None = None,
+    ) -> None:
+        if self._state.is_terminal:
+            return
+
+        if (ev := self._close_attempt) is None:
+            # The teardown is the manager's task, not the caller's. The usual reason to be closing a live process is
+            # that the caller is being cancelled, and a cancellation must not take the teardown down with it: whether
+            # the caller waits for it or not, it runs to its end under the manager, which joins it before it closes.
+            ev = self._close_attempt = self._asynclite.make_event()
+            self._owner._spawn_task(self._run_close(  # noqa
+                policy if policy is not None else self.termination_policy,
+                ev,
+            ))
+
+        if wait_s is None:
+            await ev.wait()
+        else:
+            try:
+                await ev.wait(timeout=wait_s)
+            except TimeoutError:
                 return
 
-            pol = policy if policy is not None else self.termination_policy
-            pg = pol.process_group
+        if (e := self._close_error) is not None:
+            # Raised once, to the first waiter to see it: a later aclose is the idempotent no-op it always was.
+            self._close_error = None
+            raise e
 
-            # 1. Stop it if it is still alive.
-            if not self._exited_ev.is_set():
-                if pol.close_stdin and self._stdin is not None:
-                    try:
-                        await self._stdin.write_eof()
-                    except Exception:  # noqa
-                        pass
+    async def _run_close(self, pol: TerminationPolicy, ev: asl.Event) -> None:
+        try:
+            await self._close(pol)
 
-                self._signal_for_termination(pol.signal, pg)
-                if not await self._wait_exited(pol.grace_s):
-                    self._signal_for_termination(signal.SIGKILL, pg)
-                    if not await self._wait_exited(pol.kill_s):
-                        if self._state is ProcessState.POISONED:
-                            return
-                        reason = f'survived SIGKILL for {pol.kill_s}s'
-                        if pol.on_stuck == 'raise':
-                            self._abandon(reason)
-                            raise StuckProcessError(f'{self!r} {reason}')
-                        self._abandon(reason)
+        except StuckProcessError as e:
+            # Already logged and published by the abandonment; kept for a waiter.
+            self._close_error = e
+
+        except BaseException as e:  # noqa
+            log.exception('processes: error closing %r', self)
+            self._close_error = e
+
+        finally:
+            self._close_attempt = None
+            ev.set()
+
+    def _overtaken(self) -> bool:
+        """
+        Whether the teardown has been overtaken while it waited - a scope's close backstop abandoning the process, a
+        poisoning - leaving it nothing more to do.
+        """
+
+        return self._state.is_terminal
+
+    async def _close(self, pol: TerminationPolicy) -> None:
+        """The teardown itself. Every wait in it is followed by a look at whether it has been overtaken."""
+
+        pg = pol.process_group
+
+        # 1. Stop it if it is still alive.
+        if not self._exited_ev.is_set():
+            if pol.close_stdin and self._stdin is not None:
+                try:
+                    await self._stdin.write_eof()
+                except Exception:  # noqa
+                    pass
+
+            self._signal_for_termination(pol.signal, pg)
+            if not await self._wait_exited(pol.grace_s):
+                if self._overtaken():
+                    return
+                self._signal_for_termination(signal.SIGKILL, pg)
+                if not await self._wait_exited(pol.kill_s):
+                    if self._overtaken():
                         return
+                    reason = f'survived SIGKILL for {pol.kill_s}s'
+                    if pol.on_stuck == 'raise':
+                        self._abandon(reason)
+                        raise StuckProcessError(f'{self!r} {reason}')
+                    self._abandon(reason)
+                    return
 
-            if self._state is ProcessState.POISONED:
+        if self._overtaken():
+            return
+
+        # 2. Sweep the group: anything the leader left behind (still holding our pipes or not) goes with it.
+        if pg:
+            self._signal_if_owned(pol.signal, True)
+        if not self._output_ended_ev.is_set():
+            await self.wait_output_ended(pol.drain_s)
+            if self._overtaken():
                 return
+        if pg:
+            self._signal_if_owned(signal.SIGKILL, True)
+        if self._stdin is not None:
+            self._stdin.abort()
+        self._force_close_output()
 
-            # 2. Sweep the group: anything the leader left behind (still holding our pipes or not) goes with it.
-            if pg:
-                self._signal_if_owned(pol.signal, True)
-            if not self._output_ended_ev.is_set():
-                await self.wait_output_ended(pol.drain_s)
-            if pg:
-                self._signal_if_owned(signal.SIGKILL, True)
-            if self._stdin is not None:
-                self._stdin.abort()
-            self._force_close_output()
-
-            # 3. Only now give the pid back to the OS.
-            self._reap()
+        # 3. Only now give the pid back to the OS.
+        self._reap()
