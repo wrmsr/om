@@ -67,6 +67,10 @@ class PromptPump:
         self._closing = False
 
     def submit(self, text: str) -> None:
+        # A submission made mid-turn queues as the next prompt - it does not steer the running one. Steering exists
+        # (`Session.steer`, delivered at the running turn's next opportunity) and is to be reached through a `/steer`
+        # command; for that to work, commands will have to be dispatched here immediately while a turn runs, rather
+        # than queued behind it like a prompt.
         if self._closing or not text.strip():
             return
         if text.startswith('/'):

@@ -5,13 +5,16 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
+from .... import llm
 from ...permissions.types import PermissionDecider
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
+from ...types.tools import ToolResult
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
+from .details import ReadToolResultDetails
 
 
 ##
@@ -74,7 +77,7 @@ class ReadTool(ToolClass[ReadToolParams]):
         self._permissions = permissions
         self._fs = fs
 
-    async def execute(self, ctx: ToolContext, params: ReadToolParams) -> str:
+    async def execute(self, ctx: ToolContext, params: ReadToolParams) -> ToolResult:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
@@ -135,4 +138,12 @@ class ReadTool(ToolClass[ReadToolParams]):
                 f'{params.line_offset + params.num_lines}.)\n',
             )
 
-        return out.getvalue()
+        return ToolResult(
+            content=llm.TextContent(out.getvalue()),
+            details=ReadToolResultDetails(
+                path=params.file_path,
+                line_offset=params.line_offset,
+                num_lines=n - params.line_offset,
+                has_more=has_more,
+            ),
+        )

@@ -20,7 +20,7 @@ class _CaptureExecOps(ExecOps):
 
         self.captured = None
 
-    async def exec(self, scope, params):
+    async def exec(self, scope, params, *, output=None):
         self.captured = params
         return ExecResult(rc=0, stdout=b'', stderr=b'')
 

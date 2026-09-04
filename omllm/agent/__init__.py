@@ -63,9 +63,14 @@ with _lang.auto_proxy_init(globals()):
         ExecPermissionMatcher,
     )
 
+    from .exec.tools.details import (  # noqa
+        ExecToolResultDetails,
+    )
+
     from .exec.ops import (  # noqa
         ExecParams,
         ExecResult,
+        ExecOutputSink,
         ExecOps,
 
         ProcessesExecOps,
@@ -74,6 +79,12 @@ with _lang.auto_proxy_init(globals()):
     )
 
     ##
+
+    from .fs.tools.details import (  # noqa
+        ReadToolResultDetails,
+        EditToolResultDetails,
+        WriteToolResultDetails,
+    )
 
     from .fs.tools.edit import (  # noqa
         EditToolParams,
@@ -131,6 +142,21 @@ with _lang.auto_proxy_init(globals()):
         ToolPermissionMatcher,
     )
 
+    from .projection.builders import (  # noqa
+        StandardLlmContextBuilder,
+    )
+
+    from .projection.messages import (  # noqa
+        TypeMapAgentMessageProjector,
+    )
+
+    from .projection.types import (  # noqa
+        AgentMessageProjector,
+        LlmContextBuilder,
+    )
+
+    ##
+
     from .permissions.types import (  # noqa
         PermissionState,
 
@@ -157,11 +183,19 @@ with _lang.auto_proxy_init(globals()):
         ToolClass,
     )
 
+    from .tools.progress import (  # noqa
+        NopToolProgressSink,
+    )
+
     from .tools.reflect import (  # noqa
         instantiate_tool_params,
 
         reflect_tool_params,
         reflect_tool_fn,
+    )
+
+    from .turns.inboxes import (  # noqa
+        ListTurnInbox,
     )
 
     from .turns.loop import (  # noqa
@@ -198,15 +232,22 @@ with _lang.auto_proxy_init(globals()):
         AgentStartEvent,
         AgentEndEvent,
 
+        MessageAddedEvent,
+
         TurnEvent,
         TurnStartEvent,
         TurnEndEvent,
 
         ToolExecutionEvent,
         ToolExecutionStartEvent,
+        ToolExecutionUpdateEvent,
         ToolExecutionEndEvent,
 
         StateUpdateEvent,
+    )
+
+    from .types.inboxes import (  # noqa
+        TurnInbox,
     )
 
     from .types.messages import (  # noqa
@@ -218,6 +259,13 @@ with _lang.auto_proxy_init(globals()):
         InfoAgentMessage,
     )
 
+    from .types.progress import (  # noqa
+        ToolProgressUpdate,
+        OutputToolProgressUpdate,
+
+        ToolProgressSink,
+    )
+
     from .types.states import (  # noqa
         State,
     )
@@ -227,6 +275,7 @@ with _lang.auto_proxy_init(globals()):
 
         ToolEnvironment,
         ToolContext,
+        ToolResultDetails,
         ToolResult,
 
         ToolDescription,

@@ -11,10 +11,12 @@ from omcore.lite.reflect import is_generic_alias
 from omcore.lite.reflect import is_optional_alias
 
 from ... import llm
+from ..types.progress import ToolProgressSink
 from ..types.tools import Tool
 from ..types.tools import ToolContext
 from ..types.tools import ToolDescription
 from ..types.tools import ToolResult
+from .progress import NopToolProgressSink
 
 
 ##
@@ -58,6 +60,7 @@ class _ReflectedToolExecutor:
     params_cls: type
     params_param: str
     ctx_param: str | None = None
+    progress_param: str | None = None
 
     async def __call__(self, ctx: ToolContext) -> ToolResult:
         try:
@@ -73,6 +76,10 @@ class _ReflectedToolExecutor:
 
             if self.ctx_param is not None:
                 kwargs[self.ctx_param] = ctx
+
+            if self.progress_param is not None:
+                # The function asked for a sink outright, so it always gets one to call.
+                kwargs[self.progress_param] = ctx.progress if ctx.progress is not None else NopToolProgressSink()
 
             rv = await self.fn(**kwargs)
 
@@ -155,6 +162,7 @@ def reflect_tool_fn(
     params_param: str | None = None
     params_cls: type | None = None
     ctx_param: str | None = None
+    progress_param: str | None = None
     for sp in fn_sig.parameters.values():
         ty = fn_th[sp.name]
 
@@ -162,6 +170,12 @@ def reflect_tool_fn(
             check.state(not cxl.is_unbound_param(sp.default))
             check.none(ctx_param)
             ctx_param = sp.name
+            continue
+
+        if ty == ToolProgressSink:
+            check.state(not cxl.is_unbound_param(sp.default))
+            check.none(progress_param)
+            progress_param = sp.name
             continue
 
         if cxl.is_unbound_param(sp.default):
@@ -203,5 +217,6 @@ def reflect_tool_fn(
             params_cls=params_cls,
             params_param=params_param,
             ctx_param=ctx_param,
+            progress_param=progress_param,
         ),
     )

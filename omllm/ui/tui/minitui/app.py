@@ -433,6 +433,19 @@ class MinituiChatApp(mt.App):
                 entry.card.set_on_confirm(None)
         self._driver.invalidate()
 
+    def tool_updated(
+            self,
+            key: str,
+            detail_rows: ta.Sequence[ta.Sequence[mt.Segment]],
+    ) -> None:
+        """Live detail for a running card. A card which is not running, or not there at all, ignores it."""
+
+        if (entry := self._cards.get(key)) is None or entry.card.state is not mt.CardState.RUNNING:
+            return
+
+        entry.card.set_detail(_freeze_rows(detail_rows))
+        self._driver.invalidate()
+
     def tool_finished(
             self,
             key: str,

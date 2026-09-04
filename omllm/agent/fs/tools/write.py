@@ -3,13 +3,16 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
+from .... import llm
 from ...permissions.types import PermissionDecider
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
+from ...types.tools import ToolResult
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
+from .details import WriteToolResultDetails
 
 
 ##
@@ -55,7 +58,7 @@ class WriteTool(ToolClass[WriteToolParams]):
         self._permissions = permissions
         self._fs = fs
 
-    async def execute(self, ctx: ToolContext, params: WriteToolParams) -> str:
+    async def execute(self, ctx: ToolContext, params: WriteToolParams) -> ToolResult:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
@@ -68,7 +71,8 @@ class WriteTool(ToolClass[WriteToolParams]):
             FsPermissionTarget(params.file_path, 'w'),
         )
 
-        if os.path.exists(params.file_path):
+        created = not os.path.exists(params.file_path)
+        if not created:
             if not params.overwrite:
                 raise ValueError('Path already exists')
             if not os.path.isfile(params.file_path):
@@ -77,4 +81,11 @@ class WriteTool(ToolClass[WriteToolParams]):
         contents_b = params.contents.encode('utf-8')
         await self._fs.write_file(params.file_path, contents_b)
 
-        return 'The file has been written successfully.'
+        return ToolResult(
+            content=llm.TextContent('The file has been written successfully.'),
+            details=WriteToolResultDetails(
+                path=params.file_path,
+                num_bytes=len(contents_b),
+                created=created,
+            ),
+        )

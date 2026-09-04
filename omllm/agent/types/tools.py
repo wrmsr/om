@@ -4,9 +4,11 @@ import typing as ta
 from omcore import cached
 from omcore import collections as col
 from omcore import dataclasses as dc
+from omcore import lang
 
 from ... import llm
 from ...core import processes
+from .progress import ToolProgressSink
 
 
 ##
@@ -38,6 +40,19 @@ class ToolContext:
 
     env: ToolEnvironment | None = None
 
+    # Where this execution reports progress, when anyone is listening. A tool with nothing to report never looks; one
+    # with something to say may skip the work of saying it when this is absent.
+    progress: ToolProgressSink | None = None
+
+
+@dc.dataclass(frozen=True)
+class ToolResultDetails(
+    lang.Abstract,
+    lang.PackageSealed,
+    sealed_package='.'.join(__package__.split('.')[:2]),
+):
+    """Structured facts about a result, one family per kind of tool. For display only: never projected to the model."""
+
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
@@ -45,6 +60,8 @@ class ToolResult:
     content: llm.TextContent
 
     error: BaseException | None = None
+
+    details: ToolResultDetails | None = None
 
     @classmethod
     def of_error(cls, e: BaseException) -> ToolResult:

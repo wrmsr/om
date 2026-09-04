@@ -43,7 +43,10 @@ async def test_process_tools_interactive():
                 ),
             )
 
-            out = await spawn.execute(ctx, ProcessSpawnToolParams(command='cat', name='echoer'))
+            out = await spawn.execute(
+                ctx,
+                ProcessSpawnToolParams(command='cat', name='echoer'),
+            )
             assert 'Started background process' in out
             pid = next(iter(m.root.processes))
 
@@ -53,19 +56,28 @@ async def test_process_tools_interactive():
 
             # write -> read echoes it back; cursor advances
             await write.execute(ctx, ProcessWriteToolParams(id=pid, data='hello\n'))
-            r1 = await read.execute(ctx, ProcessReadToolParams(id=pid, cursor=0, wait_s=2.0))
+            r1 = await read.execute(
+                ctx,
+                ProcessReadToolParams(id=pid, cursor=0, wait_s=2.0),
+            )
             assert 'hello' in r1
             cursor = int(r1.rsplit('next_cursor=', 1)[1].rstrip(']'))
             assert cursor > 0
 
             # reading from the new cursor with no new output -> just a status note, still running
-            r2 = await read.execute(ctx, ProcessReadToolParams(id=pid, cursor=cursor, wait_s=0.1))
+            r2 = await read.execute(
+                ctx,
+                ProcessReadToolParams(id=pid, cursor=cursor, wait_s=0.1),
+            )
             assert 'hello' not in r2
             assert 'running' in r2
 
             # more input continues from the cursor
             await write.execute(ctx, ProcessWriteToolParams(id=pid, data='world\n'))
-            r3 = await read.execute(ctx, ProcessReadToolParams(id=pid, cursor=cursor, wait_s=2.0))
+            r3 = await read.execute(
+                ctx,
+                ProcessReadToolParams(id=pid, cursor=cursor, wait_s=2.0),
+            )
             assert 'world' in r3 and 'hello' not in r3
 
             # kill -> terminated, gone from the scope
@@ -90,14 +102,20 @@ async def test_process_read_exited():
                 ),
             )
 
-            await spawn.execute(ctx, ProcessSpawnToolParams(command='echo one; echo two >&2; exit 4'))
+            await spawn.execute(
+                ctx,
+                ProcessSpawnToolParams(command='echo one; echo two >&2; exit 4'),
+            )
             pid = next(iter(m.root.processes))
 
             # follow the process like a model would: read from the advancing cursor until it reports the exit code.
             seen = ''
             cursor = 0
             for _ in range(50):
-                r = await read.execute(ctx, ProcessReadToolParams(id=pid, cursor=cursor, wait_s=2.0))
+                r = await read.execute(
+                    ctx,
+                    ProcessReadToolParams(id=pid, cursor=cursor, wait_s=2.0),
+                )
                 seen += r
                 cursor = int(r.rsplit('next_cursor=', 1)[1].rstrip(']'))
                 if 'exited (rc=' in r:
@@ -118,12 +136,18 @@ async def test_process_tools_via_executor():
         async with processes.AsyncioProcessManager() as m:
             ctx_env = ToolEnvironment(cwd=td, processes=m.root)
 
-            res = await spawn.tool().executor(ToolContext(args={'command': 'sleep 5'}, env=ctx_env))
+            res = await spawn.tool().executor(
+                ToolContext(args={'command': 'sleep 5'}, env=ctx_env),
+            )
             assert res.error is None
             pid = next(iter(m.root.processes))
 
-            res = await read.tool().executor(ToolContext(args={'id': pid, 'wait_s': 0.1}, env=ctx_env))
+            res = await read.tool().executor(
+                ToolContext(args={'id': pid, 'wait_s': 0.1}, env=ctx_env),
+            )
             assert res.error is None and 'running' in res.content.text
 
-            res = await lst.tool().executor(ToolContext(args={}, env=ctx_env))
+            res = await lst.tool().executor(
+                ToolContext(args={}, env=ctx_env),
+            )
             assert res.error is None and pid in res.content.text

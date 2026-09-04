@@ -11,6 +11,7 @@ FIXME:
   - or? retain as a 'simplified' (if leaky) interface?
 """
 import abc
+import time
 import typing as ta
 
 from omcore import collections as col
@@ -55,9 +56,23 @@ class ExecResult:
     truncated: bool = False
 
 
+class ExecOutputSink(lang.Abstract):
+    """Receives a command's output as it arrives, for a caller which wants to show it before the command is done."""
+
+    @abc.abstractmethod
+    def write(self, fd: int, data: bytes) -> ta.Awaitable[None]:
+        raise NotImplementedError
+
+
 class ExecOps(lang.Abstract):
     @abc.abstractmethod
-    def exec(self, scope: processes.ProcessScope, params: ExecParams) -> ta.Awaitable[ExecResult]:
+    def exec(
+            self,
+            scope: processes.ProcessScope,
+            params: ExecParams,
+            *,
+            output: ExecOutputSink | None = None,
+    ) -> ta.Awaitable[ExecResult]:
         raise NotImplementedError
 
 
@@ -65,7 +80,50 @@ class ExecOps(lang.Abstract):
 
 
 class ProcessesExecOps(ExecOps):
-    async def exec(self, scope: processes.ProcessScope, params: ExecParams) -> ExecResult:
+    async def _wait_streaming(
+            self,
+            proc: processes.Process,
+            timeout_s: float | None,
+            output: ExecOutputSink,
+    ) -> None:
+        """
+        Follows the output to its end within the time budget, then waits for the exit within what is left of it. The
+        spool keeps everything, so the caller still reads the whole result afterwards.
+        """
+
+        if timeout_s is None:
+            async for read in proc.spool.subscribe(0):
+                for r in read.records:
+                    await output.write(r.fd, r.data)
+
+            await proc.wait(None)
+            return
+
+        deadline = time.monotonic() + timeout_s
+
+        cursor = 0
+        while (remaining := deadline - time.monotonic()) > 0:
+            # A long-poll: back with the first output to arrive, the end of output, or the rest of the budget spent.
+            # It must be given a positive timeout - to the spool, none at all means "do not wait".
+            read = await proc.spool.poll(cursor, timeout=remaining)
+
+            for r in read.records:
+                await output.write(r.fd, r.data)
+            cursor = read.end
+
+            if read.ended:
+                break
+
+        # Output ending is not the process exiting: that is observed separately, and a spent budget raises here.
+        await proc.wait(max(deadline - time.monotonic(), 0.))
+
+    async def exec(
+            self,
+            scope: processes.ProcessScope,
+            params: ExecParams,
+            *,
+            output: ExecOutputSink | None = None,
+    ) -> ExecResult:
         spec = processes.ProcessSpec(
             tuple(params.cmd),
             cwd=params.cwd,
@@ -77,7 +135,10 @@ class ProcessesExecOps(ExecOps):
         timed_out = False
         try:
             try:
-                await proc.wait(params.timeout_s)
+                if output is None:
+                    await proc.wait(params.timeout_s)
+                else:
+                    await self._wait_streaming(proc, params.timeout_s, output)
             except processes.ProcessTimeoutError:
                 timed_out = True
         finally:

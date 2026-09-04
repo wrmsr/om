@@ -7,6 +7,8 @@ from omcore.asyncs.asynclite import all as asl
 from ... import llm
 from ...core.errors import is_cancelled_error
 from ...core.eventbus import EventSubscriber
+from ..projection.builders import StandardLlmContextBuilder
+from ..projection.types import LlmContextBuilder
 from ..types.contexts import Context
 from ..types.errors import ErrorStopReasonError
 from ..types.errors import UnknownToolError
@@ -15,18 +17,57 @@ from ..types.events import AgentStartEvent
 from ..types.events import Event
 from ..types.events import LlmAiStreamEvent
 from ..types.events import LlmRetryEvent
+from ..types.events import MessageAddedEvent
 from ..types.events import ToolExecutionEndEvent
 from ..types.events import ToolExecutionStartEvent
+from ..types.events import ToolExecutionUpdateEvent
 from ..types.events import TurnEndEvent
 from ..types.events import TurnStartEvent
+from ..types.inboxes import TurnInbox
 from ..types.messages import InfoAgentMessage
 from ..types.messages import Message
+from ..types.progress import ToolProgressSink
+from ..types.progress import ToolProgressUpdate
+from ..types.tools import Tool
 from ..types.tools import ToolContext
 from ..types.tools import ToolEnvironment
 from ..types.tools import ToolResult
 from ..types.turns import AgentEndReason
 from ..types.turns import TurnConfig
 from ..types.turns import TurnResult
+
+
+##
+
+
+class _PublishingToolProgressSink(ToolProgressSink):
+    """
+    The sink each execution gets: progress goes out as events, tagged with the call it belongs to. The call's context
+    carries the sink and the sink's events carry the context, so the context is bound once it exists.
+    """
+
+    def __init__(
+            self,
+            publish: ta.Callable[[Event], ta.Awaitable[None]],
+            tool: Tool | None,
+    ) -> None:
+        super().__init__()
+
+        self._publish = publish
+        self._tool = tool
+
+        self._context: ToolContext | None = None
+
+    def bind(self, context: ToolContext) -> None:
+        check.none(self._context)
+        self._context = context
+
+    async def report(self, update: ToolProgressUpdate) -> None:
+        await self._publish(ToolExecutionUpdateEvent(
+            tool=self._tool,
+            context=check.not_none(self._context),
+            update=update,
+        ))
 
 
 ##
@@ -45,6 +86,9 @@ class TurnLoop:
     Whatever the outcome, the transcript left behind is one the next request can be built on: every tool call in the
     last AI message has a result, synthesized as an error wherever the call was never executed, and an interrupted run
     is noted with an InfoAgentMessage.
+
+    The model's view of the transcript is the context builder's business, not the loop's: the loop appends to the
+    transcript and hands the whole of it over for each call.
     """
 
     def __init__(
@@ -57,6 +101,8 @@ class TurnLoop:
             llm_backend: llm.ImmediateBackend,
             tool_env: ToolEnvironment | None = None,
             sleeps: asl.Sleeps | None = None,
+            context_builder: LlmContextBuilder | None = None,
+            inbox: TurnInbox | None = None,
     ) -> None:
         super().__init__()
 
@@ -73,6 +119,10 @@ class TurnLoop:
         if config.llm_retry is not None:
             check.state(sleeps is not None, 'Retries need a sleeper for their backoff')
         self._sleeps = sleeps
+        if context_builder is None:
+            context_builder = StandardLlmContextBuilder()
+        self._context_builder = context_builder
+        self._inbox = inbox
 
         #
 
@@ -89,6 +139,8 @@ class TurnLoop:
     #
 
     def _add_new_message(self, *messages: Message) -> None:
+        """Appends without announcing. Only for construction and the cancellation path - see `_append`."""
+
         self._context = dc.replace(
             self._context,
 
@@ -99,6 +151,17 @@ class TurnLoop:
         )
 
         self._new_messages.extend(messages)
+
+    async def _append(self, *messages: Message) -> None:
+        """Appends and announces each message as it lands."""
+
+        for m in messages:
+            index = len(self._new_messages)
+            self._add_new_message(m)
+            await self._publish(MessageAddedEvent(
+                message=m,
+                index=index,
+            ))
 
     def _unexecuted_tool_calls(self) -> list[llm.ToolCall]:
         """
@@ -123,20 +186,22 @@ class TurnLoop:
 
         return []
 
-    def _add_unexecuted_tool_call_results(self, why: str) -> None:
+    def _unexecuted_tool_call_results(self, why: str) -> list[llm.ToolResultMessage]:
         """
-        Gives every unexecuted tool call of the latest AI message an error result saying it was not executed and why.
-        A call without a result is a transcript providers reject on the next request, so the loop never leaves one
+        An error result for every unexecuted tool call of the latest AI message, saying it was not executed and why. A
+        call without a result is a transcript providers reject on the next request, so the loop never leaves one
         behind, however the run ended.
         """
 
-        for tc in self._unexecuted_tool_calls():
-            self._add_new_message(llm.ToolResultMessage(
+        return [
+            llm.ToolResultMessage(
                 tool_call_id=tc.id,
                 tool_name=tc.name,
                 content=(llm.TextContent(f'Tool call was not executed: {why}.'),),
                 is_error=True,
-            ))
+            )
+            for tc in self._unexecuted_tool_calls()
+        ]
 
     #
 
@@ -148,24 +213,8 @@ class TurnLoop:
 
     #
 
-    def _build_llm_context(self) -> llm.Context:
-        return llm.Context(
-            system_prompt=self._context.system_prompt,
-
-            messages=[  # noqa
-                m
-                for m in self._context.messages
-                if isinstance(m, llm.Message)
-            ] if self._context.messages is not None else None,
-
-            tools=[
-                t.llm_tool
-                for t in self._context.tools
-            ] if self._context.tools else None,
-        )
-
     async def _llm_complete_once(self) -> llm.AiMessage:
-        llm_context = self._build_llm_context()
+        llm_context = self._context_builder.build(self._context)
 
         if isinstance(llm_backend := self._llm_backend, llm.StreamBackend):
             async with (await llm_backend.stream(
@@ -219,6 +268,8 @@ class TurnLoop:
     async def _execute_tool_call(self, tool_call: llm.ToolCall) -> None:
         tool = self._context.tools.by_name.get(tool_call.name) if self._context.tools is not None else None
 
+        progress = _PublishingToolProgressSink(self._publish, tool)
+
         tool_context = ToolContext(  # noqa
             tool=tool,
 
@@ -227,7 +278,11 @@ class TurnLoop:
             llm_tool_call=tool_call,
 
             env=self._tool_env,
+
+            progress=progress,
         )
+
+        progress.bind(tool_context)
 
         await self._publish(ToolExecutionStartEvent(
             tool=tool,
@@ -257,7 +312,7 @@ class TurnLoop:
             result=tool_result,
         ))
 
-        self._add_new_message(llm.ToolResultMessage(
+        await self._append(llm.ToolResultMessage(
             tool_call_id=tool_call.id,
             tool_name=tool_call.name,
 
@@ -266,18 +321,53 @@ class TurnLoop:
             is_error=tool_result.error is not None,
         ))
 
+    async def _execute_tool_calls(self, tool_calls: ta.Sequence[llm.ToolCall]) -> None:
+        # FIXME: parallel tool calls. When these run concurrently, cancellation semantics must hold for the group, not
+        # per call:
+        #  - A failing sibling must cancel the others *before* control reaches `run`'s terminal publish, so their
+        #    pending permission asks unwind inside their own tasks as genuine cancellations. Otherwise those asks are
+        #    still parked when frontends receive the AgentEndEvent and the frontend has to withdraw them, which (per
+        #    the PermissionAsker contract) surfaces to a still-live tool as PermissionAskAbortedError - and a detached
+        #    tool then runs to completion, publishing ToolExecution*Events into a turn that has ended (minitui's
+        #    renderer drops such stragglers; other frontends may not).
+        #  - A cancellation of the loop itself must reach every child before the terminal publish, for the same
+        #    reason.
+        #  - Tool result messages must still be appended in tool-call order regardless of completion order; frontends
+        #    already finalize cards in that order.
+        # This layer is sans-io and must stay usable with asyncio absent from sys.modules: no TaskGroup / gather here.
+        # The concurrency primitive is to be decided, and is explicitly *not* an injectable sync/async abstraction for
+        # now.
+        for i, tool_call in enumerate(tool_calls):
+            await self._execute_tool_call(tool_call)
+
+            if (
+                    self._config.steering_skips_pending_tool_calls and
+                    i < len(tool_calls) - 1 and
+                    self._inbox is not None and
+                    self._inbox.has_steering()
+            ):
+                # The steering itself is taken at the top of the next turn, like any other.
+                await self._append(*self._unexecuted_tool_call_results('the user interjected'))
+                break
+
     #
+
+    def _can_continue(self) -> bool:
+        return (max_turns := self._config.max_turns) is None or self._num_turns < max_turns
 
     async def _turn(self) -> AgentEndReason | None:
         """One LLM call and the tool calls it makes. None means the loop goes around again."""
 
         self._num_turns += 1
 
+        if self._inbox is not None and (steering := self._inbox.take_steering()):
+            await self._append(*steering)
+
         await self._publish(TurnStartEvent())
 
         message = await self._llm_complete()
 
-        self._add_new_message(message)
+        await self._append(message)
 
         tool_calls = [c for c in message.content if isinstance(c, llm.ToolCall)]
 
@@ -294,38 +384,33 @@ class TurnLoop:
 
         elif message.stop_reason == 'length':
             # A truncated message's tool calls are not to be trusted: their arguments may have been cut off mid-way.
-            self._add_unexecuted_tool_call_results('the output was cut off by the token limit')
+            await self._append(*self._unexecuted_tool_call_results('the output was cut off by the token limit'))
 
             end_reason = AgentEndReason.LENGTH
 
         elif not tool_calls:
             # Tool calls are executed on their presence, not on the stop reason: a provider reporting a plain stop
             # alongside calls still expects their results on the next request.
-            end_reason = AgentEndReason.COMPLETED
+            if (
+                    self._can_continue() and
+                    self._inbox is not None and
+                    (follow_ups := self._inbox.take_follow_ups())
+            ):
+                # The model was done, but the user was not.
+                await self._append(*follow_ups)
 
-        elif (max_turns := self._config.max_turns) is not None and self._num_turns >= max_turns:
-            self._add_unexecuted_tool_call_results('the turn limit was reached')
+                end_reason = None
+
+            else:
+                end_reason = AgentEndReason.COMPLETED
+
+        elif not self._can_continue():
+            await self._append(*self._unexecuted_tool_call_results('the turn limit was reached'))
 
             end_reason = AgentEndReason.MAX_TURNS
 
         else:
-            # FIXME: parallel tool calls. When these run concurrently, cancellation semantics must hold for the group,
-            # not per call:
-            #  - A failing sibling must cancel the others *before* control reaches `run`'s terminal publish, so their
-            #    pending permission asks unwind inside their own tasks as genuine cancellations. Otherwise those asks
-            #    are still parked when frontends receive the AgentEndEvent and the frontend has to withdraw them, which
-            #    (per the PermissionAsker contract) surfaces to a still-live tool as PermissionAskAbortedError - and a
-            #    detached tool then runs to completion, publishing ToolExecution*Events into a turn that has ended
-            #    (minitui's renderer drops such stragglers; other frontends may not).
-            #  - A cancellation of the loop itself must reach every child before the terminal publish, for the same
-            #    reason.
-            #  - Tool result messages must still be appended in tool-call order regardless of completion order;
-            #    frontends already finalize cards in that order.
-            # This layer is sans-io and must stay usable with asyncio absent from sys.modules: no TaskGroup / gather
-            # here. The concurrency primitive is to be decided, and is explicitly *not* an injectable sync/async
-            # abstraction for now.
-            for tool_call in tool_calls:
-                await self._execute_tool_call(tool_call)
+            await self._execute_tool_calls(tool_calls)
 
             end_reason = None
 
@@ -339,16 +424,16 @@ class TurnLoop:
 
     def _note_interruption(self, reason: AgentEndReason, error: BaseException) -> None:
         """
-        Deliberately synchronous: this runs on the cancellation path, where an await would widen the window in which a
-        second cancellation could land.
+        Deliberately synchronous, and so unannounced: this runs on the cancellation path, where an await would widen
+        the window in which a second cancellation could land. The terminal event carries these messages.
         """
 
         if reason is AgentEndReason.CANCELLED:
-            self._add_unexecuted_tool_call_results('the turn was cancelled')
+            self._add_new_message(*self._unexecuted_tool_call_results('the turn was cancelled'))
             self._add_new_message(InfoAgentMessage('Turn cancelled.'))
 
         else:
-            self._add_unexecuted_tool_call_results('the turn failed')
+            self._add_new_message(*self._unexecuted_tool_call_results('the turn failed'))
             self._add_new_message(InfoAgentMessage(f'Turn failed: {error!r}'))
 
     async def run(self) -> TurnResult:
@@ -357,6 +442,13 @@ class TurnLoop:
 
         try:
             await self._publish(AgentStartEvent())
+
+            # The prompt itself, appended at construction, is announced first.
+            for i, m in enumerate(self._new_messages):
+                await self._publish(MessageAddedEvent(
+                    message=m,
+                    index=i,
+                ))
 
             while True:
                 if (end_reason := await self._turn()) is not None:
@@ -396,11 +488,10 @@ class TurnLoop:
                 # FIXME: this terminal publish is not atomic under cancellation. If a cancellation lands while a
                 # subscriber is suspended inside it, the CancelledError is thrown into that subscriber and every
                 # subscriber after it never sees the AgentEndEvent: a frontend can be left mid-turn forever, and a
-                # completed run can be half-recorded (Session has stored it, then the task unwinds before Agent.prompt
-                # applies it to state). The fix is to shield the publish so a cancellation arriving during it is
-                # deferred until every subscriber has run and then re-raised - `omcore.asyncs.asyncio.shielded_finally`
-                # does exactly this - but it is asyncio-specific and this layer must not depend on asyncio. Until a
-                # sans-io equivalent exists:
+                # completed run can be half-recorded. The fix is to shield the publish so a cancellation arriving
+                # during it is deferred until every subscriber has run and then re-raised -
+                # `omcore.asyncs.asyncio.shielded_finally` does exactly this - but it is asyncio-specific and this
+                # layer must not depend on asyncio. Until a sans-io equivalent exists:
                 #  - A subscriber that may suspend (storage, network) widens the window for every subscriber behind it.
                 #    The harness Session subscribes at construction, ahead of UI subscribers, and its JSONL storage
                 #    does synchronous file IO, so today the window is nil - keep it that way, or reorder.
@@ -408,6 +499,7 @@ class TurnLoop:
                 #    the prompt task's done callback if the renderer never saw the end event.
                 #  - Agent.prompt captures this event ahead of forwarding it, so its state is applied even when the
                 #    cancellation lands in a later subscriber.
+                #  - Messages are announced as they land, so what is at stake here is only the repair tail.
                 await self._publish(AgentEndEvent(
                     context=self._context,
 

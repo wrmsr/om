@@ -131,6 +131,9 @@ class AgentEventRenderer:
         self._text_displayer = text_displayer
         self._config = config
 
+        # Output a running tool has reported so far, by card, shown live in its detail.
+        self._tool_output: dict[str, str] = {}
+
     def _on_stream_event(self, lev: llm.AiStreamEvent) -> None:
         app = self._app
 
@@ -153,6 +156,22 @@ class AgentEventRenderer:
         args = json.dumps(dict(context.args), default=repr)
         return [[mt.Segment(f'args: {_truncate(args, 200)}', 'card.detail')]]
 
+    def _result_rows(self, result: agn.ToolResult) -> list[list[mt.Segment]]:
+        if result.error is not None:
+            return _detail_rows(repr(result.error))
+
+        # Details are the structured story where a tool tells one; the model-facing text otherwise.
+        if isinstance(d := result.details, agn.ExecToolResultDetails):
+            notes = [f'exit code {d.rc}']
+            if d.timed_out:
+                notes.append('timed out')
+            return [
+                [mt.Segment('; '.join(notes), 'card.summary.dim')],
+                *_detail_rows(d.stdout + d.stderr),
+            ]
+
+        return _detail_rows(result.content.text)
+
     async def on_agent_event(self, ev: agn.Event) -> None:
         app = self._app
 
@@ -160,6 +179,8 @@ class AgentEventRenderer:
             app.begin_ai_turn()
 
         elif isinstance(ev, agn.AgentEndEvent):
+            self._tool_output.clear()
+
             if ev.reason is agn.AgentEndReason.COMPLETED:
                 app.end_ai_turn()
 
@@ -194,15 +215,25 @@ class AgentEventRenderer:
         elif isinstance(ev, agn.ToolExecutionStartEvent):
             app.tool_started(tool_card_key(ev.context), self._tool_title(ev), self._tool_detail(ev.context))
 
+        elif isinstance(ev, agn.ToolExecutionUpdateEvent):
+            if isinstance(upd := ev.update, agn.OutputToolProgressUpdate):
+                key = tool_card_key(ev.context)
+                text = self._tool_output[key] = self._tool_output.get(key, '') + upd.text
+                app.tool_updated(key, [
+                    *self._tool_detail(ev.context),
+                    *_detail_rows(text[-2000:]),
+                ])
+
         elif isinstance(ev, agn.ToolExecutionEndEvent):
-            result_text = ev.result.content.text if ev.result.error is None else repr(ev.result.error)
+            key = tool_card_key(ev.context)
+            self._tool_output.pop(key, None)
             app.tool_finished(
-                tool_card_key(ev.context),
+                key,
                 self._tool_title(ev),
                 ok=ev.result.error is None,
                 detail_rows=[
                     *self._tool_detail(ev.context),
-                    *_detail_rows(result_text),
+                    *self._result_rows(ev.result),
                 ],
             )
 

@@ -625,6 +625,153 @@ def _process_dataclass__b57e659e4af9e52114b760ff1e961ec8a33766ac():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('rc', 'stdout', 'stderr', 'timed_out', 'truncated')), EqPlan(fields=('rc', 'stdout"
+        "', 'stderr', 'timed_out', 'truncated')), FrozenPlan(fields=('rc', 'stdout', 'stderr', 'timed_out', 'truncated'"
+        "), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('rc', 'stdout', 'stderr', 'timed_out', 't"
+        "runcated'), cache=False), InitPlan(fields=(InitPlan.Field(name='rc', annotation=OpRef(name='init.fields.0.anno"
+        "tation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
+        "=None, validate=None, check_type=None), InitPlan.Field(name='stdout', annotation=OpRef(name='init.fields.1.ann"
+        "otation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
+        "e=None, validate=None, check_type=None), InitPlan.Field(name='stderr', annotation=OpRef(name='init.fields.2.an"
+        "notation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
+        "ce=None, validate=None, check_type=None), InitPlan.Field(name='timed_out', annotation=OpRef(name='init.fields."
+        "3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, "
+        "field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='truncated', "
+        "annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factor"
+        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
+        "), self_param='self', std_params=(), kw_only_params=('rc', 'stdout', 'stderr', 'timed_out', 'truncated'), froz"
+        "en=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(na"
+        "me='rc', kw_only=True, fn=None), ReprPlan.Field(name='stdout', kw_only=True, fn=None), ReprPlan.Field(name='st"
+        "derr', kw_only=True, fn=None), ReprPlan.Field(name='timed_out', kw_only=True, fn=None), ReprPlan.Field(name='t"
+        "runcated', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='e3508de00640efbd1f4a222b6bc4139f4d3a20cb',
+    cls_names=(
+        ('omllm.agent.exec.tools.details', 'ExecToolResultDetails'),
+    ),
+)
+def _process_dataclass__e3508de00640efbd1f4a222b6bc4139f4d3a20cb():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                rc=self.rc,
+                stdout=self.stdout,
+                stderr=self.stderr,
+                timed_out=self.timed_out,
+                truncated=self.truncated,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.rc == other.rc and
+                self.stdout == other.stdout and
+                self.stderr == other.stderr and
+                self.timed_out == other.timed_out and
+                self.truncated == other.truncated
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'rc',
+            'stdout',
+            'stderr',
+            'timed_out',
+            'truncated',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.rc,
+                self.stdout,
+                self.stderr,
+                self.timed_out,
+                self.truncated,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            rc: __dataclass__init__fields__0__annotation,
+            stdout: __dataclass__init__fields__1__annotation,
+            stderr: __dataclass__init__fields__2__annotation,
+            timed_out: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            truncated: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'rc', rc)
+            __dataclass__object_setattr(self, 'stdout', stdout)
+            __dataclass__object_setattr(self, 'stderr', stderr)
+            __dataclass__object_setattr(self, 'timed_out', timed_out)
+            __dataclass__object_setattr(self, 'truncated', truncated)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"rc={self.rc!r}")
+            parts.append(f"stdout={self.stdout!r}")
+            parts.append(f"stderr={self.stderr!r}")
+            parts.append(f"timed_out={self.timed_out!r}")
+            parts.append(f"truncated={self.truncated!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('id', 'force')), EqPlan(fields=('id', 'force')), FrozenPlan(fields=('id', 'force')"
         ", allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('id', 'force'), cache=False), InitPlan(fie"
         "lds=(InitPlan.Field(name='id', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factor"

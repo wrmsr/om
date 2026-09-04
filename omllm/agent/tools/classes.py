@@ -55,7 +55,10 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
 
     #
 
-    def _build_result(self, out: str) -> ToolResult:
+    def _build_result(self, out: str | ToolResult) -> ToolResult:
+        if isinstance(out, ToolResult):
+            return out
+
         return ToolResult(
             content=llm.TextContent(out),
         )
@@ -86,5 +89,7 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
             return self._build_result(out)
 
     @abc.abstractmethod
-    async def execute(self, ctx: ToolContext, params: P) -> str:
+    async def execute(self, ctx: ToolContext, params: P) -> str | ToolResult:
+        """Returns the model-facing text, or a full result when there are display details to go with it."""
+
         raise NotImplementedError

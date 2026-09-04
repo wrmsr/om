@@ -8,6 +8,7 @@ from omcore import lang
 from ... import llm
 from ...core.eventbus import EventSubscriber
 from .contexts import Context
+from .inboxes import TurnInbox
 from .messages import Message
 
 
@@ -54,6 +55,10 @@ class TurnConfig:
     # run.
     llm_retry: LlmRetryConfig | None = None
 
+    # Whether steering which arrives mid-batch cuts the batch short: the tool calls not yet executed get an error
+    # result saying the user interjected, and the model sees the steering right away. Off, the batch finishes first.
+    steering_skips_pending_tool_calls: bool = False
+
 
 ##
 
@@ -86,6 +91,8 @@ class TurnParams:
     new_messages: ta.Sequence[Message]
 
     subscriber: EventSubscriber[Event] | None = None
+
+    inbox: TurnInbox | None = None
 
 
 @ta.final

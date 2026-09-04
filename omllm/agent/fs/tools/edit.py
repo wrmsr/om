@@ -7,18 +7,22 @@ TODO:
  - accept diff format impl
  - injectable confirmation, diff format
 """
+import difflib
 import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
 
+from .... import llm
 from ...permissions.types import PermissionDecider
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
+from ...types.tools import ToolResult
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
+from .details import EditToolResultDetails
 
 
 ##
@@ -81,7 +85,7 @@ class EditTool(ToolClass[EditToolParams]):
         self._permissions = permissions
         self._fs = fs
 
-    async def execute(self, ctx: ToolContext, params: EditToolParams) -> str:
+    async def execute(self, ctx: ToolContext, params: EditToolParams) -> ToolResult:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
@@ -114,4 +118,17 @@ class EditTool(ToolClass[EditToolParams]):
 
         await self._fs.write_file(params.file_path, new_file_b)
 
-        return 'The file has been edited successfully.'
+        diff = ''.join(difflib.unified_diff(
+            old_file.splitlines(keepends=True),
+            new_file.splitlines(keepends=True),
+            fromfile=params.file_path,
+            tofile=params.file_path,
+        ))
+
+        return ToolResult(
+            content=llm.TextContent('The file has been edited successfully.'),
+            details=EditToolResultDetails(
+                path=params.file_path,
+                diff=diff,
+            ),
+        )

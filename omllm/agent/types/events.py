@@ -7,6 +7,7 @@ from omcore import lang
 from ... import llm
 from .contexts import Context
 from .messages import Message
+from .progress import ToolProgressUpdate
 from .states import State
 from .tools import Tool
 from .tools import ToolContext
@@ -68,6 +69,24 @@ class AgentEndEvent(Event):
 ##
 
 
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+class MessageAddedEvent(Event):
+    """
+    A message appended to the run's transcript, announced as it lands. The repair messages an interrupted run appends
+    on its way out are not announced this way - that path is deliberately synchronous - and reach subscribers only
+    through the terminal event's `new_messages`.
+    """
+
+    message: Message
+
+    # Its position in the run's `new_messages`, so a subscriber storing as it goes can take the terminal event's tail.
+    index: int
+
+
+##
+
+
 @dc.dataclass(frozen=True)
 class TurnEvent(Event, lang.Abstract):
     pass
@@ -106,6 +125,12 @@ class ToolExecutionEvent(Event, lang.Abstract):
 @dc.dataclass(frozen=True, kw_only=True)
 class ToolExecutionStartEvent(ToolExecutionEvent):
     pass
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+class ToolExecutionUpdateEvent(ToolExecutionEvent):
+    update: ToolProgressUpdate
 
 
 @ta.final

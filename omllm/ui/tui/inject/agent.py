@@ -35,6 +35,21 @@ def bind_on_agent_event_subscriber(cls: type[HasOnEventAgent]) -> inj.Elements:
 ##
 
 
+# How each kind of agent message is shown to the model. Unmapped kinds stay invisible, InfoAgentMessage included: the
+# synthetic tool results already tell the model about an interruption.
+AgentMessageProjectors: ta.TypeAlias = ta.Mapping[type[agn.AgentMessage], agn.AgentMessageProjector]
+
+
+def bind_agent_message_projector(
+        message_cls: type[agn.AgentMessage],
+        projector: agn.AgentMessageProjector,
+) -> inj.Elements:
+    return inj.bind_map_entry_const(AgentMessageProjectors, message_cls, projector)
+
+
+##
+
+
 class TURN_SCOPED(lang.Marker):  # noqa
     pass
 
@@ -94,6 +109,13 @@ def bind_agent(config: Config) -> inj.Elements:
         # The loop's retry backoff sleeps through this; the ui is asyncio, so the loop gets asyncio's sleep.
         inj.bind(asl.asyncio.Sleeps, singleton=True),
         inj.bind(asl.Sleeps, to_key=asl.asyncio.Sleeps),
+
+        # The model's view of the transcript. The map binder is bound even with no entries so the mapping resolves.
+        inj.map_binder[type[agn.AgentMessage], agn.AgentMessageProjector](),
+        inj.bind(agn.TypeMapAgentMessageProjector, singleton=True),
+        inj.bind(agn.AgentMessageProjector, to_key=agn.TypeMapAgentMessageProjector),
+        inj.bind(agn.StandardLlmContextBuilder, singleton=True),
+        inj.bind(agn.LlmContextBuilder, to_key=agn.StandardLlmContextBuilder),
 
         inj.bind(agn.TurnLoop, in_=TURN_SCOPE),
         inj.bind(agn.TurnLoopRunner, in_=TURN_SCOPE),
