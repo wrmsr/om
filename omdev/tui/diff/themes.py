@@ -1,5 +1,4 @@
 """The target-neutral semantic theme for diff documents."""
-
 from omcore.text import styled as st
 
 
