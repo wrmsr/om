@@ -12,6 +12,15 @@ with _lang.auto_proxy_init(globals()):
         parse_rgb,
     )
 
+    from .html import (  # noqa
+        render_html,
+        style_to_css,
+    )
+
+    from .plain import (  # noqa
+        render_plain,
+    )
+
     from .styles import (  # noqa
         DEFAULT_COLOR,
         EMPTY_STYLE_PATCH,
