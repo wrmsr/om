@@ -1,4 +1,5 @@
 import functools
+import itertools
 import typing as ta
 
 from omcore import check
@@ -81,8 +82,8 @@ class TurnLoop:
     reached.
 
     Sans-io: nothing here depends on asyncio being loaded. What the loop needs of its runtime is handed in - the
-    backend's notion of cancellation, a group runner for a message's tool calls, and a sleeper for retry backoff.
-    Every outcome the loop decides for itself, a failure included, is returned as a TurnResult and published as an
+    backend's notion of cancellation, a group runner for a message's tool calls, and a sleeper for retry backoff. Every
+    outcome the loop decides for itself, a failure included, is returned as a TurnResult and published as an
     AgentEndEvent; only the run's own cancellation (or a non-Exception BaseException) propagates, and it does so after
     that same terminal publish, which is shielded so that a cancellation landing during it waits for every subscriber.
 
@@ -189,8 +190,8 @@ class TurnLoop:
                 return [c for c in m.content if isinstance(c, llm.ToolCall) and c.id not in result_ids]
 
             elif isinstance(m, llm.UserMessage):
-                # Back at this run's prompt without an AI message: nothing of this run's to repair, and an earlier
-                # run's messages are not to be touched.
+                # Back at this run's prompt without an AI message: nothing of this run's to repair, and an earlier run's
+                # messages are not to be touched.
                 return []
 
             # Agent messages are transparent.
@@ -200,8 +201,8 @@ class TurnLoop:
     def _unexecuted_tool_call_results(self, why: str) -> list[llm.ToolResultMessage]:
         """
         An error result for every unexecuted tool call of the latest AI message, saying it was not executed and why. A
-        call without a result is a transcript providers reject on the next request, so the loop never leaves one
-        behind, however the run ended.
+        call without a result is a transcript providers reject on the next request, so the loop never leaves one behind,
+        however the run ended.
         """
 
         return [
@@ -319,8 +320,8 @@ class TurnLoop:
             )
 
         else:
-            # Any Exception out of an executor is an error result for the model to see and recover from. Tool classes
-            # do this for themselves; this is the backstop for bare executors. The task's own cancellation propagates.
+            # Any Exception out of an executor is an error result for the model to see and recover from. Tool classes do
+            # this for themselves; this is the backstop for bare executors. The task's own cancellation propagates.
             try:
                 tool_result = await tool.executor(tool_context)
 
@@ -356,8 +357,8 @@ class TurnLoop:
 
     async def _execute_tool_call_group(self, tool_calls: ta.Sequence[llm.ToolCall]) -> list[llm.ToolResultMessage]:
         """
-        Executes the calls as one group: every one of them starts, every one of them finishes before this returns, and
-        a cancellation of the run reaches each of them before it propagates - so an execution parked on something (a
+        Executes the calls as one group: every one of them starts, every one of them finishes before this returns, and a
+        cancellation of the run reaches each of them before it propagates - so an execution parked on something (a
         permission ask) unwinds inside its own task, as a cancellation, ahead of the terminal publish. The results come
         back in call order whatever the order of completion, and are appended by the caller, so they land on the
         transcript in that order too.
@@ -387,6 +388,8 @@ class TurnLoop:
         if self._config.steering_skips_pending_tool_calls:
             # One at a time, so steering can cut in between them.
             groups = [[tc] for tc in tool_calls]
+        elif (max_conc := self._config.max_concurrent_tool_calls) is not None:
+            groups = [list(b) for b in itertools.batched(tool_calls, max_conc)]
         else:
             groups = [list(tool_calls)]
 

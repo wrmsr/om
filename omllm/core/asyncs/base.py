@@ -21,8 +21,8 @@ class AsyncGroupCancelledError(BaseException):
     """
     The calling task was cancelled while its group ran. By the time this is raised every member of the group has
     finished: those the cancellation reached in time were cancelled and are absent from `outcomes`, and the rest had
-    completed and are present, in the order they were given. A backend raises this as a subclass of its own
-    cancellation error, so that it propagates through the backend's tasks as the cancellation it is.
+    completed and are present, in the order they were given. A backend raises this as a subclass of its own cancellation
+    error, so that it propagates through the backend's tasks as the cancellation it is.
     """
 
     outcomes: ta.Sequence[lang.Maybe[ta.Any]]
@@ -31,9 +31,8 @@ class AsyncGroupCancelledError(BaseException):
 @dc.dataclass()
 class AsyncGroupMemberCancelledError(Exception):
     """
-    A member of the group ended cancelled although the group did not cancel it: something it awaited was cancelled
-    out from under it. That is a failure of the member, not a cancellation of the group, and is reported like any
-    other.
+    A member of the group ended cancelled although the group did not cancel it: something it awaited was cancelled out
+    from under it. That is a failure of the member, not a cancellation of the group, and is reported like any other.
     """
 
     index: int
@@ -44,8 +43,8 @@ class AsyncGroupMemberCancelledError(Exception):
 
 class AsyncGroupRunner(lang.Abstract):
     """
-    Runs a batch of awaitables as one unit. Every one of them is started, and none is left running when `run` returns
-    or raises, however it does so:
+    Runs a batch of awaitables as one unit. Every one of them is started, and none is left running when `run` returns or
+    raises, however it does so:
 
      - All complete: their results, in the order given.
      - One raises: the rest are cancelled and waited for, then an ExceptionGroup of what was raised - a

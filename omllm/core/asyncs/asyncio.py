@@ -34,8 +34,8 @@ class AsyncioGroupRunner(AsyncGroupRunner):
                     tasks.append(tg.create_task(member(i, fn)))
 
         except asyncio.CancelledError as e:
-            # The group re-raises the calling task's cancellation only once every member is done - and only when none
-            # of them raised: a member's error takes precedence and comes out as a group, with the task re-cancelled to
+            # The group re-raises the calling task's cancellation only once every member is done - and only when none of
+            # them raised: a member's error takes precedence and comes out as a group, with the task re-cancelled to
             # keep its count.
             raise AsyncioGroupCancelledError(outcomes) from e
 

@@ -2904,32 +2904,37 @@ def _process_dataclass__86aa199f78d3102d6ce53909640e848996aa8ba7():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('llm_options', 'max_turns', 'llm_retry', 'steering_skips_pending_tool_calls')), Eq"
-        "Plan(fields=('llm_options', 'max_turns', 'llm_retry', 'steering_skips_pending_tool_calls')), FrozenPlan(fields"
-        "=('llm_options', 'max_turns', 'llm_retry', 'steering_skips_pending_tool_calls'), allow_dynamic_dunder_attrs=Fa"
-        "lse), HashPlan(action='add', fields=('llm_options', 'max_turns', 'llm_retry', 'steering_skips_pending_tool_cal"
-        "ls'), cache=False), InitPlan(fields=(InitPlan.Field(name='llm_options', annotation=OpRef(name='init.fields.0.a"
-        "nnotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, fie"
-        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_turns', ann"
-        "otation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=N"
-        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), I"
-        "nitPlan.Field(name='llm_retry', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fi"
-        "elds.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None), InitPlan.Field(name='steering_skips_pending_tool_calls', annotation=OpRef(na"
-        "me='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, "
-        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self"
-        "', std_params=(), kw_only_params=('llm_options', 'max_turns', 'llm_retry', 'steering_skips_pending_tool_calls'"
-        "), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.F"
-        "ield(name='llm_options', kw_only=True, fn=None), ReprPlan.Field(name='max_turns', kw_only=True, fn=None), Repr"
-        "Plan.Field(name='llm_retry', kw_only=True, fn=None), ReprPlan.Field(name='steering_skips_pending_tool_calls', "
-        "kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('llm_options', 'max_turns', 'llm_retry', 'max_concurrent_tool_calls', 'steering_sk"
+        "ips_pending_tool_calls')), EqPlan(fields=('llm_options', 'max_turns', 'llm_retry', 'max_concurrent_tool_calls'"
+        ", 'steering_skips_pending_tool_calls')), FrozenPlan(fields=('llm_options', 'max_turns', 'llm_retry', 'max_conc"
+        "urrent_tool_calls', 'steering_skips_pending_tool_calls'), allow_dynamic_dunder_attrs=False), HashPlan(action='"
+        "add', fields=('llm_options', 'max_turns', 'llm_retry', 'max_concurrent_tool_calls', 'steering_skips_pending_to"
+        "ol_calls'), cache=False), InitPlan(fields=(InitPlan.Field(name='llm_options', annotation=OpRef(name='init.fiel"
+        "ds.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=Fals"
+        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_turns"
+        "', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_fac"
+        "tory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=No"
+        "ne), InitPlan.Field(name='llm_retry', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='i"
+        "nit.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
+        "=None, validate=None, check_type=None), InitPlan.Field(name='max_concurrent_tool_calls', annotation=OpRef(name"
+        "='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, ov"
+        "erride=False, field_type=FieldType.INSTANCE, coerce=None, validate=OpRef(name='init.fields.3.validate'), check"
+        "_type=None), InitPlan.Field(name='steering_skips_pending_tool_calls', annotation=OpRef(name='init.fields.4.ann"
+        "otation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field"
+        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_"
+        "only_params=('llm_options', 'max_turns', 'llm_retry', 'max_concurrent_tool_calls', 'steering_skips_pending_too"
+        "l_calls'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Re"
+        "prPlan.Field(name='llm_options', kw_only=True, fn=None), ReprPlan.Field(name='max_turns', kw_only=True, fn=Non"
+        "e), ReprPlan.Field(name='llm_retry', kw_only=True, fn=None), ReprPlan.Field(name='max_concurrent_tool_calls', "
+        "kw_only=True, fn=None), ReprPlan.Field(name='steering_skips_pending_tool_calls', kw_only=True, fn=None)), id=F"
+        "alse, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='453d726d7b10a91136208c3288637b668a2cd7ff',
+    plan_repr_sha1='479bbf46d1b7c1edc8d9567aa58cd04091f2b17f',
     cls_names=(
         ('omllm.agent.types.turns', 'TurnConfig'),
     ),
 )
-def _process_dataclass__453d726d7b10a91136208c3288637b668a2cd7ff():
+def _process_dataclass__479bbf46d1b7c1edc8d9567aa58cd04091f2b17f():
     def _process_dataclass(
         *,
         __class__,
@@ -2941,7 +2946,11 @@ def _process_dataclass__453d726d7b10a91136208c3288637b668a2cd7ff():
         __dataclass__init__fields__2__default,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
+        __dataclass__init__fields__3__validate,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
         __dataclass__repr__default_fn,
+        __dataclass__FieldFnValidationError,  # noqa
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -2955,6 +2964,7 @@ def _process_dataclass__453d726d7b10a91136208c3288637b668a2cd7ff():
                 llm_options=self.llm_options,
                 max_turns=self.max_turns,
                 llm_retry=self.llm_retry,
+                max_concurrent_tool_calls=self.max_concurrent_tool_calls,
                 steering_skips_pending_tool_calls=self.steering_skips_pending_tool_calls,
             )
 
@@ -2969,6 +2979,7 @@ def _process_dataclass__453d726d7b10a91136208c3288637b668a2cd7ff():
                 self.llm_options == other.llm_options and
                 self.max_turns == other.max_turns and
                 self.llm_retry == other.llm_retry and
+                self.max_concurrent_tool_calls == other.max_concurrent_tool_calls and
                 self.steering_skips_pending_tool_calls == other.steering_skips_pending_tool_calls
             )
 
@@ -2978,6 +2989,7 @@ def _process_dataclass__453d726d7b10a91136208c3288637b668a2cd7ff():
             'llm_options',
             'max_turns',
             'llm_retry',
+            'max_concurrent_tool_calls',
             'steering_skips_pending_tool_calls',
         }
 
@@ -3006,6 +3018,7 @@ def _process_dataclass__453d726d7b10a91136208c3288637b668a2cd7ff():
                 self.llm_options,
                 self.max_turns,
                 self.llm_retry,
+                self.max_concurrent_tool_calls,
                 self.steering_skips_pending_tool_calls,
             ))
 
@@ -3017,11 +3030,20 @@ def _process_dataclass__453d726d7b10a91136208c3288637b668a2cd7ff():
             llm_options: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             max_turns: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             llm_retry: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            steering_skips_pending_tool_calls: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            max_concurrent_tool_calls: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            steering_skips_pending_tool_calls: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
         ) -> __dataclass__None:
+            if not __dataclass__init__fields__3__validate(max_concurrent_tool_calls): 
+                raise __dataclass__FieldFnValidationError(
+                    obj=self,
+                    fn=__dataclass__init__fields__3__validate,
+                    field='max_concurrent_tool_calls',
+                    value=max_concurrent_tool_calls,
+                )
             __dataclass__object_setattr(self, 'llm_options', llm_options)
             __dataclass__object_setattr(self, 'max_turns', max_turns)
             __dataclass__object_setattr(self, 'llm_retry', llm_retry)
+            __dataclass__object_setattr(self, 'max_concurrent_tool_calls', max_concurrent_tool_calls)
             __dataclass__object_setattr(self, 'steering_skips_pending_tool_calls', steering_skips_pending_tool_calls)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -3035,6 +3057,8 @@ def _process_dataclass__453d726d7b10a91136208c3288637b668a2cd7ff():
                 parts.append(f"max_turns={s}")
             if (s := __dataclass__repr__default_fn(self.llm_retry)) is not None:
                 parts.append(f"llm_retry={s}")
+            if (s := __dataclass__repr__default_fn(self.max_concurrent_tool_calls)) is not None:
+                parts.append(f"max_concurrent_tool_calls={s}")
             if (s := __dataclass__repr__default_fn(self.steering_skips_pending_tool_calls)) is not None:
                 parts.append(f"steering_skips_pending_tool_calls={s}")
             return (
