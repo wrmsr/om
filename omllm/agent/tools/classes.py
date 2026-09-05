@@ -71,8 +71,8 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
         return ToolResult.of_error(e)
 
     async def execute_context(self, ctx: ToolContext) -> ToolResult:
-        # Argument binding is inside the try: the model sending malformed or missing arguments is an error result for
-        # it to correct, not a fault in the loop.
+        # Argument binding is inside the try: the model sending malformed or missing arguments is an error result for it
+        # to correct, not a fault in the loop.
         try:
             params = instantiate_tool_params(
                 self.params_cls,

@@ -69,6 +69,9 @@ def bind_tools(config: Config) -> inj.Elements:
             inj.bind(agn.EditTool, singleton=True),
             bind_agent_tool_class(agn.EditTool),
 
+            inj.bind(agn.GlobTool, singleton=True),
+            bind_agent_tool_class(agn.GlobTool),
+
             inj.bind(agn.LsTool, singleton=True),
             bind_agent_tool_class(agn.LsTool),
 

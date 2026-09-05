@@ -5,13 +5,16 @@ import typing as ta
 
 from omcore import dataclasses as dc
 
+from .... import llm
 from ...permissions.types import PermissionDecider
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
+from ...types.tools import ToolResult
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
+from .details import GlobToolResultDetails
 
 
 ##
@@ -77,6 +80,9 @@ def safe_glob(pattern: str, permitted_root: str) -> ta.Generator[str]:
 ##
 
 
+MAX_MATCHES = 100
+
+
 @dc.dataclass(frozen=True)
 class GlobToolParams:
     pattern: str
@@ -103,27 +109,43 @@ class GlobTool(ToolClass[GlobToolParams]):
         super().__init__()
 
         self._permissions = permissions
-        self._fs = fs
+        self._fs = fs  # FIXME: use lol
 
-    async def execute(self, ctx: ToolContext, params: GlobToolParams) -> str:
-        root = glob_root(params.pattern)
+    async def execute(self, ctx: ToolContext, params: GlobToolParams) -> ToolResult:
+        root_path = glob_root(params.pattern)
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
-        if os.path.commonpath((cwd, root)) != cwd:
+        if os.path.commonpath((cwd, root_path)) != cwd:
             raise ValueError('Pattern not under configured working directory')
 
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),
-            FsPermissionTarget(root, 'r'),
+            FsPermissionTarget(root_path, 'r'),
         )
 
-        if not os.path.exists(root):
+        if not os.path.exists(root_path):
             raise ValueError('Path does not exist')
 
         out = io.StringIO()
         out.write('<glob>\n')
+        num_matches = 0
+        has_more = False
         for p in safe_glob(params.pattern, cwd):
+            num_matches += 1
+            if num_matches >= MAX_MATCHES:
+                has_more = True
+                out.write('</glob>\n')
+                out.write('Too many matches, please refine your search or use the `ls` tool.\n')
+                break
             out.write(f'{p}{"/" if os.path.isdir(p) else ""}\n')
         out.write('</glob>\n')
 
-        return out.getvalue()
+        return ToolResult(
+            content=llm.TextContent(out.getvalue()),
+            details=GlobToolResultDetails(
+                pattern=params.pattern,
+                root_path=root_path,
+                num_matches=num_matches,
+                has_more=has_more,
+            ),
+        )

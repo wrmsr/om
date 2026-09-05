@@ -515,6 +515,142 @@ def _process_dataclass__a4209b0f41bbecf4b6ef227f7d42fa67555c4334():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('pattern', 'root_path', 'num_matches', 'has_more')), EqPlan(fields=('pattern', 'ro"
+        "ot_path', 'num_matches', 'has_more')), FrozenPlan(fields=('pattern', 'root_path', 'num_matches', 'has_more'), "
+        "allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('pattern', 'root_path', 'num_matches', 'has_"
+        "more'), cache=False), InitPlan(fields=(InitPlan.Field(name='pattern', annotation=OpRef(name='init.fields.0.ann"
+        "otation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
+        "e=None, validate=None, check_type=None), InitPlan.Field(name='root_path', annotation=OpRef(name='init.fields.1"
+        ".annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, c"
+        "oerce=None, validate=None, check_type=None), InitPlan.Field(name='num_matches', annotation=OpRef(name='init.fi"
+        "elds.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
+        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='has_more', annotation=OpRef(name='init"
+        ".fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override"
+        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_p"
+        "arams=(), kw_only_params=('pattern', 'root_path', 'num_matches', 'has_more'), frozen=True, slots=False, post_i"
+        "nit_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='pattern', kw_only=True, "
+        "fn=None), ReprPlan.Field(name='root_path', kw_only=True, fn=None), ReprPlan.Field(name='num_matches', kw_only="
+        "True, fn=None), ReprPlan.Field(name='has_more', kw_only=True, fn=None)), id=False, terse=False, default_fn=Non"
+        "e)))"
+    ),
+    plan_repr_sha1='dc436720878602f716b2ec9180762d98576c93d2',
+    cls_names=(
+        ('omllm.agent.fs.tools.details', 'GlobToolResultDetails'),
+    ),
+)
+def _process_dataclass__dc436720878602f716b2ec9180762d98576c93d2():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                pattern=self.pattern,
+                root_path=self.root_path,
+                num_matches=self.num_matches,
+                has_more=self.has_more,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.pattern == other.pattern and
+                self.root_path == other.root_path and
+                self.num_matches == other.num_matches and
+                self.has_more == other.has_more
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'pattern',
+            'root_path',
+            'num_matches',
+            'has_more',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.pattern,
+                self.root_path,
+                self.num_matches,
+                self.has_more,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            pattern: __dataclass__init__fields__0__annotation,
+            root_path: __dataclass__init__fields__1__annotation,
+            num_matches: __dataclass__init__fields__2__annotation,
+            has_more: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'pattern', pattern)
+            __dataclass__object_setattr(self, 'root_path', root_path)
+            __dataclass__object_setattr(self, 'num_matches', num_matches)
+            __dataclass__object_setattr(self, 'has_more', has_more)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"pattern={self.pattern!r}")
+            parts.append(f"root_path={self.root_path!r}")
+            parts.append(f"num_matches={self.num_matches!r}")
+            parts.append(f"has_more={self.has_more!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('path', 'line_offset', 'num_lines', 'has_more')), EqPlan(fields=('path', 'line_off"
         "set', 'num_lines', 'has_more')), FrozenPlan(fields=('path', 'line_offset', 'num_lines', 'has_more'), allow_dyn"
         "amic_dunder_attrs=False), HashPlan(action='add', fields=('path', 'line_offset', 'num_lines', 'has_more'), cach"

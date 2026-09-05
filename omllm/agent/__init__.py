@@ -81,14 +81,20 @@ with _lang.auto_proxy_init(globals()):
     ##
 
     from .fs.tools.details import (  # noqa
-        ReadToolResultDetails,
         EditToolResultDetails,
+        GlobToolResultDetails,
+        ReadToolResultDetails,
         WriteToolResultDetails,
     )
 
     from .fs.tools.edit import (  # noqa
         EditToolParams,
         EditTool,
+    )
+
+    from .fs.tools.glob import (  # noqa
+        GlobToolParams,
+        GlobTool,
     )
 
     from .fs.tools.ls import (  # noqa
