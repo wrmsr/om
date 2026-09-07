@@ -26,6 +26,7 @@ class PermissionRules(fh.FieldHashable, lang.Final):
 
     #
 
+    @dc.init
     @lang.cached_property
     def by_digest(self) -> ta.Mapping[str, PermissionRule]:
         return col.make_map((

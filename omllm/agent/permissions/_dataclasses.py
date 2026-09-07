@@ -32,21 +32,22 @@ def _register(**kwargs):
         "), validate=None, check_type=None), InitPlan.Field(name='MIN_MIN_DIGEST_LEN', annotation=OpRef(name='init.fiel"
         "ds.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=Fals"
         "e, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None)), self_param='self', std_param"
-        "s=('rules',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()"
-        "), ReprPlan(fields=(ReprPlan.Field(name='rules', kw_only=False, fn=None),), id=False, terse=False, default_fn="
-        "None)))"
+        "s=('rules',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(OpRef(name='init.i"
+        "nit_fns.0'),), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='rules', kw_only=False, fn=None),), id=F"
+        "alse, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='ec3dc5ca64d06aa2b09e5c7ea0f2c752f2b83006',
+    plan_repr_sha1='db5d6cae32849351ffdc73da1bbf59025134bac7',
     cls_names=(
         ('omllm.agent.permissions.collection', 'PermissionRules'),
     ),
 )
-def _process_dataclass__ec3dc5ca64d06aa2b09e5c7ea0f2c752f2b83006():
+def _process_dataclass__db5d6cae32849351ffdc73da1bbf59025134bac7():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__0__coerce,
+        __dataclass__init__init_fns__0,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -111,6 +112,7 @@ def _process_dataclass__ec3dc5ca64d06aa2b09e5c7ea0f2c752f2b83006():
         ) -> __dataclass__None:
             rules = __dataclass__init__fields__0__coerce(rules)
             __dataclass__object_setattr(self, 'rules', rules)
+            __dataclass__init__init_fns__0(self)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 

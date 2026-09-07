@@ -88,3 +88,24 @@ class PermissionsCommand(ParserCommandClass):
 
         rmd = self._permissions.get_rules().min_digests[rule]
         await ctx.print(self._render_rule(rmd, rule), '\n')
+
+    #
+
+    @ap.cmd(
+        ap.arg('digest', nargs='+'),
+        name='rm',
+    )
+    async def _run_rm(self, ctx: CommandContext, args: ap.Namespace) -> None:
+        for digest in args.digest:
+            rule = self._permissions.get_rules()[digest]
+            self._permissions.remove_rule(rule)
+
+    #
+
+    @ap.cmd(
+        name='clear',
+    )
+    async def _run_clear(self, ctx: CommandContext, args: ap.Namespace) -> None:
+        while len(rules := self._permissions.get_rules()):
+            rule = rules[0]
+            self._permissions.remove_rule(rule)
