@@ -94,6 +94,7 @@ plus = [
     'asttokens ~= 3.0',
     'executing ~= 2.2',
     'cryptography ~= 50.0',
+    'pygments ~= 2.21',
 ]
 cext = [
     'omcore-cext == 0.0.54',
@@ -146,6 +147,7 @@ all = [
     'asttokens ~= 3.0',
     'executing ~= 2.2',
     'cryptography ~= 50.0',
+    'pygments ~= 2.21',
     'omcore-cext == 0.0.54',
     'omcore-mypyc == 0.0.54',
 ]

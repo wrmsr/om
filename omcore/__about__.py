@@ -137,6 +137,8 @@ class Project(ProjectBase):
             'check',
 
             'cryptography',
+
+            'pygments',
         ],
     }
 
