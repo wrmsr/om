@@ -238,7 +238,7 @@ sqlean.py==3.50.4.5
 sqlite-vec==0.1.9
 stack-data==0.6.3
 sympy==1.14.0
-tavily-python==0.8.0
+tavily-python==0.8.1
 textual==8.2.8
 textual-dev==1.8.0
 textual-serve==1.1.3
