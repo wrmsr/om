@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 """
 The card: an updatable, expandable, lifecycle-bearing panel - the warm-window shape of a tool use.
 
@@ -38,8 +39,8 @@ _STATE_GLYPHS: ta.Mapping[CardState, str] = {
     CardState.RUNNING: '*',
     CardState.COMPLETE: '✓',
     CardState.DENIED: '✗',
-    CardState.FAILED: '✗',
-    CardState.CANCELLED: '×',
+    CardState.FAILED: '‼',
+    CardState.CANCELLED: '⊘',
 }
 
 TERMINAL_CARD_STATES: ta.AbstractSet[CardState] = frozenset([

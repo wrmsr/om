@@ -72,7 +72,7 @@ psycopg==3.3.5
 mysql-connector-python==26.7.0
 mysqlclient==2.2.8; sys_platform == "darwin"  # brew install mysql pkg-config  # PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig" pip install ...
 
-ujson==5.13.0
+ujson==6.0.0
 
 markupsafe==3.0.3
 
