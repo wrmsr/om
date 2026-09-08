@@ -508,13 +508,13 @@ def _main(argv=None) -> None:
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('component-path', dest='component_path')
+    parser.add_argument('component_path', metavar='component-path')
 
     args = parser.parse_args(argv)
 
     #
 
-    runtime = MontyWasm(args.component_runtime)
+    runtime = MontyWasm(args.component_path)
 
     result = runtime.execute(
         'x * 2',
