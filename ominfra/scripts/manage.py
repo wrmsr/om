@@ -117,7 +117,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
             dict(path='../../omcore/os/atomics.py', sha1='2e8bdffc2d762a7fccd4fc8630e3e3dbbea7ea0c'),
-            dict(path='../../omcore/os/pyremote/bestpython.py', sha1='de4e2b1d86aceeeb63d86107719b81c44979eb68'),
+            dict(path='../../omcore/os/pyremote/bestpython.py', sha1='bfd8f8c1017141072fd2e66029ebe33003a7bae2'),
             dict(path='../../omcore/text/indent.py', sha1='2bc3014c4cb46a7084c94c5965fc7122cf2fb6bf'),
             dict(path='../../omdev/home/paths.py', sha1='5092354b186f79d8abd54d74dc08d850e645f09e'),
             dict(path='../../omdev/packaging/specifiers.py', sha1='baec4e53b7187f99e8d8b36bdf48bf61af82c252'),
@@ -8292,6 +8292,7 @@ class TempDirAtomicPathSwapping(AtomicPathSwapping):
 
 
 BEST_PYTHON_SH = """\
+#!/usr/bin/env sh
 bv=""
 bx=""
 
@@ -8318,7 +8319,7 @@ def get_best_python_sh() -> str:
     buf = io.StringIO()
 
     for l in BEST_PYTHON_SH.strip().splitlines():
-        if not (l := l.strip()):
+        if not (l := l.strip()) or l.startswith('#'):
             continue
 
         buf.write(l)

@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 bv=""
 bx=""
 

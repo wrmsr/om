@@ -15,7 +15,7 @@ def get_best_python_sh() -> str:
     buf = io.StringIO()
 
     for l in BEST_PYTHON_SH.strip().splitlines():
-        if not (l := l.strip()):
+        if not (l := l.strip()) or l.startswith('#'):
             continue
 
         buf.write(l)
