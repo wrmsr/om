@@ -1,7 +1,7 @@
 import io
 
-from omcore.lite.cached import cached_nullary
-from omcore.lite.resources import read_package_resource_text
+from ...lite.cached import cached_nullary
+from ...lite.resources import read_package_resource_text
 
 
 ##

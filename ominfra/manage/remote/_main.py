@@ -17,7 +17,7 @@ from omcore.lite.marshal import ObjMarshalerManager
 from omcore.lite.pycharm import pycharm_debug_connect
 from omcore.logs.modules import get_module_logger
 from omcore.os.deathsig import set_process_deathsig
-from omcore.os.pyremote import pyremote_bootstrap_finalize
+from omcore.os.pyremote.core import pyremote_bootstrap_finalize
 
 from ..bootstrap import MainBootstrap
 from ..commands.local import LocalCommandExecutor

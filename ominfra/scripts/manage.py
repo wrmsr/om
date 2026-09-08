@@ -98,7 +98,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
-            dict(path='../../omcore/os/pyremote.py', sha1='b56cd75204c45e8e9e4c0492af739fa1d528ef53'),
+            dict(path='../../omcore/os/pyremote/core.py', sha1='b56cd75204c45e8e9e4c0492af739fa1d528ef53'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -117,13 +117,13 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
             dict(path='../../omcore/os/atomics.py', sha1='2e8bdffc2d762a7fccd4fc8630e3e3dbbea7ea0c'),
+            dict(path='../../omcore/os/pyremote/bestpython.py', sha1='de4e2b1d86aceeeb63d86107719b81c44979eb68'),
             dict(path='../../omcore/text/indent.py', sha1='2bc3014c4cb46a7084c94c5965fc7122cf2fb6bf'),
             dict(path='../../omdev/home/paths.py', sha1='5092354b186f79d8abd54d74dc08d850e645f09e'),
             dict(path='../../omdev/packaging/specifiers.py', sha1='baec4e53b7187f99e8d8b36bdf48bf61af82c252'),
             dict(path='deploy/paths/specs.py', sha1='10e10dce4dc9dd95ac4fae4e503df0d875159b2b'),
             dict(path='remote/config.py', sha1='aae286c7cf7b73708c0a1f7b69cd2cc6f17540f7'),
             dict(path='remote/payload.py', sha1='cb836f50b98579d5d2b5ec13f36b86825f877019'),
-            dict(path='targets/bestpython.py', sha1='7f014df5bcdb53dd882317469dfc47e2fe7c1ef5'),
             dict(path='targets/targets.py', sha1='86e6a888ed98b547ca8b5ea94059a8cc02e3c89d'),
             dict(path='../../omcore/argparse/cli.py', sha1='643ea018c916268b80efe227a13979c84c59be3c'),
             dict(path='../../omcore/asyncs/asyncio/timeouts.py', sha1='79905340353b28e51bcd02a62026787f41b731b9'),
@@ -191,12 +191,12 @@ def __om_amalg__():  # noqa
             dict(path='bootstrap.py', sha1='e66138947a41e8a49576885cf4b1390315d44f88'),
             dict(path='system/inject.py', sha1='0e7370ec9926baca33e62183a10d4e1ad476a6a1'),
             dict(path='../../omdev/interp/pyenv/inject.py', sha1='1fe5f906720082a73332f98199e3dd1b2dccd67b'),
-            dict(path='remote/_main.py', sha1='952625a0db50cf19ae8916c506328a0056dda7c3'),
+            dict(path='remote/_main.py', sha1='2662962eb222d01e7c67172d554797971b88214a'),
             dict(path='../../omdev/interp/inject.py', sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143'),
-            dict(path='remote/connection.py', sha1='d90d3bf06cd6d3377b5b979e4bdd48e08c7a00e6'),
+            dict(path='remote/connection.py', sha1='98be173f5780112202a8e46338430a22e72e9cf9'),
             dict(path='../../omdev/interp/default.py', sha1='7ea7b7d7aa191aedd4716f3616ca0d07a4a3d875'),
             dict(path='remote/inject.py', sha1='648d3c5306e0aa037b763661c24089dbafbadbd5'),
-            dict(path='targets/connection.py', sha1='eda946fdcc93d4f53cdc7d359e63fd4ae5115074'),
+            dict(path='targets/connection.py', sha1='39213edda6bd3da49f8b5a6684772c530cf527c9'),
             dict(path='deploy/interp.py', sha1='adcbd777b4df0d566a90f8f679b1f9b1be3e8c5c'),
             dict(path='deploy/venvs.py', sha1='42d8cc298fe2eb407c6f8ed18b256d0cf98f8b7d'),
             dict(path='targets/inject.py', sha1='c5a01e811a877552bcf642c09dd80515f3d6960d'),
@@ -4644,7 +4644,7 @@ def relative_symlink(
 
 
 ########################################
-# ../../../omcore/os/pyremote.py
+# ../../../omcore/os/pyremote/core.py
 """
 Basically this: https://mitogen.networkgenomics.com/howitworks.html
 
@@ -8285,6 +8285,53 @@ class TempDirAtomicPathSwapping(AtomicPathSwapping):
 
 
 ########################################
+# ../../../omcore/os/pyremote/bestpython.py
+
+
+##
+
+
+BEST_PYTHON_SH = """\
+bv=""
+bx=""
+
+for v in "" 3 3.{8..14}; do
+    x="python$v"
+    v=$($x -c "import sys; print((\\"%02d\\" * 3) % sys.version_info[:3])" 2>/dev/null)
+    if [ $? -eq 0 ] && [ "$v" \\> 030799 ] && ([ -z "$bv" ] || [ "$v" \\> "$bv" ]); then
+        bv=$v
+        bx=$x
+    fi
+done
+
+if [ -z "$bx" ]; then
+    echo "no python" >&2
+    exit 1
+fi
+
+exec "$bx" "$@"
+"""  # noqa
+
+
+@cached_nullary
+def get_best_python_sh() -> str:
+    buf = io.StringIO()
+
+    for l in BEST_PYTHON_SH.strip().splitlines():
+        if not (l := l.strip()):
+            continue
+
+        buf.write(l)
+
+        if l.split()[-1] not in ('do', 'then', 'else'):
+            buf.write(';')
+
+        buf.write(' ')
+
+    return buf.getvalue().strip(' ;')
+
+
+########################################
 # ../../../omcore/text/indent.py
 
 
@@ -9043,53 +9090,6 @@ def get_remote_payload_src(
 
     import importlib.resources
     return importlib.resources.files(__package__.split('.')[0] + '.scripts').joinpath('manage.py').read_text()
-
-
-########################################
-# ../targets/bestpython.py
-
-
-##
-
-
-BEST_PYTHON_SH = """\
-bv=""
-bx=""
-
-for v in "" 3 3.{8..14}; do
-    x="python$v"
-    v=$($x -c "import sys; print((\\"%02d\\" * 3) % sys.version_info[:3])" 2>/dev/null)
-    if [ $? -eq 0 ] && [ "$v" \\> 030799 ] && ([ -z "$bv" ] || [ "$v" \\> "$bv" ]); then
-        bv=$v
-        bx=$x
-    fi
-done
-
-if [ -z "$bx" ]; then
-    echo "no python" >&2
-    exit 1
-fi
-
-exec "$bx" "$@"
-"""  # noqa
-
-
-@cached_nullary
-def get_best_python_sh() -> str:
-    buf = io.StringIO()
-
-    for l in BEST_PYTHON_SH.strip().splitlines():
-        if not (l := l.strip()):
-            continue
-
-        buf.write(l)
-
-        if l.split()[-1] not in ('do', 'then', 'else'):
-            buf.write(';')
-
-        buf.write(' ')
-
-    return buf.getvalue().strip(' ;')
 
 
 ########################################

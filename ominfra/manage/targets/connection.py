@@ -6,6 +6,7 @@ import typing as ta
 
 from omcore.lite.abstract import Abstract
 from omcore.lite.check import check
+from omcore.os.pyremote.bestpython import get_best_python_sh
 
 from ..bootstrap import MainBootstrap
 from ..commands.base import CommandExecutor
@@ -13,7 +14,6 @@ from ..commands.local import LocalCommandExecutor
 from ..remote.connection import InProcessRemoteExecutionConnector
 from ..remote.connection import PyremoteRemoteExecutionConnector
 from ..remote.spawning import RemoteSpawning
-from .bestpython import get_best_python_sh
 from .targets import DockerManageTarget
 from .targets import InProcessManageTarget
 from .targets import LocalManageTarget

@@ -5,14 +5,14 @@ import subprocess
 import sys
 import unittest
 
-from ...lite.check import check
-from ...subprocesses.wrap import subprocess_maybe_shell_wrap_exec
-from .. import pyremote
+from ....lite.check import check
+from ....subprocesses.wrap import subprocess_maybe_shell_wrap_exec
+from .. import core
 
 
 class TestPyremote(unittest.TestCase):
-    def _run_test(self, opts: pyremote.PyremoteBootstrapOptions) -> None:
-        with open(os.path.join(os.path.dirname(__file__), '..', 'pyremote.py')) as f:
+    def _run_test(self, opts: core.PyremoteBootstrapOptions) -> None:
+        with open(os.path.join(os.path.dirname(__file__), '..', 'core.py')) as f:
             pyr_src = f.read()
 
         payload_src = '\n'.join([
@@ -28,7 +28,7 @@ class TestPyremote(unittest.TestCase):
             subprocess_maybe_shell_wrap_exec(
                 sys.executable,
                 '-c',
-                pyremote.pyremote_build_bootstrap_cmd('test'),
+                core.pyremote_build_bootstrap_cmd('test'),
             ),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -37,7 +37,7 @@ class TestPyremote(unittest.TestCase):
         stdin = check.not_none(proc.stdin)
         stdout = check.not_none(proc.stdout)
 
-        res = pyremote.PyremoteBootstrapDriver(
+        res = core.PyremoteBootstrapDriver(
             payload_src,
             opts,
         ).run(stdout, stdin)
@@ -54,7 +54,7 @@ class TestPyremote(unittest.TestCase):
         self.assertEqual(out, b'!foo!')
 
     def test_normal(self) -> None:
-        self._run_test(pyremote.PyremoteBootstrapOptions())
+        self._run_test(core.PyremoteBootstrapOptions())
 
     def test_debug(self) -> None:
-        self._run_test(pyremote.PyremoteBootstrapOptions(debug=True))
+        self._run_test(core.PyremoteBootstrapOptions(debug=True))

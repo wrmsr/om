@@ -199,6 +199,9 @@ exclude = [
 'omcore.http.resources' = [
     '*',
 ]
+'omcore.os.pyremote' = [
+    'bestpython.sh',
+]
 'omcore.specs.jsonschema' = [
     'schemas/*',
     'schemas/draft202012/*',

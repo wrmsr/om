@@ -77,9 +77,6 @@ exclude = [
 'ominfra.clouds.aws.models.services' = [
     '*.toml',
 ]
-'ominfra.manage.targets' = [
-    'bestpython.sh',
-]
 'ominfra.nginx' = [
     'patches/nginx/*',
     'versions.json',
