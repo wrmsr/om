@@ -13,6 +13,7 @@ import typing as ta
 from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import inject as inj
+from omcore import lang
 from omcore.text import highlights as hl
 from omdev.tui import minitui as mt
 
@@ -28,9 +29,21 @@ CardRows: ta.TypeAlias = tuple[tuple[mt.Segment, ...], ...]
 THEME = mt.DEFAULT_THEME.extend({
     'speaker.ai': mt.Style(fg=mt.SUCCESS, bold=True),
     'speaker.you': mt.Style(fg=mt.TEXT_SECONDARY, bold=True),
+    'turn.info': mt.Style(fg=mt.MUTED),
     'echo.command': mt.Style(fg=mt.TEXT_SECONDARY, italic=True),
     'turn.aborted': mt.Style(fg=mt.TEXT_SECONDARY, italic=True),
 })
+
+
+Speaker: ta.TypeAlias = ta.Literal['you', 'ai']
+
+SPEAKER_VALS: frozenset[Speaker] = frozenset(['you', 'ai'])
+MAX_SPEAKER_LEN = max(map(len, SPEAKER_VALS))
+
+STYLES_BY_SPEAKER: ta.Mapping[Speaker, str] = {
+    'you': 'speaker.you',
+    'ai': 'speaker.ai',
+}
 
 
 def _freeze_rows(rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> CardRows:
@@ -210,11 +223,20 @@ class MinituiChatApp(mt.App):
     ##
     # Chat flow
 
+    def _build_turn_header(self, speaker: ta.Literal['you', 'ai']) -> list[mt.Segment]:
+        speaker_style = STYLES_BY_SPEAKER[speaker]
+        info_s = f'{lang.localnow().strftime("%d-%m-%Y %H:%M:%S")}'
+        return [
+            mt.Segment(speaker, speaker_style),
+            mt.Segment(' ' * (MAX_SPEAKER_LEN - len(speaker) + 2)),
+            mt.Segment(info_s, 'turn.info'),
+        ]
+
     def show_user_message(self, text: str) -> None:
         # Not the tail's `render_settled`: that path separates a stream cycle's commits from each other, and a queued
         # submission lands mid-stream.
         self._commit_rows([
-            [mt.Segment('you', 'speaker.you')],
+            self._build_turn_header('you'),
             *self._render_markdown(text),
             [],
         ])
@@ -226,7 +248,7 @@ class MinituiChatApp(mt.App):
     def begin_ai_turn(self) -> None:
         self._busy = True
         self._cancelling = False
-        self._commit_rows([[mt.Segment('ai', 'speaker.ai')]])
+        self._commit_rows([self._build_turn_header('ai')])
         self._refresh_status()
         self._driver.invalidate()
 
