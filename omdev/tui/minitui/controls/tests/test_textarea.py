@@ -43,6 +43,12 @@ def test_typing_and_prompt():
     assert ta_.cursor(20) == (10, 0)
 
 
+def test_typing_angle_brackets():
+    ta_ = TextArea()
+    type_text(ta_, '<>')
+    assert ta_.doc.text() == '<>'
+
+
 def test_insert_enter_newlines():
     ta_ = TextArea(prompt='> ')
     type_text(ta_, 'ab')

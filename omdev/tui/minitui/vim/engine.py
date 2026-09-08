@@ -94,6 +94,8 @@ TOKEN_MOTIONS: ta.Mapping[str, str] = {
     '<end>': '$',
 }
 
+INSERT_MOTION_TOKENS: ta.AbstractSet[str] = frozenset((*TOKEN_MOTIONS, '<a-b>', '<a-f>'))
+
 
 class Synonym(ta.NamedTuple):
     op: str
@@ -613,7 +615,7 @@ class VimEngine:
             self._kill_to_line_edge_at_cursors(to_end=False)
             return
 
-        if key.startswith('<'):
+        if key in INSERT_MOTION_TOKENS:
             self._move_cursors_insert(key)
             return
 

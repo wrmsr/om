@@ -1,7 +1,8 @@
 import os.path
 import typing as ta
 
-from omcore.formats.yaml import all as yaml
+from omcore import lang
+from omcore.configs.formats import DEFAULT_CONFIG_FILE_LOADER
 from omcore.os.environ import EnvVar
 from omcore.secrets import all as sec
 
@@ -11,25 +12,34 @@ from .paths import get_home_paths
 ##
 
 
-SECRETS_FILE_ENV_VAR = EnvVar('OM_SECRETS')
-DEFAULT_SECRETS_FILE_NAME = 'secrets.yml'
+INJECTED_SECRETS_FILE_ENV_VAR = EnvVar('OM_SECRETS')
+DEFAULT_INJECTED_SECRETS_FILE_NAME: ta.Final = 'secrets-injected.json'
+
+USER_SECRETS_FILE_ENV_VAR = EnvVar('OM_SECRETS_INJECTED')
+DEFAULT_USER_SECRETS_FILE_NAME: ta.Final = 'secrets.yml'
 
 
-def get_secrets_file() -> str:
-    return os.path.expanduser(
-        SECRETS_FILE_ENV_VAR.get(lambda: os.path.join(get_home_paths().config_dir, DEFAULT_SECRETS_FILE_NAME)),
-    )
+def _get_secrets_file_paths() -> lang.SequenceNotStr[str]:
+    return [
+        os.path.expanduser(p)
+        for ev, dfn in [
+            (INJECTED_SECRETS_FILE_ENV_VAR, DEFAULT_INJECTED_SECRETS_FILE_NAME),
+            (USER_SECRETS_FILE_ENV_VAR, DEFAULT_USER_SECRETS_FILE_NAME),
+        ]
+        for p_ in ev.get(lambda: os.path.join(get_home_paths().config_dir, dfn)).split(os.pathsep)
+        if (p := p_.strip())
+    ]
 
 
 def load_secrets() -> sec.Secrets:
     dct: dict[str, sec.Secret] = {}
-    try:
-        with open(get_secrets_file()) as f:
-            for k, v in yaml.loads(f.read()).items():
+    for fp in _get_secrets_file_paths():
+        try:
+            for k, v in DEFAULT_CONFIG_FILE_LOADER.load_file(fp).as_map().items():
                 if isinstance(v, str):
                     dct[k] = sec.Secret(key=k, value=v)
-    except FileNotFoundError:
-        pass
+        except FileNotFoundError:
+            pass
     return sec.MappingSecrets(dct)
 
 

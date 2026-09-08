@@ -158,6 +158,7 @@ def test_text_objects():
 
 def test_insert_mode_editing():
     check('i inserts', make('bc', 'ia' + ESC), text='abc')
+    check('angle brackets insert', make('', 'i<>' + ESC), text='<>')
     check('a appends', make('ac', 'ab' + ESC), text='abc')
     check('A end of line', make('ab', 'Ac' + ESC), text='abc')
     check('I first non-blank', make('  bc', 'Ia' + ESC), text='  abc')
