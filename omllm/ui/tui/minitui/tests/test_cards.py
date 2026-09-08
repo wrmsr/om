@@ -9,6 +9,7 @@ from ..... import harness as har
 from ..... import llm
 from ..app import AppKey
 from ..main import PromptPump
+from ..toolcards import tool_call_summary
 from ..toolcards import tool_card_key
 from .utils import BlockingSession
 from .utils import app_key
@@ -23,17 +24,17 @@ from .utils import make_app
 def test_tool_cards_update_independently_and_commit_in_start_order():
     app, driver = make_app()
 
-    app.tool_started('call-a', 'alpha', [[mt.Segment('args: a')]])
-    app.tool_started('call-b', 'beta', [[mt.Segment('args: b')]])
+    app.tool_started('call-a', 'alpha', [[mt.Segment('args: a')]], call_summary='file-a')
+    app.tool_started('call-b', 'beta', [[mt.Segment('args: b')]], call_summary='file-b')
     running_lines = [line for line in frame_lines(app) if 'running...' in line]
     assert len(running_lines) == 2
-    assert 'alpha  running...' in running_lines[0]
-    assert 'beta  running...' in running_lines[1]
+    assert 'alpha  file-a  running...' in running_lines[0]
+    assert 'beta  file-b  running...' in running_lines[1]
 
     app.tool_finished('call-b', 'beta', ok=True)
     lines = frame_lines(app)
-    assert any('alpha  running...' in line for line in lines)
-    assert any('beta  done' in line for line in lines)
+    assert any('alpha  file-a  running...' in line for line in lines)
+    assert any('beta  file-b  done' in line for line in lines)
 
     driver.fire_after(.8)
     assert driver.commits == []
@@ -43,8 +44,8 @@ def test_tool_cards_update_independently_and_commit_in_start_order():
 
     committed = commit_texts(driver)
     assert len(committed) == 2
-    assert 'alpha  done' in committed[0]
-    assert 'beta  done' in committed[1]
+    assert 'alpha  file-a  done' in committed[0]
+    assert 'beta  file-b  done' in committed[1]
 
 
 def test_tool_cards_commit_exactly_as_displayed():
@@ -74,8 +75,8 @@ def test_permission_cards_queue_without_orphaning_responses():
     app, _ = make_app()
     responses = []
 
-    app.tool_started('call-a', 'alpha', ())
-    app.tool_started('call-b', 'beta', ())
+    app.tool_started('call-a', 'alpha', (), call_summary='subject-a')
+    app.tool_started('call-b', 'beta', (), call_summary='subject-b')
     app.begin_permission_card(
         'call-a',
         'alpha',
@@ -91,19 +92,19 @@ def test_permission_cards_queue_without_orphaning_responses():
 
     lines = frame_lines(app)
     assert sum('allow (f10)' in line for line in lines) == 1
-    assert any('alpha  awaiting confirmation' in line for line in lines)
-    assert any('beta  queued for confirmation' in line for line in lines)
+    assert any('alpha  subject-a  awaiting confirmation' in line for line in lines)
+    assert any('beta  subject-b  queued for confirmation' in line for line in lines)
 
     app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_ALLOW)))
     assert responses == [('call-a', True)]
     lines = frame_lines(app)
-    assert any('alpha  running...' in line for line in lines)
-    assert any('beta  awaiting confirmation' in line for line in lines)
+    assert any('alpha  subject-a  running...' in line for line in lines)
+    assert any('beta  subject-b  awaiting confirmation' in line for line in lines)
     assert sum('allow (f10)' in line for line in lines) == 1
 
     app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_DENY)))
     assert responses == [('call-a', True), ('call-b', False)]
-    assert any('beta  denied' in line for line in frame_lines(app))
+    assert any('beta  subject-b  denied' in line for line in frame_lines(app))
 
 
 @pytest.mark.parametrize(('cancelled', 'status'), [(True, 'cancelled'), (False, 'failed')])
@@ -186,3 +187,35 @@ def test_tool_card_key_uses_llm_call_identity():
 
     context_without_call = agn.ToolContext(args={})
     assert tool_card_key(context_without_call) == f'context:{id(context_without_call):x}'
+
+
+def test_tool_call_summary_supports_bare_tools_and_normalizes_text():
+    async def execute(ctx):
+        raise AssertionError
+
+    tool = agn.Tool(
+        llm_tool=llm.Tool(name='bare'),
+        executor=execute,
+        summarizer=lambda ctx: f'  {ctx.args["value"]}\n  next  ',
+    )
+    context = agn.ToolContext(tool=tool, args={'value': 'first'})
+
+    assert tool_call_summary(context) == 'first next'
+
+
+def test_tool_call_summary_ignores_missing_and_broken_summarizers():
+    async def execute(ctx):
+        raise AssertionError
+
+    plain_tool = agn.Tool(llm_tool=llm.Tool(name='plain'), executor=execute)
+    assert tool_call_summary(agn.ToolContext(tool=plain_tool, args={})) is None
+
+    def raise_summary(ctx):
+        raise ValueError
+
+    broken_tool = agn.Tool(
+        llm_tool=llm.Tool(name='broken'),
+        executor=execute,
+        summarizer=raise_summary,
+    )
+    assert tool_call_summary(agn.ToolContext(tool=broken_tool, args={})) is None

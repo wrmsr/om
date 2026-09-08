@@ -16,6 +16,7 @@ from omdev.tui import minitui as mt
 from .... import agent as agn
 from ..config import Config
 from .app import MinituiChatApp
+from .toolcards import tool_call_summary
 from .toolcards import tool_card_key
 
 
@@ -52,6 +53,7 @@ class CardPermissionAsker(agn.PermissionAsker):
                 [mt.Segment(f'rule: {rule!r}', 'card.detail')],
             ],
             respond,
+            call_summary=tool_call_summary(context),
             on_cancel=cancel,
         )
 

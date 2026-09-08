@@ -58,6 +58,9 @@ class WriteTool(ToolClass[WriteToolParams]):
         self._permissions = permissions
         self._fs = fs
 
+    def summarize(self, ctx: ToolContext, params: WriteToolParams) -> str:
+        return params.file_path
+
     async def execute(self, ctx: ToolContext, params: WriteToolParams) -> ToolResult:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')

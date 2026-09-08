@@ -8,6 +8,7 @@ from omcore import lang
 
 from ... import llm
 from ...core import processes
+from ...core import ui
 from .progress import ToolProgressSink
 
 
@@ -17,6 +18,9 @@ from .progress import ToolProgressSink
 class ToolExecutor(ta.Protocol):
     def __call__(self, ctx: ToolContext) -> ta.Awaitable[ToolResult]: ...
 
+
+class ToolSummarizer(ta.Protocol):
+    def __call__(self, ctx: ToolContext) -> ui.CanText | None: ...
 
 
 @ta.final
@@ -94,6 +98,8 @@ class Tool:
         return self.llm_tool.name
 
     executor: ToolExecutor
+
+    summarizer: ToolSummarizer | None = None
 
 
 @ta.final

@@ -4,6 +4,7 @@ import typing as ta
 from omcore import lang
 
 from ... import llm
+from ...core import ui
 from ..types.tools import Tool
 from ..types.tools import ToolContext
 from ..types.tools import ToolDescription
@@ -51,6 +52,7 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
         return Tool(
             llm_tool=self.llm_tool(),
             executor=self.execute_context,
+            summarizer=self.summarize_context if self.can_summarize else None,
         )
 
     #
@@ -93,3 +95,20 @@ class ToolClass(lang.Abstract, ta.Generic[P]):
         """Returns the model-facing text, or a full result when there are display details to go with it."""
 
         raise NotImplementedError
+
+    #
+
+    @property
+    def can_summarize(self) -> bool:
+        return type(self).summarize is not ToolClass.summarize
+
+    def summarize_context(self, ctx: ToolContext) -> ui.CanText | None:
+        params = instantiate_tool_params(
+            self.params_cls,
+            self.llm_tool().params,
+            ctx,
+        )
+        return self.summarize(ctx, params)
+
+    def summarize(self, ctx: ToolContext, params: P) -> ui.CanText | None:
+        return None

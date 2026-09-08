@@ -93,6 +93,9 @@ class BashTool(ToolClass[BashToolParams]):
         self._permissions = permissions
         self._exec = exec
 
+    def summarize(self, ctx: ToolContext, params: BashToolParams) -> str:
+        return params.command
+
     async def execute(self, ctx: ToolContext, params: BashToolParams) -> ToolResult:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')

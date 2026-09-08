@@ -49,6 +49,9 @@ class WebFetchTool(ToolClass[WebFetchToolParams]):
         self._permissions = permissions
         self._fetcher = fetcher
 
+    def summarize(self, ctx: ToolContext, params: WebFetchToolParams) -> str:
+        return params.url
+
     async def execute(self, ctx: ToolContext, params: WebFetchToolParams) -> str:
         parsed_url = urllib.parse.urlparse(params.url)
         url = check.non_empty_str(urllib.parse.urlunparse(parsed_url))  # noqa

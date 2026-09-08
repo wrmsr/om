@@ -72,6 +72,9 @@ class QuickjsTool(ToolClass[QuickjsToolParams]):
         self._permissions = permissions
         self._job_runner = job_runner
 
+    def summarize(self, ctx: ToolContext, params: QuickjsToolParams) -> str:
+        return params.code
+
     async def execute(self, ctx: ToolContext, params: QuickjsToolParams) -> str:
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),

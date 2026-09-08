@@ -44,6 +44,9 @@ class LsTool(ToolClass[LsToolParams]):
         self._permissions = permissions
         self._fs = fs
 
+    def summarize(self, ctx: ToolContext, params: LsToolParams) -> str:
+        return params.dir_path
+
     async def execute(self, ctx: ToolContext, params: LsToolParams) -> str:
         if os.path.abspath(os.path.realpath(params.dir_path)) != params.dir_path:
             raise ValueError('Path must be absolute')

@@ -2044,28 +2044,33 @@ def _process_dataclass__01ef4d3f3788221fddb1f45ffdbf5c8b67e38b12():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('llm_tool', 'executor')), EqPlan(fields=('llm_tool', 'executor')), FrozenPlan(fiel"
-        "ds=('llm_tool', 'executor'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('llm_tool', 'ex"
-        "ecutor'), cache=False), InitPlan(fields=(InitPlan.Field(name='llm_tool', annotation=OpRef(name='init.fields.0."
-        "annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, co"
-        "erce=None, validate=None, check_type=None), InitPlan.Field(name='executor', annotation=OpRef(name='init.fields"
-        ".1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE,"
-        " coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('llm_tool', "
-        "'executor'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=("
-        "ReprPlan.Field(name='llm_tool', kw_only=True, fn=None), ReprPlan.Field(name='executor', kw_only=True, fn=None)"
-        "), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('llm_tool', 'executor', 'summarizer')), EqPlan(fields=('llm_tool', 'executor', 'su"
+        "mmarizer')), FrozenPlan(fields=('llm_tool', 'executor', 'summarizer'), allow_dynamic_dunder_attrs=False), Hash"
+        "Plan(action='add', fields=('llm_tool', 'executor', 'summarizer'), cache=False), InitPlan(fields=(InitPlan.Fiel"
+        "d(name='llm_tool', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init"
+        "=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.F"
+        "ield(name='executor', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, i"
+        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
+        "n.Field(name='summarizer', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields."
+        "2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
+        "date=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('llm_tool', 'executor', 'summa"
+        "rizer'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Repr"
+        "Plan.Field(name='llm_tool', kw_only=True, fn=None), ReprPlan.Field(name='executor', kw_only=True, fn=None), Re"
+        "prPlan.Field(name='summarizer', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='de84385312397534e39edda42997afd855a6cb9d',
+    plan_repr_sha1='6c7dc363027e6c974f3b170a41b980eef5cc36d9',
     cls_names=(
         ('omllm.agent.types.tools', 'Tool'),
     ),
 )
-def _process_dataclass__de84385312397534e39edda42997afd855a6cb9d():
+def _process_dataclass__6c7dc363027e6c974f3b170a41b980eef5cc36d9():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -2078,6 +2083,7 @@ def _process_dataclass__de84385312397534e39edda42997afd855a6cb9d():
             return __class__(  # noqa
                 llm_tool=self.llm_tool,
                 executor=self.executor,
+                summarizer=self.summarizer,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -2089,7 +2095,8 @@ def _process_dataclass__de84385312397534e39edda42997afd855a6cb9d():
                 return NotImplemented
             return (
                 self.llm_tool == other.llm_tool and
-                self.executor == other.executor
+                self.executor == other.executor and
+                self.summarizer == other.summarizer
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -2097,6 +2104,7 @@ def _process_dataclass__de84385312397534e39edda42997afd855a6cb9d():
         __dataclass___frozen_fields = {
             'llm_tool',
             'executor',
+            'summarizer',
         }
 
         def __setattr__(self, name, value):
@@ -2123,6 +2131,7 @@ def _process_dataclass__de84385312397534e39edda42997afd855a6cb9d():
             return hash((
                 self.llm_tool,
                 self.executor,
+                self.summarizer,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -2132,9 +2141,11 @@ def _process_dataclass__de84385312397534e39edda42997afd855a6cb9d():
             *,
             llm_tool: __dataclass__init__fields__0__annotation,
             executor: __dataclass__init__fields__1__annotation,
+            summarizer: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'llm_tool', llm_tool)
             __dataclass__object_setattr(self, 'executor', executor)
+            __dataclass__object_setattr(self, 'summarizer', summarizer)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2143,6 +2154,7 @@ def _process_dataclass__de84385312397534e39edda42997afd855a6cb9d():
             parts = []
             parts.append(f"llm_tool={self.llm_tool!r}")
             parts.append(f"executor={self.executor!r}")
+            parts.append(f"summarizer={self.summarizer!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

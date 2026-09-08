@@ -77,6 +77,9 @@ class ReadTool(ToolClass[ReadToolParams]):
         self._permissions = permissions
         self._fs = fs
 
+    def summarize(self, ctx: ToolContext, params: ReadToolParams) -> str:
+        return params.file_path
+
     async def execute(self, ctx: ToolContext, params: ReadToolParams) -> ToolResult:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')

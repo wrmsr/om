@@ -111,6 +111,9 @@ class GlobTool(ToolClass[GlobToolParams]):
         self._permissions = permissions
         self._fs = fs  # FIXME: use lol
 
+    def summarize(self, ctx: ToolContext, params: GlobToolParams) -> str:
+        return params.pattern
+
     async def execute(self, ctx: ToolContext, params: GlobToolParams) -> ToolResult:
         root_path = glob_root(params.pattern)
         if ctx.env is None or (cwd := ctx.env.cwd) is None:

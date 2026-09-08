@@ -74,3 +74,22 @@ async def test_tool_class_may_return_a_full_result():
 
     assert result.content.text == 'x'
     assert result.details is details
+
+
+def test_tool_class_adapts_typed_call_summaries_to_tools():
+    class Summarized(ToolClass[EchoToolParams]):
+        name = 'summarized'
+        params_cls = EchoToolParams
+        description = ToolDescription('Summarized.', dict(text='Text.'))
+
+        def summarize(self, ctx, params):
+            return params.text.upper()
+
+        async def execute(self, ctx, params):
+            return params.text
+
+    tool = Summarized().tool()
+    context = ToolContext(tool=tool, args={'text': 'hello'})
+
+    assert tool.summarizer is not None
+    assert tool.summarizer(context) == 'HELLO'

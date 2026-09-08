@@ -80,7 +80,11 @@ async def _unused_executor(ctx):
 async def test_progress_shows_live_and_details_shape_the_finished_card():
     app, driver = make_app()
     renderer = _renderer(app)
-    tool = agn.Tool(llm_tool=llm.Tool(name='bash'), executor=_unused_executor)
+    tool = agn.Tool(
+        llm_tool=llm.Tool(name='bash'),
+        executor=_unused_executor,
+        summarizer=lambda ctx: ctx.args['command'],
+    )
     context = agn.ToolContext(tool=tool, args={'command': 'x'}, llm_tool_call=llm.ToolCall('t1', 'bash', {}))
 
     await renderer.on_agent_event(agn.AgentStartEvent())
@@ -107,6 +111,7 @@ async def test_progress_shows_live_and_details_shape_the_finished_card():
     driver.fire_after(.8)
 
     committed = commit_texts(driver)
+    assert any('bash  x  done' in c for c in committed)
     assert any('exit code 3' in c and 'hello from the stream' in c for c in committed)
 
 

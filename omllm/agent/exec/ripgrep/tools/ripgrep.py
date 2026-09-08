@@ -1,4 +1,5 @@
 import os
+import shlex
 import shutil
 import typing as ta
 
@@ -98,6 +99,9 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
         self._permissions = permissions
         self._exec = exec
         self._sandbox = sandbox
+
+    def summarize(self, ctx: ToolContext, params: RipgrepToolParams) -> str:
+        return shlex.join(params.args)
 
     async def execute(self, ctx: ToolContext, params: RipgrepToolParams) -> str:
         if ctx.env is None or (cwd := ctx.env.cwd) is None:

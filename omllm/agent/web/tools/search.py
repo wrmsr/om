@@ -45,6 +45,9 @@ class WebSearchTool(ToolClass[WebSearchToolParams]):
         self._permissions = permissions
         self._searcher = searcher
 
+    def summarize(self, ctx: ToolContext, params: WebSearchToolParams) -> str:
+        return params.query
+
     async def execute(self, ctx: ToolContext, params: WebSearchToolParams) -> str:
         # TODO: permission lol
 

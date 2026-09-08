@@ -40,6 +40,7 @@ def _freeze_rows(rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> CardRows:
 @dc.dataclass()
 class _ToolCardEntry:
     title: str
+    call_summary: str | None
     base_detail: CardRows
     card: mt.Card
 
@@ -51,6 +52,7 @@ class _ToolCardEntry:
 class _PermissionCardRequest:
     key: str
     title: str
+    call_summary: str | None
     detail: CardRows
     on_respond: ta.Callable[[bool], None]
 
@@ -248,10 +250,7 @@ class MinituiChatApp(mt.App):
         self._cancelling = True
         for entry in self._cards.values():
             if not entry.card.is_terminal:
-                entry.card.set_summary([
-                    (entry.title, 'card.summary'),
-                    ('  cancelling...', 'card.summary.dim'),
-                ])
+                self._set_tool_card_summary(entry, 'cancelling...')
         self._refresh_status()
         self._driver.invalidate()
 
@@ -274,10 +273,7 @@ class MinituiChatApp(mt.App):
             entry.card.set_on_confirm(None)
             if not entry.card.is_terminal:
                 entry.card.set_state(state)
-                entry.card.set_summary([
-                    (entry.title, 'card.summary'),
-                    (f'  {status}', 'card.summary.dim'),
-                ])
+                self._set_tool_card_summary(entry, status)
             entry.ready_to_finalize = True
         self._flush_ready_cards()
 
@@ -322,6 +318,13 @@ class MinituiChatApp(mt.App):
     ##
     # Tool cards
 
+    def _set_tool_card_summary(self, entry: _ToolCardEntry, status: str) -> None:
+        entry.card.set_summary([
+            (entry.title, 'card.summary'),
+            (f'  {entry.call_summary}' if entry.call_summary is not None else '', 'card.summary.dim'),
+            (f'  {status}', 'card.summary.dim'),
+        ])
+
     def _add_tool_card(
             self,
             key: str,
@@ -329,17 +332,19 @@ class MinituiChatApp(mt.App):
             detail_rows: ta.Sequence[ta.Sequence[mt.Segment]],
             *,
             state: mt.CardState,
+            call_summary: str | None = None,
     ) -> _ToolCardEntry:
         frozen_detail = _freeze_rows(detail_rows)
         entry = _ToolCardEntry(
             title=title,
+            call_summary=call_summary,
             base_detail=frozen_detail,
             card=mt.Card(
-                [(title, 'card.summary'), ('  running...', 'card.summary.dim')],
                 state=state,
                 detail=frozen_detail,
             ),
         )
+        self._set_tool_card_summary(entry, 'running...')
         self._cards[key] = entry
         return entry
 
@@ -356,17 +361,20 @@ class MinituiChatApp(mt.App):
         # ask, re-present it on a fresh card - withdrawing a live turn's ask would surface in its executor as a
         # cancellation indistinguishable from the user's.
         if (entry := self._cards.get(request.key)) is None:
-            entry = self._add_tool_card(request.key, request.title, request.detail, state=mt.CardState.PENDING)
+            entry = self._add_tool_card(
+                request.key,
+                request.title,
+                request.detail,
+                state=mt.CardState.PENDING,
+                call_summary=request.call_summary,
+            )
 
         def respond(allowed: bool) -> None:
             self._respond_permission(request, allowed)
 
         self._active_permission = request
         entry.card.set_state(mt.CardState.CONFIRMING)
-        entry.card.set_summary([
-            (request.title, 'card.summary'),
-            ('  awaiting confirmation', 'card.summary.dim'),
-        ])
+        self._set_tool_card_summary(entry, 'awaiting confirmation')
         entry.card.set_on_confirm(respond)
 
     def _respond_permission(self, request: _PermissionCardRequest, allowed: bool) -> None:
@@ -378,16 +386,10 @@ class MinituiChatApp(mt.App):
             entry.card.set_on_confirm(None)
             if allowed:
                 entry.card.set_state(mt.CardState.RUNNING)
-                entry.card.set_summary([
-                    (request.title, 'card.summary'),
-                    ('  running...', 'card.summary.dim'),
-                ])
+                self._set_tool_card_summary(entry, 'running...')
             else:
                 entry.card.set_state(mt.CardState.DENIED)
-                entry.card.set_summary([
-                    (request.title, 'card.summary'),
-                    ('  denied', 'card.summary.dim'),
-                ])
+                self._set_tool_card_summary(entry, 'denied')
                 self._finalize_card_later(entry, .6)
 
         try:
@@ -403,6 +405,7 @@ class MinituiChatApp(mt.App):
             detail_rows: ta.Sequence[ta.Sequence[mt.Segment]],
             on_respond: ta.Callable[[bool], None],
             *,
+            call_summary: str | None = None,
             on_cancel: ta.Callable[[], None] | None = None,
     ) -> None:
         if (
@@ -412,24 +415,30 @@ class MinituiChatApp(mt.App):
             raise RuntimeError(f'Tool card already has a pending permission request: {key!r}')
 
         if (entry := self._cards.get(key)) is None:
-            entry = self._add_tool_card(key, title, (), state=mt.CardState.PENDING)
+            entry = self._add_tool_card(
+                key,
+                title,
+                (),
+                state=mt.CardState.PENDING,
+                call_summary=call_summary,
+            )
         else:
             entry.title = title
+            if call_summary is not None:
+                entry.call_summary = call_summary
             entry.ready_to_finalize = False
             self._cancel_finalize(entry)
 
         frozen_detail = _freeze_rows(detail_rows)
         entry.card.set_state(mt.CardState.PENDING)
-        entry.card.set_summary([
-            (title, 'card.summary'),
-            ('  queued for confirmation', 'card.summary.dim'),
-        ])
+        self._set_tool_card_summary(entry, 'queued for confirmation')
         entry.card.set_detail([*entry.base_detail, *frozen_detail])
         entry.card.set_on_confirm(None)
 
         self._permission_queue.append(_PermissionCardRequest(
             key=key,
             title=title,
+            call_summary=entry.call_summary,
             detail=frozen_detail,
             on_respond=on_respond,
             on_cancel=on_cancel,
@@ -442,21 +451,27 @@ class MinituiChatApp(mt.App):
             key: str,
             title: str,
             detail_rows: ta.Sequence[ta.Sequence[mt.Segment]],
+            *,
+            call_summary: str | None = None,
     ) -> None:
         frozen_detail = _freeze_rows(detail_rows)
         if (entry := self._cards.get(key)) is None:
-            self._add_tool_card(key, title, frozen_detail, state=mt.CardState.RUNNING)
+            self._add_tool_card(
+                key,
+                title,
+                frozen_detail,
+                state=mt.CardState.RUNNING,
+                call_summary=call_summary,
+            )
         else:
             entry.title = title
+            entry.call_summary = call_summary
             entry.base_detail = frozen_detail
             entry.ready_to_finalize = False
             self._cancel_finalize(entry)
             if entry.card.state not in (mt.CardState.PENDING, mt.CardState.CONFIRMING):
                 entry.card.set_state(mt.CardState.RUNNING)
-                entry.card.set_summary([
-                    (title, 'card.summary'),
-                    ('  running...', 'card.summary.dim'),
-                ])
+                self._set_tool_card_summary(entry, 'running...')
                 entry.card.set_detail(frozen_detail)
                 entry.card.set_on_confirm(None)
         self._driver.invalidate()
@@ -480,18 +495,24 @@ class MinituiChatApp(mt.App):
             title: str,
             *,
             ok: bool,
+            call_summary: str | None = None,
             detail_rows: ta.Sequence[ta.Sequence[mt.Segment]] | None = None,
     ) -> None:
         if (entry := self._cards.get(key)) is None:
-            entry = self._add_tool_card(key, title, (), state=mt.CardState.RUNNING)
+            entry = self._add_tool_card(
+                key,
+                title,
+                (),
+                state=mt.CardState.RUNNING,
+                call_summary=call_summary,
+            )
 
         entry.title = title
+        if call_summary is not None:
+            entry.call_summary = call_summary
         entry.card.set_on_confirm(None)
         entry.card.set_state(mt.CardState.COMPLETE if ok else mt.CardState.FAILED)
-        entry.card.set_summary([
-            (title, 'card.summary'),
-            ('  done' if ok else '  failed', 'card.summary.dim'),
-        ])
+        self._set_tool_card_summary(entry, 'done' if ok else 'failed')
         if detail_rows is not None:
             entry.card.set_detail(detail_rows)
         self._finalize_card_later(entry, .8)

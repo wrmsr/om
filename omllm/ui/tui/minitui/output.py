@@ -18,6 +18,7 @@ from ..config import Config
 from ..inject import bind_on_agent_event_subscriber
 from ..rendering import render_text_rows
 from .app import MinituiChatApp
+from .toolcards import tool_call_summary
 from .toolcards import tool_card_key
 
 
@@ -156,7 +157,12 @@ class AgentEventRenderer:
                         await self._text_displayer.display_text(ui.MarkdownText(s))
 
         elif isinstance(ev, agn.ToolExecutionStartEvent):
-            app.tool_started(tool_card_key(ev.context), self._tool_title(ev), self._tool_detail(ev.context))
+            app.tool_started(
+                tool_card_key(ev.context),
+                self._tool_title(ev),
+                self._tool_detail(ev.context),
+                call_summary=tool_call_summary(ev.context),
+            )
 
         elif isinstance(ev, agn.ToolExecutionUpdateEvent):
             if isinstance(upd := ev.update, agn.OutputToolProgressUpdate):
@@ -174,6 +180,7 @@ class AgentEventRenderer:
                 key,
                 self._tool_title(ev),
                 ok=ev.result.error is None,
+                call_summary=tool_call_summary(ev.context),
                 detail_rows=[
                     *self._tool_detail(ev.context),
                     *self._result_rows(ev.result),

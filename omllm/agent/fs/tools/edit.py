@@ -85,6 +85,9 @@ class EditTool(ToolClass[EditToolParams]):
         self._permissions = permissions
         self._fs = fs
 
+    def summarize(self, ctx: ToolContext, params: EditToolParams) -> str:
+        return params.file_path
+
     async def execute(self, ctx: ToolContext, params: EditToolParams) -> ToolResult:
         if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
             raise ValueError('Path must be absolute')

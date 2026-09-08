@@ -102,6 +102,11 @@ class ProcessSpawnTool(ToolClass[ProcessSpawnToolParams]):
 
         self._permissions = permissions
 
+    def summarize(self, ctx: ToolContext, params: ProcessSpawnToolParams) -> str:
+        if params.name is not None:
+            return f'{params.name}: {params.command}'
+        return params.command
+
     async def execute(self, ctx: ToolContext, params: ProcessSpawnToolParams) -> str:
         scope = _scope(ctx)
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
@@ -170,6 +175,9 @@ class ProcessReadTool(ToolClass[ProcessReadToolParams]):
         ),
     )
 
+    def summarize(self, ctx: ToolContext, params: ProcessReadToolParams) -> str:
+        return params.id
+
     async def execute(self, ctx: ToolContext, params: ProcessReadToolParams) -> str:
         proc = _lookup(ctx, params.id)
 
@@ -224,6 +232,9 @@ class ProcessWriteTool(ToolClass[ProcessWriteToolParams]):
         ),
     )
 
+    def summarize(self, ctx: ToolContext, params: ProcessWriteToolParams) -> str:
+        return params.id
+
     async def execute(self, ctx: ToolContext, params: ProcessWriteToolParams) -> str:
         proc = _lookup(ctx, params.id)
 
@@ -266,6 +277,9 @@ class ProcessKillTool(ToolClass[ProcessKillToolParams]):
             force='Send SIGKILL immediately instead of a graceful SIGTERM first.',
         ),
     )
+
+    def summarize(self, ctx: ToolContext, params: ProcessKillToolParams) -> str:
+        return params.id
 
     async def execute(self, ctx: ToolContext, params: ProcessKillToolParams) -> str:
         proc = _lookup(ctx, params.id)
