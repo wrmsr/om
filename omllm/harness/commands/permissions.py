@@ -127,4 +127,4 @@ class PermissionsCommand(ParserCommandClass):
         name='clear',
     )
     async def _run_clear(self, ctx: CommandContext, args: ap.Namespace) -> None:
-        self._permissions.update_rules(lambda _: agn.PermissionRules())
+        self._permissions.update_rules(lambda _: agn.PermissionRules([]))
