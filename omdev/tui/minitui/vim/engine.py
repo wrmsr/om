@@ -38,7 +38,9 @@ from .motions import WANT_EOL
 from .motions import MotionResult
 from .motions import resolve
 from .options import DEFAULT_OPTIONS
+from .options import SetOptionError
 from .options import VimOptions
+from .options import apply_set
 from .options import indent_columns
 from .options import make_indent
 from .parsing import CMDLINE_STARTERS
@@ -655,8 +657,19 @@ class VimEngine:
         else:
             self._message = f'Pattern not found: {query}'
 
+    def _set(self, arg: str) -> None:
+        try:
+            self._options = apply_set(self._options, arg)
+        except SetOptionError as e:
+            self._message = str(e)
+
     def _try_builtin_ex(self, text: str) -> bool:
-        """Engine-owned ex commands: [range]s/// and bare-range line jumps. True if handled."""
+        """Engine-owned ex commands: `set`, [range]s///, and bare-range line jumps. True if handled."""
+
+        name, _, arg = text.partition(' ')
+        if name in ('set', 'se'):
+            self._set(arg)
+            return True
 
         doc = self._doc
         rng, rest = parse_ex_range(

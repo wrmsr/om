@@ -1,6 +1,6 @@
 """
 Editor options - the vim trio (tabstop / shiftwidth / expandtab), autoindent, and the line number column - plus a small
-language registry.
+language registry and the sliver of `:set` that flips the boolean ones.
 
 This is deliberately a carveout, not a full 'set' system: a general-purpose code editor isn't the point, but the
 stack shouldn't preclude one. Language profiles mirror the highlighter registry's alias style (text/highlights.py):
@@ -74,3 +74,46 @@ def make_indent(cols: int, options: VimOptions) -> str:
     if options.expandtab:
         return ' ' * cols
     return '\t' * (cols // options.tabstop) + ' ' * (cols % options.tabstop)
+
+
+##
+
+
+class SetOptionError(Exception):
+    """Carries the user-facing message for a rejected `:set` argument."""
+
+
+# `:set` argument spellings -> VimOptions boolean field. Vim's short forms alias the long ones.
+_BOOL_SET_OPTIONS: ta.Mapping[str, str] = {
+    'number': 'number',
+    'nu': 'number',
+}
+
+
+def apply_set(options: VimOptions, arg: str) -> VimOptions:
+    """
+    Apply one `:set` argument to a set of options, returning the new options: `nu` / `number` turns the line number
+    column on, the `no` prefix turns it off, and the `!` suffix (or `inv` prefix) toggles it, per vim.
+    """
+
+    arg = arg.strip()
+    if not arg:
+        raise SetOptionError('Argument required')
+
+    name = arg
+    toggle = name.endswith('!')
+    name = name.removesuffix('!')
+    if name.startswith('inv'):
+        toggle = True
+        name = name.removeprefix('inv')
+    off = name.startswith('no')
+    name = name.removeprefix('no')
+
+    if (field := _BOOL_SET_OPTIONS.get(name)) is None:
+        raise SetOptionError(f'Unknown option: {arg}')
+
+    if toggle:
+        value = not getattr(options, field)
+    else:
+        value = not off
+    return dc.replace(options, **{field: value})

@@ -427,3 +427,31 @@ def test_line_numbers_toggle_at_runtime():
     assert ta_.cursor(20) == (5, 0)
     ta_.engine.set_options(VimOptions())
     assert rows(ta_) == ['x']
+
+
+def test_set_number_ex_command_keeps_text():
+    # The chat surface's shape: numbers on, a one-wide gutter, text already typed in the box.
+    ta_ = TextArea(options=VimOptions(number=True, numberwidth=1))
+    type_text(ta_, 'ab')
+    press(ta_, 'enter')
+    type_text(ta_, 'cd')
+    assert rows(ta_) == ['1 ab', '2 cd']
+
+    # `:set nu!` from normal mode flips the column and leaves the document alone - it's cmdline input, not content.
+    press(ta_, 'escape')
+    type_text(ta_, ':set nu!')
+    assert ta_.engine.status().cmdline == ':set nu!'
+    assert ta_.doc.text() == 'ab\ncd'
+    press(ta_, 'enter')
+    assert rows(ta_) == ['ab', 'cd']
+    assert ta_.doc.text() == 'ab\ncd'
+    assert ta_.engine.mode is Mode.NORMAL
+
+    type_text(ta_, ':set nu!')
+    press(ta_, 'enter')
+    assert rows(ta_) == ['1 ab', '2 cd']
+    assert ta_.engine.options.numberwidth == 1  # the toggle only touches the one field
+
+    press(ta_, 'A')
+    type_text(ta_, 'e')
+    assert rows(ta_) == ['1 ab', '2 cde']

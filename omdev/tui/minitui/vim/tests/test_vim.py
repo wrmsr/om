@@ -2,6 +2,7 @@
 from ...docs.positions import Pos
 from ..engine import VimEngine
 from ..modes import Mode
+from ..options import VimOptions
 from ..parsing import ESC
 from ..status import CURSOR_TAG
 from ..status import SEARCH_CURRENT_TAG
@@ -314,6 +315,45 @@ def test_ex_handler():
 
     e2 = make('abc', ':boom\r')
     assert 'not an editor command' in e2.status().message.lower()
+
+
+def test_ex_set_number():
+    seen = []
+
+    def handler(line):
+        seen.append(line)
+
+    on = VimOptions(number=True)
+    off = VimOptions(number=False)
+
+    e = VimEngine('abc\ndef', ex_handler=handler)
+    assert e.options == off
+
+    # An engine builtin: the app's handler never sees it, and the document is untouched.
+    e.send(':set nu\r')
+    assert e.options == on
+    assert e.render() == 'abc\ndef'
+    assert e.mode is Mode.NORMAL
+    assert e.status().message == ''
+    assert seen == []
+
+    e.send(':set nonumber\r')
+    assert e.options == off
+    e.send(':set number!\r')
+    assert e.options == on
+    e.send(':se nu!\r')
+    assert e.options == off
+    e.send(':set invnu\r')
+    assert e.options == on
+
+    # Unknown options report through the message slot; other unknown commands still reach the handler.
+    e.send(':set foo\r')
+    assert e.status().message == 'Unknown option: foo'
+    assert seen == []
+    e.send(':set\r')
+    assert e.status().message == 'Argument required'
+    e.send(':q\r')
+    assert seen == ['q']
 
 
 def test_visual_selection_decoration():
@@ -649,9 +689,9 @@ def test_non_builtin_ex_still_delegates():
     e = VimEngine('abc', ex_handler=handler)
     e.send(':w somefile\r')
     assert seen == ['w somefile']
-    # 'set' starts with 's' but has no separator - must reach the app handler, not the substitute parser.
-    e.send(':set number\r')
-    assert seen == ['w somefile', 'set number']
+    # 'sort' starts with 's' but has no separator - must reach the app handler, not the substitute parser.
+    e.send(':sort u\r')
+    assert seen == ['w somefile', 'sort u']
 
 
 def test_insert_readline_kills():

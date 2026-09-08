@@ -57,6 +57,8 @@ with _lang.auto_proxy_init(
         VimOptions,
         DEFAULT_OPTIONS,
         get_language_options,
+        SetOptionError,
+        apply_set,
     )
 
     from .engine import (  # noqa

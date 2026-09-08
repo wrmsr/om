@@ -138,21 +138,6 @@ class VimDemoApp(App):
         self._saved_version = self._editor.doc.version
         return f'"{target}" written'
 
-    def _set(self, arg: str) -> str | None:
-        """A sliver of :set - just the boolean 'number' option, with vim's 'no' prefix and '!' toggle suffix."""
-
-        name = arg.removesuffix('!')
-        toggle = name != arg
-        off = name.startswith('no')
-        name = name.removeprefix('no')
-        if name not in ('number', 'nu'):
-            return f'Unknown option: {arg}'
-
-        engine = self._editor.engine
-        opts = engine.options
-        engine.set_options(dc.replace(opts, number=(not opts.number) if toggle else not off))
-        return None
-
     def _ex(self, line: str) -> str | None:
         name, _, arg = line.partition(' ')
         arg = arg.strip()
@@ -172,8 +157,6 @@ class VimDemoApp(App):
         if name == 'q!':
             self._driver.stop()
             return None
-        if name in ('set', 'se'):
-            return self._set(arg)
         return f'Not an editor command: {name}'
 
     ##
