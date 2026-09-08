@@ -498,3 +498,37 @@ class MontyWasm:
                 raise MontyProtocolError('this synchronous bridge does not implement external futures')
 
             raise MontyProtocolError(f'unexpected Monty event {event.tag!r}')
+
+
+##
+
+
+def _main(argv=None) -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('component-path')
+
+    args = parser.parse_args(argv)
+
+    #
+
+    runtime = MontyWasm(args.component_runtime)
+
+    result = runtime.execute(
+        'x * 2',
+        inputs={
+            'x': 21,
+        },
+        limits=MontyLimits(
+            max_duration_s=0.5,
+            max_memory_bytes=8 * 1024 * 1024,
+        ),
+    )
+
+    print(result)
+
+
+if __name__ == '__main__':
+    _main()
