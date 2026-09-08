@@ -32,17 +32,22 @@ class PermissionsCommand(ParserCommandClass):
 
     _TOOL_PERMISSION_STATE_NAME_LEN: ta.ClassVar = max(len(tps.name) for tps in agn.PermissionState)
 
-    def _render_rule(self, rmd: str, r: agn.PermissionRule) -> ui.CanText:
+    def _render_rule(
+            self,
+            rule: agn.PermissionRule,
+            *,
+            prefix_cols: lang.SequenceNotStr[str] | None = None,
+    ) -> ui.CanText:
         sp = ' ' * 2
         return list(lang.interleave(sp, [
-            rmd,
+            *(prefix_cols or []),
             ui.Text.style(
-                r.result.name.lower().ljust(self._TOOL_PERMISSION_STATE_NAME_LEN),
+                rule.result.name.lower().ljust(self._TOOL_PERMISSION_STATE_NAME_LEN),
                 bold=True,
-                color=self._PERMISSION_STATE_COLORS[r.result],
+                color=self._PERMISSION_STATE_COLORS[rule.result],
             ),
             ui.JsonText(
-                msh.marshal(r.matcher, agn.PermissionMatcher),
+                msh.marshal(rule.matcher, agn.PermissionMatcher),
                 ui.JsonTextStyle(
                     mode='compact',
                     five=True,
@@ -51,10 +56,23 @@ class PermissionsCommand(ParserCommandClass):
             ),
         ]))
 
-    def _render_rules(self, rs: ta.Iterable[tuple[str, agn.PermissionRule]]) -> ui.CanText:
+    def _render_rules(
+            self,
+            rules: agn.PermissionRules,
+            *,
+            filter: ta.Callable[[agn.PermissionRule], bool] | None = None,  # Noqa
+    ) -> ui.CanText:
+        ij = len(str(len(rules)))
         return ui.Text.join('\n', [
-            self._render_rule(rmd, r)
-            for rmd, r in rs
+            self._render_rule(
+                r,
+                prefix_cols=[
+                    f'#{str(i).ljust(ij)}',
+                    rmd,
+                ],
+            )
+            for i, (rmd, r) in enumerate(rules.by_min_digest.items())
+            if (filter is None or filter(r))
         ])
 
     #
@@ -69,7 +87,7 @@ class PermissionsCommand(ParserCommandClass):
             await ctx.print('No permissions set')
             return
 
-        await ctx.print(self._render_rules(rules.by_min_digest.items()), '\n')
+        await ctx.print(self._render_rules(rules), '\n')
 
     #
 
@@ -88,7 +106,7 @@ class PermissionsCommand(ParserCommandClass):
         new_rules = self._permissions.update_rules(lambda old_rules: agn.PermissionRules([*old_rules, rule]))
 
         rmd = new_rules.min_digests[rule]
-        await ctx.print(self._render_rule(rmd, rule), '\n')
+        await ctx.print(self._render_rules(new_rules, filter=lambda r: r is rmd), '\n')
 
     #
 

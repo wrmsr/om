@@ -26,6 +26,12 @@ class PermissionRules(fh.FieldHashable, lang.Final):
 
     #
 
+    @lang.cached_property
+    def indexes(self) -> ta.Mapping[PermissionRule, int]:
+        return col.make_map(((r, i) for i, r in enumerate(self.rules)), strict=True)
+
+    #
+
     @dc.init
     @lang.cached_property
     def by_digest(self) -> ta.Mapping[str, PermissionRule]:
@@ -76,6 +82,8 @@ class PermissionRules(fh.FieldHashable, lang.Final):
         if isinstance(key, (int, slice)):
             return self.rules[key]
         elif isinstance(key, str):
+            if key.startswith('#'):
+                return self.rules[int(key[1:])]
             if (kl := len(key)) < fh.FIELD_HASH_DIGEST_LEN:
                 if kl < self.min_digest_len:
                     raise KeyError(key)
@@ -94,6 +102,8 @@ class PermissionRules(fh.FieldHashable, lang.Final):
     def get(self, key: str, default: PermissionRule) -> PermissionRule: ...
 
     def get(self, key, default=None):
+        if key.startswith('#'):
+            return self.rules[int(key[1:])]
         if (kl := len(key)) < fh.FIELD_HASH_DIGEST_LEN:
             if kl < self.min_digest_len:
                 raise KeyError(key)
