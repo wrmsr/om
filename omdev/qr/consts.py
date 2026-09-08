@@ -1,3 +1,4 @@
+# flake8: noqa: E241
 # Copyright (c) 2016 - 2025, Lars Heuer
 # All rights reserved.
 #
@@ -39,7 +40,7 @@ VERSION_M1 = -3
 
 
 # ISO/IEC 18004:2015(E)
-# Table 12 — Error correction level indicators for QR Code symbols (page 55)
+# Table 12 - Error correction level indicators for QR Code symbols (page 55)
 ERROR_LEVEL_L = 1
 ERROR_LEVEL_M = 0
 ERROR_LEVEL_Q = 3
@@ -127,7 +128,7 @@ ECI_ASSIGNMENT_NUM = {
 }
 
 
-# ISO/IEC 18004:2015(E) -- Table 2 — Mode indicators for QR Code (page 23)
+# ISO/IEC 18004:2015(E) -- Table 2 - Mode indicators for QR Code (page 23)
 TERMINATOR_LENGTH = 4  # QR Codes, all versions
 
 
@@ -137,7 +138,7 @@ VERSION_RANGE_27_40 = 3  # Version 27 .. 40
 
 
 # ISO/IEC 18004:2015(E)
-# Table 3 — Number of bits in character count indicator for QR Code (page 23)
+# Table 3 - Number of bits in character count indicator for QR Code (page 23)
 CHAR_COUNT_INDICATOR_LENGTH = {
     MODE_NUMERIC: {
         VERSION_RANGE_01_09: 10,
@@ -158,7 +159,7 @@ CHAR_COUNT_INDICATOR_LENGTH = {
 
 
 # ISO/IEC 18004:2015(E) - 6.4.10 Bit stream to codeword conversion (page 33)
-# Table 7 — Number of symbol characters and input data capacity for QR Code
+# Table 7 - Number of symbol characters and input data capacity for QR Code
 SYMBOL_CAPACITY = {
     1:  {ERROR_LEVEL_L: 152,   ERROR_LEVEL_M: 128,   ERROR_LEVEL_Q: 104,   ERROR_LEVEL_H: 72},
     2:  {ERROR_LEVEL_L: 272,   ERROR_LEVEL_M: 224,   ERROR_LEVEL_Q: 176,   ERROR_LEVEL_H: 128},
@@ -199,13 +200,17 @@ SYMBOL_CAPACITY = {
     37: {ERROR_LEVEL_L: 20528, ERROR_LEVEL_M: 15936, ERROR_LEVEL_Q: 11408, ERROR_LEVEL_H: 8768},
     38: {ERROR_LEVEL_L: 21616, ERROR_LEVEL_M: 16816, ERROR_LEVEL_Q: 12016, ERROR_LEVEL_H: 9136},
     39: {ERROR_LEVEL_L: 22496, ERROR_LEVEL_M: 17728, ERROR_LEVEL_Q: 12656, ERROR_LEVEL_H: 9776},
-    40: {ERROR_LEVEL_L: 23648, ERROR_LEVEL_M: 18672, ERROR_LEVEL_Q: 13328, ERROR_LEVEL_H: 10208}
+    40: {ERROR_LEVEL_L: 23648, ERROR_LEVEL_M: 18672, ERROR_LEVEL_Q: 13328, ERROR_LEVEL_H: 10208},
 }
 
 
-# ISO/IEC 18004:2015(E) -- Table 9 — Error correction characteristics for QR Code (page 38)
-# ISO/IEC 23941:2022(E) -- Table 8 — Error correction characteristics for rMQR (page 29)
-EC = collections.namedtuple('EC', ['num_blocks', 'num_total', 'num_data'])
+# ISO/IEC 18004:2015(E) -- Table 9 - Error correction characteristics for QR Code (page 38)
+# ISO/IEC 23941:2022(E) -- Table 8 - Error correction characteristics for rMQR (page 29)
+EC = collections.namedtuple('EC', [  # noqa
+    'num_blocks',
+    'num_total',
+    'num_data',
+])
 
 ECC = {
     1: {
@@ -484,7 +489,7 @@ FORMAT_INFO = (
 
 
 # ISO/IEC 18004:2015 -- Annex D - D.1 Error correction bit calculation
-# Table D.1 — Version information bit stream for each version (page 82)
+# Table D.1 - Version information bit stream for each version (page 82)
 VERSION_INFO = (
     # Version 7, 8, 9 .. 40
     0x07c94, 0x085bc, 0x09a99, 0x0a4d3, 0x0bbf6, 0x0c762, 0x0d847, 0x0e60d,
@@ -496,7 +501,7 @@ VERSION_INFO = (
 
 
 # ISO/IEC 18004:2015 -- Annex E - Position of alignment patterns
-# Table E.1 — Row/column coordinates of center module of alignment patterns (page 83)
+# Table E.1 - Row/column coordinates of center module of alignment patterns (page 83)
 ALIGNMENT_POS = (
     (6, 18),  # Version 2 (version 1 has no additional alignment patterns)
     (6, 22),  # Version 3
@@ -541,7 +546,7 @@ ALIGNMENT_POS = (
 
 
 # ISO/IEC 18004:2015 -- Annex A - Error detection and correction generator polynomials
-# Table A.1 — Generator polynomials for Reed-Solomon error correction codewords (page 73)
+# Table A.1 - Generator polynomials for Reed-Solomon error correction codewords (page 73)
 GEN_POLY = {
     2: (25, 1),
     5: (113, 164, 166, 119, 10),
@@ -560,7 +565,7 @@ GEN_POLY = {
     24: (229, 121, 135, 48, 211, 117, 251, 126, 159, 180, 169, 152, 192, 226, 228, 218, 111, 0, 117, 232, 87, 96, 227, 21),  # noqa: E501
     26: (173, 125, 158, 2, 103, 182, 118, 17, 145, 201, 111, 28, 165, 53, 161, 21, 245, 142, 13, 102, 48, 227, 153, 145, 218, 70),  # noqa: E501
     28: (168, 223, 200, 104, 224, 234, 108, 180, 110, 190, 195, 147, 205, 27, 232, 201, 21, 43, 245, 87, 42, 195, 212, 119, 242, 37, 9, 123),  # noqa: E501
-    30: (41, 173, 145, 152, 216, 31, 179, 182, 50, 48, 110, 86, 239, 96, 222, 125, 42, 173, 226, 193, 224, 130, 156, 37, 251, 216, 238, 40, 192, 180)  # noqa: E501
+    30: (41, 173, 145, 152, 216, 31, 179, 182, 50, 48, 110, 86, 239, 96, 222, 125, 42, 173, 226, 193, 224, 130, 156, 37, 251, 216, 238, 40, 192, 180),  # noqa: E501
 }
 
 # GF(256) log
@@ -580,7 +585,7 @@ GALIOS_LOG = (
     67, 216, 183, 123, 164, 118, 196, 23, 73, 236, 127, 12, 111, 246, 108,
     161, 59, 82, 41, 157, 85, 170, 251, 96, 134, 177, 187, 204, 62, 90, 203,
     89, 95, 176, 156, 169, 160, 81, 11, 245, 22, 235, 122, 117, 44, 215, 79,
-    174, 213, 233, 230, 231, 173, 232, 116, 214, 244, 234, 168, 80, 88, 175
+    174, 213, 233, 230, 231, 173, 232, 116, 214, 244, 234, 168, 80, 88, 175,
 )
 
 # GF(256) antilog

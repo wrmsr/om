@@ -39,7 +39,7 @@ def writable(file_or_path, mode, encoding=None):
         if encoding is not None:
             f = codecs.getwriter(encoding)(file_or_path)
     except AttributeError:
-        f = open(file_or_path, mode, encoding=encoding)
+        f = open(file_or_path, mode, encoding=encoding)  # noqa
         must_close = True
     try:
         yield f

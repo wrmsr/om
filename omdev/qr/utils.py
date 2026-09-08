@@ -65,7 +65,7 @@ def get_mode_name(mode_const):
 
 def version_range(version):
     # ISO/IEC 18004:2015(E)
-    # Table 3 — Number of bits in character count indicator for QR Code (page 23)
+    # Table 3 - Number of bits in character count indicator for QR Code (page 23)
     if 0 < version < 10:
         return consts.VERSION_RANGE_01_09
     elif 9 < version < 27:
@@ -121,6 +121,9 @@ def matrix_iter(
     width_range, height_range = range(-border, width + border), range(-border, height + border)
     for i in height_range:
         r = matrix[i] if 0 <= i < height else border_row
-        row = tuple(itertools.chain.from_iterable(itertools.repeat(r[j] if 0 <= j < width else 0x0, scale) for j in width_range))
-        for s in itertools.repeat(None, scale):
+        row = tuple(itertools.chain.from_iterable(
+            itertools.repeat(r[j] if 0 <= j < width else 0x0, scale)
+            for j in width_range
+        ))
+        for _ in itertools.repeat(None, scale):
             yield row

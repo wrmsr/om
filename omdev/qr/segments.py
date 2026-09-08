@@ -24,9 +24,9 @@ import operator
 import re
 
 from . import consts
-from .utils import version_range
 from .utils import Buffer
 from .utils import get_mode_name
+from .utils import version_range
 
 
 ##
@@ -56,7 +56,11 @@ class _Segment(tuple):
 
 
 class Segments:
-    __slots__ = ('bit_length', 'modes', 'segments')
+    __slots__ = (
+        'bit_length',
+        'modes',
+        'segments',
+    )
 
     def __init__(self):
         self.segments = []
@@ -73,7 +77,7 @@ class Segments:
                     prev_seg.char_count + segment.char_count,
                     segment.mode,
                     segment.encoding,
-                    )
+                )
                 self.bit_length -= len(prev_seg.bits)
                 del self.segments[-1]
                 del self.modes[-1]

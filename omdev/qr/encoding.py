@@ -25,14 +25,15 @@ import collections
 import itertools
 import operator
 import sys  # noqa
+import typing as ta
 
 from omcore import check
 
 from . import consts
+from .segments import prepare_data_segments
 from .utils import Buffer
 from .utils import get_version_name
 from .utils import version_range
-from .segments import prepare_data_segments
 
 
 ##
@@ -65,7 +66,7 @@ def get_eci_assignment_number(encoding):
     try:
         return consts.ECI_ASSIGNMENT_NUM[codecs.lookup(encoding).name]
     except KeyError:
-        raise ValueError(f'Unknown ECI assignment number for encoding "{encoding}".')
+        raise ValueError(f'Unknown ECI assignment number for encoding "{encoding}".') from None
 
 
 def write_segment(
@@ -152,7 +153,7 @@ _FINDER_PATTERN = (
 
 def add_finder_patterns(matrix, width, height):
     is_square = width == height
-    corners = ((0, 0), (0, len(matrix) - 8), (-8, 0))  # Upper left, upper right, bottom left
+    corners: tuple[tuple[int, int], ...] = ((0, 0), (0, len(matrix) - 8), (-8, 0))  # Upper left, upper right, bottom left  # noqa
     if is_square and width < 21:
         corners = ((0, 0),)
     finder_range = range(8)
@@ -244,6 +245,8 @@ def add_codewords(matrix, codewords):
 
 def make_blocks(ec_infos, buff):
     codewords = buff.toints()
+    data_blocks: list
+    error_blocks: list
     data_blocks, error_blocks = [], []
     append_data_block = data_blocks.append
     append_error_block = error_blocks.append
@@ -253,7 +256,7 @@ def make_blocks(ec_infos, buff):
         num_error_words = ec_info.num_total - ec_info.num_data
         gen = consts.GEN_POLY[num_error_words]
         range_error_words = range(num_error_words)
-        for i in range(ec_info.num_blocks):
+        for _ in range(ec_info.num_blocks):
             block = bytearray(itertools.islice(codewords, ec_info.num_data))
             append_data_block(block)
             len_data = len(block)
@@ -274,17 +277,14 @@ def make_final_message(version, error, buff):
     def to_binary(val, length=8):
         return ((val >> i) & 1 for i in reversed(range(length)))
 
-    ec_infos = consts.ECC[version][error]
+    ec_infos = consts.ECC[version][error]  # type: ignore[index]
     data_blocks, error_blocks = make_blocks(ec_infos, buff)
-    cw_four = None
     res = Buffer()
     # Write codewords
     res.extend(itertools.chain(*map(
         to_binary,
         (x for x in itertools.chain.from_iterable(itertools.zip_longest(*data_blocks)) if x is not None),
     )))
-    if cw_four is not None:
-        res.extend(cw_four)
     # Write error codewords
     res.extend(itertools.chain(*map(
         to_binary,
@@ -322,8 +322,8 @@ def make_matrix(
     is_micro = is_square and width < 21
     if is_micro:
         raise RuntimeError
-    row = [0x2] * width
-    matrix = tuple(bytearray(row) for i in range(height))
+    row: ta.Any = [0x2] * width
+    matrix = tuple(bytearray(row) for _ in range(height))
     if reserve_regions:
         if is_square and width > 41:  # QR Codes < version 7 don't have a version pattern
             # Reserve version pattern areas
@@ -607,7 +607,7 @@ def add_version_info(matrix, version):
     # module  0 = least significant bit
     # module 17 = most significant bit
     #
-    # Figure 27 — Version information positioning (page 58)
+    # Figure 27 - Version information positioning (page 58)
     #
     # Lower left                    Upper right
     # ----------                    -----------
@@ -639,7 +639,7 @@ def add_version_info(matrix, version):
 #
 
 
-Code = collections.namedtuple('Code', [
+Code = collections.namedtuple('Code', [  # noqa
     'matrix',
     'version',
     'error',
@@ -806,7 +806,7 @@ def encode(
 class QrCode:
     __slots__ = (
         '_error',
-        '_matrix_size',
+        'matrix_size',
         '_mode',
         '_version',
         'mask',
@@ -817,7 +817,7 @@ class QrCode:
         matrix = code.matrix
         self.matrix = matrix
         self.mask = code.mask
-        self._matrix_size = len(matrix[0]), len(matrix)
+        self.matrix_size = len(matrix[0]), len(matrix)
         self._version = code.version
         self._error = code.error
         self._mode = code.segments[0].mode if len(code.segments) == 1 else None
@@ -841,8 +841,8 @@ def _main() -> None:
     from .writers import write_terminal
     from .writers import write_terminal_compact
 
-    write_terminal(qr.matrix, qr._matrix_size, sys.stdout)
-    write_terminal_compact(qr.matrix, qr._matrix_size, sys.stdout)
+    write_terminal(qr.matrix, qr.matrix_size, sys.stdout)
+    write_terminal_compact(qr.matrix, qr.matrix_size, sys.stdout)
 
 
 if __name__ == '__main__':
