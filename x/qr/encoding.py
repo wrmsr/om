@@ -20,255 +20,31 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# https://github.com/heuer/segno/tree/1.6.6
 import codecs
 import collections
-import contextlib
 import itertools
 import operator
-import re
 import sys  # noqa
 
-import segno  # noqa
+from omcore import check
 
 from . import consts
+from .utils import Buffer
+from .utils import get_version_name
+from .utils import version_range
+from .segments import prepare_data_segments
 
 
 ##
 
 
-def get_mode_name(mode_const):
-    for name, val in consts.MODE_MAPPING.items():
-        if val == mode_const:
-            return name
-    raise ValueError(f'Unknown mode "{mode_const}"')
-
-
-def version_range(version):
-    # ISO/IEC 18004:2015(E)
-    # Table 3 — Number of bits in character count indicator for QR Code (page 23)
-    if 0 < version < 10:
-        return consts.VERSION_RANGE_01_09
-    elif 9 < version < 27:
-        return consts.VERSION_RANGE_10_26
-    elif 26 < version < 41:
-        return consts.VERSION_RANGE_27_40
-    raise ValueError(f'Unknown version "{version}"')
-
-
-def get_version_name(version_const):
-    if 0 < version_const < 41:
-        return version_const
-    raise ValueError(f'Unknown version constant "{version_const}"')
-
-
-class Buffer:
-    __slots__ = ('_data',)
-
-    def __init__(self, iterable=()):
-        self._data = bytearray(iterable)
-
-    def extend(self, iterable):
-        self._data.extend(iterable)
-
-    def append_bits(self, val, length):
-        self._data.extend((val >> i) & 1 for i in reversed(range(length)))
-
-    def getbits(self):
-        return self._data
-
-    def toints(self):
-        return (int(''.join(map(str, g)), 2) for g in itertools.zip_longest(*[iter(self._data)] * 8, fillvalue=0))
-
-    def __len__(self):
-        return len(self._data)
-
-    def __getitem__(self, item):
-        return self._data[item]
-
-
-class _Segment(tuple):
-    __slots__ = ()
-
-    def __new__(cls, bits, char_count, mode, encoding=None):
-        return tuple.__new__(cls, (bits, char_count, mode, encoding))
-
-    bits = property(operator.itemgetter(0))
-    char_count = property(operator.itemgetter(1))
-    mode = property(operator.itemgetter(2))
-    encoding = property(operator.itemgetter(3))
-
-
-class Segments:
-    __slots__ = ('bit_length', 'modes', 'segments')
-
-    def __init__(self):
-        self.segments = []
-        self.bit_length = 0
-        self.modes = []
-
-    def add_segment(self, segment):
-        if self.segments:
-            prev_seg = self.segments[-1]
-            if prev_seg.mode == segment.mode and prev_seg.encoding == segment.encoding:
-                # Merge segment with previous segment
-                segment = _Segment(
-                    prev_seg.bits + segment.bits,
-                    prev_seg.char_count + segment.char_count,
-                    segment.mode,
-                    segment.encoding,
-                )
-                self.bit_length -= len(prev_seg.bits)
-                del self.segments[-1]
-                del self.modes[-1]
-        self.segments.append(segment)
-        self.bit_length += len(segment.bits)
-        self.modes.append(segment.mode)
-
-    def __len__(self):
-        return len(self.segments)
-
-    def __getitem__(self, item):
-        return self.segments[item]
-
-    def __iter__(self):
-        return iter(self.segments)
-
-    def bit_length_with_overhead(self, version, eci, is_sa=False):
-        overhead = 0
-        # ECI overhead
-        if eci:
-            no_eci_indicators = sum(
-                1
-                for segment in self.segments
-                if segment.mode == consts.MODE_BYTE
-                and segment.encoding != consts.DEFAULT_BYTE_ENCODING
-            )
-            overhead += no_eci_indicators * 4  # ECI indicator
-            overhead += no_eci_indicators * 8  # ECI assignment no
-        if is_sa:
-            # 4 bit for mode, 4 bit for the position, 4 bit for total number of symbols
-            # 8 bit for parity data
-            overhead += 5 * 4
-        # Mode indicator overhead
-        if version > 0:  # QR Code
-            overhead += len(self.modes) * 4
-        elif version > consts.VERSION_M1:  # Micro QR Code (M1 has no mode indicator)
-            overhead += len(self.modes) * (version + 3)
-        # Char count indicator overhead
-        ver_range = version_range(version) if version > 0 else version
-        overhead += sum(consts.CHAR_COUNT_INDICATOR_LENGTH[mode][ver_range] for mode in self.modes)
-        return overhead + self.bit_length
-
-
-def data_to_bytes(data):
-    if not isinstance(data, str):
-        raise TypeError(data)
-    encoding = consts.DEFAULT_BYTE_ENCODING
-    data_ = data.encode(encoding)
-    return data_, len(data_), consts.DEFAULT_BYTE_ENCODING
-
-
-_ALPHANUMERIC_PATTERN = re.compile(br'^[' + re.escape(consts.ALPHANUMERIC_CHARS) + br']+\Z')
-
-
-def is_alphanumeric(data):
-    return _ALPHANUMERIC_PATTERN.match(data)
-
-
-def find_mode(data):
-    if data.isdigit():
-        return consts.MODE_NUMERIC
-    if is_alphanumeric(data):
-        return consts.MODE_ALPHANUMERIC
-    return consts.MODE_BYTE
-
-
-def make_segment(data, mode):
-    segment_data, segment_length, segment_encoding = data_to_bytes(data)
-    segment_mode = mode
-
-    # If the user prefers BYTE, use BYTE and do not try to find a better mode Necessary since BYTE < KANJI and find_mode
-    # may return KANJI as (more) appropriate mode and the encoder throws an exception if "user provided mode" < "found
-    # mode"
-    guessed_mode = find_mode(segment_data) if segment_mode != consts.MODE_BYTE else consts.MODE_BYTE
-    if segment_mode is not None:
-        # Check if user provided mode is applicable for the given segment_data
-        if segment_mode < guessed_mode:
-            raise ValueError(
-                f'The provided mode "{get_mode_name(segment_mode)}" '
-                f'is not applicable for {segment_data!r}. '
-                f'Proposal: {get_mode_name(guessed_mode)}',
-            )
-    else:
-        segment_mode = guessed_mode
-    if segment_mode != consts.MODE_BYTE:
-        segment_encoding = None
-    char_count = segment_length
-    buff = Buffer()
-    append_bits = buff.append_bits
-
-    if segment_mode == consts.MODE_NUMERIC:
-        # ISO/IEC 18004:2015(E) -- 7.4.3 Numeric mode (page 25) The input data string is divided into groups of three
-        # digits, and each group is converted to its 10-bit binary equivalent. If the number of input digits is not an
-        # exact multiple of three, the final one or two digits are converted to 4 or 7 bits respectively.
-        for i in range(0, segment_length, 3):
-            chunk = segment_data[i:i + 3]
-            append_bits(int(chunk), len(chunk) * 3 + 1)
-
-    elif segment_mode == consts.MODE_ALPHANUMERIC:
-        # ISO/IEC 18004:2015(E) -- 7.4.4 Alphanumeric mode (page 26)
-        to_byte = consts.ALPHANUMERIC_CHARS.find
-        for i in range(0, segment_length, 2):
-            chunk = segment_data[i:i + 2]
-            # Input data characters are divided into groups of two characters which are encoded as 11-bit binary codes.
-            # The character value of the first character is multiplied by 45 and the character value of the second digit
-            # is added to the product. The sum is then converted to an 11-bit binary number.
-            if len(chunk) > 1:
-                append_bits(to_byte(chunk[0]) * 45 + to_byte(chunk[1]), 11)
-            else:
-                # If the number of input data characters is not a multiple of two, the character value of the final
-                # character is encoded as a 6-bit binary number.
-                append_bits(to_byte(chunk), 6)
-
-    elif segment_mode == consts.MODE_BYTE:
-        # ISO/IEC 18004:2015(E) -- 7.4.5 Byte mode (page 27)
-        for b in segment_data:
-            append_bits(b, 8)
-
-    else:
-        # ISO/IEC 18004:2015(E) -- 7.4.6 Kanji mode (page 29)
-        for i in range(0, segment_length, 2):
-            code = (segment_data[i] << 8) | segment_data[i + 1]
-            if 0x8140 <= code <= 0x9ffc:
-                # 1. a) For characters with Shift JIS values from 8140HEX to 9FFCHEX:
-                # Subtract 8140HEX from Shift JIS value;
-                diff = code - 0x8140
-            elif 0xe040 <= code <= 0xebbf:
-                # 2. a) For characters with Shift JIS values from E040HEX to EBBFHEX:
-                # Subtract C140HEX from Shift JIS value;
-                diff = code - 0xc140
-            else:  # pragma: no cover
-                raise ValueError(f'Invalid Kanji bytes: {code}')
-            # b) Multiply most significant byte of result by C0HEX;
-            # c) Add least significant byte to product from b);
-            # d) Convert result to a 13-bit binary string.
-            append_bits(((diff >> 8) * 0xc0) + (diff & 0xff), 13)
-
-    return _Segment(buff.getbits(), char_count, segment_mode, segment_encoding)
-
-
-def prepare_data(content, mode):
-    segments = Segments()
-    add_segment = segments.add_segment
-    if not isinstance(content, (str, bytes, int)):
-        raise TypeError(content)
-    add_segment(make_segment(content, mode))
-    return segments
-
-
-def boost_error_level(version, error, segments, eci, is_sa=False):
+def boost_error_level(
+        version,
+        error,
+        segments,
+        eci,
+        is_sa=False,
+):
     if error not in (consts.ERROR_LEVEL_H, None) and len(segments) == 1:
         levels = [consts.ERROR_LEVEL_L, consts.ERROR_LEVEL_M, consts.ERROR_LEVEL_Q, consts.ERROR_LEVEL_H]
         if version < 1:
@@ -282,6 +58,9 @@ def boost_error_level(version, error, segments, eci, is_sa=False):
     return error
 
 
+#
+
+
 def get_eci_assignment_number(encoding):
     try:
         return consts.ECI_ASSIGNMENT_NUM[codecs.lookup(encoding).name]
@@ -289,7 +68,13 @@ def get_eci_assignment_number(encoding):
         raise ValueError(f'Unknown ECI assignment number for encoding "{encoding}".')
 
 
-def write_segment(buff, segment, ver, ver_range, eci=False):
+def write_segment(
+        buff,
+        segment,
+        ver,
+        ver_range,
+        eci=False,
+):
     mode = segment.mode
     append_bits = buff.append_bits
     # Write ECI header if requested
@@ -309,15 +94,26 @@ def write_segment(buff, segment, ver, ver_range, eci=False):
     buff.extend(segment.bits)
 
 
+#
+
+
 # ISO/IEC 18004:2015(E) -- Table 2 — Mode indicators for QR Code (page 23)
 TERMINATOR_LENGTH = {
     None: 4,  # QR Codes, all versions
 }
 
 
-def write_terminator(buff, capacity, ver, length):
+def write_terminator(
+        buff,
+        capacity,
+        ver,
+        length,
+):
     # ISO/IEC 18004:2015 -- 7.4.9 Terminator (page 32)
     buff.extend([0] * min(capacity - length, TERMINATOR_LENGTH[ver]))
+
+
+#
 
 
 def write_padding_bits(buff, version, length):
@@ -327,6 +123,9 @@ def write_padding_bits(buff, version, length):
     # boundary, padding bits with binary value 0 shall be added after the final bit (least significant bit) of the data
     # stream to extend it to the codeword boundary. [...]
     buff.extend([0] * (8 - (length % 8)))
+
+
+#
 
 
 def write_pad_codewords(buff, version, capacity, length):
@@ -339,6 +138,9 @@ def write_pad_codewords(buff, version, capacity, length):
     pad_codewords = ((1, 1, 1, 0, 1, 1, 0, 0), (0, 0, 0, 1, 0, 0, 0, 1))
     for i in range(capacity // 8 - length // 8):
         write(pad_codewords[i % 2])
+
+
+#
 
 
 # Finder pattern (includes separator around each side!)
@@ -368,6 +170,9 @@ def add_finder_patterns(matrix, width, height):
             matrix[i + r][j:j + 8] = _FINDER_PATTERN[offset + r][sepoffset:sepoffset + 8]
 
 
+#
+
+
 def add_timing_pattern(matrix):
     j, stop = (6, len(matrix) - 8)
     col = matrix[j]
@@ -377,6 +182,8 @@ def add_timing_pattern(matrix):
         col[i] = bit
         bit ^= 0x1
 
+
+#
 
 
 def add_alignment_patterns(matrix, width, height):
@@ -405,7 +212,10 @@ def add_alignment_patterns(matrix, width, height):
             matrix[i + r][j:j + 5] = pattern[r * 5:r * 5 + 5]
 
 
-def add_codewords(matrix, codewords, version):
+#
+
+
+def add_codewords(matrix, codewords):
     matrix_size = len(matrix)
     # Necessary for M1 and M3: The algorithm would start at the upper right corner, see
     # <https://github.com/heuer/segno/issues/36>
@@ -434,6 +244,9 @@ def add_codewords(matrix, codewords, version):
         raise ValueError(
             f'Internal error: Adding codewords to matrix failed. Added {idx} of {len(codewords)} codewords',
         )
+
+
+#
 
 
 def make_blocks(ec_infos, buff):
@@ -473,11 +286,17 @@ def make_final_message(version, error, buff):
     cw_four = None
     res = Buffer()
     # Write codewords
-    res.extend(itertools.chain(*map(to_binary, (x for x in itertools.chain.from_iterable(itertools.zip_longest(*data_blocks)) if x is not None))))
+    res.extend(itertools.chain(*map(
+        to_binary,
+        (x for x in itertools.chain.from_iterable(itertools.zip_longest(*data_blocks)) if x is not None),
+    )))
     if cw_four is not None:
         res.extend(cw_four)
     # Write error codewords
-    res.extend(itertools.chain(*map(to_binary, (x for x in itertools.chain.from_iterable(itertools.zip_longest(*error_blocks)) if x is not None))))
+    res.extend(itertools.chain(*map(
+        to_binary,
+        (x for x in itertools.chain.from_iterable(itertools.zip_longest(*error_blocks)) if x is not None),
+    )))
     # ISO/IEC 18004:2015(E) -- 7.6 Constructing the final message codeword sequence
     # [...] In certain QR Code versions, however, where the number of modules available for data and error correction
     # codewords is not an exact multiple of 8, there may be a need for 3, 4 or 7 Remainder Bits to be appended to the
@@ -493,14 +312,19 @@ def make_final_message(version, error, buff):
     return res
 
 
+#
+
+
 def calc_matrix_size(ver):
     return ver * 4 + 17 if ver > 0 else (ver + 4) * 2 + 9
 
 
-_MAX_PENALTY_SCORE = sys.maxsize
-
-
-def make_matrix(width, height, reserve_regions=True, add_timing=True):
+def make_matrix(
+        width,
+        height,
+        reserve_regions=True,
+        add_timing=True,
+):
     is_square = width == height
     is_micro = is_square and width < 21
     if is_micro:
@@ -531,6 +355,9 @@ def make_matrix(width, height, reserve_regions=True, add_timing=True):
         # ISO/IEC 18004:2015 -- 6.3.5 Timing pattern (page 17)
         add_timing_pattern(matrix)
     return matrix
+
+
+#
 
 
 def get_data_mask_functions():
@@ -564,7 +391,15 @@ def get_data_mask_functions():
     return fn0, fn1, fn2, fn3, fn4, fn5, fn6, fn7
 
 
-def find_and_apply_best_mask(matrix, width, height, proposed_mask=None):
+_MAX_PENALTY_SCORE = sys.maxsize
+
+
+def find_and_apply_best_mask(
+        matrix,
+        width,
+        height,
+        proposed_mask=None,
+):
     # ISO/IEC 18004:2015 -- 7.8.3.1 Evaluation of QR Code symbols (page 53/54)
     # The data mask pattern which results in the lowest penalty score shall be selected for the symbol.
     is_better = operator.lt
@@ -603,7 +438,13 @@ def find_and_apply_best_mask(matrix, width, height, proposed_mask=None):
     return best_pattern, best_matrix
 
 
-def apply_mask(matrix, mask_pattern, width, height, is_encoding_region):
+def apply_mask(
+        matrix,
+        mask_pattern,
+        width,
+        height,
+        is_encoding_region,
+):
     width_range = range(width)
     for i in range(height):
         row = matrix[i]
@@ -642,7 +483,7 @@ def mask_scores(matrix, width, height):
     score_n1 = 0
     score_n2 = 0
     score_n3 = 0
-    assert width == height
+    check.state(width == height)
     qr_size = width
     qr_module_range = range(qr_size)
     dark_module_counter = 0
@@ -695,6 +536,9 @@ def mask_scores(matrix, width, height):
     return score_n1, score_n2, score_n3, score_n4
 
 
+#
+
+
 def calc_format_info(version, error, mask_pattern):
     fmt = mask_pattern
     if error == consts.ERROR_LEVEL_L:
@@ -707,7 +551,12 @@ def calc_format_info(version, error, mask_pattern):
     return format_info
 
 
-def add_format_info(matrix, version, error, mask_pattern):
+def add_format_info(
+        matrix,
+        version,
+        error,
+        mask_pattern,
+):
     # 14: most significant bit
     #  0: least significant bit
     #
@@ -757,6 +606,9 @@ def add_format_info(matrix, version, error, mask_pattern):
         matrix[-8][8] = 0x1
 
 
+#
+
+
 def add_version_info(matrix, version):
     #
     # module  0 = least significant bit
@@ -791,7 +643,16 @@ def add_version_info(matrix, version):
         row[-9] = bit3
 
 
-Code = collections.namedtuple('Code', 'matrix version error mask segments')
+#
+
+
+Code = collections.namedtuple('Code', [
+    'matrix',
+    'version',
+    'error',
+    'mask',
+    'segments',
+])
 
 
 def _encode(
@@ -807,43 +668,67 @@ def _encode(
     buff = Buffer()
     ver = None
     ver_range = version_range(version)
+
     if boost_error:
         error = boost_error_level(version, error, segments, eci, is_sa=sa_mode)
+
     if sa_mode:
         # ISO/IEC 18004:2015(E) -- 8 Structured Append (page 59)
         for i in sa_info[:3]:
             buff.append_bits(i, 4)
         buff.append_bits(sa_info.parity, 8)
+
     # ISO/IEC 18004:2015(E) -- 7.4 Data encoding (page 22)
     for segment in segments:
         write_segment(buff, segment, ver, ver_range, eci)
     capacity = consts.SYMBOL_CAPACITY[version][error]
+
     # ISO/IEC 18004:2015(E) -- 7.4.9 Terminator (page 32)
     write_terminator(buff, capacity, ver, len(buff))
+
     # ISO/IEC 18004:2015(E) -- 7.4.10 Bit stream to codeword conversion (page 34)
     write_padding_bits(buff, version, len(buff))
+
     # ISO/IEC 18004:2015(E) -- 7.4.10 Bit stream to codeword conversion (page 34)
     write_pad_codewords(buff, version, capacity, len(buff))
+
     # ISO/IEC 18004:2015(E) -- 7.6 Constructing the final message codeword sequence (page 45)
     buff = make_final_message(version, error, buff)
+
     # Matrix with timing pattern and reserved format / version regions
     width = calc_matrix_size(version)
     height = width
     matrix = make_matrix(width, height)
+
     # ISO/IEC 18004:2015 -- 6.3.3 Finder pattern (page 16)
     add_finder_patterns(matrix, width, height)
+
     # ISO/IEC 18004:2015 -- 6.3.6 Alignment patterns (page 17)
     add_alignment_patterns(matrix, width, height)
+
     # ISO/IEC 18004:2015 -- 7.7 Codeword placement in matrix (page 46)
-    add_codewords(matrix, buff, version)
+    add_codewords(matrix, buff)
+
     # ISO/IEC 18004:2015(E) -- 7.8.2 Data mask patterns (page 50)
     # ISO/IEC 18004:2015(E) -- 7.8.3 Evaluation of data masking results (page 53)
     mask, matrix = find_and_apply_best_mask(matrix, width, height, mask)
+
     # ISO/IEC 18004:2015(E) -- 7.9 Format information (page 55)
     add_format_info(matrix, version, error, mask)
+
     # ISO/IEC 18004:2015(E) -- 7.10 Version information (page 58)
     add_version_info(matrix, version)
-    return Code(matrix, version, error, mask, segments)
+
+    return Code(
+        matrix,
+        version,
+        error,
+        mask,
+        segments,
+    )
+
+
+##
 
 
 class DataOverflowError(ValueError):
@@ -871,15 +756,15 @@ def find_version(
     raise DataOverflowError(f'Data too large. No QR Code can handle the provided data')
 
 
-def encode(content):
-    error = None
-    mode = None
-    encoding = None
-    eci = False
-    version = None
-    boost_error = True
-
-    segments = prepare_data(content, mode)
+def encode(
+        content,
+        error=None,
+        mode=None,
+        eci=False,
+        version=None,
+        boost_error=True,
+):
+    segments = prepare_data_segments(content, mode)
     guessed_version = find_version(segments, error, eci)
     if version is None:
         version = guessed_version
@@ -890,14 +775,27 @@ def encode(content):
         )
     if error is None:
         error = consts.ERROR_LEVEL_L
-    return _encode(segments, error, version, eci, boost_error)
+    return _encode(
+        segments,
+        error,
+        version,
+        eci,
+        boost_error,
+    )
 
 
 ##
 
 
 class QRCode:
-    __slots__ = ('_error', '_matrix_size', '_mode', '_version', 'mask', 'matrix')
+    __slots__ = (
+        '_error',
+        '_matrix_size',
+        '_mode',
+        '_version',
+        'mask',
+        'matrix',
+    )
 
     def __init__(self, code):
         matrix = code.matrix
@@ -916,109 +814,16 @@ def make(content):
 ##
 
 
-def get_default_border_size(matrix_size):
-    width, height = matrix_size
-    return 4 if width > 17 and width == height else 2
-
-
-def get_border(matrix_size, border):
-    return border if border is not None else get_default_border_size(matrix_size)
-
-
-def check_valid_scale(scale):
-    if scale <= 0:
-        raise ValueError(f'The scale must not be negative or zero. Got: "{scale}"')
-
-
-def check_valid_border(border):
-    if border is not None and (int(border) != border or border < 0):
-        raise ValueError(f'The border must not a non-negative integer value. Got: "{border}"')
-
-
-def matrix_iter(matrix, matrix_size, scale=1, border=None):
-    check_valid_border(border)
-    scale = int(scale)
-    check_valid_scale(scale)
-    border = get_border(matrix_size, border)
-    width, height = matrix_size
-    border_row = [0x0] * width
-    width_range, height_range = range(-border, width + border), range(-border, height + border)
-    for i in height_range:
-        r = matrix[i] if 0 <= i < height else border_row
-        row = tuple(itertools.chain.from_iterable(itertools.repeat(r[j] if 0 <= j < width else 0x0, scale) for j in width_range))
-        for s in itertools.repeat(None, scale):
-            yield row
-
-
-##
-
-
-@contextlib.contextmanager
-def writable(file_or_path, mode, encoding=None):
-    f = file_or_path
-    must_close = False
-    try:
-        file_or_path.write  # noqa
-        if encoding is not None:
-            f = codecs.getwriter(encoding)(file_or_path)
-    except AttributeError:
-        f = open(file_or_path, mode, encoding=encoding)
-        must_close = True
-    try:
-        yield f
-    finally:
-        if must_close:
-            f.close()
-
-
-def write_terminal_compact(matrix, matrix_size, out, border=None):
-    blocks = {
-        (1, 1): ' ',
-        (0, 1): '\u2580',  # Upper half block
-        (1, 0): '\u2584',  # Lower half block
-        (0, 0): '\u2588',  # Full block
-    }
-    it = [matrix_iter(matrix, matrix_size, scale=1, border=border)] * 2
-    with writable(out, 'wt') as f:
-        write = f.write
-        for top_row, bottom_row in itertools.zip_longest(*it, fillvalue=itertools.repeat(1)):
-            write(''.join(blocks[pair] for pair in zip(top_row, bottom_row)))
-            write('\n')
-
-
-def write_terminal(matrix, matrix_size, out, border=None):
-    with writable(out, 'wt') as f:
-        write = f.write
-        colours = [f'\033[{i}m' for i in (7, 49)]
-        for row in matrix_iter(matrix, matrix_size, scale=1, border=border):
-            prev_bit = -1
-            cnt = 0
-            for bit in row:
-                if bit == prev_bit:
-                    cnt += 1
-                else:
-                    if cnt:
-                        write(colours[prev_bit])
-                        write('  ' * cnt)
-                        write('\033[0m')  # reset color
-                    prev_bit = bit
-                    cnt = 1
-            if cnt:
-                write(colours[prev_bit])
-                write('  ' * cnt)
-                write('\033[0m')  # reset color
-            write('\n')
-
-
-##
-
-
 def _main() -> None:
+    # import segno  # noqa
     # qr = segno.make_qr('Your text or URL here')
     qr = make('Your text or URL here')
 
     # qr.terminal()
     # qr.terminal(compact=True)
+
+    from .writers import write_terminal
+    from .writers import write_terminal_compact
 
     write_terminal(qr.matrix, qr._matrix_size, sys.stdout)
     write_terminal_compact(qr.matrix, qr._matrix_size, sys.stdout)
