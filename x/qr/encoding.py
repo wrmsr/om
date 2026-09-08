@@ -97,26 +97,19 @@ def write_segment(
 #
 
 
-# ISO/IEC 18004:2015(E) -- Table 2 — Mode indicators for QR Code (page 23)
-TERMINATOR_LENGTH = {
-    None: 4,  # QR Codes, all versions
-}
-
-
 def write_terminator(
         buff,
         capacity,
-        ver,
         length,
 ):
     # ISO/IEC 18004:2015 -- 7.4.9 Terminator (page 32)
-    buff.extend([0] * min(capacity - length, TERMINATOR_LENGTH[ver]))
+    buff.extend([0] * min(capacity - length, consts.TERMINATOR_LENGTH))
 
 
 #
 
 
-def write_padding_bits(buff, version, length):
+def write_padding_bits(buff, length):
     # ISO/IEC 18004:2015(E) - 7.4.10 Bit stream to codeword conversion -- page 32
     # [...] All codewords are 8 bits in length, except for the final data symbol character in Micro QR Code versions M1
     # and M3 symbols, which is 4 bits in length. If the bit stream length is such that it does not end at a codeword
@@ -128,7 +121,7 @@ def write_padding_bits(buff, version, length):
 #
 
 
-def write_pad_codewords(buff, version, capacity, length):
+def write_pad_codewords(buff, capacity, length):
     # ISO/IEC 18004:2015(E) -- 7.4.10 Bit stream to codeword conversion (page 32) The message bit stream shall then be
     # extended to fill the data capacity of the symbol corresponding to the Version and Error Correction Level, as
     # defined in Table 8, by adding the Pad Codewords 11101100 and 00010001 alternately. For Micro QR Code versions M1
@@ -539,7 +532,7 @@ def mask_scores(matrix, width, height):
 #
 
 
-def calc_format_info(version, error, mask_pattern):
+def calc_format_info(error, mask_pattern):
     fmt = mask_pattern
     if error == consts.ERROR_LEVEL_L:
         fmt += 0x08
@@ -582,7 +575,7 @@ def add_format_info(
     #                       13
     #                       14
     is_micro = version < 1
-    format_info = calc_format_info(version, error, mask_pattern)
+    format_info = calc_format_info(error, mask_pattern)
     voffset = int(is_micro)
     hoffset = voffset
     row_eight = matrix[8]
@@ -670,7 +663,13 @@ def _encode(
     ver_range = version_range(version)
 
     if boost_error:
-        error = boost_error_level(version, error, segments, eci, is_sa=sa_mode)
+        error = boost_error_level(
+            version,
+            error,
+            segments,
+            eci,
+            is_sa=sa_mode,
+        )
 
     if sa_mode:
         # ISO/IEC 18004:2015(E) -- 8 Structured Append (page 59)
@@ -680,17 +679,23 @@ def _encode(
 
     # ISO/IEC 18004:2015(E) -- 7.4 Data encoding (page 22)
     for segment in segments:
-        write_segment(buff, segment, ver, ver_range, eci)
+        write_segment(
+            buff,
+            segment,
+            ver,
+            ver_range,
+            eci,
+        )
     capacity = consts.SYMBOL_CAPACITY[version][error]
 
     # ISO/IEC 18004:2015(E) -- 7.4.9 Terminator (page 32)
-    write_terminator(buff, capacity, ver, len(buff))
+    write_terminator(buff, capacity, len(buff))
 
     # ISO/IEC 18004:2015(E) -- 7.4.10 Bit stream to codeword conversion (page 34)
-    write_padding_bits(buff, version, len(buff))
+    write_padding_bits(buff, len(buff))
 
     # ISO/IEC 18004:2015(E) -- 7.4.10 Bit stream to codeword conversion (page 34)
-    write_pad_codewords(buff, version, capacity, len(buff))
+    write_pad_codewords(buff, capacity, len(buff))
 
     # ISO/IEC 18004:2015(E) -- 7.6 Constructing the final message codeword sequence (page 45)
     buff = make_final_message(version, error, buff)
@@ -711,10 +716,20 @@ def _encode(
 
     # ISO/IEC 18004:2015(E) -- 7.8.2 Data mask patterns (page 50)
     # ISO/IEC 18004:2015(E) -- 7.8.3 Evaluation of data masking results (page 53)
-    mask, matrix = find_and_apply_best_mask(matrix, width, height, mask)
+    mask, matrix = find_and_apply_best_mask(
+        matrix,
+        width,
+        height,
+        mask,
+    )
 
     # ISO/IEC 18004:2015(E) -- 7.9 Format information (page 55)
-    add_format_info(matrix, version, error, mask)
+    add_format_info(
+        matrix,
+        version,
+        error,
+        mask,
+    )
 
     # ISO/IEC 18004:2015(E) -- 7.10 Version information (page 58)
     add_version_info(matrix, version)
@@ -758,6 +773,7 @@ def find_version(
 
 def encode(
         content,
+        *,
         error=None,
         mode=None,
         eci=False,

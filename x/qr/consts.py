@@ -127,6 +127,10 @@ ECI_ASSIGNMENT_NUM = {
 }
 
 
+# ISO/IEC 18004:2015(E) -- Table 2 — Mode indicators for QR Code (page 23)
+TERMINATOR_LENGTH = 4  # QR Codes, all versions
+
+
 VERSION_RANGE_01_09 = 1  # Version  1 ..  9
 VERSION_RANGE_10_26 = 2  # Version 10 .. 26
 VERSION_RANGE_27_40 = 3  # Version 27 .. 40
