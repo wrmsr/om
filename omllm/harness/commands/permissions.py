@@ -87,7 +87,7 @@ class PermissionsCommand(ParserCommandClass):
             await ctx.print('No permissions set')
             return
 
-        await ctx.print(self._render_rules(rules), '\n')
+        await ctx.print(self._render_rules(rules))
 
     #
 
