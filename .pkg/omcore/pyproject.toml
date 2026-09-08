@@ -13,7 +13,7 @@ urls = {source = 'https://github.com/wrmsr/om'}
 license = 'BSD-3-Clause'
 readme = 'README.md'
 requires-python = '>=3.14'
-version = '0.0.54'
+version = '0.0.55'
 classifiers = [
     'Intended Audience :: Developers',
     'Operating System :: OS Independent',
@@ -97,10 +97,10 @@ plus = [
     'pygments ~= 2.21',
 ]
 cext = [
-    'omcore-cext == 0.0.54',
+    'omcore-cext == 0.0.55',
 ]
 mypyc = [
-    'omcore-mypyc == 0.0.54',
+    'omcore-mypyc == 0.0.55',
 ]
 all = [
     'anyio ~= 4.15',
@@ -148,8 +148,8 @@ all = [
     'executing ~= 2.2',
     'cryptography ~= 50.0',
     'pygments ~= 2.21',
-    'omcore-cext == 0.0.54',
-    'omcore-mypyc == 0.0.54',
+    'omcore-cext == 0.0.55',
+    'omcore-mypyc == 0.0.55',
 ]
 
 [project.entry-points]
