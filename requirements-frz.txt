@@ -6,11 +6,11 @@ aiosignal==1.4.0
 aiosqlite==0.22.1
 annotated-doc==0.0.5
 antlr4-python3-runtime==4.13.2
-anyio==4.14.2
+anyio==4.15.1
 apsw==3.53.4.0
 asgiref==3.12.1
 asn1crypto==1.5.1
-ast_serialize==0.10.0
+ast_serialize==0.11.0
 astpretty==3.0.0
 asttokens==3.0.2
 asyncpg==0.31.0
@@ -132,7 +132,7 @@ mypy==2.3.1
 mypy_extensions==1.1.0
 mysql-connector-python==26.7.0
 mysqlclient==2.2.8
-narwhals==2.25.0
+narwhals==2.26.0
 networkx==3.6.1
 nh3==0.3.7
 nodeenv==1.10.0
