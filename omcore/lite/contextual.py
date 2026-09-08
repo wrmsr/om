@@ -325,3 +325,61 @@ def contextual_get(key, default=NO_CONTEXTUAL_DEFAULT, /):
         if default is not NO_CONTEXTUAL_DEFAULT:
             return default
         raise UnboundContextualError(key) from None
+
+
+##
+
+
+class ContextualApi:
+    NO_DEFAULT: ta.Final = NO_CONTEXTUAL_DEFAULT
+
+    def is_unbound_param(self, obj: ta.Any) -> bool:
+        return is_unbound_contextual_param(obj)
+
+    #
+
+    @ta.overload
+    def param(self) -> T: ...  # type: ignore[type-var]
+
+    @ta.overload
+    def param(self, default: T, /) -> T: ...
+
+    def param(self, default=NO_CONTEXTUAL_DEFAULT, /):
+        return contextual_param(default)
+
+    #
+
+    def inspect_params(
+            self,
+            fn: ta.Any,
+            *,
+            raw_optional: bool = False,
+    ) -> ContextualParams:
+        return inspect_contextual_params(fn, raw_optional=raw_optional)
+
+    #
+
+    def is_wrapped(self, obj: ta.Any) -> bool:
+        return is_contextual_wrapped(obj)
+
+    def wrap(self) -> ContextualWrapping:
+        return contextual_wrap()
+
+    #
+
+    def bind(self, bindings: ta.Mapping[ta.Any, ta.Any]) -> ta.ContextManager[None]:
+        return contextual_bind(bindings)
+
+    #
+
+    @ta.overload
+    def get(self, key: ta.Type[T], /) -> T: ...
+
+    @ta.overload
+    def get(self, key: ta.Type[T], default: ta.Union[T, U], /) -> ta.Union[T, U]: ...
+
+    def get(self, key, default=NO_CONTEXTUAL_DEFAULT, /):
+        return contextual_get(key, default)
+
+
+cxl = ContextualApi()

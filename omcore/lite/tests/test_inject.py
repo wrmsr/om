@@ -3,6 +3,8 @@ import dataclasses as dc
 import typing as ta  # noqa
 import unittest
 
+from ..contextual import UnboundContextualError
+from ..contextual import cxl
 from ..inject import ContextvarInjectorScope
 from ..inject import CyclicDependencyInjectorKeyError
 from ..inject import ExclusiveInjectorScope
@@ -364,3 +366,30 @@ class TestScopes(unittest.TestCase):
         }):
             self.assertEqual(i[int], 420)
             self.assertEqual(i[float], 4.2)
+
+
+class TestContextual(unittest.TestCase):
+    def test_contextual(self):
+        @cxl.wrap()
+        def foo(i: int, f: float = cxl.param()) -> str:
+            return f'{i=} {f=}'
+
+        with self.assertRaises(UnboundContextualError):
+            _ = inj.create_injector(
+                inj.bind(foo),
+                inj.bind(420),
+            )[str]
+
+        s = inj.create_injector(
+            inj.bind(foo),
+            inj.bind(420),
+            inj.bind(4.2),
+        )[str]
+        assert s == 'i=420 f=4.2'
+
+        with cxl.bind({float: 2.1}):
+            s = inj.create_injector(
+                inj.bind(foo),
+                inj.bind(420),
+            )[str]
+        assert s == 'i=420 f=2.1'
