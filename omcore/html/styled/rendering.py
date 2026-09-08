@@ -17,8 +17,8 @@ def render_html(
     """
     Render styled text as an escaped html fragment with deterministic inline css.
 
-    Literal whitespace is preserved in the fragment. Its containing element should use `white-space: pre-wrap` when
-    the browser must display that whitespace exactly.
+    Literal whitespace is preserved in the fragment. Its containing element should use `white-space: pre-wrap` when the
+    browser must display that whitespace exactly.
     """
 
     value = text.text if isinstance(text, st.StyledDocument) else st.StyledText.of(text)
