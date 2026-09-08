@@ -1,7 +1,11 @@
 import asyncio
+import fcntl
 import gc
 import os
+import pwd
+import resource
 import signal
+import subprocess
 import sys
 import time
 
@@ -163,8 +167,6 @@ async def test_fd_hygiene_and_pass_fds():
 
         # Two at once, one at a high number (the control socket must sit above it; the shim relocates both). Stay well
         # under the soft RLIMIT_NOFILE - macOS defaults to 256 and F_DUPFD rejects a floor at or above it (EINVAL).
-        import fcntl
-        import resource
         soft, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
         r1, w1 = os.pipe()
         r2, w2 = os.pipe()
@@ -703,7 +705,6 @@ async def test_zombie_signal_eperm_tolerated(monkeypatch):
 
 
 def test_is_exited_nowait():
-    import subprocess
     p = subprocess.Popen(['sh', '-c', 'exit 0'])
     p.wait()  # reaped by Popen -> gone
     assert AsyncioProcess._is_exited_nowait(p.pid) is True  # noqa: SLF001
@@ -730,7 +731,6 @@ def test_sigchld_guard():
 @pytest.mark.skipif(os.geteuid() != 0, reason='requires root')
 @pytest.mark.asyncs('asyncio')
 async def test_credentials_drop():
-    import pwd
     nobody = pwd.getpwnam('nobody')
     async with AsyncioProcessManager() as m:
         run = await m.root.run(ProcessSpec(['id', '-u']), Credentials(user='nobody'))
