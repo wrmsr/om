@@ -98,13 +98,13 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
+            dict(path='../../omcore/os/pyremote.py', sha1='b56cd75204c45e8e9e4c0492af739fa1d528ef53'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
             dict(path='deploy/config.py', sha1='b11f480014b42206531ea897e76dd0220eb59969'),
             dict(path='deploy/paths/types.py', sha1='4364179744afb2344f2b44d188e37f786c955970'),
             dict(path='deploy/types.py', sha1='41b2becf7a9d009e18235a8b49cfbe0419785190'),
-            dict(path='../pyremote.py', sha1='b56cd75204c45e8e9e4c0492af739fa1d528ef53'),
             dict(path='../../omcore/argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
             dict(path='../../omcore/asyncs/asyncio/channels.py', sha1='805e4623aa13feaa506862b19498239a2022fe9f'),
             dict(path='../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
@@ -191,9 +191,9 @@ def __om_amalg__():  # noqa
             dict(path='bootstrap.py', sha1='e66138947a41e8a49576885cf4b1390315d44f88'),
             dict(path='system/inject.py', sha1='0e7370ec9926baca33e62183a10d4e1ad476a6a1'),
             dict(path='../../omdev/interp/pyenv/inject.py', sha1='1fe5f906720082a73332f98199e3dd1b2dccd67b'),
-            dict(path='remote/_main.py', sha1='8c5e0ffe5d7df51e8b61fef4173900b4623cfe9d'),
+            dict(path='remote/_main.py', sha1='952625a0db50cf19ae8916c506328a0056dda7c3'),
             dict(path='../../omdev/interp/inject.py', sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143'),
-            dict(path='remote/connection.py', sha1='31619ceb98f41c3a2377a3697b5fd1eb1f072f92'),
+            dict(path='remote/connection.py', sha1='d90d3bf06cd6d3377b5b979e4bdd48e08c7a00e6'),
             dict(path='../../omdev/interp/default.py', sha1='7ea7b7d7aa191aedd4716f3616ca0d07a4a3d875'),
             dict(path='remote/inject.py', sha1='648d3c5306e0aa037b763661c24089dbafbadbd5'),
             dict(path='targets/connection.py', sha1='eda946fdcc93d4f53cdc7d359e63fd4ae5115074'),
@@ -4644,477 +4644,7 @@ def relative_symlink(
 
 
 ########################################
-# ../../../omcore/shlex.py
-
-
-##
-
-
-def shlex_needs_quote(s: str) -> bool:
-    return bool(s) and len(list(shlex.shlex(s))) > 1
-
-
-def shlex_maybe_quote(s: str) -> str:
-    if shlex_needs_quote(s):
-        return shlex.quote(s)
-    else:
-        return s
-
-
-########################################
-# ../../../omdev/packaging/versions.py
-# Copyright (c) Donald Stufft and individual contributors.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-# following conditions are met:
-#
-#     1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-#        following disclaimer.
-#
-#     2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-#        following disclaimer in the documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. This file is dual licensed under the terms of the
-# Apache License, Version 2.0, and the BSD License. See the LICENSE file in the root of this repository for complete
-# details.
-# https://github.com/pypa/packaging/blob/2c885fe91a54559e2382902dce28428ad2887be5/src/packaging/version.py
-
-
-##
-
-
-class InfinityVersionType:
-    def __repr__(self) -> str:
-        return 'Infinity'
-
-    def __hash__(self) -> int:
-        return hash(repr(self))
-
-    def __lt__(self, other: object) -> bool:
-        return False
-
-    def __le__(self, other: object) -> bool:
-        return False
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, self.__class__)
-
-    def __gt__(self, other: object) -> bool:
-        return True
-
-    def __ge__(self, other: object) -> bool:
-        return True
-
-    def __neg__(self: object) -> 'NegativeInfinityVersionType':
-        return NegativeInfinityVersion
-
-
-InfinityVersion = InfinityVersionType()
-
-
-class NegativeInfinityVersionType:
-    def __repr__(self) -> str:
-        return '-Infinity'
-
-    def __hash__(self) -> int:
-        return hash(repr(self))
-
-    def __lt__(self, other: object) -> bool:
-        return True
-
-    def __le__(self, other: object) -> bool:
-        return True
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, self.__class__)
-
-    def __gt__(self, other: object) -> bool:
-        return False
-
-    def __ge__(self, other: object) -> bool:
-        return False
-
-    def __neg__(self: object) -> InfinityVersionType:
-        return InfinityVersion
-
-
-NegativeInfinityVersion = NegativeInfinityVersionType()
-
-
-##
-
-
-class _Version(ta.NamedTuple):
-    epoch: int
-    release: ta.Tuple[int, ...]
-    dev: ta.Optional[ta.Tuple[str, int]]
-    pre: ta.Optional[ta.Tuple[str, int]]
-    post: ta.Optional[ta.Tuple[str, int]]
-    local: ta.Optional[VersionLocalType]
-
-
-class InvalidVersion(ValueError):  # noqa
-    pass
-
-
-class _BaseVersion:
-    _key: ta.Tuple[ta.Any, ...]
-
-    def __hash__(self) -> int:
-        return hash(self._key)
-
-    def __lt__(self, other: '_BaseVersion') -> bool:
-        if not isinstance(other, _BaseVersion):
-            return NotImplemented
-        return self._key < other._key
-
-    def __le__(self, other: '_BaseVersion') -> bool:
-        if not isinstance(other, _BaseVersion):
-            return NotImplemented
-        return self._key <= other._key
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, _BaseVersion):
-            return NotImplemented
-        return self._key == other._key
-
-    def __ge__(self, other: '_BaseVersion') -> bool:
-        if not isinstance(other, _BaseVersion):
-            return NotImplemented
-        return self._key >= other._key
-
-    def __gt__(self, other: '_BaseVersion') -> bool:
-        if not isinstance(other, _BaseVersion):
-            return NotImplemented
-        return self._key > other._key
-
-    def __ne__(self, other: object) -> bool:
-        if not isinstance(other, _BaseVersion):
-            return NotImplemented
-        return self._key != other._key
-
-
-_VERSION_PATTERN = r"""
-    v?
-    (?:
-        (?:(?P<epoch>[0-9]+)!)?
-        (?P<release>[0-9]+(?:\.[0-9]+)*)
-        (?P<pre>
-            [-_\.]?
-            (?P<pre_l>alpha|a|beta|b|preview|pre|c|rc)
-            [-_\.]?
-            (?P<pre_n>[0-9]+)?
-        )?
-        (?P<post>
-            (?:-(?P<post_n1>[0-9]+))
-            |
-            (?:
-                [-_\.]?
-                (?P<post_l>post|rev|r)
-                [-_\.]?
-                (?P<post_n2>[0-9]+)?
-            )
-        )?
-        (?P<dev>
-            [-_\.]?
-            (?P<dev_l>dev)
-            [-_\.]?
-            (?P<dev_n>[0-9]+)?
-        )?
-    )
-    (?:\+(?P<local>[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?
-"""
-
-VERSION_PATTERN = _VERSION_PATTERN
-
-
-class Version(_BaseVersion):
-    _regex = re.compile(r'^\s*' + VERSION_PATTERN + r'\s*$', re.VERBOSE | re.IGNORECASE)
-    _key: VersionCmpKey
-
-    def __init__(self, version: str) -> None:
-        match = self._regex.search(version)
-        if not match:
-            raise InvalidVersion(f"Invalid version: '{version}'")
-
-        self._version = _Version(
-            epoch=int(match.group('epoch')) if match.group('epoch') else 0,
-            release=tuple(int(i) for i in match.group('release').split('.')),
-            pre=_parse_letter_version(match.group('pre_l'), match.group('pre_n')),
-            post=_parse_letter_version(match.group('post_l'), match.group('post_n1') or match.group('post_n2')),
-            dev=_parse_letter_version(match.group('dev_l'), match.group('dev_n')),
-            local=_parse_local_version(match.group('local')),
-        )
-
-        self._key = _version_cmpkey(
-            self._version.epoch,
-            self._version.release,
-            self._version.pre,
-            self._version.post,
-            self._version.dev,
-            self._version.local,
-        )
-
-    def __repr__(self) -> str:
-        return f"<Version('{self}')>"
-
-    def __str__(self) -> str:
-        parts = []
-
-        if self.epoch != 0:
-            parts.append(f'{self.epoch}!')
-
-        parts.append('.'.join(str(x) for x in self.release))
-
-        if self.pre is not None:
-            parts.append(''.join(str(x) for x in self.pre))
-
-        if self.post is not None:
-            parts.append(f'.post{self.post}')
-
-        if self.dev is not None:
-            parts.append(f'.dev{self.dev}')
-
-        if self.local is not None:
-            parts.append(f'+{self.local}')
-
-        return ''.join(parts)
-
-    @property
-    def epoch(self) -> int:
-        return self._version.epoch
-
-    @property
-    def release(self) -> ta.Tuple[int, ...]:
-        return self._version.release
-
-    @property
-    def pre(self) -> ta.Optional[ta.Tuple[str, int]]:
-        return self._version.pre
-
-    @property
-    def post(self) -> ta.Optional[int]:
-        return self._version.post[1] if self._version.post else None
-
-    @property
-    def dev(self) -> ta.Optional[int]:
-        return self._version.dev[1] if self._version.dev else None
-
-    @property
-    def local(self) -> ta.Optional[str]:
-        if self._version.local:
-            return '.'.join(str(x) for x in self._version.local)
-        else:
-            return None
-
-    @property
-    def public(self) -> str:
-        return str(self).split('+', 1)[0]
-
-    @property
-    def base_version(self) -> str:
-        parts = []
-
-        if self.epoch != 0:
-            parts.append(f'{self.epoch}!')
-
-        parts.append('.'.join(str(x) for x in self.release))
-
-        return ''.join(parts)
-
-    @property
-    def is_prerelease(self) -> bool:
-        return self.dev is not None or self.pre is not None
-
-    @property
-    def is_postrelease(self) -> bool:
-        return self.post is not None
-
-    @property
-    def is_devrelease(self) -> bool:
-        return self.dev is not None
-
-    @property
-    def major(self) -> int:
-        return self.release[0] if len(self.release) >= 1 else 0
-
-    @property
-    def minor(self) -> int:
-        return self.release[1] if len(self.release) >= 2 else 0
-
-    @property
-    def micro(self) -> int:
-        return self.release[2] if len(self.release) >= 3 else 0
-
-
-def _parse_letter_version(
-        letter: ta.Optional[str],
-        number: ta.Union[str, bytes, ta.SupportsInt, None],
-) -> ta.Optional[ta.Tuple[str, int]]:
-    if letter:
-        if number is None:
-            number = 0
-
-        letter = letter.lower()
-        if letter == 'alpha':
-            letter = 'a'
-        elif letter == 'beta':
-            letter = 'b'
-        elif letter in ['c', 'pre', 'preview']:
-            letter = 'rc'
-        elif letter in ['rev', 'r']:
-            letter = 'post'
-
-        return letter, int(number)
-    if not letter and number:
-        letter = 'post'
-        return letter, int(number)
-
-    return None
-
-
-_local_version_separators = re.compile(r'[\._-]')
-
-
-def _parse_local_version(local: ta.Optional[str]) -> ta.Optional[VersionLocalType]:
-    if local is not None:
-        return tuple(
-            part.lower() if not part.isdigit() else int(part)
-            for part in _local_version_separators.split(local)
-        )
-    return None
-
-
-def _version_cmpkey(
-    epoch: int,
-    release: ta.Tuple[int, ...],
-    pre: ta.Optional[ta.Tuple[str, int]],
-    post: ta.Optional[ta.Tuple[str, int]],
-    dev: ta.Optional[ta.Tuple[str, int]],
-    local: ta.Optional[VersionLocalType],
-) -> VersionCmpKey:
-    _release = tuple(reversed(list(itertools.dropwhile(lambda x: x == 0, reversed(release)))))
-
-    if pre is None and post is None and dev is not None:
-        _pre: VersionCmpPrePostDevType = NegativeInfinityVersion
-    elif pre is None:
-        _pre = InfinityVersion
-    else:
-        _pre = pre
-
-    if post is None:
-        _post: VersionCmpPrePostDevType = NegativeInfinityVersion
-    else:
-        _post = post
-
-    if dev is None:
-        _dev: VersionCmpPrePostDevType = InfinityVersion
-    else:
-        _dev = dev
-
-    if local is None:
-        _local: VersionCmpLocalType = NegativeInfinityVersion
-    else:
-        _local = tuple((i, '') if isinstance(i, int) else (NegativeInfinityVersion, i) for i in local)
-
-    return epoch, _release, _pre, _post, _dev, _local
-
-
-##
-
-
-def canonicalize_version(
-        version: ta.Union[Version, str],
-        *,
-        strip_trailing_zero: bool = True,
-) -> str:
-    if isinstance(version, str):
-        try:
-            parsed = Version(version)
-        except InvalidVersion:
-            return version
-    else:
-        parsed = version
-
-    parts = []
-
-    if parsed.epoch != 0:
-        parts.append(f'{parsed.epoch}!')
-
-    release_segment = '.'.join(str(x) for x in parsed.release)
-    if strip_trailing_zero:
-        release_segment = re.sub(r'(\.0)+$', '', release_segment)
-    parts.append(release_segment)
-
-    if parsed.pre is not None:
-        parts.append(''.join(str(x) for x in parsed.pre))
-
-    if parsed.post is not None:
-        parts.append(f'.post{parsed.post}')
-
-    if parsed.dev is not None:
-        parts.append(f'.dev{parsed.dev}')
-
-    if parsed.local is not None:
-        parts.append(f'+{parsed.local}')
-
-    return ''.join(parts)
-
-
-########################################
-# ../config.py
-
-
-##
-
-
-@dc.dataclass(frozen=True)
-class MainConfig:
-    log_level: ta.Optional[str] = 'INFO'
-
-    debug: bool = False
-
-
-########################################
-# ../deploy/config.py
-
-
-##
-
-
-@dc.dataclass(frozen=True)
-class DeployConfig:
-    pass
-
-
-########################################
-# ../deploy/paths/types.py
-
-
-##
-
-
-########################################
-# ../deploy/types.py
-
-
-##
-
-
-DeployHome = ta.NewType('DeployHome', str)
-
-DeployRev = ta.NewType('DeployRev', str)
-
-
-########################################
-# ../../pyremote.py
+# ../../../omcore/os/pyremote.py
 """
 Basically this: https://mitogen.networkgenomics.com/howitworks.html
 
@@ -5683,6 +5213,476 @@ class PyremoteBootstrapDriver:
                 await output.drain()
             else:
                 raise TypeError(go)
+
+
+########################################
+# ../../../omcore/shlex.py
+
+
+##
+
+
+def shlex_needs_quote(s: str) -> bool:
+    return bool(s) and len(list(shlex.shlex(s))) > 1
+
+
+def shlex_maybe_quote(s: str) -> str:
+    if shlex_needs_quote(s):
+        return shlex.quote(s)
+    else:
+        return s
+
+
+########################################
+# ../../../omdev/packaging/versions.py
+# Copyright (c) Donald Stufft and individual contributors.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+# following conditions are met:
+#
+#     1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
+#        following disclaimer.
+#
+#     2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+#        following disclaimer in the documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. This file is dual licensed under the terms of the
+# Apache License, Version 2.0, and the BSD License. See the LICENSE file in the root of this repository for complete
+# details.
+# https://github.com/pypa/packaging/blob/2c885fe91a54559e2382902dce28428ad2887be5/src/packaging/version.py
+
+
+##
+
+
+class InfinityVersionType:
+    def __repr__(self) -> str:
+        return 'Infinity'
+
+    def __hash__(self) -> int:
+        return hash(repr(self))
+
+    def __lt__(self, other: object) -> bool:
+        return False
+
+    def __le__(self, other: object) -> bool:
+        return False
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, self.__class__)
+
+    def __gt__(self, other: object) -> bool:
+        return True
+
+    def __ge__(self, other: object) -> bool:
+        return True
+
+    def __neg__(self: object) -> 'NegativeInfinityVersionType':
+        return NegativeInfinityVersion
+
+
+InfinityVersion = InfinityVersionType()
+
+
+class NegativeInfinityVersionType:
+    def __repr__(self) -> str:
+        return '-Infinity'
+
+    def __hash__(self) -> int:
+        return hash(repr(self))
+
+    def __lt__(self, other: object) -> bool:
+        return True
+
+    def __le__(self, other: object) -> bool:
+        return True
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, self.__class__)
+
+    def __gt__(self, other: object) -> bool:
+        return False
+
+    def __ge__(self, other: object) -> bool:
+        return False
+
+    def __neg__(self: object) -> InfinityVersionType:
+        return InfinityVersion
+
+
+NegativeInfinityVersion = NegativeInfinityVersionType()
+
+
+##
+
+
+class _Version(ta.NamedTuple):
+    epoch: int
+    release: ta.Tuple[int, ...]
+    dev: ta.Optional[ta.Tuple[str, int]]
+    pre: ta.Optional[ta.Tuple[str, int]]
+    post: ta.Optional[ta.Tuple[str, int]]
+    local: ta.Optional[VersionLocalType]
+
+
+class InvalidVersion(ValueError):  # noqa
+    pass
+
+
+class _BaseVersion:
+    _key: ta.Tuple[ta.Any, ...]
+
+    def __hash__(self) -> int:
+        return hash(self._key)
+
+    def __lt__(self, other: '_BaseVersion') -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+        return self._key < other._key
+
+    def __le__(self, other: '_BaseVersion') -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+        return self._key <= other._key
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+        return self._key == other._key
+
+    def __ge__(self, other: '_BaseVersion') -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+        return self._key >= other._key
+
+    def __gt__(self, other: '_BaseVersion') -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+        return self._key > other._key
+
+    def __ne__(self, other: object) -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+        return self._key != other._key
+
+
+_VERSION_PATTERN = r"""
+    v?
+    (?:
+        (?:(?P<epoch>[0-9]+)!)?
+        (?P<release>[0-9]+(?:\.[0-9]+)*)
+        (?P<pre>
+            [-_\.]?
+            (?P<pre_l>alpha|a|beta|b|preview|pre|c|rc)
+            [-_\.]?
+            (?P<pre_n>[0-9]+)?
+        )?
+        (?P<post>
+            (?:-(?P<post_n1>[0-9]+))
+            |
+            (?:
+                [-_\.]?
+                (?P<post_l>post|rev|r)
+                [-_\.]?
+                (?P<post_n2>[0-9]+)?
+            )
+        )?
+        (?P<dev>
+            [-_\.]?
+            (?P<dev_l>dev)
+            [-_\.]?
+            (?P<dev_n>[0-9]+)?
+        )?
+    )
+    (?:\+(?P<local>[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?
+"""
+
+VERSION_PATTERN = _VERSION_PATTERN
+
+
+class Version(_BaseVersion):
+    _regex = re.compile(r'^\s*' + VERSION_PATTERN + r'\s*$', re.VERBOSE | re.IGNORECASE)
+    _key: VersionCmpKey
+
+    def __init__(self, version: str) -> None:
+        match = self._regex.search(version)
+        if not match:
+            raise InvalidVersion(f"Invalid version: '{version}'")
+
+        self._version = _Version(
+            epoch=int(match.group('epoch')) if match.group('epoch') else 0,
+            release=tuple(int(i) for i in match.group('release').split('.')),
+            pre=_parse_letter_version(match.group('pre_l'), match.group('pre_n')),
+            post=_parse_letter_version(match.group('post_l'), match.group('post_n1') or match.group('post_n2')),
+            dev=_parse_letter_version(match.group('dev_l'), match.group('dev_n')),
+            local=_parse_local_version(match.group('local')),
+        )
+
+        self._key = _version_cmpkey(
+            self._version.epoch,
+            self._version.release,
+            self._version.pre,
+            self._version.post,
+            self._version.dev,
+            self._version.local,
+        )
+
+    def __repr__(self) -> str:
+        return f"<Version('{self}')>"
+
+    def __str__(self) -> str:
+        parts = []
+
+        if self.epoch != 0:
+            parts.append(f'{self.epoch}!')
+
+        parts.append('.'.join(str(x) for x in self.release))
+
+        if self.pre is not None:
+            parts.append(''.join(str(x) for x in self.pre))
+
+        if self.post is not None:
+            parts.append(f'.post{self.post}')
+
+        if self.dev is not None:
+            parts.append(f'.dev{self.dev}')
+
+        if self.local is not None:
+            parts.append(f'+{self.local}')
+
+        return ''.join(parts)
+
+    @property
+    def epoch(self) -> int:
+        return self._version.epoch
+
+    @property
+    def release(self) -> ta.Tuple[int, ...]:
+        return self._version.release
+
+    @property
+    def pre(self) -> ta.Optional[ta.Tuple[str, int]]:
+        return self._version.pre
+
+    @property
+    def post(self) -> ta.Optional[int]:
+        return self._version.post[1] if self._version.post else None
+
+    @property
+    def dev(self) -> ta.Optional[int]:
+        return self._version.dev[1] if self._version.dev else None
+
+    @property
+    def local(self) -> ta.Optional[str]:
+        if self._version.local:
+            return '.'.join(str(x) for x in self._version.local)
+        else:
+            return None
+
+    @property
+    def public(self) -> str:
+        return str(self).split('+', 1)[0]
+
+    @property
+    def base_version(self) -> str:
+        parts = []
+
+        if self.epoch != 0:
+            parts.append(f'{self.epoch}!')
+
+        parts.append('.'.join(str(x) for x in self.release))
+
+        return ''.join(parts)
+
+    @property
+    def is_prerelease(self) -> bool:
+        return self.dev is not None or self.pre is not None
+
+    @property
+    def is_postrelease(self) -> bool:
+        return self.post is not None
+
+    @property
+    def is_devrelease(self) -> bool:
+        return self.dev is not None
+
+    @property
+    def major(self) -> int:
+        return self.release[0] if len(self.release) >= 1 else 0
+
+    @property
+    def minor(self) -> int:
+        return self.release[1] if len(self.release) >= 2 else 0
+
+    @property
+    def micro(self) -> int:
+        return self.release[2] if len(self.release) >= 3 else 0
+
+
+def _parse_letter_version(
+        letter: ta.Optional[str],
+        number: ta.Union[str, bytes, ta.SupportsInt, None],
+) -> ta.Optional[ta.Tuple[str, int]]:
+    if letter:
+        if number is None:
+            number = 0
+
+        letter = letter.lower()
+        if letter == 'alpha':
+            letter = 'a'
+        elif letter == 'beta':
+            letter = 'b'
+        elif letter in ['c', 'pre', 'preview']:
+            letter = 'rc'
+        elif letter in ['rev', 'r']:
+            letter = 'post'
+
+        return letter, int(number)
+    if not letter and number:
+        letter = 'post'
+        return letter, int(number)
+
+    return None
+
+
+_local_version_separators = re.compile(r'[\._-]')
+
+
+def _parse_local_version(local: ta.Optional[str]) -> ta.Optional[VersionLocalType]:
+    if local is not None:
+        return tuple(
+            part.lower() if not part.isdigit() else int(part)
+            for part in _local_version_separators.split(local)
+        )
+    return None
+
+
+def _version_cmpkey(
+    epoch: int,
+    release: ta.Tuple[int, ...],
+    pre: ta.Optional[ta.Tuple[str, int]],
+    post: ta.Optional[ta.Tuple[str, int]],
+    dev: ta.Optional[ta.Tuple[str, int]],
+    local: ta.Optional[VersionLocalType],
+) -> VersionCmpKey:
+    _release = tuple(reversed(list(itertools.dropwhile(lambda x: x == 0, reversed(release)))))
+
+    if pre is None and post is None and dev is not None:
+        _pre: VersionCmpPrePostDevType = NegativeInfinityVersion
+    elif pre is None:
+        _pre = InfinityVersion
+    else:
+        _pre = pre
+
+    if post is None:
+        _post: VersionCmpPrePostDevType = NegativeInfinityVersion
+    else:
+        _post = post
+
+    if dev is None:
+        _dev: VersionCmpPrePostDevType = InfinityVersion
+    else:
+        _dev = dev
+
+    if local is None:
+        _local: VersionCmpLocalType = NegativeInfinityVersion
+    else:
+        _local = tuple((i, '') if isinstance(i, int) else (NegativeInfinityVersion, i) for i in local)
+
+    return epoch, _release, _pre, _post, _dev, _local
+
+
+##
+
+
+def canonicalize_version(
+        version: ta.Union[Version, str],
+        *,
+        strip_trailing_zero: bool = True,
+) -> str:
+    if isinstance(version, str):
+        try:
+            parsed = Version(version)
+        except InvalidVersion:
+            return version
+    else:
+        parsed = version
+
+    parts = []
+
+    if parsed.epoch != 0:
+        parts.append(f'{parsed.epoch}!')
+
+    release_segment = '.'.join(str(x) for x in parsed.release)
+    if strip_trailing_zero:
+        release_segment = re.sub(r'(\.0)+$', '', release_segment)
+    parts.append(release_segment)
+
+    if parsed.pre is not None:
+        parts.append(''.join(str(x) for x in parsed.pre))
+
+    if parsed.post is not None:
+        parts.append(f'.post{parsed.post}')
+
+    if parsed.dev is not None:
+        parts.append(f'.dev{parsed.dev}')
+
+    if parsed.local is not None:
+        parts.append(f'+{parsed.local}')
+
+    return ''.join(parts)
+
+
+########################################
+# ../config.py
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class MainConfig:
+    log_level: ta.Optional[str] = 'INFO'
+
+    debug: bool = False
+
+
+########################################
+# ../deploy/config.py
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class DeployConfig:
+    pass
+
+
+########################################
+# ../deploy/paths/types.py
+
+
+##
+
+
+########################################
+# ../deploy/types.py
+
+
+##
+
+
+DeployHome = ta.NewType('DeployHome', str)
+
+DeployRev = ta.NewType('DeployRev', str)
 
 
 ########################################

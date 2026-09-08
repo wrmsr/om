@@ -7,10 +7,10 @@ from omcore.asyncs.asyncio.channels import asyncio_create_bytes_channel
 from omcore.lite.cached import cached_nullary
 from omcore.lite.contextmanagers import aclosing
 from omcore.lite.marshal import ObjMarshalerManager
+from omcore.os.pyremote import PyremoteBootstrapDriver
+from omcore.os.pyremote import PyremoteBootstrapOptions
+from omcore.os.pyremote import pyremote_build_bootstrap_cmd
 
-from ...pyremote import PyremoteBootstrapDriver
-from ...pyremote import PyremoteBootstrapOptions
-from ...pyremote import pyremote_build_bootstrap_cmd
 from ..bootstrap import MainBootstrap
 from ..commands.local import LocalCommandExecutor
 from ._main import _remote_execution_main  # noqa
