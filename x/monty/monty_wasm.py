@@ -522,7 +522,7 @@ def _main(argv=None) -> None:
     parser = argparse.ArgumentParser()
 
     parser.add_argument('component_path', metavar='component-path')
-    parser.add_argument('--raise_direct', metavar='raise-direct', action='store_true')
+    parser.add_argument('--raise-direct', dest='raise_direct', action='store_true')
 
     args = parser.parse_args(argv)
 
