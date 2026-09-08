@@ -1,6 +1,7 @@
 import typing as ta
 
 from omcore import check
+from omcore import collections as col
 from omcore import lang
 from omcore import marshal as msh
 from omcore.argparse import all as ap
@@ -84,9 +85,9 @@ class PermissionsCommand(ParserCommandClass):
         matcher = msh.unmarshal(dct, agn.PermissionMatcher)
         rule = agn.PermissionRule(matcher, agn.PermissionState[args.state.upper()])
 
-        self._permissions.add_rule(rule)
+        new_rules = self._permissions.update_rules(lambda old_rules: agn.PermissionRules([*old_rules, rule]))
 
-        rmd = self._permissions.get_rules().min_digests[rule]
+        rmd = new_rules.min_digests[rule]
         await ctx.print(self._render_rule(rmd, rule), '\n')
 
     #
@@ -96,9 +97,11 @@ class PermissionsCommand(ParserCommandClass):
         name='rm',
     )
     async def _run_rm(self, ctx: CommandContext, args: ap.Namespace) -> None:
-        for digest in args.digest:
-            rule = self._permissions.get_rules()[digest]
-            self._permissions.remove_rule(rule)
+        def update(old_rules: agn.PermissionRules) -> agn.PermissionRules:
+            rm_rules = col.IdentitySet(r for d in args.digest if (r := old_rules.get(d)) is not None)
+            return agn.PermissionRules([r for r in old_rules if r not in rm_rules])
+
+        self._permissions.update_rules(update)
 
     #
 
@@ -106,6 +109,4 @@ class PermissionsCommand(ParserCommandClass):
         name='clear',
     )
     async def _run_clear(self, ctx: CommandContext, args: ap.Namespace) -> None:
-        while len(rules := self._permissions.get_rules()):
-            rule = rules[0]
-            self._permissions.remove_rule(rule)
+        self._permissions.update_rules(lambda _: agn.PermissionRules())

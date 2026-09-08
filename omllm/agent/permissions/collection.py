@@ -94,4 +94,8 @@ class PermissionRules(fh.FieldHashable, lang.Final):
     def get(self, key: str, default: PermissionRule) -> PermissionRule: ...
 
     def get(self, key, default=None):
+        if (kl := len(key)) < fh.FIELD_HASH_DIGEST_LEN:
+            if kl < self.min_digest_len:
+                raise KeyError(key)
+            key = self._mup().lookup(key)
         return self.by_digest.get(key, default)
