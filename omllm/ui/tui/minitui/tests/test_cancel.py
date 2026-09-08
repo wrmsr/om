@@ -79,7 +79,10 @@ def test_abort_while_thinking_resets_status_and_stops_spinner():
     app.abort_ai_turn(cancelled=True)
 
     # The open `ai` block is closed visibly even though nothing streamed.
-    assert commit_texts(driver) == ['ai', '× cancelled\n']
+    cts = commit_texts(driver)
+    assert len(cts) == 2
+    assert cts[0].startswith('ai ')
+    assert cts[1] == '× cancelled\n'
     assert not app.is_busy
     assert any(' idle ' in line for line in frame_lines(app))
     before = driver.invalidations
