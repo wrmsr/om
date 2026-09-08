@@ -1875,6 +1875,14 @@ class NestedVirtualizationSpecification(_base.Enum):
 
 NetworkCardIndex = _ta.NewType('NetworkCardIndex', int)
 
+
+class NetworkCardInterfaceType(_base.Enum):
+    INTERFACE = 'interface'
+    EFA = 'efa'
+    EFA_ONLY = 'efa-only'
+    SECONDARY = 'secondary'
+
+
 NetworkInterfaceId = _ta.NewType('NetworkInterfaceId', str)
 
 
@@ -3907,64 +3915,7 @@ class Monitoring(
     ))
 
 
-@_dc.dataclass(frozen=True, kw_only=True)
-class NetworkCardInfo(
-    _base.Shape,
-    shape_name='NetworkCardInfo',
-):
-    network_card_index: NetworkCardIndex | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='NetworkCardIndex',
-        serialization_name='networkCardIndex',
-        shape_name='NetworkCardIndex',
-    ))
-
-    network_performance: NetworkPerformance | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='NetworkPerformance',
-        serialization_name='networkPerformance',
-        shape_name='NetworkPerformance',
-    ))
-
-    maximum_network_interfaces: MaxNetworkInterfaces | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='MaximumNetworkInterfaces',
-        serialization_name='maximumNetworkInterfaces',
-        shape_name='MaxNetworkInterfaces',
-    ))
-
-    additional_flexible_network_interfaces: AdditionalFlexibleNetworkInterfaces | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='AdditionalFlexibleNetworkInterfaces',
-        serialization_name='additionalFlexibleNetworkInterfaces',
-        shape_name='AdditionalFlexibleNetworkInterfaces',
-    ))
-
-    baseline_bandwidth_in_gbips: BaselineBandwidthInGbps | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='BaselineBandwidthInGbps',
-        serialization_name='baselineBandwidthInGbps',
-        shape_name='BaselineBandwidthInGbps',
-    ))
-
-    peak_bandwidth_in_gbips: PeakBandwidthInGbps | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='PeakBandwidthInGbps',
-        serialization_name='peakBandwidthInGbps',
-        shape_name='PeakBandwidthInGbps',
-    ))
-
-    default_ena_queue_count_per_interface: DefaultEnaQueueCountPerInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='DefaultEnaQueueCountPerInterface',
-        serialization_name='defaultEnaQueueCountPerInterface',
-        shape_name='DefaultEnaQueueCountPerInterface',
-    ))
-
-    maximum_ena_queue_count: MaximumEnaQueueCount | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='MaximumEnaQueueCount',
-        serialization_name='maximumEnaQueueCount',
-        shape_name='MaximumEnaQueueCount',
-    ))
-
-    maximum_ena_queue_count_per_interface: MaximumEnaQueueCountPerInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='MaximumEnaQueueCountPerInterface',
-        serialization_name='maximumEnaQueueCountPerInterface',
-        shape_name='MaximumEnaQueueCountPerInterface',
-    ))
+NetworkCardInterfaceTypeList: _ta.TypeAlias = _ta.Sequence[NetworkCardInterfaceType]
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -5147,7 +5098,72 @@ class MediaDeviceInfo(
     ))
 
 
-NetworkCardInfoList: _ta.TypeAlias = _ta.Sequence[NetworkCardInfo]
+@_dc.dataclass(frozen=True, kw_only=True)
+class NetworkCardInfo(
+    _base.Shape,
+    shape_name='NetworkCardInfo',
+):
+    network_card_index: NetworkCardIndex | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='NetworkCardIndex',
+        serialization_name='networkCardIndex',
+        shape_name='NetworkCardIndex',
+    ))
+
+    network_performance: NetworkPerformance | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='NetworkPerformance',
+        serialization_name='networkPerformance',
+        shape_name='NetworkPerformance',
+    ))
+
+    maximum_network_interfaces: MaxNetworkInterfaces | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MaximumNetworkInterfaces',
+        serialization_name='maximumNetworkInterfaces',
+        shape_name='MaxNetworkInterfaces',
+    ))
+
+    additional_flexible_network_interfaces: AdditionalFlexibleNetworkInterfaces | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='AdditionalFlexibleNetworkInterfaces',
+        serialization_name='additionalFlexibleNetworkInterfaces',
+        shape_name='AdditionalFlexibleNetworkInterfaces',
+    ))
+
+    baseline_bandwidth_in_gbips: BaselineBandwidthInGbps | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='BaselineBandwidthInGbps',
+        serialization_name='baselineBandwidthInGbps',
+        shape_name='BaselineBandwidthInGbps',
+    ))
+
+    peak_bandwidth_in_gbips: PeakBandwidthInGbps | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='PeakBandwidthInGbps',
+        serialization_name='peakBandwidthInGbps',
+        shape_name='PeakBandwidthInGbps',
+    ))
+
+    default_ena_queue_count_per_interface: DefaultEnaQueueCountPerInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DefaultEnaQueueCountPerInterface',
+        serialization_name='defaultEnaQueueCountPerInterface',
+        shape_name='DefaultEnaQueueCountPerInterface',
+    ))
+
+    maximum_ena_queue_count: MaximumEnaQueueCount | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MaximumEnaQueueCount',
+        serialization_name='maximumEnaQueueCount',
+        shape_name='MaximumEnaQueueCount',
+    ))
+
+    maximum_ena_queue_count_per_interface: MaximumEnaQueueCountPerInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MaximumEnaQueueCountPerInterface',
+        serialization_name='maximumEnaQueueCountPerInterface',
+        shape_name='MaximumEnaQueueCountPerInterface',
+    ))
+
+    interface_types: NetworkCardInterfaceTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='InterfaceTypes',
+        serialization_name='interfaceTypeSet',
+        value_type=_base.ListValueType(NetworkCardInterfaceType),
+        shape_name='NetworkCardInterfaceTypeList',
+    ))
+
 
 NetworkInterfaceIpv6AddressesList: _ta.TypeAlias = _ta.Sequence[NetworkInterfaceIpv6Address]
 
@@ -6274,127 +6290,7 @@ class IpPermission(
 
 MediaDeviceInfoList: _ta.TypeAlias = _ta.Sequence[MediaDeviceInfo]
 
-
-@_dc.dataclass(frozen=True, kw_only=True)
-class NetworkInfo(
-    _base.Shape,
-    shape_name='NetworkInfo',
-):
-    network_performance: NetworkPerformance | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='NetworkPerformance',
-        serialization_name='networkPerformance',
-        shape_name='NetworkPerformance',
-    ))
-
-    maximum_network_interfaces: MaxNetworkInterfaces | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='MaximumNetworkInterfaces',
-        serialization_name='maximumNetworkInterfaces',
-        shape_name='MaxNetworkInterfaces',
-    ))
-
-    maximum_network_cards: MaximumNetworkCards | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='MaximumNetworkCards',
-        serialization_name='maximumNetworkCards',
-        shape_name='MaximumNetworkCards',
-    ))
-
-    default_network_card_index: DefaultNetworkCardIndex | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='DefaultNetworkCardIndex',
-        serialization_name='defaultNetworkCardIndex',
-        shape_name='DefaultNetworkCardIndex',
-    ))
-
-    network_cards: NetworkCardInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='NetworkCards',
-        serialization_name='networkCards',
-        value_type=_base.ListValueType(NetworkCardInfo),
-        shape_name='NetworkCardInfoList',
-    ))
-
-    ipv4_addresses_per_interface: MaxIpv4AddrPerInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='Ipv4AddressesPerInterface',
-        serialization_name='ipv4AddressesPerInterface',
-        shape_name='MaxIpv4AddrPerInterface',
-    ))
-
-    ipv6_addresses_per_interface: MaxIpv6AddrPerInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='Ipv6AddressesPerInterface',
-        serialization_name='ipv6AddressesPerInterface',
-        shape_name='MaxIpv6AddrPerInterface',
-    ))
-
-    ipv6_supported: Ipv6Flag | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='Ipv6Supported',
-        serialization_name='ipv6Supported',
-        shape_name='Ipv6Flag',
-    ))
-
-    ena_support: EnaSupport | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='EnaSupport',
-        serialization_name='enaSupport',
-        shape_name='EnaSupport',
-    ))
-
-    efa_supported: EfaSupportedFlag | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='EfaSupported',
-        serialization_name='efaSupported',
-        shape_name='EfaSupportedFlag',
-    ))
-
-    efa_info: EfaInfo | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='EfaInfo',
-        serialization_name='efaInfo',
-        shape_name='EfaInfo',
-    ))
-
-    encryption_in_transit_supported: EncryptionInTransitSupported | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='EncryptionInTransitSupported',
-        serialization_name='encryptionInTransitSupported',
-        shape_name='EncryptionInTransitSupported',
-    ))
-
-    ena_srd_supported: EnaSrdSupported | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='EnaSrdSupported',
-        serialization_name='enaSrdSupported',
-        shape_name='EnaSrdSupported',
-    ))
-
-    bandwidth_weightings: BandwidthWeightingTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='BandwidthWeightings',
-        serialization_name='bandwidthWeightings',
-        value_type=_base.ListValueType(BandwidthWeightingType),
-        shape_name='BandwidthWeightingTypeList',
-    ))
-
-    flexible_ena_queues_support: FlexibleEnaQueuesSupport | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='FlexibleEnaQueuesSupport',
-        serialization_name='flexibleEnaQueuesSupport',
-        shape_name='FlexibleEnaQueuesSupport',
-    ))
-
-    connection_tracking_configuration: DefaultConnectionTrackingConfiguration | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='ConnectionTrackingConfiguration',
-        serialization_name='connectionTrackingConfiguration',
-        shape_name='DefaultConnectionTrackingConfiguration',
-    ))
-
-    secondary_network_supported: SecondaryNetworkSupportedFlag | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='SecondaryNetworkSupported',
-        serialization_name='secondaryNetworkSupported',
-        shape_name='SecondaryNetworkSupportedFlag',
-    ))
-
-    maximum_secondary_network_interfaces: MaximumSecondaryNetworkInterfaces | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='MaximumSecondaryNetworkInterfaces',
-        serialization_name='maximumSecondaryNetworkInterfaces',
-        shape_name='MaximumSecondaryNetworkInterfaces',
-    ))
-
-    ipv4_addresses_per_secondary_interface: Ipv4AddressesPerSecondaryInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='Ipv4AddressesPerSecondaryInterface',
-        serialization_name='ipv4AddressesPerSecondaryInterface',
-        shape_name='Ipv4AddressesPerSecondaryInterface',
-    ))
+NetworkCardInfoList: _ta.TypeAlias = _ta.Sequence[NetworkCardInfo]
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -7436,6 +7332,128 @@ class MediaAcceleratorInfo(
         member_name='TotalMediaMemoryInMiB',
         serialization_name='totalMediaMemoryInMiB',
         shape_name='TotalMediaMemory',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
+class NetworkInfo(
+    _base.Shape,
+    shape_name='NetworkInfo',
+):
+    network_performance: NetworkPerformance | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='NetworkPerformance',
+        serialization_name='networkPerformance',
+        shape_name='NetworkPerformance',
+    ))
+
+    maximum_network_interfaces: MaxNetworkInterfaces | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MaximumNetworkInterfaces',
+        serialization_name='maximumNetworkInterfaces',
+        shape_name='MaxNetworkInterfaces',
+    ))
+
+    maximum_network_cards: MaximumNetworkCards | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MaximumNetworkCards',
+        serialization_name='maximumNetworkCards',
+        shape_name='MaximumNetworkCards',
+    ))
+
+    default_network_card_index: DefaultNetworkCardIndex | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DefaultNetworkCardIndex',
+        serialization_name='defaultNetworkCardIndex',
+        shape_name='DefaultNetworkCardIndex',
+    ))
+
+    network_cards: NetworkCardInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='NetworkCards',
+        serialization_name='networkCards',
+        value_type=_base.ListValueType(NetworkCardInfo),
+        shape_name='NetworkCardInfoList',
+    ))
+
+    ipv4_addresses_per_interface: MaxIpv4AddrPerInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='Ipv4AddressesPerInterface',
+        serialization_name='ipv4AddressesPerInterface',
+        shape_name='MaxIpv4AddrPerInterface',
+    ))
+
+    ipv6_addresses_per_interface: MaxIpv6AddrPerInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='Ipv6AddressesPerInterface',
+        serialization_name='ipv6AddressesPerInterface',
+        shape_name='MaxIpv6AddrPerInterface',
+    ))
+
+    ipv6_supported: Ipv6Flag | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='Ipv6Supported',
+        serialization_name='ipv6Supported',
+        shape_name='Ipv6Flag',
+    ))
+
+    ena_support: EnaSupport | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='EnaSupport',
+        serialization_name='enaSupport',
+        shape_name='EnaSupport',
+    ))
+
+    efa_supported: EfaSupportedFlag | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='EfaSupported',
+        serialization_name='efaSupported',
+        shape_name='EfaSupportedFlag',
+    ))
+
+    efa_info: EfaInfo | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='EfaInfo',
+        serialization_name='efaInfo',
+        shape_name='EfaInfo',
+    ))
+
+    encryption_in_transit_supported: EncryptionInTransitSupported | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='EncryptionInTransitSupported',
+        serialization_name='encryptionInTransitSupported',
+        shape_name='EncryptionInTransitSupported',
+    ))
+
+    ena_srd_supported: EnaSrdSupported | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='EnaSrdSupported',
+        serialization_name='enaSrdSupported',
+        shape_name='EnaSrdSupported',
+    ))
+
+    bandwidth_weightings: BandwidthWeightingTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='BandwidthWeightings',
+        serialization_name='bandwidthWeightings',
+        value_type=_base.ListValueType(BandwidthWeightingType),
+        shape_name='BandwidthWeightingTypeList',
+    ))
+
+    flexible_ena_queues_support: FlexibleEnaQueuesSupport | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='FlexibleEnaQueuesSupport',
+        serialization_name='flexibleEnaQueuesSupport',
+        shape_name='FlexibleEnaQueuesSupport',
+    ))
+
+    connection_tracking_configuration: DefaultConnectionTrackingConfiguration | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ConnectionTrackingConfiguration',
+        serialization_name='connectionTrackingConfiguration',
+        shape_name='DefaultConnectionTrackingConfiguration',
+    ))
+
+    secondary_network_supported: SecondaryNetworkSupportedFlag | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='SecondaryNetworkSupported',
+        serialization_name='secondaryNetworkSupported',
+        shape_name='SecondaryNetworkSupportedFlag',
+    ))
+
+    maximum_secondary_network_interfaces: MaximumSecondaryNetworkInterfaces | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MaximumSecondaryNetworkInterfaces',
+        serialization_name='maximumSecondaryNetworkInterfaces',
+        shape_name='MaximumSecondaryNetworkInterfaces',
+    ))
+
+    ipv4_addresses_per_secondary_interface: Ipv4AddressesPerSecondaryInterface | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='Ipv4AddressesPerSecondaryInterface',
+        serialization_name='ipv4AddressesPerSecondaryInterface',
+        shape_name='Ipv4AddressesPerSecondaryInterface',
     ))
 
 

@@ -218,6 +218,16 @@ class ObjectCannedACL(_base.Enum):
 ObjectKey = _ta.NewType('ObjectKey', str)
 
 
+class ObjectLockEventHold(_base.Enum):
+    ON = 'ON'
+    OFF = 'OFF'
+
+
+ObjectLockEventHoldDurationDays = _ta.NewType('ObjectLockEventHoldDurationDays', int)
+
+ObjectLockEventHoldDurationYears = _ta.NewType('ObjectLockEventHoldDurationYears', int)
+
+
 class ObjectLockLegalHoldStatus(_base.Enum):
     ON = 'ON'
     OFF = 'OFF'
@@ -1112,6 +1122,24 @@ class GetObjectOutput(
         shape_name='ObjectLockLegalHoldStatus',
     ))
 
+    object_lock_event_hold: ObjectLockEventHold | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ObjectLockEventHold',
+        serialization_name='x-amz-object-lock-event-hold',
+        shape_name='ObjectLockEventHold',
+    ))
+
+    object_lock_event_hold_duration_days: ObjectLockEventHoldDurationDays | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ObjectLockEventHoldDurationDays',
+        serialization_name='x-amz-object-lock-event-hold-duration-days',
+        shape_name='ObjectLockEventHoldDurationDays',
+    ))
+
+    object_lock_event_hold_duration_years: ObjectLockEventHoldDurationYears | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ObjectLockEventHoldDurationYears',
+        serialization_name='x-amz-object-lock-event-hold-duration-years',
+        shape_name='ObjectLockEventHoldDurationYears',
+    ))
+
 
 @_dc.dataclass(frozen=True, kw_only=True)
 class ListObjectsV2Request(
@@ -1511,6 +1539,24 @@ class PutObjectRequest(
         member_name='ObjectLockLegalHoldStatus',
         serialization_name='x-amz-object-lock-legal-hold',
         shape_name='ObjectLockLegalHoldStatus',
+    ))
+
+    object_lock_event_hold: ObjectLockEventHold | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ObjectLockEventHold',
+        serialization_name='x-amz-object-lock-event-hold',
+        shape_name='ObjectLockEventHold',
+    ))
+
+    object_lock_event_hold_duration_days: ObjectLockEventHoldDurationDays | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ObjectLockEventHoldDurationDays',
+        serialization_name='x-amz-object-lock-event-hold-duration-days',
+        shape_name='ObjectLockEventHoldDurationDays',
+    ))
+
+    object_lock_event_hold_duration_years: ObjectLockEventHoldDurationYears | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ObjectLockEventHoldDurationYears',
+        serialization_name='x-amz-object-lock-event-hold-duration-years',
+        shape_name='ObjectLockEventHoldDurationYears',
     ))
 
     expected_bucket_owner: AccountId | None = _dc.field(default=None, metadata=_base.field_metadata(
