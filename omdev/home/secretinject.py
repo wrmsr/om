@@ -3,10 +3,21 @@
 # @om-script
 # ruff: noqa: UP006 UP045
 """
-inject_secret.py -- atomically set one top-level key in a JSON object file, safely in the presence of concurrent
-invocations of itself.
+inject_secret.py -- atomically upsert keys into a JSON object file, safely in the presence of concurrent invocations of
+itself.
 
-    printf '%s' "$DB_PASSWORD" | inject_secret.py /etc/app/config.json db_password
+    printf '{"db_password": "%s", "legacy_token": null}' "$DB_PASSWORD" | inject_secret.py /etc/app/config.json
+
+Stdin is a JSON object, shallowly merged into the file (which must hold a JSON object, or not exist yet): each key is
+upserted wholesale -- values can be anything, but dicts and lists are replaced, never merged -- and a null value removes
+the key.
+
+Key order records modification order: keys not mentioned on stdin are written in the order they were read, followed by
+every key set on stdin -- whether or not its value actually changed -- in the order they appear there. Removed keys are
+simply dropped. If the result is identical to the current contents (same keys, values and order, compared by JSON
+serialization, so 1, 1.0 and true are distinct) the file is not rewritten.
+
+Output is pretty-printed with a two space indent, except that an empty object is written as exactly `{}`.
 
 Guarantees (Linux only; needs nothing newer than flock(2), link(2), rename(2)):
 
@@ -28,6 +39,7 @@ How the lock and the atomic replace are combined:
 Exit status: 0 ok, 1 error, 2 usage, 3 lock timeout.
 """
 import argparse
+import collections
 import errno
 import fcntl
 import json
@@ -49,6 +61,8 @@ POLL_MAX = 0.05
 
 # mode for a file we create; existing files keep theirs
 NEW_FILE_MODE = 0o600
+
+JsonObject = ta.OrderedDict[str, ta.Any]  # ta.TypeAlias
 
 
 def write_all(fd: int, data: bytes) -> None:
@@ -89,6 +103,7 @@ def write_temp(
     """Write data to a fresh, fsync'd temp file next to the target. Returns its path."""
 
     fd, tmp = tempfile.mkstemp(prefix='.' + basename + '.', suffix='.tmp', dir=dirname)
+
     try:
         if uid_gid is not None:
             uid, gid = uid_gid
@@ -96,36 +111,68 @@ def write_temp(
                 os.fchown(fd, uid, gid)
             except PermissionError:
                 pass  # not root; the file keeps our ownership
+
         os.fchmod(fd, mode)
         write_all(fd, data)
         os.fsync(fd)
+
     except BaseException:
         os.close(fd)
         os.unlink(tmp)
         raise
+
     os.close(fd)
     return tmp
 
 
-def load(raw: bytes) -> ta.Any:
-    text = raw.decode('utf-8')
-    if not text.strip():
-        return {}  # tolerate an empty/whitespace-only file (e.g. `touch`ed)
-    data = json.loads(text)
-    if not isinstance(data, dict):
+def parse_object(text: str) -> JsonObject:
+    data = json.loads(text, object_pairs_hook=collections.OrderedDict)
+    if not isinstance(data, collections.OrderedDict):
         raise ValueError('top-level JSON value is not an object')  # noqa
     return data
 
 
-def dump(data: ta.Any) -> bytes:
+def load(raw: bytes) -> JsonObject:
+    text = raw.decode('utf-8')
+    if not text.strip():
+        return collections.OrderedDict()  # tolerate an empty/whitespace-only file (e.g. `touch`ed)
+    return parse_object(text)
+
+
+def dump(data: JsonObject) -> bytes:
+    if not data:
+        return b'{}'
     return (json.dumps(data, indent=2, ensure_ascii=False) + '\n').encode('utf-8')
+
+
+def values_equal(a: ta.Any, b: ta.Any) -> bool:
+    """Compare by JSON serialization: 1, 1.0 and true are all distinct, and key order within nested objects matters."""
+
+    return json.dumps(a) == json.dumps(b)
+
+
+def merge(
+        existing: JsonObject,
+        update: JsonObject,
+) -> ta.Tuple[JsonObject, bool]:
+    """
+    Shallowly apply `update` to `existing`: a None value removes the key, any other value replaces it wholesale. Returns
+    the merged object -- keys not in `update` first, in their existing order, then every key set by `update` in `update`
+    order, even if its value is unchanged -- and whether the result differs from `existing` at all.
+    """
+
+    merged: JsonObject = collections.OrderedDict(
+        (k, v) for k, v in existing.items() if k not in update
+    )
+    merged.update((k, v) for k, v in update.items() if v is not None)
+    return merged, not values_equal(merged, existing)
 
 
 def try_create(
         path: str,
         dirname: str,
         basename: str,
-        data: ta.Any,
+        data: JsonObject,
 ) -> bool:
     """Atomically create `path` with `data` iff it does not exist. True on success."""
 
@@ -135,10 +182,13 @@ def try_create(
         dump(data),
         NEW_FILE_MODE,
     )
+
     try:
         os.link(tmp, path)
+
     except FileExistsError:
         return False  # someone beat us to it; caller will lock and update that file
+
     except OSError as e:
         if e.errno in (errno.EPERM, errno.EOPNOTSUPP, errno.EXDEV, errno.EMLINK):
             raise OSError(
@@ -146,17 +196,19 @@ def try_create(
                 f'filesystem does not allow hard links, which are needed to create the file atomically: {e.strerror}',
                 path,
             ) from None
+
         raise
+
     finally:
         os.unlink(tmp)
+
     fsync_dir(dirname)
     return True
 
 
 def inject(
         path: str,
-        key: str,
-        value: str,
+        update: JsonObject,
         timeout: float,
 ) -> None:
     path = os.path.realpath(path)  # operate on the real file if `path` is a symlink
@@ -166,9 +218,18 @@ def inject(
     while True:
         try:
             fd = os.open(path, os.O_RDONLY)
+
         except FileNotFoundError:
-            if try_create(path, dirname, basename, {key: value}):
+            merged, _ = merge(collections.OrderedDict(), update)
+
+            if try_create(
+                    path,
+                    dirname,
+                    basename,
+                    merged,
+            ):
                 return
+
             continue  # lost the create race; lock whatever exists now
 
         try:
@@ -183,49 +244,55 @@ def inject(
             # We hold a lock on *an* inode. Make sure it is still the one at `path`: a concurrent writer may have
             # rename()d a new file over it while we waited.
             st = os.fstat(fd)
+
             try:
                 cur = os.stat(path)
             except FileNotFoundError:
                 continue  # deleted underneath us; go recreate
+
             if (st.st_dev, st.st_ino) != (cur.st_dev, cur.st_ino):
                 continue  # stale inode; retry against the current file
             if not stat.S_ISREG(st.st_mode):
                 raise OSError(errno.EINVAL, 'not a regular file', path)
 
-            data = load(read_all(fd))
-            if key in data and data[key] == value:
-                return  # already set; don't churn the file
-            data[key] = value
+            try:
+                existing = load(read_all(fd))
+            except ValueError as e:
+                raise ValueError(f'{path}: {e}') from None
+
+            merged, changed = merge(existing, update)
+            if not changed:
+                return  # nothing to do; don't churn the file
 
             tmp = write_temp(
                 dirname,
                 basename,
-                dump(data),
+                dump(merged),
                 stat.S_IMODE(st.st_mode),
                 uid_gid=(st.st_uid, st.st_gid),
             )
+
             try:
                 os.rename(tmp, path)  # atomic replace, done while holding the lock
             except BaseException:
                 os.unlink(tmp)
                 raise
+
             fsync_dir(dirname)
             return
+
         finally:
             os.close(fd)  # releases the flock
 
 
-def main(argv: ta.Any = None) -> None:
+def main(argv: ta.Any = None) -> int:
     ap = argparse.ArgumentParser(
-        description='Atomically set a top-level key in a JSON file; value is read from stdin.',
+        description='Atomically upsert keys into a JSON object file; the update is a JSON object read from stdin.',
     )
+
     ap.add_argument(
         'file',
         help='JSON file to update (created if missing)',
-    )
-    ap.add_argument(
-        'key',
-        help='top-level key to set',
     )
     ap.add_argument(
         '--timeout',
@@ -234,31 +301,28 @@ def main(argv: ta.Any = None) -> None:
         help='max seconds to wait for the lock (default: 30)',
     )
     ap.add_argument(
-        '--raw',
-        action='store_true',
-        help='keep a trailing newline on the value (default: strip one)',
+        '--description',
+        help='ignored; only serves as a note in process listings and execution logs',
     )
+
     args = ap.parse_args(argv)
 
     try:
-        value = sys.stdin.buffer.read().decode('utf-8')
-    except UnicodeDecodeError as e:
-        print(f'error: value on stdin is not valid UTF-8: {e}', file=sys.stderr)
+        update = parse_object(sys.stdin.buffer.read().decode('utf-8'))
+    except ValueError as e:  # covers UnicodeDecodeError and json.JSONDecodeError
+        print(f'error: stdin is not a JSON object: {e}', file=sys.stderr)
         return 1
-    if not args.raw:
-        if value.endswith('\r\n'):
-            value = value[:-2]
-        elif value.endswith('\n'):
-            value = value[:-1]
 
     try:
-        inject(args.file, args.key, value, args.timeout)
+        inject(args.file, update, args.timeout)
     except TimeoutError as e:
         print(f'error: {e}', file=sys.stderr)
         return 3
+
     except (OSError, ValueError) as e:
         print(f'error: {e}', file=sys.stderr)
         return 1
+
     return 0
 
 
