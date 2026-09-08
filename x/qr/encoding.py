@@ -803,7 +803,7 @@ def encode(
 ##
 
 
-class QRCode:
+class QrCode:
     __slots__ = (
         '_error',
         '_matrix_size',
@@ -824,7 +824,7 @@ class QRCode:
 
 
 def make(content):
-    return QRCode(encode(content))
+    return QrCode(encode(content))
 
 
 ##
