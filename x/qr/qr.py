@@ -462,8 +462,11 @@ def write_segment(buff, segment, ver, ver_range, eci=False):
     mode = segment.mode
     append_bits = buff.append_bits
     # Write ECI header if requested
-    if eci and mode == MODE_BYTE \
-            and segment.encoding != DEFAULT_BYTE_ENCODING:
+    if (
+            eci and
+            mode == MODE_BYTE and
+            segment.encoding != DEFAULT_BYTE_ENCODING
+    ):
         append_bits(MODE_ECI, 4)
         append_bits(get_eci_assignment_number(segment.encoding), 8)
     if ver is None:  # QR Code
@@ -1168,9 +1171,11 @@ def mask_scores(matrix, width, height):
         idx = seq.find(n3_pattern)
         while idx != -1:
             offset = idx + 7
-            if idx in (0, qr_size - 7) \
-                    or not any(seq[max(idx - 4, 0):min(idx, qr_size)]) \
-                    or not any(seq[max(offset, 0):min(offset + 4, qr_size)]):
+            if (
+                    idx in (0, qr_size - 7) or
+                    not any(seq[max(idx - 4, 0):min(idx, qr_size)]) or
+                    not any(seq[max(offset, 0):min(offset + 4, qr_size)])
+            ):
                 count += 40  # N3 = 40
             else:
                 # Found no / not enough light modules, start at next possible match:
