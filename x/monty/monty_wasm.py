@@ -508,7 +508,7 @@ def _main(argv=None) -> None:
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('component-path')
+    parser.add_argument('component-path', dest='component_path')
 
     args = parser.parse_args(argv)
 
