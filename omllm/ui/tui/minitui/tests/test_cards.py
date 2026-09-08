@@ -185,4 +185,4 @@ def test_tool_card_key_uses_llm_call_identity():
     assert tool_card_key(context) == 'call-a'
 
     context_without_call = agn.ToolContext(args={})
-    assert tool_card_key(context_without_call) == f'context:{id(context_without_call)}'
+    assert tool_card_key(context_without_call) == f'context:{id(context_without_call):x}'
