@@ -58,7 +58,7 @@ basedpyright==1.39.10
 
 blobfile==3.2.0
 
-pydantic-monty==0.0.22
+pydantic-monty==0.0.23
 
 
 ##
