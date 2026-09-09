@@ -1,7 +1,6 @@
 import uuid
 
-from ....io.pipelines.core import IoPipeline
-from ....io.pipelines.flow.stub import StubIoPipelineFlowService
+from ....io.pipelines import all as ipl
 from .codecs import RpcFrameCodecIoPipelineHandler
 from .codecs import RpcJsonCodecIoPipelineHandler
 from .sessions import RpcClientSessionIoPipelineHandler
@@ -15,14 +14,14 @@ def rpc_client_pipeline_spec(
         *,
         protocol_version: int,
         max_frame_bytes: int,
-) -> IoPipeline.Spec:
-    return IoPipeline.Spec(
+) -> ipl.Pipeline.Spec:
+    return ipl.Pipeline.Spec(
         handlers=[
             RpcFrameCodecIoPipelineHandler(max_frame_bytes),
             RpcJsonCodecIoPipelineHandler(),
             RpcClientSessionIoPipelineHandler(protocol_version),
         ],
-        services=[StubIoPipelineFlowService()],
+        services=[ipl.StubFlowService()],
     )
 
 
@@ -31,8 +30,8 @@ def rpc_server_pipeline_spec(
         protocol_version: int,
         instance_id: uuid.UUID,
         max_frame_bytes: int,
-) -> IoPipeline.Spec:
-    return IoPipeline.Spec(
+) -> ipl.Pipeline.Spec:
+    return ipl.Pipeline.Spec(
         handlers=[
             RpcFrameCodecIoPipelineHandler(max_frame_bytes),
             RpcJsonCodecIoPipelineHandler(),
@@ -41,5 +40,5 @@ def rpc_server_pipeline_spec(
                 instance_id=instance_id,
             ),
         ],
-        services=[StubIoPipelineFlowService()],
+        services=[ipl.StubFlowService()],
     )

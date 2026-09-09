@@ -1,6 +1,6 @@
 import uuid
 
-from .....io.pipelines.drivers.pure import PureIoPipelineDriver
+from .....io.pipelines import all as ipl
 from ...protocol import RPC_PROTOCOL_VERSION
 from ...protocol import RpcProtocolError
 from ...protocol import RpcRequest
@@ -20,12 +20,12 @@ from .. import rpc_server_pipeline_spec
 ##
 
 
-def _drive_initial_output(driver: PureIoPipelineDriver) -> bytes:
+def _drive_initial_output(driver: ipl.PureDriver) -> bytes:
     assert driver.next(read=False) is None
     return driver.drain_output()
 
 
-def _feed_fragmented(driver: PureIoPipelineDriver, data: bytes) -> None:
+def _feed_fragmented(driver: ipl.PureDriver, data: bytes) -> None:
     for byte in data:
         driver.feed_input(bytes([byte]))
 
@@ -33,14 +33,14 @@ def _feed_fragmented(driver: PureIoPipelineDriver, data: bytes) -> None:
 def _new_pair(
         *,
         max_frame_bytes: int = 1_024,
-) -> tuple[PureIoPipelineDriver, PureIoPipelineDriver, uuid.UUID]:
+) -> tuple[ipl.PureDriver, ipl.PureDriver, uuid.UUID]:
     instance_id = uuid.uuid7()
     return (
-        PureIoPipelineDriver(rpc_client_pipeline_spec(
+        ipl.PureDriver(rpc_client_pipeline_spec(
             protocol_version=RPC_PROTOCOL_VERSION,
             max_frame_bytes=max_frame_bytes,
         )),
-        PureIoPipelineDriver(rpc_server_pipeline_spec(
+        ipl.PureDriver(rpc_server_pipeline_spec(
             protocol_version=RPC_PROTOCOL_VERSION,
             instance_id=instance_id,
             max_frame_bytes=max_frame_bytes,
@@ -50,8 +50,8 @@ def _new_pair(
 
 
 def _handshake(
-        client: PureIoPipelineDriver,
-        server: PureIoPipelineDriver,
+        client: ipl.PureDriver,
+        server: ipl.PureDriver,
 ) -> RpcClientConnected:
     _feed_fragmented(server, _drive_initial_output(client))
     assert server.next() is None
@@ -169,11 +169,11 @@ def test_rpc_pipeline_rejects_invalid_json_without_a_socket():
 
 def test_rpc_pipeline_version_mismatch_returns_hello_then_closes():
     instance_id = uuid.uuid7()
-    client = PureIoPipelineDriver(rpc_client_pipeline_spec(
+    client = ipl.PureDriver(rpc_client_pipeline_spec(
         protocol_version=RPC_PROTOCOL_VERSION + 1,
         max_frame_bytes=1_024,
     ))
-    server = PureIoPipelineDriver(rpc_server_pipeline_spec(
+    server = ipl.PureDriver(rpc_server_pipeline_spec(
         protocol_version=RPC_PROTOCOL_VERSION,
         instance_id=instance_id,
         max_frame_bytes=1_024,

@@ -7,7 +7,7 @@ from ... import dataclasses as dc
 from ... import lang
 from ...http.pipelines.requests import FullIoPipelineHttpRequest
 from ...http.pipelines.responses import FullIoPipelineHttpResponse
-from ...io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from ...io.pipelines import all as ipl
 from ...logs import all as logs
 from .dispatch import HttpHandler
 from .dispatch import HttpHealthConfig
@@ -81,7 +81,7 @@ class AsyncioPipelineHttpServer(lang.Final):
         self._runtime: HttpServerRuntime | None = None
         self._bound_address: tuple[str, int] | None = None
         self._connections: set[asyncio.Task[None]] = set()
-        self._drivers: dict[asyncio.Task[None], PollAsyncioStreamIoPipelineDriver] = {}
+        self._drivers: dict[asyncio.Task[None], ipl.PollAsyncioStreamDriver] = {}
         self._closing = False
 
     @property
@@ -123,7 +123,7 @@ class AsyncioPipelineHttpServer(lang.Final):
         self._connections.add(task)
         task.add_done_callback(self._connections.discard)
 
-    async def _driver_next(self, driver: PollAsyncioStreamIoPipelineDriver) -> ta.Any:
+    async def _driver_next(self, driver: ipl.PollAsyncioStreamDriver) -> ta.Any:
         return await asyncio.wait_for(
             driver.next(),
             self._config.connection_timeout_s,
@@ -131,7 +131,7 @@ class AsyncioPipelineHttpServer(lang.Final):
 
     async def _send_response(
             self,
-            driver: PollAsyncioStreamIoPipelineDriver,
+            driver: ipl.PollAsyncioStreamDriver,
             response: FullIoPipelineHttpResponse,
     ) -> None:
         driver.enqueue(HttpServerSendResponse(response=response))
@@ -160,7 +160,7 @@ class AsyncioPipelineHttpServer(lang.Final):
                 body=b'internal server error',
             )
 
-    async def _handle_connection(self, driver: PollAsyncioStreamIoPipelineDriver) -> None:
+    async def _handle_connection(self, driver: ipl.PollAsyncioStreamDriver) -> None:
         while True:
             event = await self._driver_next(driver)
             if isinstance(event, HttpPipelineFailure):
@@ -203,7 +203,7 @@ class AsyncioPipelineHttpServer(lang.Final):
             writer: asyncio.StreamWriter,
     ) -> None:
         task = check.not_none(asyncio.current_task())
-        driver = PollAsyncioStreamIoPipelineDriver(
+        driver = ipl.PollAsyncioStreamDriver(
             pipeline_http_server_spec(
                 max_request_body_bytes=self._config.max_request_body_bytes,
             ),

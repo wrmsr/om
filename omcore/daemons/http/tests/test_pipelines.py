@@ -1,6 +1,6 @@
 from ....http.pipelines.responses import FullIoPipelineHttpResponse
-from ....io.pipelines.drivers.pure import PureIoPipelineDriver
-from ....io.streambufs.utils import ByteStreamBuffers
+from ....io.pipelines import all as ipl
+from ....io.streambufs import all as isb
 from .. import HttpPipelineFailure
 from .. import HttpServerRequest
 from .. import HttpServerSendResponse
@@ -11,7 +11,7 @@ from .. import pipeline_http_server_spec
 
 
 def test_pipeline_http_server_pure_driver_fragmented_request_and_response():
-    driver = PureIoPipelineDriver(pipeline_http_server_spec(max_request_body_bytes=16))
+    driver = ipl.PureDriver(pipeline_http_server_spec(max_request_body_bytes=16))
     assert driver.next(read=False) is None
 
     request_bytes = (
@@ -29,7 +29,7 @@ def test_pipeline_http_server_pure_driver_fragmented_request_and_response():
     assert isinstance(event, HttpServerRequest)
     assert event.request.head.method == 'POST'
     assert event.request.head.target == '/work?item=one'
-    assert ByteStreamBuffers.to_bytes(event.request.body, strict=True) == b'hello'
+    assert isb.Buffers.to_bytes(event.request.body, strict=True) == b'hello'
 
     driver.enqueue(HttpServerSendResponse(response=FullIoPipelineHttpResponse.simple(
         status=201,
@@ -44,7 +44,7 @@ def test_pipeline_http_server_pure_driver_fragmented_request_and_response():
 
 
 def test_pipeline_http_server_rejects_request_body_over_bound():
-    driver = PureIoPipelineDriver(pipeline_http_server_spec(max_request_body_bytes=4))
+    driver = ipl.PureDriver(pipeline_http_server_spec(max_request_body_bytes=4))
     driver.feed_input(
         b'POST /work HTTP/1.1\r\n'
         b'Host: example.test\r\n'

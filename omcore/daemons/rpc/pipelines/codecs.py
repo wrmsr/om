@@ -4,11 +4,8 @@ import typing as ta
 import uuid
 
 from ....formats.json import all as json
-from ....io.pipelines.bytes.decoders import BufferedBytesToMessageDecoderIoPipelineHandler
-from ....io.pipelines.core import IoPipelineHandler
-from ....io.pipelines.core import IoPipelineHandlerContext
-from ....io.streambufs.types import ByteStreamBuffer
-from ....io.streambufs.utils import ByteStreamBuffers
+from ....io.pipelines import all as ipl
+from ....io.streambufs import all as isb
 from ..protocol import RPC_PROTOCOL_NAME
 from ..protocol import RpcProtocolError
 from ..protocol import RpcRequest
@@ -28,7 +25,7 @@ from .messages import RpcWireResult
 _FRAME_HEADER = struct.Struct('!I')
 
 
-class RpcFrameCodecIoPipelineHandler(BufferedBytesToMessageDecoderIoPipelineHandler):
+class RpcFrameCodecIoPipelineHandler(ipl.BufferedBytesToMessageDecoderHandler):
     """Decode and encode bounded length-prefixed RPC frames."""
 
     def __init__(self, max_frame_bytes: int) -> None:
@@ -41,8 +38,8 @@ class RpcFrameCodecIoPipelineHandler(BufferedBytesToMessageDecoderIoPipelineHand
 
     def _decode_buffer(
             self,
-            ctx: IoPipelineHandlerContext,
-            buf: ByteStreamBuffer,
+            ctx: ipl.HandlerContext,
+            buf: isb.Buffer,
             out: list[ta.Any],
             *,
             final: bool = False,
@@ -60,7 +57,7 @@ class RpcFrameCodecIoPipelineHandler(BufferedBytesToMessageDecoderIoPipelineHand
             if len(buf) < size:
                 break
 
-            out.append(RpcFrame(ByteStreamBuffers.to_bytes(buf.split_to(size), strict=True)))
+            out.append(RpcFrame(isb.Buffers.to_bytes(buf.split_to(size), strict=True)))
             self._frame_size = None
 
         if final and (self._frame_size is not None or len(buf)):
@@ -70,7 +67,7 @@ class RpcFrameCodecIoPipelineHandler(BufferedBytesToMessageDecoderIoPipelineHand
                 exc=RpcProtocolError('RPC connection closed within a frame'),
             ))
 
-    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+    def outbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, RpcFrame):
             size = len(msg.data)
             if size > self._max_frame_bytes:
@@ -241,10 +238,10 @@ def encode_rpc_wire_message_payload(msg: RpcWireMessage) -> bytes:
         raise RpcProtocolError(f'RPC message is not JSON-compatible: {exc}') from exc
 
 
-class RpcJsonCodecIoPipelineHandler(IoPipelineHandler):
+class RpcJsonCodecIoPipelineHandler(ipl.Handler):
     """Translate JSON RPC frames to and from typed wire messages."""
 
-    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+    def inbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, RpcFrame):
             try:
                 obj = json.loads(msg.data.decode('utf-8'))
@@ -254,7 +251,7 @@ class RpcJsonCodecIoPipelineHandler(IoPipelineHandler):
 
         ctx.feed_in(msg)
 
-    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+    def outbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, (RpcClientHello, RpcServerHello, RpcWireRequest, RpcWireResult, RpcWireError)):
             msg = RpcFrame(encode_rpc_wire_message_payload(msg))
 

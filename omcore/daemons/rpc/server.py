@@ -9,7 +9,7 @@ import uuid
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
-from ...io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ...io.pipelines import all as ipl
 from ...logs import all as logs
 from ...sockets.io import close_socket_immediately
 from .dispatch import RpcRequestDispatcher
@@ -193,7 +193,7 @@ class RpcServer(lang.Final):
             dispatcher: RpcRequestDispatcher,
     ) -> None:
         conn.settimeout(self._config.connection_timeout_s)
-        with SyncSocketIoPipelineDriver(
+        with ipl.SyncSocketDriver(
                 rpc_server_pipeline_spec(
                     protocol_version=RPC_PROTOCOL_VERSION,
                     instance_id=instance_id,

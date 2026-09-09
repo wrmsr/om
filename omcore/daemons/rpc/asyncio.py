@@ -6,7 +6,7 @@ import uuid
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
-from ...io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from ...io.pipelines import all as ipl
 from ...logs import all as logs
 from .client import RpcClient
 from .dispatch import rpc_remote_error_response
@@ -147,7 +147,7 @@ class AsyncRpcRequestDispatcher:
 class AsyncioRpcClientConnection(lang.Final):
     def __init__(
             self,
-            driver: PollAsyncioStreamIoPipelineDriver,
+            driver: ipl.PollAsyncioStreamDriver,
             *,
             instance_id: uuid.UUID,
             io_timeout_s: float | None,
@@ -155,7 +155,7 @@ class AsyncioRpcClientConnection(lang.Final):
     ) -> None:
         super().__init__()
 
-        self._driver: PollAsyncioStreamIoPipelineDriver | None = driver
+        self._driver: ipl.PollAsyncioStreamDriver | None = driver
         self._instance_id = instance_id
         self._io_timeout_s = io_timeout_s
         self._max_frame_bytes = max_frame_bytes
@@ -171,7 +171,7 @@ class AsyncioRpcClientConnection(lang.Final):
     def closed(self) -> bool:
         return self._driver is None
 
-    def _pipeline_driver(self) -> PollAsyncioStreamIoPipelineDriver:
+    def _pipeline_driver(self) -> ipl.PollAsyncioStreamDriver:
         if self._driver is None:
             raise RuntimeError('RPC client connection is closed')
         return self._driver
@@ -336,7 +336,7 @@ class AsyncioRpcClient(lang.Final):
         except OSError as exc:
             raise RpcUnavailableError(str(exc)) from exc
 
-        driver = PollAsyncioStreamIoPipelineDriver(
+        driver = ipl.PollAsyncioStreamDriver(
             rpc_client_pipeline_spec(
                 protocol_version=self._config.protocol_version,
                 max_frame_bytes=self._config.max_frame_bytes,
@@ -448,7 +448,7 @@ class AsyncioRpcServer(lang.Final):
         self._instance_id: uuid.UUID | None = None
         self._dispatcher: AsyncRpcRequestDispatcher | None = None
         self._connections: set[asyncio.Task[None]] = set()
-        self._drivers: dict[asyncio.Task[None], PollAsyncioStreamIoPipelineDriver] = {}
+        self._drivers: dict[asyncio.Task[None], ipl.PollAsyncioStreamDriver] = {}
         self._closing = False
 
     @property
@@ -496,13 +496,13 @@ class AsyncioRpcServer(lang.Final):
         self._connections.add(task)
         task.add_done_callback(self._connections.discard)
 
-    async def _driver_next(self, driver: PollAsyncioStreamIoPipelineDriver) -> ta.Any:
+    async def _driver_next(self, driver: ipl.PollAsyncioStreamDriver) -> ta.Any:
         return await asyncio.wait_for(
             driver.next(),
             self._config.connection_timeout_s,
         )
 
-    async def _handle_connection(self, driver: PollAsyncioStreamIoPipelineDriver) -> None:
+    async def _handle_connection(self, driver: ipl.PollAsyncioStreamDriver) -> None:
         while True:
             event = await self._driver_next(driver)
             if isinstance(event, RpcPipelineFailure):
@@ -539,7 +539,7 @@ class AsyncioRpcServer(lang.Final):
             writer: asyncio.StreamWriter,
     ) -> None:
         task = check.not_none(asyncio.current_task())
-        driver = PollAsyncioStreamIoPipelineDriver(
+        driver = ipl.PollAsyncioStreamDriver(
             rpc_server_pipeline_spec(
                 protocol_version=RPC_PROTOCOL_VERSION,
                 instance_id=self.instance_id,

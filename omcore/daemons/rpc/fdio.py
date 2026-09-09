@@ -6,10 +6,8 @@ import uuid
 
 from ... import check
 from ... import lang
-from ...io.fdio.handlers import SocketFdioHandler
-from ...io.fdio.manager import FdioManager
-from ...io.fdio.pollers import SelectFdioPoller
-from ...io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
+from ...io.fdio import all as fdio
+from ...io.pipelines import all as ipl
 from ...logs import all as logs
 from ...sockets.addresses import SocketAddress
 from .dispatch import RpcRequestDispatcher
@@ -37,7 +35,7 @@ log = logs.get_module_logger(globals())
 ##
 
 
-class _FdioRpcConnection(IoPipelineDriverSocketFdioHandler):
+class _FdioRpcConnection(ipl.DriverSocketFdioHandler):
     def __init__(
             self,
             sock: socket.socket,
@@ -164,7 +162,7 @@ class _FdioRpcConnection(IoPipelineDriverSocketFdioHandler):
             super().on_timeout()
 
 
-class _FdioRpcListener(SocketFdioHandler):
+class _FdioRpcListener(fdio.SocketHandler):
     def __init__(
             self,
             listener: SyncRpcListener,
@@ -238,7 +236,7 @@ class FdioRpcServer(lang.Final):
             RpcResponseRegistry(max_entries=self._config.response_cache_size),
             max_frame_bytes=self._config.max_frame_bytes,
         )
-        manager = FdioManager(SelectFdioPoller())
+        manager = fdio.Manager(fdio.SelectPoller())
         connections: set[_FdioRpcConnection] = set()
 
         socket_listener = self._transport.listen(

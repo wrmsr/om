@@ -5,7 +5,7 @@ import uuid
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
-from ...io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ...io.pipelines import all as ipl
 from ...sockets.io import close_socket_immediately
 from .endpoints import RpcEndpoint
 from .endpoints import resolve_rpc_endpoint
@@ -40,7 +40,7 @@ class RpcClientConnection(lang.Final):
     def __init__(
             self,
             sock: socket.socket,
-            driver: SyncSocketIoPipelineDriver,
+            driver: ipl.SyncSocketDriver,
             *,
             instance_id: uuid.UUID,
             max_frame_bytes: int,
@@ -48,7 +48,7 @@ class RpcClientConnection(lang.Final):
         super().__init__()
 
         self._sock: socket.socket | None = sock
-        self._driver: SyncSocketIoPipelineDriver | None = driver
+        self._driver: ipl.SyncSocketDriver | None = driver
         self._instance_id = instance_id
         self._max_frame_bytes = max_frame_bytes
 
@@ -64,7 +64,7 @@ class RpcClientConnection(lang.Final):
     def closed(self) -> bool:
         return self._sock is None
 
-    def _pipeline_driver(self) -> SyncSocketIoPipelineDriver:
+    def _pipeline_driver(self) -> ipl.SyncSocketDriver:
         if self._driver is None:
             raise RuntimeError('RPC client connection is closed')
         return self._driver
@@ -245,7 +245,7 @@ class RpcClient(lang.Final):
 
     def connect(self) -> RpcClientConnection:
         sock: socket.socket | None = None
-        driver: SyncSocketIoPipelineDriver | None = None
+        driver: ipl.SyncSocketDriver | None = None
         try:
             sock = self._transport.connect(
                 self.endpoint,
@@ -253,7 +253,7 @@ class RpcClient(lang.Final):
             )
             sock.settimeout(self._config.io_timeout_s)
 
-            driver = SyncSocketIoPipelineDriver(
+            driver = ipl.SyncSocketDriver(
                 rpc_client_pipeline_spec(
                     protocol_version=self._config.protocol_version,
                     max_frame_bytes=self._config.max_frame_bytes,

@@ -8,12 +8,7 @@ from ...http.pipelines.responses import FullIoPipelineHttpResponse
 from ...http.pipelines.servers.requests import IoPipelineHttpRequestAggregatorDecoder
 from ...http.pipelines.servers.requests import IoPipelineHttpRequestDecoder
 from ...http.pipelines.servers.responses import IoPipelineHttpResponseEncoder
-from ...io.pipelines.core import IoPipeline
-from ...io.pipelines.core import IoPipelineHandler
-from ...io.pipelines.core import IoPipelineHandlerContext
-from ...io.pipelines.core import IoPipelineMessages
-from ...io.pipelines.flow.stub import StubIoPipelineFlowService
-from ...io.pipelines.flow.types import IoPipelineFlow
+from ...io.pipelines import all as ipl
 
 
 ##
@@ -37,7 +32,7 @@ class HttpPipelineFailure:
 ##
 
 
-class HttpServerSessionIoPipelineHandler(IoPipelineHandler):
+class HttpServerSessionIoPipelineHandler(ipl.Handler):
     """Expose one aggregated HTTP request and accept one full response command."""
 
     def __init__(self) -> None:
@@ -48,15 +43,15 @@ class HttpServerSessionIoPipelineHandler(IoPipelineHandler):
     def _state_is(self, state: str) -> bool:
         return self._state == state
 
-    def _fail(self, ctx: IoPipelineHandlerContext, exc: BaseException) -> None:
+    def _fail(self, ctx: ipl.HandlerContext, exc: BaseException) -> None:
         if self._state == 'done':
             return
         self._state = 'done'
         ctx.feed_out(HttpPipelineFailure(exc=exc))
         ctx.feed_final_output()
 
-    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.InitialInput):
+    def inbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, ipl.Messages.InitialInput):
             if self._state != 'new':
                 raise RuntimeError('HTTP server received duplicate initial input')
             self._state = 'ready'
@@ -84,11 +79,11 @@ class HttpServerSessionIoPipelineHandler(IoPipelineHandler):
             if not self._state_is('response'):
                 return
             self._state = 'done'
-            IoPipelineFlow.maybe_flush_output(ctx)
+            ipl.Flow.maybe_flush_output(ctx)
             ctx.feed_final_output()
             return
 
-        if isinstance(msg, IoPipelineMessages.Error):
+        if isinstance(msg, ipl.Messages.Error):
             self._fail(ctx, msg.exc)
             return
 
@@ -96,7 +91,7 @@ class HttpServerSessionIoPipelineHandler(IoPipelineHandler):
             self._fail(ctx, msg.exc)
             return
 
-        if isinstance(msg, IoPipelineMessages.FinalInput):
+        if isinstance(msg, ipl.Messages.FinalInput):
             if self._state != 'done':
                 self._fail(ctx, EOFError('HTTP connection closed'))
                 ctx.mark_propagated('inbound', msg)
@@ -110,7 +105,7 @@ class HttpServerSessionIoPipelineHandler(IoPipelineHandler):
 def pipeline_http_server_spec(
         *,
         max_request_body_bytes: int = 64 * 1024,
-) -> IoPipeline.Spec:
+) -> ipl.Pipeline.Spec:
     if max_request_body_bytes < 0:
         raise ValueError(max_request_body_bytes)
 
@@ -120,12 +115,12 @@ def pipeline_http_server_spec(
             chunk_size=max(1, min(64 * 1024, max_request_body_bytes or 1)),
         ),
     )
-    return IoPipeline.Spec(
+    return ipl.Pipeline.Spec(
         handlers=[
             IoPipelineHttpRequestDecoder(),
             IoPipelineHttpRequestAggregatorDecoder(config=aggregation_config),
             IoPipelineHttpResponseEncoder(),
             HttpServerSessionIoPipelineHandler(),
         ],
-        services=[StubIoPipelineFlowService()],
+        services=[ipl.StubFlowService()],
     )

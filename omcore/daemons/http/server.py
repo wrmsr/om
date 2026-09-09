@@ -9,7 +9,7 @@ from ... import check
 from ... import dataclasses as dc
 from ... import lang
 from ...http.pipelines.responses import FullIoPipelineHttpResponse
-from ...io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ...io.pipelines import all as ipl
 from ...logs import all as logs
 from ...sockets.io import close_socket_immediately
 from .dispatch import HttpHandler
@@ -156,7 +156,7 @@ class PipelineHttpServer(lang.Final):
 
     @staticmethod
     def _send_response(
-            driver: SyncSocketIoPipelineDriver,
+            driver: ipl.SyncSocketDriver,
             response: FullIoPipelineHttpResponse,
     ) -> None:
         driver.enqueue(HttpServerSendResponse(response=response))
@@ -175,7 +175,7 @@ class PipelineHttpServer(lang.Final):
             dispatcher: HttpRequestDispatcher,
     ) -> None:
         conn.settimeout(self._config.connection_timeout_s)
-        with SyncSocketIoPipelineDriver(
+        with ipl.SyncSocketDriver(
                 pipeline_http_server_spec(
                     max_request_body_bytes=self._config.max_request_body_bytes,
                 ),

@@ -1,11 +1,7 @@
 import typing as ta
 import uuid
 
-from ....io.pipelines.core import IoPipelineHandler
-from ....io.pipelines.core import IoPipelineHandlerContext
-from ....io.pipelines.core import IoPipelineMessages
-from ....io.pipelines.flow.types import IoPipelineFlow
-from ....io.pipelines.flow.types import IoPipelineFlowMessages
+from ....io.pipelines import all as ipl
 from ..protocol import RpcProtocolError
 from .messages import RpcClientConnected
 from .messages import RpcClientHello
@@ -27,7 +23,7 @@ from .messages import RpcWireResult
 _RpcClientSessionState: ta.TypeAlias = ta.Literal['new', 'hello', 'ready', 'request', 'done']
 
 
-class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
+class RpcClientSessionIoPipelineHandler(ipl.Handler):
     """Implement one handshaken, single-request client conversation."""
 
     def __init__(self, protocol_version: int) -> None:
@@ -36,7 +32,7 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
         self._protocol_version = protocol_version
         self._state: _RpcClientSessionState = 'new'
 
-    def _fail(self, ctx: IoPipelineHandlerContext, exc: BaseException) -> None:
+    def _fail(self, ctx: ipl.HandlerContext, exc: BaseException) -> None:
         if self._state == 'done':
             return
         self._state = 'done'
@@ -46,8 +42,8 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
     def _state_is(self, state: str) -> bool:
         return self._state == state
 
-    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.InitialInput):
+    def inbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, ipl.Messages.InitialInput):
             if self._state != 'new':
                 raise RpcProtocolError('RPC client received duplicate initial input')
             self._state = 'hello'
@@ -55,7 +51,7 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
             ctx.feed_out(RpcClientHello(version=self._protocol_version))
             if not self._state_is('hello'):
                 return
-            IoPipelineFlow.maybe_flush_output(ctx)
+            ipl.Flow.maybe_flush_output(ctx)
             return
 
         if isinstance(msg, RpcServerHello):
@@ -79,8 +75,8 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
             ctx.feed_out(RpcWireRequest(request=msg.request))
             if not self._state_is('request'):
                 return
-            if ctx.services.find(IoPipelineFlow) is not None:
-                flush = IoPipelineFlowMessages.FlushOutput()
+            if ctx.services.find(ipl.Flow) is not None:
+                flush = ipl.FlowMessages.FlushOutput()
                 flush.add_listener(lambda _: ctx.feed_out(RpcClientRequestSent(request=msg.request)))
                 ctx.feed_out(flush)
             else:
@@ -96,7 +92,7 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
             ctx.feed_final_output()
             return
 
-        if isinstance(msg, IoPipelineMessages.Error):
+        if isinstance(msg, ipl.Messages.Error):
             self._fail(ctx, msg.exc)
             return
 
@@ -104,7 +100,7 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
             self._fail(ctx, msg.exc)
             return
 
-        if isinstance(msg, IoPipelineMessages.FinalInput):
+        if isinstance(msg, ipl.Messages.FinalInput):
             if self._state != 'done':
                 self._fail(ctx, EOFError('RPC connection closed'))
                 ctx.mark_propagated('inbound', msg)
@@ -118,7 +114,7 @@ class RpcClientSessionIoPipelineHandler(IoPipelineHandler):
 _RpcServerSessionState: ta.TypeAlias = ta.Literal['new', 'hello', 'ready', 'dispatch', 'response', 'done']
 
 
-class RpcServerSessionIoPipelineHandler(IoPipelineHandler):
+class RpcServerSessionIoPipelineHandler(ipl.Handler):
     """Implement one handshaken, single-request server conversation."""
 
     def __init__(
@@ -136,8 +132,8 @@ class RpcServerSessionIoPipelineHandler(IoPipelineHandler):
     def _state_is(self, state: str) -> bool:
         return self._state == state
 
-    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.InitialInput):
+    def inbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, ipl.Messages.InitialInput):
             if self._state != 'new':
                 raise RpcProtocolError('RPC server received duplicate initial input')
             self._state = 'hello'
@@ -153,7 +149,7 @@ class RpcServerSessionIoPipelineHandler(IoPipelineHandler):
             ))
             if self._state != 'hello':
                 return
-            IoPipelineFlow.maybe_flush_output(ctx)
+            ipl.Flow.maybe_flush_output(ctx)
             if msg.version != self._protocol_version:
                 self._state = 'done'
                 ctx.feed_final_output()
@@ -179,11 +175,11 @@ class RpcServerSessionIoPipelineHandler(IoPipelineHandler):
             if not self._state_is('response'):
                 return
             self._state = 'done'
-            IoPipelineFlow.maybe_flush_output(ctx)
+            ipl.Flow.maybe_flush_output(ctx)
             ctx.feed_final_output()
             return
 
-        if isinstance(msg, IoPipelineMessages.Error):
+        if isinstance(msg, ipl.Messages.Error):
             if self._state == 'done':
                 return
             self._state = 'done'
@@ -199,7 +195,7 @@ class RpcServerSessionIoPipelineHandler(IoPipelineHandler):
             ctx.feed_final_output()
             return
 
-        if isinstance(msg, IoPipelineMessages.FinalInput):
+        if isinstance(msg, ipl.Messages.FinalInput):
             if self._state != 'done':
                 self._state = 'done'
                 ctx.feed_final_output()
