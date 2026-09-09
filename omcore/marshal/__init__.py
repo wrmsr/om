@@ -1,4 +1,5 @@
 # ruff: noqa: I001
+# @om-recommended-import-alias "msh"
 from .. import dataclasses as _dc  # noqa
 
 

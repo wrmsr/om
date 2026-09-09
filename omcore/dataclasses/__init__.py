@@ -1,4 +1,5 @@
 # ruff: noqa: I001
+# @om-recommended-import-alias "dc"
 import sys as _sys
 
 from .. import lang as _lang

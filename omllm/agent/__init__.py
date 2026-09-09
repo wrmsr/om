@@ -1,5 +1,6 @@
 # fmt: off
 # ruff: noqa: I001
+# @om-recommended-import-alias "agn"
 from omcore import dataclasses as _dc  # noqa
 
 

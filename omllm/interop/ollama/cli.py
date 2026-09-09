@@ -3,7 +3,6 @@ from omcore.argparse import all as ap
 from omcore.formats.json import all as json
 from omcore.http import all as http
 from omcore.logs import all as logs
-from omdev.cli import CliModule
 
 
 log = logs.get_module_logger(globals())
@@ -29,7 +28,10 @@ def _main() -> None:
 
 
 # @om-manifest
-_CLI_MODULE = CliModule('ollama', __name__)
+_CLI_MODULE = {'!omdev.cli.types.CliModule': {
+    'name': 'ollama',
+    'module': __name__,
+}}
 
 
 if __name__ == '__main__':

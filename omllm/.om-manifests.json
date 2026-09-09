@@ -223,7 +223,7 @@
     "module": ".interop.huggingface.cli",
     "attr": "_CLI_MODULE",
     "file": "omllm/interop/huggingface/cli.py",
-    "line": 203,
+    "line": 202,
     "value": {
       "!omdev.cli.types.CliModule": {
         "name": "hf",
@@ -235,7 +235,7 @@
     "module": ".interop.ollama.cli",
     "attr": "_CLI_MODULE",
     "file": "omllm/interop/ollama/cli.py",
-    "line": 31,
+    "line": 30,
     "value": {
       "!omdev.cli.types.CliModule": {
         "name": "ollama",

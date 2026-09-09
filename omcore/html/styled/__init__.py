@@ -1,3 +1,4 @@
+# @om-recommended-import-alias "hst"
 from ... import lang as _lang
 
 

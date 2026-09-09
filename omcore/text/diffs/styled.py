@@ -19,13 +19,13 @@ import itertools
 import pathlib
 import typing as ta
 
-from omcore import check
-from omcore import dataclasses as dc
-from omcore import lang
-from omcore.text import diffs
-from omcore.text import highlights as hl
-from omcore.text import styled as st
-from omcore.text.styled import grid
+from ... import check
+from ... import dataclasses as dc
+from ... import lang
+from .. import diffs
+from .. import highlights as hl
+from .. import styled as st
+from ..styled import grid
 
 
 ##
@@ -36,7 +36,7 @@ type HighlightedLines = ta.Mapping[int, st.StyledText]
 
 
 @dc.dataclass(frozen=True)
-class DiffRenderOptions(lang.Final):
+class DiffStyledDocOptions(lang.Final):
     width: int = 80
     tab_size: int = 4
     syntax_highlighting: bool = True
@@ -222,19 +222,19 @@ def _intraline_ranges(source: str, target: str) -> tuple[list[tuple[int, int]], 
     return removed, added
 
 
-class DiffRenderer(lang.Final):
+class DiffStyledDocRenderer(lang.Final):
     """Lay out a patch set as a target-neutral styled document."""
 
     def __init__(
             self,
-            options: DiffRenderOptions | None = None,
+            options: DiffStyledDocOptions | None = None,
             *,
             project_root: pathlib.Path | None = None,
             highlighter: CodeHighlighter | None = None,
     ) -> None:
         super().__init__()
 
-        self._options = options or DiffRenderOptions()
+        self._options = options or DiffStyledDocOptions()
         self._project_root = project_root
         self._highlighter = highlighter or _default_highlighter
 
@@ -519,7 +519,7 @@ class DiffRenderer(lang.Final):
         return rendered
 
 
-def render_diff_document(
+def render_diff_styled_doc(
         patch_set: diffs.PatchSet,
         project_root: pathlib.Path | None = None,
         *,
@@ -529,8 +529,8 @@ def render_diff_document(
 ) -> st.StyledDocument:
     """Convenience entry point for producing a target-neutral diff document."""
 
-    return DiffRenderer(
-        DiffRenderOptions(
+    return DiffStyledDocRenderer(
+        DiffStyledDocOptions(
             width=width,
             tab_size=tab_size,
             syntax_highlighting=syntax_highlighting,

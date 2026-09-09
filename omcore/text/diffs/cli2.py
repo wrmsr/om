@@ -3,10 +3,9 @@ import pathlib
 import shutil
 import sys
 
-from omcore.term import styled as tst
-from omcore.text import diffs
-
-from .terminal import render_diff_ansi
+from ...term import styled as tst
+from .parsing import parse_patch
+from .term import render_diff_ansi
 
 
 ##
@@ -44,7 +43,7 @@ def _main() -> None:
         width = args.width or shutil.get_terminal_size((80, 24)).columns
         color_depth = tst.ColorDepth.MONO if args.no_color else tst.detect_color_depth()
         sys.stdout.write(render_diff_ansi(
-            diffs.parse_patch(diff),
+            parse_patch(diff),
             project_root,
             width=width,
             syntax_highlighting=not args.no_syntax,

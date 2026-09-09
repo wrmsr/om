@@ -1,3 +1,4 @@
+# @om-recommended-import-alias "tv"
 from .. import lang as _lang
 
 

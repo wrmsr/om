@@ -1,3 +1,6 @@
+# @om-recommended-import-alias "sec"
+
+
 from .secrets import (  # noqa
     Secret,
 

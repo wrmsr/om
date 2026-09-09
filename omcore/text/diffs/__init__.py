@@ -19,6 +19,18 @@ with _lang.auto_proxy_init(globals()):
         PatchSetRenderer,
     )
 
+    from .styled import (  # noqa
+        DiffStyledDocOptions,
+        DiffStyledDocRenderer,
+        render_diff_styled_doc,
+    )
+
+    from .term import (  # noqa
+        render_diff_ansi,
+    )
+
+    from . import themes  # noqa
+
     from .types import (  # noqa
         HunkLineKind,
         ExtendedHeaderKind,

@@ -1,3 +1,4 @@
+# @om-recommended-import-alias "st"
 from ... import lang as _lang
 
 

@@ -1,10 +1,9 @@
 """Headless terminal rendering for styled diff documents."""
 import pathlib
 
-from omcore.term import styled as tst
-from omcore.text import diffs
-
-from .rendering import render_diff_document
+from ...term import styled as tst
+from .. import diffs
+from .styled import render_diff_styled_doc
 from .themes import DIFF_STYLE_THEME
 
 
@@ -20,13 +19,16 @@ def render_diff_ansi(
         syntax_highlighting: bool = True,
         color_depth: tst.ColorDepth = tst.ColorDepth.TRUE,
 ) -> str:
-    """Render a patch set to ANSI without constructing a terminal runtime or driver."""
-
-    document = render_diff_document(
+    doc = render_diff_styled_doc(
         patch_set,
         project_root,
         width=width,
         tab_size=tab_size,
         syntax_highlighting=syntax_highlighting,
     )
-    return tst.render_ansi(document, theme=DIFF_STYLE_THEME, depth=color_depth)
+
+    return tst.render_ansi(
+        doc,
+        theme=DIFF_STYLE_THEME,
+        depth=color_depth,
+    )

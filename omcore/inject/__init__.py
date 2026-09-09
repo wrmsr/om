@@ -1,4 +1,5 @@
 """~> https://github.com/google/guice/commit/70248eafa90cd70a68b293763e53f6aec656e73c"""
+# @om-recommended-import-alias "inj"
 from .. import dataclasses as _dc
 
 

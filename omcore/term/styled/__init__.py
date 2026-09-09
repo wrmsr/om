@@ -1,4 +1,5 @@
 """The terminal backend for styled text: terminal palettes and depth, SGR emission and parsing, headless ANSI output."""
+# @om-recommended-import-alias "tst"
 from ... import lang as _lang
 
 

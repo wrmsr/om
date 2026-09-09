@@ -1,5 +1,6 @@
 # fmt: off
 # ruff: noqa: I001
+# @om-recommended-import-alias "col"
 from .. import lang as _lang
 
 

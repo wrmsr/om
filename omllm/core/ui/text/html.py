@@ -26,11 +26,6 @@ from .types import DiffText
 from .types import MarkdownText
 
 
-with lang.auto_proxy_import(globals()):
-    from omdev.tui import diff as tdiff
-    from omdev.tui.diff import themes as tdiff_themes
-
-
 ##
 
 
@@ -112,7 +107,7 @@ class HtmlTextRenderer(TextRenderer[str]):
         return f'<div style="{css}">{render_markdown_html(block.s)}</div>'
 
     def _render_diff(self, block: DiffText, base: st.ResolvedStyle) -> str:
-        document = tdiff.render_diff_document(
+        document = diffs.render_diff_styled_doc(
             diffs.parse_patch(''.join(block.diff_lines)),
             width=self._diff_width,
         )
@@ -120,11 +115,11 @@ class HtmlTextRenderer(TextRenderer[str]):
         # The diff's own colors win over any inherited ones so its rows stay coherent on any page, while inherited flags
         # like italic still apply.
         ambient = base.apply(st.StylePatch(
-            fg=tdiff_themes.CODE_FOREGROUND,
-            bg=tdiff_themes.DIFF_BACKGROUND,
+            fg=diffs.themes.CODE_FOREGROUND,
+            bg=diffs.themes.DIFF_BACKGROUND,
         ))
 
-        rendered = hst.render_html(document, theme=tdiff.DIFF_STYLE_THEME, base=ambient)
+        rendered = hst.render_html(document, theme=diffs.themes.DIFF_STYLE_THEME, base=ambient)
         return f'<pre style="{hst.style_to_css(ambient)}">{rendered}</pre>'
 
     def _render_block(self, part: StyledTextBlock) -> str:

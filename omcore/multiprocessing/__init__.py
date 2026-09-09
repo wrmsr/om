@@ -1,4 +1,5 @@
 # ruff: noqa: I001
+# @om-recommended-import-alias "mp"
 import typing as _ta
 
 from .. import lang as _lang

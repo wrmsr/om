@@ -7,7 +7,6 @@ from omcore.term import styled as tst
 from omcore.text import diffs
 from omcore.text import highlights as hl
 from omcore.text import styled as st
-from omdev.tui import diff as df
 from omdev.tui import minitui as mt
 
 from ...core import ui
@@ -18,7 +17,7 @@ from ...core import ui
 
 UI_TEXT_THEME = mt.DEFAULT_THEME.extend(ui.UI_TEXT_STYLE_THEME.as_dict())
 
-UI_DIFF_THEME = mt.Theme(df.DIFF_STYLE_THEME.as_dict())
+UI_DIFF_THEME = mt.Theme(diffs.themes.DIFF_STYLE_THEME.as_dict())
 
 
 def _wrap_segment_rows(
@@ -88,7 +87,7 @@ def render_text_part_rows(
             )
             return _resolve_segment_rows(rows, theme=UI_TEXT_THEME, base=base)
 
-        document = df.render_diff_document(
+        document = diffs.render_diff_styled_doc(
             diffs.parse_patch(''.join(block.diff_lines)),
             width=width,
         )

@@ -1,4 +1,5 @@
 # ruff: noqa: I001
+# @om-recommended-import-alias "rfl"
 from .. import lang as _lang
 
 

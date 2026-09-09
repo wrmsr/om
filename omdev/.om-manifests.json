@@ -584,17 +584,5 @@
         "module": "omdev.tools.sqlrepl"
       }
     }
-  },
-  {
-    "module": ".tui.diff.__main__",
-    "attr": "_CLI_MODULE",
-    "file": "omdev/tui/diff/__main__.py",
-    "line": 4,
-    "value": {
-      "!.cli.types.CliModule": {
-        "name": "tui/diff",
-        "module": "omdev.tui.diff.__main__"
-      }
-    }
   }
 ]
