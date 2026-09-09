@@ -63,7 +63,7 @@ def __om_amalg__():  # noqa
             dict(path='../../logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../logs/utils.py', sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c'),
             dict(path='bytes/queues.py', sha1='91a359d8bfd7a45badbf0933b00fc41e6e36e222'),
-            dict(path='handlers/flatmap.py', sha1='221fb097b9f93fcff167a8aed30a909c9ca45b01'),
+            dict(path='handlers/flatmap.py', sha1='33daa28b6b14a0e7aca10640f938792e86dcfa3b'),
             dict(path='../streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
             dict(path='../streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
             dict(path='../../logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
@@ -5499,9 +5499,6 @@ class FlatMapIoPipelineHandler(IoPipelineHandler, Abstract):
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}@{id(self):x}({self._fn!r})'
-
-
-#
 
 
 class InboundFlatMapIoPipelineHandler(FlatMapIoPipelineHandler):

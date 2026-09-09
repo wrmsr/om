@@ -258,9 +258,6 @@ class FlatMapIoPipelineHandler(IoPipelineHandler, Abstract):
         return f'{self.__class__.__name__}@{id(self):x}({self._fn!r})'
 
 
-#
-
-
 class InboundFlatMapIoPipelineHandler(FlatMapIoPipelineHandler):
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         for x in self._fn(ctx, msg):
