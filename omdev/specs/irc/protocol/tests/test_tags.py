@@ -1,5 +1,6 @@
-import dataclasses as dc
 import itertools
+
+from omcore import dataclasses as dc
 
 from ..tags import escape_tag_value
 from ..tags import parse_tags

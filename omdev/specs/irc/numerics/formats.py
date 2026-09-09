@@ -1,7 +1,7 @@
-import dataclasses as dc
 import typing as ta
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore import lang
 
 

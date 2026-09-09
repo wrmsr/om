@@ -2,8 +2,9 @@
 TODO:
  - https://github.com/ergochat/irctest/blob/master/irctest/irc_utils/message_parser.py ?
 """
-import dataclasses as dc
 import typing as ta
+
+from omcore import dataclasses as dc
 
 
 ##

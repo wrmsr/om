@@ -1,5 +1,6 @@
-import dataclasses as dc
 import typing as ta
+
+from omcore import dataclasses as dc
 
 from .errors import MalformedNuhError
 

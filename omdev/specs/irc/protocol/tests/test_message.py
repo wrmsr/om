@@ -1,5 +1,6 @@
-import dataclasses as dc
 import itertools
+
+from omcore import dataclasses as dc
 
 from ..message import Message
 from ..parsing import parse_line
