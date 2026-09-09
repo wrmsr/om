@@ -22,7 +22,7 @@ def _remote_main() -> None:
 
     #
 
-    import json
+    import json  # noqa
 
     args = json.loads(prt.input.read().decode('utf-8'))
 
