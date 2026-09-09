@@ -172,10 +172,27 @@ class Cli(ap.Cli):
 
     @ap.cmd(
         ap.arg('container-id'),
-        ap.arg('secret-key', nargs='+'),
+        ap.arg('secret', nargs='+'),
+        ap.arg('-f', '--secrets-file'),
     )
     def inject_secret(self) -> None:
-        raise NotImplementedError
+        secrets: list[str | tuple[str, str]] = []
+        for s in self.args.secret:
+            if '=' in s:
+                k, v = s.split('=')
+                secrets.append((k, v))
+            else:
+                secrets.append(s)
+
+        #
+
+        from .secrets import inject_dockerdev_secrets
+
+        inject_dockerdev_secrets(
+            self.args.container_id,
+            secrets,
+            secrets_file=self.args.secrets_file,
+        )
 
 
 def _main() -> None:

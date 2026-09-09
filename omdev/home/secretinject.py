@@ -211,6 +211,7 @@ def inject_secrets(
         file_path: str,
         update: JsonObject,
         *,
+        make_dirs: bool = False,
         timeout: float = DEFAULT_TIMEOUT,
 ) -> None:
     if not isinstance(update, collections.OrderedDict):
@@ -218,6 +219,10 @@ def inject_secrets(
 
     file_path = os.path.realpath(file_path)  # operate on the real file if `path` is a symlink
     dirname, basename = os.path.split(file_path)
+
+    if make_dirs:
+        os.makedirs(dirname, exist_ok=True)
+
     deadline = time.monotonic() + timeout
 
     while True:
