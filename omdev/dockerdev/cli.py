@@ -168,6 +168,15 @@ class Cli(ap.Cli):
 
         print(out.decode(), end='')
 
+    #
+
+    @ap.cmd(
+        ap.arg('container-id'),
+        ap.arg('secret-key', nargs='+'),
+    )
+    def inject_secret(self) -> None:
+        raise NotImplementedError
+
 
 def _main() -> None:
     Cli().cli_run_and_exit()

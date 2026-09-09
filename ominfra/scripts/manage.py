@@ -99,7 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
-            dict(path='../../omcore/os/pyremote/core.py', sha1='39f1c6374592013b486a0d5b59168d615ced24da'),
+            dict(path='../../omcore/os/pyremote/core.py', sha1='297cd0f7a50ca044bbcef9770519fed91b649ba8'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -5281,6 +5281,33 @@ def pyremote_get_core_source() -> ta.Optional[str]:
 
     import inspect
     return inspect.getsource(mod)
+
+
+##
+
+
+class PyremoteApi:
+    def build_bootstrap_source(self, context_name: str) -> str:
+        return pyremote_build_bootstrap_source(context_name)
+
+    def bootstrap_finalize(self) -> PyremotePayloadRuntime:
+        return pyremote_bootstrap_finalize()
+
+    def make_driver(
+            self,
+            payload_src: ta.Union[str, ta.Sequence[str]],
+            options: PyremoteBootstrapOptions = PyremoteBootstrapOptions(),
+    ) -> PyremoteBootstrapDriver:
+        return PyremoteBootstrapDriver(
+            payload_src,
+            options,
+        )
+
+    def get_core_source(self) -> ta.Optional[str]:
+        return pyremote_get_core_source()
+
+
+pyremote = PyremoteApi()
 
 
 ########################################

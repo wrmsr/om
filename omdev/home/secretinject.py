@@ -208,7 +208,7 @@ def try_create(
 
 
 def inject_secrets(
-        path: str,
+        file_path: str,
         update: JsonObject,
         *,
         timeout: float = DEFAULT_TIMEOUT,
@@ -216,19 +216,19 @@ def inject_secrets(
     if not isinstance(update, collections.OrderedDict):
         update = collections.OrderedDict(update)
 
-    path = os.path.realpath(path)  # operate on the real file if `path` is a symlink
-    dirname, basename = os.path.split(path)
+    file_path = os.path.realpath(file_path)  # operate on the real file if `path` is a symlink
+    dirname, basename = os.path.split(file_path)
     deadline = time.monotonic() + timeout
 
     while True:
         try:
-            fd = os.open(path, os.O_RDONLY)
+            fd = os.open(file_path, os.O_RDONLY)
 
         except FileNotFoundError:
             merged, _ = merge(collections.OrderedDict(), update)
 
             if try_create(
-                    path,
+                    file_path,
                     dirname,
                     basename,
                     merged,
@@ -242,28 +242,28 @@ def inject_secrets(
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 if time.monotonic() >= deadline:
-                    raise TimeoutError(f'timed out waiting for lock on {path}') from None
+                    raise TimeoutError(f'timed out waiting for lock on {file_path}') from None
                 time.sleep(random.uniform(POLL_MIN, POLL_MAX))
                 continue
 
-            # We hold a lock on *an* inode. Make sure it is still the one at `path`: a concurrent writer may have
+            # We hold a lock on *an* inode. Make sure it is still the one at `file_path`: a concurrent writer may have
             # rename()d a new file over it while we waited.
             st = os.fstat(fd)
 
             try:
-                cur = os.stat(path)
+                cur = os.stat(file_path)
             except FileNotFoundError:
                 continue  # deleted underneath us; go recreate
 
             if (st.st_dev, st.st_ino) != (cur.st_dev, cur.st_ino):
                 continue  # stale inode; retry against the current file
             if not stat.S_ISREG(st.st_mode):
-                raise OSError(errno.EINVAL, 'not a regular file', path)
+                raise OSError(errno.EINVAL, 'not a regular file', file_path)
 
             try:
                 existing = load(read_all(fd))
             except ValueError as e:
-                raise ValueError(f'{path}: {e}') from None
+                raise ValueError(f'{file_path}: {e}') from None
 
             merged, changed = merge(existing, update)
             if not changed:
@@ -278,7 +278,7 @@ def inject_secrets(
             )
 
             try:
-                os.rename(tmp, path)  # atomic replace, done while holding the lock
+                os.rename(tmp, file_path)  # atomic replace, done while holding the lock
             except BaseException:
                 os.unlink(tmp)
                 raise

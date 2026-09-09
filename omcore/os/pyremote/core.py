@@ -649,3 +649,30 @@ def pyremote_get_core_source() -> ta.Optional[str]:
 
     import inspect
     return inspect.getsource(mod)
+
+
+##
+
+
+class PyremoteApi:
+    def build_bootstrap_source(self, context_name: str) -> str:
+        return pyremote_build_bootstrap_source(context_name)
+
+    def bootstrap_finalize(self) -> PyremotePayloadRuntime:
+        return pyremote_bootstrap_finalize()
+
+    def make_driver(
+            self,
+            payload_src: ta.Union[str, ta.Sequence[str]],
+            options: PyremoteBootstrapOptions = PyremoteBootstrapOptions(),
+    ) -> PyremoteBootstrapDriver:
+        return PyremoteBootstrapDriver(
+            payload_src,
+            options,
+        )
+
+    def get_core_source(self) -> ta.Optional[str]:
+        return pyremote_get_core_source()
+
+
+pyremote = PyremoteApi()
