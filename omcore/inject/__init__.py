@@ -14,7 +14,10 @@ _dc.init_package(
 from .. import lang as _lang  # noqa
 
 
-with _lang.auto_proxy_init(globals()):
+with _lang.auto_proxy_init(
+        globals(),
+        update_exports=True,
+):
     ##
 
     from .helpers.constfn import (  # noqa

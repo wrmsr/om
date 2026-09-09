@@ -15,7 +15,10 @@ _dc.init_package(
 from omcore import lang as _lang  # noqa
 
 
-with _lang.auto_proxy_init(globals()):
+with _lang.auto_proxy_init(
+        globals(),
+        update_exports=True,
+):
     ##
 
     from .eval.tools.quickjs import (  # noqa

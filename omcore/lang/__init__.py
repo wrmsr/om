@@ -1,7 +1,10 @@
 from .imports.proxy import auto_proxy_init as _auto_proxy_init
 
 
-with _auto_proxy_init(globals(), update_exports=True):
+with _auto_proxy_init(
+        globals(),
+        update_exports=True,
+):
     ##
 
     from .asyncs import (  # noqa

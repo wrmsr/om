@@ -2,7 +2,10 @@
 from ... import lang as _lang
 
 
-with _lang.auto_proxy_init(globals()):
+with _lang.auto_proxy_init(
+        globals(),
+        update_exports=True,
+):
     from .colors import (  # noqa
         ColorDepth,
         NamedColor,
