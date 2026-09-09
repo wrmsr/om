@@ -251,6 +251,36 @@ class Cli(ap.Cli):
 
     #
 
+    @ap.cmd(
+        ap.arg('docker-port', type=int),
+        ap.arg('host-port', type=int),
+
+        ap.arg('--name'),
+        ap.arg('--host-name'),
+
+        ap.arg('-i', '--intermediate-port', type=int),
+
+        ap.arg('--image'),
+    )
+    def port_relay(self) -> None:
+        from omcore.docker.ports import DockerPortRelay
+
+        subprocess.check_call(
+            DockerPortRelay(**lang.opt_kw(
+                docker_port=self.args.docker_port,
+                host_port=self.args.host_port,
+
+                name=self.args.name,
+                host_name=self.args.host_name,
+
+                intermediate_port=self.args.intermediate_port,
+
+                image=self.args.image,
+            )).run_cmd(),
+        )
+
+    #
+
     @ap.cmd()
     def dockly(self) -> None:
         os.execl(
