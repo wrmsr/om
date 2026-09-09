@@ -1,50 +1,23 @@
-import argparse
+import pathlib
+import shutil
 import sys
 import typing as ta
 
+from ... import lang
+from ...argparse import all as ap
+from ...term import styled as tst
 from .parsing import parse_patch
 from .types import ExtendedHeaderKind
 from .types import FilePatch
 from .types import PatchSet
 
 
+with lang.auto_proxy_import(globals()):
+    from . import term
+
+
 ##
-
-
-DESCRIPTION = """\
-Unified diff metadata.
-
-Examples:
-    $ git diff | unidiff
-    $ hg diff | unidiff --show-diff
-    $ unidiff -f patch.diff
-
-"""
-
-
-def get_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=DESCRIPTION,
-    )
-
-    parser.add_argument(
-        '--show-diff',
-        action='store_true',
-        default=False,
-        dest='show_diff',
-        help='output diff to stdout',
-    )
-
-    parser.add_argument(
-        '-f',
-        '--file',
-        dest='diff_file',
-        type=argparse.FileType('r'),
-        help='if not specified, read diff data from stdin',
-    )
-
-    return parser
+# summary
 
 
 def _display_path(fp: FilePatch) -> str:
@@ -115,25 +88,91 @@ def _print_summary(patch: PatchSet) -> None:
     print(f'Total: {additions:d} addition(s), {deletions:d} deletion(s)')
 
 
+##
+# render
+
+
+def find_git_root() -> pathlib.Path:
+    cwd = pathlib.Path.cwd()
+    if (cwd / '.git').exists():
+        return cwd
+
+    for directory in cwd.parents:
+        if (directory / '.git').exists():
+            return directory
+    return cwd
+
+
+##
+
+
+class Cli(ap.Cli):
+    @ap.cmd(
+        ap.arg(
+            'file',
+            nargs='?',
+            help='if not specified, read diff data from stdin',
+        ),
+        ap.arg(
+            '--show-diff',
+            action='store_true',
+            default=False,
+            help='output diff to stdout',
+        ),
+    )
+    def summary(self) -> None:
+        if self.args.file is not None:
+            diff = pathlib.Path(self.args.file).read_text()
+        else:
+            diff = sys.stdin.read()
+
+        patch = parse_patch(diff)
+
+        if self.args.show_diff:
+            sys.stdout.write(diff)
+            if diff and not diff.endswith('\n'):
+                sys.stdout.write('\n')
+            print()
+
+        _print_summary(patch)
+
+    #
+
+    @ap.cmd(
+        ap.arg('file', nargs='?'),
+        ap.arg('-r', '--root'),
+        ap.arg('-w', '--width', type=int),
+        ap.arg('--no-color', action='store_true'),
+        ap.arg('--no-syntax', action='store_true'),
+    )
+    def render(self) -> None:
+        project_root = pathlib.Path(self.args.root) if self.args.root else find_git_root()
+
+        if self.args.file is not None:
+            diff = pathlib.Path(self.args.file).read_text()
+        else:
+            diff = sys.stdin.read()
+
+        width = self.args.width or shutil.get_terminal_size((80, 24)).columns
+        color_depth = tst.ColorDepth.MONO if self.args.no_color else tst.detect_color_depth()
+        sys.stdout.write(term.render_diff_ansi(
+            parse_patch(diff),
+            project_root,
+            width=width,
+            syntax_highlighting=not self.args.no_syntax,
+            color_depth=color_depth,
+        ))
+
+
+# @om-manifest
+_CLI_MODULE = {'!omdev.cli.types.CliModule': {
+    'name': 'diff',
+    'module': __name__,
+}}
+
+
 def _main(argv: ta.Sequence[str] | None = None) -> int:
-    parser = get_parser()
-    args = parser.parse_args(argv)
-
-    if args.diff_file is not None:
-        diff_text = args.diff_file.read()
-    else:
-        diff_text = sys.stdin.read()
-
-    patch = parse_patch(diff_text)
-
-    if args.show_diff:
-        sys.stdout.write(diff_text)
-        if diff_text and not diff_text.endswith('\n'):
-            sys.stdout.write('\n')
-        print()
-
-    _print_summary(patch)
-    return 0
+    Cli(argv).cli_run_and_exit()
 
 
 if __name__ == '__main__':
