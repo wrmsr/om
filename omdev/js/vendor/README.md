@@ -11,7 +11,9 @@ archive URLs, package requirements, and generated file hashes.
 Resolution reads package and exact-version metadata directly from the configured npm registry. It chooses one global
 version of every package which satisfies all ordinary and peer requirements, backtracking from newer versions when
 necessary. Required peers join the closure; optional peers constrain a package only when another requirement includes
-it. Development and optional dependencies are not included.
+it. Development and optional dependencies are not included: the registry merges `optionalDependencies` into
+`dependencies` on publish, so they are removed again to match the archived `package.json`, and they never constrain
+resolution. The legacy `{"type": ...}` license object form is normalized to its SPDX identifier.
 
 Generation honors package `exports` maps, including exact and wildcard subpaths, arrays, and nested browser, import,
 module, and default conditions in declaration order. An explicit export map is an access boundary: imports of private

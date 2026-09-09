@@ -7,6 +7,7 @@ from omcore.formats.json import all as json
 
 from .exports import output_package_exports
 from .exports import read_package_exports
+from .licenses import normalize_license
 from .licenses import validate_license
 from .manifests import validate_lock
 from .models import GraphVerifyRequest
@@ -53,6 +54,16 @@ def _requirements(metadata: ta.Mapping[str, ta.Any], field: str, package: str, /
     ):
         raise ValueError(f'Invalid {field} in vendored package metadata: {package}')
     return value
+
+
+def _dependencies(metadata: ta.Mapping[str, ta.Any], package: str, /) -> dict[str, str]:
+    # Mirrors the registry normalization: an optional dependency is never a requirement even if also listed as one.
+    optional = _requirements(metadata, 'optionalDependencies', package)
+    return {
+        name: expression
+        for name, expression in _requirements(metadata, 'dependencies', package).items()
+        if name not in optional
+    }
 
 
 def _optional_peers(metadata: ta.Mapping[str, ta.Any], package: str, /) -> frozenset[str]:
@@ -108,11 +119,11 @@ def _verify_package(
     if (
             metadata.get('name') != package.name or
             metadata.get('version') != package.version or
-            metadata.get('license') != package.license
+            normalize_license(metadata.get('license')) != package.license
     ):
         raise ValueError(f'Vendored package identity does not match lock: {package.name}')
 
-    if _requirements(metadata, 'dependencies', package.name) != package.dependencies:
+    if _dependencies(metadata, package.name) != package.dependencies:
         raise ValueError(f'Vendored package dependencies do not match lock: {package.name}')
 
     if _requirements(metadata, 'peerDependencies', package.name) != package.peer_dependencies:

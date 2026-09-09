@@ -280,6 +280,7 @@ def _vendor_archives(
         archives: ta.Mapping[str, tuple[ta.Mapping[str, ta.Any], ta.Mapping[str, bytes]]],
         *,
         roots: ta.Sequence[str],
+        dependencies: ta.Mapping[str, ta.Mapping[str, str]] | None = None,
 ) -> str:
     cache_directory = os.path.join(tmp_path, 'cache')
     os.makedirs(cache_directory, exist_ok=True)
@@ -294,7 +295,11 @@ def _vendor_archives(
             license='MIT',
             integrity='sha512-' + base64.b64encode(hashlib.sha512(archive).digest()).decode('ascii'),
             url=f'https://example.invalid/{name}.tgz',
-            dependencies=dict(metadata.get('dependencies', {})),
+            dependencies=(
+                dict(dependencies[name])
+                if dependencies is not None else
+                dict(metadata.get('dependencies', {}))
+            ),
             peer_dependencies={},
             optional_peer_dependencies=frozenset(),
         ))
@@ -430,3 +435,38 @@ def test_vendor_reports_colliding_vendor_paths_only_when_reached(tmp_path) -> No
     files['index.js'] = b"export {util} from './util.js'\n"
     with pytest.raises(ValueError, match=r'same vendor path: packages/example/util\.js'):
         _vendor_archives(os.path.join(tmp_path, 'again'), {'example': (metadata, files)}, roots=['example'])
+
+
+def test_vendor_accepts_optional_dependencies_and_legacy_license_objects(tmp_path) -> None:
+    # The archived package.json keeps optional dependencies apart from `dependencies` and may use the legacy license
+    # object form; the lock, built from normalized registry metadata, carries neither.
+    metadata = {
+        'name': 'example',
+        'version': '1.0.0',
+        'license': {'type': 'MIT', 'url': 'https://example.invalid/LICENSE'},
+        'type': 'module',
+        'exports': './index.js',
+        'dependencies': {'dependency': '^2.0.0'},
+        'optionalDependencies': {'fsevents': '~2.3.2'},
+    }
+    dependency_metadata = {
+        'name': 'dependency',
+        'version': '2.0.0',
+        'license': 'MIT',
+        'type': 'module',
+        'exports': './index.js',
+        'dependencies': {'also-optional': '^1.0.0'},
+        'optionalDependencies': {'also-optional': '^1.0.0'},
+    }
+
+    destination = _vendor_archives(
+        tmp_path,
+        {
+            'dependency': (dependency_metadata, {'index.js': b'export const value = 1\n'}),
+            'example': (metadata, {'index.js': b"export {value} from 'dependency'\n"}),
+        },
+        roots=['example'],
+        dependencies={'example': {'dependency': '^2.0.0'}, 'dependency': {}},
+    )
+
+    assert _vendored_modules(destination) == {'example/index.js', 'dependency/index.js'}
