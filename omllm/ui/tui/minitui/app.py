@@ -12,12 +12,11 @@ import typing as ta
 
 from omcore import collections as col
 from omcore import dataclasses as dc
-from omcore import inject as inj
 from omcore import lang
 from omcore.text import highlights as hl
 from omdev.tui import minitui as mt
 
-from ..config import Config
+from ....core import ui
 
 
 CardRows: ta.TypeAlias = tuple[tuple[mt.Segment, ...], ...]
@@ -122,6 +121,24 @@ APP_KEY_REVERSE_MAP: ta.Final[ta.Mapping[mt.Key, AppKey]] = col.make_map((
     for ak, mks in APP_KEY_MAP.items()
     for mk in ([mks] if isinstance(mks, mt.Key) else mks)
 ), strict=True)
+
+
+##
+
+
+class AppQuitSignal(ui.QuitSignal):
+    """
+    Routes `/quit` through the app's quit funnel, so it sequences like ctrl+d and `:q` instead of raising through the
+    turn.
+    """
+
+    def __init__(self, *, app: MinituiChatApp) -> None:
+        super().__init__()
+
+        self._app = app
+
+    async def quit(self) -> None:
+        self._app.request_quit()
 
 
 ##
@@ -753,19 +770,3 @@ class MinituiChatApp(mt.App):
             focus=self._input,
         )
         return self._layout.frame
-
-
-##
-
-
-def _provide_driver(surface: mt.InlineSurface) -> mt.AsyncioDriver:
-    # EOF goes through the app's quit funnel, like every other way out, rather than stopping the driver on the spot.
-    return mt.AsyncioDriver(surface, app_handles_eof=True)
-
-
-def bind_app(config: Config) -> inj.Elements:
-    return inj.as_elements(
-        inj.bind(mt.InlineSurface(kitty_keys=True)),
-        inj.bind(_provide_driver, singleton=True),
-        inj.bind(MinituiChatApp, singleton=True),
-    )

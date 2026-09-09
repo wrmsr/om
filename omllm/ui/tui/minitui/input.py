@@ -10,11 +10,9 @@ as a cancellation the requesting task did not ask for.
 import asyncio
 
 from omcore import check
-from omcore import inject as inj
 from omdev.tui import minitui as mt
 
 from .... import agent as agn
-from ..config import Config
 from .app import MinituiChatApp
 from .toolcards import tool_call_summary
 from .toolcards import tool_card_key
@@ -68,13 +66,3 @@ class CardPermissionAsker(agn.PermissionAsker):
             raise
 
         return agn.PermissionState.ALLOW if allowed else agn.PermissionState.DENY
-
-
-##
-
-
-def bind_input(config: Config) -> inj.Elements:
-    return inj.as_elements(
-        inj.bind(CardPermissionAsker, singleton=True),
-        inj.bind(agn.PermissionAsker, to_key=CardPermissionAsker),
-    )

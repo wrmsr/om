@@ -1,4 +1,7 @@
 import typing as ta
+import uuid
+
+from omcore import check
 
 from ... import agent as agn
 from ...core.eventbus import EventPublisher
@@ -7,6 +10,7 @@ from .entries import MessageSessionEntry
 from .events import AgentSessionEvent
 from .events import SessionEvent
 from .storage import SessionStorage
+from .types import SessionId
 
 
 ##
@@ -21,18 +25,24 @@ class Session(
             agent: agn.Agent,
             storage: SessionStorage,
             commands_manager: CommandsManager,
+            id: SessionId | None = None,  # noqa
     ) -> None:
         super().__init__()
 
         self._agent = agent
         self._storage = storage
         self._commands_manager = commands_manager
+        self._id = check.isinstance(id, SessionId) if id is not None else SessionId(uuid.uuid7())
 
         # How much of the run in progress has been stored: messages are stored as they are announced, and the run's
         # terminal event then covers whatever it did not announce.
         self._num_run_stored = 0
 
         agent.subscribe(self._on_agent_event)
+
+    @property
+    def id(self) -> SessionId:
+        return self._id
 
     async def _on_agent_event(self, agn_event: agn.Event) -> None:
         await self._publish(AgentSessionEvent(agn_event))

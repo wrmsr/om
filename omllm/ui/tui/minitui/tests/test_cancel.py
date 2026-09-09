@@ -18,9 +18,9 @@ from .....agent.eval.permissions import EvalPermissionTarget
 from .....core.asyncs.asyncio import AsyncioGroupRunner
 from ...config import Config
 from ..app import AppKey
+from ..app import AppQuitSignal
 from ..app import MinituiChatApp
 from ..input import CardPermissionAsker
-from ..main import AppQuitSignal
 from ..main import PromptPump
 from ..main import Shutdown
 from ..output import AgentEventRenderer

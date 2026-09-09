@@ -78,3 +78,7 @@ with _lang.auto_proxy_init(globals()):
 
         JsonlSessionStorage,
     )
+
+    from .sessions.types import (  # noqa
+        SessionId,
+    )

@@ -18,32 +18,10 @@ from omdev.tui import minitui as mt
 from .... import agent as agn
 from .... import harness as har
 from ....core import processes
-from ....core import ui
 from ..config import Config
 from ..inject import AgentEventSubscribers
-from ..inject import bind_tui
 from .app import MinituiChatApp
-from .app import bind_app
-from .input import bind_input
-from .output import bind_output
-
-
-##
-
-
-class AppQuitSignal(ui.QuitSignal):
-    """
-    Routes `/quit` through the app's quit funnel, so it sequences like ctrl+d and `:q` instead of raising through the
-    turn.
-    """
-
-    def __init__(self, *, app: MinituiChatApp) -> None:
-        super().__init__()
-
-        self._app = app
-
-    async def quit(self) -> None:
-        self._app.request_quit()
+from .inject import bind_minitui
 
 
 ##
@@ -70,8 +48,8 @@ class PromptPump:
     def submit(self, text: str) -> None:
         # A submission made mid-turn queues as the next prompt - it does not steer the running one. Steering exists
         # (`Session.steer`, delivered at the running turn's next opportunity) and is to be reached through a `/steer`
-        # command; for that to work, commands will have to be dispatched here immediately while a turn runs, rather
-        # than queued behind it like a prompt.
+        # command; for that to work, commands will have to be dispatched here immediately while a turn runs, rather than
+        # queued behind it like a prompt.
         if self._closing or not text.strip():
             return
         if text.startswith('/'):
@@ -171,23 +149,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
     #
 
-    lst: list[inj.Elemental] = [
-        inj.bind(config),
-
-        bind_tui(config),
-
-        bind_app(config),
-        bind_input(config),
-        bind_output(config),
-
-        inj.bind(AppQuitSignal, singleton=True),
-        inj.bind(ui.QuitSignal, to_key=AppQuitSignal),
-    ]
-
-    #
-
     async with inj.create_async_managed_injector(
-        *lst,
+        bind_minitui(config),
         factory=inj.create_asyncio_injector,
     ) as injector:
         agent = await injector[agn.Agent]

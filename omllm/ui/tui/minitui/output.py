@@ -8,14 +8,12 @@ invalidates; concurrent tool tasks may interleave events, but never individual c
 import json
 import typing as ta
 
-from omcore import inject as inj
 from omdev.tui import minitui as mt
 
 from .... import agent as agn
 from .... import llm
 from ....core import ui
 from ..config import Config
-from ..inject import bind_on_agent_event_subscriber
 from ..rendering import render_text_rows
 from .app import MinituiChatApp
 from .toolcards import tool_call_summary
@@ -196,24 +194,3 @@ class VerboseEventRenderer:
 
     async def on_agent_event(self, ev: agn.Event) -> None:
         self._app.display_text(_truncate(repr(ev), 200), 'status.dim')
-
-
-##
-
-
-def bind_output(config: Config) -> inj.Elements:
-    lst: list[inj.Elemental] = [
-        inj.bind(MinituiTextDisplayer, singleton=True),
-        inj.bind(ui.TextDisplayer, to_key=MinituiTextDisplayer),
-
-        inj.bind(AgentEventRenderer, singleton=True),
-        bind_on_agent_event_subscriber(AgentEventRenderer),
-    ]
-
-    if config.verbose:
-        lst.extend([
-            inj.bind(VerboseEventRenderer, singleton=True),
-            bind_on_agent_event_subscriber(VerboseEventRenderer),
-        ])
-
-    return inj.as_elements(*lst)
