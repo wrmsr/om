@@ -229,13 +229,21 @@ class _PyremoteBootstrapConsts:
 
 def _pyremote_bootstrap_main(context_name: str) -> None:
     # Setup watchdog
-    dl = time.monotonic() + _PyremoteBootstrapConsts.TIMEOUT_S
+    dl = time.monotonic() + _PyremoteBootstrapConsts.TIMEOUT_S + _PyremoteBootstrapConsts.GRACE_S
     pp = os.getpid()
     dr, dw = os.pipe()
-    pfd = os.pidfd_open(os.getpid()) if hasattr(os, 'pidfd_open') else None
+    pfd = None  # type: int | None
+    try:
+        pfd = os.pidfd_open(os.getpid())  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        pass
 
     if not (wp := os.fork()):  # noqa
         # Watchdog process
+
+        # Survive group-wide signals the target survives
+        for s in [signal.SIGINT, signal.SIGHUP, signal.SIGTERM]:
+            signal.signal(s, signal.SIG_IGN)
 
         # Cleanup fd's
         nfd = os.open(os.devnull, os.O_WRONLY)
@@ -243,33 +251,43 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
             os.dup2(nfd, fd)
 
         wrl = [dr] + ([pfd] if pfd is not None else [])
-        if (rem := dl - time.monotonic()) > 0:
+        while (rem := dl - time.monotonic()) > 0:
+            if not wrl:
+                time.sleep(rem)
+                continue
+
             rdy, _, _ = select.select(wrl, [], [], rem)
-            if pfd in rdy or (dr in rdy and os.read(dr, 1)):
-                # Parent exited or explicit disarm
-                os._exit(0)
+            if pfd in rdy:
+                # Target exited
+                break
 
-            # Target died (ppid check catches it) or something closed our fd behind our back -> fall back to the clock
-            time.sleep(max(0, dl - time.monotonic()))
+            if dr in rdy:
+                if os.read(dr, 1):
+                    break  # explicit disarm
 
-        try:
-            if pfd is not None:
-                signal.pidfd_send_signal(pfd, signal.SIGALRM)  # type: ignore[attr-defined]
-                rdy, _, _ = select.select([pfd], [], [], _PyremoteBootstrapConsts.GRACE_S)
-                if not rdy:
-                    signal.pidfd_send_signal(pfd, signal.SIGKILL)  # type: ignore[attr-defined]
+                # EOF: target died (with no pidfd, ppid tells) or fd closed behind our back -> clock
+                if pfd is None and os.getppid() != pp:
+                    break
 
-            else:
-                # FIXME: TOCTOU :/
-                if os.getppid() == pp:
-                    # Still our parent -> same process, still alive
+                wrl.remove(dr)
+
+        else:
+            # No break: deadline passed
+            try:
+                if pfd is not None:
+                    signal.pidfd_send_signal(pfd, signal.SIGALRM)  # type: ignore[attr-defined]
+                    rdy, _, _ = select.select([pfd], [], [], _PyremoteBootstrapConsts.GRACE_S)
+                    if rdy:
+                        signal.pidfd_send_signal(pfd, signal.SIGKILL)  # type: ignore[attr-defined]
+
+                elif os.getppid() == pp:  # FIXME: TOCTOU :/
                     os.kill(pp, signal.SIGALRM)
                     time.sleep(_PyremoteBootstrapConsts.GRACE_S)
                     if os.getppid() == pp:
                         os.kill(pp, signal.SIGKILL)
 
-        except ProcessLookupError:
-            pass
+            except ProcessLookupError:
+                pass
 
         os._exit(0)
 
@@ -341,8 +359,8 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
                 raise EOFError
             payload_src = zlib.decompress(payload_z)
 
-            # Write both copies of payload src. Must write to w0 (parent stdin) before w1 (copy pipe) as pipe will likely
-            # fill and block and need to be drained by pyremote_bootstrap_finalize running in parent.
+            # Write both copies of payload src. Must write to w0 (parent stdin) before w1 (copy pipe) as pipe will
+            # likely fill and block and need to be drained by pyremote_bootstrap_finalize running in parent.
             for w in [pw0, pw1]:
                 fp = os.fdopen(w, 'wb', 0)
                 fp.write(payload_src)
@@ -472,19 +490,42 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
         sys.modules[mn] = sys.modules['__main__']
 
     # Disarm watchdog
-    os.write(_PyremoteBootstrapConsts.DISARM_FD, b'1')
+    try:
+        os.write(_PyremoteBootstrapConsts.DISARM_FD, b'1')
+    except OSError:
+        pass  # watchdog already gone; the reap below tells the story
     os.close(_PyremoteBootstrapConsts.DISARM_FD)
 
-    # Reap watchdog
+    # Reap watchdog. It's our unreaped child: its pid can't be recycled, so waiting on it and killing it are both
+    # race-free. Wait on a pidfd where available, poll otherwise.
     wp = int(os.environ.pop(_PyremoteBootstrapConsts.WATCHDOG_PID_VAR))
-    reap_dl = time.monotonic() + _PyremoteBootstrapConsts.REAP_S
-    while True:
-        done_pid, _ = os.waitpid(wp, os.WNOHANG)
-        if done_pid != 0:
-            break
-        if time.monotonic() >= reap_dl:
+    pfd = None  # type: int | None
+    try:
+        pfd = os.pidfd_open(wp)  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        pass
+
+    try:
+        if pfd is not None:
+            try:
+                # Readable once it has exited
+                select.select([pfd], [], [], _PyremoteBootstrapConsts.REAP_S)
+            finally:
+                os.close(pfd)
+            done, _ = os.waitpid(wp, os.WNOHANG)
+
+        else:
+            reap_dl = time.monotonic() + _PyremoteBootstrapConsts.REAP_S
+            while not (done := os.waitpid(wp, os.WNOHANG)[0]) and time.monotonic() < reap_dl:
+                time.sleep(_PyremoteBootstrapConsts.REAP_SLEEP_S)
+
+        if not done:
+            os.kill(wp, signal.SIGKILL)
+            os.waitpid(wp, 0)
             raise TimeoutError(f'Timeout reaping pyremote watchdog pid {wp}')
-        time.sleep(_PyremoteBootstrapConsts.REAP_SLEEP_S)
+
+    except ChildProcessError:
+        pass
 
     # Write fourth ack
     output.write(_PyremoteBootstrapConsts.ACK3)

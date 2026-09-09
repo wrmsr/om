@@ -99,7 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
-            dict(path='../../omcore/os/pyremote/core.py', sha1='614b2dd9c7065713c450caa9d5fb66cc5147a84f'),
+            dict(path='../../omcore/os/pyremote/core.py', sha1='f3641cfb7f5bef79b20c1e3d15ae905f211555e7'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -4647,7 +4647,7 @@ def relative_symlink(
 ########################################
 # ../../../omcore/os/pyremote/core.py
 """
-Basically this: https://mitogen.networkgenomics.com/howitworks.html
+Basically (the first part of) this: https://mitogen.networkgenomics.com/howitworks.html
 
 TODO:
  - log: ta.Optional[logging.Logger] = None + log.debug's
@@ -4861,116 +4861,148 @@ class _PyremoteBootstrapConsts:
 
 def _pyremote_bootstrap_main(context_name: str) -> None:
     # Setup watchdog
-    dl = time.monotonic() + _PyremoteBootstrapConsts.TIMEOUT_S
+    dl = time.monotonic() + _PyremoteBootstrapConsts.TIMEOUT_S + _PyremoteBootstrapConsts.GRACE_S
     pp = os.getpid()
     dr, dw = os.pipe()
-    pfd = os.pidfd_open(os.getpid()) if hasattr(os, 'pidfd_open') else None
+    pfd = None  # type: int | None
+    try:
+        pfd = os.pidfd_open(os.getpid())  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        pass
 
     if not (wp := os.fork()):  # noqa
         # Watchdog process
 
+        # Survive group-wide signals the target survives
+        for s in [signal.SIGINT, signal.SIGHUP, signal.SIGTERM]:
+            signal.signal(s, signal.SIG_IGN)
+
+        # Cleanup fd's
+        nfd = os.open(os.devnull, os.O_WRONLY)
+        for fd in [0, 1]:
+            os.dup2(nfd, fd)
+
         wrl = [dr] + ([pfd] if pfd is not None else [])
-        if (rem := dl - time.monotonic()) > 0:
+        while (rem := dl - time.monotonic()) > 0:
+            if not wrl:
+                time.sleep(rem)
+                continue
+
             rdy, _, _ = select.select(wrl, [], [], rem)
-            if pp in rdy or (dr in rdy and os.read(dr, 1)):
-                # Parent exited or explicit disarm
-                os._exit(0)
+            if pfd in rdy:
+                # Target exited
+                break
 
-            # Target died (ppid check catches it) or something closed our fd behind our back -> fall back to the clock
-            time.sleep(max(0, dl - time.monotonic()))
+            if dr in rdy:
+                if os.read(dr, 1):
+                    break  # explicit disarm
 
-        if pfd is not None:
-            signal.pidfd_send_signal(pfd, signal.SIGALRM)  # type: ignore[attr-defined]
-            rdy, _, _ = select.select([pfd], [], [], rem)
-            if not rdy:
-                signal.pidfd_send_signal(pfd, signal.SIGKILL)  # type: ignore[attr-defined]
+                # EOF: target died (with no pidfd, ppid tells) or fd closed behind our back -> clock
+                if pfd is None and os.getppid() != pp:
+                    break
+
+                wrl.remove(dr)
 
         else:
-            # FIXME: TOCTOU :/
-            if os.getppid() == pp:
-                # Still our parent -> same process, still alive
-                os.kill(pp, signal.SIGALRM)
-                time.sleep(_PyremoteBootstrapConsts.GRACE_S)
-                if os.getppid() == pp:
-                    os.kill(pp, signal.SIGKILL)
+            # No break: deadline passed
+            try:
+                if pfd is not None:
+                    signal.pidfd_send_signal(pfd, signal.SIGALRM)  # type: ignore[attr-defined]
+                    rdy, _, _ = select.select([pfd], [], [], _PyremoteBootstrapConsts.GRACE_S)
+                    if rdy:
+                        signal.pidfd_send_signal(pfd, signal.SIGKILL)  # type: ignore[attr-defined]
+
+                elif os.getppid() == pp:  # FIXME: TOCTOU :/
+                    os.kill(pp, signal.SIGALRM)
+                    time.sleep(_PyremoteBootstrapConsts.GRACE_S)
+                    if os.getppid() == pp:
+                        os.kill(pp, signal.SIGKILL)
+
+            except ProcessLookupError:
+                pass
 
         os._exit(0)
-
-    os.environ[_PyremoteBootstrapConsts.WATCHDOG_PID_VAR] = str(wp)
-
-    # Install timeout
-    def timeout(*_):
-        raise TimeoutError
-
-    signal.signal(signal.SIGALRM, timeout)
-    signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
-
-    # Get pid
-    pid = os.getpid()
-
-    # Two copies of payload src to be sent to parent
-    pr0, pw0 = os.pipe()
-    pr1, pw1 = os.pipe()
-
-    if (cp := os.fork()):
-        # Parent process
-
-        # Dup original stdin to comm_fd for use as comm channel
-        os.dup2(0, _PyremoteBootstrapConsts.INPUT_FD)
-
-        # Overwrite stdin (fed to python repl) with first copy of src
-        os.dup2(pr0, 0)
-
-        # Dup second copy of src to src_fd to recover after launch
-        os.dup2(pr1, _PyremoteBootstrapConsts.SRC_FD)
-
-        # Dup disarm fd to disarm_fd
-        os.dup2(dw, _PyremoteBootstrapConsts.DISARM_FD)
-
-        # Close remaining fd's
-        for f in [pr0, pw0, pr1, pw1]:
-            os.close(f)
-
-        # Save vars
-        env = os.environ
-        exe = sys.executable
-        env[_PyremoteBootstrapConsts.CHILD_PID_VAR] = str(cp)
-        env[_PyremoteBootstrapConsts.ARGV0_VAR] = exe
-        env[_PyremoteBootstrapConsts.CONTEXT_NAME_VAR] = context_name
-
-        # Disable timeout
-        signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
-
-        # Start repl reading stdin from r0
-        os.execl(exe, exe + (_PyremoteBootstrapConsts.PROC_TITLE_FMT % (context_name,)))
 
     else:
-        # Child process
+        # Finish watchdog setup
+        os.close(dr)
+        if pfd is not None:
+            os.close(pfd)
+        os.environ[_PyremoteBootstrapConsts.WATCHDOG_PID_VAR] = str(wp)
 
-        # Write first ack
-        os.write(1, _PyremoteBootstrapConsts.ACK0)
+        # Install timeout
+        def timeout(*_):
+            raise TimeoutError
 
-        # Write pid
-        os.write(1, struct.pack('<Q', pid))
+        signal.signal(signal.SIGALRM, timeout)
+        signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
 
-        # Read payload src from stdin
-        payload_z_len = struct.unpack('<I', os.read(0, 4))[0]
-        if len(payload_z := os.fdopen(0, 'rb').read(payload_z_len)) != payload_z_len:
-            raise EOFError
-        payload_src = zlib.decompress(payload_z)
+        # Get pid
+        pid = os.getpid()
 
-        # Write both copies of payload src. Must write to w0 (parent stdin) before w1 (copy pipe) as pipe will likely
-        # fill and block and need to be drained by pyremote_bootstrap_finalize running in parent.
-        for w in [pw0, pw1]:
-            fp = os.fdopen(w, 'wb', 0)
-            fp.write(payload_src)
-            fp.close()
+        # Two copies of payload src to be sent to parent
+        pr0, pw0 = os.pipe()
+        pr1, pw1 = os.pipe()
 
-        # Write second ack
-        os.write(1, _PyremoteBootstrapConsts.ACK1)
+        if (cp := os.fork()):
+            # Parent process
 
-        # Exit child
-        os._exit(0)
+            # Dup original stdin to comm_fd for use as comm channel
+            os.dup2(0, _PyremoteBootstrapConsts.INPUT_FD)
+
+            # Overwrite stdin (fed to python repl) with first copy of src
+            os.dup2(pr0, 0)
+
+            # Dup second copy of src to src_fd to recover after launch
+            os.dup2(pr1, _PyremoteBootstrapConsts.SRC_FD)
+
+            # Dup disarm fd to disarm_fd
+            os.dup2(dw, _PyremoteBootstrapConsts.DISARM_FD)
+
+            # Close remaining fd's
+            for f in [pr0, pw0, pr1, pw1]:
+                os.close(f)
+
+            # Save vars
+            env = os.environ
+            exe = sys.executable
+            env[_PyremoteBootstrapConsts.CHILD_PID_VAR] = str(cp)
+            env[_PyremoteBootstrapConsts.ARGV0_VAR] = exe
+            env[_PyremoteBootstrapConsts.CONTEXT_NAME_VAR] = context_name
+
+            # Disable timeout
+            signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
+
+            # Start repl reading stdin from r0
+            os.execl(exe, exe + (_PyremoteBootstrapConsts.PROC_TITLE_FMT % (context_name,)))
+
+        else:
+            # Child process
+
+            # Write first ack
+            os.write(1, _PyremoteBootstrapConsts.ACK0)
+
+            # Write pid
+            os.write(1, struct.pack('<Q', pid))
+
+            # Read payload src from stdin
+            payload_z_len = struct.unpack('<I', os.read(0, 4))[0]
+            if len(payload_z := os.fdopen(0, 'rb').read(payload_z_len)) != payload_z_len:
+                raise EOFError
+            payload_src = zlib.decompress(payload_z)
+
+            # Write both copies of payload src. Must write to w0 (parent stdin) before w1 (copy pipe) as pipe will
+            # likely fill and block and need to be drained by pyremote_bootstrap_finalize running in parent.
+            for w in [pw0, pw1]:
+                fp = os.fdopen(w, 'wb', 0)
+                fp.write(payload_src)
+                fp.close()
+
+            # Write second ack
+            os.write(1, _PyremoteBootstrapConsts.ACK1)
+
+            # Exit child
+            os._exit(0)
 
 
 ##
@@ -5082,7 +5114,7 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     # Setup IO
     input = os.fdopen(_PyremoteBootstrapConsts.INPUT_FD, 'rb', 0)  # noqa
     output = os.fdopen(os.dup(1), 'wb', 0)  # noqa
-    os.dup2(nfd := os.open('/dev/null', os.O_WRONLY), 1)
+    os.dup2(nfd := os.open(os.devnull, os.O_WRONLY), 1)
     os.close(nfd)
 
     if (mn := options.main_name_override) is not None:
@@ -5090,19 +5122,42 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
         sys.modules[mn] = sys.modules['__main__']
 
     # Disarm watchdog
-    os.write(_PyremoteBootstrapConsts.DISARM_FD, b'1')
+    try:
+        os.write(_PyremoteBootstrapConsts.DISARM_FD, b'1')
+    except OSError:
+        pass  # watchdog already gone; the reap below tells the story
     os.close(_PyremoteBootstrapConsts.DISARM_FD)
 
-    # Reap watchdog
+    # Reap watchdog. It's our unreaped child: its pid can't be recycled, so waiting on it and killing it are both
+    # race-free. Wait on a pidfd where available, poll otherwise.
     wp = int(os.environ.pop(_PyremoteBootstrapConsts.WATCHDOG_PID_VAR))
-    reap_dl = time.monotonic() + _PyremoteBootstrapConsts.REAP_S
-    while True:
-        done_pid, _ = os.waitpid(wp, os.WNOHANG)
-        if done_pid != 0:
-            break
-        if time.monotonic() >= reap_dl:
+    pfd = None  # type: int | None
+    try:
+        pfd = os.pidfd_open(wp)  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        pass
+
+    try:
+        if pfd is not None:
+            try:
+                # Readable once it has exited
+                select.select([pfd], [], [], _PyremoteBootstrapConsts.REAP_S)
+            finally:
+                os.close(pfd)
+            done, _ = os.waitpid(wp, os.WNOHANG)
+
+        else:
+            reap_dl = time.monotonic() + _PyremoteBootstrapConsts.REAP_S
+            while not (done := os.waitpid(wp, os.WNOHANG)[0]) and time.monotonic() < reap_dl:
+                time.sleep(_PyremoteBootstrapConsts.REAP_SLEEP_S)
+
+        if not done:
+            os.kill(wp, signal.SIGKILL)
+            os.waitpid(wp, 0)
             raise TimeoutError(f'Timeout reaping pyremote watchdog pid {wp}')
-        time.sleep(_PyremoteBootstrapConsts.REAP_SLEEP_S)
+
+    except ChildProcessError:
+        pass
 
     # Write fourth ack
     output.write(_PyremoteBootstrapConsts.ACK3)
