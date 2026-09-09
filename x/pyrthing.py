@@ -14,8 +14,9 @@ from omdev.home.secretinject import inject_secrets
 
 
 def _remote_main() -> None:
-    # import time
-    # time.sleep(10)
+    import time  # noqa
+
+    time.sleep(5)
 
     prt = pyremote.bootstrap_finalize()  # noqa
 
@@ -30,8 +31,9 @@ def _remote_main() -> None:
         args['updates'],
     )
 
-    # import time
-    # time.sleep(10)
+    #
+
+    time.sleep(5)
 
     raise SystemExit(0)
 
