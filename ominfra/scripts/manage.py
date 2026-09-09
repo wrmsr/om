@@ -99,7 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
-            dict(path='../../omcore/os/pyremote/core.py', sha1='92336856d38a41202a045d53757395a2d75313f6'),
+            dict(path='../../omcore/os/pyremote/core.py', sha1='614b2dd9c7065713c450caa9d5fb66cc5147a84f'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -4864,26 +4864,35 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
     dl = time.monotonic() + _PyremoteBootstrapConsts.TIMEOUT_S
     pp = os.getpid()
     dr, dw = os.pipe()
+    pfd = os.pidfd_open(os.getpid()) if hasattr(os, 'pidfd_open') else None
 
     if not (wp := os.fork()):  # noqa
         # Watchdog process
 
+        wrl = [dr] + ([pfd] if pfd is not None else [])
         if (rem := dl - time.monotonic()) > 0:
-            rdy, _, _ = select.select([dr], [], [], rem)
-            if rdy and os.read(dr, 1):
-                # Explicit disarm
+            rdy, _, _ = select.select(wrl, [], [], rem)
+            if pp in rdy or (dr in rdy and os.read(dr, 1)):
+                # Parent exited or explicit disarm
                 os._exit(0)
 
             # Target died (ppid check catches it) or something closed our fd behind our back -> fall back to the clock
             time.sleep(max(0, dl - time.monotonic()))
 
-        # FIXME: TOCTOU
-        if os.getppid() == pp:
-            # Still our parent -> same process, still alive
-            os.kill(pp, signal.SIGALRM)
-            time.sleep(_PyremoteBootstrapConsts.GRACE_S)
+        if pfd is not None:
+            signal.pidfd_send_signal(pfd, signal.SIGALRM)  # type: ignore[attr-defined]
+            rdy, _, _ = select.select([pfd], [], [], rem)
+            if not rdy:
+                signal.pidfd_send_signal(pfd, signal.SIGKILL)  # type: ignore[attr-defined]
+
+        else:
+            # FIXME: TOCTOU :/
             if os.getppid() == pp:
-                os.kill(pp, signal.SIGKILL)
+                # Still our parent -> same process, still alive
+                os.kill(pp, signal.SIGALRM)
+                time.sleep(_PyremoteBootstrapConsts.GRACE_S)
+                if os.getppid() == pp:
+                    os.kill(pp, signal.SIGKILL)
 
         os._exit(0)
 

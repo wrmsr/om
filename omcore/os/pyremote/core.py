@@ -232,26 +232,35 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
     dl = time.monotonic() + _PyremoteBootstrapConsts.TIMEOUT_S
     pp = os.getpid()
     dr, dw = os.pipe()
+    pfd = os.pidfd_open(os.getpid()) if hasattr(os, 'pidfd_open') else None
 
     if not (wp := os.fork()):  # noqa
         # Watchdog process
 
+        wrl = [dr] + ([pfd] if pfd is not None else [])
         if (rem := dl - time.monotonic()) > 0:
-            rdy, _, _ = select.select([dr], [], [], rem)
-            if rdy and os.read(dr, 1):
-                # Explicit disarm
+            rdy, _, _ = select.select(wrl, [], [], rem)
+            if pp in rdy or (dr in rdy and os.read(dr, 1)):
+                # Parent exited or explicit disarm
                 os._exit(0)
 
             # Target died (ppid check catches it) or something closed our fd behind our back -> fall back to the clock
             time.sleep(max(0, dl - time.monotonic()))
 
-        # FIXME: TOCTOU
-        if os.getppid() == pp:
-            # Still our parent -> same process, still alive
-            os.kill(pp, signal.SIGALRM)
-            time.sleep(_PyremoteBootstrapConsts.GRACE_S)
+        if pfd is not None:
+            signal.pidfd_send_signal(pfd, signal.SIGALRM)  # type: ignore[attr-defined]
+            rdy, _, _ = select.select([pfd], [], [], rem)
+            if not rdy:
+                signal.pidfd_send_signal(pfd, signal.SIGKILL)  # type: ignore[attr-defined]
+
+        else:
+            # FIXME: TOCTOU :/
             if os.getppid() == pp:
-                os.kill(pp, signal.SIGKILL)
+                # Still our parent -> same process, still alive
+                os.kill(pp, signal.SIGALRM)
+                time.sleep(_PyremoteBootstrapConsts.GRACE_S)
+                if os.getppid() == pp:
+                    os.kill(pp, signal.SIGKILL)
 
         os._exit(0)
 

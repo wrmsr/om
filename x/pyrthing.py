@@ -14,6 +14,9 @@ from omdev.home.secretinject import inject_secrets
 
 
 def _remote_main() -> None:
+    # import time
+    # time.sleep(10)
+
     prt = pyremote.bootstrap_finalize()  # noqa
 
     #
@@ -27,8 +30,8 @@ def _remote_main() -> None:
         args['updates'],
     )
 
-    import time
-    time.sleep(10)
+    # import time
+    # time.sleep(10)
 
     raise SystemExit(0)
 
@@ -79,7 +82,7 @@ def _main(argv=None) -> None:
     ).run(stdout, stdin)
 
     stdin.write(json.dumps({
-        'file': 'foo.json',
+        'file': 'foo.json.tmp',
         'updates': {
             'foo': True,
         },
