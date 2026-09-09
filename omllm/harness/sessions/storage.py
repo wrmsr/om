@@ -40,7 +40,7 @@ class InMemorySessionStorage(SessionStorage):
 ##
 
 
-class JsonlSessionStorage(SessionStorage):
+class FsSessionStorage(SessionStorage):
     @dc.dataclass(frozen=True, kw_only=True)
     class Config:
         dir_path: str

@@ -76,7 +76,7 @@ with _lang.auto_proxy_init(globals()):
 
         InMemorySessionStorage,
 
-        JsonlSessionStorage,
+        FsSessionStorage,
     )
 
     from .sessions.types import (  # noqa

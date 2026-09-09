@@ -30,15 +30,15 @@ def bind_sessions(config: Config) -> inj.Elements:
 
     if config.jsonl_storage:
         lst.extend([
-            inj.bind(har.JsonlSessionStorage.Config(
+            inj.bind(har.FsSessionStorage.Config(
                 dir_path=state_dir_path,
             )),
             inj.bind(
-                har.JsonlSessionStorage,
+                har.FsSessionStorage,
                 singleton=True,
-                to_async_fn=inj.make_async_managed_provider(har.JsonlSessionStorage),
+                to_async_fn=inj.make_async_managed_provider(har.FsSessionStorage),
             ),
-            inj.bind(har.SessionStorage, to_key=har.JsonlSessionStorage),
+            inj.bind(har.SessionStorage, to_key=har.FsSessionStorage),
         ])
 
     else:

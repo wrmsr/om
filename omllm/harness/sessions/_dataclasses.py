@@ -432,7 +432,7 @@ def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
     ),
     plan_repr_sha1='f49872f23de98b634e4c371755c1c2a6fba3b2ee',
     cls_names=(
-        ('omllm.harness.sessions.storage', 'JsonlSessionStorage.Config'),
+        ('omllm.harness.sessions.storage', 'FsSessionStorage.Config'),
     ),
 )
 def _process_dataclass__f49872f23de98b634e4c371755c1c2a6fba3b2ee():

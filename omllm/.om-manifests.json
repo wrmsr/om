@@ -529,7 +529,7 @@
     "module": ".llm.models.default.openrouter",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/openrouter.py",
-    "line": 96,
+    "line": 112,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -554,7 +554,13 @@
           {
             "provider": "openrouter",
             "id": "z-ai/glm-5.3",
-            "name": "GLM-5.3",
+            "name": "GLM 5.3",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "openrouter",
+            "id": "inception/mercury-2.5",
+            "name": "Mercury 2.5",
             "backend": "openai-completions"
           }
         ]

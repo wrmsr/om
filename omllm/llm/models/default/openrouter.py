@@ -81,7 +81,23 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             provider='openrouter',
             id='z-ai/glm-5.3',
         ),
-        name='GLM-5.3',
+        name='GLM 5.3',
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    #
+
+    Model(
+        key=ModelKey(
+            provider='openrouter',
+            id='inception/mercury-2.5',
+        ),
+        name='Mercury 2.5',
         backend='openai-completions',
         compat=_COMPAT,
         cache=_CACHE,

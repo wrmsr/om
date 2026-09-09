@@ -159,6 +159,12 @@ ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
         api_key_name='openrouter_api_key',
     ),
 
+    Model(
+        name='mercury',
+        key=llm.ModelKey('openrouter', 'inception/mercury-2.5'),
+        api_key_name='openrouter_api_key',
+    ),
+
 ]
 
 
