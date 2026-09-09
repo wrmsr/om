@@ -38,7 +38,6 @@ How the lock and the atomic replace are combined:
 
 Exit status: 0 ok, 1 error, 2 usage, 3 lock timeout.
 """
-import argparse
 import collections
 import errno
 import fcntl
@@ -46,7 +45,6 @@ import json
 import os
 import random
 import stat
-import sys
 import tempfile
 import time
 import typing as ta
@@ -54,6 +52,8 @@ import typing as ta
 
 ##
 
+# seconds
+DEFAULT_TIMEOUT = 30.0
 
 # seconds; jittered so waiters don't wake in lockstep
 POLL_MIN = 0.005
@@ -206,10 +206,11 @@ def try_create(
     return True
 
 
-def inject(
+def inject_secrets(
         path: str,
         update: JsonObject,
-        timeout: float,
+        *,
+        timeout: float = DEFAULT_TIMEOUT,
 ) -> None:
     path = os.path.realpath(path)  # operate on the real file if `path` is a symlink
     dirname, basename = os.path.split(path)
@@ -286,6 +287,8 @@ def inject(
 
 
 def main(argv: ta.Any = None) -> int:
+    import argparse
+
     ap = argparse.ArgumentParser(
         description='Atomically upsert keys into a JSON object file; the update is a JSON object read from stdin.',
     )
@@ -297,7 +300,7 @@ def main(argv: ta.Any = None) -> int:
     ap.add_argument(
         '--timeout',
         type=float,
-        default=30.0,
+        default=DEFAULT_TIMEOUT,
         help='max seconds to wait for the lock (default: 30)',
     )
     ap.add_argument(
@@ -307,6 +310,10 @@ def main(argv: ta.Any = None) -> int:
 
     args = ap.parse_args(argv)
 
+    #
+
+    import sys
+
     try:
         update = parse_object(sys.stdin.buffer.read().decode('utf-8'))
     except ValueError as e:  # covers UnicodeDecodeError and json.JSONDecodeError
@@ -314,7 +321,11 @@ def main(argv: ta.Any = None) -> int:
         return 1
 
     try:
-        inject(args.file, update, args.timeout)
+        inject_secrets(
+            args.file,
+            update,
+            timeout=args.timeout,
+        )
     except TimeoutError as e:
         print(f'error: {e}', file=sys.stderr)
         return 3
@@ -327,4 +338,4 @@ def main(argv: ta.Any = None) -> int:
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    raise SystemExit(main())

@@ -161,33 +161,33 @@ class TempDirTest(unittest.TestCase):
 
 class InjectTest(TempDirTest):
     def test_creates_file(self) -> None:
-        si.inject(self.path, od(('a', 'x'), ('gone', None), ('b', [1])), 1.0)
+        si.inject_secrets(self.path, od(('a', 'x'), ('gone', None), ('b', [1])), timeout=1.0)
         self.assertEqual(items(self.read()), [('a', 'x'), ('b', [1])])
         self.assertEqual(stat.S_IMODE(os.stat(self.path).st_mode), 0o600)
         self.assertEqual(self.temps(), [])
 
     def test_creates_empty_object_file(self) -> None:
-        si.inject(self.path, od(('a', None)), 1.0)
+        si.inject_secrets(self.path, od(('a', None)), timeout=1.0)
         self.assertEqual(self.read_raw(), b'{}')
 
     def test_updates_existing_preserving_mode_and_order(self) -> None:
         self.write('{"a": 1, "b": 2, "c": 3}')
         os.chmod(self.path, 0o640)
-        si.inject(self.path, od(('b', 20), ('d', 4), ('a', None)), 1.0)
+        si.inject_secrets(self.path, od(('b', 20), ('d', 4), ('a', None)), timeout=1.0)
         self.assertEqual(items(self.read()), [('c', 3), ('b', 20), ('d', 4)])
         self.assertEqual(stat.S_IMODE(os.stat(self.path).st_mode), 0o640)
         self.assertEqual(self.temps(), [])
 
     def test_becomes_empty_object(self) -> None:
         self.write('{"a": 1}')
-        si.inject(self.path, od(('a', None)), 1.0)
+        si.inject_secrets(self.path, od(('a', None)), timeout=1.0)
         self.assertEqual(self.read_raw(), b'{}')
 
     def test_rewrite_is_a_new_inode(self) -> None:
         # i.e. done via rename of a temp file, never by writing in place
         self.write('{"a": 1}')
         before = os.stat(self.path).st_ino
-        si.inject(self.path, od(('a', 2)), 1.0)
+        si.inject_secrets(self.path, od(('a', 2)), timeout=1.0)
         self.assertNotEqual(before, os.stat(self.path).st_ino)
         self.assertEqual(self.read_raw(), b'{\n  "a": 2\n}\n')
 
@@ -195,32 +195,33 @@ class InjectTest(TempDirTest):
         text = '{"a": 1,   "b": 2}'  # odd formatting on purpose: an untouched file stays byte-identical
         self.write(text)
         before = os.stat(self.path).st_ino
-        si.inject(self.path, od(('b', 2), ('nope', None)), 1.0)  # 'b' is already last, so nothing to do
+        # 'b' is already last, so nothing to do
+        si.inject_secrets(self.path, od(('b', 2), ('nope', None)), timeout=1.0)
         self.assertEqual(before, os.stat(self.path).st_ino)
         self.assertEqual(self.read_raw(), text.encode('utf-8'))
 
     def test_empty_file_treated_as_empty_object(self) -> None:
         self.write('')
-        si.inject(self.path, od(('a', 1)), 1.0)
+        si.inject_secrets(self.path, od(('a', 1)), timeout=1.0)
         self.assertEqual(items(self.read()), [('a', 1)])
 
     def test_repeated_runs_are_stable(self) -> None:
         update = od(('b', 2), ('a', 1))
-        si.inject(self.path, update, 1.0)
+        si.inject_secrets(self.path, update, timeout=1.0)
         first = os.stat(self.path).st_ino, self.read_raw()
-        si.inject(self.path, update, 1.0)
+        si.inject_secrets(self.path, update, timeout=1.0)
         self.assertEqual((os.stat(self.path).st_ino, self.read_raw()), first)  # second run didn't even rewrite
 
     def test_resending_unchanged_value_reorders(self) -> None:
         self.write('{"a": 1, "b": 2}')
-        si.inject(self.path, od(('a', 1)), 1.0)
+        si.inject_secrets(self.path, od(('a', 1)), timeout=1.0)
         self.assertEqual(self.read_raw(), b'{\n  "b": 2,\n  "a": 1\n}\n')
 
     def test_symlink_updates_target(self) -> None:
         real = os.path.join(self.dir, 'real.json')
         self.write('{}', real)
         os.symlink('real.json', self.path)
-        si.inject(self.path, od(('a', 1)), 1.0)
+        si.inject_secrets(self.path, od(('a', 1)), timeout=1.0)
         self.assertTrue(os.path.islink(self.path))
         self.assertEqual(items(self.read(real)), [('a', 1)])
 
@@ -228,14 +229,14 @@ class InjectTest(TempDirTest):
         for text in ['nope', '[1]', '"s"', 'null']:
             self.write(text)
             with self.assertRaises(ValueError):
-                si.inject(self.path, od(('a', 1)), 1.0)
+                si.inject_secrets(self.path, od(('a', 1)), timeout=1.0)
             self.assertEqual(self.read_raw(), text.encode('utf-8'))
             self.assertEqual(self.temps(), [])
 
     def test_rejects_directory(self) -> None:
         os.mkdir(self.path)
         with self.assertRaises(OSError):
-            si.inject(self.path, od(('a', 1)), 1.0)
+            si.inject_secrets(self.path, od(('a', 1)), timeout=1.0)
 
     def test_timeout_while_locked(self) -> None:
         self.write('{}')
@@ -243,7 +244,7 @@ class InjectTest(TempDirTest):
         try:
             t0 = time.monotonic()
             with self.assertRaises(TimeoutError):
-                si.inject(self.path, od(('a', 1)), 0.2)
+                si.inject_secrets(self.path, od(('a', 1)), timeout=0.2)
             self.assertGreaterEqual(time.monotonic() - t0, 0.2)
         finally:
             os.close(fd)
@@ -261,7 +262,7 @@ class InjectTest(TempDirTest):
 
         def run() -> None:
             try:
-                si.inject(self.path, od(('b', 2)), 5.0)
+                si.inject_secrets(self.path, od(('b', 2)), timeout=5.0)
             except BaseException as e:  # noqa
                 errors.append(e)
 
