@@ -26,59 +26,59 @@ def _register(**kwargs):
 @_register(
     plan_repr=(
         "Plans(tup=(CopyPlan(fields=('model', 'cwd', 'eval', 'exec', 'allow_ripgrep_execs', 'fs', 'allow_fs_reads', 'we"
-        "b', 'url', 'jsonl_storage', 'autoexec', 'immediate', 'verbose')), EqPlan(fields=('model', 'cwd', 'eval', 'exec"
-        "', 'allow_ripgrep_execs', 'fs', 'allow_fs_reads', 'web', 'url', 'jsonl_storage', 'autoexec', 'immediate', 'ver"
-        "bose')), FrozenPlan(fields=('model', 'cwd', 'eval', 'exec', 'allow_ripgrep_execs', 'fs', 'allow_fs_reads', 'we"
-        "b', 'url', 'jsonl_storage', 'autoexec', 'immediate', 'verbose'), allow_dynamic_dunder_attrs=False), HashPlan(a"
-        "ction='add', fields=('model', 'cwd', 'eval', 'exec', 'allow_ripgrep_execs', 'fs', 'allow_fs_reads', 'web', 'ur"
-        "l', 'jsonl_storage', 'autoexec', 'immediate', 'verbose'), cache=False), InitPlan(fields=(InitPlan.Field(name='"
-        "model', annotation=OpRef(name='init.fields.00.annotation'), default=OpRef(name='init.fields.00.default'), defa"
-        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None), InitPlan.Field(name='cwd', annotation=OpRef(name='init.fields.01.annotation'), default=OpRef(name="
-        "'init.fields.01.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coe"
-        "rce=None, validate=None, check_type=None), InitPlan.Field(name='eval', annotation=OpRef(name='init.fields.02.a"
-        "nnotation'), default=OpRef(name='init.fields.02.default'), default_factory=None, init=True, override=False, fi"
-        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='exec', annotat"
-        "ion=OpRef(name='init.fields.03.annotation'), default=OpRef(name='init.fields.03.default'), default_factory=Non"
-        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Ini"
-        "tPlan.Field(name='allow_ripgrep_execs', annotation=OpRef(name='init.fields.04.annotation'), default=OpRef(name"
-        "='init.fields.04.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, co"
-        "erce=None, validate=None, check_type=None), InitPlan.Field(name='fs', annotation=OpRef(name='init.fields.05.an"
-        "notation'), default=OpRef(name='init.fields.05.default'), default_factory=None, init=True, override=False, fie"
-        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='allow_fs_reads'"
-        ", annotation=OpRef(name='init.fields.06.annotation'), default=OpRef(name='init.fields.06.default'), default_fa"
-        "ctory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=N"
-        "one), InitPlan.Field(name='web', annotation=OpRef(name='init.fields.07.annotation'), default=OpRef(name='init."
-        "fields.07.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
-        "ne, validate=None, check_type=None), InitPlan.Field(name='url', annotation=OpRef(name='init.fields.08.annotati"
-        "on'), default=OpRef(name='init.fields.08.default'), default_factory=None, init=True, override=False, field_typ"
-        "e=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='jsonl_storage', annot"
-        "ation=OpRef(name='init.fields.09.annotation'), default=OpRef(name='init.fields.09.default'), default_factory=N"
-        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), I"
-        "nitPlan.Field(name='autoexec', annotation=OpRef(name='init.fields.10.annotation'), default=OpRef(name='init.fi"
-        "elds.10.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
-        ", validate=None, check_type=None), InitPlan.Field(name='immediate', annotation=OpRef(name='init.fields.11.anno"
-        "tation'), default=OpRef(name='init.fields.11.default'), default_factory=None, init=True, override=False, field"
-        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='verbose', annotat"
-        "ion=OpRef(name='init.fields.12.annotation'), default=OpRef(name='init.fields.12.default'), default_factory=Non"
-        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), se"
-        "lf_param='self', std_params=(), kw_only_params=('model', 'cwd', 'eval', 'exec', 'allow_ripgrep_execs', 'fs', '"
-        "allow_fs_reads', 'web', 'url', 'jsonl_storage', 'autoexec', 'immediate', 'verbose'), frozen=True, slots=False,"
-        " post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='model', kw_only=T"
-        "rue, fn=None), ReprPlan.Field(name='cwd', kw_only=True, fn=None), ReprPlan.Field(name='eval', kw_only=True, fn"
-        "=None), ReprPlan.Field(name='exec', kw_only=True, fn=None), ReprPlan.Field(name='allow_ripgrep_execs', kw_only"
-        "=True, fn=None), ReprPlan.Field(name='fs', kw_only=True, fn=None), ReprPlan.Field(name='allow_fs_reads', kw_on"
-        "ly=True, fn=None), ReprPlan.Field(name='web', kw_only=True, fn=None), ReprPlan.Field(name='url', kw_only=True,"
-        " fn=None), ReprPlan.Field(name='jsonl_storage', kw_only=True, fn=None), ReprPlan.Field(name='autoexec', kw_onl"
-        "y=True, fn=None), ReprPlan.Field(name='immediate', kw_only=True, fn=None), ReprPlan.Field(name='verbose', kw_o"
-        "nly=True, fn=None)), id=False, terse=False, default_fn=None)))"
+        "b', 'url', 'in_memory', 'autoexec', 'immediate', 'verbose')), EqPlan(fields=('model', 'cwd', 'eval', 'exec', '"
+        "allow_ripgrep_execs', 'fs', 'allow_fs_reads', 'web', 'url', 'in_memory', 'autoexec', 'immediate', 'verbose')),"
+        " FrozenPlan(fields=('model', 'cwd', 'eval', 'exec', 'allow_ripgrep_execs', 'fs', 'allow_fs_reads', 'web', 'url"
+        "', 'in_memory', 'autoexec', 'immediate', 'verbose'), allow_dynamic_dunder_attrs=False), HashPlan(action='add',"
+        " fields=('model', 'cwd', 'eval', 'exec', 'allow_ripgrep_execs', 'fs', 'allow_fs_reads', 'web', 'url', 'in_memo"
+        "ry', 'autoexec', 'immediate', 'verbose'), cache=False), InitPlan(fields=(InitPlan.Field(name='model', annotati"
+        "on=OpRef(name='init.fields.00.annotation'), default=OpRef(name='init.fields.00.default'), default_factory=None"
+        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Init"
+        "Plan.Field(name='cwd', annotation=OpRef(name='init.fields.01.annotation'), default=OpRef(name='init.fields.01."
+        "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
+        "te=None, check_type=None), InitPlan.Field(name='eval', annotation=OpRef(name='init.fields.02.annotation'), def"
+        "ault=OpRef(name='init.fields.02.default'), default_factory=None, init=True, override=False, field_type=FieldTy"
+        "pe.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='exec', annotation=OpRef(name='"
+        "init.fields.03.annotation'), default=OpRef(name='init.fields.03.default'), default_factory=None, init=True, ov"
+        "erride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name"
+        "='allow_ripgrep_execs', annotation=OpRef(name='init.fields.04.annotation'), default=OpRef(name='init.fields.04"
+        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
+        "ate=None, check_type=None), InitPlan.Field(name='fs', annotation=OpRef(name='init.fields.05.annotation'), defa"
+        "ult=OpRef(name='init.fields.05.default'), default_factory=None, init=True, override=False, field_type=FieldTyp"
+        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='allow_fs_reads', annotation=OpR"
+        "ef(name='init.fields.06.annotation'), default=OpRef(name='init.fields.06.default'), default_factory=None, init"
+        "=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.F"
+        "ield(name='web', annotation=OpRef(name='init.fields.07.annotation'), default=OpRef(name='init.fields.07.defaul"
+        "t'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=Non"
+        "e, check_type=None), InitPlan.Field(name='url', annotation=OpRef(name='init.fields.08.annotation'), default=Op"
+        "Ref(name='init.fields.08.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
+        "ANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='in_memory', annotation=OpRef(name='in"
+        "it.fields.09.annotation'), default=OpRef(name='init.fields.09.default'), default_factory=None, init=True, over"
+        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='"
+        "autoexec', annotation=OpRef(name='init.fields.10.annotation'), default=OpRef(name='init.fields.10.default'), d"
+        "efault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, che"
+        "ck_type=None), InitPlan.Field(name='immediate', annotation=OpRef(name='init.fields.11.annotation'), default=Op"
+        "Ref(name='init.fields.11.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
+        "ANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='verbose', annotation=OpRef(name='init"
+        ".fields.12.annotation'), default=OpRef(name='init.fields.12.default'), default_factory=None, init=True, overri"
+        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std"
+        "_params=(), kw_only_params=('model', 'cwd', 'eval', 'exec', 'allow_ripgrep_execs', 'fs', 'allow_fs_reads', 'we"
+        "b', 'url', 'in_memory', 'autoexec', 'immediate', 'verbose'), frozen=True, slots=False, post_init_params=None, "
+        "init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='model', kw_only=True, fn=None), ReprPlan."
+        "Field(name='cwd', kw_only=True, fn=None), ReprPlan.Field(name='eval', kw_only=True, fn=None), ReprPlan.Field(n"
+        "ame='exec', kw_only=True, fn=None), ReprPlan.Field(name='allow_ripgrep_execs', kw_only=True, fn=None), ReprPla"
+        "n.Field(name='fs', kw_only=True, fn=None), ReprPlan.Field(name='allow_fs_reads', kw_only=True, fn=None), ReprP"
+        "lan.Field(name='web', kw_only=True, fn=None), ReprPlan.Field(name='url', kw_only=True, fn=None), ReprPlan.Fiel"
+        "d(name='in_memory', kw_only=True, fn=None), ReprPlan.Field(name='autoexec', kw_only=True, fn=None), ReprPlan.F"
+        "ield(name='immediate', kw_only=True, fn=None), ReprPlan.Field(name='verbose', kw_only=True, fn=None)), id=Fals"
+        "e, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='faf3fe942b9679df19e6d1753f3ae90ac72700c2',
+    plan_repr_sha1='f81bba624b361d08c053854a4fa921d145292cc3',
     cls_names=(
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__faf3fe942b9679df19e6d1753f3ae90ac72700c2():
+def _process_dataclass__f81bba624b361d08c053854a4fa921d145292cc3():
     def _process_dataclass(
         *,
         __class__,
@@ -127,7 +127,7 @@ def _process_dataclass__faf3fe942b9679df19e6d1753f3ae90ac72700c2():
                 allow_fs_reads=self.allow_fs_reads,
                 web=self.web,
                 url=self.url,
-                jsonl_storage=self.jsonl_storage,
+                in_memory=self.in_memory,
                 autoexec=self.autoexec,
                 immediate=self.immediate,
                 verbose=self.verbose,
@@ -150,7 +150,7 @@ def _process_dataclass__faf3fe942b9679df19e6d1753f3ae90ac72700c2():
                 self.allow_fs_reads == other.allow_fs_reads and
                 self.web == other.web and
                 self.url == other.url and
-                self.jsonl_storage == other.jsonl_storage and
+                self.in_memory == other.in_memory and
                 self.autoexec == other.autoexec and
                 self.immediate == other.immediate and
                 self.verbose == other.verbose
@@ -168,7 +168,7 @@ def _process_dataclass__faf3fe942b9679df19e6d1753f3ae90ac72700c2():
             'allow_fs_reads',
             'web',
             'url',
-            'jsonl_storage',
+            'in_memory',
             'autoexec',
             'immediate',
             'verbose',
@@ -205,7 +205,7 @@ def _process_dataclass__faf3fe942b9679df19e6d1753f3ae90ac72700c2():
                 self.allow_fs_reads,
                 self.web,
                 self.url,
-                self.jsonl_storage,
+                self.in_memory,
                 self.autoexec,
                 self.immediate,
                 self.verbose,
@@ -225,7 +225,7 @@ def _process_dataclass__faf3fe942b9679df19e6d1753f3ae90ac72700c2():
             allow_fs_reads: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
             web: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
             url: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            jsonl_storage: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            in_memory: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
             autoexec: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
             immediate: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
             verbose: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
@@ -239,7 +239,7 @@ def _process_dataclass__faf3fe942b9679df19e6d1753f3ae90ac72700c2():
             __dataclass__object_setattr(self, 'allow_fs_reads', allow_fs_reads)
             __dataclass__object_setattr(self, 'web', web)
             __dataclass__object_setattr(self, 'url', url)
-            __dataclass__object_setattr(self, 'jsonl_storage', jsonl_storage)
+            __dataclass__object_setattr(self, 'in_memory', in_memory)
             __dataclass__object_setattr(self, 'autoexec', autoexec)
             __dataclass__object_setattr(self, 'immediate', immediate)
             __dataclass__object_setattr(self, 'verbose', verbose)
@@ -258,7 +258,7 @@ def _process_dataclass__faf3fe942b9679df19e6d1753f3ae90ac72700c2():
             parts.append(f"allow_fs_reads={self.allow_fs_reads!r}")
             parts.append(f"web={self.web!r}")
             parts.append(f"url={self.url!r}")
-            parts.append(f"jsonl_storage={self.jsonl_storage!r}")
+            parts.append(f"in_memory={self.in_memory!r}")
             parts.append(f"autoexec={self.autoexec!r}")
             parts.append(f"immediate={self.immediate!r}")
             parts.append(f"verbose={self.verbose!r}")

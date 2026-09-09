@@ -1,0 +1,7 @@
+from ... import lang as _lang
+
+
+with _lang.auto_proxy_init(globals()):
+    ##
+
+    pass

@@ -55,6 +55,18 @@ with _lang.auto_proxy_init(globals()):
 
     ##
 
+    from .sessions.storage.fs import (  # noqa
+        FsSessionStorage,
+    )
+
+    from .sessions.storage.inmemory import (  # noqa
+        InMemorySessionStorage,
+    )
+
+    from .sessions.storage.types import (  # noqa
+        SessionStorage,
+    )
+
     from .sessions.entries import (  # noqa
         SessionEntry,
 
@@ -69,14 +81,6 @@ with _lang.auto_proxy_init(globals()):
 
     from .sessions.session import (  # noqa
         Session,
-    )
-
-    from .sessions.storage import (  # noqa
-        SessionStorage,
-
-        InMemorySessionStorage,
-
-        FsSessionStorage,
     )
 
     from .sessions.types import (  # noqa

@@ -9,7 +9,7 @@ from ..commands.manager import CommandsManager
 from .entries import MessageSessionEntry
 from .events import AgentSessionEvent
 from .events import SessionEvent
-from .storage import SessionStorage
+from .storage.types import SessionStorage
 from .types import SessionId
 
 

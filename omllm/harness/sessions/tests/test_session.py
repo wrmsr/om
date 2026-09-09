@@ -19,7 +19,7 @@ from ...commands.base import Commands
 from ...commands.manager import CommandsManager
 from ..entries import MessageSessionEntry
 from ..session import Session
-from ..storage import SessionStorage
+from ..storage.types import SessionStorage
 
 
 ##

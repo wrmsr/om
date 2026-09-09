@@ -28,7 +28,7 @@ def bind_sessions(config: Config) -> inj.Elements:
 
     state_dir_path = os.path.join(get_home_paths().state_dir, 'llm', 'sessions', str(session_id.v))
 
-    if config.jsonl_storage:
+    if not config.in_memory:
         lst.extend([
             inj.bind(har.FsSessionStorage.Config(
                 dir_path=state_dir_path,

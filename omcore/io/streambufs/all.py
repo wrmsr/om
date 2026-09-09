@@ -1,15 +1,49 @@
-from .adapters import (  # noqa
-    ByteStreamBufferBytesReaderAdapter,
-    ByteStreamBufferWriterAdapter,
-    BytesIoByteStreamBuffer,
-)
+from ... import lang as _lang
 
-from .direct import (  # noqa
-    DirectByteStreamBufferView,
-    DirectByteStreamBuffer,
 
-    empty_byte_stream_buffer_view,
-)
+with _lang.auto_proxy_init(globals()):
+    ##
+
+    from .adapters import (  # noqa
+        ByteStreamBufferBytesReaderAdapter,
+        ByteStreamBufferWriterAdapter,
+        BytesIoByteStreamBuffer,
+    )
+
+    from .direct import (  # noqa
+        DirectByteStreamBufferView,
+        DirectByteStreamBuffer,
+
+        empty_byte_stream_buffer_view,
+    )
+
+    from .framing import (  # noqa
+        LongestMatchDelimiterByteStreamFrameDecoder,
+        LengthFieldByteStreamFrameDecoder,
+    )
+
+    from .linear import (  # noqa
+        LinearByteStreamBuffer,
+    )
+
+    from .reading import (  # noqa
+        ByteStreamBufferReader,
+    )
+
+    from .scanning import (  # noqa
+        ScanningByteStreamBuffer,
+    )
+
+    from .segmented import (  # noqa
+        SegmentedByteStreamBufferView,
+        SegmentedByteStreamBuffer,
+
+        byte_stream_buffer_view_from_segments,
+    )
+
+
+##
+
 
 from .errors import (  # noqa
     ByteStreamBufferError,
@@ -25,30 +59,6 @@ from .errors import (  # noqa
     NoOutstandingReserveByteStreamBufferError,
 )
 
-from .framing import (  # noqa
-    LongestMatchDelimiterByteStreamFrameDecoder,
-    LengthFieldByteStreamFrameDecoder,
-)
-
-from .linear import (  # noqa
-    LinearByteStreamBuffer,
-)
-
-from .reading import (  # noqa
-    ByteStreamBufferReader,
-)
-
-from .scanning import (  # noqa
-    ScanningByteStreamBuffer,
-)
-
-from .segmented import (  # noqa
-    SegmentedByteStreamBufferView,
-    SegmentedByteStreamBuffer,
-
-    byte_stream_buffer_view_from_segments,
-)
-
 from .types import (  # noqa
     BytesLike,
 
@@ -61,9 +71,7 @@ from .utils import (  # noqa
     ByteStreamBuffers,
 )
 
-
-##
-
+#
 
 NeedMoreData = NeedMoreDataByteStreamBufferError
 
@@ -74,7 +82,6 @@ OutstandingReserve = OutstandingReserveByteStreamBufferError
 NoOutstandingReserve = NoOutstandingReserveByteStreamBufferError
 
 #
-
 
 can_bytes = ByteStreamBuffers.can_bytes
 to_bytes = ByteStreamBuffers.to_bytes

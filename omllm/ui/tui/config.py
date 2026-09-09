@@ -26,7 +26,7 @@ class Config:
 
     url: str | None = None
 
-    jsonl_storage: bool | None = None
+    in_memory: bool | None = None
 
     autoexec: lang.SequenceNotStr[str] | None = None
 
@@ -49,7 +49,7 @@ class Config:
 
         parser.add_argument('--url')
 
-        parser.add_argument('-J', '--jsonl-storage', action='store_true')
+        parser.add_argument('--in-memory', action='store_true')
 
         parser.add_argument('-X', '--autoexec', action='append')
 
@@ -73,7 +73,7 @@ class Config:
 
             url=args.url,
 
-            jsonl_storage=args.jsonl_storage,
+            in_memory=args.in_memory,
 
             autoexec=args.autoexec,
 
