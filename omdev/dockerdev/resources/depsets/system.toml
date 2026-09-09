@@ -75,7 +75,6 @@ deps = [
   'bubblewrap',
 
   # data formats
-  'jq',
   'libxml2-dev',
   'libxslt-dev',
   'libyaml-dev',
@@ -91,15 +90,19 @@ deps = [
   'redis',
   'sqlite3',
 
-  # terminal UX & interactive tools
+  # standard terminal tools
   'btop',
   'htop',
   'less',
   'moreutils',
   'ncdu',
+  'tmux',
+
+  # third-party terminal tools
+  'fd-find',
+  'jq',
   'ripgrep',
   'silversearcher-ag',
-  'tmux',
 
   # shells
   'tcsh',

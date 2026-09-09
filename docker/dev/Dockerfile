@@ -56,6 +56,7 @@ DEPS="$DEPS\
   dnsutils\
   dumb-init\
   emacs\
+  fd-find\
   file\
   flex\
   g++\
