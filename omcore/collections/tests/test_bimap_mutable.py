@@ -355,8 +355,7 @@ def test_update_duplicate_values_within_batch_raise():
 
 
 def test_update_iterable_duplicate_keys_last_wins():
-    # dict.update semantics: same key repeated in a pair iterable collapses,
-    # so this is x -> 2, not a 1-vs-2 collision.
+    # dict.update semantics: same key repeated in a pair iterable collapses, so this is x -> 2, not a 1-vs-2 collision.
     bm: MutableBiMap = make_mutable_bi_map({})
     bm.update([('x', 1), ('x', 2)])
     assert dict(bm.items()) == {'x': 2}
@@ -410,8 +409,7 @@ def test_inverse_update_swap_succeeds():
 def test_inverse_update_collision_raises_and_applies_nothing():
     bm = make_mutable_bi_map({'a': 1, 'b': 2})
     inv = bm.inverse
-    # 'b' is owned by untouched inverse key 2 -> collision on the inverse's
-    # value side (a forward key).
+    # 'b' is owned by untouched inverse key 2 -> collision on the inverse's value side (a forward key).
     with pytest.raises(ValueError) as ei:
         inv.update({3: 'c', 1: 'b'})
     assert ei.value.args == ('b',)

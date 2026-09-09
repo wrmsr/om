@@ -12,9 +12,12 @@ import json
 import os
 import platform
 import pwd
+import select
+import signal
 import site
 import struct
 import sys
+import time
 import typing as ta
 import zlib
 
@@ -189,8 +192,12 @@ class _PyremoteBootstrapConsts:
     def __new__(cls, *args, **kwargs):  # noqa
         raise TypeError
 
+    TIMEOUT_S = 3 * 60
+    GRACE_S = 10
+
     INPUT_FD = 100
     SRC_FD = 101
+    DISARM_FD = 102
 
     CHILD_PID_VAR = '_OPYR_CHILD_PID'
     ARGV0_VAR = '_OPYR_ARGV0'
@@ -208,19 +215,55 @@ class _PyremoteBootstrapConsts:
     IMPORTS = (
         'base64',
         'os',
+        'select',
+        'signal',
         'struct',
         'sys',
+        'time',
         'zlib',
     )
 
 
 def _pyremote_bootstrap_main(context_name: str) -> None:
+    # Setup watchdog
+    dl = time.monotonic() + _PyremoteBootstrapConsts.TIMEOUT_S
+    pp = os.getpid()
+    dr, dw = os.pipe()
+
+    if not (wp := os.fork()):  # noqa
+        # Watchdog process
+
+        if (rem := dl - time.monotonic()) > 0:
+            rdy, _, _ = select.select([dr], [], [], rem)
+            if rdy and os.read(dr, 1):
+                # Explicit disarm
+                os._exit(0)
+
+            # Target died (ppid check catches it) or something closed our fd behind our back -> fall back to the clock
+            time.sleep(max(0, dl - time.monotonic()))
+
+        if os.getppid() == pp:
+            # Still our parent -> same process, still alive
+            os.kill(pp, signal.SIGALRM)
+            time.sleep(_PyremoteBootstrapConsts.GRACE_S)
+            if os.getppid() == pp:
+                os.kill(pp, signal.SIGKILL)
+
+        os._exit(0)
+
+    # Install timeout
+    def timeout(*_):
+        raise TimeoutError
+
+    signal.signal(signal.SIGALRM, timeout)
+    signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
+
     # Get pid
     pid = os.getpid()
 
     # Two copies of payload src to be sent to parent
-    r0, w0 = os.pipe()
-    r1, w1 = os.pipe()
+    pr0, pw0 = os.pipe()
+    pr1, pw1 = os.pipe()
 
     if (cp := os.fork()):
         # Parent process
@@ -229,13 +272,16 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
         os.dup2(0, _PyremoteBootstrapConsts.INPUT_FD)
 
         # Overwrite stdin (fed to python repl) with first copy of src
-        os.dup2(r0, 0)
+        os.dup2(pr0, 0)
 
         # Dup second copy of src to src_fd to recover after launch
-        os.dup2(r1, _PyremoteBootstrapConsts.SRC_FD)
+        os.dup2(pr1, _PyremoteBootstrapConsts.SRC_FD)
+
+        # Dup disarm fd to disarm_fd
+        os.dup2(dw, _PyremoteBootstrapConsts.DISARM_FD)
 
         # Close remaining fd's
-        for f in [r0, w0, r1, w1]:
+        for f in [pr0, pw0, pr1, pw1]:
             os.close(f)
 
         # Save vars
@@ -244,6 +290,9 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
         env[_PyremoteBootstrapConsts.CHILD_PID_VAR] = str(cp)
         env[_PyremoteBootstrapConsts.ARGV0_VAR] = exe
         env[_PyremoteBootstrapConsts.CONTEXT_NAME_VAR] = context_name
+
+        # Disable timeout
+        signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
 
         # Start repl reading stdin from r0
         os.execl(exe, exe + (_PyremoteBootstrapConsts.PROC_TITLE_FMT % (context_name,)))
@@ -265,7 +314,7 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
 
         # Write both copies of payload src. Must write to w0 (parent stdin) before w1 (copy pipe) as pipe will likely
         # fill and block and need to be drained by pyremote_bootstrap_finalize running in parent.
-        for w in [w0, w1]:
+        for w in [pw0, pw1]:
             fp = os.fdopen(w, 'wb', 0)
             fp.write(payload_src)
             fp.close()
@@ -274,7 +323,7 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
         os.write(1, _PyremoteBootstrapConsts.ACK1)
 
         # Exit child
-        sys.exit(0)
+        os._exit(0)
 
 
 ##
@@ -304,12 +353,12 @@ def pyremote_build_bootstrap_source(context_name: str) -> str:
         raise ValueError(bs_z85)
 
     stmts = [
-        f'import {", ".join(_PyremoteBootstrapConsts.IMPORTS)}',
+        f'import {",".join(_PyremoteBootstrapConsts.IMPORTS)}',
         f'exec(zlib.decompress(base64.b85decode(b"{bs_z85.decode("ascii")}")))',
         f'_pyremote_bootstrap_main("{context_name}")',
     ]
 
-    cmd = '; '.join(stmts)
+    cmd = ';'.join(stmts)
     return cmd
 
 
@@ -392,6 +441,10 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     if (mn := options.main_name_override) is not None:
         # Inspections like typing.get_type_hints need an entry in sys.modules.
         sys.modules[mn] = sys.modules['__main__']
+
+    # Disarm watchdog
+    os.write(_PyremoteBootstrapConsts.DISARM_FD, b'1')
+    os.close(_PyremoteBootstrapConsts.DISARM_FD)
 
     # Write fourth ack
     output.write(_PyremoteBootstrapConsts.ACK3)
