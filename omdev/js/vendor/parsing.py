@@ -15,7 +15,12 @@ class _Token:
     end: int
     embedded: bool
 
+    # Only meaningful on `)` and `}`: whether a following `/` begins a regular expression. It is decided when the
+    # matching opener was scanned, since by the closer the context which disambiguates it is long gone.
+    regex_after: bool = False
 
+
+# Keywords after which a `/` begins a regular expression rather than division.
 _REGEX_PREFIX_KEYWORDS = frozenset({
     'await',
     'case',
@@ -33,152 +38,248 @@ _REGEX_PREFIX_KEYWORDS = frozenset({
     'yield',
 })
 
+# Keywords which begin an expression context but are nonetheless followed by a statement block, not an object literal.
+_BLOCK_PREFIX_KEYWORDS = frozenset({
+    'do',
+    'else',
+})
 
-_REGEX_ALLOWED: tuple[str, ...] = tuple('([{,;:=!?&|+-*%^~<>')
+# Keywords whose parenthesized head is followed by a statement, so a `/` after the closing parenthesis begins a regular
+# expression rather than dividing the parenthesized value.
+_STATEMENT_HEAD_KEYWORDS = frozenset({
+    'for',
+    'if',
+    'while',
+    'with',
+})
+
+_MULTI_CHARACTER_PUNCTUATION: tuple[str, ...] = (
+    '++',
+    '--',
+    '=>',
+)
+
+_REGEX_PREFIX_PUNCTUATION = frozenset({*'([{,;:=!?&|+-*%^~<>', '=>'})
+
+_BLOCK_PREFIX_PUNCTUATION = frozenset({')', '}', ';', '{', '=>'})
 
 
-def _regex_allowed(tokens: list[_Token], /) -> bool:
-    if not tokens:
-        return True
+class _Scanner:
+    def __init__(self, source: str) -> None:
+        super().__init__()
 
-    previous = tokens[-1]
-    if previous.kind == 'identifier':
-        return previous.value in _REGEX_PREFIX_KEYWORDS
+        self._source = source
+        self._tokens: list[_Token] = []
 
-    return previous.value in _REGEX_ALLOWED
+        # Stacks of `regex_after` values for the currently open parentheses and braces.
+        self._parentheses: list[bool] = []
+        self._braces: list[bool] = []
 
+    def _previous(self, scope_start: int, /) -> _Token | None:
+        return self._tokens[-1] if len(self._tokens) > scope_start else None
 
-def _scan_regex(source: str, start: int, /) -> int:
-    index = start + 1
-    in_class = False
+    def _regex_allowed(self, scope_start: int, /) -> bool:
+        previous = self._previous(scope_start)
+        if previous is None:
+            return True
 
-    while index < len(source):
-        character = source[index]
-        if character in '\r\n':
-            raise ValueError(f'Unterminated JavaScript regular expression at offset {start}')
+        if previous.kind == 'identifier':
+            return previous.value in _REGEX_PREFIX_KEYWORDS
 
-        if character == '\\':
-            index += 2
-            continue
+        if previous.kind != 'punctuation':
+            return False
 
-        if character == '[':
-            in_class = True
+        if previous.value in (')', '}'):
+            return previous.regex_after
 
-        elif character == ']':
-            in_class = False
+        return previous.value in _REGEX_PREFIX_PUNCTUATION
 
-        elif character == '/' and not in_class:
-            index += 1
-            while index < len(source) and (source[index].isalnum() or source[index] in '_$'):
+    def _block_follows(self, scope_start: int, /) -> bool:
+        previous = self._previous(scope_start)
+        if previous is None:
+            return True
+
+        if previous.kind == 'identifier':
+            return previous.value in _BLOCK_PREFIX_KEYWORDS or previous.value not in _REGEX_PREFIX_KEYWORDS
+
+        return previous.kind == 'punctuation' and previous.value in _BLOCK_PREFIX_PUNCTUATION
+
+    def _statement_head_follows(self, scope_start: int, /) -> bool:
+        previous = self._previous(scope_start)
+        return previous is not None and previous.kind == 'identifier' and previous.value in _STATEMENT_HEAD_KEYWORDS
+
+    def _scan_regex(self, start: int, /) -> int:
+        source = self._source
+        index = start + 1
+        in_class = False
+
+        while index < len(source):
+            character = source[index]
+            if character in '\r\n':
+                raise ValueError(f'Unterminated JavaScript regular expression at offset {start}')
+
+            if character == '\\':
+                index += 2
+                continue
+
+            if character == '[':
+                in_class = True
+
+            elif character == ']':
+                in_class = False
+
+            elif character == '/' and not in_class:
                 index += 1
-            return index
+                while index < len(source) and (source[index].isalnum() or source[index] in '_$'):
+                    index += 1
+                return index
 
-        index += 1
-
-    raise ValueError(f'Unterminated JavaScript regular expression at offset {start}')
-
-
-def _scan_template(source: str, start: int, /) -> tuple[list[_Token], int]:
-    tokens: list[_Token] = []
-    index = start + 1
-
-    while index < len(source):
-        character = source[index]
-
-        if character == '\\':
-            index += 2
-            continue
-
-        if character == '`':
-            return tokens, index + 1
-
-        if source.startswith('${', index):
-            expression, index = _scan_tokens(source, index + 2, embedded=True, stop_at_brace=True)
-            tokens.extend(expression)
-            continue
-
-        index += 1
-
-    raise ValueError('Unterminated JavaScript template literal')
-
-
-def _scan_tokens(
-        source: str,
-        start: int = 0,
-        *,
-        embedded: bool = False,
-        stop_at_brace: bool = False,
-) -> tuple[list[_Token], int]:
-    tokens: list[_Token] = []
-    index = start
-    brace_depth = 0
-
-    while index < len(source):
-        character = source[index]
-
-        if character.isspace():
             index += 1
-            continue
 
-        if source.startswith('//', index):
-            newline = source.find('\n', index + 2)
-            index = len(source) if newline < 0 else newline + 1
-            continue
+        raise ValueError(f'Unterminated JavaScript regular expression at offset {start}')
 
-        if source.startswith('/*', index):
-            end = source.find('*/', index + 2)
-            if end < 0:
-                raise ValueError('Unterminated JavaScript block comment')
-            index = end + 2
-            continue
+    def _scan_string(self, start: int, /, *, embedded: bool) -> int:
+        source = self._source
+        quote = source[start]
+        index = start + 1
 
-        if character in "'\"":
-            quote = character
-            token_start = index + 1
-            index += 1
-            while index < len(source) and source[index] != quote:
-                if source[index] in '\r\n':
-                    raise ValueError('Unterminated JavaScript string literal')
-                index += 2 if source[index] == '\\' else 1
-            if index >= len(source):
+        while index < len(source) and source[index] != quote:
+            if source[index] in '\r\n':
                 raise ValueError('Unterminated JavaScript string literal')
-            tokens.append(_Token('string', source[token_start:index], token_start, index, embedded))
+            index += 2 if source[index] == '\\' else 1
+
+        if index >= len(source):
+            raise ValueError('Unterminated JavaScript string literal')
+
+        self._tokens.append(_Token('string', source[start + 1:index], start + 1, index, embedded))
+        return index + 1
+
+    def _scan_template(self, start: int, /, *, embedded: bool) -> int:
+        source = self._source
+        index = start + 1
+
+        while index < len(source):
+            character = source[index]
+
+            if character == '\\':
+                index += 2
+                continue
+
+            if character == '`':
+                self._tokens.append(_Token('template', '', start, index + 1, embedded))
+                return index + 1
+
+            if source.startswith('${', index):
+                index = self._scan(index + 2, embedded=True, stop_at_brace=True)
+                continue
+
             index += 1
-            continue
 
-        if character == '`':
-            template_tokens, index = _scan_template(source, index)
-            tokens.extend(template_tokens)
-            continue
+        raise ValueError('Unterminated JavaScript template literal')
 
-        if character == '/' and _regex_allowed(tokens):
-            index = _scan_regex(source, index)
-            continue
+    def _scan(
+            self,
+            start: int,
+            /,
+            *,
+            embedded: bool,
+            stop_at_brace: bool,
+    ) -> int:
+        source = self._source
+        tokens = self._tokens
+        scope_start = len(tokens)
+        index = start
+        brace_depth = 0
 
-        if character.isalpha() or character in '_$':
-            token_start = index
-            index += 1
-            while index < len(source) and (source[index].isalnum() or source[index] in '_$'):
+        while index < len(source):
+            character = source[index]
+
+            if character.isspace():
                 index += 1
-            tokens.append(_Token('identifier', source[token_start:index], token_start, index, embedded))
-            continue
+                continue
 
-        if character == '}' and stop_at_brace and brace_depth == 0:
-            return tokens, index + 1
+            if source.startswith('//', index):
+                newline = source.find('\n', index + 2)
+                index = len(source) if newline < 0 else newline + 1
+                continue
 
-        if character == '{':
-            brace_depth += 1
+            if source.startswith('/*', index):
+                end = source.find('*/', index + 2)
+                if end < 0:
+                    raise ValueError('Unterminated JavaScript block comment')
+                index = end + 2
+                continue
 
-        elif character == '}':
-            brace_depth -= 1
+            if character in "'\"":
+                index = self._scan_string(index, embedded=embedded)
+                continue
 
-        tokens.append(_Token('punctuation', character, index, index + 1, embedded))
-        index += 1
+            if character == '`':
+                index = self._scan_template(index, embedded=embedded)
+                continue
 
-    if stop_at_brace:
-        raise ValueError('Unterminated JavaScript template expression')
+            if character == '/' and self._regex_allowed(scope_start):
+                end = self._scan_regex(index)
+                tokens.append(_Token('regex', source[index:end], index, end, embedded))
+                index = end
+                continue
 
-    return tokens, index
+            if character.isalpha() or character in '_$':
+                token_start = index
+                index += 1
+                while index < len(source) and (source[index].isalnum() or source[index] in '_$'):
+                    index += 1
+                tokens.append(_Token('identifier', source[token_start:index], token_start, index, embedded))
+                continue
+
+            if character == '}' and stop_at_brace and brace_depth == 0:
+                return index + 1
+
+            value = character
+            for punctuation in _MULTI_CHARACTER_PUNCTUATION:
+                if source.startswith(punctuation, index):
+                    value = punctuation
+                    break
+
+            regex_after = False
+            if value == '(':
+                self._parentheses.append(self._statement_head_follows(scope_start))
+
+            elif value == ')':
+                regex_after = self._parentheses.pop() if self._parentheses else False
+
+            elif value == '{':
+                brace_depth += 1
+                self._braces.append(self._block_follows(scope_start))
+
+            elif value == '}':
+                brace_depth -= 1
+                regex_after = self._braces.pop() if self._braces else True
+
+            tokens.append(_Token('punctuation', value, index, index + len(value), embedded, regex_after))
+            index += len(value)
+
+        if stop_at_brace:
+            raise ValueError('Unterminated JavaScript template expression')
+
+        return index
+
+    def scan(self) -> list[_Token]:
+        start = 0
+        if self._source.startswith('#!'):
+            newline = self._source.find('\n')
+            start = len(self._source) if newline < 0 else newline + 1
+
+        self._scan(start, embedded=False, stop_at_brace=False)
+        return self._tokens
+
+
+def _is_punctuation(token: _Token, value: str, /) -> bool:
+    return token.kind == 'punctuation' and token.value == value
+
+
+def _is_identifier(token: _Token, value: str, /) -> bool:
+    return token.kind == 'identifier' and token.value == value
 
 
 def _module_string(token: _Token, /) -> ModuleSpecifier:
@@ -193,23 +294,23 @@ def _parse_import(tokens: list[_Token], index: int, /) -> ModuleSpecifier | None
     following = tokens[index + 1]
     if following.kind == 'string':
         return _module_string(following)
-    if following.value in ('.', '('):
+    if following.kind == 'punctuation' and following.value in ('.', '('):
         return None
 
     depth = 0
     for token_index in range(index + 1, len(tokens)):
         token = tokens[token_index]
 
-        if token.value in ('{', '(', '['):
+        if token.kind == 'punctuation' and token.value in ('{', '(', '['):
             depth += 1
 
-        elif token.value in ('}', ')', ']'):
+        elif token.kind == 'punctuation' and token.value in ('}', ')', ']'):
             depth -= 1
 
-        elif depth == 0 and token.value == ';':
+        elif depth == 0 and _is_punctuation(token, ';'):
             break
 
-        elif depth == 0 and token.kind == 'identifier' and token.value == 'from':
+        elif depth == 0 and _is_identifier(token, 'from'):
             if token_index + 1 < len(tokens) and tokens[token_index + 1].kind == 'string':
                 return _module_string(tokens[token_index + 1])
             raise ValueError('Invalid JavaScript import source')
@@ -217,61 +318,82 @@ def _parse_import(tokens: list[_Token], index: int, /) -> ModuleSpecifier | None
     raise ValueError('JavaScript import declaration has no source')
 
 
+def _export_clause_end(tokens: list[_Token], index: int, /) -> int | None:
+    """Returns the index of the token following the balanced export clause at `index`, or None if it is not one."""
+
+    following = tokens[index + 1]
+
+    if _is_punctuation(following, '{'):
+        depth = 0
+        for token_index in range(index + 1, len(tokens)):
+            token = tokens[token_index]
+            if _is_punctuation(token, '{'):
+                depth += 1
+            elif _is_punctuation(token, '}'):
+                depth -= 1
+                if depth == 0:
+                    return token_index + 1
+        raise ValueError('Unterminated JavaScript export list')
+
+    if _is_punctuation(following, '*'):
+        end = index + 2
+        if end < len(tokens) and _is_identifier(tokens[end], 'as'):
+            end += 2
+        if end >= len(tokens) or not _is_identifier(tokens[end], 'from'):
+            raise ValueError('Invalid JavaScript export source')
+        return end
+
+    return None
+
+
 def _parse_export(tokens: list[_Token], index: int, /) -> ModuleSpecifier | None:
-    if index + 1 >= len(tokens) or tokens[index + 1].value not in ('*', '{'):
+    if index + 1 >= len(tokens):
         return None
 
-    depth = 0
-    for token_index in range(index + 1, len(tokens)):
-        token = tokens[token_index]
+    end = _export_clause_end(tokens, index)
+    if end is None:
+        return None
 
-        if token.value in ('{', '(', '['):
-            depth += 1
-
-        elif token.value in ('}', ')', ']'):
-            depth -= 1
-
-        elif depth == 0 and token.value == ';':
-            return None
-
-        elif depth == 0 and token.kind == 'identifier' and token.value == 'from':
-            if token_index + 1 < len(tokens) and tokens[token_index + 1].kind == 'string':
-                return _module_string(tokens[token_index + 1])
-            raise ValueError('Invalid JavaScript export source')
+    # A source clause can only be the token immediately after the balanced clause. Scanning any further would, in
+    # semicolon-free code, adopt the `from` of a later statement as this declaration's source.
+    if end < len(tokens) and _is_identifier(tokens[end], 'from'):
+        if end + 1 < len(tokens) and tokens[end + 1].kind == 'string':
+            return _module_string(tokens[end + 1])
+        raise ValueError('Invalid JavaScript export source')
 
     return None
 
 
 def _is_dynamic_import(tokens: list[_Token], index: int, /) -> bool:
-    if index + 1 >= len(tokens) or tokens[index + 1].value != '(':
+    if index + 1 >= len(tokens) or not _is_punctuation(tokens[index + 1], '('):
         return False
 
     depth = 0
     for token_index in range(index + 1, len(tokens)):
         token = tokens[token_index]
 
-        if token.value == '(':
+        if _is_punctuation(token, '('):
             depth += 1
 
-        elif token.value == ')':
+        elif _is_punctuation(token, ')'):
             depth -= 1
             if depth == 0:
-                return token_index + 1 >= len(tokens) or tokens[token_index + 1].value != '{'
+                return token_index + 1 >= len(tokens) or not _is_punctuation(tokens[token_index + 1], '{')
 
     return True
 
 
 def parse_module(source: str, /) -> ModuleParseResult:
-    tokens, _ = _scan_tokens(source)
+    tokens = _Scanner(source).scan()
     specifiers = []
     dynamic_import = False
     braces = parentheses = brackets = 0
 
     for index, token in enumerate(tokens):
         previous = tokens[index - 1] if index else None
-        is_keyword = previous is None or previous.value not in ('.', '?.')
+        is_keyword = previous is None or not _is_punctuation(previous, '.')
 
-        if token.kind == 'identifier' and token.value == 'import' and is_keyword:
+        if _is_identifier(token, 'import') and is_keyword:
             if _is_dynamic_import(tokens, index):
                 dynamic_import = True
 
@@ -281,8 +403,7 @@ def parse_module(source: str, /) -> ModuleParseResult:
                     specifiers.append(specifier)
 
         elif (
-                token.kind == 'identifier' and
-                token.value == 'export' and
+                _is_identifier(token, 'export') and
                 is_keyword and
                 not token.embedded and
                 braces == parentheses == brackets == 0
@@ -290,6 +411,9 @@ def parse_module(source: str, /) -> ModuleParseResult:
             specifier = _parse_export(tokens, index)
             if specifier is not None:
                 specifiers.append(specifier)
+
+        if token.kind != 'punctuation':
+            continue
 
         if token.value == '{':
             braces += 1

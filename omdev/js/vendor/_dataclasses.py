@@ -4168,31 +4168,35 @@ def _process_dataclass__c2c753db529a03784edeeda20f91380db86c2254():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('kind', 'value', 'start', 'end', 'embedded')), EqPlan(fields=('kind', 'value', 'st"
-        "art', 'end', 'embedded')), FrozenPlan(fields=('kind', 'value', 'start', 'end', 'embedded'), allow_dynamic_dund"
-        "er_attrs=False), HashPlan(action='add', fields=('kind', 'value', 'start', 'end', 'embedded'), cache=False), In"
-        "itPlan(fields=(InitPlan.Field(name='kind', annotation=OpRef(name='init.fields.0.annotation'), default=None, de"
-        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, chec"
-        "k_type=None), InitPlan.Field(name='value', annotation=OpRef(name='init.fields.1.annotation'), default=None, de"
-        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, chec"
-        "k_type=None), InitPlan.Field(name='start', annotation=OpRef(name='init.fields.2.annotation'), default=None, de"
-        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, chec"
-        "k_type=None), InitPlan.Field(name='end', annotation=OpRef(name='init.fields.3.annotation'), default=None, defa"
-        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None), InitPlan.Field(name='embedded', annotation=OpRef(name='init.fields.4.annotation'), default=None, d"
-        "efault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, che"
-        "ck_type=None)), self_param='self', std_params=('kind', 'value', 'start', 'end', 'embedded'), kw_only_params=()"
-        ", frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Fi"
-        "eld(name='kind', kw_only=False, fn=None), ReprPlan.Field(name='value', kw_only=False, fn=None), ReprPlan.Field"
-        "(name='start', kw_only=False, fn=None), ReprPlan.Field(name='end', kw_only=False, fn=None), ReprPlan.Field(nam"
-        "e='embedded', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('kind', 'value', 'start', 'end', 'embedded', 'regex_after')), EqPlan(fields=('kind"
+        "', 'value', 'start', 'end', 'embedded', 'regex_after')), FrozenPlan(fields=('kind', 'value', 'start', 'end', '"
+        "embedded', 'regex_after'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('kind', 'value', "
+        "'start', 'end', 'embedded', 'regex_after'), cache=False), InitPlan(fields=(InitPlan.Field(name='kind', annotat"
+        "ion=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, fie"
+        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='value', annotat"
+        "ion=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, fie"
+        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='start', annotat"
+        "ion=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, fie"
+        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='end', annotatio"
+        "n=OpRef(name='init.fields.3.annotation'), default=None, default_factory=None, init=True, override=False, field"
+        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='embedded', annota"
+        "tion=OpRef(name='init.fields.4.annotation'), default=None, default_factory=None, init=True, override=False, fi"
+        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='regex_after', "
+        "annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factor"
+        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
+        "), self_param='self', std_params=('kind', 'value', 'start', 'end', 'embedded', 'regex_after'), kw_only_params="
+        "(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan."
+        "Field(name='kind', kw_only=False, fn=None), ReprPlan.Field(name='value', kw_only=False, fn=None), ReprPlan.Fie"
+        "ld(name='start', kw_only=False, fn=None), ReprPlan.Field(name='end', kw_only=False, fn=None), ReprPlan.Field(n"
+        "ame='embedded', kw_only=False, fn=None), ReprPlan.Field(name='regex_after', kw_only=False, fn=None)), id=False"
+        ", terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4',
+    plan_repr_sha1='20fa51b4cac958413fcb1f8b68a11ed338f62b8f',
     cls_names=(
         ('omdev.js.vendor.parsing', '_Token'),
     ),
 )
-def _process_dataclass__f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4():
+def _process_dataclass__20fa51b4cac958413fcb1f8b68a11ed338f62b8f():
     def _process_dataclass(
         *,
         __class__,
@@ -4201,6 +4205,8 @@ def _process_dataclass__f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4():
         __dataclass__init__fields__2__annotation,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -4216,6 +4222,7 @@ def _process_dataclass__f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4():
                 start=self.start,
                 end=self.end,
                 embedded=self.embedded,
+                regex_after=self.regex_after,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -4230,7 +4237,8 @@ def _process_dataclass__f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4():
                 self.value == other.value and
                 self.start == other.start and
                 self.end == other.end and
-                self.embedded == other.embedded
+                self.embedded == other.embedded and
+                self.regex_after == other.regex_after
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -4241,6 +4249,7 @@ def _process_dataclass__f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4():
             'start',
             'end',
             'embedded',
+            'regex_after',
         }
 
         def __setattr__(self, name, value):
@@ -4270,6 +4279,7 @@ def _process_dataclass__f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4():
                 self.start,
                 self.end,
                 self.embedded,
+                self.regex_after,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -4281,12 +4291,14 @@ def _process_dataclass__f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4():
             start: __dataclass__init__fields__2__annotation,
             end: __dataclass__init__fields__3__annotation,
             embedded: __dataclass__init__fields__4__annotation,
+            regex_after: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'kind', kind)
             __dataclass__object_setattr(self, 'value', value)
             __dataclass__object_setattr(self, 'start', start)
             __dataclass__object_setattr(self, 'end', end)
             __dataclass__object_setattr(self, 'embedded', embedded)
+            __dataclass__object_setattr(self, 'regex_after', regex_after)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -4298,6 +4310,7 @@ def _process_dataclass__f93ca8aee3e814dc76bbe8d6e7bcd984bf6469e4():
             parts.append(f"start={self.start!r}")
             parts.append(f"end={self.end!r}")
             parts.append(f"embedded={self.embedded!r}")
+            parts.append(f"regex_after={self.regex_after!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

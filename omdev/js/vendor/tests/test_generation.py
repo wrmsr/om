@@ -273,3 +273,160 @@ def test_vendor_resolves_exported_subpath_end_to_end(tmp_path) -> None:
     assert os.path.isfile(os.path.join(destination, 'packages', 'dependency', 'browser', 'feature.mjs'))
     assert not os.path.exists(os.path.join(destination, 'packages', 'dependency', 'private.js'))
     assert generated.package_count == 2
+
+
+def _vendor_archives(
+        tmp_path: str,
+        archives: ta.Mapping[str, tuple[ta.Mapping[str, ta.Any], ta.Mapping[str, bytes]]],
+        *,
+        roots: ta.Sequence[str],
+) -> str:
+    cache_directory = os.path.join(tmp_path, 'cache')
+    os.makedirs(cache_directory, exist_ok=True)
+    packages = []
+    for name, (metadata, files) in archives.items():
+        archive = build_archive({'package.json': json.dumps(metadata).encode(), 'LICENSE': b'MIT', **files})
+        with open(os.path.join(cache_directory, f"{name}-{metadata['version']}.tgz"), 'wb') as archive_file:
+            archive_file.write(archive)
+        packages.append(ResolvedPackage(
+            name=name,
+            version=str(metadata['version']),
+            license='MIT',
+            integrity='sha512-' + base64.b64encode(hashlib.sha512(archive).digest()).decode('ascii'),
+            url=f'https://example.invalid/{name}.tgz',
+            dependencies=dict(metadata.get('dependencies', {})),
+            peer_dependencies={},
+            optional_peer_dependencies=frozenset(),
+        ))
+
+    root_packages = tuple(RootPackage(name=name, version=str(archives[name][0]['version'])) for name in roots)
+    manifest = VendorManifest(format_version=2, roots=root_packages)
+    lock = VendorLock(
+        format_version=2,
+        roots=root_packages,
+        packages=tuple(sorted(packages, key=lambda package: package.name)),
+        files={},
+    )
+    destination = os.path.join(tmp_path, 'vendor')
+    vendor(VendorRequest(
+        manifest=manifest,
+        lock=lock,
+        destination=destination,
+        cache_directory=cache_directory,
+    ))
+    return destination
+
+
+def _vendored_modules(destination: str) -> set[str]:
+    modules = set()
+    packages_root = os.path.join(destination, 'packages')
+    for directory, _, names in os.walk(packages_root):
+        for name in names:
+            if name.endswith(('.js', '.mjs')):
+                modules.add(os.path.relpath(os.path.join(directory, name), packages_root).replace(os.sep, '/'))
+    return modules
+
+
+def test_vendor_resolves_subpath_exports_lazily(tmp_path) -> None:
+    dependency_metadata = {
+        'name': 'dependency',
+        'version': '2.0.0',
+        'license': 'MIT',
+        'type': 'module',
+        'exports': {
+            '.': './dist/index.js',
+            './feature': './dist/feature.js',
+            './compat/package.json': './compat/package.json',
+            './scss/*': './scss/*',
+            './bin/dependency': './bin/dependency.js',
+            './*': './*',
+        },
+    }
+    dependency_files = {
+        'dist/index.js': b'export const root = true\n',
+        'dist/feature.js': b"export {helper} from './helper.js'\n",
+        'dist/helper.js': b'export const helper = true\n',
+        'bin/dependency.js': b"#!/usr/bin/env node\nimport {readFile} from 'node:fs/promises'\n",
+        'src/unbundled.js': b"import './extensionless'\n",
+    }
+    example_metadata = {
+        'name': 'example',
+        'version': '1.0.0',
+        'license': 'MIT',
+        'type': 'module',
+        'exports': './index.js',
+        'dependencies': {'dependency': '^2.0.0'},
+    }
+    example_files = {
+        'index.js': b"export {helper} from 'dependency/feature'\n",
+    }
+
+    destination = _vendor_archives(
+        tmp_path,
+        {
+            'dependency': (dependency_metadata, dependency_files),
+            'example': (example_metadata, example_files),
+        },
+        roots=['example'],
+    )
+
+    assert _vendored_modules(destination) == {
+        'example/index.js',
+        'dependency/index.js',
+        'dependency/feature.js',
+        'dependency/helper.js',
+    }
+
+
+def test_vendor_materializes_imported_subpath_only_dependency(tmp_path) -> None:
+    dependency_metadata = {
+        'name': 'dependency',
+        'version': '2.0.0',
+        'license': 'MIT',
+        'type': 'module',
+        'exports': {'./mode/*': './mode/*.js'},
+    }
+    example_metadata = {
+        'name': 'example',
+        'version': '1.0.0',
+        'license': 'MIT',
+        'type': 'module',
+        'exports': './index.js',
+        'dependencies': {'dependency': '^2.0.0'},
+    }
+
+    destination = _vendor_archives(
+        tmp_path,
+        {
+            'dependency': (dependency_metadata, {
+                'mode/one.js': b'export const one = 1\n',
+                'mode/two.js': b'export const two = 2\n',
+            }),
+            'example': (example_metadata, {'index.js': b"export {one} from 'dependency/mode/one'\n"}),
+        },
+        roots=['example'],
+    )
+
+    assert _vendored_modules(destination) == {'example/index.js', 'dependency/mode/one.js'}
+
+
+def test_vendor_reports_colliding_vendor_paths_only_when_reached(tmp_path) -> None:
+    metadata = {
+        'name': 'example',
+        'version': '1.0.0',
+        'license': 'MIT',
+        'type': 'module',
+        'exports': {'.': './index.js', './util': './util.js'},
+    }
+    files = {
+        'index.js': b'export const value = 1\n',
+        'util.js': b'export const util = 1\n',
+        'dist/util.js': b'export const util = 2\n',
+    }
+
+    destination = _vendor_archives(tmp_path, {'example': (metadata, files)}, roots=['example'])
+    assert _vendored_modules(destination) == {'example/index.js'}
+
+    files['index.js'] = b"export {util} from './util.js'\n"
+    with pytest.raises(ValueError, match=r'same vendor path: packages/example/util\.js'):
+        _vendor_archives(os.path.join(tmp_path, 'again'), {'example': (metadata, files)}, roots=['example'])

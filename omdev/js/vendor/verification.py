@@ -72,7 +72,7 @@ def _verify_root_export(
         package_files: ta.AbstractSet[str],
 ) -> None:
     exports = read_package_exports(metadata, package.name)
-    exports = output_package_exports(exports, root_alias='.' in exports.entries)
+    exports = output_package_exports(exports, root_alias=exports.entries.get('.') is not None)
     modules = {name for name in package_files if name.endswith(('.js', '.mjs'))}
     root_target = exports.entries.get('.')
     if root_target is None:

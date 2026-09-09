@@ -35,19 +35,30 @@ def _relative_target(
     return target
 
 
-def _reachable_javascript(
+def _validate_root_closure(
         files: ta.Mapping[str, bytes],
-        entries: ta.Iterable[str],
-) -> frozenset[str]:
-    reachable: set[str] = set()
-    pending = list(entries)
+        root_entry: str,
+        package: str,
+        /,
+) -> None:
+    """
+    Every package root is materialized unconditionally, so its relative closure is checked here where the failure can
+    name the package. Subpath exports are resolved lazily by generation, only once something imports them, because
+    export maps routinely name Node CLIs, stylesheets, metadata, or unbundled sources which are not browser ESM.
+    """
+
+    if root_entry not in files or not root_entry.endswith(('.js', '.mjs')):
+        raise ValueError(f'Browser export target does not exist for {package}: {root_entry}')
+
+    seen: set[str] = set()
+    pending = [root_entry]
 
     while pending:
         source_path = pending.pop()
-        if source_path in reachable:
+        if source_path in seen:
             continue
 
-        reachable.add(source_path)
+        seen.add(source_path)
 
         source = files[source_path].decode('utf-8')
 
@@ -56,39 +67,6 @@ def _reachable_javascript(
                 continue
 
             pending.append(_relative_target(files, source_path, specifier))
-
-    return frozenset(reachable)
-
-
-def _export_entries(
-        files: ta.Mapping[str, bytes],
-        entries: ta.Iterable[str],
-        package: str,
-        /,
-) -> frozenset[str]:
-    selected = set()
-
-    for target in entries:
-        if '*' not in target:
-            if target not in files:
-                raise ValueError(f'Browser export target does not exist for {package}: {target}')
-
-            selected.add(target)
-            continue
-
-        prefix, suffix = target.split('*')
-        matches = {
-            name
-            for name in files
-            if name.startswith(prefix) and name.endswith(suffix) and len(name) >= len(prefix) + len(suffix)
-        }
-
-        if not matches:
-            raise ValueError(f'Browser export pattern matches no files for {package}: {target}')
-
-        selected.update(matches)
-
-    return frozenset(selected)
 
 
 def read_archive(downloaded: DownloadedPackage, /) -> ExtractedPackage:
@@ -135,21 +113,12 @@ def read_archive(downloaded: DownloadedPackage, /) -> ExtractedPackage:
     validate_license(package, metadata, files)
 
     archive_exports = read_package_exports(metadata, package.name)
-    entries = _export_entries(files, archive_exports.entries.values(), package.name)
-    reachable = _reachable_javascript(files, entries)
-    retained_modules = (
-        reachable
-        if archive_exports.restricted else
-        frozenset(name for name in files if name.endswith(('.js', '.mjs')))
-    )
-    files = {
-        name: contents
-        for name, contents in files.items()
-        if name == 'package.json' or name.lower().startswith(('license', 'licence')) or name in retained_modules
-    }
-    module_origins = {name: name for name in retained_modules}
-
     root_entry = archive_exports.entries.get('.')
+    if root_entry is not None:
+        _validate_root_closure(files, root_entry, package.name)
+
+    module_origins = {name: name for name in files if name.endswith(('.js', '.mjs'))}
+
     root_alias = root_entry is not None
     if root_entry is not None and output_module_path(root_entry) != 'index.js':
         files['dist/index.js'] = files[root_entry]

@@ -164,7 +164,12 @@ class DownloadedPackage:
 
 @dc.dataclass(frozen=True)
 class PackageExports:
-    entries: ta.Mapping[str, str]
+    """
+    Export keys map to package-relative module paths. A key with a `None` target is blocked: it matched no browser
+    condition or was explicitly `null`, and as in Node it shadows any broader pattern instead of falling through.
+    """
+
+    entries: ta.Mapping[str, str | None]
     restricted: bool
 
 

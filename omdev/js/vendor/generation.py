@@ -84,7 +84,10 @@ def vendor(request: VendorRequest, /) -> VendorResult:
         )
 
         package_exports = {package.package.name: package.exports for package in extracted_packages}
-        module_sources: dict[str, tuple[str, bytes]] = {}
+
+        # Every archived module is a candidate until something reaches it, so two archive files sharing an output
+        # path only conflict if that path is actually materialized.
+        module_sources: dict[str, list[tuple[str, bytes]]] = {}
 
         for extracted in extracted_packages:
             package_root = package_directory(extracted.package.name)
@@ -92,18 +95,14 @@ def vendor(request: VendorRequest, /) -> VendorResult:
                 if not relative.endswith(('.js', '.mjs')):
                     continue
 
-                target_relative = output_module_path(relative)
-                target = posixpath.join(package_root, target_relative)
-                if target in module_sources:
-                    raise ValueError(f'Multiple archive files produce the same vendor path: {target}')
-
+                target = posixpath.join(package_root, output_module_path(relative))
                 origin = posixpath.join(package_root, output_module_path(extracted.module_origins[relative]))
-                module_sources[target] = (origin, source_data)
+                module_sources.setdefault(target, []).append((origin, source_data))
 
         pending = [
             posixpath.join(package_directory(name), 'index.js')
             for name, exports in package_exports.items()
-            if '.' in exports.entries
+            if exports.entries.get('.') is not None
         ]
 
         modules: dict[str, bytes] = {}
@@ -112,10 +111,12 @@ def vendor(request: VendorRequest, /) -> VendorResult:
             if target in modules:
                 continue
 
-            try:
-                origin, source_data = module_sources[target]
-            except KeyError:
-                raise ValueError(f'Required browser module is not present in package archives: {target}') from None
+            sources = module_sources.get(target, [])
+            if not sources:
+                raise ValueError(f'Required browser module is not present in package archives: {target}')
+            if len(sources) > 1:
+                raise ValueError(f'Multiple archive files produce the same vendor path: {target}')
+            origin, source_data = sources[0]
 
             rewritten = rewrite_module(RewriteRequest(
                 source=source_data.decode('utf-8'),

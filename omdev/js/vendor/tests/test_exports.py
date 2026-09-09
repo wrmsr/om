@@ -1,5 +1,6 @@
 import pytest
 
+from ..exports import output_package_exports
 from ..exports import read_package_exports
 from ..exports import resolve_package_export
 from ..models import PackageExports
@@ -62,3 +63,42 @@ def test_resolve_package_export_enforces_explicit_subpaths() -> None:
             PackageExports(entries={'./*': 'dist/*.js'}, restricted=True),
             '../private',
         )
+
+
+def test_blocked_export_keys_shadow_broader_patterns() -> None:
+    exports = read_package_exports({
+        'exports': {
+            '.': './index.js',
+            './internal/*': None,
+            './node-only': {'node': './node.js'},
+            './*': './*',
+        },
+    }, 'example')
+
+    assert exports.entries == {
+        '.': 'index.js',
+        './internal/*': None,
+        './node-only': None,
+        './*': '*',
+    }
+    assert resolve_package_export(exports, 'public.js') == 'public.js'
+
+    with pytest.raises(ValueError, match='not exported'):
+        resolve_package_export(exports, 'internal/secret.js')
+
+    with pytest.raises(ValueError, match='not exported'):
+        resolve_package_export(exports, 'node-only')
+
+
+def test_read_package_exports_rejects_maps_with_only_blocked_keys() -> None:
+    with pytest.raises(ValueError, match='exports no browser ESM'):
+        read_package_exports({'exports': {'.': None, './feature': {'node': './node.js'}}}, 'example')
+
+
+def test_output_package_exports_preserves_blocked_keys() -> None:
+    exports = output_package_exports(
+        PackageExports(entries={'.': 'dist/main.js', './blocked': None}, restricted=True),
+        root_alias=True,
+    )
+
+    assert exports.entries == {'.': 'index.js', './blocked': None}

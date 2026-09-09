@@ -15,9 +15,12 @@ it. Development and optional dependencies are not included.
 
 Generation honors package `exports` maps, including exact and wildcard subpaths, arrays, and nested browser, import,
 module, and default conditions in declaration order. An explicit export map is an access boundary: imports of private
-subpaths fail instead of guessing a filename. Packages without an export map use their browser or module entry, or an
-ESM `main`, and retain legacy subpath behavior. The root entry of each resolved package plus every statically reachable
-relative or exported module is materialized.
+subpaths fail instead of guessing a filename, and a key whose target is `null` or matches no browser condition blocks
+its subpaths rather than falling through to a broader pattern, as in Node. Packages without an export map use their
+browser or module entry, or an ESM `main`, and retain legacy subpath behavior. The root entry of each resolved package
+is materialized along with every module statically reachable from it through relative imports or imported package
+subpaths. Subpath exports are resolved only when something imports them, so export map targets which are not browser
+ESM, such as Node CLIs, stylesheets, or nested metadata, are simply never extracted.
 
 Static imports and re-exports are found with JavaScript-aware lexical parsing across multiline declarations, comments,
 strings, regular expressions, and template expressions. Bare imports are rewritten through the selected export map.

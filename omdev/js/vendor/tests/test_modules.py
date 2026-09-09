@@ -135,3 +135,54 @@ def test_verify_graph_rejects_symbolic_links(tmp_path) -> None:
 
     with pytest.raises(ValueError, match='Symbolic link'):
         verify_graph(GraphVerifyRequest(root=root))
+
+
+def test_rewrite_module_handles_semicolon_free_export_list_before_reexport() -> None:
+    result = rewrite_module(RewriteRequest(
+        source="export { x }\nexport * from 'dependency'\n",
+        source_path='packages/example/index.js',
+        package_names={'example', 'dependency'},
+        package_exports={'dependency': PackageExports(entries={'.': 'index.js'}, restricted=True)},
+    ))
+
+    assert result.source.endswith("export { x }\nexport * from '../dependency/index.js'\n")
+
+
+@pytest.mark.parametrize('source', [
+    'export const value = 1\n//# sourceMappingURL=index.js.map\n',
+    'export const value = 1\n//# sourceMappingURL=index.js.map',
+    'export const value = 1\n//@ sourceMappingURL=index.js.map\n\n',
+])
+def test_rewrite_module_strips_trailing_source_map_comment(source: str) -> None:
+    result = rewrite_module(RewriteRequest(
+        source=source,
+        source_path='packages/example/index.js',
+        package_names={'example'},
+    ))
+
+    assert 'sourceMappingURL' not in result.source
+    assert 'export const value = 1\n' in result.source
+
+
+def test_rewrite_module_keeps_source_map_comments_which_are_not_trailing() -> None:
+    source = '//# sourceMappingURL=index.js.map\nexport const value = 1\n'
+
+    result = rewrite_module(RewriteRequest(
+        source=source,
+        source_path='packages/example/index.js',
+        package_names={'example'},
+    ))
+
+    assert result.source.endswith(source)
+
+
+def test_rewrite_module_strips_shebang_and_keeps_output_parseable() -> None:
+    result = rewrite_module(RewriteRequest(
+        source="#!/usr/bin/env node\nimport {value} from 'dependency'\n",
+        source_path='packages/example/bin/example.js',
+        package_names={'example', 'dependency'},
+    ))
+
+    assert result.source.startswith('// @generated')
+    assert '#!' not in result.source
+    assert tuple(iter_import_specifiers(result.source)) == ('../../dependency/index.js',)

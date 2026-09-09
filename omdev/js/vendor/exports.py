@@ -93,7 +93,7 @@ def read_package_exports(metadata: ta.Mapping[str, ta.Any], package: str, /) -> 
         return PackageExports(entries={'.': _legacy_entry(metadata, package)}, restricted=False)
 
     value = metadata['exports']
-    entries: dict[str, str] = {}
+    entries: dict[str, str | None] = {}
 
     if isinstance(value, dict) and any(isinstance(key, str) and key.startswith('.') for key in value):
         if not all(isinstance(key, str) and key.startswith('.') for key in value):
@@ -102,10 +102,10 @@ def read_package_exports(metadata: ta.Mapping[str, ta.Any], package: str, /) -> 
         for key, item in value.items():
             _validate_export_key(key, package)
             target = _select_target(item, package)
-            if target is not None:
-                if '*' in target and '*' not in key:
-                    raise ValueError(f'Export target wildcard has no matching key wildcard for {package}: {key}')
-                entries[key] = target
+            if target is not None and '*' in target and '*' not in key:
+                raise ValueError(f'Export target wildcard has no matching key wildcard for {package}: {key}')
+            # A blocked key is retained so it shadows broader patterns exactly as Node's resolver does.
+            entries[key] = target
 
     else:
         target = _select_target(value, package)
@@ -114,7 +114,7 @@ def read_package_exports(metadata: ta.Mapping[str, ta.Any], package: str, /) -> 
                 raise ValueError(f'Root export target contains a wildcard for {package}')
             entries['.'] = target
 
-    if not entries:
+    if not any(target is not None for target in entries.values()):
         raise ValueError(f'Package exports no browser ESM: {package}')
 
     return PackageExports(entries=entries, restricted=True)
@@ -126,10 +126,10 @@ def output_module_path(path: str, /) -> str:
 
 def output_package_exports(exports: PackageExports, /, *, root_alias: bool) -> PackageExports:
     entries = {
-        key: output_module_path(target)
+        key: output_module_path(target) if target is not None else None
         for key, target in exports.entries.items()
     }
-    if root_alias and '.' in entries:
+    if root_alias and entries.get('.') is not None:
         entries['.'] = 'index.js'
     return PackageExports(entries=entries, restricted=exports.restricted)
 
@@ -144,8 +144,10 @@ def resolve_package_export(exports: PackageExports, subpath: str, /) -> str:
         raise ValueError(f'Invalid package subpath: {subpath}')
 
     key = '.' if not subpath else './' + subpath
-    exact = exports.entries.get(key)
-    if exact is not None:
+    if key in exports.entries:
+        exact = exports.entries[key]
+        if exact is None:
+            raise ValueError(f'Package subpath is not exported: {key}')
         return exact
 
     matches = []
@@ -156,13 +158,18 @@ def resolve_package_export(exports: PackageExports, subpath: str, /) -> str:
         prefix, suffix = pattern.split('*')
         if key.startswith(prefix) and key.endswith(suffix) and len(key) >= len(prefix) + len(suffix):
             replacement = key[len(prefix):len(key) - len(suffix) if suffix else None]
-            matches.append((len(prefix), len(suffix), pattern, target.replace('*', replacement)))
+            matches.append((len(prefix), len(suffix), pattern, target, replacement))
 
     if matches:
-        target = max(matches)[3]
-        if target != posixpath.normpath(target) or any(part in ('.', '..') for part in target.split('/')):
-            raise ValueError(f'Invalid resolved package target: {target}')
-        return target
+        # Node selects the most specific pattern before consulting its target, so a blocked specific pattern is not
+        # bypassed by a broader one.
+        _, _, _, target, replacement = max(matches, key=lambda match: match[:3])
+        if target is None:
+            raise ValueError(f'Package subpath is not exported: {key}')
+        resolved = target.replace('*', replacement)
+        if resolved != posixpath.normpath(resolved) or any(part in ('.', '..') for part in resolved.split('/')):
+            raise ValueError(f'Invalid resolved package target: {resolved}')
+        return resolved
 
     if not exports.restricted and subpath:
         target = posixpath.normpath(subpath)
