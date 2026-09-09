@@ -27,6 +27,9 @@ def _remote_main() -> None:
         args['updates'],
     )
 
+    import time
+    time.sleep(10)
+
     raise SystemExit(0)
 
 

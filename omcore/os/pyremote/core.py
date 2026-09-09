@@ -194,11 +194,14 @@ class _PyremoteBootstrapConsts:
 
     TIMEOUT_S = 3 * 60
     GRACE_S = 10
+    REAP_S = 3
+    REAP_SLEEP_S = .02
 
     INPUT_FD = 100
     SRC_FD = 101
     DISARM_FD = 102
 
+    WATCHDOG_PID_VAR = '_OPYR_WATCHDOG_PID'
     CHILD_PID_VAR = '_OPYR_CHILD_PID'
     ARGV0_VAR = '_OPYR_ARGV0'
     CONTEXT_NAME_VAR = '_OPYR_CONTEXT_NAME'
@@ -242,6 +245,7 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
             # Target died (ppid check catches it) or something closed our fd behind our back -> fall back to the clock
             time.sleep(max(0, dl - time.monotonic()))
 
+        # FIXME: TOCTOU
         if os.getppid() == pp:
             # Still our parent -> same process, still alive
             os.kill(pp, signal.SIGALRM)
@@ -250,6 +254,8 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
                 os.kill(pp, signal.SIGKILL)
 
         os._exit(0)
+
+    os.environ[_PyremoteBootstrapConsts.WATCHDOG_PID_VAR] = str(wp)
 
     # Install timeout
     def timeout(*_):
@@ -379,9 +385,9 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     # If src file var is not present we need to do initial finalization
     if _PyremoteBootstrapConsts.SRC_FILE_VAR not in os.environ:
         # Read second copy of payload src
-        r1 = os.fdopen(_PyremoteBootstrapConsts.SRC_FD, 'rb', 0)
-        payload_src = r1.read().decode('utf-8')
-        r1.close()
+        pr1 = os.fdopen(_PyremoteBootstrapConsts.SRC_FD, 'rb', 0)
+        payload_src = pr1.read().decode('utf-8')
+        pr1.close()
 
         # Reap boostrap child. Must be done after reading second copy of source because source may be too big to fit in
         # a pipe at once.
@@ -445,6 +451,17 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     # Disarm watchdog
     os.write(_PyremoteBootstrapConsts.DISARM_FD, b'1')
     os.close(_PyremoteBootstrapConsts.DISARM_FD)
+
+    # Reap watchdog
+    wp = int(os.environ.pop(_PyremoteBootstrapConsts.WATCHDOG_PID_VAR))
+    reap_dl = time.monotonic() + _PyremoteBootstrapConsts.REAP_S
+    while True:
+        done_pid, _ = os.waitpid(wp, os.WNOHANG)
+        if done_pid != 0:
+            break
+        if time.monotonic() >= reap_dl:
+            raise TimeoutError(f'Timeout reaping pyremote watchdog pid {wp}')
+        time.sleep(_PyremoteBootstrapConsts.REAP_SLEEP_S)
 
     # Write fourth ack
     output.write(_PyremoteBootstrapConsts.ACK3)

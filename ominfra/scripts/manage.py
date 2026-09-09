@@ -99,7 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
-            dict(path='../../omcore/os/pyremote/core.py', sha1='297cd0f7a50ca044bbcef9770519fed91b649ba8'),
+            dict(path='../../omcore/os/pyremote/core.py', sha1='92336856d38a41202a045d53757395a2d75313f6'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -4826,11 +4826,14 @@ class _PyremoteBootstrapConsts:
 
     TIMEOUT_S = 3 * 60
     GRACE_S = 10
+    REAP_S = 3
+    REAP_SLEEP_S = .02
 
     INPUT_FD = 100
     SRC_FD = 101
     DISARM_FD = 102
 
+    WATCHDOG_PID_VAR = '_OPYR_WATCHDOG_PID'
     CHILD_PID_VAR = '_OPYR_CHILD_PID'
     ARGV0_VAR = '_OPYR_ARGV0'
     CONTEXT_NAME_VAR = '_OPYR_CONTEXT_NAME'
@@ -4874,6 +4877,7 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
             # Target died (ppid check catches it) or something closed our fd behind our back -> fall back to the clock
             time.sleep(max(0, dl - time.monotonic()))
 
+        # FIXME: TOCTOU
         if os.getppid() == pp:
             # Still our parent -> same process, still alive
             os.kill(pp, signal.SIGALRM)
@@ -4882,6 +4886,8 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
                 os.kill(pp, signal.SIGKILL)
 
         os._exit(0)
+
+    os.environ[_PyremoteBootstrapConsts.WATCHDOG_PID_VAR] = str(wp)
 
     # Install timeout
     def timeout(*_):
@@ -5011,9 +5017,9 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     # If src file var is not present we need to do initial finalization
     if _PyremoteBootstrapConsts.SRC_FILE_VAR not in os.environ:
         # Read second copy of payload src
-        r1 = os.fdopen(_PyremoteBootstrapConsts.SRC_FD, 'rb', 0)
-        payload_src = r1.read().decode('utf-8')
-        r1.close()
+        pr1 = os.fdopen(_PyremoteBootstrapConsts.SRC_FD, 'rb', 0)
+        payload_src = pr1.read().decode('utf-8')
+        pr1.close()
 
         # Reap boostrap child. Must be done after reading second copy of source because source may be too big to fit in
         # a pipe at once.
@@ -5077,6 +5083,17 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     # Disarm watchdog
     os.write(_PyremoteBootstrapConsts.DISARM_FD, b'1')
     os.close(_PyremoteBootstrapConsts.DISARM_FD)
+
+    # Reap watchdog
+    wp = int(os.environ.pop(_PyremoteBootstrapConsts.WATCHDOG_PID_VAR))
+    reap_dl = time.monotonic() + _PyremoteBootstrapConsts.REAP_S
+    while True:
+        done_pid, _ = os.waitpid(wp, os.WNOHANG)
+        if done_pid != 0:
+            break
+        if time.monotonic() >= reap_dl:
+            raise TimeoutError(f'Timeout reaping pyremote watchdog pid {wp}')
+        time.sleep(_PyremoteBootstrapConsts.REAP_SLEEP_S)
 
     # Write fourth ack
     output.write(_PyremoteBootstrapConsts.ACK3)
