@@ -6,8 +6,8 @@ import os.path
 import subprocess
 import typing as ta
 
-from omcore.lite.check import check
-from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
+from ..lite.check import check
+from ..subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
 
 ##

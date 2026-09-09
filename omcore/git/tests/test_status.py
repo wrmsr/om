@@ -2,8 +2,7 @@ import os.path
 import subprocess
 import tempfile
 
-from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
-
+from ...subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 from ..status import GitStatusItem
 from ..status import GitStatusState
 from ..status import get_git_status

@@ -45,8 +45,8 @@ import dataclasses as dc
 import string
 import typing as ta
 
-from omcore.lite.abstract import Abstract
-from omcore.lite.check import check
+from ..lite.abstract import Abstract
+from ..lite.check import check
 
 
 ##

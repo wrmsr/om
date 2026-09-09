@@ -4,10 +4,10 @@ import typing as ta
 
 from omcore import check
 from omcore import dataclasses as dc
+from omcore.git.status import GitStatusItem
+from omcore.git.status import GitStatusState
+from omcore.git.status import get_git_status
 
-from ..status import GitStatusItem
-from ..status import GitStatusState
-from ..status import get_git_status
 from .errors import GitVendorDirtyError
 from .errors import GitVendorMergeInProgressError
 from .errors import GitVendorSubprocessError

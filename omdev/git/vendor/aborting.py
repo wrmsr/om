@@ -1,8 +1,9 @@
 import os
 import os.path
 
-from ..status import GitStatusState
-from ..status import get_git_status
+from omcore.git.status import GitStatusState
+from omcore.git.status import get_git_status
+
 from .errors import GitVendorNoMergeInProgressError
 from .journals import GitVendorJournal
 from .journals import delete_vendor_journal

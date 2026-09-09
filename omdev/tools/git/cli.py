@@ -34,12 +34,12 @@ from omcore.argparse import all as ap
 from omcore.configs.processing.merging import merge_configs
 from omcore.formats.json import all as json
 from omcore.formats.yaml import all as yaml
+from omcore.git.status import GitStatusItem
+from omcore.git.status import get_git_status
 from omcore.logs import all as logs
 from omcore.subprocesses.sync import subprocesses
 
 from ... import magic
-from ...git.status import GitStatusItem
-from ...git.status import get_git_status
 from ...git.vendor.aborting import GitVendorAborter
 from ...git.vendor.diffing import GitVendorDiffer
 from ...git.vendor.journals import CHANGING_GIT_VENDOR_FILE_DISPOSITIONS
