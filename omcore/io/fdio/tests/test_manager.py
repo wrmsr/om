@@ -1,4 +1,5 @@
 # ruff: noqa: SLF001 UP006 UP007 UP045
+# @om-lite
 import socket
 import threading
 import time

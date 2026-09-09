@@ -1,4 +1,5 @@
 # ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import abc
 import dataclasses as dc
 import errno
