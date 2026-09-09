@@ -1,4 +1,5 @@
 import inspect
+import json
 import subprocess
 
 from omcore import check
@@ -18,9 +19,15 @@ from omdev.home.secretinject import inject_secrets
 def _remote_main() -> None:
     prt = pyremote_bootstrap_finalize()  # noqa
 
+    #
+
+    import json
+
+    args = json.loads(prt.input.read().decode('utf-8'))
+
     inject_secrets(
-        'foo.json',
-        {'foo': True},
+        args['file'],
+        args['updates'],
     )
 
     raise SystemExit(0)
@@ -67,12 +74,19 @@ def _main(argv=None) -> None:
     stdin = check.not_none(proc.stdin)
     stdout = check.not_none(proc.stdout)
 
-    res = PyremoteBootstrapDriver(
+    pbr = PyremoteBootstrapDriver(  # noqa
         payload_src,
     ).run(stdout, stdin)
 
-    print(res)
-    print(stdout.read())
+    stdin.write(json.dumps({
+        'file': 'foo.json',
+        'updates': {
+            'foo': True,
+        },
+    }).encode('utf-8'))
+    stdin.close()
+
+    proc.wait()
 
 
 if __name__ == '__main__':
