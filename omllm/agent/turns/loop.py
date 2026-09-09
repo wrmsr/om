@@ -299,13 +299,9 @@ class TurnLoop:
 
         tool_context = ToolContext(  # noqa
             tool=tool,
-
             args=tool_call.args,
-
             llm_tool_call=tool_call,
-
             env=self._tool_env,
-
             progress=progress,
         )
 
@@ -434,8 +430,8 @@ class TurnLoop:
         end_reason: AgentEndReason | None
 
         if message.stop_reason == 'error':
-            # A refusal or a content filter. The message is kept, as it may carry an explanation, but the run fails:
-            # the model did not produce what was asked for, and going around again would only ask again.
+            # A refusal or a content filter. The message is kept, as it may carry an explanation, but the run fails: the
+            # model did not produce what was asked for, and going around again would only ask again.
             await self._publish(TurnEndEvent(
                 message=message,
             ))
@@ -484,8 +480,8 @@ class TurnLoop:
 
     def _note_interruption(self, reason: AgentEndReason, error: BaseException) -> None:
         """
-        Deliberately synchronous, and so unannounced: this runs on the cancellation path, where an await would widen
-        the window in which a second cancellation could land. The terminal event carries these messages.
+        Deliberately synchronous, and so unannounced: this runs on the cancellation path, where an await would widen the
+        window in which a second cancellation could land. The terminal event carries these messages.
         """
 
         if reason is AgentEndReason.CANCELLED:
