@@ -122,6 +122,7 @@ class BaseHttpBackend(Backend, lang.Abstract):
             *,
             api_key: sec.Secret | None = None,
             http_client: http.AsyncHttpClient | None = None,
+            base_url: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -130,7 +131,7 @@ class BaseHttpBackend(Backend, lang.Abstract):
         self._http_client = http_client
 
         self._model_http = check.not_none(model.http)
-        self._base_url = check.non_empty_str(self._model_http.base_url).rstrip('/')
+        self._base_url = check.non_empty_str(base_url or self._model_http.base_url).rstrip('/')
 
         # Deferred pricing resolves here, at construction - the one point model metadata may do real work, such as a
         # first read of baked pricing data.

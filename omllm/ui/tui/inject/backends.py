@@ -1,6 +1,7 @@
 import typing as ta
 
 from omcore import inject as inj
+from omcore import lang
 from omdev.home.secrets import load_secrets
 
 from .... import agent as agn
@@ -42,9 +43,13 @@ def bind_backends(config: Config) -> inj.Elements:
 
         backend_impl_cls = reg.get_registry_cls(backend_cls, llm_model.backend_)
 
+        # FIXME: inject this lol
         backend = backend_impl_cls(
             llm_model,
-            **(dict(api_key=load_secrets().get(api_key_name)) if api_key_name is not None else {}),
+            **lang.opt_kw(
+                api_key=load_secrets().get(api_key_name) if api_key_name is not None else None,
+                base_url=config.url,
+            ),
         )
 
     lst.append(inj.bind(

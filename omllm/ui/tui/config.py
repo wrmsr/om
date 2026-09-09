@@ -24,6 +24,8 @@ class Config:
     allow_fs_reads: bool | None = None
     web: bool | None = None
 
+    url: str | None = None
+
     jsonl_storage: bool | None = None
 
     autoexec: lang.SequenceNotStr[str] | None = None
@@ -44,6 +46,8 @@ class Config:
         parser.add_argument('--fs', action='store_true')
         parser.add_argument('--allow-fs-reads', action='store_true')
         parser.add_argument('--web', action='store_true')
+
+        parser.add_argument('--url')
 
         parser.add_argument('-J', '--jsonl-storage', action='store_true')
 
@@ -66,6 +70,8 @@ class Config:
             fs=args.fs,
             allow_fs_reads=args.allow_fs_reads,
             web=args.web,
+
+            url=args.url,
 
             jsonl_storage=args.jsonl_storage,
 
