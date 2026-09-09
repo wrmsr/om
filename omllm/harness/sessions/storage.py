@@ -1,5 +1,6 @@
 import abc
 import io
+import os.path
 import typing as ta
 
 from omcore import lang
@@ -51,6 +52,8 @@ class JsonlSessionStorage(SessionStorage):
         if not entries:
             return
 
+        #
+
         mvs = [  # noqa
             msh.marshal(e, SessionEntry)
             for e in entries
@@ -60,6 +63,14 @@ class JsonlSessionStorage(SessionStorage):
         for mv in mvs:
             out.write(json.dumps_compact(mv))
             out.write('\n')
+
+        #
+
+        fp = self._file_path
+
+        dp = os.path.dirname(fp)
+        if not os.path.exists(dp):
+            os.makedirs(dp, exist_ok=True)
 
         with open(self._file_path, 'a') as f:  # noqa
             f.write(out.getvalue())
