@@ -26,13 +26,18 @@ def bind_sessions(config: Config) -> inj.Elements:
 
     #
 
-    state_dir_path = os.path.join(get_home_paths().state_dir, 'llm', 'sessions')
+    state_dir_path = os.path.join(get_home_paths().state_dir, 'llm', 'sessions', str(session_id.v))
 
     if config.jsonl_storage:
         lst.extend([
-            inj.bind(har.JsonlSessionStorage(
-                file_path=os.path.join(state_dir_path, f'{session_id.v!s}.jsonl'),
+            inj.bind(har.JsonlSessionStorage.Config(
+                dir_path=state_dir_path,
             )),
+            inj.bind(
+                har.JsonlSessionStorage,
+                singleton=True,
+                to_async_fn=inj.make_async_managed_provider(har.JsonlSessionStorage),
+            ),
             inj.bind(har.SessionStorage, to_key=har.JsonlSessionStorage),
         ])
 
