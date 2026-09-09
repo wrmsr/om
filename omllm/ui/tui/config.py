@@ -77,9 +77,27 @@ class Config:
         )
 
     @classmethod
-    def parse_from_arguments(cls, argv: lang.SequenceNotStr[str] | None = None) -> ta.Self:
-        parser = argparse.ArgumentParser()
+    def parse_from_arguments_(
+            cls,
+            argv: lang.SequenceNotStr[str] | None = None,
+            *,
+            parser: argparse.ArgumentParser | None = None,
+    ) -> tuple[ta.Self, argparse.Namespace]:
+        if parser is None:
+            parser = argparse.ArgumentParser()
         cls.configure_argument_parser(parser)
         args = parser.parse_args(argv)
         kwargs = cls.build_kwargs_from_parsed_arguments(args)
-        return cls(**kwargs)
+        return cls(**kwargs), args
+
+    @classmethod
+    def parse_from_arguments(
+            cls,
+            argv: lang.SequenceNotStr[str] | None = None,
+            *,
+            parser: argparse.ArgumentParser | None = None,
+    ) -> ta.Self:
+        return cls.parse_from_arguments_(
+            argv,
+            parser=parser,
+        )[0]

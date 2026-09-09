@@ -10,6 +10,7 @@ rather than being dropped.
 import asyncio
 import os.path
 
+from omcore import check
 from omcore import dataclasses as dc
 from omcore import inject as inj
 from omcore import lang
@@ -141,11 +142,43 @@ class Shutdown:
 ##
 
 
-async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
-    config = Config.parse_from_arguments(argv)
+def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    # Shoutouts to https://github.com/hyprwm/Hyprland/issues/3728
+    parser.add_argument('--i-am-very-stupid', action='store_true')
+
+    config, args = Config.parse_from_arguments_(argv, parser=parser)
 
     cwd = os.path.abspath(os.path.realpath(config.cwd or os.getcwd()))
     config = dc.replace(config, cwd=cwd)  # noqa
+
+    if args.i_am_very_stupid:
+        config = dc.replace(
+            config,
+
+            eval=True,
+            exec=True,
+            fs=True,
+
+            autoexec=[
+                *(config.autoexec or []),
+                '/permissions clear',
+                '/permissions add allow exec {}',
+                f'/permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r","w"]}}\'',
+                '/echo "YOU ARE VERY STUPID"',
+            ],
+        )
+
+    return config
+
+
+async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
+    config = _parse_config(argv)
+
+    cwd = check.non_empty_str(config.cwd)
 
     #
 

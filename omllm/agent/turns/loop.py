@@ -282,6 +282,14 @@ class TurnLoop:
 
     #
 
+    async def _execute_tool_call_inner(
+            self,
+            tool: Tool,
+            tool_context: ToolContext,
+    ) -> ToolResult:
+        # TODO: ToolCallRunner -> TOOL_CALL_SCOPE
+        return await tool.executor(tool_context)
+
     def _is_own_cancellation(self, e: BaseException) -> bool:
         """
         Whether `e` is the current task's own cancellation. A cancellation error while no cancellation of the task is
@@ -324,7 +332,7 @@ class TurnLoop:
             # Any Exception out of an executor is an error result for the model to see and recover from. Tool classes do
             # this for themselves; this is the backstop for bare executors. The task's own cancellation propagates.
             try:
-                tool_result = await tool.executor(tool_context)
+                tool_result = await self._execute_tool_call_inner(tool, tool_context)
 
             except Exception as e:  # noqa: BLE001
                 tool_result = ToolResult.of_error(e)
