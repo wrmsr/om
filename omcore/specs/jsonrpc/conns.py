@@ -10,9 +10,7 @@ from ... import check
 from ... import lang
 from ... import marshal as msh
 from ...asyncs import anyio as aiu
-from ...io.streambufs.scanning import ScanningByteStreamBuffer
-from ...io.streambufs.segmented import SegmentedByteStreamBuffer
-from ...io.streambufs.utils import ByteStreamBuffers
+from ...io.streambufs import all as isb
 from .types import Error
 from .types import Id
 from .types import Message
@@ -50,8 +48,8 @@ class JsonrpcConnection:
             id_creator = self.default_create_id
         self._create_id = id_creator
 
-        self._raw_buf = SegmentedByteStreamBuffer(chunk_size=0x4000)
-        self._buf = ScanningByteStreamBuffer(self._raw_buf)
+        self._raw_buf = isb.SegmentedBuffer(chunk_size=0x4000)
+        self._buf = isb.ScanningBuffer(self._raw_buf)
         self._response_futures_by_id: dict[Id, aiu.Future[Response]] = {}
         self._send_lock = anyio.Lock()
         self._shutdown_event = anyio.Event()
@@ -151,7 +149,7 @@ class JsonrpcConnection:
                 self._received_eof = True
 
             self._buf.write(data)
-            lines = ByteStreamBuffers.split(self._buf, b'\n')
+            lines = isb.Buffers.split(self._buf, b'\n')
 
             if not data:
                 if len(self._buf):
