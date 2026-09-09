@@ -46,7 +46,7 @@ jobs:
 
       - name: 'Report JUnit results'
         run: >
-          python3 omdev/scripts/ghajunit.py \
+          python3 omdev/gha/junit.py \
             --annotations \
             --fail-on-failure \
             '${{ github.workspace }}/test-results.xml'
