@@ -2,7 +2,7 @@ import io
 
 from omcore import lang
 from omcore.term import styled as tst
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from ....core import ui
 from ..rendering import TerminalTextDisplayer

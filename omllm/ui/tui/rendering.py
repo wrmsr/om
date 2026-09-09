@@ -7,7 +7,7 @@ from omcore.term import styled as tst
 from omcore.text import diffs
 from omcore.text import highlights as hl
 from omcore.text import styled as st
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from ...core import ui
 

@@ -1,3 +1,4 @@
+# @om-recommended-import-alias "isb"
 from ... import lang as _lang
 
 
@@ -8,40 +9,40 @@ with _lang.auto_proxy_init(
     ##
 
     from .adapters import (  # noqa
-        ByteStreamBufferBytesReaderAdapter,
-        ByteStreamBufferWriterAdapter,
-        BytesIoByteStreamBuffer,
+        ByteStreamBufferBytesReaderAdapter as BufferBytesReaderAdapter,
+        ByteStreamBufferWriterAdapter as BufferWriterAdapter,
+        BytesIoByteStreamBuffer as BytesIoBuffer,
     )
 
     from .direct import (  # noqa
-        DirectByteStreamBufferView,
-        DirectByteStreamBuffer,
+        DirectByteStreamBufferView as DirectBufferView,
+        DirectByteStreamBuffer as DirectBuffer,
 
-        empty_byte_stream_buffer_view,
+        empty_byte_stream_buffer_view as empty_buffer_view,
     )
 
     from .framing import (  # noqa
-        LongestMatchDelimiterByteStreamFrameDecoder,
-        LengthFieldByteStreamFrameDecoder,
+        LongestMatchDelimiterByteStreamFrameDecoder as LongestMatchDelimiterFrameDecoder,
+        LengthFieldByteStreamFrameDecoder as LengthFieldFrameDecoder,
     )
 
     from .linear import (  # noqa
-        LinearByteStreamBuffer,
+        LinearByteStreamBuffer as LinearBuffer,
     )
 
     from .reading import (  # noqa
-        ByteStreamBufferReader,
+        ByteStreamBufferReader as BufferReader,
     )
 
     from .scanning import (  # noqa
-        ScanningByteStreamBuffer,
+        ScanningByteStreamBuffer as ScanningBuffer,
     )
 
     from .segmented import (  # noqa
-        SegmentedByteStreamBufferView,
-        SegmentedByteStreamBuffer,
+        SegmentedByteStreamBufferView as SegmentedBufferView,
+        SegmentedByteStreamBuffer as SegmentedBuffer,
 
-        byte_stream_buffer_view_from_segments,
+        byte_stream_buffer_view_from_segments as buffer_view_from_segments,
     )
 
 
@@ -49,45 +50,45 @@ with _lang.auto_proxy_init(
 
 
 from .errors import (  # noqa
-    ByteStreamBufferError,
+    ByteStreamBufferError as BufferError,  # noqa
 
-    NeedMoreDataByteStreamBufferError,
+    NeedMoreDataByteStreamBufferError as NeedMoreDataBufferError,
 
-    LimitByteStreamBufferError,
-    BufferTooLargeByteStreamBufferError,
-    FrameTooLargeByteStreamBufferError,
+    LimitByteStreamBufferError as LimitBufferError,
+    BufferTooLargeByteStreamBufferError as BufferTooLargeBufferError,
+    FrameTooLargeByteStreamBufferError as FrameTooLargeBufferError,
 
-    StateByteStreamBufferError,
-    OutstandingReserveByteStreamBufferError,
-    NoOutstandingReserveByteStreamBufferError,
+    StateByteStreamBufferError as StateBufferError,
+    OutstandingReserveByteStreamBufferError as OutstandingReserveBufferError,
+    NoOutstandingReserveByteStreamBufferError as NoOutstandingReserveBufferError,
 )
 
 from .types import (  # noqa
     BytesLike,
 
-    ByteStreamBufferView,
-    ByteStreamBuffer,
-    MutableByteStreamBuffer,
+    ByteStreamBufferView as BufferView,
+    ByteStreamBuffer as Buffer,
+    MutableByteStreamBuffer as MutableBuffer,
 )
 
 from .utils import (  # noqa
-    ByteStreamBuffers,
+    ByteStreamBuffers as Buffers,
 )
 
 #
 
-NeedMoreData = NeedMoreDataByteStreamBufferError
+NeedMoreData = NeedMoreDataBufferError
 
-BufferTooLarge = BufferTooLargeByteStreamBufferError
-FrameTooLarge = FrameTooLargeByteStreamBufferError
+BufferTooLarge = BufferTooLargeBufferError
+FrameTooLarge = FrameTooLargeBufferError
 
-OutstandingReserve = OutstandingReserveByteStreamBufferError
-NoOutstandingReserve = NoOutstandingReserveByteStreamBufferError
+OutstandingReserve = OutstandingReserveBufferError
+NoOutstandingReserve = NoOutstandingReserveBufferError
 
 #
 
-can_bytes = ByteStreamBuffers.can_bytes
-to_bytes = ByteStreamBuffers.to_bytes
-bytes_len = ByteStreamBuffers.bytes_len
-iter_segments = ByteStreamBuffers.iter_segments
-split = ByteStreamBuffers.split
+can_bytes = Buffers.can_bytes
+to_bytes = Buffers.to_bytes
+bytes_len = Buffers.bytes_len
+iter_segments = Buffers.iter_segments
+split = Buffers.split

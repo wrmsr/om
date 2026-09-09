@@ -14,7 +14,7 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import inject as inj
 from omcore import lang
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from .... import agent as agn
 from .... import harness as har

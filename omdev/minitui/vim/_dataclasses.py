@@ -41,7 +41,7 @@ def _register(**kwargs):
     ),
     plan_repr_sha1='d6accabbca152039e84e31966f08f2cecf66e911',
     cls_names=(
-        ('omdev.tui.minitui.vim.engine', '_UndoEntry'),
+        ('omdev.minitui.vim.engine', '_UndoEntry'),
     ),
 )
 def _process_dataclass__d6accabbca152039e84e31966f08f2cecf66e911():
@@ -171,7 +171,7 @@ def _process_dataclass__d6accabbca152039e84e31966f08f2cecf66e911():
     ),
     plan_repr_sha1='59d23a89b75e09cb04c128ef1ce8cd105c66a91b',
     cls_names=(
-        ('omdev.tui.minitui.vim.motions', 'MotionResult'),
+        ('omdev.minitui.vim.motions', 'MotionResult'),
     ),
 )
 def _process_dataclass__59d23a89b75e09cb04c128ef1ce8cd105c66a91b():
@@ -324,7 +324,7 @@ def _process_dataclass__59d23a89b75e09cb04c128ef1ce8cd105c66a91b():
     ),
     plan_repr_sha1='be9f15be09dba37e58af2e8a9ebf213913e2cd8a',
     cls_names=(
-        ('omdev.tui.minitui.vim.options', 'VimOptions'),
+        ('omdev.minitui.vim.options', 'VimOptions'),
     ),
 )
 def _process_dataclass__be9f15be09dba37e58af2e8a9ebf213913e2cd8a():
@@ -500,7 +500,7 @@ def _process_dataclass__be9f15be09dba37e58af2e8a9ebf213913e2cd8a():
     ),
     plan_repr_sha1='aa8199857a99a28777023cf5d23898457a1ff553',
     cls_names=(
-        ('omdev.tui.minitui.vim.parsing', 'Command'),
+        ('omdev.minitui.vim.parsing', 'Command'),
     ),
 )
 def _process_dataclass__aa8199857a99a28777023cf5d23898457a1ff553():
@@ -686,7 +686,7 @@ def _process_dataclass__aa8199857a99a28777023cf5d23898457a1ff553():
     ),
     plan_repr_sha1='3556feaaaf1f1d3b66b8011e0c76fb5779a694c9',
     cls_names=(
-        ('omdev.tui.minitui.vim.registers', 'RegValue'),
+        ('omdev.minitui.vim.registers', 'RegValue'),
     ),
 )
 def _process_dataclass__3556feaaaf1f1d3b66b8011e0c76fb5779a694c9():
@@ -796,7 +796,7 @@ def _process_dataclass__3556feaaaf1f1d3b66b8011e0c76fb5779a694c9():
     ),
     plan_repr_sha1='0c197ba2089899db7f7e91669688463fbc8b9e27',
     cls_names=(
-        ('omdev.tui.minitui.vim.status', 'Decoration'),
+        ('omdev.minitui.vim.status', 'Decoration'),
     ),
 )
 def _process_dataclass__0c197ba2089899db7f7e91669688463fbc8b9e27():
@@ -917,7 +917,7 @@ def _process_dataclass__0c197ba2089899db7f7e91669688463fbc8b9e27():
     ),
     plan_repr_sha1='c951b441129b10feb8cb51e52267df339bccbd49',
     cls_names=(
-        ('omdev.tui.minitui.vim.status', 'VimStatus'),
+        ('omdev.minitui.vim.status', 'VimStatus'),
     ),
 )
 def _process_dataclass__c951b441129b10feb8cb51e52267df339bccbd49():
@@ -1057,7 +1057,7 @@ def _process_dataclass__c951b441129b10feb8cb51e52267df339bccbd49():
     ),
     plan_repr_sha1='49a65af234c0c6fcb1ef134454600aa61472eb03',
     cls_names=(
-        ('omdev.tui.minitui.vim.substitutes', 'ExRange'),
+        ('omdev.minitui.vim.substitutes', 'ExRange'),
     ),
 )
 def _process_dataclass__49a65af234c0c6fcb1ef134454600aa61472eb03():
@@ -1171,7 +1171,7 @@ def _process_dataclass__49a65af234c0c6fcb1ef134454600aa61472eb03():
     ),
     plan_repr_sha1='c9b71f9d6c085da692fa39b94c6e2d1360492bfc',
     cls_names=(
-        ('omdev.tui.minitui.vim.substitutes', 'SubstituteResult'),
+        ('omdev.minitui.vim.substitutes', 'SubstituteResult'),
     ),
 )
 def _process_dataclass__c9b71f9d6c085da692fa39b94c6e2d1360492bfc():
@@ -1297,7 +1297,7 @@ def _process_dataclass__c9b71f9d6c085da692fa39b94c6e2d1360492bfc():
     ),
     plan_repr_sha1='41d0b93d847273f753f36af2eb801fe647c06cfe',
     cls_names=(
-        ('omdev.tui.minitui.vim.substitutes', 'SubstituteSpec'),
+        ('omdev.minitui.vim.substitutes', 'SubstituteSpec'),
     ),
 )
 def _process_dataclass__41d0b93d847273f753f36af2eb801fe647c06cfe():

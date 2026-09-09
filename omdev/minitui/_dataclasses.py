@@ -38,7 +38,7 @@ def _register(**kwargs):
     ),
     plan_repr_sha1='3cfc026f307312ed7e797ee0dee1ad3d391b54f8',
     cls_names=(
-        ('omdev.tui.minitui.controls.stacks', 'StackLayout'),
+        ('omdev.minitui.controls.stacks', 'StackLayout'),
     ),
 )
 def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
@@ -155,7 +155,7 @@ def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
     ),
     plan_repr_sha1='954d5e4a36b3798dd4bafdb230b25527804b0d6a',
     cls_names=(
-        ('omdev.tui.minitui.controls.stacks', 'StackRegion'),
+        ('omdev.minitui.controls.stacks', 'StackRegion'),
     ),
 )
 def _process_dataclass__954d5e4a36b3798dd4bafdb230b25527804b0d6a():
@@ -283,7 +283,7 @@ def _process_dataclass__954d5e4a36b3798dd4bafdb230b25527804b0d6a():
     ),
     plan_repr_sha1='ac9984294423eb5d4108e6894070515566bb8172',
     cls_names=(
-        ('omdev.tui.minitui.controls.suggestions', 'SuggestionItem'),
+        ('omdev.minitui.controls.suggestions', 'SuggestionItem'),
     ),
 )
 def _process_dataclass__ac9984294423eb5d4108e6894070515566bb8172():
@@ -401,7 +401,7 @@ def _process_dataclass__ac9984294423eb5d4108e6894070515566bb8172():
     ),
     plan_repr_sha1='a2edcce1628e4def1067347058ceedf2ede47b34',
     cls_names=(
-        ('omdev.tui.minitui.controls.textarea', '_WrapRow'),
+        ('omdev.minitui.controls.textarea', '_WrapRow'),
     ),
 )
 def _process_dataclass__a2edcce1628e4def1067347058ceedf2ede47b34():
@@ -528,7 +528,7 @@ def _process_dataclass__a2edcce1628e4def1067347058ceedf2ede47b34():
     ),
     plan_repr_sha1='f1146d747d05277db997eecaa548f776f4410bcd',
     cls_names=(
-        ('omdev.tui.minitui.docs.cursors', 'Cursor'),
+        ('omdev.minitui.docs.cursors', 'Cursor'),
     ),
 )
 def _process_dataclass__f1146d747d05277db997eecaa548f776f4410bcd():
@@ -641,7 +641,7 @@ def _process_dataclass__f1146d747d05277db997eecaa548f776f4410bcd():
     ),
     plan_repr_sha1='1d31fac8b4351efdfe1d31d6a3b58146b8e445cd',
     cls_names=(
-        ('omdev.tui.minitui.docs.edits', 'AppliedEdit'),
+        ('omdev.minitui.docs.edits', 'AppliedEdit'),
     ),
 )
 def _process_dataclass__1d31fac8b4351efdfe1d31d6a3b58146b8e445cd():
@@ -754,7 +754,7 @@ def _process_dataclass__1d31fac8b4351efdfe1d31d6a3b58146b8e445cd():
     ),
     plan_repr_sha1='6b1ef611db996e607e7410d6e9d4ab1b97c3b267',
     cls_names=(
-        ('omdev.tui.minitui.docs.edits', 'TextEdit'),
+        ('omdev.minitui.docs.edits', 'TextEdit'),
     ),
 )
 def _process_dataclass__6b1ef611db996e607e7410d6e9d4ab1b97c3b267():
@@ -874,7 +874,7 @@ def _process_dataclass__6b1ef611db996e607e7410d6e9d4ab1b97c3b267():
     ),
     plan_repr_sha1='20aa75e5f04fa0079fa1d32266ee7199fffd28f2',
     cls_names=(
-        ('omdev.tui.minitui.docs.positions', 'Pos'),
+        ('omdev.minitui.docs.positions', 'Pos'),
     ),
 )
 def _process_dataclass__20aa75e5f04fa0079fa1d32266ee7199fffd28f2():
@@ -1039,7 +1039,7 @@ def _process_dataclass__20aa75e5f04fa0079fa1d32266ee7199fffd28f2():
     ),
     plan_repr_sha1='9f6a9acfb0bea82f081c340d814bc5f788039d55',
     cls_names=(
-        ('omdev.tui.minitui.docs.positions', 'Span'),
+        ('omdev.minitui.docs.positions', 'Span'),
     ),
 )
 def _process_dataclass__9f6a9acfb0bea82f081c340d814bc5f788039d55():
@@ -1159,7 +1159,7 @@ def _process_dataclass__9f6a9acfb0bea82f081c340d814bc5f788039d55():
     ),
     plan_repr_sha1='d63a29aca0b07f9c4057761e01c901d03418db81',
     cls_names=(
-        ('omdev.tui.minitui.events.keymaps', 'KeymapMatch'),
+        ('omdev.minitui.events.keymaps', 'KeymapMatch'),
     ),
 )
 def _process_dataclass__d63a29aca0b07f9c4057761e01c901d03418db81():
@@ -1281,7 +1281,7 @@ def _process_dataclass__d63a29aca0b07f9c4057761e01c901d03418db81():
     ),
     plan_repr_sha1='9d628ea6edc5ac579394df393cf9c532bf235976',
     cls_names=(
-        ('omdev.tui.minitui.events.keys', 'Key'),
+        ('omdev.minitui.events.keys', 'Key'),
     ),
 )
 def _process_dataclass__9d628ea6edc5ac579394df393cf9c532bf235976():
@@ -1419,7 +1419,7 @@ def _process_dataclass__9d628ea6edc5ac579394df393cf9c532bf235976():
     ),
     plan_repr_sha1='c9180ff9898a845fd156029d69d6e884b20f9919',
     cls_names=(
-        ('omdev.tui.minitui.events.parsing', 'Read1'),
+        ('omdev.minitui.events.parsing', 'Read1'),
     ),
 )
 def _process_dataclass__c9180ff9898a845fd156029d69d6e884b20f9919():
@@ -1522,7 +1522,7 @@ def _process_dataclass__c9180ff9898a845fd156029d69d6e884b20f9919():
     ),
     plan_repr_sha1='55e8b170c17862665dea908d974e50c0f8ed7f8d',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'CursorPositionEvent'),
+        ('omdev.minitui.events.types', 'CursorPositionEvent'),
     ),
 )
 def _process_dataclass__55e8b170c17862665dea908d974e50c0f8ed7f8d():
@@ -1630,7 +1630,7 @@ def _process_dataclass__55e8b170c17862665dea908d974e50c0f8ed7f8d():
     ),
     plan_repr_sha1='a56050c1cbf85700e8905c53dea3a93674a1f3a4',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'FocusEvent'),
+        ('omdev.minitui.events.types', 'FocusEvent'),
     ),
 )
 def _process_dataclass__a56050c1cbf85700e8905c53dea3a93674a1f3a4():
@@ -1727,10 +1727,10 @@ def _process_dataclass__a56050c1cbf85700e8905c53dea3a93674a1f3a4():
     ),
     plan_repr_sha1='e1f7edfe11f2b721d6a656c46e698fedc95461bb',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'InputEofEvent'),
-        ('omdev.tui.minitui.events.types', 'ResumeEvent'),
-        ('omdev.tui.minitui.events.types', 'SuspendEvent'),
-        ('omdev.tui.minitui.text.markdown.base', 'MdRule'),
+        ('omdev.minitui.events.types', 'InputEofEvent'),
+        ('omdev.minitui.events.types', 'ResumeEvent'),
+        ('omdev.minitui.events.types', 'SuspendEvent'),
+        ('omdev.minitui.text.markdown.base', 'MdRule'),
     ),
 )
 def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
@@ -1812,7 +1812,7 @@ def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
     ),
     plan_repr_sha1='b67b8d016105a93c2316b2bb944363f1b17c29d6',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'KeyEvent'),
+        ('omdev.minitui.events.types', 'KeyEvent'),
     ),
 )
 def _process_dataclass__b67b8d016105a93c2316b2bb944363f1b17c29d6():
@@ -1922,7 +1922,7 @@ def _process_dataclass__b67b8d016105a93c2316b2bb944363f1b17c29d6():
     ),
     plan_repr_sha1='6deea0adbb767cb1899c738559d8ba69f34de3a0',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'KittyFlagsEvent'),
+        ('omdev.minitui.events.types', 'KittyFlagsEvent'),
     ),
 )
 def _process_dataclass__6deea0adbb767cb1899c738559d8ba69f34de3a0():
@@ -2024,7 +2024,7 @@ def _process_dataclass__6deea0adbb767cb1899c738559d8ba69f34de3a0():
     ),
     plan_repr_sha1='11e61f10868c9b0244dcc0b1256b7448614cb7b3',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'ModeReportEvent'),
+        ('omdev.minitui.events.types', 'ModeReportEvent'),
     ),
 )
 def _process_dataclass__11e61f10868c9b0244dcc0b1256b7448614cb7b3():
@@ -2149,7 +2149,7 @@ def _process_dataclass__11e61f10868c9b0244dcc0b1256b7448614cb7b3():
     ),
     plan_repr_sha1='d9c26b45b541dec4a801b0ee0fa10c3641fa8952',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'MouseEvent'),
+        ('omdev.minitui.events.types', 'MouseEvent'),
     ),
 )
 def _process_dataclass__d9c26b45b541dec4a801b0ee0fa10c3641fa8952():
@@ -2302,8 +2302,8 @@ def _process_dataclass__d9c26b45b541dec4a801b0ee0fa10c3641fa8952():
     ),
     plan_repr_sha1='ce2a4c81e0f66e62a54ea3adfdc532902daece78',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'PasteEvent'),
-        ('omdev.tui.minitui.events.types', 'UnknownSequenceEvent'),
+        ('omdev.minitui.events.types', 'PasteEvent'),
+        ('omdev.minitui.events.types', 'UnknownSequenceEvent'),
     ),
 )
 def _process_dataclass__ce2a4c81e0f66e62a54ea3adfdc532902daece78():
@@ -2406,7 +2406,7 @@ def _process_dataclass__ce2a4c81e0f66e62a54ea3adfdc532902daece78():
     ),
     plan_repr_sha1='094659c4f4f035565abff5f1871a23021ca04458',
     cls_names=(
-        ('omdev.tui.minitui.events.types', 'ResizeEvent'),
+        ('omdev.minitui.events.types', 'ResizeEvent'),
     ),
 )
 def _process_dataclass__094659c4f4f035565abff5f1871a23021ca04458():
@@ -2516,7 +2516,7 @@ def _process_dataclass__094659c4f4f035565abff5f1871a23021ca04458():
     ),
     plan_repr_sha1='a21e0430f301c7ef0a5440b6b257d185896c48a7',
     cls_names=(
-        ('omdev.tui.minitui.text.markdown.base', 'MdCode'),
+        ('omdev.minitui.text.markdown.base', 'MdCode'),
     ),
 )
 def _process_dataclass__a21e0430f301c7ef0a5440b6b257d185896c48a7():
@@ -2627,7 +2627,7 @@ def _process_dataclass__a21e0430f301c7ef0a5440b6b257d185896c48a7():
     ),
     plan_repr_sha1='cff15062ec7fb46ea1e30d0bc1b048495a515c2f',
     cls_names=(
-        ('omdev.tui.minitui.text.markdown.base', 'MdHeading'),
+        ('omdev.minitui.text.markdown.base', 'MdHeading'),
     ),
 )
 def _process_dataclass__cff15062ec7fb46ea1e30d0bc1b048495a515c2f():
@@ -2735,7 +2735,7 @@ def _process_dataclass__cff15062ec7fb46ea1e30d0bc1b048495a515c2f():
     ),
     plan_repr_sha1='045f1b7eb2701bb19dcbd715f0da1519cb736718',
     cls_names=(
-        ('omdev.tui.minitui.text.markdown.base', 'MdList'),
+        ('omdev.minitui.text.markdown.base', 'MdList'),
     ),
 )
 def _process_dataclass__045f1b7eb2701bb19dcbd715f0da1519cb736718():
@@ -2841,7 +2841,7 @@ def _process_dataclass__045f1b7eb2701bb19dcbd715f0da1519cb736718():
     ),
     plan_repr_sha1='bb7a03cbd43e7d23176fa716158ceba1432f7f39',
     cls_names=(
-        ('omdev.tui.minitui.text.markdown.base', 'MdListItem'),
+        ('omdev.minitui.text.markdown.base', 'MdListItem'),
     ),
 )
 def _process_dataclass__bb7a03cbd43e7d23176fa716158ceba1432f7f39():
@@ -2958,8 +2958,8 @@ def _process_dataclass__bb7a03cbd43e7d23176fa716158ceba1432f7f39():
     ),
     plan_repr_sha1='d94b59df909090eea539565bc0673f53316b9e81',
     cls_names=(
-        ('omdev.tui.minitui.text.markdown.base', 'MdParagraph'),
-        ('omdev.tui.minitui.text.markdown.base', 'MdQuote'),
+        ('omdev.minitui.text.markdown.base', 'MdParagraph'),
+        ('omdev.minitui.text.markdown.base', 'MdQuote'),
     ),
 )
 def _process_dataclass__d94b59df909090eea539565bc0673f53316b9e81():
@@ -3065,7 +3065,7 @@ def _process_dataclass__d94b59df909090eea539565bc0673f53316b9e81():
     ),
     plan_repr_sha1='ac4ed671de5aaa12a6b000796da8c67792c20509',
     cls_names=(
-        ('omdev.tui.minitui.text.markdown.base', 'MdTable'),
+        ('omdev.minitui.text.markdown.base', 'MdTable'),
     ),
 )
 def _process_dataclass__ac4ed671de5aaa12a6b000796da8c67792c20509():
@@ -3183,7 +3183,7 @@ def _process_dataclass__ac4ed671de5aaa12a6b000796da8c67792c20509():
     ),
     plan_repr_sha1='4eb31cc66f9d458eaa6f19fc81744b0e2ef696dd',
     cls_names=(
-        ('omdev.tui.minitui.text.markdown.base', 'MdTableRow'),
+        ('omdev.minitui.text.markdown.base', 'MdTableRow'),
     ),
 )
 def _process_dataclass__4eb31cc66f9d458eaa6f19fc81744b0e2ef696dd():
@@ -3286,7 +3286,7 @@ def _process_dataclass__4eb31cc66f9d458eaa6f19fc81744b0e2ef696dd():
     ),
     plan_repr_sha1='b2e41750b446b961abaac20bedf8d3b3a1360879',
     cls_names=(
-        ('omdev.tui.minitui.text.segments', 'Segment'),
+        ('omdev.minitui.text.segments', 'Segment'),
     ),
 )
 def _process_dataclass__b2e41750b446b961abaac20bedf8d3b3a1360879():

@@ -1,5 +1,5 @@
 from omcore import inject as inj
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from .... import agent as agn
 from ....core import ui

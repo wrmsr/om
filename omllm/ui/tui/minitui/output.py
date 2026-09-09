@@ -8,7 +8,7 @@ invalidates; concurrent tool tasks may interleave events, but never individual c
 import json
 import typing as ta
 
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from .... import agent as agn
 from .... import llm

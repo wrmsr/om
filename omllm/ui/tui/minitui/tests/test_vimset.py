@@ -2,7 +2,7 @@
 `:set nu` reaches the chat surface through the vim engine's builtin ex commands: the line number column toggles while
 whatever is typed in the box - harness commands included - stays put and is never submitted.
 """
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from .utils import frame_lines
 from .utils import make_app

@@ -5,7 +5,7 @@ stand-ins for driving `PromptPump`, and small helpers for reading frames and scr
 import asyncio
 import typing as ta
 
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from ..app import APP_KEY_MAP
 from ..app import AppKey

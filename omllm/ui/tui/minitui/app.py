@@ -14,7 +14,7 @@ from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore.text import highlights as hl
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from ....core import ui
 

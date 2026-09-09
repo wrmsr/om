@@ -234,6 +234,18 @@ class ShellCli(ap.Cli):
             for fut in futs:
                 fut.result(timeout=total_timeout.remaining_or(None))
 
+    #
+
+    @ap.cmd(
+        ap.arg('l'),
+        ap.arg('r'),
+    )
+    def diff(self) -> None:
+        subprocess.check_call(  # noqa
+            f'diff --color=always -y {shlex.quote(self.args.l)} {shlex.quote(self.args.r)} | less -R',
+            shell=True,
+        )
+
 
 ##
 

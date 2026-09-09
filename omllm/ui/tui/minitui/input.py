@@ -10,7 +10,7 @@ as a cancellation the requesting task did not ask for.
 import asyncio
 
 from omcore import check
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from .... import agent as agn
 from .app import MinituiChatApp

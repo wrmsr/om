@@ -8,7 +8,7 @@ import typing as ta
 import pytest
 
 from omcore.asyncs.asynclite import all as asl
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from ..... import agent as agn
 from ..... import harness as har

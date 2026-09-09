@@ -1,5 +1,5 @@
 """ctrl+z as an app key: the extended-key wire delivers the chord to the app, which hands it to the driver."""
-from omdev.tui import minitui as mt
+from omdev import minitui as mt
 
 from ..app import AppKey
 from .utils import app_key

@@ -1,3 +1,4 @@
+# @om-recommended-import-alias "ipl"
 from ... import lang as _lang
 
 

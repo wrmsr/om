@@ -19,6 +19,8 @@ omcore/text/pdcmark/_dataclasses.py linguist-generated
 omdev/dataclasses/_dumping.py linguist-generated
 omdev/js/vendor/_dataclasses.py linguist-generated
 omdev/manifests/_dumping.py linguist-generated
+omdev/minitui/_dataclasses.py linguist-generated
+omdev/minitui/vim/_dataclasses.py linguist-generated
 omdev/scripts/ci.py linguist-generated
 omdev/scripts/interp.py linguist-generated
 omdev/scripts/lib/formats/goyaml.py linguist-generated
@@ -30,8 +32,6 @@ omdev/scripts/lib/marshal.py linguist-generated
 omdev/scripts/pidfiles.py linguist-generated
 omdev/scripts/pyproject.py linguist-generated
 omdev/specs/irc/_dataclasses.py linguist-generated
-omdev/tui/minitui/_dataclasses.py linguist-generated
-omdev/tui/minitui/vim/_dataclasses.py linguist-generated
 ominfra/clouds/aws/models/base/_dataclasses.py linguist-generated
 ominfra/clouds/aws/models/services/ec2/__init__.py linguist-generated
 ominfra/clouds/aws/models/services/ec2/_dataclasses.py linguist-generated
