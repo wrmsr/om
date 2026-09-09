@@ -385,6 +385,18 @@
     }
   },
   {
+    "module": ".text.diffs.cli",
+    "attr": "_CLI_MODULE",
+    "file": "omcore/text/diffs/cli.py",
+    "line": 167,
+    "value": {
+      "!omdev.cli.types.CliModule": {
+        "name": "diff",
+        "module": "omcore.text.diffs.cli"
+      }
+    }
+  },
+  {
     "module": ".text.docwrap.__main__",
     "attr": "_CLI_MODULE",
     "file": "omcore/text/docwrap/__main__.py",
