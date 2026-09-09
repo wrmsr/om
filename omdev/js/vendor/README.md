@@ -29,11 +29,11 @@ rejected.
 Load a manifest and pass immutable request values to the resolution, generation, or verification entry points:
 
 ```python
-from jsvendor import ResolveRequest
-from jsvendor import VendorRequest
-from jsvendor import load_manifest
-from jsvendor import resolve
-from jsvendor import vendor
+from omdev.js.vendor import ResolveRequest
+from omdev.js.vendor import VendorRequest
+from omdev.js.vendor import load_manifest
+from omdev.js.vendor import resolve
+from omdev.js.vendor import vendor
 
 manifest = load_manifest('path/to/vendor.json')
 resolved = resolve(ResolveRequest(manifest=manifest))
@@ -54,18 +54,18 @@ return a `ManifestUpdateResult` containing the proposed manifest and resolution 
 
 ## CLI
 
-Installing the package provides a `jsvendor` entry point. The equivalent source-checkout form is shown below.
+The equivalent CLI form of the usage show above is shown below.
 
 ```bash
-python -m jsvendor.cli resolve \
+python -m omdev.js.vendor resolve \
     --manifest path/to/vendor.json \
     --destination path/to/resources/vendor
 
-python -m jsvendor.cli vendor \
+python -m omdev.js.vendor vendor \
     --manifest path/to/vendor.json \
     --destination path/to/resources/vendor
 
-python -m jsvendor.cli verify \
+python -m omdev.js.vendor verify \
     --manifest path/to/vendor.json \
     --destination path/to/resources/vendor
 ```
@@ -74,19 +74,19 @@ Manage root intent with package arguments:
 
 ```bash
 # Add latest as an exact root version, or preserve an explicit range.
-python -m jsvendor.cli add crelt @codemirror/lang-json@^6.0.0 \
+python -m omdev.js.vendor add crelt @codemirror/lang-json@^6.0.0 \
     --manifest path/to/vendor.json --destination path/to/resources/vendor
 
 # Advance every root to its latest tag, advance selected roots, or set a new range.
-python -m jsvendor.cli update \
+python -m omdev.js.vendor update \
     --manifest path/to/vendor.json --destination path/to/resources/vendor
-python -m jsvendor.cli update @codemirror/view @codemirror/state@^6.7.0 \
-    --manifest path/to/vendor.json --destination path/to/resources/vendor
-
-python -m jsvendor.cli remove crelt \
+python -m omdev.js.vendor update @codemirror/view @codemirror/state@^6.7.0 \
     --manifest path/to/vendor.json --destination path/to/resources/vendor
 
-python -m jsvendor.cli outdated \
+python -m omdev.js.vendor remove crelt \
+    --manifest path/to/vendor.json --destination path/to/resources/vendor
+
+python -m omdev.js.vendor outdated \
     --manifest path/to/vendor.json --destination path/to/resources/vendor
 ```
 
