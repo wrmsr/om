@@ -234,7 +234,7 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
     dr, dw = os.pipe()
     pfd = None  # type: int | None
     try:
-        pfd = os.pidfd_open(os.getpid())  # type: ignore[attr-defined]
+        pfd = os.pidfd_open(os.getpid())  # type: ignore[attr-defined,unused-ignore]
     except (AttributeError, OSError):
         pass
 
@@ -275,10 +275,10 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
             # No break: deadline passed
             try:
                 if pfd is not None:
-                    signal.pidfd_send_signal(pfd, signal.SIGALRM)  # type: ignore[attr-defined]
+                    signal.pidfd_send_signal(pfd, signal.SIGALRM)  # type: ignore[attr-defined,unused-ignore]
                     rdy, _, _ = select.select([pfd], [], [], _PyremoteBootstrapConsts.GRACE_S)
                     if rdy:
-                        signal.pidfd_send_signal(pfd, signal.SIGKILL)  # type: ignore[attr-defined]
+                        signal.pidfd_send_signal(pfd, signal.SIGKILL)  # type: ignore[attr-defined,unused-ignore]
 
                 elif os.getppid() == pp:  # FIXME: TOCTOU :/
                     os.kill(pp, signal.SIGALRM)
@@ -501,7 +501,7 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     wp = int(os.environ.pop(_PyremoteBootstrapConsts.WATCHDOG_PID_VAR))
     pfd = None  # type: int | None
     try:
-        pfd = os.pidfd_open(wp)  # type: ignore[attr-defined]
+        pfd = os.pidfd_open(wp)  # type: ignore[attr-defined,unused-ignore]
     except (AttributeError, OSError):
         pass
 
