@@ -98,7 +98,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
-            dict(path='../../omcore/os/pyremote/core.py', sha1='b56cd75204c45e8e9e4c0492af739fa1d528ef53'),
+            dict(path='../../omcore/os/pyremote/core.py', sha1='2a1b43037a771fbf12e665bbf16a3fcdb822b3b8'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -193,7 +193,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omdev/interp/pyenv/inject.py', sha1='1fe5f906720082a73332f98199e3dd1b2dccd67b'),
             dict(path='remote/_main.py', sha1='2662962eb222d01e7c67172d554797971b88214a'),
             dict(path='../../omdev/interp/inject.py', sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143'),
-            dict(path='remote/connection.py', sha1='98be173f5780112202a8e46338430a22e72e9cf9'),
+            dict(path='remote/connection.py', sha1='88375f23035be88f40d37f401e1899aec9acdf3a'),
             dict(path='../../omdev/interp/default.py', sha1='7ea7b7d7aa191aedd4716f3616ca0d07a4a3d875'),
             dict(path='remote/inject.py', sha1='648d3c5306e0aa037b763661c24089dbafbadbd5'),
             dict(path='targets/connection.py', sha1='39213edda6bd3da49f8b5a6684772c530cf527c9'),
@@ -4914,7 +4914,7 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
 ##
 
 
-def pyremote_build_bootstrap_cmd(context_name: str) -> str:
+def pyremote_build_bootstrap_source(context_name: str) -> str:
     if any(c in context_name for c in '\'"'):
         raise NameError(context_name)
 
@@ -5164,7 +5164,11 @@ class PyremoteBootstrapDriver:
 
     #
 
-    def run(self, input: ta.IO, output: ta.IO) -> Result:  # noqa
+    def run(
+            self,
+            input: ta.IO,  # noqa
+            output: ta.IO,
+    ) -> Result:
         gen = self.gen()
 
         gi: ta.Optional[bytes] = None
@@ -5189,8 +5193,8 @@ class PyremoteBootstrapDriver:
 
     async def async_run(
             self,
-            input: ta.Any,  # asyncio.StreamWriter  # noqa
-            output: ta.Any,  # asyncio.StreamReader
+            input: ta.Any,  # asyncio.StreamReader  # noqa
+            output: ta.Any,  # asyncio.StreamWriter
     ) -> Result:
         gen = self.gen()
 
@@ -5213,6 +5217,19 @@ class PyremoteBootstrapDriver:
                 await output.drain()
             else:
                 raise TypeError(go)
+
+
+##
+
+
+def pyremote_get_core_source() -> ta.Optional[str]:
+    try:
+        mod = sys.modules[__name__]
+    except KeyError:
+        return None
+
+    import inspect
+    return inspect.getsource(mod)
 
 
 ########################################
@@ -17252,7 +17269,7 @@ class PyremoteRemoteExecutionConnector:
 
     @cached_nullary
     def _spawn_src(self) -> str:
-        return pyremote_build_bootstrap_cmd(__package__ or 'manage')
+        return pyremote_build_bootstrap_source(__package__ or 'manage')
 
     #
 

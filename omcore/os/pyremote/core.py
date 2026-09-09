@@ -280,7 +280,7 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
 ##
 
 
-def pyremote_build_bootstrap_cmd(context_name: str) -> str:
+def pyremote_build_bootstrap_source(context_name: str) -> str:
     if any(c in context_name for c in '\'"'):
         raise NameError(context_name)
 
@@ -530,7 +530,11 @@ class PyremoteBootstrapDriver:
 
     #
 
-    def run(self, input: ta.IO, output: ta.IO) -> Result:  # noqa
+    def run(
+            self,
+            input: ta.IO,  # noqa
+            output: ta.IO,
+    ) -> Result:
         gen = self.gen()
 
         gi: ta.Optional[bytes] = None
@@ -555,8 +559,8 @@ class PyremoteBootstrapDriver:
 
     async def async_run(
             self,
-            input: ta.Any,  # asyncio.StreamWriter  # noqa
-            output: ta.Any,  # asyncio.StreamReader
+            input: ta.Any,  # asyncio.StreamReader  # noqa
+            output: ta.Any,  # asyncio.StreamWriter
     ) -> Result:
         gen = self.gen()
 
@@ -579,3 +583,16 @@ class PyremoteBootstrapDriver:
                 await output.drain()
             else:
                 raise TypeError(go)
+
+
+##
+
+
+def pyremote_get_core_source() -> ta.Optional[str]:
+    try:
+        mod = sys.modules[__name__]
+    except KeyError:
+        return None
+
+    import inspect
+    return inspect.getsource(mod)

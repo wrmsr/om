@@ -28,7 +28,7 @@ class TestPyremote(unittest.TestCase):
             subprocess_maybe_shell_wrap_exec(
                 sys.executable,
                 '-c',
-                core.pyremote_build_bootstrap_cmd('test'),
+                core.pyremote_build_bootstrap_source('test'),
             ),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,

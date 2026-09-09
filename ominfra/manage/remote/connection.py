@@ -9,7 +9,7 @@ from omcore.lite.contextmanagers import aclosing
 from omcore.lite.marshal import ObjMarshalerManager
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import PyremoteBootstrapOptions
-from omcore.os.pyremote.core import pyremote_build_bootstrap_cmd
+from omcore.os.pyremote.core import pyremote_build_bootstrap_source
 
 from ..bootstrap import MainBootstrap
 from ..commands.local import LocalCommandExecutor
@@ -54,7 +54,7 @@ class PyremoteRemoteExecutionConnector:
 
     @cached_nullary
     def _spawn_src(self) -> str:
-        return pyremote_build_bootstrap_cmd(__package__ or 'manage')
+        return pyremote_build_bootstrap_source(__package__ or 'manage')
 
     #
 
