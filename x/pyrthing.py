@@ -2,22 +2,26 @@ import inspect
 import subprocess
 
 from omcore import check
-
-from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
-from omcore.os.pyremote.core import pyremote_get_core_source
+from omcore.os.pyremote.bestpython import get_best_python_sh
+from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import pyremote_bootstrap_finalize
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
-from omcore.os.pyremote.core import PyremoteBootstrapDriver
-from omcore.os.pyremote.bestpython import get_best_python_sh
+from omcore.os.pyremote.core import pyremote_get_core_source
+from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
+from omdev.home import secretinject
+from omdev.home.secretinject import inject_secrets
 
 
 ##
 
 
 def _remote_main() -> None:
-    prt = pyremote_bootstrap_finalize()
+    prt = pyremote_bootstrap_finalize()  # noqa
 
-    prt.output.write(b'hi!\n')
+    inject_secrets(
+        'foo.json',
+        {'foo': True},
+    )
 
     raise SystemExit(0)
 
@@ -37,6 +41,7 @@ def _main(argv=None) -> None:
     #
 
     payload_src = '\n\n'.join([
+        inspect.getsource(secretinject),
         check.not_none(pyremote_get_core_source()),
         inspect.getsource(_remote_main),
         '_remote_main()',

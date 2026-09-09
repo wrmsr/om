@@ -19,7 +19,7 @@ from .. import secretinject as si
 ##
 
 
-def od(*pairs: ta.Tuple[str, ta.Any]) -> si.JsonObject:
+def od(*pairs: ta.Tuple[str, ta.Any]) -> si.OrderedJsonObject:
     return collections.OrderedDict(pairs)
 
 

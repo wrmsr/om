@@ -62,7 +62,8 @@ POLL_MAX = 0.05
 # mode for a file we create; existing files keep theirs
 NEW_FILE_MODE = 0o600
 
-JsonObject = ta.OrderedDict[str, ta.Any]  # ta.TypeAlias
+JsonObject = ta.Mapping[str, ta.Any]  # ta.TypeAlias
+OrderedJsonObject = ta.OrderedDict[str, ta.Any]  # ta.TypeAlias
 
 
 def write_all(fd: int, data: bytes) -> None:
@@ -125,14 +126,14 @@ def write_temp(
     return tmp
 
 
-def parse_object(text: str) -> JsonObject:
+def parse_object(text: str) -> OrderedJsonObject:
     data = json.loads(text, object_pairs_hook=collections.OrderedDict)
     if not isinstance(data, collections.OrderedDict):
         raise ValueError('top-level JSON value is not an object')  # noqa
     return data
 
 
-def load(raw: bytes) -> JsonObject:
+def load(raw: bytes) -> OrderedJsonObject:
     text = raw.decode('utf-8')
     if not text.strip():
         return collections.OrderedDict()  # tolerate an empty/whitespace-only file (e.g. `touch`ed)
@@ -152,16 +153,16 @@ def values_equal(a: ta.Any, b: ta.Any) -> bool:
 
 
 def merge(
-        existing: JsonObject,
-        update: JsonObject,
-) -> ta.Tuple[JsonObject, bool]:
+        existing: OrderedJsonObject,
+        update: OrderedJsonObject,
+) -> ta.Tuple[OrderedJsonObject, bool]:
     """
     Shallowly apply `update` to `existing`: a None value removes the key, any other value replaces it wholesale. Returns
     the merged object -- keys not in `update` first, in their existing order, then every key set by `update` in `update`
     order, even if its value is unchanged -- and whether the result differs from `existing` at all.
     """
 
-    merged: JsonObject = collections.OrderedDict(
+    merged: OrderedJsonObject = collections.OrderedDict(
         (k, v) for k, v in existing.items() if k not in update
     )
     merged.update((k, v) for k, v in update.items() if v is not None)
@@ -172,7 +173,7 @@ def try_create(
         path: str,
         dirname: str,
         basename: str,
-        data: JsonObject,
+        data: OrderedJsonObject,
 ) -> bool:
     """Atomically create `path` with `data` iff it does not exist. True on success."""
 
@@ -212,6 +213,9 @@ def inject_secrets(
         *,
         timeout: float = DEFAULT_TIMEOUT,
 ) -> None:
+    if not isinstance(update, collections.OrderedDict):
+        update = collections.OrderedDict(update)
+
     path = os.path.realpath(path)  # operate on the real file if `path` is a symlink
     dirname, basename = os.path.split(path)
     deadline = time.monotonic() + timeout
