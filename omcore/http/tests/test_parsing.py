@@ -1,4 +1,5 @@
 # ruff: noqa: UP006 UP045
+# @om-lite
 """
 Comprehensive test suite for http_header_parser:
   - Basic happy-path parsing (request + response)
@@ -9,9 +10,13 @@ Comprehensive test suite for http_header_parser:
   - Adversarial / ambiguous inputs
   - Prepared header validation for all 15 typed fields
   - Header combining and Set-Cookie special case
-  - HTTP date parsing (all 3 formats + invalid)
+  - HTTP date parsing (all 3 formats + invalid + weekday cross-check)
   - Content-Type parameter parsing (quoted strings, charset, etc.)
   - Edge cases in Accept, Accept-Encoding, Cache-Control, Authorization
+  - Singleton header duplicate rejection (Content-Type, Authorization)
+  - TE header HTTP-version and trailers q=0 semantics
+  - Upgrade / Connection cross-validation
+  - qvalue lexical form (RFC 9110 §12.4.2)
 
 Test suite for http_trailer_parser:
   - Happy-path trailer parsing (single and multiple fields)
@@ -1128,12 +1133,12 @@ class TestPreparedExpect(unittest.TestCase):
 
 class TestPreparedUpgrade(unittest.TestCase):
     def test_websocket(self) -> None:
-        data = _req(headers=[('Host', 'x'), ('Upgrade', 'websocket')])
+        data = _req(headers=[('Host', 'x'), ('Connection', 'Upgrade'), ('Upgrade', 'websocket')])
         msg = hp.parse_http_message(data)
         self.assertEqual(msg.prepared.upgrade, ['websocket'])
 
     def test_multiple(self) -> None:
-        data = _req(headers=[('Host', 'x'), ('Upgrade', 'h2c, websocket')])
+        data = _req(headers=[('Host', 'x'), ('Connection', 'Upgrade'), ('Upgrade', 'h2c, websocket')])
         msg = hp.parse_http_message(data)
         self.assertEqual(msg.prepared.upgrade, ['h2c', 'websocket'])
 
@@ -1183,7 +1188,7 @@ class TestPreparedDate(unittest.TestCase):
         self.assertEqual(check.not_none(msg.prepared.date), expected)
 
     def test_rfc850_2digit_year_below_50(self) -> None:
-        data = _resp(headers=[('Date', 'Wednesday, 09-Nov-25 10:00:00 GMT')])
+        data = _resp(headers=[('Date', 'Sunday, 09-Nov-25 10:00:00 GMT')])
         msg = hp.parse_http_message(data)
         self.assertEqual(check.not_none(msg.prepared.date).year, 2025)
 
@@ -1194,7 +1199,7 @@ class TestPreparedDate(unittest.TestCase):
         self.assertEqual(msg.prepared.date, expected)
 
         # Test double digit day
-        data = _resp(headers=[('Date', 'Sun Nov 16 08:49:37 1994')])
+        data = _resp(headers=[('Date', 'Wed Nov 16 08:49:37 1994')])
         msg = hp.parse_http_message(data)
         expected = datetime.datetime(1994, 11, 16, 8, 49, 37, tzinfo=datetime.timezone.utc)  # noqa
         self.assertEqual(msg.prepared.date, expected)
@@ -1913,6 +1918,9 @@ class TestHttpHeadParserConfigDefaults(unittest.TestCase):
         self.assertFalse(cfg.allow_bare_cr_in_value)
         self.assertFalse(cfg.allow_te_without_chunked_in_response)
         self.assertFalse(cfg.allow_transfer_encoding_http10)
+        self.assertFalse(cfg.allow_te_header_http10)
+        self.assertFalse(cfg.allow_multiple_content_types)
+        self.assertFalse(cfg.allow_upgrade_without_connection_upgrade)
         self.assertFalse(cfg.reject_obs_text)
         self.assertEqual(cfg.max_header_count, 128)
 
@@ -2544,6 +2552,329 @@ class TestReviewFixes(unittest.TestCase):
         with self.assertRaises(hp.HeaderFieldHttpParseError) as cm:
             hp.parse_http_message(data)
         self.assertEqual(cm.exception.code, hp.HeaderFieldHttpParseErrorCode.NUL_IN_HEADER)
+
+
+##
+# 31. Singleton header duplicates (Content-Type, Authorization)
+
+
+class TestDuplicateContentType(unittest.TestCase):
+    def test_duplicate_identical_rejected_by_default(self) -> None:
+        data = _resp(headers=[('Content-Type', 'text/html'), ('Content-Type', 'text/html')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.MULTIPLE_CONTENT_TYPES)
+
+    def test_duplicate_different_rejected_by_default(self) -> None:
+        # Regression: previously the two values were comma-joined into a bogus 'text/html, application/json' media
+        # type which silently passed the shape checks.
+        data = _resp(headers=[('Content-Type', 'text/html'), ('Content-Type', 'application/json')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.MULTIPLE_CONTENT_TYPES)
+
+    def test_duplicate_params_not_silently_merged(self) -> None:
+        # Regression: previously the second header's params silently won over the first's.
+        data = _resp(headers=[
+            ('Content-Type', 'text/html; charset=utf-8'),
+            ('Content-Type', 'text/html; charset=latin-1'),
+        ])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.MULTIPLE_CONTENT_TYPES)
+
+    def test_allow_multiple_identical(self) -> None:
+        cfg = hp.HttpParser.Config(allow_multiple_content_types=True)
+        data = _resp(headers=[('Content-Type', 'text/html'), ('Content-Type', 'text/html')])
+        msg = hp.parse_http_message(data, config=cfg)
+        self.assertEqual(check.not_none(msg.prepared.content_type).media_type, 'text/html')
+
+    def test_allow_multiple_case_insensitive(self) -> None:
+        cfg = hp.HttpParser.Config(allow_multiple_content_types=True)
+        data = _resp(headers=[('Content-Type', 'text/html'), ('Content-Type', 'Text/HTML')])
+        msg = hp.parse_http_message(data, config=cfg)
+        self.assertEqual(check.not_none(msg.prepared.content_type).media_type, 'text/html')
+
+    def test_allow_multiple_conflicting_still_rejected(self) -> None:
+        cfg = hp.HttpParser.Config(allow_multiple_content_types=True)
+        data = _resp(headers=[('Content-Type', 'text/html'), ('Content-Type', 'application/json')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data, config=cfg)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.CONFLICTING_CONTENT_TYPES)
+
+
+class TestDuplicateAuthorization(unittest.TestCase):
+    def test_duplicate_rejected(self) -> None:
+        # Regression: previously comma-joined into scheme='Basic', credentials='aaa, Bearer bbb'.
+        data = _req(headers=[('Host', 'x'), ('Authorization', 'Basic aaa'), ('Authorization', 'Bearer bbb')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.MULTIPLE_AUTHORIZATION_HEADERS)
+
+    def test_duplicate_identical_also_rejected(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Authorization', 'Bearer x'), ('Authorization', 'Bearer x')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.MULTIPLE_AUTHORIZATION_HEADERS)
+
+    def test_scheme_must_be_token(self) -> None:
+        # TAB is not a valid scheme separator (RFC 7235 requires 1*SP).
+        data = b'GET / HTTP/1.1\r\nHost: x\r\nAuthorization: basic\tabc\r\n\r\n'
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_AUTHORIZATION)
+
+    def test_scheme_with_separator_chars_rejected(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Authorization', 'Ba(sic abc')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_AUTHORIZATION)
+
+    def test_scheme_only_still_accepted(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Authorization', 'CustomScheme')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.authorization).scheme, 'CustomScheme')
+        self.assertEqual(check.not_none(msg.prepared.authorization).credentials, '')
+
+
+##
+# 32. TE header semantics (HTTP version, trailers q=0)
+
+
+class TestTeHeaderSemantics(unittest.TestCase):
+    def test_te_header_rejected_in_http10(self) -> None:
+        data = _req(version='HTTP/1.0', headers=[('Host', 'x'), ('TE', 'trailers')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.TE_HEADER_IN_HTTP10)
+
+    def test_te_header_http10_allowed_with_config(self) -> None:
+        cfg = hp.HttpParser.Config(allow_te_header_http10=True)
+        data = _req(version='HTTP/1.0', headers=[('Host', 'x'), ('TE', 'trailers')])
+        msg = hp.parse_http_message(data, config=cfg)
+        self.assertEqual(msg.prepared.te, ['trailers'])
+
+    def test_te_trailers_q_zero_rejected(self) -> None:
+        # RFC 7230 §4.3: a sender of TE MUST NOT accept trailers with a qvalue of 0.
+        for v in ('trailers;q=0', 'trailers;q=0.0', 'trailers;q=0.000'):
+            with self.subTest(v=v):
+                data = _req(headers=[('Host', 'x'), ('TE', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.TE_TRAILERS_Q_ZERO)
+
+    def test_te_non_trailers_q_zero_accepted(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('TE', 'deflate;q=0')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.te, ['deflate'])
+
+    def test_te_trailers_positive_q_accepted(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('TE', 'trailers;q=0.5')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.te, ['trailers'])
+
+    def test_te_empty_token_filtered(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('TE', 'trailers, ;q=0.5')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.te, ['trailers'])
+
+    def test_transfer_encoding_http10_error_code(self) -> None:
+        # The old ambiguously-named TE_IN_HTTP10 is retained as an alias of TRANSFER_ENCODING_IN_HTTP10.
+        data = _resp(version='HTTP/1.0', headers=[('Transfer-Encoding', 'chunked')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.TRANSFER_ENCODING_IN_HTTP10)
+        self.assertIs(
+            hp.SemanticHeaderHttpParseErrorCode.TE_IN_HTTP10,
+            hp.SemanticHeaderHttpParseErrorCode.TRANSFER_ENCODING_IN_HTTP10,
+        )
+
+
+##
+# 33. Upgrade requires Connection: Upgrade
+
+
+class TestUpgradeConnectionCrossCheck(unittest.TestCase):
+    def test_upgrade_without_connection_rejected(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Upgrade', 'websocket')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.UPGRADE_WITHOUT_CONNECTION_UPGRADE)
+
+    def test_upgrade_with_connection_accepted(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Connection', 'Upgrade'), ('Upgrade', 'websocket')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.upgrade, ['websocket'])
+
+    def test_upgrade_with_connection_case_insensitive(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Connection', 'keep-alive, uPgRaDe'), ('Upgrade', 'websocket')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.upgrade, ['websocket'])
+
+    def test_upgrade_without_connection_allowed_with_config(self) -> None:
+        cfg = hp.HttpParser.Config(allow_upgrade_without_connection_upgrade=True)
+        data = _req(headers=[('Host', 'x'), ('Upgrade', 'websocket')])
+        msg = hp.parse_http_message(data, config=cfg)
+        self.assertEqual(msg.prepared.upgrade, ['websocket'])
+
+    def test_connection_upgrade_without_upgrade_header_ok(self) -> None:
+        # The reverse direction is fine: listing the connection option without an Upgrade header is not an error.
+        data = _req(headers=[('Host', 'x'), ('Connection', 'Upgrade')])
+        msg = hp.parse_http_message(data)
+        self.assertIsNone(msg.prepared.upgrade)
+
+
+##
+# 34. qvalue lexical form (RFC 9110 §12.4.2)
+
+
+class TestQValueLexicalForm(unittest.TestCase):
+    def _accept(self, q: bytes):
+        return hp.parse_http_message(b'GET / HTTP/1.1\r\nHost: x\r\nAccept: text/html;q=' + q + b'\r\n\r\n')
+
+    def test_valid_forms(self) -> None:
+        for q in (b'0', b'0.0', b'0.000', b'0.5', b'0.001', b'1', b'1.0', b'1.000'):
+            with self.subTest(q=q):
+                msg = self._accept(q)
+                self.assertGreaterEqual(check.not_none(msg.prepared.accept)[0].q, 0.0)
+
+    def test_invalid_forms_rejected(self) -> None:
+        # Too many decimals, missing leading digit, leading zeros, quoted-string, sign, exponent.
+        for q in (b'1.0000', b'0.0000', b'.5', b'01', b'1.5', b'2', b'"0.5"', b'+0.5', b'0.5e1', b'0.'):
+            with self.subTest(q=q):
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    self._accept(q)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT)
+
+    def test_invalid_form_in_accept_encoding(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Accept-Encoding', 'gzip;q=1.0000')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING)
+
+    def test_invalid_form_in_te(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('TE', 'gzip;q=.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TE)
+
+
+##
+# 35. Accept empty media-range consistency
+
+
+class TestAcceptEmptyMediaRange(unittest.TestCase):
+    def test_empty_media_range_filtered(self) -> None:
+        # Matches Accept-Encoding / TE handling: empty tokens are dropped rather than kept as '' media-ranges.
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html, ;q=0.5')])
+        msg = hp.parse_http_message(data)
+        ranges = [item.media_range for item in check.not_none(msg.prepared.accept)]
+        self.assertEqual(ranges, ['text/html'])
+
+
+##
+# 36. reject_obs_text applies to the reason-phrase
+
+
+class TestRejectObsTextReasonPhrase(unittest.TestCase):
+    def test_obs_text_in_reason_phrase_rejected_with_flag(self) -> None:
+        cfg = hp.HttpParser.Config(reject_obs_text=True)
+        data = b'HTTP/1.1 200 \xc0K\r\n\r\n'
+        with self.assertRaises(hp.EncodingHttpParseError) as cm:
+            hp.parse_http_message(data, config=cfg)
+        self.assertEqual(cm.exception.code, hp.EncodingHttpParseErrorCode.OBS_TEXT_IN_FIELD_VALUE)
+
+    def test_obs_text_in_reason_phrase_allowed_by_default(self) -> None:
+        data = b'HTTP/1.1 200 \xc0K\r\n\r\n'
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.status_line).reason_phrase, '\xc0K')
+
+    def test_obs_text_late_in_reason_phrase_rejected(self) -> None:
+        cfg = hp.HttpParser.Config(reject_obs_text=True)
+        data = b'HTTP/1.1 200 OK fine \xff\r\n\r\n'
+        with self.assertRaises(hp.EncodingHttpParseError):
+            hp.parse_http_message(data, config=cfg)
+
+
+##
+# 37. HTTP-date weekday cross-check
+
+
+class TestHttpDateWeekday(unittest.TestCase):
+    def test_imf_fixdate_correct_weekday(self) -> None:
+        data = _resp(headers=[('Date', 'Sun, 06 Nov 1994 08:49:37 GMT')])
+        msg = hp.parse_http_message(data)
+        expected = datetime.datetime(1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc)  # noqa
+        self.assertEqual(msg.prepared.date, expected)
+
+    def test_imf_fixdate_wrong_weekday_rejected(self) -> None:
+        # 1994-11-06 was a Sunday, not a Monday.
+        data = _resp(headers=[('Date', 'Mon, 06 Nov 1994 08:49:37 GMT')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_DATE)
+
+    def test_rfc850_wrong_weekday_rejected(self) -> None:
+        data = _resp(headers=[('Date', 'Monday, 06-Nov-94 08:49:37 GMT')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_DATE)
+
+    def test_asctime_wrong_weekday_rejected(self) -> None:
+        data = _resp(headers=[('Date', 'Sat Nov  6 08:49:37 1994')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_DATE)
+
+    def test_asctime_junk_weekday_rejected(self) -> None:
+        data = _resp(headers=[('Date', 'XXX Nov  6 08:49:37 1994')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_DATE)
+
+    def test_rfc850_four_digit_year_accepted(self) -> None:
+        # Non-conforming but recipients are expected to accept it (RFC 7231 §7.1.1.1).
+        data = _resp(headers=[('Date', 'Sunday, 06-Nov-1994 08:49:37 GMT')])
+        msg = hp.parse_http_message(data)
+        expected = datetime.datetime(1994, 11, 6, 8, 49, 37, tzinfo=datetime.timezone.utc)  # noqa
+        self.assertEqual(msg.prepared.date, expected)
+
+    def test_rfc850_year_2050_boundary(self) -> None:
+        # RFC 7231: two-digit years >= 50 are 19xx, < 50 are 20xx.
+        data = _resp(headers=[('Date', 'Sunday, 01-Jan-50 00:00:00 GMT')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.date).year, 1950)
+
+        data = _resp(headers=[('Date', 'Friday, 01-Jan-49 00:00:00 GMT')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.date).year, 2049)
+
+
+##
+# 38. ParsedHttpHeaders.entries defensive copies
+
+
+class TestEntriesDefensiveCopies(unittest.TestCase):
+    def test_entries_mutation_does_not_affect_headers(self) -> None:
+        data = _resp(headers=[('X-A', '1'), ('X-B', '2')])
+        headers = hp.parse_http_message(data).headers
+
+        entries = headers.entries
+        entries['x-a'].append('MUTATED')  # type: ignore[attr-defined]  # mutates only the returned copy
+        entries['x-c'] = ['INJECTED']  # type: ignore[index]  # mutates only the returned copy
+        del entries['x-b']  # type: ignore[attr-defined]  # mutates only the returned copy
+
+        self.assertEqual(headers.get_all('x-a'), ['1'])
+        self.assertNotIn('x-c', headers)
+        self.assertIn('x-b', headers)
+        self.assertEqual(headers.items(), [('x-a', '1'), ('x-b', '2')])
+        self.assertEqual(len(headers), 2)
+
+    def test_entries_returns_fresh_copies_each_call(self) -> None:
+        data = _resp(headers=[('X-A', '1')])
+        headers = hp.parse_http_message(data).headers
+        self.assertIsNot(headers.entries, headers.entries)
+        self.assertIsNot(headers.entries['x-a'], headers.entries['x-a'])
 
 
 if __name__ == '__main__':
