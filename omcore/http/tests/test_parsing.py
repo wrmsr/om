@@ -2877,5 +2877,153 @@ class TestEntriesDefensiveCopies(unittest.TestCase):
         self.assertIsNot(headers.entries['x-a'], headers.entries['x-a'])
 
 
+##
+# 39. Token validation of list-valued headers (Connection, Trailer, TE, Transfer-Encoding, Content-Type)
+
+
+class TestHeaderTokenValidation(unittest.TestCase):
+    def test_connection_option_must_be_token(self) -> None:
+        for v in ('ke(ep-alive', 'keep alive', 'x{y'):
+            with self.subTest(v=v):
+                data = _resp(headers=[('Connection', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONNECTION)
+
+    def test_connection_valid_tokens_accepted(self) -> None:
+        data = _resp(headers=[('Connection', 'keep-alive, x-custom_1.2')])
+        msg = hp.parse_http_message(data)
+        self.assertIn('x-custom_1.2', check.not_none(msg.prepared.connection))
+
+    def test_trailer_field_must_be_token(self) -> None:
+        data = _resp(headers=[('Trailer', 'Content -Length')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TRAILER_FIELD)
+
+    def test_trailer_valid_fields_accepted(self) -> None:
+        data = _resp(headers=[('Trailer', 'X-Checksum, X.Thing_1')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.trailer, frozenset({'x-checksum', 'x.thing_1'}))
+
+    def test_te_coding_must_be_token(self) -> None:
+        for v in ('with space', 'trail{ers}'):
+            with self.subTest(v=v):
+                data = _req(headers=[('Host', 'x'), ('TE', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TE)
+
+    def test_transfer_coding_must_be_token_even_when_unknown_allowed(self) -> None:
+        # The structural token check runs before (and independently of) the known-codings check.
+        cfg = hp.HttpParser.Config(allow_unknown_transfer_encoding=True)
+        data = _resp(headers=[('Transfer-Encoding', 'cu(stom, chunked')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data, config=cfg)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TRANSFER_ENCODING)
+
+    def test_unknown_transfer_coding_valid_token_accepted_with_config(self) -> None:
+        cfg = hp.HttpParser.Config(allow_unknown_transfer_encoding=True)
+        data = _resp(headers=[('Transfer-Encoding', 'custom, chunked')])
+        msg = hp.parse_http_message(data, config=cfg)
+        self.assertEqual(msg.prepared.transfer_encoding, ['custom', 'chunked'])
+
+    def test_content_type_type_and_subtype_must_be_tokens(self) -> None:
+        for v in ('text{x/html', 'text/ht}ml', 'text/html/extra', 'text /html'):
+            with self.subTest(v=v):
+                data = _resp(headers=[('Content-Type', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE)
+
+    def test_content_type_suffixed_subtype_accepted(self) -> None:
+        data = _resp(headers=[('Content-Type', 'application/vnd.api+json')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.content_type).media_type, 'application/vnd.api+json')
+
+
+##
+# 40. Unterminated quoted-strings surface as clean header-specific errors
+
+
+class TestUnterminatedQuotedString(unittest.TestCase):
+    def test_content_type(self) -> None:
+        # Regression: previously all remaining parameters were silently dropped.
+        data = _resp(headers=[('Content-Type', 'text/html; charset="utf-8; boundary=abc')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE)
+
+    def test_accept(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html;level="1; q=0.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT)
+
+    def test_accept_encoding(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Accept-Encoding', 'gzip;x="abc')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING)
+
+    def test_te(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('TE', 'trailers;x="abc')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TE)
+
+    def test_cache_control(self) -> None:
+        data = _resp(headers=[('Cache-Control', 'no-cache="abc')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL)
+
+    def test_quoted_semicolon_param_still_accepted(self) -> None:
+        data = _resp(headers=[('Content-Type', 'text/html; charset="utf-8"; boundary="a;b"')])
+        msg = hp.parse_http_message(data)
+        ct = check.not_none(msg.prepared.content_type)
+        self.assertEqual(ct.params['boundary'], 'a;b')
+
+
+##
+# 41. Cache-Control directive names
+
+
+class TestCacheControlDirectiveNames(unittest.TestCase):
+    def test_empty_directive_name_rejected(self) -> None:
+        data = _resp(headers=[('Cache-Control', '=foo')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL)
+
+    def test_valueless_directives_still_accepted(self) -> None:
+        data = _resp(headers=[('Cache-Control', 'no-cache, private')])
+        msg = hp.parse_http_message(data)
+        cc = check.not_none(msg.prepared.cache_control)
+        self.assertIsNone(cc['no-cache'])
+        self.assertIsNone(cc['private'])
+
+
+##
+# 42. Error line numbers and offsets
+
+
+class TestErrorPositions(unittest.TestCase):
+    def test_error_line_accounts_for_folded_lines(self) -> None:
+        # The error is on the 5th physical header-block line: X-A + 2 continuations + X-B + the bad one.
+        cfg = hp.HttpParser.Config(allow_obs_fold=True)
+        data = b'HTTP/1.1 200 OK\r\nX-A: 1\r\n 2\r\n 3\r\nX-B: 4\r\nBad\x01Name: 5\r\n\r\n'
+        with self.assertRaises(hp.HeaderFieldHttpParseError) as cm:
+            hp.parse_http_message(data, config=cfg)
+        self.assertEqual(cm.exception.line, 5)
+
+    def test_max_header_length_offset_points_at_line_start(self) -> None:
+        cfg = hp.HttpParser.Config(max_header_length=10)
+        data = b'HTTP/1.1 200 OK\r\nX-A: ' + b'x' * 20 + b'\r\n\r\n'
+        with self.assertRaises(hp.HeaderFieldHttpParseError) as cm:
+            hp.parse_http_message(data, config=cfg)
+        self.assertEqual(cm.exception.offset, len(b'HTTP/1.1 200 OK\r\n'))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -133,7 +133,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
             dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
-            dict(path='../../omcore/http/parsing.py', sha1='6c61afa54bb3df84ec20206887beaed72b15e8b1'),
+            dict(path='../../omcore/http/parsing.py', sha1='8522a6b4b90bb5ab945db1ca70680456b67fa51a'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='0a249bfaede012e18fea8cd3b0f239c985a6cfec'),  # noqa
             dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
             dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
@@ -4788,6 +4788,10 @@ class SemanticHeaderHttpParseErrorCode(enum.Enum):
     MULTIPLE_AUTHORIZATION_HEADERS = enum.auto()
     UPGRADE_WITHOUT_CONNECTION_UPGRADE = enum.auto()
 
+    # A Connection header option or Trailer header field-name that is not a valid token.
+    INVALID_CONNECTION = enum.auto()
+    INVALID_TRAILER_FIELD = enum.auto()
+
 
 class EncodingHttpParseErrorCode(enum.Enum):
     NON_ASCII_IN_FIELD_NAME = enum.auto()
@@ -5691,7 +5695,7 @@ class _HttpParseContext:
                     code=HeaderFieldHttpParseErrorCode.INVALID_FIELD_VALUE,
                     message='Header line exceeds maximum length',
                     line=self.current_line,
-                    offset=next_pos,
+                    offset=pos,
                 )
 
             # Handle obs-fold: if the *next* line starts with SP or HTAB, it's a continuation
@@ -5721,6 +5725,10 @@ class _HttpParseContext:
                     obs_buf.write(cont_data.lstrip(b' \t'))
 
                     next_pos = cont_line_end + self.line_ending_len(cont_line_end)
+
+                    # Continuation lines are physical lines too - keep current_line aligned with the byte offsets so
+                    # errors after a folded header point at the right line.
+                    self.current_line += 1
 
                     if self.config.max_header_length is not None and obs_buf.tell() > self.config.max_header_length:
                         raise HeaderFieldHttpParseError(
@@ -5766,6 +5774,12 @@ class _HttpParseContext:
 
     # token: 1+ tchar bytes
     _RE_TOKEN: ta.ClassVar[re.Pattern] = re.compile(rb"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+\Z")
+
+    @classmethod
+    def _is_token(cls, s: str) -> bool:
+        # Tokens are ASCII-only by definition (tchar), so encoding the latin-1-decoded value back to latin-1 is
+        # lossless here. (Same trick as the header field-name check.)
+        return cls._RE_TOKEN.match(s.encode('latin-1')) is not None
 
     # Pre-calculate the 4 field-value variants for the translation filter (allow_bare_cr, reject_obs_text)
     _FIELD_VALUE_ALLOWED: ta.ClassVar[ta.Mapping[ta.Tuple[bool, bool], bytes]] = {
@@ -6072,6 +6086,15 @@ class _HttpParseContext:
                 message='Transfer-Encoding header present but empty',
             )
 
+        # transfer-coding is a token (RFC 7230 §4) - checked unconditionally so codings are structurally valid even
+        # when unknown codings are allowed.
+        for c in codings:
+            if not self._is_token(c):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_TRANSFER_ENCODING,
+                    message=f'Transfer-coding is not a valid token: {c!r}',
+                )
+
         # HTTP/1.0 check
         if http_version == HttpVersions.HTTP_1_0 and not self.config.allow_transfer_encoding_http10:
             raise SemanticHeaderHttpParseError(
@@ -6204,6 +6227,15 @@ class _HttpParseContext:
     ) -> None:
         if 'connection' in headers:
             tokens = {t.lower() for t in self._parse_comma_list(headers['connection'])}
+
+            # connection-option is a token (RFC 7230 §6.1).
+            for t in tokens:
+                if not self._is_token(t):
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CONNECTION,
+                        message=f'Connection option is not a valid token: {t!r}',
+                    )
+
             prepared.connection = frozenset(tokens)
         else:
             prepared.connection = frozenset()
@@ -6287,10 +6319,9 @@ class _HttpParseContext:
             remaining = cls._strip_ows_str(remaining[eq_idx + 1:])
 
             if remaining.startswith('"'):
-                try:
-                    pvalue, end_pos = cls._parse_quoted_string(remaining, 0)
-                except ValueError:
-                    break
+                # An unterminated quoted-string would otherwise silently swallow all remaining parameters - surface
+                # it instead of pretending the value simply had no parameters.
+                pvalue, end_pos = cls._parse_quoted_string(remaining, 0)
                 remaining = cls._strip_ows_str(remaining[end_pos:])
 
                 if quoted_params is not None and pname:
@@ -6343,7 +6374,13 @@ class _HttpParseContext:
             params: ta.Dict[str, str] = {}
         else:
             media_type = self._strip_ows_str(raw[:semi_idx]).lower()
-            params = self._parse_media_type_params(raw[semi_idx:])
+            try:
+                params = self._parse_media_type_params(raw[semi_idx:])
+            except ValueError as e:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE,
+                    message=f'Invalid Content-Type parameters: {e}',
+                ) from None
 
         if '/' not in media_type:
             raise SemanticHeaderHttpParseError(
@@ -6356,6 +6393,13 @@ class _HttpParseContext:
             raise SemanticHeaderHttpParseError(
                 code=SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE,
                 message=f'Content-Type has empty type or subtype: {media_type!r}',
+            )
+
+        # media-type = type "/" subtype, and both type and subtype are tokens (RFC 7231 §3.1.1.1).
+        if not self._is_token(parts[0]) or not self._is_token(parts[1]):
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE,
+                message=f'Content-Type type or subtype is not a valid token: {media_type!r}',
             )
 
         prepared.content_type = PreparedParsedHttpHeaders.ContentType(
@@ -6374,7 +6418,8 @@ class _HttpParseContext:
         Split a single header list element like ``"token;q=0.5;param=val"`` into ``(token_lower, q, params_dict)``.
 
         *token* is lowercased.  ``q`` defaults to ``1.0`` if absent.  The ``q`` key is consumed and **not** included in
-        *params_dict*.  Raises ``ValueError`` on a malformed ``q`` value.
+        *params_dict*.  Raises ``ValueError`` on a malformed ``q`` value or malformed parameters (e.g. an unterminated
+        quoted-string); callers wrap it in the appropriate header-specific parse error.
         """
 
         semi_idx = element.find(';')
@@ -6430,6 +6475,13 @@ class _HttpParseContext:
             if not coding:
                 continue
 
+            # A TE transfer-coding is a token (RFC 7230 §4.3).
+            if not self._is_token(coding):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
+                    message=f'TE transfer-coding is not a valid token: {coding!r}',
+                )
+
             # A sender of TE MUST NOT accept 'trailers' with a qvalue of 0 (RFC 7230 §4.3).
             if coding == 'trailers' and q == 0.0:
                 raise SemanticHeaderHttpParseError(
@@ -6474,6 +6526,13 @@ class _HttpParseContext:
 
         fields = {f.lower() for f in self._parse_comma_list(headers['trailer'])}
         for f in fields:
+            # The Trailer header value is a list of field-names, which are tokens (RFC 7230 §4.1.2).
+            if not self._is_token(f):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_TRAILER_FIELD,
+                    message=f'Trailer field-name is not a valid token: {f!r}',
+                )
+
             if f in self._FORBIDDEN_TRAILER_FIELDS:
                 raise SemanticHeaderHttpParseError(
                     code=SemanticHeaderHttpParseErrorCode.FORBIDDEN_TRAILER_FIELD,
@@ -6658,6 +6717,14 @@ class _HttpParseContext:
 
             name = self._strip_ows_str(part[:eq_idx]).lower()
             value = self._strip_ows_str(part[eq_idx + 1:])
+
+            # cache-directive = token [ "=" ( token / quoted-string ) ] (RFC 7234 §5.2) - reject empty names.
+            if not name:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                    message=f'Cache-Control directive has an empty name: {part!r}',
+                )
+
             if value.startswith('"'):
                 try:
                     value, _ = self._parse_quoted_string(value, 0)
@@ -6720,8 +6787,6 @@ class _HttpParseContext:
         prepared.accept = items
 
     def _prepare_authorization(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
-        # auth-scheme is a token, so it is ASCII-only: encoding the latin-1-decoded value back to latin-1 for the
-        # token check is lossless. (Same trick as the header field-name check.)
         values = headers.get_all('authorization')
         if not values:
             return
@@ -6749,7 +6814,7 @@ class _HttpParseContext:
             scheme = raw[:sp_idx]
             credentials = raw[sp_idx + 1:]
 
-        if not scheme or self._RE_TOKEN.match(scheme.encode('latin-1')) is None:
+        if not scheme or not self._is_token(scheme):
             raise SemanticHeaderHttpParseError(
                 code=SemanticHeaderHttpParseErrorCode.INVALID_AUTHORIZATION,
                 message=f'Authorization auth-scheme is not a valid token: {scheme!r}',
