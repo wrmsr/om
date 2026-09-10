@@ -7,7 +7,7 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import marshal as msh
 from omcore.specs import jsonrpc as jr
-from omcore.specs.jsonrpc import conns2 as jr2
+from omcore.specs.jsonrpc import pipelines as jpl
 
 from . import protocolold as pt
 
@@ -16,20 +16,40 @@ from . import protocolold as pt
 
 
 class McpServerConnection:
+    """
+    A client-side connection to an MCP server over newline-delimited JSON-RPC on a byte stream, typically a spawned
+    server process's stdio.
+
+    Server-initiated requests (sampling, elicitation) and notifications are routed to the overridable handler methods,
+    which do nothing by default.
+    """
+
     def __init__(
             self,
-            stream: jr2.AsyncByteStream,
+            reader: asyncio.StreamReader,
+            writer: asyncio.StreamWriter,
             *,
-            default_timeout: float | None = 30.,
+            config: jpl.Config | None = None,
+            default_timeout_s: float | None = 30.,
     ) -> None:
         super().__init__()
 
-        self._conn = jr2.JsonrpcConnection(
-            stream,
-            request_handler=self._handle_client_request,
-            notification_handler=self._handle_client_notification,
-            default_timeout=default_timeout,
+        if config is None:
+            config = jpl.Config(
+                default_request_timeout_s=default_timeout_s,
+            )
+
+        self._conn = jpl.AsyncioConnections.of_streams(
+            reader,
+            writer,
+            config,
+            dispatcher=self._Dispatcher(self),
+            notification_handler=self._handle_notification,
         )
+
+    @property
+    def connection(self) -> jpl.AsyncioConnection:
+        return self._conn
 
     #
 
@@ -40,10 +60,8 @@ class McpServerConnection:
             **kwargs: ta.Any,
     ) -> McpServerConnection:
         return cls(
-            jr2.AsyncioStreamAdapter(
-                check.not_none(proc.stdout),
-                check.not_none(proc.stdin),
-            ),
+            check.not_none(proc.stdout),
+            check.not_none(proc.stdin),
             **kwargs,
         )
 
@@ -52,8 +70,17 @@ class McpServerConnection:
             cls,
             cmd: ta.Sequence[str],
             open_kwargs: ta.Mapping[str, ta.Any] | None = None,
+            *,
+            exit_timeout_s: float = 5.,
             **kwargs: ta.Any,
     ) -> ta.AsyncContextManager[tuple[asyncio.subprocess.Process, McpServerConnection]]:
+        """
+        Spawn a server process and connect to it over its stdio.
+
+        On exit the connection is closed, which closes the server's stdin, and the server is given `exit_timeout_s`
+        to exit on its own before being terminated and then killed.
+        """
+
         @contextlib.asynccontextmanager
         async def inner() -> ta.AsyncGenerator[tuple[asyncio.subprocess.Process, McpServerConnection]]:
             proc = await asyncio.create_subprocess_exec(
@@ -71,24 +98,35 @@ class McpServerConnection:
                     yield (proc, client)
 
             finally:
-                if proc.returncode is None:
-                    if proc.stdin is not None:
-                        proc.stdin.close()
-                        with contextlib.suppress(Exception):
-                            await proc.stdin.wait_closed()
-
-                    proc.terminate()
-                    try:
-                        await asyncio.wait_for(proc.wait(), timeout=5)
-                    except TimeoutError:
-                        proc.kill()
-                        with contextlib.suppress(Exception):
-                            await proc.wait()
-                else:
-                    with contextlib.suppress(Exception):
-                        await proc.wait()
+                await cls._finish_process(proc, exit_timeout_s=exit_timeout_s)
 
         return inner()
+
+    @staticmethod
+    async def _finish_process(proc: asyncio.subprocess.Process, *, exit_timeout_s: float) -> None:
+        if proc.returncode is not None:
+            with contextlib.suppress(Exception):
+                await proc.wait()
+            return
+
+        if proc.stdin is not None:
+            proc.stdin.close()
+            with contextlib.suppress(Exception):
+                await proc.stdin.wait_closed()
+
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=exit_timeout_s)
+            return
+        except TimeoutError:
+            pass
+
+        proc.terminate()
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=exit_timeout_s)
+        except TimeoutError:
+            proc.kill()
+            with contextlib.suppress(Exception):
+                await proc.wait()
 
     #
 
@@ -99,12 +137,26 @@ class McpServerConnection:
     async def __aexit__(self, et, e, tb) -> None:
         await self._conn.__aexit__(et, e, tb)
 
+    async def close(self, *, graceful: bool = True) -> None:
+        await self._conn.close(graceful=graceful)
+
     #
 
-    async def _handle_client_request(self, _client: jr2.JsonrpcConnection, req: jr.Request) -> None:
-        pass
+    class _Dispatcher(jr.AsyncDispatcher):
+        def __init__(self, owner: McpServerConnection) -> None:
+            super().__init__()
 
-    async def _handle_client_notification(self, _client: jr2.JsonrpcConnection, no: jr.Request) -> None:
+            self._owner = owner
+
+        async def dispatch(self, connection: ta.Any, request: jr.Request) -> ta.Any:
+            return await self._owner._handle_request(request)  # noqa
+
+    async def _handle_request(self, req: jr.Request) -> ta.Any:
+        """Answer a server-initiated request. Raise jr.MethodError to answer with a specific error."""
+
+        raise jr.JsonrpcMethodError(jr.KnownErrors.METHOD_NOT_FOUND, data=req.method)
+
+    async def _handle_notification(self, _conn: jpl.AsyncioConnection, no: jr.Request) -> None:
         pass
 
     #

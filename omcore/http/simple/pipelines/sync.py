@@ -8,7 +8,7 @@ import socket
 import typing as ta
 
 from ....io.pipelines.core import IoPipeline
-from ....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from ....lite.check import check
 from ....sockets.addresses import SocketAndAddress
 from ....sockets.bind import CanSocketBinder
@@ -57,7 +57,7 @@ def make_simple_http_server(
             if e.errno != errno.ENOPROTOOPT:
                 raise
 
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 [
                     IoPipelineHttpRequestDecoder(),

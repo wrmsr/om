@@ -7,7 +7,7 @@ import socket
 
 import pytest
 
-from ......io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from ...errors import Error
 from ...errors import OperationalError
 from ...protocol.session import ProtocolSession
@@ -118,7 +118,7 @@ def test_write_timeout_sync():
     sock, peer = socket.socketpair()
     try:
         session = ProtocolSession(user=b'u')
-        driver = SyncSocketIoPipelineDriver(make_pipeline_spec(session, write_timeout=.15), sock)
+        driver = SocketSyncIoPipelineDriver(make_pipeline_spec(session, write_timeout=.15), sock)
         try:
             # Far more than the kernel will buffer for us, so the write stalls with the peer not reading.
             op = session.query(b'select ' + b'x' * (16 * 1024 * 1024))

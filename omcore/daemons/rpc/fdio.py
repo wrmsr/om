@@ -10,8 +10,11 @@ from ...io.fdio import all as fdio
 from ...io.pipelines import all as ipl
 from ...logs import all as logs
 from ...sockets.addresses import SocketAddress
+from ...sockets.endpoints import SocketEndpoint as RpcEndpoint
+from ...sockets.transports import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
+from ...sockets.transports import SyncSocketListener as SyncRpcListener
+from ...sockets.transports import SyncSocketTransport as SyncRpcTransport
 from .dispatch import RpcRequestDispatcher
-from .endpoints import RpcEndpoint
 from .pipelines import RpcPipelineFailure
 from .pipelines import RpcServerDispatch
 from .pipelines import RpcServerSendResponse
@@ -24,9 +27,6 @@ from .registry import RpcResponseRegistry
 from .server import RpcServerConfig
 from .server import RpcServerDrainTimeoutError
 from .server import RpcServerRuntime
-from .transports import DEFAULT_SYNC_RPC_TRANSPORT
-from .transports import SyncRpcListener
-from .transports import SyncRpcTransport
 
 
 log = logs.get_module_logger(globals())

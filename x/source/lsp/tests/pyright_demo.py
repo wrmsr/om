@@ -1,12 +1,10 @@
 """
 basedpyright 'pyright[nodejs]'
 """
+import asyncio
 import contextlib
 import subprocess
 
-import anyio.abc
-
-from omcore import check
 from omcore import marshal as msh
 
 from ..client import LspClient
@@ -24,24 +22,27 @@ from ..data import TextDocumentPositionParams
 
 
 async def _a_main_(aes: contextlib.AsyncExitStack) -> None:
-    # tg: anyio.abc.TaskGroup = await aes.enter_async_context(anyio.create_task_group())  # noqa
-
-    process = await anyio.open_process(
-        [
-            'pyright-langserver',
-            # 'basedpyright-langserver',
-            '--stdio',
-        ],
+    process = await asyncio.create_subprocess_exec(
+        'pyright-langserver',
+        # 'basedpyright-langserver',
+        '--stdio',
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    await aes.enter_async_context(process)
 
-    client = LspClient(
-        check.not_none(process.stdin).send,
-        check.not_none(process.stdout).receive,
-    )
+    async def finish_process() -> None:
+        if process.returncode is None:
+            process.terminate()
+            try:
+                await asyncio.wait_for(process.wait(), 5.)
+            except TimeoutError:
+                process.kill()
+                await process.wait()
+
+    aes.push_async_callback(finish_process)
+
+    client = await aes.enter_async_context(LspClient.of_subprocess(process))
 
     init_response = await client.request('initialize', InitializeParams(
         process_id=None,
@@ -52,7 +53,7 @@ async def _a_main_(aes: contextlib.AsyncExitStack) -> None:
     print(init_result)
 
     await client.notify('initialized')
-    await anyio.sleep(.5)
+    await asyncio.sleep(.5)
 
     #
 
@@ -79,7 +80,7 @@ foo()
         text_document=TextDocumentIdentifier(uri=file_uri),
         position=Position(line=3, character=1),
     ))
-    definition_result: DefinitionResponse = msh.unmarshal(definition_response.result, DefinitionResponse)  # type: ignore  # noqa
+    definition_result: DefinitionResponse = msh.unmarshal(definition_response.result, DefinitionResponse)  # noqa
 
     for loc in definition_result or []:
         print(loc)
@@ -88,9 +89,7 @@ foo()
 
     await client.request('shutdown', {})
     await client.notify('exit', {})
-    await anyio.sleep(.5)
-
-    await process.aclose()
+    await asyncio.sleep(.5)
 
 
 async def _a_main() -> None:
@@ -99,4 +98,4 @@ async def _a_main() -> None:
 
 
 if __name__ == '__main__':
-    anyio.run(_a_main)
+    asyncio.run(_a_main())

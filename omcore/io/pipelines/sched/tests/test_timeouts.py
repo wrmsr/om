@@ -20,7 +20,7 @@ from ...core import IoPipelineMessages
 from ...core import IoPipelineService
 from ...drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
-from ...drivers.sync import SyncSocketIoPipelineDriver
+from ...drivers.sync import SocketSyncIoPipelineDriver
 from ...errors import IoPipelineError
 from ...errors import TimeoutIoPipelineError
 from ...flow.stub import StubIoPipelineFlowService
@@ -439,7 +439,7 @@ class TestSyncIdleStateIoPipelineHandler(unittest.TestCase):
     def test_expires(self):
         idle = IdleStateIoPipelineHandler(read_idle_timeout_s=.01)
         capture = CaptureIdleStateIoPipelineHandler(emit=True)
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 [idle, capture],
                 services=[StubIoPipelineFlowService(auto_read=False)],
@@ -460,7 +460,7 @@ class TestSyncIdleStateIoPipelineHandler(unittest.TestCase):
         capture = IdleStateActivityIoPipelineHandler()
         sock, peer = socket.socketpair()
         with sock, peer:
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(
                     [idle, capture],
                     services=[StubIoPipelineFlowService(auto_read=False)],
@@ -596,7 +596,7 @@ class TestSyncReadTimeoutIoPipelineHandler(unittest.TestCase):
     def test_expires(self):
         timeout = ReadTimeoutIoPipelineHandler(.01)
         capture = CaptureReadTimeoutIoPipelineHandler()
-        drv = SyncSocketIoPipelineDriver(make_spec(timeout, capture), object())
+        drv = SocketSyncIoPipelineDriver(make_spec(timeout, capture), object())
         try:
             error = drv.next()
 
@@ -617,7 +617,7 @@ class TestSyncReadTimeoutIoPipelineHandler(unittest.TestCase):
     def test_resets_and_stops_at_final_input(self):
         timeout = ReadTimeoutIoPipelineHandler(60.)
         capture = CaptureReadTimeoutIoPipelineHandler()
-        drv = SyncSocketIoPipelineDriver(make_spec(timeout, capture), object())
+        drv = SocketSyncIoPipelineDriver(make_spec(timeout, capture), object())
         try:
             self.assertIsNone(drv.next(read=False))
             first_handle = timeout._handle
@@ -918,7 +918,7 @@ class TestSyncWriteTimeoutIoPipelineHandler(unittest.TestCase):
             flush_output = IoPipelineFlowMessages.FlushOutput()
             timeout = WriteTimeoutIoPipelineHandler(.01)
             app = WriteTimeoutTestIoPipelineHandler([b'output', flush_output], output_errors=True)
-            driver = SyncSocketIoPipelineDriver(make_write_timeout_driver_spec(timeout, app), sock)
+            driver = SocketSyncIoPipelineDriver(make_write_timeout_driver_spec(timeout, app), sock)
             try:
                 self.assertIsNone(driver.next(read=False))
                 driver.enqueue(_EMIT_OUTPUT)

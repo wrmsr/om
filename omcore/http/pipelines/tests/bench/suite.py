@@ -64,7 +64,7 @@ from .....io.pipelines.core import IoPipelineHandlerContext
 from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from .....io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
-from .....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from .....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.dataclasses import install_dataclass_kw_only_init
 from ....clients.base import HttpClientRequest
@@ -1141,7 +1141,7 @@ def _serve_sync(port: int, payload: bytes, max_upload_size: int, threads: int) -
     def handle(conn: socket.socket) -> None:
         try:
             conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            SyncSocketIoPipelineDriver(
+            SocketSyncIoPipelineDriver(
                 _make_benchmark_server_spec(payload, max_upload_size),
                 conn,
             ).loop_until_done()

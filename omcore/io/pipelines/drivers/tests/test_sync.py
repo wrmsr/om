@@ -20,7 +20,7 @@ from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
 from ...sched.timeouts import ReadTimeoutIoPipelineHandler
 from ...sched.types import IoPipelineScheduling
-from ..sync import SyncSocketIoPipelineDriver
+from ..sync import SocketSyncIoPipelineDriver
 from ..types import IoPipelineDriverState
 
 
@@ -219,8 +219,8 @@ def drain_socket(sock: socket.socket) -> bytes:
 
 
 class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
-    def make_driver(self, *handlers: IoPipelineHandler) -> SyncSocketIoPipelineDriver:
-        drv = SyncSocketIoPipelineDriver(
+    def make_driver(self, *handlers: IoPipelineHandler) -> SocketSyncIoPipelineDriver:
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 handlers,
                 services=[
@@ -234,7 +234,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
 
     def find_handler_ref(
             self,
-            drv: SyncSocketIoPipelineDriver,
+            drv: SocketSyncIoPipelineDriver,
             handler: IoPipelineHandler,
     ) -> IoPipelineHandlerRef:
         ref = drv.pipeline.find_handler(handler)
@@ -268,7 +268,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
         sock, peer = socket.socketpair()
         with sock, peer:
             sock.settimeout(10.)
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec([
                     TimerOutputIoPipelineHandler(.01, 'timer'),
                 ]),
@@ -286,7 +286,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
         with sock, peer:
             self.assertGreater(fill_socket_send_buffer(sock), 0)
             capture = CaptureOutputWritabilityIoPipelineHandler()
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(
                     [
                         TimerOutputIoPipelineHandler(.01, 'timer'),
@@ -296,7 +296,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
                     services=[StubIoPipelineFlowService(auto_read=False)],
                 ),
                 sock,
-                SyncSocketIoPipelineDriver.Config(
+                SocketSyncIoPipelineDriver.Config(
                     write_high_watermark=4,
                     write_low_watermark=2,
                 ),
@@ -389,7 +389,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
         self.assertEqual(events, [])
 
     def test_timer_without_read_interest(self):
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 [
                     TimerOutputIoPipelineHandler(0., 'timer'),
@@ -406,7 +406,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
             drv.close()
 
     def test_due_timer_runs_with_read_false(self):
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 [
                     TimerOutputIoPipelineHandler(0., 'timer'),
@@ -426,7 +426,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
     def test_future_delay_is_positive(self):
         sock, peer = socket.socketpair()
         with sock, peer:
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec([
                     TimerOutputIoPipelineHandler(60., 'timer'),
                 ]),
@@ -446,7 +446,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
     def test_due_batch_is_snapshotted(self):
         sock, peer = socket.socketpair()
         with sock, peer:
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec([
                     ReschedulingTimerIoPipelineHandler(),
                 ]),
@@ -462,7 +462,7 @@ class TestSyncSocketIoPipelineDriverScheduling(unittest.TestCase):
 
 class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
     def test_close_before_pipeline_initialization(self) -> None:
-        drv = SyncSocketIoPipelineDriver(IoPipeline.Spec(), object())
+        drv = SocketSyncIoPipelineDriver(IoPipeline.Spec(), object())
 
         drv.close()
         drv.close()
@@ -472,7 +472,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
 
     def test_repeated_close_destroys_pipeline_once(self) -> None:
         lifecycle = LifecycleIoPipelineService()
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 services=[
                     lifecycle,
@@ -491,7 +491,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
 
     def test_pipeline_output_error_is_non_terminal(self) -> None:
         error = RuntimeError('pipeline')
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 [OutputErrorIoPipelineHandler(error)],
                 services=[StubIoPipelineFlowService(auto_read=False)],
@@ -513,7 +513,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
         sock, peer = socket.socketpair()
         with sock, peer:
             sock.settimeout(2.)
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(),
                 FailingRecvSocket(sock, error),
             )
@@ -534,7 +534,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
     def test_pipeline_removal_failure_fails_close(self) -> None:
         error = RuntimeError('remove')
         lifecycle = LifecycleIoPipelineService(error)
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 services=[
                     lifecycle,
@@ -558,21 +558,21 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
 
     def test_invalid_chunk_sizes(self) -> None:
         with self.assertRaises(ValueError):
-            SyncSocketIoPipelineDriver.Config(read_chunk_size=0)
+            SocketSyncIoPipelineDriver.Config(read_chunk_size=0)
         with self.assertRaises(ValueError):
-            SyncSocketIoPipelineDriver.Config(read_batch_max_bytes=0)
+            SocketSyncIoPipelineDriver.Config(read_batch_max_bytes=0)
         with self.assertRaises(ValueError):
-            SyncSocketIoPipelineDriver.Config(read_batch_max_reads=0)
+            SocketSyncIoPipelineDriver.Config(read_batch_max_reads=0)
         with self.assertRaises(ValueError):
-            SyncSocketIoPipelineDriver.Config(write_chunk_max=0)
+            SocketSyncIoPipelineDriver.Config(write_chunk_max=0)
 
     def test_read_batch_flushes_before_eof(self) -> None:
         sock, peer = socket.socketpair()
         with sock, peer:
-            driver = SyncSocketIoPipelineDriver(
+            driver = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(services=[StubIoPipelineFlowService(auto_read=False)]),
                 sock,
-                SyncSocketIoPipelineDriver.Config(
+                SocketSyncIoPipelineDriver.Config(
                     read_chunk_size=2,
                     read_batch_max_bytes=10,
                     read_batch_max_reads=4,
@@ -595,13 +595,13 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
 
     def test_invalid_watermarks(self) -> None:
         with self.assertRaises(ValueError):
-            SyncSocketIoPipelineDriver.Config(
+            SocketSyncIoPipelineDriver.Config(
                 write_high_watermark=1,
                 write_low_watermark=2,
             )
 
     def test_stall_does_not_fail_driver(self) -> None:
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 services=[StubIoPipelineFlowService(auto_read=False)],
             ),
@@ -629,7 +629,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
                 sock.fileno() >= 0,
                 sock.gettimeout(),
             )))
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(
                     [graceful_close],
                     services=[StubIoPipelineFlowService(auto_read=False)],
@@ -657,7 +657,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
             self.assertGreater(fill_socket_send_buffer(sock), 0)
             lifecycle = LifecycleIoPipelineService()
             graceful_close = GracefulCloseIoPipelineHandler()
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(
                     [graceful_close],
                     services=[
@@ -689,7 +689,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
         with sock, peer:
             self.assertGreater(fill_socket_send_buffer(sock), 0)
             capture = CaptureOutputWritabilityIoPipelineHandler()
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(
                     [
                         capture,
@@ -698,7 +698,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
                     services=[StubIoPipelineFlowService(auto_read=False)],
                 ),
                 sock,
-                SyncSocketIoPipelineDriver.Config(
+                SocketSyncIoPipelineDriver.Config(
                     write_chunk_max=2,
                     write_high_watermark=4,
                     write_low_watermark=2,
@@ -747,13 +747,13 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
             flush_output = IoPipelineFlowMessages.FlushOutput()
             completions = []
             flush_output.add_listener(lambda msg: completions.append(msg.is_succeeded()))
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(
                     [WriteAndFlushIoPipelineHandler(b'abcde', flush_output)],
                     services=[StubIoPipelineFlowService(auto_read=False)],
                 ),
                 sock,
-                SyncSocketIoPipelineDriver.Config(write_chunk_max=2),
+                SocketSyncIoPipelineDriver.Config(write_chunk_max=2),
             )
             try:
                 self.assertIsNone(drv.next(read=False))
@@ -782,7 +782,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
         with sock, peer:
             self.assertGreater(fill_socket_send_buffer(sock), 0)
             capture = CaptureOutputWritabilityIoPipelineHandler()
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec(
                     [
                         capture,
@@ -791,7 +791,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
                     services=[StubIoPipelineFlowService(auto_read=False)],
                 ),
                 sock,
-                SyncSocketIoPipelineDriver.Config(
+                SocketSyncIoPipelineDriver.Config(
                     write_chunk_max=2,
                     write_high_watermark=4,
                     write_low_watermark=2,
@@ -832,7 +832,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
         sock, peer = socket.socketpair()
         with sock, peer:
             capture = CaptureFinalInputIoPipelineHandler()
-            drv = SyncSocketIoPipelineDriver(IoPipeline.Spec([capture]), sock)
+            drv = SocketSyncIoPipelineDriver(IoPipeline.Spec([capture]), sock)
             try:
                 peer.shutdown(socket.SHUT_WR)
 
@@ -847,7 +847,7 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
 
     def test_write_failure_is_reported(self) -> None:
         error = BrokenPipeError('broken')
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 [GracefulCloseIoPipelineHandler()],
                 services=[StubIoPipelineFlowService(auto_read=False)],
@@ -892,13 +892,13 @@ class TestSyncSocketIoPipelineDriverLifecycle(unittest.TestCase):
 
         sock, peer = socket.socketpair()
         handler = RespondOnEofIoPipelineHandler()
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             IoPipeline.Spec(
                 [handler],
                 services=[StubIoPipelineFlowService()],
             ),
             sock,
-            SyncSocketIoPipelineDriver.Config(
+            SocketSyncIoPipelineDriver.Config(
                 write_high_watermark=4,
                 write_low_watermark=2,
             ),

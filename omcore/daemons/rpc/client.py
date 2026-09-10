@@ -6,9 +6,11 @@ from ... import check
 from ... import dataclasses as dc
 from ... import lang
 from ...io.pipelines import all as ipl
+from ...sockets.endpoints import SocketEndpoint as RpcEndpoint
+from ...sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint
 from ...sockets.io import close_socket_immediately
-from .endpoints import RpcEndpoint
-from .endpoints import resolve_rpc_endpoint
+from ...sockets.transports import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
+from ...sockets.transports import SyncSocketTransport as SyncRpcTransport
 from .pipelines import RpcClientConnected
 from .pipelines import RpcClientRequestSent
 from .pipelines import RpcClientResponse
@@ -27,8 +29,6 @@ from .protocol import RpcProtocolError
 from .protocol import RpcRemoteError
 from .protocol import RpcRequest
 from .protocol import RpcUnavailableError
-from .transports import DEFAULT_SYNC_RPC_TRANSPORT
-from .transports import SyncRpcTransport
 
 
 ##

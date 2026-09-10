@@ -22,7 +22,7 @@ from ...core import IoPipelineMessages
 from ...core import IoPipelineService
 from ...drivers.asyncio import PollAsyncioStreamIoPipelineDriver
 from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
-from ...drivers.sync import SyncSocketIoPipelineDriver
+from ...drivers.sync import SocketSyncIoPipelineDriver
 from ...errors import TimeoutIoPipelineError
 from ...flow.types import IoPipelineFlowMessages
 from ...sched.types import IoPipelineScheduling
@@ -351,7 +351,7 @@ class TestSyncSslIoPipelineHandlerTimeout(unittest.TestCase):
         spec, handler, capture = make_driver_spec(StallingSslObject(handshake_pending=True))
         sock, peer = socket.socketpair()
         with peer:
-            driver = SyncSocketIoPipelineDriver(spec, sock)
+            driver = SocketSyncIoPipelineDriver(spec, sock)
             try:
                 error = driver.next()
 

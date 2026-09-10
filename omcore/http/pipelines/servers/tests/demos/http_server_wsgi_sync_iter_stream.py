@@ -10,7 +10,7 @@ from ......io.pipelines.core import IoPipeline
 from ......io.pipelines.core import IoPipelineHandler
 from ......io.pipelines.core import IoPipelineHandlerContext
 from ......io.pipelines.core import IoPipelineMessages
-from ......io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from ......io.pipelines.flow.stub import StubIoPipelineFlowService
 from ......io.pipelines.flow.types import IoPipelineFlow
 from ......io.pipelines.flow.types import IoPipelineFlowMessages
@@ -96,7 +96,7 @@ class WsgiConnHandler:
         self._conn = conn
         self._addr = addr
 
-    _drv: SyncSocketIoPipelineDriver
+    _drv: SocketSyncIoPipelineDriver
 
     #
 
@@ -252,7 +252,7 @@ class WsgiConnHandler:
             if e.errno != errno.ENOPROTOOPT:
                 raise
 
-        self._drv = SyncSocketIoPipelineDriver(
+        self._drv = SocketSyncIoPipelineDriver(
             build_wsgi_spec(),
             self._conn,
         )

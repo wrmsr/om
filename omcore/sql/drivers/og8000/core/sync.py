@@ -2,7 +2,7 @@ import socket
 import types
 import typing as ta
 
-from .....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from .....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from .....io.pipelines.drivers.types import IoPipelineDriverState
 from ..converters import InAdapter
 from ..errors import InterfaceError
@@ -68,7 +68,7 @@ class SyncCoreConnection(BaseCoreConnection):
             tcp_keepalive=tcp_keepalive,
         )
 
-        self._driver = SyncSocketIoPipelineDriver(self._make_pipeline_spec(), self._sock)
+        self._driver = SocketSyncIoPipelineDriver(self._make_pipeline_spec(), self._sock)
 
         try:
             if self._wants_ssl():

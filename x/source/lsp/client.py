@@ -2,80 +2,82 @@
 TODO:
  - -> omdev.specs.lsp
 """
+import asyncio
 import dataclasses as dc
-import functools
-import json
 import typing as ta
 
 from omcore import marshal as msh
-from omcore.asyncs.buffers import AsyncBufferedReader
 from omcore.specs import jsonrpc as jr
-
-from .framing import format_http_framed_message
-from .framing import read_http_framed_message
+from omcore.specs.jsonrpc import pipelines as jpl
 
 
 ##
 
 
 class LspClient:
+    """
+    A thin LSP-flavored wrapper over a JSON-RPC connection using Content-Length framing.
+
+    Dataclass params are marshaled on the way out; responses come back raw, since their types depend on the method.
+    """
+
+    CONFIG: ta.ClassVar[jpl.Config] = jpl.Config(
+        framing='content-length',
+        default_request_timeout_s=60.,
+    )
+
     def __init__(
             self,
-            send: ta.Callable[[bytes], ta.Awaitable[None]],
-            receive: ta.Callable[[], ta.Awaitable[bytes]],
+            conn: jpl.AsyncioConnection,
     ) -> None:
         super().__init__()
 
-        self._send = send
-        self._receive = receive
+        self._conn = conn
 
-        self._last_id = 0
+    @property
+    def connection(self) -> jpl.AsyncioConnection:
+        return self._conn
 
-        self._reader = AsyncBufferedReader(receive)
-        self._read_content = functools.partial(read_http_framed_message, self._reader)
-
-    #
-
-    def _next_id(self) -> int:
-        self._last_id += 1
-        return self._last_id
-
-    #
-
-    async def send(self, request: jr.Request) -> None:
-        marshalled = msh.marshal(request)
-        content = json.dumps(marshalled).encode('utf-8')
-        message = format_http_framed_message(content)
-        await self._send(message)
-
-    async def request(self, method: str, params: ta.Any = None) -> jr.Response:
-        if dc.is_dataclass(params):
-            params = msh.marshal(params)
-        await self.send(jr.request(
-            msg_id := self._next_id(),
-            method,
-            params,
+    @classmethod
+    def of_subprocess(
+            cls,
+            proc: asyncio.subprocess.Process,
+            *,
+            config: jpl.Config | None = None,
+            **kwargs: ta.Any,
+    ) -> LspClient:
+        return cls(jpl.AsyncioConnections.of_subprocess(
+            proc,
+            config if config is not None else cls.CONFIG,
+            **kwargs,
         ))
-        return await self.read_response(msg_id)
+
+    async def __aenter__(self) -> ta.Self:
+        await self._conn.__aenter__()
+        return self
+
+    async def __aexit__(self, et, e, tb) -> None:
+        await self._conn.__aexit__(et, e, tb)
+
+    #
+
+    @staticmethod
+    def _marshal_params(params: ta.Any) -> jr.Params | None:
+        if dc.is_dataclass(params) and not isinstance(params, type):
+            return msh.marshal(params)  # type: ignore[return-value]
+        return params
+
+    async def request(
+            self,
+            method: str,
+            params: ta.Any = None,
+            *,
+            timeout_s: float | None | type[jr.NotSpecified] = jr.NotSpecified,
+    ) -> jr.Response:
+        return await self._conn.send_request(
+            self._conn._new_request(method, self._marshal_params(params)),  # noqa
+            timeout_s=timeout_s,
+        )
 
     async def notify(self, method: str, params: ta.Any = None) -> None:
-        if dc.is_dataclass(params):
-            params = msh.marshal(params)
-        await self.send(jr.notification(
-            method,
-            params,
-        ))
-
-    #
-
-    async def read(self) -> jr.Message:
-        content, _ = await self._read_content()
-        dct = json.loads(content)
-        cls = jr.detect_message_type(dct)
-        return msh.unmarshal(dct, cls)
-
-    async def read_response(self, msg_id: int) -> jr.Response:
-        while True:
-            msg = await self.read()
-            if isinstance(msg, jr.Response) and msg.id == msg_id:
-                return msg
+        await self._conn.notify(method, self._marshal_params(params))

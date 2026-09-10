@@ -18,11 +18,12 @@ with _lang.auto_proxy_init(globals()):
         RpcClientConnection,
     )
 
-    from .endpoints import (  # noqa
-        RpcEndpoint,
-        UnixRpcEndpoint,
-        TcpRpcEndpoint,
-        resolve_rpc_endpoint,
+    # Endpoints and transports live in omcore.sockets; they are re-exported here under their historical names.
+    from ...sockets.endpoints import (  # noqa
+        SocketEndpoint as RpcEndpoint,
+        UnixSocketEndpoint as UnixRpcEndpoint,
+        TcpSocketEndpoint as TcpRpcEndpoint,
+        resolve_socket_endpoint as resolve_rpc_endpoint,
     )
 
     from .fdio import (  # noqa
@@ -69,18 +70,18 @@ with _lang.auto_proxy_init(globals()):
         RpcService,
     )
 
-    from .transports import (  # noqa
-        SyncRpcListener,
-        SyncRpcTransport,
-        SocketRpcListener,
-        DefaultSyncRpcTransport,
-        DEFAULT_SYNC_RPC_TRANSPORT,
+    from ...sockets.transports import (  # noqa
+        SyncSocketListener as SyncRpcListener,
+        SyncSocketTransport as SyncRpcTransport,
+        OwnedSocketListener as SocketRpcListener,
+        DefaultSyncSocketTransport as DefaultSyncRpcTransport,
+        DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT,
 
-        AsyncioRpcListener,
-        AsyncioRpcTransport,
-        AsyncioServerRpcListener,
-        DefaultAsyncioRpcTransport,
-        DEFAULT_ASYNCIO_RPC_TRANSPORT,
+        AsyncioSocketListener as AsyncioRpcListener,
+        AsyncioSocketTransport as AsyncioRpcTransport,
+        AsyncioServerSocketListener as AsyncioServerRpcListener,
+        DefaultAsyncioSocketTransport as DefaultAsyncioRpcTransport,
+        DEFAULT_ASYNCIO_SOCKET_TRANSPORT as DEFAULT_ASYNCIO_RPC_TRANSPORT,
     )
 
     from .waiting import (  # noqa

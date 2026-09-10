@@ -26,7 +26,7 @@ from ..core import IoPipelineHandler
 from ..core import IoPipelineHandlerContext
 from ..core import IoPipelineMessages
 from ..drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from ..drivers.sync import SyncSocketIoPipelineDriver
+from ..drivers.sync import SocketSyncIoPipelineDriver
 from ..errors import IncompleteDecodingIoPipelineError
 
 
@@ -478,7 +478,7 @@ class _RedisServer:
 
 def _run_sync_demo(port: int, *, host: str = '127.0.0.1') -> ta.Mapping[str, RedisValue]:
     with socket.create_connection((host, port)) as sock:
-        client = RedisClient(SyncSocketIoPipelineDriver(make_redis_client_pipeline_spec(), sock))
+        client = RedisClient(SocketSyncIoPipelineDriver(make_redis_client_pipeline_spec(), sock))
         try:
             client.execute('DEL', 'omcore:redis:sync:value', 'omcore:redis:sync:counter')
             results = {

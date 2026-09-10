@@ -7,7 +7,7 @@ import socket
 import typing as ta
 
 from ....io.pipelines.core import IoPipelineMessages
-from ....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from ....io.readers import BytesReader
 from ....io.readers import BytesReaders
 from ....io.streambufs.types import Bytes
@@ -54,7 +54,7 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
     class _DriverResponseReader:
         def __init__(
                 self,
-                drv: SyncSocketIoPipelineDriver,
+                drv: SocketSyncIoPipelineDriver,
                 sock: 'socket.socket',
         ) -> None:
             super().__init__()
@@ -134,12 +134,12 @@ class IoPipelineHttpClient(HttpClient, BaseIoPipelineHttpClient['IoPipelineHttpC
                 **(dict(timeout=self._config.connect_timeout_s) if self._config.connect_timeout_s is not None else {}),  # type: ignore[arg-type]  # noqa
             )
 
-            drv: ta.Optional[SyncSocketIoPipelineDriver] = None
+            drv: ta.Optional[SocketSyncIoPipelineDriver] = None
             try:
                 sock.settimeout(None)
                 self._try_set_nodelay(sock)
 
-                drv = SyncSocketIoPipelineDriver(prepared.pipeline_spec, sock)
+                drv = SocketSyncIoPipelineDriver(prepared.pipeline_spec, sock)
 
                 drv.enqueue(IoPipelineHttpClientMessages.Request(
                     prepared.full_request,

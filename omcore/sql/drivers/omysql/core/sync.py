@@ -18,7 +18,7 @@ import typing as ta
 import warnings
 
 from ..... import check
-from .....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from .....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from .....io.pipelines.drivers.types import IoPipelineDriverState
 from ..constants import COMMAND
 from ..errors import Error
@@ -56,7 +56,7 @@ class SyncConnection(BaseConnection):
         self._port = port
         self._unix_socket = unix_socket
         self._bind_address = bind_address
-        self._driver: SyncSocketIoPipelineDriver | None = None
+        self._driver: SocketSyncIoPipelineDriver | None = None
 
         if not defer_connect:
             self.connect(sock)
@@ -79,7 +79,7 @@ class SyncConnection(BaseConnection):
         if self._unix_socket is not None or (sock is not None and sock.family == socket.AF_UNIX):
             self._mark_secure_transport()
 
-        self._driver = SyncSocketIoPipelineDriver(self._make_pipeline_spec(), self._sock)
+        self._driver = SocketSyncIoPipelineDriver(self._make_pipeline_spec(), self._sock)
 
         try:
             self._run(self._session.read_handshake())

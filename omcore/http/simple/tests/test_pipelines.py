@@ -2,7 +2,7 @@
 import socket
 import unittest
 
-from ....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from ....io.pipelines.drivers.types import IoPipelineDriverState
 from ..pipelines.handlers import SimpleHttpHandlerServerIoPipelineHandler
 
@@ -17,7 +17,7 @@ class TestSimpleHttpHandlerServerIoPipelineHandler(unittest.TestCase):
 
         sock, peer = socket.socketpair()
         with sock, peer:
-            drv = SyncSocketIoPipelineDriver(
+            drv = SocketSyncIoPipelineDriver(
                 SimpleHttpHandlerServerIoPipelineHandler.build_standard_pipeline_spec(
                     sock,
                     peer.getsockname(),

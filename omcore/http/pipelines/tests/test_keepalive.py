@@ -7,7 +7,7 @@ from ....io.pipelines.core import IoPipeline
 from ....io.pipelines.core import IoPipelineHandler
 from ....io.pipelines.core import IoPipelineMessages
 from ....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from ....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from ....io.pipelines.flow.stub import StubIoPipelineFlowService
 from ....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
 from ....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
@@ -451,7 +451,7 @@ class TestKeepAliveInterimResponses(unittest.TestCase):
 
     def test_interim_response_does_not_rearm_idle_timer(self) -> None:
         keep_alive = IoPipelineHttpServerKeepAliveHandler(60.)
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             _make_timed_ka_spec(keep_alive, _ResponseControlHandler()),
             object(),
         )
@@ -586,7 +586,7 @@ class TestKeepAliveConnectionHeaderVersion(unittest.TestCase):
 class TestSyncKeepAliveIdleTimeout(unittest.TestCase):
     def test_expires_while_waiting_for_first_request(self) -> None:
         keep_alive = IoPipelineHttpServerKeepAliveHandler(.01)
-        drv = SyncSocketIoPipelineDriver(_make_timed_ka_spec(keep_alive), object())
+        drv = SocketSyncIoPipelineDriver(_make_timed_ka_spec(keep_alive), object())
         try:
             self.assertIsNone(drv.next())
 
@@ -598,7 +598,7 @@ class TestSyncKeepAliveIdleTimeout(unittest.TestCase):
     def test_cancels_while_request_is_active(self) -> None:
         keep_alive = IoPipelineHttpServerKeepAliveHandler(60.)
         requests = InboundQueueIoPipelineHandler(filter_type=FullIoPipelineHttpRequest)
-        drv = SyncSocketIoPipelineDriver(_make_timed_ka_spec(keep_alive, requests), object())
+        drv = SocketSyncIoPipelineDriver(_make_timed_ka_spec(keep_alive, requests), object())
         try:
             self.assertIsNone(drv.next(read=False))
             self.assertIsNotNone(keep_alive._handle)
@@ -622,7 +622,7 @@ class TestSyncKeepAliveIdleTimeout(unittest.TestCase):
 
     def test_rearms_after_response_completion(self) -> None:
         keep_alive = IoPipelineHttpServerKeepAliveHandler(60.)
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             _make_timed_ka_spec(keep_alive, _SimpleEchoHandler.Handler()),
             object(),
         )

@@ -6,7 +6,7 @@ import unittest
 
 from ...streambufs.utils import ByteStreamBuffers
 from ..core import IoPipeline
-from ..drivers.sync import SyncSocketIoPipelineDriver
+from ..drivers.sync import SocketSyncIoPipelineDriver
 from .redis import BaseRedisClient
 from .redis import RedisClient
 from .redis import RedisCommand
@@ -74,7 +74,7 @@ class TestRedisClients(unittest.TestCase):
         assert _REDIS_SERVER is not None
         with _RedisServer(_REDIS_SERVER) as port:
             with socket.create_connection(('127.0.0.1', port)) as sock:
-                client = RedisClient(SyncSocketIoPipelineDriver(make_redis_client_pipeline_spec(), sock))
+                client = RedisClient(SocketSyncIoPipelineDriver(make_redis_client_pipeline_spec(), sock))
                 try:
                     with self.assertRaises(ValueError):
                         client.execute()

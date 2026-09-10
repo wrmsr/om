@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
-import abc
+"""
+An echo ACP agent: a JSON-RPC peer speaking newline-delimited JSON over stdio or a unix socket, answering the
+handful of ACP methods needed to hold a conversation and echoing prompt text back as session updates.
+"""
 import argparse
 import asyncio
 import dataclasses as dc
-import json
 import os.path
-import sys
-import traceback
 import typing as ta
 import uuid
 
 from omcore import marshal as msh
+from omcore.sockets.endpoints import UnixSocketEndpoint
+from omcore.specs import jsonrpc as jr
+from omcore.specs.jsonrpc import pipelines as jpl
 
 from .. import protocol
 
 
 JsonObject: ta.TypeAlias = ta.Mapping[str, ta.Any]
-RequestId: ta.TypeAlias = str | int | None
 
 
 ##
@@ -131,121 +133,7 @@ class PromptResponse:
 
 
 ##
-# IO Abstraction
-
-
-class AcpTransport(abc.ABC):
-    """Abstract transport layer for ACP server communication."""
-
-    @abc.abstractmethod
-    async def read_message(self) -> bytes | None:
-        """Read a single message. Returns None on EOF/close."""
-
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def write_message(self, data: bytes) -> None:
-        """Write a single message."""
-
-        raise NotImplementedError
-
-
-class AcpServer(abc.ABC):
-    @abc.abstractmethod
-    async def run_server(self, handler: ta.Callable[[AcpTransport], ta.Awaitable[None]]) -> None:
-        """Run the server and handle connections. For stdio, this just calls handler once."""
-
-        raise NotImplementedError
-
-
-class StdioAcp(AcpTransport, AcpServer):
-    """Transport using stdin/stdout for communication."""
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    async def read_message(self) -> bytes | None:
-        line = await asyncio.to_thread(sys.stdin.buffer.readline)
-        if not line:
-            return None
-        return line
-
-    async def write_message(self, data: bytes) -> None:
-        await asyncio.to_thread(sys.stdout.buffer.write, data)
-        await asyncio.to_thread(sys.stdout.buffer.flush)
-
-    async def run_server(self, handler: ta.Callable[[AcpTransport], ta.Awaitable[None]]) -> None:
-        await handler(self)
-
-
-class UnixSocketAcpServer(AcpServer):
-    """Transport using Unix domain sockets for communication."""
-
-    def __init__(self, socket_path: str) -> None:  # noqa
-        super().__init__()
-
-        self._socket_path = socket_path
-
-    class Transport(AcpTransport):
-        def __init__(
-                self,
-                reader: asyncio.StreamReader,
-                writer: asyncio.StreamWriter,
-        ) -> None:
-            super().__init__()
-
-            self._reader = reader
-            self._writer = writer
-
-        async def read_message(self) -> bytes | None:
-            line = await self._reader.readline()
-            if not line:
-                return None
-            return line
-
-        async def write_message(self, data: bytes) -> None:
-            if self._writer is None:
-                raise RuntimeError('No active connection')
-
-            self._writer.write(data)
-            await self._writer.drain()
-
-    async def run_server(self, handler: ta.Callable[[AcpTransport], ta.Awaitable[None]]) -> None:
-        if os.path.exists(self._socket_path):
-            os.unlink(self._socket_path)
-
-        async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-            try:
-                await handler(self.Transport(reader, writer))
-            finally:
-                writer.close()
-                await writer.wait_closed()
-
-        server = await asyncio.start_unix_server(handle_client, path=self._socket_path)
-        print(f'Unix socket ACP server listening on {self._socket_path}', file=sys.stderr)
-
-        async with server:
-            await server.serve_forever()
-
-
-##
-# JSON-RPC plumbing
-
-
-class JsonRpcError(Exception):
-    def __init__(self, code: int, message: str, data: ta.Any = None) -> None:
-        super().__init__(message)
-
-        self.code = code
-        self.message = message
-        self.data = data
-
-
-PARSE_ERROR = -32700
-INVALID_REQUEST = -32600
-METHOD_NOT_FOUND = -32601
-INVALID_PARAMS = -32602
-INTERNAL_ERROR = -32603
+# params
 
 
 _MISSING = object()
@@ -263,137 +151,34 @@ def get_param(
         return params[snake_name]
     if default is not _MISSING:
         return default
-    raise JsonRpcError(INVALID_PARAMS, f'Missing required param: {camel_name}')
+    raise jr.JsonrpcMethodError(jr.KnownErrors.INVALID_PARAMS, f'Missing required param: {camel_name}')
 
 
 def ensure_params(raw: ta.Any) -> JsonObject:
     if raw is None:
         return {}
     if not isinstance(raw, dict):
-        raise JsonRpcError(INVALID_PARAMS, 'params must be an object')
+        raise jr.JsonrpcMethodError(jr.KnownErrors.INVALID_PARAMS, 'params must be an object')
     return raw
-
-
-class JsonRpcPeer:
-    def __init__(self, transport: AcpTransport) -> None:
-        super().__init__()
-
-        self._transport = transport
-        self._write_lock = asyncio.Lock()
-
-    async def send(self, msg: JsonObject) -> None:
-        data = json.dumps(msg, ensure_ascii=False, separators=(',', ':')).encode('utf-8') + b'\n'
-        async with self._write_lock:
-            await self._transport.write_message(data)
-
-    async def send_result(self, request_id: RequestId, result: ta.Any) -> None:
-        await self.send({
-            'jsonrpc': '2.0',
-            'id': request_id,
-            'result': result,
-        })
-
-    async def send_error(
-        self,
-        request_id: RequestId,
-        code: int,
-        message: str,
-        data: ta.Any = None,
-    ) -> None:
-        err: dict[str, ta.Any] = {
-            'code': code,
-            'message': message,
-        }
-        if data is not None:
-            err['data'] = data
-
-        await self.send({
-            'jsonrpc': '2.0',
-            'id': request_id,
-            'error': err,
-        })
-
-    async def send_notification(self, method: str, params: JsonObject) -> None:
-        await self.send({
-            'jsonrpc': '2.0',
-            'method': method,
-            'params': params,
-        })
 
 
 ##
 # echo ACP agent
 
 
-class EchoAcpHandler:
-    def __init__(self, transport: AcpTransport) -> None:
+class EchoAcpAgent(jr.AsyncDispatcher):
+    """One agent per connection: sessions are connection-scoped."""
+
+    def __init__(self) -> None:
         super().__init__()
 
-        self._transport = transport
-        self._peer = JsonRpcPeer(transport)
         self._sessions: set[str] = set()
 
-    async def run(self) -> None:
-        while True:
-            line = await self._transport.read_message()
-            if not line:
-                return
+    async def dispatch(self, connection: ta.Any, request: jr.Request) -> ta.Any:
+        conn: jpl.AsyncioConnection = connection
+        params = ensure_params(request.params)
 
-            line = line.strip()
-            if not line:
-                continue
-
-            await self._handle_line(line)
-
-    async def _handle_line(self, line: bytes) -> None:
-        try:
-            msg = json.loads(line)
-        except json.JSONDecodeError as e:
-            await self._peer.send_error(None, PARSE_ERROR, 'Parse error', str(e))
-            return
-
-        print(json.dumps(msg, indent=2, separators=(', ', ': ')), file=sys.stderr)
-
-        if not isinstance(msg, dict):
-            await self._peer.send_error(None, INVALID_REQUEST, 'JSON-RPC message must be an object')
-            return
-
-        request_id = msg.get('id')
-        is_request = 'id' in msg
-
-        try:
-            # Ignore responses from the client. This echo agent never sends JSON-RPC requests, only notifications, so
-            # there is nothing to match.
-            if 'method' not in msg and ('result' in msg or 'error' in msg):
-                return
-
-            if msg.get('jsonrpc') != '2.0':
-                raise JsonRpcError(INVALID_REQUEST, "jsonrpc must be '2.0'")
-
-            method = msg.get('method')
-            if not isinstance(method, str):
-                raise JsonRpcError(INVALID_REQUEST, 'method must be a string')
-
-            result = await self._dispatch(method, ensure_params(msg.get('params')))
-
-        except JsonRpcError as e:
-            if is_request:
-                await self._peer.send_error(request_id, e.code, e.message, e.data)
-            return
-
-        except Exception as e:  # noqa
-            print('Internal ACP server error:', file=sys.stderr)
-            traceback.print_exc(file=sys.stderr)
-            if is_request:
-                await self._peer.send_error(request_id, INTERNAL_ERROR, 'Internal error', str(e))
-            return
-
-        if is_request:
-            print(json.dumps(result, indent=2, separators=(', ', ': ')), file=sys.stderr)
-            await self._peer.send_result(request_id, result)
-
-    async def _dispatch(self, method: str, params: JsonObject) -> ta.Any:
-        match method:
+        match request.method:
             case 'initialize':
                 return await self.initialize(params)
 
@@ -401,20 +186,24 @@ class EchoAcpHandler:
                 return await self.new_session(params)
 
             case 'session/prompt':
-                return await self.prompt(params)
+                return await self.prompt(conn, params)
 
             case 'session/cancel':
-                # This echo agent has no long-running work to cancel. If a client sends this as a notification, no
-                # response is sent by JSON-RPC.
+                # This echo agent has no long-running work to cancel. Clients send this as a notification, in which
+                # case it never reaches here; as a request it is simply acknowledged.
                 return {}
 
             case _:
-                raise JsonRpcError(METHOD_NOT_FOUND, f'Method not found: {method}')
+                raise jr.JsonrpcMethodError(jr.KnownErrors.METHOD_NOT_FOUND, data=request.method)
+
+    async def handle_notification(self, conn: jpl.AsyncioConnection, note: jr.Request) -> None:
+        # session/cancel and anything else: nothing to do.
+        pass
 
     async def initialize(self, params: JsonObject) -> JsonObject:
         protocol_version = get_param(params, 'protocolVersion', 'protocol_version')
         if not isinstance(protocol_version, int):
-            raise JsonRpcError(INVALID_PARAMS, 'protocolVersion must be an integer')
+            raise jr.JsonrpcMethodError(jr.KnownErrors.INVALID_PARAMS, 'protocolVersion must be an integer')
 
         return msh.marshal(protocol.InitializeResponse(protocol_version=protocol_version))  # type: ignore
 
@@ -422,31 +211,31 @@ class EchoAcpHandler:
         # Equivalent to the SDK sample: accept cwd/additionalDirectories/mcpServers but do not do anything with them.
         cwd = get_param(params, 'cwd', default=None)
         if cwd is not None and not isinstance(cwd, str):
-            raise JsonRpcError(INVALID_PARAMS, 'cwd must be a string')
+            raise jr.JsonrpcMethodError(jr.KnownErrors.INVALID_PARAMS, 'cwd must be a string')
 
         session_id = uuid.uuid7().hex
         self._sessions.add(session_id)
         return NewSessionResponse(session_id=session_id).to_json()
 
-    async def prompt(self, params: JsonObject) -> JsonObject:
+    async def prompt(self, conn: jpl.AsyncioConnection, params: JsonObject) -> JsonObject:
         session_id = get_param(params, 'sessionId', 'session_id')
         if not isinstance(session_id, str):
-            raise JsonRpcError(INVALID_PARAMS, 'sessionId must be a string')
+            raise jr.JsonrpcMethodError(jr.KnownErrors.INVALID_PARAMS, 'sessionId must be a string')
         if session_id not in self._sessions:
-            raise JsonRpcError(INVALID_PARAMS, f'Unknown sessionId: {session_id}')
+            raise jr.JsonrpcMethodError(jr.KnownErrors.INVALID_PARAMS, f'Unknown sessionId: {session_id}')
 
         prompt = get_param(params, 'prompt')
         if not isinstance(prompt, list):
-            raise JsonRpcError(INVALID_PARAMS, 'prompt must be a list')
+            raise jr.JsonrpcMethodError(jr.KnownErrors.INVALID_PARAMS, 'prompt must be a list')
 
         message_id = get_param(params, 'messageId', 'message_id', default=None)
         if message_id is not None and not isinstance(message_id, str):
-            raise JsonRpcError(INVALID_PARAMS, 'messageId must be a string when present')
+            raise jr.JsonrpcMethodError(jr.KnownErrors.INVALID_PARAMS, 'messageId must be a string when present')
 
         for raw_block in prompt:
             block = TextContentBlock.from_json(raw_block)
             if block is None:
-                # Per your requirement: only TextContentBlock is handled.
+                # Only TextContentBlock is handled.
                 continue
 
             echoed = TextContentBlock(
@@ -459,6 +248,7 @@ class EchoAcpHandler:
             )
 
             await self.session_update(
+                conn,
                 session_id=session_id,
                 update=chunk,
                 source='echo_agent',
@@ -471,6 +261,7 @@ class EchoAcpHandler:
 
     async def session_update(
         self,
+        conn: jpl.AsyncioConnection,
         *,
         session_id: str,
         update: AgentMessageChunk,
@@ -487,11 +278,53 @@ class EchoAcpHandler:
         if source is not None:
             params['_meta'] = {'source': source}
 
-        await self._peer.send_notification('session/update', params)
+        await conn.notify('session/update', params)
+
+
+##
+# serving
+
+
+def build_connection(
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        config: jpl.Config = jpl.Config.DEFAULT,
+) -> jpl.AsyncioConnection:
+    agent = EchoAcpAgent()
+    return jpl.AsyncioConnections.of_streams(
+        reader,
+        writer,
+        config,
+        dispatcher=agent,
+        notification_handler=agent.handle_notification,
+    )
+
+
+async def serve_stdio(config: jpl.Config = jpl.Config.DEFAULT) -> None:
+    agent = EchoAcpAgent()
+    conn = await jpl.AsyncioConnections.of_stdio(
+        config,
+        dispatcher=agent,
+        notification_handler=agent.handle_notification,
+    )
+    async with conn:
+        await conn.wait_closed()
+
+
+async def serve_unix(socket_path: str, config: jpl.Config = jpl.Config.DEFAULT) -> None:
+    server = jpl.AsyncioServer(
+        jpl.AsyncioServerConfig(
+            endpoint=UnixSocketEndpoint(path=socket_path),
+            pipeline=config,
+        ),
+        connection_factory=lambda r, w: build_connection(r, w, config),
+    )
+    async with server:
+        await server.serve_forever()
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description='Zero-dependency echo ACP agent server')
+    parser = argparse.ArgumentParser(description='Echo ACP agent server')
     subparsers = parser.add_subparsers()
     parser.set_defaults(_cmd=None)
 
@@ -515,27 +348,18 @@ async def main() -> None:
 
     match args._cmd:  # noqa
         case 'serve':
-            server: AcpServer
             match args.transport:
                 case 'stdio':
-                    server = StdioAcp()
+                    await serve_stdio()
 
                 case 'unix':
-                    server = UnixSocketAcpServer(args.socket)
+                    await serve_unix(args.socket)
 
                 case _:
                     raise ValueError(f'Unknown transport: {args.transport}')
 
-            async def handler(t: AcpTransport) -> None:
-                await EchoAcpHandler(t).run()
-
-            await server.run_server(handler)
-
-        case None:
-            parser.print_help()
-
         case _:
-            raise RuntimeError('invalid command specified')
+            parser.print_help()
 
 
 if __name__ == '__main__':

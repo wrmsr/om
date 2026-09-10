@@ -26,7 +26,7 @@ import typing as ta
 from omcore import check
 from omcore import lang
 from omcore.formats.json import all as json
-
+from omcore.specs import jsonrpc as jr
 from omllm.core.http.sse import SseEvent
 from omllm.core.streams import StreamSink
 from omllm.core.streams import new_stream
@@ -234,6 +234,8 @@ class _SubprocessClaudeCodeSession(ClaudeCodeSession):
         self._model = model
         self._context = context
         self._tool_host = tool_host
+
+        self._mcp_dispatcher = self._build_mcp_dispatcher()
 
         self._proc: asyncio.subprocess.Process | None = None
         self._stdout_lines: asyncio.Queue[ta.Mapping[str, ta.Any] | None] = asyncio.Queue()
@@ -531,92 +533,86 @@ class _SubprocessClaudeCodeSession(ClaudeCodeSession):
                 },
             })
 
-    async def _handle_mcp(self, msg: ta.Mapping[str, ta.Any]) -> ta.Mapping[str, ta.Any] | None:
+    def _build_mcp_dispatcher(self) -> jr.AsyncDispatcher:
         """
-        Minimal MCP server over JSON-RPC. Each branch's dict can be replaced by marshalling a specs.mcp.protocol type
+        Minimal MCP server over JSON-RPC. Each result dict can be replaced by marshalling a specs.mcp.protocol type
         (InitializeResult, ListToolsResult, CallToolResult) via omcore.marshal instead of a hand-built dict.
         """
 
-        method = msg.get('method')
-        msg_id = msg.get('id')
-
-        # notifications (no id) get no reply
-        if msg_id is None:
-            return None
-
-        if method == 'initialize':
+        def initialize(**params: ta.Any) -> ta.Any:
             # -> specs.mcp.protocol.InitializeResult
             return {
-                'jsonrpc': '2.0',
-                'id': msg_id,
-                'result': {
-                    'protocolVersion': msg.get('params', {}).get('protocolVersion', '2025-06-18'),
-                    'capabilities': {'tools': {}},
-                    'serverInfo': {'name': 'om', 'version': '0.0.0'},
-                },
+                'protocolVersion': params.get('protocolVersion', '2025-06-18'),
+                'capabilities': {'tools': {}},
+                'serverInfo': {'name': 'om', 'version': '0.0.0'},
             }
 
-        if method == 'tools/list':
+        def list_tools(**params: ta.Any) -> ta.Any:
             # -> specs.mcp.protocol.ListToolsResult; note MCP wants inputSchema (the params object), which is exactly
             # build_tool_params_json_schema.
-            tools = [
-                {
-                    'name': t.name,
-                    **({'description': t.description} if t.description is not None else {}),
-                    'inputSchema': build_tool_params_json_schema(t),
-                }
-                for t in self._tool_host.tools
-            ]
             return {
-                'jsonrpc': '2.0',
-                'id': msg_id,
-                'result': {
-                    'tools': tools,
-                },
+                'tools': [
+                    {
+                        'name': t.name,
+                        **({'description': t.description} if t.description is not None else {}),
+                        'inputSchema': build_tool_params_json_schema(t),
+                    }
+                    for t in self._tool_host.tools
+                ],
             }
 
-        if method == 'tools/call':
-            params = msg.get('params', {})
-            name = params['name']
-            args = params.get('arguments', {})
+        async def call_tool(name: str, arguments: ta.Mapping[str, ta.Any] | None = None, **params: ta.Any) -> ta.Any:
             try:
-                text = await self._tool_host.call_tool(name, args)
-                # -> specs.mcp.protocol.CallToolResult
-                return {
-                    'jsonrpc': '2.0',
-                    'id': msg_id,
-                    'result': {
-                        'content': [{
-                            'type': 'text',
-                            'text': text,
-                        }],
-                    },
-                }
+                text = await self._tool_host.call_tool(name, dict(arguments or {}))
             except Exception as e:  # noqa
+                # -> specs.mcp.protocol.CallToolResult, tool failure is a successful response flagged isError
                 return {
-                    'jsonrpc': '2.0',
-                    'id': msg_id,
-                    'result': {
-                        'content': [{
-                            'type': 'text',
-                            'text': str(e),
-                        }],
-                        'isError': True,
-                    },
+                    'content': [{'type': 'text', 'text': str(e)}],
+                    'isError': True,
                 }
+            return {
+                'content': [{'type': 'text', 'text': text}],
+            }
 
-        if method == 'ping':
-            return {'jsonrpc': '2.0', 'id': msg_id, 'result': {}}
+        def ping() -> ta.Any:
+            return {}
 
-        # method-not-found
-        return {
-            'jsonrpc': '2.0',
-            'id': msg_id,
-            'error': {
-                'code': -32601,
-                'message': f'{method} not supported',
-            },
-        }
+        return jr.AsyncDictDispatcher({
+            'initialize': initialize,
+            'tools/list': list_tools,
+            'tools/call': call_tool,
+            'ping': ping,
+        })
+
+    async def _handle_mcp(self, msg: ta.Any) -> ta.Mapping[str, ta.Any] | None:
+        """
+        Answer one already-decoded JSON-RPC message as the MCP server, returning the response to tunnel back, or None
+        when nothing is owed (a notification, or a stray response).
+        """
+
+        payload = jr.parse_payload(msg)
+
+        if isinstance(payload, jr.InvalidMessage):
+            return None if payload.looks_like_response else jr.dump_message(payload)
+
+        if isinstance(payload, jr.Batch):
+            # MCP 2025-06-18 dropped batching.
+            return jr.dump_message(jr.error(None, jr.KnownErrors.INVALID_REQUEST.to_error(message='Batches not supported')))  # noqa
+
+        if isinstance(payload, jr.Response) or payload.is_notification:
+            return None
+
+        req = payload
+        resp: jr.Response
+        try:
+            result = await self._mcp_dispatcher.dispatch(self, req)
+            resp = jr.result(req.id_value(), result)
+        except jr.JsonrpcMethodError as e:
+            resp = jr.error(req.id_value(), e.error)
+        except Exception as e:  # noqa
+            resp = jr.error(req.id_value(), jr.error_for_exception(e))
+
+        return jr.dump_message(resp)
 
 
 ##

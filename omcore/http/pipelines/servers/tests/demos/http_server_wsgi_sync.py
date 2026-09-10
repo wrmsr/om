@@ -5,7 +5,7 @@ import socket
 import typing as ta
 
 from ......io.pipelines.core import IoPipeline
-from ......io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from ...apps.wsgi import IoPipelineWsgiSpec
 from ...apps.wsgi import WsgiIoPipelineHandler
 from ...requests import IoPipelineHttpRequestAggregatorDecoder
@@ -35,7 +35,7 @@ def serve_wsgi_pipeline(spec: IoPipelineWsgiSpec) -> None:
             if e.errno != errno.ENOPROTOOPT:
                 raise
 
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             build_wsgi_spec(spec.app),
             conn,
         )

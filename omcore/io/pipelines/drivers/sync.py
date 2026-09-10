@@ -1,10 +1,14 @@
 # ruff: noqa: UP006 UP007 UP037 UP045
 # @om-lite
+import abc
 import collections
 import dataclasses as dc
+import fcntl
+import os
 import select
 import typing as ta
 
+from ....lite.abstract import Abstract
 from ....lite.check import check
 from ....logs.modules import get_module_logger
 from ...streambufs.segmented import SegmentedByteStreamBuffer
@@ -18,24 +22,28 @@ from .metadata import DriverIoPipelineMetadata
 from .types import IoPipelineDriverState
 
 
+SyncIoPipelineDriverT = ta.TypeVar('SyncIoPipelineDriverT', bound='SyncIoPipelineDriver')
+
+
 log = get_module_logger(globals())  # noqa
 
 
 ##
 
 
-class SyncSocketIoPipelineDriver:
+class SyncIoPipelineDriver(Abstract):
     """
-    Drive a pipeline over a caller-owned socket.
+    Drive a pipeline over a caller-owned synchronous transport, blocking the calling thread.
 
-    The socket must be used exclusively through the driver while it is active. The driver temporarily makes sockets
-    nonblocking so reads, queued writes, and timers can share one readiness wait, then restores the original timeout
-    when the pipeline closes or fails.
+    The transport must be used exclusively through the driver while it is active. Subclasses supply the handful of
+    transport operations - nonblocking reads and writes, the file descriptors to wait on, and switching the transport
+    into and out of nonblocking mode - and everything else (pipeline stepping, queued writes, watermarks, timers, the
+    readiness wait) is shared.
     """
 
     @dc.dataclass(frozen=True)
     class Config:
-        DEFAULT: ta.ClassVar['SyncSocketIoPipelineDriver.Config']
+        DEFAULT: ta.ClassVar['SyncIoPipelineDriver.Config']
 
         read_chunk_size: int = 64 * 1024
         read_batch_max_bytes: int = 1024 * 1024
@@ -68,13 +76,11 @@ class SyncSocketIoPipelineDriver:
     def __init__(
             self,
             spec: IoPipeline.Spec,
-            sock: ta.Any,
             config: ta.Optional[Config] = None,
     ) -> None:
         super().__init__()
 
         self._spec = spec
-        self._sock = sock
         if config is None:
             config = self.Config.DEFAULT
         self._config = config
@@ -86,9 +92,8 @@ class SyncSocketIoPipelineDriver:
         self._write_q_bytes = 0
         self._output_writable = True
 
-        self._socket_mode_prepared = False
-        self._socket_mode_changed = False
-        self._socket_original_timeout: ta.Optional[float] = None
+        self._transport_prepared = False
+        self._wait_timeout_s: ta.Optional[float] = None
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._pending_read_error: ta.Optional[OSError] = None
@@ -118,6 +123,22 @@ class SyncSocketIoPipelineDriver:
     def pipeline(self) -> IoPipeline:
         return self._pipeline
 
+    @property
+    def wait_timeout_s(self) -> ta.Optional[float]:
+        return self._wait_timeout_s
+
+    @wait_timeout_s.setter
+    def wait_timeout_s(self, timeout_s: ta.Optional[float]) -> None:
+        """
+        An additional bound on each readiness wait, on top of the transport's own timeout. Lets a host which must not
+        block forever - say, while closing against a peer which has stopped reading - get a TimeoutError back from
+        `next` and decide what to do. May be changed at any time between calls.
+        """
+
+        if timeout_s is not None and timeout_s < 0.:
+            raise ValueError(timeout_s)
+        self._wait_timeout_s = timeout_s
+
     #
 
     def _opt_pipeline(self) -> ta.Optional[IoPipeline]:
@@ -135,7 +156,7 @@ class SyncSocketIoPipelineDriver:
         check.state(self._state is IoPipelineDriverState.NEW)
 
         try:
-            self._prepare_socket_mode()
+            self._prepare_transport_once()
 
             self._sched = HeapIoPipelineSchedulingService()
 
@@ -146,7 +167,7 @@ class SyncSocketIoPipelineDriver:
 
         except BaseException:
             self._state = IoPipelineDriverState.FAILED
-            self._restore_socket_mode()
+            self._restore_transport_if_prepared()
             raise
 
         self._state = IoPipelineDriverState.RUNNING
@@ -178,45 +199,69 @@ class SyncSocketIoPipelineDriver:
 
     #
 
-    def _prepare_socket_mode(self) -> None:
-        if self._socket_mode_prepared:
+    ##
+    # transport
+
+    @abc.abstractmethod
+    def _prepare_transport(self) -> None:
+        """Switch the transport to nonblocking mode. Called once before the pipeline is created."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _restore_transport(self) -> None:
+        """Undo _prepare_transport. Called on close or failure, possibly more than once."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _transport_timeout(self) -> ta.Optional[float]:
+        """
+        The transport's own I/O timeout, bounding each readiness wait: None blocks indefinitely, zero never blocks, and
+        exceeding a positive value raises TimeoutError. A socket reports the timeout it had before being made
+        nonblocking.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _read_fileno(self) -> int:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _write_fileno(self) -> int:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _read_into(self, buf: memoryview) -> int:
+        """Read up to len(buf) bytes, returning 0 at EOF. Raises BlockingIOError when nothing is available."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _write(self, data: memoryview) -> int:
+        """Write some of data, returning the number of bytes accepted. Raises BlockingIOError when none can be."""
+
+        raise NotImplementedError
+
+    #
+
+    def _prepare_transport_once(self) -> None:
+        if self._transport_prepared:
             return
-        self._socket_mode_prepared = True
+        self._transport_prepared = True
+        self._prepare_transport()
 
-        try:
-            gettimeout = self._sock.gettimeout
-            setblocking = self._sock.setblocking
-            _ = self._sock.settimeout
-        except AttributeError:
+    def _restore_transport_if_prepared(self) -> None:
+        if not self._transport_prepared:
             return
-
-        self._socket_original_timeout = gettimeout()
-        setblocking(False)
-        self._socket_mode_changed = True
-
-    def _restore_socket_mode(self) -> None:
-        if not self._socket_mode_changed:
-            return
-        self._socket_mode_changed = False
-
-        try:
-            self._sock.settimeout(self._socket_original_timeout)
-        except OSError:
-            pass
-
-    def _get_socket_timeout(self) -> ta.Optional[float]:
-        if self._socket_mode_changed:
-            return self._socket_original_timeout
-
-        try:
-            return self._sock.gettimeout()
-        except AttributeError:
-            return None
+        self._transport_prepared = False
+        self._restore_transport()
 
     #
 
     def close(self) -> None:
-        """Abort the pipeline, discard queued output, and restore the caller-owned socket's original mode."""
+        """Abort the pipeline, discard queued output, and restore the caller-owned transport's original mode."""
 
         if self._state is IoPipelineDriverState.CLOSED:
             return
@@ -235,7 +280,7 @@ class SyncSocketIoPipelineDriver:
             self._write_q_bytes = 0
             self._transport_final_output = None
             self._pending_read_error = None
-            self._restore_socket_mode()
+            self._restore_transport_if_prepared()
 
     def _fail(self) -> None:
         self._state = IoPipelineDriverState.FAILED
@@ -247,9 +292,9 @@ class SyncSocketIoPipelineDriver:
                 pipeline.destroy()
         finally:
             self._transport_final_output = None
-            self._restore_socket_mode()
+            self._restore_transport_if_prepared()
 
-    def __enter__(self) -> 'SyncSocketIoPipelineDriver':  # noqa
+    def __enter__(self: SyncIoPipelineDriverT) -> SyncIoPipelineDriverT:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -266,7 +311,7 @@ class SyncSocketIoPipelineDriver:
         for _ in range(self._config.read_batch_max_reads):
             reserve = buf.reserve(min(self._config.read_chunk_size, remaining))
             try:
-                read = self._sock.recv_into(reserve)
+                read = self._read_into(reserve)
             except BlockingIOError:
                 reserve.release()
                 buf.commit(0)
@@ -337,7 +382,7 @@ class SyncSocketIoPipelineDriver:
             write_mv = mv
 
         try:
-            n = self._sock.send(write_mv)
+            n = self._write(write_mv)
         except BlockingIOError:
             return False
         except OSError:
@@ -345,7 +390,7 @@ class SyncSocketIoPipelineDriver:
             raise
 
         if n < 1:
-            error = BrokenPipeError('socket send returned no progress')
+            error = BrokenPipeError('transport write returned no progress')
             self._fail()
             raise error
 
@@ -384,7 +429,9 @@ class SyncSocketIoPipelineDriver:
 
             socket_timeout: ta.Optional[float] = None
             if want_read or want_write:
-                socket_timeout = self._get_socket_timeout()
+                socket_timeout = self._transport_timeout()
+                if (wt := self._wait_timeout_s) is not None:
+                    socket_timeout = wt if socket_timeout is None else min(socket_timeout, wt)
             else:
                 check.not_none(timer_delay)
 
@@ -401,8 +448,8 @@ class SyncSocketIoPipelineDriver:
 
             try:
                 readable, writable, _ = select.select(
-                    [self._sock] if want_read else [],
-                    [self._sock] if want_write else [],
+                    [self._read_fileno()] if want_read else [],
+                    [self._write_fileno()] if want_write else [],
                     [],
                     timeout,
                 )
@@ -556,7 +603,7 @@ class SyncSocketIoPipelineDriver:
 
             elif out == 'stop':
                 try:
-                    self._restore_socket_mode()
+                    self._restore_transport_if_prepared()
                     self._complete_transport_final_output()
                     pipeline.destroy()
                 except BaseException:
@@ -565,7 +612,7 @@ class SyncSocketIoPipelineDriver:
                 else:
                     self._state = IoPipelineDriverState.CLOSED
                 finally:
-                    self._restore_socket_mode()
+                    self._restore_transport_if_prepared()
 
                 return None
 
@@ -616,3 +663,151 @@ class SyncSocketIoPipelineDriver:
 
         finally:
             self.close()
+
+
+##
+
+
+class SocketSyncIoPipelineDriver(SyncIoPipelineDriver):
+    """
+    Drive a pipeline over a caller-owned socket.
+
+    The driver temporarily makes the socket nonblocking so reads, queued writes, and timers can share one readiness
+    wait, then restores the original timeout when the pipeline closes or fails. The socket's original timeout, if any,
+    bounds each wait.
+    """
+
+    def __init__(
+            self,
+            spec: IoPipeline.Spec,
+            sock: ta.Any,
+            config: ta.Optional[SyncIoPipelineDriver.Config] = None,
+    ) -> None:
+        super().__init__(spec, config)
+
+        self._sock = sock
+
+        self._socket_mode_changed = False
+        self._socket_original_timeout: ta.Optional[float] = None
+
+    @property
+    def socket(self) -> ta.Any:
+        return self._sock
+
+    def _prepare_transport(self) -> None:
+        try:
+            gettimeout = self._sock.gettimeout
+            setblocking = self._sock.setblocking
+            _ = self._sock.settimeout
+        except AttributeError:
+            return
+
+        self._socket_original_timeout = gettimeout()
+        setblocking(False)
+        self._socket_mode_changed = True
+
+    def _restore_transport(self) -> None:
+        if not self._socket_mode_changed:
+            return
+        self._socket_mode_changed = False
+
+        try:
+            self._sock.settimeout(self._socket_original_timeout)
+        except OSError:
+            pass
+
+    def _transport_timeout(self) -> ta.Optional[float]:
+        if self._socket_mode_changed:
+            return self._socket_original_timeout
+
+        try:
+            return self._sock.gettimeout()
+        except AttributeError:
+            return None
+
+    def _read_fileno(self) -> int:
+        return self._sock.fileno()
+
+    def _write_fileno(self) -> int:
+        return self._sock.fileno()
+
+    def _read_into(self, buf: memoryview) -> int:
+        return self._sock.recv_into(buf)
+
+    def _write(self, data: memoryview) -> int:
+        return self._sock.send(data)
+
+
+# Deprecated spelling, retained for code not yet migrated.
+SyncSocketIoPipelineDriver = SocketSyncIoPipelineDriver
+
+
+##
+
+
+class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
+    """
+    Drive a pipeline over a pair of caller-owned file descriptors, such as a pipe pair or a process's own stdio.
+
+    Both descriptors are switched to nonblocking mode while the driver is active and restored afterwards. They may be
+    the same descriptor. An optional timeout bounds each readiness wait the same way a socket's timeout would.
+    """
+
+    def __init__(
+            self,
+            spec: IoPipeline.Spec,
+            read_fd: int,
+            write_fd: int,
+            config: ta.Optional[SyncIoPipelineDriver.Config] = None,
+            *,
+            timeout_s: ta.Optional[float] = None,
+    ) -> None:
+        super().__init__(spec, config)
+
+        self._read_fd = read_fd
+        self._write_fd = write_fd
+        self._timeout_s = timeout_s
+
+        self._original_flags: ta.Dict[int, int] = {}
+
+    @property
+    def read_fd(self) -> int:
+        return self._read_fd
+
+    @property
+    def write_fd(self) -> int:
+        return self._write_fd
+
+    def _prepare_transport(self) -> None:
+        for fd in {self._read_fd, self._write_fd}:
+            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            self._original_flags[fd] = flags
+            if not (flags & os.O_NONBLOCK):
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+    def _restore_transport(self) -> None:
+        flags_by_fd = self._original_flags
+        self._original_flags = {}
+        for fd, flags in flags_by_fd.items():
+            try:
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+            except OSError:
+                pass
+
+    def _transport_timeout(self) -> ta.Optional[float]:
+        return self._timeout_s
+
+    def _read_fileno(self) -> int:
+        return self._read_fd
+
+    def _write_fileno(self) -> int:
+        return self._write_fd
+
+    def _read_into(self, buf: memoryview) -> int:
+        data = os.read(self._read_fd, len(buf))
+        n = len(data)
+        buf[:n] = data
+        return n
+
+    def _write(self, data: memoryview) -> int:
+        return os.write(self._write_fd, data)

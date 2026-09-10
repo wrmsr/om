@@ -39,7 +39,6 @@
 
 ### proto impls
 
-- jsonrpc
 - irc lol
 - dns?? stub
 - proto / grpc

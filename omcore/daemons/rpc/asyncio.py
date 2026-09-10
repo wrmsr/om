@@ -8,11 +8,14 @@ from ... import dataclasses as dc
 from ... import lang
 from ...io.pipelines import all as ipl
 from ...logs import all as logs
+from ...sockets.endpoints import SocketEndpoint as RpcEndpoint
+from ...sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint
+from ...sockets.transports import DEFAULT_ASYNCIO_SOCKET_TRANSPORT as DEFAULT_ASYNCIO_RPC_TRANSPORT
+from ...sockets.transports import AsyncioSocketListener as AsyncioRpcListener
+from ...sockets.transports import AsyncioSocketTransport as AsyncioRpcTransport
 from .client import RpcClient
 from .dispatch import rpc_remote_error_response
 from .dispatch import validate_rpc_response
-from .endpoints import RpcEndpoint
-from .endpoints import resolve_rpc_endpoint
 from .pipelines import RpcClientConnected
 from .pipelines import RpcClientRequestSent
 from .pipelines import RpcClientResponse
@@ -41,9 +44,6 @@ from .registry import RpcResponseRegistry
 from .registry import RpcResponseRejected
 from .registry import RpcResponseReplay
 from .server import RpcServerDrainTimeoutError
-from .transports import DEFAULT_ASYNCIO_RPC_TRANSPORT
-from .transports import AsyncioRpcListener
-from .transports import AsyncioRpcTransport
 
 
 log = logs.get_module_logger(globals())

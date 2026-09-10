@@ -11,10 +11,12 @@ from ... import dataclasses as dc
 from ... import lang
 from ...io.pipelines import all as ipl
 from ...logs import all as logs
+from ...sockets.endpoints import SocketEndpoint as RpcEndpoint
+from ...sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint
 from ...sockets.io import close_socket_immediately
+from ...sockets.transports import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
+from ...sockets.transports import SyncSocketTransport as SyncRpcTransport
 from .dispatch import RpcRequestDispatcher
-from .endpoints import RpcEndpoint
-from .endpoints import resolve_rpc_endpoint
 from .pipelines import RpcPipelineFailure
 from .pipelines import RpcServerDispatch
 from .pipelines import RpcServerSendResponse
@@ -26,8 +28,6 @@ from .protocol import RPC_PROTOCOL_VERSION
 from .protocol import RpcHandler
 from .protocol import RpcProtocolError
 from .registry import RpcResponseRegistry
-from .transports import DEFAULT_SYNC_RPC_TRANSPORT
-from .transports import SyncRpcTransport
 
 
 log = logs.get_module_logger(globals())

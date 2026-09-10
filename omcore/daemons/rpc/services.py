@@ -1,12 +1,12 @@
 import typing as ta
 
 from ... import dataclasses as dc
+from ...sockets.endpoints import SocketEndpoint as RpcEndpoint
 from ..pidfiles import current_daemon_pidfile_info
 from ..runtime import ActivityRejectedError
 from ..runtime import DrainTimeoutError
 from ..runtime import ServiceRuntime
 from ..services import RuntimeService
-from .endpoints import RpcEndpoint
 from .protocol import RPC_DEFAULT_MAX_FRAME_BYTES
 from .protocol import RpcHandler
 from .server import RpcServer

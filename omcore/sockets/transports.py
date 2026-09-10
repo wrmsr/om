@@ -1,3 +1,9 @@
+"""
+Connecting to and listening on unix and tcp socket endpoints, synchronously and under asyncio.
+
+The asyncio transport binds via the sync transport and adopts the already-bound socket, so unix socket mode, backlog,
+and stale-socket replacement policy are shared between the two.
+"""
 import asyncio
 import errno
 import os
@@ -5,12 +11,12 @@ import socket
 import stat
 import typing as ta
 
-from ... import check
-from ... import lang
-from ...sockets.io import close_socket_immediately
-from .endpoints import RpcEndpoint
-from .endpoints import TcpRpcEndpoint
-from .endpoints import UnixRpcEndpoint
+from .. import check
+from .. import lang
+from .endpoints import SocketEndpoint
+from .endpoints import TcpSocketEndpoint
+from .endpoints import UnixSocketEndpoint
+from .io import close_socket_immediately
 
 
 Socket: ta.TypeAlias = socket.socket
@@ -19,9 +25,9 @@ Socket: ta.TypeAlias = socket.socket
 ##
 
 
-class SyncRpcListener(ta.Protocol):
+class SyncSocketListener(ta.Protocol):
     @property
-    def bound_endpoint(self) -> RpcEndpoint:
+    def bound_endpoint(self) -> SocketEndpoint:
         raise NotImplementedError
 
     @property
@@ -35,10 +41,10 @@ class SyncRpcListener(ta.Protocol):
         raise NotImplementedError
 
 
-class SyncRpcTransport(ta.Protocol):
+class SyncSocketTransport(ta.Protocol):
     def connect(
             self,
-            endpoint: RpcEndpoint,
+            endpoint: SocketEndpoint,
             *,
             timeout_s: float | None,
     ) -> socket.socket:
@@ -46,17 +52,17 @@ class SyncRpcTransport(ta.Protocol):
 
     def listen(
             self,
-            endpoint: RpcEndpoint,
+            endpoint: SocketEndpoint,
             *,
             backlog: int,
             unix_socket_mode: int,
-    ) -> SyncRpcListener:
+    ) -> SyncSocketListener:
         raise NotImplementedError
 
 
-class AsyncioRpcListener(ta.Protocol):
+class AsyncioSocketListener(ta.Protocol):
     @property
-    def bound_endpoint(self) -> RpcEndpoint:
+    def bound_endpoint(self) -> SocketEndpoint:
         raise NotImplementedError
 
     async def serve_forever(self) -> ta.NoReturn:
@@ -66,27 +72,27 @@ class AsyncioRpcListener(ta.Protocol):
         raise NotImplementedError
 
 
-AsyncioRpcConnectionHandler: ta.TypeAlias = ta.Callable[
+AsyncioSocketConnectionHandler: ta.TypeAlias = ta.Callable[
     [asyncio.StreamReader, asyncio.StreamWriter],
     None,
 ]
 
 
-class AsyncioRpcTransport(ta.Protocol):
+class AsyncioSocketTransport(ta.Protocol):
     async def connect(
             self,
-            endpoint: RpcEndpoint,
+            endpoint: SocketEndpoint,
     ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         raise NotImplementedError
 
     async def listen(
             self,
-            endpoint: RpcEndpoint,
-            handler: AsyncioRpcConnectionHandler,
+            endpoint: SocketEndpoint,
+            handler: AsyncioSocketConnectionHandler,
             *,
             backlog: int,
             unix_socket_mode: int,
-    ) -> AsyncioRpcListener:
+    ) -> AsyncioSocketListener:
         raise NotImplementedError
 
 
@@ -104,7 +110,7 @@ def _unlink_unix_socket(path: str, identity: tuple[int, int] | None) -> None:
         os.unlink(path)
 
 
-def _bind_unix_socket(sock: socket.socket, endpoint: UnixRpcEndpoint) -> tuple[int, int]:
+def _bind_unix_socket(sock: socket.socket, endpoint: UnixSocketEndpoint) -> tuple[int, int]:
     try:
         sock.bind(endpoint.path)
     except OSError as exc:
@@ -125,7 +131,7 @@ def _bind_unix_socket(sock: socket.socket, endpoint: UnixRpcEndpoint) -> tuple[i
                 except (ConnectionRefusedError, FileNotFoundError):
                     pass
                 else:
-                    raise RuntimeError(f'RPC socket is already active: {endpoint.path!r}')
+                    raise RuntimeError(f'Socket is already active: {endpoint.path!r}')
 
             try:
                 os.unlink(endpoint.path)
@@ -137,13 +143,13 @@ def _bind_unix_socket(sock: socket.socket, endpoint: UnixRpcEndpoint) -> tuple[i
     return stat_result.st_dev, stat_result.st_ino
 
 
-class SocketRpcListener(lang.Final):
+class OwnedSocketListener(lang.Final):
     """Own a listening socket and any endpoint-specific cleanup."""
 
     def __init__(
             self,
             sock: socket.socket,
-            bound_endpoint: RpcEndpoint,
+            bound_endpoint: SocketEndpoint,
             *,
             unix_socket_identity: tuple[int, int] | None = None,
     ) -> None:
@@ -154,7 +160,7 @@ class SocketRpcListener(lang.Final):
         self._unix_socket_identity = unix_socket_identity
 
     @property
-    def bound_endpoint(self) -> RpcEndpoint:
+    def bound_endpoint(self) -> SocketEndpoint:
         return self._bound_endpoint
 
     @property
@@ -170,21 +176,21 @@ class SocketRpcListener(lang.Final):
         self._socket = None
 
         close_socket_immediately(sock)
-        if isinstance(endpoint := self._bound_endpoint, UnixRpcEndpoint):
+        if isinstance(endpoint := self._bound_endpoint, UnixSocketEndpoint):
             _unlink_unix_socket(endpoint.path, self._unix_socket_identity)
         return True
 
 
-class DefaultSyncRpcTransport(lang.Final):
+class DefaultSyncSocketTransport(lang.Final):
     """Default Unix-domain and plaintext TCP synchronous socket transport."""
 
     def connect(
             self,
-            endpoint: RpcEndpoint,
+            endpoint: SocketEndpoint,
             *,
             timeout_s: float | None,
     ) -> socket.socket:
-        if isinstance(endpoint, UnixRpcEndpoint):
+        if isinstance(endpoint, UnixSocketEndpoint):
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             try:
                 sock.settimeout(timeout_s)
@@ -194,7 +200,7 @@ class DefaultSyncRpcTransport(lang.Final):
                 raise
             return sock
 
-        if isinstance(endpoint, TcpRpcEndpoint):
+        if isinstance(endpoint, TcpSocketEndpoint):
             check.arg(endpoint.port > 0, 'Cannot connect to TCP port zero')
             return socket.create_connection(
                 (endpoint.host, endpoint.port),
@@ -205,15 +211,15 @@ class DefaultSyncRpcTransport(lang.Final):
 
     def listen(
             self,
-            endpoint: RpcEndpoint,
+            endpoint: SocketEndpoint,
             *,
             backlog: int,
             unix_socket_mode: int,
-    ) -> SyncRpcListener:
+    ) -> SyncSocketListener:
         check.arg(backlog > 0)
         check.arg(0 <= unix_socket_mode <= 0o777)
 
-        if isinstance(endpoint, UnixRpcEndpoint):
+        if isinstance(endpoint, UnixSocketEndpoint):
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             identity: tuple[int, int] | None = None
             try:
@@ -224,13 +230,13 @@ class DefaultSyncRpcTransport(lang.Final):
                 close_socket_immediately(sock)
                 _unlink_unix_socket(endpoint.path, identity)
                 raise
-            return SocketRpcListener(
+            return OwnedSocketListener(
                 sock,
                 endpoint,
                 unix_socket_identity=identity,
             )
 
-        if isinstance(endpoint, TcpRpcEndpoint):
+        if isinstance(endpoint, TcpSocketEndpoint):
             addr_info = socket.getaddrinfo(
                 endpoint.host,
                 endpoint.port,
@@ -251,11 +257,11 @@ class DefaultSyncRpcTransport(lang.Final):
                     continue
 
                 raw_bound_address = sock.getsockname()
-                bound_endpoint = TcpRpcEndpoint(
+                bound_endpoint = TcpSocketEndpoint(
                     host=check.isinstance(raw_bound_address[0], str),
                     port=check.isinstance(raw_bound_address[1], int),
                 )
-                return SocketRpcListener(sock, bound_endpoint)
+                return OwnedSocketListener(sock, bound_endpoint)
 
             if errors:
                 raise errors[-1]
@@ -264,19 +270,19 @@ class DefaultSyncRpcTransport(lang.Final):
         raise TypeError(endpoint)
 
 
-DEFAULT_SYNC_RPC_TRANSPORT: SyncRpcTransport = DefaultSyncRpcTransport()
+DEFAULT_SYNC_SOCKET_TRANSPORT: SyncSocketTransport = DefaultSyncSocketTransport()
 
 
 ##
 
 
-class AsyncioServerRpcListener(lang.Final):
+class AsyncioServerSocketListener(lang.Final):
     """Own an asyncio server and its underlying endpoint cleanup."""
 
     def __init__(
             self,
             server: asyncio.Server,
-            socket_listener: SyncRpcListener,
+            socket_listener: SyncSocketListener,
     ) -> None:
         super().__init__()
 
@@ -284,12 +290,12 @@ class AsyncioServerRpcListener(lang.Final):
         self._socket_listener = socket_listener
 
     @property
-    def bound_endpoint(self) -> RpcEndpoint:
+    def bound_endpoint(self) -> SocketEndpoint:
         return self._socket_listener.bound_endpoint
 
     async def serve_forever(self) -> ta.NoReturn:
         await check.not_none(self._server).serve_forever()
-        raise RuntimeError('Asyncio RPC listener stopped serving')
+        raise RuntimeError('Asyncio listener stopped serving')
 
     async def close(self) -> bool:
         if (server := self._server) is None:
@@ -304,12 +310,12 @@ class AsyncioServerRpcListener(lang.Final):
         return True
 
 
-class DefaultAsyncioRpcTransport(lang.Final):
+class DefaultAsyncioSocketTransport(lang.Final):
     """Default Unix-domain and plaintext TCP asyncio stream transport."""
 
     def __init__(
             self,
-            sync_transport: SyncRpcTransport = DEFAULT_SYNC_RPC_TRANSPORT,
+            sync_transport: SyncSocketTransport = DEFAULT_SYNC_SOCKET_TRANSPORT,
     ) -> None:
         super().__init__()
 
@@ -317,23 +323,23 @@ class DefaultAsyncioRpcTransport(lang.Final):
 
     async def connect(
             self,
-            endpoint: RpcEndpoint,
+            endpoint: SocketEndpoint,
     ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
-        if isinstance(endpoint, UnixRpcEndpoint):
+        if isinstance(endpoint, UnixSocketEndpoint):
             return await asyncio.open_unix_connection(endpoint.path)
-        if isinstance(endpoint, TcpRpcEndpoint):
+        if isinstance(endpoint, TcpSocketEndpoint):
             check.arg(endpoint.port > 0, 'Cannot connect to TCP port zero')
             return await asyncio.open_connection(endpoint.host, endpoint.port)
         raise TypeError(endpoint)
 
     async def listen(
             self,
-            endpoint: RpcEndpoint,
-            handler: AsyncioRpcConnectionHandler,
+            endpoint: SocketEndpoint,
+            handler: AsyncioSocketConnectionHandler,
             *,
             backlog: int,
             unix_socket_mode: int,
-    ) -> AsyncioRpcListener:
+    ) -> AsyncioSocketListener:
         socket_listener = self._sync_transport.listen(
             endpoint,
             backlog=backlog,
@@ -342,16 +348,16 @@ class DefaultAsyncioRpcTransport(lang.Final):
         try:
             sock = socket_listener.socket
             sock.setblocking(False)
-            if isinstance(endpoint, UnixRpcEndpoint):
+            if isinstance(endpoint, UnixSocketEndpoint):
                 server = await asyncio.start_unix_server(handler, sock=sock)
-            elif isinstance(endpoint, TcpRpcEndpoint):
+            elif isinstance(endpoint, TcpSocketEndpoint):
                 server = await asyncio.start_server(handler, sock=sock)
             else:
                 raise TypeError(endpoint)
         except BaseException:
             socket_listener.close()
             raise
-        return AsyncioServerRpcListener(server, socket_listener)
+        return AsyncioServerSocketListener(server, socket_listener)
 
 
-DEFAULT_ASYNCIO_RPC_TRANSPORT: AsyncioRpcTransport = DefaultAsyncioRpcTransport()
+DEFAULT_ASYNCIO_SOCKET_TRANSPORT: AsyncioSocketTransport = DefaultAsyncioSocketTransport()

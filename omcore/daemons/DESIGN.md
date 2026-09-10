@@ -78,7 +78,7 @@ make the boundary explicit:
 
 - `rpc.pipelines` implements runtime-neutral framing, JSON translation, and connection sessions;
 - `rpc.registry` and `rpc.dispatch` implement lifecycle-independent identity, replay, and synchronous dispatch;
-- `rpc.endpoints` and `rpc.transports` describe and establish byte streams without importing daemon lifecycle;
+- `omcore.sockets.endpoints` and `omcore.sockets.transports` (re-exported by `rpc` under their historical `Rpc*` names) describe and establish byte streams without importing daemon lifecycle;
 - `rpc.client`, `rpc.server`, `rpc.asyncio`, `rpc.fdio`, and `rpc.objects` are lifecycle-independent RPC pieces;
 - `rpc.services` adapts `RpcServer` to `ServiceRuntime`;
 - `rpc.lazy` composes `RpcClient` with `LazyDaemon`; and

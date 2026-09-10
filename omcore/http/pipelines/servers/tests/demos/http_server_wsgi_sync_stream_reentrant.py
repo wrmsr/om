@@ -11,7 +11,7 @@ from ......io.pipelines.core import IoPipelineHandler
 from ......io.pipelines.core import IoPipelineHandlerContext
 from ......io.pipelines.core import IoPipelineMessages
 from ......io.pipelines.drivers.metadata import DriverIoPipelineMetadata
-from ......io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from ......io.pipelines.flow.stub import StubIoPipelineFlowService
 from ......io.pipelines.flow.types import IoPipelineFlow
 from ......io.pipelines.flow.types import IoPipelineFlowMessages
@@ -36,7 +36,7 @@ from ...responses import IoPipelineHttpResponseHead
 class StreamWsgiOuterHandler(IoPipelineHandler):
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
-            driver = check.isinstance(ctx.pipeline.metadata[DriverIoPipelineMetadata].driver, SyncSocketIoPipelineDriver)  # noqa
+            driver = check.isinstance(ctx.pipeline.metadata[DriverIoPipelineMetadata].driver, SocketSyncIoPipelineDriver)  # noqa
             b = driver._sock.recv(driver._config.read_chunk_size)  # noqa
             driver._pipeline.feed_in(b, IoPipelineFlowMessages.FlushInput())  # noqa
             return
@@ -180,7 +180,7 @@ def serve_wsgi_pipeline(spec: IoPipelineWsgiSpec) -> None:
             if e.errno != errno.ENOPROTOOPT:
                 raise
 
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             build_wsgi_spec(spec.app),
             conn,
         )

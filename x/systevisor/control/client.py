@@ -16,7 +16,7 @@ from omcore.io.pipelines.core import IoPipeline
 from omcore.io.pipelines.core import IoPipelineHandler
 from omcore.io.pipelines.core import IoPipelineHandlerContext
 from omcore.io.pipelines.core import IoPipelineMessages
-from omcore.io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from omcore.io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from omcore.io.streambufs.utils import ByteStreamBuffers
 
 from .jsoncodec import SystevisorJsonCodec
@@ -166,7 +166,7 @@ class SystevisorApiClient:
         request = self._make_request(method, target, body)
         handler = SystevisorApiClientIoPipelineHandler(request)
         with self._connect(streaming=False) as sock:
-            driver = SyncSocketIoPipelineDriver(self._pipeline_spec(handler), sock)
+            driver = SocketSyncIoPipelineDriver(self._pipeline_spec(handler), sock)
             try:
                 driver.loop_until_done()
             finally:
@@ -196,7 +196,7 @@ class SystevisorApiClient:
         request = self._make_request('GET', target, None)
         handler = SystevisorApiClientIoPipelineHandler(request, callback)
         with self._connect(streaming=True) as sock:
-            driver = SyncSocketIoPipelineDriver(self._pipeline_spec(handler), sock)
+            driver = SocketSyncIoPipelineDriver(self._pipeline_spec(handler), sock)
             try:
                 driver.loop_until_done()
             finally:

@@ -20,7 +20,7 @@ from ...sched.types import IoPipelineScheduling
 from ..asyncio import PollAsyncioStreamIoPipelineDriver
 from ..fdio import IoPipelineDriverSocketFdioHandler
 from ..pure import PureIoPipelineDriver
-from ..sync import SyncSocketIoPipelineDriver
+from ..sync import SocketSyncIoPipelineDriver
 from ..types import IoPipelineDriverState
 
 
@@ -210,14 +210,14 @@ class _SyncConformanceDriverAdapter(_ConformanceDriverAdapter):
         self._sock, self._peer = socket.socketpair()
         self._sock.setblocking(False)
         self._peer.setblocking(False)
-        self._driver = SyncSocketIoPipelineDriver(
+        self._driver = SocketSyncIoPipelineDriver(
             _make_spec(
                 handler,
                 manual_input=self._manual_input,
                 explicit_auto_input=self._explicit_auto_input,
             ),
             self._sock,
-            SyncSocketIoPipelineDriver.Config(
+            SocketSyncIoPipelineDriver.Config(
                 read_chunk_size=self._read_chunk_size,
                 read_batch_max_bytes=self._read_batch_max_bytes,
                 read_batch_max_reads=self._read_batch_max_reads,

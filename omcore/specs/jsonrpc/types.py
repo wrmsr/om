@@ -3,7 +3,6 @@ https://www.jsonrpc.org/specification
 
 TODO:
  - drop NotSpecified, use lang.Maybe, make marshal do that
- - server/client impl
 
 See:
  - https://github.com/python-lsp/python-lsp-jsonrpc
@@ -24,6 +23,9 @@ NUMBER_TYPES: tuple[type, ...] = (int, float)
 Number: ta.TypeAlias = int | float
 
 Object: ta.TypeAlias = ta.Mapping[str, ta.Any]
+
+# Params may be by-name (an object) or by-position (an array).
+Params: ta.TypeAlias = Object | ta.Sequence[ta.Any]
 
 ID_TYPES: tuple[type, ...] = (str, *NUMBER_TYPES, types.NoneType)
 Id: ta.TypeAlias = str | Number | None
@@ -56,7 +58,13 @@ def check_not_not_specified(v: T | type[NotSpecified]) -> T:
 
 @dc.dataclass(frozen=True)
 @msh.update_field_options('id', omit_if=is_not_specified, default=lang.just(NotSpecified))
-@msh.update_field_options('params', omit_if=operator.not_)
+@msh.update_field_options(
+    'params',
+    omit_if=operator.not_,
+    # Params are raw JSON values (an object or an array) and are passed through marshaling untouched.
+    marshal_via=msh.MarshalVia(ta.Any),
+    unmarshal_via=msh.UnmarshalVia(ta.Any),
+)
 class Request(lang.Final):
     id: Id | type[NotSpecified]
 
@@ -68,18 +76,17 @@ class Request(lang.Final):
         return check.isinstance(self.id, ID_TYPES)
 
     method: str
-    params: Object | None = None
+    params: Params | None = None
 
     jsonrpc: str = dc.field(default=VERSION, kw_only=True)
     dc.validate(lambda self: self.jsonrpc == VERSION)
 
 
-
-def request(id: Id, method: str, params: Object | None = None) -> Request:  # noqa
+def request(id: Id, method: str, params: Params | None = None) -> Request:  # noqa
     return Request(id, method, params)
 
 
-def notification(method: str, params: Object | None = None) -> Request:
+def notification(method: str, params: Params | None = None) -> Request:
     return Request(NotSpecified, method, params)
 
 
@@ -144,3 +151,49 @@ def detect_message_type(dct: ta.Mapping[str, ta.Any]) -> type[Message]:
         return Request
     else:
         return Response
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class InvalidMessage(lang.Final):
+    """
+    A received value which could not be parsed as a message, along with the error to answer it with.
+
+    Per the spec, an unparseable or malformed request is answered with a Parse Error or Invalid Request response whose
+    id is that of the offending request if it could be determined and null otherwise. Values which look like malformed
+    responses rather than requests are flagged as such so peers do not answer responses with responses.
+    """
+
+    error: Error
+
+    _: dc.KW_ONLY
+
+    id: Id = None
+
+    raw: ta.Any = dc.field(default=None, repr=False)
+    exc: Exception | None = dc.field(default=None, repr=False)
+
+    looks_like_response: bool = False
+
+    def to_response(self) -> Response:
+        return Response(self.id, error=self.error)
+
+
+@dc.dataclass(frozen=True)
+class Batch(lang.Final):
+    """A JSON-RPC batch: an array of messages sent or received as one payload."""
+
+    items: ta.Sequence[Message | InvalidMessage]
+    dc.validate(lambda self: all(isinstance(i, (Request, Response, InvalidMessage)) for i in self.items))
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+    def __iter__(self) -> ta.Iterator[Message | InvalidMessage]:
+        return iter(self.items)
+
+
+# Everything a single wire frame may decode to, and everything which may be encoded to a single wire frame.
+Payload: ta.TypeAlias = Message | InvalidMessage | Batch

@@ -10,7 +10,7 @@ from .....io.pipelines.core import IoPipelineHandler
 from .....io.pipelines.core import IoPipelineHandlerContext
 from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from .....io.pipelines.drivers.sync import SyncSocketIoPipelineDriver
+from .....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
 from .....io.pipelines.errors import TimeoutIoPipelineError
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.sched.types import IoPipelineScheduling
@@ -128,7 +128,7 @@ class TestSyncIoPipelineHttpClientRequestTimeoutHandler(unittest.TestCase):
     def test_expires_once(self) -> None:
         timeout = IoPipelineHttpClientRequestTimeoutHandler(.01)
         control = RequestControlIoPipelineHandler()
-        drv = SyncSocketIoPipelineDriver(make_spec(timeout, control), object())
+        drv = SocketSyncIoPipelineDriver(make_spec(timeout, control), object())
         try:
             self.assertIsNone(drv.next(read=False))
             self.assertIsNone(timeout._handle)
@@ -156,7 +156,7 @@ class TestSyncIoPipelineHttpClientRequestTimeoutHandler(unittest.TestCase):
     def test_deadline_is_absolute_until_final_response(self) -> None:
         timeout = IoPipelineHttpClientRequestTimeoutHandler(60.)
         control = RequestControlIoPipelineHandler()
-        drv = SyncSocketIoPipelineDriver(make_spec(timeout, control), object())
+        drv = SocketSyncIoPipelineDriver(make_spec(timeout, control), object())
         try:
             self.assertIsNone(drv.next(read=False))
 
@@ -188,7 +188,7 @@ class TestSyncIoPipelineHttpClientRequestTimeoutHandler(unittest.TestCase):
     def test_aborts_and_final_input_cancel(self) -> None:
         timeout = IoPipelineHttpClientRequestTimeoutHandler(60.)
         control = RequestControlIoPipelineHandler()
-        drv = SyncSocketIoPipelineDriver(make_spec(timeout, control), object())
+        drv = SocketSyncIoPipelineDriver(make_spec(timeout, control), object())
         try:
             self.assertIsNone(drv.next(read=False))
 
@@ -219,7 +219,7 @@ class TestSyncIoPipelineHttpClientRequestTimeoutHandler(unittest.TestCase):
     def test_final_output_cancels(self) -> None:
         timeout = IoPipelineHttpClientRequestTimeoutHandler(60.)
         control = RequestControlIoPipelineHandler()
-        drv = SyncSocketIoPipelineDriver(make_spec(timeout, control), object())
+        drv = SocketSyncIoPipelineDriver(make_spec(timeout, control), object())
         try:
             self.assertIsNone(drv.next(read=False))
             drv.enqueue(_REQUEST_HEAD)
@@ -236,7 +236,7 @@ class TestSyncIoPipelineHttpClientRequestTimeoutHandler(unittest.TestCase):
     def test_rejects_overlapping_requests(self) -> None:
         timeout = IoPipelineHttpClientRequestTimeoutHandler(60.)
         control = RequestControlIoPipelineHandler()
-        drv = SyncSocketIoPipelineDriver(make_spec(timeout, control), object())
+        drv = SocketSyncIoPipelineDriver(make_spec(timeout, control), object())
         try:
             self.assertIsNone(drv.next(read=False))
 
@@ -253,7 +253,7 @@ class TestSyncIoPipelineHttpClientRequestTimeoutHandler(unittest.TestCase):
     def test_client_handler_surfaces_timeout_and_closes(self) -> None:
         timeout = IoPipelineHttpClientRequestTimeoutHandler(.01)
         left, right = socket.socketpair()
-        drv = SyncSocketIoPipelineDriver(
+        drv = SocketSyncIoPipelineDriver(
             make_spec(timeout, IoPipelineHttpClientHandler()),
             left,
         )
