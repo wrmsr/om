@@ -91,8 +91,8 @@ class JsonrpcPipelineConfig:
     max_consecutive_invalid: int | None = 8
 
     # What to do when the peer closes its side of the transport while inbound requests are in flight: 'close' aborts
-    # them immediately, 'drain' waits for them to be answered (up to close_drain_timeout_s) so the responses still
-    # reach a half-closed peer.
+    # them immediately, 'drain' waits for them to be answered (up to close_drain_timeout_s) so the responses still reach
+    # a half-closed peer.
     on_peer_eof: ta.Literal['close', 'drain'] = 'close'
 
     # Whether inbound requests aborted by a graceful close or handling timeout are answered with an error response

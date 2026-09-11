@@ -1,10 +1,9 @@
 """
 JsonrpcFrame <-> Request / Response / Batch / InvalidMessage.
 
-Decoding never raises: malformed input becomes an InvalidMessage for the session to answer or reject by policy.
-Encoding never raises either: a payload which cannot be encoded, or which encodes larger than the frame limit, is
-dropped and reported inward as an OutboundEncodeFailed so the session can fail just that message rather than the
-connection.
+Decoding never raises: malformed input becomes an InvalidMessage for the session to answer or reject by policy. Encoding
+never raises either: a payload which cannot be encoded, or which encodes larger than the frame limit, is dropped and
+reported inward as an OutboundEncodeFailed so the session can fail just that message rather than the connection.
 """
 import typing as ta
 

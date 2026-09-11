@@ -128,8 +128,8 @@ class JsonrpcPipelineMessages(lang.Namespace):
     class RequestFailed(Event):
         """
         A sent request will never receive a response: it timed out, was too large, exceeded a limit, or the session
-        closed. Exactly one of ResponseReceived or RequestFailed is emitted per accepted SendRequest, unless the
-        request was cancelled first.
+        closed. Exactly one of ResponseReceived or RequestFailed is emitted per accepted SendRequest, unless the request
+        was cancelled first.
         """
 
         request: Request
@@ -138,8 +138,8 @@ class JsonrpcPipelineMessages(lang.Namespace):
     @dc.dataclass(frozen=True)
     class RequestHandlingAborted(Event):
         """
-        The session stopped waiting for the host to answer an inbound request, because handling timed out or the
-        session is closing. Any SendResponse for it will be ignored, and the host should cancel its handler.
+        The session stopped waiting for the host to answer an inbound request, because handling timed out or the session
+        is closing. Any SendResponse for it will be ignored, and the host should cancel its handler.
         """
 
         request: Request

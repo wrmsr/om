@@ -56,6 +56,10 @@ class JsonrpcMethod:
     # Whether fn receives a JsonrpcDispatchContext as its first positional argument.
     with_context: bool = False
 
+    @lang.cached_function
+    def signature(self) -> inspect.Signature:
+        return inspect.signature(self.fn)
+
 
 JsonrpcMethodLike: ta.TypeAlias = JsonrpcMethod | ta.Callable[..., ta.Any]
 
@@ -112,7 +116,7 @@ class BaseDictJsonrpcDispatcher(lang.Abstract):
             args = (*args, *params)
 
         try:
-            inspect.signature(m.fn).bind(*args, **kwargs)
+            m.signature().bind(*args, **kwargs)
         except TypeError as e:
             raise JsonrpcMethodError(KnownErrors.INVALID_PARAMS, data=str(e)) from e
 

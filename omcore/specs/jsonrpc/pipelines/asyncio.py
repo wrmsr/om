@@ -40,8 +40,8 @@ from .specs import build_jsonrpc_pipeline_spec
 log = logs.get_module_logger(globals())
 
 
-AsyncJsonrpcNotificationHandler: ta.TypeAlias = ta.Callable[
-    ['AsyncioJsonrpcConnection', Request],
+type AsyncJsonrpcNotificationHandler = ta.Callable[
+    [AsyncioJsonrpcConnection, Request],
     ta.Awaitable[None],
 ]
 

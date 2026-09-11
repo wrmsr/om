@@ -1,8 +1,8 @@
 """
 The driver-independent half of a connection: everything a host does with a session other than pumping the driver.
 
-Subclasses tape a specific driver on: they own the pumping loop (a task for asyncio, the caller's thread for sync),
-the waiter implementation callers block on, and how inbound requests get dispatched. Everything else - id assignment,
+Subclasses tape a specific driver on: they own the pumping loop (a task for asyncio, the caller's thread for sync), the
+waiter implementation callers block on, and how inbound requests get dispatched. Everything else - id assignment,
 demultiplexing session events to waiters, result / error conversion, closure bookkeeping - lives here.
 """
 import abc

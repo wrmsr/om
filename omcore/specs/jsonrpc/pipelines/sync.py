@@ -37,8 +37,8 @@ from .specs import build_jsonrpc_pipeline_spec
 log = logs.get_module_logger(globals())
 
 
-SyncJsonrpcNotificationHandler: ta.TypeAlias = ta.Callable[
-    ['SyncJsonrpcConnection', Request],
+type SyncJsonrpcNotificationHandler = ta.Callable[
+    [SyncJsonrpcConnection, Request],
     None,
 ]
 
@@ -419,8 +419,8 @@ class SyncJsonrpcConnections(lang.Namespace):
     """
     Factories taping the connection onto sockets, file descriptor pairs, a subprocess's stdio, or our own.
 
-    Sockets are left with no timeout: every timeout is enforced by the session, and a socket timeout would surface as
-    a spurious TimeoutError from the pump.
+    Sockets are left with no timeout: every timeout is enforced by the session, and a socket timeout would surface as a
+    spurious TimeoutError from the pump.
     """
 
     @staticmethod

@@ -1,19 +1,19 @@
 """
 The sans-io JSON-RPC session: the innermost pipeline handler, owning all protocol state for one connection.
 
-JSON-RPC is symmetric - either peer may send requests, notifications, and responses at any time - so one session
-handler serves both the client and server roles. It correlates responses to the requests this side sent, surfaces the
-requests the peer sent for the host to answer, and enforces every timeout and limit which can be expressed without
-touching a transport. Timers come from the driver's IoPipelineScheduling service, so they behave identically under
-every driver and can be exercised deterministically with the pure driver's manual clock.
+JSON-RPC is symmetric - either peer may send requests, notifications, and responses at any time - so one session handler
+serves both the client and server roles. It correlates responses to the requests this side sent, surfaces the requests
+the peer sent for the host to answer, and enforces every timeout and limit which can be expressed without touching a
+transport. Timers come from the driver's IoPipelineScheduling service, so they behave identically under every driver and
+can be exercised deterministically with the pure driver's manual clock.
 
 Everything the host needs to know arrives as an event fed outbound (see `messages.py`); everything the host wants done
 arrives as a command fed inbound. The session never raises on peer misbehavior: it answers, ignores, or closes by
 policy.
 
-Reentrancy: feeding a message outbound can synchronously deliver an Error back into this handler and change its state
-(a failed write, an oversized message reported by the codec). Every method therefore re-checks state after any
-`feed_out`, and the terminal `_finish_close` is idempotent.
+Reentrancy: feeding a message outbound can synchronously deliver an Error back into this handler and change its state (a
+failed write, an oversized message reported by the codec). Every method therefore re-checks state after any `feed_out`,
+and the terminal `_finish_close` is idempotent.
 """
 import functools
 import typing as ta
@@ -551,8 +551,8 @@ class JsonrpcSessionHandler(ipl.Handler):
         exc = msg.exc
 
         if self._sending_substitute:
-            # Even the minimal error response would not fit: the frame limit is misconfigured. Dropping the response
-            # is the least bad option - the peer times out and the connection stays usable for smaller messages.
+            # Even the minimal error response would not fit: the frame limit is misconfigured. Dropping the response is
+            # the least bad option - the peer times out and the connection stays usable for smaller messages.
             log.error('Cannot send even a substitute error response, dropping: %r', exc)
             return
 
@@ -711,8 +711,8 @@ class JsonrpcSessionHandler(ipl.Handler):
 
         if exc is not None:
             # Also surface the failure as a raw exception output: drivers return those to the host immediately even
-            # while ordinary output is held behind a stalled transport flush, which is exactly when a failing close
-            # most needs to wake the host up.
+            # while ordinary output is held behind a stalled transport flush, which is exactly when a failing close most
+            # needs to wake the host up.
             ctx.feed_out(exc)
 
         if not self._sent_final_output and not ctx.pipeline.saw_final_output:

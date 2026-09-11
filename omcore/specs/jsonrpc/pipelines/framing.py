@@ -1,10 +1,10 @@
 """
 Wire framing: bytes <-> JsonrpcFrame.
 
-Two dialects are in use: newline-delimited JSON (MCP and ACP over stdio and sockets) and LSP-style
-`Content-Length` headers. Both decoders enforce a maximum frame size; a received frame exceeding it is fatal, as the
-byte stream cannot be resynchronized past it, and is raised as JsonrpcMessageTooLargeError which the pipeline delivers
-to the session as an Error.
+Two dialects are in use: newline-delimited JSON (MCP and ACP over stdio and sockets) and LSP-style `Content-Length`
+headers. Both decoders enforce a maximum frame size; a received frame exceeding it is fatal, as the byte stream cannot
+be resynchronized past it, and is raised as JsonrpcMessageTooLargeError which the pipeline delivers to the session as an
+Error.
 """
 import abc
 import typing as ta
