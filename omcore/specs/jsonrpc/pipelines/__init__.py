@@ -54,7 +54,7 @@ with _lang.auto_proxy_init(
         build_jsonrpc_pipeline_spec as build_pipeline_spec,
     )
 
-    from .servers import (  # noqa
+    from .servers.asyncio import (  # noqa
         AsyncioJsonrpcConnectionFactory as AsyncioConnectionFactory,
         AsyncioJsonrpcConnectionHook as AsyncioConnectionHook,
 

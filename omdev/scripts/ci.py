@@ -147,7 +147,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/logs/protocols.py', sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb'),
             dict(path='../../omcore/os/temp.py', sha1='e83c59fcfda5aff9c3d15937cb70347965e6105b'),
-            dict(path='../../omcore/sockets/bind.py', sha1='c0c5f2069115f7642cb5bc1cea58afd4280362d8'),
+            dict(path='../../omcore/sockets/bind.py', sha1='bfb672052703dda67077dd88bb6079fb3b6d4056'),
             dict(path='../../omcore/sockets/handlers/types.py', sha1='4cccd7bda3a5cc31e7faa7c4db7a0098bd6c75bd'),
             dict(path='../../omcore/text/mangle.py', sha1='c766b3cdf72a4dc211eb3a66f7f00278eb34dbd5'),
             dict(path='github/api/v1/api.py', sha1='067fa8aa3e2708c8108fd395f2c12a910a9f071b'),
@@ -224,7 +224,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='00a5a981594b5f6133b6daec746f75b30da88fd9'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='855920aa1303f9442887ebb961dba09d33b237ae'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='ec00345d6192983625190ddb9da1dbd713f16130'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -11328,6 +11328,7 @@ def temp_named_file_context(
 # ../../../omcore/sockets/bind.py
 """
 TODO:
+ - merge / dedupe with ./transports
  - def parse: (<bind>)?:<port>, unix://, fd://
  - unix chown/chgrp
  - DupSocketBinder
@@ -33460,10 +33461,6 @@ class SocketSyncIoPipelineDriver(SyncIoPipelineDriver):
 
     def _write(self, data: memoryview) -> int:
         return self._sock.send(data)
-
-
-# Deprecated spelling, retained for code not yet migrated.
-SyncSocketIoPipelineDriver = SocketSyncIoPipelineDriver
 
 
 ##

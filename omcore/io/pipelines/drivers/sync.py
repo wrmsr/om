@@ -738,10 +738,6 @@ class SocketSyncIoPipelineDriver(SyncIoPipelineDriver):
         return self._sock.send(data)
 
 
-# Deprecated spelling, retained for code not yet migrated.
-SyncSocketIoPipelineDriver = SocketSyncIoPipelineDriver
-
-
 ##
 
 

@@ -2,6 +2,7 @@
 # @om-lite
 """
 TODO:
+ - merge / dedupe with ./transports
  - def parse: (<bind>)?:<port>, unix://, fd://
  - unix chown/chgrp
  - DupSocketBinder

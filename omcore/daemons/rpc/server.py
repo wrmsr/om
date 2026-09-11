@@ -14,8 +14,8 @@ from ...logs import all as logs
 from ...sockets.endpoints import SocketEndpoint as RpcEndpoint
 from ...sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint
 from ...sockets.io import close_socket_immediately
-from ...sockets.transports import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
-from ...sockets.transports import SyncSocketTransport as SyncRpcTransport
+from ...sockets.transports.sync import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
+from ...sockets.transports.sync import SyncSocketTransport as SyncRpcTransport
 from .dispatch import RpcRequestDispatcher
 from .pipelines import RpcPipelineFailure
 from .pipelines import RpcServerDispatch
@@ -193,7 +193,7 @@ class RpcServer(lang.Final):
             dispatcher: RpcRequestDispatcher,
     ) -> None:
         conn.settimeout(self._config.connection_timeout_s)
-        with ipl.SyncSocketDriver(
+        with ipl.SocketSyncDriver(
                 rpc_server_pipeline_spec(
                     protocol_version=RPC_PROTOCOL_VERSION,
                     instance_id=instance_id,

@@ -1,16 +1,20 @@
-from .. import check
-from .. import dataclasses as dc
-from .. import lang
+# ruff: noqa: UP045
+# @om-lite
+import dataclasses as dc
+import typing as ta
+
+from ..lite.abstract import Abstract
+from ..lite.check import check
 
 
 ##
 
 
-class SocketEndpoint(lang.Abstract):
+class SocketEndpoint(Abstract):
     """A transport-neutral byte-stream socket endpoint description."""
 
 
-@dc.dataclass(frozen=True, kw_only=True)
+@dc.dataclass(frozen=True)
 class UnixSocketEndpoint(SocketEndpoint):
     path: str
 
@@ -18,7 +22,7 @@ class UnixSocketEndpoint(SocketEndpoint):
         check.non_empty_str(self.path)
 
 
-@dc.dataclass(frozen=True, kw_only=True)
+@dc.dataclass(frozen=True)
 class TcpSocketEndpoint(SocketEndpoint):
     host: str
     port: int
@@ -30,7 +34,7 @@ class TcpSocketEndpoint(SocketEndpoint):
 
 def resolve_socket_endpoint(
         *,
-        endpoint: SocketEndpoint | None,
+        endpoint: ta.Optional[SocketEndpoint] = None,
         socket_path: str,
 ) -> SocketEndpoint:
     """Accepts either an explicit endpoint or the compatibility spelling of a unix socket path, not both."""

@@ -156,7 +156,7 @@ class PipelineHttpServer(lang.Final):
 
     @staticmethod
     def _send_response(
-            driver: ipl.SyncSocketDriver,
+            driver: ipl.SocketSyncDriver,
             response: FullIoPipelineHttpResponse,
     ) -> None:
         driver.enqueue(HttpServerSendResponse(response=response))
@@ -175,7 +175,7 @@ class PipelineHttpServer(lang.Final):
             dispatcher: HttpRequestDispatcher,
     ) -> None:
         conn.settimeout(self._config.connection_timeout_s)
-        with ipl.SyncSocketDriver(
+        with ipl.SocketSyncDriver(
                 pipeline_http_server_spec(
                     max_request_body_bytes=self._config.max_request_body_bytes,
                 ),

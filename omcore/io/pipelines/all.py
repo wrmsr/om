@@ -50,8 +50,6 @@ with _lang.auto_proxy_init(
         SyncIoPipelineDriver as SyncDriver,
         SocketSyncIoPipelineDriver as SocketSyncDriver,
         FdSyncIoPipelineDriver as FdSyncDriver,
-
-        SyncSocketIoPipelineDriver as SyncSocketDriver,  # deprecated spelling
     )
 
     from .drivers.types import (  # noqa

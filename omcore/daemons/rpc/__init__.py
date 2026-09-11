@@ -70,18 +70,24 @@ with _lang.auto_proxy_init(globals()):
         RpcService,
     )
 
-    from ...sockets.transports import (  # noqa
-        SyncSocketListener as SyncRpcListener,
-        SyncSocketTransport as SyncRpcTransport,
-        OwnedSocketListener as SocketRpcListener,
-        DefaultSyncSocketTransport as DefaultSyncRpcTransport,
-        DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT,
-
+    from ...sockets.transports.asyncio import (  # noqa
         AsyncioSocketListener as AsyncioRpcListener,
         AsyncioSocketTransport as AsyncioRpcTransport,
         AsyncioServerSocketListener as AsyncioServerRpcListener,
         DefaultAsyncioSocketTransport as DefaultAsyncioRpcTransport,
         DEFAULT_ASYNCIO_SOCKET_TRANSPORT as DEFAULT_ASYNCIO_RPC_TRANSPORT,
+    )
+
+    from ...sockets.transports.base import (  # noqa
+        OwnedSocketListener as SocketRpcListener,
+    )
+
+    from ...sockets.transports.sync import (  # noqa
+        SyncSocketListener as SyncRpcListener,
+        SyncSocketTransport as SyncRpcTransport,
+        OwnedSocketListener as SocketRpcListener,
+        DefaultSyncSocketTransport as DefaultSyncRpcTransport,
+        DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT,
     )
 
     from .waiting import (  # noqa

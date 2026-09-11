@@ -9,8 +9,8 @@ from ...io.pipelines import all as ipl
 from ...sockets.endpoints import SocketEndpoint as RpcEndpoint
 from ...sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint
 from ...sockets.io import close_socket_immediately
-from ...sockets.transports import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
-from ...sockets.transports import SyncSocketTransport as SyncRpcTransport
+from ...sockets.transports.sync import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
+from ...sockets.transports.sync import SyncSocketTransport as SyncRpcTransport
 from .pipelines import RpcClientConnected
 from .pipelines import RpcClientRequestSent
 from .pipelines import RpcClientResponse
@@ -40,7 +40,7 @@ class RpcClientConnection(lang.Final):
     def __init__(
             self,
             sock: socket.socket,
-            driver: ipl.SyncSocketDriver,
+            driver: ipl.SocketSyncDriver,
             *,
             instance_id: uuid.UUID,
             max_frame_bytes: int,
@@ -48,7 +48,7 @@ class RpcClientConnection(lang.Final):
         super().__init__()
 
         self._sock: socket.socket | None = sock
-        self._driver: ipl.SyncSocketDriver | None = driver
+        self._driver: ipl.SocketSyncDriver | None = driver
         self._instance_id = instance_id
         self._max_frame_bytes = max_frame_bytes
 
@@ -64,7 +64,7 @@ class RpcClientConnection(lang.Final):
     def closed(self) -> bool:
         return self._sock is None
 
-    def _pipeline_driver(self) -> ipl.SyncSocketDriver:
+    def _pipeline_driver(self) -> ipl.SocketSyncDriver:
         if self._driver is None:
             raise RuntimeError('RPC client connection is closed')
         return self._driver
@@ -245,7 +245,7 @@ class RpcClient(lang.Final):
 
     def connect(self) -> RpcClientConnection:
         sock: socket.socket | None = None
-        driver: ipl.SyncSocketDriver | None = None
+        driver: ipl.SocketSyncDriver | None = None
         try:
             sock = self._transport.connect(
                 self.endpoint,
@@ -253,7 +253,7 @@ class RpcClient(lang.Final):
             )
             sock.settimeout(self._config.io_timeout_s)
 
-            driver = ipl.SyncSocketDriver(
+            driver = ipl.SocketSyncDriver(
                 rpc_client_pipeline_spec(
                     protocol_version=self._config.protocol_version,
                     max_frame_bytes=self._config.max_frame_bytes,

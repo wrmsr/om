@@ -4,16 +4,16 @@ import tempfile
 
 import pytest
 
-from .....sockets.endpoints import TcpSocketEndpoint
-from .....sockets.endpoints import UnixSocketEndpoint
-from ...dispatch import AsyncDictJsonrpcDispatcher
-from ...errors import JsonrpcRemoteError
-from ..asyncio import AsyncioJsonrpcConnection
-from ..asyncio import AsyncioJsonrpcConnections
-from ..configs import JsonrpcPipelineConfig
-from ..servers import AsyncioJsonrpcServer
-from ..servers import AsyncioJsonrpcServerConfig
-from .echoserver import build_dispatcher
+from ......sockets.endpoints import TcpSocketEndpoint
+from ......sockets.endpoints import UnixSocketEndpoint
+from ....dispatch import AsyncDictJsonrpcDispatcher
+from ....errors import JsonrpcRemoteError
+from ...asyncio import AsyncioJsonrpcConnection
+from ...asyncio import AsyncioJsonrpcConnections
+from ...configs import JsonrpcPipelineConfig
+from ...tests.echoserver import build_dispatcher
+from ..asyncio import AsyncioJsonrpcServer
+from ..asyncio import AsyncioJsonrpcServerConfig
 
 
 TIMEOUT_S = 20.
