@@ -133,7 +133,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
             dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
-            dict(path='../../omcore/http/parsing.py', sha1='3ce7d43bddaa333eb09a5602978b965bd143ad88'),
+            dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='0a249bfaede012e18fea8cd3b0f239c985a6cfec'),  # noqa
             dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
             dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
@@ -4792,6 +4792,17 @@ class SemanticHeaderHttpParseErrorCode(enum.Enum):
     INVALID_CONNECTION = enum.auto()
     INVALID_TRAILER_FIELD = enum.auto()
 
+    # An Upgrade protocol, or protocol "/" version, that is not a valid token (RFC 7230 §6.7).
+    INVALID_UPGRADE = enum.auto()
+
+    # The Upgrade header in an HTTP/1.0 request (RFC 7230 §6.7).
+    UPGRADE_IN_HTTP10 = enum.auto()
+
+    # Request-only header fields present in a response message.
+    HOST_IN_RESPONSE = enum.auto()
+    TE_IN_RESPONSE = enum.auto()
+    EXPECT_IN_RESPONSE = enum.auto()
+
 
 class EncodingHttpParseErrorCode(enum.Enum):
     NON_ASCII_IN_FIELD_NAME = enum.auto()
@@ -4906,6 +4917,9 @@ class ParsedHttpHeaders:
     })
 
     def __getitem__(self, name: str) -> str:
+        if not isinstance(name, str):
+            raise TypeError(name)
+
         key = name.lower()
         values = self._entries[key]
         if key in self._NO_COMBINE_HEADERS:
@@ -4913,6 +4927,9 @@ class ParsedHttpHeaders:
         return ', '.join(values)
 
     def get(self, name: str, default: ta.Optional[str] = None) -> ta.Optional[str]:
+        if not isinstance(name, str):
+            raise TypeError(name)
+
         key = name.lower()
         values = self._entries.get(key)
         if not values:
@@ -4926,6 +4943,9 @@ class ParsedHttpHeaders:
         return ', '.join(values)
 
     def get_all(self, name: str) -> ta.List[str]:
+        if not isinstance(name, str):
+            raise TypeError(name)
+
         return list(self._entries.get(name.lower(), []))
 
     def items(self) -> ta.List[ta.Tuple[str, str]]:
@@ -4949,7 +4969,9 @@ class ParsedHttpHeaders:
         return len(self._order)
 
     def __repr__(self) -> str:
-        return f'ParsedHttpHeaders({dict(self.items())})'
+        # items(), not dict(...): dict() would collapse multiple Set-Cookie (or any no-combine) values to the last
+        # one - the repr must show what was actually received.
+        return f'{self.__class__.__name__}({self.items()!r})'
 
 
 @dc.dataclass()
@@ -5103,6 +5125,9 @@ class HttpParser:
     def __init__(self, config: Config = Config()) -> None:
         super().__init__()
 
+        if not isinstance(config, HttpParser.Config):
+            raise TypeError(f'Expected HttpParser.Config, got {type(config).__name__}')
+
         self._config = config
 
     # Public API
@@ -5115,6 +5140,9 @@ class HttpParser:
     def parse_message(self, data: Bytes, mode: Mode = Mode.AUTO) -> ParsedHttpMessage:
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError(f'Expected bytes, got {type(data).__name__}')
+
+        if not isinstance(mode, HttpParser.Mode):
+            raise TypeError(f'Expected HttpParser.Mode, got {type(mode).__name__}')
 
         ctx = _HttpParseContext(
             data=bytes(data),
@@ -5946,10 +5974,10 @@ class _HttpParseContext:
         self._prepare_host(headers, prepared, kind, http_version)
         self._prepare_connection(headers, prepared, http_version)
         self._prepare_content_type(headers, prepared)
-        self._prepare_te(headers, prepared, http_version)
-        self._prepare_upgrade(headers, prepared)
+        self._prepare_te(headers, prepared, kind, http_version)
+        self._prepare_upgrade(headers, prepared, http_version)
         self._prepare_trailer(headers, prepared)
-        self._prepare_expect(headers, prepared)
+        self._prepare_expect(headers, prepared, kind)
         self._prepare_date(headers, prepared)
         self._prepare_cache_control(headers, prepared)
         self._prepare_accept_encoding(headers, prepared)
@@ -6078,7 +6106,10 @@ class _HttpParseContext:
             return
 
         combined = headers['transfer-encoding']
-        codings = [s.lower() for s in map(self._strip_ows_str, combined.split(',')) if s]
+
+        # Quote-aware split; truly-empty elements are ignorable per RFC 9110 §5.6.1, but an all-empty list is not a
+        # valid Transfer-Encoding (1#transfer-coding requires at least one coding).
+        codings = [s.lower() for s in self._parse_comma_list(combined)]
 
         if not codings:
             raise SemanticHeaderHttpParseError(
@@ -6157,6 +6188,14 @@ class _HttpParseContext:
     ) -> None:
         values = headers.get_all('host')
 
+        # The Host header is only defined for requests - a server must not send it, and a client should not accept it
+        # (RFC 7230 §5.4, §3.1.2). Previously a Host header in a response was silently stored into prepared.host.
+        if kind == ParsedHttpMessage.Kind.RESPONSE and values:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.HOST_IN_RESPONSE,
+                message='Host header is only defined for requests',
+            )
+
         if kind == ParsedHttpMessage.Kind.REQUEST and http_version == HttpVersions.HTTP_1_1:
             if not values and not self.config.allow_missing_host:
                 raise SemanticHeaderHttpParseError(
@@ -6210,13 +6249,57 @@ class _HttpParseContext:
 
     @classmethod
     def _parse_comma_list(cls, value: str) -> ta.List[str]:
-        """Split a comma-separated header value into trimmed, non-empty tokens."""
+        """
+        Split a comma-separated header value into trimmed, non-empty tokens.
+
+        Quoted-string aware: a comma inside a quoted-string does not separate list elements (RFC 9110 §5.6.1). A strict
+        parser must not split on it - blindly splitting mangles valid values like ``Accept: text/html;level="1,2"`` into
+        a truncated token and turns the remainder into bogus extra elements.
+        """
 
         parts: ta.List[str] = []
-        for part in value.split(','):
-            stripped = cls._strip_ows_str(part)
-            if stripped:
-                parts.append(stripped)
+        buf: ta.List[str] = []
+        in_quotes = False
+
+        i = 0
+        n = len(value)
+        while i < n:
+            ch = value[i]
+
+            if in_quotes:
+                if ch == '\\' and i + 1 < n:
+                    buf.append(value[i:i + 2])
+                    i += 2
+                    continue
+
+                if ch == '"':
+                    in_quotes = False
+
+                buf.append(ch)
+                i += 1
+                continue
+
+            if ch == '"':
+                in_quotes = True
+                buf.append(ch)
+                i += 1
+                continue
+
+            if ch == ',':
+                stripped = cls._strip_ows_str(''.join(buf))
+                if stripped:
+                    parts.append(stripped)
+                buf = []
+                i += 1
+                continue
+
+            buf.append(ch)
+            i += 1
+
+        stripped = cls._strip_ows_str(''.join(buf))
+        if stripped:
+            parts.append(stripped)
+
         return parts
 
     def _prepare_connection(
@@ -6226,7 +6309,16 @@ class _HttpParseContext:
         http_version: HttpVersion,
     ) -> None:
         if 'connection' in headers:
+            # Truly-empty elements are ignorable per RFC 9110 §5.6.1.
             tokens = {t.lower() for t in self._parse_comma_list(headers['connection'])}
+
+            # Connection = 1#connection-option (RFC 7230 §6.1): the header being present requires at least one option -
+            # otherwise it is indistinguishable from (and silently conflated with) an absent header.
+            if not tokens:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CONNECTION,
+                    message='Connection header present but empty',
+                )
 
             # connection-option is a token (RFC 7230 §6.1).
             for t in tokens:
@@ -6290,8 +6382,11 @@ class _HttpParseContext:
         """
         Parse ``;param=value`` segments from a Content-Type or Accept header. Values may be tokens or quoted-strings.
 
-        When *quoted_params* is given it is filled with the names of parameters whose values were quoted-strings:
-        qvalues must be bare tokens, so this lets qvalue-aware callers reject quoted forms like ``q="0.5"``.
+        Pedantic: parameter names must be tokens, bare (unquoted) values must be tokens, nothing may follow a
+        quoted-string value except OWS and the next parameter, duplicates are rejected, and a parameter with no ``=`` is
+        an error rather than being silently skipped (RFC 9110 §5.6.6). When *quoted_params* is given it is filled with
+        the names of parameters whose values were quoted-strings: qvalues must be bare tokens, so this lets qvalue-aware
+        callers reject quoted forms like ``q="0.5"``.
         """
 
         params: ta.Dict[str, str] = {}
@@ -6299,23 +6394,23 @@ class _HttpParseContext:
         remaining = cls._strip_ows_str(params_str)
         while remaining:
             if not remaining.startswith(';'):
-                break
+                raise ValueError(f'Unexpected content in parameters: {remaining!r}')
 
             remaining = cls._strip_ows_str(remaining[1:])
             if not remaining:
-                break
+                break  # a trailing ';' is tolerated (common in the wild)
 
             eq_idx = remaining.find('=')
             if eq_idx < 0:
-                # parameter name without value - skip to next semicolon or end
-                semi_idx = remaining.find(';')
-                if semi_idx < 0:
-                    break
-
-                remaining = remaining[semi_idx:]
-                continue
+                # parameter name without value - garbage, not a legal parameter (RFC 9110 §5.6.6)
+                raise ValueError(f'Parameter without a value: {remaining!r}')
 
             pname = cls._strip_ows_str(remaining[:eq_idx]).lower()
+
+            # parameter-name is a token (RFC 9110 §5.6.6)
+            if not pname or not cls._is_token(pname):
+                raise ValueError(f'Parameter name is not a valid token: {pname!r}')
+
             remaining = cls._strip_ows_str(remaining[eq_idx + 1:])
 
             if remaining.startswith('"'):
@@ -6324,7 +6419,11 @@ class _HttpParseContext:
                 pvalue, end_pos = cls._parse_quoted_string(remaining, 0)
                 remaining = cls._strip_ows_str(remaining[end_pos:])
 
-                if quoted_params is not None and pname:
+                if remaining and not remaining.startswith(';'):
+                    # Junk after the closing DQUOTE was previously silently dropped.
+                    raise ValueError(f'Unexpected content after quoted parameter value: {remaining!r}')
+
+                if quoted_params is not None:
                     quoted_params.add(pname)
 
             else:
@@ -6337,8 +6436,14 @@ class _HttpParseContext:
                     pvalue = cls._strip_ows_str(remaining[:semi_idx])
                     remaining = remaining[semi_idx:]
 
-            if pname:
-                params[pname] = pvalue
+                # bare parameter values are tokens (RFC 9110 §5.6.6)
+                if not pvalue or not cls._is_token(pvalue):
+                    raise ValueError(f'Parameter value is not a valid token: {pvalue!r}')
+
+            if pname in params:
+                raise ValueError(f'Duplicate parameter: {pname!r}')
+
+            params[pname] = pvalue
 
         return params
 
@@ -6420,6 +6525,10 @@ class _HttpParseContext:
         *token* is lowercased.  ``q`` defaults to ``1.0`` if absent.  The ``q`` key is consumed and **not** included in
         *params_dict*.  Raises ``ValueError`` on a malformed ``q`` value or malformed parameters (e.g. an unterminated
         quoted-string); callers wrap it in the appropriate header-specific parse error.
+
+        Pedantic: if present, ``q`` must be the *last* parameter (RFC 9110 §12.4.2: parameters after q are not
+        accepted), and it can only appear once - previously ``;q=1;q=0.5`` was silently last-wins, flipping the
+        element's semantics.
         """
 
         semi_idx = element.find(';')
@@ -6431,8 +6540,15 @@ class _HttpParseContext:
         quoted_params: ta.Set[str] = set()
         params = cls._parse_media_type_params(element[semi_idx:], quoted_params)
 
+        q_str = None
+        # If present, q must be the last parameter - parameters after it are not accepted (RFC 9110 §12.4.2). params
+        # preserves insertion order, so check the position of the q key rather than emptiness after popping: q last
+        # (e.g. ';level=1;q=0.7') is valid, q anywhere else (e.g. ';q=0.5;level=1') is not. The duplicate-q case is
+        # already rejected by _parse_media_type_params as a duplicate parameter.
+        if params and list(params)[-1] == 'q':
+            q_str = params.pop('q')
+
         q = 1.0
-        q_str = params.pop('q', None)
         if q_str is not None:
             # A qvalue is never a quoted-string (RFC 9110 §12.4.2).
             if 'q' in quoted_params or not cls._RE_QVALUE.match(q_str):
@@ -6440,12 +6556,16 @@ class _HttpParseContext:
 
             q = float(q_str)
 
+        elif 'q' in params:
+            raise ValueError('q must be the last parameter')
+
         return token, q, params
 
     def _prepare_te(
         self,
         headers: ParsedHttpHeaders,
         prepared: PreparedParsedHttpHeaders,
+        kind: ParsedHttpMessage.Kind,
         http_version: HttpVersion,
     ) -> None:
         if 'te' not in headers:
@@ -6459,6 +6579,14 @@ class _HttpParseContext:
                 message='TE header is not defined for HTTP/1.0',
             )
 
+        # TE is a request-only header field - a server must not send it, and a client should not accept it (RFC 7230
+        # §4.3, §5.4). Previously a TE header in a response was parsed and stored without complaint.
+        if kind == ParsedHttpMessage.Kind.RESPONSE:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.TE_IN_RESPONSE,
+                message='TE header is only defined for requests',
+            )
+
         try:
             elements = [
                 self._split_header_element(p)
@@ -6467,12 +6595,19 @@ class _HttpParseContext:
         except ValueError:
             raise SemanticHeaderHttpParseError(
                 code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
-                message=f'Invalid q-value in TE header: {headers["te"]!r}',
+                message=f'Invalid element in TE header: {headers["te"]!r}',
             ) from None
 
         codings: ta.List[str] = []
-        for coding, q, _ in elements:
+        for coding, q, params in elements:
+            # A truly empty element is ignorable per RFC 9110 §5.6.1, but an empty token carrying parameters is
+            # malformed and must not be silently dropped - previously ';q=0.5' vanished without a trace.
             if not coding:
+                if params or q != 1.0:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
+                        message=f'TE element has an empty coding with parameters: {coding!r}',
+                    )
                 continue
 
             # A TE transfer-coding is a token (RFC 7230 §4.3).
@@ -6480,6 +6615,14 @@ class _HttpParseContext:
                 raise SemanticHeaderHttpParseError(
                     code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
                     message=f'TE transfer-coding is not a valid token: {coding!r}',
+                )
+
+            # chunked is not a legal TE coding - it is a Transfer-Encoding coding only, and accepting it here would let
+            # a response with 'TE: chunked' be mistaken for a chunked response (RFC 7230 §4.3).
+            if coding == 'chunked':
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
+                    message='chunked is not a valid TE coding',
                 )
 
             # A sender of TE MUST NOT accept 'trailers' with a qvalue of 0 (RFC 7230 §4.3).
@@ -6491,13 +6634,58 @@ class _HttpParseContext:
 
             codings.append(coding)
 
+        # The header was present but contains no codings - 1#transfer-coding requires at least one.
+        if not codings:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
+                message='TE header present but empty',
+            )
+
         prepared.te = codings
 
-    def _prepare_upgrade(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
+    def _prepare_upgrade(
+            self,
+            headers: ParsedHttpHeaders,
+            prepared: PreparedParsedHttpHeaders,
+            http_version: HttpVersion,
+    ) -> None:
         if 'upgrade' not in headers:
             return
 
-        prepared.upgrade = self._parse_comma_list(headers['upgrade'])
+        # Upgrade is only defined for HTTP/1.1 - it must be ignored (here: rejected) in an HTTP/1.0 request (RFC 7230
+        # §6.7).
+        if http_version == HttpVersions.HTTP_1_0:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.UPGRADE_IN_HTTP10,
+                message='Upgrade header is not defined for HTTP/1.0',
+            )
+
+        # Truly-empty elements are ignorable per RFC 9110 §5.6.1.
+        protocols = self._parse_comma_list(headers['upgrade'])
+
+        # Upgrade = 1#protocol (RFC 7230 §6.7): present requires at least one protocol.
+        if not protocols:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_UPGRADE,
+                message='Upgrade header present but empty',
+            )
+
+        for p in protocols:
+            if '/' in p:
+                name, _, version = p.partition('/')
+                if not name or not version or not self._is_token(name) or not self._is_token(version):
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_UPGRADE,
+                        message=f'Upgrade protocol/version is not a valid token pair: {p!r}',
+                    )
+
+            elif not self._is_token(p):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_UPGRADE,
+                    message=f'Upgrade protocol is not a valid token: {p!r}',
+                )
+
+        prepared.upgrade = protocols
 
     # Headers that MUST NOT appear in trailers (RFC 7230 §4.1.2)
     _FORBIDDEN_TRAILER_FIELDS: ta.ClassVar[ta.FrozenSet[str]] = frozenset({
@@ -6524,7 +6712,9 @@ class _HttpParseContext:
         if 'trailer' not in headers:
             return
 
+        # Truly-empty elements are ignorable per RFC 9110 §5.6.1.
         fields = {f.lower() for f in self._parse_comma_list(headers['trailer'])}
+
         for f in fields:
             # The Trailer header value is a list of field-names, which are tokens (RFC 7230 §4.1.2).
             if not self._is_token(f):
@@ -6539,11 +6729,30 @@ class _HttpParseContext:
                     message=f'Forbidden field in Trailer header: {f!r}',
                 )
 
+        # Trailer = 1#field-name (RFC 7230 §4.1.2): present requires at least one field-name.
+        if not fields:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_TRAILER_FIELD,
+                message='Trailer header present but empty',
+            )
+
         prepared.trailer = frozenset(fields)
 
-    def _prepare_expect(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
+    def _prepare_expect(
+            self,
+            headers: ParsedHttpHeaders,
+            prepared: PreparedParsedHttpHeaders,
+            kind: ParsedHttpMessage.Kind,
+    ) -> None:
         if 'expect' not in headers:
             return
+
+        # Expect is a request-only header field (RFC 7231 §5.1.1) - a client must not accept it in a response.
+        if kind == ParsedHttpMessage.Kind.RESPONSE:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.EXPECT_IN_RESPONSE,
+                message='Expect header is only defined for requests',
+            )
 
         raw = self._strip_ows_str(headers['expect']).lower()
         if raw != '100-continue':
@@ -6585,6 +6794,26 @@ class _HttpParseContext:
             raise ValueError(f'Weekday {weekday_str!r} does not match date (expected {expected!r})')
 
     @classmethod
+    def _date_int(cls, s: str, what: str, min_len: int, max_len: int) -> int:
+        """
+        Strict integer field for HTTP-date components.
+
+        ``int()`` alone is far too lenient: it accepts leading ``+`` and ``_`` separators (``int('+4') == 4``,
+        ``int('1_94') == 194``), arbitrary widths ('8', '008', '0_8'), and surrounding whitespace - all of which would
+        silently produce a different date than the one sent. This enforces pure ASCII digits of an exact width range,
+        like the Content-Length digit check.
+        """
+
+        if (
+                not s.isascii() or
+                not s.isdigit() or
+                not (min_len <= len(s) <= max_len)
+        ):
+            raise ValueError(f'Invalid {what} component: {s!r}')
+
+        return int(s)
+
+    @classmethod
     def _parse_http_date(cls, value: str) -> datetime.datetime:
         """
         Parse an HTTP-date (RFC 7231 §7.1.1.1).
@@ -6606,20 +6835,21 @@ class _HttpParseContext:
             parts = after_comma.split()
 
             if len(parts) == 3 and parts[2].upper() == 'GMT' and '-' in parts[0]:
-                # RFC 850: DD-Mon-YY HH:MM:SS GMT
+                # RFC 850: DD-Mon-YY HH:MM:SS GMT. The day-name here is the full weekday name - but as with the IMF
+                # day-name only the first three characters are cross-checked below, leniently accepting both full names
+                # ('Sunday') and abbreviations ('Sun').
                 date_pieces = parts[0].split('-')
                 if len(date_pieces) != 3:
                     raise ValueError(f'Invalid date component: {parts[0]}')
 
-                if len(date_pieces[0]) != 2 or not date_pieces[0].isdigit():
-                    raise ValueError(f'Invalid day component: {date_pieces[0]!r}')
-
-                day = int(date_pieces[0])
+                day = cls._date_int(date_pieces[0], 'day', 2, 2)
                 month_str = date_pieces[1].lower()
-                year_raw = int(date_pieces[2])
 
-                # Two-digit year: RFC 7231 says interpret >= 50 as 19xx, < 50 as 20xx. Recipients are also expected to
-                # accept a (non-conforming) four-digit year here.
+                # Two-digit year (or, non-conforming but accepted, a four-digit one). int() leniency ('+4', '1_4', '9',
+                # '994') previously produced silently different years.
+                year_raw = cls._date_int(date_pieces[2], 'year', 2, 4)
+
+                # RFC 7231: interpret two-digit years >= 50 as 19xx, < 50 as 20xx.
                 if year_raw < 100:
                     year = year_raw + 1900 if year_raw >= 50 else year_raw + 2000
                 else:
@@ -6629,7 +6859,9 @@ class _HttpParseContext:
                 if len(time_pieces) != 3:
                     raise ValueError(f'Invalid time component: {parts[1]}')
 
-                hour, minute, second = int(time_pieces[0]), int(time_pieces[1]), int(time_pieces[2])
+                hour = cls._date_int(time_pieces[0], 'hour', 2, 2)
+                minute = cls._date_int(time_pieces[1], 'minute', 2, 2)
+                second = cls._date_int(time_pieces[2], 'second', 2, 2)
 
                 month = cls._MONTH_NAMES.get(month_str)
                 if month is None:
@@ -6641,18 +6873,17 @@ class _HttpParseContext:
 
             elif len(parts) == 5 and parts[4].upper() == 'GMT':
                 # IMF-fixdate: DD Mon YYYY HH:MM:SS GMT
-                if len(parts[0]) != 2 or not parts[0].isdigit():
-                    raise ValueError(f'Invalid day component: {parts[0]!r}')
-
-                day = int(parts[0])
+                day = cls._date_int(parts[0], 'day', 2, 2)
                 month_str = parts[1].lower()
-                year = int(parts[2])
+                year = cls._date_int(parts[2], 'year', 4, 4)
 
                 time_pieces = parts[3].split(':')
                 if len(time_pieces) != 3:
                     raise ValueError(f'Invalid time component: {parts[3]}')
 
-                hour, minute, second = int(time_pieces[0]), int(time_pieces[1]), int(time_pieces[2])
+                hour = cls._date_int(time_pieces[0], 'hour', 2, 2)
+                minute = cls._date_int(time_pieces[1], 'minute', 2, 2)
+                second = cls._date_int(time_pieces[2], 'second', 2, 2)
 
                 month = cls._MONTH_NAMES.get(month_str)
                 if month is None:
@@ -6674,14 +6905,17 @@ class _HttpParseContext:
             month_str = value[4:7].lower()
             # Handle the space-padded day (e.g., " 6")
             day_str = value[8:10].replace(' ', '0')
-            day = int(day_str)
+            day = cls._date_int(day_str, 'day', 2, 2)
 
             time_pieces = value[11:19].split(':')
             if len(time_pieces) != 3:
                 raise ValueError('Invalid time component')
-            hour, minute, second = map(int, time_pieces)
 
-            year = int(value[20:24])
+            hour = cls._date_int(time_pieces[0], 'hour', 2, 2)
+            minute = cls._date_int(time_pieces[1], 'minute', 2, 2)
+            second = cls._date_int(time_pieces[2], 'second', 2, 2)
+
+            year = cls._date_int(value[20:24], 'year', 4, 4)
             month = cls._MONTH_NAMES.get(month_str)
             if month is None:
                 raise ValueError(f'Invalid month: {month_str}')
@@ -6712,6 +6946,19 @@ class _HttpParseContext:
         for part in self._parse_comma_list(headers['cache-control']):
             eq_idx = part.find('=')
             if eq_idx < 0:
+                # cache-directive is a token (RFC 7234 §5.2).
+                if not self._is_token(part.lower()):
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                        message=f'Cache-Control directive is not a valid token: {part!r}',
+                    )
+
+                if part.lower() in directives:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                        message=f'Duplicate Cache-Control directive: {part.lower()!r}',
+                    )
+
                 directives[part.lower()] = None
                 continue
 
@@ -6725,14 +6972,45 @@ class _HttpParseContext:
                     message=f'Cache-Control directive has an empty name: {part!r}',
                 )
 
+            # cache-directive is a token (RFC 7234 §5.2).
+            if not self._is_token(name):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                    message=f'Cache-Control directive is not a valid token: {name!r}',
+                )
+
             if value.startswith('"'):
+                # A quoted-string that does not span exactly to the end (junk after the closing DQUOTE) is invalid -
+                # junk following a quoted-string was previously silently dropped. Note: value is the OWS-stripped
+                # remainder of the element, so strip the same OWS from the raw remainder before comparing offsets.
                 try:
-                    value, _ = self._parse_quoted_string(value, 0)
+                    value, after_pos = self._parse_quoted_string(value, 0)
                 except ValueError:
                     raise SemanticHeaderHttpParseError(
                         code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
                         message=f'Invalid quoted-string in Cache-Control directive: {name}',
                     ) from None
+
+                remainder = self._strip_ows_str(part[eq_idx + 1:])
+                if remainder[after_pos:]:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                        message=f'Unexpected content after quoted Cache-Control value: {name!r}',
+                    )
+
+            else:
+                # A bare directive value is a token (RFC 7234 §5.2) - previously any junk was kept verbatim.
+                if not value or not self._is_token(value):
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                        message=f'Cache-Control directive value is not a valid token: {value!r}',
+                    )
+
+            if name in directives:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                    message=f'Duplicate Cache-Control directive: {name!r}',
+                )
 
             directives[name] = value
 
@@ -6746,18 +7024,48 @@ class _HttpParseContext:
 
         for part in self._parse_comma_list(headers['accept-encoding']):
             try:
-                coding, q, _ = self._split_header_element(part)
+                coding, q, params = self._split_header_element(part)
             except ValueError:
                 raise SemanticHeaderHttpParseError(
                     code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
-                    message=f'Invalid q-value in Accept-Encoding: {part!r}',
+                    message=f'Invalid element in Accept-Encoding: {part!r}',
                 ) from None
 
-            if coding:
-                items.append(PreparedParsedHttpHeaders.AcceptEncodingItem(
-                    coding=coding,
-                    q=q,
-                ))
+            # A truly empty element is ignorable per RFC 9110 §5.6.1, but an empty coding carrying parameters or a
+            # qvalue is malformed and must not be silently dropped.
+            if not coding:
+                if params or q != 1.0:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
+                        message=f'Accept-Encoding element has an empty coding with parameters',
+                    )
+                continue
+
+            # codings are tokens (RFC 9110 §12.5.3).
+            if not self._is_token(coding):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
+                    message=f'Accept-Encoding coding is not a valid token: {coding!r}',
+                )
+
+            # Accept-Encoding codings take no parameters besides q (RFC 9110 §12.5.3: weight only).
+            if params:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
+                    message=f'Accept-Encoding coding has unexpected parameters: {part!r}',
+                )
+
+            items.append(PreparedParsedHttpHeaders.AcceptEncodingItem(
+                coding=coding,
+                q=q,
+            ))
+
+        # The header was present but contains no codings - 1#coding requires at least one.
+        if not items:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
+                message='Accept-Encoding header present but empty',
+            )
 
         prepared.accept_encoding = items
 
@@ -6773,16 +7081,49 @@ class _HttpParseContext:
             except ValueError:
                 raise SemanticHeaderHttpParseError(
                     code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
-                    message=f'Invalid q-value in Accept: {part!r}',
+                    message=f'Invalid element in Accept: {part!r}',
                 ) from None
 
-            # Skip empty tokens (e.g. the element in 'Accept: ;q=0.5'), matching Accept-Encoding and TE handling.
-            if media_range:
-                items.append(PreparedParsedHttpHeaders.AcceptItem(
-                    media_range=media_range,
-                    q=q,
-                    params=params,
-                ))
+            # A truly empty element is ignorable per RFC 9110 §5.6.1, but an empty media-range carrying parameters or a
+            # qvalue is malformed and must not be silently dropped.
+            if not media_range:
+                if params or q != 1.0:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
+                        message='Accept element has an empty media-range with parameters',
+                    )
+                continue
+
+            # media-range = "*/*" / ( type "/*" ) / ( type "/" subtype ) - type and subtype are tokens, with '*' only
+            # legal as the complete type of "*/*" or the complete subtype of "type/*" (RFC 9110 §12.5.1).
+            type_, _, subtype = media_range.partition('/')
+            if not type_ or not subtype:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
+                    message=f'Accept media-range is not a valid type/subtype pair: {media_range!r}',
+                )
+
+            for part in (type_, subtype):
+                if part == '*':
+                    continue
+                if not self._is_token(part) or '*' in part:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
+                        message=f'Accept media-range is not a valid type/subtype pair: {media_range!r}',
+                    )
+
+            items.append(PreparedParsedHttpHeaders.AcceptItem(
+                media_range=media_range,
+                q=q,
+                params=params,
+            ))
+
+        # The header was present but contains no media-ranges - 1#media-range requires at least one.
+        if not items:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
+                message='Accept header present but empty',
+            )
 
         prepared.accept = items
 
@@ -6804,15 +7145,17 @@ class _HttpParseContext:
                 message='Authorization header is present but empty',
             )
 
-        # credentials = auth-scheme [ 1*SP ( token68 / [ ( "," / auth-param ) *( OWS "," / OWS auth-param ) ] ) ]
-        # - the separator must be SP, and auth-scheme must be a token (RFC 7235).
+        # credentials = auth-scheme [ 1*SP ( token68 / [ ( "," / auth-param ) *( OWS "," / OWS auth-param ) ] ) ] - the
+        # separator is 1*SP (never HTAB), and auth-scheme must be a token (RFC 7235). Consume ALL the separating SPs so
+        # a value like 'Basic  dXNlcg==' does not leave a stray leading SP in the credentials - downstream
+        # token68/base64 consumers would see a different value than peers that trim it.
         sp_idx = raw.find(' ')
         if sp_idx < 0:
             scheme = raw
             credentials = ''
         else:
             scheme = raw[:sp_idx]
-            credentials = raw[sp_idx + 1:]
+            credentials = raw[sp_idx + 1:].lstrip(' ')
 
         if not scheme or not self._is_token(scheme):
             raise SemanticHeaderHttpParseError(

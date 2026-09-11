@@ -2674,9 +2674,16 @@ class TestTeHeaderSemantics(unittest.TestCase):
         self.assertEqual(msg.prepared.te, ['trailers'])
 
     def test_te_empty_token_filtered(self) -> None:
-        data = _req(headers=[('Host', 'x'), ('TE', 'trailers, ;q=0.5')])
+        # A truly empty element is ignorable (RFC 9110 §5.6.1), but an empty coding carrying parameters is
+        # malformed and must not be silently dropped - previously ';q=0.5' vanished without a trace.
+        data = _req(headers=[('Host', 'x'), ('TE', 'trailers,,')])
         msg = hp.parse_http_message(data)
         self.assertEqual(msg.prepared.te, ['trailers'])
+
+        data = _req(headers=[('Host', 'x'), ('TE', 'trailers, ;q=0.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TE)
 
     def test_transfer_encoding_http10_error_code(self) -> None:
         # The old ambiguously-named TE_IN_HTTP10 is retained as an alias of TRANSFER_ENCODING_IN_HTTP10.
@@ -2764,12 +2771,20 @@ class TestQValueLexicalForm(unittest.TestCase):
 
 
 class TestAcceptEmptyMediaRange(unittest.TestCase):
-    def test_empty_media_range_filtered(self) -> None:
-        # Matches Accept-Encoding / TE handling: empty tokens are dropped rather than kept as '' media-ranges.
-        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html, ;q=0.5')])
+    def test_empty_media_range_ignored(self) -> None:
+        # A truly empty element is ignorable (RFC 9110 §5.6.1).
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html,,')])
         msg = hp.parse_http_message(data)
         ranges = [item.media_range for item in check.not_none(msg.prepared.accept)]
         self.assertEqual(ranges, ['text/html'])
+
+    def test_empty_media_range_with_params_rejected(self) -> None:
+        # An empty media-range carrying parameters is malformed and must not be silently dropped - previously
+        # ';q=0.5' vanished without a trace, hiding junk from the client.
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html, ;q=0.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT)
 
 
 ##
@@ -3023,6 +3038,650 @@ class TestErrorPositions(unittest.TestCase):
         with self.assertRaises(hp.HeaderFieldHttpParseError) as cm:
             hp.parse_http_message(data, config=cfg)
         self.assertEqual(cm.exception.offset, len(b'HTTP/1.1 200 OK\r\n'))
+
+
+##
+# 43. HTTP-date component strictness (int() leniency, field widths)
+
+
+class TestHttpDateComponents(unittest.TestCase):
+    """int() accepts '+', '_' and arbitrary widths - every date component must be exact ASCII digits."""
+
+    def _date(self, val: str):
+        return hp.parse_http_message(b'HTTP/1.1 200 OK\r\nDate: ' + val.encode('latin-1') + b'\r\n\r\n')
+
+    def test_int_leniency_rejected(self) -> None:
+        # All of these were previously silently accepted, producing a different date than the one sent.
+        cases = [
+            # (value, weekday-matching date) - weekday is chosen to match the MANGLED result, so only the component
+            # check can reject it. int('+4') == 4 -> year 2004 (a Saturday).
+            'Saturday, 06-Nov-+4 08:49:37 GMT',
+            # int('1_94') == 194 (a Thursday)
+            'Thursday, 06 Nov 1_94 08:49:37 GMT',
+            # int('+994') == 994 (a Thursday)
+            'Thursday, 06 Nov +994 08:49:37 GMT',
+            # int('0_8') == 8
+            'Sunday, 06 Nov 1994 0_8:49:37 GMT',
+            # int('4_9') == 49
+            'Sunday, 06 Nov 1994 08:4_9:37 GMT',
+            # asctime year int('1_94') == 194 (a Thursday)
+            'Thu Nov  6 08:49:37 1_94',
+        ]
+        for val in cases:
+            with self.subTest(val=val):
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    self._date(val)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_DATE)
+
+    def test_imf_2digit_year_rejected(self) -> None:
+        # IMF-fixdate requires a 4digit year; a 2-digit one is not an IMF date and must not be guessed.
+        with self.assertRaises(hp.SemanticHeaderHttpParseError):
+            self._date('Sun, 06 Nov 94 08:49:37 GMT')
+
+    def test_time_of_day_widths_rejected(self) -> None:
+        # IMF-fixdate time-of-day is exactly 2DIGIT ':' 2DIGIT ':' 2DIGIT.
+        for val in (
+            'Sun, 06 Nov 1994 8:49:37 GMT',
+            'Sun, 06 Nov 1994 08:9:37 GMT',
+            'Sun, 06 Nov 1994 08:49:7 GMT',
+            'Sun, 06 Nov 1994 008:49:37 GMT',
+            'Sun, 06 Nov 1994 08:049:37 GMT',
+        ):
+            with self.subTest(val=val):
+                with self.assertRaises(hp.SemanticHeaderHttpParseError):
+                    self._date(val)
+
+    def test_rfc850_component_widths_rejected(self) -> None:
+        # RFC 850 day/time components are 2-digit exactly; the year is 2 (or accepted 4) digits.
+        for val in (
+            'Sunday, 6-Nov-94 08:49:37 GMT',
+            'Sunday, 06-Nov-9 08:49:37 GMT',
+            'Sunday, 06-Nov-994 08:49:37 GMT',
+            'Sunday, 06-Nov-94 8:49:37 GMT',
+            'Sunday, 06-Nov-94 08:49:37 PDT',
+        ):
+            with self.subTest(val=val):
+                with self.assertRaises(hp.SemanticHeaderHttpParseError):
+                    self._date(val)
+
+    def test_valid_dates_still_parse(self) -> None:
+        for val in (
+            'Sun, 06 Nov 1994 08:49:37 GMT',
+            'Sunday, 06-Nov-94 08:49:37 GMT',
+            'Sunday, 06-Nov-1994 08:49:37 GMT',
+            'Sun Nov  6 08:49:37 1994',
+            'Wed Nov 16 08:49:37 1994',
+        ):
+            with self.subTest(val=val):
+                self._date(val)
+
+    def test_non_gmt_timezone_rejected(self) -> None:
+        # IMF-fixdate is only defined for 'GMT' - 'UTC' is a common mistake but not conforming.
+        with self.assertRaises(hp.SemanticHeaderHttpParseError):
+            self._date('Sun, 06 Nov 1994 08:49:37 UTC')
+
+
+##
+# 44. Quoted-string-aware comma splitting
+
+
+class TestQuotedCommaSplitting(unittest.TestCase):
+    def test_quoted_comma_in_accept_params(self) -> None:
+        # RFC 9110 §5.6.1: a comma inside a quoted-string does not separate list elements. Previously this was
+        # mangled into a truncated element ('text/html;level="1') plus garbage, and rejected as an invalid qvalue.
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html;level="1,2", */*')])
+        msg = hp.parse_http_message(data)
+        items = check.not_none(msg.prepared.accept)
+        self.assertEqual(items[0].media_range, 'text/html')
+        self.assertEqual(items[0].params, {'level': '1,2'})
+        self.assertEqual(items[1].media_range, '*/*')
+
+    def test_quoted_comma_in_cache_control(self) -> None:
+        data = _resp(headers=[('Cache-Control', 'no-cache="Set-Cookie, Foo", private')])
+        msg = hp.parse_http_message(data)
+        cc = check.not_none(msg.prepared.cache_control)
+        self.assertEqual(cc['no-cache'], 'Set-Cookie, Foo')
+        self.assertIsNone(cc['private'])
+
+    def test_quoted_comma_in_content_type(self) -> None:
+        data = _resp(headers=[('Content-Type', 'multipart/mixed; boundary="a,b"')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.content_type).params['boundary'], 'a,b')
+
+    def test_quoted_comma_in_connection(self) -> None:
+        # Not a real Connection value, but proves the split itself is quote-aware: the quoted comma is not a
+        # separator, so the whole thing is one (invalid) token - rejected as a token, not split into two.
+        data = b'HTTP/1.1 200 OK\r\nConnection: "a,b"\r\n\r\n'
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONNECTION)
+
+    def test_escaped_quote_does_not_toggle_quoting(self) -> None:
+        # The escaped DQUOTE must not end the quoted-string, so the comma after it IS a separator.
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html;a="x\\"y", */*')])
+        msg = hp.parse_http_message(data)
+        items = check.not_none(msg.prepared.accept)
+        self.assertEqual(items[0].params['a'], 'x"y')
+        self.assertEqual(items[1].media_range, '*/*')
+
+    def test_trailing_backslash_does_not_crash(self) -> None:
+        # An escape at end-of-value must not run off the end of the string.
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html;a="x\\')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError):
+            hp.parse_http_message(data)
+
+
+##
+# 45. Media-type parameter parser hardening
+
+
+class TestContentTypeParamStrictness(unittest.TestCase):
+    def test_junk_after_quoted_value_rejected(self) -> None:
+        # Previously 'foo="a"junk' silently dropped the junk.
+        data = _resp(headers=[('Content-Type', 'text/html;foo="a"junk')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE)
+
+    def test_junk_in_bare_value_rejected(self) -> None:
+        # Bare parameter values are tokens; 'utf-8 EVIL' is not.
+        data = _resp(headers=[('Content-Type', 'text/html;charset=utf-8 EVIL')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE)
+
+    def test_param_name_must_be_token(self) -> None:
+        data = _resp(headers=[('Content-Type', 'text/html;n a me=v')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE)
+
+    def test_bare_param_without_value_rejected(self) -> None:
+        # Previously ';foo' was silently skipped.
+        data = _resp(headers=[('Content-Type', 'text/html;foo')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE)
+
+    def test_trailing_semicolon_tolerated(self) -> None:
+        # A trailing ';' is common in the wild and remains accepted.
+        data = _resp(headers=[('Content-Type', 'text/html;')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.content_type).params, {})
+
+    def test_duplicate_param_rejected(self) -> None:
+        # Previously last-wins: charset=a;charset=b silently kept 'b'.
+        data = _resp(headers=[('Content-Type', 'text/html;charset=a;charset=b')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE)
+
+    def test_duplicate_q_rejected_in_accept(self) -> None:
+        # Previously last-wins: q=1;q=0.5 silently flipped the media-range's qvalue.
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html;q=1;q=0.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT)
+
+    def test_duplicate_q_rejected_in_accept_encoding(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Accept-Encoding', 'gzip;q=1;q=0.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING)
+
+    def test_q_must_be_last_param(self) -> None:
+        # RFC 9110 §12.4.2: other parameters must not follow q. Previously 'q=0.5;level=1' was accepted with both.
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html;q=0.5;level=1')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT)
+
+    def test_q_last_with_other_params_accepted(self) -> None:
+        # q after other parameters is fine.
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html;level=1;q=0.7')])
+        msg = hp.parse_http_message(data)
+        item = check.not_none(msg.prepared.accept)[0]
+        self.assertEqual(item.params, {'level': '1'})
+        self.assertEqual(item.q, 0.7)
+
+    def test_escaped_quote_in_param_value(self) -> None:
+        data = _resp(headers=[('Content-Type', 'text/html;foo="a\\"b"')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.content_type).params['foo'], 'a"b')
+
+
+##
+# 46. Token validation of Upgrade / Accept-Encoding / Accept / Cache-Control values
+
+
+class TestListValueTokenValidation(unittest.TestCase):
+    def test_upgrade_must_be_token(self) -> None:
+        # Previously 'web socket' and 'web{socket}' were accepted verbatim into prepared.upgrade.
+        for v in ('web socket', 'web{socket}', 'websocket;extra'):
+            with self.subTest(v=v):
+                data = _req(headers=[('Host', 'x'), ('Connection', 'Upgrade'), ('Upgrade', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_UPGRADE)
+
+    def test_upgrade_protocol_version_pair(self) -> None:
+        # protocol [ "/" version ] - both halves must be tokens.
+        data = _req(headers=[('Host', 'x'), ('Connection', 'Upgrade'), ('Upgrade', 'h2c, HTTP/2.0')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.upgrade, ['h2c', 'HTTP/2.0'])
+
+        for v in ('HTTP/', '/2.0', 'HTTP/2.0 extra'):
+            with self.subTest(v=v):
+                data = _req(headers=[('Host', 'x'), ('Connection', 'Upgrade'), ('Upgrade', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_UPGRADE)
+
+    def test_accept_encoding_coding_must_be_token(self) -> None:
+        # Previously 'gzip deflate' (missing comma!) parsed as a single coding 'gzip deflate'.
+        for v in ('gzip deflate', 'gz{ip', ''):
+            with self.subTest(v=v):
+                data = _req(headers=[('Host', 'x'), ('Accept-Encoding', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING)
+
+    def test_accept_encoding_star_accepted(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Accept-Encoding', '*')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.accept_encoding)[0].coding, '*')
+
+    def test_accept_encoding_no_extra_params(self) -> None:
+        # Accept-Encoding codings take a weight only, no other parameters (RFC 9110 §12.5.3).
+        data = _req(headers=[('Host', 'x'), ('Accept-Encoding', 'gzip;x=1')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING)
+
+    def test_accept_media_range_must_have_slash(self) -> None:
+        # Previously 'Accept: garbage' was accepted with media_range='garbage'.
+        for v in ('garbage', '*/*text', 'text/html junk', 'text/'):
+            with self.subTest(v=v):
+                data = _req(headers=[('Host', 'x'), ('Accept', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT)
+
+    def test_accept_wildcards_accepted(self) -> None:
+        for v in ('*/*', 'text/*'):
+            with self.subTest(v=v):
+                data = _req(headers=[('Host', 'x'), ('Accept', v)])
+                msg = hp.parse_http_message(data)
+                self.assertEqual(check.not_none(msg.prepared.accept)[0].media_range, v)
+
+    def test_accept_partial_wildcard_rejected(self) -> None:
+        # '*' is only legal as the entire type or the entire subtype.
+        for v in ('*text/*', 'te*xt/html', 'text/ht*ml'):
+            with self.subTest(v=v):
+                data = _req(headers=[('Host', 'x'), ('Accept', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT)
+
+    def test_cache_control_directive_must_be_token(self) -> None:
+        # Previously 'no cache=5' was kept with key 'no cache' and 'no{cache' was accepted.
+        for v in ('no cache=5', 'no{cache', 'no cache'):
+            with self.subTest(v=v):
+                data = _resp(headers=[('Cache-Control', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL)
+
+    def test_cache_control_bare_value_must_be_token(self) -> None:
+        # Previously 'max-age=300 400' kept the whole '300 400' string and 'max-age=' accepted an empty value.
+        for v in ('max-age=300 400', 'max-age='):
+            with self.subTest(v=v):
+                data = _resp(headers=[('Cache-Control', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL)
+
+    def test_cache_control_duplicate_directive_rejected(self) -> None:
+        # Previously last-wins: 'max-age=1, max-age=999999' silently kept the second, cache-poisoning style.
+        data = _resp(headers=[('Cache-Control', 'max-age=1, max-age=999999')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL)
+
+    def test_cache_control_duplicate_flag_rejected(self) -> None:
+        data = _resp(headers=[('Cache-Control', 'private, private')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL)
+
+    def test_cache_control_junk_after_quoted_value_rejected(self) -> None:
+        # Previously 'no-cache="a"junk' silently dropped the junk.
+        data = _resp(headers=[('Cache-Control', 'no-cache="a"junk')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL)
+
+    def test_cache_control_valid_accepted(self) -> None:
+        data = _resp(headers=[('Cache-Control', 'no-cache, private, max-age=300')])
+        msg = hp.parse_http_message(data)
+        cc = check.not_none(msg.prepared.cache_control)
+        self.assertIsNone(cc['no-cache'])
+        self.assertIsNone(cc['private'])
+        self.assertEqual(cc['max-age'], '300')
+
+    def test_cache_control_ows_before_quoted_value(self) -> None:
+        # OWS between '=' and the quoted-string is legal; the junk-after-value check must account for it.
+        for v in ('no-cache=  "Set-Cookie"', 'no-cache=\t"a"', 'no-cache="a"'):
+            with self.subTest(v=v):
+                data = _resp(headers=[('Cache-Control', v)])
+                msg = hp.parse_http_message(data)
+                expected = v.split('=')[-1].strip(' \t"')
+                self.assertEqual(check.not_none(msg.prepared.cache_control)['no-cache'], expected)
+
+    def test_cache_control_junk_after_quoted_value_with_ows(self) -> None:
+        data = _resp(headers=[('Cache-Control', 'no-cache= "a" junk')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL)
+
+
+##
+# 47. Request-only / response-only header kind checks
+
+
+class TestHeaderKindChecks(unittest.TestCase):
+    def test_host_in_response_rejected(self) -> None:
+        # Previously 'Host: evil.com' in a response was stored into prepared.host.
+        data = _resp(headers=[('Host', 'evil.com')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.HOST_IN_RESPONSE)
+
+    def test_te_in_response_rejected(self) -> None:
+        # TE is a request-only field (RFC 7230 §4.3); previously parsed and stored without complaint.
+        data = _resp(headers=[('TE', 'trailers')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.TE_IN_RESPONSE)
+
+    def test_expect_in_response_rejected(self) -> None:
+        # Expect is a request-only field (RFC 7231 §5.1.1).
+        data = _resp(headers=[('Expect', '100-continue')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.EXPECT_IN_RESPONSE)
+
+    def test_host_absent_in_response_ok(self) -> None:
+        data = _resp()
+        msg = hp.parse_http_message(data)
+        self.assertIsNone(msg.prepared.host)
+
+    def test_te_chunked_rejected(self) -> None:
+        # chunked is a Transfer-Encoding coding, not a TE coding (RFC 7230 §4.3) - accepting it here could make a
+        # 'TE: chunked' response look like a chunked response.
+        data = _req(headers=[('Host', 'x'), ('TE', 'chunked')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TE)
+
+
+##
+# 48. Authorization separator handling
+
+
+class TestAuthorizationSeparator(unittest.TestCase):
+    def test_multiple_separator_sps_consumed(self) -> None:
+        # credentials = auth-scheme 1*SP ... - all separating SPs belong to the separator. Previously 'Basic  x'
+        # kept a stray leading SP in the credentials, differing from any trimming consumer.
+        data = _req(headers=[('Host', 'x'), ('Authorization', 'Basic  dXNlcg==')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.authorization).credentials, 'dXNlcg==')
+
+    def test_single_sp_unchanged(self) -> None:
+        data = _req(headers=[('Host', 'x'), ('Authorization', 'Basic dXNlcg==')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(check.not_none(msg.prepared.authorization).credentials, 'dXNlcg==')
+
+    def test_credentials_keep_internal_whitespace(self) -> None:
+        # Only the leading separator SPs are consumed - Digest params keep their internal spaces.
+        data = _req(headers=[('Host', 'x'), ('Authorization', 'Digest username="user", realm="test"')])
+        msg = hp.parse_http_message(data)
+        self.assertTrue(check.not_none(msg.prepared.authorization).credentials.startswith('username='))
+
+
+##
+# 49. ParsedHttpHeaders API robustness
+
+
+class TestParsedHttpHeadersApi(unittest.TestCase):
+    def test_getitem_non_str_raises(self) -> None:
+        # Previously raised AttributeError ('int' object has no attribute 'lower') deep in the mapping method.
+        headers = hp.parse_http_message(b'HTTP/1.1 200 OK\r\nX-A: 1\r\n\r\n').headers
+        with self.assertRaises(TypeError):
+            headers[42]  # type: ignore[index]
+
+    def test_get_non_str_with_default_raises(self) -> None:
+        headers = hp.parse_http_message(b'HTTP/1.1 200 OK\r\nX-A: 1\r\n\r\n').headers
+        with self.assertRaises(TypeError):
+            self.assertIsNone(headers.get(42))  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            self.assertEqual(headers.get(42, 'fallback'), 'fallback')  # type: ignore[arg-type]
+
+    def test_get_all_non_str_raises(self) -> None:
+        headers = hp.parse_http_message(b'HTTP/1.1 200 OK\r\nX-A: 1\r\n\r\n').headers
+        with self.assertRaises(TypeError):
+            self.assertEqual(headers.get_all(42), [])  # type: ignore[arg-type]
+
+    def test_contains_non_str_is_false(self) -> None:
+        headers = hp.parse_http_message(b'HTTP/1.1 200 OK\r\nX-A: 1\r\n\r\n').headers
+        self.assertFalse(42 in headers)
+
+    def test_repr_shows_all_set_cookie_values(self) -> None:
+        # Previously dict() collapsed multiple Set-Cookie values to just the last one.
+        data = _resp(headers=[('Set-Cookie', 'a=1'), ('Set-Cookie', 'b=2')])
+        text = repr(hp.parse_http_message(data).headers)
+        self.assertIn("('set-cookie', 'a=1')", text)
+        self.assertIn("('set-cookie', 'b=2')", text)
+
+    def test_repr_plain_headers(self) -> None:
+        data = _resp(headers=[('X-A', '1'), ('X-B', '2')])
+        self.assertEqual(
+            repr(hp.parse_http_message(data).headers),
+            "ParsedHttpHeaders([('x-a', '1'), ('x-b', '2')])",
+        )
+
+
+##
+# 50. Parser input validation
+
+
+class TestParserInputValidation(unittest.TestCase):
+    def test_mode_must_be_enum(self) -> None:
+        # Previously a string mode was silently treated as AUTO: a forced-'request' parse of a response happily
+        # returned Kind.RESPONSE.
+        with self.assertRaises(TypeError):
+            hp.parse_http_message(b'GET / HTTP/1.1\r\nHost: x\r\n\r\n', mode='request')  # type: ignore[arg-type]
+
+        parser = hp.HttpParser()
+        with self.assertRaises(TypeError):
+            parser.parse_message(b'GET / HTTP/1.1\r\nHost: x\r\n\r\n', mode=1)  # type: ignore[arg-type]
+
+    def test_config_must_be_config(self) -> None:
+        with self.assertRaises(TypeError):
+            hp.HttpParser(None)  # type: ignore[arg-type]
+
+        with self.assertRaises(TypeError):
+            hp.HttpParser({'allow_bare_lf': True})  # type: ignore[arg-type]
+
+    def test_enum_mode_still_works(self) -> None:
+        msg = hp.parse_http_message(b'GET / HTTP/1.1\r\nHost: x\r\n\r\n', mode=hp.HttpParser.Mode.REQUEST)
+        self.assertEqual(msg.kind, hp.ParsedHttpMessage.Kind.REQUEST)
+
+
+##
+# 51. RFC 9110 §5.6.1 empty list elements are ignored, but junk parameters are not
+
+
+class TestEmptyListElements(unittest.TestCase):
+    def test_truly_empty_elements_ignored(self) -> None:
+        # Recipients MUST ignore at least one empty list element (RFC 9110 §5.6.1).
+        data = _resp(headers=[('Connection', 'close,,')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.connection, frozenset({'close'}))
+
+        data = _resp(headers=[('Trailer', 'X-A,,')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.trailer, frozenset({'x-a'}))
+
+        data = _req(headers=[('Host', 'x'), ('TE', 'trailers,,')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual(msg.prepared.te, ['trailers'])
+
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html,,')])
+        msg = hp.parse_http_message(data)
+        self.assertEqual([i.media_range for i in check.not_none(msg.prepared.accept)], ['text/html'])
+
+    def test_empty_element_with_params_rejected(self) -> None:
+        # An empty token carrying parameters is malformed and must not vanish silently - previously ';q=0.5'
+        # disappeared without a trace in both TE and Accept.
+        data = _req(headers=[('Host', 'x'), ('TE', 'trailers, ;q=0.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TE)
+
+        data = _req(headers=[('Host', 'x'), ('Accept', 'text/html, ;q=0.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT)
+
+        data = _req(headers=[('Host', 'x'), ('Accept-Encoding', ', ;q=0.5')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING)
+
+    def test_transfer_encoding_all_empty_rejected(self) -> None:
+        # 1#transfer-coding requires at least one coding.
+        data = _resp(headers=[('Transfer-Encoding', ',,')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_TRANSFER_ENCODING)
+
+    def test_host_with_bare_cr_only_when_allowed(self) -> None:
+        # The Host control-char scan is reachable when bare CR is allowed in values.
+        data = b'GET / HTTP/1.1\r\nHost: evil.com\r good.com\r\n\r\n'
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data, config=hp.HttpParser.Config(allow_bare_cr_in_value=True))
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_HOST)
+
+
+##
+# 52. Trailer parse: NUL scan and trailing data in bare-LF mode
+
+
+class TestTrailerEdgeCases(unittest.TestCase):
+    def test_trailing_data_after_crlf_terminator_in_bare_lf_mode(self) -> None:
+        # The CRLF empty line is the terminator even when bare LF is allowed; nothing may follow it.
+        data = b'X-A: 1\r\n\r\nJUNK\n\r\n'
+        with self.assertRaises(hp.HeaderFieldHttpParseError) as cm:
+            hp.parse_http_trailers(data, config=hp.HttpParser.Config(allow_bare_lf=True))
+        self.assertEqual(cm.exception.code, hp.HeaderFieldHttpParseErrorCode.TRAILING_DATA)
+
+    def test_trailer_line_numbers_have_no_start_line(self) -> None:
+        # Trailer parsing has no start-line: the first field line is line 1 (not 2).
+        data = b'X-A: 1\r\nX-B: ba\x01d\r\n\r\n'
+        with self.assertRaises(hp.HeaderFieldHttpParseError) as cm:
+            hp.parse_http_trailers(data)
+        self.assertEqual(cm.exception.line, 2)
+        # 'X-A: 1\r\n' is 7 bytes; the CTL is the 4th byte of the second field's value, at 7 + 4 + 3 = 14.
+        self.assertEqual(cm.exception.offset, 14)
+
+
+##
+# 53. RawParsedHttpHeader repr
+
+
+class TestRawHeaderRepr(unittest.TestCase):
+    def test_raw_header_repr(self) -> None:
+        msg = hp.parse_http_message(b'HTTP/1.1 200 OK\r\nFoo: bar\r\n\r\n')
+        self.assertEqual(repr(msg.raw_headers[0]), "RawParsedHttpHeader(b'Foo', b'bar')")
+
+
+##
+# 54. Previously uncovered branches (from a coverage pass)
+
+
+class TestUncoveredBranches(unittest.TestCase):
+    def test_rfc850_date_component_errors(self) -> None:
+        # Each invalid component must surface as INVALID_DATE, not only weekday-mismatch failures (the old
+        # invalid-date tests all happened to fail via the weekday cross-check).
+        for val in (
+            'Sunday, 6-Nov-94 08:49:37 GMT',     # 1-digit day
+            'Sunday, 06XNov-94 08:49:37 GMT',    # 3 date pieces with bad day
+            'Sunday, 06-Nov-94 8:4:37 GMT',      # short time fields
+            'Sunday, 06-Nov-94 08:49:37 XMT',    # not GMT
+            'Sunday, 06-Xxx-94 08:49:37 GMT',    # invalid month
+        ):
+            with self.subTest(val=val):
+                data = _resp(headers=[('Date', val)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_DATE)
+
+    def test_imf_date_component_errors(self) -> None:
+        for val in (
+            'Sun, 6 Nov 1994 08:49:37 GMT',      # 1-digit day
+            'Sun, 06 Xxx 1994 08:49:37 GMT',     # invalid month
+            'Sun, 06 Nov 1994 08:49:37 PDT',     # not GMT
+        ):
+            with self.subTest(val=val):
+                data = _resp(headers=[('Date', val)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_DATE)
+
+    def test_asctime_time_and_month_errors(self) -> None:
+        # Correct length but invalid internals - the fixed-width slices must still be validated.
+        for val in (
+            'Sun Nov  6 08:49:3x 1994',   # invalid second
+            'Sun Xxx  6 08:49:37 1994',   # invalid month
+            'Sun Nov  6 08:49:37 19x4',   # invalid year
+        ):
+            with self.subTest(val=val):
+                data = _resp(headers=[('Date', val)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_DATE)
+
+    def test_imf_junk_after_quoted_params(self) -> None:
+        # Content in the parameter area that is not ';' separated is junk, not a silently-dropped remainder.
+        data = _resp(headers=[('Content-Type', 'text/html;charset=a junk')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE)
+
+    def test_content_length_comma_forms(self) -> None:
+        # Comma-separated CL: empty elements are errors (not silently skipped), and non-identical values conflict.
+        for v in ('42,', ',42', '42,,42'):
+            with self.subTest(v=v):
+                data = _resp(headers=[('Content-Length', v)])
+                with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                    hp.parse_http_message(data)
+                self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_LENGTH)
+
+    def test_content_length_trailing_obs_text(self) -> None:
+        # obs-text bytes must not be silently treated as whitespace (U+0085/U+00A0 are str.strip() whitespace).
+        for suffix in (b'\xa0', b'\x85'):
+            data = b'HTTP/1.1 200 OK\r\nContent-Length: 42' + suffix + b'\r\n\r\n'
+            with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+                hp.parse_http_message(data)
+            self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_LENGTH)
+
+    def test_upgrade_in_http10_request(self) -> None:
+        # Upgrade requires HTTP/1.1 - previously a 1.0 request with Connection: Upgrade + Upgrade was accepted.
+        data = _req(version='HTTP/1.0', headers=[('Connection', 'Upgrade'), ('Upgrade', 'websocket')])
+        with self.assertRaises(hp.SemanticHeaderHttpParseError) as cm:
+            hp.parse_http_message(data)
+        self.assertEqual(cm.exception.code, hp.SemanticHeaderHttpParseErrorCode.UPGRADE_IN_HTTP10)
 
 
 if __name__ == '__main__':
