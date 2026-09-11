@@ -58,7 +58,7 @@ prof = [
     'gprof2dot ~= 2025.4',
 ]
 pyright = [
-    'basedpyright ~= 1.39',
+    'basedpyright ~= 1.40',
 ]
 qr = [
     'segno ~= 1.6',
@@ -105,7 +105,7 @@ all = [
     'rapidocr-onnxruntime ~= 1.4',
     'pillow ~= 12.3',
     'gprof2dot ~= 2025.4',
-    'basedpyright ~= 1.39',
+    'basedpyright ~= 1.40',
     'segno ~= 1.6',
     'ruff ~= 0.16',
     'tree-sitter ~= 0.26',

@@ -55,7 +55,7 @@ class Project(ProjectBase):
         ],
 
         'pyright': [
-            'basedpyright ~= 1.39',
+            'basedpyright ~= 1.40',
         ],
 
         'qr': [
