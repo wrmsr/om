@@ -16,6 +16,7 @@ from omcore import lang
 from omcore.text import highlights as hl
 from omdev import minitui as mt
 
+from .... import llm
 from ....core import ui
 
 
@@ -701,9 +702,65 @@ class MinituiChatApp(mt.App):
             self._refresh_status()
             self._driver.invalidate()
 
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Usage:
+        input: int = 0
+        input_cached: int = 0
+        output: int = 0
+        reasoning: int = 0
+
+        #
+
+        _SUFFIXES: ta.ClassVar = (
+            (1_000_000_000_000_000, 'q'),
+            (1_000_000_000_000, 't'),
+            (1_000_000_000, 'b'),
+            (1_000_000, 'm'),
+            (1_000, 'k'),
+        )
+
+        @classmethod
+        def _render_int(cls, n: int) -> str:
+            a = abs(n)
+
+            for scale, suffix in cls._SUFFIXES:
+                if a >= scale:
+                    value = n / scale
+                    digits = len(str(int(abs(value))))
+                    places = max(0, 3 - digits)
+
+                    s = f'{value:.{places}f}'.rstrip('0').rstrip('.')
+                    return f'{s}{suffix}'
+
+            return str(n)
+
+        def render(self) -> str:
+            return ' '.join([
+                f'{p}{self._render_int(v)}'
+                for p, v in
+                [
+                    ('i', self.input),
+                    ('c', self.input_cached),
+                    ('o', self.output),
+                    ('r', self.reasoning),
+                ]
+                if v
+            ])
+
+    _usage = Usage()
+
+    def add_token_usage(self, usage: llm.TokenUsage) -> None:
+        self._usage = MinituiChatApp.Usage(
+            input=self._usage.input + max((usage.input or 0) - (usage.cache_read or 0), 0),
+            input_cached=self._usage.input_cached + (usage.cache_read or 0),
+            output=self._usage.output + max((usage.output or 0) - (usage.reasoning or 0), 0),
+            reasoning=self._usage.reasoning + (usage.reasoning or 0),
+        )
+
     def _refresh_status(self) -> None:
         st = self._input.engine.status()
         mode_part = st.cmdline if st.cmdline is not None else st.mode_text
+
         if self._cancelling:
             activity = 'cancelling'
         elif self._thinking:
@@ -712,12 +769,17 @@ class MinituiChatApp(mt.App):
             activity = 'streaming'
         else:
             activity = 'idle'
+
         self._status.set_left([
             (self._spinner.frame if self._busy else ' ', 'status.spinner'),
             (f' {activity}  ', 'status.dim'),
             (mode_part or '', 'status.mode'),
             (f'  {st.pending}' if st.pending else '', 'status.dim'),
             (f'  {st.message}' if st.message else '', 'status.dim'),
+        ])
+
+        self._status.set_right([
+            (self._usage.render(), 'status.text'),
         ])
 
     def _handle_mouse(self, event: mt.MouseEvent) -> None:

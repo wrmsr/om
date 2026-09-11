@@ -149,10 +149,14 @@ class AgentEventRenderer:
             app.display_text(f'retrying in {ev.delay_s:.0f}s: {ev.error!r}', 'status.dim')
 
         elif isinstance(ev, agn.TurnEndEvent):
-            if self._config.immediate and isinstance(msg := ev.message, llm.AiMessage):
-                for c in msg.content:
-                    if isinstance(c, llm.TextContent) and (s := c.text.strip()):
-                        await self._text_displayer.display_text(ui.MarkdownText(s))
+            if isinstance(msg := ev.message, llm.AiMessage):
+                if (tu := msg.token_usage) is not None:
+                    self._app.add_token_usage(tu)
+
+                if self._config.immediate:
+                    for c in msg.content:
+                        if isinstance(c, llm.TextContent) and (s := c.text.strip()):
+                            await self._text_displayer.display_text(ui.MarkdownText(s))
 
         elif isinstance(ev, agn.ToolExecutionStartEvent):
             app.tool_started(
