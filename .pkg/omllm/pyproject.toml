@@ -32,26 +32,26 @@ omdev = [
     'omdev == 0.0.56',
 ]
 interop = [
-    'huggingface-hub ~= 1.30',
+    'huggingface-hub ~= 1.31',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
     'tinygrad ~= 0.14',
     'torch ~= 2.14',
-    'transformers ~= 5.16',
+    'transformers ~= 5.17',
 ]
 search = [
     'ddgs ~= 9.16',
 ]
 all = [
     'omdev == 0.0.56',
-    'huggingface-hub ~= 1.30',
+    'huggingface-hub ~= 1.31',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.31; sys_platform == "darwin"',
     'tinygrad ~= 0.14',
     'torch ~= 2.14',
-    'transformers ~= 5.16',
+    'transformers ~= 5.17',
     'ddgs ~= 9.16',
 ]
 
