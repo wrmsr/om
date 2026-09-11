@@ -34,7 +34,7 @@ class Token(enum.StrEnum):
     LIT_REDIR_ = '<lit-redir>'
 
     # Token values beyond this point stringify as exact source.
-    REAL_TOKEN_BOUNDARY_ = '<real-token-boundary>'
+    REAL_TOKEN_BOUNDARY_ = '<real-token-boundary>'  # noqa: S105
 
     SGL_QUOTE = "'"
     DBL_QUOTE = '"'
@@ -45,6 +45,8 @@ class Token(enum.StrEnum):
     OR_OR   = '||'
     OR      = '|'
     OR_AND  = '|&'
+    AND_PIPE = '&|'
+    AND_BANG = '&!'
 
     DOLLAR         = '$'
     DOLL_SGL_QUOTE = "$'"
@@ -104,18 +106,14 @@ class Token(enum.StrEnum):
     DPL_IN        = '<&'
     DPL_OUT       = '>&'
     RDR_CLOB      = '>|'
-    RDR_TRUNC     = '>!'
     APP_CLOB      = '>>|'
-    APP_TRUNC     = '>>!'
     HDOC          = '<<'
     DASH_HDOC     = '<<-'
     WORD_HDOC     = '<<<'
     RDR_ALL       = '&>'
     RDR_ALL_CLOB  = '&>|'
-    RDR_ALL_TRUNC = '&>!'
     APP_ALL       = '&>>'
     APP_ALL_CLOB  = '&>>|'
-    APP_ALL_TRUNC = '&>>!'
 
     CMD_IN      = '<('
     ASSGN_PAREN = '=('
@@ -134,6 +132,8 @@ class Token(enum.StrEnum):
     HASH      = '#'
     DBL_HASH  = '##'
     COL_HASH  = ':#'
+    COL_PIPE  = ':|'
+    COL_STAR  = ':*'
     CARET     = '^'
     DBL_CARET = '^^'
     COMMA     = ','
@@ -205,21 +205,17 @@ class RedirOperator(_TokenOperator, enum.Enum):
     DPL_IN        = Token.DPL_IN
     DPL_OUT       = Token.DPL_OUT
     RDR_CLOB      = Token.RDR_CLOB
-    RDR_TRUNC     = Token.RDR_TRUNC      # with [LANG_ZSH]
     APP_CLOB      = Token.APP_CLOB       # with [LANG_ZSH]
-    APP_TRUNC     = Token.APP_TRUNC      # with [LANG_ZSH]
     HDOC          = Token.HDOC
     DASH_HDOC     = Token.DASH_HDOC
     WORD_HDOC     = Token.WORD_HDOC
     RDR_ALL       = Token.RDR_ALL
     RDR_ALL_CLOB  = Token.RDR_ALL_CLOB   # with [LANG_ZSH]
-    RDR_ALL_TRUNC = Token.RDR_ALL_TRUNC  # with [LANG_ZSH]
     APP_ALL       = Token.APP_ALL
     APP_ALL_CLOB  = Token.APP_ALL_CLOB   # with [LANG_ZSH]
-    APP_ALL_TRUNC = Token.APP_ALL_TRUNC  # with [LANG_ZSH]
 
     # Deprecated: use [RdrClob]
-    CLB_OUT       = Token.RDR_CLOB
+    CLB_OUT       = Token.RDR_CLOB  # noqa: PIE796
 
 
 class ProcOperator(_TokenOperator, enum.Enum):
@@ -287,6 +283,8 @@ class ParExpOperator(_TokenOperator, enum.Enum):
     REM_SMALL_PREFIX        = Token.HASH
     REM_LARGE_PREFIX        = Token.DBL_HASH
     MATCH_EMPTY             = Token.COL_HASH
+    ARRAY_EXCLUDE           = Token.COL_PIPE
+    ARRAY_INTERSECT         = Token.COL_STAR
     UPPER_FIRST             = Token.CARET
     UPPER_ALL               = Token.DBL_CARET
     LOWER_FIRST             = Token.COMMA

@@ -150,7 +150,7 @@ def quote(s: str, l: LangVariant) -> str | Error:
                 b.write('\\v')
             elif codepoint < 0x80:
                 # \xXX, fixed at two hexadecimal characters.
-                b.write('\\x%02x' % (codepoint,))
+                b.write(f'\\x{codepoint:02x}')
                 # Unfortunately, mksh allows \x to consume more hex characters.
                 # Ensure that we don't allow it to read more than two.
                 if lang_in(l, LANG_MIR_BSD_KORN):
@@ -165,10 +165,10 @@ def quote(s: str, l: LangVariant) -> str | Error:
                 return QuoteError(offs, QUOTE_ERR_MKSH)
             elif codepoint < 0x10000:
                 # \uXXXX, fixed at four hexadecimal characters.
-                b.write('\\u%04x' % (codepoint,))
+                b.write(f'\\u{codepoint:04x}')
             else:
                 # \UXXXXXXXX, fixed at eight hexadecimal characters.
-                b.write('\\U%08x' % (codepoint,))
+                b.write(f'\\U{codepoint:08x}')
             last_requote_if_hex = next_requote_if_hex
             offs += len(r.encode('utf-8', errors='surrogatepass'))
 

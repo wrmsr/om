@@ -1,4 +1,3 @@
-import typing as ta
 
 from .errors import Error
 from .errors import GenericError
@@ -9,7 +8,17 @@ from .errors import GenericError
 
 # LangVariant describes a shell language variant to use when tokenizing and
 # parsing shell code. The zero value is [LANG_BASH].
-LangVariant = ta.NewType('LangVariant', int)
+class LangVariant(int):
+    __slots__ = ()
+
+    def __or__(self, other: int) -> LangVariant:
+        return LangVariant(int(self) | int(other))
+
+    def __ror__(self, other: int) -> LangVariant:
+        return LangVariant(int(other) | int(self))
+
+    def __and__(self, other: int) -> LangVariant:
+        return LangVariant(int(self) & int(other))
 
 # TODO(v4): the zero value should be left as an unset and invalid value.
 # TODO(v4): the type should be uint32 now that we use this as a bitset;
@@ -82,7 +91,7 @@ LANG_BASH_LIKE = LANG_BASH | LANG_BATS
 
 
 def lang_string(l: LangVariant) -> str:
-    if l == LANG_BASH_LEGACY or l == LANG_BASH:
+    if l in (LANG_BASH_LEGACY, LANG_BASH):
         return 'bash'
     elif l == LANG_POSIX:
         return 'posix'
@@ -101,7 +110,7 @@ def lang_string(l: LangVariant) -> str:
 def lang_from_string(s: str) -> LangVariant | Error:
     if s == 'bash':
         return LANG_BASH
-    elif s == 'posix' or s == 'sh':
+    elif s in ('posix', 'sh', 'dash'):
         return LANG_POSIX
     elif s == 'mksh':
         return LANG_MIR_BSD_KORN
@@ -112,7 +121,7 @@ def lang_from_string(s: str) -> LangVariant | Error:
     elif s == 'auto':
         return LANG_AUTO
     else:
-        return GenericError('unknown shell language variant: %r' % (s,))
+        return GenericError(f'unknown shell language variant: {s!r}')
 
 
 def lang_in(l: LangVariant, l2: LangVariant) -> bool:

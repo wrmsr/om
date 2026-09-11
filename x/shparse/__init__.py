@@ -1,5 +1,5 @@
 """
-https://github.com/mvdan/sh/tree/df3056bf55a4c027805801eda983f3ebdc093733
+https://github.com/mvdan/sh/tree/c6351e95dbeeb2645b68c463ea916eed815bef5e
 """
 
 from .braces import split_braces
@@ -18,4 +18,5 @@ from .parser import valid_name
 from .quote import QuoteError
 from .quote import quote
 from .walk import debug_print
+from .walk import preorder
 from .walk import walk

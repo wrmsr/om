@@ -27,7 +27,6 @@
 # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_13.
 
 import io
-import re
 
 from omcore import dataclasses as dc
 
@@ -44,6 +43,30 @@ NO_GLOB_CASE = 1 << 3        # case-insensitive match ((?i) in the regexp); shop
 NO_GLOB_STAR = 1 << 4        # do not support "**"; negated shopt "globstar"
 GLOB_LEADING_DOT = 1 << 5    # let wildcards match leading dots in filenames; shopt "dotglob"
 EXTENDED_OPERATORS = 1 << 6   # support extended pattern matching operators; shopt "extglob"
+
+
+_PYTHON_CHAR_CLASSES = {
+    'alnum': '0-9A-Za-z',
+    'alpha': 'A-Za-z',
+    'ascii': r'\x00-\x7f',
+    'blank': r'\t ',
+    'cntrl': r'\x00-\x1f\x7f',
+    'digit': '0-9',
+    'graph': r'\x21-\x7e',
+    'lower': 'a-z',
+    'print': r'\x20-\x7e',
+    'punct': r'!-/:-@\[-`{-~',
+    'space': r'\t\n\v\f\r ',
+    'upper': 'A-Z',
+    'word': '0-9A-Z_a-z',
+    'xdigit': '0-9A-Fa-f',
+}
+
+_REGEXP_META = frozenset(r'\\.+*?()|[]{}^$')
+
+
+def _quote_regexp(text: str) -> str:
+    return ''.join(f'\\{char}' if char in _REGEXP_META else char for char in text)
 
 
 class PatternSyntaxError(Exception):
@@ -122,27 +145,35 @@ def _regexp_next(sb: io.StringIO, sl: _StringLexer, mode: int) -> object | None:
         if c in ('!', '?', '*', '+', '@'):
             op = c
             if sl.peek_next() == '(':
-                start = sl.i - 1       # position of the operator
-                sb.write(sl.next())  # (
+                start = sl.i - 1
+                group = io.StringIO()
+                group.write(sl.next())  # (
                 while True:
                     pn = sl.peek_next()
                     if pn == ')':
                         break
                     elif pn == '|':
                         # extended operators support a list of "or" separated expressions
-                        sb.write(sl.next())
+                        group.write(sl.next())
                         continue
-                    result = _regexp_next(sb, sl, mode)
+                    elif pn == '\x00':
+                        # Like Bash, an unclosed group is parsed literally.
+                        sl.i = start + 1
+                        break
+                    result = _regexp_next(group, sl, mode)
                     if result is _EOF_SENTINEL:
                         break
-                    # result is None (success) - continue
-                sb.write(sl.next())  # )
-                if op == '!':
-                    raise NegExtGlobError(groups=[NegExtGlobGroup(start=start, end=sl.i)])
-                if op != '@':
-                    # @( is GlobOne for matching once; no suffix needed
-                    sb.write(op)
-                return None
+                if sl.peek_next() == ')':
+                    group.write(sl.next())  # )
+                    sb.write(group.getvalue())
+                    if op == '!':
+                        byte_start = len(sl.s[:start].encode())
+                        byte_end = len(sl.s[:sl.i].encode())
+                        raise NegExtGlobError(groups=[NegExtGlobGroup(start=byte_start, end=byte_end)])
+                    if op != '@':
+                        # @( is GlobOne for matching once; no suffix needed
+                        sb.write(op)
+                    return None
     if c == '\x00':
         return _EOF_SENTINEL
     elif c == '*':
@@ -189,80 +220,181 @@ def _regexp_next(sb: io.StringIO, sl: _StringLexer, mode: int) -> object | None:
         c2 = sl.next()
         if c2 == '\x00':
             raise PatternSyntaxError(r'\ at end of pattern')
-        sb.write(re.escape(c2))
+        sb.write(_quote_regexp(c2))
     elif c == '[':
-        # TODO: surely char classes can be mixed with others, e.g. [[:foo:]xyz]
-        try:
-            name = _char_class(sl.peek_rest())
-        except PatternSyntaxError:
-            raise
-        if name:
-            sb.write('[')
-            sb.write(name)
-            sl.i += len(name)
-        else:
-            if mode & FILENAMES != 0:
-                for i2, c2 in enumerate(sl.peek_rest()):
-                    if i2 > 0 and c2 == ']':
-                        break
-                    elif c2 == '/':
-                        sb.write('\\[')
-                        return None
-            sb.write(c)
-            c3 = sl.next()
-            if c3 == '\x00':
-                raise PatternSyntaxError('[ was not matched with a closing ]')
-            if c3 in ('!', '^'):
-                sb.write('^')
-                c3 = sl.next()
-                if c3 == '\x00':
-                    raise PatternSyntaxError('[ was not matched with a closing ]')
-            if c3 == ']':
-                sb.write(']')
-                c3 = sl.next()
-                if c3 == '\x00':
-                    raise PatternSyntaxError('[ was not matched with a closing ]')
-            while True:
-                sb.write(c3)
-                if c3 == '\x00':
-                    raise PatternSyntaxError('[ was not matched with a closing ]')
-                elif c3 == '\\':
-                    c4 = sl.next()
-                    if c4 != '\x00':
-                        sb.write(c4)
-                elif c3 == '-':
-                    start2 = sl.last()
-                    end2 = sl.peek_next()
-                    # TODO: what about overlapping ranges, like: [a--z]
-                    if end2 != ']' and start2 > end2:
-                        raise PatternSyntaxError(f'invalid range: {start2}-{end2}')
-                elif c3 == ']':
+        lit = sl.i
+        filenames = mode & FILENAMES != 0
+        bracket = io.StringIO()
+        bracket.write('[')
+        has_slash = False
+        deferred_err: PatternSyntaxError | None = None
+        class_err: PatternSyntaxError | None = None
+
+        def literal_bracket() -> None:
+            sl.i = lit
+            sb.write(r'\[')
+
+        c = sl.next()
+        if c == '\x00':
+            literal_bracket()
+            return None
+        if c in ('!', '^'):
+            bracket.write('^')
+            c = sl.next()
+            if c == '\x00':
+                literal_bracket()
+                return None
+        if c == ']':
+            bracket.write(']')
+            c = sl.next()
+            if c == '\x00':
+                literal_bracket()
+                return None
+        while True:
+            if c == '\x00':
+                if class_err is not None:
+                    raise class_err
+                literal_bracket()
+                return None
+            elif c == '\\':
+                c = sl.next()
+                if c == '\x00':
+                    continue
+                if c == '-':
+                    bracket.write(r'\-')
+                elif ord(c) > 127:
+                    bracket.write(c)
+                else:
+                    if filenames and c == '/':
+                        has_slash = True
+                    bracket.write(_quote_regexp(c))
+            elif c == '-':
+                bracket.write('-')
+                range_start = sl.last()
+                end = sl.peek_next()
+                if end != ']' and range_start > end and deferred_err is None:
+                    deferred_err = PatternSyntaxError(f'invalid range: {range_start}-{end}')
+            elif c == ']':
+                if has_slash:
+                    sb.write(_quote_regexp(sl.s[lit - 1:sl.i]))
                     return None
-                c3 = sl.next()
+                if deferred_err is not None:
+                    raise deferred_err
+                bracket.write(']')
+                sb.write(bracket.getvalue())
+                return None
+            elif c == '[':
+                rest = sl.peek_rest()
+                count, char_class_err = _char_class(rest)
+                if char_class_err is not None:
+                    if class_err is None:
+                        class_err = PatternSyntaxError('charClass invalid', char_class_err)
+                    if deferred_err is None:
+                        deferred_err = class_err
+                if count > 0:
+                    bracket.write('[')
+                    if filenames and '/' in rest[:count]:
+                        has_slash = True
+                    bracket.write(rest[:count])
+                    sl.i += count
+                else:
+                    bracket.write(r'\[')
+            else:
+                if filenames and c == '/':
+                    has_slash = True
+                bracket.write(c)
+            c = sl.next()
     else:
         if ord(c) > 127:
             sb.write(c)
         else:
-            sb.write(re.escape(c))
+            sb.write(_quote_regexp(c))
     return None
 
 
-def _char_class(s: str) -> str:
-    if s.startswith('[.') or s.startswith('[='):
-        raise PatternSyntaxError('collating features not available')
-    if not s.startswith('[:'):
-        return ''
-    name = s[2:]
-    idx = name.find(':]]')
-    if idx < 0:
-        raise PatternSyntaxError('[[: was not matched with a closing :]]')
-    name = name[:idx]
+def _char_class(s: str) -> tuple[int, PatternSyntaxError | None]:
+    if s.startswith(('.', '=')):
+        sep = f'{s[0]}]'
+        end = s.find(sep, 1)
+        if end < 0:
+            return 0, PatternSyntaxError('collating features not available')
+        return end + 2, PatternSyntaxError('collating features not available')
+    if not s.startswith(':'):
+        return 0, None
+    end = s.find(':]', 1)
+    if end < 0:
+        return 0, PatternSyntaxError('[[: was not matched with a closing :]')
+    name = s[1:end]
+    consumed = len(name) + 3
     if name not in (
         'alnum', 'alpha', 'ascii', 'blank', 'cntrl', 'digit', 'graph',
         'lower', 'print', 'punct', 'space', 'upper', 'word', 'xdigit',
     ):
-        raise PatternSyntaxError(f'invalid character class: {name!r}')
-    return s[:len(name) + 5]
+        return consumed, PatternSyntaxError(f'invalid character class: {name!r}')
+    return consumed, None
+
+
+def _shortest_regexp(expression: str) -> str:
+    result = io.StringIO()
+    prefix_end = expression.find(')') + 1
+    result.write(expression[:prefix_end])
+    in_class = False
+    escaped = False
+    for char in expression[prefix_end:]:
+        result.write(char)
+        if escaped:
+            escaped = False
+        elif char == '\\':
+            escaped = True
+        elif char == '[':
+            in_class = True
+        elif char == ']':
+            in_class = False
+        elif not in_class and char in ('*', '+', '?'):
+            result.write('?')
+    return result.getvalue()
+
+
+def _replace_posix_classes(expression: str) -> str:
+    result = io.StringIO()
+    i = 0
+    in_bracket = False
+    bracket_chars = 0
+    while i < len(expression):
+        escaped = False
+        if expression[i] in ('[', ']'):
+            backslashes = 0
+            j = i - 1
+            while j >= 0 and expression[j] == '\\':
+                backslashes += 1
+                j -= 1
+            escaped = backslashes % 2 == 1
+        if expression[i] == '[' and not escaped:
+            if in_bracket and i + 1 < len(expression) and expression[i + 1] == ':':
+                end = expression.find(':]', i + 2)
+                if end >= 0:
+                    name = expression[i + 2:end]
+                    replacement = _PYTHON_CHAR_CLASSES.get(name)
+                    if replacement is not None:
+                        result.write(replacement)
+                        i = end + 2
+                        bracket_chars += 1
+                        continue
+            elif in_bracket:
+                result.write(r'\[')
+                bracket_chars += 1
+                i += 1
+                continue
+            else:
+                in_bracket = True
+                bracket_chars = 0
+        elif expression[i] == ']' and not escaped and in_bracket and bracket_chars > 0:
+            in_bracket = False
+        result.write(expression[i])
+        if in_bracket and expression[i] != '[':
+            bracket_chars += 1
+        i += 1
+    return result.getvalue()
 
 
 # Regexp turns a shell pattern into a regular expression that can be used with
@@ -313,7 +445,12 @@ def regexp(pat: str, mode: int) -> str:
         raise NegExtGlobError(groups=neg_groups)
     if mode & ENTIRE_STRING != 0:
         sb.write('$')
-    return sb.getvalue()
+    expression = sb.getvalue()
+    expression = _replace_posix_classes(expression)
+    expression = expression.replace('[[]', r'[\[]')
+    if mode & SHORTEST != 0:
+        expression = _shortest_regexp(expression)
+    return expression
 
 
 # HasMeta returns whether a string contains any unescaped pattern
@@ -329,12 +466,17 @@ def regexp(pat: str, mode: int) -> str:
 #
 # The mode parameter is unused, and will be removed in v4.
 def has_meta(pat: str, mode: int = 0) -> bool:
+    open_bracket = False
     i = 0
     while i < len(pat):
         c = pat[i]
         if c == '\\':
             i += 1
-        elif c in ('*', '?', '['):
+        elif c in ('*', '?'):
+            return True
+        elif c == '[':
+            open_bracket = True
+        elif c == ']' and open_bracket:
             return True
         i += 1
     return False

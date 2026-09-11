@@ -19,6 +19,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import copy
 
+from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
@@ -38,6 +39,17 @@ LIT_LEFT_BRACE  = Lit(value='{')
 LIT_COMMA       = Lit(value=',')
 LIT_DOTS        = Lit(value='..')
 LIT_RIGHT_BRACE = Lit(value='}')
+
+_INT64_MIN = -(1 << 63)
+_INT64_MAX = (1 << 63) - 1
+
+
+def _is_int64(value: str) -> bool:
+    try:
+        number = int(value)
+    except ValueError:
+        return False
+    return _INT64_MIN <= number <= _INT64_MAX
 
 
 # SplitBraces parses brace expansions within a word's literal parts.
@@ -72,7 +84,7 @@ def split_braces(word: Word) -> bool:
         else:
             cur = opn[-1]
             acc = cur.elems[-1]
-        return old
+        return check.not_none(old)
 
     def add_lit(lit: Lit) -> None:
         acc.parts.append(lit)
@@ -97,7 +109,11 @@ def split_braces(word: Word) -> bool:
                 l2.value = l2.value[last:j]
                 add_lit(l2)
 
-            if lit.value[j] == '{':
+            if lit.value[j] == '\\':
+                j += 1
+                continue
+
+            elif lit.value[j] == '{':
                 add_lit_idx()
                 acc = Word()
                 cur = BraceExp(elems=[acc])
@@ -107,6 +123,13 @@ def split_braces(word: Word) -> bool:
                 if cur is None:
                     continue
                 add_lit_idx()
+                if cur.sequence:
+                    merged = cur.elems[0]
+                    for elem in cur.elems[1:]:
+                        merged.parts.append(LIT_DOTS)
+                        merged.parts.extend(elem.parts)
+                    cur.sequence = False
+                    cur.elems = [merged]
                 acc = Word()
                 cur.elems.append(acc)
 
@@ -114,6 +137,8 @@ def split_braces(word: Word) -> bool:
                 if cur is None:
                     continue
                 if j+1 >= len(lit.value) or lit.value[j+1] != '.':
+                    continue
+                if not cur.sequence and len(cur.elems) > 1:
                     continue
                 add_lit_idx()
                 cur.sequence = True
@@ -139,9 +164,7 @@ def split_braces(word: Word) -> bool:
                     broken = False
                     for i, elem in enumerate(br.elems[:2]):
                         val = elem.lit()
-                        try:
-                            int(val)  # noqa
-                        except ValueError:
+                        if not _is_int64(val):
                             if len(val) == 1 and lexer.ascii_letter(val[0]):
                                 chars[i] = True
                             else:
@@ -150,10 +173,10 @@ def split_braces(word: Word) -> bool:
                     if len(br.elems) == 3:
                         # increment must be a number
                         val = br.elems[2].lit()
-                        try:
-                            int(val)  # noqa
-                        except ValueError:
+                        if not _is_int64(val):
                             broken = True
+                    elif len(br.elems) > 3:
+                        broken = True
 
                     # are start and end both chars or
                     # non-chars?

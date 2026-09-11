@@ -17,14 +17,16 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import enum
 import typing as ta
 
+from omcore import check
 from omcore import dataclasses as dc
 
 from .langs import LANG_AUTO
 from .langs import LANG_BASH
-from .langs import LANG_BASH_LIKE
 from .langs import LANG_BASH_LEGACY
+from .langs import LANG_BASH_LIKE
 from .langs import LANG_BATS
 from .langs import LANG_MIR_BSD_KORN
 from .langs import LANG_POSIX
@@ -40,11 +42,14 @@ from .lexer import ascii_digit
 from .lexer import ascii_letter
 from .lexer import bquote_escaped
 from .lexer import param_name_rune
+from .lexer import param_name_start_rune
+from .lexer import positional_rune_param
 from .lexer import single_rune_param
 from .lexer import test_binary_op
 from .nodes import RECOVERED_POS
 from .nodes import ArithmCmd
 from .nodes import ArithmExp
+from .nodes import ArithmExpr
 from .nodes import ArrayElem
 from .nodes import ArrayExpr
 from .nodes import Assign
@@ -70,6 +75,7 @@ from .nodes import IfClause
 from .nodes import LetClause
 from .nodes import Lit
 from .nodes import Node
+from .nodes import OptState
 from .nodes import ParamExp
 from .nodes import ParenTest
 from .nodes import Pos
@@ -112,25 +118,27 @@ _RUNE_BY_RUNE = 1 << 1
 _UNQUOTED_WORD_CONT = 1 << 2
 _SUB_CMD = 1 << 3
 _SUB_CMD_BCKQUO = 1 << 4
-_DBL_QUOTES = 1 << 5
-_HDOC_WORD = 1 << 6
-_HDOC_BODY = 1 << 7
-_HDOC_BODY_TABS = 1 << 8
-_ARITHM_EXPR = 1 << 9
-_ARITHM_EXPR_LET = 1 << 10
-_ARITHM_EXPR_CMD = 1 << 11
-_TEST_EXPR = 1 << 12
-_TEST_EXPR_REGEXP = 1 << 13
-_SWITCH_CASE = 1 << 14
-_PARAM_EXP_ARITHM = 1 << 15
-_PARAM_EXP_REPL = 1 << 16
-_PARAM_EXP_EXP = 1 << 17
-_ARRAY_ELEMS = 1 << 18
+_SUB_CMD_BRACES = 1 << 5
+_DBL_QUOTES = 1 << 6
+_HDOC_WORD = 1 << 7
+_HDOC_BODY = 1 << 8
+_HDOC_BODY_TABS = 1 << 9
+_ARITHM_EXPR = 1 << 10
+_ARITHM_EXPR_LET = 1 << 11
+_ARITHM_EXPR_CMD = 1 << 12
+_TEST_EXPR = 1 << 13
+_TEST_EXPR_REGEXP = 1 << 14
+_SWITCH_CASE = 1 << 15
+_PARAM_EXP_ARITHM = 1 << 16
+_PARAM_EXP_SLICE = 1 << 17
+_PARAM_EXP_REPL = 1 << 18
+_PARAM_EXP_EXP = 1 << 19
+_ARRAY_ELEMS = 1 << 20
 
 _ALL_KEEP_SPACES = _RUNE_BY_RUNE | _PARAM_EXP_REPL | _DBL_QUOTES | _HDOC_BODY | _HDOC_BODY_TABS | _PARAM_EXP_EXP
-_ALL_REG_TOKENS = _NO_STATE | _UNQUOTED_WORD_CONT | _SUB_CMD | _SUB_CMD_BCKQUO | _HDOC_WORD | _SWITCH_CASE | _ARRAY_ELEMS | _TEST_EXPR  # noqa
-_ALL_ARITHM_EXPR = _ARITHM_EXPR | _ARITHM_EXPR_LET | _ARITHM_EXPR_CMD | _PARAM_EXP_ARITHM
-_ALL_PARAM_EXP = _PARAM_EXP_ARITHM | _PARAM_EXP_REPL | _PARAM_EXP_EXP
+_ALL_REG_TOKENS = _NO_STATE | _UNQUOTED_WORD_CONT | _SUB_CMD | _SUB_CMD_BCKQUO | _SUB_CMD_BRACES | _HDOC_WORD | _SWITCH_CASE | _ARRAY_ELEMS | _TEST_EXPR  # noqa
+_ALL_ARITHM_EXPR = _ARITHM_EXPR | _ARITHM_EXPR_LET | _ARITHM_EXPR_CMD | _PARAM_EXP_ARITHM | _PARAM_EXP_SLICE
+_ALL_PARAM_EXP = _PARAM_EXP_ARITHM | _PARAM_EXP_SLICE | _PARAM_EXP_REPL | _PARAM_EXP_EXP
 
 _RECOVERED_POS = RECOVERED_POS
 
@@ -138,6 +146,78 @@ _RECOVERED_POS = RECOVERED_POS
 class _SaveState(ta.NamedTuple):
     quote: int
     buried_hdocs: int
+
+
+class _NoQuote(str):
+    __slots__ = ()
+
+
+def _shell_syntax(value: ta.Any) -> str:
+    if isinstance(value, _NoQuote):
+        return value
+    if isinstance(value, Token):
+        pseudo = {
+            Token.ILLEGAL_TOK: 'illegalTok',
+            Token.EOF_: 'EOF',
+            Token.NEWL_: 'Newl',
+            Token.LIT_: 'Lit',
+            Token.LIT_WORD_: 'LitWord',
+            Token.LIT_REDIR_: 'LitRedir',
+        }
+        if value in pseudo:
+            return pseudo[value]
+        value = value.value
+    elif isinstance(value, enum.Enum) and isinstance(value.value, Token):
+        value = value.value.value
+    else:
+        value = str(value)
+    if '`' not in value and all(c == '\t' or (ord(c) >= 0x20 and ord(c) != 0x7f) for c in value):
+        return f'`{value}`'
+    escapes = {
+        '\a': r'\a',
+        '\b': r'\b',
+        '\f': r'\f',
+        '\n': r'\n',
+        '\r': r'\r',
+        '\t': r'\t',
+        '\v': r'\v',
+        '"': r'\"',
+        '\\': r'\\',
+    }
+    quoted = ''.join(escapes.get(c, c if ord(c) >= 0x20 and ord(c) != 0x7f else f'\\x{ord(c):02x}') for c in value)
+    return f'"{quoted}"'
+
+
+def _format_error(format_: str, *args: ta.Any) -> str:
+    parts: list[str] = []
+    arg_index = 0
+    i = 0
+    while i < len(format_):
+        if format_[i] != '%':
+            parts.append(format_[i])
+            i += 1
+            continue
+        if format_.startswith('%%', i):
+            parts.append('%')
+            i += 2
+            continue
+        if arg_index >= len(args):
+            raise TypeError('not enough arguments for format string')
+        if format_.startswith('%#q', i):
+            parts.append(_shell_syntax(args[arg_index]))
+            i += 3
+        elif format_.startswith('%s', i):
+            parts.append(str(args[arg_index]))
+            i += 2
+        elif format_.startswith('%d', i):
+            parts.append(str(int(args[arg_index])))
+            i += 2
+        else:
+            raise ValueError(f'unsupported error format at offset {i}: {format_!r}')
+        arg_index += 1
+    if arg_index != len(args):
+        raise TypeError('not all arguments converted during string formatting')
+    return ''.join(parts)
 
 
 ##
@@ -229,10 +309,7 @@ def valid_name(val: str) -> bool:
 def number_literal(val: str) -> bool:
     if len(val) == 0:
         return False
-    for r in val:
-        if not ascii_digit(r):
-            return False
-    return True
+    return all(ascii_digit(r) for r in val)
 
 
 ##
@@ -247,6 +324,7 @@ class Parser:
     _UNQUOTED_WORD_CONT = _UNQUOTED_WORD_CONT
     _SUB_CMD = _SUB_CMD
     _SUB_CMD_BCKQUO = _SUB_CMD_BCKQUO
+    _SUB_CMD_BRACES = _SUB_CMD_BRACES
     _DBL_QUOTES = _DBL_QUOTES
     _HDOC_WORD = _HDOC_WORD
     _HDOC_BODY = _HDOC_BODY
@@ -258,6 +336,7 @@ class Parser:
     _TEST_EXPR_REGEXP = _TEST_EXPR_REGEXP
     _SWITCH_CASE = _SWITCH_CASE
     _PARAM_EXP_ARITHM = _PARAM_EXP_ARITHM
+    _PARAM_EXP_SLICE = _PARAM_EXP_SLICE
     _PARAM_EXP_REPL = _PARAM_EXP_REPL
     _PARAM_EXP_EXP = _PARAM_EXP_EXP
     _ARRAY_ELEMS = _ARRAY_ELEMS
@@ -338,6 +417,7 @@ class Parser:
 
         self.open_nodes: int = 0
         self.open_bquotes: int = 0
+        self.open_bquote_dbls: int = 0
 
         self.last_bquote_esc: int = 0
 
@@ -350,15 +430,19 @@ class Parser:
         self.lit_bs: list[str] | None = None
 
     @staticmethod
-    def _read_source(source: str | ta.TextIO) -> str:
+    def _read_source(source: str | bytes | ta.TextIO | ta.BinaryIO) -> str:
+        if isinstance(source, bytes):
+            return source.decode('utf-8', errors='surrogateescape')
         if isinstance(source, str):
             return source
         text = source.read()
-        if not isinstance(text, str):
-            raise TypeError('source.read() must return str')
-        return text
+        if isinstance(text, bytes):
+            return text.decode('utf-8', errors='surrogateescape')
+        if isinstance(text, str):
+            return text
+        raise TypeError('source.read() must return str or bytes')
 
-    def _start(self, source: str | ta.TextIO, *, name: str = '') -> None:
+    def _start(self, source: str | bytes | ta.TextIO | ta.BinaryIO, *, name: str = '') -> None:
         self._reset()
         self.src = self._read_source(source)
         self.f = File(name=name)
@@ -369,7 +453,7 @@ class Parser:
         if self.err is not None:
             raise self.err
 
-    def parse(self, source: str | ta.TextIO, name: str = '') -> File:
+    def parse(self, source: str | bytes | ta.TextIO | ta.BinaryIO, name: str = '') -> File:
         """Parse a complete shell program."""
 
         self._start(source, name=name)
@@ -381,12 +465,12 @@ class Parser:
         self._raise_error()
         return self.f
 
-    def parse_statements(self, source: str | ta.TextIO) -> list[Stmt]:
+    def parse_statements(self, source: str | bytes | ta.TextIO | ta.BinaryIO) -> list[Stmt]:
         """Parse and return all statements in a shell program."""
 
         return self.parse(source).stmts
 
-    def parse_words(self, source: str | ta.TextIO) -> list[Word]:
+    def parse_words(self, source: str | bytes | ta.TextIO | ta.BinaryIO) -> list[Word]:
         """Parse whitespace-separated shell words."""
 
         self._start(source)
@@ -396,13 +480,13 @@ class Parser:
             word = self.get_word()
             if word is None:
                 if self.tok != Token.EOF_:
-                    self.cur_err('%s is not a valid word', self.tok)
+                    self.cur_err('%#q is not a valid word', self.tok)
                 break
             words.append(word)
         self._raise_error()
         return words
 
-    def parse_document(self, source: str | ta.TextIO) -> Word | None:
+    def parse_document(self, source: str | bytes | ta.TextIO | ta.BinaryIO) -> Word | None:
         """Parse a here-document body up to end-of-input."""
 
         self._reset()
@@ -417,7 +501,7 @@ class Parser:
         self._raise_error()
         return word
 
-    def parse_arithmetic(self, source: str | ta.TextIO) -> ArithmExpr | None:
+    def parse_arithmetic(self, source: str | bytes | ta.TextIO | ta.BinaryIO) -> ArithmExpr | None:
         """Parse a single arithmetic expression."""
 
         from .parser_arithm import arithm_expr
@@ -447,15 +531,20 @@ class Parser:
         while True:  # retry loop
             if self.bsp >= len(self.src):
                 self.bsp = len(self.src) + 1
-                self.byte_bsp = len(self.src.encode()) + 1
+                self.byte_bsp = len(self.src.encode('utf-8', errors='surrogateescape')) + 1
                 self.r = _EOF_RUNE
                 self.w = 1
                 return self.r
 
             b = self.src[self.bsp]
             self.bsp += 1
-            byte_width = len(b.encode())
+            byte_width = len(b.encode('utf-8', errors='surrogateescape'))
             self.byte_bsp += byte_width
+
+            if 0xdc80 <= ord(b) <= 0xdcff:
+                self.w, self.r = 1, '\ufffd'
+                self.pos_err(self.next_pos(), 'invalid UTF-8 encoding')
+                return self.r
 
             if b == '\x00':
                 # Ignore null bytes while parsing, like bash.
@@ -485,9 +574,11 @@ class Parser:
                 self.read_eof = False
                 if (
                     self.open_bquotes > 0
-                    and bquotes < self.open_bquotes
                     and self.bsp < len(self.src)
-                    and bquote_escaped(self.src[self.bsp])
+                    and (
+                        (bquotes < self.open_bquotes and bquote_escaped(self.src[self.bsp]))
+                        or (bquotes < self.open_bquote_dbls and self.src[self.bsp] == '"')
+                    )
                 ):
                     bquotes += 1
                     self.col += 1
@@ -598,7 +689,7 @@ class Parser:
             self.quote = _HDOC_BODY
             if r.op == RedirOperator.DASH_HDOC:
                 self.quote = _HDOC_BODY_TABS
-            stop, quoted = self.unquoted_word_bytes(r.word)
+            stop, quoted = self.unquoted_word_bytes(check.not_none(r.word))
             self.hdoc_stops.append(stop)
             if i > 0 and self.r == '\n':
                 self.rune()
@@ -610,7 +701,7 @@ class Parser:
                 r.hdoc = self.get_word()
             stop2 = self.hdoc_stops[-1]
             if stop2 is not None:
-                self.pos_err(r.pos(), 'unclosed here-document %s', stop2)
+                self.pos_err(r.pos(), 'unclosed here-document %#q', stop2)
             self.hdoc_stops.pop()
         self.quote = old
 
@@ -634,10 +725,10 @@ class Parser:
         return False
 
     def follow_err(self, pos: Pos, left: ta.Any, right: ta.Any) -> None:
-        self.pos_err(pos, '%s must be followed by %s', left, right)
+        self.pos_err(pos, '%#q must be followed by %#q', left, right)
 
     def follow_err_exp(self, pos: Pos, left: ta.Any) -> None:
-        self.follow_err(pos, left, 'an expression')
+        self.follow_err(pos, left, _NoQuote('an expression'))
 
     def follow(self, lpos: Pos, left: str, tok: Token) -> None:
         if not self.got(tok):
@@ -655,7 +746,7 @@ class Parser:
         if self.got(Token.SEMICOLON):
             if lang_in(self.lang, LANG_ZSH | LANG_MIR_BSD_KORN):
                 return [], []  # allow an empty list
-            self.follow_err(lpos, left, 'a statement list')
+            self.follow_err(lpos, left, _NoQuote('a statement list'))
             return [], []
         stmts, last = self.stmt_list(*stops)
         if len(stmts) < 1:
@@ -663,7 +754,7 @@ class Parser:
                 return [], []  # allow an empty list
             if self.recover_error():
                 return [Stmt(position=_RECOVERED_POS)], []
-            self.follow_err(lpos, left, 'a statement list')
+            self.follow_err(lpos, left, _NoQuote('a statement list'))
         return stmts, last
 
     def follow_word_tok(self, tok: Token, pos: Pos) -> Word | None:
@@ -671,7 +762,7 @@ class Parser:
         if w is None:
             if self.recover_error():
                 return self.word_one(Lit(value_pos=_RECOVERED_POS, value=''))
-            self.follow_err(pos, tok, 'a word')
+            self.follow_err(pos, tok, _NoQuote('a word'))
         return w
 
     def stmt_end(self, n: Node, start: str, end: str) -> Pos:
@@ -679,14 +770,14 @@ class Parser:
         if not ok:
             if self.recover_error():
                 return _RECOVERED_POS
-            self.pos_err(n.pos(), '%s statement must end with %s', start, end)
+            self.pos_err(n.pos(), '%#q statement must end with %#q', start, end)
         return pos
 
     def quote_err(self, lpos: Pos, quote: Token) -> None:
-        self.pos_err(lpos, 'reached %s without closing quote %s', self.tok, quote)
+        self.pos_err(lpos, 'reached %#q without closing quote %#q', self.tok, quote)
 
     def matching_err(self, lpos: Pos, left: Token, right: Token) -> None:
-        self.pos_err(lpos, 'reached %s without matching %s with %s', self.tok, left, right)
+        self.pos_err(lpos, 'reached %#q without matching %#q with %#q', self.tok, left, right)
 
     def matched(self, lpos: Pos, left: Token, right: Token) -> Pos:
         pos = self.pos
@@ -700,7 +791,7 @@ class Parser:
         if self.err is None:
             self.err = err
             self.bsp = len(self.src) + 1
-            self.byte_bsp = len(self.src.encode()) + 1
+            self.byte_bsp = len(self.src.encode('utf-8', errors='surrogateescape')) + 1
             self.r = _EOF_RUNE
             self.w = 1
             self.tok = Token.EOF_
@@ -708,8 +799,8 @@ class Parser:
     def incomplete(self) -> bool:
         return self.open_nodes > 0 or self.lit_bs is not None
 
-    def pos_err(self, pos: Pos, format: str, *args: ta.Any) -> None:
-        text = format % args if args else format
+    def pos_err(self, pos: Pos, format_: str, *args: ta.Any) -> None:
+        text = _format_error(format_, *args)
         self.err_pass(ParseError(
             filename=self.f.name if self.f is not None else '',
             pos=pos,
@@ -717,15 +808,15 @@ class Parser:
             incomplete=self.tok == Token.EOF_ and self.incomplete(),
         ))
 
-    def cur_err(self, format: str, *args: ta.Any) -> None:
-        self.pos_err(self.pos, format, *args)
+    def cur_err(self, format_: str, *args: ta.Any) -> None:
+        self.pos_err(self.pos, format_, *args)
 
-    def check_lang(self, pos: Pos, lang_set: LangVariant, format: str, *a: ta.Any) -> None:
+    def check_lang(self, pos: Pos, lang_set: LangVariant, format_: str, *a: ta.Any) -> None:
         if lang_in(self.lang, lang_set):
             return
         if lang_in(LANG_BASH_LIKE, lang_set):
             lang_set = LangVariant(lang_set & ~LANG_BATS)
-        feature = format % a if a else format
+        feature = _format_error(format_, *a)
         self.err_pass(LangError(
             filename=self.f.name if self.f is not None else '',
             pos=pos,
@@ -750,7 +841,7 @@ class Parser:
                 if should_break:
                     break
                 if self.val == '}':
-                    self.cur_err('%s can only be used to close a block', Token.RIGHT_BRACE)
+                    self.cur_err('%#q can only be used to close a block', Token.RIGHT_BRACE)
             elif self.tok == Token.RIGHT_PAREN:
                 if self.quote == _SUB_CMD:
                     break
@@ -760,10 +851,10 @@ class Parser:
             elif self.tok in (Token.DBL_SEMICOLON, Token.SEMI_AND, Token.DBL_SEMI_AND, Token.SEMI_OR):
                 if self.quote == _SWITCH_CASE:
                     break
-                self.cur_err('%s can only be used in a case clause', self.tok)
+                self.cur_err('%#q can only be used in a case clause', self.tok)
             if not new_line and not got_end:
                 self.cur_err('statements must be separated by &, ; or a newline')
-            if self.tok == Token.EOF_:
+            if ta.cast(Token, self.tok) == Token.EOF_:
                 break
             self.open_nodes += 1
             s = self.get_stmt(True, False, False)
@@ -791,12 +882,14 @@ class Parser:
         return stmts, last
 
     def invalid_stmt_start(self) -> None:
-        if self.tok in (Token.SEMICOLON, Token.AND, Token.OR, Token.AND_AND, Token.OR_OR):
-            self.cur_err('%s can only immediately follow a statement', self.tok)
+        if self.tok in (
+            Token.SEMICOLON, Token.AND, Token.OR, Token.AND_AND, Token.OR_OR, Token.AND_PIPE, Token.AND_BANG,
+        ):
+            self.cur_err('%#q can only immediately follow a statement', self.tok)
         elif self.tok == Token.RIGHT_PAREN:
-            self.cur_err('%s can only be used to close a subshell', self.tok)
+            self.cur_err('%#q can only be used to close a subshell', self.tok)
         else:
-            self.cur_err('%s is not a valid start for a statement', self.tok)
+            self.cur_err('%#q is not a valid start for a statement', self.tok)
 
     def get_word(self) -> Word | None:
         w = self.word_any_number()
@@ -858,7 +951,7 @@ class Parser:
                     temp_file=self.r != '|',
                     reply_var=self.r == '|',
                 )
-                old = self.pre_nested(_SUB_CMD)
+                old = self.pre_nested(_SUB_CMD_BRACES)
                 self.rune()  # don't tokenize '|'
                 self.next()
                 cs.stmts, cs.last = self.stmt_list('}')
@@ -882,6 +975,9 @@ class Parser:
             ar.x = _follow_arithm(self, left, ar.left)
             if ar.bracket:
                 if self.tok != Token.RIGHT_BRACK:
+                    if self.recover_error():
+                        ar.right = _RECOVERED_POS
+                        return ar
                     _arithm_matching_err(self, ar.left, Token.DOLL_BRACK, Token.RIGHT_BRACK)
                 self.post_nested(old)
                 ar.right = self.pos
@@ -900,20 +996,18 @@ class Parser:
                 return l
             self.ensure_no_nested(pe.dollar)
             return pe
-        elif (
-            (cond_assgn := (self.tok == Token.ASSGN_PAREN))
-            or (cond_cmd := (self.tok in (Token.CMD_IN, Token.CMD_OUT)))  # noqa: F841
-        ):
-            if cond_assgn:
-                self.check_lang(self.pos, LANG_ZSH, '%s process substitutions', self.tok)
-                # fallthrough
+        elif self.tok in (Token.ASSGN_PAREN, Token.CMD_IN, Token.CMD_OUT):
+            proc_op_tok = self.tok
+            if proc_op_tok == Token.ASSGN_PAREN:
+                self.check_lang(self.pos, LANG_ZSH, '%#q process substitutions', proc_op_tok)
             self.ensure_no_nested(self.pos)
-            ps = ProcSubst(op=ProcOperator(self.tok), op_pos=self.pos)
+            proc_op = ProcOperator(proc_op_tok)
+            ps = ProcSubst(op=proc_op, op_pos=self.pos)
             old = self.pre_nested(_SUB_CMD)
             self.next()
             ps.stmts, ps.last = self.stmt_list()
             self.post_nested(old)
-            ps.rparen = self.matched(ps.op_pos, Token(ps.op.value), Token.RIGHT_PAREN)
+            ps.rparen = self.matched(ps.op_pos, Token(proc_op.value), Token.RIGHT_PAREN)
             return ps
         elif self.tok in (Token.SGL_QUOTE, Token.DOLL_SGL_QUOTE):
             sq = SglQuoted(left=self.pos, dollar=self.tok == Token.DOLL_SGL_QUOTE)
@@ -932,8 +1026,8 @@ class Parser:
                     self.next()
                     return sq
                 elif r == _ESC_NEWL:
-                    self.lit_bs.append('\\')
-                    self.lit_bs.append('\n')
+                    check.not_none(self.lit_bs).append('\\')
+                    check.not_none(self.lit_bs).append('\n')
                 elif r == _EOF_RUNE:
                     self.tok = Token.EOF_
                     if self.recover_error():
@@ -953,6 +1047,8 @@ class Parser:
             cs = CmdSubst(left=self.pos, backquotes=True)
             old = self.pre_nested(_SUB_CMD_BCKQUO)
             self.open_bquotes += 1
+            if old.quote == _DBL_QUOTES:
+                self.open_bquote_dbls += 1
 
             # The lexer didn't call p.rune for us, so that it could have
             # the right p.openBquotes to properly handle backslashes.
@@ -965,6 +1061,8 @@ class Parser:
                 self.quote_err(cs.pos(), Token.BCK_QUOTE)
             self.post_nested(old)
             self.open_bquotes -= 1
+            if old.quote == _DBL_QUOTES:
+                self.open_bquote_dbls -= 1
             cs.right = self.pos
 
             # Like above, the lexer didn't call p.rune for us.
@@ -975,9 +1073,29 @@ class Parser:
                 else:
                     self.quote_err(cs.pos(), Token.BCK_QUOTE)
             return cs
+        elif self.tok == Token.LEFT_PAREN:
+            if lang_in(self.lang, LANG_ZSH) and self.r != ')':
+                pos = self.pos
+                self.pos = self.next_pos()
+                from .lexer import end_lit
+                from .lexer import new_lit
+                new_lit(self, self.r)
+                while self.r != _EOF_RUNE and self.r != ')':
+                    self.rune()
+                if self.r != ')':
+                    self.tok = Token.EOF_
+                    self.matching_err(pos, Token.LEFT_PAREN, Token.RIGHT_PAREN)
+                self.rune()
+                self.val = end_lit(self)
+                l = self.lit(pos, '(' + self.val)
+                self.next()
+                return l
+            return None
         elif self.tok in (Token.GLOB_QUEST, Token.GLOB_STAR, Token.GLOB_PLUS, Token.GLOB_AT, Token.GLOB_EXCL):
+            glob_op_tok = self.tok
             self.check_lang(self.pos, LANG_BASH_LIKE | LANG_MIR_BSD_KORN, 'extended globs')
-            eg = ExtGlob(op=GlobOperator(self.tok), op_pos=self.pos)
+            glob_op = GlobOperator(glob_op_tok)
+            eg = ExtGlob(op=glob_op, op_pos=self.pos)
             lparens = 1
             r = self.r
             from .lexer import end_lit
@@ -997,7 +1115,7 @@ class Parser:
             self.rune()
             self.next()
             if lparens != 0:
-                self.matching_err(eg.op_pos, Token(eg.op.value), Token.RIGHT_PAREN)
+                self.matching_err(eg.op_pos, Token(glob_op.value), Token.RIGHT_PAREN)
             return eg
         else:
             return None
@@ -1053,36 +1171,60 @@ class Parser:
                 self.matching_err(lparen, Token.LEFT_PAREN, Token.RIGHT_PAREN)
             pe.flags = self.lit(self.pos, self.val)
             self.rune()
+
+        # Zsh-only prefixes that change how the parameter is expanded.
+        # They may appear in any combination, like ${=^name}.
+        while lang_in(self.lang, LANG_ZSH):
+            if self.r not in ('=', '~', '^'):
+                break
+            prefix = self.r
+            next_rune, after = self.peek_two()
+            state = OptState.OPT_ON
+            check_rune = next_rune
+            if next_rune == prefix:
+                state = OptState.OPT_OFF
+                check_rune = after
+            if check_rune in (_EOF_RUNE, '}'):
+                break
+            if pe.short and check_rune not in ('=', '~', '^') and not param_name_start_rune(check_rune):
+                break
+            if state == OptState.OPT_OFF:
+                self.rune()
+            self.rune()
+            if prefix == '=':
+                pe.split = state
+            elif prefix == '~':
+                pe.glob_subst = state
+            else:
+                pe.rc_expand = state
+
         if not pe.short or lang_in(self.lang, LANG_ZSH):
             if self.r == '#':
-                r2 = self.peek()
-                if r2 == _EOF_RUNE or single_rune_param(r2) or param_name_rune(r2) or r2 == '"':
+                if self._param_name_start(pe):
                     pe.length = True
-                    self.rune()
             elif self.r == '%':
-                r2 = self.peek()
-                if r2 == _EOF_RUNE or single_rune_param(r2) or param_name_rune(r2) or r2 == '"':
+                if not pe.short and self._param_name_start(pe):
                     self.check_lang(pe.pos(), LANG_MIR_BSD_KORN, '`${%%foo}`')
                     pe.width = True
-                    self.rune()
             elif self.r == '!':
-                r2 = self.peek()
-                if r2 == _EOF_RUNE or single_rune_param(r2) or param_name_rune(r2) or r2 == '"':
+                if not pe.short and self._param_name_start(pe):
                     self.check_lang(pe.pos(), LANG_BASH_LIKE | LANG_MIR_BSD_KORN, '`${!foo}`')
                     pe.excl = True
-                    self.rune()
             elif self.r == '+':
-                r2 = self.peek()
-                if r2 == _EOF_RUNE or single_rune_param(r2) or param_name_rune(r2) or r2 == '"':
+                if self._param_name_start(pe):
                     self.check_lang(pe.pos(), LANG_ZSH, '`${+foo}`')
-                    pe.plus = True
-                    self.rune()
-        pe = self._param_exp_parameter(pe)
-        if pe is None:
+                    pe.is_set = True
+        parsed_param = self._param_exp_parameter(pe)
+        if parsed_param is None:
             self.quote = old
             return None  # just "$"
+        pe = parsed_param
         if pe.short:
-            if lang_in(self.lang, LANG_ZSH) and self.r == '[':
+            if (
+                lang_in(self.lang, LANG_ZSH)
+                and self.r == '['
+                and (len(self.val) != 1 or not positional_rune_param(self.val[0]))
+            ):
                 self.pos = self.next_pos()
                 self.rune()
                 pe.index = self.either_index()
@@ -1092,7 +1234,7 @@ class Parser:
         # Index expressions
         if self.r == '[':
             self.check_lang(self.next_pos(), LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH, 'arrays')
-            if pe.param is not None and not valid_name(pe.param.value):
+            if not lang_in(self.lang, LANG_ZSH) and pe.param is not None and not valid_name(pe.param.value):
                 self.pos_err(self.next_pos(), 'cannot index a special parameter name')
             self.pos = self.next_pos()
             self.rune()
@@ -1105,7 +1247,7 @@ class Parser:
             self.quote = old
             self.next()
             return pe
-        if self.tok != Token.EOF_ and (pe.length or pe.width or pe.plus):
+        if self.tok != Token.EOF_ and (pe.length or pe.width or pe.is_set):
             self.cur_err('cannot combine multiple parameter expansion operators')
         if self.tok in (Token.SLASH, Token.DBL_SLASH):  # pattern search and replace
             self.check_lang(self.pos, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH, 'search and replace')
@@ -1126,15 +1268,11 @@ class Parser:
                         self.matching_err(pe.dollar, Token.DOLL_BRACE, Token.RIGHT_BRACE)
                         break
                     elif self.r == '}':
-                        if pe.modifiers is None:
-                            pe.modifiers = []
                         pe.modifiers.append(self.lit(pos2, end_lit(self)))
                         pe.rbrace = self.next_pos()
                         self.rune()
                         break
                     elif self.r == ':':
-                        if pe.modifiers is None:
-                            pe.modifiers = []
                         pe.modifiers.append(self.lit(pos2, end_lit(self)))
                         self.rune()
                         pos2 = self.next_pos()
@@ -1147,9 +1285,9 @@ class Parser:
             self.check_lang(self.pos, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH, 'slicing')
             pe.slice = Slice()
             colon_pos = self.pos
-            self.quote = _PARAM_EXP_ARITHM
+            self.quote = _PARAM_EXP_SLICE
             self.next()
-            if self.tok != Token.COLON:
+            if ta.cast(Token, self.tok) != Token.COLON:
                 from .parser_arithm import follow_arithm as _follow_arithm
                 pe.slice.offset = _follow_arithm(self, Token.COLON, colon_pos)
             colon_pos = self.pos
@@ -1162,24 +1300,28 @@ class Parser:
             _matched_arithm(self, pe.dollar, Token.DOLL_BRACE, Token.RIGHT_BRACE)
             return pe
         elif self.tok in (Token.CARET, Token.DBL_CARET, Token.COMMA, Token.DBL_COMMA):
+            case_change_tok = self.tok
             self.check_lang(self.pos, LANG_BASH_LIKE, 'this expansion operator')
-            pe.exp = self._param_exp_exp()
+            pe.exp = self._param_exp_exp(case_change_tok)
         elif self.tok in (Token.AT, Token.STAR):
             if self.tok == Token.STAR and not pe.excl:
-                self.cur_err('not a valid parameter expansion operator: %s', self.tok)
+                self.cur_err('not a valid parameter expansion operator: %#q', self.tok)
             elif pe.excl and self.r == '}':
-                self.check_lang(pe.pos(), LANG_BASH_LIKE, '`${!foo%s}`', self.tok)
-                pe.names = ParNamesOperator(self.tok)
+                names_tok = self.tok
+                self.check_lang(pe.pos(), LANG_BASH_LIKE, '`${!foo%s}`', names_tok)
+                pe.names = ParNamesOperator(names_tok)
                 self.next()
             elif self.tok == Token.AT:
+                at_tok = self.tok
                 self.check_lang(self.pos, LANG_BASH_LIKE | LANG_MIR_BSD_KORN, 'this expansion operator')
-                pe.exp = self._param_exp_exp()
+                pe.exp = self._param_exp_exp(at_tok)
             else:
                 pe.exp = self._param_exp_exp()
         elif self.tok in (
             Token.PLUS, Token.COL_PLUS, Token.MINUS, Token.COL_MINUS,
             Token.QUEST, Token.COL_QUEST, Token.ASSGN, Token.COL_ASSGN,
             Token.PERC, Token.DBL_PERC, Token.HASH, Token.DBL_HASH, Token.COL_HASH,
+            Token.COL_PIPE, Token.COL_STAR,
         ):
             pe.exp = self._param_exp_exp()
         elif self.tok == Token.EOF_:
@@ -1187,16 +1329,23 @@ class Parser:
         else:
             if param_name_rune(tok_rune):
                 if pe.param is not None:
-                    self.cur_err('%s cannot be followed by a word', pe.param.value)
+                    self.cur_err('%#q cannot be followed by a word', pe.param.value)
                 else:
                     self.cur_err('nested parameter expansion cannot be followed by a word')
             else:
-                self.cur_err('not a valid parameter expansion operator: %s', tok_rune)
+                self.cur_err('not a valid parameter expansion operator: %#q', tok_rune)
         if self.tok != Token.EOF_ and self.tok != Token.RIGHT_BRACE:
             self.tok = param_token(self, self.r)
         self.quote = old
         pe.rbrace = self.matched(pe.dollar, Token.DOLL_BRACE, Token.RIGHT_BRACE)
         return pe
+
+    def _param_name_start(self, pe: ParamExp) -> bool:
+        r = self.peek()
+        if param_name_start_rune(r) or (not pe.short and r in ('"', _EOF_RUNE)):
+            self.rune()
+            return True
+        return False
 
     def _nested_parameter_start(self, pe: ParamExp) -> tuple[Token, Pos]:
         if pe.short:
@@ -1288,13 +1437,19 @@ class Parser:
                 if not number_literal(self.val) and not valid_name(self.val):
                     if pe.short:
                         return None  # just "$"
+                    if lang_in(self.lang, LANG_ZSH) and self.val == '':
+                        return pe
                     self.pos_err(pos, 'invalid parameter name')
             pe.param = self.lit(pos, self.val)
         return pe
 
-    def _param_exp_exp(self) -> Expansion:
-        op = ParExpOperator(self.tok)
-        if op == ParExpOperator.MATCH_EMPTY:
+    def _param_exp_exp(self, op_tok: Token | None = None) -> Expansion:
+        op = ParExpOperator(self.tok if op_tok is None else op_tok)
+        if op in (
+            ParExpOperator.MATCH_EMPTY,
+            ParExpOperator.ARRAY_EXCLUDE,
+            ParExpOperator.ARRAY_INTERSECT,
+        ):
             self.check_lang(self.pos, LANG_ZSH, '${name%sarg}', op.string())
         self.quote = _PARAM_EXP_EXP
         self.next()
@@ -1308,7 +1463,7 @@ class Parser:
             elif self.val == 'Q':
                 pass
             else:
-                self.cur_err('invalid @ expansion operator %s', self.val)
+                self.cur_err('invalid @ expansion operator %#q', self.val)
         return Expansion(op=op, word=self.get_word())
 
     def either_index(self) -> ta.Any:
@@ -1329,7 +1484,6 @@ class Parser:
     def zsh_sub_flags(self) -> FlagsArithm:
         from .lexer import end_lit
         from .lexer import new_lit
-        from .parser_arithm import arithm_expr_assign
 
         zf = FlagsArithm()
         lparen = self.pos
@@ -1347,17 +1501,23 @@ class Parser:
             self.matching_err(lparen, Token.LEFT_PAREN, Token.RIGHT_PAREN)
         zf.flags = self.lit(self.pos, self.val)
         self.rune()
+
+        # Lex the argument as a raw pattern, stopping at ',' or ']'.
+        arg_pos = self.next_pos()
+        new_lit(self, self.r)
+        while self.r not in (_EOF_RUNE, ',', ']'):
+            self.rune()
+        val = end_lit(self)
+        if val != '':
+            zf.x = self.word_one(self.lit(arg_pos, val))
         self.quote = old
         self.next()
-        if self.tok == Token.STAR or self.tok == Token.AT:
-            self.tok, self.val = Token.LIT_WORD_, str(self.tok)
-        zf.x = arithm_expr_assign(self, False)
         return zf
 
     def stop_token(self) -> bool:
         if self.tok in (
             Token.EOF_, Token.NEWL_, Token.SEMICOLON, Token.AND, Token.OR,
-            Token.AND_AND, Token.OR_OR, Token.OR_AND,
+            Token.AND_AND, Token.OR_OR, Token.OR_AND, Token.AND_PIPE, Token.AND_BANG,
             Token.DBL_SEMICOLON, Token.SEMI_AND, Token.DBL_SEMI_AND, Token.SEMI_OR,
             Token.RIGHT_PAREN,
         ):
@@ -1411,41 +1571,46 @@ class Parser:
                     as_.naked = True
                     return as_
             if self.tok == Token.ASSGN_PAREN:
-                self.cur_err('arrays cannot be nested')
-                return as_
-            if len(self.val) > 0 and self.val[0] == '+':
-                as_.append = True
-                self.val = self.val[1:]
+                if not lang_in(self.lang, LANG_ZSH):
+                    self.cur_err('arrays cannot be nested')
+                    return as_
+                self.tok = Token.LEFT_PAREN
                 self.pos = pos_add_col(self.pos, 1)
-            if len(self.val) < 1 or self.val[0] != '=':
-                if as_.append:
-                    self.follow_err(as_.pos(), 'a[b]+', Token.ASSGN)
-                else:
-                    self.follow_err(as_.pos(), 'a[b]', Token.ASSGN)
-                return as_
-            self.pos = pos_add_col(self.pos, 1)
-            self.val = self.val[1:]
-            if self.val == '':
-                self.next()
+            else:
+                if len(self.val) > 0 and self.val[0] == '+':
+                    as_.append = True
+                    self.val = self.val[1:]
+                    self.pos = pos_add_col(self.pos, 1)
+                if len(self.val) < 1 or self.val[0] != '=':
+                    if as_.append:
+                        self.follow_err(as_.pos(), 'a[b]+', Token.ASSGN)
+                    else:
+                        self.follow_err(as_.pos(), 'a[b]', Token.ASSGN)
+                    return as_
+                self.pos = pos_add_col(self.pos, 1)
+                self.val = self.val[1:]
+                if self.val == '':
+                    self.next()
         if self.spaced or self.stop_token():
             return as_
         if as_.value is None and self.tok == Token.LEFT_PAREN:
             self.check_lang(self.pos, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH, 'arrays')
-            as_.array = ArrayExpr(lparen=self.pos)
+            array = ArrayExpr(lparen=self.pos)
+            as_.array = array
             new_quote = self.quote
             if lang_in(self.lang, LANG_BASH_LIKE | LANG_ZSH):
                 new_quote = _ARRAY_ELEMS
             old = self.pre_nested(new_quote)
             self.next()
             self.got(Token.NEWL_)
-            while self.tok != Token.EOF_ and self.tok != Token.RIGHT_PAREN:
+            while (array_tok := ta.cast(Token, self.tok)) not in (Token.EOF_, Token.RIGHT_PAREN):
                 ae = ArrayElem()
                 ae.comments, self.acc_coms = self.acc_coms, []
-                if self.tok == Token.LEFT_BRACK:
+                if array_tok == Token.LEFT_BRACK:
                     left2 = self.pos
                     ae.index = self.either_index()
                     if self.tok == Token.ASSGN_PAREN:
-                        self.cur_err('arrays cannot be nested')
+                        self.cur_err('arrays cannot be nested')  # type: ignore[unreachable]
                         return as_
                     self.follow(left2, '[x]', Token.ASSGN)
                 ae.value = self.get_word()
@@ -1458,11 +1623,11 @@ class Parser:
                     if c.pos().line() == ae.end().line():
                         ae.comments.append(c)
                         self.acc_coms = self.acc_coms[1:]
-                as_.array.elems.append(ae)
+                array.elems.append(ae)
                 self.got(Token.NEWL_)
-            as_.array.last, self.acc_coms = self.acc_coms, []
+            array.last, self.acc_coms = self.acc_coms, []
             self.post_nested(old)
-            as_.array.rparen = self.matched(as_.array.lparen, Token.LEFT_PAREN, Token.RIGHT_PAREN)
+            array.rparen = self.matched(array.lparen, Token.LEFT_PAREN, Token.RIGHT_PAREN)
         else:
             w = self.get_word()
             if w is not None:
@@ -1476,30 +1641,25 @@ class Parser:
         return self.tok in (
             Token.LIT_REDIR_,
             Token.RDR_OUT, Token.APP_OUT, Token.RDR_IN, Token.RDR_IN_OUT,
-            Token.DPL_IN, Token.DPL_OUT, Token.RDR_CLOB, Token.RDR_TRUNC,
-            Token.APP_CLOB, Token.APP_TRUNC,
+            Token.DPL_IN, Token.DPL_OUT, Token.RDR_CLOB, Token.APP_CLOB,
             Token.HDOC, Token.DASH_HDOC, Token.WORD_HDOC,
-            Token.RDR_ALL, Token.RDR_ALL_CLOB, Token.RDR_ALL_TRUNC,
-            Token.APP_ALL, Token.APP_ALL_CLOB, Token.APP_ALL_TRUNC,
+            Token.RDR_ALL, Token.RDR_ALL_CLOB, Token.APP_ALL, Token.APP_ALL_CLOB,
         )
 
     def do_redirect(self, s: Stmt) -> None:
         r = Redirect()
-        if s.redirs is None:
-            s.redirs = []
         s.redirs.append(r)
         r.n = self.get_lit()
+        op_tok = self.tok
         if r.n is not None and r.n.value[0] == '{':
-            self.check_lang(r.n.pos(), LANG_BASH_LIKE, '`{varname}` redirects')
-        r.op, r.op_pos = RedirOperator(self.tok), self.pos
+            self.check_lang(r.n.pos(), LANG_BASH_LIKE | LANG_ZSH, '`{varname}` redirects')
+        r.op, r.op_pos = RedirOperator(op_tok), self.pos
         if r.op in (RedirOperator.RDR_ALL, RedirOperator.APP_ALL):
-            self.check_lang(self.pos, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH, '%s redirects', r.op)
+            self.check_lang(self.pos, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH, '%#q redirects', r.op)
         elif r.op in (
-            RedirOperator.RDR_TRUNC, RedirOperator.APP_CLOB, RedirOperator.APP_TRUNC,
-            RedirOperator.RDR_ALL_CLOB, RedirOperator.RDR_ALL_TRUNC,
-            RedirOperator.APP_ALL_CLOB, RedirOperator.APP_ALL_TRUNC,
+            RedirOperator.APP_CLOB, RedirOperator.RDR_ALL_CLOB, RedirOperator.APP_ALL_CLOB,
         ):
-            self.check_lang(self.pos, LANG_ZSH, '%s redirects', r.op)
+            self.check_lang(self.pos, LANG_ZSH, '%#q redirects', r.op)
         self.next()
         if r.op in (RedirOperator.HDOC, RedirOperator.DASH_HDOC):
             old = self.quote
@@ -1529,13 +1689,14 @@ class Parser:
         if ok:
             s.negated = True
             if self.stop_token():
-                self.pos_err(s.pos(), '%s cannot form a statement alone', Token.EXCL_MARK)
+                self.pos_err(s.pos(), '%#q cannot form a statement alone', Token.EXCL_MARK)
             _, ok2 = self.got_rsrv('!')
             if ok2:
                 self.pos_err(s.pos(), 'cannot negate a command multiple times')
-        s = self.got_stmt_pipe(s, False)
-        if s is None or self.err is not None:
+        parsed_stmt = self.got_stmt_pipe(s, False)
+        if parsed_stmt is None or self.err is not None:
             return None
+        s = parsed_stmt
         # instead of using recursion, iterate manually
         while self.tok == Token.AND_AND or self.tok == Token.OR_OR:
             if bin_cmd:
@@ -1552,11 +1713,12 @@ class Parser:
                 if self.recover_error():
                     b.y = Stmt(position=_RECOVERED_POS)
                 else:
-                    self.follow_err(b.op_pos, b.op, 'a statement')
+                    self.follow_err(b.op_pos, b.op, _NoQuote('a statement'))
                     return None
             s = Stmt(position=s.position)
             s.cmd = b
-            s.comments, b.x.comments = b.x.comments, []
+            left_stmt = check.not_none(b.x)
+            s.comments, left_stmt.comments = left_stmt.comments, []
         if read_end:
             if self.tok == Token.SEMICOLON:
                 s.semicolon = self.pos
@@ -1569,6 +1731,10 @@ class Parser:
                 s.semicolon = self.pos
                 self.next()
                 s.coprocess = True
+            elif self.tok in (Token.AND_PIPE, Token.AND_BANG):
+                s.semicolon = self.pos
+                self.next()
+                s.disown = True
         if len(self.acc_coms) > 0 and not bin_cmd and not fn_body:
             c = self.acc_coms[0]
             if c.pos().line() == s.end().line():
@@ -1597,26 +1763,26 @@ class Parser:
             elif self.val == 'case':
                 self.case_clause(s)
             elif self.val == '}':
-                self.cur_err('%s can only be used to close a block', Token.RIGHT_BRACE)
+                self.cur_err('%#q can only be used to close a block', Token.RIGHT_BRACE)
             elif self.val in ('then', 'elif'):
-                self.cur_err('%s can only be used in an `if`', self.val)
+                self.cur_err('%#q can only be used in an `if`', self.val)
             elif self.val == 'fi':
-                self.cur_err('%s can only be used to end an `if`', self.val)
+                self.cur_err('%#q can only be used to end an `if`', self.val)
             elif self.val == 'do':
-                self.cur_err('%s can only be used in a loop', self.val)
+                self.cur_err('%#q can only be used in a loop', self.val)
             elif self.val == 'done':
-                self.cur_err('%s can only be used to end a loop', self.val)
+                self.cur_err('%#q can only be used to end a loop', self.val)
             elif self.val == 'esac':
-                self.cur_err('%s can only be used to end a `case`', self.val)
+                self.cur_err('%#q can only be used to end a `case`', self.val)
             elif self.val == '!':
                 if not s.negated:
-                    self.cur_err('%s can only be used in full statements', Token.EXCL_MARK)
+                    self.cur_err('%#q can only be used in full statements', Token.EXCL_MARK)
             elif self.val == '[[':
                 if lang_in(self.lang, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH):
                     self.test_clause(s)
             elif self.val == ']]':
                 if lang_in(self.lang, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH):
-                    self.cur_err('%s can only be used to close a test', Token.DBL_RIGHT_BRACK)
+                    self.cur_err('%#q can only be used to close a test', Token.DBL_RIGHT_BRACK)
             elif self.val == 'let':
                 if lang_in(self.lang, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH):
                     self.let_clause(s)
@@ -1648,31 +1814,21 @@ class Parser:
             else:
                 name = self.lit(self.pos, self.val)
                 self.next()
-                if self.got(Token.LEFT_PAREN):
+                if ta.cast(Token, self.tok) == Token.LEFT_PAREN and (
+                    not lang_in(self.lang, LANG_ZSH) or self.r == ')'
+                ):
+                    self.next()
                     self.follow(name.value_pos, 'foo(', Token.RIGHT_PAREN)
                     if lang_in(self.lang, LANG_POSIX) and not valid_name(name.value):
                         self.pos_err(name.pos(), 'invalid func name')
                     self.func_decl(s, name.value_pos, False, True, [name])
                 else:
-                    self.call_expr(s, self.word_one(name), False)
-        elif (
-            (cond_bck2 := (self.tok == Token.BCK_QUOTE))
-            or (cond_lit2 := (self.tok in (  # noqa: F841
-                Token.LIT_,
-                Token.DOLL_BRACE, Token.DOLL_DBL_PAREN, Token.DOLL_PAREN,
-                Token.DOLLAR, Token.CMD_IN, Token.ASSGN_PAREN, Token.CMD_OUT,
-                Token.SGL_QUOTE, Token.DOLL_SGL_QUOTE,
-                Token.DBL_QUOTE, Token.DOLL_DBL_QUOTE, Token.DOLL_BRACK,
-                Token.GLOB_QUEST, Token.GLOB_STAR, Token.GLOB_PLUS,
-                Token.GLOB_AT, Token.GLOB_EXCL,
-            )))
-        ):
-            if cond_bck2:
-                if self.backquote_end():
-                    pass  # break - don't enter the block below
-                else:
-                    cond_lit2 = True  # fallthrough
-            if cond_lit2:  # noqa: F821
+                    w = self.word_one(name)
+                    if lang_in(self.lang, LANG_ZSH) and not self.spaced:
+                        w.parts.extend(self.word_parts([]))
+                    self.call_expr(s, w, False)
+        elif self.tok == Token.BCK_QUOTE:
+            if not self.backquote_end():
                 if self.has_valid_ident():
                     self.call_expr(s, None, True)
                 else:
@@ -1680,12 +1836,28 @@ class Parser:
                     if self.got(Token.LEFT_PAREN):
                         self.pos_err(w.pos(), 'invalid func name')
                     self.call_expr(s, w, False)
+        elif self.tok in (
+            Token.LIT_,
+            Token.DOLL_BRACE, Token.DOLL_DBL_PAREN, Token.DOLL_PAREN,
+            Token.DOLLAR, Token.CMD_IN, Token.ASSGN_PAREN, Token.CMD_OUT,
+            Token.SGL_QUOTE, Token.DOLL_SGL_QUOTE,
+            Token.DBL_QUOTE, Token.DOLL_DBL_QUOTE, Token.DOLL_BRACK,
+            Token.GLOB_QUEST, Token.GLOB_STAR, Token.GLOB_PLUS,
+            Token.GLOB_AT, Token.GLOB_EXCL,
+        ):
+            if self.has_valid_ident():
+                self.call_expr(s, None, True)
+            else:
+                w = self.word_any_number()
+                if self.got(Token.LEFT_PAREN):
+                    self.pos_err(w.pos(), 'invalid func name')
+                self.call_expr(s, w, False)
         elif self.tok == Token.LEFT_PAREN:
             if self.r == ')':
                 self.rune()
                 fpos = self.pos
                 self.next()
-                if self.tok == Token.LIT_WORD_ and self.val == '{':
+                if ta.cast(Token, self.tok) == Token.LIT_WORD_ and self.val == '{':
                     self.check_lang(fpos, LANG_ZSH, 'anonymous functions')
                 self.func_decl(s, fpos, False, True)
             else:
@@ -1713,14 +1885,15 @@ class Parser:
                 if self.recover_error():
                     b.y = Stmt(position=_RECOVERED_POS)
                 else:
-                    self.follow_err(b.op_pos, b.op, 'a statement')
+                    self.follow_err(b.op_pos, b.op, _NoQuote('a statement'))
                     break
             s = Stmt(position=s.position)
             s.cmd = b
-            s.comments, b.x.comments = b.x.comments, []
+            left_stmt = check.not_none(b.x)
+            s.comments, left_stmt.comments = left_stmt.comments, []
             # in "! x | y", the bang applies to the entire pipeline
-            s.negated = b.x.negated
-            b.x.negated = False
+            s.negated = left_stmt.negated
+            left_stmt.negated = False
         return s
 
     def subshell(self, s: Stmt) -> None:
@@ -1854,7 +2027,7 @@ class Parser:
         wi = WordIter()
         wi.name = self.get_lit()
         if wi.name is None:
-            self.follow_err(fpos, ftok, 'a literal')
+            self.follow_err(fpos, ftok, _NoQuote('a literal'))
         if self.got(Token.SEMICOLON):
             self.got(Token.NEWL_)
             return wi
@@ -1873,7 +2046,7 @@ class Parser:
         elif self.tok == Token.LIT_WORD_ and self.val == 'do':
             pass
         else:
-            self.follow_err(fpos, ftok + ' foo', '`in`, `do`, `;`, or a newline')
+            self.follow_err(fpos, ftok + ' foo', _NoQuote('`in`, `do`, `;`, or a newline'))
         return wi
 
     def select_clause(self, s: Stmt) -> None:
@@ -1890,7 +2063,7 @@ class Parser:
         self.next()
         cc.word = self.get_word()
         if cc.word is None:
-            self.follow_err(cc.case, 'case', 'a word')
+            self.follow_err(cc.case, 'case', _NoQuote('a word'))
         end = 'esac'
         self.got(Token.NEWL_)
         pos, ok = self.got_rsrv('{')
@@ -1922,12 +2095,14 @@ class Parser:
                 if self.tok == Token.RIGHT_PAREN:
                     break
                 if not self.got(Token.OR):
-                    self.cur_err('case patterns must be separated with %s', Token.OR)
+                    self.cur_err('case patterns must be separated with %#q', Token.OR)
             old = self.pre_nested(_SWITCH_CASE)
             self.next()
             ci.stmts, ci.last = self.stmt_list(stop)
             self.post_nested(old)
-            if self.tok not in (Token.DBL_SEMICOLON, Token.SEMI_AND, Token.DBL_SEMI_AND, Token.SEMI_OR):
+            if ta.cast(Token, self.tok) not in (
+                Token.DBL_SEMICOLON, Token.SEMI_AND, Token.DBL_SEMI_AND, Token.SEMI_OR,
+            ):
                 ci.op = CaseOperator.BREAK
                 items.append(ci)
                 return items
@@ -1981,7 +2156,7 @@ class Parser:
                 return left
             op = test_binary_op(self.val)
             if op is None:
-                self.cur_err('not a valid test operator: %s', self.val)
+                self.cur_err('not a valid test operator: %#q', self.val)
             else:
                 self.tok = Token(op.value)
         elif self.tok in (Token.RDR_IN, Token.RDR_OUT):
@@ -1991,34 +2166,37 @@ class Parser:
         elif self.tok == Token.LIT_:
             self.cur_err('test operator words must consist of a single literal')
         else:
-            self.cur_err('not a valid test operator: %s', self.tok)
+            self.cur_err('not a valid test operator: %#q', self.tok)
+        if self.err is not None:
+            return left
+        binary_op = BinTestOperator(self.tok)
         b = BinaryTest(
             op_pos=self.pos,
-            op=BinTestOperator(self.tok),
+            op=binary_op,
             x=left,
         )
-        if b.op in (BinTestOperator.AND_TEST, BinTestOperator.OR_TEST):
+        if binary_op in (BinTestOperator.AND_TEST, BinTestOperator.OR_TEST):
             self.next()
             b.y = self.test_expr_binary(False)
             if b.y is None:
                 self.follow_err_exp(b.op_pos, b.op)
-        elif b.op == BinTestOperator.TS_RE_MATCH:
+        elif binary_op == BinTestOperator.TS_RE_MATCH:
             self.check_lang(self.pos, LANG_BASH_LIKE | LANG_ZSH, 'regex tests')
             self.rx_open_parens = 0
             self.rx_first_part = True
             self.quote = _TEST_EXPR_REGEXP
             # fallthrough to default
             if not isinstance(b.x, Word):
-                self.pos_err(b.op_pos, 'expected %s, %s or %s after complex expr',
+                self.pos_err(b.op_pos, 'expected %#q, %#q or %#q after complex expr',
                              BinTestOperator.AND_TEST, BinTestOperator.OR_TEST, Token.DBL_RIGHT_BRACK)
             self.next()
-            b.y = self.follow_word_tok(Token(b.op.value), b.op_pos)
+            b.y = self.follow_word_tok(Token(binary_op.value), b.op_pos)
         else:
             if not isinstance(b.x, Word):
-                self.pos_err(b.op_pos, 'expected %s, %s or %s after complex expr',
+                self.pos_err(b.op_pos, 'expected %#q, %#q or %#q after complex expr',
                              BinTestOperator.AND_TEST, BinTestOperator.OR_TEST, Token.DBL_RIGHT_BRACK)
             self.next()
-            b.y = self.follow_word_tok(Token(b.op.value), b.op_pos)
+            b.y = self.follow_word_tok(Token(binary_op.value), b.op_pos)
         return b
 
     def test_expr_unary(self) -> TestExpr | None:
@@ -2051,9 +2229,10 @@ class Parser:
             Token.TS_FD_TERM, Token.TS_EMP_STR, Token.TS_NEMP_STR,
             Token.TS_OPT_SET, Token.TS_VAR_SET, Token.TS_REF_VAR,
         ):
-            u = UnaryTest(op_pos=self.pos, op=UnTestOperator(self.tok))
+            unary_op = UnTestOperator(self.tok)
+            u = UnaryTest(op_pos=self.pos, op=unary_op)
             self.next()
-            u.x = self.follow_word_tok(Token(u.op.value), u.op_pos)
+            u.x = self.follow_word_tok(Token(unary_op.value), u.op_pos)
             return u
         elif self.tok == Token.LEFT_PAREN:
             pe = ParenTest(lparen=self.pos)
@@ -2083,7 +2262,11 @@ class Parser:
         while not self.stop_token() and not self.peek_redir():
             if self.has_valid_ident():
                 ds.args.append(self.get_assign(False))
-            elif self.eql_offs > 0 and '{' not in self.val[:self.eql_offs]:
+            elif (
+                self.tok in (Token.LIT_, Token.LIT_WORD_, Token.LIT_REDIR_)
+                and self.eql_offs > 0
+                and '{' not in self.val[:self.eql_offs]
+            ):
                 self.cur_err('invalid var name')
             elif self.tok == Token.LIT_WORD_ and valid_name(self.val):
                 ds.args.append(Assign(naked=True, name=self.get_lit()))
@@ -2092,7 +2275,11 @@ class Parser:
                 if w is not None:
                     ds.args.append(Assign(naked=True, value=w))
                 else:
-                    self.follow_err(self.pos, ds.variant.value, 'names or assignments')
+                    self.follow_err(
+                        self.pos,
+                        check.not_none(ds.variant).value,
+                        _NoQuote('names or assignments'),
+                    )
         s.cmd = ds
 
     def _is_bash_compound_command(self, tok: Token, val: str) -> bool:
@@ -2165,7 +2352,7 @@ class Parser:
             if has_parens or (self.tok == Token.LIT_WORD_ and self.val == '{'):
                 self.check_lang(fpos, LANG_ZSH, 'anonymous functions')
             elif not lang_in(self.lang, LANG_ZSH):
-                self.follow_err(fpos, 'function', 'a name')
+                self.follow_err(fpos, 'function', _NoQuote('a name'))
             names = []
         elif len(names) == 1:
             pass  # allowed in all variants
@@ -2180,11 +2367,18 @@ class Parser:
         self.next()
         td.description = self.get_word()
         if td.description is None:
-            self.follow_err(td.position, '@test', 'a description word')
+            self.follow_err(td.position, '@test', _NoQuote('a description word'))
         td.body = self.get_stmt(False, False, True)
         if td.body is None:
-            self.follow_err(td.position, '@test "desc"', 'a statement')
+            self.follow_err(td.position, '@test "desc"', _NoQuote('a statement'))
         s.cmd = td
+
+    def unexpected_in_call_expr(self, ce: CallExpr) -> None:
+        if len(ce.args) > 0:
+            cmd = ce.args[0].lit()
+            if cmd is not None and self._is_bash_compound_command(Token.LIT_WORD_, cmd):
+                self.check_lang(self.pos, LANG_BASH_LIKE, 'the %#q builtin', cmd)
+        self.cur_err('a command can only contain words and redirects; encountered %#q', self.tok)
 
     def call_expr(self, s: Stmt, w: Word | None, assign: bool) -> None:
         ce = self.call(w)
@@ -2195,7 +2389,7 @@ class Parser:
         while True:
             if self.tok in (
                 Token.EOF_, Token.NEWL_, Token.SEMICOLON, Token.AND, Token.OR,
-                Token.AND_AND, Token.OR_OR, Token.OR_AND,
+                Token.AND_AND, Token.OR_OR, Token.OR_AND, Token.AND_PIPE, Token.AND_BANG,
                 Token.DBL_SEMICOLON, Token.SEMI_AND, Token.DBL_SEMI_AND, Token.SEMI_OR,
             ):
                 break
@@ -2207,32 +2401,36 @@ class Parser:
                         self.check_lang(self.pos, LANG_BASH_LIKE, 'the "function" builtin')
                     if lang_in(self.lang, LANG_ZSH) and self.val == '}':
                         break
-                    ce.args.append(self.word_one(self.lit(self.pos, self.val)))
+                    next_word = self.word_one(self.lit(self.pos, self.val))
                     self.next()
+                    if lang_in(self.lang, LANG_ZSH) and not self.spaced:
+                        next_word.parts.extend(self.word_parts([]))
+                    ce.args.append(next_word)
             elif self.tok == Token.LIT_:
                 if len(ce.args) == 0 and self.has_valid_ident():
                     ce.assigns.append(self.get_assign(True))
                 else:
                     ce.args.append(self.word_any_number())
-            elif (
-                (cond_bck3 := (self.tok == Token.BCK_QUOTE))
-                or (cond_exp3 := (self.tok in (  # noqa: F841
-                    Token.DOLL_BRACE, Token.DOLL_DBL_PAREN, Token.DOLL_PAREN,
-                    Token.DOLLAR, Token.CMD_IN, Token.ASSGN_PAREN, Token.CMD_OUT,
-                    Token.SGL_QUOTE, Token.DOLL_SGL_QUOTE,
-                    Token.DBL_QUOTE, Token.DOLL_DBL_QUOTE, Token.DOLL_BRACK,
-                    Token.GLOB_QUEST, Token.GLOB_STAR, Token.GLOB_PLUS,
-                    Token.GLOB_AT, Token.GLOB_EXCL,
-                )))
+            elif self.tok == Token.BCK_QUOTE:
+                if self.backquote_end():
+                    break
+                ce.args.append(self.word_any_number())
+            elif self.tok in (
+                Token.DOLL_BRACE, Token.DOLL_DBL_PAREN, Token.DOLL_PAREN,
+                Token.DOLLAR, Token.CMD_IN, Token.ASSGN_PAREN, Token.CMD_OUT,
+                Token.SGL_QUOTE, Token.DOLL_SGL_QUOTE,
+                Token.DBL_QUOTE, Token.DOLL_DBL_QUOTE, Token.DOLL_BRACK,
+                Token.GLOB_QUEST, Token.GLOB_STAR, Token.GLOB_PLUS,
+                Token.GLOB_AT, Token.GLOB_EXCL,
             ):
-                if cond_bck3:
-                    if self.backquote_end():
-                        break
-                    cond_exp3 = True  # fallthrough
-                if cond_exp3:  # noqa: F821
-                    ce.args.append(self.word_any_number())
+                ce.args.append(self.word_any_number())
             elif self.tok == Token.DBL_LEFT_PAREN:
-                self.cur_err('%s can only be used to open an arithmetic cmd', self.tok)
+                self.cur_err('%#q can only be used to open an arithmetic cmd', self.tok)
+            elif self.tok == Token.LEFT_PAREN:
+                if lang_in(self.lang, LANG_ZSH) and self.r != ')':
+                    ce.args.append(self.word_any_number())
+                    continue
+                self.unexpected_in_call_expr(ce)
             elif (
                 (cond_rp := (self.tok == Token.RIGHT_PAREN))
                 or (cond_def3 := True)  # noqa: F841
@@ -2244,11 +2442,7 @@ class Parser:
                 if self.peek_redir():
                     self.do_redirect(s)
                     continue
-                if len(ce.args) > 0:
-                    cmd = ce.args[0].lit() if hasattr(ce.args[0], 'lit') else None
-                    if cmd and self._is_bash_compound_command(Token.LIT_WORD_, cmd):
-                        self.check_lang(self.pos, LANG_BASH_LIKE, 'the %s builtin', cmd)
-                self.cur_err('a command can only contain words and redirects; encountered %s', self.tok)
+                self.unexpected_in_call_expr(ce)
         if len(ce.args) == 0:
             ce.args = []
         else:
@@ -2277,5 +2471,5 @@ class Parser:
         self.got(Token.NEWL_)
         fd.body = self.get_stmt(False, False, True)
         if fd.body is None:
-            self.follow_err(fd.pos(), 'foo()', 'a statement')
+            self.follow_err(fd.pos(), 'foo()', _NoQuote('a statement'))
         s.cmd = fd

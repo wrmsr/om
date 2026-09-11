@@ -21,6 +21,7 @@ import enum
 import functools
 import typing as ta
 
+from omcore import check
 from omcore import dataclasses as dc
 
 from .nodes import ArithmCmd
@@ -103,7 +104,7 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         walk_nilable(node.array, f)
     elif isinstance(node, Redirect):
         walk_nilable(node.n, f)
-        walk(node.word, f)
+        walk(check.not_none(node.word), f)
         walk_nilable(node.hdoc, f)
     elif isinstance(node, CallExpr):
         walk_list(node.assigns, f)
@@ -119,6 +120,7 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         walk_comments(node.cond_last, f)
         walk_list(node.then, f)
         walk_comments(node.then_last, f)
+        walk_comments(node.last, f)
         walk_nilable(node.else_, f)
     elif isinstance(node, WhileClause):
         walk_list(node.cond, f)
@@ -130,15 +132,15 @@ def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
         walk_list(node.do, f)
         walk_comments(node.do_last, f)
     elif isinstance(node, WordIter):
-        walk(node.name, f)
+        walk(check.not_none(node.name), f)
         walk_list(node.items, f)
     elif isinstance(node, CStyleLoop):
         walk_nilable(node.init, f)
         walk_nilable(node.cond, f)
         walk_nilable(node.post, f)
     elif isinstance(node, BinaryCmd):
-        walk(node.x, f)
-        walk(node.y, f)
+        walk(check.not_none(node.x), f)
+        walk(check.not_none(node.y), f)
     elif isinstance(node, FuncDecl):
         walk_nilable(node.name, f)
         walk_list(node.names, f)
@@ -255,6 +257,18 @@ def walk_comments(lst: ta.Sequence[Comment], f: ta.Callable[[Node | None], bool]
     # Note that []Comment does not satisfy the generic constraint []Node.
     for n in lst:
         walk(n, f)
+
+
+def preorder(node: Node) -> ta.Iterator[Node]:
+    nodes: list[Node] = []
+
+    def visit(child: Node | None) -> bool:
+        if child is not None:
+            nodes.append(child)
+        return True
+
+    walk(node, visit)
+    yield from nodes
 
 
 # DebugPrint prints the provided syntax tree, spanning multiple lines and with

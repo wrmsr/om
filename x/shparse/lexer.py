@@ -17,8 +17,10 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# ruff: noqa: SIM116, SLF001
 import typing as ta
 
+from omcore import check
 from omcore import lang
 
 from .langs import LANG_BASH_LIKE
@@ -37,10 +39,10 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
-# Sentinel rune values. In the Go original these are utf8.RuneSelf (0x80) and utf8.RuneSelf+1.
-# In Python we use Unicode noncharacters that cannot appear in valid shell source.
-_EOF_RUNE = '\uffff'   # signals end of input (replaces utf8.RuneSelf)
-_ESC_NEWL = '\ufffe'   # escaped newline pseudo-rune (replaces escNewl)
+# Sentinel rune values. These strings are longer than one character, so they
+# cannot collide with any rune read from valid shell source.
+_EOF_RUNE = '\U0010ffff<eof>'
+_ESC_NEWL = '\U0010ffff<escaped-newline>'
 
 
 ##
@@ -81,7 +83,7 @@ def bquote_escaped(b: str) -> bool:
     return False
 
 
-def next_keep_spaces(p: 'parser.Parser') -> None:
+def next_keep_spaces(p: parser.Parser) -> None:
     r = p.r
     if p.quote != p._HDOC_BODY and p.quote != p._HDOC_BODY_TABS:
         # Heredocs handle escaped newlines in a special way, but others do not.
@@ -116,7 +118,7 @@ def next_keep_spaces(p: 'parser.Parser') -> None:
         p.tok = Token.EOF_
 
 
-def next_(p: 'parser.Parser') -> None:
+def next_(p: parser.Parser) -> None:
     if p.r == _EOF_RUNE:
         p.tok = Token.EOF_
         return
@@ -172,7 +174,7 @@ def next_(p: 'parser.Parser') -> None:
         elif r == '#':
             # If we're parsing $foo#bar, ${foo}#bar, 'foo'#bar, or "foo"#bar,
             # #bar is a continuation of the same word, not a comment.
-            if p.quote == p._UNQUOTED_WORD_CONT and not p.spaced:
+            if not p.spaced and p.quote in (p._UNQUOTED_WORD_CONT, p._TEST_EXPR):
                 advance_lit_none(p, r)
                 return
             r = p.rune()
@@ -181,8 +183,8 @@ def next_(p: 'parser.Parser') -> None:
                 if r in ('\n', _EOF_RUNE):
                     break
                 elif r == _ESC_NEWL:
-                    p.lit_bs.append('\\')
-                    p.lit_bs.append('\n')
+                    check.not_none(p.lit_bs).append('\\')
+                    check.not_none(p.lit_bs).append('\n')
                     break
                 elif r == '`':
                     if p.backquote_end():
@@ -197,7 +199,7 @@ def next_(p: 'parser.Parser') -> None:
                 p.lit_bs = None
             next_(p)
         elif r == '[':
-            if p.quote == p._ARRAY_ELEMS:
+            if p.quote == p._ARRAY_ELEMS and (p.spaced or p.tok in (Token.LEFT_PAREN, Token.NEWL_)):
                 p.rune()
                 p.tok = Token.LEFT_BRACK
             else:
@@ -230,6 +232,8 @@ def next_(p: 'parser.Parser') -> None:
                 advance_lit_none(p, r)
         else:
             advance_lit_none(p, r)
+    elif p.quote == p._PARAM_EXP_ARITHM and r == '#':
+        advance_lit_other(p, r)
     elif p.quote & p._ALL_ARITHM_EXPR != 0 and arithm_ops(r):
         p.tok = arithm_token(p, r)
     elif p.quote & p._ALL_PARAM_EXP != 0 and param_ops(r):
@@ -239,6 +243,7 @@ def next_(p: 'parser.Parser') -> None:
             p.quote = p._TEST_EXPR
             # re-enter skipSpace logic via recursion
             next_(p)
+            p.spaced = True
             return
         p.rx_first_part = False
         if r in (';', '"', '\'', '$', '&', '>', '<', '`'):
@@ -263,13 +268,9 @@ def next_(p: 'parser.Parser') -> None:
 
 # extended_glob determines whether we're parsing a Bash extended globbing expression.
 # For example, whether `*` or `@` are followed by `(` to form `@(foo)`.
-def extended_glob(p: 'parser.Parser') -> bool:
+def extended_glob(p: parser.Parser) -> bool:
     if lang_in(p.lang, LANG_ZSH):
-        # Zsh doesn't have extended globs like bash/mksh.
-        # We still tokenize +( @( !( so the parser can give a clear error,
-        # but not *( or ?( as those are used in zsh glob qualifiers.
-        if p.r not in ('+', '@', '!'):
-            return False
+        return False
     if p.val == 'function':
         # We don't support e.g. `function @() { ... }` at the moment, but we could.
         return False
@@ -285,7 +286,7 @@ def extended_glob(p: 'parser.Parser') -> bool:
     return False
 
 
-def reg_token(p: 'parser.Parser', r: str) -> Token:
+def reg_token(p: parser.Parser, r: str) -> Token:
     if r == '\'':
         p.rune()
         return Token.SGL_QUOTE
@@ -307,18 +308,28 @@ def reg_token(p: 'parser.Parser', r: str) -> Token:
                 p.rune()
                 return Token.RDR_ALL_CLOB
             elif pr == '!':
-                p.rune()
-                return Token.RDR_ALL_TRUNC
+                if lang_in(p.lang, LANG_ZSH):
+                    p.rune()
+                    return Token.RDR_ALL_CLOB
             elif pr == '>':
                 pr = p.rune()
                 if pr == '|':
                     p.rune()
                     return Token.APP_ALL_CLOB
                 elif pr == '!':
-                    p.rune()
-                    return Token.APP_ALL_TRUNC
+                    if lang_in(p.lang, LANG_ZSH):
+                        p.rune()
+                        return Token.APP_ALL_CLOB
                 return Token.APP_ALL
             return Token.RDR_ALL
+        elif pr == '|':
+            if lang_in(p.lang, LANG_ZSH):
+                p.rune()
+                return Token.AND_PIPE
+        elif pr == '!':
+            if lang_in(p.lang, LANG_ZSH):
+                p.rune()
+                return Token.AND_BANG
         return Token.AND
     elif r == '|':
         pr = p.rune()
@@ -379,7 +390,7 @@ def reg_token(p: 'parser.Parser', r: str) -> Token:
             p.rune()
             return Token.SEMI_AND
         elif pr == '|':
-            if not lang_in(p.lang, LANG_MIR_BSD_KORN):
+            if not lang_in(p.lang, LANG_MIR_BSD_KORN | LANG_ZSH):
                 return Token.SEMICOLON
             p.rune()
             return Token.SEMI_OR
@@ -415,18 +426,30 @@ def reg_token(p: 'parser.Parser', r: str) -> Token:
                 p.rune()
                 return Token.APP_CLOB
             elif pr == '!':
-                p.rune()
-                return Token.APP_TRUNC
+                if lang_in(p.lang, LANG_ZSH):
+                    p.rune()
+                    return Token.APP_CLOB
+            elif pr == '&':
+                if lang_in(p.lang, LANG_ZSH):
+                    pr = p.rune()
+                    if pr in ('|', '!'):
+                        p.rune()
+                        return Token.APP_ALL_CLOB
+                    return Token.APP_ALL
             return Token.APP_OUT
         elif pr == '&':
-            p.rune()
+            pr = p.rune()
+            if lang_in(p.lang, LANG_ZSH) and pr in ('|', '!'):
+                p.rune()
+                return Token.RDR_ALL_CLOB
             return Token.DPL_OUT
         elif pr == '|':
             p.rune()
             return Token.RDR_CLOB
         elif pr == '!':
-            p.rune()
-            return Token.RDR_TRUNC
+            if lang_in(p.lang, LANG_ZSH):
+                p.rune()
+                return Token.RDR_CLOB
         elif pr == '(':
             if not lang_in(p.lang, LANG_BASH_LIKE | LANG_ZSH):
                 return Token.RDR_OUT
@@ -436,7 +459,7 @@ def reg_token(p: 'parser.Parser', r: str) -> Token:
     raise RuntimeError('unreachable')
 
 
-def dq_token(p: 'parser.Parser', r: str) -> Token:
+def dq_token(p: parser.Parser, r: str) -> Token:
     if r == '"':
         p.rune()
         return Token.DBL_QUOTE
@@ -463,7 +486,7 @@ def dq_token(p: 'parser.Parser', r: str) -> Token:
     raise RuntimeError('unreachable')
 
 
-def param_token(p: 'parser.Parser', r: str) -> Token:
+def param_token(p: parser.Parser, r: str) -> Token:
     if r == '}':
         p.rune()
         return Token.RIGHT_BRACE
@@ -484,6 +507,12 @@ def param_token(p: 'parser.Parser', r: str) -> Token:
         elif pr == '#':
             p.rune()
             return Token.COL_HASH
+        elif pr == '|':
+            p.rune()
+            return Token.COL_PIPE
+        elif pr == '*':
+            p.rune()
+            return Token.COL_STAR
         return Token.COLON
     elif r == '+':
         p.rune()
@@ -543,7 +572,7 @@ def param_token(p: 'parser.Parser', r: str) -> Token:
         return Token.ILLEGAL_TOK
 
 
-def arithm_token(p: 'parser.Parser', r: str) -> Token:
+def arithm_token(p: parser.Parser, r: str) -> Token:
     if r == '!':
         if p.rune() == '=':
             p.rune()
@@ -684,16 +713,16 @@ def arithm_token(p: 'parser.Parser', r: str) -> Token:
 ##
 
 
-def new_lit(p: 'parser.Parser', r: str) -> None:
+def new_lit(p: parser.Parser, r: str) -> None:
     if r != _EOF_RUNE and r != _ESC_NEWL:
         p.lit_bs = [r]
     else:
         p.lit_bs = []
 
 
-def end_lit(p: 'parser.Parser') -> str:
+def end_lit(p: parser.Parser) -> str:
     if p.r == _EOF_RUNE or p.r == _ESC_NEWL:
-        s = ''.join(p.lit_bs)
+        s = ''.join(check.not_none(p.lit_bs))
     else:
         # exclude the last rune which hasn't been consumed yet
         s = ''.join(p.lit_bs[:-1]) if p.lit_bs else ''
@@ -701,36 +730,44 @@ def end_lit(p: 'parser.Parser') -> str:
     return s
 
 
-def is_lit_redir(p: 'parser.Parser') -> bool:
+def is_lit_redir(p: parser.Parser) -> bool:
     lit = p.lit_bs[:-1] if p.lit_bs else []
     if not lit:
         return False
     lit_str = ''.join(lit)
     if lit_str[0] == '{' and lit_str[-1] == '}':
-        return parser.valid_name(lit_str[1:-1])
+        name = lit_str[1:-1]
+        if lang_in(p.lang, LANG_BASH_LIKE) and name.endswith(']'):
+            index = name.find('[')
+            if 0 < index < len(name) - 2:
+                name = name[:index]
+        return parser.valid_name(name)
     return _number_literal(lit_str)
 
 
+def positional_rune_param(r: str) -> bool:
+    return r in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+
+
 def single_rune_param(r: str) -> bool:
-    if r in ('@', '*', '#', '$', '?', '!', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
-        return True
-    return False
+    return r in ('@', '*', '#', '$', '?', '!', '-') or positional_rune_param(r)
 
 
 def param_name_rune(r: str) -> bool:
     return ascii_letter(r) or ascii_digit(r) or r == '_'
 
 
+def param_name_start_rune(r: str) -> bool:
+    return single_rune_param(r) or param_name_rune(r)
+
+
 def _number_literal(val: str) -> bool:
     if len(val) == 0:
         return False
-    for r in val:
-        if not ascii_digit(r):
-            return False
-    return True
+    return all(ascii_digit(r) for r in val)
 
 
-def advance_lit_other(p: 'parser.Parser', r: str) -> None:
+def advance_lit_other(p: parser.Parser, r: str) -> None:
     tok = Token.LIT_WORD_
     new_lit(p, r)
     while r != _EOF_RUNE:
@@ -767,23 +804,9 @@ def advance_lit_other(p: 'parser.Parser', r: str) -> None:
     p.tok, p.val = tok, end_lit(p)
 
 
-# litBsGlob reports whether the literal bytes accumulated so far
-# contain a glob metacharacter, excluding the last byte which is '('.
-def lit_bs_glob(p: 'parser.Parser') -> bool:
-    # Exclude the last byte which is the '(' that triggered this check.
-    for b in (p.lit_bs[:-1] if p.lit_bs else []):
-        if b in ('*', '?', '['):
-            return True
-        elif b == '/':
-            # Paths like /bin/sh(:t) can also have glob qualifiers;
-            # function names never contain slashes.
-            return True
-    return False
-
-
 # zshNumRange peeks at the bytes after '<' to check for a zsh numeric
 # range glob pattern like <->, <5->, <-10>, or <5-10>.
-def zsh_num_range(p: 'parser.Parser') -> bool:
+def zsh_num_range(p: parser.Parser) -> bool:
     # Peeking a handful of bytes here should be enough.
     rest = p.src[p.bsp:]
     i = 0
@@ -797,7 +820,7 @@ def zsh_num_range(p: 'parser.Parser') -> bool:
     return i < len(rest) and rest[i] == '>'
 
 
-def advance_lit_none(p: 'parser.Parser', r: str) -> None:
+def advance_lit_none(p: parser.Parser, r: str) -> None:
     p.eql_offs = -1
     tok = Token.LIT_WORD_
     new_lit(p, r)
@@ -805,14 +828,6 @@ def advance_lit_none(p: 'parser.Parser', r: str) -> None:
         if r in (' ', '\t', '\n', '\r', '&', '|', ';', ')'):
             break
         elif r == '(':
-            if lang_in(p.lang, LANG_ZSH) and lit_bs_glob(p):
-                # Zsh glob qualifiers like *(.), **(/) or *(om[1,5]); consume until ')'.
-                while True:
-                    r = p.rune()
-                    if r == _EOF_RUNE or r == ')':
-                        break
-                r = p.rune()
-                continue
             break
         elif r == '\\':  # escaped byte follows
             p.rune()
@@ -843,12 +858,19 @@ def advance_lit_none(p: 'parser.Parser', r: str) -> None:
                 break
         elif r == '=':
             if p.eql_offs < 0:
-                p.eql_offs = len(p.lit_bs) - 1
+                p.eql_offs = len(check.not_none(p.lit_bs)) - 1
+        elif r == '}':
+            if p.quote == p._SUB_CMD_BRACES and len(check.not_none(p.lit_bs)) == 1:
+                p.rune()
+                break
         elif r == '[':
+            if check.not_none(p.lit_bs)[0] == '{' and lang_in(p.lang, LANG_BASH_LIKE):
+                r = p.rune()
+                continue
             if (
                 lang_in(p.lang, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH)
-                and len(p.lit_bs) > 1
-                and p.lit_bs[0] != '['
+                and len(check.not_none(p.lit_bs)) > 1
+                and check.not_none(p.lit_bs)[0] != '['
             ):
                 tok = Token.LIT_
                 break
@@ -856,7 +878,7 @@ def advance_lit_none(p: 'parser.Parser', r: str) -> None:
     p.tok, p.val = tok, end_lit(p)
 
 
-def advance_lit_dquote(p: 'parser.Parser', r: str) -> None:
+def advance_lit_dquote(p: parser.Parser, r: str) -> None:
     tok = Token.LIT_WORD_
     new_lit(p, r)
     while r != _EOF_RUNE:
@@ -871,7 +893,7 @@ def advance_lit_dquote(p: 'parser.Parser', r: str) -> None:
     p.tok, p.val = tok, end_lit(p)
 
 
-def advance_lit_hdoc(p: 'parser.Parser', r: str) -> None:
+def advance_lit_hdoc(p: parser.Parser, r: str) -> None:
     # Unlike the rest of nextKeepSpaces quote states, we handle escaped
     # newlines here. If lastTok==_Lit, then we know we're following an
     # escaped newline, so the first line can't end the heredoc.
@@ -885,7 +907,7 @@ def advance_lit_hdoc(p: 'parser.Parser', r: str) -> None:
     new_lit(p, r)
     while p.quote == p._HDOC_BODY_TABS and r == '\t':
         r = p.rune()
-    l_start = len(p.lit_bs) - 1
+    l_start = len(check.not_none(p.lit_bs)) - 1
     stop = p.hdoc_stops[-1]
     while True:
         if r in (_ESC_NEWL, '$'):
@@ -914,11 +936,11 @@ def advance_lit_hdoc(p: 'parser.Parser', r: str) -> None:
                     pass
                 elif l_start >= 0:
                     # Compare the current line with the stop word.
-                    line = p.lit_bs[l_start:]
+                    line = check.not_none(p.lit_bs)[l_start:]
                     if r != _EOF_RUNE and len(line) > 0:
                         line = line[:-1]  # minus trailing character
                     line_str = ''.join(line)
-                    if line_str == stop:
+                    if line_str == (stop or ''):
                         p.tok = Token.LIT_WORD_
                         full = end_lit(p)
                         p.val = full[:l_start]
@@ -930,11 +952,11 @@ def advance_lit_hdoc(p: 'parser.Parser', r: str) -> None:
                     return  # hit an unexpected EOF or closing backquote
                 while p.quote == p._HDOC_BODY_TABS and p.peek() == '\t':
                     p.rune()
-                l_start = len(p.lit_bs)
+                l_start = len(check.not_none(p.lit_bs))
         r = p.rune()
 
 
-def quoted_hdoc_word(p: 'parser.Parser') -> ta.Any:  # -> Word | None
+def quoted_hdoc_word(p: parser.Parser) -> ta.Any:  # -> Word | None
     r = p.r
     new_lit(p, r)
     pos = p.next_pos()
@@ -944,7 +966,7 @@ def quoted_hdoc_word(p: 'parser.Parser') -> ta.Any:  # -> Word | None
             return None
         while p.quote == p._HDOC_BODY_TABS and r == '\t':
             r = p.rune()
-        l_start = len(p.lit_bs) - 1
+        l_start = len(check.not_none(p.lit_bs)) - 1
         while True:
             if r in (_EOF_RUNE, '\n'):
                 break
@@ -952,15 +974,15 @@ def quoted_hdoc_word(p: 'parser.Parser') -> ta.Any:  # -> Word | None
                 if p.backquote_end():
                     break
             elif r == _ESC_NEWL:
-                p.lit_bs.append('\\')
-                p.lit_bs.append('\n')
+                check.not_none(p.lit_bs).append('\\')
+                check.not_none(p.lit_bs).append('\n')
                 break
             r = p.rune()
         if l_start < 0:
             r = p.rune()
             continue
         # Compare the current line with the stop word.
-        line = p.lit_bs[l_start:]
+        line = check.not_none(p.lit_bs)[l_start:]
         if r != _EOF_RUNE and len(line) > 0:
             line = line[:-1]  # minus \n
         line_str = ''.join(line)
@@ -974,7 +996,7 @@ def quoted_hdoc_word(p: 'parser.Parser') -> ta.Any:  # -> Word | None
         r = p.rune()
 
 
-def advance_lit_re(p: 'parser.Parser', r: str) -> None:
+def advance_lit_re(p: parser.Parser, r: str) -> None:
     new_lit(p, r)
     while True:
         if r == '\\':
