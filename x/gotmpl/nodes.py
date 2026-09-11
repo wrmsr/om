@@ -1,6 +1,7 @@
 """
 https://github.com/golang/go/blob/3d33437c450aa74014ea1d41cd986b6ee6266984/src/text/template/parse/node.go
 """
+
 # Copyright 2009 The Go Authors.
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -21,49 +22,53 @@ https://github.com/golang/go/blob/3d33437c450aa74014ea1d41cd986b6ee6266984/src/t
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import abc
-import dataclasses as dc
 import enum
 import io
 import typing as ta
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore import lang
 
 from .lex import Pos
+from .quoting import quote_go_string
 
 
 if ta.TYPE_CHECKING:
-    from . import parse
+    from .parse import Tree
+
+
+##
 
 
 class NodeType(enum.IntEnum):
-    TEXT = enum.auto()        # Plain text.
-    ACTION = enum.auto()      # A non-control action such as a field evaluation.
-    BOOL = enum.auto()        # A boolean constant.
-    CHAIN = enum.auto()       # A sequence of field accesses.
-    COMMAND = enum.auto()     # An element of a pipeline.
-    DOT = enum.auto()         # The cursor, dot.
-    ELSE = enum.auto()        # An else action. Not added to tree.
-    END = enum.auto()         # An end action. Not added to tree.
-    FIELD = enum.auto()       # A field or method name.
+    TEXT = enum.auto()  # Plain text.
+    ACTION = enum.auto()  # A non-control action such as a field evaluation.
+    BOOL = enum.auto()  # A boolean constant.
+    CHAIN = enum.auto()  # A sequence of field accesses.
+    COMMAND = enum.auto()  # An element of a pipeline.
+    DOT = enum.auto()  # The cursor, dot.
+    ELSE = enum.auto()  # An else action. Not added to tree.
+    END = enum.auto()  # An end action. Not added to tree.
+    FIELD = enum.auto()  # A field or method name.
     IDENTIFIER = enum.auto()  # An identifier; always a function name.
-    IF = enum.auto()          # An if action.
-    LIST = enum.auto()        # A list of Nodes.
-    NIL = enum.auto()         # An untyped nil constant.
-    NUMBER = enum.auto()      # A numerical constant.
-    PIPE = enum.auto()        # A pipeline of commands.
-    RANGE = enum.auto()       # A range action.
-    STRING = enum.auto()      # A string constant.
-    TEMPLATE = enum.auto()    # A template invocation action.
-    VARIABLE = enum.auto()    # A $ variable.
-    WITH = enum.auto()        # A with action.
-    COMMENT = enum.auto()     # A comment.
-    BREAK = enum.auto()       # A break action.
-    CONTINUE = enum.auto()    # A continue action.
+    IF = enum.auto()  # An if action.
+    LIST = enum.auto()  # A list of Nodes.
+    NIL = enum.auto()  # An untyped nil constant.
+    NUMBER = enum.auto()  # A numerical constant.
+    PIPE = enum.auto()  # A pipeline of commands.
+    RANGE = enum.auto()  # A range action.
+    STRING = enum.auto()  # A string constant.
+    TEMPLATE = enum.auto()  # A template invocation action.
+    VARIABLE = enum.auto()  # A $ variable.
+    WITH = enum.auto()  # A with action.
+    COMMENT = enum.auto()  # A comment.
+    BREAK = enum.auto()  # A break action.
+    CONTINUE = enum.auto()  # A continue action.
 
 
 @dc.dataclass()
-class Node(abc.ABC):
+class Node(lang.Abstract):
     """
     A Node is an element in the parse tree. The interface is trivial. The interface contains an unexported method so
     that only types local to this package can satisfy it.
@@ -71,10 +76,10 @@ class Node(abc.ABC):
 
     type: NodeType
     pos: Pos
-    tree: ta.Optional['parse.Tree']
+    tree: Tree | None
 
     @abc.abstractmethod
-    def copy(self) -> 'Node':
+    def copy(self) -> Node:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -85,6 +90,9 @@ class Node(abc.ABC):
         out = io.StringIO()
         self.write(out)
         return out.getvalue()
+
+    def __str__(self) -> str:
+        return self.string()
 
 
 # Nodes.
@@ -99,14 +107,14 @@ class ListNode(Node):
     def append(self, n: Node) -> None:
         self.nodes.append(n)
 
-    def copy_list(self) -> 'ListNode':
-        n = self.tree.new_list(self.pos)
+    def copy_list(self) -> ListNode:
+        n = check.not_none(self.tree).new_list(self.pos)
         for node in self.nodes:
             n.append(node.copy())
         return n
 
     def copy(self) -> Node:
-        return self.copy()
+        return self.copy_list()
 
     def write(self, out: ta.TextIO) -> None:
         for n in self.nodes:
@@ -129,11 +137,7 @@ class TextNode(Node):
 
     def string(self) -> str:
         if self._QUOTE_STRINGS:
-            return ''.join([
-                '"',
-                self.text.encode('unicode_escape').decode().replace('"', r'\"'),
-                '"',
-            ])
+            return quote_go_string(self.text)
         else:
             return self.text
 
@@ -145,12 +149,13 @@ class CommentNode(Node):
     text: str  # Comment text.
 
     def copy(self) -> Node:
-        return TextNode(tree=self.tree, type=NodeType.COMMENT, pos=self.pos, text=self.text)
+        return CommentNode(tree=self.tree, type=NodeType.COMMENT, pos=self.pos, text=self.text)
 
     def write(self, out: ta.TextIO) -> None:
-        out.write("{{")
+        tree = check.not_none(self.tree)
+        out.write(tree.left_delim)
         out.write(self.text)
-        out.write("}}")
+        out.write(tree.right_delim)
 
 
 @dc.dataclass()
@@ -159,17 +164,17 @@ class PipeNode(Node):
 
     line: int  # The line number in the input. Deprecated: Kept for compatibility.
     is_assign: bool = False  # The variables are being assigned, not declared.
-    decl: list['VariableNode'] = dc.field(default_factory=list)  # Variables in lexical order.
-    cmds: list['CommandNode'] = dc.field(default_factory=list)  # The commands in lexical order.
+    decl: list[VariableNode] = dc.field(default_factory=list)  # Variables in lexical order.
+    cmds: list[CommandNode] = dc.field(default_factory=list)  # The commands in lexical order.
 
-    def append(self, command: 'CommandNode') -> None:
+    def append(self, command: CommandNode) -> None:
         self.cmds.append(command)
 
-    def copy_pipe(self) -> 'PipeNode':
+    def copy_pipe(self) -> PipeNode:
         vars: list[VariableNode] = []  # noqa
         for d in self.decl:
             vars.append(check.isinstance(d.copy(), VariableNode))
-        n = self.tree.new_pipeline(self.pos, self.line, vars)
+        n = check.not_none(self.tree).new_pipeline(self.pos, self.line, vars)
         n.is_assign = self.is_assign
         for c in self.cmds:
             n.append(check.isinstance(c.copy(), CommandNode))
@@ -182,16 +187,16 @@ class PipeNode(Node):
         if self.decl:
             for i, v in enumerate(self.decl):
                 if i > 0:
-                    out.write(", ")
+                    out.write(', ')
                 v.write(out)
             if self.is_assign:
-                out.write(" = ")
+                out.write(' = ')
             else:
-                out.write(" := ")
+                out.write(' := ')
 
         for i, c in enumerate(self.cmds):
             if i > 0:
-                out.write(" | ")
+                out.write(' | ')
             c.write(out)
 
 
@@ -204,12 +209,13 @@ class ActionNode(Node):
     pipe: PipeNode  # The pipeline in the action.
 
     def copy(self) -> Node:
-        return self.tree.new_action(self.pos, self.line, self.pipe.copy_pipe())
+        return check.not_none(self.tree).new_action(self.pos, self.line, self.pipe.copy_pipe())
 
     def write(self, out: ta.TextIO) -> None:
-        out.write("{{")
+        tree = check.not_none(self.tree)
+        out.write(tree.left_delim)
         self.pipe.write(out)
-        out.write("}}")
+        out.write(tree.right_delim)
 
 
 @dc.dataclass()
@@ -222,7 +228,7 @@ class CommandNode(Node):
         self.args.append(arg)
 
     def copy(self) -> Node:
-        n = self.tree.new_command(self.pos)
+        n = check.not_none(self.tree).new_command(self.pos)
         for c in self.args:
             n.append(c.copy())
         return n
@@ -245,14 +251,14 @@ class IdentifierNode(Node):
 
     ident: str  # The identifier's name.
 
-    def set_pos(self, pos: Pos) -> 'IdentifierNode':
+    def set_pos(self, pos: Pos) -> IdentifierNode:
         # SetPos sets the position. [NewIdentifier] is a public method so we can't modify its signature. Chained for
         # convenience.
         # TODO: fix one day?
         self.pos = pos
         return self
 
-    def set_tree(self, t: 'parse.Tree') -> 'IdentifierNode':
+    def set_tree(self, t: Tree) -> IdentifierNode:
         # SetTree sets the parent tree for the node. [NewIdentifier] is a public method so we can't modify its
         # signature. Chained for convenience.
         # TODO: fix one day?
@@ -260,7 +266,7 @@ class IdentifierNode(Node):
         return self
 
     def copy(self) -> Node:
-        return new_identifier(self.ident).set_tree(self.tree).set_pos(self.pos)
+        return new_identifier(self.ident).set_tree(check.not_none(self.tree)).set_pos(self.pos)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
@@ -302,7 +308,7 @@ class DotNode(Node):
     #     return NodeType.DOT
 
     def copy(self) -> Node:
-        return self.tree.new_dot(self.pos)
+        return check.not_none(self.tree).new_dot(self.pos)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
@@ -322,7 +328,7 @@ class NilNode(Node):
     #     return NodeType.NIL
 
     def copy(self) -> Node:
-        return self.tree.new_nil(self.pos)
+        return check.not_none(self.tree).new_nil(self.pos)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
@@ -343,7 +349,7 @@ class FieldNode(Node):
 
     def write(self, out: ta.TextIO) -> None:
         for id in self.ident:  # noqa
-            out.write(".")
+            out.write('.')
             out.write(id)
 
 
@@ -386,7 +392,7 @@ class BoolNode(Node):
     is_true: bool  # The value of the boolean constant.
 
     def copy(self) -> Node:
-        return self.tree.new_bool(self.pos, self.is_true)
+        return check.not_none(self.tree).new_bool(self.pos, self.is_true)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
@@ -403,17 +409,39 @@ class NumberNode(Node):
 
     text: str  # The original textual representation from the input.
 
-    v: int | float | complex = 0
+    is_int: bool = False
+    is_uint: bool = False
+    is_float: bool = False
+    is_complex: bool = False
+    int64: int = 0
+    uint64: int = 0
+    float64: float = 0.0
+    complex128: complex = 0j
+
+    @property
+    def v(self) -> int | float | complex:
+        if self.is_complex:
+            return self.complex128
+        if self.is_int:
+            return self.int64
+        if self.is_uint:
+            return self.uint64
+        return self.float64
 
     def simplify(self) -> None:
-        if isinstance(self.v, complex) and self.v.imag == 0:
-            self.v = self.v.real
-        if isinstance(self.v, float) and self.v.is_integer():
-            self.v = int(self.v)
+        self.is_float = self.complex128.imag == 0
+        if not self.is_float:
+            return
+        self.float64 = self.complex128.real
+        if self.float64.is_integer() and -(1 << 63) <= self.float64 < 1 << 63:
+            self.is_int = True
+            self.int64 = int(self.float64)
+        if self.float64.is_integer() and 0 <= self.float64 < 1 << 64:
+            self.is_uint = True
+            self.uint64 = int(self.float64)
 
     def copy(self) -> Node:
-        nn = NumberNode(**dc.asdict(self))
-        return nn
+        return dc.replace(self)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.text)
@@ -427,7 +455,7 @@ class StringNode(Node):
     text: str  # The string, after quote processing.
 
     def copy(self) -> Node:
-        return self.tree.new_string(self.pos, self.quoted, self.text)
+        return check.not_none(self.tree).new_string(self.pos, self.quoted, self.text)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
@@ -441,13 +469,14 @@ class EndNode(Node):
     # EndNode represents an {{end}} action. It does not appear in the final parse tree.
 
     def copy(self) -> Node:
-        return self.tree.new_end(self.pos)
+        return check.not_none(self.tree).new_end(self.pos)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
 
     def string(self) -> str:
-        return "{{end}}"
+        tree = check.not_none(self.tree)
+        return tree.left_delim + 'end' + tree.right_delim
 
 
 @dc.dataclass()
@@ -461,13 +490,14 @@ class ElseNode(Node):
     #     return NodeType.ELSE
 
     def copy(self) -> Node:
-        return self.tree.new_else(self.pos, self.line)
+        return check.not_none(self.tree).new_else(self.pos, self.line)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
 
     def string(self) -> str:
-        return "{{else}}"
+        tree = check.not_none(self.tree)
+        return tree.left_delim + 'else' + tree.right_delim
 
 
 @dc.dataclass()
@@ -477,38 +507,44 @@ class BranchNode(Node, lang.Abstract):
     line: int  # The line number in the input. Deprecated: Kept for compatibility.
     pipe: PipeNode  # The pipeline to be evaluated.
     lst: ListNode  # What to execute if the value is non-empty.
-    else_lst: ListNode  # What to execute if the value is empty (nil if absent).
+    else_lst: ListNode | None  # What to execute if the value is empty (nil if absent).
 
     def copy(self) -> Node:
+        tree = check.not_none(self.tree)
         if self.type == NodeType.IF:
-            return self.tree.new_if(self.pos, self.line, self.pipe, self.lst, self.else_lst)
+            return tree.new_if(self.pos, self.line, self.pipe, self.lst, self.else_lst)
         elif self.type == NodeType.RANGE:
-            return self.tree.new_range(self.pos, self.line, self.pipe, self.lst, self.else_lst)
+            return tree.new_range(self.pos, self.line, self.pipe, self.lst, self.else_lst)
         elif self.type == NodeType.WITH:
-            return self.tree.new_with(self.pos, self.line, self.pipe, self.lst, self.else_lst)
+            return tree.new_with(self.pos, self.line, self.pipe, self.lst, self.else_lst)
         else:
             raise TypeError(self)
 
     def write(self, out: ta.TextIO) -> None:
         if self.type == NodeType.IF:
-            name = "if"
+            name = 'if'
         elif self.type == NodeType.RANGE:
-            name = "range"
+            name = 'range'
         elif self.type == NodeType.WITH:
-            name = "with"
+            name = 'with'
         else:
-            raise TypeError("unknown branch type")
+            raise TypeError('unknown branch type')
 
-        out.write("{{")
+        tree = check.not_none(self.tree)
+        out.write(tree.left_delim)
         out.write(name)
-        out.write(" ")
+        out.write(' ')
         self.pipe.write(out)
-        out.write("}}")
+        out.write(tree.right_delim)
         self.lst.write(out)
         if self.else_lst:
-            out.write("{{else}}")
+            out.write(tree.left_delim)
+            out.write('else')
+            out.write(tree.right_delim)
             self.else_lst.write(out)
-        out.write("{{end}}")
+        out.write(tree.left_delim)
+        out.write('end')
+        out.write(tree.right_delim)
 
 
 @dc.dataclass()
@@ -516,7 +552,13 @@ class IfNode(BranchNode):
     # IfNode represents an {{if}} action and its commands.
 
     def copy(self) -> Node:
-        return self.tree.new_if(self.pos, self.line, self.pipe.copy_pipe(), self.lst.copy_list(), self.else_lst.copy_list())  # noqa
+        return check.not_none(self.tree).new_if(
+            self.pos,
+            self.line,
+            self.pipe.copy_pipe(),
+            self.lst.copy_list(),
+            self.else_lst.copy_list() if self.else_lst is not None else None,
+        )
 
 
 @dc.dataclass()
@@ -526,13 +568,14 @@ class BreakNode(Node):
     line: int
 
     def copy(self) -> Node:
-        return self.tree.new_break(self.pos, self.line)
+        return check.not_none(self.tree).new_break(self.pos, self.line)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
 
     def string(self) -> str:
-        return "{{break}}"
+        tree = check.not_none(self.tree)
+        return tree.left_delim + 'break' + tree.right_delim
 
 
 @dc.dataclass()
@@ -542,13 +585,14 @@ class ContinueNode(Node):
     line: int
 
     def copy(self) -> Node:
-        return self.tree.new_continue(self.pos, self.line)
+        return check.not_none(self.tree).new_continue(self.pos, self.line)
 
     def write(self, out: ta.TextIO) -> None:
         out.write(self.string())
 
     def string(self) -> str:
-        return "{{continue}}"
+        tree = check.not_none(self.tree)
+        return tree.left_delim + 'continue' + tree.right_delim
 
 
 @dc.dataclass()
@@ -556,7 +600,13 @@ class RangeNode(BranchNode):
     # RangeNode represents a {{range}} action and its commands.
 
     def copy(self) -> Node:
-        return self.tree.new_range(self.pos, self.line, self.pipe.copy_pipe(), self.lst.copy_list(), self.else_lst.copy_list())  # noqa
+        return check.not_none(self.tree).new_range(
+            self.pos,
+            self.line,
+            self.pipe.copy_pipe(),
+            self.lst.copy_list(),
+            self.else_lst.copy_list() if self.else_lst is not None else None,
+        )
 
 
 @dc.dataclass()
@@ -564,7 +614,13 @@ class WithNode(BranchNode):
     # WithNode represents a {{with}} action and its commands.
 
     def copy(self) -> Node:
-        return self.tree.new_with(self.pos, self.line, self.pipe.copy_pipe(), self.lst.copy_list(), self.else_lst.copy_list())  # noqa
+        return check.not_none(self.tree).new_with(
+            self.pos,
+            self.line,
+            self.pipe.copy_pipe(),
+            self.lst.copy_list(),
+            self.else_lst.copy_list() if self.else_lst is not None else None,
+        )
 
 
 @dc.dataclass()
@@ -576,12 +632,19 @@ class TemplateNode(Node):
     pipe: PipeNode | None  # The command to evaluate as dot for the template.
 
     def copy(self) -> Node:
-        return self.tree.new_template(self.pos, self.line, self.name, self.pipe.copy_pipe())
+        return check.not_none(self.tree).new_template(
+            self.pos,
+            self.line,
+            self.name,
+            self.pipe.copy_pipe() if self.pipe is not None else None,
+        )
 
     def write(self, out: ta.TextIO) -> None:
-        out.write("{{template ")
-        out.write(f'"{self.name}"')
+        tree = check.not_none(self.tree)
+        out.write(tree.left_delim)
+        out.write('template ')
+        out.write(quote_go_string(self.name))
         if self.pipe:
             out.write(' ')
             self.pipe.write(out)
-        out.write("}}")
+        out.write(tree.right_delim)

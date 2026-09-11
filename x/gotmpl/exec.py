@@ -1,7 +1,6 @@
-"""
-https://github.com/golang/go/blob/03103a54d830ee14187aac7720e42000927a6ce9/src/text/template/exec.go
-"""
-# Copyright 2009 The Go Authors.
+"""Translation of Go's text/template/exec.go."""
+
+# Copyright 2011 The Go Authors.
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
 # following conditions are met:
@@ -20,1069 +19,587 @@ https://github.com/golang/go/blob/03103a54d830ee14187aac7720e42000927a6ce9/src/t
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import dataclasses as dc
+import collections.abc
+import inspect
+import io
 import typing as ta
 
+from omcore import check
+from omcore import dataclasses as dc
+
+from .funcs import call
+from .funcs import find_function
+from .funcs import go_format_value
+from .funcs import map_zero_value
+from .funcs import safe_call
+from .funcs import truth
+from .nodes import ActionNode
+from .nodes import BoolNode
+from .nodes import BreakNode
+from .nodes import ChainNode
+from .nodes import CommandNode
+from .nodes import CommentNode
+from .nodes import ContinueNode
+from .nodes import DotNode
+from .nodes import FieldNode
+from .nodes import IdentifierNode
+from .nodes import IfNode
+from .nodes import ListNode
+from .nodes import NilNode
 from .nodes import Node
-from .tmpl import Template
+from .nodes import NodeType
+from .nodes import NumberNode
+from .nodes import PipeNode
+from .nodes import RangeNode
+from .nodes import StringNode
+from .nodes import TemplateNode
+from .nodes import TextNode
+from .nodes import VariableNode
+from .nodes import WithNode
+from .quoting import quote_go_string
+from .values import MISSING
+from .values import is_missing
 
 
-
-class _MissingValType:
-    pass
-
-_MISSING_VAL = _MissingValType()
+if ta.TYPE_CHECKING:
+    from .tmpl import Template
 
 
-def is_missing(v: ta.Any) -> bool:
-    return isinstance(v, _MissingValType)
+MAX_EXEC_DEPTH = 100_000
 
 
-# doublePercent returns the string with %'s replaced by %%, if necessary, so it can be used safely inside a Printf
-# format string.
-def double_percent(s: str) -> str:
-    return s.replace('%', '%%')
+##
 
 
-# TODO: It would be nice if ExecError was more broken down, but the way ErrorContext embeds the template name makes the
-# processing too clumsy.
+_MISSING_VAL = MISSING
 
-# ExecError is the custom error type returned when Execute has an error evaluating its template. (If a write error
-# occurs, the actual error is returned; it will not be of type ExecError.)
+
+def double_percent(value: str) -> str:
+    return value.replace('%', '%%')
+
+
+# ExecError is the custom error type returned when execute has an error evaluating its template. Writer errors escape
+# unchanged, matching Go's distinction between execution and output failures.
 @dc.dataclass()
 class ExecError(Exception):
-    name: str  # Name of template.
-    msg: str  # Pre-formatted error.
+    name: str
+    msg: str
+
+    def __post_init__(self) -> None:
+        super().__init__(self.msg)
+
+    def __str__(self) -> str:
+        return self.msg
 
 
-# variable holds the dynamic value of a variable such as $, $x etc.
 @dc.dataclass()
 class Variable:
     name: str
     value: ta.Any
 
 
-# state represents the state of an execution. It's not part of thetemplate so that multiple executions of the same
-# template can execute in parallel.
+class _WalkBreakError(Exception):
+    __slots__ = ()
+
+
+class _WalkContinueError(Exception):
+    __slots__ = ()
+
+
 @dc.dataclass()
 class State:
     tmpl: Template
     wr: ta.TextIO
-    vars: list[Variable]  # push-down stack of variable values.
-    node: Node | None = None  # current node, for errors
-    depth: int = 0  # the height of the stack of executing templates.
+    vars: list[Variable]
+    node: Node | None = None
+    depth: int = 0
 
-    # push pushes a new variable on the stack.
     def push(self, name: str, value: ta.Any) -> None:
         self.vars.append(Variable(name, value))
 
-    # mark returns the length of the variable stack.
     def mark(self) -> int:
         return len(self.vars)
 
-    # pop pops the variable stack up to the mark.
     def pop(self, mark: int) -> None:
-        self.vars = self.vars[:mark]
+        del self.vars[mark:]
 
-    # setVar overwrites the last declared variable with the given name.
-    # Used by variable assignments.
     def set_var(self, name: str, value: ta.Any) -> None:
-        for i in range(self.mark() - 1, -1, -1):
-            if self.vars[i].name == name:
-                self.vars[i].value = value
+        for variable in reversed(self.vars):
+            if variable.name == name:
+                variable.value = value
                 return
-        # raise NameError(f'undefined variable: {name}')
-        return None
+        self.errorf('undefined variable: %s', name)
 
-    # setTopVar overwrites the top-nth variable on the stack. Used by range iterations.
     def set_top_var(self, n: int, value: ta.Any) -> None:
         self.vars[len(self.vars) - n].value = value
 
-    # varValue returns the value of the named variable.
     def var_value(self, name: str) -> ta.Any:
-        for i in range(self.mark() - 1, -1, -1):
-            if self.vars[i].name == name:
-                return self.vars[i].value
-        # raise NameError(f'undefined variable: {name}')
-        return None
+        for variable in reversed(self.vars):
+            if variable.name == name:
+                return variable.value
+        self.errorf('undefined variable: %s', name)
+        raise AssertionError('unreachable')
 
-    # at marks the state to be on node n, for error reporting.
     def at(self, node: Node) -> None:
         self.node = node
 
-    # errorf records an ExecError and terminates processing.
-    def errorf(self, format: str, *args: ta.Any) -> ta.NoReturn:
+    def errorf(self, format_string: str, *args: ta.Any) -> ta.NoReturn:
         name = double_percent(self.tmpl.name)
-        if self.node is None:
-            format = 'template: %s: %s' % (name, format)
+        if self.node is None or self.tmpl.tree is None:
+            message_format = f'template: {name}: {format_string}'
         else:
             location, context = self.tmpl.tree.error_context(self.node)
-            format = 'template: %s: executing %s at <%s>: %s' % (location, name, double_percent(context), format)
-        raise ExecError(
-            name=self.tmpl.name,
-            msg=format % args,
-        )
-
-
-"""
-# writeError is the wrapper type used internally when Execute has an error writing to its output. We strip the wrapper in errRecover.
-# Note that this is not an implementation of error, so it cannot escape from the package as an error value.
-type writeError struct {
-    Err error // Original error.
-}
-
-func (s *state) writeError(err error) {
-    panic(writeError{
-        Err: err,
-    })
-}
-
-# errRecover is the handler that turns panics into returns from the top level of Parse.
-func errRecover(errp *error) {
-    e := recover()
-    if e != nil {
-        switch err := e.(type) {
-        case runtime.Error:
-            panic(e)
-        case writeError:
-            *errp = err.Err // Strip the wrapper.
-        case ExecError:
-            *errp = err // Keep the wrapper.
-        default:
-            panic(e)
-        }
-    }
-}
-
-# ExecuteTemplate applies the template associated with t that has the given name to the specified data object and writes the output to wr. If an error occurs executing the template or writing its output, execution stops, but partial results may already have been written to the output writer.
-# A template may be executed safely in parallel, although if parallel executions share a Writer the output may be interleaved.
-func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
-    tmpl := t.Lookup(name)
-    if tmpl == nil {
-        return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
-    }
-    return tmpl.Execute(wr, data)
-}
-
-# Execute applies a parsed template to the specified data object, and writes the output to wr.
-# If an error occurs executing the template or writing its output, execution stops, but partial results may already have been written to the output writer.
-# A template may be executed safely in parallel, although if parallel executions share a Writer the output may be interleaved.
-#
-# If data is a [reflect.Value], the template applies to the concrete value that the reflect.Value holds, as in [fmt.Print].
-func (t *Template) Execute(wr io.Writer, data any) error {
-    return t.execute(wr, data)
-}
-
-func (t *Template) execute(wr io.Writer, data any) (err error) {
-    defer errRecover(&err)
-    value, ok := data.(reflect.Value)
-    if !ok {
-        value = reflect.ValueOf(data)
-    }
-    state := &state{
-        tmpl: t,
-        wr:   wr,
-        vars: []variable{{"$", value}},
-    }
-    if t.Tree == nil || t.Root == nil {
-        state.errorf("%q is an incomplete or empty template", t.Name())
-    }
-    state.walk(value, t.Root)
-    return
-}
-
-# DefinedTemplates returns a string listing the defined templates,
-# prefixed by the string "; defined templates are: ". If there are none,
-# it returns the empty string. For generating an error message here
-# and in [html/template].
-func (t *Template) DefinedTemplates() string {
-    if t.common == nil {
-        return ""
-    }
-    var b strings.Builder
-    t.muTmpl.RLock()
-    defer t.muTmpl.RUnlock()
-    for name, tmpl := range t.tmpl {
-        if tmpl.Tree == nil || tmpl.Root == nil {
-            continue
-        }
-        if b.Len() == 0 {
-            b.WriteString("; defined templates are: ")
-        } else {
-            b.WriteString(", ")
-        }
-        fmt.Fprintf(&b, "%q", name)
-    }
-    return b.String()
-}
-
-# Sentinel errors for use with panic to signal early exits from range loops.
-var (
-    walkBreak    = errors.New("break")
-    walkContinue = errors.New("continue")
-)
+            message_format = (
+                f'template: {double_percent(location)}: executing {name} '
+                f'at <{double_percent(context)}>: {format_string}'
+            )
+        raise ExecError(name=self.tmpl.name, msg=message_format % args)
 
     # Walk functions step through the major pieces of the template structure, generating output as they go.
     def walk(self, dot: ta.Any, node: Node) -> None:
         self.at(node)
         if isinstance(node, ActionNode):
-            // Do not pop variables so they persist until next end.
-            // Also, if the action declares variables, don't print the result.
-            val := s.evalPipeline(dot, node.Pipe)
-            if len(node.Pipe.Decl) == 0:
-                s.printValue(node, val)
+            # Do not pop variables so they persist until the next end. If the action declares variables, do not print
+            # its result.
+            value = self.eval_pipeline(dot, node.pipe)
+            if not node.pipe.decl:
+                self.print_value(node, value)
         elif isinstance(node, BreakNode):
-            raise WalkBreak
-        elif isinstance(node, (CommentNode, ContinueNode):
-            raise WalkContinue
+            raise _WalkBreakError
+        elif isinstance(node, CommentNode):
+            return
+        elif isinstance(node, ContinueNode):
+            raise _WalkContinueError
         elif isinstance(node, IfNode):
-            s.walk_if_or_with(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
+            self.walk_if_or_with(NodeType.IF, dot, node.pipe, node.lst, node.else_lst)
         elif isinstance(node, ListNode):
-            for node in node.nodes:
-                s.walk(dot, node)
+            for child in node.nodes:
+                self.walk(dot, child)
         elif isinstance(node, RangeNode):
-            s.walkRange(dot, node)
+            self.walk_range(dot, node)
         elif isinstance(node, TemplateNode):
-            s.walkTemplate(dot, node)
+            self.walk_template(dot, node)
         elif isinstance(node, TextNode):
-            if _, err := s.wr.Write(node.Text); err != nil {
-                s.writeError(err)
-            }
+            self.wr.write(node.text)
         elif isinstance(node, WithNode):
-            s.walk_if_or_with(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
+            self.walk_if_or_with(NodeType.WITH, dot, node.pipe, node.lst, node.else_lst)
         else:
             self.errorf('unknown node: %s', node)
 
-    # walkIfOrWith walks an 'if' or 'with' node. The two control structures are identical in behavior except that 'with'
-    # sets dot.
-    def walk_if_or_with(self, typ: NodeType, dot: ta.Any, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
-        defer s.pop(s.mark())
-        val := s.evalPipeline(dot, pipe)
-        truth, ok := isTrue(indirectInterface(val))
-        if !ok {
-            s.errorf("if/with can't use %v", val)
-        }
-        if truth {
-            if typ == parse.NodeWith {
-                s.walk(val, list)
-            } else {
-                s.walk(dot, list)
-            }
-        } else if elseList != nil {
-            s.walk(dot, elseList)
-        }
-    }
+    def walk_if_or_with(
+        self,
+        typ: NodeType,
+        dot: ta.Any,
+        pipe: PipeNode,
+        lst: ListNode,
+        else_lst: ListNode | None,
+    ) -> None:
+        mark = self.mark()
+        try:
+            value = self.eval_pipeline(dot, pipe)
+            condition, ok = is_true(value)
+            if not ok:
+                self.errorf("if/with can't use %s", go_format_value(value))
+            if condition:
+                self.walk(value if typ == NodeType.WITH else dot, lst)
+            elif else_lst is not None:
+                self.walk(dot, else_lst)
+        finally:
+            self.pop(mark)
 
-# IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
-# and whether the value has a meaningful truth value. This is the definition of
-# truth used by if and other such actions.
-func IsTrue(val any) (truth, ok bool) {
-    return isTrue(reflect.ValueOf(val))
-}
+    def walk_range(self, dot: ta.Any, node: RangeNode) -> None:
+        self.at(node)
+        outer_mark = self.mark()
+        try:
+            value = self.eval_pipeline(dot, node.pipe)
+            mark = self.mark()
 
-func isTrue(val reflect.Value) (truth, ok bool) {
-    if !val.IsValid() {
-        // Something like var x interface{}, never set. It's a form of nil.
-        return false, true
-    }
-    switch val.Kind() {
-    case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
-        truth = val.Len() > 0
-    case reflect.Bool:
-        truth = val.Bool()
-    case reflect.Complex64, reflect.Complex128:
-        truth = val.Complex() != 0
-    case reflect.Chan, reflect.Func, reflect.Pointer, reflect.Interface:
-        truth = !val.IsNil()
-    case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-        truth = val.Int() != 0
-    case reflect.Float32, reflect.Float64:
-        truth = val.Float() != 0
-    case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-        truth = val.Uint() != 0
-    case reflect.Struct:
-        truth = true // Struct values are always true.
-    default:
-        return
-    }
-    return truth, true
-}
+            def one_iteration(index: ta.Any, element: ta.Any) -> None:
+                if node.pipe.decl:
+                    if node.pipe.is_assign:
+                        if len(node.pipe.decl) > 1:
+                            self.set_var(node.pipe.decl[0].ident[0], index)
+                        else:
+                            self.set_var(node.pipe.decl[0].ident[0], element)
+                    else:
+                        self.set_top_var(1, element)
+                if len(node.pipe.decl) > 1:
+                    if node.pipe.is_assign:
+                        self.set_var(node.pipe.decl[1].ident[0], element)
+                    else:
+                        self.set_top_var(2, index)
+                try:
+                    self.walk(element, node.lst)
+                except _WalkContinueError:
+                    pass
+                finally:
+                    self.pop(mark)
 
-func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
-    s.at(r)
-    defer func() {
-        if r := recover(); r != nil && r != walkBreak {
-            panic(r)
-        }
-    }()
-    defer s.pop(s.mark())
-    val, _ := indirect(s.evalPipeline(dot, r.Pipe))
-    // mark top of stack before any variables in the body are pushed.
-    mark := s.mark()
-    oneIteration := func(index, elem reflect.Value) {
-        if len(r.Pipe.Decl) > 0 {
-            if r.Pipe.IsAssign {
-                // With two variables, index comes first.
-                // With one, we use the element.
-                if len(r.Pipe.Decl) > 1 {
-                    s.setVar(r.Pipe.Decl[0].Ident[0], index)
-                } else {
-                    s.setVar(r.Pipe.Decl[0].Ident[0], elem)
-                }
-            } else {
-                // Set top var (lexically the second if there
-                // are two) to the element.
-                s.setTopVar(1, elem)
-            }
-        }
-        if len(r.Pipe.Decl) > 1 {
-            if r.Pipe.IsAssign {
-                s.setVar(r.Pipe.Decl[1].Ident[0], elem)
-            } else {
-                // Set next var (lexically the first if there
-                // are two) to the index.
-                s.setTopVar(2, index)
-            }
-        }
-        defer s.pop(mark)
-        defer func() {
-            // Consume panic(walkContinue)
-            if r := recover(); r != nil && r != walkContinue {
-                panic(r)
-            }
-        }()
-        s.walk(elem, r.List)
-    }
-    switch val.Kind() {
-    case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-        reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-        if len(r.Pipe.Decl) > 1 {
-            s.errorf("can't use %v to iterate over more than one variable", val)
-            break
-        }
-        run := false
-        for v := range val.Seq() {
-            run = true
-            // Pass element as second value, as we do for channels.
-            oneIteration(reflect.Value{}, v)
-        }
-        if !run {
-            break
-        }
-        return
-    case reflect.Array, reflect.Slice:
-        if val.Len() == 0 {
-            break
-        }
-        for i := 0; i < val.Len(); i++ {
-            oneIteration(reflect.ValueOf(i), val.Index(i))
-        }
-        return
-    case reflect.Map:
-        if val.Len() == 0 {
-            break
-        }
-        om := fmtsort.Sort(val)
-        for _, m := range om {
-            oneIteration(m.Key, m.Value)
-        }
-        return
-    case reflect.Chan:
-        if val.IsNil() {
-            break
-        }
-        if val.Type().ChanDir() == reflect.SendDir {
-            s.errorf("range over send-only channel %v", val)
-            break
-        }
-        i := 0
-        for ; ; i++ {
-            elem, ok := val.Recv()
-            if !ok {
-                break
-            }
-            oneIteration(reflect.ValueOf(i), elem)
-        }
-        if i == 0 {
-            break
-        }
-        return
-    case reflect.Invalid:
-        break // An invalid value is likely a nil map, etc. and acts like an empty map.
-    case reflect.Func:
-        if val.Type().CanSeq() {
-            if len(r.Pipe.Decl) > 1 {
-                s.errorf("can't use %v iterate over more than one variable", val)
-                break
-            }
-            run := false
-            for v := range val.Seq() {
-                run = true
-                // Pass element as second value,
-                // as we do for channels.
-                oneIteration(reflect.Value{}, v)
-            }
-            if !run {
-                break
-            }
+            iterations: ta.Iterable[tuple[ta.Any, ta.Any]]
+            if is_missing(value) or value is None:
+                iterations = ()
+            elif isinstance(value, bool):
+                self.errorf("range can't iterate over %s", go_format_value(value))
+            elif isinstance(value, int):
+                if len(node.pipe.decl) > 1:
+                    self.errorf("can't use %s to iterate over more than one variable", go_format_value(value))
+                iterations = ((None, i) for i in range(max(value, 0)))
+            elif isinstance(value, collections.abc.Mapping):
+                try:
+                    keys = sorted(value)
+                except TypeError:
+                    keys = sorted(value, key=lambda key: (type(key).__name__, repr(key)))
+                iterations = ((key, value[key]) for key in keys)
+            elif isinstance(value, (list, tuple, bytes, bytearray)):
+                iterations = enumerate(value)
+            elif isinstance(value, str):
+                self.errorf("range can't iterate over %s", go_format_value(value))
+            elif isinstance(value, collections.abc.Iterable):
+                iterations = enumerate(value)
+            else:
+                self.errorf("range can't iterate over %s", go_format_value(value))
+
+            ran = False
+            try:
+                for index, element in iterations:
+                    ran = True
+                    one_iteration(index, element)
+            except _WalkBreakError:
+                return
+            if not ran and node.else_lst is not None:
+                self.walk(dot, node.else_lst)
+        finally:
+            self.pop(outer_mark)
+
+    def walk_template(self, dot: ta.Any, node: TemplateNode) -> None:
+        self.at(node)
+        tmpl = self.tmpl.lookup(node.name)
+        if tmpl is None:
+            self.errorf('template %s not defined', quote_go_string(node.name))
+        if self.depth == MAX_EXEC_DEPTH:
+            self.errorf('exceeded maximum template depth (%d)', MAX_EXEC_DEPTH)
+        dot = self.eval_pipeline(dot, node.pipe)
+        new_state = State(
+            tmpl=tmpl,
+            wr=self.wr,
+            vars=[Variable('$', dot)],
+            depth=self.depth + 1,
+        )
+        new_state.walk(dot, check.not_none(check.not_none(tmpl.tree).root))
+
+    # Eval functions evaluate pipelines, commands, and their elements. Printing happens only through walk functions.
+    def eval_pipeline(self, dot: ta.Any, pipe: PipeNode | None) -> ta.Any:
+        if pipe is None:
+            return _MISSING_VAL
+        self.at(pipe)
+        value: ta.Any = _MISSING_VAL
+        for command in pipe.cmds:
+            value = self.eval_command(dot, command, value)
+        for variable in pipe.decl:
+            if pipe.is_assign:
+                self.set_var(variable.ident[0], value)
+            else:
+                self.push(variable.ident[0], value)
+        return value
+
+    def not_a_function(self, args: ta.Sequence[Node], final: ta.Any) -> None:
+        if len(args) > 1 or not is_missing(final):
+            self.errorf("can't give argument to non-function %s", args[0])
+
+    def eval_command(self, dot: ta.Any, command: CommandNode, final: ta.Any) -> ta.Any:
+        first_word = command.args[0]
+        if isinstance(first_word, FieldNode):
+            return self.eval_field_node(dot, first_word, command.args, final)
+        if isinstance(first_word, ChainNode):
+            return self.eval_chain_node(dot, first_word, command.args, final)
+        if isinstance(first_word, IdentifierNode):
+            return self.eval_function(dot, first_word, command, command.args, final)
+        if isinstance(first_word, PipeNode):
+            self.not_a_function(command.args, final)
+            return self.eval_pipeline(dot, first_word)
+        if isinstance(first_word, VariableNode):
+            return self.eval_variable_node(dot, first_word, command.args, final)
+        self.at(first_word)
+        self.not_a_function(command.args, final)
+        if isinstance(first_word, BoolNode):
+            return first_word.is_true
+        if isinstance(first_word, DotNode):
+            return dot
+        if isinstance(first_word, NilNode):
+            self.errorf('nil is not a command')
+        if isinstance(first_word, NumberNode):
+            return self.ideal_constant(first_word)
+        if isinstance(first_word, StringNode):
+            return first_word.text
+        self.errorf("can't evaluate command %s", quote_go_string(str(first_word)))
+        raise AssertionError('unreachable')
+
+    def ideal_constant(self, constant: NumberNode) -> int | float | complex:
+        self.at(constant)
+        if constant.is_complex:
+            return constant.complex128
+        if (
+            constant.is_float
+            and not is_hex_int(constant.text)
+            and not is_rune_int(constant.text)
+            and any(char in constant.text for char in '.eEpP')
+        ):
+            return constant.float64
+        if constant.is_int:
+            return constant.int64
+        if constant.is_uint:
+            self.errorf('%s overflows int', constant.text)
+        self.errorf('invalid ideal constant %s', constant.text)
+        raise AssertionError('unreachable')
+
+    def eval_field_node(
+        self,
+        dot: ta.Any,
+        field: FieldNode,
+        args: ta.Sequence[Node] | None,
+        final: ta.Any,
+    ) -> ta.Any:
+        self.at(field)
+        return self.eval_field_chain(dot, dot, field, field.ident, args, final)
+
+    def eval_chain_node(
+        self,
+        dot: ta.Any,
+        chain: ChainNode,
+        args: ta.Sequence[Node] | None,
+        final: ta.Any,
+    ) -> ta.Any:
+        self.at(chain)
+        if not chain.field:
+            self.errorf('internal error: no fields in eval_chain_node')
+        if isinstance(chain.node, NilNode):
+            self.errorf('indirection through explicit nil in %s', chain)
+        receiver = self.eval_arg(dot, chain.node)
+        return self.eval_field_chain(dot, receiver, chain, chain.field, args, final)
+
+    def eval_variable_node(
+        self,
+        dot: ta.Any,
+        variable: VariableNode,
+        args: ta.Sequence[Node] | None,
+        final: ta.Any,
+    ) -> ta.Any:
+        self.at(variable)
+        value = self.var_value(variable.ident[0])
+        if len(variable.ident) == 1:
+            self.not_a_function(args or (variable,), final)
+            return value
+        return self.eval_field_chain(dot, value, variable, variable.ident[1:], args, final)
+
+    def eval_field_chain(
+        self,
+        dot: ta.Any,
+        receiver: ta.Any,
+        node: Node,
+        ident: ta.Sequence[str],
+        args: ta.Sequence[Node] | None,
+        final: ta.Any,
+    ) -> ta.Any:
+        for field_name in ident[:-1]:
+            receiver = self.eval_field(dot, field_name, node, None, _MISSING_VAL, receiver)
+        return self.eval_field(dot, ident[-1], node, args, final, receiver)
+
+    def eval_function(
+        self,
+        dot: ta.Any,
+        node: IdentifierNode,
+        command: Node,
+        args: ta.Sequence[Node] | None,
+        final: ta.Any,
+    ) -> ta.Any:
+        self.at(node)
+        function, is_builtin = find_function(node.ident, self.tmpl)
+        if function is None:
+            self.errorf('%s is not a defined function', quote_go_string(node.ident))
+        return self.eval_call(dot, function, is_builtin, command, node.ident, args, final)
+
+    def eval_field(
+        self,
+        dot: ta.Any,
+        field_name: str,
+        node: Node,
+        args: ta.Sequence[Node] | None,
+        final: ta.Any,
+        receiver: ta.Any,
+    ) -> ta.Any:
+        if is_missing(receiver) or receiver is None:
+            if self.tmpl.missing_key_action.name == 'ERROR':
+                self.errorf('nil data; no entry for key %s', quote_go_string(field_name))
+            return _MISSING_VAL
+
+        has_args = bool(args and len(args) > 1) or not is_missing(final)
+        if isinstance(receiver, collections.abc.Mapping):
+            if has_args:
+                self.errorf('%s is not a method but has arguments', field_name)
+            if field_name in receiver:
+                return receiver[field_name]
+            action = self.tmpl.missing_key_action.name
+            if action == 'ZERO_VALUE':
+                return map_zero_value(receiver)
+            if action == 'ERROR':
+                self.errorf('map has no entry for key %s', quote_go_string(field_name))
+            return _MISSING_VAL
+
+        if not field_name[:1].isupper():
+            self.errorf('%s is an unexported field of struct type %s', field_name, type(receiver).__name__)
+        try:
+            value = getattr(receiver, field_name)
+        except AttributeError:
+            self.errorf("can't evaluate field %s in type %s", field_name, type(receiver).__name__)
+        except Exception as exc:  # noqa: BLE001 - descriptor access may run arbitrary user code.
+            self.errorf('error evaluating field %s: %s', field_name, exc)
+        if inspect.ismethod(value) or inspect.isbuiltin(value):
+            return self.eval_call(dot, value, False, node, field_name, args, final)
+        if has_args:
+            self.errorf('%s has arguments but cannot be invoked as function', field_name)
+        return value
+
+    def eval_call(
+        self,
+        dot: ta.Any,
+        function: ta.Callable[..., ta.Any],
+        is_builtin: bool,
+        node: Node,
+        name: str,
+        args: ta.Sequence[Node] | None,
+        final: ta.Any,
+    ) -> ta.Any:
+        arg_nodes = list(args[1:] if args is not None else ())
+
+        if is_builtin and name in ('and', 'or'):
+            if not arg_nodes and is_missing(final):
+                self.errorf('wrong number of args for %s: want at least 1 got 0', name)
+            value: ta.Any = _MISSING_VAL
+            for arg_node in arg_nodes:
+                value = self.eval_arg(dot, arg_node)
+                if truth(value) == (name == 'or'):
+                    return value
+            if not is_missing(final):
+                return final
+            return value
+
+        argv = [self.eval_arg(dot, arg_node) for arg_node in arg_nodes]
+        if not is_missing(final):
+            argv.append(final)
+
+        if is_builtin and name == 'call':
+            if not argv:
+                self.errorf('wrong number of args for call: want at least 1 got 0')
+            callee = argv.pop(0)
+            callee_name = arg_nodes[0].string() if arg_nodes else 'call'
+
+            def call_function(*call_args: ta.Any) -> ta.Any:
+                return call(callee_name, callee, *call_args)
+
+            function = call_function
+
+        elif not is_builtin:
+            argv = [None if is_missing(value) else value for value in argv]
+
+        try:
+            # Binding first produces a stable template error instead of exposing Python's call-site traceback.
+            try:
+                inspect.signature(function).bind(*argv)
+            except ValueError:
+                pass
+            return safe_call(function, argv)
+        except ExecError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - template calls must translate arbitrary user errors.
+            self.at(node)
+            self.errorf('error calling %s: %s', name, exc)
+
+    def eval_arg(self, dot: ta.Any, node: Node) -> ta.Any:
+        self.at(node)
+        if isinstance(node, DotNode):
+            return dot
+        if isinstance(node, NilNode):
+            return None
+        if isinstance(node, FieldNode):
+            return self.eval_field_node(dot, node, (node,), _MISSING_VAL)
+        if isinstance(node, VariableNode):
+            return self.eval_variable_node(dot, node, None, _MISSING_VAL)
+        if isinstance(node, PipeNode):
+            return self.eval_pipeline(dot, node)
+        if isinstance(node, IdentifierNode):
+            return self.eval_function(dot, node, node, None, _MISSING_VAL)
+        if isinstance(node, ChainNode):
+            return self.eval_chain_node(dot, node, None, _MISSING_VAL)
+        if isinstance(node, BoolNode):
+            return node.is_true
+        if isinstance(node, NumberNode):
+            return self.ideal_constant(node)
+        if isinstance(node, StringNode):
+            return node.text
+        self.errorf("can't handle assignment of %s to empty interface argument", node)
+        raise AssertionError('unreachable')
+
+    def print_value(self, node: Node, value: ta.Any) -> None:
+        self.at(node)
+        if is_missing(value) or value is None:
+            self.wr.write('<no value>')
             return
-        }
-        if val.Type().CanSeq2() {
-            run := false
-            for i, v := range val.Seq2() {
-                run = true
-                if len(r.Pipe.Decl) > 1 {
-                    oneIteration(i, v)
-                } else {
-                    // If there is only one range variable,
-                    // oneIteration will use the
-                    // second value.
-                    oneIteration(reflect.Value{}, i)
-                }
-            }
-            if !run {
-                break
-            }
-            return
-        }
-        fallthrough
-    default:
-        s.errorf("range can't iterate over %v", val)
-    }
-    if r.ElseList != nil {
-        s.walk(dot, r.ElseList)
-    }
-}
+        if callable(value):
+            self.errorf("can't print %s of type %s", node, type(value).__name__)
+        self.wr.write(go_format_value(value))
 
-func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
-    s.at(t)
-    tmpl := s.tmpl.Lookup(t.Name)
-    if tmpl == nil {
-        s.errorf("template %q not defined", t.Name)
-    }
-    if s.depth == maxExecDepth {
-        s.errorf("exceeded maximum template depth (%v)", maxExecDepth)
-    }
-    // Variables declared by the pipeline persist.
-    dot = s.evalPipeline(dot, t.Pipe)
-    newState := *s
-    newState.depth++
-    newState.tmpl = tmpl
-    // No dynamic scoping: template invocations inherit no variables.
-    newState.vars = []variable{{"$", dot}}
-    newState.walk(dot, tmpl.Root)
-}
 
-# Eval functions evaluate pipelines, commands, and their elements and extract
-# values from the data structure by examining fields, calling methods, and so on.
-# The printing of those values happens only through walk functions.
+##
 
-# evalPipeline returns the value acquired by evaluating a pipeline. If the
-# pipeline has a variable declaration, the variable will be pushed on the
-# stack. Callers should therefore pop the stack after they are finished
-# executing commands depending on the pipeline value.
-func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value reflect.Value) {
-    if pipe == nil {
-        return
-    }
-    s.at(pipe)
-    value = missingVal
-    for _, cmd := range pipe.Cmds {
-        value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
-        // If the object has type interface{}, dig down one level to the thing inside.
-        if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
-            value = value.Elem()
-        }
-    }
-    for _, variable := range pipe.Decl {
-        if pipe.IsAssign {
-            s.setVar(variable.Ident[0], value)
-        } else {
-            s.push(variable.Ident[0], value)
-        }
-    }
-    return value
-}
 
-func (s *state) notAFunction(args []parse.Node, final reflect.Value) {
-    if len(args) > 1 || !isMissing(final) {
-        s.errorf("can't give argument to non-function %s", args[0])
-    }
-}
+def is_true(value: ta.Any) -> tuple[bool, bool]:
+    if is_missing(value):
+        return False, True
+    return truth(value), True
 
-func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final reflect.Value) reflect.Value {
-    firstWord := cmd.Args[0]
-    switch n := firstWord.(type) {
-    case *parse.FieldNode:
-        return s.evalFieldNode(dot, n, cmd.Args, final)
-    case *parse.ChainNode:
-        return s.evalChainNode(dot, n, cmd.Args, final)
-    case *parse.IdentifierNode:
-        // Must be a function.
-        return s.evalFunction(dot, n, cmd, cmd.Args, final)
-    case *parse.PipeNode:
-        // Parenthesized pipeline. The arguments are all inside the pipeline; final must be absent.
-        s.notAFunction(cmd.Args, final)
-        return s.evalPipeline(dot, n)
-    case *parse.VariableNode:
-        return s.evalVariableNode(dot, n, cmd.Args, final)
-    }
-    s.at(firstWord)
-    s.notAFunction(cmd.Args, final)
-    switch word := firstWord.(type) {
-    case *parse.BoolNode:
-        return reflect.ValueOf(word.True)
-    case *parse.DotNode:
-        return dot
-    case *parse.NilNode:
-        s.errorf("nil is not a command")
-    case *parse.NumberNode:
-        return s.idealConstant(word)
-    case *parse.StringNode:
-        return reflect.ValueOf(word.Text)
-    }
-    s.errorf("can't evaluate command %q", firstWord)
-    panic("not reached")
-}
 
-# idealConstant is called to return the value of a number in a context where
-# we don't know the type. In that case, the syntax of the number tells us
-# its type, and we use Go rules to resolve. Note there is no such thing as
-# a uint ideal constant in this situation - the value must be of int type.
-func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
-    // These are ideal constants but we don't know the type
-    // and we have no context.  (If it was a method argument,
-    // we'd know what we need.) The syntax guides us to some extent.
-    s.at(constant)
-    switch {
-    case constant.IsComplex:
-        return reflect.ValueOf(constant.Complex128) // incontrovertible.
+def is_rune_int(value: str) -> bool:
+    return value.startswith("'")
 
-    case constant.IsFloat &&
-        !isHexInt(constant.Text) && !isRuneInt(constant.Text) &&
-        strings.ContainsAny(constant.Text, ".eEpP"):
-        return reflect.ValueOf(constant.Float64)
 
-    case constant.IsInt:
-        n := int(constant.Int64)
-        if int64(n) != constant.Int64 {
-            s.errorf("%s overflows int", constant.Text)
-        }
-        return reflect.ValueOf(n)
+def is_hex_int(value: str) -> bool:
+    return len(value) > 2 and value[:2].lower() == '0x' and 'p' not in value.lower()
 
-    case constant.IsUint:
-        s.errorf("%s overflows int", constant.Text)
-    }
-    return zero
-}
 
-func isRuneInt(s string) bool {
-    return len(s) > 0 && s[0] == '\''
-}
+def execute_template(tmpl: Template, wr: ta.TextIO, name: str, data: ta.Any = None) -> None:
+    found = tmpl.lookup(name)
+    if found is None:
+        raise ExecError(
+            name=tmpl.name,
+            msg=(
+                f'template: no template {quote_go_string(name)} associated with template {quote_go_string(tmpl.name)}'
+            ),
+        )
+    execute(found, wr, data)
 
-func isHexInt(s string) bool {
-    return len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') && !strings.ContainsAny(s, "pP")
-}
 
-func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []parse.Node, final reflect.Value) reflect.Value {
-    s.at(field)
-    return s.evalFieldChain(dot, dot, field, field.Ident, args, final)
-}
+def execute(tmpl: Template, wr: ta.TextIO, data: ta.Any = None) -> None:
+    state = State(tmpl=tmpl, wr=wr, vars=[Variable('$', data)])
+    if tmpl.tree is None or tmpl.tree.root is None:
+        state.errorf('%s is an incomplete or empty template', quote_go_string(tmpl.name))
+    state.walk(data, tmpl.tree.root)
 
-func (s *state) evalChainNode(dot reflect.Value, chain *parse.ChainNode, args []parse.Node, final reflect.Value) reflect.Value {
-    s.at(chain)
-    if len(chain.Field) == 0 {
-        s.errorf("internal error: no fields in evalChainNode")
-    }
-    if chain.Node.Type() == parse.NodeNil {
-        s.errorf("indirection through explicit nil in %s", chain)
-    }
-    // (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
-    pipe := s.evalArg(dot, nil, chain.Node)
-    return s.evalFieldChain(dot, pipe, chain, chain.Field, args, final)
-}
 
-func (s *state) evalVariableNode(dot reflect.Value, variable *parse.VariableNode, args []parse.Node, final reflect.Value) reflect.Value {
-    // $x.Field has $x as the first ident, Field as the second. Eval the var, then the fields.
-    s.at(variable)
-    value := s.varValue(variable.Ident[0])
-    if len(variable.Ident) == 1 {
-        s.notAFunction(args, final)
-        return value
-    }
-    return s.evalFieldChain(dot, value, variable, variable.Ident[1:], args, final)
-}
+def render(tmpl: Template, data: ta.Any = None) -> str:
+    wr = io.StringIO()
+    execute(tmpl, wr, data)
+    return wr.getvalue()
 
-# evalFieldChain evaluates .X.Y.Z possibly followed by arguments.
-# dot is the environment in which to evaluate arguments, while
-# receiver is the value being walked along the chain.
-func (s *state) evalFieldChain(dot, receiver reflect.Value, node parse.Node, ident []string, args []parse.Node, final reflect.Value) reflect.Value {
-    n := len(ident)
-    for i := 0; i < n-1; i++ {
-        receiver = s.evalField(dot, ident[i], node, nil, missingVal, receiver)
-    }
-    // Now if it's a method, it gets the arguments.
-    return s.evalField(dot, ident[n-1], node, args, final, receiver)
-}
 
-func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd parse.Node, args []parse.Node, final reflect.Value) reflect.Value {
-    s.at(node)
-    name := node.Ident
-    function, isBuiltin, ok := findFunction(name, s.tmpl)
-    if !ok {
-        s.errorf("%q is not a defined function", name)
-    }
-    return s.evalCall(dot, function, isBuiltin, cmd, name, args, final)
-}
-
-# evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
-# The 'final' argument represents the return value from the preceding
-# value of the pipeline, if any.
-func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, args []parse.Node, final, receiver reflect.Value) reflect.Value {
-    if !receiver.IsValid() {
-        if s.tmpl.option.missingKey == mapError { // Treat invalid value as missing map key.
-            s.errorf("nil data; no entry for key %q", fieldName)
-        }
-        return zero
-    }
-    typ := receiver.Type()
-    receiver, isNil := indirect(receiver)
-    if receiver.Kind() == reflect.Interface && isNil {
-        // Calling a method on a nil interface can't work. The
-        // MethodByName method call below would panic.
-        s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
-        return zero
-    }
-
-    // Unless it's an interface, need to get to a value of type *T to guarantee
-    // we see all methods of T and *T.
-    ptr := receiver
-    if ptr.Kind() != reflect.Interface && ptr.Kind() != reflect.Pointer && ptr.CanAddr() {
-        ptr = ptr.Addr()
-    }
-    if method := ptr.MethodByName(fieldName); method.IsValid() {
-        return s.evalCall(dot, method, false, node, fieldName, args, final)
-    }
-    hasArgs := len(args) > 1 || !isMissing(final)
-    // It's not a method; must be a field of a struct or an element of a map.
-    switch receiver.Kind() {
-    case reflect.Struct:
-        tField, ok := receiver.Type().FieldByName(fieldName)
-        if ok {
-            field, err := receiver.FieldByIndexErr(tField.Index)
-            if !tField.IsExported() {
-                s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
-            }
-            if err != nil {
-                s.errorf("%v", err)
-            }
-            // If it's a function, we must call it.
-            if hasArgs {
-                s.errorf("%s has arguments but cannot be invoked as function", fieldName)
-            }
-            return field
-        }
-    case reflect.Map:
-        // If it's a map, attempt to use the field name as a key.
-        nameVal := reflect.ValueOf(fieldName)
-        if nameVal.Type().AssignableTo(receiver.Type().Key()) {
-            if hasArgs {
-                s.errorf("%s is not a method but has arguments", fieldName)
-            }
-            result := receiver.MapIndex(nameVal)
-            if !result.IsValid() {
-                switch s.tmpl.option.missingKey {
-                case mapInvalid:
-                    // Just use the invalid value.
-                case mapZeroValue:
-                    result = reflect.Zero(receiver.Type().Elem())
-                case mapError:
-                    s.errorf("map has no entry for key %q", fieldName)
-                }
-            }
-            return result
-        }
-    case reflect.Pointer:
-        etyp := receiver.Type().Elem()
-        if etyp.Kind() == reflect.Struct {
-            if _, ok := etyp.FieldByName(fieldName); !ok {
-                // If there's no such field, say "can't evaluate"
-                // instead of "nil pointer evaluating".
-                break
-            }
-        }
-        if isNil {
-            s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
-        }
-    }
-    s.errorf("can't evaluate field %s in type %s", fieldName, typ)
-    panic("not reached")
-}
-
-var (
-    errorType        = reflect.TypeFor[error]()
-    fmtStringerType  = reflect.TypeFor[fmt.Stringer]()
-    reflectValueType = reflect.TypeFor[reflect.Value]()
-)
-
-# evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
-# it looks just like a function call. The arg list, if non-nil, includes (in the manner of the shell), arg[0]
-# as the function itself.
-func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
-    if args != nil {
-        args = args[1:] // Zeroth arg is function name/node; not passed to function.
-    }
-    typ := fun.Type()
-    numIn := len(args)
-    if !isMissing(final) {
-        numIn++
-    }
-    numFixed := len(args)
-    if typ.IsVariadic() {
-        numFixed = typ.NumIn() - 1 // last arg is the variadic one.
-        if numIn < numFixed {
-            s.errorf("wrong number of args for %s: want at least %d got %d", name, typ.NumIn()-1, len(args))
-        }
-    } else if numIn != typ.NumIn() {
-        s.errorf("wrong number of args for %s: want %d got %d", name, typ.NumIn(), numIn)
-    }
-    if err := goodFunc(name, typ); err != nil {
-        s.errorf("%v", err)
-    }
-
-    unwrap := func(v reflect.Value) reflect.Value {
-        if v.Type() == reflectValueType {
-            v = v.Interface().(reflect.Value)
-        }
-        return v
-    }
-
-    // Special case for builtin and/or, which short-circuit.
-    if isBuiltin && (name == "and" || name == "or") {
-        argType := typ.In(0)
-        var v reflect.Value
-        for _, arg := range args {
-            v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
-            if truth(v) == (name == "or") {
-                // This value was already unwrapped
-                // by the .Interface().(reflect.Value).
-                return v
-            }
-        }
-        if final != missingVal {
-            // The last argument to and/or is coming from
-            // the pipeline. We didn't short circuit on an earlier
-            // argument, so we are going to return this one.
-            // We don't have to evaluate final, but we do
-            // have to check its type. Then, since we are
-            // going to return it, we have to unwrap it.
-            v = unwrap(s.validateType(final, argType))
-        }
-        return v
-    }
-
-    // Build the arg list.
-    argv := make([]reflect.Value, numIn)
-    // Args must be evaluated. Fixed args first.
-    i := 0
-    for ; i < numFixed && i < len(args); i++ {
-        argv[i] = s.evalArg(dot, typ.In(i), args[i])
-    }
-    // Now the ... args.
-    if typ.IsVariadic() {
-        argType := typ.In(typ.NumIn() - 1).Elem() // Argument is a slice.
-        for ; i < len(args); i++ {
-            argv[i] = s.evalArg(dot, argType, args[i])
-        }
-    }
-    // Add final value if necessary.
-    if !isMissing(final) {
-        t := typ.In(typ.NumIn() - 1)
-        if typ.IsVariadic() {
-            if numIn-1 < numFixed {
-                // The added final argument corresponds to a fixed parameter of the function.
-                // Validate against the type of the actual parameter.
-                t = typ.In(numIn - 1)
-            } else {
-                // The added final argument corresponds to the variadic part.
-                // Validate against the type of the elements of the variadic slice.
-                t = t.Elem()
-            }
-        }
-        argv[i] = s.validateType(final, t)
-    }
-
-    // Special case for the "call" builtin.
-    // Insert the name of the callee function as the first argument.
-    if isBuiltin && name == "call" {
-        calleeName := args[0].String()
-        argv = append([]reflect.Value{reflect.ValueOf(calleeName)}, argv...)
-        fun = reflect.ValueOf(call)
-    }
-
-    v, err := safeCall(fun, argv)
-    // If we have an error that is not nil, stop execution and return that
-    // error to the caller.
-    if err != nil {
-        s.at(node)
-        s.errorf("error calling %s: %w", name, err)
-    }
-    return unwrap(v)
-}
-
-# canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
-func canBeNil(typ reflect.Type) bool {
-    switch typ.Kind() {
-    case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-        return true
-    case reflect.Struct:
-        return typ == reflectValueType
-    }
-    return false
-}
-
-# validateType guarantees that the value is valid and assignable to the type.
-func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
-    if !value.IsValid() {
-        if typ == nil {
-            // An untyped nil interface{}. Accept as a proper nil value.
-            return reflect.ValueOf(nil)
-        }
-        if canBeNil(typ) {
-            // Like above, but use the zero value of the non-nil type.
-            return reflect.Zero(typ)
-        }
-        s.errorf("invalid value; expected %s", typ)
-    }
-    if typ == reflectValueType && value.Type() != typ {
-        return reflect.ValueOf(value)
-    }
-    if typ != nil && !value.Type().AssignableTo(typ) {
-        if value.Kind() == reflect.Interface && !value.IsNil() {
-            value = value.Elem()
-            if value.Type().AssignableTo(typ) {
-                return value
-            }
-            // fallthrough
-        }
-        // Does one dereference or indirection work? We could do more, as we
-        // do with method receivers, but that gets messy and method receivers
-        // are much more constrained, so it makes more sense there than here.
-        // Besides, one is almost always all you need.
-        switch {
-        case value.Kind() == reflect.Pointer && value.Type().Elem().AssignableTo(typ):
-            value = value.Elem()
-            if !value.IsValid() {
-                s.errorf("dereference of nil pointer of type %s", typ)
-            }
-        case reflect.PointerTo(value.Type()).AssignableTo(typ) && value.CanAddr():
-            value = value.Addr()
-        default:
-            s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
-        }
-    }
-    return value
-}
-
-func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) reflect.Value {
-    self.at(n)
-    switch arg := n.(type) {
-    case *parse.DotNode:
-        return s.validateType(dot, typ)
-    case *parse.NilNode:
-        if canBeNil(typ) {
-            return reflect.Zero(typ)
-        }
-        s.errorf("cannot assign nil to %s", typ)
-    case *parse.FieldNode:
-        return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, missingVal), typ)
-    case *parse.VariableNode:
-        return s.validateType(s.evalVariableNode(dot, arg, nil, missingVal), typ)
-    case *parse.PipeNode:
-        return s.validateType(s.evalPipeline(dot, arg), typ)
-    case *parse.IdentifierNode:
-        return s.validateType(s.evalFunction(dot, arg, arg, nil, missingVal), typ)
-    case *parse.ChainNode:
-        return s.validateType(s.evalChainNode(dot, arg, nil, missingVal), typ)
-    }
-    switch typ.Kind() {
-    case reflect.Bool:
-        return s.evalBool(typ, n)
-    case reflect.Complex64, reflect.Complex128:
-        return s.evalComplex(typ, n)
-    case reflect.Float32, reflect.Float64:
-        return s.evalFloat(typ, n)
-    case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-        return s.evalInteger(typ, n)
-    case reflect.Interface:
-        if typ.NumMethod() == 0 {
-            return s.evalEmptyInterface(dot, n)
-        }
-    case reflect.Struct:
-        if typ == reflectValueType {
-            return reflect.ValueOf(s.evalEmptyInterface(dot, n))
-        }
-    case reflect.String:
-        return s.evalString(typ, n)
-    case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-        return s.evalUnsignedInteger(typ, n)
-    }
-    s.errorf("can't handle %s for arg of type %s", n, typ)
-    panic("not reached")
-}
-
-func (s *state) evalBool(typ reflect.Type, n parse.Node) reflect.Value {
-    s.at(n)
-    if n, ok := n.(*parse.BoolNode); ok {
-        value := reflect.New(typ).Elem()
-        value.SetBool(n.True)
-        return value
-    }
-    s.errorf("expected bool; found %s", n)
-    panic("not reached")
-}
-
-func (s *state) evalString(typ reflect.Type, n parse.Node) reflect.Value {
-    s.at(n)
-    if n, ok := n.(*parse.StringNode); ok {
-        value := reflect.New(typ).Elem()
-        value.SetString(n.Text)
-        return value
-    }
-    s.errorf("expected string; found %s", n)
-    panic("not reached")
-}
-
-func (s *state) evalInteger(typ reflect.Type, n parse.Node) reflect.Value {
-    s.at(n)
-    if n, ok := n.(*parse.NumberNode); ok && n.IsInt {
-        value := reflect.New(typ).Elem()
-        value.SetInt(n.Int64)
-        return value
-    }
-    s.errorf("expected integer; found %s", n)
-    panic("not reached")
-}
-
-func (s *state) evalUnsignedInteger(typ reflect.Type, n parse.Node) reflect.Value {
-    s.at(n)
-    if n, ok := n.(*parse.NumberNode); ok && n.IsUint {
-        value := reflect.New(typ).Elem()
-        value.SetUint(n.Uint64)
-        return value
-    }
-    s.errorf("expected unsigned integer; found %s", n)
-    panic("not reached")
-}
-
-func (s *state) evalFloat(typ reflect.Type, n parse.Node) reflect.Value {
-    s.at(n)
-    if n, ok := n.(*parse.NumberNode); ok && n.IsFloat {
-        value := reflect.New(typ).Elem()
-        value.SetFloat(n.Float64)
-        return value
-    }
-    s.errorf("expected float; found %s", n)
-    panic("not reached")
-}
-
-func (s *state) evalComplex(typ reflect.Type, n parse.Node) reflect.Value {
-    if n, ok := n.(*parse.NumberNode); ok && n.IsComplex {
-        value := reflect.New(typ).Elem()
-        value.SetComplex(n.Complex128)
-        return value
-    }
-    s.errorf("expected complex; found %s", n)
-    panic("not reached")
-}
-
-func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Value {
-    s.at(n)
-    switch n := n.(type) {
-    case *parse.BoolNode:
-        return reflect.ValueOf(n.True)
-    case *parse.DotNode:
-        return dot
-    case *parse.FieldNode:
-        return s.evalFieldNode(dot, n, nil, missingVal)
-    case *parse.IdentifierNode:
-        return s.evalFunction(dot, n, n, nil, missingVal)
-    case *parse.NilNode:
-        // NilNode is handled in evalArg, the only place that calls here.
-        s.errorf("evalEmptyInterface: nil (can't happen)")
-    case *parse.NumberNode:
-        return s.idealConstant(n)
-    case *parse.StringNode:
-        return reflect.ValueOf(n.Text)
-    case *parse.VariableNode:
-        return s.evalVariableNode(dot, n, nil, missingVal)
-    case *parse.PipeNode:
-        return s.evalPipeline(dot, n)
-    }
-    s.errorf("can't handle assignment of %s to empty interface argument", n)
-    panic("not reached")
-}
-
-# indirect returns the item at the end of indirection, and a bool to indicate
-# if it's nil. If the returned bool is true, the returned value's kind will be
-# either a pointer or interface.
-func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
-    for ; v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface; v = v.Elem() {
-        if v.IsNil() {
-            return v, true
-        }
-    }
-    return v, false
-}
-
-# indirectInterface returns the concrete value in an interface value,
-# or else the zero reflect.Value.
-# That is, if v represents the interface value x, the result is the same as reflect.ValueOf(x):
-# the fact that x was an interface value is forgotten.
-func indirectInterface(v reflect.Value) reflect.Value {
-    if v.Kind() != reflect.Interface {
-        return v
-    }
-    if v.IsNil() {
-        return reflect.Value{}
-    }
-    return v.Elem()
-}
-
-# printValue writes the textual representation of the value to the output of
-# the template.
-func (s *state) printValue(n parse.Node, v reflect.Value) {
-    s.at(n)
-    iface, ok := printableValue(v)
-    if !ok {
-        s.errorf("can't print %s of type %s", n, v.Type())
-    }
-    _, err := fmt.Fprint(s.wr, iface)
-    if err != nil {
-        s.writeError(err)
-    }
-}
-
-# printableValue returns the, possibly indirected, interface value inside v that
-# is best for a call to formatted printer.
-func printableValue(v reflect.Value) (any, bool) {
-    if v.Kind() == reflect.Pointer {
-        v, _ = indirect(v) // fmt.Fprint handles nil.
-    }
-    if !v.IsValid() {
-        return "<no value>", true
-    }
-
-    if !v.Type().Implements(errorType) && !v.Type().Implements(fmtStringerType) {
-        if v.CanAddr() && (reflect.PointerTo(v.Type()).Implements(errorType) || reflect.PointerTo(v.Type()).Implements(fmtStringerType)) {
-            v = v.Addr()
-        } else {
-            switch v.Kind() {
-            case reflect.Chan, reflect.Func:
-                return nil, false
-            }
-        }
-    }
-    return v.Interface(), true
-}
-"""
+def defined_templates(tmpl: Template) -> str:
+    common = tmpl._common  # noqa: SLF001
+    if common is None:
+        return ''
+    names: list[str] = []
+    with common.tmpl_lock:
+        for name, associated in common.tmpl.items():
+            if associated.tree is not None and associated.tree.root is not None:
+                names.append(quote_go_string(name))
+    if not names:
+        return ''
+    return '; defined templates are: ' + ', '.join(names)

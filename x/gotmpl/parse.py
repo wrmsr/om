@@ -1,6 +1,7 @@
 """
 https://github.com/golang/go/blob/3d33437c450aa74014ea1d41cd986b6ee6266984/src/text/template/parse/parse.go
 """
+
 # Copyright 2009 The Go Authors.
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -20,18 +21,20 @@ https://github.com/golang/go/blob/3d33437c450aa74014ea1d41cd986b6ee6266984/src/t
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import string
+import math
+import re
 import typing as ta
 
-from omcore import lang
+from omcore import check
+from omcore.text.go.quoting import UnquoteError
 from omcore.text.go.quoting import unquote
 from omcore.text.go.quoting import unquote_char
 
 from .lex import LEFT_DELIM
-from .lex import LexOptions
-from .lex import Lexer
-from .lex import Pos
 from .lex import RIGHT_DELIM
+from .lex import Lexer
+from .lex import LexOptions
+from .lex import Pos
 from .lex import Token
 from .lex import TokenType
 from .nodes import ActionNode
@@ -59,11 +62,98 @@ from .nodes import TextNode
 from .nodes import VariableNode
 from .nodes import WithNode
 from .nodes import new_identifier
+from .quoting import quote_go_string
 
 
 # A mode value is a set of flags (or 0). Modes control parser behavior.
 MODE_PARSE_COMMENTS = 1 << 0  # parse comments and add them to AST
 MODE_SKIP_FUNC_CHECK = 1 << 1  # do not check that functions are defined
+MAX_STACK_DEPTH = 10_000
+
+
+##
+
+
+def _parse_go_int(s: str) -> int:
+    sign = 1
+    unsigned = s
+    if unsigned.startswith(('+', '-')):
+        if unsigned[0] == '-':
+            sign = -1
+        unsigned = unsigned[1:]
+    if not unsigned:
+        raise ValueError(s)
+    if unsigned.startswith(('+', '-')):
+        raise ValueError(s)
+
+    base = 10
+    digits = unsigned
+    has_prefix = False
+    if unsigned.startswith(('0x', '0X')):
+        base = 16
+        digits = unsigned[2:]
+        has_prefix = True
+    elif unsigned.startswith(('0o', '0O')):
+        base = 8
+        digits = unsigned[2:]
+        has_prefix = True
+    elif unsigned.startswith(('0b', '0B')):
+        base = 2
+        digits = unsigned[2:]
+        has_prefix = True
+    elif len(unsigned) > 1 and unsigned.startswith('0') and '.' not in unsigned:
+        base = 8
+        digits = unsigned[1:]
+        has_prefix = True
+
+    if has_prefix and digits.startswith('_'):
+        digits = digits[1:]
+    if not digits or digits.startswith('_') or digits.endswith('_') or '__' in digits:
+        raise ValueError(s)
+    return sign * int(digits.replace('_', ''), base)
+
+
+def _parse_go_float(s: str) -> float:
+    decimal = r'(?:[0-9](?:_?[0-9])*(?:\.(?:[0-9](?:_?[0-9])*)?)?|\.[0-9](?:_?[0-9])*)'
+    decimal += r'(?:[eE][+-]?[0-9](?:_?[0-9])*)?'
+    hex_digit = r'[0-9a-fA-F]'
+    hexadecimal = (
+        r'0[xX]_?'
+        rf'(?:{hex_digit}(?:_?{hex_digit})*(?:\.(?:{hex_digit}(?:_?{hex_digit})*)?)?'
+        rf'|\.{hex_digit}(?:_?{hex_digit})*)'
+        r'[pP][+-]?[0-9](?:_?[0-9])*'
+    )
+    unsigned = s[1:] if s.startswith(('+', '-')) else s
+    if re.fullmatch(rf'(?:{decimal}|{hexadecimal})', unsigned) is None:
+        raise ValueError(s)
+    clean = s.replace('_', '')
+    if '0x' in clean.lower():
+        value = float.fromhex(clean)
+    else:
+        value = float(clean)
+    if not math.isfinite(value):
+        raise ValueError(s)
+    return value
+
+
+def _parse_go_complex(s: str) -> complex:
+    if not s.endswith('i'):
+        raise ValueError(s)
+    body = s[:-1]
+    split = None
+    for i, char in enumerate(body[1:], 1):
+        if char in '+-' and body[i - 1] not in 'eEpP':
+            split = i
+    if split is None:
+        value = complex(0, _parse_go_float(body))
+    else:
+        value = complex(_parse_go_float(body[:split]), _parse_go_float(body[split:]))
+    if not math.isfinite(value.real) or not math.isfinite(value.imag):
+        raise ValueError(s)
+    return value
+
+
+##
 
 
 class ParseError(Exception):
@@ -73,9 +163,9 @@ class ParseError(Exception):
 # Tree is the representation of a single parsed template.
 class Tree:
     def __init__(
-            self,
-            name: str,
-            *funcs: dict[str, ta.Callable],
+        self,
+        name: str,
+        *funcs: dict[str, ta.Callable],
     ) -> None:
         super().__init__()
 
@@ -95,10 +185,47 @@ class Tree:
         self._tree_set: dict[str, Tree] = {}
         self._action_line: int = 0  # line of left delim starting action
         self._range_depth: int = 0
+        self._stack_depth: int = 0
+
+        self._left_delim = LEFT_DELIM
+        self._right_delim = RIGHT_DELIM
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def parse_name(self) -> str:
+        return self._parse_name
 
     @property
     def root(self) -> ListNode | None:
         return self._root
+
+    @property
+    def mode(self) -> int:
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: int) -> None:
+        self._mode = value
+
+    @property
+    def left_delim(self) -> str:
+        return self._left_delim
+
+    @property
+    def right_delim(self) -> str:
+        return self._right_delim
+
+    def copy(self) -> Tree:
+        tree = Tree(self._name)
+        tree._parse_name = self._parse_name
+        tree._root = self._root.copy_list() if self._root is not None else None
+        tree._text = self._text
+        tree._left_delim = self._left_delim
+        tree._right_delim = self._right_delim
+        return tree
 
     #
 
@@ -130,7 +257,12 @@ class Tree:
         return NilNode(tree=self, type=NodeType.NIL, pos=pos)
 
     def new_field(self, pos: Pos, ident: str) -> FieldNode:
-        return FieldNode(tree=self, type=NodeType.FIELD, pos=pos, ident=ident[1:].split('.'))  # [1:] to drop leading period  # noqa
+        return FieldNode(
+            tree=self,
+            type=NodeType.FIELD,
+            pos=pos,
+            ident=ident[1:].split('.'),
+        )  # [1:] to drop leading period  # noqa
 
     def new_chain(self, pos: Pos, node: Node) -> ChainNode:
         return ChainNode(tree=self, type=NodeType.CHAIN, pos=pos, node=node)
@@ -139,42 +271,79 @@ class Tree:
         return BoolNode(tree=self, type=NodeType.BOOL, pos=pos, is_true=is_true)
 
     def new_number(self, pos: Pos, text: str, typ: TokenType) -> NumberNode:
-        n = NumberNode(tree=self, type=NodeType.NUMBER, pos=pos, text=text)  # noqa
+        n = NumberNode(tree=self, type=NodeType.NUMBER, pos=pos, text=text)
 
         if typ == TokenType.CHAR_CONSTANT:
             rune, _, tail = unquote_char(text[1:], text[0])
-            n.v = ord(rune)
+            if tail != "'":
+                raise ParseError(f'malformed character constant: {text}')
+            n.int64 = ord(rune)
+            n.is_int = True
+            n.uint64 = ord(rune)
+            n.is_uint = True
+            n.float64 = float(ord(rune))
+            n.is_float = True
             return n
 
         elif typ == TokenType.COMPLEX:
             # fmt.Sscan can parse the pair, so let it do the work.
-            n.v = complex(lang.replace_many(text, string.whitespace, ''))
+            n.complex128 = _parse_go_complex(text)
+            n.is_complex = True
             n.simplify()
             return n
 
         # Imaginary constants can only be complex unless they are zero.
-        if text and text[len(text)-1] == 'i':
-            n.v = float(text[:len(text)-1])
-            n.simplify()
-            return n
-
-        try:
-            # Do integer test first so we get 0x123 etc.
-            v = int(text, 0)
-        except ValueError:
-            v = None
-        
-        if v is None:
+        if text.endswith('i'):
             try:
-                v = float(text)
+                n.complex128 = complex(0, _parse_go_float(text[:-1]))
             except ValueError:
                 pass
+            else:
+                n.is_complex = True
+                n.simplify()
+                return n
 
-        if v is None:
-            raise ParseError(f'illegal number syntax: {text!r}')
+        # Do integer tests first so we get 0x123 etc.
+        try:
+            integer = _parse_go_int(text)
+        except ValueError:
+            integer = None
 
-        n.v = v
-        n.simplify()
+        if integer is not None and not text.startswith(('+', '-')) and 0 <= integer < 1 << 64:
+            n.is_uint = True
+            n.uint64 = integer
+        if integer is not None and -(1 << 63) <= integer < 1 << 63:
+            n.is_int = True
+            n.int64 = integer
+            if integer == 0:
+                n.is_uint = True
+                n.uint64 = 0
+
+        if n.is_int:
+            n.is_float = True
+            n.float64 = float(n.int64)
+        elif n.is_uint:
+            n.is_float = True
+            n.float64 = float(n.uint64)
+        else:
+            try:
+                value = _parse_go_float(text)
+            except ValueError:
+                value = None
+            if value is not None:
+                if not any(char in text for char in '.eEpP'):
+                    raise ParseError(f'integer overflow: {quote_go_string(text)}')
+                n.is_float = True
+                n.float64 = value
+                if value.is_integer() and -(1 << 63) <= value < 1 << 63:
+                    n.is_int = True
+                    n.int64 = int(value)
+                if value.is_integer() and 0 <= value < 1 << 64:
+                    n.is_uint = True
+                    n.uint64 = int(value)
+
+        if not n.is_int and not n.is_uint and not n.is_float:
+            raise ParseError(f'illegal number syntax: {quote_go_string(text)}')
 
         return n
 
@@ -187,7 +356,7 @@ class Tree:
     def new_else(self, pos: Pos, line: int) -> ElseNode:
         return ElseNode(tree=self, type=NodeType.ELSE, pos=pos, line=line)
 
-    def new_if(self, pos: Pos, line: int, pipe: PipeNode, lst: ListNode, else_lst: ListNode) -> IfNode:
+    def new_if(self, pos: Pos, line: int, pipe: PipeNode, lst: ListNode, else_lst: ListNode | None) -> IfNode:
         return IfNode(tree=self, type=NodeType.IF, pos=pos, line=line, pipe=pipe, lst=lst, else_lst=else_lst)  # noqa
 
     def new_break(self, pos: Pos, line: int) -> BreakNode:
@@ -196,10 +365,10 @@ class Tree:
     def new_continue(self, pos: Pos, line: int) -> ContinueNode:
         return ContinueNode(tree=self, type=NodeType.CONTINUE, pos=pos, line=line)
 
-    def new_range(self, pos: Pos, line: int, pipe: PipeNode, lst: ListNode, else_lst: ListNode) -> RangeNode:
+    def new_range(self, pos: Pos, line: int, pipe: PipeNode, lst: ListNode, else_lst: ListNode | None) -> RangeNode:
         return RangeNode(tree=self, type=NodeType.RANGE, pos=pos, line=line, pipe=pipe, lst=lst, else_lst=else_lst)  # noqa
 
-    def new_with(self, pos: Pos, line: int, pipe: PipeNode, lst: ListNode, else_lst: ListNode) -> WithNode:
+    def new_with(self, pos: Pos, line: int, pipe: PipeNode, lst: ListNode, else_lst: ListNode | None) -> WithNode:
         return WithNode(tree=self, type=NodeType.WITH, pos=pos, line=line, pipe=pipe, lst=lst, else_lst=else_lst)  # noqa
 
     def new_template(self, pos: Pos, line: int, name: str, pipe: PipeNode | None) -> TemplateNode:
@@ -212,8 +381,8 @@ class Tree:
         if self._peek_count > 0:
             self._peek_count -= 1
         else:
-            self._token[0] = self._lex.next_token()
-        return self._token[self._peek_count]
+            self._token[0] = check.not_none(self._lex).next_token()
+        return check.not_none(self._token[self._peek_count])
 
     def backup(self) -> None:
         # backup backs the input stream up one token.
@@ -233,10 +402,10 @@ class Tree:
     # peek returns but does not consume the next token.
     def peek(self) -> Token:
         if self._peek_count > 0:
-            return self._token[self._peek_count - 1]
+            return check.not_none(self._token[self._peek_count - 1])
         self._peek_count = 1
-        self._token[0] = self._lex.next_token()
-        return self._token[0]
+        self._token[0] = check.not_none(self._lex).next_token()
+        return check.not_none(self._token[0])
 
     # next_non_space returns the next non-space token.
     def next_non_space(self) -> Token:
@@ -261,26 +430,28 @@ class Tree:
         tree = n.tree
         if not tree:
             tree = self
-        text = tree._text[:pos]
-        byte_num = text.rfind('\n')
+        text = tree._text.encode()[:pos]
+        byte_num = text.rfind(b'\n')
         if byte_num == -1:
             byte_num = pos  # On first line.
         else:
             byte_num += 1  # After the newline.
             byte_num = pos - byte_num
-        line_num = 1 + text.count('\n')
+        line_num = 1 + text.count(b'\n')
         context = str(n)
-        return "%s:%d:%d" % (tree._parse_name, line_num, byte_num), context
+        return f'{tree._parse_name}:{line_num}:{byte_num}', context
 
-    def errorf(self, format: str, *args: ta.Any) -> ta.NoReturn:  # noqa
+    def errorf(self, format_string: str, *args: ta.Any) -> ta.NoReturn:
         # errorf formats the error and terminates processing.
         self._root = None
-        format = 'template: %s:%d: %s' % (self._parse_name, self._token[0].line, format)  # noqa
-        raise ParseError(format, *args)
+        token = self._token[0]
+        line = token.line if token is not None else 0
+        message = format_string % args
+        raise ParseError(f'template: {self._parse_name}:{line}: {message}')
 
     def error(self, err: ParseError) -> ta.NoReturn:
         # error terminates processing.
-        raise err
+        self.errorf('%s', err)
 
     def expect(self, expected: TokenType, context: str) -> Token:
         # expect consumes the next token and guarantees it has the required type.
@@ -301,17 +472,17 @@ class Tree:
         if token.typ == TokenType.ERROR:
             extra = ''
             if self._action_line != 0 and self._action_line != token.line:
-                extra = ' in action started at %s:%d' % (self._parse_name, self._action_line)
+                extra = f' in action started at {self._parse_name}:{self._action_line}'
                 if token.val.endswith(' action'):
-                    extra = extra[len(' in action'):]  # avoid "action in action"
-            self.errorf("%s%s", token, extra)
-        self.errorf("unexpected %s in %s", token, context)
+                    extra = extra[len(' in action') :]  # avoid "action in action"
+            self.errorf('%s%s', token, extra)
+        self.errorf('unexpected %s in %s', token, context)
 
     def start_parse(
-            self,
-            funcs: list[dict[str, ta.Any]],
-            lex: Lexer,
-            tree_set: dict[str, 'Tree'],
+        self,
+        funcs: list[dict[str, ta.Any]],
+        lex: Lexer,
+        tree_set: dict[str, Tree],
     ) -> None:
         # startParse initializes the parser, using the lexer.
         self._root = None
@@ -319,6 +490,8 @@ class Tree:
         self._vars = ['$']
         self._funcs = funcs
         self._tree_set = tree_set
+        self._peek_count = 0
+        self._stack_depth = 0
         lex._options = LexOptions(  # noqa
             emit_comment=(self._mode & MODE_PARSE_COMMENTS) != 0,
             break_ok=not self.has_function('break'),
@@ -328,28 +501,30 @@ class Tree:
     def stop_parse(self) -> None:
         # stop_parse terminates parsing.
         self._lex = None
-        self._vars = None
-        self._funcs = None
-        self._tree_set = None
+        self._vars = []
+        self._funcs = []
+        self._tree_set = {}
 
     def parse(
-            self,
-            text: str,
-            left_delim: str,
-            right_delim: str,
-            tree_set: dict[str, 'Tree'],
-            *funcs: dict[str, ta.Any],
-    ) -> 'Tree':
+        self,
+        text: str,
+        left_delim: str,
+        right_delim: str,
+        tree_set: dict[str, Tree],
+        *funcs: dict[str, ta.Any],
+    ) -> Tree:
         # Parse parses the template definition string to construct a representation of the template for execution. If
         # either action delimiter string is empty, the default ("{{" or "}}") is used. Embedded template definitions are
         # added to the tree_set map.
         try:
             self._parse_name = self._name
+            self._left_delim = left_delim or LEFT_DELIM
+            self._right_delim = right_delim or RIGHT_DELIM
             lexer = Lexer(
                 self._name,
                 text,
-                left_delim=left_delim,
-                right_delim=right_delim,
+                left_delim=self._left_delim,
+                right_delim=self._right_delim,
             )
             self.start_parse(list(funcs), lexer, tree_set)
             self._text = text
@@ -357,22 +532,20 @@ class Tree:
             self.add()
             self.stop_parse()
             return self
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - normalize lexer and parser implementation failures.
             self.stop_parse()
             if isinstance(e, ParseError):
                 raise
-            else:
-                raise ParseError from e
-                # raise
+            raise ParseError(str(e)) from e
 
     def add(self) -> None:
         # add adds tree to t.tree_set.
         tree = self._tree_set.get(self._name)
-        if tree is None or is_empty_tree(tree._root):
+        if tree is None or is_empty_tree(tree.root):
             self._tree_set[self._name] = self
             return
         if not is_empty_tree(self._root):
-            self.errorf('template: multiple definition of template %r', self._name)
+            self.errorf('template: multiple definition of template %s', quote_go_string(self._name))
 
     def _parse(self) -> None:
         # parse is the top-level parser for a template, essentially the same as TokenType.LIST except it also parses
@@ -385,8 +558,10 @@ class Tree:
                     new_t = Tree('definition')  # name will be updated once we know it.
                     new_t._text = self._text
                     new_t._mode = self._mode
+                    new_t._left_delim = self._left_delim
+                    new_t._right_delim = self._right_delim
                     new_t._parse_name = self._parse_name
-                    new_t.start_parse(self._funcs, self._lex, self._tree_set)
+                    new_t.start_parse(self._funcs, check.not_none(self._lex), self._tree_set)
                     new_t.parse_definition()
                     continue
                 self.backup2(delim)
@@ -403,12 +578,12 @@ class Tree:
         name = self.expect_one_of(TokenType.STRING, TokenType.RAW_STRING, context)
         try:
             self._name = unquote(name.val)
-        except Exception as err:
-            self.error(ParseError(err))
+        except UnquoteError as err:
+            self.error(ParseError(str(err)))
         self.expect(TokenType.RIGHT_DELIM, context)
         self._root, end = self.item_list()
         if end.type != NodeType.END:
-            self.errorf("unexpected %s in %s", end, context)
+            self.errorf('unexpected %s in %s', end, context)
         self.add()
         self.stop_parse()
 
@@ -425,6 +600,7 @@ class Tree:
                 return lst, n
             lst.append(n)
         self.errorf('unexpected EOF')
+        raise AssertionError('unreachable')
 
     def text_or_action(self) -> Node:
         # text_or_action:
@@ -443,6 +619,7 @@ class Tree:
             return self.new_comment(token.pos, token.val)
         else:
             self.unexpected(token, 'input')
+            raise AssertionError('unreachable')
 
     def clear_action_line(self) -> None:
         self._action_line = 0
@@ -534,9 +711,9 @@ class Tree:
                     self._vars.append(v.val)
                     if context == 'range' and len(pipe.decl) < 2:
                         if self.peek_non_space().typ in (
-                                TokenType.VARIABLE,
-                                TokenType.RIGHT_DELIM,
-                                TokenType.RIGHT_PAREN,
+                            TokenType.VARIABLE,
+                            TokenType.RIGHT_DELIM,
+                            TokenType.RIGHT_PAREN,
                         ):
                             # second initialized variable in a range pipeline
                             continue
@@ -587,9 +764,10 @@ class Tree:
         for i, c in enumerate(pipe.cmds[1:]):
             if c.args[0].type in (NodeType.BOOL, NodeType.DOT, NodeType.NIL, NodeType.NUMBER, NodeType.STRING):
                 # With A|B|C, pipeline stage 2 is B
-                self.errorf('non executable command in pipeline stage %d', i+2)
+                self.errorf('non executable command in pipeline stage %d', i + 2)
 
-    def parse_control(self, context: str) -> tuple[Pos, int, PipeNode, ListNode, ListNode]:  # (pos, line, pipe, lst, else_lst)  # noqa
+    def parse_control(self, context: str) -> tuple[Pos, int, PipeNode, ListNode, ListNode | None]:
+        mark = len(self._vars)
         try:
             pipe = self.pipeline(context, TokenType.RIGHT_DELIM)
             if context == 'range':
@@ -599,7 +777,7 @@ class Tree:
             if context == 'range':
                 self._range_depth -= 1
 
-            else_lst = []
+            else_lst = None
 
             if next.type == NodeType.END:  # done
                 pass
@@ -634,7 +812,7 @@ class Tree:
             return pipe.pos, pipe.line, pipe, lst, else_lst
 
         finally:
-            self.pop_vars(len(self._vars))
+            self.pop_vars(mark)
 
     def if_control(self) -> Node:
         # If:
@@ -683,7 +861,7 @@ class Tree:
         # return the else node here.
         if peek.typ == TokenType.IF or peek.typ == TokenType.WITH:
             return self.new_else(peek.pos, peek.line)
-        token = self.expect(TokenType.RIGHT_DELIM, "else")
+        token = self.expect(TokenType.RIGHT_DELIM, 'else')
         return self.new_else(token.pos, token.line)
 
     def block_control(self) -> Node:
@@ -701,8 +879,10 @@ class Tree:
         block = Tree(name)  # name will be updated once we know it.
         block._text = self._text
         block._mode = self._mode
+        block._left_delim = self._left_delim
+        block._right_delim = self._right_delim
         block._parse_name = self._parse_name
-        block.start_parse(self._funcs, self._lex, self._tree_set)
+        block.start_parse(self._funcs, check.not_none(self._lex), self._tree_set)
         block._root, end = block.item_list()
         if end.type != NodeType.END:
             self.errorf('unexpected %s in %s', end, context)
@@ -731,11 +911,12 @@ class Tree:
         if token.typ in (TokenType.STRING, TokenType.RAW_STRING):
             try:
                 s = unquote(token.val)
-            except Exception as err:
-                self.error(ParseError(err))
+            except UnquoteError as err:
+                self.error(ParseError(str(err)))
             return s
         else:
             self.unexpected(token, context)
+            raise AssertionError('unreachable')
 
     def command(self) -> CommandNode:
         # command:
@@ -765,7 +946,7 @@ class Tree:
             self.errorf('empty command')
         return cmd
 
-    def operand(self) -> Node:
+    def operand(self) -> Node | None:
         # operand:
         #
         #    term .Field*
@@ -774,7 +955,7 @@ class Tree:
         # return means the next item is not an operand.
         node = self.term()
         if not node:
-            return None  # FIXME  # noqa
+            return None
         if self.peek().typ == TokenType.FIELD:
             chain = self.new_chain(self.peek().pos, node)
             while self.peek().typ == TokenType.FIELD:
@@ -789,7 +970,7 @@ class Tree:
             elif node.type == NodeType.VARIABLE:
                 node = self.new_variable(chain.pos, chain.string())
             elif node.type in (NodeType.BOOL, NodeType.STRING, NodeType.NUMBER, NodeType.NIL, NodeType.DOT):
-                self.errorf('unexpected . after term %r', node)
+                self.errorf('unexpected . after term %s', quote_go_string(str(node)))
             else:
                 node = chain
         return node
@@ -809,7 +990,7 @@ class Tree:
         if token.typ == TokenType.IDENTIFIER:
             check_func = self._mode & MODE_SKIP_FUNC_CHECK == 0
             if check_func and not self.has_function(token.val):
-                self.errorf('function %r not defined', token.val)
+                self.errorf('function %s not defined', quote_go_string(token.val))
             return new_identifier(token.val).set_tree(self).set_pos(token.pos)
         elif token.typ == TokenType.DOT:
             return self.new_dot(token.pos)
@@ -820,23 +1001,29 @@ class Tree:
         elif token.typ == TokenType.FIELD:
             return self.new_field(token.pos, token.val)
         elif token.typ == TokenType.BOOL:
-            return self.new_bool(token.pos, token.val == "true")
+            return self.new_bool(token.pos, token.val == 'true')
         elif token.typ in (TokenType.CHAR_CONSTANT, TokenType.COMPLEX, TokenType.NUMBER):
             try:
                 number = self.new_number(token.pos, token.val, token.typ)
-            except Exception as err:
-                self.error(ParseError(err))
+            except (ParseError, UnquoteError, ValueError, OverflowError) as err:
+                self.error(ParseError(str(err)))
             return number
         elif token.typ == TokenType.LEFT_PAREN:
-            return self.pipeline('parenthesized pipeline', TokenType.RIGHT_PAREN)
+            if self._stack_depth >= MAX_STACK_DEPTH:
+                self.errorf('max expression depth exceeded')
+            self._stack_depth += 1
+            try:
+                return self.pipeline('parenthesized pipeline', TokenType.RIGHT_PAREN)
+            finally:
+                self._stack_depth -= 1
         elif token.typ in (TokenType.STRING, TokenType.RAW_STRING):
             try:
                 s = unquote(token.val)
-            except Exception as err:
-                self.error(ParseError(err))
+            except UnquoteError as err:
+                self.error(ParseError(str(err)))
             return self.new_string(token.pos, token.val, s)
         self.backup()
-        return None  # FIXME
+        return None
 
     def has_function(self, name: str) -> bool:
         # has_function reports if a function name exists in the Tree's maps.
@@ -857,41 +1044,40 @@ class Tree:
         for var_name in self._vars:
             if var_name == v.ident[0]:
                 return v
-        self.errorf('undefined variable %r', v.ident[0])
+        self.errorf('undefined variable %s', quote_go_string(v.ident[0]))
+        raise AssertionError('unreachable')
 
 
-def is_empty_tree(n: Node) -> bool:
+def is_empty_tree(n: Node | None) -> bool:
     # is_empty_tree reports whether this tree (node) is empty of everything but space or comments.
     if n is None:
         return True
-    elif isinstance(n, ActionNode, CommentNode):
+    elif isinstance(n, CommentNode):
         return True
-    elif isinstance(n, (IfNode, ListNode)):
-        for node in n.nodes:
-            if not is_empty_tree(node):
-                return False
-        return True
-    elif isinstance(n, (RangeNode, TemplateNode, TextNode)):
-        return len(n.text.strip(' ')) == 0
-    elif isinstance(n, WithNode):
-        pass
-    else:
-        raise TypeError(f'unknown node: {n}')
-    return False
+    elif isinstance(n, ListNode):
+        return all(is_empty_tree(node) for node in n.nodes)
+    elif isinstance(n, TextNode):
+        return len(n.text.strip()) == 0
+    elif isinstance(n, (ActionNode, IfNode, RangeNode, TemplateNode, WithNode)):
+        return False
+    raise TypeError(f'unknown node: {n}')
 
 
 # Parse returns a map from template name to [Tree], created by parsing the templates described in the argument string.
 # The top-level template will be given the specified name. If an error is encountered, parsing stops and an empty map is
 # returned with the error.
 def parse(
-        name: str,
-        text: str,
-        left_delim: str = LEFT_DELIM,
-        right_delim: str = RIGHT_DELIM,
-        funcs: dict[str, ta.Callable] | None = None,
+    name: str,
+    text: str,
+    left_delim: str = '',
+    right_delim: str = '',
+    *func_maps: dict[str, ta.Any],
+    funcs: dict[str, ta.Any] | None = None,
 ) -> dict[str, Tree]:
+    all_funcs = list(func_maps)
+    if funcs is not None:
+        all_funcs.append(funcs)
     tree_set: dict[str, Tree] = {}
-    t = Tree(name, funcs)
-    t._text = text
-    t.parse(text, left_delim, right_delim, tree_set, funcs or {})
+    t = Tree(name, *all_funcs)
+    t.parse(text, left_delim, right_delim, tree_set, *all_funcs)
     return tree_set
