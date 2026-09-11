@@ -2,7 +2,7 @@
 # @om-lite
 """
 Parses a complete HTTP/1.x start-line + header fields + final CRLF from a ``bytes`` object. Does NOT handle message
-bodies, chunked transfer decoding, trailers, or HTTP/2+.
+bodies, chunked transfer decoding, or HTTP/2+.
 
 TODO:
  - mapping from error code to outbound http status code
@@ -949,9 +949,9 @@ class _HttpParseContext:
         self.current_line = 1  # line 0 is the start-line
 
         while pos < len(data):
-            # Check for the empty line that terminates headers. Whichever empty-line form we stop at, nothing may
-            # follow it: this is the authoritative trailing-data check. verify_terminator only gates existence and in
-            # bare-LF mode cannot tell which empty line parsing will actually stop at.
+            # Check for the empty line that terminates headers. Whichever empty-line form we stop at, nothing may follow
+            # it: this is the authoritative trailing-data check. verify_terminator only gates existence and in bare-LF
+            # mode cannot tell which empty line parsing will actually stop at.
             if data[pos] == self._CR and pos + 1 < len(data) and data[pos + 1] == self._LF:
                 # \r\n at the start of a "line" = empty line = terminator.
                 if pos + 2 != len(data):
@@ -1074,8 +1074,8 @@ class _HttpParseContext:
 
     @classmethod
     def _is_token(cls, s: str) -> bool:
-        # Tokens are ASCII-only by definition (tchar), so encoding the latin-1-decoded value back to latin-1 is
-        # lossless here. (Same trick as the header field-name check.)
+        # Tokens are ASCII-only by definition (tchar), so encoding the latin-1-decoded value back to latin-1 is lossless
+        # here. (Same trick as the header field-name check.)
         return cls._RE_TOKEN.match(s.encode('latin-1')) is not None
 
     # Pre-calculate the 4 field-value variants for the translation filter (allow_bare_cr, reject_obs_text)
@@ -1184,8 +1184,8 @@ class _HttpParseContext:
 
         if invalid_chars:
             value_base_offset = line_start_offset + colon_idx + 1
-            # We only enter this Python loop if we ALREADY found an error.
-            # This keeps the "happy path" fast while maintaining detailed error reporting.
+            # We only enter this Python loop if we ALREADY found an error. This keeps the "happy path" fast while
+            # maintaining detailed error reporting.
             for i, b in enumerate(value_stripped):
                 if b == self._NUL:
                     raise HeaderFieldHttpParseError(
@@ -1318,9 +1318,9 @@ class _HttpParseContext:
                         message=f'Content-Length value string too long: {stripped!r}',
                     )
 
-                # int() raises ValueError above sys.get_int_max_str_digits() (default 4300, backported to all
-                # maintained 3.8+ releases). max_content_length_str_len bounds this by default, but it may be None, so
-                # guard the conversion and surface a clean parse error rather than letting the ValueError escape.
+                # int() raises ValueError above sys.get_int_max_str_digits() (default 4300, backported to all maintained
+                # 3.8+ releases). max_content_length_str_len bounds this by default, but it may be None, so guard the
+                # conversion and surface a clean parse error rather than letting the ValueError escape.
                 try:
                     parsed_values.append(int(stripped))
                 except ValueError:
@@ -1641,8 +1641,8 @@ class _HttpParseContext:
 
     def _prepare_content_type(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
         # Content-Type is a singleton header. get_all (not the comma-joining __getitem__): joining two Content-Type
-        # values with ', ' would produce a string that still passes the media-type shape checks below, and the
-        # parameter parser would then silently keep the second value's parameters - a parser differential.
+        # values with ', ' would produce a string that still passes the media-type shape checks below, and the parameter
+        # parser would then silently keep the second value's parameters - a parser differential.
         values = headers.get_all('content-type')
         if not values:
             return
