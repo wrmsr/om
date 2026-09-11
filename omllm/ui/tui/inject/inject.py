@@ -1,5 +1,6 @@
 from omcore import inject as inj
 
+from ...inject import bind_ui
 from ..config import Config
 from .agent import bind_agent
 from .backends import bind_backends
@@ -14,6 +15,8 @@ from .tools import bind_tools
 
 def bind_tui(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = [
+        bind_ui(),
+
         bind_agent(config),
         bind_backends(config),
         bind_commands(config),

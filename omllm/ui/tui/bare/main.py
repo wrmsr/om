@@ -9,9 +9,11 @@ from .... import agent as agn
 from .... import harness as har
 from ....core import processes
 from ....core import ui
+from ...types import UiId
 from ..config import Config
 from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
+from ..logs import configure_tui_logging
 from .input import InputManager
 from .input import bind_input
 from .output import bind_output
@@ -50,6 +52,9 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         *lst,
         factory=inj.create_asyncio_injector,
     ) as injector:
+        ui_id = await injector[UiId]
+        configure_tui_logging(ui_id)
+
         agent = await injector[agn.Agent]
         tool_set = await injector[agn.ToolSet]
         session = await injector[har.Session]
