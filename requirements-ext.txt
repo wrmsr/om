@@ -17,7 +17,7 @@ google-cloud-compute==1.52.0
 ##
 # ml
 
-matplotlib==3.11.1
+matplotlib==3.11.2
 
 torch==2.14.0
 torchvision==0.29.0
@@ -26,12 +26,12 @@ torchvision==0.29.0
 diffusers==0.40.0  # @om-venv !14t !14dt !15t
 
 scipy==1.18.1
-scikit-learn==1.9.0
+scikit-learn==1.9.1
 scikit-image==0.26.0
 
 safetensors==0.8.0
 
-tavily-python==0.8.1
+tavily-python==0.8.2
 
 sqlite-vec==0.1.9
 

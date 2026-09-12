@@ -65,7 +65,7 @@ json5==0.15.0
 ##
 
 # c/libpq
-psycopg2==2.9.12
+psycopg2==2.9.13
 # py/cy
 psycopg==3.3.5
 
@@ -177,7 +177,7 @@ pillow==12.3.0
 
 bitsandbytes==0.50.2  # @om-venv !15 !15t
 
-regex==2026.9.3
+regex==2026.9.10
 
 # x.server - TODO: delete
 

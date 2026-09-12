@@ -108,7 +108,7 @@ lxml-stubs==0.5.1
 lz4==4.4.5
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
-matplotlib==3.11.1
+matplotlib==3.11.2
 matplotlib-inline==0.2.2
 mblack==26.5.0
 mccabe==0.7.0
@@ -165,7 +165,7 @@ proto-plus==1.28.4
 protobuf==7.36.1
 psutil==7.2.2
 psycopg==3.3.5
-psycopg2==2.9.12
+psycopg2==2.9.13
 ptyprocess==0.7.0
 pudb==2025.1.5
 pure_eval==0.2.4
@@ -209,7 +209,7 @@ pytz==2026.3.post1
 PyYAML==6.0.3
 rapidocr-onnxruntime==1.4.4
 readme_renderer==46.0
-regex==2026.9.3
+regex==2026.9.10
 requests==2.34.2
 requests-toolbelt==1.0.0
 rfc3986==2.0.0
@@ -219,7 +219,7 @@ ruff==0.16.7
 s3transfer==0.19.2
 safetensors==0.8.0
 scikit-image==0.26.0
-scikit-learn==1.9.0
+scikit-learn==1.9.1
 scipy==1.18.1
 scramp==1.4.17
 segno==1.6.6
@@ -238,7 +238,7 @@ sqlean.py==3.50.4.5
 sqlite-vec==0.1.9
 stack-data==0.6.3
 sympy==1.14.0
-tavily-python==0.8.1
+tavily-python==0.8.2
 textual==8.2.8
 textual-dev==1.8.0
 textual-serve==1.1.3
