@@ -1,6 +1,7 @@
 """
 A process that allocates a sandbox and then dies without cleaning up, exactly like a test runner that got killed. Its
-arguments are the sandbox config as json and the connection details, and it prints the name it leaked.
+arguments are the backend name, the sandbox config as json, and the backend's connection details; it prints the name it
+leaked.
 """
 import os
 import sys
@@ -8,21 +9,39 @@ import sys
 from ..... import marshal as msh
 from .....formats.json import all as json
 from ....dbs import HostDbLoc
+from ..backends import SandboxBackend
 from ..config import SandboxesConfig
+from ..mysql import MysqlSandboxBackend
 from ..postgres import PostgresSandboxBackend
 from ..sandboxes import SandboxAllocator
+from ..sqlite import SqliteSandboxBackend
 
 
 ##
 
 
+def _make_backend(kind: str, cfg: SandboxesConfig, args: list[str]) -> SandboxBackend:
+    if kind == 'postgres':
+        host, port, password = args
+        return PostgresSandboxBackend(cfg, HostDbLoc(host, int(port), username=cfg.role, password=password))
+
+    elif kind == 'mysql':
+        host, port, password = args
+        return MysqlSandboxBackend(cfg, HostDbLoc(host, int(port), username=cfg.role, password=password))
+
+    elif kind == 'sqlite':
+        [base_dir] = args
+        return SqliteSandboxBackend(cfg, base_dir=base_dir)
+
+    else:
+        raise ValueError(kind)
+
+
 def _main() -> None:
-    cfg_json, host, port, password = sys.argv[1:]
+    kind, cfg_json, *args = sys.argv[1:]
     cfg = msh.unmarshal(json.loads(cfg_json), SandboxesConfig)
 
-    backend = PostgresSandboxBackend(cfg, HostDbLoc(host, int(port), username=cfg.role, password=password))
-
-    alloc = SandboxAllocator(backend, no_reap_on_open=True)
+    alloc = SandboxAllocator(_make_backend(kind, cfg, args), no_reap_on_open=True)
     alloc.__enter__()  # noqa
     sb = alloc.allocate()
 

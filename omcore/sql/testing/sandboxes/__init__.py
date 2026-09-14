@@ -6,6 +6,7 @@ with _lang.auto_proxy_init(globals()):
 
     from .backends import (  # noqa
         SandboxBackend,
+        UnregisteredSandbox,
     )
 
     from .config import (  # noqa
@@ -17,6 +18,14 @@ with _lang.auto_proxy_init(globals()):
         SandboxNameError,
         SandboxSafetyError,
         SandboxStateError,
+    )
+
+    from .mysql import (  # noqa
+        MysqlBootstrapReport,
+        MysqlSandboxBackend,
+
+        bootstrap_mysql,
+        grant_pattern,
     )
 
     from .names import (  # noqa
@@ -45,9 +54,18 @@ with _lang.auto_proxy_init(globals()):
         SandboxKind,
         SandboxRecord,
         SandboxRegistry,
+
+        TimestampCodec,
+        IdentityTimestampCodec,
+        IsoTimestampCodec,
+        WholeSecondsTimestampCodec,
     )
 
     from .sandboxes import (  # noqa
         Sandbox,
         SandboxAllocator,
+    )
+
+    from .sqlite import (  # noqa
+        SqliteSandboxBackend,
     )

@@ -1,76 +1,100 @@
 # ruff: noqa: S608
 import contextlib
-import subprocess
-import sys
 
 import pytest
 
 from ..... import check
-from ..... import marshal as msh
-from .....formats.json import all as json
 from ....api import querierfuncs as qf
 from ....backends.postgres import connecting as pgc
 from ....tests.harness import SANDBOX_ROLE_PASSWORD
 from ....tests.harness import HarnessSandboxes
 from ..config import SandboxesConfig
 from ..errors import SandboxSafetyError
-from ..errors import SandboxStateError
-from ..names import SandboxNames
-from ..names import new_run_id
 from ..postgres import PostgresSandboxBackend
 from ..postgres import bootstrap_postgres
-from ..reaping import Reaper
 from ..registry import SandboxKind
-from ..registry import SandboxRecord
-from ..registry import SandboxRegistry
 from ..sandboxes import SandboxAllocator
+from .scenarios import BackendScenario
+from .scenarios import check_isolation
+from .scenarios import check_reaper
+from .scenarios import check_reaper_after_hard_exit
+from .scenarios import check_reaper_lock_contention
 
 
 ##
 
 
-def _backend(harness, **kwargs) -> PostgresSandboxBackend:
+def _scenario(harness) -> BackendScenario:
     hs = harness[HarnessSandboxes]
     hs.postgres()  # ensure bootstrapped
-    return PostgresSandboxBackend(SandboxesConfig(**kwargs), hs.postgres_loc())
+    loc = hs.postgres_loc()
+    base_cfg = hs.postgres_config()
+
+    def plant(q, name, kind):
+        if kind is SandboxKind.SCHEMA:
+            qf.exec(q, f'create schema "{name}"')
+        else:
+            qf.exec(q, f'create database "{name}"')
+
+    def unplant(q, name, kind):
+        if kind is SandboxKind.SCHEMA:
+            qf.exec(q, f'drop schema if exists "{name}" cascade')
+        else:
+            qf.exec(q, f'drop database if exists "{name}" with (force)')
+
+    return BackendScenario(
+        make_backend=lambda **kw: PostgresSandboxBackend(
+            SandboxesConfig(database_sandboxes=base_cfg.database_sandboxes, **kw),
+            loc,
+        ),
+        namespace_of=lambda q, kind: qf.query_scalar(
+            q,
+            'select current_schema()' if kind is SandboxKind.SCHEMA else 'select current_database()',
+        ),
+        list_namespaces=lambda q: {
+            *(r.values[0] for r in qf.query_all(q, 'select nspname from pg_namespace')),
+            *(r.values[0] for r in qf.query_all(q, 'select datname from pg_database')),
+        },
+        plant=plant,
+        unplant=unplant,
+        orphan_backend='postgres',
+        orphan_args=[loc.host, str(loc.port), SANDBOX_ROLE_PASSWORD],
+    )
 
 
 ##
 
 
 def test_isolation(harness) -> None:
+    check_isolation(_scenario(harness), harness[HarnessSandboxes].postgres())
+
+
+def test_reaper(harness) -> None:
+    check_reaper(_scenario(harness))
+
+
+def test_reaper_after_hard_exit(harness) -> None:
+    check_reaper_after_hard_exit(_scenario(harness))
+
+
+def test_reaper_lock_contention(harness) -> None:
+    check_reaper_lock_contention(_scenario(harness))
+
+
+def test_database_kind(harness) -> None:
+    sc = _scenario(harness)
     alloc = harness[HarnessSandboxes].postgres()
+    if SandboxKind.DATABASE not in alloc.backend.supported_kinds:
+        pytest.skip('database sandboxes not enabled on this server')
 
-    with alloc.allocate() as a, alloc.allocate() as b:
-        assert a.name != b.name
-        assert a.run_id == b.run_id == alloc.run_id
-        assert {sb.name for sb in alloc.sandboxes} >= {a.name, b.name}
+    check_isolation(sc, alloc, SandboxKind.DATABASE)
+    check_reaper(sc, SandboxKind.DATABASE)
 
-        with a.db().connect() as ca, b.db().connect() as cb:
-            # each session lives in its own schema and sees nothing else unqualified
-            assert qf.query_scalar(ca, 'select current_schema()') == a.name
-            assert qf.query_scalar(cb, 'select current_schema()') == b.name
-
-            qf.exec(ca, 'create table t (v integer)')
-            qf.exec(ca, 'insert into t values (1), (2)')
-            qf.exec(cb, 'create table t (v text)')
-
-            assert qf.query_scalar(ca, 'select count(*) from t') == 2
-            assert qf.query_scalar(cb, 'select count(*) from t') == 0
-
-            # the registry knows both, leased to this run
-            regs = {r.name: r for r in alloc.registry.list_run(ca, alloc.run_id)}
-            assert {a.name, b.name} <= set(regs)
-            assert all(r.kind is SandboxKind.SCHEMA and r.expires_at > r.created_at for r in regs.values())
-
-    assert a.released and b.released
-    with pytest.raises(SandboxStateError):
-        a.db()
-
-    with alloc.backend.open_db(alloc.run_id).connect() as conn:
-        schemas = {r.values[0] for r in qf.query_all(conn, 'select nspname from pg_namespace')}
-        assert not ({a.name, b.name} & schemas)
-        assert not ({a.name, b.name} & {r.name for r in alloc.registry.list_all(conn)})
+    # the two kinds coexist under one run
+    with alloc.allocate(SandboxKind.SCHEMA) as s, alloc.allocate(SandboxKind.DATABASE) as d:
+        with s.db().connect() as cs, d.db().connect() as cd:
+            assert qf.query_scalar(cs, 'select current_database()') == alloc.config.database
+            assert qf.query_scalar(cd, 'select current_database()') == d.name
 
 
 def test_guard_refuses_superuser(harness) -> None:
@@ -81,115 +105,6 @@ def test_guard_refuses_superuser(harness) -> None:
     with pytest.raises(SandboxSafetyError):
         with SandboxAllocator(backend):
             pass
-
-
-def test_reaper(harness) -> None:
-    # a zero ttl means every lease is expired the moment it is taken
-    backend = _backend(harness, lease_ttl_s=0)
-    names = SandboxNames(backend.config)
-    registry = SandboxRegistry(backend.config)
-    reaper = Reaper(backend, registry, names)
-
-    dead = SandboxAllocator(backend, no_reap_on_open=True)
-    dead.__enter__()
-    leaked = dead.allocate().name
-
-    with SandboxAllocator(backend, no_reap_on_open=True) as alloc:
-        db = check.not_none(alloc.backend.open_db(alloc.run_id))
-
-        # expired, but its run still holds a session: left alone
-        rep = reaper.reap(db)
-        assert leaked in rep.live
-        assert leaked not in rep.reaped
-
-        # the run dies without releasing (its session closes, nothing else happens)
-        dead.abandon()
-
-        with db.connect() as conn:
-            # a schema that exists under the prefix with no registry row
-            unregistered = names.sandbox_name(new_run_id(), 1)
-            qf.exec(conn, f'create schema "{unregistered}"')
-
-            # a registry row whose schema never came to be (or is already gone)
-            phantom = names.sandbox_name(new_run_id(), 1)
-            now = backend.server_now(conn)
-            registry.insert(conn, SandboxRecord(
-                name=phantom,
-                kind=SandboxKind.SCHEMA,
-                run_id=names.parse_sandbox_name(phantom).run_id,  # type: ignore[union-attr]
-                owner='nobody',
-                created_at=now,
-                expires_at=now,
-            ))
-
-            # something under the prefix that is not a sandbox name: reported, never dropped
-            qf.exec(conn, 'create schema if not exists "_osbx_not_a_sandbox"')
-
-        try:
-            rep = reaper.reap(db)
-            assert not rep.skipped
-            assert {leaked, unregistered, phantom} <= set(rep.reaped)
-            assert '_osbx_not_a_sandbox' in rep.unrecognized
-            assert not rep.failed
-
-            with db.connect() as conn:
-                schemas = {r.values[0] for r in qf.query_all(conn, 'select nspname from pg_namespace')}
-                assert not ({leaked, unregistered, phantom} & schemas)
-                assert '_osbx_not_a_sandbox' in schemas
-                assert not ({leaked, phantom} & {r.name for r in registry.list_all(conn)})
-
-            # and a second pass finds nothing to do
-            rep = reaper.reap(db)
-            assert not rep.reaped and not rep.failed
-
-        finally:
-            with db.connect() as conn:
-                qf.exec(conn, 'drop schema if exists "_osbx_not_a_sandbox" cascade')
-
-
-def test_reaper_after_hard_exit(harness) -> None:
-    backend = _backend(harness, lease_ttl_s=0)
-    hs = harness[HarnessSandboxes]
-    loc = hs.postgres_loc()
-
-    proc = subprocess.run(
-        [
-            sys.executable,
-            '-m', __package__ + '.orphan',
-            json.dumps(msh.marshal(backend.config)),
-            loc.host,
-            str(loc.port),
-            SANDBOX_ROLE_PASSWORD,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    leaked = proc.stdout.strip()
-    SandboxNames(backend.config).check_sandbox_name(leaked)
-
-    # opening an allocator reaps on entry, and the child's sessions died with it
-    with SandboxAllocator(backend) as alloc:
-        with alloc.backend.open_db(alloc.run_id).connect() as conn:
-            schemas = {r.values[0] for r in qf.query_all(conn, 'select nspname from pg_namespace')}
-            assert leaked not in schemas
-            assert leaked not in {r.name for r in alloc.registry.list_all(conn)}
-
-
-def test_reaper_lock_contention(harness) -> None:
-    backend = _backend(harness)
-    reaper = Reaper(backend, SandboxRegistry(backend.config), SandboxNames(backend.config))
-
-    with SandboxAllocator(backend, no_reap_on_open=True) as alloc:
-        db = alloc.backend.open_db(alloc.run_id)
-        with db.connect() as holder:
-            assert backend.try_lock(holder, Reaper.LOCK_NAME)
-            try:
-                assert reaper.reap(db).skipped
-            finally:
-                backend.unlock(holder, Reaper.LOCK_NAME)
-            assert not reaper.reap(db).skipped
 
 
 def test_bootstrap_idempotent(harness) -> None:
@@ -216,3 +131,6 @@ def test_bootstrap_idempotent(harness) -> None:
             ).connect() as conn:
                 PostgresSandboxBackend(cfg, admin_loc).guard(conn)
                 assert qf.query_scalar(conn, 'select current_database()') == cfg.database
+                assert check.isinstance(qf.query_scalar(conn, (
+                    'select rolcreatedb from pg_roles where rolname = current_user'
+                )), bool) is False

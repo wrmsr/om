@@ -7,6 +7,7 @@ import typing as ta
 from .... import check
 from ....secrets.secrets import Secrets
 from ...api import querierfuncs as qf
+from ...api.core import Conn
 from ...api.core import Db
 from ...api.queriers import Querier
 from ...backends.postgres.connecting import og8000_db
@@ -15,9 +16,12 @@ from ...dbs import HostDbLoc
 from ...queries import Q
 from ...tabledefs.rendering import Renderer
 from .backends import SandboxBackend
+from .backends import UnregisteredSandbox
 from .config import SandboxesConfig
 from .errors import SandboxSafetyError
 from .names import SandboxNames
+from .registry import SandboxKind
+from .registry import SandboxRecord
 from .registry import SandboxRegistry
 
 
@@ -34,7 +38,11 @@ def advisory_lock_key(s: str) -> int:
 
 
 class PostgresSandboxBackend(SandboxBackend):
-    """A sandbox is a schema in the dedicated sandbox database, entered through the session's search path."""
+    """
+    A sandbox is a schema in the dedicated sandbox database, entered through the session's search path - or, when the
+    config allows it, a whole database of its own. A run is recognizable by the application name stamped on each of its
+    sessions, so liveness needs nothing beyond the session itself.
+    """
 
     def __init__(
             self,
@@ -51,10 +59,23 @@ class PostgresSandboxBackend(SandboxBackend):
 
         self._names = SandboxNames(cfg)
         self._renderer = PostgresTabledefRenderer()
+        self._registry = SandboxRegistry(cfg)
 
     @property
     def config(self) -> SandboxesConfig:
         return self._cfg
+
+    @property
+    def registry(self) -> SandboxRegistry:
+        return self._registry
+
+    @property
+    def supported_kinds(self) -> ta.AbstractSet[SandboxKind]:
+        return {SandboxKind.SCHEMA, SandboxKind.DATABASE} if self._cfg.database_sandboxes else {SandboxKind.SCHEMA}
+
+    @property
+    def default_kind(self) -> SandboxKind:
+        return SandboxKind.SCHEMA
 
     def _quote(self, s: str) -> str:
         return self._renderer.quote_ident(s)
@@ -69,15 +90,28 @@ class PostgresSandboxBackend(SandboxBackend):
             secrets=self._secrets,
         )
 
-    def sandbox_db(self, run_id: str, name: str) -> Db:
+    def sandbox_db(self, run_id: str, name: str, kind: SandboxKind) -> Db:
         self._names.check_sandbox_name(name)
-        return og8000_db(
-            self._loc,
-            database=self._cfg.database,
-            application_name=self._names.application_name(run_id),
-            startup_params={'search_path': self._quote(name)},
-            secrets=self._secrets,
-        )
+
+        if kind is SandboxKind.SCHEMA:
+            return og8000_db(
+                self._loc,
+                database=self._cfg.database,
+                application_name=self._names.application_name(run_id),
+                startup_params={'search_path': self._quote(name)},
+                secrets=self._secrets,
+            )
+
+        elif kind is SandboxKind.DATABASE:
+            return og8000_db(
+                self._loc,
+                database=name,
+                application_name=self._names.application_name(run_id),
+                secrets=self._secrets,
+            )
+
+        else:
+            raise ValueError(kind)
 
     #
 
@@ -98,10 +132,10 @@ class PostgresSandboxBackend(SandboxBackend):
             if not n.startswith(self._cfg.internal_prefix):
                 raise SandboxSafetyError(f'{n!r} is not under the internal prefix {self._cfg.internal_prefix!r}')
 
-    def ensure_registry(self, q: Querier, registry: SandboxRegistry) -> None:
+    def ensure_registry(self, q: Querier) -> None:
         qf.exec(q, f'create schema if not exists {self._quote(self._cfg.registry_schema)}')
         for s in self._renderer.render_create_statements(
-                registry.table_def,
+                self._registry.table_def,
                 Renderer.CreateOptions(if_not_exists=True),
         ):
             qf.exec(q, s)
@@ -123,6 +157,14 @@ class PostgresSandboxBackend(SandboxBackend):
     def server_now(self, q: Querier) -> datetime.datetime:
         return check.isinstance(qf.query_scalar(q, Q.select([Q.f.now()])), datetime.datetime)
 
+    #
+
+    def mark_run_live(self, q: Querier, run_id: str) -> None:
+        pass  # every session of the run already carries its application name
+
+    def unmark_run_live(self, q: Querier, run_id: str) -> None:
+        pass
+
     def run_is_live(self, q: Querier, run_id: str) -> bool:
         n = qf.query_scalar(
             q,
@@ -133,26 +175,67 @@ class PostgresSandboxBackend(SandboxBackend):
 
     #
 
-    def create_sandbox(self, q: Querier, name: str) -> None:
-        qf.exec(q, f'create schema {self._quote(self._names.check_sandbox_name(name))}')
+    def create_sandbox(self, conn: Conn, rec: SandboxRecord) -> None:
+        name = self._quote(self._names.check_sandbox_name(rec.name))
 
-    def drop_sandbox(self, q: Querier, name: str) -> None:
-        qf.exec(q, f'drop schema if exists {self._quote(self._names.check_sandbox_name(name))} cascade')
+        if rec.kind is SandboxKind.SCHEMA:
+            # Schema ddl is transactional: the row and the schema commit together.
+            with conn.begin() as txn:
+                self._registry.insert(txn, rec)
+                qf.exec(txn, f'create schema {name}')
 
-    def list_unregistered(self, q: Querier, registry: SandboxRegistry) -> list[str]:
-        # One statement, one snapshot: a schema and its registry row commit together, so a schema seen here without a
-        # row is a genuine orphan and not a sandbox mid-creation. `like` is avoided since `_` is its wildcard.
+        elif rec.kind is SandboxKind.DATABASE:
+            # 'create database' refuses to run inside a transaction, so register first; a crash in between leaves a
+            # phantom row, which is harmless to reap.
+            self._registry.insert(conn, rec)
+            qf.exec(conn, f'create database {name}')
+
+        else:
+            raise ValueError(rec.kind)
+
+    def drop_sandbox(self, q: Querier, name: str, kind: SandboxKind) -> None:
+        qname = self._quote(self._names.check_sandbox_name(name))
+
+        if kind is SandboxKind.SCHEMA:
+            qf.exec(q, f'drop schema if exists {qname} cascade')
+        elif kind is SandboxKind.DATABASE:
+            # 'with (force)' evicts whatever sessions a dead run left connected to it.
+            qf.exec(q, f'drop database if exists {qname} with (force)')
+        else:
+            raise ValueError(kind)
+
+    def list_unregistered(self, q: Querier) -> list[UnregisteredSandbox]:
+        # One statement per catalog, one snapshot each: a schema and its registry row commit together, and a database
+        # is registered before it is created, so anything seen here without a row is a genuine orphan and not a sandbox
+        # mid-creation. `like` is avoided since `_` is its wildcard.
         prefix = self._cfg.prefix
         internal_prefix = self._cfg.internal_prefix
-        rt = self._renderer.qname(registry.table_name)
-        rows = qf.query_all(q, (
-            'select n.nspname as name from pg_namespace n '
-            f'where left(n.nspname, {len(prefix)}) = {_lit(prefix)} '
-            f'and left(n.nspname, {len(internal_prefix)}) <> {_lit(internal_prefix)} '
-            f'and not exists (select 1 from {rt} r where r.name = n.nspname) '
-            'order by n.nspname'
-        ))
-        return [check.non_empty_str(r.to_dict()['name']) for r in rows]
+        rt = self._renderer.qname(self._registry.table_name)
+
+        def prefixed(col: str) -> str:
+            return (
+                f'left({col}, {len(prefix)}) = {_lit(prefix)} '
+                f'and left({col}, {len(internal_prefix)}) <> {_lit(internal_prefix)} '
+                f'and not exists (select 1 from {rt} r where r.name = {col})'
+            )
+
+        out: list[UnregisteredSandbox] = []
+
+        for r in qf.query_all(q, (
+                'select n.nspname as name from pg_namespace n '
+                f'where {prefixed("n.nspname")} '
+                'order by n.nspname'
+        )):
+            out.append(UnregisteredSandbox(check.non_empty_str(r.to_dict()['name']), SandboxKind.SCHEMA))
+
+        for r in qf.query_all(q, (
+                'select d.datname as name from pg_database d '
+                f'where {prefixed("d.datname")} '
+                'order by d.datname'
+        )):
+            out.append(UnregisteredSandbox(check.non_empty_str(r.to_dict()['name']), SandboxKind.DATABASE))
+
+        return out
 
 
 ##
@@ -192,7 +275,7 @@ def bootstrap_postgres(
     # Always re-asserted, so a retargeted password or a stray privilege is corrected rather than silently kept.
     qf.exec(admin, (
         f'alter role {role} with login password {_lit(role_password)} '
-        'nosuperuser nocreatedb nocreaterole noreplication'
+        f'nosuperuser {"createdb" if cfg.database_sandboxes else "nocreatedb"} nocreaterole noreplication'
     ))
 
     created_database = False

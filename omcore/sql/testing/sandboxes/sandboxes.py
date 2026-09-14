@@ -27,21 +27,26 @@ from .registry import SandboxRegistry
 class Sandbox(lang.Final):
     """An isolated namespace a test owns until it is released; a context manager for exactly that."""
 
-    def __init__(self, allocator: SandboxAllocator, name: str) -> None:
+    def __init__(self, allocator: SandboxAllocator, name: str, kind: SandboxKind) -> None:
         super().__init__()
 
         self._allocator = allocator
         self._name = name
+        self._kind = kind
 
         self._db: Db | None = None
         self._released = False
 
     def __repr__(self) -> str:
-        return f'{type(self).__name__}({self._name!r})'
+        return f'{type(self).__name__}({self._name!r}, {self._kind.value})'
 
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def kind(self) -> SandboxKind:
+        return self._kind
 
     @property
     def run_id(self) -> str:
@@ -55,7 +60,7 @@ class Sandbox(lang.Final):
         if self._released:
             raise SandboxStateError(f'{self!r} is released')
         if (db := self._db) is None:
-            db = self._db = self._allocator.backend.sandbox_db(self.run_id, self._name)
+            db = self._db = self._allocator.backend.sandbox_db(self.run_id, self._name, self._kind)
         return db
 
     def release(self) -> None:
@@ -75,9 +80,9 @@ class Sandbox(lang.Final):
 class SandboxAllocator(lang.Final):
     """
     One per process, for its lifetime: it holds the run id, a session to the sandbox database, and the sandboxes it has
-    handed out. Entering it runs the safety guard, self-bootstraps the registry under a lock, and makes a best-effort
-    reaping pass; exiting it releases whatever the process still holds. Allocation, release, and renewal share one
-    connection and are serialized on a lock, so they may be called from any thread.
+    handed out. Entering it runs the safety guard, self-bootstraps the registry under a lock, marks the run live, and
+    makes a best-effort reaping pass; exiting it releases whatever the process still holds. Allocation, release, and
+    renewal share one connection and are serialized on a lock, so they may be called from any thread.
     """
 
     def __init__(
@@ -93,8 +98,8 @@ class SandboxAllocator(lang.Final):
         self._backend = backend
         self._cfg = backend.config
         self._names = SandboxNames(self._cfg)
-        self._registry = SandboxRegistry(self._cfg)
-        self._reaper = Reaper(backend, self._registry, self._names)
+        self._registry = backend.registry
+        self._reaper = Reaper(backend, self._names)
 
         self._run_id = self._names.check_run_id(run_id if run_id is not None else new_run_id())
         self._owner = owner if owner is not None else f'{socket.gethostname()}:{os.getpid()}'
@@ -148,9 +153,12 @@ class SandboxAllocator(lang.Final):
             # waits on the lock rather than skipping like the reaper does; it is over in a moment.
             self._backend.lock(conn, 'registry')
             try:
-                self._backend.ensure_registry(conn, self._registry)
+                self._backend.ensure_registry(conn)
             finally:
                 self._backend.unlock(conn, 'registry')
+
+            self._backend.mark_run_live(conn, self._run_id)
+            es.callback(self._backend.unmark_run_live, conn, self._run_id)
 
             if not self._no_reap_on_open:
                 self.reap()
@@ -186,7 +194,11 @@ class SandboxAllocator(lang.Final):
     def _expires_at(self, now: datetime.datetime) -> datetime.datetime:
         return now + datetime.timedelta(seconds=self._cfg.lease_ttl_s)
 
-    def allocate(self) -> Sandbox:
+    def allocate(self, kind: SandboxKind | None = None) -> Sandbox:
+        if kind is None:
+            kind = self._backend.default_kind
+        check.in_(kind, self._backend.supported_kinds)
+
         with self._lock:
             conn = self._open_conn()
 
@@ -194,22 +206,20 @@ class SandboxAllocator(lang.Final):
             name = self._names.sandbox_name(self._run_id, self._seq)
 
             now = self._backend.server_now(conn)
-            with conn.begin() as txn:
-                self._registry.insert(txn, SandboxRecord(
-                    name=name,
-                    kind=SandboxKind.SCHEMA,
-                    run_id=self._run_id,
-                    owner=self._owner,
-                    created_at=now,
-                    expires_at=self._expires_at(now),
-                ))
-                self._backend.create_sandbox(txn, name)
+            self._backend.create_sandbox(conn, SandboxRecord(
+                name=name,
+                kind=kind,
+                run_id=self._run_id,
+                owner=self._owner,
+                created_at=now,
+                expires_at=self._expires_at(now),
+            ))
 
             # Any activity keeps the whole run's leases fresh, so an idle sibling sandbox never expires under a run that
             # is still going.
             self._registry.renew_run(conn, self._run_id, self._expires_at(now))
 
-            sb = Sandbox(self, name)
+            sb = Sandbox(self, name, kind)
             self._sandboxes[name] = sb
             return sb
 
@@ -219,8 +229,8 @@ class SandboxAllocator(lang.Final):
             conn = self._open_conn()
 
             # Drop first, then unregister: a crash in between leaves a registered name with nothing behind it, which the
-            # reaper cleans up; the reverse order could leak an unregistered schema.
-            self._backend.drop_sandbox(conn, sb.name)
+            # reaper cleans up; the reverse order could leak an unregistered sandbox.
+            self._backend.drop_sandbox(conn, sb.name, sb.kind)
             self._registry.delete(conn, sb.name)
 
             del self._sandboxes[sb.name]

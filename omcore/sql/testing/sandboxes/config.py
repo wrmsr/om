@@ -33,6 +33,10 @@ class SandboxesConfig(lang.Final):
     # How many times the reaper tries to drop a given orphan before giving up on it for this pass.
     reap_attempts: int = 3
 
+    # Whether the role may create whole-database sandboxes on backends where a sandbox is normally a schema. Bootstrap
+    # grants the privilege accordingly, and the backend advertises the kind only when this is set.
+    database_sandboxes: bool = False
+
     def __post_init__(self) -> None:
         check.arg(_PREFIX_PAT.fullmatch(self.prefix) is not None, self.prefix)
         for n in (self.database, self.role, self.registry_schema):

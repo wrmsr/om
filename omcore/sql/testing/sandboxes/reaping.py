@@ -7,7 +7,7 @@ from ...api.core import Db
 from ...api.queriers import Querier
 from .backends import SandboxBackend
 from .names import SandboxNames
-from .registry import SandboxRegistry
+from .registry import SandboxKind
 
 
 log = logs.get_module_logger(globals())
@@ -39,13 +39,12 @@ class Reaper(lang.Final):
     def __init__(
             self,
             backend: SandboxBackend,
-            registry: SandboxRegistry,
             names: SandboxNames,
     ) -> None:
         super().__init__()
 
         self._backend = backend
-        self._registry = registry
+        self._registry = backend.registry
         self._names = names
 
     def reap(self, db: Db) -> ReapReport:
@@ -73,13 +72,13 @@ class Reaper(lang.Final):
             if self._backend.run_is_live(q, rec.run_id):
                 live.append(rec.name)
                 continue
-            self._reap_one(q, rec.name, reaped, failed)
+            self._reap_one(q, rec.name, rec.kind, reaped, failed)
 
-        for name in self._backend.list_unregistered(q, self._registry):
-            if self._names.parse_sandbox_name(name) is None:
-                unrecognized.append(name)
+        for u in self._backend.list_unregistered(q):
+            if self._names.parse_sandbox_name(u.name) is None:
+                unrecognized.append(u.name)
                 continue
-            self._reap_one(q, name, reaped, failed)
+            self._reap_one(q, u.name, u.kind, reaped, failed)
 
         return ReapReport(
             reaped=reaped,
@@ -88,12 +87,19 @@ class Reaper(lang.Final):
             unrecognized=unrecognized,
         )
 
-    def _reap_one(self, q: Querier, name: str, reaped: list[str], failed: list[str]) -> None:
+    def _reap_one(
+            self,
+            q: Querier,
+            name: str,
+            kind: SandboxKind,
+            reaped: list[str],
+            failed: list[str],
+    ) -> None:
         self._names.check_sandbox_name(name)
 
         for attempt in range(self._backend.config.reap_attempts):
             try:
-                self._backend.drop_sandbox(q, name)
+                self._backend.drop_sandbox(q, name, kind)
                 self._registry.delete(q, name)
             except Exception:  # noqa
                 log.exception('Failed to reap sandbox %r (attempt %d)', name, attempt + 1)

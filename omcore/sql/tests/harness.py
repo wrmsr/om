@@ -8,6 +8,7 @@ from ...docker.all import is_likely_in_docker
 from ...docker.tests.services import ComposeServices
 from ...os.environ import EnvVar
 from ...testing.pytest import inject as pti
+from ..backends.mysql import connecting as myc
 from ..backends.postgres import connecting as pgc
 from ..dbs import DbSpec
 from ..dbs import DbTypes
@@ -106,6 +107,7 @@ class HarnessDbs:
 
 
 POSTGRES_SANDBOX_URL_ENV_VAR = EnvVar('OM_TEST_POSTGRES_SANDBOX_URL')
+MYSQL_SANDBOX_URL_ENV_VAR = EnvVar('OM_TEST_MYSQL_SANDBOX_URL')
 
 # FIXME: provisional - the docker/local sandbox role's password, until credentials are properly injected.
 SANDBOX_ROLE_PASSWORD = 'om'  # noqa: S105
@@ -129,9 +131,13 @@ class HarnessSandboxes:
         self._dbs = dbs
         self._es = es
 
+    ##
+    # postgres
+
     @lang.cached_function
     def postgres_config(self) -> sbx.SandboxesConfig:
-        return sbx.SandboxesConfig()
+        # A self-bootstrapped (throwaway) server gets the database kind too; a pre-bootstrapped one is whatever it is.
+        return sbx.SandboxesConfig(database_sandboxes=POSTGRES_SANDBOX_URL_ENV_VAR.get(None) is None)
 
     @lang.cached_function
     def postgres_loc(self) -> HostDbLoc:
@@ -156,4 +162,48 @@ class HarnessSandboxes:
     @lang.cached_function
     def postgres(self) -> sbx.SandboxAllocator:
         backend = sbx.PostgresSandboxBackend(self.postgres_config(), self.postgres_loc())
+        return self._es.enter_context(sbx.SandboxAllocator(backend))
+
+    ##
+    # mysql
+
+    @lang.cached_function
+    def mysql_config(self) -> sbx.SandboxesConfig:
+        return sbx.SandboxesConfig()
+
+    @lang.cached_function
+    def mysql_admin(self) -> HostDbLoc:
+        url = check.isinstance(check.isinstance(self._dbs.specs()['mysql'].loc, UrlDbLoc).url, str)
+        loc, _ = myc.parse_url_db_loc(url)
+        return loc
+
+    @lang.cached_function
+    def mysql_loc(self) -> HostDbLoc:
+        cfg = self.mysql_config()
+
+        if (url := MYSQL_SANDBOX_URL_ENV_VAR.get(None)):
+            loc, _ = myc.parse_url_db_loc(url)
+            return loc
+
+        admin_loc = self.mysql_admin()
+        with myc.omysql_db(admin_loc).connect() as conn:
+            sbx.bootstrap_mysql(conn, cfg, role_password=SANDBOX_ROLE_PASSWORD)
+
+        return myc.with_username(admin_loc, cfg.role, SANDBOX_ROLE_PASSWORD)
+
+    @lang.cached_function
+    def mysql(self) -> sbx.SandboxAllocator:
+        backend = sbx.MysqlSandboxBackend(self.mysql_config(), self.mysql_loc())
+        return self._es.enter_context(sbx.SandboxAllocator(backend))
+
+    ##
+    # sqlite
+
+    @lang.cached_function
+    def sqlite_config(self) -> sbx.SandboxesConfig:
+        return sbx.SandboxesConfig()
+
+    @lang.cached_function
+    def sqlite(self) -> sbx.SandboxAllocator:
+        backend = sbx.SqliteSandboxBackend(self.sqlite_config())
         return self._es.enter_context(sbx.SandboxAllocator(backend))
