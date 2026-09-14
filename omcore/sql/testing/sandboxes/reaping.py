@@ -21,17 +21,17 @@ class ReapReport(lang.Final):
     skipped: bool = False  # another reaper held the lock; nothing was examined
 
     reaped: ta.Sequence[str] = ()
-    failed: ta.Sequence[str] = ()  # gave up after the configured attempts; the next pass will try again
-    live: ta.Sequence[str] = ()  # lease expired but the run still has a session open, so left alone
+    failed: ta.Sequence[str] = ()        # gave up after the configured attempts; the next pass will try again
+    live: ta.Sequence[str] = ()          # lease expired but the run still has a session open, so left alone
     unrecognized: ta.Sequence[str] = ()  # under the prefix but not a sandbox name; never touched, only reported
 
 
 class Reaper(lang.Final):
     """
-    Cleans up after runs that died without cleaning up after themselves. There is no coordinator: whichever run gets
-    the advisory lock does the work, and any other run that finds it held simply skips. A sandbox is reaped when its
-    lease has expired and no session of its run is still connected, or when it exists under the prefix with no
-    registry row at all. Each drop is attempted a bounded number of times and a failure never stops the pass.
+    Cleans up after runs that died without cleaning up after themselves. There is no coordinator: whichever run gets the
+    advisory lock does the work, and any other run that finds it held simply skips. A sandbox is reaped when its lease
+    has expired and no session of its run is still connected, or when it exists under the prefix with no registry row at
+    all. Each drop is attempted a bounded number of times and a failure never stops the pass.
     """
 
     LOCK_NAME: ta.ClassVar[str] = 'reaper'

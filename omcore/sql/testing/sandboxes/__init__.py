@@ -33,7 +33,6 @@ with _lang.auto_proxy_init(globals()):
         PostgresBootstrapReport,
         PostgresSandboxBackend,
 
-        advisory_lock_key,
         bootstrap_postgres,
     )
 

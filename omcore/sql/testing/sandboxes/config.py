@@ -16,8 +16,8 @@ class SandboxesConfig(lang.Final):
     """
     Everything the sandbox machinery manages is named under `prefix`; its own internal objects (the test database, the
     role, the registry schema) sit under the doubled-underscore `internal_prefix`, leaving plain-prefix names for the
-    sandboxes themselves. The prefix invariant is what makes a run safe to point at a shared server: nothing outside
-    the prefix is ever named in a destructive statement.
+    sandboxes themselves. The prefix invariant is what makes a run safe to point at a shared server: nothing outside the
+    prefix is ever named in a destructive statement.
     """
 
     prefix: str = '_osbx_'
@@ -26,8 +26,8 @@ class SandboxesConfig(lang.Final):
     role: str = '_osbx__role'
     registry_schema: str = '_osbx__registry'
 
-    # A lease is renewed by every allocation its run makes, so this only needs to outlast a run's idle stretches. A
-    # run that dies with its lease unexpired is still reaped once it expires, provided none of its sessions linger.
+    # A lease is renewed by every allocation its run makes, so this only needs to outlast a run's idle stretches. A run
+    # that dies with its lease unexpired is still reaped once it expires, provided none of its sessions linger.
     lease_ttl_s: float = 60. * 60.
 
     # How many times the reaper tries to drop a given orphan before giving up on it for this pass.

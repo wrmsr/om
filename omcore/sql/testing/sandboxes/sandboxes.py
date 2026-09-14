@@ -74,10 +74,10 @@ class Sandbox(lang.Final):
 
 class SandboxAllocator(lang.Final):
     """
-    One per process, for its lifetime: it holds the run id, a session to the sandbox database, and the sandboxes it
-    has handed out. Entering it runs the safety guard, self-bootstraps the registry under a lock, and makes a
-    best-effort reaping pass; exiting it releases whatever the process still holds. Allocation, release, and renewal
-    share one connection and are serialized on a lock, so they may be called from any thread.
+    One per process, for its lifetime: it holds the run id, a session to the sandbox database, and the sandboxes it has
+    handed out. Entering it runs the safety guard, self-bootstraps the registry under a lock, and makes a best-effort
+    reaping pass; exiting it releases whatever the process still holds. Allocation, release, and renewal share one
+    connection and are serialized on a lock, so they may be called from any thread.
     """
 
     def __init__(
@@ -205,8 +205,8 @@ class SandboxAllocator(lang.Final):
                 ))
                 self._backend.create_sandbox(txn, name)
 
-            # Any activity keeps the whole run's leases fresh, so an idle sibling sandbox never expires under a run
-            # that is still going.
+            # Any activity keeps the whole run's leases fresh, so an idle sibling sandbox never expires under a run that
+            # is still going.
             self._registry.renew_run(conn, self._run_id, self._expires_at(now))
 
             sb = Sandbox(self, name)
@@ -218,8 +218,8 @@ class SandboxAllocator(lang.Final):
             check.is_(self._sandboxes.get(sb.name), sb)
             conn = self._open_conn()
 
-            # Drop first, then unregister: a crash in between leaves a registered name with nothing behind it, which
-            # the reaper cleans up; the reverse order could leak an unregistered schema.
+            # Drop first, then unregister: a crash in between leaves a registered name with nothing behind it, which the
+            # reaper cleans up; the reverse order could leak an unregistered schema.
             self._backend.drop_sandbox(conn, sb.name)
             self._registry.delete(conn, sb.name)
 

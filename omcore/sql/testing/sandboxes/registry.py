@@ -39,10 +39,10 @@ class SandboxRecord(lang.Final):
 
 class SandboxRegistry(lang.Final):
     """
-    The one shared table every run reads and writes: a row per sandbox carrying its lease. A row is inserted in the
-    same transaction that creates the sandbox, so anything that exists is registered, and a registered name whose
-    object is gone is harmless to reap again. Timestamps are the server's, never the client's, so leases compare
-    consistently across machines.
+    The one shared table every run reads and writes: a row per sandbox carrying its lease. A row is inserted in the same
+    transaction that creates the sandbox, so anything that exists is registered, and a registered name whose object is
+    gone is harmless to reap again. Timestamps are the server's, never the client's, so leases compare consistently
+    across machines.
     """
 
     TABLE_NAME: ta.ClassVar[str] = 'sandboxes'
@@ -74,7 +74,14 @@ class SandboxRegistry(lang.Final):
 
     #
 
-    _COLUMNS: ta.ClassVar[ta.Sequence[str]] = ('name', 'kind', 'run_id', 'owner', 'created_at', 'expires_at')
+    _COLUMNS: ta.ClassVar[ta.Sequence[str]] = (
+        'name',
+        'kind',
+        'run_id',
+        'owner',
+        'created_at',
+        'expires_at',
+    )
 
     def _select(self) -> ta.Any:
         return Q.select(

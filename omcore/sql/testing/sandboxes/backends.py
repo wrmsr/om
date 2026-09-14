@@ -14,8 +14,8 @@ from .registry import SandboxRegistry
 class SandboxBackend(lang.Abstract):
     """
     The dialect-specific half of the machinery: how to connect, what the safety checks look like on this server, how a
-    sandbox (a schema here, a database there) is created and dropped, and the server-side coordination primitives -
-    an advisory lock and a liveness probe. Everything else (leases, the registry, the reaper's algorithm) is generic.
+    sandbox (a schema here, a database there) is created and dropped, and the server-side coordination primitives - an
+    advisory lock and a liveness probe. Everything else (leases, the registry, the reaper's algorithm) is generic.
     """
 
     @property
