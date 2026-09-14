@@ -67,9 +67,9 @@ google-auth-httplib2==0.4.2
 google-cloud-compute==1.52.0
 googleapis-common-protos==1.75.3
 gprof2dot==2025.4.14
-greenlet==3.5.5
-grpcio==1.83.1
-grpcio-status==1.83.1
+greenlet==3.5.6
+grpcio==1.84.0
+grpcio-status==1.84.0
 guppy3==3.1.7
 h11==0.16.0
 h2==4.4.1
@@ -123,7 +123,7 @@ mojo-compiler==1.0.0
 mojo-compiler-mojo-libs==1.0.0
 mojo-lldb-libs==1.0.0
 more-itertools==11.1.0
-mpmath==1.4.1
+mpmath==1.3.0
 msgpack==1.2.2
 multidict==6.8.0
 multiprocess==0.70.19
@@ -237,7 +237,7 @@ SQLAlchemy==2.0.52
 sqlean.py==3.50.4.5
 sqlite-vec==0.1.9
 stack-data==0.6.3
-sympy==1.14.0rc1
+sympy==1.14.0
 tavily-python==0.8.2
 textual==8.2.8
 textual-dev==1.8.0

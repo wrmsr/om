@@ -135,7 +135,7 @@ trino==0.339.0  # @om-venv !14t !14dt !15t  # orjson
 huggingface-hub==1.31.0
 hf-xet==1.6.0
 
-greenlet==3.5.5
+greenlet==3.5.6
 
 ## NOTE: the following add a full minute to CI just setting up the deps..
 
