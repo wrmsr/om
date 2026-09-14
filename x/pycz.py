@@ -18,84 +18,140 @@ class _PyczArchive:
         self._entries = self._parse_entries(self._data)
 
     @staticmethod
-    def _uint(data: bytes, offset: int, size: int) -> int:
-        end = offset + size
-        if end > len(data):
-            raise _PyczError('Truncated pycz archive')
-        return int.from_bytes(data[offset:end], 'little')
+    def _parse_entries(data: bytes) -> dict[str, tuple[int, int]]:
+        data_len = len(data)
+        int_from_bytes = int.from_bytes
 
-    @classmethod
-    def _parse_entries(cls, data: bytes) -> dict[str, tuple[int, int]]:
-        eocd_offset = data.rfind(b'PK\x05\x06', max(0, len(data) - (65535 + 22)))
-        if eocd_offset < 0 or eocd_offset + 22 > len(data):
-            raise _PyczError('Invalid pycz end record')
+        eocd_offset = data.rfind(b'PK\x05\x06', max(0, data_len - (65535 + 22)))
+        if eocd_offset < 0:
+            raise _PyczError('Invalid pycz eocd.signature')
 
-        disk_number = cls._uint(data, eocd_offset + 4, 2)
-        central_disk_number = cls._uint(data, eocd_offset + 6, 2)
-        disk_entry_count = cls._uint(data, eocd_offset + 8, 2)
-        entry_count = cls._uint(data, eocd_offset + 10, 2)
-        central_size = cls._uint(data, eocd_offset + 12, 4)
-        central_offset = cls._uint(data, eocd_offset + 16, 4)
-        comment_size = cls._uint(data, eocd_offset + 20, 2)
+        if (end := eocd_offset + 6) > data_len:
+            raise _PyczError('Truncated pycz eocd.disk_number')
+        disk_number = int_from_bytes(data[eocd_offset + 4:end], 'little')
+        if (end := eocd_offset + 8) > data_len:
+            raise _PyczError('Truncated pycz eocd.central_disk_number')
+        central_disk_number = int_from_bytes(data[eocd_offset + 6:end], 'little')
+        if (end := eocd_offset + 10) > data_len:
+            raise _PyczError('Truncated pycz eocd.disk_entry_count')
+        disk_entry_count = int_from_bytes(data[eocd_offset + 8:end], 'little')
+        if (end := eocd_offset + 12) > data_len:
+            raise _PyczError('Truncated pycz eocd.entry_count')
+        entry_count = int_from_bytes(data[eocd_offset + 10:end], 'little')
+        if (end := eocd_offset + 16) > data_len:
+            raise _PyczError('Truncated pycz eocd.central_size')
+        central_size = int_from_bytes(data[eocd_offset + 12:end], 'little')
+        if (end := eocd_offset + 20) > data_len:
+            raise _PyczError('Truncated pycz eocd.central_offset')
+        central_offset = int_from_bytes(data[eocd_offset + 16:end], 'little')
+        if (end := eocd_offset + 22) > data_len:
+            raise _PyczError('Truncated pycz eocd.comment_size')
+        comment_size = int_from_bytes(data[eocd_offset + 20:end], 'little')
 
-        if (
-                disk_number or
-                central_disk_number or
-                disk_entry_count != entry_count or
-                entry_count == 0xffff or
-                central_size == 0xffffffff or
-                central_offset == 0xffffffff
-        ):
-            raise _PyczError('Unsupported multi-disk or ZIP64 pycz archive')
-        if eocd_offset + 22 + comment_size != len(data):
-            raise _PyczError('Invalid pycz archive comment')
+        if disk_number:
+            raise _PyczError('Unsupported pycz eocd.disk_number')
+        if central_disk_number:
+            raise _PyczError('Unsupported pycz eocd.central_disk_number')
+        if disk_entry_count != entry_count:
+            raise _PyczError('Mismatched pycz eocd.disk_entry_count/entry_count')
+        if entry_count == 0xffff:
+            raise _PyczError('Unsupported ZIP64 pycz eocd.entry_count')
+        if central_size == 0xffffffff:
+            raise _PyczError('Unsupported ZIP64 pycz eocd.central_size')
+        if central_offset == 0xffffffff:
+            raise _PyczError('Unsupported ZIP64 pycz eocd.central_offset')
+        if eocd_offset + 22 + comment_size != data_len:
+            raise _PyczError('Invalid pycz eocd.comment_size')
         if central_offset + central_size != eocd_offset:
-            raise _PyczError('Invalid pycz central directory')
+            raise _PyczError('Mismatched pycz eocd.central_offset/central_size')
 
         entries: dict[str, tuple[int, int]] = {}
         offset = central_offset
-        for _ in range(entry_count):
-            if data[offset:offset + 4] != b'PK\x01\x02' or offset + 46 > eocd_offset:
-                raise _PyczError('Invalid pycz central directory entry')
+        for i in range(entry_count):
+            if data[offset:offset + 4] != b'PK\x01\x02':
+                raise _PyczError(f'Invalid pycz central[{i}].signature')
+            if offset + 46 > eocd_offset:
+                raise _PyczError(f'Invalid pycz central[{i}].header_size')
 
-            flags = cls._uint(data, offset + 8, 2)
-            compression = cls._uint(data, offset + 10, 2)
-            compressed_size = cls._uint(data, offset + 20, 4)
-            uncompressed_size = cls._uint(data, offset + 24, 4)
-            name_size = cls._uint(data, offset + 28, 2)
-            extra_size = cls._uint(data, offset + 30, 2)
-            entry_comment_size = cls._uint(data, offset + 32, 2)
-            entry_disk_number = cls._uint(data, offset + 34, 2)
-            local_offset = cls._uint(data, offset + 42, 4)
+            if (end := offset + 10) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].flags')
+            flags = int_from_bytes(data[offset + 8:end], 'little')
+            if (end := offset + 12) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].compression')
+            compression = int_from_bytes(data[offset + 10:end], 'little')
+            if (end := offset + 24) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].compressed_size')
+            compressed_size = int_from_bytes(data[offset + 20:end], 'little')
+            if (end := offset + 28) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].uncompressed_size')
+            uncompressed_size = int_from_bytes(data[offset + 24:end], 'little')
+            if (end := offset + 30) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].name_size')
+            name_size = int_from_bytes(data[offset + 28:end], 'little')
+            if (end := offset + 32) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].extra_size')
+            extra_size = int_from_bytes(data[offset + 30:end], 'little')
+            if (end := offset + 34) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].comment_size')
+            entry_comment_size = int_from_bytes(data[offset + 32:end], 'little')
+            if (end := offset + 36) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].disk_number')
+            entry_disk_number = int_from_bytes(data[offset + 34:end], 'little')
+            if (end := offset + 46) > data_len:
+                raise _PyczError(f'Truncated pycz central[{i}].local_offset')
+            local_offset = int_from_bytes(data[offset + 42:end], 'little')
             entry_end = offset + 46 + name_size + extra_size + entry_comment_size
             if entry_end > eocd_offset:
-                raise _PyczError('Truncated pycz central directory entry')
-            if flags & 1 or compression != 0 or compressed_size != uncompressed_size or entry_disk_number:
-                raise _PyczError('Pycz entries must be unencrypted, uncompressed, and on one disk')
+                raise _PyczError(f'Invalid pycz central[{i}].name_size/extra_size/comment_size')
+            if flags & 1:
+                raise _PyczError(f'Unsupported encryption in pycz central[{i}].flags')
+            if compression != 0:
+                raise _PyczError(f'Unsupported pycz central[{i}].compression')
+            if compressed_size != uncompressed_size:
+                raise _PyczError(f'Mismatched pycz central[{i}].compressed_size/uncompressed_size')
+            if entry_disk_number:
+                raise _PyczError(f'Unsupported pycz central[{i}].disk_number')
 
             name_data = data[offset + 46:offset + 46 + name_size]
-            name = name_data.decode('utf-8' if flags & 0x800 else 'cp437')
+            try:
+                name = name_data.decode('utf-8' if flags & 0x800 else 'cp437')
+            except UnicodeDecodeError as exc:
+                raise _PyczError(f'Invalid pycz central[{i}].name') from exc
             if name in entries:
-                raise _PyczError(f'Duplicate pycz entry: {name!r}')
+                raise _PyczError(f'Duplicate pycz central[{i}].name: {name!r}')
 
-            if data[local_offset:local_offset + 4] != b'PK\x03\x04' or local_offset + 30 > central_offset:
-                raise _PyczError(f'Invalid local pycz entry: {name!r}')
-            local_flags = cls._uint(data, local_offset + 6, 2)
-            local_compression = cls._uint(data, local_offset + 8, 2)
-            local_name_size = cls._uint(data, local_offset + 26, 2)
-            local_extra_size = cls._uint(data, local_offset + 28, 2)
+            if data[local_offset:local_offset + 4] != b'PK\x03\x04':
+                raise _PyczError(f'Invalid pycz local[{i}].signature: {name!r}')
+            if local_offset + 30 > central_offset:
+                raise _PyczError(f'Invalid pycz local[{i}].header_size: {name!r}')
+            if (end := local_offset + 8) > data_len:
+                raise _PyczError(f'Truncated pycz local[{i}].flags: {name!r}')
+            local_flags = int_from_bytes(data[local_offset + 6:end], 'little')
+            if (end := local_offset + 10) > data_len:
+                raise _PyczError(f'Truncated pycz local[{i}].compression: {name!r}')
+            local_compression = int_from_bytes(data[local_offset + 8:end], 'little')
+            if (end := local_offset + 28) > data_len:
+                raise _PyczError(f'Truncated pycz local[{i}].name_size: {name!r}')
+            local_name_size = int_from_bytes(data[local_offset + 26:end], 'little')
+            if (end := local_offset + 30) > data_len:
+                raise _PyczError(f'Truncated pycz local[{i}].extra_size: {name!r}')
+            local_extra_size = int_from_bytes(data[local_offset + 28:end], 'little')
             local_name = data[local_offset + 30:local_offset + 30 + local_name_size]
             data_offset = local_offset + 30 + local_name_size + local_extra_size
-            if local_flags != flags or local_compression != compression or local_name != name_data:
-                raise _PyczError(f'Mismatched local pycz entry: {name!r}')
+            if local_flags != flags:
+                raise _PyczError(f'Mismatched pycz local[{i}].flags: {name!r}')
+            if local_compression != compression:
+                raise _PyczError(f'Mismatched pycz local[{i}].compression: {name!r}')
+            if local_name != name_data:
+                raise _PyczError(f'Mismatched pycz local[{i}].name: {name!r}')
             if data_offset + uncompressed_size > central_offset:
-                raise _PyczError(f'Truncated local pycz entry: {name!r}')
+                raise _PyczError(f'Invalid pycz local[{i}].extra_size/central[{i}].uncompressed_size: {name!r}')
 
             entries[name] = (data_offset, uncompressed_size)
             offset = entry_end
 
         if offset != eocd_offset:
-            raise _PyczError('Invalid pycz central directory size')
+            raise _PyczError('Mismatched pycz eocd.central_size/central entries')
         return entries
 
     @property
