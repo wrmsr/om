@@ -34,19 +34,6 @@ from .asquery import (  # noqa
     as_query_,
 )
 
-from .asyncs import (  # noqa
-    SyncToAsyncRunner,
-    SyncToAsyncRunnerFactory,
-
-    ImmediateSyncToAsyncRunner,
-    AsyncioToExecutorSyncToAsyncRunner,
-
-    SyncToAsyncRows,
-    SyncToAsyncTxn,
-    SyncToAsyncConn,
-    SyncToAsyncDb,
-)
-
 from .columns import (  # noqa
     Column,
     Columns,
@@ -70,17 +57,6 @@ from .core import (  # noqa
     AsyncDb,
 )
 
-from .dbapi import (  # noqa
-    DbapiConnector,
-
-    ClosingDbapiConnector,
-
-    DbapiRows,
-    DbapiConn,
-    DbapiDb,
-    DbapiAdapter,
-)
-
 from .errors import (  # noqa
     Error,
 
@@ -95,48 +71,6 @@ from .queriers import (  # noqa
     AnyQuerier,
     Querier,
     AsyncQuerier,
-)
-
-from .querierfuncs import (  # noqa
-    sync_exec,
-    async_exec,
-    exec,  # noqa
-
-    sync_exec_many,
-    async_exec_many,
-    exec_many,
-
-    sync_query,
-    async_query,
-    query,
-
-    sync_query_all,
-    async_query_all,
-    query_all,
-
-    sync_query_first,
-    async_query_first,
-    query_first,
-
-    sync_query_opt_first,
-    async_query_opt_first,
-    query_opt_first,
-
-    sync_query_one,
-    async_query_one,
-    query_one,
-
-    sync_query_opt_one,
-    async_query_opt_one,
-    query_opt_one,
-
-    sync_query_scalar,
-    async_query_scalar,
-    query_scalar,
-
-    sync_query_maybe_scalar,
-    async_query_maybe_scalar,
-    query_maybe_scalar,
 )
 
 from .queries import (  # noqa
@@ -160,5 +94,79 @@ from .rows import (  # noqa
 
 
 from ... import lang as _lang  # noqa
+
+
+with _lang.auto_proxy_init(globals()):
+    ##
+
+    from .asyncs import (  # noqa
+        SyncToAsyncRunner,
+        SyncToAsyncRunnerFactory,
+
+        ImmediateSyncToAsyncRunner,
+        AsyncioToExecutorSyncToAsyncRunner,
+
+        SyncToAsyncRows,
+        SyncToAsyncTxn,
+        SyncToAsyncConn,
+        SyncToAsyncDb,
+    )
+
+    from .dbapi import (  # noqa
+        DbapiConnector,
+
+        ClosingDbapiConnector,
+
+        DbapiRows,
+        DbapiConn,
+        DbapiDb,
+        DbapiAdapter,
+    )
+
+    from .querierfuncs import (  # noqa
+        sync_exec,
+        async_exec,
+        exec,  # noqa
+
+        sync_exec_many,
+        async_exec_many,
+        exec_many,
+
+        sync_query,
+        async_query,
+        query,
+
+        sync_query_all,
+        async_query_all,
+        query_all,
+
+        sync_query_first,
+        async_query_first,
+        query_first,
+
+        sync_query_opt_first,
+        async_query_opt_first,
+        query_opt_first,
+
+        sync_query_one,
+        async_query_one,
+        query_one,
+
+        sync_query_opt_one,
+        async_query_opt_one,
+        query_opt_one,
+
+        sync_query_scalar,
+        async_query_scalar,
+        query_scalar,
+
+        sync_query_maybe_scalar,
+        async_query_maybe_scalar,
+        query_maybe_scalar,
+    )
+
+
+##
+
 
 _lang.register_conditional_import('..queries', '._queries', __package__)

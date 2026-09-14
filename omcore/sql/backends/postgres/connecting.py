@@ -12,8 +12,8 @@ from ....secrets.secrets import Secrets
 from ...api.core import Db
 from ...dbs import DbTypes
 from ...dbs import HostDbLoc
-from ...drivers.og8000.core.sync import SyncCoreConnection
-from .drivers.og8000.sync import Og8000Db
+from ...drivers import og8000 as og8000_
+from .drivers import og8000
 
 
 ##
@@ -65,7 +65,7 @@ def og8000_db(
         startup_params=dict(startup_params) if startup_params is not None else None,
     )
 
-    return Og8000Db(lambda: SyncCoreConnection(**kwargs))
+    return og8000.Og8000Db(lambda: og8000_.SyncCoreConnection(**kwargs))
 
 
 def with_username(loc: HostDbLoc, username: str, password: str | None) -> HostDbLoc:

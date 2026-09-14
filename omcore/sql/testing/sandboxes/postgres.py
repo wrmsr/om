@@ -171,10 +171,10 @@ def bootstrap_postgres(
         role_password: str,
 ) -> PostgresBootstrapReport:
     """
-    Idempotently ensures the sandbox role and database exist on a server, given a session with the privileges to
-    create them. Runs identically against a throwaway docker server and a shared managed instance; only the caller's
-    credentials differ. The registry itself is not created here - each run self-bootstraps it under a lock - so this
-    is the whole of what a shared server needs done by hand, once.
+    Idempotently ensures the sandbox role and database exist on a server, given a session with the privileges to create
+    them. Runs identically against a throwaway docker server and a shared managed instance; only the caller's
+    credentials differ. The registry itself is not created here - each run self-bootstraps it under a lock - so this is
+    the whole of what a shared server needs done by hand, once.
     """
 
     r = PostgresTabledefRenderer()

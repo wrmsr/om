@@ -15,16 +15,13 @@ from .....api.queries import Query
 from .....api.queries import Queryable
 from .....api.queries import RowParams
 from .....api.rows import Row
-from .....drivers.omysql.core.asyncio import AsyncioConnection
-from .....drivers.omysql.cursors.formatting import mogrify
-from .....drivers.omysql.protocol.session import QueryResult
-from .....drivers.omysql.protocol.session import UnbufferedResult
+from .....drivers import omysql
 from .base import OmysqlAdapter
 from .base import build_omysql_columns
 from .base import omysql_row_args
 
 
-AsyncioOmysqlConnector: ta.TypeAlias = ta.Callable[[], ta.Awaitable[AsyncioConnection]]
+type AsyncioOmysqlConnector = ta.Callable[[], ta.Awaitable[omysql.AsyncioConnection]]
 
 
 ##
@@ -112,7 +109,7 @@ class AsyncioOmysqlTxn(AsyncTxn, AsyncSimpleResource):
 class AsyncioOmysqlConn(AsyncConn):
     def __init__(
             self,
-            conn: AsyncioConnection,
+            conn: omysql.AsyncioConnection,
             *,
             adapter: Adapter | None = None,
     ) -> None:
@@ -137,9 +134,9 @@ class AsyncioOmysqlConn(AsyncConn):
         if isinstance(p, NoParams):
             return [q.text]
         elif isinstance(p, RowParams):
-            return [mogrify(q.text, omysql_row_args(p.values), self._conn)]
+            return [omysql.mogrify(q.text, omysql_row_args(p.values), self._conn)]
         elif isinstance(p, ManyParams):
-            return [mogrify(q.text, omysql_row_args(row), self._conn) for row in p.rows]
+            return [omysql.mogrify(q.text, omysql_row_args(row), self._conn) for row in p.rows]
         else:
             raise TypeError(p)
 
@@ -157,9 +154,9 @@ class AsyncioOmysqlConn(AsyncConn):
             else:
                 [sql] = self._mogrify(q)
                 await self._conn.query(sql)
-                result: QueryResult | UnbufferedResult = check.isinstance(
+                result: omysql.QueryResult | omysql.UnbufferedResult = check.isinstance(
                     self._conn.result,
-                    (QueryResult, UnbufferedResult),
+                    (omysql.QueryResult, omysql.UnbufferedResult),
                 )
 
                 yield AsyncioOmysqlRows(build_omysql_columns(result.fields), result.rows or ())

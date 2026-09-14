@@ -15,16 +15,13 @@ from .....api.queries import Query
 from .....api.queries import Queryable
 from .....api.queries import RowParams
 from .....api.rows import Row
-from .....drivers.omysql.core.sync import SyncConnection
-from .....drivers.omysql.cursors.formatting import mogrify
-from .....drivers.omysql.protocol.session import QueryResult
-from .....drivers.omysql.protocol.session import UnbufferedResult
+from .....drivers import omysql
 from .base import OmysqlAdapter
 from .base import build_omysql_columns
 from .base import omysql_row_args
 
 
-OmysqlConnector: ta.TypeAlias = ta.Callable[[], SyncConnection]
+type OmysqlConnector = ta.Callable[[], omysql.SyncConnection]
 
 
 ##
@@ -108,7 +105,7 @@ class OmysqlTxn(Txn, SimpleResource):
 class OmysqlConn(Conn):
     def __init__(
             self,
-            conn: SyncConnection,
+            conn: omysql.SyncConnection,
             *,
             adapter: Adapter | None = None,
     ) -> None:
@@ -133,9 +130,9 @@ class OmysqlConn(Conn):
         if isinstance(p, NoParams):
             return [q.text]
         elif isinstance(p, RowParams):
-            return [mogrify(q.text, omysql_row_args(p.values), self._conn)]
+            return [omysql.mogrify(q.text, omysql_row_args(p.values), self._conn)]
         elif isinstance(p, ManyParams):
-            return [mogrify(q.text, omysql_row_args(row), self._conn) for row in p.rows]
+            return [omysql.mogrify(q.text, omysql_row_args(row), self._conn) for row in p.rows]
         else:
             raise TypeError(p)
 
@@ -153,9 +150,9 @@ class OmysqlConn(Conn):
             else:
                 [sql] = self._mogrify(q)
                 self._conn.query(sql)
-                result: QueryResult | UnbufferedResult = check.isinstance(
+                result: omysql.QueryResult | omysql.UnbufferedResult = check.isinstance(
                     self._conn.result,
-                    (QueryResult, UnbufferedResult),
+                    (omysql.QueryResult, omysql.UnbufferedResult),
                 )
 
                 yield OmysqlRows(build_omysql_columns(result.fields), result.rows or ())

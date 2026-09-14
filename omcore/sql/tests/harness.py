@@ -13,7 +13,13 @@ from ..dbs import DbSpec
 from ..dbs import DbTypes
 from ..dbs import HostDbLoc
 from ..dbs import UrlDbLoc
-from ..testing import sandboxes as sbx
+
+
+with lang.auto_proxy_import(globals()):
+    from ..testing import sandboxes as sbx
+
+
+##
 
 
 MYSQL_URL_ENV_VAR = EnvVar('OM_TEST_MYSQL_URL')

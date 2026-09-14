@@ -19,3 +19,38 @@ _dc.init_package(
     globals(),
     codegen=True,
 )
+
+
+##
+
+
+from .... import lang as _lang  # noqa
+
+
+with _lang.auto_proxy_init(globals()):
+    ##
+
+    from .core.asyncio import (   # noqa
+        AsyncioConnection,
+    )
+
+    from .core.base import (  # noqa
+        BaseConnection,
+    )
+
+    from .core.sync import (  # noqa
+        SyncConnection,
+    )
+
+    from .cursors.formatting import (  # noqa
+        mogrify,
+    )
+
+    from .protocol.messages import (  # noqa
+        ColumnDefinition,
+    )
+
+    from .protocol.session import (  # noqa
+        QueryResult,
+        UnbufferedResult,
+    )

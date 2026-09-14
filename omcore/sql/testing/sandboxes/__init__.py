@@ -1,48 +1,54 @@
-from .backends import (  # noqa
-    SandboxBackend,
-)
+from .... import lang as _lang  # noqa
 
-from .config import (  # noqa
-    SandboxesConfig,
-)
 
-from .errors import (  # noqa
-    SandboxError,
-    SandboxNameError,
-    SandboxSafetyError,
-    SandboxStateError,
-)
+with _lang.auto_proxy_init(globals()):
+    ##
 
-from .names import (  # noqa
-    MAX_NAME_LENGTH,
-    RUN_ID_PAT,
+    from .backends import (  # noqa
+        SandboxBackend,
+    )
 
-    ParsedSandboxName,
-    SandboxNames,
+    from .config import (  # noqa
+        SandboxesConfig,
+    )
 
-    new_run_id,
-)
+    from .errors import (  # noqa
+        SandboxError,
+        SandboxNameError,
+        SandboxSafetyError,
+        SandboxStateError,
+    )
 
-from .postgres import (  # noqa
-    PostgresBootstrapReport,
-    PostgresSandboxBackend,
+    from .names import (  # noqa
+        MAX_NAME_LENGTH,
+        RUN_ID_PAT,
 
-    advisory_lock_key,
-    bootstrap_postgres,
-)
+        ParsedSandboxName,
+        SandboxNames,
 
-from .reaping import (  # noqa
-    ReapReport,
-    Reaper,
-)
+        new_run_id,
+    )
 
-from .registry import (  # noqa
-    SandboxKind,
-    SandboxRecord,
-    SandboxRegistry,
-)
+    from .postgres import (  # noqa
+        PostgresBootstrapReport,
+        PostgresSandboxBackend,
 
-from .sandboxes import (  # noqa
-    Sandbox,
-    SandboxAllocator,
-)
+        advisory_lock_key,
+        bootstrap_postgres,
+    )
+
+    from .reaping import (  # noqa
+        ReapReport,
+        Reaper,
+    )
+
+    from .registry import (  # noqa
+        SandboxKind,
+        SandboxRecord,
+        SandboxRegistry,
+    )
+
+    from .sandboxes import (  # noqa
+        Sandbox,
+        SandboxAllocator,
+    )

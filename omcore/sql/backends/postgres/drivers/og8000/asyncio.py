@@ -16,13 +16,13 @@ from .....api.queries import Query
 from .....api.queries import Queryable
 from .....api.queries import RowParams
 from .....api.rows import Row
-from .....drivers.og8000.core.asyncio import AsyncioCoreConnection
+from .....drivers import og8000
 from .base import Og8000Adapter
 from .base import build_og8000_columns
 from .base import positional_og8000_params
 
 
-AsyncioOg8000Connector: ta.TypeAlias = ta.Callable[[], ta.Awaitable[AsyncioCoreConnection]]
+type AsyncioOg8000Connector = ta.Callable[[], ta.Awaitable[og8000.AsyncioCoreConnection]]
 
 
 ##
@@ -110,7 +110,7 @@ class AsyncioOg8000Txn(AsyncTxn, AsyncSimpleResource):
 class AsyncioOg8000Conn(AsyncConn):
     def __init__(
             self,
-            conn: AsyncioCoreConnection,
+            conn: og8000.AsyncioCoreConnection,
             *,
             adapter: Adapter | None = None,
     ) -> None:

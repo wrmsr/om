@@ -6,7 +6,7 @@ from .....api.adapters import Adapter
 from .....api.columns import Column
 from .....api.columns import Columns
 from .....api.dialects import Dialect
-from .....drivers.omysql.protocol.messages import ColumnDefinition
+from .....drivers import omysql
 from .....params import ParamStyle
 from ...dialect import MysqlDialect
 
@@ -15,7 +15,7 @@ from ...dialect import MysqlDialect
 
 
 def build_omysql_columns(
-        fields: ta.Sequence[ColumnDefinition] | None,
+        fields: ta.Sequence[omysql.ColumnDefinition] | None,
 ) -> Columns:
     if fields is None:
         return Columns.empty()

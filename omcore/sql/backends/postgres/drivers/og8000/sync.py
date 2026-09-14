@@ -16,13 +16,13 @@ from .....api.queries import Query
 from .....api.queries import Queryable
 from .....api.queries import RowParams
 from .....api.rows import Row
-from .....drivers.og8000.core.sync import SyncCoreConnection
+from .....drivers import og8000
 from .base import Og8000Adapter
 from .base import build_og8000_columns
 from .base import positional_og8000_params
 
 
-Og8000Connector: ta.TypeAlias = ta.Callable[[], SyncCoreConnection]
+type Og8000Connector = ta.Callable[[], og8000.SyncCoreConnection]
 
 
 ##
@@ -106,7 +106,7 @@ class Og8000Txn(Txn, SimpleResource):
 class Og8000Conn(Conn):
     def __init__(
             self,
-            conn: SyncCoreConnection,
+            conn: og8000.SyncCoreConnection,
             *,
             adapter: Adapter | None = None,
     ) -> None:
