@@ -87,7 +87,7 @@ class _PgRegexp(Predicate, lang.Final):
 class _PgR(_R):
     def render_predicate(self, p):
         if isinstance(p, _PgRegexp):
-            return f"{self.quote(p.column)} ~ '{p.pattern}'"
+            return f"{self.quote_ident(p.column)} ~ '{p.pattern}'"
         return super().render_predicate(p)
 
 

@@ -4,6 +4,7 @@ from .deletes import DeleteBuilder
 from .exprs import ExprBuilder
 from .funcs import FuncBuilder
 from .idents import IdentBuilder
+from .in_ import InBuilder
 from .inserts import InsertBuilder
 from .keywords import KeywordBuilder
 from .multi import MultiBuilder
@@ -16,7 +17,6 @@ from .stmts import StmtBuilder
 from .unary import UnaryBuilder
 from .unions import UnionBuilder
 from .updates import UpdateBuilder
-from .in_ import InBuilder
 
 
 ##

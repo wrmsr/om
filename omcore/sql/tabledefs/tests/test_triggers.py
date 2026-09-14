@@ -46,10 +46,14 @@ class _CaptureTriggerRenderer(TriggerRenderer[_CaptureTrigger]):
 
     def create_statements(self, r, tbl, t, opts):
         pk = tbl.elements.get(PrimaryKey)
-        return [f'create trigger {r.quote(t.trigger_name(tbl.name))} on {r.qname(tbl.name)} /* pk {pk.columns[0]} */']
+        return [(
+            f'create trigger {r.quote_ident(t.trigger_name(tbl.name))} '
+            f'on {r.qname(tbl.name)} '
+            f'/* pk {pk.columns[0]} */'
+        )]
 
     def drop_statements(self, r, table_name, name):
-        return [f'drop trigger {r.quote(name)} on {r.qname(table_name)}']
+        return [f'drop trigger {r.quote_ident(name)} on {r.qname(table_name)}']
 
 
 class _R(Renderer):

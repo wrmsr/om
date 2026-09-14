@@ -1304,6 +1304,117 @@ def _process_dataclass__2de74e3f3fd0bdfa3ce205dae3e0c8e501e402b8():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('v', 'vs', 'not_')), FrozenPlan(fields=('__node_fields__', '_hash', 'v', 'vs', 'no"
+        "t_'), allow_dynamic_dunder_attrs=False), InitPlan(fields=(InitPlan.Field(name='__node_fields__', annotation=Op"
+        "Ref(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_typ"
+        "e=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='_hash', annotation=O"
+        "pRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_ty"
+        "pe=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='v', annotation=OpRe"
+        "f(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type="
+        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='vs', annotation=OpRef(n"
+        "ame='init.fields.3.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fie"
+        "ldType.INSTANCE, coerce=OpRef(name='init.fields.3.coerce'), validate=None, check_type=None), InitPlan.Field(na"
+        "me='not_', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), def"
+        "ault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check"
+        "_type=None)), self_param='self', std_params=('v', 'vs'), kw_only_params=('not_',), frozen=True, slots=False, p"
+        "ost_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='v', kw_only=False, "
+        "fn=None), ReprPlan.Field(name='vs', kw_only=False, fn=None), ReprPlan.Field(name='not_', kw_only=True, fn=OpRe"
+        "f(name='repr.fns.4.fn'))), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='3bf2946a5487d621a0b24e9c9d9bf7743842ef6a',
+    cls_names=(
+        ('omcore.sql.queries.in_', 'In'),
+    ),
+)
+def _process_dataclass__3bf2946a5487d621a0b24e9c9d9bf7743842ef6a():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__coerce,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__repr__fns__4__fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                v=self.v,
+                vs=self.vs,
+                not_=self.not_,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__node_fields__',
+            '_hash',
+            'v',
+            'vs',
+            'not_',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __init__(
+            self,
+            v: __dataclass__init__fields__2__annotation,
+            vs: __dataclass__init__fields__3__annotation,
+            *,
+            not_: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            vs = __dataclass__init__fields__3__coerce(vs)
+            __dataclass__object_setattr(self, 'v', v)
+            __dataclass__object_setattr(self, 'vs', vs)
+            __dataclass__object_setattr(self, 'not_', not_)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"v={self.v!r}")
+            parts.append(f"vs={self.vs!r}")
+            if (s := __dataclass__repr__fns__4__fn(self.not_)) is not None:
+                parts.append(f"not_={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('columns', 'into', 'data')), FrozenPlan(fields=('__node_fields__', '_hash', 'colum"
         "ns', 'into', 'data'), allow_dynamic_dunder_attrs=False), InitPlan(fields=(InitPlan.Field(name='__node_fields__"
         "', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override="

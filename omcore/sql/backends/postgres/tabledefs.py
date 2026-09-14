@@ -67,12 +67,12 @@ class PostgresUpdatedAtTriggerRenderer(TriggerRenderer[UpdatedAtTrigger]):
         return [
             CREATE_UPDATED_AT_TRIGGER_FUNCTION_SRC.format(
                 function_name=r.qname(function_qn),
-                column_name=r.quote(t.column),
+                column_name=r.quote_ident(t.column),
             ),
             CREATE_UPDATED_AT_TRIGGER_SRC.format(
                 # Postgres 14+ has 'create or replace trigger', which stands in for the missing 'if not exists'.
                 or_replace='or replace ' if opts.if_not_exists else '',
-                trigger_name=r.quote(trigger_name),
+                trigger_name=r.quote_ident(trigger_name),
                 table_name=r.qname(tbl.name),
                 function_name=r.qname(function_qn),
             ),
@@ -87,7 +87,7 @@ class PostgresUpdatedAtTriggerRenderer(TriggerRenderer[UpdatedAtTrigger]):
         function_qn = table_name.sibling(self.function_name(name))
 
         return [
-            f'drop trigger if exists {r.quote(name)} on {r.qname(table_name)}',
+            f'drop trigger if exists {r.quote_ident(name)} on {r.qname(table_name)}',
             f'drop function if exists {r.qname(function_qn)}()',
         ]
 
@@ -103,7 +103,7 @@ POSTGRES_INTEGER_TYPES_BY_BITS: ta.Mapping[int, str] = {
 
 
 class PostgresTabledefRenderer(Renderer):
-    max_identifier_length = 63
+    max_ident_length = 63
 
     def builtin_trigger_renderers(self) -> ta.Sequence[TriggerRenderer]:
         return [PostgresUpdatedAtTriggerRenderer()]
@@ -136,6 +136,6 @@ class PostgresTabledefRenderer(Renderer):
         c = op.column
         nn = 'set' if not c.nullable else 'drop'
         return [
-            f'alter table {self.qname(op.table)} alter column {self.quote(c.name)} type {self.column_type(c, is_identity=False)}',  # noqa
-            f'alter table {self.qname(op.table)} alter column {self.quote(c.name)} {nn} not null',
+            f'alter table {self.qname(op.table)} alter column {self.quote_ident(c.name)} type {self.column_type(c, is_identity=False)}',  # noqa
+            f'alter table {self.qname(op.table)} alter column {self.quote_ident(c.name)} {nn} not null',
         ]

@@ -7,7 +7,6 @@ from ... import marshal as msh
 from ... import typedvalues as tv
 from ..qualifiedname import CanQualifiedName
 from ..qualifiedname import QualifiedName
-from ..qualifiedname import as_qualified_name
 from .elements import Element
 from .elements import Elements
 from .options import TableOption
@@ -40,7 +39,7 @@ def table_def(
         options: ta.Sequence[TableOption] = (),
 ) -> TableDef:
     return TableDef(
-        as_qualified_name(name),
+        QualifiedName.of(name),
         Elements(*elements),
         options=tv.collect(*options),
     )

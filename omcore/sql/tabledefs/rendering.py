@@ -87,17 +87,6 @@ class Renderer(lang.Abstract):
         drop_if_exists: bool = False
         if_not_exists: bool = False
 
-    quote_style: ta.ClassVar[QuoteStyle] = QuoteStyles.DOUBLE
-
-    # Some backends (postgres) silently truncate an over-long identifier, which can fold two names into one; refusing
-    # up front is far safer.
-    max_identifier_length: ta.ClassVar[int | None] = None
-
-    # An integer of unspecified width gets the backend's default, except an identity column, which should never run
-    # out of ids.
-    default_integer_bits: ta.ClassVar[int] = 32
-    identity_integer_bits: ta.ClassVar[int] = 64
-
     def __init__(
             self,
             *,
@@ -123,14 +112,20 @@ class Renderer(lang.Abstract):
     ##
     # identifiers
 
-    def quote(self, s: str) -> str:
+    ident_quote_style: QuoteStyle = QuoteStyles.DOUBLE
+
+    # Some backends (postgres) silently truncate an over-long identifier, which can fold two names into one; refusing
+    # up front is far safer.
+    max_ident_length: int | None = None
+
+    def quote_ident(self, s: str) -> str:
         check.non_empty_str(s)
-        if (ml := self.max_identifier_length) is not None and len(s.encode('utf-8')) > ml:
+        if (ml := self.max_ident_length) is not None and len(s.encode('utf-8')) > ml:
             raise IdentifierTooLongError(s, ml)
-        return self.quote_style.quote(s)
+        return self.ident_quote_style.quote(s)
 
     def qname(self, qn: QualifiedName) -> str:
-        return '.'.join(self.quote(p) for p in qn)
+        return '.'.join(self.quote_ident(p) for p in qn)
 
     ##
     # hooks
@@ -138,6 +133,11 @@ class Renderer(lang.Abstract):
     @abc.abstractmethod
     def column_type(self, c: Column, *, is_identity: bool, indexed: bool = False) -> str:
         raise NotImplementedError
+
+    # An integer of unspecified width gets the backend's default, except an identity column, which should never run out
+    # of ids.
+    default_integer_bits: int = 32
+    identity_integer_bits: int = 64
 
     def integer_bits(self, t: Integer, *, is_identity: bool) -> int:
         if t.bits is not None:
@@ -183,7 +183,11 @@ class Renderer(lang.Abstract):
         out.write('index ')
         if opts.if_not_exists:
             out.write('if not exists ')
-        out.write(f'{self.quote(idx_name)} on {self.qname(table_name)} ({", ".join(self.quote(c) for c in e.columns)})')
+        out.write(
+            f'{self.quote_ident(idx_name)} on '
+            f'{self.qname(table_name)} '
+            f'({", ".join(self.quote_ident(c) for c in e.columns)})',
+        )
         if e.where is not None:
             out.write(f' where {self.render_predicate(e.where)}')
         out.write('\n')
@@ -197,9 +201,9 @@ class Renderer(lang.Abstract):
         if isinstance(p, RawPredicate):
             return p.s
         elif isinstance(p, Compare):
-            return f'{self.quote(p.column)} {p.op.value} {self.render_predicate_value(p.value)}'
+            return f'{self.quote_ident(p.column)} {p.op.value} {self.render_predicate_value(p.value)}'
         elif isinstance(p, IsNull):
-            return f'{self.quote(p.column)} is not null' if p.negated else f'{self.quote(p.column)} is null'
+            return f'{self.quote_ident(p.column)} is not null' if p.negated else f'{self.quote_ident(p.column)} is null'
         elif isinstance(p, Not):
             return f'not ({self.render_predicate(p.predicate)})'
         elif isinstance(p, And):
@@ -262,7 +266,7 @@ class Renderer(lang.Abstract):
 
     def _render_column(self, rc: RenderColumn) -> str:
         out = io.StringIO()
-        out.write(f'{self.quote(rc.name)} {rc.type}')
+        out.write(f'{self.quote_ident(rc.name)} {rc.type}')
         if rc.identity:
             out.write(f' {rc.identity}')
         if rc.not_null:
@@ -317,7 +321,7 @@ class Renderer(lang.Abstract):
 
             elif isinstance(e, PrimaryKey):
                 check.not_empty(e.columns)
-                constraints.append(f'primary key ({", ".join(self.quote(c) for c in e.columns)})')
+                constraints.append(f'primary key ({", ".join(self.quote_ident(c) for c in e.columns)})')
 
             elif isinstance(e, Trigger):
                 triggers.extend(self.trigger_create_statements(tbl, e, opts))
@@ -387,7 +391,7 @@ class Renderer(lang.Abstract):
             rc = self._render_column(self._build_render_column(op.column, is_identity=False))
             return [f'alter table {self.qname(op.table)} add column {rc}']
         elif isinstance(op, DropColumn):
-            return [f'alter table {self.qname(op.table)} drop column {self.quote(op.name)}']
+            return [f'alter table {self.qname(op.table)} drop column {self.quote_ident(op.name)}']
         elif isinstance(op, AlterColumn):
             return self.alter_column_statements(op)
         elif isinstance(op, AddIndex):

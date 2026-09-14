@@ -33,9 +33,9 @@ from ..dtypes import (  # noqa
 )
 
 from ..qualifiedname import (  # noqa
+    CanStrictQualifiedName,
     CanQualifiedName,
     QualifiedName,
-    as_qualified_name,
     qn,
 )
 

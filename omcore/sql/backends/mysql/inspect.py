@@ -16,7 +16,6 @@ from ...inspect.reflected import ReflectedTable
 from ...inspect.reflected import ReflectedTrigger
 from ...qualifiedname import CanQualifiedName
 from ...qualifiedname import QualifiedName
-from ...qualifiedname import as_qualified_name
 from ...tabledefs.tabledefs import TableDef
 
 
@@ -44,7 +43,7 @@ class MysqlInspector(Inspector):
             raise ValueError(name)
 
     async def reflect_table(self, querier: AsyncQuerier, name: CanQualifiedName) -> ReflectedTable | None:
-        name = as_qualified_name(name)
+        name = QualifiedName.of(name)
         schema = self._schema_expr(name)
         table = _lit(name.last)
 

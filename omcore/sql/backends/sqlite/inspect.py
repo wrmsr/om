@@ -16,7 +16,7 @@ from ...inspect.reflected import ReflectedIndex
 from ...inspect.reflected import ReflectedTable
 from ...inspect.reflected import ReflectedTrigger
 from ...qualifiedname import CanQualifiedName
-from ...qualifiedname import as_qualified_name
+from ...qualifiedname import QualifiedName
 from ...syntax import QuoteStyles
 from ...tabledefs.tabledefs import TableDef
 
@@ -42,7 +42,7 @@ class SqliteInspector(Inspector):
     """
 
     async def reflect_table(self, querier: AsyncQuerier, name: CanQualifiedName) -> ReflectedTable | None:
-        name = as_qualified_name(name)
+        name = QualifiedName.of(name)
         if len(name) > 2:
             raise ValueError(name)
         db_prefix = f'{_quote(name[0])}.' if len(name) == 2 else ''

@@ -58,9 +58,9 @@ class SqliteUpdatedAtTriggerRenderer(TriggerRenderer[UpdatedAtTrigger]):
         return [CREATE_UPDATED_AT_TRIGGER_SRC.format(
             if_not_exists='if not exists ' if opts.if_not_exists else '',
             trigger_name=r.qname(tbl.name.sibling(t.trigger_name(tbl.name))),
-            table_name=r.quote(tbl.name.last),
-            column_name=r.quote(t.column),
-            where=' and '.join(f'{r.quote(c)} = new.{r.quote(c)}' for c in pk_cols),
+            table_name=r.quote_ident(tbl.name.last),
+            column_name=r.quote_ident(t.column),
+            where=' and '.join(f'{r.quote_ident(c)} = new.{r.quote_ident(c)}' for c in pk_cols),
         )]
 
     def drop_statements(
@@ -118,8 +118,8 @@ class SqliteTabledefRenderer(Renderer):
         out.write('index ')
         if opts.if_not_exists:
             out.write('if not exists ')
-        out.write(f'{self.qname(table_name.sibling(idx_name))} on {self.quote(table_name.last)} ')
-        out.write(f'({", ".join(self.quote(c) for c in e.columns)})')
+        out.write(f'{self.qname(table_name.sibling(idx_name))} on {self.quote_ident(table_name.last)} ')
+        out.write(f'({", ".join(self.quote_ident(c) for c in e.columns)})')
         if e.where is not None:
             out.write(f' where {self.render_predicate(e.where)}')
         out.write('\n')

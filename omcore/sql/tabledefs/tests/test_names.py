@@ -23,7 +23,7 @@ class _R(Renderer):
 
 
 class _ShortR(_R):
-    max_identifier_length = 8
+    max_ident_length = 8
 
 
 class _BacktickR(_R):
@@ -32,8 +32,8 @@ class _BacktickR(_R):
 
 def test_quoting():
     r = _R()
-    assert r.quote('users') == '"users"'
-    assert r.quote('we"ird') == '"we""ird"'
+    assert r.quote_ident('users') == '"users"'
+    assert r.quote_ident('we"ird') == '"we""ird"'
     assert r.qname(qn('users')) == '"users"'
     assert r.qname(qn('app', 'users')) == '"app"."users"'
     assert _BacktickR().qname(qn('app', 'users')) == '`app`.`users`'
@@ -41,11 +41,11 @@ def test_quoting():
 
 def test_identifier_length_guard():
     r = _ShortR()
-    assert r.quote('12345678') == '"12345678"'
+    assert r.quote_ident('12345678') == '"12345678"'
     with pytest.raises(IdentifierTooLongError):
-        r.quote('123456789')
+        r.quote_ident('123456789')
     with pytest.raises(IdentifierTooLongError):
-        r.quote('é' * 5)  # bytes, not characters - this is 10 bytes of utf-8
+        r.quote_ident('é' * 5)  # bytes, not characters - this is 10 bytes of utf-8
 
 
 def test_render_qualified():
@@ -87,4 +87,4 @@ def test_unspecified_lang_final_renderer_ok():
     class _F(_R, lang.Final):
         pass
 
-    assert _F().quote('x') == '"x"'
+    assert _F().quote_ident('x') == '"x"'

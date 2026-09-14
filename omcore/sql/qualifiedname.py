@@ -1,15 +1,12 @@
-import collections.abc
 import typing as ta
 
 from .. import dataclasses as dc
 from .. import lang
 
 
-CanQualifiedName: ta.TypeAlias = ta.Union[  # noqa: UP007
-    'QualifiedName',
-    str,
-    ta.Sequence[str],
-]
+type CanStrictQualifiedName = QualifiedName | lang.SequenceNotStr[str]
+
+type CanQualifiedName = CanStrictQualifiedName | str
 
 
 ##
@@ -76,50 +73,44 @@ class QualifiedName(ta.Sequence[str], lang.Final):
 
         return QualifiedName((*self.parts[:-1], last))
 
-    @classmethod
-    def of_dotted(cls, dotted: str) -> QualifiedName:
-        return cls(dotted.split('.'))
+    #
 
     @classmethod
-    def of(
-            cls,
-            obj: QualifiedName | ta.Iterable[str],
-    ) -> QualifiedName:
+    def of_strict(cls, obj: CanStrictQualifiedName) -> QualifiedName:
         if isinstance(obj, QualifiedName):
             return obj
-        elif isinstance(obj, str):
+        elif isinstance(obj, str):  # type: ignore[unreachable]
             raise TypeError(obj)
-        elif isinstance(obj, collections.abc.Iterable):
-            return cls(list(obj))
+        elif isinstance(obj, ta.Sequence):
+            return cls(tuple(obj))
         else:
             raise TypeError(obj)
 
     @classmethod
-    def of_optional(
-            cls,
-            obj: QualifiedName | ta.Iterable[str] | None,
-    ) -> QualifiedName | None:
+    def of_optional_strict(cls, obj: CanStrictQualifiedName | None) -> QualifiedName | None:
+        if obj is None:
+            return None
+        else:
+            return cls.of_strict(obj)
+
+    @classmethod
+    def of(cls, obj: CanQualifiedName) -> QualifiedName:
+        if isinstance(obj, str):
+            return QualifiedName((obj,))
+        else:
+            return cls.of_strict(obj)
+
+    @classmethod
+    def of_optional(cls, obj: CanQualifiedName | None) -> QualifiedName | None:
         if obj is None:
             return None
         else:
             return cls.of(obj)
 
+    @classmethod
+    def of_dotted(cls, dotted: str) -> QualifiedName:
+        return cls(dotted.split('.'))
+
 
 def qn(*args: str) -> QualifiedName:
     return QualifiedName(args)
-
-
-def as_qualified_name(o: CanQualifiedName) -> QualifiedName:
-    """
-    Coerces the loose forms accepted by construction helpers. A bare str is one single, unsplit part - any dots in it
-    belong to the identifier - so splitting on dots must be asked for explicitly via `QualifiedName.of_dotted`.
-    """
-
-    if isinstance(o, QualifiedName):
-        return o
-    elif isinstance(o, str):
-        return QualifiedName((o,))
-    elif isinstance(o, collections.abc.Iterable):
-        return QualifiedName(tuple(o))
-    else:
-        raise TypeError(o)

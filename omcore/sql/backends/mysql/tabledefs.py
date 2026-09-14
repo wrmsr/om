@@ -50,7 +50,7 @@ class MysqlUpdatedAtTriggerRenderer(TriggerRenderer[UpdatedAtTrigger]):
         stmts.append(CREATE_UPDATED_AT_TRIGGER_SRC.format(
             trigger_name=r.qname(trigger_qn),
             table_name=r.qname(tbl.name),
-            column_name=r.quote(t.column),
+            column_name=r.quote_ident(t.column),
         ))
         return stmts
 
@@ -77,8 +77,8 @@ MYSQL_DEFAULT_INDEXED_STRING_LENGTH = 255
 
 
 class MysqlTabledefRenderer(Renderer):
-    quote_style = QuoteStyles.BACKTICK
-    max_identifier_length = 64
+    ident_quote_style = QuoteStyles.BACKTICK
+    max_ident_length = 64
 
     def builtin_trigger_renderers(self) -> ta.Sequence[TriggerRenderer]:
         return [MysqlUpdatedAtTriggerRenderer()]
@@ -113,7 +113,7 @@ class MysqlTabledefRenderer(Renderer):
         # MySQL wants AUTO_INCREMENT *after* NOT NULL / DEFAULT, unlike postgres' identity clause - so the column-clause
         # ordering is genuinely dialect-specific. (A cleaner base would expose the ordering as a hook; for now mysql
         # overrides the whole thing.)
-        parts = [f'{self.quote(rc.name)} {rc.type}']
+        parts = [f'{self.quote_ident(rc.name)} {rc.type}']
         if rc.not_null:
             parts.append('not null')
         if rc.default is not None:
@@ -125,7 +125,7 @@ class MysqlTabledefRenderer(Renderer):
 
     def drop_index_statement(self, table_name: QualifiedName, name: str) -> str:
         # Mysql scopes index names to their table rather than their schema.
-        return f'drop index {self.quote(name)} on {self.qname(table_name)}'
+        return f'drop index {self.quote_ident(name)} on {self.qname(table_name)}'
 
     def alter_column_statements(self, op: AlterColumn) -> list[str]:
         rc = self._render_column(self._build_render_column(op.column, is_identity=False))
