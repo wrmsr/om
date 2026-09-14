@@ -372,7 +372,6 @@ def _find_source_root(root_package: str) -> str:
 
 
 def _source_files(source_root: str) -> list[str]:
-    import os
     import os.path
 
     files = []
@@ -397,7 +396,6 @@ def _pyc_path(source_path: str, optimize: int) -> str:
 
 
 def _entry_name(root_package: str, source_root: str, source_path: str) -> str:
-    import os
     import os.path
 
     relative_path = os.path.relpath(source_path, source_root)
@@ -430,7 +428,6 @@ def _write_archive(
         source_files: list[str],
         optimize: int,
 ) -> None:
-    import os
     import os.path
     import tempfile
     import zipfile
@@ -457,7 +454,6 @@ def _write_archive(
 
 
 def _write_file(path: str, data: bytes) -> None:
-    import os
     import os.path
     import tempfile
 
@@ -507,7 +503,6 @@ def _install(
         no_venv: bool = False,
         optimize: int = -1,
 ) -> tuple[str, str, str, int]:
-    import os
     import os.path
 
     source_root = _find_source_root(root_package)
@@ -532,9 +527,19 @@ def _main() -> None:
     parser = argparse.ArgumentParser(
         description='Compile a source package into an eagerly cached, unchecked pyc zip.',
     )
-    parser.add_argument('root_package', help='top-level source package to compile and accelerate')
-    parser.add_argument('--site-dir', help='site-packages directory (defaults to the active environment)')
-    parser.add_argument('--no-venv', action='store_true', help='allow installation outside a virtual environment')
+    parser.add_argument(
+        'root_package',
+        help='top-level source package to compile and accelerate',
+    )
+    parser.add_argument(
+        '--site-dir',
+        help='site-packages directory (defaults to the active environment)',
+    )
+    parser.add_argument(
+        '--no-venv',
+        action='store_true',
+        help='allow installation outside a virtual environment',
+    )
     parser.add_argument(
         '-O',
         '--optimize',
