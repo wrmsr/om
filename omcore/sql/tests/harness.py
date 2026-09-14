@@ -1,3 +1,4 @@
+import contextlib
 import typing as ta
 
 from ... import check
@@ -7,9 +8,12 @@ from ...docker.all import is_likely_in_docker
 from ...docker.tests.services import ComposeServices
 from ...os.environ import EnvVar
 from ...testing.pytest import inject as pti
+from ..backends.postgres import connecting as pgc
 from ..dbs import DbSpec
 from ..dbs import DbTypes
+from ..dbs import HostDbLoc
 from ..dbs import UrlDbLoc
+from ..testing import sandboxes as sbx
 
 
 MYSQL_URL_ENV_VAR = EnvVar('OM_TEST_MYSQL_URL')
@@ -90,3 +94,60 @@ class HarnessDbs:
                 lst.append(self._build_postgres_db(name, svc))
 
         return {s.name: s for s in lst}
+
+
+##
+
+
+POSTGRES_SANDBOX_URL_ENV_VAR = EnvVar('OM_TEST_POSTGRES_SANDBOX_URL')
+
+# FIXME: provisional - the docker/local sandbox role's password, until credentials are properly injected.
+SANDBOX_ROLE_PASSWORD = 'om'  # noqa: S105
+
+
+@pti.bind('session')
+class HarnessSandboxes:
+    """
+    The session's sandbox allocators. With only an admin url at hand (compose, or a local server) the sandbox role and
+    database are bootstrapped on first use; a pre-bootstrapped sandbox-role url (a shared managed instance) is used as
+    given and never bootstrapped. Allocators are entered here and exited with the session.
+    """
+
+    def __init__(
+            self,
+            dbs: HarnessDbs,
+            es: contextlib.ExitStack,
+    ) -> None:
+        super().__init__()
+
+        self._dbs = dbs
+        self._es = es
+
+    @lang.cached_function
+    def postgres_config(self) -> sbx.SandboxesConfig:
+        return sbx.SandboxesConfig()
+
+    @lang.cached_function
+    def postgres_loc(self) -> HostDbLoc:
+        cfg = self.postgres_config()
+
+        if (url := POSTGRES_SANDBOX_URL_ENV_VAR.get(None)):
+            loc, _ = pgc.parse_url_db_loc(url)
+            return loc
+
+        admin_loc, admin_database = self.postgres_admin()
+        with pgc.og8000_db(admin_loc, database=admin_database).connect() as conn:
+            sbx.bootstrap_postgres(conn, cfg, role_password=SANDBOX_ROLE_PASSWORD)
+
+        return pgc.with_username(admin_loc, cfg.role, SANDBOX_ROLE_PASSWORD)
+
+    @lang.cached_function
+    def postgres_admin(self) -> tuple[HostDbLoc, str]:
+        url = check.isinstance(check.isinstance(self._dbs.specs()['postgres'].loc, UrlDbLoc).url, str)
+        loc, database = pgc.parse_url_db_loc(url)
+        return loc, (database if database is not None else 'postgres')
+
+    @lang.cached_function
+    def postgres(self) -> sbx.SandboxAllocator:
+        backend = sbx.PostgresSandboxBackend(self.postgres_config(), self.postgres_loc())
+        return self._es.enter_context(sbx.SandboxAllocator(backend))
