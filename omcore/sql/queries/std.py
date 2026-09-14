@@ -8,6 +8,7 @@ from .inserts import InsertBuilder
 from .keywords import KeywordBuilder
 from .multi import MultiBuilder
 from .names import NameBuilder
+from .ordering import OrderByBuilder
 from .params import ParamBuilder
 from .relations import RelationBuilder
 from .selects import SelectBuilder
@@ -28,6 +29,7 @@ class StdBuilder(
     UnionBuilder,
     UpdateBuilder,
 
+    OrderByBuilder,
     RelationBuilder,
 
     FuncBuilder,
