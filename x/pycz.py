@@ -9,13 +9,24 @@ class _PyczError(ImportError):
 
 
 class _PyczArchive:
-    def __init__(self, path: str) -> None:
+    def __init__(
+            self,
+            path: str,
+            data=None,  # type: bytes | None
+    ) -> None:
         super().__init__()
 
         self._path = path
-        with open(path, 'rb') as f:
-            self._data = f.read()
+
+        if data is None:
+            with open(path, 'rb') as f:
+                data = f.read()
+        self._data = data
+
         self._entries = self._parse_entries(self._data)
+
+    def close(self) -> None:
+        pass
 
     @staticmethod
     def _parse_entries(data: bytes) -> dict[str, tuple[int, int]]:
@@ -169,6 +180,46 @@ class _PyczArchive:
         return self._data[offset:offset + size]
 
 
+class _MmapPyczArchive(_PyczArchive):
+    def __init__(
+            self,
+            path: str,
+    ) -> None:
+        import mmap
+        import os.path
+
+        self._os_close = os.close
+
+        fd = self._fd = os.open(path, os.O_RDONLY)
+        os.set_inheritable(fd, True)
+        st = os.fstat(fd)
+        mm = self._mm = mmap.mmap(
+            fd,
+            length=st.st_size,
+            access=mmap.ACCESS_READ,
+        )
+
+        super().__init__(
+            path,
+            mm,  # type: ignore[arg-type]
+        )
+
+    _fd: int | None = None
+    _mm = None  # type: object | None
+
+    def close(self) -> None:
+        if (mm := self._mm) is not None:
+            mm.close()  # type: ignore[attr-defined]
+        self._mm = None
+
+        if (fd := self._fd) is not None:
+            self._os_close(fd)
+        self._fd = None
+
+    def __del__(self) -> None:
+        self.close()
+
+
 class _PyczLoader:
     def __init__(
             self,
@@ -267,11 +318,16 @@ class _PyczMetaFinder:
         self._root_package = root_package
         self._source_root = source_root
 
+    def close(self) -> None:
+        if (ar := self._archive) is not None:
+            ar.close()
+        self._archive = None
+
     def _get_archive(self) -> _PyczArchive:
         archive = self._archive
         if archive is None:
             try:
-                archive = self._archive = _PyczArchive(self._archive_path)
+                archive = self._archive = _MmapPyczArchive(self._archive_path)
             except OSError as exc:
                 raise ImportError(f'Could not read pycz archive {self._archive_path!r}') from exc
         return archive
@@ -348,177 +404,186 @@ def _run(archive_path: str, root_package: str, source_root: str) -> bool:
     return True
 
 
-def _validate_root_package(root_package: str) -> None:
-    if not root_package.isidentifier():
-        raise ValueError(f'Expected one root package name, got {root_package!r}')
+##
 
 
-def _find_source_root(root_package: str) -> str:
-    import importlib.util
-    import os.path
+class _PyczInstaller:
+    def _validate_root_package(self, root_package: str) -> None:
+        if not root_package.isidentifier():
+            raise ValueError(f'Expected one root package name, got {root_package!r}')
 
-    _validate_root_package(root_package)
-    spec = importlib.util.find_spec(root_package)
-    if spec is None or spec.submodule_search_locations is None:
-        raise ValueError(f'Could not find source package {root_package!r}')
+    def _find_source_root(self, root_package: str) -> str:
+        import importlib.util
+        import os.path
 
-    locations = list(spec.submodule_search_locations)
-    if len(locations) != 1:
-        raise ValueError(f'Package {root_package!r} has {len(locations)} source roots; exactly one is required')
-    source_root = os.path.abspath(locations[0])
-    if not os.path.isfile(os.path.join(source_root, '__init__.py')):
-        raise ValueError(f'Package {root_package!r} is not a regular source package')
-    return source_root
+        self._validate_root_package(root_package)
+        spec = importlib.util.find_spec(root_package)
+        if spec is None or spec.submodule_search_locations is None:
+            raise ValueError(f'Could not find source package {root_package!r}')
 
+        locations = list(spec.submodule_search_locations)
+        if len(locations) != 1:
+            raise ValueError(f'Package {root_package!r} has {len(locations)} source roots; exactly one is required')
+        source_root = os.path.abspath(locations[0])
+        if not os.path.isfile(os.path.join(source_root, '__init__.py')):
+            raise ValueError(f'Package {root_package!r} is not a regular source package')
+        return source_root
 
-def _source_files(source_root: str) -> list[str]:
-    import os.path
+    def _source_files(self, source_root: str) -> list[str]:
+        import os.path
 
-    files = []
-    for directory, directory_names, file_names in os.walk(source_root):
-        directory_names[:] = sorted(name for name in directory_names if name != '__pycache__')
-        for file_name in sorted(file_names):
-            if file_name.endswith('.py'):
-                files.append(os.path.join(directory, file_name))
-    return files
+        files = []
+        for directory, directory_names, file_names in os.walk(source_root):
+            directory_names[:] = sorted(name for name in directory_names if name != '__pycache__')
+            for file_name in sorted(file_names):
+                if file_name.endswith('.py'):
+                    files.append(os.path.join(directory, file_name))
+        return files
 
+    def _pyc_path(self, source_path: str, optimize: int) -> str:
+        import importlib.util
 
-def _pyc_path(source_path: str, optimize: int) -> str:
-    import importlib.util
+        if optimize < 0:
+            optimization = None
+        elif optimize == 0:
+            optimization = ''
+        else:
+            optimization = str(optimize)
+        return importlib.util.cache_from_source(source_path, optimization=optimization)
 
-    if optimize < 0:
-        optimization = None
-    elif optimize == 0:
-        optimization = ''
-    else:
-        optimization = str(optimize)
-    return importlib.util.cache_from_source(source_path, optimization=optimization)
+    def _entry_name(self, root_package: str, source_root: str, source_path: str) -> str:
+        import os.path
 
+        relative_path = os.path.relpath(source_path, source_root)
+        if relative_path == '__init__.py':
+            relative_entry = '__init__.pyc'
+        else:
+            relative_entry = relative_path.removesuffix('.py') + '.pyc'
+        return root_package + '/' + relative_entry.replace(os.sep, '/')
 
-def _entry_name(root_package: str, source_root: str, source_path: str) -> str:
-    import os.path
+    def _compile_package(self, source_root: str, optimize: int) -> list[str]:
+        import compileall
+        import py_compile
 
-    relative_path = os.path.relpath(source_path, source_root)
-    if relative_path == '__init__.py':
-        relative_entry = '__init__.pyc'
-    else:
-        relative_entry = relative_path.removesuffix('.py') + '.pyc'
-    return root_package + '/' + relative_entry.replace(os.sep, '/')
+        if not compileall.compile_dir(
+                source_root,
+                force=True,
+                quiet=1,
+                optimize=optimize,
+                invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH,
+        ):
+            raise RuntimeError(f'Failed to compile all sources under {source_root!r}')
+        return self._source_files(source_root)
 
+    def _write_archive(
+            self,
+            archive_path: str,
+            root_package: str,
+            source_root: str,
+            source_files: list[str],
+            optimize: int,
+    ) -> None:
+        import os.path
+        import tempfile
+        import zipfile
 
-def _compile_package(source_root: str, optimize: int) -> list[str]:
-    import compileall
-    import py_compile
-
-    if not compileall.compile_dir(
-            source_root,
-            force=True,
-            quiet=1,
-            optimize=optimize,
-            invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH,
-    ):
-        raise RuntimeError(f'Failed to compile all sources under {source_root!r}')
-    return _source_files(source_root)
-
-
-def _write_archive(
-        archive_path: str,
-        root_package: str,
-        source_root: str,
-        source_files: list[str],
-        optimize: int,
-) -> None:
-    import os.path
-    import tempfile
-    import zipfile
-
-    fd, temp_path = tempfile.mkstemp(
-        dir=os.path.dirname(archive_path),
-        prefix='.' + os.path.basename(archive_path) + '.',
-        suffix='.tmp',
-    )
-    os.close(fd)
-    try:
-        with zipfile.ZipFile(temp_path, 'w', compression=zipfile.ZIP_STORED, allowZip64=False) as zf:
-            for source_path in source_files:
-                pyc_path = _pyc_path(source_path, optimize)
-                if not os.path.isfile(pyc_path):
-                    raise RuntimeError(f'Compiled file was not produced for {source_path!r}')
-                zf.write(pyc_path, _entry_name(root_package, source_root, source_path))
-        os.replace(temp_path, archive_path)
-    finally:
+        fd, temp_path = tempfile.mkstemp(
+            dir=os.path.dirname(archive_path),
+            prefix='.' + os.path.basename(archive_path) + '.',
+            suffix='.tmp',
+        )
+        os.close(fd)
         try:
-            os.unlink(temp_path)
-        except FileNotFoundError:
-            pass
+            with zipfile.ZipFile(temp_path, 'w', compression=zipfile.ZIP_STORED, allowZip64=False) as zf:
+                for source_path in source_files:
+                    pyc_path = self._pyc_path(source_path, optimize)
+                    if not os.path.isfile(pyc_path):
+                        raise RuntimeError(f'Compiled file was not produced for {source_path!r}')
+                    zf.write(pyc_path, self._entry_name(root_package, source_root, source_path))
+            os.replace(temp_path, archive_path)
+        finally:
+            try:
+                os.unlink(temp_path)
+            except FileNotFoundError:
+                pass
 
+    def _write_file(self, path: str, data: bytes) -> None:
+        import os.path
+        import tempfile
 
-def _write_file(path: str, data: bytes) -> None:
-    import os.path
-    import tempfile
-
-    fd, temp_path = tempfile.mkstemp(
-        dir=os.path.dirname(path),
-        prefix='.' + os.path.basename(path) + '.',
-        suffix='.tmp',
-    )
-    try:
-        with os.fdopen(fd, 'wb') as f:
-            f.write(data)
-        os.replace(temp_path, path)
-    finally:
+        fd, temp_path = tempfile.mkstemp(
+            dir=os.path.dirname(path),
+            prefix='.' + os.path.basename(path) + '.',
+            suffix='.tmp',
+        )
         try:
-            os.unlink(temp_path)
-        except FileNotFoundError:
-            pass
+            with os.fdopen(fd, 'wb') as f:
+                f.write(data)
+            os.replace(temp_path, path)
+        finally:
+            try:
+                os.unlink(temp_path)
+            except FileNotFoundError:
+                pass
+
+    def _bootstrap_source(self) -> bytes:
+        import inspect
+        import sys
+
+        return inspect.getsource(sys.modules[__name__]).encode('utf-8')
+
+    def _site_dir(self, site_dir: str | None, no_venv: bool) -> str:
+        import os.path
+        import site
+        import sys
+
+        if site_dir is not None:
+            return os.path.abspath(site_dir)
+        if sys.prefix == sys.base_prefix and not no_venv:
+            raise RuntimeError('Refusing to install outside a virtual environment; pass --no-venv to override')
+
+        site_dirs = site.getsitepackages()
+        if not site_dirs:
+            raise RuntimeError('Could not find site-packages')
+        return os.path.abspath(site_dirs[0])
+
+    def install(
+            self,
+            root_package: str,
+            *,
+            site_dir: str | None = None,
+            no_venv: bool = False,
+            optimize: int = -1,
+    ) -> tuple[
+        str,
+        str,
+        str,
+        int,
+    ]:
+        import os.path
+
+        source_root = self._find_source_root(root_package)
+        install_dir = self._site_dir(site_dir, no_venv)
+        os.makedirs(install_dir, exist_ok=True)
+
+        archive_path = os.path.join(install_dir, root_package + '.pycz')
+        bootstrap_path = os.path.join(install_dir, '_pycz.py')
+        pth_path = os.path.join(install_dir, f'___pycz-{root_package}.pth')
+
+        source_files = self._compile_package(source_root, optimize)
+        self._write_archive(archive_path, root_package, source_root, source_files, optimize)
+        self._write_file(bootstrap_path, self._bootstrap_source())
+        pth_source = f'import _pycz; _pycz._run({archive_path!r}, {root_package!r}, {source_root!r})\n'
+        self._write_file(pth_path, pth_source.encode('utf-8'))
+        return (
+            archive_path,
+            bootstrap_path,
+            pth_path,
+            len(source_files),
+        )
 
 
-def _bootstrap_source() -> bytes:
-    import inspect
-    import sys
-
-    return inspect.getsource(sys.modules[__name__]).encode('utf-8')
-
-
-def _site_dir(site_dir: str | None, no_venv: bool) -> str:
-    import os.path
-    import site
-    import sys
-
-    if site_dir is not None:
-        return os.path.abspath(site_dir)
-    if sys.prefix == sys.base_prefix and not no_venv:
-        raise RuntimeError('Refusing to install outside a virtual environment; pass --no-venv to override')
-
-    site_dirs = site.getsitepackages()
-    if not site_dirs:
-        raise RuntimeError('Could not find site-packages')
-    return os.path.abspath(site_dirs[0])
-
-
-def _install(
-        root_package: str,
-        *,
-        site_dir: str | None = None,
-        no_venv: bool = False,
-        optimize: int = -1,
-) -> tuple[str, str, str, int]:
-    import os.path
-
-    source_root = _find_source_root(root_package)
-    install_dir = _site_dir(site_dir, no_venv)
-    os.makedirs(install_dir, exist_ok=True)
-
-    archive_path = os.path.join(install_dir, root_package + '.pycz')
-    bootstrap_path = os.path.join(install_dir, '_pycz.py')
-    pth_path = os.path.join(install_dir, f'___pycz-{root_package}.pth')
-
-    source_files = _compile_package(source_root, optimize)
-    _write_archive(archive_path, root_package, source_root, source_files, optimize)
-    _write_file(bootstrap_path, _bootstrap_source())
-    pth_source = f'import _pycz; _pycz._run({archive_path!r}, {root_package!r}, {source_root!r})\n'
-    _write_file(pth_path, pth_source.encode('utf-8'))
-    return archive_path, bootstrap_path, pth_path, len(source_files)
+##
 
 
 def _main() -> None:
@@ -550,7 +615,12 @@ def _main() -> None:
     )
     args = parser.parse_args()
 
-    archive_path, bootstrap_path, pth_path, count = _install(
+    (
+        archive_path,
+        bootstrap_path,
+        pth_path,
+        count,
+    ) = _PyczInstaller().install(
         args.root_package,
         site_dir=args.site_dir,
         no_venv=args.no_venv,
