@@ -7,6 +7,7 @@ from ..... import lang
 from .....testing import pytest as ptu
 from ....dbs import UrlDbLoc
 from ....dtypes import String
+from ....qualifiedname import qn
 from ....tabledefs.elements import Column
 from ....tabledefs.elements import CreatedAtUpdatedAt
 from ....tabledefs.elements import Elements
@@ -41,7 +42,7 @@ def test_render_create_table(harness) -> None:
         cursor.execute('use om_test')
         cursor.execute('drop table if exists test_render_create_table')
 
-        tbl = lower_table_elements(TableDef('test_render_create_table', Elements(
+        tbl = lower_table_elements(TableDef(qn('test_render_create_table'), Elements(
             IdIntegerPrimaryKey(),
             CreatedAtUpdatedAt(),
             Column('name', String()),

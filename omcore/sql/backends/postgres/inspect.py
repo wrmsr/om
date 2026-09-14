@@ -1,40 +1,59 @@
 # ruff: noqa: S608
+from .... import check
 from ...api.querierfuncs import query_all
 from ...api.queriers import AsyncQuerier
-from ...dtypes import Datetime
+from ...dtypes import DATETIME
+from ...dtypes import STRING
+from ...dtypes import UUID
 from ...dtypes import Dtype
 from ...dtypes import Integer
 from ...dtypes import String
-from ...dtypes import Uuid
 from ...inspect.inspectors import Inspector
+from ...inspect.lifting import lift_reflected_table
 from ...inspect.reflected import ReflectedColumn
 from ...inspect.reflected import ReflectedIndex
 from ...inspect.reflected import ReflectedTable
-from ...tabledefs.elements import Column
-from ...tabledefs.elements import Element
-from ...tabledefs.elements import Elements
-from ...tabledefs.elements import Index
-from ...tabledefs.elements import PrimaryKey
+from ...inspect.reflected import ReflectedTrigger
+from ...qualifiedname import CanQualifiedName
+from ...qualifiedname import QualifiedName
+from ...qualifiedname import as_qualified_name
 from ...tabledefs.tabledefs import TableDef
 
 
 ##
 
 
+def _lit(s: str) -> str:
+    return "'" + s.replace("'", "''") + "'"
+
+
 class PostgresInspector(Inspector):
     """
-    Barebones reflection. Fail-open: it models columns, the primary key, and explicitly-created (non-primary) indexes;
-    anything more exotic is deliberately ignored rather than fatal. The table name is interpolated (not parameterized)
-    because the param placeholder is driver-specific - acceptable here as it comes from code, not user input, and is
-    reflection-only.
+    Barebones reflection. Fail-open: it models columns, the primary key, explicitly-created (non-primary) indexes, and
+    the names of non-internal triggers; anything more exotic is deliberately ignored rather than fatal. Names are
+    interpolated as escaped string literals rather than bound as parameters, since placeholders are driver-specific;
+    they come from code, not user input, and this is reflection-only. A bare table name is resolved against the
+    session's current schema, exactly where unqualified ddl would have created it.
     """
 
-    async def reflect_table(self, querier: AsyncQuerier, name: str) -> ReflectedTable | None:
+    def _schema_expr(self, name: QualifiedName) -> str:
+        if len(name) == 1:
+            return 'current_schema()'
+        elif len(name) == 2:
+            return _lit(name[0])
+        else:
+            raise ValueError(name)
+
+    async def reflect_table(self, querier: AsyncQuerier, name: CanQualifiedName) -> ReflectedTable | None:
+        name = as_qualified_name(name)
+        schema = self._schema_expr(name)
+        table = _lit(name.last)
+
         cols_rows = await query_all(querier, (
-            "select column_name, data_type, is_nullable "
-            "from information_schema.columns "
-            f"where table_schema = 'public' and table_name = '{name}' "
-            "order by ordinal_position"
+            'select column_name, data_type, is_nullable, character_maximum_length '
+            'from information_schema.columns '
+            f'where table_schema = {schema} and table_name = {table} '
+            'order by ordinal_position'
         ))
         if not cols_rows:
             return None
@@ -42,10 +61,11 @@ class PostgresInspector(Inspector):
         pk_cols = {
             r.to_dict()['column_name']
             for r in await query_all(querier, (
-                "select kcu.column_name "
-                "from information_schema.table_constraints tc "
-                "join information_schema.key_column_usage kcu on kcu.constraint_name = tc.constraint_name "
-                f"where tc.table_schema = 'public' and tc.table_name = '{name}' "
+                'select kcu.column_name '
+                'from information_schema.table_constraints tc '
+                'join information_schema.key_column_usage kcu '
+                'on kcu.constraint_schema = tc.constraint_schema and kcu.constraint_name = tc.constraint_name '
+                f'where tc.table_schema = {schema} and tc.table_name = {table} '
                 "and tc.constraint_type = 'PRIMARY KEY'"
             ))
         }
@@ -58,6 +78,7 @@ class PostgresInspector(Inspector):
                 d['data_type'],
                 nullable=d['is_nullable'] == 'YES',
                 primary_key=d['column_name'] in pk_cols,
+                length=d['character_maximum_length'],
             ))
 
         idx_cols: dict[str, list[str]] = {}
@@ -65,11 +86,12 @@ class PostgresInspector(Inspector):
         for r in await query_all(querier, (
             'select i.relname as index_name, ix.indisunique as is_unique, a.attname as column_name '
             'from pg_class t '
+            'join pg_namespace n on n.oid = t.relnamespace '
             'join pg_index ix on ix.indrelid = t.oid '
             'join pg_class i on i.oid = ix.indexrelid '
             'join lateral unnest(ix.indkey) with ordinality as k(attnum, ord) on true '
             'join pg_attribute a on a.attrelid = t.oid and a.attnum = k.attnum '
-            f"where t.relname = '{name}' and t.relkind = 'r' and not ix.indisprimary "
+            f"where n.nspname = {schema} and t.relname = {table} and t.relkind = 'r' and not ix.indisprimary "
             'order by i.relname, k.ord'
         )):
             d = r.to_dict()
@@ -79,29 +101,37 @@ class PostgresInspector(Inspector):
 
         idxs = [ReflectedIndex(nm, cs, unique=idx_unique[nm]) for nm, cs in idx_cols.items()]
 
-        return ReflectedTable(name, cols, indexes=idxs)
+        trgs = [
+            ReflectedTrigger(check.non_empty_str(r.to_dict()['trigger_name']))
+            for r in await query_all(querier, (
+                'select t.tgname as trigger_name '
+                'from pg_trigger t '
+                'join pg_class c on c.oid = t.tgrelid '
+                'join pg_namespace n on n.oid = c.relnamespace '
+                f'where n.nspname = {schema} and c.relname = {table} and not t.tgisinternal '
+                'order by t.tgname'
+            ))
+        ]
+
+        return ReflectedTable(name, cols, indexes=idxs, triggers=trgs)
 
     def lift_table(self, reflected: ReflectedTable) -> TableDef:
-        els: list[Element] = []
-        pk: list[str] = []
-        for rc in reflected.columns:
-            els.append(Column(rc.name, self._lift_dtype(rc.type), nullable=rc.nullable))
-            if rc.primary_key:
-                pk.append(rc.name)
-        if pk:
-            els.append(PrimaryKey(pk))
-        for ri in reflected.indexes:
-            els.append(Index(ri.columns, name=ri.name, unique=ri.unique))
-        return TableDef(reflected.name, Elements(*els))
+        return lift_reflected_table(reflected, self.lift_dtype)
 
-    def _lift_dtype(self, t: str) -> Dtype:
-        tl = t.strip().lower()
-        if 'int' in tl:
-            return Integer()
+    def lift_dtype(self, rc: ReflectedColumn) -> Dtype:
+        tl = rc.type.strip().lower()
+        if tl in ('smallint', 'int2'):
+            return Integer(bits=16)
+        elif tl in ('integer', 'int', 'int4'):
+            return Integer(bits=32)
+        elif tl in ('bigint', 'int8'):
+            return Integer(bits=64)
         elif 'timestamp' in tl or tl == 'date':
-            return Datetime()
+            return DATETIME
         elif tl == 'uuid':
-            return Uuid()
+            return UUID
+        elif tl in ('character varying', 'character') and rc.length is not None:
+            return String(length=rc.length)
         else:
             # fail-open: text/varchar/char/etc land as String for now.
-            return String()
+            return STRING

@@ -1,7 +1,3 @@
-"""
-TODO:
- - move to sql/alchemy/tabledefs.py
-"""
 import typing as ta
 
 import sqlalchemy as sa
@@ -21,9 +17,12 @@ def build_td_table(
 ) -> sa.Table:
     items: list[sa.sql.schema.SchemaItem] = []
 
+    schema, name = td.name.pair
+
     return sa.Table(
-        td.name,
+        name,
         metadata if metadata is not None else sa.MetaData(),
         *items,
+        schema=schema,
         **kwargs,
     )

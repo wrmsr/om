@@ -2,6 +2,7 @@ import contextlib
 import sqlite3
 
 from ....dtypes import String
+from ....qualifiedname import qn
 from ....tabledefs.elements import Column
 from ....tabledefs.elements import CreatedAtUpdatedAt
 from ....tabledefs.elements import Elements
@@ -13,7 +14,7 @@ from ..tabledefs import SqliteTabledefRenderer
 
 def test_render_create_table():
     tbl = TableDef(
-        'users',
+        qn('users'),
         Elements(*[
             IdIntegerPrimaryKey(),
             CreatedAtUpdatedAt(),

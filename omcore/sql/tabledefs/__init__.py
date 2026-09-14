@@ -12,10 +12,31 @@ _dc.init_package(
 
 from ..dtypes import (  # noqa
     Dtype,
+
+    INTEGER_BITS,
+
     Integer,
     String,
     Datetime,
     Uuid,
+    Boolean,
+    Float,
+    Bytes,
+
+    INTEGER,
+    STRING,
+    DATETIME,
+    UUID,
+    BOOLEAN,
+    FLOAT,
+    BYTES,
+)
+
+from ..qualifiedname import (  # noqa
+    CanQualifiedName,
+    QualifiedName,
+    as_qualified_name,
+    qn,
 )
 
 from .elements import (  # noqa
@@ -24,6 +45,11 @@ from .elements import (  # noqa
     Column,
     PrimaryKey,
     Index,
+
+    index_name,
+
+    Trigger,
+    OpaqueTrigger,
 
     IdIntegerPrimaryKey,
 
@@ -40,11 +66,15 @@ from .diffing import (  # noqa
 
     AddColumn,
     DropColumn,
+    AlterColumn,
     AddIndex,
     DropIndex,
+    AddTrigger,
+    DropTrigger,
 
     UnsupportedDiffError,
 
+    dtypes_confidently_differ,
     diff_table,
 )
 
@@ -84,12 +114,20 @@ from .predicates import (  # noqa
 )
 
 from .rendering import (  # noqa
+    IdentifierTooLongError,
+    UnknownTriggerTypeError,
+    UnsupportedMigrationError,
+
     Renderer,
 )
 
 from .tabledefs import (  # noqa
     TableDef,
     table_def,
+)
+
+from .triggers import (  # noqa
+    TriggerRenderer,
 )
 
 from .values import (  # noqa

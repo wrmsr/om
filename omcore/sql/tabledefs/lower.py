@@ -1,8 +1,9 @@
 from ... import dataclasses as dc
 from ... import lang
 from ... import typedvalues as tv
-from ..dtypes import Datetime
+from ..dtypes import DATETIME
 from ..dtypes import Integer
+from ..qualifiedname import QualifiedName
 from .elements import Column
 from .elements import CreatedAt
 from .elements import CreatedAtUpdatedAt
@@ -11,6 +12,7 @@ from .elements import Elements
 from .elements import IdIntegerPrimaryKey
 from .elements import Index
 from .elements import PrimaryKey
+from .elements import Trigger
 from .elements import UpdatedAt
 from .elements import UpdatedAtTrigger
 from .options import BackendOption
@@ -31,21 +33,22 @@ def lower_table_elements(td: TableDef) -> TableDef:
 
     while todo:
         match (e := todo.pop()):
-            case Column() | PrimaryKey() | Index():
+            case Column() | PrimaryKey() | Index() | Trigger():
                 out.append(e)
 
             case IdIntegerPrimaryKey():
+                # An id should never run out: the identity column is explicitly 64-bit.
                 out.extend([
-                    Column('id', Integer()),
+                    Column('id', Integer(bits=64)),
                     PrimaryKey(['id']),
                 ])
 
             case CreatedAt():
-                out.append(Column('created_at', Datetime(), default=lang.just(Now())))
+                out.append(Column('created_at', DATETIME, default=lang.just(Now())))
 
             case UpdatedAt():
                 out.extend([
-                    Column('updated_at', Datetime(), default=lang.just(Now())),
+                    Column('updated_at', DATETIME, default=lang.just(Now())),
                     UpdatedAtTrigger('updated_at'),
                 ])
 
@@ -102,13 +105,13 @@ def _sort_options(opts: tv.TypedValues) -> tv.TypedValues:
     return tv.collect(*sorted(opts, key=lambda o: type(o).__qualname__))
 
 
-def _element_sort_key(e: Element) -> tuple[int, str]:
+def _element_sort_key(table_name: QualifiedName, e: Element) -> tuple[int, str]:
     if isinstance(e, PrimaryKey):
         return (0, '')
     elif isinstance(e, Index):
         return (1, e.name or '__'.join(e.columns))
-    elif isinstance(e, UpdatedAtTrigger):
-        return (2, e.column)
+    elif isinstance(e, Trigger):
+        return (2, e.trigger_name(table_name))
     else:
         return (3, type(e).__qualname__)
 
@@ -122,7 +125,10 @@ def normalize_table(td: TableDef) -> TableDef:
     """
 
     cols = [e for e in td.elements if isinstance(e, Column)]
-    rest = sorted((e for e in td.elements if not isinstance(e, Column)), key=_element_sort_key)
+    rest = sorted(
+        (e for e in td.elements if not isinstance(e, Column)),
+        key=lambda e: _element_sort_key(td.name, e),
+    )
 
     out: list[Element] = []
     for c in cols:

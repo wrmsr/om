@@ -10,6 +10,7 @@ from ....api.dbapi import DbapiDb
 from ....dtypes import Integer
 from ....dtypes import String
 from ....params import ParamStyle
+from ....qualifiedname import qn
 from ....tabledefs.diffing import AddColumn
 from ....tabledefs.diffing import diff_table
 from ....tabledefs.elements import Column
@@ -31,12 +32,12 @@ def test_inspect_diff_apply() -> None:
 
         async with adb.connect() as conn:
             # create the "current db" schema (missing the email column)
-            existing = TableDef('users', Elements(Column('id', Integer()), PrimaryKey(['id'])))
+            existing = TableDef(qn('users'), Elements(Column('id', Integer()), PrimaryKey(['id'])))
             for s in r.render_create_statements(existing):
                 await qf.exec(conn, s)
 
             # the in-code definition has grown a column
-            current = TableDef('users', Elements(
+            current = TableDef(qn('users'), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('email', String(), nullable=True),

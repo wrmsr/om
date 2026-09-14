@@ -1,3 +1,5 @@
+import typing as ta
+
 from ...dtypes import Boolean
 from ...dtypes import Bytes
 from ...dtypes import Datetime
@@ -5,13 +7,15 @@ from ...dtypes import Float
 from ...dtypes import Integer
 from ...dtypes import String
 from ...dtypes import Uuid
+from ...qualifiedname import QualifiedName
+from ...syntax import QuoteStyles
 from ...tabledefs.diffing import AlterColumn
 from ...tabledefs.elements import Column
-from ...tabledefs.elements import PrimaryKey
 from ...tabledefs.elements import UpdatedAtTrigger
 from ...tabledefs.rendering import RenderColumn
 from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
+from ...tabledefs.triggers import TriggerRenderer
 
 
 ##
@@ -25,15 +29,72 @@ set new.{column_name} = current_timestamp\
 """
 
 
+class MysqlUpdatedAtTriggerRenderer(TriggerRenderer[UpdatedAtTrigger]):
+    @property
+    def trigger_cls(self) -> type[UpdatedAtTrigger]:
+        return UpdatedAtTrigger
+
+    def create_statements(
+            self,
+            r: Renderer,
+            tbl: TableDef,
+            t: UpdatedAtTrigger,
+            opts: Renderer.CreateOptions,
+    ) -> list[str]:
+        trigger_qn = tbl.name.sibling(t.trigger_name(tbl.name))
+
+        stmts: list[str] = []
+        if opts.if_not_exists:
+            # Mysql has neither 'if not exists' nor 'or replace' for triggers.
+            stmts.append(f'drop trigger if exists {r.qname(trigger_qn)}')
+        stmts.append(CREATE_UPDATED_AT_TRIGGER_SRC.format(
+            trigger_name=r.qname(trigger_qn),
+            table_name=r.qname(tbl.name),
+            column_name=r.quote(t.column),
+        ))
+        return stmts
+
+    def drop_statements(
+            self,
+            r: Renderer,
+            table_name: QualifiedName,
+            name: str,
+    ) -> list[str]:
+        return [f'drop trigger if exists {r.qname(table_name.sibling(name))}']
+
+
+##
+
+
+MYSQL_INTEGER_TYPES_BY_BITS: ta.Mapping[int, str] = {
+    16: 'smallint',
+    32: 'integer',
+    64: 'bigint',
+}
+
+# Mysql cannot index a TEXT column without a key length, so an indexed string of unbounded length is given this one.
+MYSQL_DEFAULT_INDEXED_STRING_LENGTH = 255
+
+
 class MysqlTabledefRenderer(Renderer):
+    quote_style = QuoteStyles.BACKTICK
+    max_identifier_length = 64
+
+    def builtin_trigger_renderers(self) -> ta.Sequence[TriggerRenderer]:
+        return [MysqlUpdatedAtTriggerRenderer()]
+
     def column_type(self, c: Column, *, is_identity: bool, indexed: bool = False) -> str:
         if isinstance(c.type, String):
-            # mysql cannot index a TEXT column without a key length, so an indexed string becomes a bounded varchar.
-            return 'varchar(255)' if indexed else 'text'
+            if c.type.length is not None:
+                return f'varchar({c.type.length})'
+            elif indexed:
+                return f'varchar({MYSQL_DEFAULT_INDEXED_STRING_LENGTH})'
+            else:
+                return 'text'
         elif isinstance(c.type, Uuid):
             return 'char(36)'
         elif isinstance(c.type, Integer):
-            return 'bigint' if is_identity else 'integer'
+            return MYSQL_INTEGER_TYPES_BY_BITS[self.integer_bits(c.type, is_identity=is_identity)]
         elif isinstance(c.type, Datetime):
             return 'datetime'
         elif isinstance(c.type, Boolean):
@@ -52,7 +113,7 @@ class MysqlTabledefRenderer(Renderer):
         # MySQL wants AUTO_INCREMENT *after* NOT NULL / DEFAULT, unlike postgres' identity clause - so the column-clause
         # ordering is genuinely dialect-specific. (A cleaner base would expose the ordering as a hook; for now mysql
         # overrides the whole thing.)
-        parts = [f'{rc.name} {rc.type}']
+        parts = [f'{self.quote(rc.name)} {rc.type}']
         if rc.not_null:
             parts.append('not null')
         if rc.default is not None:
@@ -62,19 +123,10 @@ class MysqlTabledefRenderer(Renderer):
         parts.extend(rc.extra)
         return ' '.join(parts)
 
+    def drop_index_statement(self, table_name: QualifiedName, name: str) -> str:
+        # Mysql scopes index names to their table rather than their schema.
+        return f'drop index {self.quote(name)} on {self.qname(table_name)}'
+
     def alter_column_statements(self, op: AlterColumn) -> list[str]:
         rc = self._render_column(self._build_render_column(op.column, is_identity=False))
-        return [f'alter table {op.table} modify column {rc}']
-
-    def updated_at_trigger_statements(
-            self,
-            tbl: TableDef,
-            e: UpdatedAtTrigger,
-            pk: PrimaryKey | None,
-            opts: Renderer.CreateOptions,
-    ) -> list[str]:
-        return [CREATE_UPDATED_AT_TRIGGER_SRC.format(
-            trigger_name=f'{tbl.name}__trigger__updated_at__{e.column}',
-            table_name=tbl.name,
-            column_name=e.column,
-        )]
+        return [f'alter table {self.qname(op.table)} modify column {rc}']

@@ -14,6 +14,7 @@ from ....dtypes import Integer
 from ....dtypes import String
 from ....inspect.migrating import migrate_table
 from ....params import ParamStyle
+from ....qualifiedname import qn
 from ....tabledefs.diffing import AddColumn
 from ....tabledefs.diffing import AlterColumn
 from ....tabledefs.elements import Column
@@ -57,12 +58,12 @@ def test_migrate_table(harness) -> None:
         async with adb.connect() as conn:
             await qf.exec(conn, f'drop table if exists {tn} cascade')
 
-            base = TableDef(tn, Elements(Column('id', Integer()), PrimaryKey(['id'])))
+            base = TableDef(qn(tn), Elements(Column('id', Integer()), PrimaryKey(['id'])))
             m1 = await migrate_table(conn, base, inspector=insp, renderer=r)
             assert m1.created
             assert not m1.ops
 
-            grown = TableDef(tn, Elements(
+            grown = TableDef(qn(tn), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('email', String(), nullable=True),
@@ -105,7 +106,7 @@ def test_migrate_table_with_index(harness) -> None:
         async with adb.connect() as conn:
             await qf.exec(conn, f'drop table if exists {tn} cascade')
 
-            td = TableDef(tn, Elements(
+            td = TableDef(qn(tn), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('email', String(), nullable=True),
@@ -149,14 +150,14 @@ def test_migrate_table_alter_column(harness) -> None:
         async with adb.connect() as conn:
             await qf.exec(conn, f'drop table if exists {tn} cascade')
 
-            await migrate_table(conn, TableDef(tn, Elements(
+            await migrate_table(conn, TableDef(qn(tn), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('val', Integer(), nullable=True),
             )), inspector=insp, renderer=r)
 
             # change val's type Integer -> String; the alter is applied, then a re-run is a no-op
-            grown = TableDef(tn, Elements(
+            grown = TableDef(qn(tn), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('val', String(), nullable=True),

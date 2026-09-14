@@ -4,6 +4,7 @@ from ... import dataclasses as dc
 from ... import lang
 from ..api import querierfuncs as qf
 from ..api.queriers import AsyncQuerier
+from ..qualifiedname import QualifiedName
 from ..tabledefs.diffing import MigrationOp
 from ..tabledefs.diffing import diff_table
 from ..tabledefs.lower import lower_table_elements
@@ -17,7 +18,7 @@ from .inspectors import Inspector
 
 @dc.dataclass(frozen=True)
 class TableMigration(lang.Final):
-    table: str
+    table: QualifiedName
 
     _: dc.KW_ONLY
 
@@ -37,8 +38,8 @@ async def migrate_table(
     otherwise reflect it, diff the in-code definition against the reflection, and apply the resulting migration ops.
 
     Async-only, like the inspector it drives: a sync caller wraps its db/conn and runs this through `lang.sync_await`.
-    Limited to the diff's supported subset (column / named-index add/drop); type, primary-key, and trigger changes are
-    deliberately left untouched rather than mis-migrated.
+    Limited to the diff's supported subset (column add/drop/alter, named-index add/drop, trigger add/drop by name);
+    primary-key changes are refused rather than mis-migrated.
     """
 
     table = lower_table_elements(table)

@@ -8,6 +8,7 @@ import typing as ta
 
 from ... import dataclasses as dc
 from ... import lang
+from ..qualifiedname import QualifiedName
 
 
 ##
@@ -22,6 +23,7 @@ class ReflectedColumn(lang.Final):
 
     nullable: bool = True
     primary_key: bool = False
+    length: int | None = None  # a bounded character length, when the db reports one
 
 
 @dc.dataclass(frozen=True)
@@ -35,10 +37,16 @@ class ReflectedIndex(lang.Final):
 
 
 @dc.dataclass(frozen=True)
+class ReflectedTrigger(lang.Final):
+    name: str  # a trigger is reflected by name alone - its body is never modeled
+
+
+@dc.dataclass(frozen=True)
 class ReflectedTable(lang.Final):
-    name: str
+    name: QualifiedName  # exactly as it was asked for, so it diffs cleanly against the in-code definition
     columns: ta.Sequence[ReflectedColumn]
 
     _: dc.KW_ONLY
 
     indexes: ta.Sequence[ReflectedIndex] = ()
+    triggers: ta.Sequence[ReflectedTrigger] = ()

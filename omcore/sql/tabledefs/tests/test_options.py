@@ -2,7 +2,8 @@ import pytest
 
 from .... import lang
 from .... import typedvalues as tv
-from ...dtypes import String
+from ...dtypes import STRING
+from ...qualifiedname import qn
 from ..elements import Column
 from ..elements import Elements
 from ..elements import PrimaryKey
@@ -41,8 +42,8 @@ class _MyColOpt(_MyOption, ColumnOption, lang.Final):
 
 
 def test_select_backend_options_strips_foreign():
-    td = TableDef('t', Elements(
-        Column('x', String(), options=tv.TypedValues(_CommonColOpt(), _PgColOpt(), _MyColOpt())),
+    td = TableDef(qn('t'), Elements(
+        Column('x', STRING, options=tv.TypedValues(_CommonColOpt(), _PgColOpt(), _MyColOpt())),
     ))
 
     kept = select_backend_options(td, _PgOption)
@@ -58,9 +59,6 @@ class _MinimalRenderer(Renderer):
     def column_type(self, c, *, is_identity, indexed=False):
         return 'text'
 
-    def updated_at_trigger_statements(self, tbl, e, pk, opts):
-        return []
-
 
 class _PgRenderer(_MinimalRenderer):
     def column_option_sql(self, c):
@@ -72,8 +70,8 @@ class _PgRenderer(_MinimalRenderer):
 
 
 def test_renderer_fails_closed_on_unhandled_option():
-    td = TableDef('t', Elements(
-        Column('x', String(), options=tv.TypedValues(_CommonColOpt())),
+    td = TableDef(qn('t'), Elements(
+        Column('x', STRING, options=tv.TypedValues(_CommonColOpt())),
         PrimaryKey(['x']),
     ))
 
@@ -82,8 +80,8 @@ def test_renderer_fails_closed_on_unhandled_option():
 
 
 def test_renderer_handles_known_option():
-    td = TableDef('t', Elements(
-        Column('x', String(), options=tv.TypedValues(_PgColOpt())),
+    td = TableDef(qn('t'), Elements(
+        Column('x', STRING, options=tv.TypedValues(_PgColOpt())),
         PrimaryKey(['x']),
     ))
 

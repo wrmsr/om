@@ -13,6 +13,7 @@ from ....dbs import UrlDbLoc
 from ....dtypes import Integer
 from ....dtypes import String
 from ....params import ParamStyle
+from ....qualifiedname import qn
 from ....tabledefs.diffing import AddColumn
 from ....tabledefs.diffing import diff_table
 from ....tabledefs.elements import Column
@@ -57,11 +58,11 @@ def test_inspect_diff_apply(harness) -> None:
     async def inner() -> None:
         async with adb.connect() as conn:
             await qf.exec(conn, f'drop table if exists {tn} cascade')
-            existing = TableDef(tn, Elements(Column('id', Integer()), PrimaryKey(['id'])))
+            existing = TableDef(qn(tn), Elements(Column('id', Integer()), PrimaryKey(['id'])))
             for s in r.render_create_statements(existing):
                 await qf.exec(conn, s)
 
-            current = TableDef(tn, Elements(
+            current = TableDef(qn(tn), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('email', String(), nullable=True),

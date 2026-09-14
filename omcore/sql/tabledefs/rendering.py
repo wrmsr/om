@@ -7,16 +7,21 @@ from ... import collections as col
 from ... import dataclasses as dc
 from ... import lang
 from ..dtypes import Integer
+from ..qualifiedname import QualifiedName
+from ..syntax import QuoteStyle
+from ..syntax import QuoteStyles
 from .diffing import AddColumn
 from .diffing import AddIndex
+from .diffing import AddTrigger
 from .diffing import AlterColumn
 from .diffing import DropColumn
 from .diffing import DropIndex
+from .diffing import DropTrigger
 from .diffing import MigrationOp
 from .elements import Column
 from .elements import Index
 from .elements import PrimaryKey
-from .elements import UpdatedAtTrigger
+from .elements import Trigger
 from .elements import index_name
 from .predicates import And
 from .predicates import Compare
@@ -27,6 +32,7 @@ from .predicates import Predicate
 from .predicates import RawPredicate
 from .predicates import SimplePredicateValue
 from .tabledefs import TableDef
+from .triggers import TriggerRenderer
 from .values import Now
 from .values import SimpleValue
 
@@ -36,6 +42,21 @@ from .values import SimpleValue
 
 class UnsupportedMigrationError(Exception):
     pass
+
+
+class IdentifierTooLongError(Exception):
+    def __init__(self, name: str, max_length: int) -> None:
+        super().__init__(f'identifier {name!r} exceeds the backend limit of {max_length} bytes')
+
+        self.name = name
+        self.max_length = max_length
+
+
+class UnknownTriggerTypeError(Exception):
+    def __init__(self, cls: type[Trigger]) -> None:
+        super().__init__(f'no TriggerRenderer is registered for trigger type {cls.__qualname__}')
+
+        self.cls = cls
 
 
 @dc.dataclass()
@@ -55,6 +76,10 @@ class Renderer(lang.Abstract):
     """
     Standard CREATE-TABLE assembly shared by all backends. Dialects override only the small set of hooks below; the
     column/constraint/index layout and the identity-column detection are shared so backends do not duplicate them.
+
+    Every identifier is quoted, always, through the dialect's quote style, and a table name is rendered exactly as
+    qualified in its definition. Trigger SQL is never assembled here: it is dispatched by trigger type to the registered
+    `TriggerRenderer` plugins - the backend's built-ins plus whatever the caller passes in.
     """
 
     @dc.dataclass(frozen=True, kw_only=True)
@@ -62,12 +87,62 @@ class Renderer(lang.Abstract):
         drop_if_exists: bool = False
         if_not_exists: bool = False
 
+    quote_style: ta.ClassVar[QuoteStyle] = QuoteStyles.DOUBLE
+
+    # Some backends (postgres) silently truncate an over-long identifier, which can fold two names into one; refusing
+    # up front is far safer.
+    max_identifier_length: ta.ClassVar[int | None] = None
+
+    # An integer of unspecified width gets the backend's default, except an identity column, which should never run
+    # out of ids.
+    default_integer_bits: ta.ClassVar[int] = 32
+    identity_integer_bits: ta.ClassVar[int] = 64
+
+    def __init__(
+            self,
+            *,
+            trigger_renderers: ta.Sequence[TriggerRenderer] = (),
+    ) -> None:
+        super().__init__()
+
+        by_cls: dict[type[Trigger], TriggerRenderer] = {}
+        for tr in [*self.builtin_trigger_renderers(), *trigger_renderers]:
+            check.not_in(tr.trigger_cls, by_cls)
+            by_cls[tr.trigger_cls] = tr
+        self._trigger_renderers_by_cls = by_cls
+
+    def builtin_trigger_renderers(self) -> ta.Sequence[TriggerRenderer]:
+        return ()
+
+    def trigger_renderer(self, cls: type[Trigger]) -> TriggerRenderer:
+        try:
+            return self._trigger_renderers_by_cls[cls]
+        except KeyError:
+            raise UnknownTriggerTypeError(cls) from None
+
+    ##
+    # identifiers
+
+    def quote(self, s: str) -> str:
+        check.non_empty_str(s)
+        if (ml := self.max_identifier_length) is not None and len(s.encode('utf-8')) > ml:
+            raise IdentifierTooLongError(s, ml)
+        return self.quote_style.quote(s)
+
+    def qname(self, qn: QualifiedName) -> str:
+        return '.'.join(self.quote(p) for p in qn)
+
     ##
     # hooks
 
     @abc.abstractmethod
     def column_type(self, c: Column, *, is_identity: bool, indexed: bool = False) -> str:
         raise NotImplementedError
+
+    def integer_bits(self, t: Integer, *, is_identity: bool) -> int:
+        if t.bits is not None:
+            return t.bits
+        return self.identity_integer_bits if is_identity else self.default_integer_bits
 
     def column_identity_sql(self, c: Column) -> str:
         return ''
@@ -93,9 +168,9 @@ class Renderer(lang.Abstract):
         return []
 
     def drop_statement(self, tbl: TableDef) -> str:
-        return f'drop table if exists {tbl.name}'
+        return f'drop table if exists {self.qname(tbl.name)}'
 
-    def index_statement(self, table_name: str, e: Index, opts: CreateOptions) -> str:
+    def index_statement(self, table_name: QualifiedName, e: Index, opts: CreateOptions) -> str:
         idx_name = index_name(table_name, e)
 
         with e.options.consume():
@@ -108,19 +183,23 @@ class Renderer(lang.Abstract):
         out.write('index ')
         if opts.if_not_exists:
             out.write('if not exists ')
-        out.write(f'{idx_name} on {table_name} ({", ".join(e.columns)})')
+        out.write(f'{self.quote(idx_name)} on {self.qname(table_name)} ({", ".join(self.quote(c) for c in e.columns)})')
         if e.where is not None:
             out.write(f' where {self.render_predicate(e.where)}')
         out.write('\n')
         return out.getvalue()
 
+    def drop_index_statement(self, table_name: QualifiedName, name: str) -> str:
+        # An index lives in its table's schema, so a drop must qualify it the same way.
+        return f'drop index {self.qname(table_name.sibling(name))}'
+
     def render_predicate(self, p: Predicate) -> str:
         if isinstance(p, RawPredicate):
             return p.s
         elif isinstance(p, Compare):
-            return f'{p.column} {p.op.value} {self.render_predicate_value(p.value)}'
+            return f'{self.quote(p.column)} {p.op.value} {self.render_predicate_value(p.value)}'
         elif isinstance(p, IsNull):
-            return f'{p.column} is not null' if p.negated else f'{p.column} is null'
+            return f'{self.quote(p.column)} is not null' if p.negated else f'{self.quote(p.column)} is null'
         elif isinstance(p, Not):
             return f'not ({self.render_predicate(p.predicate)})'
         elif isinstance(p, And):
@@ -142,15 +221,20 @@ class Renderer(lang.Abstract):
         else:
             raise TypeError(v)
 
-    @abc.abstractmethod
-    def updated_at_trigger_statements(
-            self,
-            tbl: TableDef,
-            e: UpdatedAtTrigger,
-            pk: PrimaryKey | None,
-            opts: CreateOptions,
-    ) -> list[str]:
-        raise NotImplementedError
+    ##
+    # triggers
+
+    def trigger_create_statements(self, tbl: TableDef, t: Trigger, opts: CreateOptions) -> list[str]:
+        # The differ relies on a trigger type owning every name it renders, so refuse to create one that does not (an
+        # OpaqueTrigger, say, which exists only to be diffed against).
+        name = t.trigger_name(tbl.name)
+        if not type(t).owns_trigger_name(tbl.name, name):
+            raise TypeError(f'trigger type {type(t).__qualname__} does not own its own name {name!r}')
+
+        return self.trigger_renderer(type(t)).create_statements(self, tbl, t, opts)
+
+    def trigger_drop_statements(self, table_name: QualifiedName, name: str, cls: type[Trigger]) -> list[str]:
+        return self.trigger_renderer(cls).drop_statements(self, table_name, name)
 
     ##
     # shared assembly
@@ -178,7 +262,7 @@ class Renderer(lang.Abstract):
 
     def _render_column(self, rc: RenderColumn) -> str:
         out = io.StringIO()
-        out.write(f'{rc.name} {rc.type}')
+        out.write(f'{self.quote(rc.name)} {rc.type}')
         if rc.identity:
             out.write(f' {rc.identity}')
         if rc.not_null:
@@ -233,10 +317,10 @@ class Renderer(lang.Abstract):
 
             elif isinstance(e, PrimaryKey):
                 check.not_empty(e.columns)
-                constraints.append(f'primary key ({", ".join(e.columns)})')
+                constraints.append(f'primary key ({", ".join(self.quote(c) for c in e.columns)})')
 
-            elif isinstance(e, UpdatedAtTrigger):
-                triggers.extend(self.updated_at_trigger_statements(tbl, e, pk, opts))
+            elif isinstance(e, Trigger):
+                triggers.extend(self.trigger_create_statements(tbl, e, opts))
 
             elif isinstance(e, Index):
                 indexes.append(self.index_statement(tbl.name, e, opts))
@@ -249,7 +333,7 @@ class Renderer(lang.Abstract):
         cts.write('create table')
         if opts.if_not_exists:
             cts.write(' if not exists')
-        cts.write(f' {tbl.name} (\n')
+        cts.write(f' {self.qname(tbl.name)} (\n')
 
         for i, rc in enumerate(r_cols.values()):
             cts.write(f'  {self._render_column(rc)}')
@@ -300,14 +384,19 @@ class Renderer(lang.Abstract):
             opts = self.CreateOptions()
 
         if isinstance(op, AddColumn):
-            return [f'alter table {op.table} add column {self._render_column(self._build_render_column(op.column, is_identity=False))}']  # noqa
+            rc = self._render_column(self._build_render_column(op.column, is_identity=False))
+            return [f'alter table {self.qname(op.table)} add column {rc}']
         elif isinstance(op, DropColumn):
-            return [f'alter table {op.table} drop column {op.name}']
+            return [f'alter table {self.qname(op.table)} drop column {self.quote(op.name)}']
         elif isinstance(op, AlterColumn):
             return self.alter_column_statements(op)
         elif isinstance(op, AddIndex):
             return [self.index_statement(op.table, op.index, opts)]
         elif isinstance(op, DropIndex):
-            return [f'drop index {op.name}']
+            return [self.drop_index_statement(op.table, op.name)]
+        elif isinstance(op, AddTrigger):
+            return self.trigger_create_statements(op.table_def, op.trigger, opts)
+        elif isinstance(op, DropTrigger):
+            return self.trigger_drop_statements(op.table, op.name, op.trigger_cls)
         else:
             raise TypeError(op)

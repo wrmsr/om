@@ -1,3 +1,6 @@
+import io
+import typing as ta
+
 from .... import check
 from ...dtypes import Boolean
 from ...dtypes import Bytes
@@ -6,22 +9,26 @@ from ...dtypes import Float
 from ...dtypes import Integer
 from ...dtypes import String
 from ...dtypes import Uuid
+from ...qualifiedname import QualifiedName
 from ...tabledefs.elements import Column
+from ...tabledefs.elements import Index
 from ...tabledefs.elements import PrimaryKey
 from ...tabledefs.elements import UpdatedAtTrigger
+from ...tabledefs.elements import index_name
 from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
+from ...tabledefs.triggers import TriggerRenderer
 
 
 ##
 
 
 CREATE_UPDATED_AT_TRIGGER_SRC = """\
-create trigger {preamble} {trigger_name}
+create trigger {if_not_exists}{trigger_name}
 after update on {table_name}
 for each row
 when new.{column_name} = old.{column_name}
-  begin
+begin
   update {table_name}
   set {column_name} = current_timestamp
   where {where};
@@ -29,12 +36,59 @@ end\
 """
 
 
+class SqliteUpdatedAtTriggerRenderer(TriggerRenderer[UpdatedAtTrigger]):
+    @property
+    def trigger_cls(self) -> type[UpdatedAtTrigger]:
+        return UpdatedAtTrigger
+
+    def create_statements(
+            self,
+            r: Renderer,
+            tbl: TableDef,
+            t: UpdatedAtTrigger,
+            opts: Renderer.CreateOptions,
+    ) -> list[str]:
+        if (pk := tbl.elements.get(PrimaryKey)) is not None:
+            pk_cols = check.not_empty(pk.columns)
+        else:
+            pk_cols = ['rowid']
+
+        # Sqlite scopes a trigger to its table's database: the trigger's own name may be qualified but the table it is
+        # on, and any table its body touches, must not be.
+        return [CREATE_UPDATED_AT_TRIGGER_SRC.format(
+            if_not_exists='if not exists ' if opts.if_not_exists else '',
+            trigger_name=r.qname(tbl.name.sibling(t.trigger_name(tbl.name))),
+            table_name=r.quote(tbl.name.last),
+            column_name=r.quote(t.column),
+            where=' and '.join(f'{r.quote(c)} = new.{r.quote(c)}' for c in pk_cols),
+        )]
+
+    def drop_statements(
+            self,
+            r: Renderer,
+            table_name: QualifiedName,
+            name: str,
+    ) -> list[str]:
+        return [f'drop trigger if exists {r.qname(table_name.sibling(name))}']
+
+
+##
+
+
 class SqliteTabledefRenderer(Renderer):
+    def builtin_trigger_renderers(self) -> ta.Sequence[TriggerRenderer]:
+        return [SqliteUpdatedAtTriggerRenderer()]
+
     def column_type(self, c: Column, *, is_identity: bool, indexed: bool = False) -> str:
-        if isinstance(c.type, (String, Uuid)):
-            return 'string'
+        # Type names matter only for sqlite's affinity rules: anything containing 'char' or 'text' is TEXT, 'int' is
+        # INTEGER, and an unrecognized name ('string', say) falls through to NUMERIC - which would silently turn a
+        # numeric-looking string into a number.
+        if isinstance(c.type, String):
+            return f'varchar({c.type.length})' if c.type.length is not None else 'text'
+        elif isinstance(c.type, Uuid):
+            return 'text'
         elif isinstance(c.type, Integer):
-            return 'integer'
+            return 'integer'  # every sqlite integer is 64-bit; the declared width is immaterial
         elif isinstance(c.type, Datetime):
             return 'datetime'
         elif isinstance(c.type, Boolean):
@@ -50,22 +104,23 @@ class SqliteTabledefRenderer(Renderer):
         # A single integer-pk column is sqlite's implicit rowid; otherwise the table is WITHOUT ROWID.
         return [] if identity_column is not None else ['without rowid']
 
-    def updated_at_trigger_statements(
-            self,
-            tbl: TableDef,
-            e: UpdatedAtTrigger,
-            pk: PrimaryKey | None,
-            opts: Renderer.CreateOptions,
-    ) -> list[str]:
-        if pk is not None:
-            pk_cols = check.not_empty(pk.columns)
-        else:
-            pk_cols = ['rowid']
+    def index_statement(self, table_name: QualifiedName, e: Index, opts: Renderer.CreateOptions) -> str:
+        # As with triggers: the index name carries the qualification, the table it is on must be bare.
+        idx_name = index_name(table_name, e)
 
-        return [CREATE_UPDATED_AT_TRIGGER_SRC.format(
-            preamble='if not exists' if opts.if_not_exists else '',
-            trigger_name=f'{tbl.name}__trigger__updated_at__{e.column}',
-            table_name=tbl.name,
-            column_name=e.column,
-            where=' and '.join(f'{c} = new.{c}' for c in pk_cols),
-        )]
+        with e.options.consume():
+            pass
+
+        out = io.StringIO()
+        out.write('create ')
+        if e.unique:
+            out.write('unique ')
+        out.write('index ')
+        if opts.if_not_exists:
+            out.write('if not exists ')
+        out.write(f'{self.qname(table_name.sibling(idx_name))} on {self.quote(table_name.last)} ')
+        out.write(f'({", ".join(self.quote(c) for c in e.columns)})')
+        if e.where is not None:
+            out.write(f' where {self.render_predicate(e.where)}')
+        out.write('\n')
+        return out.getvalue()

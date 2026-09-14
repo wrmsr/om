@@ -7,6 +7,7 @@ from ..... import lang
 from .....testing import pytest as ptu
 from ....dbs import UrlDbLoc
 from ....dtypes import String
+from ....qualifiedname import qn
 from ....tabledefs.elements import Column
 from ....tabledefs.elements import CreatedAtUpdatedAt
 from ....tabledefs.elements import Elements
@@ -43,7 +44,7 @@ def test_render_create_table(harness):
         cursor.execute('drop table if exists test_render_create_table')
 
         tbl = TableDef(
-            'test_render_create_table',
+            qn('test_render_create_table'),
             Elements(*[
                 IdIntegerPrimaryKey(),
                 CreatedAtUpdatedAt(),

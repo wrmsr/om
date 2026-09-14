@@ -11,6 +11,7 @@ from ....dtypes import Integer
 from ....dtypes import String
 from ....inspect.migrating import migrate_table
 from ....params import ParamStyle
+from ....qualifiedname import qn
 from ....tabledefs.diffing import AddColumn
 from ....tabledefs.elements import Column
 from ....tabledefs.elements import Elements
@@ -31,7 +32,7 @@ def test_migrate_table() -> None:
         tn = 'users'
 
         async with adb.connect() as conn:
-            base = TableDef(tn, Elements(Column('id', Integer()), PrimaryKey(['id'])))
+            base = TableDef(qn(tn), Elements(Column('id', Integer()), PrimaryKey(['id'])))
 
             # first run creates the table wholesale
             m1 = await migrate_table(conn, base, inspector=insp, renderer=r)
@@ -39,7 +40,7 @@ def test_migrate_table() -> None:
             assert not m1.ops
 
             # the in-code definition has grown a column -> one AddColumn is applied
-            grown = TableDef(tn, Elements(
+            grown = TableDef(qn(tn), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('email', String(), nullable=True),
@@ -65,7 +66,7 @@ def test_migrate_table_with_index() -> None:
         tn = 'widget'
 
         async with adb.connect() as conn:
-            td = TableDef(tn, Elements(
+            td = TableDef(qn(tn), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('email', String(), nullable=True),
@@ -92,7 +93,7 @@ def test_migrate_table_type_change_refused() -> None:
         tn = 'gadget'
 
         async with adb.connect() as conn:
-            await migrate_table(conn, TableDef(tn, Elements(
+            await migrate_table(conn, TableDef(qn(tn), Elements(
                 Column('id', Integer()),
                 PrimaryKey(['id']),
                 Column('val', Integer(), nullable=True),
@@ -100,7 +101,7 @@ def test_migrate_table_type_change_refused() -> None:
 
             # the in-code column type changed Integer -> String; sqlite cannot alter a column in place, so it refuses
             with pytest.raises(UnsupportedMigrationError):
-                await migrate_table(conn, TableDef(tn, Elements(
+                await migrate_table(conn, TableDef(qn(tn), Elements(
                     Column('id', Integer()),
                     PrimaryKey(['id']),
                     Column('val', String(), nullable=True),

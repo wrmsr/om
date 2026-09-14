@@ -1,14 +1,23 @@
 from .dtypes import (  # noqa
     Dtype,
 
+    INTEGER_BITS,
+
     Integer,
     String,
     Datetime,
     Uuid,
-
     Boolean,
     Float,
     Bytes,
+
+    INTEGER,
+    STRING,
+    DATETIME,
+    UUID,
+    BOOLEAN,
+    FLOAT,
+    BYTES,
 )
 
 
