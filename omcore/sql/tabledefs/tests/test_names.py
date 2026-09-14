@@ -27,7 +27,7 @@ class _ShortR(_R):
 
 
 class _BacktickR(_R):
-    quote_style = QuoteStyles.BACKTICK
+    ident_quote_style = QuoteStyles.BACKTICK
 
 
 def test_quoting():
