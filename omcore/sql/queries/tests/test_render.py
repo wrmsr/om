@@ -71,6 +71,13 @@ def test_render():
             Q.n.states,
             Q.eq(Q.n.key, 'foo'),
         ))]),
+
+        Q.select(
+            [1],
+            order_by=[Q.i.foo, (Q.i.bar, 'desc'), (Q.i.baz, 'asc', 'nulls_first')],
+            limit=420,
+            offset=421,
+        ),
     ]:
         print(query)
         print()

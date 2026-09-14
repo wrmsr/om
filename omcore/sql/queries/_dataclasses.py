@@ -2422,35 +2422,34 @@ def _process_dataclass__37329a1a9079e19e80c5c65b47a92c28aec1b006():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('items', 'from_', 'where')), FrozenPlan(fields=('__node_fields__', '_hash', 'items"
-        "', 'from_', 'where'), allow_dynamic_dunder_attrs=False), InitPlan(fields=(InitPlan.Field(name='__node_fields__"
+        "Plans(tup=(CopyPlan(fields=('v', 'direction', 'nulls')), FrozenPlan(fields=('__node_fields__', '_hash', 'v', '"
+        "direction', 'nulls'), allow_dynamic_dunder_attrs=False), InitPlan(fields=(InitPlan.Field(name='__node_fields__"
         "', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override="
         "False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='_has"
         "h', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override"
-        "=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ite"
-        "ms', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, overrid"
-        "e=False, field_type=FieldType.INSTANCE, coerce=OpRef(name='init.fields.2.coerce'), validate=None, check_type=N"
-        "one), InitPlan.Field(name='from_', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init"
-        ".fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
-        "ne, validate=None, check_type=None), InitPlan.Field(name='where', annotation=OpRef(name='init.fields.4.annotat"
-        "ion'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_typ"
-        "e=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('items', '"
-        "from_', 'where'), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fn"
-        "s=()), ReprPlan(fields=(ReprPlan.Field(name='items', kw_only=False, fn=None), ReprPlan.Field(name='from_', kw_"
-        "only=False, fn=OpRef(name='repr.fns.3.fn')), ReprPlan.Field(name='where', kw_only=False, fn=OpRef(name='repr.f"
-        "ns.4.fn'))), id=False, terse=False, default_fn=None)))"
+        "=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='v',"
+        " annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=Fa"
+        "lse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='directi"
+        "on', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_f"
+        "actory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type="
+        "None), InitPlan.Field(name='nulls', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='ini"
+        "t.fields.4.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=N"
+        "one, validate=None, check_type=None)), self_param='self', std_params=('v',), kw_only_params=('direction', 'nul"
+        "ls'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPla"
+        "n.Field(name='v', kw_only=False, fn=None), ReprPlan.Field(name='direction', kw_only=True, fn=OpRef(name='repr."
+        "fns.3.fn')), ReprPlan.Field(name='nulls', kw_only=True, fn=OpRef(name='repr.fns.4.fn'))), id=False, terse=Fals"
+        "e, default_fn=None)))"
     ),
-    plan_repr_sha1='21935ac05be913f6babd9a0b3e9aafa4e132b1f7',
+    plan_repr_sha1='a4931d990e29e358b74c5f0874815458a50a9508',
     cls_names=(
-        ('omcore.sql.queries.selects', 'Select'),
+        ('omcore.sql.queries.selects', 'OrderByItem'),
     ),
 )
-def _process_dataclass__21935ac05be913f6babd9a0b3e9aafa4e132b1f7():
+def _process_dataclass__a4931d990e29e358b74c5f0874815458a50a9508():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__coerce,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
         __dataclass__init__fields__4__annotation,
@@ -2467,9 +2466,145 @@ def _process_dataclass__21935ac05be913f6babd9a0b3e9aafa4e132b1f7():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
+                v=self.v,
+                direction=self.direction,
+                nulls=self.nulls,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__node_fields__',
+            '_hash',
+            'v',
+            'direction',
+            'nulls',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __init__(
+            self,
+            v: __dataclass__init__fields__2__annotation,
+            *,
+            direction: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            nulls: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'v', v)
+            __dataclass__object_setattr(self, 'direction', direction)
+            __dataclass__object_setattr(self, 'nulls', nulls)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"v={self.v!r}")
+            if (s := __dataclass__repr__fns__3__fn(self.direction)) is not None:
+                parts.append(f"direction={s}")
+            if (s := __dataclass__repr__fns__4__fn(self.nulls)) is not None:
+                parts.append(f"nulls={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('items', 'from_', 'where', 'order_by', 'limit', 'offset')), FrozenPlan(fields=('__"
+        "node_fields__', '_hash', 'items', 'from_', 'where', 'order_by', 'limit', 'offset'), allow_dynamic_dunder_attrs"
+        "=False), InitPlan(fields=(InitPlan.Field(name='__node_fields__', annotation=OpRef(name='init.fields.0.annotati"
+        "on'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=No"
+        "ne, validate=None, check_type=None), InitPlan.Field(name='_hash', annotation=OpRef(name='init.fields.1.annotat"
+        "ion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=N"
+        "one, validate=None, check_type=None), InitPlan.Field(name='items', annotation=OpRef(name='init.fields.2.annota"
+        "tion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=O"
+        "pRef(name='init.fields.2.coerce'), validate=None, check_type=None), InitPlan.Field(name='from_', annotation=Op"
+        "Ref(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init="
+        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fi"
+        "eld(name='where', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default"
+        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
+        ", check_type=None), InitPlan.Field(name='order_by', annotation=OpRef(name='init.fields.5.annotation'), default"
+        "=OpRef(name='init.fields.5.default'), default_factory=None, init=True, override=False, field_type=FieldType.IN"
+        "STANCE, coerce=OpRef(name='init.fields.5.coerce'), validate=None, check_type=None), InitPlan.Field(name='limit"
+        "', annotation=OpRef(name='init.fields.6.annotation'), default=OpRef(name='init.fields.6.default'), default_fac"
+        "tory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=No"
+        "ne), InitPlan.Field(name='offset', annotation=OpRef(name='init.fields.7.annotation'), default=OpRef(name='init"
+        ".fields.7.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
+        "ne, validate=None, check_type=None)), self_param='self', std_params=('items', 'from_', 'where'), kw_only_param"
+        "s=('order_by', 'limit', 'offset'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns="
+        "()), ReprPlan(fields=(ReprPlan.Field(name='items', kw_only=False, fn=None), ReprPlan.Field(name='from_', kw_on"
+        "ly=False, fn=OpRef(name='repr.fns.3.fn')), ReprPlan.Field(name='where', kw_only=False, fn=OpRef(name='repr.fns"
+        ".4.fn')), ReprPlan.Field(name='order_by', kw_only=True, fn=None), ReprPlan.Field(name='limit', kw_only=True, f"
+        "n=OpRef(name='repr.fns.6.fn')), ReprPlan.Field(name='offset', kw_only=True, fn=OpRef(name='repr.fns.7.fn'))), "
+        "id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='c7ca8a75f4350543d400ff9b74f8953f3d2f5b04',
+    cls_names=(
+        ('omcore.sql.queries.selects', 'Select'),
+    ),
+)
+def _process_dataclass__c7ca8a75f4350543d400ff9b74f8953f3d2f5b04():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__coerce,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__coerce,
+        __dataclass__init__fields__5__default,
+        __dataclass__init__fields__6__annotation,
+        __dataclass__init__fields__6__default,
+        __dataclass__init__fields__7__annotation,
+        __dataclass__init__fields__7__default,
+        __dataclass__repr__fns__3__fn,
+        __dataclass__repr__fns__4__fn,
+        __dataclass__repr__fns__6__fn,
+        __dataclass__repr__fns__7__fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
                 items=self.items,
                 from_=self.from_,
                 where=self.where,
+                order_by=self.order_by,
+                limit=self.limit,
+                offset=self.offset,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -2480,6 +2615,9 @@ def _process_dataclass__21935ac05be913f6babd9a0b3e9aafa4e132b1f7():
             'items',
             'from_',
             'where',
+            'order_by',
+            'limit',
+            'offset',
         }
 
         def __setattr__(self, name, value):
@@ -2507,11 +2645,19 @@ def _process_dataclass__21935ac05be913f6babd9a0b3e9aafa4e132b1f7():
             items: __dataclass__init__fields__2__annotation,
             from_: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
             where: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            *,
+            order_by: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            limit: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            offset: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
         ) -> __dataclass__None:
             items = __dataclass__init__fields__2__coerce(items)
+            order_by = __dataclass__init__fields__5__coerce(order_by)
             __dataclass__object_setattr(self, 'items', items)
             __dataclass__object_setattr(self, 'from_', from_)
             __dataclass__object_setattr(self, 'where', where)
+            __dataclass__object_setattr(self, 'order_by', order_by)
+            __dataclass__object_setattr(self, 'limit', limit)
+            __dataclass__object_setattr(self, 'offset', offset)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2523,6 +2669,11 @@ def _process_dataclass__21935ac05be913f6babd9a0b3e9aafa4e132b1f7():
                 parts.append(f"from_={s}")
             if (s := __dataclass__repr__fns__4__fn(self.where)) is not None:
                 parts.append(f"where={s}")
+            parts.append(f"order_by={self.order_by!r}")
+            if (s := __dataclass__repr__fns__6__fn(self.limit)) is not None:
+                parts.append(f"limit={s}")
+            if (s := __dataclass__repr__fns__7__fn(self.offset)) is not None:
+                parts.append(f"offset={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

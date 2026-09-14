@@ -118,8 +118,16 @@ from .rendering import (  # noqa
 
 from .selects import (  # noqa
     AllSelectItem,
+    CanOrderBy,
+    CanOrderByDirection,
+    CanOrderByItem,
+    CanOrderByNulls,
     CanRelation,
     ExprSelectItem,
+    OrderByDirection,
+    OrderByDirectionLiteral,
+    OrderByNulls,
+    OrderByNullsLiteral,
     Select,
     SelectBuilder,
     SelectExpr,

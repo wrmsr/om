@@ -39,6 +39,9 @@ from .relations import JoinKind
 from .relations import Table
 from .selects import AllSelectItem
 from .selects import ExprSelectItem
+from .selects import OrderByDirection
+from .selects import OrderByItem
+from .selects import OrderByNulls
 from .selects import Select
 from .selects import SelectExpr
 from .selects import SelectRelation
@@ -341,6 +344,32 @@ class StdRenderer(Renderer):
 
     # selects
 
+    ORDER_BY_DIRECTION_TO_STR: ta.ClassVar[ta.Mapping[OrderByDirection, str]] = {
+        OrderByDirection.ASC: 'asc',
+        OrderByDirection.DESC: 'desc',
+    }
+
+    @Renderer.render.register
+    def render_order_by_direction(self, o: OrderByDirection) -> tp.Part:
+        return self.ORDER_BY_DIRECTION_TO_STR[o]
+
+    ORDER_BY_NULLS_TO_STR: ta.ClassVar[ta.Mapping[OrderByNulls, str]] = {
+        OrderByNulls.FIRST: 'nulls first',
+        OrderByNulls.LAST: 'nulls last',
+    }
+
+    @Renderer.render.register
+    def render_order_by_nulls(self, o: OrderByNulls) -> tp.Part:
+        return self.ORDER_BY_NULLS_TO_STR[o]
+
+    @Renderer.render.register
+    def render_order_by_item(self, o: OrderByItem) -> tp.Part:
+        return [
+            self.render(o.v),
+            *([self.render(o.direction)] if o.direction is not None else []),
+            *([self.render(o.nulls)] if o.nulls is not None else []),
+        ]
+
     @Renderer.render.register
     def render_all_select_item(self, o: AllSelectItem) -> tp.Part:
         return '*'
@@ -359,6 +388,11 @@ class StdRenderer(Renderer):
             tp.List([self.render(i) for i in o.items]),
             *(['from', self.render(o.from_)] if o.from_ is not None else []),
             *(['where', self.render(o.where)] if o.where is not None else []),
+
+            *(['order by', tp.List([self.render(e) for e in o.order_by])] if o.order_by else []),
+
+            *(['limit', self.render(o.limit)] if o.limit is not None else []),
+            *(['offset', self.render(o.offset)] if o.offset is not None else []),
         ]
 
     @Renderer.render.register
