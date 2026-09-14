@@ -78,6 +78,11 @@ def test_render():
             limit=420,
             offset=421,
         ),
+
+        Q.select(
+            [1],
+            where=Q.in_(Q.i.foo, [1, 'bar', Q.add(Q.i.baz, 2)]),
+        ),
     ]:
         print(query)
         print()

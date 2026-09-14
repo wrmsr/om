@@ -50,18 +50,23 @@ from .funcs import (  # noqa
     FuncBuilder,
 )
 
-from .inserts import (  # noqa
-    CanValues,
-    Insert,
-    InsertBuilder,
-    Values,
-)
-
 from .idents import (  # noqa
     CanIdent,
     Ident,
     IdentBuilder,
     IdentLike,
+)
+
+from .in_ import (  # noqa
+    In,
+    InBuilder,
+)
+
+from .inserts import (  # noqa
+    CanValues,
+    Insert,
+    InsertBuilder,
+    Values,
 )
 
 from .keywords import (  # noqa

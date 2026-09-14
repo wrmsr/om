@@ -26,6 +26,7 @@ from .exprs import NameExpr
 from .exprs import ParamExpr
 from .funcs import Func
 from .idents import Ident
+from .in_ import In
 from .inserts import Insert
 from .inserts import Values
 from .keywords import LiteralKeyword
@@ -254,6 +255,16 @@ class StdRenderer(Renderer):
     def render_ident(self, o: Ident) -> tp.Part:
         return self._adapter.quote_style.quote(o.s)
 
+    # in_
+
+    @Renderer.render.register
+    def render_in(self, o: In) -> tp.Part:
+        return [
+            self.render(o.v),
+            'not in' if o.not_ else 'in',
+            tp.Wrap(tp.List([self.render(v) for v in o.vs])),
+        ]
+
     # inserts
 
     @Renderer.render.register
@@ -307,6 +318,34 @@ class StdRenderer(Renderer):
             out.append(self.render(i))
         return tp.Concat(out)
 
+    # ordering
+
+    ORDER_BY_DIRECTION_TO_STR: ta.ClassVar[ta.Mapping[OrderByDirection, str]] = {
+        OrderByDirection.ASC: 'asc',
+        OrderByDirection.DESC: 'desc',
+    }
+
+    @Renderer.render.register
+    def render_order_by_direction(self, o: OrderByDirection) -> tp.Part:
+        return self.ORDER_BY_DIRECTION_TO_STR[o]
+
+    ORDER_BY_NULLS_TO_STR: ta.ClassVar[ta.Mapping[OrderByNulls, str]] = {
+        OrderByNulls.FIRST: 'nulls first',
+        OrderByNulls.LAST: 'nulls last',
+    }
+
+    @Renderer.render.register
+    def render_order_by_nulls(self, o: OrderByNulls) -> tp.Part:
+        return self.ORDER_BY_NULLS_TO_STR[o]
+
+    @Renderer.render.register
+    def render_order_by_item(self, o: OrderByItem) -> tp.Part:
+        return [
+            self.render(o.v),
+            *([self.render(o.direction)] if o.direction is not None else []),
+            *([self.render(o.nulls)] if o.nulls is not None else []),
+        ]
+
     # params
 
     @Renderer.render.register
@@ -343,32 +382,6 @@ class StdRenderer(Renderer):
         ]
 
     # selects
-
-    ORDER_BY_DIRECTION_TO_STR: ta.ClassVar[ta.Mapping[OrderByDirection, str]] = {
-        OrderByDirection.ASC: 'asc',
-        OrderByDirection.DESC: 'desc',
-    }
-
-    @Renderer.render.register
-    def render_order_by_direction(self, o: OrderByDirection) -> tp.Part:
-        return self.ORDER_BY_DIRECTION_TO_STR[o]
-
-    ORDER_BY_NULLS_TO_STR: ta.ClassVar[ta.Mapping[OrderByNulls, str]] = {
-        OrderByNulls.FIRST: 'nulls first',
-        OrderByNulls.LAST: 'nulls last',
-    }
-
-    @Renderer.render.register
-    def render_order_by_nulls(self, o: OrderByNulls) -> tp.Part:
-        return self.ORDER_BY_NULLS_TO_STR[o]
-
-    @Renderer.render.register
-    def render_order_by_item(self, o: OrderByItem) -> tp.Part:
-        return [
-            self.render(o.v),
-            *([self.render(o.direction)] if o.direction is not None else []),
-            *([self.render(o.nulls)] if o.nulls is not None else []),
-        ]
 
     @Renderer.render.register
     def render_all_select_item(self, o: AllSelectItem) -> tp.Part:

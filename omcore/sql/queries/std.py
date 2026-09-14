@@ -16,6 +16,7 @@ from .stmts import StmtBuilder
 from .unary import UnaryBuilder
 from .unions import UnionBuilder
 from .updates import UpdateBuilder
+from .in_ import InBuilder
 
 
 ##
@@ -34,6 +35,7 @@ class StdBuilder(
 
     FuncBuilder,
     MultiBuilder,
+    InBuilder,
     BinaryBuilder,
     UnaryBuilder,
     ExprBuilder,
