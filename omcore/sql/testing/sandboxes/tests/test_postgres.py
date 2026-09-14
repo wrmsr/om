@@ -8,10 +8,10 @@ from ....api import querierfuncs as qf
 from ....backends.postgres import connecting as pgc
 from ....tests.harness import SANDBOX_ROLE_PASSWORD
 from ....tests.harness import HarnessSandboxes
+from ..backends.postgres import PostgresSandboxBackend
+from ..backends.postgres import bootstrap_postgres
 from ..config import SandboxesConfig
 from ..errors import SandboxSafetyError
-from ..postgres import PostgresSandboxBackend
-from ..postgres import bootstrap_postgres
 from ..registry import SandboxKind
 from ..sandboxes import SandboxAllocator
 from .scenarios import BackendScenario

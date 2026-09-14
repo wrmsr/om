@@ -15,7 +15,7 @@ from ..... import marshal as msh
 from .....formats.json import all as json
 from ....api import querierfuncs as qf
 from ....api.queriers import Querier
-from ..backends import SandboxBackend
+from ..backend import SandboxBackend
 from ..errors import SandboxStateError
 from ..names import SandboxNames
 from ..names import new_run_id

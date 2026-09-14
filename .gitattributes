@@ -76,7 +76,7 @@ omllm/specs/mcp/protocol.py linguist-generated
 omllm/ui/tui/_dataclasses.py linguist-generated
 omllm/ui/tui/bare/_dataclasses.py linguist-generated
 omllm/ui/tui/minitui/_dataclasses.py linguist-generated
-x/collections/kv2/bases.py linguist-generated
+x/collections_/kv2/bases.py linguist-generated
 x/logs/_tlog.py linguist-generated
 x/minichain/_dataclasses.py linguist-generated
 x/minichain/drivers/_dataclasses.py linguist-generated

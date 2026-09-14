@@ -5,7 +5,7 @@ from .... import lang
 from ....logs import all as logs
 from ...api.core import Db
 from ...api.queriers import Querier
-from .backends import SandboxBackend
+from .backend import SandboxBackend
 from .names import SandboxNames
 from .registry import SandboxKind
 

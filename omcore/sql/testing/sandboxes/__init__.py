@@ -4,7 +4,27 @@ from .... import lang as _lang  # noqa
 with _lang.auto_proxy_init(globals()):
     ##
 
-    from .backends import (  # noqa
+    from .backends.mysql import (  # noqa
+        MysqlBootstrapReport,
+        MysqlSandboxBackend,
+
+        bootstrap_mysql,
+    )
+
+    from .backends.postgres import (  # noqa
+        PostgresBootstrapReport,
+        PostgresSandboxBackend,
+
+        bootstrap_postgres,
+    )
+
+    from .backends.sqlite import (  # noqa
+        SqliteSandboxBackend,
+    )
+
+    #
+
+    from .backend import (  # noqa
         SandboxBackend,
         UnregisteredSandbox,
     )
@@ -20,14 +40,6 @@ with _lang.auto_proxy_init(globals()):
         SandboxStateError,
     )
 
-    from .mysql import (  # noqa
-        MysqlBootstrapReport,
-        MysqlSandboxBackend,
-
-        bootstrap_mysql,
-        grant_pattern,
-    )
-
     from .names import (  # noqa
         MAX_NAME_LENGTH,
         RUN_ID_PAT,
@@ -36,13 +48,6 @@ with _lang.auto_proxy_init(globals()):
         SandboxNames,
 
         new_run_id,
-    )
-
-    from .postgres import (  # noqa
-        PostgresBootstrapReport,
-        PostgresSandboxBackend,
-
-        bootstrap_postgres,
     )
 
     from .reaping import (  # noqa
@@ -64,8 +69,4 @@ with _lang.auto_proxy_init(globals()):
     from .sandboxes import (  # noqa
         Sandbox,
         SandboxAllocator,
-    )
-
-    from .sqlite import (  # noqa
-        SqliteSandboxBackend,
     )

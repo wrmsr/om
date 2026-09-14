@@ -9,7 +9,7 @@ from .... import check
 from .... import lang
 from ...api.core import Conn
 from ...api.core import Db
-from .backends import SandboxBackend
+from .backend import SandboxBackend
 from .config import SandboxesConfig
 from .errors import SandboxStateError
 from .names import SandboxNames

@@ -4,25 +4,24 @@ import hashlib
 import struct
 import typing as ta
 
-from .... import check
-from ....secrets.secrets import Secrets
-from ...api import querierfuncs as qf
-from ...api.core import Conn
-from ...api.core import Db
-from ...api.queriers import Querier
-from ...backends.postgres.connecting import og8000_db
-from ...backends.postgres.tabledefs import PostgresTabledefRenderer
-from ...dbs import HostDbLoc
-from ...queries import Q
-from ...tabledefs.rendering import Renderer
-from .backends import SandboxBackend
-from .backends import UnregisteredSandbox
-from .config import SandboxesConfig
-from .errors import SandboxSafetyError
-from .names import SandboxNames
-from .registry import SandboxKind
-from .registry import SandboxRecord
-from .registry import SandboxRegistry
+from ..... import check
+from .....secrets.secrets import Secrets
+from ....api import querierfuncs as qf
+from ....api.core import Conn
+from ....api.core import Db
+from ....api.queriers import Querier
+from ....backends import postgres as be
+from ....dbs import HostDbLoc
+from ....queries import Q
+from ....tabledefs.rendering import Renderer
+from ..backend import SandboxBackend
+from ..backend import UnregisteredSandbox
+from ..config import SandboxesConfig
+from ..errors import SandboxSafetyError
+from ..names import SandboxNames
+from ..registry import SandboxKind
+from ..registry import SandboxRecord
+from ..registry import SandboxRegistry
 
 
 ##
@@ -58,7 +57,7 @@ class PostgresSandboxBackend(SandboxBackend):
         self._secrets = secrets
 
         self._names = SandboxNames(cfg)
-        self._renderer = PostgresTabledefRenderer()
+        self._renderer = be.td.PostgresTabledefRenderer()
         self._registry = SandboxRegistry(cfg)
 
     @property
@@ -83,7 +82,7 @@ class PostgresSandboxBackend(SandboxBackend):
     #
 
     def open_db(self, run_id: str) -> Db:
-        return og8000_db(
+        return be.connecting.og8000_db(
             self._loc,
             database=self._cfg.database,
             application_name=self._names.application_name(run_id),
@@ -94,7 +93,7 @@ class PostgresSandboxBackend(SandboxBackend):
         self._names.check_sandbox_name(name)
 
         if kind is SandboxKind.SCHEMA:
-            return og8000_db(
+            return be.connecting.og8000_db(
                 self._loc,
                 database=self._cfg.database,
                 application_name=self._names.application_name(run_id),
@@ -103,7 +102,7 @@ class PostgresSandboxBackend(SandboxBackend):
             )
 
         elif kind is SandboxKind.DATABASE:
-            return og8000_db(
+            return be.connecting.og8000_db(
                 self._loc,
                 database=name,
                 application_name=self._names.application_name(run_id),
@@ -260,7 +259,7 @@ def bootstrap_postgres(
     the whole of what a shared server needs done by hand, once.
     """
 
-    r = PostgresTabledefRenderer()
+    r = be.td.PostgresTabledefRenderer()
     role = r.quote_ident(cfg.role)
     database = r.quote_ident(cfg.database)
 

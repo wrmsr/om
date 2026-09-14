@@ -8,27 +8,26 @@ import tempfile
 import threading
 import typing as ta
 
-from .... import check
-from ...api import querierfuncs as qf
-from ...api.core import Conn
-from ...api.core import Db
-from ...api.dbapi import ClosingDbapiConnector
-from ...api.dbapi import DbapiDb
-from ...api.queriers import Querier
-from ...backends.sqlite.adapters import sqlite_adapter
-from ...backends.sqlite.tabledefs import SqliteTabledefRenderer
-from ...qualifiedname import qn
-from ...tabledefs.rendering import Renderer
-from .backends import SandboxBackend
-from .backends import UnregisteredSandbox
-from .config import SandboxesConfig
-from .errors import SandboxSafetyError
-from .errors import SandboxStateError
-from .names import SandboxNames
-from .registry import IsoTimestampCodec
-from .registry import SandboxKind
-from .registry import SandboxRecord
-from .registry import SandboxRegistry
+from ..... import check
+from ....api import querierfuncs as qf
+from ....api.core import Conn
+from ....api.core import Db
+from ....api.dbapi import ClosingDbapiConnector
+from ....api.dbapi import DbapiDb
+from ....api.queriers import Querier
+from ....backends import sqlite as be
+from ....qualifiedname import qn
+from ....tabledefs.rendering import Renderer
+from ..backend import SandboxBackend
+from ..backend import UnregisteredSandbox
+from ..config import SandboxesConfig
+from ..errors import SandboxSafetyError
+from ..errors import SandboxStateError
+from ..names import SandboxNames
+from ..registry import IsoTimestampCodec
+from ..registry import SandboxKind
+from ..registry import SandboxRecord
+from ..registry import SandboxRegistry
 
 
 ##
@@ -64,7 +63,7 @@ class SqliteSandboxBackend(SandboxBackend):
         self._registry_path = os.path.join(self._base_dir, cfg.registry_schema + '.sqlite')
 
         self._names = SandboxNames(cfg)
-        self._renderer = SqliteTabledefRenderer()
+        self._renderer = be.td.SqliteTabledefRenderer()
         # The registry file is the connection's main database, so its table is unqualified; timestamps are text.
         self._registry = SandboxRegistry(
             cfg,
@@ -125,7 +124,7 @@ class SqliteSandboxBackend(SandboxBackend):
                 check_same_thread=False,
                 timeout=30.,
             ),
-            adapter=sqlite_adapter(),
+            adapter=be.adapters.sqlite_adapter(),
         )
 
     def open_db(self, run_id: str) -> Db:

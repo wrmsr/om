@@ -2,30 +2,28 @@
 import datetime
 import typing as ta
 
-from .... import check
-from .... import lang
-from ....secrets.secrets import Secrets
-from ...api import querierfuncs as qf
-from ...api.asyncs import ImmediateSyncToAsyncRunner
-from ...api.asyncs import SyncToAsyncConn
-from ...api.core import Conn
-from ...api.core import Db
-from ...api.queriers import Querier
-from ...backends.mysql.connecting import omysql_db
-from ...backends.mysql.inspect import MysqlInspector
-from ...backends.mysql.tabledefs import MysqlTabledefRenderer
-from ...dbs import HostDbLoc
-from ...queries import Q
-from .backends import SandboxBackend
-from .backends import UnregisteredSandbox
-from .config import SandboxesConfig
-from .errors import SandboxSafetyError
-from .errors import SandboxStateError
-from .names import SandboxNames
-from .registry import SandboxKind
-from .registry import SandboxRecord
-from .registry import SandboxRegistry
-from .registry import WholeSecondsTimestampCodec
+from ..... import check
+from ..... import lang
+from .....secrets.secrets import Secrets
+from ....api import querierfuncs as qf
+from ....api.asyncs import ImmediateSyncToAsyncRunner
+from ....api.asyncs import SyncToAsyncConn
+from ....api.core import Conn
+from ....api.core import Db
+from ....api.queriers import Querier
+from ....backends import mysql as be
+from ....dbs import HostDbLoc
+from ....queries import Q
+from ..backend import SandboxBackend
+from ..backend import UnregisteredSandbox
+from ..config import SandboxesConfig
+from ..errors import SandboxSafetyError
+from ..errors import SandboxStateError
+from ..names import SandboxNames
+from ..registry import SandboxKind
+from ..registry import SandboxRecord
+from ..registry import SandboxRegistry
+from ..registry import WholeSecondsTimestampCodec
 
 
 ##
@@ -60,8 +58,8 @@ class MysqlSandboxBackend(SandboxBackend):
         self._secrets = secrets
 
         self._names = SandboxNames(cfg)
-        self._renderer = MysqlTabledefRenderer()
-        self._inspector = MysqlInspector()
+        self._renderer = be.td.MysqlTabledefRenderer()
+        self._inspector = be.inspect.MysqlInspector()
         # Mysql's plain datetime has no fractional seconds.
         self._registry = SandboxRegistry(cfg, timestamp_codec=WholeSecondsTimestampCodec())
 
@@ -88,12 +86,12 @@ class MysqlSandboxBackend(SandboxBackend):
 
     def open_db(self, run_id: str) -> Db:
         self._names.check_run_id(run_id)
-        return omysql_db(self._loc, database=self._cfg.database, secrets=self._secrets)
+        return be.connecting.omysql_db(self._loc, database=self._cfg.database, secrets=self._secrets)
 
     def sandbox_db(self, run_id: str, name: str, kind: SandboxKind) -> Db:
         check.is_(kind, SandboxKind.DATABASE)
         self._names.check_sandbox_name(name)
-        return omysql_db(self._loc, database=name, secrets=self._secrets)
+        return be.connecting.omysql_db(self._loc, database=name, secrets=self._secrets)
 
     #
 
@@ -233,7 +231,7 @@ def bootstrap_mysql(
     boundary. Re-run freely; privileges are revoked and re-granted from scratch each time.
     """
 
-    r = MysqlTabledefRenderer()
+    r = be.td.MysqlTabledefRenderer()
     account = _account(cfg.role)
     database = r.quote_ident(cfg.database)
 

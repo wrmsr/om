@@ -7,11 +7,11 @@ from ....api import querierfuncs as qf
 from ....backends.mysql import connecting as myc
 from ....tests.harness import SANDBOX_ROLE_PASSWORD
 from ....tests.harness import HarnessSandboxes
+from ..backends.mysql import MysqlSandboxBackend
+from ..backends.mysql import bootstrap_mysql
+from ..backends.mysql import grant_pattern
 from ..config import SandboxesConfig
 from ..errors import SandboxSafetyError
-from ..mysql import MysqlSandboxBackend
-from ..mysql import bootstrap_mysql
-from ..mysql import grant_pattern
 from ..sandboxes import SandboxAllocator
 from .scenarios import BackendScenario
 from .scenarios import check_isolation

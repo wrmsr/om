@@ -9,12 +9,12 @@ import sys
 from ..... import marshal as msh
 from .....formats.json import all as json
 from ....dbs import HostDbLoc
-from ..backends import SandboxBackend
+from ..backend import SandboxBackend
+from ..backends.mysql import MysqlSandboxBackend
+from ..backends.postgres import PostgresSandboxBackend
+from ..backends.sqlite import SqliteSandboxBackend
 from ..config import SandboxesConfig
-from ..mysql import MysqlSandboxBackend
-from ..postgres import PostgresSandboxBackend
 from ..sandboxes import SandboxAllocator
-from ..sqlite import SqliteSandboxBackend
 
 
 ##

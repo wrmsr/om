@@ -9,6 +9,8 @@ with _lang.auto_proxy_init(globals()):
 
     from . import backend  # noqa
 
+    from . import connecting  # noqa
+
     from . import dialect  # noqa
 
     from . import inspect  # noqa

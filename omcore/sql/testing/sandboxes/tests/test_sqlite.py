@@ -5,10 +5,10 @@ import pytest
 
 from ....api import querierfuncs as qf
 from ....tests.harness import HarnessSandboxes
+from ..backends.sqlite import SqliteSandboxBackend
 from ..config import SandboxesConfig
 from ..errors import SandboxSafetyError
 from ..sandboxes import SandboxAllocator
-from ..sqlite import SqliteSandboxBackend
 from .scenarios import BackendScenario
 from .scenarios import check_isolation
 from .scenarios import check_reaper

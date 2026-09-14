@@ -7,12 +7,12 @@ import typing as ta
 from .... import check
 from ....secrets.secrets import Secrets
 from ...api.core import Db
-from ...connecting import parse_url_db_loc as _parse_url_db_loc
-from ...connecting import reveal_password
-from ...connecting import with_username  # noqa
 from ...dbs import DbTypes
 from ...dbs import HostDbLoc
 from ...drivers import og8000 as og8000_
+from ..connecting import parse_url_db_loc as _parse_url_db_loc
+from ..connecting import reveal_password
+from ..connecting import with_username  # noqa
 from .drivers import og8000
 
 

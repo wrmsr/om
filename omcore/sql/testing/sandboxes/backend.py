@@ -99,8 +99,8 @@ class SandboxBackend(lang.Abstract):
     @abc.abstractmethod
     def mark_run_live(self, q: Querier, run_id: str) -> None:
         """
-        Makes the run visible as alive to reapers for as long as this session (or the process) lives. A backend that
-        can read that off the session itself needs nothing here.
+        Makes the run visible as alive to reapers for as long as this session (or the process) lives. A backend that can
+        read that off the session itself needs nothing here.
         """
 
         raise NotImplementedError
