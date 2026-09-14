@@ -1,8 +1,11 @@
+# ruff: noqa: SLF001
 import os
 import shutil
 import subprocess
 import sys
 import zipfile
+
+from ..pycz import _MmapPyczArchive
 
 
 ##
@@ -41,6 +44,17 @@ def test_pycz_install_and_load(tmp_path):
     assert (site_dir / '___pycz-fixturepkg.pth').is_file()
     with zipfile.ZipFile(site_dir / 'fixturepkg.pycz') as zf:
         assert zf.namelist() == ['fixturepkg/__init__.pyc', 'fixturepkg/mod.pyc']
+
+    archive = _MmapPyczArchive(str(site_dir / 'fixturepkg.pycz'))
+    try:
+        assert set(archive._central_entries) == {'fixturepkg/__init__.pyc', 'fixturepkg/mod.pyc'}
+        assert archive._local_entries == {}
+        assert archive.has('fixturepkg/mod.pyc')
+        assert archive._local_entries == {}
+        assert archive.read('fixturepkg/mod.pyc')
+        assert set(archive._local_entries) == {'fixturepkg/mod.pyc'}
+    finally:
+        archive.close()
 
     module_path.write_text('VALUE = 2\n')
     shutil.rmtree(package_dir / '__pycache__')

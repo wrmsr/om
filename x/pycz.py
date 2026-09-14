@@ -23,13 +23,14 @@ class _PyczArchive:
                 data = f.read()
         self._data = data
 
-        self._entries = self._parse_entries(self._data)
+        self._central_offset = 0
+        self._central_entries = self._parse_central_entries(self._data)
+        self._local_entries: dict[str, tuple[int, int]] = {}
 
     def close(self) -> None:
         pass
 
-    @staticmethod
-    def _parse_entries(data: bytes) -> dict[str, tuple[int, int]]:
+    def _parse_central_entries(self, data: bytes) -> dict[str, tuple[int, int, int, int, bytes]]:
         data_len = len(data)
         int_from_bytes = int.from_bytes
 
@@ -76,7 +77,7 @@ class _PyczArchive:
         if central_offset + central_size != eocd_offset:
             raise _PyczError('Mismatched pycz eocd.central_offset/central_size')
 
-        entries: dict[str, tuple[int, int]] = {}
+        entries: dict[str, tuple[int, int, int, int, bytes]] = {}
         offset = central_offset
         for i in range(entry_count):
             if data[offset:offset + 4] != b'PK\x01\x02':
@@ -131,52 +132,68 @@ class _PyczArchive:
             if name in entries:
                 raise _PyczError(f'Duplicate pycz central[{i}].name: {name!r}')
 
-            if data[local_offset:local_offset + 4] != b'PK\x03\x04':
-                raise _PyczError(f'Invalid pycz local[{i}].signature: {name!r}')
-            if local_offset + 30 > central_offset:
-                raise _PyczError(f'Invalid pycz local[{i}].header_size: {name!r}')
-            if (end := local_offset + 8) > data_len:
-                raise _PyczError(f'Truncated pycz local[{i}].flags: {name!r}')
-            local_flags = int_from_bytes(data[local_offset + 6:end], 'little')
-            if (end := local_offset + 10) > data_len:
-                raise _PyczError(f'Truncated pycz local[{i}].compression: {name!r}')
-            local_compression = int_from_bytes(data[local_offset + 8:end], 'little')
-            if (end := local_offset + 28) > data_len:
-                raise _PyczError(f'Truncated pycz local[{i}].name_size: {name!r}')
-            local_name_size = int_from_bytes(data[local_offset + 26:end], 'little')
-            if (end := local_offset + 30) > data_len:
-                raise _PyczError(f'Truncated pycz local[{i}].extra_size: {name!r}')
-            local_extra_size = int_from_bytes(data[local_offset + 28:end], 'little')
-            local_name = data[local_offset + 30:local_offset + 30 + local_name_size]
-            data_offset = local_offset + 30 + local_name_size + local_extra_size
-            if local_flags != flags:
-                raise _PyczError(f'Mismatched pycz local[{i}].flags: {name!r}')
-            if local_compression != compression:
-                raise _PyczError(f'Mismatched pycz local[{i}].compression: {name!r}')
-            if local_name != name_data:
-                raise _PyczError(f'Mismatched pycz local[{i}].name: {name!r}')
-            if data_offset + uncompressed_size > central_offset:
-                raise _PyczError(f'Invalid pycz local[{i}].extra_size/central[{i}].uncompressed_size: {name!r}')
-
-            entries[name] = (data_offset, uncompressed_size)
+            entries[name] = (i, flags, uncompressed_size, local_offset, name_data)
             offset = entry_end
 
         if offset != eocd_offset:
             raise _PyczError('Mismatched pycz eocd.central_size/central entries')
+        self._central_offset = central_offset
         return entries
+
+    def _parse_local_entry(self, name: str) -> tuple[int, int]:
+        try:
+            i, flags, uncompressed_size, local_offset, name_data = self._central_entries[name]
+        except KeyError:
+            raise ImportError(f'Pycz central entry not found: {name!r}') from None
+
+        data = self._data
+        data_len = len(data)
+        int_from_bytes = int.from_bytes
+
+        if data[local_offset:local_offset + 4] != b'PK\x03\x04':
+            raise _PyczError(f'Invalid pycz local[{i}].signature: {name!r}')
+        if local_offset + 30 > self._central_offset:
+            raise _PyczError(f'Invalid pycz local[{i}].header_size: {name!r}')
+        if (end := local_offset + 8) > data_len:
+            raise _PyczError(f'Truncated pycz local[{i}].flags: {name!r}')
+        local_flags = int_from_bytes(data[local_offset + 6:end], 'little')
+        if (end := local_offset + 10) > data_len:
+            raise _PyczError(f'Truncated pycz local[{i}].compression: {name!r}')
+        local_compression = int_from_bytes(data[local_offset + 8:end], 'little')
+        if (end := local_offset + 28) > data_len:
+            raise _PyczError(f'Truncated pycz local[{i}].name_size: {name!r}')
+        local_name_size = int_from_bytes(data[local_offset + 26:end], 'little')
+        if (end := local_offset + 30) > data_len:
+            raise _PyczError(f'Truncated pycz local[{i}].extra_size: {name!r}')
+        local_extra_size = int_from_bytes(data[local_offset + 28:end], 'little')
+        local_name = data[local_offset + 30:local_offset + 30 + local_name_size]
+        data_offset = local_offset + 30 + local_name_size + local_extra_size
+        if local_flags != flags:
+            raise _PyczError(f'Mismatched pycz local[{i}].flags: {name!r}')
+        if local_compression != 0:
+            raise _PyczError(f'Mismatched pycz local[{i}].compression: {name!r}')
+        if local_name != name_data:
+            raise _PyczError(f'Mismatched pycz local[{i}].name: {name!r}')
+        if data_offset + uncompressed_size > self._central_offset:
+            raise _PyczError(f'Invalid pycz local[{i}].extra_size/central[{i}].uncompressed_size: {name!r}')
+        return data_offset, uncompressed_size
+
+    def _get_local_entry(self, name: str) -> tuple[int, int]:
+        entry = self._local_entries.get(name)
+        if entry is None:
+            entry = self._parse_local_entry(name)
+            self._local_entries[name] = entry
+        return entry
 
     @property
     def path(self) -> str:
         return self._path
 
     def has(self, name: str) -> bool:
-        return name in self._entries
+        return name in self._central_entries
 
     def read(self, name: str) -> bytes:
-        try:
-            offset, size = self._entries[name]
-        except KeyError:
-            raise ImportError(f'Pycz entry not found: {name!r}') from None
+        offset, size = self._get_local_entry(name)
         return self._data[offset:offset + size]
 
 
