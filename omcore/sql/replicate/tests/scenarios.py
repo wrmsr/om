@@ -17,6 +17,9 @@ from ..install import install_node
 from ..links import Link
 from ..links import sync_link_once
 from ..links import sync_link_sweep
+from ..links import sync_link_tail
+from ..maintenance import prune_log
+from ..maintenance import prune_tombstones
 from ..nodes import Node
 from ..rows import ShadowState
 from ..workers import Worker
@@ -280,3 +283,114 @@ def check_worker(edge: Node, hub: Node, broken_hub: Node, schema: ReplicationSch
     assert read_rows(broken_hub, biz) == read_rows(edge, biz)
 
     assert not slept
+
+
+##
+
+
+def check_log_tail(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
+    """The tail alone keeps a target fresh, never re-examines an entry, and leaves the sweep with nothing to do."""
+
+    for n in (edge, hub):
+        install_node(n, schema)
+    biz = schema.table('businesses')
+    sink = schema.table('kitchen_sink')
+
+    rows = [_business(f't{i}') for i in range(5)]
+    for r in rows:
+        insert_row(edge, biz, r)
+    extra = _sink(s='logged')
+    insert_row(edge, sink, extra)
+
+    # a link carrying only businesses: sink entries are examined and ignored, and the position moves past them too
+    link = _link('up', schema, edge, hub, tables=['businesses'], tail_batch_size=3)
+
+    t1 = check.not_none(sync_link_tail(link))
+    assert (t1.entries, t1.keys, t1.applied, t1.drained) == (3, 3, 3, False)
+    t2 = check.not_none(sync_link_tail(link))
+    assert (t2.entries, t2.keys, t2.applied, t2.drained) == (3, 2, 2, False)
+    t3 = check.not_none(sync_link_tail(link))
+    assert (t3.entries, t3.applied, t3.drained) == (0, 0, True)
+    assert read_rows(hub, biz) == {r['id']: r for r in rows}
+    assert not read_rows(hub, sink)
+    assert link.cursors.read_log('up') == t2.seq == 6
+
+    # an update and a delete arrive through the tail alone, and a repeated key is looked up once
+    update_row(edge, biz, rows[0]['id'], {'name': 'again'})
+    update_row(edge, biz, rows[0]['id'], {'name': 'and again'})
+    delete_row(edge, biz, rows[1]['id'])
+    t4 = check.not_none(sync_link_tail(link))
+    assert (t4.entries, t4.keys, t4.applied, t4.deleted) == (3, 2, 1, 1)
+    got = read_rows(hub, biz)
+    assert got[rows[0]['id']]['name'] == 'and again' and rows[1]['id'] not in got
+    assert read_shadow(hub, biz)[rows[1]['id']].state == ShadowState(version=2, origin=edge.node_id, deleted=True)
+
+    # the sweep then finds everything already there
+    rep = sync_link_sweep(link)
+    assert all(t.applied == 0 and t.deleted == 0 for t in rep.tables)
+
+    # a full step tails first, so the sweep batch sees the tail's work
+    insert_row(edge, biz, _business('stepped'))
+    step = sync_link_once(link)
+    assert check.not_none(step.tail).applied == 1
+    assert all(t.applied == 0 for t in step.tables)
+
+    # pruning: the log empties, the tombstone goes, the live rows stay
+    prune_log(edge, keep_s=0, now=datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60))
+    with edge.db.connect() as conn:
+        assert not edge.backend.read_log(conn, edge.log_table, after=0, limit=10)
+    prune_tombstones(edge, schema, keep_s=0, now=datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60))
+    sh = read_shadow(edge, biz)
+    assert rows[1]['id'] not in sh and len(sh) == len(rows)  # four originals plus the stepped one
+
+
+def check_no_log(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
+    """A node that keeps no log still captures and sweeps; a link from it simply has no tail."""
+
+    for n in (edge, hub):
+        install_node(n, schema)
+    biz = schema.table('businesses')
+    row = _business('quiet')
+    insert_row(edge, biz, row)
+
+    link = _link('up', schema, edge, hub)
+    assert sync_link_tail(link) is None
+    step = sync_link_once(link)
+    assert step.tail is None
+    assert read_rows(hub, biz) == {row['id']: row}
+    assert read_shadow(edge, biz)[row['id']].version == 1
+
+
+def check_worker_maintenance(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
+    """The worker prunes every node it touches on its own interval, on a fake clock."""
+
+    for n in (edge, hub):
+        install_node(n, schema)
+    biz = schema.table('businesses')
+    row = _business('m')
+    insert_row(edge, biz, row)
+    delete_row(edge, biz, row['id'])
+
+    now = [0.]
+    w = Worker(
+        [_link('up', schema, edge, hub)],
+        interval_s=1.,
+        clock=lambda: now[0],
+        sleeper=lambda _: None,
+        maintenance_interval_s=100.,
+        log_keep_s=0.,
+        tombstone_keep_s=0.,
+    )
+
+    # pruning runs on the first pass, then not again until the interval has elapsed
+    r1 = w.run_once()
+    assert sorted(m.node for m in r1.maintained) == sorted([edge.name, hub.name])
+    now[0] += 50.
+    assert not w.run_once().maintained
+    now[0] += 60.
+    assert len(w.run_once().maintained) == 2
+
+    # a zero retention leaves no log entries and no tombstones behind (a tiny clock skew is tolerated by waiting)
+    with edge.db.connect() as conn:
+        assert not edge.backend.read_log(conn, edge.log_table, after=0, limit=10)
+    assert row['id'] not in read_shadow(edge, biz)

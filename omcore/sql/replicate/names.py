@@ -15,6 +15,7 @@ INTERNAL_PREFIX: ta.Final[str] = PREFIX + '_'
 
 NODE_TABLE_NAME: ta.Final[str] = INTERNAL_PREFIX + 'node'
 CURSOR_TABLE_NAME: ta.Final[str] = INTERNAL_PREFIX + 'cursor'
+LOG_TABLE_NAME: ta.Final[str] = INTERNAL_PREFIX + 'log'
 
 
 def shadow_name(table: QualifiedName) -> QualifiedName:
@@ -27,6 +28,10 @@ def node_table_name(qualifier: ta.Sequence[str]) -> QualifiedName:
 
 def cursor_table_name(qualifier: ta.Sequence[str]) -> QualifiedName:
     return QualifiedName((*qualifier, CURSOR_TABLE_NAME))
+
+
+def log_table_name(qualifier: ta.Sequence[str]) -> QualifiedName:
+    return QualifiedName((*qualifier, LOG_TABLE_NAME))
 
 
 def capture_trigger_prefix(table: QualifiedName) -> str:

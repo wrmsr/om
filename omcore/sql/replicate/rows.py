@@ -32,6 +32,14 @@ class SourceRow(lang.Final):
 
 
 @dc.dataclass(frozen=True, kw_only=True)
+class LogEntry(lang.Final):
+    seq: int
+    table: str
+    key: uuid.UUID
+    version: int
+
+
+@dc.dataclass(frozen=True, kw_only=True)
 class OriginPredicate(lang.Final):
     """A link's origin filter, resolved against live node ids."""
 

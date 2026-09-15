@@ -29,16 +29,16 @@ from ..rows import SourceRow
 ##
 
 
-def postgres_node(name: str, sb: Sandbox, db: Db | None = None) -> Node:
-    return Node(name, db if db is not None else sb.db(), PostgresReplicateBackend())
+def postgres_node(name: str, sb: Sandbox, db: Db | None = None, **kwargs: ta.Any) -> Node:
+    return Node(name, db if db is not None else sb.db(), PostgresReplicateBackend(), **kwargs)
 
 
-def sqlite_node(name: str, sb: Sandbox, db: Db | None = None) -> Node:
-    return Node(name, db if db is not None else sb.db(), SqliteReplicateBackend())
+def sqlite_node(name: str, sb: Sandbox, db: Db | None = None, **kwargs: ta.Any) -> Node:
+    return Node(name, db if db is not None else sb.db(), SqliteReplicateBackend(), **kwargs)
 
 
-def mysql_node(name: str, sb: Sandbox, db: Db | None = None) -> Node:
-    return Node(name, db if db is not None else sb.db(), MysqlReplicateBackend())
+def mysql_node(name: str, sb: Sandbox, db: Db | None = None, **kwargs: ta.Any) -> Node:
+    return Node(name, db if db is not None else sb.db(), MysqlReplicateBackend(), **kwargs)
 
 
 ##

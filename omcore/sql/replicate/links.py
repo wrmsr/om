@@ -50,6 +50,10 @@ class Link(lang.Final):
         return self._spec
 
     @property
+    def schema(self) -> ReplicationSchema:
+        return self._schema
+
+    @property
     def name(self) -> str:
         return self._spec.name
 
@@ -97,9 +101,21 @@ class TableSyncReport(lang.Final):
 
 
 @dc.dataclass(frozen=True, kw_only=True)
+class TailReport(lang.Final):
+    entries: int  # log entries examined
+    keys: int  # distinct keys looked up, in tables the link carries
+    applied: int
+    deleted: int
+    skipped: int
+    seq: int  # the log position after this step
+    drained: bool  # fewer entries than the batch size: the tail has caught up with the log
+
+
+@dc.dataclass(frozen=True, kw_only=True)
 class LinkSyncReport(lang.Final):
     link: str
     tables: ta.Sequence[TableSyncReport]
+    tail: TailReport | None = None  # absent when the source keeps no log
 
     @property
     def completed(self) -> bool:
@@ -149,10 +165,74 @@ def sync_table_once(link: Link, td: TableDef) -> TableSyncReport:
     )
 
 
-def sync_link_once(link: Link) -> LinkSyncReport:
-    """One step of a link: one batch of every table."""
+def sync_link_tail(link: Link) -> TailReport | None:
+    """
+    One batch of the source's change log: the keys it names are looked up and applied exactly as the sweep would,
+    then the log position advances past them. Freshness only - a change the tail misses waits for the sweep - which is
+    also what makes this safe to call from a writer right after it commits.
+    """
 
-    return LinkSyncReport(link=link.name, tables=[sync_table_once(link, td) for td in link.tables])
+    source = link.source
+    if not source.log:
+        return None
+
+    spec = link.spec
+    after = link.cursors.read_log(spec.name)
+
+    with source.db.connect() as conn:
+        entries = source.backend.read_log(conn, source.log_table, after=after, limit=spec.tail_batch_size)
+
+    by_table: dict[str, list[uuid.UUID]] = {td.name.last: [] for td in link.tables}
+    seen: set[tuple[str, uuid.UUID]] = set()
+    for e in entries:
+        if e.table in by_table and (e.table, e.key) not in seen:
+            seen.add((e.table, e.key))
+            by_table[e.table].append(e.key)
+
+    applied = deleted = skipped = 0
+    origins = link.origin_predicate()
+    for td in link.tables:
+        keys = by_table[td.name.last]
+        if not keys:
+            continue
+        with source.db.connect() as conn:
+            rows = source.backend.scan_keys(
+                conn,
+                td,
+                source.table_name(td),
+                source.shadow_name(td),
+                keys=keys,
+                origins=origins,
+            )
+        rep = apply_rows(link.target, td, rows)
+        applied += rep.applied
+        deleted += rep.deleted
+        skipped += rep.skipped
+
+    seq = entries[-1].seq if entries else after
+    if entries:
+        link.cursors.write_log(spec.name, seq)
+
+    return TailReport(
+        entries=len(entries),
+        keys=len(seen),
+        applied=applied,
+        deleted=deleted,
+        skipped=skipped,
+        seq=seq,
+        drained=len(entries) < spec.tail_batch_size,
+    )
+
+
+def sync_link_once(link: Link) -> LinkSyncReport:
+    """One step of a link: a batch of the log tail for freshness, then one sweep batch of every table for truth."""
+
+    tail = sync_link_tail(link)
+    return LinkSyncReport(
+        link=link.name,
+        tables=[sync_table_once(link, td) for td in link.tables],
+        tail=tail,
+    )
 
 
 def sync_link_sweep(link: Link, *, max_steps: int = 10_000) -> LinkSyncReport:

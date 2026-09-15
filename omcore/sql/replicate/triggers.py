@@ -33,14 +33,19 @@ class CaptureTrigger(Trigger, lang.Final):
     _: dc.KW_ONLY
 
     version: int = CAPTURE_TRIGGER_VERSION
+    log: bool = False  # also append the change to the node's log; part of the name, since it changes the body
 
     @classmethod
     def trigger_name_prefix(cls, table_name: QualifiedName) -> str:
         return capture_trigger_prefix(table_name)
 
     def trigger_name_suffix(self) -> str:
-        return f'{self.event.value}_v{self.version}'
+        return f'{self.event.value}_v{self.version}' + ('_log' if self.log else '')
 
 
-def capture_triggers(version: int = CAPTURE_TRIGGER_VERSION) -> list[CaptureTrigger]:
-    return [CaptureTrigger(e, version=version) for e in CaptureEvent]
+def capture_triggers(
+        version: int = CAPTURE_TRIGGER_VERSION,
+        *,
+        log: bool = False,
+) -> list[CaptureTrigger]:
+    return [CaptureTrigger(e, version=version, log=log) for e in CaptureEvent]

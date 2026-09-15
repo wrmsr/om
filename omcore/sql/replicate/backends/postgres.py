@@ -12,8 +12,13 @@ from ...tabledefs.tabledefs import TableDef
 from ...tabledefs.triggers import TriggerRenderer
 from ..config import table_key_column
 from ..names import capture_function_name
+from ..names import log_table_name
 from ..names import node_table_name
 from ..names import shadow_name
+from ..shadows import LOG_CHANGED_AT
+from ..shadows import LOG_KEY
+from ..shadows import LOG_TABLE
+from ..shadows import LOG_VERSION
 from ..shadows import NODE_ID
 from ..shadows import SHADOW_CHANGED_AT
 from ..shadows import SHADOW_DELETED
@@ -23,6 +28,7 @@ from ..shadows import SHADOW_VERSION
 from ..triggers import CaptureEvent
 from ..triggers import CaptureTrigger
 from .base import OnConflictReplicateBackend
+from .base import sql_string_literal
 
 
 ##
@@ -44,11 +50,18 @@ begin
       {shadow_deleted} = {deleted},
       {shadow_changed_at} = current_timestamp
   where {shadow_key} = {row}.{key};
-
+{log_statement}
   return null;
 end;
 $$\
 """
+
+
+CAPTURE_LOG_SRC = """\
+
+  insert into {log} ({log_columns})
+  values ({table_literal}, {row}.{key}, (select {shadow_version} from {shadow} where {shadow_key} = {row}.{key}), current_timestamp);
+"""  # noqa
 
 
 CAPTURE_TRIGGER_SRC = """\
@@ -75,11 +88,27 @@ class PostgresCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
         function_qn = tbl.name.sibling(capture_function_name(trigger_name))
         shadow = shadow_name(tbl.name)
         node_table = node_table_name(tbl.name.parts[:-1])
+        row = 'old' if t.event is CaptureEvent.DELETE else 'new'
+        key = r.quote_ident(table_key_column(tbl).name)
+
+        log_statement = ''
+        if t.log:
+            log_statement = CAPTURE_LOG_SRC.format(
+                log=r.qname(log_table_name(tbl.name.parts[:-1])),
+                log_columns=', '.join(r.quote_ident(c) for c in (LOG_TABLE, LOG_KEY, LOG_VERSION, LOG_CHANGED_AT)),
+                table_literal=sql_string_literal(tbl.name.last),
+                row=row,
+                key=key,
+                shadow=r.qname(shadow),
+                shadow_version=r.quote_ident(SHADOW_VERSION),
+                shadow_key=r.quote_ident(SHADOW_KEY),
+            )
 
         return [
             CAPTURE_FUNCTION_SRC.format(
                 function_name=r.qname(function_qn),
                 shadow=r.qname(shadow),
+                log_statement=log_statement,
                 shadow_columns=', '.join(
                     r.quote_ident(c)
                     for c in (
@@ -95,8 +124,8 @@ class PostgresCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
                 shadow_origin=r.quote_ident(SHADOW_ORIGIN),
                 shadow_deleted=r.quote_ident(SHADOW_DELETED),
                 shadow_changed_at=r.quote_ident(SHADOW_CHANGED_AT),
-                row='old' if t.event is CaptureEvent.DELETE else 'new',
-                key=r.quote_ident(table_key_column(tbl).name),
+                row=row,
+                key=key,
                 node_id=r.quote_ident(NODE_ID),
                 node_table=r.qname(node_table),
                 deleted='true' if t.event is CaptureEvent.DELETE else 'false',

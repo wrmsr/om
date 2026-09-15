@@ -14,6 +14,8 @@ with _lang.auto_proxy_init(globals()):
         CursorRow,
         OnConflictReplicateBackend,
         ReplicateBackend,
+
+        sql_string_literal,
     )
 
     from .backends.mysql import (  # noqa
@@ -62,10 +64,23 @@ with _lang.auto_proxy_init(globals()):
         Link,
         LinkSyncReport,
         TableSyncReport,
+        TailReport,
 
         sync_link_once,
         sync_link_sweep,
+        sync_link_tail,
         sync_table_once,
+    )
+
+    from .maintenance import (  # noqa
+        DEFAULT_LOG_KEEP_S,
+        DEFAULT_TOMBSTONE_KEEP_S,
+
+        MaintenanceReport,
+
+        maintain_node,
+        prune_log,
+        prune_tombstones,
     )
 
     from .names import (  # noqa
@@ -75,6 +90,7 @@ with _lang.auto_proxy_init(globals()):
         capture_function_name,
         capture_trigger_prefix,
         cursor_table_name,
+        log_table_name,
         node_table_name,
         shadow_name,
     )
@@ -84,6 +100,7 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .rows import (  # noqa
+        LogEntry,
         OriginPredicate,
         ShadowState,
         SourceRow,
@@ -91,6 +108,7 @@ with _lang.auto_proxy_init(globals()):
 
     from .shadows import (  # noqa
         cursor_table_def,
+        log_table_def,
         node_table_def,
         shadow_table_def,
     )

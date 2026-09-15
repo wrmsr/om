@@ -3,6 +3,7 @@ import uuid
 from ... import dataclasses as dc
 from ... import lang
 from .backends.base import CursorRow
+from .names import LOG_TABLE_NAME
 from .nodes import Node
 
 
@@ -16,7 +17,10 @@ class CursorState(lang.Final):
 
 
 class CursorStore(lang.Final):
-    """A link's sweep positions, kept on whichever node the link says holds them."""
+    """
+    A link's positions, kept on whichever node the link says holds them: a sweep position per table, and the log tail's
+    sequence number under the log table's own reserved name.
+    """
 
     def __init__(self, node: Node) -> None:
         super().__init__()
@@ -28,7 +32,10 @@ class CursorStore(lang.Final):
             row = self._node.backend.read_cursor(conn, self._node.cursor_table, link, table)
         if row is None:
             return CursorState()
-        return CursorState(position=row.position, sweeps=row.sweeps)
+        return CursorState(
+            position=uuid.UUID(row.position) if row.position is not None else None,
+            sweeps=row.sweeps,
+        )
 
     def write(self, link: str, table: str, state: CursorState) -> None:
         with self._node.db.connect() as conn:
@@ -37,5 +44,26 @@ class CursorStore(lang.Final):
                 self._node.cursor_table,
                 link,
                 table,
-                CursorRow(state.position, state.sweeps),
+                CursorRow(str(state.position) if state.position is not None else None, state.sweeps),
+            )
+
+    #
+
+    def read_log(self, link: str) -> int:
+        """The last log sequence number the link has examined; zero before any."""
+
+        with self._node.db.connect() as conn:
+            row = self._node.backend.read_cursor(conn, self._node.cursor_table, link, LOG_TABLE_NAME)
+        if row is None or row.position is None:
+            return 0
+        return int(row.position)
+
+    def write_log(self, link: str, seq: int) -> None:
+        with self._node.db.connect() as conn:
+            self._node.backend.write_cursor(
+                conn,
+                self._node.cursor_table,
+                link,
+                LOG_TABLE_NAME,
+                CursorRow(str(seq), 0),
             )

@@ -77,3 +77,30 @@ def cursor_table_def(name: QualifiedName) -> TableDef:
         Column(CURSOR_SWEEPS, Integer(bits=64)),
         Column(CURSOR_UPDATED_AT, DATETIME),
     ))
+
+
+##
+
+
+LOG_SEQ: ta.Final[str] = 'seq'
+LOG_TABLE: ta.Final[str] = 'table_name'
+LOG_KEY: ta.Final[str] = 'key'
+LOG_VERSION: ta.Final[str] = 'version'
+LOG_CHANGED_AT: ta.Final[str] = 'changed_at'
+
+
+def log_table_def(name: QualifiedName) -> TableDef:
+    """
+    The change log: an append-only hint list of keys worth looking at soon, one entry per captured change, keyed by an
+    identity sequence. Correctness never depends on it - a link tails it for freshness and the sweep remains the truth -
+    so a late-committing entry the tail misses simply waits for the sweep, and no dialect needs a commit-ordered clock.
+    """
+
+    return TableDef(name, Elements(
+        Column(LOG_SEQ, Integer(bits=64)),
+        PrimaryKey([LOG_SEQ]),
+        Column(LOG_TABLE, STRING),
+        Column(LOG_KEY, UUID),
+        Column(LOG_VERSION, Integer(bits=64)),
+        Column(LOG_CHANGED_AT, DATETIME),
+    ))

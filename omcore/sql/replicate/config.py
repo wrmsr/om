@@ -9,6 +9,7 @@ from ..tabledefs.elements import Column
 from ..tabledefs.elements import PrimaryKey
 from ..tabledefs.tabledefs import TableDef
 from .errors import ReplicationSchemaError
+from .names import PREFIX
 
 
 ##
@@ -35,13 +36,15 @@ class LinkSpec(lang.Final):
     tables: ta.Sequence[str] | None = None  # bare table names, or every table in the schema
 
     origins: OriginFilter = OriginFilter.SOURCE_OWN
-    batch_size: int = 100
+    batch_size: int = 100  # rows per sweep step
+    tail_batch_size: int = 1000  # log entries per tail step
     cursor_side: CursorSide = CursorSide.TARGET
 
     def __post_init__(self) -> None:
         check.non_empty_str(self.name)
         check.arg(self.source != self.target, 'a link needs two distinct nodes')
         check.arg(self.batch_size > 0)
+        check.arg(self.tail_batch_size > 0)
 
 
 ##
@@ -76,6 +79,8 @@ class ReplicationSchema(lang.Final):
                 raise ReplicationSchemaError(f'table names in a replication schema are bare: {td.name.dotted!r}')
             if td.name.last in seen:
                 raise ReplicationSchemaError(f'duplicate table {td.name.last!r}')
+            if td.name.last.startswith(PREFIX):
+                raise ReplicationSchemaError(f'table names under {PREFIX!r} are reserved: {td.name.last!r}')
             seen.add(td.name.last)
             table_key_column(td)
 

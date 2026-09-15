@@ -8,6 +8,7 @@ from ..qualifiedname import QualifiedName
 from ..tabledefs.tabledefs import TableDef
 from .errors import ReplicationInstallError
 from .names import cursor_table_name
+from .names import log_table_name
 from .names import node_table_name
 from .names import shadow_name
 
@@ -33,6 +34,7 @@ class Node(lang.Final):
             backend: ReplicateBackend,
             *,
             qualifier: ta.Sequence[str] = (),
+            no_log: bool = False,
     ) -> None:
         super().__init__()
 
@@ -40,6 +42,7 @@ class Node(lang.Final):
         self._db = db
         self._backend = backend
         self._qualifier = tuple(qualifier)
+        self._log = not no_log
 
         self._node_id: uuid.UUID | None = None
 
@@ -62,6 +65,12 @@ class Node(lang.Final):
     def qualifier(self) -> ta.Sequence[str]:
         return self._qualifier
 
+    @property
+    def log(self) -> bool:
+        """Whether this node keeps a change log for links to tail; the sweep works either way."""
+
+        return self._log
+
     #
 
     def qualify(self, last: str) -> QualifiedName:
@@ -80,6 +89,10 @@ class Node(lang.Final):
     @property
     def cursor_table(self) -> QualifiedName:
         return cursor_table_name(self._qualifier)
+
+    @property
+    def log_table(self) -> QualifiedName:
+        return log_table_name(self._qualifier)
 
     #
 

@@ -29,6 +29,7 @@ from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
 from ..config import OriginFilter
 from ..config import table_key_column
+from ..rows import LogEntry
 from ..rows import OriginPredicate
 from ..rows import ShadowState
 from ..rows import SourceRow
@@ -37,6 +38,11 @@ from ..shadows import CURSOR_POSITION
 from ..shadows import CURSOR_SWEEPS
 from ..shadows import CURSOR_TABLE
 from ..shadows import CURSOR_UPDATED_AT
+from ..shadows import LOG_CHANGED_AT
+from ..shadows import LOG_KEY
+from ..shadows import LOG_SEQ
+from ..shadows import LOG_TABLE
+from ..shadows import LOG_VERSION
 from ..shadows import NODE_CREATED_AT
 from ..shadows import NODE_ID
 from ..shadows import SHADOW_CHANGED_AT
@@ -56,8 +62,12 @@ def _version_dtype() -> Integer:
 
 @ta.final
 class CursorRow(ta.NamedTuple):
-    position: uuid.UUID | None
+    position: str | None  # opaque to the backend: a key for a sweep, a sequence number for a log tail
     sweeps: int
+
+
+def sql_string_literal(s: str) -> str:
+    return "'" + s.replace("'", "''") + "'"
 
 
 class ReplicateBackend(lang.Abstract):
@@ -162,13 +172,13 @@ class ReplicateBackend(lang.Abstract):
         if not rows:
             return None
         pos, sweeps = check.single(rows).values
-        return CursorRow(uuid.UUID(pos) if pos is not None else None, int(sweeps))
+        return CursorRow(pos, int(sweeps))
 
     def write_cursor(self, q: Querier, cursor_table: QualifiedName, link: str, table: str, row: CursorRow) -> None:
         # A cursor row has exactly one writer, so read-then-write is race-free.
         t = Q.n(tuple(cursor_table))
 
-        pos = str(row.position) if row.position is not None else None
+        pos = row.position
         now = self.dtype_codec.encode(DATETIME, datetime.datetime.now(datetime.UTC))
 
         if self.read_cursor(q, cursor_table, link, table) is None:
@@ -276,8 +286,6 @@ class ReplicateBackend(lang.Abstract):
         """The next batch of the key-space sweep: shadow rows in key order, joined to whatever base row remains."""
 
         codec = self.dtype_codec
-        cols = list(td.elements[Column])
-        key = self.quote(table_key_column(td).name)
         pp = self._preparer(q)
         values: dict[str, ta.Any] = {}
 
@@ -285,6 +293,46 @@ class ReplicateBackend(lang.Abstract):
         if after is not None:
             wheres.append(f's.{self.quote(SHADOW_KEY)} > {pp.add("after")}')
             values['after'] = codec.encode(UUID, after)
+        self._origin_where(pp, values, wheres, origins)
+
+        values['limit'] = limit
+        return self._select_rows(q, td, table, shadow, pp, values, wheres, limit_placeholder=pp.add('limit'))
+
+    def scan_keys(
+            self,
+            q: Querier,
+            td: TableDef,
+            table: QualifiedName,
+            shadow: QualifiedName,
+            *,
+            keys: ta.Sequence[uuid.UUID],
+            origins: OriginPredicate,
+    ) -> list[SourceRow]:
+        """The sweep's row shape for a given set of keys: what a log tail looks up."""
+
+        if not keys:
+            return []
+
+        codec = self.dtype_codec
+        pp = self._preparer(q)
+        values: dict[str, ta.Any] = {}
+
+        ps = [pp.add(f'k{i}') for i in range(len(keys))]
+        for i, k in enumerate(keys):
+            values[f'k{i}'] = codec.encode(UUID, k)
+        wheres = [f's.{self.quote(SHADOW_KEY)} in ({", ".join(ps)})']
+        self._origin_where(pp, values, wheres, origins)
+
+        return self._select_rows(q, td, table, shadow, pp, values, wheres, limit_placeholder=None)
+
+    def _origin_where(
+            self,
+            pp: ParamsPreparer,
+            values: dict[str, ta.Any],
+            wheres: list[str],
+            origins: OriginPredicate,
+    ) -> None:
+        codec = self.dtype_codec
         if origins.filter is OriginFilter.SOURCE_OWN:
             wheres.append(f's.{self.quote(SHADOW_ORIGIN)} = {pp.add("origin")}')
             values['origin'] = codec.encode(UUID, check.not_none(origins.node_id))
@@ -295,6 +343,22 @@ class ReplicateBackend(lang.Abstract):
             pass
         else:
             raise ValueError(origins.filter)
+
+    def _select_rows(
+            self,
+            q: Querier,
+            td: TableDef,
+            table: QualifiedName,
+            shadow: QualifiedName,
+            pp: ParamsPreparer,
+            values: ta.Mapping[str, ta.Any],
+            wheres: ta.Sequence[str],
+            *,
+            limit_placeholder: str | None,
+    ) -> list[SourceRow]:
+        codec = self.dtype_codec
+        cols = list(td.elements[Column])
+        key = self.quote(table_key_column(td).name)
 
         # Every selected column gets a positional alias: the shadow key and the base key share a name otherwise.
         sql = (
@@ -315,9 +379,8 @@ class ReplicateBackend(lang.Abstract):
             f'left join {self.qname(table)} b on b.{key} = s.{self.quote(SHADOW_KEY)} '
             + (f'where {" and ".join(wheres)} ' if wheres else '')
             + f'order by s.{self.quote(SHADOW_KEY)} '
-            f'limit {pp.add("limit")}'
+            + (f'limit {limit_placeholder}' if limit_placeholder is not None else '')
         )
-        values['limit'] = limit
 
         out: list[SourceRow] = []
         for r in qf.query_all(q, sql, self._bind(pp, values)):
@@ -452,6 +515,60 @@ class ReplicateBackend(lang.Abstract):
                 where=Q.eq(Q.i(kc.name), Q.p.key),
             ),
             {Q.p.key: self.dtype_codec.encode(UUID, key)},
+        )
+
+    ##
+    # log
+
+    def read_log(
+            self,
+            q: Querier,
+            log_table: QualifiedName,
+            *,
+            after: int,
+            limit: int,
+    ) -> list[LogEntry]:
+        codec = self.dtype_codec
+        out: list[LogEntry] = []
+        for r in qf.query_all(
+                q,
+                Q.select(
+                    [Q.i(c) for c in (LOG_SEQ, LOG_TABLE, LOG_KEY, LOG_VERSION)],
+                    Q.n(tuple(log_table)),
+                    Q.gt(Q.i(LOG_SEQ), Q.p.after),
+                    order_by=[(Q.i(LOG_SEQ), 'asc')],
+                    limit=Q.p.limit,
+                ),
+                {Q.p.after: after, Q.p.limit: limit},
+        ):
+            seq, tbl, k, ver = r.values
+            out.append(LogEntry(
+                seq=int(seq),
+                table=check.isinstance(tbl, str),
+                key=codec.decode(UUID, k),
+                version=codec.decode(_version_dtype(), ver),
+            ))
+        return out
+
+    def prune_log(self, q: Querier, log_table: QualifiedName, *, before: datetime.datetime) -> None:
+        qf.exec(
+            q,
+            Q.delete(Q.n(tuple(log_table)), where=Q.lt(Q.i(LOG_CHANGED_AT), Q.p.before)),
+            {Q.p.before: self.dtype_codec.encode(DATETIME, before)},
+        )
+
+    def prune_tombstones(self, q: Querier, shadow: QualifiedName, *, before: datetime.datetime) -> None:
+        codec = self.dtype_codec
+        qf.exec(
+            q,
+            Q.delete(
+                Q.n(tuple(shadow)),
+                where=Q.and_(
+                    Q.eq(Q.i(SHADOW_DELETED), Q.p.deleted),
+                    Q.lt(Q.i(SHADOW_CHANGED_AT), Q.p.before),
+                ),
+            ),
+            {Q.p.deleted: codec.encode(BOOLEAN, True), Q.p.before: codec.encode(DATETIME, before)},
         )
 
 

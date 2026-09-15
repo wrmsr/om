@@ -12,8 +12,13 @@ from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
 from ...tabledefs.triggers import TriggerRenderer
 from ..config import table_key_column
+from ..names import log_table_name
 from ..names import node_table_name
 from ..names import shadow_name
+from ..shadows import LOG_CHANGED_AT
+from ..shadows import LOG_KEY
+from ..shadows import LOG_TABLE
+from ..shadows import LOG_VERSION
 from ..shadows import NODE_ID
 from ..shadows import SHADOW_CHANGED_AT
 from ..shadows import SHADOW_DELETED
@@ -23,6 +28,7 @@ from ..shadows import SHADOW_VERSION
 from ..triggers import CaptureEvent
 from ..triggers import CaptureTrigger
 from .base import ReplicateBackend
+from .base import sql_string_literal
 
 
 ##
@@ -34,16 +40,25 @@ after {event} on {table_name}
 for each row
 begin
   insert ignore into {shadow} ({shadow_columns})
-  values ({row}.{key}, 0, (select {node_id} from {node_table}), 0, current_timestamp);
+  values ({row}.{key}, 0, (select {node_id} from {node_table}), 0, utc_timestamp(6));
 
   update {shadow}
   set {shadow_version} = {shadow_version} + 1,
       {shadow_origin} = (select {node_id} from {node_table}),
       {shadow_deleted} = {deleted},
-      {shadow_changed_at} = current_timestamp
+      {shadow_changed_at} = utc_timestamp(6)
   where {shadow_key} = {row}.{key};
-end\
+{log_statement}end\
 """
+
+
+# Timestamps are written in utc explicitly: mysql's current_timestamp follows the session zone, and the codec reads
+# a zoneless datetime as utc.
+CAPTURE_LOG_SRC = """\
+
+  insert into {log} ({log_columns})
+  values ({table_literal}, {row}.{key}, (select {shadow_version} from {shadow} where {shadow_key} = {row}.{key}), utc_timestamp(6));
+"""  # noqa
 
 
 class MysqlCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
@@ -61,6 +76,21 @@ class MysqlCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
         trigger_qn = tbl.name.sibling(t.trigger_name(tbl.name))
         shadow = shadow_name(tbl.name)
         node_table = node_table_name(tbl.name.parts[:-1])
+        row = 'old' if t.event is CaptureEvent.DELETE else 'new'
+        key = r.quote_ident(table_key_column(tbl).name)
+
+        log_statement = ''
+        if t.log:
+            log_statement = CAPTURE_LOG_SRC.format(
+                log=r.qname(log_table_name(tbl.name.parts[:-1])),
+                log_columns=', '.join(r.quote_ident(c) for c in (LOG_TABLE, LOG_KEY, LOG_VERSION, LOG_CHANGED_AT)),
+                table_literal=sql_string_literal(tbl.name.last),
+                row=row,
+                key=key,
+                shadow=r.qname(shadow),
+                shadow_version=r.quote_ident(SHADOW_VERSION),
+                shadow_key=r.quote_ident(SHADOW_KEY),
+            )
 
         stmts: list[str] = []
         if opts.if_not_exists:
@@ -72,6 +102,7 @@ class MysqlCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
             event=t.event.value,
             table_name=r.qname(tbl.name),
             shadow=r.qname(shadow),
+            log_statement=log_statement,
             shadow_columns=', '.join(
                 r.quote_ident(c)
                 for c in (
@@ -87,8 +118,8 @@ class MysqlCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
             shadow_origin=r.quote_ident(SHADOW_ORIGIN),
             shadow_deleted=r.quote_ident(SHADOW_DELETED),
             shadow_changed_at=r.quote_ident(SHADOW_CHANGED_AT),
-            row='old' if t.event is CaptureEvent.DELETE else 'new',
-            key=r.quote_ident(table_key_column(tbl).name),
+            row=row,
+            key=key,
             node_id=r.quote_ident(NODE_ID),
             node_table=r.qname(node_table),
             deleted='1' if t.event is CaptureEvent.DELETE else '0',
@@ -120,6 +151,9 @@ class MysqlReplicateBackend(ReplicateBackend, lang.Final):
     @property
     def dtype_codec(self) -> DtypeCodec:
         return MysqlDtypeCodec()
+
+    def now_sql(self) -> str:
+        return 'utc_timestamp(6)'
 
     def upsert_sql(
             self,

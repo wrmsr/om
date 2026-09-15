@@ -11,10 +11,14 @@ from ...dtypes.codecs import as_utc_datetime
 
 
 class SqliteDtypeCodec(BaseDtypeCodec):
-    """Sqlite stores uuids and datetimes as text and booleans as integers; datetimes are iso strings with an offset."""
+    """
+    Sqlite stores uuids and datetimes as text and booleans as integers. A datetime is written as utc in the same
+    space-separated form sqlite's own current_timestamp uses, so the two sort together as text; either form (and an iso
+    'T' with an offset) reads back.
+    """
 
     def encode_datetime(self, v: datetime.datetime) -> ta.Any:
-        return super().encode_datetime(v).isoformat()
+        return as_utc_datetime(super().encode_datetime(v)).strftime('%Y-%m-%d %H:%M:%S.%f')
 
     def decode_datetime(self, v: ta.Any) -> datetime.datetime:
         if isinstance(v, datetime.datetime):

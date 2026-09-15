@@ -9,8 +9,13 @@ from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
 from ...tabledefs.triggers import TriggerRenderer
 from ..config import table_key_column
+from ..names import log_table_name
 from ..names import node_table_name
 from ..names import shadow_name
+from ..shadows import LOG_CHANGED_AT
+from ..shadows import LOG_KEY
+from ..shadows import LOG_TABLE
+from ..shadows import LOG_VERSION
 from ..shadows import NODE_ID
 from ..shadows import SHADOW_CHANGED_AT
 from ..shadows import SHADOW_DELETED
@@ -20,6 +25,7 @@ from ..shadows import SHADOW_VERSION
 from ..triggers import CaptureEvent
 from ..triggers import CaptureTrigger
 from .base import OnConflictReplicateBackend
+from .base import sql_string_literal
 
 
 ##
@@ -43,8 +49,15 @@ begin
       {shadow_deleted} = {deleted},
       {shadow_changed_at} = current_timestamp
   where {shadow_key} = {row}.{key};
-end\
+{log_statement}end\
 """
+
+
+CAPTURE_LOG_SRC = """\
+
+  insert into {log} ({log_columns})
+  values ({table_literal}, {row}.{key}, (select {shadow_version} from {shadow} where {shadow_key} = {row}.{key}), current_timestamp);
+"""  # noqa
 
 
 class SqliteCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
@@ -62,6 +75,21 @@ class SqliteCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
         trigger_name = t.trigger_name(tbl.name)
         shadow = shadow_name(tbl.name)
         node_table = node_table_name(tbl.name.parts[:-1])
+        row = 'old' if t.event is CaptureEvent.DELETE else 'new'
+        key = r.quote_ident(table_key_column(tbl).name)
+
+        log_statement = ''
+        if t.log:
+            log_statement = CAPTURE_LOG_SRC.format(
+                log=r.quote_ident(log_table_name(tbl.name.parts[:-1]).last),
+                log_columns=', '.join(r.quote_ident(c) for c in (LOG_TABLE, LOG_KEY, LOG_VERSION, LOG_CHANGED_AT)),
+                table_literal=sql_string_literal(tbl.name.last),
+                row=row,
+                key=key,
+                shadow=r.quote_ident(shadow.last),
+                shadow_version=r.quote_ident(SHADOW_VERSION),
+                shadow_key=r.quote_ident(SHADOW_KEY),
+            )
 
         return [
             CAPTURE_TRIGGER_SRC.format(
@@ -70,6 +98,7 @@ class SqliteCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
                 event=t.event.value,
                 table_name=r.quote_ident(tbl.name.last),
                 shadow=r.quote_ident(shadow.last),
+                log_statement=log_statement,
                 shadow_columns=', '.join(
                     r.quote_ident(c)
                     for c in (
@@ -85,8 +114,8 @@ class SqliteCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
                 shadow_origin=r.quote_ident(SHADOW_ORIGIN),
                 shadow_deleted=r.quote_ident(SHADOW_DELETED),
                 shadow_changed_at=r.quote_ident(SHADOW_CHANGED_AT),
-                row='old' if t.event is CaptureEvent.DELETE else 'new',
-                key=r.quote_ident(table_key_column(tbl).name),
+                row=row,
+                key=key,
                 node_id=r.quote_ident(NODE_ID),
                 node_table=r.quote_ident(node_table.last),
                 deleted='1' if t.event is CaptureEvent.DELETE else '0',

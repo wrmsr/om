@@ -17,6 +17,7 @@ from .config import ReplicationSchema
 from .errors import ReplicationInstallError
 from .nodes import Node
 from .shadows import cursor_table_def
+from .shadows import log_table_def
 from .shadows import node_table_def
 from .shadows import shadow_table_def
 from .triggers import CAPTURE_TRIGGER_VERSION
@@ -42,8 +43,9 @@ def install_node(
         capture_trigger_version: int = CAPTURE_TRIGGER_VERSION,
 ) -> InstallReport:
     """
-    Idempotently brings a node up to the schema: its identity row, its cursor table, and for every table the shadow
-    table, the capture triggers, and a backfill of shadow rows for base rows that have none. Base tables are created and
+    Idempotently brings a node up to the schema: its identity row, its cursor table, its change log if it keeps one,
+    and for every table the shadow table, the capture triggers, and a backfill of shadow rows for base rows that have
+    none. Base tables are created and
     migrated too unless told otherwise, in which case they must already exist and only their triggers are managed.
     Everything goes through the tabledefs machinery, so a trigger body change (a version bump) is a drop and an add like
     any other migration.
@@ -68,6 +70,8 @@ def install_node(
         node._set_node_id(node_id)  # noqa
 
         migrate(cursor_table_def(node.cursor_table))
+        if node.log:
+            migrate(log_table_def(node.log_table))
 
         for td in schema.tables:
             table = node.table_name(td)
@@ -78,7 +82,10 @@ def install_node(
 
             base = dc.replace(td, name=table)
             if not no_manage_base_tables:
-                migrate(TableDef(table, Elements(*base.elements, *capture_triggers(capture_trigger_version))))
+                migrate(TableDef(table, Elements(
+                    *base.elements,
+                    *capture_triggers(capture_trigger_version, log=node.log),
+                )))
             else:
                 _migrate_triggers_only(conn, aconn, node, base, capture_trigger_version)
 
@@ -110,7 +117,7 @@ def _migrate_triggers_only(
         e for e in existing.elements
         if not (isinstance(e, OpaqueTrigger) and CaptureTrigger.owns_trigger_name(base.name, e.name))
     ]
-    current = TableDef(base.name, Elements(*kept, *capture_triggers(capture_trigger_version)))
+    current = TableDef(base.name, Elements(*kept, *capture_triggers(capture_trigger_version, log=node.log)))
 
     for op in diff_table(current, existing):
         for s in r.render_migration(op):
