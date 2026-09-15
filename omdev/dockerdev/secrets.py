@@ -118,7 +118,9 @@ def _inject_update(
     stdin.write(args_bytes)
     stdin.close()
 
-    proc.wait()
+    rc = proc.wait()
+    if rc:
+        raise SystemExit(rc)
 
 
 def inject_dockerdev_secrets(
@@ -126,6 +128,7 @@ def inject_dockerdev_secrets(
         secrets: lang.SequenceNotStr[str | tuple[str, ta.Any]],
         *,
         secrets_file: str | None = None,
+        shift_uid: tuple[int, int] | None = None,
 ) -> None:
     if secrets_file is None:
         secrets_file = os.path.join(

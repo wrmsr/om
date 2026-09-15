@@ -174,8 +174,20 @@ class Cli(ap.Cli):
         ap.arg('container-id'),
         ap.arg('secret', nargs='+'),
         ap.arg('-f', '--secrets-file'),
+
+        ap.arg('--shift-uid'),
+        ap.arg('-U', '--auto-shift-uid', action='store_true'),
+
     )
     def inject_secret(self) -> None:
+        shift_uid: tuple[int, int] | None = None
+        if (su := self.args.shift_uid) is not None:
+            check.arg(not self.args.auto_shift_uid)
+            shift_uid = tuple(map(int, su.split(':')))  # type: ignore[assignment]
+        elif self.args.auto_shift_uid:
+            if getattr(sys, 'platform') == 'linux':
+                shift_uid = (os.getuid(), os.getgid())
+
         secrets: list[str | tuple[str, str]] = []
         for s in self.args.secret:
             if '=' in s:
@@ -192,6 +204,7 @@ class Cli(ap.Cli):
             self.args.container_id,
             secrets,
             secrets_file=self.args.secrets_file,
+            shift_uid=shift_uid,
         )
 
 
