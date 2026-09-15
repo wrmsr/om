@@ -1,3 +1,7 @@
+"""
+TODO:
+ - driver preference
+"""
 import typing as ta
 import urllib.parse
 
@@ -10,6 +14,7 @@ from ..secrets import all as sec
 
 
 @dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbType(lang.Final):
     name: str
     dialect_name: str
@@ -53,6 +58,8 @@ class HostDbLoc(DbLoc, lang.Final):
     host: str
     port: int | None = None
 
+    _: dc.KW_ONLY
+
     username: str | None = None
     password: sec.SecretRefOrStr | None = dc.xfield(default=None) | sec.secret_field
 
@@ -60,11 +67,23 @@ class HostDbLoc(DbLoc, lang.Final):
 ##
 
 
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
+class DbCaps:
+    readonly: bool | None = None
+    privileged: bool | None = None
+
+
 @dc.dataclass(frozen=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbSpec(lang.Final):
     name: str
     type: DbType
     loc: DbLoc
+
+    _: dc.KW_ONLY
+
+    caps: DbCaps | None = None
 
 
 ##
