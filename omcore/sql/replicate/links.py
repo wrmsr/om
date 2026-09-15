@@ -167,9 +167,9 @@ def sync_table_once(link: Link, td: TableDef) -> TableSyncReport:
 
 def sync_link_tail(link: Link) -> TailReport | None:
     """
-    One batch of the source's change log: the keys it names are looked up and applied exactly as the sweep would,
-    then the log position advances past them. Freshness only - a change the tail misses waits for the sweep - which is
-    also what makes this safe to call from a writer right after it commits.
+    One batch of the source's change log: the keys it names are looked up and applied exactly as the sweep would, then
+    the log position advances past them. Freshness only - a change the tail misses waits for the sweep - which is also
+    what makes this safe to call from a writer right after it commits.
     """
 
     source = link.source

@@ -43,8 +43,8 @@ def prune_tombstones(
         now: datetime.datetime | None = None,
 ) -> datetime.datetime:
     """
-    Drops shadow tombstones older than the retention. A tombstone is what tells a reader to delete its copy, so a
-    reader that was away longer than the retention keeps its stale row: keep this long, and know the limitation.
+    Drops shadow tombstones older than the retention. A tombstone is what tells a reader to delete its copy, so a reader
+    that was away longer than the retention keeps its stale row: keep this long, and know the limitation.
     """
 
     check.arg(keep_s >= 0)
@@ -65,6 +65,15 @@ def maintain_node(
 ) -> MaintenanceReport:
     return MaintenanceReport(
         node=node.name,
-        log_pruned_before=prune_log(node, keep_s=log_keep_s, now=now) if node.log else None,
-        tombstones_pruned_before=prune_tombstones(node, schema, keep_s=tombstone_keep_s, now=now),
+        log_pruned_before=prune_log(
+            node,
+            keep_s=log_keep_s,
+            now=now,
+        ) if node.log else None,
+        tombstones_pruned_before=prune_tombstones(
+            node,
+            schema,
+            keep_s=tombstone_keep_s,
+            now=now,
+        ),
     )

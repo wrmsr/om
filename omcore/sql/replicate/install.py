@@ -43,12 +43,11 @@ def install_node(
         capture_trigger_version: int = CAPTURE_TRIGGER_VERSION,
 ) -> InstallReport:
     """
-    Idempotently brings a node up to the schema: its identity row, its cursor table, its change log if it keeps one,
-    and for every table the shadow table, the capture triggers, and a backfill of shadow rows for base rows that have
-    none. Base tables are created and
-    migrated too unless told otherwise, in which case they must already exist and only their triggers are managed.
-    Everything goes through the tabledefs machinery, so a trigger body change (a version bump) is a drop and an add like
-    any other migration.
+    Idempotently brings a node up to the schema: its identity row, its cursor table, its change log if it keeps one, and
+    for every table the shadow table, the capture triggers, and a backfill of shadow rows for base rows that have none.
+    Base tables are created and migrated too unless told otherwise, in which case they must already exist and only their
+    triggers are managed. Everything goes through the tabledefs machinery, so a trigger body change (a version bump) is
+    a drop and an add like any other migration.
     """
 
     r = node.backend.tabledef_renderer
@@ -87,11 +86,27 @@ def install_node(
                     *capture_triggers(capture_trigger_version, log=node.log),
                 )))
             else:
-                _migrate_triggers_only(conn, aconn, node, base, capture_trigger_version)
+                _migrate_triggers_only(
+                    conn,
+                    aconn,
+                    node,
+                    base,
+                    capture_trigger_version,
+                )
 
-            node.backend.backfill_shadow(conn, td, table, shadow, node_id)
+            node.backend.backfill_shadow(
+                conn,
+                td,
+                table,
+                shadow,
+                node_id,
+            )
 
-    return InstallReport(node_id=node_id, created_node=created_node, migrations=migrations)
+    return InstallReport(
+        node_id=node_id,
+        created_node=created_node,
+        migrations=migrations,
+    )
 
 
 def _migrate_triggers_only(

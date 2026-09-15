@@ -533,7 +533,15 @@ class ReplicateBackend(lang.Abstract):
         for r in qf.query_all(
                 q,
                 Q.select(
-                    [Q.i(c) for c in (LOG_SEQ, LOG_TABLE, LOG_KEY, LOG_VERSION)],
+                    [
+                        Q.i(c)
+                        for c in (
+                            LOG_SEQ,
+                            LOG_TABLE,
+                            LOG_KEY,
+                            LOG_VERSION,
+                        )
+                    ],
                     Q.n(tuple(log_table)),
                     Q.gt(Q.i(LOG_SEQ), Q.p.after),
                     order_by=[(Q.i(LOG_SEQ), 'asc')],
@@ -553,7 +561,10 @@ class ReplicateBackend(lang.Abstract):
     def prune_log(self, q: Querier, log_table: QualifiedName, *, before: datetime.datetime) -> None:
         qf.exec(
             q,
-            Q.delete(Q.n(tuple(log_table)), where=Q.lt(Q.i(LOG_CHANGED_AT), Q.p.before)),
+            Q.delete(
+                Q.n(tuple(log_table)),
+                where=Q.lt(Q.i(LOG_CHANGED_AT), Q.p.before),
+            ),
             {Q.p.before: self.dtype_codec.encode(DATETIME, before)},
         )
 
@@ -568,7 +579,10 @@ class ReplicateBackend(lang.Abstract):
                     Q.lt(Q.i(SHADOW_CHANGED_AT), Q.p.before),
                 ),
             ),
-            {Q.p.deleted: codec.encode(BOOLEAN, True), Q.p.before: codec.encode(DATETIME, before)},
+            {
+                Q.p.deleted: codec.encode(BOOLEAN, True),
+                Q.p.before: codec.encode(DATETIME, before),
+            },
         )
 
 

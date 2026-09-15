@@ -83,7 +83,15 @@ class MysqlCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
         if t.log:
             log_statement = CAPTURE_LOG_SRC.format(
                 log=r.qname(log_table_name(tbl.name.parts[:-1])),
-                log_columns=', '.join(r.quote_ident(c) for c in (LOG_TABLE, LOG_KEY, LOG_VERSION, LOG_CHANGED_AT)),
+                log_columns=', '.join(
+                    r.quote_ident(c)
+                    for c in (
+                        LOG_TABLE,
+                        LOG_KEY,
+                        LOG_VERSION,
+                        LOG_CHANGED_AT,
+                    )
+                ),
                 table_literal=sql_string_literal(tbl.name.last),
                 row=row,
                 key=key,
