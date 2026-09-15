@@ -4,6 +4,7 @@ import typing as ta
 
 from ..... import check
 from ..... import lang
+from .....logs import all as logs
 from .....secrets.secrets import Secrets
 from ....api import querierfuncs as qf
 from ....api.asyncs import ImmediateSyncToAsyncRunner
@@ -24,6 +25,9 @@ from ..registry import SandboxKind
 from ..registry import SandboxRecord
 from ..registry import SandboxRegistry
 from ..registry import WholeSecondsTimestampCodec
+
+
+log = logs.get_module_logger(globals())
 
 
 ##
@@ -152,7 +156,11 @@ class MysqlSandboxBackend(SandboxBackend):
         check.state(int(check.not_none(r)) == 1)
 
     def unlock(self, q: Querier, name: str) -> None:
-        r = qf.query_scalar(q, Q.select([Q.f.release_lock(Q.p.name)]), {Q.p.name: self._lock_name(name)})
+        r = qf.query_scalar(
+            q,
+            Q.select([Q.f.release_lock(Q.p.name)]),
+            {Q.p.name: self._lock_name(name)},
+        )
         check.state(int(check.not_none(r)) == 1)
 
     def server_now(self, q: Querier) -> datetime.datetime:
@@ -170,10 +178,18 @@ class MysqlSandboxBackend(SandboxBackend):
             raise SandboxStateError(f'run {run_id!r} is already marked live elsewhere')
 
     def unmark_run_live(self, q: Querier, run_id: str) -> None:
-        qf.query_scalar(q, Q.select([Q.f.release_lock(Q.p.name)]), {Q.p.name: self._names.application_name(run_id)})
+        qf.query_scalar(
+            q,
+            Q.select([Q.f.release_lock(Q.p.name)]),
+            {Q.p.name: self._names.application_name(run_id)},
+        )
 
     def run_is_live(self, q: Querier, run_id: str) -> bool:
-        r = qf.query_scalar(q, Q.select([Q.f.is_used_lock(Q.p.name)]), {Q.p.name: self._names.application_name(run_id)})
+        r = qf.query_scalar(
+            q,
+            Q.select([Q.f.is_used_lock(Q.p.name)]),
+            {Q.p.name: self._names.application_name(run_id)},
+        )
         return r is not None
 
     #
@@ -238,8 +254,18 @@ def bootstrap_mysql(
     created_user = False
     if not int(qf.query_scalar(
             admin,
-            Q.select([Q.f.count(Q.star)], Q.n(('mysql', 'user')), Q.and_(Q.eq(Q.i.user, Q.p.user), Q.eq(Q.i.host, Q.p.host))),  # noqa
-            {Q.p.user: cfg.role, Q.p.host: '%'},
+            Q.select(
+                [Q.f.count(Q.star)],
+                Q.n(('mysql', 'user')),
+                Q.and_(
+                    Q.eq(Q.i.user, Q.p.user),
+                    Q.eq(Q.i.host, Q.p.host),
+                ),
+            ),
+            {
+                Q.p.user: cfg.role,
+                Q.p.host: '%',
+            },
     )):
         qf.exec(admin, f'create user {account} identified by {_lit(role_password)}')
         created_user = True
@@ -247,10 +273,21 @@ def bootstrap_mysql(
     qf.exec(admin, f'revoke all privileges, grant option from {account}')
     qf.exec(admin, f'grant all privileges on {r.quote_ident(grant_pattern(cfg.prefix))}.* to {account}')
 
+    # With binary logging on, mysql lets only a super account create triggers and functions unless the server is told to
+    # trust creators. A managed instance sets this through its parameter group instead, so a refusal is a warning.
+    try:
+        qf.exec(admin, 'set global log_bin_trust_function_creators = 1')
+    except Exception:  # noqa
+        log.warning('Could not set log_bin_trust_function_creators; the sandbox role may be unable to create triggers')
+
     created_database = False
     if not int(qf.query_scalar(
             admin,
-            Q.select([Q.f.count(Q.star)], Q.n(('information_schema', 'schemata')), Q.eq(Q.i.schema_name, Q.p.db)),
+            Q.select(
+                [Q.f.count(Q.star)],
+                Q.n(('information_schema', 'schemata')),
+                Q.eq(Q.i.schema_name, Q.p.db),
+            ),
             {Q.p.db: cfg.database},
     )):
         qf.exec(admin, f'create database {database}')

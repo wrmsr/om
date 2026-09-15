@@ -6,6 +6,7 @@ from ... import lang
 
 if ta.TYPE_CHECKING:
     from ..api.dialects import Dialect
+    from ..dtypes.codecs import DtypeCodec
     from ..inspect.inspectors import Inspector
     from ..tabledefs.rendering import Renderer as TabledefsRenderer
 
@@ -33,4 +34,9 @@ class Backend(lang.Abstract):
     @property
     @abc.abstractmethod
     def inspector(self) -> Inspector:
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def dtype_codec(self) -> DtypeCodec:
         raise NotImplementedError

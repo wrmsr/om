@@ -1,0 +1,15 @@
+from ...tests.harness import HarnessSandboxes
+from .models import build_schema
+from .nodes import postgres_node
+from .scenarios import check_capture
+from .scenarios import check_install
+
+
+def test_install(harness) -> None:
+    with harness[HarnessSandboxes].postgres().allocate() as sb:
+        check_install(postgres_node('a', sb), build_schema())
+
+
+def test_capture(harness) -> None:
+    with harness[HarnessSandboxes].postgres().allocate() as sb:
+        check_capture(postgres_node('a', sb), build_schema())

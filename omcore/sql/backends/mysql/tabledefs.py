@@ -16,6 +16,8 @@ from ...tabledefs.rendering import RenderColumn
 from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
 from ...tabledefs.triggers import TriggerRenderer
+from ...tabledefs.values import Now
+from ...tabledefs.values import SimpleValue
 
 
 ##
@@ -25,7 +27,7 @@ CREATE_UPDATED_AT_TRIGGER_SRC = """\
 create trigger {trigger_name}
 before update on {table_name}
 for each row
-set new.{column_name} = current_timestamp\
+set new.{column_name} = current_timestamp(6)\
 """
 
 
@@ -96,7 +98,7 @@ class MysqlTabledefRenderer(Renderer):
         elif isinstance(c.type, Integer):
             return MYSQL_INTEGER_TYPES_BY_BITS[self.integer_bits(c.type, is_identity=is_identity)]
         elif isinstance(c.type, Datetime):
-            return 'datetime'
+            return 'datetime(6)'  # a plain datetime silently drops fractional seconds
         elif isinstance(c.type, Boolean):
             return 'tinyint(1)'
         elif isinstance(c.type, Float):
@@ -108,6 +110,11 @@ class MysqlTabledefRenderer(Renderer):
 
     def column_identity_sql(self, c: Column) -> str:
         return 'auto_increment'
+
+    def render_default(self, v: SimpleValue) -> str:
+        if isinstance(v, Now):
+            return 'current_timestamp(6)'  # a default's precision must match the datetime(6) column's
+        return super().render_default(v)
 
     def _render_column(self, rc: RenderColumn) -> str:
         # MySQL wants AUTO_INCREMENT *after* NOT NULL / DEFAULT, unlike postgres' identity clause - so the column-clause

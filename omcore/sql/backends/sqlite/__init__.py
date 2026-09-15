@@ -15,3 +15,5 @@ with _lang.auto_proxy_init(globals()):
 
     from . import tabledefs  # noqa
     from . import tabledefs as td  # noqa
+
+    from . import values  # noqa
