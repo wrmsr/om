@@ -30,7 +30,16 @@ class _PyczArchive:
     def close(self) -> None:
         pass
 
-    def _parse_central_entries(self, data: bytes) -> dict[str, tuple[int, int, int, int, bytes]]:
+    def _parse_central_entries(self, data: bytes) -> dict[
+        str,
+        tuple[
+            int,
+            int,
+            int,
+            int,
+            bytes,
+        ],
+    ]:
         data_len = len(data)
         int_from_bytes = int.from_bytes
 
@@ -77,7 +86,17 @@ class _PyczArchive:
         if central_offset + central_size != eocd_offset:
             raise _PyczError('Mismatched pycz eocd.central_offset/central_size')
 
-        entries: dict[str, tuple[int, int, int, int, bytes]] = {}
+        entries: dict[
+            str,
+            tuple[
+                int,
+                int,
+                int,
+                int,
+                bytes,
+            ],
+        ] = {}
+
         offset = central_offset
         for i in range(entry_count):
             if data[offset:offset + 4] != b'PK\x01\x02':
@@ -403,7 +422,11 @@ class _PyczMetaFinder:
 _ACTIVE_FINDERS: dict[str, _PyczMetaFinder] = {}
 
 
-def _run(archive_path: str, root_package: str, source_root: str) -> bool:
+def _run(
+        archive_path: str,
+        root_package: str,
+        source_root: str,
+) -> bool:
     import os.path
     import sys
 
@@ -468,7 +491,12 @@ class _PyczInstaller:
             optimization = str(optimize)
         return importlib.util.cache_from_source(source_path, optimization=optimization)
 
-    def _entry_name(self, root_package: str, source_root: str, source_path: str) -> str:
+    def _entry_name(
+            self,
+            root_package: str,
+            source_root: str,
+            source_path: str,
+    ) -> str:
         import os.path
 
         relative_path = os.path.relpath(source_path, source_root)
@@ -592,6 +620,7 @@ class _PyczInstaller:
         self._write_file(bootstrap_path, self._bootstrap_source())
         pth_source = f'import _pycz; _pycz._run({archive_path!r}, {root_package!r}, {source_root!r})\n'
         self._write_file(pth_path, pth_source.encode('utf-8'))
+
         return (
             archive_path,
             bootstrap_path,
@@ -612,6 +641,7 @@ def _main() -> None:
     parser.add_argument(
         'root_package',
         help='top-level source package to compile and accelerate',
+        nargs='+',
     )
     parser.add_argument(
         '--site-dir',
@@ -632,20 +662,21 @@ def _main() -> None:
     )
     args = parser.parse_args()
 
-    (
-        archive_path,
-        bootstrap_path,
-        pth_path,
-        count,
-    ) = _PyczInstaller().install(
-        args.root_package,
-        site_dir=args.site_dir,
-        no_venv=args.no_venv,
-        optimize=args.optimize,
-    )
-    print(f'Wrote {count} modules to {archive_path}')
-    print(f'Installed loader at {bootstrap_path}')
-    print(f'Installed startup hook at {pth_path}')
+    for root_package in args.root_package:
+        (
+            archive_path,
+            bootstrap_path,
+            pth_path,
+            count,
+        ) = _PyczInstaller().install(
+            root_package,
+            site_dir=args.site_dir,
+            no_venv=args.no_venv,
+            optimize=args.optimize,
+        )
+        print(f'Wrote {count} modules to {archive_path}')
+        print(f'Installed loader at {bootstrap_path}')
+        print(f'Installed startup hook at {pth_path}')
 
 
 if __name__ == '__main__':
