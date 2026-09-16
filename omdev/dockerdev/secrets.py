@@ -66,6 +66,8 @@ def _inject_update(
         container_id: str,
         secrets_file: str,
         update: ta.Mapping[str, ta.Any],
+        *,
+        shift_uid: tuple[int, int] | None = None,
 ) -> None:
     _check_container_id(container_id)
 
@@ -89,10 +91,19 @@ def _inject_update(
 
     #
 
+    exec_args: list[str] = []
+
+    if shift_uid is not None:
+        uid, gid = shift_uid
+        exec_args.append(f'--user={uid}:{gid}')
+
+    #
+
     proc = subprocess.Popen(
         subprocess_maybe_shell_wrap_exec(
             'docker',
             'exec',
+            *exec_args,
             '-i',
             container_id,
             'sh',
@@ -160,4 +171,5 @@ def inject_dockerdev_secrets(
         container_id,
         secrets_file,
         update,
+        shift_uid=shift_uid,
     )
