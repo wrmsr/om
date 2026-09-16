@@ -15,7 +15,7 @@ from .fields import InstanceFields
 ##
 
 
-NAME_OP_PAIRS = [
+ORDER_NAME_OP_PAIRS = [
     ('__lt__', '<'),
     ('__le__', '<='),
     ('__gt__', '>'),
@@ -37,7 +37,7 @@ class OrderGenerator(Generator[OrderPlan]):
         if not ctx.cs.order:
             return None
 
-        for name, _ in NAME_OP_PAIRS:
+        for name, _ in ORDER_NAME_OP_PAIRS:
             if name in ctx.cls.__dict__:
                 raise TypeError(
                     f'Cannot overwrite attribute {name} in class {ctx.cls.__name__}. '
@@ -51,7 +51,7 @@ class OrderGenerator(Generator[OrderPlan]):
     def generate(self, pl: OrderPlan) -> ta.Iterable[Op]:
         ops: list[AddMethodOp] = []
 
-        for name, op in NAME_OP_PAIRS:
+        for name, op in ORDER_NAME_OP_PAIRS:
             ret_lines: list[str] = []
             if pl.fields:
                 ret_lines.extend([
