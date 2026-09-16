@@ -163,6 +163,12 @@ class ClassSpec(_SpecBase, lang.Final):
 
     _fields_by_name: ta.ClassVar[ta.Mapping[str, FieldSpec]]
 
+    @property
+    def field_indexes_by_name(self) -> ta.Mapping[str, int]:
+        return self._field_indexes_by_name
+
+    _field_indexes_by_name: ta.ClassVar[ta.Mapping[str, int]]
+
     ##
     # std
 
@@ -241,10 +247,13 @@ class ClassSpec(_SpecBase, lang.Final):
         self._check_spec_base_fields()
 
         fields_by_name: dict[str, FieldSpec] = {}
-        for f in self.fields:
+        field_indexes_by_name: dict[str, int] = {}
+        for i, f in enumerate(self.fields):
             check.not_in(f.name, fields_by_name)
             fields_by_name[f.name] = f
+            field_indexes_by_name[f.name] = i
         object.__setattr__(self, '_fields_by_name', fields_by_name)
+        object.__setattr__(self, '_field_indexes_by_name', field_indexes_by_name)
 
         metadata_by_type: dict[type, list[ta.Any]] = {}
         for md in self.metadata or ():
