@@ -102,13 +102,7 @@ def _inject_update(
 
     if shift_uid is not None:
         uid, gid = shift_uid
-        # exec_args.append(f'--user={uid}:{gid}')
-        exec_args.append('--user=0:0')
-        exec_cmd = [
-            'gosu',
-            'om',
-            *exec_cmd,
-        ]
+        exec_args.append(f'--user={uid}')
 
     proc = subprocess.Popen(
         subprocess_maybe_shell_wrap_exec(
