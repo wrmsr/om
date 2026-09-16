@@ -3,8 +3,9 @@
 A zero-dependency TUI library built around being a good terminal citizen: app output is a **log plus a live tail**.
 Finalized content commits into the terminal's own scrollback (native scrolling, tmux-friendly, survives exit); only the
 bottom few rows - the streaming tail, a vim-powered input, a status bar - are retained-frame diffed and redrawn in place
-on the main screen. No alternate screen required (one exists for genuinely-fullscreen apps), no CSS, no reactive layer,
-no DOM, no string-eval dispatch: dataclasses, direct calls, and typed events throughout.
+on the main screen. No alternate screen required (one exists for genuinely-fullscreen apps, and a browse mode takes
+the same app fullscreen over its own retained transcript and back, the live region untouched), no CSS, no reactive
+layer, no DOM, no string-eval dispatch: dataclasses, direct calls, and typed events throughout.
 
 Built primarily for llm coding-agent chat TUIs, deliberately generalized for interactive and driver-free terminal
 rendering.
@@ -12,12 +13,12 @@ rendering.
 ## Try it
 
 ```bash
-./python -m omdev.tui.minitui.tests.apps.chatdemo               # streaming markdown chat: tool cards (f10/f2), /help, history, search
-./python -m omdev.tui.minitui.tests.apps.chatdemo --md=pdcmark  # swap the streaming markdown backend (internal|pdcmark|markdown-it)
-./python -m omdev.tui.minitui.tests.apps.chatdemo --mouse       # + click-to-expand cards / click suggestions (trades wheel scrollback)
-./python -m omdev.tui.minitui.tests.apps.inputdemo              # minimal typing-while-streaming proof
-./python -m omdev.tui.minitui.tests.apps.streamdemo             # the bare commit model, no input
-./python -m omdev.tui.minitui.tests.apps.vimdemo f.py           # fullscreen vim clone (:w/:q, :set nu, ctrl+v blocks, %/~/zz), tree-sitter highlighted
+./python -m omdev.minitui.tests.apps.chatdemo               # streaming markdown chat: tool cards (f10/f2), /help, history, search, f12 browse
+./python -m omdev.minitui.tests.apps.chatdemo --md=pdcmark  # swap the streaming markdown backend (internal|pdcmark|markdown-it)
+./python -m omdev.minitui.tests.apps.chatdemo --mouse       # + click-to-expand cards / click suggestions (trades wheel scrollback)
+./python -m omdev.minitui.tests.apps.inputdemo              # minimal typing-while-streaming proof
+./python -m omdev.minitui.tests.apps.streamdemo             # the bare commit model, no input
+./python -m omdev.minitui.tests.apps.vimdemo f.py           # fullscreen vim clone (:w/:q, :set nu, ctrl+v blocks, %/~/zz), tree-sitter highlighted
 ```
 
 Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to watch damage regions.
@@ -35,8 +36,10 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
 - **screens/** - `Cell`/`Line`/`Frame` and retained-frame diffing: the correctness ground truth. Spurious redraws cost a
   re-render and an empty diff, never visible output.
 - **surfaces/** - `InlineSurface` (the commit model: relative cursor tracking, `\r\n`-forced scrolling, commit-above
-  re-anchoring, CPR origin negotiation) and `AltSurface` (fullscreen, absolute addressing). Terminfo for output
-  capabilities; hardcoded-xterm fallbacks; runtime-negotiated extras (kitty keys, bracketed paste, sync output).
+  re-anchoring, CPR origin negotiation; an alt-screen excursion for browse mode, painted by `AltPainter` while the
+  terminal keeps the main screen; the origin's terminal row tracked on the side so mouse rows translate to frame rows)
+  and `AltSurface` (fullscreen, absolute addressing). Terminfo for output capabilities; hardcoded-xterm fallbacks;
+  runtime-negotiated extras (kitty keys, bracketed paste, sync output).
 - **events/** - typed `Key`/events, a generator escape-sequence parser with clock-free cooperative timeouts, keymap trie
   with vim's two-timeout semantics, SGR mouse / CPR / DECRQM / kitty decoding.
 - **docs/** - `Document` mutated only through range edits (`TextEdit`, tree-sitter/LSP-shaped) carrying exact inverses;
@@ -48,13 +51,17 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
 - **controls/** - small and passive: `TextArea` (a scrolled vim window - grows to a max height, then the viewport
   follows the cursor; optional syntax highlighting under engine decorations; ctrl+d/u, zz/zt/zb, H/M/L viewport ops;
   vim's line number column), status bar, statics, spinner, suggestions popup, markdown tail, lifecycle cards, input
-  history, stack layout with mouse hit regions.
+  history, stack layout with mouse hit regions, and the transcript: an app-retained record of committed lines
+  tagged with app identity, with a scrolled follow-mode view over it (plus trailing live controls) for browse
+  mode.
 - **runtime/** - `SyncDriver` (poll + self-pipe) and `AsyncioDriver` (asyncio; `post()` is the sole thread-safe entry).
   Both share the `App` contract: `render(width, max_height) -> Frame` + `handle_event(event)`, with coalescing
   invalidation. Both do job control: ctrl+z / SIGTSTP hands the terminal back clean before the stop, SIGCONT re-enters
   application mode and re-anchors the inline origin, and the app sees `SuspendEvent` / `ResumeEvent`. The end of input
   arrives as an `InputEofEvent`, after which the driver stops on its own - unless constructed with `app_handles_eof`,
-  which leaves ending the run to the app, so it can wind down work first.
+  which leaves ending the run to the app, so it can wind down work first. `set_alt_screen` toggles the inline
+  surface's fullscreen excursion, buffering commits made fullscreen until the return (and through teardown); mouse
+  events reach the app with frame-relative rows.
 
 ## Notes
 

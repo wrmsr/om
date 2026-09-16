@@ -608,3 +608,52 @@ head, ctrl+alt+[), kitty-unambiguous passthrough.
   mid-render. `runtime/jobcontrol.py` holds the state machine, with the stop injectable for tests. Bound in the omllm
   app (`AppKey.SUSPEND`), chatdemo, and vimdemo. No shell-out context manager: nothing asks for one yet.
 - Drift fixes: README demo module paths (`tests/apps/`), `SpanKind.BLOCK` comments.
+
+## 2026-09-16: browse mode - the alt-screen excursion, the transcript, inline mouse rows
+
+Owner ask: f12 in the llm chat TUI flips to a real fullscreen where the wheel scrolls history (nested tmux makes native
+wheel scrollback a lottery), f12 again returns to the live view exactly as it was; nothing drawn fullscreen may
+propagate back; click/context-menu on past messages is the next chunk.
+
+- The terminal does the hard part: DECSET 1049 saves the main screen and cursor and DECRST restores both, so the
+  live region and the inline surface's relative tracking survive the interlude untouched. `AltPainter` is the alt
+  screen's painting half, extracted from `AltSurface` (lifecycle + painter now; byte-identical behavior); the inline
+  surface holds one during `set_alt_screen(True)`. Entry is deferred to the first present so the screen switch, the
+  clear, and the first paint share one sync bracket (no blank alt frame flashes; an enter/leave with no present in
+  between costs zero bytes). Mouse tracking is forced on fullscreen (the wheel is the point) and put back on leave.
+  Cursor visibility is one terminal-global mode, not per screen: the painter is seeded with the inline state and
+  hands it back. A resize absorbed fullscreen re-marks the tty on leave, so the usual erase-and-repaint path runs on
+  the live region we can no longer trust. `commit()` is a state error fullscreen; `suspend`/`restore` leave first.
+- Drivers: `set_alt_screen` / `alt_screen` on both. Commits made fullscreen join the pending-commits buffer (one more
+  gate beside awaiting-origin and suspended) and flush in order on the return - and at teardown, which leaves the alt
+  screen before restoring so a quit from browse mode loses nothing. A request during the CPR window or while
+  suspended is remembered and applied by the origin resolution, so fg after ctrl+z lands back in browse mode.
+- Inline mouse rows were wrong all along (as far as I can tell - nobody had mouse on in the chat app): the wire reports
+  terminal rows and apps hit-tested them as live-region rows, right only when the region starts at row 0. The inline
+  surface now tracks the origin's terminal row on the side: learned from the CPR (`resolve_origin` takes the row; a
+  mid-line fresh line on the bottom row stays the bottom row), moved up by every bottom-row `\r\n` through one
+  `_crlf` funnel (a commit taller than the terminal legitimately drives it negative until the rebase), forgotten on
+  resize (bottom-hugging assumption until the next CPR). `Surface.frame_row` translates; the drivers apply it to
+  every MouseEvent before dispatch. Fullscreen it is the identity.
+- `controls/transcripts.py`: `Transcript` - append-only blocks of committed `Line`s plus an opaque tag (the commit
+  identity hook the design reserved, realized at the app's commit funnel rather than in the driver), prefix sums for
+  row->block, optional row bound dropping whole blocks. `TranscriptView(Control)` - a scrolled window that re-emits
+  retained cells as segments carrying their resolved styles (Theme.resolve passes those through, so it drops into
+  stack_layout and gets hit regions for free), clips to the current width (a straddling wide char goes whole), pads to
+  its height, treats trailing live controls as the document's last block (the streaming tail scrolls with history),
+  follow mode pins to the bottom until the user scrolls up and re-pins on reaching it again. wheel/j k/pgup pgdn/
+  ctrl+b ctrl+f/space/g G/home end. `hit(y)` -> `TranscriptHit` (row, block+tag or live control+row): clicks on live
+  controls forward with local y (a warm card expands from the browse view); clicks on history go to `on_click` - the
+  anchor a context menu will open from. Overlay compositing itself is deliberately not here yet.
+- omllm chat app: f12 toggles, esc leaves (q does not: `AppKey.BROWSE_TOGGLE` / `BROWSE_EXIT`; escape is vim's in the
+  live view and falls through). Fullscreen frame = view + `_BrowseStatus` (reads the view after it rendered: no
+  one-frame lag on the position). The input is not part of the browse view; ctrl+d/ctrl+q/ctrl+z/f10/f2/ctrl+o still
+  work fullscreen, history/popup keys do not. Printable keys are ignored unless `--browse-type-returns`
+  (`Config.browse_type_returns`, ctor `browse_type_returns=`), which returns to the live view and types the key.
+  Every commit is recorded tagged with a `TurnRecord` (speaker, time, prompt text) - one record per turn shared by
+  header, streamed blocks, cards, and the closing marker. chatdemo wired the same way with `ChatMessage` tags.
+- Tests: 10 excursion/origin surface tests on the emulator, 3 driver tests (round trip flushes in order, stop
+  fullscreen flushes, mouse rows translate), 7 transcript/view tests, 9 chat-app browse tests. Known and accepted:
+  relies on 1049 restoring the cursor (universal; tmux `alternate-screen off` would paint browse onto the main
+  screen); the transcript keeps commit-time widths while the terminal reflows scrollback on resize; unbounded by
+  default (`Transcript(max_rows=...)` is the knob).

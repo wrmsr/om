@@ -48,9 +48,13 @@ class Driver:
         self.invalidations = 0
         self.stopped = False
         self.suspends = 0
+        self.alt_screen = False
 
     def commit(self, lines) -> None:
         self.commits.append(tuple(lines))
+
+    def set_alt_screen(self, enabled: bool) -> None:
+        self.alt_screen = enabled
 
     def invalidate(self) -> None:
         self.invalidations += 1

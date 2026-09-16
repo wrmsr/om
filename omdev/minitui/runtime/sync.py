@@ -19,6 +19,7 @@ import time
 import typing as ta
 
 from omcore import check
+from omcore import dataclasses as dc
 
 from ..events.parsing import Read1
 from ..events.types import CursorPositionEvent
@@ -26,6 +27,7 @@ from ..events.types import Event
 from ..events.types import InputEofEvent
 from ..events.types import KittyFlagsEvent
 from ..events.types import ModeReportEvent
+from ..events.types import MouseEvent
 from ..events.types import ResizeEvent
 from ..events.types import ResumeEvent
 from ..events.types import SuspendEvent
@@ -84,6 +86,8 @@ class SyncDriver:
         self._origin_deadline: float | None = None
         self._pending_commits: list[ta.Sequence[Line]] = []
 
+        self._alt_screen_wanted = False
+
     @property
     def surface(self) -> Surface:
         return self._surface
@@ -103,13 +107,19 @@ class SyncDriver:
 
     def commit(self, lines: ta.Sequence[Line]) -> None:
         surface = check.isinstance(self._surface, InlineSurface)
-        if not self._running or self._awaiting_origin or self._job_control.suspended:
-            # Nothing may touch the terminal until run() has prepared it and the origin has resolved; committed content
-            # queues in order and flushes through the origin-resolution path.
+        if not self._running or self._awaiting_origin or self._job_control.suspended or surface.alt_screen:
+            # Nothing may touch the main screen until run() has prepared it and the origin has resolved - nor while the
+            # alt screen is up; committed content queues in order and flushes on the origin resolution or the return.
             self._pending_commits.append(tuple(lines))
         else:
             surface.commit(lines)
         self._invalidated = True
+
+    def _flush_pending_commits(self) -> None:
+        surface = check.isinstance(self._surface, InlineSurface)
+        pending, self._pending_commits = self._pending_commits, []
+        for lines in pending:
+            surface.commit(lines)
 
     def stop(self) -> None:
         self._running = False
@@ -117,6 +127,38 @@ class SyncDriver:
     def _stopped(self) -> bool:
         # Also defeats mypy's (unsound here) attribute narrowing: handlers may call stop() mid-iteration.
         return not self._running
+
+    ##
+    # The alt-screen excursion
+
+    @property
+    def alt_screen(self) -> bool:
+        """Whether the app has asked for the alt screen - it may not be showing yet, see `set_alt_screen`."""
+
+        return self._alt_screen_wanted
+
+    def set_alt_screen(self, enabled: bool) -> None:
+        """
+        Switch between the live region and a fullscreen alt-screen view of the same app - browse mode. Takes effect at
+        once when the terminal is ours, else as soon as it is: after the startup CPR, or after a resume (a suspend
+        leaves the alt screen, so fg lands back where ctrl+z left). Commits made while fullscreen queue in order and
+        reach scrollback on the way back. Call from event handlers, like `commit` - never from `render`.
+        """
+
+        check.isinstance(self._surface, InlineSurface)
+        self._alt_screen_wanted = enabled
+        self._apply_alt_screen()
+        self._invalidated = True
+
+    def _apply_alt_screen(self) -> None:
+        if not self._running or self._awaiting_origin or self._job_control.suspended:
+            return  # the origin resolution that follows every entry into application mode applies it
+        surface = check.isinstance(self._surface, InlineSurface)
+        if surface.alt_screen == self._alt_screen_wanted:
+            return
+        surface.set_alt_screen(self._alt_screen_wanted)
+        if not self._alt_screen_wanted:
+            self._flush_pending_commits()
 
     #
 
@@ -128,24 +170,23 @@ class SyncDriver:
             self._parser_deadline = self._clock() + pending.timeout_s
         self._parser_pending = pending
 
-    def _resolve_origin(self, col: int | None) -> None:
+    def _resolve_origin(self, col: int | None, row: int | None = None) -> None:
         surface = check.isinstance(self._surface, InlineSurface)
         if col is not None:
-            surface.resolve_origin(col)
+            surface.resolve_origin(col, row)
         else:
             surface.resolve_origin_fallback()
         self._awaiting_origin = False
         self._origin_deadline = None
-        pending, self._pending_commits = self._pending_commits, []
-        for lines in pending:
-            surface.commit(lines)
+        self._flush_pending_commits()
+        self._apply_alt_screen()
         self._invalidated = True
 
     def _dispatch(self, app: App, events: ta.Iterable[Event]) -> None:
         for event in events:
             # Startup negotiations are plumbing, not app events.
             if self._awaiting_origin and isinstance(event, CursorPositionEvent):
-                self._resolve_origin(event.x)
+                self._resolve_origin(event.x, event.y)
                 continue
             if isinstance(event, KittyFlagsEvent):
                 # Kitty-protocol confirmation: with disambiguation active the ESC byte can only start a sequence, so
@@ -155,6 +196,9 @@ class SyncDriver:
             if isinstance(event, ModeReportEvent) and event.mode == 2026:
                 self._surface.set_sync_output(event.value != 0)
                 continue
+            if isinstance(event, MouseEvent):
+                # The wire reports terminal rows; apps think in frame rows (see Surface.frame_row).
+                event = dc.replace(event, y=self._surface.frame_row(event.y))
             app.handle_event(event)
 
     def _next_deadline(self) -> float | None:
@@ -328,6 +372,10 @@ class SyncDriver:
                 # Stopped before the CPR answer (or its deadline): resolve via the fallback now so buffered commits
                 # reach the terminal instead of being dropped.
                 self._resolve_origin(None)
+            if isinstance(surface, InlineSurface) and surface.alt_screen:
+                # Stopped fullscreen: back to the main screen first, so what was committed meanwhile reaches scrollback.
+                surface.set_alt_screen(False)
+                self._flush_pending_commits()
             signal.set_wakeup_fd(old_wakeup)
             os.close(wake_r)
             os.close(wake_w)

@@ -8,6 +8,7 @@ from ...events.types import Event
 from ...events.types import InputEofEvent
 from ...events.types import KeyEvent
 from ...events.types import ModeReportEvent
+from ...events.types import MouseEvent
 from ...events.types import PasteEvent
 from ...screens.cells import Frame
 from ...screens.cells import line_from_segments
@@ -76,6 +77,22 @@ class EofApp(RecordingApp):
             self._driver.timers.call_later(.01, stop)
 
 
+class BrowseApp(RecordingApp):
+    """f12 toggles the alt screen and 'c' commits a line; the frame says which screen it thinks it is on."""
+
+    def handle_event(self, event: Event) -> None:
+        super().handle_event(event)
+        if isinstance(event, KeyEvent):
+            if event.key == Key('f12'):
+                self._driver.set_alt_screen(not self._driver.alt_screen)
+            elif event.key == Key('c'):
+                self._driver.commit([line_from_segments([Segment('committed')], EMPTY_THEME)])
+
+    def render(self, width: int, max_height: int) -> Frame:
+        text = 'alt view' if self._driver.alt_screen else 'live'
+        return Frame((line_from_segments([Segment(text)], EMPTY_THEME),))
+
+
 def run_driver(
         data: bytes,
         *,
@@ -83,10 +100,14 @@ def run_driver(
         height: int = 6,
         width: int = 40,
         app_handles_eof: bool = False,
+        app_cls: type[RecordingApp] | None = None,
 ) -> tuple[RecordingApp, PipeTty]:
     tty = PipeTty(height=height, width=width)
     driver = SyncDriver(InlineSurface(tty, term='xterm-256color'), app_handles_eof=app_handles_eof)
-    app = EofApp(driver) if app_handles_eof else RecordingApp(driver)
+    if app_cls is not None:
+        app = app_cls(driver)
+    else:
+        app = EofApp(driver) if app_handles_eof else RecordingApp(driver)
     # Answer the startup origin CPR like a real terminal (row 3, col 1) so rendering isn't timeout-delayed.
     tty.send(b'\x1b[3;1R')
     tty.send(data)
@@ -339,3 +360,49 @@ def test_driver_resume_waits_for_foreground():
     surface.restore()
     os.close(tty.read_fd)
     os.close(tty.write_fd)
+
+
+##
+# The alt-screen excursion
+
+
+def _terminal_after(tty: PipeTty, *, height: int = 6, width: int = 40) -> Vt100Terminal:
+    term = Vt100Terminal(rows=height, cols=width)
+    term.feed(b''.join(tty.writes))
+    return term
+
+
+def test_driver_alt_screen_round_trip_flushes_commits_on_return():
+    # Enter fullscreen (and render there), then commit while fullscreen, leave, and quit.
+    app, tty = run_driver(b'\x1b[24~', then=b'c\x1b[24~\x04', app_cls=BrowseApp)
+    data = b''.join(tty.writes)
+
+    entered = data.index(b'\x1b[?1049h')
+    left = data.rindex(b'\x1b[?1049l')
+    committed = data.rindex(b'committed')
+    assert entered < left < committed  # the commit made fullscreen reached the main screen only on the way back
+
+    term = _terminal_after(tty)
+    assert not term.in_alt_screen
+    assert 'committed' in term.all_lines()
+    assert 'alt view' not in term.all_lines()  # nothing drawn fullscreen survives
+
+
+def test_driver_stopped_fullscreen_flushes_commits():
+    # Commit live, go fullscreen (rendered there), commit again, then quit without leaving: the teardown returns to
+    # the main screen first so the second commit lands in order.
+    app, tty = run_driver(b'c\x1b[24~', then=b'c\x04', app_cls=BrowseApp)
+    data = b''.join(tty.writes)
+    assert data.rindex(b'\x1b[?1049l') < data.rindex(b'committed')
+
+    term = _terminal_after(tty)
+    assert not term.in_alt_screen
+    assert term.all_lines().count('committed') == 2
+    assert 'alt view' not in term.all_lines()
+
+
+def test_driver_translates_mouse_rows_to_frame_rows():
+    # The startup CPR says row 3 (1-based): the origin is terminal row 2. Clicks on 1-based rows 3 and 5 are frame
+    # rows 0 and 2.
+    app, tty = run_driver(b'\x1b[<0;1;3M\x1b[<0;1;5M', then=b'\x04')
+    assert [e.y for e in app.events if isinstance(e, MouseEvent)] == [0, 2]

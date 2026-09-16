@@ -4,7 +4,8 @@ The alt-screen surface: fullscreen apps over the same frame/diff machinery as th
 Simpler in every way that matters: the alt screen is a fixed grid the terminal hands us whole, so movement is absolute
 (`cup`), rows never scroll, and there is no commit operation - nothing here ever becomes scrollback, which is exactly
 the tradeoff fullscreen apps opt into. The inline surface remains the primary citizen; this exists for the
-genuinely-fullscreen cases (the vim clone, a future browse mode).
+genuinely-fullscreen cases (the vim clone), and its painting half - `AltPainter` - doubles as the inline surface's
+alt-screen excursion (browse mode: the same app, fullscreen for a while, then back to the live region untouched).
 """
 from omcore import check
 from omcore.term.styled import ColorDepth
@@ -19,6 +20,111 @@ from ..screens.diffs import diff_frames
 from ..tty.terminals import Tty
 from .base import Surface
 from .writers import TermWriter
+
+
+##
+
+
+class AltPainter:
+    """
+    Retained-frame painting onto a fixed grid with absolute addressing - the alt screen's half of `AltSurface`, and the
+    inline surface's alt-screen excursion.
+
+    Pure painting: the owner decides when the grid is ours (screen switching, raw mode, the modes), brackets `paint` in
+    synchronized output, and flushes. Cursor visibility is a terminal-global mode rather than per screen, so a painter
+    is seeded with the physical state it inherits and reports where it left it.
+    """
+
+    def __init__(
+            self,
+            writer: TermWriter,
+            *,
+            depth: ColorDepth,
+            cursor_shown: bool = True,
+    ) -> None:
+        super().__init__()
+
+        self._writer = writer
+        self._depth = depth
+
+        self._frame: Frame = EMPTY_FRAME
+        # (col, row) the terminal cursor is known to be at, or None after painting moved it.
+        self._cursor: tuple[int, int] | None = None
+        self._cursor_shown = cursor_shown
+
+    @property
+    def frame(self) -> Frame:
+        return self._frame
+
+    @property
+    def cursor_shown(self) -> bool:
+        return self._cursor_shown
+
+    def _move_to(self, row: int, col: int) -> None:
+        if self._cursor == (col, row):
+            return
+        self._writer.move_to(row, col)
+        self._cursor = (col, row)
+
+    def hide_cursor(self) -> None:
+        if self._cursor_shown:
+            self._writer.hide_cursor()
+            self._cursor_shown = False
+
+    def show_cursor(self) -> None:
+        if not self._cursor_shown:
+            self._writer.show_cursor()
+            self._cursor_shown = True
+
+    def clear(self) -> None:
+        """Home and erase the whole grid, forgetting the retained frame: on entry, and after a resize."""
+
+        self._move_to(0, 0)
+        self._writer.erase_down()
+        self._frame = EMPTY_FRAME
+
+    def _apply_update(self, update: LineUpdate) -> None:
+        w = self._writer
+        self._move_to(update.y, update.start_x)
+        w.text(render_cells(update.cells, self._depth))
+        if update.clear_eol:
+            w.erase_eol()
+        self._cursor = None  # painting moved it
+
+    def _write_full_line(self, line: Line, y: int) -> None:
+        w = self._writer
+        self._move_to(y, 0)
+        w.text(render_cells(line.cells, self._depth))
+        w.erase_eol()
+        self._cursor = None
+
+    def paint(self, frame: Frame, *, width: int) -> None:
+        """Diff `frame` against the retained one, emit the changes, place the cursor, and retain it."""
+
+        diff = diff_frames(self._frame, frame)
+
+        if not diff.is_empty:
+            self.hide_cursor()
+
+            for update in diff.line_updates:
+                self._apply_update(update)
+
+            for i, line in enumerate(diff.appended):
+                self._write_full_line(line, diff.old_height + i)
+
+            if diff.shrink:
+                self._move_to(diff.height, 0)
+                self._writer.erase_down()
+                self._cursor = None
+
+        cx, cy = frame.cursor
+        self._move_to(cy, min(cx, max(width - 1, 0)))
+        if frame.cursor_visible:
+            self.show_cursor()
+        else:
+            self.hide_cursor()
+
+        self._frame = frame
 
 
 ##
@@ -42,13 +148,10 @@ class AltSurface(Surface):
         self._kitty_keys = kitty_keys
         self._mouse = mouse
 
-        self._frame: Frame = EMPTY_FRAME
+        self._painter = AltPainter(self._writer, depth=self._depth)
         self._term_height = 0
         self._term_width = 0
-        self._cursor_shown = True
         self._prepared = False
-        # (col, row) the terminal cursor is known to be at, or None after painting moved it.
-        self._cursor: tuple[int, int] | None = None
         self._sync_output = True
 
     @property
@@ -65,7 +168,10 @@ class AltSurface(Surface):
 
     @property
     def frame(self) -> Frame:
-        return self._frame
+        return self._painter.frame
+
+    def frame_row(self, terminal_row: int) -> int:
+        return terminal_row  # the frame is the screen
 
     ##
     # Lifecycle
@@ -89,13 +195,10 @@ class AltSurface(Surface):
             w.modify_other_keys(True)
         if self._mouse:
             w.mouse_tracking(True)
-        w.move_to(0, 0)
-        w.erase_down()
+        self._painter = AltPainter(self._writer, depth=self._depth)  # the cursor is shown again after any restore
+        self._painter.clear()
         w.flush()
-        self._cursor = (0, 0)
 
-        self._frame = EMPTY_FRAME
-        self._cursor_shown = True
         self._prepared = True
 
     def restore(self) -> None:
@@ -104,7 +207,7 @@ class AltSurface(Surface):
         self._prepared = False
 
         w = self._writer
-        self._show_cursor()
+        self._painter.show_cursor()
         if self._mouse:
             w.mouse_tracking(False)
         if self._kitty_keys:
@@ -134,46 +237,11 @@ class AltSurface(Surface):
         w.sync_query()
         w.flush()
 
-    def _move_to(self, row: int, col: int) -> None:
-        if self._cursor == (col, row):
-            return
-        self._writer.move_to(row, col)
-        self._cursor = (col, row)
-
-    def _hide_cursor(self) -> None:
-        if self._cursor_shown:
-            self._writer.hide_cursor()
-            self._cursor_shown = False
-
-    def _show_cursor(self) -> None:
-        if not self._cursor_shown:
-            self._writer.show_cursor()
-            self._cursor_shown = True
-
-    def _apply_update(self, update: LineUpdate) -> None:
-        w = self._writer
-        self._move_to(update.y, update.start_x)
-        w.text(render_cells(update.cells, self._depth))
-        if update.clear_eol:
-            w.erase_eol()
-        self._cursor = None  # painting moved it
-
-    def _write_full_line(self, line: Line, y: int) -> None:
-        w = self._writer
-        self._move_to(y, 0)
-        w.text(render_cells(line.cells, self._depth))
-        w.erase_eol()
-        self._cursor = None
-
     def take_resized(self) -> bool:
         if not self._tty.take_resized():
             return False
         self._term_height, self._term_width = self._tty.get_size()
-        w = self._writer
-        self._move_to(0, 0)
-        w.erase_down()
-        self._cursor = None
-        self._frame = EMPTY_FRAME
+        self._painter.clear()
         return True
 
     def present(self, frame: Frame) -> None:
@@ -182,38 +250,15 @@ class AltSurface(Surface):
 
         self.take_resized()
 
-        diff = diff_frames(self._frame, frame)
-
         w = self._writer
         if self._sync_output:
             w.sync_start()
 
-        if not diff.is_empty:
-            self._hide_cursor()
-
-            for update in diff.line_updates:
-                self._apply_update(update)
-
-            for i, line in enumerate(diff.appended):
-                self._write_full_line(line, diff.old_height + i)
-
-            if diff.shrink:
-                self._move_to(diff.height, 0)
-                w.erase_down()
-                self._cursor = None
-
-        cx, cy = frame.cursor
-        self._move_to(cy, min(cx, max(self._term_width - 1, 0)))
-        if frame.cursor_visible:
-            self._show_cursor()
-        else:
-            self._hide_cursor()
+        self._painter.paint(frame, width=self._term_width)
 
         if self._sync_output:
             w.sync_end()
         w.flush()
-
-        self._frame = frame
 
     def beep(self) -> None:
         self._writer.bell()

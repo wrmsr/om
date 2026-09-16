@@ -71,6 +71,13 @@ with _lang.auto_proxy_init(
         MarkdownTail,
     )
 
+    from .controls.transcripts import (  # noqa
+        TranscriptBlock,
+        Transcript,
+        TranscriptHit,
+        TranscriptView,
+    )
+
     ##
     # docs
 
@@ -217,6 +224,7 @@ with _lang.auto_proxy_init(
     )
 
     from .surfaces.alts import (  # noqa
+        AltPainter,
         AltSurface,
     )
 

@@ -56,6 +56,15 @@ class Surface(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def frame_row(self, terminal_row: int) -> int:
+        """
+        Translate a terminal row - what the mouse reports - into a row of the displayed frame. Negative for rows above
+        the frame (committed content, on an inline surface); the frame's height or more for rows below it.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def prepare(self) -> None:
         raise NotImplementedError
 

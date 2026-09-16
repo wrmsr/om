@@ -6,10 +6,18 @@ of our output: a retained `Frame`, diffed and redrawn in place. `commit()` freez
 region into the terminal's own scrollback - immutable once emitted, visible after exit, tmux-native - and re-anchors the
 live region below them. A message that finalizes exactly as displayed commits for zero bytes.
 
-All cursor tracking is relative to the live region origin (row 0); there are no absolute coordinates anywhere. Downward
-motion is always the literal '\\r\\n' pair - never cud - because only '\\r\\n' scrolls the terminal when the cursor is
-on the bottom row, which is exactly how the live region grows and how commits push history upward. Autowrap is disabled
-while active so a width-exact line can never desync the relative tracking.
+All cursor tracking is relative to the live region origin (row 0); there are no absolute coordinates anywhere in the
+painting. Downward motion is always the literal '\\r\\n' pair - never cud - because only '\\r\\n' scrolls the terminal
+when the cursor is on the bottom row, which is exactly how the live region grows and how commits push history upward.
+Autowrap is disabled while active so a width-exact line can never desync the relative tracking.
+
+The one absolute quantity kept on the side is the origin's terminal row, learned from the startup CPR and moved up by
+every bottom-row line feed - solely so mouse reports, which are absolute, can be translated into frame rows.
+
+The alt-screen excursion (`set_alt_screen`): the terminal's alternate screen saves the main screen and cursor on entry
+and restores both on exit, so the live region and its relative tracking survive a fullscreen interlude untouched - a
+browse mode over the same app draws with an `AltPainter` meanwhile, and nothing it draws propagates back. Commits are
+impossible while in the excursion (they would land on the alt screen); the driver buffers them until the return.
 """
 import typing as ta
 
@@ -26,6 +34,7 @@ from ..screens.diffs import LineUpdate
 from ..screens.diffs import diff_frames
 from ..screens.diffs import diff_lines
 from ..tty.terminals import Tty
+from .alts import AltPainter
 from .base import Surface
 from .writers import TermWriter
 
@@ -73,6 +82,16 @@ class InlineSurface(Surface):
         # Blind-optimistic until negotiated: unknown DECSETs are ignored by terminals that lack them.
         self._sync_output = True
 
+        # The origin's terminal row, when known (see `frame_row`). None until the CPR answers, and again after a
+        # resize: the terminal reflowed the main screen under us and the row is anyone's guess.
+        self._origin_row: int | None = None
+
+        # The alt-screen excursion: a painter while requested; the switch itself is written by the first present, so
+        # entry and first paint share one synchronized-output bracket (no blank alt screen in between).
+        self._alt: AltPainter | None = None
+        self._alt_entered = False
+        self._alt_entry_size: tuple[int, int] = (0, 0)
+
     @property
     def tty(self) -> Tty:
         return self._tty
@@ -87,9 +106,32 @@ class InlineSurface(Surface):
 
     @property
     def frame(self) -> Frame:
-        """The currently-displayed (retained) live region frame."""
+        """The currently-displayed (retained) live region frame - on the main screen, alt excursion or not."""
 
         return self._frame
+
+    @property
+    def alt_screen(self) -> bool:
+        return self._alt is not None
+
+    @property
+    def origin_row(self) -> int | None:
+        """The live region origin's terminal row, if known."""
+
+        return self._origin_row
+
+    def frame_row(self, terminal_row: int) -> int:
+        """
+        In the alt excursion the frame is the screen. Otherwise the live region sits at its tracked origin - or, when
+        that is unknown (no CPR answer, or a resize since), is assumed to hug the bottom of the terminal, where it ends
+        up once anything has scrolled.
+        """
+
+        if self._alt is not None:
+            return terminal_row
+        if (origin := self._origin_row) is None:
+            origin = max(self._term_height - self._frame.height, 0)
+        return terminal_row - origin
 
     ##
     # Lifecycle
@@ -128,6 +170,9 @@ class InlineSurface(Surface):
         self._frame = EMPTY_FRAME
         self._cursor = (0, 0)
         self._cursor_shown = True
+        self._origin_row = None
+        self._alt = None
+        self._alt_entered = False
         self._prepared = True
 
     def set_sync_output(self, enabled: bool) -> None:
@@ -148,16 +193,22 @@ class InlineSurface(Surface):
         w.flush()
         parser.expect_cursor_position_report()
 
-    def resolve_origin(self, col: int) -> None:
-        """The CPR answer arrived: start on a fresh line if the shell left the cursor mid-line."""
+    def resolve_origin(self, col: int, row: int | None = None) -> None:
+        """
+        The CPR answer arrived: start on a fresh line if the shell left the cursor mid-line. With the reported `row`,
+        the origin's terminal row becomes known (a fresh line on the bottom row scrolls, and stays the bottom row).
+        """
 
         w = self._writer
         if col > 0:
             w.crlf()
+            if row is not None:
+                row = min(row + 1, max(self._term_height - 1, 0))
         else:
             w.cr()  # col 0 already, but normalize defensively
         w.flush()
         self._cursor = (0, 0)
+        self._origin_row = row
 
     def resolve_origin_fallback(self) -> None:
         """No CPR answer (unsupported terminal): fall back to the overwrite-in-place behavior."""
@@ -166,6 +217,7 @@ class InlineSurface(Surface):
         w.cr()
         w.flush()
         self._cursor = (0, 0)
+        self._origin_row = None
 
     def _leave(self) -> None:
         w = self._writer
@@ -184,11 +236,12 @@ class InlineSurface(Surface):
     def restore(self) -> None:
         if not self._prepared:
             return
+        self.set_alt_screen(False)
         self._prepared = False
 
         # Leave the shell on a fresh line below everything we drew.
         self._move(0, max(self._frame.height - 1, 0))
-        self._writer.crlf()
+        self._crlf()
         self._leave()
 
     def suspend(self) -> None:
@@ -200,6 +253,7 @@ class InlineSurface(Surface):
 
         if not self._prepared:
             return
+        self.set_alt_screen(False)
         self._prepared = False
 
         self._move(0, 0)
@@ -211,7 +265,82 @@ class InlineSurface(Surface):
         self.prepare(defer_origin=True)
 
     ##
+    # The alt-screen excursion
+
+    def set_alt_screen(self, enabled: bool) -> None:
+        """
+        Enter or leave the fullscreen excursion. Entry is idempotent and cheap: the screen switch itself happens with
+        the first present. Leaving restores the main screen as it was (the terminal's doing) and re-marks a resize that
+        happened meanwhile, so the owner's usual resize path erases and repaints the live region it can no longer trust.
+        """
+
+        check.state(self._prepared)
+        if enabled == (self._alt is not None):
+            return
+
+        if enabled:
+            self._alt = AltPainter(self._writer, depth=self._depth, cursor_shown=self._cursor_shown)
+            self._alt_entered = False
+            self._alt_entry_size = (self._term_height, self._term_width)
+            return
+
+        painter = check.not_none(self._alt)
+        self._alt = None
+        if self._alt_entered:
+            self._alt_entered = False
+            w = self._writer
+            w.alt_screen(False)
+            if not self._mouse:
+                w.mouse_tracking(False)
+            w.flush()
+            self._cursor_shown = painter.cursor_shown  # one terminal-global mode, wherever it was last set
+
+        if self._tty.take_resized() or (self._term_height, self._term_width) != self._alt_entry_size:
+            self._tty.mark_resized()
+
+    def _enter_alt(self, painter: AltPainter) -> None:
+        w = self._writer
+        if not self._mouse:
+            w.mouse_tracking(True)  # the wheel is the point of browsing; the live region's setting returns on leave
+        w.alt_screen(True)
+        painter.clear()
+        self._alt_entered = True
+
+    def _present_alt(self, painter: AltPainter, frame: Frame) -> None:
+        check.arg(frame.height <= self._term_height)
+
+        w = self._writer
+        if self._sync_output:
+            w.sync_start()
+
+        if not self._alt_entered:
+            self._enter_alt(painter)
+
+        painter.paint(frame, width=self._term_width)
+
+        if self._sync_output:
+            w.sync_end()
+        w.flush()
+
+    ##
     # Movement (relative to the live region origin)
+
+    def _crlf(self, n: int = 1) -> None:
+        """
+        The literal pair, `n` times, from the current tracked row - the only thing that ever scrolls the terminal. Each
+        line feed from the bottom row moves everything above it up one, the origin included; the caller then records
+        the new cursor row. (A commit taller than the terminal legitimately drives the origin negative here: the rebase
+        that follows brings it back onto the screen.)
+        """
+
+        self._writer.crlf(n)
+        if (origin := self._origin_row) is not None:
+            row = self._cursor[1]
+            for _ in range(n):
+                if origin + row >= self._term_height - 1:
+                    origin -= 1
+                row += 1
+            self._origin_row = origin
 
     def _move(self, x: int, y: int) -> None:
         w = self._writer
@@ -219,7 +348,7 @@ class InlineSurface(Surface):
         if y < cy:
             w.up(cy - y)
         elif y > cy:
-            w.crlf(y - cy)
+            self._crlf(y - cy)
             cx = 0
         if x != cx:
             if x == 0:
@@ -270,7 +399,7 @@ class InlineSurface(Surface):
 
         if y > 0:
             self._move(self._cursor[0], y - 1)
-            self._writer.crlf()
+            self._crlf()
             self._cursor = (0, y)
         else:
             self._move(0, 0)
@@ -281,33 +410,45 @@ class InlineSurface(Surface):
     def _handle_resize(self) -> None:
         self._term_height, self._term_width = self._tty.get_size()
         # Erase and forget the live region; redrawn from scratch by the caller's next frame. Committed content above is
-        # the terminal's problem (native rewrap), as it should be.
+        # the terminal's problem (native rewrap), as it should be - and so is where our origin ended up.
         self._move(0, 0)
         self._writer.erase_down()
         self._frame = EMPTY_FRAME
+        self._origin_row = None
 
     def take_resized(self) -> bool:
         """
         Return whether the terminal was resized since last asked, absorbing the change.
 
         When true, the live region has been erased and forgotten - the caller should re-layout to the new size and
-        present a fresh frame.
+        present a fresh frame. In the alt excursion the alt grid is cleared instead; the live region's turn comes on
+        leaving.
         """
 
         if not self._tty.take_resized():
             return False
+        if (painter := self._alt) is not None:
+            self._term_height, self._term_width = self._tty.get_size()
+            if self._alt_entered:
+                painter.clear()
+            return True
         self._handle_resize()
         return True
 
     def present(self, frame: Frame) -> None:
         check.state(self._prepared)
+
+        self.take_resized()
+
+        if (painter := self._alt) is not None:
+            self._present_alt(painter, frame)
+            return
+
         # The live region must fit the terminal: rows scrolled off the top would break relative cursor tracking. The
         # layout layer is responsible for producing frames that fit.
         check.arg(frame.height <= self._term_height)
         cx, cy = frame.cursor
         check.arg(0 <= cy <= max(frame.height - 1, 0) and cx >= 0)
-
-        self.take_resized()
 
         diff = diff_frames(self._frame, frame)
 
@@ -354,6 +495,7 @@ class InlineSurface(Surface):
         """
 
         check.state(self._prepared)
+        check.state(self._alt is None)  # the alt screen is not scrollback; the driver holds commits until the return
         if not lines:
             return
 
@@ -381,12 +523,15 @@ class InlineSurface(Surface):
             remaining = old.lines[n:]
         else:
             self._move(self._cursor[0], n - 1)
-            w.crlf()
+            self._crlf()
             remaining = ()
 
-        # Rebase: everything below the committed lines shifts up by n in live-region coordinates.
+        # Rebase: everything below the committed lines shifts up by n in live-region coordinates - and the origin moves
+        # down past them on the terminal (onto the bottom row at most: the tracking above already counted the scrolls).
         self._cursor = (0, 0)
         self._frame = Frame(remaining, cursor=(0, 0), cursor_visible=old.cursor_visible)
+        if (origin := self._origin_row) is not None:
+            self._origin_row = min(max(origin + n, 0), max(self._term_height - 1, 0))
 
         if self._sync_output:
             w.sync_end()

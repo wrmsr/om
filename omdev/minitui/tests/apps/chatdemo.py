@@ -9,6 +9,10 @@ re-commits a message's raw source, standing in for '/pbcopy').
 Input is the vim textarea (Esc for normal mode, /search, u/ctrl+r, ...). Up/ctrl+p and down/ctrl+n walk history when the
 cursor is on the first/last line (vim j/k still work inside multi-line drafts). '/' opens the command popup - tab
 cycles, enter runs. Ctrl-d quits.
+
+F12 browses: the whole transcript fullscreen on the alt screen (wheel / j k / pgup pgdn / g G), the live tail and
+cards trailing it; f12 or esc comes back to the live region exactly as it was, with whatever streamed meanwhile
+committed on the way.
 """
 import typing as ta
 
@@ -29,6 +33,8 @@ from ...controls.status import StatusBar
 from ...controls.suggestions import SuggestionItem
 from ...controls.suggestions import SuggestionsPopup
 from ...controls.textarea import TextArea
+from ...controls.transcripts import Transcript
+from ...controls.transcripts import TranscriptView
 from ...events.keys import Key
 from ...events.types import Event
 from ...events.types import KeyEvent
@@ -152,6 +158,16 @@ class ChatDemoApp(App):
         self._tool_fired = False
         self._layout: StackLayout | None = None
 
+        # Browse mode (f12): every commit is also recorded here, tagged with its message when it has one.
+        self._transcript = Transcript()
+        self._browse = TranscriptView(self._transcript)
+        self._browse_status = StatusBar(
+            left=[('BROWSE', 'status.mode')],
+            right=[('f12/esc back  wheel j/k  pgup/pgdn  g/G', 'status.dim')],
+        )
+        self._browse_layout: StackLayout | None = None
+        self._browsing = False
+
         self._commands: ta.Mapping[str, tuple[str, ta.Callable[[str], None]]] = {
             '/help': ('list commands', self._cmd_help),
             '/show': ('/show <n>: re-commit message n from the registry', self._cmd_show),
@@ -171,13 +187,16 @@ class ChatDemoApp(App):
     def _width(self) -> int:
         return max(self._driver.surface.width, 8)
 
-    def _commit_rows(self, rows: ta.Sequence[ta.Sequence[Segment]]) -> None:
-        self._driver.commit([line_from_segments(row, CHAT_THEME) for row in rows])
+    def _commit_rows(self, rows: ta.Sequence[ta.Sequence[Segment]], *, tag: ta.Any = None) -> None:
+        lines = [line_from_segments(row, CHAT_THEME) for row in rows]
+        self._transcript.record(lines, tag)
+        self._driver.commit(lines)
 
-    def _commit_header(self, speaker: str, number: int) -> None:
-        self._commit_rows([
-            [Segment(speaker, f'speaker.{speaker}'), Segment(f'  [{number}]', 'speaker.num')],
-        ])
+    def _commit_header(self, msg: ChatMessage) -> None:
+        self._commit_rows(
+            [[Segment(msg.speaker, f'speaker.{msg.speaker}'), Segment(f'  [{msg.number}]', 'speaker.num')]],
+            tag=msg,
+        )
 
     def _register(self, speaker: str, text: str) -> ChatMessage:
         msg = ChatMessage(len(self._messages) + 1, speaker, text)
@@ -199,7 +218,7 @@ class ChatDemoApp(App):
             self._pending_responses = list(CANNED_RESPONSES)
         text = self._pending_responses.pop(0)
         msg = self._register('ai', text)
-        self._commit_header('ai', msg.number)
+        self._commit_header(msg)
         self._stream_text = text
         self._stream_pos = 0
         self._tool_fired = False
@@ -304,15 +323,18 @@ class ChatDemoApp(App):
             return
 
         msg = self._register('you', text)
-        self._commit_header('you', msg.number)
-        self._commit_rows([
-            *render_markdown_blocks(
-                parse_markdown_with(get_markdown_stream(self._md_backend), text),
-                self._width(),
-                highlighter=highlight_code,
-            ),
-            [],
-        ])
+        self._commit_header(msg)
+        self._commit_rows(
+            [
+                *render_markdown_blocks(
+                    parse_markdown_with(get_markdown_stream(self._md_backend), text),
+                    self._width(),
+                    highlighter=highlight_code,
+                ),
+                [],
+            ],
+            tag=msg,
+        )
 
         if self._stream_text is None:
             self._start_response()
@@ -391,6 +413,10 @@ class ChatDemoApp(App):
             self._driver.suspend()
             return True
 
+        if key == Key('f12'):
+            self._set_browsing(True)
+            return True
+
         if self._card is not None:
             if key == Key('f10') and self._card.state is CardState.CONFIRMING:
                 self._card.respond(True)
@@ -448,8 +474,39 @@ class ChatDemoApp(App):
             return
         control.handle_event(local)
 
-    def handle_event(self, event: Event) -> None:
+    ##
+    # Browsing
+
+    def _set_browsing(self, browsing: bool) -> None:
+        if browsing == self._browsing:
+            return
+        self._browsing = browsing
+        if browsing:
+            self._browse.scroll_to_bottom()
+        self._driver.set_alt_screen(browsing)
+
+    def _handle_browse_event(self, event: Event) -> None:
         if isinstance(event, MouseEvent):
+            if self._browse_layout is not None and (hit := self._browse_layout.hit(event.y)) is not None:
+                control, local_y = hit
+                control.handle_event(dc.replace(event, y=local_y))
+            return
+
+        if not isinstance(event, KeyEvent):
+            return
+        key = event.key
+        if key in (Key('f12'), Key('escape')):
+            self._set_browsing(False)
+        elif not self._browse.handle_event(event) and key in (Key('d', ctrl=True), Key('z', ctrl=True), Key('f10'), Key('f2')):  # noqa: E501
+            self._handle_app_key(event)  # the global bindings, and answering a warm card, still work fullscreen
+
+    ##
+    # Events & rendering
+
+    def handle_event(self, event: Event) -> None:
+        if self._browsing:
+            self._handle_browse_event(event)
+        elif isinstance(event, MouseEvent):
             self._handle_mouse(event)
         elif not (isinstance(event, KeyEvent) and self._handle_app_key(event)):
             self._input.handle_event(event)
@@ -458,7 +515,22 @@ class ChatDemoApp(App):
         self._refresh_status()
         self._driver.invalidate()
 
+    def _render_browse(self, width: int, max_height: int) -> Frame:
+        self._browse.set_trailing([self._tail, *([self._card] if self._card is not None else [])])
+        status_height = max(len(self._browse_status.render(width)), 1)
+        self._browse.set_height(max(max_height - status_height, 1))
+        self._browse_layout = stack_layout(
+            [self._browse, self._browse_status],
+            width=width,
+            max_height=max_height,
+            theme=CHAT_THEME,
+        )
+        return self._browse_layout.frame
+
     def render(self, width: int, max_height: int) -> Frame:
+        if self._browsing:
+            return self._render_browse(width, max_height)
+
         controls = [
             self._tail,
             *([self._card] if self._card is not None else []),

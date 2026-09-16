@@ -7,6 +7,7 @@ This module is pure UI - it knows nothing of agents or sessions. `main` wires `o
 methods here are loop-side (the agent shares the asyncio loop with the driver); none block.
 """
 import collections
+import datetime
 import enum
 import typing as ta
 
@@ -81,6 +82,42 @@ class _CardSpacer(mt.Control):
         return [[]]
 
 
+@dc.dataclass(frozen=True)
+class TurnRecord(lang.Final):
+    """
+    The transcript tag on a chat turn's blocks: who spoke, and when. Every block a turn commits - header, streamed
+    markdown, tool cards, the closing marker - carries the same record, so a row anywhere in the turn resolves back to
+    it: the anchor for browsing actions on a message.
+    """
+
+    speaker: Speaker
+    at: datetime.datetime
+    text: str | None = None  # the prompt, for user turns; ai turns stream
+
+
+class _BrowseStatus(mt.Control):
+    """Browse mode's status row: where the view is, and the keys. Reads the view after it has rendered, so no lag."""
+
+    def __init__(self, view: mt.TranscriptView) -> None:
+        super().__init__()
+
+        self._view = view
+        self._bar = mt.StatusBar(
+            right=[('f12/esc live  wheel j/k  pgup/pgdn  g/G', 'status.dim')],
+        )
+
+    def render(self, width: int) -> ta.Sequence[ta.Sequence[mt.Segment]]:
+        view = self._view
+        first = view.offset + 1 if view.total else 0
+        last = min(view.offset + view.height, view.total)
+        self._bar.set_left([
+            ('BROWSE', 'status.mode'),
+            (f'  {first}-{last}/{view.total}', 'status.dim'),
+            ('  following' if view.follow else '', 'status.dim'),
+        ])
+        return self._bar.render(width)
+
+
 ##
 
 
@@ -98,6 +135,9 @@ class AppKey(enum.StrEnum):
     HISTORY_PREV = enum.auto()
     HISTORY_NEXT = enum.auto()
 
+    BROWSE_TOGGLE = enum.auto()
+    BROWSE_EXIT = enum.auto()
+
 
 APP_KEY_MAP: ta.Final[ta.Mapping[AppKey, mt.Key | ta.Sequence[mt.Key]]] = {
     AppKey.CANCEL: mt.Key('q', ctrl=True),
@@ -114,7 +154,22 @@ APP_KEY_MAP: ta.Final[ta.Mapping[AppKey, mt.Key | ta.Sequence[mt.Key]]] = {
 
     AppKey.HISTORY_PREV: (mt.Key('p', ctrl=True), mt.Key('up')),
     AppKey.HISTORY_NEXT: (mt.Key('n', ctrl=True), mt.Key('down')),
+
+    # Fullscreen browsing of the transcript. Toggling is global; escape leaves it only while browsing - in the live view
+    # it is vim's, and falls through to the input.
+    AppKey.BROWSE_TOGGLE: mt.Key('f12'),
+    AppKey.BROWSE_EXIT: mt.Key('escape'),
 }
+
+# The app keys that keep working while browsing: everything about the turn and its cards, nothing about the input.
+_BROWSE_PASSTHROUGH_KEYS: ta.Final[ta.AbstractSet[AppKey]] = frozenset([
+    AppKey.CANCEL,
+    AppKey.EXIT,
+    AppKey.SUSPEND,
+    AppKey.CARD_ALLOW,
+    AppKey.CARD_DENY,
+    AppKey.CARD_EXPAND,
+])
 
 
 APP_KEY_REVERSE_MAP: ta.Final[ta.Mapping[mt.Key, AppKey]] = col.make_map((
@@ -149,10 +204,15 @@ class MinituiChatApp(mt.App):
     def __init__(
             self,
             driver: mt.AsyncioDriver,
+            *,
+            browse_type_returns: bool = False,
     ) -> None:
+        """With `browse_type_returns`, typing a printable key while browsing returns to the live view and types it."""
+
         super().__init__()
 
         self._driver = driver
+        self._browse_type_returns = browse_type_returns
 
         self._tail = mt.MarkdownTail(backend=mt.get_markdown_stream())
         self._spinner = mt.Spinner()
@@ -174,6 +234,14 @@ class MinituiChatApp(mt.App):
         self._permission_queue: collections.deque[_PermissionCardRequest] = collections.deque()
         self._active_permission: _PermissionCardRequest | None = None
         self._layout: mt.StackLayout | None = None
+
+        # Browse mode: everything committed is also kept here, tagged by turn, for the fullscreen scrolled view.
+        self._transcript = mt.Transcript()
+        self._browse = mt.TranscriptView(self._transcript)
+        self._browse_status = _BrowseStatus(self._browse)
+        self._browse_layout: mt.StackLayout | None = None
+        self._browsing = False
+        self._ai_turn: TurnRecord | None = None
 
         self._busy = False
         self._thinking = False
@@ -206,8 +274,14 @@ class MinituiChatApp(mt.App):
     def is_cancelling(self) -> bool:
         return self._cancelling
 
-    def _commit_rows(self, rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> None:
-        self._driver.commit([mt.line_from_segments(row, THEME) for row in rows])
+    @property
+    def transcript(self) -> mt.Transcript:
+        return self._transcript
+
+    def _commit_rows(self, rows: ta.Sequence[ta.Sequence[mt.Segment]], *, tag: ta.Any = None) -> None:
+        lines = [mt.line_from_segments(row, THEME) for row in rows]
+        self._transcript.record(lines, tag)
+        self._driver.commit(lines)
 
     def display_rows(self, rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> None:
         """Commit pre-rendered (already width-safe) rows followed by a blank separator."""
@@ -241,9 +315,10 @@ class MinituiChatApp(mt.App):
     ##
     # Chat flow
 
-    def _build_turn_header(self, speaker: ta.Literal['you', 'ai']) -> list[mt.Segment]:
+    def _build_turn_header(self, turn: TurnRecord) -> list[mt.Segment]:
+        speaker = turn.speaker
         speaker_style = STYLES_BY_SPEAKER[speaker]
-        info_s = f'{lang.localnow().strftime("%d-%m-%Y %H:%M:%S")}'
+        info_s = f'{turn.at.strftime("%d-%m-%Y %H:%M:%S")}'
         return [
             mt.Segment(speaker, speaker_style),
             mt.Segment(' ' * (MAX_SPEAKER_LEN - len(speaker) + 2)),
@@ -251,13 +326,17 @@ class MinituiChatApp(mt.App):
         ]
 
     def show_user_message(self, text: str) -> None:
+        turn = TurnRecord('you', lang.localnow(), text)
         # Not the tail's `render_settled`: that path separates a stream cycle's commits from each other, and a queued
         # submission lands mid-stream.
-        self._commit_rows([
-            self._build_turn_header('you'),
-            *self._render_markdown(text),
-            [],
-        ])
+        self._commit_rows(
+            [
+                self._build_turn_header(turn),
+                *self._render_markdown(text),
+                [],
+            ],
+            tag=turn,
+        )
         self._driver.invalidate()
 
     def show_command_echo(self, text: str) -> None:
@@ -266,7 +345,8 @@ class MinituiChatApp(mt.App):
     def begin_ai_turn(self) -> None:
         self._busy = True
         self._cancelling = False
-        self._commit_rows([self._build_turn_header('ai')])
+        turn = self._ai_turn = TurnRecord('ai', lang.localnow())
+        self._commit_rows([self._build_turn_header(turn)], tag=turn)
         self._refresh_status()
         self._driver.invalidate()
 
@@ -275,6 +355,7 @@ class MinituiChatApp(mt.App):
         self._busy = False
         self._thinking = False
         self._cancelling = False
+        self._ai_turn = None
         self._refresh_status()
         self._driver.invalidate()
 
@@ -320,11 +401,15 @@ class MinituiChatApp(mt.App):
         if self._busy:
             # Close the open `ai` block visibly even when nothing streamed - a bare header would otherwise run straight
             # into the next prompt.
-            self._commit_rows([[mt.Segment('× cancelled' if cancelled else '✗ failed', 'turn.aborted')], []])
+            self._commit_rows(
+                [[mt.Segment('× cancelled' if cancelled else '✗ failed', 'turn.aborted')], []],
+                tag=self._ai_turn,
+            )
 
         self._busy = False
         self._thinking = False
         self._cancelling = False
+        self._ai_turn = None
         self._refresh_status()
         self._driver.invalidate()
 
@@ -335,7 +420,7 @@ class MinituiChatApp(mt.App):
         self._streaming = True
         self._tail.feed(text)
         if (settled := self._tail.pop_settled()):
-            self._commit_rows(self._tail.render_settled(settled, self.width))
+            self._commit_rows(self._tail.render_settled(settled, self.width), tag=self._ai_turn)
         self._driver.invalidate()
 
     def stream_break(self) -> None:
@@ -346,8 +431,8 @@ class MinituiChatApp(mt.App):
         self._streaming = False
         blocks = self._tail.finalize()
         if blocks:
-            self._commit_rows(self._tail.render_settled(blocks, self.width))
-        self._commit_rows([[]])
+            self._commit_rows(self._tail.render_settled(blocks, self.width), tag=self._ai_turn)
+        self._commit_rows([[]], tag=self._ai_turn)
         self._driver.invalidate()
 
     def set_thinking(self, thinking: bool) -> None:
@@ -567,7 +652,8 @@ class MinituiChatApp(mt.App):
                 self._cards.move_to_end(key, last=False)
                 return
             self._cancel_finalize(entry)
-            self._commit_rows([*entry.card.render(self.width), []])  # as displayed: the card and its spacer row
+            # As displayed: the card and its spacer row.
+            self._commit_rows([*entry.card.render(self.width), []], tag=self._ai_turn)
 
     def _cancel_finalize(self, entry: _ToolCardEntry) -> None:
         if (timer := entry.finalize_timer) is not None:
@@ -637,6 +723,10 @@ class MinituiChatApp(mt.App):
 
         app_key = APP_KEY_REVERSE_MAP.get(key)
 
+        if app_key is AppKey.BROWSE_TOGGLE:
+            self.set_browsing(not self._browsing)
+            return True
+
         if app_key is AppKey.CANCEL and (cancel := self.on_cancel) is not None and cancel():
             return True
 
@@ -692,6 +782,53 @@ class MinituiChatApp(mt.App):
             return True
 
         return False
+
+    ##
+    # Browsing
+
+    @property
+    def is_browsing(self) -> bool:
+        return self._browsing
+
+    def set_browsing(self, browsing: bool) -> None:
+        """
+        Fullscreen browse mode over the transcript (f12). The live region stays as it was on the main screen, and
+        whatever streams in meanwhile is committed on the way back; the view opens pinned to the present.
+        """
+
+        if browsing == self._browsing:
+            return
+        self._browsing = browsing
+        if browsing:
+            self._browse.scroll_to_bottom()
+        self._driver.set_alt_screen(browsing)
+        self._driver.invalidate()
+
+    def _handle_browse_event(self, event: mt.Event) -> None:
+        if isinstance(event, mt.MouseEvent):
+            if self._browse_layout is not None and (hit := self._browse_layout.hit(event.y)) is not None:
+                control, local_y = hit
+                control.handle_event(dc.replace(event, y=local_y))
+            return
+
+        if not isinstance(event, mt.KeyEvent):
+            return
+
+        app_key = APP_KEY_REVERSE_MAP.get(event.key)
+        if app_key is AppKey.BROWSE_TOGGLE or app_key is AppKey.BROWSE_EXIT:
+            self.set_browsing(False)
+            return
+
+        if self._browse.handle_event(event):
+            return
+
+        if app_key in _BROWSE_PASSTHROUGH_KEYS and self._handle_app_key(event):
+            return
+
+        if event.text is not None and self._browse_type_returns:
+            # Typing means the user wants the input back: return to it with the keystroke.
+            self.set_browsing(False)
+            self._input.handle_event(event)
 
     ##
     # Events & rendering
@@ -798,6 +935,8 @@ class MinituiChatApp(mt.App):
             # The input is gone for good: the same way out as ctrl+d, so a turn in flight is wound down while the driver
             # is still bound and what it leaves behind reaches scrollback.
             self.request_quit()
+        elif self._browsing:
+            self._handle_browse_event(event)
         elif isinstance(event, mt.MouseEvent):
             self._handle_mouse(event)
         elif not (isinstance(event, mt.KeyEvent) and self._handle_app_key(event)):
@@ -807,7 +946,11 @@ class MinituiChatApp(mt.App):
         self._refresh_status()
         self._driver.invalidate()
 
-    def render(self, width: int, max_height: int) -> mt.Frame:
+    def _live_controls(self) -> list[mt.Control]:
+        """
+        The streaming tail and the warm cards - what shows above the input live, and trails the transcript browsed.
+        """
+
         permission_card = None
         if (
                 (permission := self._active_permission) is not None and
@@ -823,6 +966,26 @@ class MinituiChatApp(mt.App):
         controls: list[mt.Control] = [self._tail]
         for card in cards:
             controls.extend((card, self._card_spacer))
+        return controls
+
+    def _render_browse(self, width: int, max_height: int) -> mt.Frame:
+        self._browse.set_trailing(self._live_controls())
+        # The status row is elastic (it wraps when the hints don't fit); measure it so the view fills the rest exactly.
+        status_height = max(len(self._browse_status.render(width)), 1)
+        self._browse.set_height(max(max_height - status_height, 1))
+        self._browse_layout = mt.stack_layout(
+            [self._browse, self._browse_status],
+            width=width,
+            max_height=max_height,
+            theme=THEME,
+        )
+        return self._browse_layout.frame
+
+    def render(self, width: int, max_height: int) -> mt.Frame:
+        if self._browsing:
+            return self._render_browse(width, max_height)
+
+        controls = self._live_controls()
         controls.extend((self._popup, self._input, self._status))
         self._layout = mt.stack_layout(
             controls,
