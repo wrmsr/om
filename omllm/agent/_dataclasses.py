@@ -127,6 +127,143 @@ def _process_dataclass__d5298a2d35cd65a5a30ecaaf12272c3378262623():
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('context', 'llm_context', 'context_budget', 'reduction')), EqPlan(fields=('context"
+        "', 'llm_context', 'context_budget', 'reduction')), FrozenPlan(fields=('context', 'llm_context', 'context_budge"
+        "t', 'reduction'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('context', 'llm_context', "
+        "'context_budget', 'reduction'), cache=False), InitPlan(fields=(InitPlan.Field(name='context', annotation=OpRef"
+        "(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=F"
+        "ieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='llm_context', annotation"
+        "=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_"
+        "type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='context_budget', a"
+        "nnotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory"
+        "=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),"
+        " InitPlan.Field(name='reduction', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init."
+        "fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=Non"
+        "e, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('context', 'llm_context"
+        "', 'context_budget', 'reduction'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns="
+        "()), ReprPlan(fields=(ReprPlan.Field(name='context', kw_only=True, fn=None), ReprPlan.Field(name='llm_context'"
+        ", kw_only=True, fn=None), ReprPlan.Field(name='context_budget', kw_only=True, fn=None), ReprPlan.Field(name='r"
+        "eduction', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='b872a08ad3a5bf847eec50a4c55dbe54a8cd9795',
+    cls_names=(
+        ('omllm.agent.lifecycle.managers', 'ContextLifecycleResult'),
+    ),
+)
+def _process_dataclass__b872a08ad3a5bf847eec50a4c55dbe54a8cd9795():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                context=self.context,
+                llm_context=self.llm_context,
+                context_budget=self.context_budget,
+                reduction=self.reduction,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.context == other.context and
+                self.llm_context == other.llm_context and
+                self.context_budget == other.context_budget and
+                self.reduction == other.reduction
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'context',
+            'llm_context',
+            'context_budget',
+            'reduction',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.context,
+                self.llm_context,
+                self.context_budget,
+                self.reduction,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            context: __dataclass__init__fields__0__annotation,
+            llm_context: __dataclass__init__fields__1__annotation,
+            context_budget: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            reduction: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'context', context)
+            __dataclass__object_setattr(self, 'llm_context', llm_context)
+            __dataclass__object_setattr(self, 'context_budget', context_budget)
+            __dataclass__object_setattr(self, 'reduction', reduction)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"context={self.context!r}")
+            parts.append(f"llm_context={self.llm_context!r}")
+            parts.append(f"context_budget={self.context_budget!r}")
+            parts.append(f"reduction={self.reduction!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=('fn', 'llm_tool', 'params_cls', 'params_param', 'ctx_param', 'progress_param')), E"
         "qPlan(fields=('fn', 'llm_tool', 'params_cls', 'params_param', 'ctx_param', 'progress_param')), FrozenPlan(fiel"
         "ds=('fn', 'llm_tool', 'params_cls', 'params_param', 'ctx_param', 'progress_param'), allow_dynamic_dunder_attrs"
@@ -286,27 +423,405 @@ def _process_dataclass__134b58ab9c273bc714395fc1b3d65faa37c74cae():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('system_prompt', 'messages', 'tools')), EqPlan(fields=('system_prompt', 'messages'"
-        ", 'tools')), FrozenPlan(fields=('system_prompt', 'messages', 'tools'), allow_dynamic_dunder_attrs=False), Hash"
-        "Plan(action='add', fields=('system_prompt', 'messages', 'tools'), cache=False), InitPlan(fields=(InitPlan.Fiel"
-        "d(name='system_prompt', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.d"
-        "efault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validat"
-        "e=None, check_type=None), InitPlan.Field(name='messages', annotation=OpRef(name='init.fields.1.annotation'), d"
-        "efault=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldT"
-        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='tools', annotation=OpRef(name"
-        "='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, ov"
-        "erride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self',"
-        " std_params=(), kw_only_params=('system_prompt', 'messages', 'tools'), frozen=True, slots=False, post_init_par"
-        "ams=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='system_prompt', kw_only=True, f"
-        "n=None), ReprPlan.Field(name='messages', kw_only=True, fn=None), ReprPlan.Field(name='tools', kw_only=True, fn"
-        "=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('context_limit', 'input_limit', 'threshold', 'output_reserve', 'observed_input', '"
+        "estimated_input')), EqPlan(fields=('context_limit', 'input_limit', 'threshold', 'output_reserve', 'observed_in"
+        "put', 'estimated_input')), FrozenPlan(fields=('context_limit', 'input_limit', 'threshold', 'output_reserve', '"
+        "observed_input', 'estimated_input'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('contex"
+        "t_limit', 'input_limit', 'threshold', 'output_reserve', 'observed_input', 'estimated_input'), cache=False), In"
+        "itPlan(fields=(InitPlan.Field(name='context_limit', annotation=OpRef(name='init.fields.0.annotation'), default"
+        "=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
+        "one, check_type=None), InitPlan.Field(name='input_limit', annotation=OpRef(name='init.fields.1.annotation'), d"
+        "efault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
+        "date=None, check_type=None), InitPlan.Field(name='threshold', annotation=OpRef(name='init.fields.2.annotation'"
+        "), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, "
+        "validate=None, check_type=None), InitPlan.Field(name='output_reserve', annotation=OpRef(name='init.fields.3.an"
+        "notation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
+        "ce=None, validate=None, check_type=None), InitPlan.Field(name='observed_input', annotation=OpRef(name='init.fi"
+        "elds.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=Fa"
+        "lse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='estimat"
+        "ed_input', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), def"
+        "ault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check"
+        "_type=None)), self_param='self', std_params=(), kw_only_params=('context_limit', 'input_limit', 'threshold', '"
+        "output_reserve', 'observed_input', 'estimated_input'), frozen=True, slots=False, post_init_params=(), init_fns"
+        "=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='context_limit', kw_only=True, fn=None), ReprPlan."
+        "Field(name='input_limit', kw_only=True, fn=None), ReprPlan.Field(name='threshold', kw_only=True, fn=None), Rep"
+        "rPlan.Field(name='output_reserve', kw_only=True, fn=None), ReprPlan.Field(name='observed_input', kw_only=True,"
+        " fn=None), ReprPlan.Field(name='estimated_input', kw_only=True, fn=None)), id=False, terse=False, default_fn=O"
+        "pRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='6bddc86ea07270ffb6ce8028c896f9175ddeb8ec',
+    plan_repr_sha1='6aaab4116280b1831bb4b25d2576db11bbf2e2e4',
     cls_names=(
-        ('omllm.agent.types.contexts', 'Context'),
+        ('omllm.agent.types.context_lifecycle', 'ContextBudget'),
     ),
 )
-def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
+def _process_dataclass__6aaab4116280b1831bb4b25d2576db11bbf2e2e4():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                context_limit=self.context_limit,
+                input_limit=self.input_limit,
+                threshold=self.threshold,
+                output_reserve=self.output_reserve,
+                observed_input=self.observed_input,
+                estimated_input=self.estimated_input,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.context_limit == other.context_limit and
+                self.input_limit == other.input_limit and
+                self.threshold == other.threshold and
+                self.output_reserve == other.output_reserve and
+                self.observed_input == other.observed_input and
+                self.estimated_input == other.estimated_input
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'context_limit',
+            'input_limit',
+            'threshold',
+            'output_reserve',
+            'observed_input',
+            'estimated_input',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.context_limit,
+                self.input_limit,
+                self.threshold,
+                self.output_reserve,
+                self.observed_input,
+                self.estimated_input,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            context_limit: __dataclass__init__fields__0__annotation,
+            input_limit: __dataclass__init__fields__1__annotation,
+            threshold: __dataclass__init__fields__2__annotation,
+            output_reserve: __dataclass__init__fields__3__annotation,
+            observed_input: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            estimated_input: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'context_limit', context_limit)
+            __dataclass__object_setattr(self, 'input_limit', input_limit)
+            __dataclass__object_setattr(self, 'threshold', threshold)
+            __dataclass__object_setattr(self, 'output_reserve', output_reserve)
+            __dataclass__object_setattr(self, 'observed_input', observed_input)
+            __dataclass__object_setattr(self, 'estimated_input', estimated_input)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.context_limit)) is not None:
+                parts.append(f"context_limit={s}")
+            if (s := __dataclass__repr__default_fn(self.input_limit)) is not None:
+                parts.append(f"input_limit={s}")
+            if (s := __dataclass__repr__default_fn(self.threshold)) is not None:
+                parts.append(f"threshold={s}")
+            if (s := __dataclass__repr__default_fn(self.output_reserve)) is not None:
+                parts.append(f"output_reserve={s}")
+            if (s := __dataclass__repr__default_fn(self.observed_input)) is not None:
+                parts.append(f"observed_input={s}")
+            if (s := __dataclass__repr__default_fn(self.estimated_input)) is not None:
+                parts.append(f"estimated_input={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('output_reserve_tokens', 'safety_margin_tokens', 'max_tool_result_chars', 'keep_re"
+        "cent_tokens', 'prune_min_chars', 'prune_headroom_tokens', 'prune_tool_results', 'prunable_tool_names', 'max_ov"
+        "erflow_retries')), EqPlan(fields=('output_reserve_tokens', 'safety_margin_tokens', 'max_tool_result_chars', 'k"
+        "eep_recent_tokens', 'prune_min_chars', 'prune_headroom_tokens', 'prune_tool_results', 'prunable_tool_names', '"
+        "max_overflow_retries')), FrozenPlan(fields=('output_reserve_tokens', 'safety_margin_tokens', 'max_tool_result_"
+        "chars', 'keep_recent_tokens', 'prune_min_chars', 'prune_headroom_tokens', 'prune_tool_results', 'prunable_tool"
+        "_names', 'max_overflow_retries'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('output_re"
+        "serve_tokens', 'safety_margin_tokens', 'max_tool_result_chars', 'keep_recent_tokens', 'prune_min_chars', 'prun"
+        "e_headroom_tokens', 'prune_tool_results', 'prunable_tool_names', 'max_overflow_retries'), cache=False), InitPl"
+        "an(fields=(InitPlan.Field(name='output_reserve_tokens', annotation=OpRef(name='init.fields.0.annotation'), def"
+        "ault=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldTyp"
+        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='safety_margin_tokens', annotati"
+        "on=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, "
+        "init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPl"
+        "an.Field(name='max_tool_result_chars', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='"
+        "init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
+        "e=None, validate=None, check_type=None), InitPlan.Field(name='keep_recent_tokens', annotation=OpRef(name='init"
+        ".fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override"
+        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='prun"
+        "e_min_chars', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), "
+        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
+        "eck_type=None), InitPlan.Field(name='prune_headroom_tokens', annotation=OpRef(name='init.fields.5.annotation')"
+        ", default=OpRef(name='init.fields.5.default'), default_factory=None, init=True, override=False, field_type=Fie"
+        "ldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='prune_tool_results', annot"
+        "ation=OpRef(name='init.fields.6.annotation'), default=OpRef(name='init.fields.6.default'), default_factory=Non"
+        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Ini"
+        "tPlan.Field(name='prunable_tool_names', annotation=OpRef(name='init.fields.7.annotation'), default=OpRef(name="
+        "'init.fields.7.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
+        "ce=None, validate=None, check_type=None), InitPlan.Field(name='max_overflow_retries', annotation=OpRef(name='i"
+        "nit.fields.8.annotation'), default=OpRef(name='init.fields.8.default'), default_factory=None, init=True, overr"
+        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', st"
+        "d_params=(), kw_only_params=('output_reserve_tokens', 'safety_margin_tokens', 'max_tool_result_chars', 'keep_r"
+        "ecent_tokens', 'prune_min_chars', 'prune_headroom_tokens', 'prune_tool_results', 'prunable_tool_names', 'max_o"
+        "verflow_retries'), frozen=True, slots=False, post_init_params=(), init_fns=(), validate_fns=()), ReprPlan(fiel"
+        "ds=(ReprPlan.Field(name='output_reserve_tokens', kw_only=True, fn=None), ReprPlan.Field(name='safety_margin_to"
+        "kens', kw_only=True, fn=None), ReprPlan.Field(name='max_tool_result_chars', kw_only=True, fn=None), ReprPlan.F"
+        "ield(name='keep_recent_tokens', kw_only=True, fn=None), ReprPlan.Field(name='prune_min_chars', kw_only=True, f"
+        "n=None), ReprPlan.Field(name='prune_headroom_tokens', kw_only=True, fn=None), ReprPlan.Field(name='prune_tool_"
+        "results', kw_only=True, fn=None), ReprPlan.Field(name='prunable_tool_names', kw_only=True, fn=None), ReprPlan."
+        "Field(name='max_overflow_retries', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='7f23cce5263115196d14f75d3ede80de8f58ad06',
+    cls_names=(
+        ('omllm.agent.types.context_lifecycle', 'ContextLifecycleConfig'),
+    ),
+)
+def _process_dataclass__7f23cce5263115196d14f75d3ede80de8f58ad06():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
+        __dataclass__init__fields__6__annotation,
+        __dataclass__init__fields__6__default,
+        __dataclass__init__fields__7__annotation,
+        __dataclass__init__fields__7__default,
+        __dataclass__init__fields__8__annotation,
+        __dataclass__init__fields__8__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                output_reserve_tokens=self.output_reserve_tokens,
+                safety_margin_tokens=self.safety_margin_tokens,
+                max_tool_result_chars=self.max_tool_result_chars,
+                keep_recent_tokens=self.keep_recent_tokens,
+                prune_min_chars=self.prune_min_chars,
+                prune_headroom_tokens=self.prune_headroom_tokens,
+                prune_tool_results=self.prune_tool_results,
+                prunable_tool_names=self.prunable_tool_names,
+                max_overflow_retries=self.max_overflow_retries,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.output_reserve_tokens == other.output_reserve_tokens and
+                self.safety_margin_tokens == other.safety_margin_tokens and
+                self.max_tool_result_chars == other.max_tool_result_chars and
+                self.keep_recent_tokens == other.keep_recent_tokens and
+                self.prune_min_chars == other.prune_min_chars and
+                self.prune_headroom_tokens == other.prune_headroom_tokens and
+                self.prune_tool_results == other.prune_tool_results and
+                self.prunable_tool_names == other.prunable_tool_names and
+                self.max_overflow_retries == other.max_overflow_retries
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'output_reserve_tokens',
+            'safety_margin_tokens',
+            'max_tool_result_chars',
+            'keep_recent_tokens',
+            'prune_min_chars',
+            'prune_headroom_tokens',
+            'prune_tool_results',
+            'prunable_tool_names',
+            'max_overflow_retries',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.output_reserve_tokens,
+                self.safety_margin_tokens,
+                self.max_tool_result_chars,
+                self.keep_recent_tokens,
+                self.prune_min_chars,
+                self.prune_headroom_tokens,
+                self.prune_tool_results,
+                self.prunable_tool_names,
+                self.max_overflow_retries,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            output_reserve_tokens: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            safety_margin_tokens: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            max_tool_result_chars: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            keep_recent_tokens: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            prune_min_chars: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            prune_headroom_tokens: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            prune_tool_results: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            prunable_tool_names: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
+            max_overflow_retries: __dataclass__init__fields__8__annotation = __dataclass__init__fields__8__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'output_reserve_tokens', output_reserve_tokens)
+            __dataclass__object_setattr(self, 'safety_margin_tokens', safety_margin_tokens)
+            __dataclass__object_setattr(self, 'max_tool_result_chars', max_tool_result_chars)
+            __dataclass__object_setattr(self, 'keep_recent_tokens', keep_recent_tokens)
+            __dataclass__object_setattr(self, 'prune_min_chars', prune_min_chars)
+            __dataclass__object_setattr(self, 'prune_headroom_tokens', prune_headroom_tokens)
+            __dataclass__object_setattr(self, 'prune_tool_results', prune_tool_results)
+            __dataclass__object_setattr(self, 'prunable_tool_names', prunable_tool_names)
+            __dataclass__object_setattr(self, 'max_overflow_retries', max_overflow_retries)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"output_reserve_tokens={self.output_reserve_tokens!r}")
+            parts.append(f"safety_margin_tokens={self.safety_margin_tokens!r}")
+            parts.append(f"max_tool_result_chars={self.max_tool_result_chars!r}")
+            parts.append(f"keep_recent_tokens={self.keep_recent_tokens!r}")
+            parts.append(f"prune_min_chars={self.prune_min_chars!r}")
+            parts.append(f"prune_headroom_tokens={self.prune_headroom_tokens!r}")
+            parts.append(f"prune_tool_results={self.prune_tool_results!r}")
+            parts.append(f"prunable_tool_names={self.prunable_tool_names!r}")
+            parts.append(f"max_overflow_retries={self.max_overflow_retries!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('summary', 'first_kept_message_index', 'tool_results')), EqPlan(fields=('summary',"
+        " 'first_kept_message_index', 'tool_results')), FrozenPlan(fields=('summary', 'first_kept_message_index', 'tool"
+        "_results'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('summary', 'first_kept_message_i"
+        "ndex', 'tool_results'), cache=False), InitPlan(fields=(InitPlan.Field(name='summary', annotation=OpRef(name='i"
+        "nit.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, overr"
+        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='f"
+        "irst_kept_message_index', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1"
+        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
+        "ate=None, check_type=None), InitPlan.Field(name='tool_results', annotation=OpRef(name='init.fields.2.annotatio"
+        "n'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type="
+        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_p"
+        "arams=('summary', 'first_kept_message_index', 'tool_results'), frozen=True, slots=False, post_init_params=(), "
+        "init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='summary', kw_only=True, fn=None), ReprPla"
+        "n.Field(name='first_kept_message_index', kw_only=True, fn=None), ReprPlan.Field(name='tool_results', kw_only=T"
+        "rue, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='8f24b1634d18164081ce92b1b643f388dc7cf34a',
+    cls_names=(
+        ('omllm.agent.types.context_lifecycle', 'ContextProjection'),
+    ),
+)
+def _process_dataclass__8f24b1634d18164081ce92b1b643f388dc7cf34a():
     def _process_dataclass(
         *,
         __class__,
@@ -327,9 +842,581 @@ def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
+                summary=self.summary,
+                first_kept_message_index=self.first_kept_message_index,
+                tool_results=self.tool_results,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.summary == other.summary and
+                self.first_kept_message_index == other.first_kept_message_index and
+                self.tool_results == other.tool_results
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'summary',
+            'first_kept_message_index',
+            'tool_results',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.summary,
+                self.first_kept_message_index,
+                self.tool_results,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            summary: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            first_kept_message_index: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            tool_results: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'summary', summary)
+            __dataclass__object_setattr(self, 'first_kept_message_index', first_kept_message_index)
+            __dataclass__object_setattr(self, 'tool_results', tool_results)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.summary)) is not None:
+                parts.append(f"summary={s}")
+            if (s := __dataclass__repr__default_fn(self.first_kept_message_index)) is not None:
+                parts.append(f"first_kept_message_index={s}")
+            if (s := __dataclass__repr__default_fn(self.tool_results)) is not None:
+                parts.append(f"tool_results={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('reason', 'before_tokens', 'after_tokens', 'tool_result_indices', 'compacted')), E"
+        "qPlan(fields=('reason', 'before_tokens', 'after_tokens', 'tool_result_indices', 'compacted')), FrozenPlan(fiel"
+        "ds=('reason', 'before_tokens', 'after_tokens', 'tool_result_indices', 'compacted'), allow_dynamic_dunder_attrs"
+        "=False), HashPlan(action='add', fields=('reason', 'before_tokens', 'after_tokens', 'tool_result_indices', 'com"
+        "pacted'), cache=False), InitPlan(fields=(InitPlan.Field(name='reason', annotation=OpRef(name='init.fields.0.an"
+        "notation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
+        "ce=None, validate=None, check_type=None), InitPlan.Field(name='before_tokens', annotation=OpRef(name='init.fie"
+        "lds.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTAN"
+        "CE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='after_tokens', annotation=OpRef(name='i"
+        "nit.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType"
+        ".INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='tool_result_indices', annotation"
+        "=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, in"
+        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan"
+        ".Field(name='compacted', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4."
+        "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
+        "te=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('reason', 'before_tokens', 'afte"
+        "r_tokens', 'tool_result_indices', 'compacted'), frozen=True, slots=False, post_init_params=None, init_fns=(), "
+        "validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='reason', kw_only=True, fn=None), ReprPlan.Field(name='"
+        "before_tokens', kw_only=True, fn=None), ReprPlan.Field(name='after_tokens', kw_only=True, fn=None), ReprPlan.F"
+        "ield(name='tool_result_indices', kw_only=True, fn=None), ReprPlan.Field(name='compacted', kw_only=True, fn=Non"
+        "e)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='762bd53f02f25816116242452677c0d157a17fba',
+    cls_names=(
+        ('omllm.agent.types.context_lifecycle', 'ContextReduction'),
+    ),
+)
+def _process_dataclass__762bd53f02f25816116242452677c0d157a17fba():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                reason=self.reason,
+                before_tokens=self.before_tokens,
+                after_tokens=self.after_tokens,
+                tool_result_indices=self.tool_result_indices,
+                compacted=self.compacted,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.reason == other.reason and
+                self.before_tokens == other.before_tokens and
+                self.after_tokens == other.after_tokens and
+                self.tool_result_indices == other.tool_result_indices and
+                self.compacted == other.compacted
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'reason',
+            'before_tokens',
+            'after_tokens',
+            'tool_result_indices',
+            'compacted',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.reason,
+                self.before_tokens,
+                self.after_tokens,
+                self.tool_result_indices,
+                self.compacted,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            reason: __dataclass__init__fields__0__annotation,
+            before_tokens: __dataclass__init__fields__1__annotation,
+            after_tokens: __dataclass__init__fields__2__annotation,
+            tool_result_indices: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            compacted: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'reason', reason)
+            __dataclass__object_setattr(self, 'before_tokens', before_tokens)
+            __dataclass__object_setattr(self, 'after_tokens', after_tokens)
+            __dataclass__object_setattr(self, 'tool_result_indices', tool_result_indices)
+            __dataclass__object_setattr(self, 'compacted', compacted)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"reason={self.reason!r}")
+            parts.append(f"before_tokens={self.before_tokens!r}")
+            parts.append(f"after_tokens={self.after_tokens!r}")
+            parts.append(f"tool_result_indices={self.tool_result_indices!r}")
+            parts.append(f"compacted={self.compacted!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('message_index', 'max_chars')), EqPlan(fields=('message_index', 'max_chars')), Fro"
+        "zenPlan(fields=('message_index', 'max_chars'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', field"
+        "s=('message_index', 'max_chars'), cache=False), InitPlan(fields=(InitPlan.Field(name='message_index', annotati"
+        "on=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, fiel"
+        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_chars', anno"
+        "tation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, "
+        "field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=()"
+        ", kw_only_params=('message_index', 'max_chars'), frozen=True, slots=False, post_init_params=(), init_fns=(), v"
+        "alidate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='message_index', kw_only=True, fn=None), ReprPlan.Field("
+        "name='max_chars', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='8041fecc4d79cc4f487aa9288828df039fa59fea',
+    cls_names=(
+        ('omllm.agent.types.context_lifecycle', 'ToolResultProjection'),
+    ),
+)
+def _process_dataclass__8041fecc4d79cc4f487aa9288828df039fa59fea():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                message_index=self.message_index,
+                max_chars=self.max_chars,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.message_index == other.message_index and
+                self.max_chars == other.max_chars
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'message_index',
+            'max_chars',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.message_index,
+                self.max_chars,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            message_index: __dataclass__init__fields__0__annotation,
+            max_chars: __dataclass__init__fields__1__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'message_index', message_index)
+            __dataclass__object_setattr(self, 'max_chars', max_chars)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"message_index={self.message_index!r}")
+            parts.append(f"max_chars={self.max_chars!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('input', 'output', 'reasoning', 'cache_read', 'cache_write')), EqPlan(fields=('inp"
+        "ut', 'output', 'reasoning', 'cache_read', 'cache_write')), FrozenPlan(fields=('input', 'output', 'reasoning', "
+        "'cache_read', 'cache_write'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('input', 'outp"
+        "ut', 'reasoning', 'cache_read', 'cache_write'), cache=False), InitPlan(fields=(InitPlan.Field(name='input', an"
+        "notation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory="
+        "None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), "
+        "InitPlan.Field(name='output', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fiel"
+        "ds.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, v"
+        "alidate=None, check_type=None), InitPlan.Field(name='reasoning', annotation=OpRef(name='init.fields.2.annotati"
+        "on'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type"
+        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cache_read', annotatio"
+        "n=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, i"
+        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
+        "n.Field(name='cache_write', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields"
+        ".4.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
+        "idate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('input', 'output', 'reasoning"
+        "', 'cache_read', 'cache_write'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()"
+        "), ReprPlan(fields=(ReprPlan.Field(name='input', kw_only=True, fn=None), ReprPlan.Field(name='output', kw_only"
+        "=True, fn=None), ReprPlan.Field(name='reasoning', kw_only=True, fn=None), ReprPlan.Field(name='cache_read', kw"
+        "_only=True, fn=None), ReprPlan.Field(name='cache_write', kw_only=True, fn=None)), id=False, terse=False, defau"
+        "lt_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='a5f4b089b8c09aae799266776a389d5a09b9d2ac',
+    cls_names=(
+        ('omllm.agent.types.context_lifecycle', 'UsageLedger'),
+    ),
+)
+def _process_dataclass__a5f4b089b8c09aae799266776a389d5a09b9d2ac():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                input=self.input,
+                output=self.output,
+                reasoning=self.reasoning,
+                cache_read=self.cache_read,
+                cache_write=self.cache_write,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.input == other.input and
+                self.output == other.output and
+                self.reasoning == other.reasoning and
+                self.cache_read == other.cache_read and
+                self.cache_write == other.cache_write
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'input',
+            'output',
+            'reasoning',
+            'cache_read',
+            'cache_write',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.input,
+                self.output,
+                self.reasoning,
+                self.cache_read,
+                self.cache_write,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            input: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            output: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            reasoning: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            cache_read: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            cache_write: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'input', input)
+            __dataclass__object_setattr(self, 'output', output)
+            __dataclass__object_setattr(self, 'reasoning', reasoning)
+            __dataclass__object_setattr(self, 'cache_read', cache_read)
+            __dataclass__object_setattr(self, 'cache_write', cache_write)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.input)) is not None:
+                parts.append(f"input={s}")
+            if (s := __dataclass__repr__default_fn(self.output)) is not None:
+                parts.append(f"output={s}")
+            if (s := __dataclass__repr__default_fn(self.reasoning)) is not None:
+                parts.append(f"reasoning={s}")
+            if (s := __dataclass__repr__default_fn(self.cache_read)) is not None:
+                parts.append(f"cache_read={s}")
+            if (s := __dataclass__repr__default_fn(self.cache_write)) is not None:
+                parts.append(f"cache_write={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('system_prompt', 'messages', 'tools', 'usage', 'context_budget', 'projection')), E"
+        "qPlan(fields=('system_prompt', 'messages', 'tools', 'usage', 'context_budget', 'projection')), FrozenPlan(fiel"
+        "ds=('system_prompt', 'messages', 'tools', 'usage', 'context_budget', 'projection'), allow_dynamic_dunder_attrs"
+        "=False), HashPlan(action='add', fields=('system_prompt', 'messages', 'tools', 'usage', 'context_budget', 'proj"
+        "ection'), cache=False), InitPlan(fields=(InitPlan.Field(name='system_prompt', annotation=OpRef(name='init.fiel"
+        "ds.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=Fals"
+        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='messages'"
+        ", annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_fact"
+        "ory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=Non"
+        "e), InitPlan.Field(name='tools', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.f"
+        "ields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
+        ", validate=None, check_type=None), InitPlan.Field(name='usage', annotation=OpRef(name='init.fields.3.annotatio"
+        "n'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type="
+        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='context_budget', annota"
+        "tion=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None"
+        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Init"
+        "Plan.Field(name='projection', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fiel"
+        "ds.5.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, v"
+        "alidate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('system_prompt', 'messages'"
+        ", 'tools', 'usage', 'context_budget', 'projection'), frozen=True, slots=False, post_init_params=None, init_fns"
+        "=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='system_prompt', kw_only=True, fn=None), ReprPlan."
+        "Field(name='messages', kw_only=True, fn=None), ReprPlan.Field(name='tools', kw_only=True, fn=None), ReprPlan.F"
+        "ield(name='usage', kw_only=True, fn=None), ReprPlan.Field(name='context_budget', kw_only=True, fn=None), ReprP"
+        "lan.Field(name='projection', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.defau"
+        "lt_fn'))))"
+    ),
+    plan_repr_sha1='fa8428dc7356ffdcbc47ae19607d3296157b9a2d',
+    cls_names=(
+        ('omllm.agent.types.contexts', 'Context'),
+    ),
+)
+def _process_dataclass__fa8428dc7356ffdcbc47ae19607d3296157b9a2d():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__0__default,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
                 system_prompt=self.system_prompt,
                 messages=self.messages,
                 tools=self.tools,
+                usage=self.usage,
+                context_budget=self.context_budget,
+                projection=self.projection,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -342,7 +1429,10 @@ def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
             return (
                 self.system_prompt == other.system_prompt and
                 self.messages == other.messages and
-                self.tools == other.tools
+                self.tools == other.tools and
+                self.usage == other.usage and
+                self.context_budget == other.context_budget and
+                self.projection == other.projection
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -351,6 +1441,9 @@ def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
             'system_prompt',
             'messages',
             'tools',
+            'usage',
+            'context_budget',
+            'projection',
         }
 
         def __setattr__(self, name, value):
@@ -378,6 +1471,9 @@ def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
                 self.system_prompt,
                 self.messages,
                 self.tools,
+                self.usage,
+                self.context_budget,
+                self.projection,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -388,10 +1484,16 @@ def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
             system_prompt: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             messages: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             tools: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            usage: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            context_budget: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            projection: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'system_prompt', system_prompt)
             __dataclass__object_setattr(self, 'messages', messages)
             __dataclass__object_setattr(self, 'tools', tools)
+            __dataclass__object_setattr(self, 'usage', usage)
+            __dataclass__object_setattr(self, 'context_budget', context_budget)
+            __dataclass__object_setattr(self, 'projection', projection)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -404,6 +1506,12 @@ def _process_dataclass__6bddc86ea07270ffb6ce8028c896f9175ddeb8ec():
                 parts.append(f"messages={s}")
             if (s := __dataclass__repr__default_fn(self.tools)) is not None:
                 parts.append(f"tools={s}")
+            if (s := __dataclass__repr__default_fn(self.usage)) is not None:
+                parts.append(f"usage={s}")
+            if (s := __dataclass__repr__default_fn(self.context_budget)) is not None:
+                parts.append(f"context_budget={s}")
+            if (s := __dataclass__repr__default_fn(self.projection)) is not None:
+                parts.append(f"projection={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -765,6 +1873,206 @@ def _process_dataclass__e1f7edfe11f2b721d6a656c46e698fedc95461bb():
         @__dataclass___recursive_repr()
         def __repr__(self):
             return f"{self.__class__.__qualname__}()"
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('reduction',)), EqPlan(fields=('reduction',)), FrozenPlan(fields=('reduction',), a"
+        "llow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('reduction',), cache=False), InitPlan(fields="
+        "(InitPlan.Field(name='reduction', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_fac"
+        "tory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=No"
+        "ne),), self_param='self', std_params=('reduction',), kw_only_params=(), frozen=True, slots=False, post_init_pa"
+        "rams=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='reduction', kw_only=False, fn="
+        "None),), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='804c7363d8f1ffb12c93bba7e42c9b11b623f5c0',
+    cls_names=(
+        ('omllm.agent.types.events', 'ContextReductionEvent'),
+    ),
+)
+def _process_dataclass__804c7363d8f1ffb12c93bba7e42c9b11b623f5c0():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                reduction=self.reduction,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.reduction == other.reduction
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'reduction',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.reduction,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            reduction: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'reduction', reduction)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"reduction={self.reduction!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('context_budget',)), EqPlan(fields=('context_budget',)), FrozenPlan(fields=('conte"
+        "xt_budget',), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('context_budget',), cache=Fals"
+        "e), InitPlan(fields=(InitPlan.Field(name='context_budget', annotation=OpRef(name='init.fields.0.annotation'), "
+        "default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
+        "idate=None, check_type=None),), self_param='self', std_params=('context_budget',), kw_only_params=(), frozen=T"
+        "rue, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='"
+        "context_budget', kw_only=False, fn=None),), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='99abb8bfe2fd2127cfa333b6073db0f8593ce842',
+    cls_names=(
+        ('omllm.agent.types.events', 'ContextWindowEvent'),
+    ),
+)
+def _process_dataclass__99abb8bfe2fd2127cfa333b6073db0f8593ce842():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                context_budget=self.context_budget,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.context_budget == other.context_budget
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'context_budget',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.context_budget,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            context_budget: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'context_budget', context_budget)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"context_budget={self.context_budget!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
 
         __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
 
@@ -1579,24 +2887,35 @@ def _process_dataclass__61dec4dd3fdbbcb13469b423e4354fd66bb2a155():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('message',)), EqPlan(fields=('message',)), FrozenPlan(fields=('message',), allow_d"
-        "ynamic_dunder_attrs=False), HashPlan(action='add', fields=('message',), cache=False), InitPlan(fields=(InitPla"
-        "n.Field(name='message', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None,"
-        " init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), sel"
-        "f_param='self', std_params=(), kw_only_params=('message',), frozen=True, slots=False, post_init_params=None, i"
-        "nit_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='message', kw_only=True, fn=None),), id=Fal"
-        "se, terse=False, default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('message', 'usage', 'context_budget')), EqPlan(fields=('message', 'usage', 'contex"
+        "t_budget')), FrozenPlan(fields=('message', 'usage', 'context_budget'), allow_dynamic_dunder_attrs=False), Hash"
+        "Plan(action='add', fields=('message', 'usage', 'context_budget'), cache=False), InitPlan(fields=(InitPlan.Fiel"
+        "d(name='message', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init="
+        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fi"
+        "eld(name='usage', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default"
+        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
+        ", check_type=None), InitPlan.Field(name='context_budget', annotation=OpRef(name='init.fields.2.annotation'), d"
+        "efault=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldT"
+        "ype.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params="
+        "('message', 'usage', 'context_budget'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate"
+        "_fns=()), ReprPlan(fields=(ReprPlan.Field(name='message', kw_only=True, fn=None), ReprPlan.Field(name='usage',"
+        " kw_only=True, fn=None), ReprPlan.Field(name='context_budget', kw_only=True, fn=None)), id=False, terse=False,"
+        " default_fn=None)))"
     ),
-    plan_repr_sha1='9834b5a9f1e654cfde6833f7af012abdb39241e4',
+    plan_repr_sha1='0ec739a98f155c76e0518aea8dbf7c0822009998',
     cls_names=(
         ('omllm.agent.types.events', 'TurnEndEvent'),
     ),
 )
-def _process_dataclass__9834b5a9f1e654cfde6833f7af012abdb39241e4():
+def _process_dataclass__0ec739a98f155c76e0518aea8dbf7c0822009998():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -1608,6 +2927,8 @@ def _process_dataclass__9834b5a9f1e654cfde6833f7af012abdb39241e4():
                 raise TypeError(self)
             return __class__(  # noqa
                 message=self.message,
+                usage=self.usage,
+                context_budget=self.context_budget,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1618,13 +2939,17 @@ def _process_dataclass__9834b5a9f1e654cfde6833f7af012abdb39241e4():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.message == other.message
+                self.message == other.message and
+                self.usage == other.usage and
+                self.context_budget == other.context_budget
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'message',
+            'usage',
+            'context_budget',
         }
 
         def __setattr__(self, name, value):
@@ -1650,6 +2975,8 @@ def _process_dataclass__9834b5a9f1e654cfde6833f7af012abdb39241e4():
         def __hash__(self):
             return hash((
                 self.message,
+                self.usage,
+                self.context_budget,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -1658,8 +2985,12 @@ def _process_dataclass__9834b5a9f1e654cfde6833f7af012abdb39241e4():
             self,
             *,
             message: __dataclass__init__fields__0__annotation,
+            usage: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            context_budget: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'message', message)
+            __dataclass__object_setattr(self, 'usage', usage)
+            __dataclass__object_setattr(self, 'context_budget', context_budget)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1667,6 +2998,8 @@ def _process_dataclass__9834b5a9f1e654cfde6833f7af012abdb39241e4():
         def __repr__(self):
             parts = []
             parts.append(f"message={self.message!r}")
+            parts.append(f"usage={self.usage!r}")
+            parts.append(f"context_budget={self.context_budget!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -2918,41 +4251,45 @@ def _process_dataclass__86aa199f78d3102d6ce53909640e848996aa8ba7():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('llm_options', 'max_turns', 'llm_retry', 'max_concurrent_tool_calls', 'cancel_time"
-        "out_s', 'steering_skips_pending_tool_calls')), EqPlan(fields=('llm_options', 'max_turns', 'llm_retry', 'max_co"
-        "ncurrent_tool_calls', 'cancel_timeout_s', 'steering_skips_pending_tool_calls')), FrozenPlan(fields=('llm_optio"
-        "ns', 'max_turns', 'llm_retry', 'max_concurrent_tool_calls', 'cancel_timeout_s', 'steering_skips_pending_tool_c"
-        "alls'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('llm_options', 'max_turns', 'llm_ret"
-        "ry', 'max_concurrent_tool_calls', 'cancel_timeout_s', 'steering_skips_pending_tool_calls'), cache=False), Init"
-        "Plan(fields=(InitPlan.Field(name='llm_options', annotation=OpRef(name='init.fields.0.annotation'), default=OpR"
-        "ef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTAN"
-        "CE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_turns', annotation=OpRef(name='init"
-        ".fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override"
-        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='llm_"
-        "retry', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), defaul"
-        "t_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_ty"
-        "pe=None), InitPlan.Field(name='max_concurrent_tool_calls', annotation=OpRef(name='init.fields.3.annotation'), "
-        "default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=Field"
-        "Type.INSTANCE, coerce=None, validate=OpRef(name='init.fields.3.validate'), check_type=None), InitPlan.Field(na"
-        "me='cancel_timeout_s', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.de"
-        "fault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate"
-        "=OpRef(name='init.fields.4.validate'), check_type=None), InitPlan.Field(name='steering_skips_pending_tool_call"
-        "s', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_fa"
-        "ctory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=N"
-        "one)), self_param='self', std_params=(), kw_only_params=('llm_options', 'max_turns', 'llm_retry', 'max_concurr"
-        "ent_tool_calls', 'cancel_timeout_s', 'steering_skips_pending_tool_calls'), frozen=True, slots=False, post_init"
-        "_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='llm_options', kw_only=True,"
-        " fn=None), ReprPlan.Field(name='max_turns', kw_only=True, fn=None), ReprPlan.Field(name='llm_retry', kw_only=T"
-        "rue, fn=None), ReprPlan.Field(name='max_concurrent_tool_calls', kw_only=True, fn=None), ReprPlan.Field(name='c"
-        "ancel_timeout_s', kw_only=True, fn=None), ReprPlan.Field(name='steering_skips_pending_tool_calls', kw_only=Tru"
-        "e, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('llm_options', 'max_turns', 'llm_retry', 'context_lifecycle', 'max_concurrent_tool"
+        "_calls', 'cancel_timeout_s', 'steering_skips_pending_tool_calls')), EqPlan(fields=('llm_options', 'max_turns',"
+        " 'llm_retry', 'context_lifecycle', 'max_concurrent_tool_calls', 'cancel_timeout_s', 'steering_skips_pending_to"
+        "ol_calls')), FrozenPlan(fields=('llm_options', 'max_turns', 'llm_retry', 'context_lifecycle', 'max_concurrent_"
+        "tool_calls', 'cancel_timeout_s', 'steering_skips_pending_tool_calls'), allow_dynamic_dunder_attrs=False), Hash"
+        "Plan(action='add', fields=('llm_options', 'max_turns', 'llm_retry', 'context_lifecycle', 'max_concurrent_tool_"
+        "calls', 'cancel_timeout_s', 'steering_skips_pending_tool_calls'), cache=False), InitPlan(fields=(InitPlan.Fiel"
+        "d(name='llm_options', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.def"
+        "ault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate="
+        "None, check_type=None), InitPlan.Field(name='max_turns', annotation=OpRef(name='init.fields.1.annotation'), de"
+        "fault=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldTy"
+        "pe.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='llm_retry', annotation=OpRef(n"
+        "ame='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True,"
+        " override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(n"
+        "ame='context_lifecycle', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3."
+        "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
+        "te=None, check_type=None), InitPlan.Field(name='max_concurrent_tool_calls', annotation=OpRef(name='init.fields"
+        ".4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False,"
+        " field_type=FieldType.INSTANCE, coerce=None, validate=OpRef(name='init.fields.4.validate'), check_type=None), "
+        "InitPlan.Field(name='cancel_timeout_s', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name="
+        "'init.fields.5.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
+        "ce=None, validate=OpRef(name='init.fields.5.validate'), check_type=None), InitPlan.Field(name='steering_skips_"
+        "pending_tool_calls', annotation=OpRef(name='init.fields.6.annotation'), default=OpRef(name='init.fields.6.defa"
+        "ult'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
+        "one, check_type=None)), self_param='self', std_params=(), kw_only_params=('llm_options', 'max_turns', 'llm_ret"
+        "ry', 'context_lifecycle', 'max_concurrent_tool_calls', 'cancel_timeout_s', 'steering_skips_pending_tool_calls'"
+        "), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.F"
+        "ield(name='llm_options', kw_only=True, fn=None), ReprPlan.Field(name='max_turns', kw_only=True, fn=None), Repr"
+        "Plan.Field(name='llm_retry', kw_only=True, fn=None), ReprPlan.Field(name='context_lifecycle', kw_only=True, fn"
+        "=None), ReprPlan.Field(name='max_concurrent_tool_calls', kw_only=True, fn=None), ReprPlan.Field(name='cancel_t"
+        "imeout_s', kw_only=True, fn=None), ReprPlan.Field(name='steering_skips_pending_tool_calls', kw_only=True, fn=N"
+        "one)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
     ),
-    plan_repr_sha1='c894a3509f46f5a3fdeeb298633945b00ce27e5a',
+    plan_repr_sha1='252707b318a4094224c2bfe212e0fce44a598490',
     cls_names=(
         ('omllm.agent.types.turns', 'TurnConfig'),
     ),
 )
-def _process_dataclass__c894a3509f46f5a3fdeeb298633945b00ce27e5a():
+def _process_dataclass__252707b318a4094224c2bfe212e0fce44a598490():
     def _process_dataclass(
         *,
         __class__,
@@ -2964,12 +4301,14 @@ def _process_dataclass__c894a3509f46f5a3fdeeb298633945b00ce27e5a():
         __dataclass__init__fields__2__default,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
-        __dataclass__init__fields__3__validate,
         __dataclass__init__fields__4__annotation,
         __dataclass__init__fields__4__default,
         __dataclass__init__fields__4__validate,
         __dataclass__init__fields__5__annotation,
         __dataclass__init__fields__5__default,
+        __dataclass__init__fields__5__validate,
+        __dataclass__init__fields__6__annotation,
+        __dataclass__init__fields__6__default,
         __dataclass__repr__default_fn,
         __dataclass__FieldFnValidationError,  # noqa
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
@@ -2985,6 +4324,7 @@ def _process_dataclass__c894a3509f46f5a3fdeeb298633945b00ce27e5a():
                 llm_options=self.llm_options,
                 max_turns=self.max_turns,
                 llm_retry=self.llm_retry,
+                context_lifecycle=self.context_lifecycle,
                 max_concurrent_tool_calls=self.max_concurrent_tool_calls,
                 cancel_timeout_s=self.cancel_timeout_s,
                 steering_skips_pending_tool_calls=self.steering_skips_pending_tool_calls,
@@ -3001,6 +4341,7 @@ def _process_dataclass__c894a3509f46f5a3fdeeb298633945b00ce27e5a():
                 self.llm_options == other.llm_options and
                 self.max_turns == other.max_turns and
                 self.llm_retry == other.llm_retry and
+                self.context_lifecycle == other.context_lifecycle and
                 self.max_concurrent_tool_calls == other.max_concurrent_tool_calls and
                 self.cancel_timeout_s == other.cancel_timeout_s and
                 self.steering_skips_pending_tool_calls == other.steering_skips_pending_tool_calls
@@ -3012,6 +4353,7 @@ def _process_dataclass__c894a3509f46f5a3fdeeb298633945b00ce27e5a():
             'llm_options',
             'max_turns',
             'llm_retry',
+            'context_lifecycle',
             'max_concurrent_tool_calls',
             'cancel_timeout_s',
             'steering_skips_pending_tool_calls',
@@ -3042,6 +4384,7 @@ def _process_dataclass__c894a3509f46f5a3fdeeb298633945b00ce27e5a():
                 self.llm_options,
                 self.max_turns,
                 self.llm_retry,
+                self.context_lifecycle,
                 self.max_concurrent_tool_calls,
                 self.cancel_timeout_s,
                 self.steering_skips_pending_tool_calls,
@@ -3055,27 +4398,29 @@ def _process_dataclass__c894a3509f46f5a3fdeeb298633945b00ce27e5a():
             llm_options: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             max_turns: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             llm_retry: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            max_concurrent_tool_calls: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            cancel_timeout_s: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            steering_skips_pending_tool_calls: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            context_lifecycle: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            max_concurrent_tool_calls: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            cancel_timeout_s: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            steering_skips_pending_tool_calls: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
         ) -> __dataclass__None:
-            if not __dataclass__init__fields__3__validate(max_concurrent_tool_calls): 
-                raise __dataclass__FieldFnValidationError(
-                    obj=self,
-                    fn=__dataclass__init__fields__3__validate,
-                    field='max_concurrent_tool_calls',
-                    value=max_concurrent_tool_calls,
-                )
-            if not __dataclass__init__fields__4__validate(cancel_timeout_s): 
+            if not __dataclass__init__fields__4__validate(max_concurrent_tool_calls): 
                 raise __dataclass__FieldFnValidationError(
                     obj=self,
                     fn=__dataclass__init__fields__4__validate,
+                    field='max_concurrent_tool_calls',
+                    value=max_concurrent_tool_calls,
+                )
+            if not __dataclass__init__fields__5__validate(cancel_timeout_s): 
+                raise __dataclass__FieldFnValidationError(
+                    obj=self,
+                    fn=__dataclass__init__fields__5__validate,
                     field='cancel_timeout_s',
                     value=cancel_timeout_s,
                 )
             __dataclass__object_setattr(self, 'llm_options', llm_options)
             __dataclass__object_setattr(self, 'max_turns', max_turns)
             __dataclass__object_setattr(self, 'llm_retry', llm_retry)
+            __dataclass__object_setattr(self, 'context_lifecycle', context_lifecycle)
             __dataclass__object_setattr(self, 'max_concurrent_tool_calls', max_concurrent_tool_calls)
             __dataclass__object_setattr(self, 'cancel_timeout_s', cancel_timeout_s)
             __dataclass__object_setattr(self, 'steering_skips_pending_tool_calls', steering_skips_pending_tool_calls)
@@ -3091,6 +4436,8 @@ def _process_dataclass__c894a3509f46f5a3fdeeb298633945b00ce27e5a():
                 parts.append(f"max_turns={s}")
             if (s := __dataclass__repr__default_fn(self.llm_retry)) is not None:
                 parts.append(f"llm_retry={s}")
+            if (s := __dataclass__repr__default_fn(self.context_lifecycle)) is not None:
+                parts.append(f"context_lifecycle={s}")
             if (s := __dataclass__repr__default_fn(self.max_concurrent_tool_calls)) is not None:
                 parts.append(f"max_concurrent_tool_calls={s}")
             if (s := __dataclass__repr__default_fn(self.cancel_timeout_s)) is not None:

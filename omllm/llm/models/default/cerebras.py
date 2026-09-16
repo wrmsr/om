@@ -7,6 +7,7 @@ import typing as ta
 from ...types.models import Model
 from ...types.models import ModelKey
 from ..manifests import ModelsModuleManifest
+from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
 
 
@@ -32,6 +33,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GPT OSS 120B',
         backend='openai-completions',
+        limits=modeldb_model_limits('cerebras', 'gpt-oss-120b'),
         pricing=modeldb_token_pricing('cerebras', 'gpt-oss-120b'),
         http=_DEFAULT_HTTP,
     ),
@@ -43,6 +45,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='Qwen 3.8 27B',
         backend='openai-completions',
+        limits=modeldb_model_limits('cerebras', 'qwen-3.8-27b'),
         pricing=modeldb_token_pricing('cerebras', 'qwen-3.8-27b'),
         http=_DEFAULT_HTTP,
     ),

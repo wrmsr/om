@@ -12,13 +12,19 @@ from ...core.asyncs.base import AsyncGroupCancelledError
 from ...core.asyncs.base import AsyncGroupFailedError
 from ...core.asyncs.base import AsyncGroupRunner
 from ...core.eventbus import EventSubscriber
+from ..lifecycle.managers import ContextLifecycleManager
+from ..lifecycle.managers import ContextLifecycleResult
+from ..lifecycle.managers import StandardContextLifecycleManager
 from ..projection.builders import StandardLlmContextBuilder
 from ..projection.types import LlmContextBuilder
+from ..types.context_lifecycle import ContextBudget
 from ..types.contexts import Context
 from ..types.errors import ErrorStopReasonError
 from ..types.errors import UnknownToolError
 from ..types.events import AgentEndEvent
 from ..types.events import AgentStartEvent
+from ..types.events import ContextReductionEvent
+from ..types.events import ContextWindowEvent
 from ..types.events import Event
 from ..types.events import LlmAiStreamEvent
 from ..types.events import LlmRetryEvent
@@ -117,6 +123,7 @@ class TurnLoop:
             group_runner: AsyncGroupRunner,
             sleeps: asl.Sleeps | None = None,
             context_builder: LlmContextBuilder | None = None,
+            context_lifecycle_manager: ContextLifecycleManager | None = None,
             inbox: TurnInbox | None = None,
     ) -> None:
         super().__init__()
@@ -139,6 +146,9 @@ class TurnLoop:
         if context_builder is None:
             context_builder = StandardLlmContextBuilder()
         self._context_builder = context_builder
+        if context_lifecycle_manager is None:
+            context_lifecycle_manager = StandardContextLifecycleManager()
+        self._context_lifecycle_manager = context_lifecycle_manager
         self._inbox = inbox
 
         #
@@ -230,9 +240,7 @@ class TurnLoop:
 
     #
 
-    async def _llm_complete_once(self) -> llm.AiMessage:
-        llm_context = self._context_builder.build(self._context)
-
+    async def _llm_complete_once(self, llm_context: llm.Context) -> llm.AiMessage:
         if isinstance(llm_backend := self._llm_backend, llm.StreamBackend):
             async with (await llm_backend.stream(
                     llm_context,
@@ -250,19 +258,64 @@ class TurnLoop:
                 self._config.llm_options,
             )
 
+    async def _apply_context_lifecycle_result(self, result: ContextLifecycleResult) -> None:
+        self._context = result.context
+
+        if result.context_budget is not None:
+            await self._publish(ContextWindowEvent(result.context_budget))
+
+        if result.reduction is not None:
+            await self._publish(ContextReductionEvent(result.reduction))
+
+    async def _prepare_llm_context(self) -> ContextLifecycleResult:
+        result = await self._context_lifecycle_manager.prepare(
+            self._context,
+            builder=self._context_builder,
+            model=self._llm_backend.model,
+            options=self._config.llm_options,
+            config=self._config.context_lifecycle,
+        )
+        await self._apply_context_lifecycle_result(result)
+        return result
+
     async def _llm_complete(self) -> llm.AiMessage:
         retry = self._config.llm_retry
+        lifecycle = self._config.context_lifecycle
+
         attempts = 0
+        transient_failures = 0
+        overflow_retries = 0
+
+        prepared = await self._prepare_llm_context()
 
         while True:
             attempts += 1
             self._num_llm_content_events = 0
 
             try:
-                return await self._llm_complete_once()
+                return await self._llm_complete_once(prepared.llm_context)
+
+            except llm.ContextOverflowBackendError:
+                if self._num_llm_content_events or overflow_retries >= lifecycle.max_overflow_retries:
+                    raise
+
+                recovered = await self._context_lifecycle_manager.recover_overflow(
+                    self._context,
+                    builder=self._context_builder,
+                    model=self._llm_backend.model,
+                    options=self._config.llm_options,
+                    config=lifecycle,
+                )
+                if recovered.reduction is None:
+                    raise
+
+                overflow_retries += 1
+                prepared = recovered
+                await self._apply_context_lifecycle_result(recovered)
 
             except llm.TransientBackendError as e:
-                if retry is None or attempts > retry.max_retries:
+                transient_failures += 1
+                if retry is None or transient_failures > retry.max_retries:
                     raise
 
                 if self._num_llm_content_events:
@@ -270,7 +323,7 @@ class TurnLoop:
                     # different response on top of it, so the failure stands.
                     raise
 
-                delay_s = retry.delay_s(attempts, retry_after_s=e.retry_after_s)
+                delay_s = retry.delay_s(transient_failures, retry_after_s=e.retry_after_s)
 
                 await self._publish(LlmRetryEvent(
                     attempts=attempts,
@@ -279,6 +332,35 @@ class TurnLoop:
                 ))
 
                 await check.not_none(self._sleeps).sleep(delay_s)
+
+    def _record_llm_usage(self, message: llm.AiMessage) -> None:
+        usage = self._context.usage.add(message.token_usage)
+
+        context_budget: ContextBudget | None = None
+        if (limits := llm.resolve_model_limits(self._llm_backend.model)) is not None:
+            options = llm.Options().merge(
+                self._llm_backend.model.default_options,
+                self._config.llm_options,
+            )
+            context_budget = ContextBudget.of(
+                limits,
+                self._config.context_lifecycle,
+                requested_output=options.max_tokens,
+                observed_input=message.token_usage.input if message.token_usage is not None else None,
+            )
+
+        self._context = dc.replace(
+            self._context,
+            usage=usage,
+            context_budget=context_budget,
+        )
+
+    async def _publish_turn_end(self, message: llm.AiMessage) -> None:
+        await self._publish(TurnEndEvent(
+            message=message,
+            usage=self._context.usage,
+            context_budget=self._context.context_budget,
+        ))
 
     #
 
@@ -431,6 +513,8 @@ class TurnLoop:
 
         message = await self._llm_complete()
 
+        self._record_llm_usage(message)
+
         await self._append(message)
 
         tool_calls = [c for c in message.content if isinstance(c, llm.ToolCall)]
@@ -440,17 +524,19 @@ class TurnLoop:
         if message.stop_reason == 'error':
             # A refusal or a content filter. The message is kept, as it may carry an explanation, but the run fails: the
             # model did not produce what was asked for, and going around again would only ask again.
-            await self._publish(TurnEndEvent(
-                message=message,
-            ))
+            await self._publish_turn_end(message)
 
             raise ErrorStopReasonError(message)
 
-        elif message.stop_reason == 'length':
+        elif message.stop_reason in ('length', 'context_length'):
             # A truncated message's tool calls are not to be trusted: their arguments may have been cut off mid-way.
             await self._append(*self._unexecuted_tool_call_results('the output was cut off by the token limit'))
 
-            end_reason = AgentEndReason.LENGTH
+            end_reason = (
+                AgentEndReason.CONTEXT_LENGTH
+                if message.stop_reason == 'context_length'
+                else AgentEndReason.LENGTH
+            )
 
         elif not tool_calls:
             # Tool calls are executed on their presence, not on the stop reason: a provider reporting a plain stop
@@ -478,9 +564,7 @@ class TurnLoop:
 
             end_reason = None
 
-        await self._publish(TurnEndEvent(
-            message=message,
-        ))
+        await self._publish_turn_end(message)
 
         return end_reason
 

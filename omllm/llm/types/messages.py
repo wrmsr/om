@@ -61,6 +61,7 @@ class UserMessageBuilder(MessageBuilder[UserMessage]):
 type StopReason = ta.Literal[
     'stop',
     'length',
+    'context_length',
     'tool_use',
     'error',
 ]

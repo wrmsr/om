@@ -27,33 +27,48 @@ def _register(**kwargs):
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('input', 'input_cached', 'output', 'reasoning')), EqPlan(fields=('input', 'input_c"
-        "ached', 'output', 'reasoning')), FrozenPlan(fields=('input', 'input_cached', 'output', 'reasoning', '_SUFFIXES"
-        "'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('input', 'input_cached', 'output', 'reas"
-        "oning'), cache=False), InitPlan(fields=(InitPlan.Field(name='input', annotation=OpRef(name='init.fields.0.anno"
-        "tation'), default=OpRef(name='init.fields.0.default'), default_factory=None, init=True, override=False, field_"
-        "type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='input_cached', ann"
-        "otation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=N"
-        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), I"
-        "nitPlan.Field(name='output', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.field"
-        "s.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, va"
-        "lidate=None, check_type=None), InitPlan.Field(name='reasoning', annotation=OpRef(name='init.fields.3.annotatio"
-        "n'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type="
-        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='_SUFFIXES', annotation="
-        "OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, ini"
-        "t=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None)), self_pa"
-        "ram='self', std_params=(), kw_only_params=('input', 'input_cached', 'output', 'reasoning'), frozen=True, slots"
-        "=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='input', kw"
-        "_only=True, fn=None), ReprPlan.Field(name='input_cached', kw_only=True, fn=None), ReprPlan.Field(name='output'"
-        ", kw_only=True, fn=None), ReprPlan.Field(name='reasoning', kw_only=True, fn=None)), id=False, terse=False, def"
-        "ault_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('input', 'input_cached', 'input_cache_write', 'output', 'reasoning', 'context_inpu"
+        "t', 'context_limit', 'context_estimated')), EqPlan(fields=('input', 'input_cached', 'input_cache_write', 'outp"
+        "ut', 'reasoning', 'context_input', 'context_limit', 'context_estimated')), FrozenPlan(fields=('input', 'input_"
+        "cached', 'input_cache_write', 'output', 'reasoning', 'context_input', 'context_limit', 'context_estimated', '_"
+        "SUFFIXES'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('input', 'input_cached', 'input_"
+        "cache_write', 'output', 'reasoning', 'context_input', 'context_limit', 'context_estimated'), cache=False), Ini"
+        "tPlan(fields=(InitPlan.Field(name='input', annotation=OpRef(name='init.fields.0.annotation'), default=OpRef(na"
+        "me='init.fields.0.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, c"
+        "oerce=None, validate=None, check_type=None), InitPlan.Field(name='input_cached', annotation=OpRef(name='init.f"
+        "ields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=F"
+        "alse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='input_"
+        "cache_write', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), "
+        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
+        "eck_type=None), InitPlan.Field(name='output', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef"
+        "(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE"
+        ", coerce=None, validate=None, check_type=None), InitPlan.Field(name='reasoning', annotation=OpRef(name='init.f"
+        "ields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=F"
+        "alse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='contex"
+        "t_input', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), defa"
+        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
+        "type=None), InitPlan.Field(name='context_limit', annotation=OpRef(name='init.fields.6.annotation'), default=Op"
+        "Ref(name='init.fields.6.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
+        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='context_estimated', annotation=OpRef(n"
+        "ame='init.fields.7.annotation'), default=OpRef(name='init.fields.7.default'), default_factory=None, init=True,"
+        " override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(n"
+        "ame='_SUFFIXES', annotation=OpRef(name='init.fields.8.annotation'), default=OpRef(name='init.fields.8.default'"
+        "), default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None"
+        ", check_type=None)), self_param='self', std_params=(), kw_only_params=('input', 'input_cached', 'input_cache_w"
+        "rite', 'output', 'reasoning', 'context_input', 'context_limit', 'context_estimated'), frozen=True, slots=False"
+        ", post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='input', kw_only="
+        "True, fn=None), ReprPlan.Field(name='input_cached', kw_only=True, fn=None), ReprPlan.Field(name='input_cache_w"
+        "rite', kw_only=True, fn=None), ReprPlan.Field(name='output', kw_only=True, fn=None), ReprPlan.Field(name='reas"
+        "oning', kw_only=True, fn=None), ReprPlan.Field(name='context_input', kw_only=True, fn=None), ReprPlan.Field(na"
+        "me='context_limit', kw_only=True, fn=None), ReprPlan.Field(name='context_estimated', kw_only=True, fn=None)), "
+        "id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='cb783e8d0be2d3a68147e5991c73fe61f128969b',
+    plan_repr_sha1='eb653821880a5c60e22e5d596d3216076a5ac595',
     cls_names=(
         ('omllm.ui.tui.minitui.app', 'MinituiChatApp.Usage'),
     ),
 )
-def _process_dataclass__cb783e8d0be2d3a68147e5991c73fe61f128969b():
+def _process_dataclass__eb653821880a5c60e22e5d596d3216076a5ac595():
     def _process_dataclass(
         *,
         __class__,
@@ -65,6 +80,14 @@ def _process_dataclass__cb783e8d0be2d3a68147e5991c73fe61f128969b():
         __dataclass__init__fields__2__default,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
+        __dataclass__init__fields__6__annotation,
+        __dataclass__init__fields__6__default,
+        __dataclass__init__fields__7__annotation,
+        __dataclass__init__fields__7__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -77,8 +100,12 @@ def _process_dataclass__cb783e8d0be2d3a68147e5991c73fe61f128969b():
             return __class__(  # noqa
                 input=self.input,
                 input_cached=self.input_cached,
+                input_cache_write=self.input_cache_write,
                 output=self.output,
                 reasoning=self.reasoning,
+                context_input=self.context_input,
+                context_limit=self.context_limit,
+                context_estimated=self.context_estimated,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -91,8 +118,12 @@ def _process_dataclass__cb783e8d0be2d3a68147e5991c73fe61f128969b():
             return (
                 self.input == other.input and
                 self.input_cached == other.input_cached and
+                self.input_cache_write == other.input_cache_write and
                 self.output == other.output and
-                self.reasoning == other.reasoning
+                self.reasoning == other.reasoning and
+                self.context_input == other.context_input and
+                self.context_limit == other.context_limit and
+                self.context_estimated == other.context_estimated
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -100,8 +131,12 @@ def _process_dataclass__cb783e8d0be2d3a68147e5991c73fe61f128969b():
         __dataclass___frozen_fields = {
             'input',
             'input_cached',
+            'input_cache_write',
             'output',
             'reasoning',
+            'context_input',
+            'context_limit',
+            'context_estimated',
             '_SUFFIXES',
         }
 
@@ -129,8 +164,12 @@ def _process_dataclass__cb783e8d0be2d3a68147e5991c73fe61f128969b():
             return hash((
                 self.input,
                 self.input_cached,
+                self.input_cache_write,
                 self.output,
                 self.reasoning,
+                self.context_input,
+                self.context_limit,
+                self.context_estimated,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -140,13 +179,21 @@ def _process_dataclass__cb783e8d0be2d3a68147e5991c73fe61f128969b():
             *,
             input: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             input_cached: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            output: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            reasoning: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            input_cache_write: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            output: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            reasoning: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            context_input: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            context_limit: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            context_estimated: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'input', input)
             __dataclass__object_setattr(self, 'input_cached', input_cached)
+            __dataclass__object_setattr(self, 'input_cache_write', input_cache_write)
             __dataclass__object_setattr(self, 'output', output)
             __dataclass__object_setattr(self, 'reasoning', reasoning)
+            __dataclass__object_setattr(self, 'context_input', context_input)
+            __dataclass__object_setattr(self, 'context_limit', context_limit)
+            __dataclass__object_setattr(self, 'context_estimated', context_estimated)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -155,8 +202,12 @@ def _process_dataclass__cb783e8d0be2d3a68147e5991c73fe61f128969b():
             parts = []
             parts.append(f"input={self.input!r}")
             parts.append(f"input_cached={self.input_cached!r}")
+            parts.append(f"input_cache_write={self.input_cache_write!r}")
             parts.append(f"output={self.output!r}")
             parts.append(f"reasoning={self.reasoning!r}")
+            parts.append(f"context_input={self.context_input!r}")
+            parts.append(f"context_limit={self.context_limit!r}")
+            parts.append(f"context_estimated={self.context_estimated!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

@@ -1,9 +1,11 @@
 import typing as ta
 
+from omcore import check
+from omcore import dataclasses as dc
+
 from ... import llm
 from ..types.contexts import Context
 from ..types.messages import AgentMessage
-from ..types.messages import Message
 from .messages import TypeMapAgentMessageProjector
 from .types import AgentMessageProjector
 from .types import LlmContextBuilder
@@ -28,11 +30,49 @@ class StandardLlmContextBuilder(LlmContextBuilder):
             projector = TypeMapAgentMessageProjector()
         self._projector = projector
 
-    def _project_messages(self, messages: ta.Sequence[Message]) -> list[llm.Message]:
+    @staticmethod
+    def _project_tool_result(message: llm.ToolResultMessage, *, max_chars: int) -> llm.ToolResultMessage:
+        text = '\n\n'.join(content.text for content in message.content)
+
+        if max_chars == 0:
+            projected = (
+                f'[Earlier {message.tool_name} result pruned: {len(text)} characters. '
+                'Run the tool again if exact output is needed.]'
+            )
+
+        elif len(text) <= max_chars:
+            return message
+
+        else:
+            marker = f'\n\n[... result truncated from {len(text)} characters ...]\n\n'
+            if len(marker) >= max_chars:
+                projected = marker[:max_chars]
+            else:
+                remaining = max_chars - len(marker)
+                head = (remaining * 2) // 3
+                tail = remaining - head
+                projected = text[:head] + marker + text[-tail:]
+
+        return dc.replace(message, content=(llm.TextContent(projected),))
+
+    def _project_messages(self, context: Context) -> list[llm.Message]:
+        messages = context.messages or ()
+        projection = context.projection
+        check.arg(projection.first_kept_message_index <= len(messages))
+
+        tool_results = projection.tool_results_by_message_index
         out: list[llm.Message] = []
 
-        for m in messages:
+        if projection.summary is not None:
+            out.append(llm.UserMessage(f'Earlier conversation summary:\n\n{projection.summary}'))
+
+        for index, m in enumerate(messages):
+            if index < projection.first_kept_message_index:
+                continue
+
             if isinstance(m, llm.Message):
+                if isinstance(m, llm.ToolResultMessage) and (p := tool_results.get(index)) is not None:
+                    m = self._project_tool_result(m, max_chars=p.max_chars)
                 out.append(m)
             elif isinstance(m, AgentMessage):
                 out.extend(self._projector.project(m))
@@ -57,7 +97,7 @@ class StandardLlmContextBuilder(LlmContextBuilder):
     def build(self, context: Context) -> llm.Context:
         messages: list[llm.Message] | None = None
         if context.messages is not None:
-            messages = self._merge_adjacent_user_messages(self._project_messages(context.messages))
+            messages = self._merge_adjacent_user_messages(self._project_messages(context))
 
         return llm.Context(
             system_prompt=context.system_prompt,

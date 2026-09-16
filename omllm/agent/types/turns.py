@@ -7,6 +7,7 @@ from omcore import lang
 
 from ... import llm
 from ...core.eventbus import EventSubscriber
+from .context_lifecycle import ContextLifecycleConfig
 from .contexts import Context
 from .inboxes import TurnInbox
 from .messages import Message
@@ -55,6 +56,8 @@ class TurnConfig:
     # run.
     llm_retry: LlmRetryConfig | None = None
 
+    context_lifecycle: ContextLifecycleConfig = ContextLifecycleConfig()
+
     max_concurrent_tool_calls: int | None = dc.xfield(None, validate=lambda v: v != 0)
 
     # How long the run's terminal publish may take. It is shielded, so a cancellation landing in it waits for every
@@ -77,6 +80,10 @@ class AgentEndReason(enum.Enum):
 
     # The model's output was cut off by a token limit. Any tool calls in it were not executed.
     LENGTH = enum.auto()
+
+    # The model stopped because the combined prompt and output reached its context window. This is distinct from a
+    # request rejected before inference and is not safe to retry after content has been emitted.
+    CONTEXT_LENGTH = enum.auto()
 
     # The configured turn limit was reached with tool calls still pending. They were not executed.
     MAX_TURNS = enum.auto()

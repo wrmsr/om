@@ -12,6 +12,10 @@ class BackendError(Error):
     pass
 
 
+class ContextOverflowBackendError(BackendError):
+    """The submitted prompt did not fit in the model's context window."""
+
+
 class TransientBackendError(BackendError):
     """
     A backend failure which may not recur if the same request is simply retried: rate limiting, overload, a transient

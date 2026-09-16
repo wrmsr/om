@@ -1811,42 +1811,46 @@ def _process_dataclass__62d7648385bcff6be1254f65f055e0cce791cec8():
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('key', 'backend', 'name', 'compat', 'cache', 'pricing', 'http', 'default_options')"
-        "), EqPlan(fields=('key', 'backend', 'name', 'compat', 'cache', 'pricing', 'http', 'default_options')), FrozenP"
-        "lan(fields=('key', 'backend', 'name', 'compat', 'cache', 'pricing', 'http', 'default_options'), allow_dynamic_"
-        "dunder_attrs=False), HashPlan(action='add', fields=('key', 'backend', 'name', 'compat', 'cache', 'pricing', 'h"
-        "ttp', 'default_options'), cache=False), InitPlan(fields=(InitPlan.Field(name='key', annotation=OpRef(name='ini"
-        "t.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.I"
-        "NSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='backend', annotation=OpRef(name='i"
-        "nit.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType"
-        ".INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='name', annotation=OpRef(name='in"
-        "it.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, overri"
-        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='co"
-        "mpat', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default"
-        "_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_typ"
-        "e=None), InitPlan.Field(name='cache', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='i"
-        "nit.fields.4.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
-        "=None, validate=None, check_type=None), InitPlan.Field(name='pricing', annotation=OpRef(name='init.fields.5.an"
-        "notation'), default=OpRef(name='init.fields.5.default'), default_factory=None, init=True, override=False, fiel"
-        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='http', annotatio"
-        "n=OpRef(name='init.fields.6.annotation'), default=OpRef(name='init.fields.6.default'), default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
-        "n.Field(name='default_options', annotation=OpRef(name='init.fields.7.annotation'), default=OpRef(name='init.fi"
-        "elds.7.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('key', 'backend', 'name',"
-        " 'compat', 'cache', 'pricing', 'http', 'default_options'), frozen=True, slots=False, post_init_params=None, in"
-        "it_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='key', kw_only=True, fn=None), ReprPlan.Fiel"
-        "d(name='backend', kw_only=True, fn=None), ReprPlan.Field(name='name', kw_only=True, fn=None), ReprPlan.Field(n"
-        "ame='compat', kw_only=True, fn=None), ReprPlan.Field(name='cache', kw_only=True, fn=None), ReprPlan.Field(name"
-        "='pricing', kw_only=True, fn=None), ReprPlan.Field(name='http', kw_only=True, fn=None), ReprPlan.Field(name='d"
-        "efault_options', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+        "Plans(tup=(CopyPlan(fields=('key', 'backend', 'name', 'compat', 'cache', 'limits', 'pricing', 'http', 'default"
+        "_options')), EqPlan(fields=('key', 'backend', 'name', 'compat', 'cache', 'limits', 'pricing', 'http', 'default"
+        "_options')), FrozenPlan(fields=('key', 'backend', 'name', 'compat', 'cache', 'limits', 'pricing', 'http', 'def"
+        "ault_options'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('key', 'backend', 'name', 'c"
+        "ompat', 'cache', 'limits', 'pricing', 'http', 'default_options'), cache=False), InitPlan(fields=(InitPlan.Fiel"
+        "d(name='key', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True"
+        ", override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field("
+        "name='backend', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=Tr"
+        "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
+        "d(name='name', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'),"
+        " default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, c"
+        "heck_type=None), InitPlan.Field(name='compat', annotation=OpRef(name='init.fields.3.annotation'), default=OpRe"
+        "f(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANC"
+        "E, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cache', annotation=OpRef(name='init.fiel"
+        "ds.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=Fals"
+        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='limits', "
+        "annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factor"
+        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
+        ", InitPlan.Field(name='pricing', annotation=OpRef(name='init.fields.6.annotation'), default=OpRef(name='init.f"
+        "ields.6.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
+        ", validate=None, check_type=None), InitPlan.Field(name='http', annotation=OpRef(name='init.fields.7.annotation"
+        "'), default=OpRef(name='init.fields.7.default'), default_factory=None, init=True, override=False, field_type=F"
+        "ieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='default_options', annota"
+        "tion=OpRef(name='init.fields.8.annotation'), default=OpRef(name='init.fields.8.default'), default_factory=None"
+        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), sel"
+        "f_param='self', std_params=(), kw_only_params=('key', 'backend', 'name', 'compat', 'cache', 'limits', 'pricing"
+        "', 'http', 'default_options'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()),"
+        " ReprPlan(fields=(ReprPlan.Field(name='key', kw_only=True, fn=None), ReprPlan.Field(name='backend', kw_only=Tr"
+        "ue, fn=None), ReprPlan.Field(name='name', kw_only=True, fn=None), ReprPlan.Field(name='compat', kw_only=True, "
+        "fn=None), ReprPlan.Field(name='cache', kw_only=True, fn=None), ReprPlan.Field(name='limits', kw_only=True, fn="
+        "None), ReprPlan.Field(name='pricing', kw_only=True, fn=None), ReprPlan.Field(name='http', kw_only=True, fn=Non"
+        "e), ReprPlan.Field(name='default_options', kw_only=True, fn=None)), id=False, terse=False, default_fn=OpRef(na"
+        "me='repr.default_fn'))))"
     ),
-    plan_repr_sha1='90b243e959beff8cfe20a3640d4e7629b1bec43a',
+    plan_repr_sha1='80ff76e0b7b564f259a98841c50239de51987159',
     cls_names=(
         ('omllm.llm.types.models', 'Model'),
     ),
 )
-def _process_dataclass__90b243e959beff8cfe20a3640d4e7629b1bec43a():
+def _process_dataclass__80ff76e0b7b564f259a98841c50239de51987159():
     def _process_dataclass(
         *,
         __class__,
@@ -1864,6 +1868,8 @@ def _process_dataclass__90b243e959beff8cfe20a3640d4e7629b1bec43a():
         __dataclass__init__fields__6__default,
         __dataclass__init__fields__7__annotation,
         __dataclass__init__fields__7__default,
+        __dataclass__init__fields__8__annotation,
+        __dataclass__init__fields__8__default,
         __dataclass__repr__default_fn,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
@@ -1880,6 +1886,7 @@ def _process_dataclass__90b243e959beff8cfe20a3640d4e7629b1bec43a():
                 name=self.name,
                 compat=self.compat,
                 cache=self.cache,
+                limits=self.limits,
                 pricing=self.pricing,
                 http=self.http,
                 default_options=self.default_options,
@@ -1898,6 +1905,7 @@ def _process_dataclass__90b243e959beff8cfe20a3640d4e7629b1bec43a():
                 self.name == other.name and
                 self.compat == other.compat and
                 self.cache == other.cache and
+                self.limits == other.limits and
                 self.pricing == other.pricing and
                 self.http == other.http and
                 self.default_options == other.default_options
@@ -1911,6 +1919,7 @@ def _process_dataclass__90b243e959beff8cfe20a3640d4e7629b1bec43a():
             'name',
             'compat',
             'cache',
+            'limits',
             'pricing',
             'http',
             'default_options',
@@ -1943,6 +1952,7 @@ def _process_dataclass__90b243e959beff8cfe20a3640d4e7629b1bec43a():
                 self.name,
                 self.compat,
                 self.cache,
+                self.limits,
                 self.pricing,
                 self.http,
                 self.default_options,
@@ -1958,15 +1968,17 @@ def _process_dataclass__90b243e959beff8cfe20a3640d4e7629b1bec43a():
             name: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             compat: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
             cache: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            pricing: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            http: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
-            default_options: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
+            limits: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            pricing: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            http: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
+            default_options: __dataclass__init__fields__8__annotation = __dataclass__init__fields__8__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'key', key)
             __dataclass__object_setattr(self, 'backend', backend)
             __dataclass__object_setattr(self, 'name', name)
             __dataclass__object_setattr(self, 'compat', compat)
             __dataclass__object_setattr(self, 'cache', cache)
+            __dataclass__object_setattr(self, 'limits', limits)
             __dataclass__object_setattr(self, 'pricing', pricing)
             __dataclass__object_setattr(self, 'http', http)
             __dataclass__object_setattr(self, 'default_options', default_options)
@@ -1986,6 +1998,8 @@ def _process_dataclass__90b243e959beff8cfe20a3640d4e7629b1bec43a():
                 parts.append(f"compat={s}")
             if (s := __dataclass__repr__default_fn(self.cache)) is not None:
                 parts.append(f"cache={s}")
+            if (s := __dataclass__repr__default_fn(self.limits)) is not None:
+                parts.append(f"limits={s}")
             if (s := __dataclass__repr__default_fn(self.pricing)) is not None:
                 parts.append(f"pricing={s}")
             if (s := __dataclass__repr__default_fn(self.http)) is not None:
@@ -2230,6 +2244,135 @@ def _process_dataclass__a7b5c57ce0097a16cde0613f080138d253ed649c():
             parts = []
             parts.append(f"{self.provider!r}")
             parts.append(f"{self.id!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('context', 'output', 'input')), EqPlan(fields=('context', 'output', 'input')), Fro"
+        "zenPlan(fields=('context', 'output', 'input'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', field"
+        "s=('context', 'output', 'input'), cache=False), InitPlan(fields=(InitPlan.Field(name='context', annotation=OpR"
+        "ef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type"
+        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='output', annotation=Op"
+        "Ref(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_typ"
+        "e=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='input', annotation=Op"
+        "Ref(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init="
+        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param"
+        "='self', std_params=(), kw_only_params=('context', 'output', 'input'), frozen=True, slots=False, post_init_par"
+        "ams=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='context', kw_only=True, fn=None),"
+        " ReprPlan.Field(name='output', kw_only=True, fn=None), ReprPlan.Field(name='input', kw_only=True, fn=None)), i"
+        "d=False, terse=False, default_fn=OpRef(name='repr.default_fn'))))"
+    ),
+    plan_repr_sha1='8cc24df79821ccfba81e3cd49ff2d3ba03c9a3d9',
+    cls_names=(
+        ('omllm.llm.types.models', 'ModelLimits'),
+    ),
+)
+def _process_dataclass__8cc24df79821ccfba81e3cd49ff2d3ba03c9a3d9():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__repr__default_fn,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                context=self.context,
+                output=self.output,
+                input=self.input,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.context == other.context and
+                self.output == other.output and
+                self.input == other.input
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'context',
+            'output',
+            'input',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.context,
+                self.output,
+                self.input,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            context: __dataclass__init__fields__0__annotation,
+            output: __dataclass__init__fields__1__annotation,
+            input: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'context', context)
+            __dataclass__object_setattr(self, 'output', output)
+            __dataclass__object_setattr(self, 'input', input)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.context)) is not None:
+                parts.append(f"context={s}")
+            if (s := __dataclass__repr__default_fn(self.output)) is not None:
+                parts.append(f"output={s}")
+            if (s := __dataclass__repr__default_fn(self.input)) is not None:
+                parts.append(f"input={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

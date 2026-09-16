@@ -10,6 +10,7 @@ from ...types.models import ModelKey
 from ...types.options import CacheRetention
 from ...types.options import Options
 from ..manifests import ModelsModuleManifest
+from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
 
 
@@ -42,6 +43,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
                 CacheRetention.ONE_HOUR,
             }),
         ),
+        limits=modeldb_model_limits('anthropic', 'claude-fable-5'),
         pricing=modeldb_token_pricing('anthropic', 'claude-fable-5'),
         http=_DEFAULT_HTTP,
         default_options=Options(
@@ -63,6 +65,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
                 CacheRetention.ONE_HOUR,
             }),
         ),
+        limits=modeldb_model_limits('anthropic', 'claude-opus-5'),
         pricing=modeldb_token_pricing('anthropic', 'claude-opus-5'),
         http=_DEFAULT_HTTP,
         default_options=Options(
@@ -84,6 +87,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
                 CacheRetention.ONE_HOUR,
             }),
         ),
+        limits=modeldb_model_limits('anthropic', 'claude-sonnet-5'),
         pricing=modeldb_token_pricing('anthropic', 'claude-sonnet-5'),
         http=_DEFAULT_HTTP,
         default_options=Options(
@@ -105,6 +109,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
                 CacheRetention.ONE_HOUR,
             }),
         ),
+        limits=modeldb_model_limits('anthropic', 'claude-haiku-4-5-20251001'),
         pricing=modeldb_token_pricing('anthropic', 'claude-haiku-4-5-20251001'),
         http=_DEFAULT_HTTP,
         default_options=Options(

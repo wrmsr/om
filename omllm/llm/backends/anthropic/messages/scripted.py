@@ -24,6 +24,7 @@ def _render_stop_reason(response: ScriptedHttpResponse) -> str:
     return {
         'stop': 'end_turn',
         'length': 'max_tokens',
+        'context_length': 'model_context_window_exceeded',
         'tool_use': 'tool_use',
         'error': 'refusal',
     }[response.resolved_stop_reason()]

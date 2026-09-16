@@ -367,7 +367,7 @@
     "module": ".llm.models.default.anthropic",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/anthropic.py",
-    "line": 118,
+    "line": 123,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -403,7 +403,7 @@
     "module": ".llm.models.default.cerebras",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/cerebras.py",
-    "line": 53,
+    "line": 56,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -427,7 +427,7 @@
     "module": ".llm.models.default.google",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/google.py",
-    "line": 40,
+    "line": 42,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -445,7 +445,7 @@
     "module": ".llm.models.default.groq",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/groq.py",
-    "line": 37,
+    "line": 39,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -493,7 +493,7 @@
     "module": ".llm.models.default.openai",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/openai.py",
-    "line": 113,
+    "line": 118,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -529,7 +529,7 @@
     "module": ".llm.models.default.openrouter",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/openrouter.py",
-    "line": 135,
+    "line": 142,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [

@@ -1,6 +1,7 @@
 import pytest
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore.asyncs.asynclite import all as asl
 
 from .... import llm
@@ -9,6 +10,8 @@ from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.tools import EchoTool
 from ...turns.loop import TurnLoop
+from ...types.context_lifecycle import ContextProjection
+from ...types.context_lifecycle import ToolResultProjection
 from ...types.contexts import Context
 from ...types.messages import AgentMessage
 from ...types.messages import InfoAgentMessage
@@ -90,6 +93,65 @@ def test_projected_notes_merge_with_adjacent_user_turns():
 
     assert [type(m) for m in out.messages or []] == [llm.UserMessage, llm.AiMessage, llm.UserMessage]
     assert _user_texts(out.messages or []) == ['hi\n\n[note: x]\n\ngo', '[note: y]']
+
+
+def test_tool_results_are_reduced_only_in_the_model_projection():
+    full_text = 'head-' + ('x' * 200) + '-tail'
+    result = llm.ToolResultMessage(
+        tool_call_id='t1',
+        tool_name='read',
+        content=(llm.TextContent(full_text),),
+    )
+    context = Context(
+        messages=[
+            llm.UserMessage('read it'),
+            llm.AiMessage([llm.ToolCall('t1', 'read', {})]),
+            result,
+        ],
+        projection=ContextProjection(tool_results=(ToolResultProjection(message_index=2, max_chars=80),)),
+    )
+
+    projected = StandardLlmContextBuilder().build(context)
+
+    # The transcript is lossless and the model-facing result retains the provider protocol identity.
+    assert context.messages is not None and context.messages[2] is result
+    assert result.content[0].text == full_text
+    model_result = check.isinstance((projected.messages or [])[2], llm.ToolResultMessage)
+    assert model_result.tool_call_id == 't1'
+    assert model_result.tool_name == 'read'
+    assert len(model_result.content[0].text) == 80
+    assert 'result truncated from 210 characters' in model_result.content[0].text
+
+    pruned = dc.replace(
+        context,
+        projection=context.projection.with_tool_result(ToolResultProjection(message_index=2, max_chars=0)),
+    )
+    pruned_result = check.isinstance(
+        (StandardLlmContextBuilder().build(pruned).messages or [])[2],
+        llm.ToolResultMessage,
+    )
+    assert 'Earlier read result pruned' in pruned_result.content[0].text
+    assert pruned_result.tool_call_id == 't1'
+
+
+def test_summary_projection_keeps_only_the_selected_tail():
+    context = Context(
+        messages=[
+            llm.UserMessage('old'),
+            llm.AiMessage([llm.TextContent('old answer')]),
+            llm.UserMessage('new'),
+        ],
+        projection=ContextProjection(
+            summary='The old exchange established the constraints.',
+            first_kept_message_index=2,
+        ),
+    )
+
+    projected = StandardLlmContextBuilder().build(context)
+
+    assert _user_texts(projected.messages or []) == [
+        'Earlier conversation summary:\n\nThe old exchange established the constraints.\n\nnew',
+    ]
 
 
 @pytest.mark.asyncs('asyncio')

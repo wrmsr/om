@@ -5,6 +5,7 @@ from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
 from ..manifests import ModelsModuleManifest
+from ..modeldb import modeldb_model_limits
 
 
 ##
@@ -42,6 +43,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         backend='openai-completions',
         compat=_COMPAT,
         cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'deepseek/deepseek-v4-pro-0813'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),
@@ -56,6 +58,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         backend='openai-completions',
         compat=_COMPAT,
         cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'deepseek/deepseek-v4-flash-0731'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),
@@ -73,6 +76,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         backend='openai-completions',
         compat=_COMPAT,
         cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'moonshotai/kimi-k3'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),
@@ -90,6 +94,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         backend='openai-completions',
         compat=_COMPAT,
         cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'z-ai/glm-5.3'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),
@@ -107,6 +112,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         backend='openai-completions',
         compat=_COMPAT,
         cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'inclusionai/ling-3.0-flash'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),
@@ -124,6 +130,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         backend='openai-completions',
         compat=_COMPAT,
         cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'inception/mercury-2.5'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),

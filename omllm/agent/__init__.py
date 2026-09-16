@@ -165,6 +165,17 @@ with _lang.auto_proxy_init(
         LlmContextBuilder,
     )
 
+    from .lifecycle import (  # noqa
+        ContextCompactor,
+
+        ContextTokenEstimator,
+        CharacterContextTokenEstimator,
+
+        ContextLifecycleResult,
+        ContextLifecycleManager,
+        StandardContextLifecycleManager,
+    )
+
     ##
 
     from .permissions.types import (  # noqa
@@ -222,6 +233,18 @@ with _lang.auto_proxy_init(
         Context,
     )
 
+    from .types.context_lifecycle import (  # noqa
+        UsageLedger,
+        ContextLifecycleConfig,
+        ContextBudget,
+
+        ToolResultProjection,
+        ContextProjection,
+
+        ContextReductionReason,
+        ContextReduction,
+    )
+
     from .types.errors import (  # noqa
         Error,
 
@@ -238,6 +261,8 @@ with _lang.auto_proxy_init(
 
         LlmAiStreamEvent,
         LlmRetryEvent,
+        ContextWindowEvent,
+        ContextReductionEvent,
 
         AgentStartEvent,
         AgentEndEvent,

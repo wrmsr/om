@@ -11,6 +11,7 @@ from .options import Options
 
 
 type TokenPricingProvider = ta.Callable[[], TokenPricing | None]
+type ModelLimitsProvider = ta.Callable[[], ModelLimits | None]
 
 
 CacheControlStyle: ta.TypeAlias = ta.Literal[
@@ -68,6 +69,31 @@ class TokenPricing:
     cache_write: float | None = None
 
 
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
+@msh.update_field_options(omit_if=lang.is_none)
+class ModelLimits:
+    """Provider-advertised token limits for a model."""
+
+    context: int
+    output: int
+    input: int | None = None
+
+    def __post_init__(self) -> None:
+        check.arg(self.context > 0)
+        check.arg(self.output > 0)
+        check.arg(self.output <= self.context)
+        check.arg(self.input is None or 0 < self.input <= self.context)
+
+    def input_budget(self, *, output_reserve: int) -> int:
+        """Maximum prompt tokens while retaining `output_reserve` tokens for the response."""
+
+        check.arg(output_reserve >= 0)
+        by_context = max(self.context - output_reserve, 0)
+        return min(by_context, self.input) if self.input is not None else by_context
+
+
 ##
 
 
@@ -113,6 +139,18 @@ class Model:
 
     #
 
+    # Static token limits, or a deferred provider of them. As with pricing, catalog definitions use deferred modeldb
+    # lookups so importing the catalog does not eagerly load the baked database.
+    limits: ModelLimits | ModelLimitsProvider | None = dc.xfield(
+        default=None,
+    ) | msh.dc_field_options(
+        omit_if=lang.is_none,
+        marshal_via=msh.MarshalVia(ModelLimits | None),
+        unmarshal_via=msh.UnmarshalVia(ModelLimits | None),
+    )
+
+    #
+
     # Static pricing, or a deferred provider of it. Resolved once, at backend construction - catalog definitions must
     # never eagerly load pricing data. Reported response costs, where available, take precedence over estimates.
     pricing: TokenPricing | TokenPricingProvider | None = dc.xfield(
@@ -139,3 +177,12 @@ class Model:
     #
 
     default_options: Options | None = None
+
+
+def resolve_model_limits(model: Model) -> ModelLimits | None:
+    """Resolves a model's possibly deferred limits without changing the catalog model."""
+
+    limits = model.limits
+    if callable(limits):
+        limits = limits()
+    return check.isinstance(limits, (ModelLimits, None))

@@ -8,6 +8,7 @@ from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
 from ..manifests import ModelsModuleManifest
+from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
 
 
@@ -28,6 +29,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         cache=CacheCapabilities(
             control_style='google_implicit',
         ),
+        limits=modeldb_model_limits('google', 'gemini-3-flash-preview'),
         pricing=modeldb_token_pricing('google', 'gemini-3-flash-preview'),
         http=Model.Http(
             base_url='https://generativelanguage.googleapis.com/v1beta',

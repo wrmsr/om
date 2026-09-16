@@ -5,6 +5,9 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ... import llm
+from .context_lifecycle import ContextBudget
+from .context_lifecycle import ContextReduction
+from .context_lifecycle import UsageLedger
 from .contexts import Context
 from .messages import Message
 from .progress import ToolProgressUpdate
@@ -43,6 +46,18 @@ class LlmRetryEvent(Event):
     delay_s: float
 
     error: BaseException
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class ContextWindowEvent(Event):
+    context_budget: ContextBudget
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class ContextReductionEvent(Event):
+    reduction: ContextReduction
 
 
 ##
@@ -103,6 +118,9 @@ class TurnStartEvent(TurnEvent):
 @dc.dataclass(frozen=True, kw_only=True)
 class TurnEndEvent(TurnEvent):
     message: Message
+
+    usage: UsageLedger = UsageLedger()
+    context_budget: ContextBudget | None = None
 
 
 ##

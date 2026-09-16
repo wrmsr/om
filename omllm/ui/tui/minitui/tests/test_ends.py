@@ -51,6 +51,7 @@ async def test_cancelled_end_shows_no_error():
 
 @pytest.mark.parametrize(('reason', 'note'), [
     (agn.AgentEndReason.LENGTH, 'token limit'),
+    (agn.AgentEndReason.CONTEXT_LENGTH, 'context-window limit'),
     (agn.AgentEndReason.MAX_TURNS, 'turn limit'),
 ])
 @pytest.mark.asyncs('asyncio')

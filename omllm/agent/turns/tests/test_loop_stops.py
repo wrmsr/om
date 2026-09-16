@@ -87,6 +87,14 @@ async def test_length_stop_reason_without_calls():
     assert [type(m) for m in result.new_messages] == [llm.UserMessage, llm.AiMessage]
 
 
+@pytest.mark.asyncs('asyncio')
+async def test_context_length_stop_reason_is_distinct_and_not_retried():
+    result = await _run(scripted_backend(text_message('full', stop_reason='context_length')), [])
+
+    assert result.reason is AgentEndReason.CONTEXT_LENGTH
+    assert [type(m) for m in result.new_messages] == [llm.UserMessage, llm.AiMessage]
+
+
 @pytest.mark.parametrize('stop_reason', ['stop', None, 'tool_use'])
 @pytest.mark.asyncs('asyncio')
 async def test_tool_calls_are_executed_on_presence_not_stop_reason(stop_reason):

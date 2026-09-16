@@ -87,6 +87,7 @@ with _lang.auto_proxy_init(
     )
 
     from .models.modeldb import (  # noqa
+        modeldb_model_limits,
         modeldb_token_pricing,
     )
 
@@ -151,6 +152,7 @@ with _lang.auto_proxy_init(
     from .types.errors import (  # noqa
         Error,
         BackendError,
+        ContextOverflowBackendError,
         TransientBackendError,
     )
 
@@ -174,6 +176,10 @@ with _lang.auto_proxy_init(
 
     from .types.models import (  # noqa
         CacheCapabilities,
+
+        ModelLimitsProvider,
+        ModelLimits,
+        resolve_model_limits,
 
         TokenPricingProvider,
         TokenPricing,

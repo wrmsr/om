@@ -30,6 +30,7 @@ def _truncate(s: str, n: int) -> str:
 # The end reasons which close a turn normally but deserve a word: the model did not finish of its own accord.
 _END_REASON_NOTES: ta.Mapping[agn.AgentEndReason, str] = {
     agn.AgentEndReason.LENGTH: 'output cut off by the token limit',
+    agn.AgentEndReason.CONTEXT_LENGTH: 'model stopped at the context-window limit',
     agn.AgentEndReason.MAX_TURNS: 'turn limit reached',
 }
 
@@ -148,10 +149,37 @@ class AgentEventRenderer:
         elif isinstance(ev, agn.LlmRetryEvent):
             app.display_text(f'retrying in {ev.delay_s:.0f}s: {ev.error!r}', 'status.dim')
 
+        elif isinstance(ev, agn.ContextWindowEvent):
+            lifecycle_budget = ev.context_budget
+            app.set_context_usage(
+                lifecycle_budget.input,
+                lifecycle_budget.input_limit,
+                estimated=lifecycle_budget.is_estimated,
+            )
+
+        elif isinstance(ev, agn.ContextReductionEvent):
+            reduction = ev.reduction
+            app.display_text(
+                'context '
+                f'{reduction.reason.replace("_", " ")}: '
+                f'{MinituiChatApp.Usage.render_int(reduction.before_tokens)} -> '
+                f'{MinituiChatApp.Usage.render_int(reduction.after_tokens)} tokens',
+                'status.dim',
+            )
+
         elif isinstance(ev, agn.TurnEndEvent):
             if isinstance(msg := ev.message, llm.AiMessage):
-                if (tu := msg.token_usage) is not None:
-                    self._app.add_token_usage(tu)
+                budget = ev.context_budget
+                self._app.set_token_usage(
+                    input=ev.usage.uncached_input,
+                    input_cached=ev.usage.cache_read,
+                    input_cache_write=ev.usage.cache_write,
+                    output=ev.usage.visible_output,
+                    reasoning=ev.usage.reasoning,
+                    context_input=budget.input if budget is not None else None,
+                    context_limit=budget.input_limit if budget is not None else None,
+                    context_estimated=budget.is_estimated if budget is not None else False,
+                )
 
                 if self._config.immediate:
                     for c in msg.content:

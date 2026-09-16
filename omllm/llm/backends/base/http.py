@@ -1,5 +1,6 @@
 import contextlib
 import email.utils
+import json
 import time
 import typing as ta
 
@@ -10,6 +11,7 @@ from omcore.secrets import all as sec
 
 from ...types.backends import Backend
 from ...types.errors import BackendError
+from ...types.errors import ContextOverflowBackendError
 from ...types.errors import TransientBackendError
 from ...types.models import Model
 from ...types.models import TokenPricing
@@ -77,6 +79,53 @@ def _describe_http_response(response: http.BaseHttpClientResponse) -> str:
     return ': '.join(parts)
 
 
+_CONTEXT_OVERFLOW_CODES: ta.Final[ta.AbstractSet[str]] = frozenset([
+    'context_length_exceeded',
+    'context_window_exceeded',
+    'max_context_length_exceeded',
+    'prompt_too_long',
+])
+
+_CONTEXT_OVERFLOW_MESSAGE_MARKERS: ta.Final[ta.Sequence[str]] = (
+    'context length exceeded',
+    'context window exceeded',
+    'exceeds the context window',
+    'exceeds the maximum context',
+    'exceeds the maximum number of tokens',
+    'input token count exceeds',
+    'maximum context length',
+    'prompt is too long',
+    'prompt too long',
+    'request too large for model',
+    'too many tokens for model',
+)
+
+
+def _is_context_overflow_response(response: http.BaseHttpClientResponse) -> bool:
+    if not isinstance(response, http.HttpClientResponse) or not response.data:
+        return False
+
+    try:
+        body = json.loads(response.data)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        body = None
+
+    codes: list[str] = []
+    if isinstance(body, dict):
+        error = body.get('error')
+        mappings = [body, error] if isinstance(error, dict) else [body]
+        for mapping in mappings:
+            for key in ('code', 'type', 'status'):
+                if isinstance(value := mapping.get(key), str):
+                    codes.append(value.lower())
+
+    if any(code in _CONTEXT_OVERFLOW_CODES for code in codes):
+        return True
+
+    text = response.data.decode('utf-8', errors='replace').lower()
+    return any(marker in text for marker in _CONTEXT_OVERFLOW_MESSAGE_MARKERS)
+
+
 def raise_for_http_status(response: http.BaseHttpClientResponse) -> ta.NoReturn:
     """
     Raises the backend error for an unsuccessful response: a TransientBackendError for the statuses a caller should
@@ -89,6 +138,9 @@ def raise_for_http_status(response: http.BaseHttpClientResponse) -> ta.NoReturn:
 
     if response.status in TRANSIENT_HTTP_STATUSES:
         raise TransientBackendError(desc, retry_after_s=get_retry_after_s(response)) from cause
+
+    if _is_context_overflow_response(response):
+        raise ContextOverflowBackendError(desc) from cause
 
     raise BackendError(desc) from cause
 

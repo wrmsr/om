@@ -6,6 +6,7 @@ import pytest
 from omcore.http import all as http
 
 from ....types.errors import BackendError
+from ....types.errors import ContextOverflowBackendError
 from ....types.errors import TransientBackendError
 from ..http import parse_retry_after_header
 from ..http import raise_for_http_status
@@ -42,6 +43,28 @@ def test_other_statuses_raise_plain_errors_with_the_body(status):
     assert not isinstance(ei.value, TransientBackendError)
     assert 'no such model' in str(ei.value)
     assert f'HTTP {status}' in str(ei.value)
+
+
+@pytest.mark.parametrize('data', [
+    b'{"error":{"code":"context_length_exceeded","message":"too long"}}',
+    b'{"error":{"type":"invalid_request_error","message":"prompt is too long"}}',
+    (
+        b'{"error":{"status":"INVALID_ARGUMENT",'
+        b'"message":"The input token count (123) exceeds the maximum number of tokens allowed (100)."}}'
+    ),
+    b'{"error":{"message":"request too large for model"}}',
+])
+def test_context_overflow_responses_raise_typed_errors(data):
+    with pytest.raises(ContextOverflowBackendError) as ei:
+        raise_for_http_status(_response(400, data=data))
+
+    assert not isinstance(ei.value, TransientBackendError)
+    assert isinstance(ei.value.__cause__, http.StatusHttpClientError)
+
+
+def test_token_rate_limit_is_not_context_overflow():
+    with pytest.raises(TransientBackendError):
+        raise_for_http_status(_response(429, data=b'{"error":{"message":"too many input tokens per minute"}}'))
 
 
 def test_retry_after_seconds_is_carried():

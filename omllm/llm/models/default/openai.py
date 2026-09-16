@@ -9,6 +9,7 @@ from ...types.models import Model
 from ...types.models import ModelKey
 from ...types.options import CacheRetention
 from ..manifests import ModelsModuleManifest
+from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
 
 
@@ -37,6 +38,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             }),
             key=True,
         ),
+        limits=modeldb_model_limits('openai', 'gpt-5.6-sol'),
         pricing=modeldb_token_pricing('openai', 'gpt-5.6-sol'),
         http=Model.Http(
             base_url=_BASE_URL,
@@ -57,6 +59,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             }),
             key=True,
         ),
+        limits=modeldb_model_limits('openai', 'gpt-5.6-terra'),
         pricing=modeldb_token_pricing('openai', 'gpt-5.6-terra'),
         http=Model.Http(
             base_url=_BASE_URL,
@@ -77,6 +80,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             }),
             key=True,
         ),
+        limits=modeldb_model_limits('openai', 'gpt-5.6-luna'),
         pricing=modeldb_token_pricing('openai', 'gpt-5.6-luna'),
         http=Model.Http(
             base_url=_BASE_URL,
@@ -101,6 +105,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             }),
             key=True,
         ),
+        limits=modeldb_model_limits('openai', 'gpt-5.4-nano'),
         pricing=modeldb_token_pricing('openai', 'gpt-5.4-nano'),
         http=Model.Http(
             base_url=_BASE_URL,

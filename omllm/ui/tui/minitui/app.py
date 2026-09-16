@@ -17,7 +17,6 @@ from omcore import lang
 from omcore.text import highlights as hl
 from omdev import minitui as mt
 
-from .... import llm
 from ....core import ui
 
 
@@ -246,6 +245,8 @@ class MinituiChatApp(mt.App):
         self._cancelling = False
 
         self._commands: ta.Sequence[tuple[str, str]] = ()
+
+        self._usage = self.Usage()
 
         # The submit hook - `main` points this at the session prompt pump.
         self.on_submit: ta.Callable[[str], None] | None = None
@@ -842,56 +843,109 @@ class MinituiChatApp(mt.App):
     class Usage:
         input: int = 0
         input_cached: int = 0
+        input_cache_write: int = 0
         output: int = 0
         reasoning: int = 0
+
+        context_input: int | None = None
+        context_limit: int | None = None
+        context_estimated: bool = False
 
         #
 
         _SUFFIXES: ta.ClassVar = (
-            (1_000_000_000_000_000, 'q'),
-            (1_000_000_000_000, 't'),
-            (1_000_000_000, 'b'),
-            (1_000_000, 'm'),
+            (1, ''),
             (1_000, 'k'),
+            (1_000_000, 'm'),
+            (1_000_000_000, 'b'),
+            (1_000_000_000_000, 't'),
+            (1_000_000_000_000_000, 'q'),
         )
 
         @classmethod
-        def _render_int(cls, n: int) -> str:
+        def render_int(cls, n: int) -> str:
             a = abs(n)
 
-            for scale, suffix in cls._SUFFIXES:
-                if a >= scale:
-                    value = n / scale
-                    digits = len(str(int(abs(value))))
-                    places = max(0, 3 - digits)
+            unit = 0
+            for i, (scale, _) in enumerate(cls._SUFFIXES):
+                if a < scale:
+                    break
+                unit = i
 
-                    s = f'{value:.{places}f}'.rstrip('0').rstrip('.')
-                    return f'{s}{suffix}'
+            while True:
+                scale, suffix = cls._SUFFIXES[unit]
+                value = n / scale
+                digits = len(str(int(abs(value))))
+                places = max(0, 3 - digits)
 
-            return str(n)
+                if abs(round(value, places)) >= 1_000 and unit + 1 < len(cls._SUFFIXES):
+                    unit += 1
+                    continue
 
-        def render(self) -> str:
-            return ' '.join([
-                f'{p}{self._render_int(v)}'
+                s = f'{value:.{places}f}'.rstrip('0').rstrip('.')
+                return f'{s}{suffix}'
+
+        def render_session(self) -> str:
+            parts = [
+                f'{p}{self.render_int(v)}'
                 for p, v in
                 [
                     ('i', self.input),
                     ('c', self.input_cached),
+                    ('w', self.input_cache_write),
                     ('o', self.output),
                     ('r', self.reasoning),
                 ]
                 if v
-            ])
+            ]
+            return f'Σ {" ".join(parts)}' if parts else ''
 
-    _usage = Usage()
+        def render_context(self) -> str:
+            if self.context_input is None or self.context_limit is None:
+                return ''
+            estimate = '~' if self.context_estimated else ''
+            return f'ctx {estimate}{self.render_int(self.context_input)}/{self.render_int(self.context_limit)}'
 
-    def add_token_usage(self, usage: llm.TokenUsage) -> None:
+    def set_token_usage(
+            self,
+            *,
+            input: int,  # noqa
+            input_cached: int,
+            input_cache_write: int,
+            output: int,
+            reasoning: int,
+            context_input: int | None,
+            context_limit: int | None,
+            context_estimated: bool = False,
+    ) -> None:
         self._usage = MinituiChatApp.Usage(
-            input=self._usage.input + max((usage.input or 0) - (usage.cache_read or 0), 0),
-            input_cached=self._usage.input_cached + (usage.cache_read or 0),
-            output=self._usage.output + max((usage.output or 0) - (usage.reasoning or 0), 0),
-            reasoning=self._usage.reasoning + (usage.reasoning or 0),
+            input=input,
+            input_cached=input_cached,
+            input_cache_write=input_cache_write,
+            output=output,
+            reasoning=reasoning,
+            context_input=context_input,
+            context_limit=context_limit,
+            context_estimated=context_estimated,
         )
+        self._refresh_status()
+        self._driver.invalidate()
+
+    def set_context_usage(
+            self,
+            input: int | None,  # noqa
+            limit: int | None,
+            *,
+            estimated: bool,
+    ) -> None:
+        self._usage = dc.replace(
+            self._usage,
+            context_input=input,
+            context_limit=limit,
+            context_estimated=estimated,
+        )
+        self._refresh_status()
+        self._driver.invalidate()
 
     def _refresh_status(self) -> None:
         st = self._input.engine.status()
@@ -914,8 +968,12 @@ class MinituiChatApp(mt.App):
             (f'  {st.message}' if st.message else '', 'status.dim'),
         ])
 
+        session_usage = self._usage.render_session()
+        context_usage = self._usage.render_context()
         self._status.set_right([
-            (self._usage.render(), 'status.text'),
+            (session_usage, 'status.text'),
+            ('   ' if session_usage and context_usage else '', 'status.dim'),
+            (context_usage, 'status.text'),
         ])
 
     def _handle_mouse(self, event: mt.MouseEvent) -> None:
