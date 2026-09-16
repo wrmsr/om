@@ -657,3 +657,38 @@ propagate back; click/context-menu on past messages is the next chunk.
   relies on 1049 restoring the cursor (universal; tmux `alternate-screen off` would paint browse onto the main
   screen); the transcript keeps commit-time widths while the terminal reflows scrollback on resize; unbounded by
   default (`Transcript(max_rows=...)` is the knob).
+
+## 2026-09-16 (later): overlay compositing, and q leaves browse mode
+
+Owner: browse mode "feels like less (in a good way)" - so q leaves it too (`AppKey.BROWSE_EXIT` is now esc or q; both
+fall through to the input in the live view). And: build the overlay machinery now, but do not wire it into the llm app
+yet.
+
+- `screens/overlays.py`: the cell splice. `overlay_line(base, top, x, width, fill)` punches an exactly-`width`-column
+  opaque box into a row: `fit_cells` clips the top row (a wide cell running past the end becomes fill) and pads with
+  fill; a base wide cell straddling either box edge is replaced by spaces in its own style over its exposed columns
+  (a cell cannot be half-covered); a base shorter than x is padded plain. `overlay_lines` does rows, dropping rows
+  that fall outside.
+- `controls/overlays.py`: `Overlay(control, x, y, width, fill=, max_height=)` and `place_overlays`: render the control
+  at min(width, frame width), clip to max_height, grow the frame's lines toward the height budget when the box needs
+  rows the stack did not produce (the live region grows under a popup; a fullscreen frame is already full), then
+  clamp the box into the frame (near an edge it slides rather than clips - taller than the whole frame shows what
+  fits from its top), composite, and report `OverlayRegion` boxes. An overlay whose control renders no rows lands
+  nowhere.
+- `stacks.py`: `stack_layout(..., overlays=)`, later ones on top; `StackLayout.overlays`; `hit_at(x, y) ->
+  LayoutHit(control, x, y)` checks overlays topmost-first then the stack (`hit(y)` unchanged: stack-only, documented
+  so). A focused overlay control's cursor is offset into its box.
+- `controls/menus.py`: `Menu` / `MenuItem(label, on_select=, disabled=)`: one row per item, ' label ' padded to the
+  box, tags menu.item / menu.selected / menu.disabled (new DEFAULT_THEME entries next to popup.*); `width` is the
+  widest label + 2 (min_width floor) - the natural Overlay width; move wraps over enabled items; enter/space
+  activates (runs on_select, then closes - a menu that did its job goes away); esc/q close; click activates the row.
+  Knows nothing about where it floats.
+- chatdemo demos it: browsing, a click on a message row (`TranscriptView.on_click` -> `ChatMessage` tag) floats a
+  Menu at the click (frame coordinates remembered from the last mouse event; the view's event is local) with 'show
+  raw source of [n]' (runs `/show n` - the commit lands in the transcript and, following, in the browse view) and a
+  disabled info row. Keys go to the menu while it is up; a click elsewhere dismisses it; leaving browse mode closes it.
+  Not in the omllm app yet, by request.
+- Tests: 9 screens splice tests (wide-char edges both sides, top clipping, padding, offsets), 6 layout tests
+  (composite + hits, clamping, growth toward budget, clipping, focus cursor, fill + stacking order), 5 menu tests,
+  a second chatdemo pty test (click -> menu -> enter -> raw source committed -> q -> main screen, menu gone), q in the
+  omllm app (leaves browse; types in the live view). `tests/ptys.py` is the pty harness from the previous entry.

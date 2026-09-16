@@ -34,9 +34,21 @@ with _lang.auto_proxy_init(
 
     from .controls.stacks import (  # noqa
         StackRegion,
+        LayoutHit,
         StackLayout,
         stack_layout,
         stack_frame,
+    )
+
+    from .controls.overlays import (  # noqa
+        Overlay,
+        OverlayRegion,
+        place_overlays,
+    )
+
+    from .controls.menus import (  # noqa
+        MenuItem,
+        Menu,
     )
 
     from .controls.status import (  # noqa
@@ -210,6 +222,12 @@ with _lang.auto_proxy_init(
         diff_lines,
         FrameDiff,
         diff_frames,
+    )
+
+    from .screens.overlays import (  # noqa
+        fit_cells,
+        overlay_line,
+        overlay_lines,
     )
 
     ##

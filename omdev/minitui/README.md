@@ -13,7 +13,7 @@ rendering.
 ## Try it
 
 ```bash
-./python -m omdev.minitui.tests.apps.chatdemo               # streaming markdown chat: tool cards (f10/f2), /help, history, search, f12 browse
+./python -m omdev.minitui.tests.apps.chatdemo               # streaming markdown chat: tool cards (f10/f2), /help, history, search, f12 browse + click menus
 ./python -m omdev.minitui.tests.apps.chatdemo --md=pdcmark  # swap the streaming markdown backend (internal|pdcmark|markdown-it)
 ./python -m omdev.minitui.tests.apps.chatdemo --mouse       # + click-to-expand cards / click suggestions (trades wheel scrollback)
 ./python -m omdev.minitui.tests.apps.inputdemo              # minimal typing-while-streaming proof
@@ -34,7 +34,8 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
   `omcore.term.styled`; width measurement in `omcore.text.widths`; the `Highlighter` protocol with its python, diff,
   and pygments implementations in `omcore.text.highlights`.
 - **screens/** - `Cell`/`Line`/`Frame` and retained-frame diffing: the correctness ground truth. Spurious redraws cost a
-  re-render and an empty diff, never visible output.
+  re-render and an empty diff, never visible output. Also the cell-level overlay splice (`overlay_line`) that
+  floating controls composite through.
 - **surfaces/** - `InlineSurface` (the commit model: relative cursor tracking, `\r\n`-forced scrolling, commit-above
   re-anchoring, CPR origin negotiation; an alt-screen excursion for browse mode, painted by `AltPainter` while the
   terminal keeps the main screen; the origin's terminal row tracked on the side so mouse rows translate to frame rows)
@@ -53,7 +54,9 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
   vim's line number column), status bar, statics, spinner, suggestions popup, markdown tail, lifecycle cards, input
   history, stack layout with mouse hit regions, and the transcript: an app-retained record of committed lines
   tagged with app identity, with a scrolled follow-mode view over it (plus trailing live controls) for browse
-  mode.
+  mode. Overlays float a control over the stacked frame as an opaque box (clamped into the frame, which grows
+  toward its budget as needed; wide characters at the edges handled; point hit-testing topmost-first via
+  `StackLayout.hit_at`) - the `Menu` control is the first floated citizen.
 - **runtime/** - `SyncDriver` (poll + self-pipe) and `AsyncioDriver` (asyncio; `post()` is the sole thread-safe entry).
   Both share the `App` contract: `render(width, max_height) -> Frame` + `handle_event(event)`, with coalescing
   invalidation. Both do job control: ctrl+z / SIGTSTP hands the terminal back clean before the stop, SIGCONT re-enters

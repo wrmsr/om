@@ -116,6 +116,11 @@ DARK_THEME = Theme({
     'popup.selected': st.StylePatch(fg=FOREGROUND, bg=SECONDARY, bold=True),
     'popup.selected.desc': st.StylePatch(fg=TEXT_PRIMARY, bg=SECONDARY),
 
+    # menus (floated through overlays)
+    'menu.item': st.StylePatch(fg=FOREGROUND, bg=SURFACE),
+    'menu.disabled': st.StylePatch(fg=TEXT_SECONDARY, bg=SURFACE, dim=True),
+    'menu.selected': st.StylePatch(fg=FOREGROUND, bg=SECONDARY, bold=True),
+
     # vim decorations
     'vim.selection': st.StylePatch(bg=SECONDARY),
     'vim.cursor': st.StylePatch(reverse=True),

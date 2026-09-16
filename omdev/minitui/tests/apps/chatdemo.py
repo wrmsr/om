@@ -11,8 +11,9 @@ cursor is on the first/last line (vim j/k still work inside multi-line drafts). 
 cycles, enter runs. Ctrl-d quits.
 
 F12 browses: the whole transcript fullscreen on the alt screen (wheel / j k / pgup pgdn / g G), the live tail and
-cards trailing it; f12 or esc comes back to the live region exactly as it was, with whatever streamed meanwhile
-committed on the way.
+cards trailing it; f12, esc, or q comes back to the live region exactly as it was, with whatever streamed meanwhile
+committed on the way. Clicking a message while browsing floats a context menu over it (an `Overlay` of a `Menu`):
+the demo of overlay compositing - '/show n' as a menu action.
 """
 import typing as ta
 
@@ -25,6 +26,9 @@ from ...controls.cards import CardState
 from ...controls.history import InputHistory
 from ...controls.markdown import MarkdownTail
 from ...controls.markdown import get_markdown_stream
+from ...controls.menus import Menu
+from ...controls.menus import MenuItem
+from ...controls.overlays import Overlay
 from ...controls.spinners import Spinner
 from ...controls.stacks import StackLayout
 from ...controls.stacks import stack_layout
@@ -34,11 +38,13 @@ from ...controls.suggestions import SuggestionItem
 from ...controls.suggestions import SuggestionsPopup
 from ...controls.textarea import TextArea
 from ...controls.transcripts import Transcript
+from ...controls.transcripts import TranscriptHit
 from ...controls.transcripts import TranscriptView
 from ...events.keys import Key
 from ...events.types import Event
 from ...events.types import KeyEvent
 from ...events.types import MouseEvent
+from ...events.types import MouseEventKind
 from ...runtime.base import App
 from ...runtime.sync import SyncDriver
 from ...screens.cells import Frame
@@ -160,13 +166,18 @@ class ChatDemoApp(App):
 
         # Browse mode (f12): every commit is also recorded here, tagged with its message when it has one.
         self._transcript = Transcript()
-        self._browse = TranscriptView(self._transcript)
+        self._browse = TranscriptView(self._transcript, on_click=self._on_browse_click)
         self._browse_status = StatusBar(
             left=[('BROWSE', 'status.mode')],
-            right=[('f12/esc back  wheel j/k  pgup/pgdn  g/G', 'status.dim')],
+            right=[('f12/esc/q back  wheel j/k  pgup/pgdn  g/G  click a message', 'status.dim')],
         )
         self._browse_layout: StackLayout | None = None
         self._browsing = False
+
+        # The context menu floated over a clicked message, while one is up.
+        self._menu: Menu | None = None
+        self._menu_overlay: Overlay | None = None
+        self._last_mouse: tuple[int, int] = (0, 0)  # frame coordinates of the last mouse event, to anchor menus
 
         self._commands: ta.Mapping[str, tuple[str, ta.Callable[[str], None]]] = {
             '/help': ('list commands', self._cmd_help),
@@ -481,21 +492,53 @@ class ChatDemoApp(App):
         if browsing == self._browsing:
             return
         self._browsing = browsing
+        self._close_menu()
         if browsing:
             self._browse.scroll_to_bottom()
         self._driver.set_alt_screen(browsing)
 
+    def _on_browse_click(self, hit: TranscriptHit, event: MouseEvent) -> None:
+        if hit.block is None or not isinstance(msg := hit.block.tag, ChatMessage):
+            return
+        x, y = self._last_mouse  # the view's event is local; the menu floats in frame coordinates
+        menu = Menu(
+            [
+                MenuItem(f'show raw source of [{msg.number}]', on_select=lambda: self._cmd_show(str(msg.number))),
+                MenuItem(f'{msg.speaker}, {len(msg.text)} chars', disabled=True),
+                MenuItem('close'),
+            ],
+            on_close=self._close_menu,
+        )
+        self._menu = menu
+        self._menu_overlay = Overlay(menu, x, y, menu.width, fill='menu.item')
+
+    def _close_menu(self) -> None:
+        self._menu = None
+        self._menu_overlay = None
+
     def _handle_browse_event(self, event: Event) -> None:
         if isinstance(event, MouseEvent):
-            if self._browse_layout is not None and (hit := self._browse_layout.hit(event.y)) is not None:
-                control, local_y = hit
-                control.handle_event(dc.replace(event, y=local_y))
+            self._last_mouse = (event.x, event.y)
+            if (layout := self._browse_layout) is None:
+                return
+            hit = layout.hit_at(event.x, event.y)
+            if (menu := self._menu) is not None:
+                # A menu is up: it takes what lands on it; a click anywhere else dismisses it.
+                if hit is not None and hit.control is menu:
+                    menu.handle_event(dc.replace(event, x=hit.x, y=hit.y))
+                elif event.kind is MouseEventKind.DOWN:
+                    self._close_menu()
+            elif hit is not None:
+                hit.control.handle_event(dc.replace(event, x=hit.x, y=hit.y))
             return
 
         if not isinstance(event, KeyEvent):
             return
+        if (menu := self._menu) is not None:
+            menu.handle_event(event)  # navigation, enter, esc/q; anything else waits for the menu to go
+            return
         key = event.key
-        if key in (Key('f12'), Key('escape')):
+        if key in (Key('f12'), Key('escape'), Key('q')):
             self._set_browsing(False)
         elif not self._browse.handle_event(event) and key in (Key('d', ctrl=True), Key('z', ctrl=True), Key('f10'), Key('f2')):  # noqa: E501
             self._handle_app_key(event)  # the global bindings, and answering a warm card, still work fullscreen
@@ -524,6 +567,7 @@ class ChatDemoApp(App):
             width=width,
             max_height=max_height,
             theme=CHAT_THEME,
+            overlays=[self._menu_overlay] if self._menu_overlay is not None else (),
         )
         return self._browse_layout.frame
 

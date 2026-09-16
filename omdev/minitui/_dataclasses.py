@@ -27,28 +27,580 @@ def _register(**kwargs):
 
 @_register(
     plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('frame', 'regions')), EqPlan(fields=('frame', 'regions')), FrozenPlan(fields=('fra"
-        "me', 'regions'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('frame', 'regions'), cache="
-        "False), InitPlan(fields=(InitPlan.Field(name='frame', annotation=OpRef(name='init.fields.0.annotation'), defau"
-        "lt=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate"
-        "=None, check_type=None), InitPlan.Field(name='regions', annotation=OpRef(name='init.fields.1.annotation'), def"
-        "ault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
-        "te=None, check_type=None)), self_param='self', std_params=('frame', 'regions'), kw_only_params=(), frozen=True"
-        ", slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='fra"
-        "me', kw_only=False, fn=None), ReprPlan.Field(name='regions', kw_only=False, fn=None)), id=False, terse=False, "
-        "default_fn=None)))"
+        "Plans(tup=(CopyPlan(fields=('label', 'on_select', 'disabled')), EqPlan(fields=('label', 'on_select', 'disabled"
+        "')), FrozenPlan(fields=('label', 'on_select', 'disabled'), allow_dynamic_dunder_attrs=False), HashPlan(action="
+        "'add', fields=('label', 'on_select', 'disabled'), cache=False), InitPlan(fields=(InitPlan.Field(name='label', "
+        "annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=Fal"
+        "se, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='on_selec"
+        "t', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_fa"
+        "ctory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=N"
+        "one), InitPlan.Field(name='disabled', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='i"
+        "nit.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
+        "=None, validate=None, check_type=None)), self_param='self', std_params=('label',), kw_only_params=('on_select'"
+        ", 'disabled'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields"
+        "=(ReprPlan.Field(name='label', kw_only=False, fn=None), ReprPlan.Field(name='on_select', kw_only=True, fn=None"
+        "), ReprPlan.Field(name='disabled', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='3cfc026f307312ed7e797ee0dee1ad3d391b54f8',
+    plan_repr_sha1='2f0c57e847c2fd47f32702f5e539ce79375ad996',
     cls_names=(
-        ('omdev.minitui.controls.stacks', 'StackLayout'),
+        ('omdev.minitui.controls.menus', 'MenuItem'),
     ),
 )
-def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
+def _process_dataclass__2f0c57e847c2fd47f32702f5e539ce79375ad996():
     def _process_dataclass(
         *,
         __class__,
         __dataclass__init__fields__0__annotation,
         __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                label=self.label,
+                on_select=self.on_select,
+                disabled=self.disabled,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.label == other.label and
+                self.on_select == other.on_select and
+                self.disabled == other.disabled
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'label',
+            'on_select',
+            'disabled',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.label,
+                self.on_select,
+                self.disabled,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            label: __dataclass__init__fields__0__annotation,
+            *,
+            on_select: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            disabled: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'label', label)
+            __dataclass__object_setattr(self, 'on_select', on_select)
+            __dataclass__object_setattr(self, 'disabled', disabled)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"label={self.label!r}")
+            parts.append(f"on_select={self.on_select!r}")
+            parts.append(f"disabled={self.disabled!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('control', 'x', 'y', 'width', 'fill', 'max_height')), EqPlan(fields=('control', 'x"
+        "', 'y', 'width', 'fill', 'max_height')), FrozenPlan(fields=('control', 'x', 'y', 'width', 'fill', 'max_height'"
+        "), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('control', 'x', 'y', 'width', 'fill', 'ma"
+        "x_height'), cache=False), InitPlan(fields=(InitPlan.Field(name='control', annotation=OpRef(name='init.fields.0"
+        ".annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, c"
+        "oerce=None, validate=None, check_type=None), InitPlan.Field(name='x', annotation=OpRef(name='init.fields.1.ann"
+        "otation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
+        "e=None, validate=None, check_type=None), InitPlan.Field(name='y', annotation=OpRef(name='init.fields.2.annotat"
+        "ion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
+        "ne, validate=None, check_type=None), InitPlan.Field(name='width', annotation=OpRef(name='init.fields.3.annotat"
+        "ion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
+        "ne, validate=None, check_type=None), InitPlan.Field(name='fill', annotation=OpRef(name='init.fields.4.annotati"
+        "on'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_type"
+        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_height', annotatio"
+        "n=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factory=None, i"
+        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_p"
+        "aram='self', std_params=('control', 'x', 'y', 'width'), kw_only_params=('fill', 'max_height'), frozen=True, sl"
+        "ots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='control"
+        "', kw_only=False, fn=None), ReprPlan.Field(name='x', kw_only=False, fn=None), ReprPlan.Field(name='y', kw_only"
+        "=False, fn=None), ReprPlan.Field(name='width', kw_only=False, fn=None), ReprPlan.Field(name='fill', kw_only=Tr"
+        "ue, fn=None), ReprPlan.Field(name='max_height', kw_only=True, fn=None)), id=False, terse=False, default_fn=Non"
+        "e)))"
+    ),
+    plan_repr_sha1='a46884269cae12e6c5d62064c28e8d76bc91c0f8',
+    cls_names=(
+        ('omdev.minitui.controls.overlays', 'Overlay'),
+    ),
+)
+def _process_dataclass__a46884269cae12e6c5d62064c28e8d76bc91c0f8():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__init__fields__5__annotation,
+        __dataclass__init__fields__5__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                control=self.control,
+                x=self.x,
+                y=self.y,
+                width=self.width,
+                fill=self.fill,
+                max_height=self.max_height,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.control == other.control and
+                self.x == other.x and
+                self.y == other.y and
+                self.width == other.width and
+                self.fill == other.fill and
+                self.max_height == other.max_height
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'control',
+            'x',
+            'y',
+            'width',
+            'fill',
+            'max_height',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.control,
+                self.x,
+                self.y,
+                self.width,
+                self.fill,
+                self.max_height,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            control: __dataclass__init__fields__0__annotation,
+            x: __dataclass__init__fields__1__annotation,
+            y: __dataclass__init__fields__2__annotation,
+            width: __dataclass__init__fields__3__annotation,
+            *,
+            fill: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            max_height: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'control', control)
+            __dataclass__object_setattr(self, 'x', x)
+            __dataclass__object_setattr(self, 'y', y)
+            __dataclass__object_setattr(self, 'width', width)
+            __dataclass__object_setattr(self, 'fill', fill)
+            __dataclass__object_setattr(self, 'max_height', max_height)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"control={self.control!r}")
+            parts.append(f"x={self.x!r}")
+            parts.append(f"y={self.y!r}")
+            parts.append(f"width={self.width!r}")
+            parts.append(f"fill={self.fill!r}")
+            parts.append(f"max_height={self.max_height!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('overlay', 'x', 'y', 'width', 'height')), EqPlan(fields=('overlay', 'x', 'y', 'wid"
+        "th', 'height')), FrozenPlan(fields=('overlay', 'x', 'y', 'width', 'height'), allow_dynamic_dunder_attrs=False)"
+        ", HashPlan(action='add', fields=('overlay', 'x', 'y', 'width', 'height'), cache=False), InitPlan(fields=(InitP"
+        "lan.Field(name='overlay', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=Non"
+        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Ini"
+        "tPlan.Field(name='x', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, i"
+        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
+        "n.Field(name='y', annotation=OpRef(name='init.fields.2.annotation'), default=None, default_factory=None, init="
+        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fi"
+        "eld(name='width', annotation=OpRef(name='init.fields.3.annotation'), default=None, default_factory=None, init="
+        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fi"
+        "eld(name='height', annotation=OpRef(name='init.fields.4.annotation'), default=None, default_factory=None, init"
+        "=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_para"
+        "m='self', std_params=('overlay', 'x', 'y', 'width', 'height'), kw_only_params=(), frozen=True, slots=False, po"
+        "st_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='overlay', kw_only=Fa"
+        "lse, fn=None), ReprPlan.Field(name='x', kw_only=False, fn=None), ReprPlan.Field(name='y', kw_only=False, fn=No"
+        "ne), ReprPlan.Field(name='width', kw_only=False, fn=None), ReprPlan.Field(name='height', kw_only=False, fn=Non"
+        "e)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='f0ff3f63bd99e738643ea0ed0f46b3febb12e056',
+    cls_names=(
+        ('omdev.minitui.controls.overlays', 'OverlayRegion'),
+    ),
+)
+def _process_dataclass__f0ff3f63bd99e738643ea0ed0f46b3febb12e056():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                overlay=self.overlay,
+                x=self.x,
+                y=self.y,
+                width=self.width,
+                height=self.height,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.overlay == other.overlay and
+                self.x == other.x and
+                self.y == other.y and
+                self.width == other.width and
+                self.height == other.height
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'overlay',
+            'x',
+            'y',
+            'width',
+            'height',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.overlay,
+                self.x,
+                self.y,
+                self.width,
+                self.height,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            overlay: __dataclass__init__fields__0__annotation,
+            x: __dataclass__init__fields__1__annotation,
+            y: __dataclass__init__fields__2__annotation,
+            width: __dataclass__init__fields__3__annotation,
+            height: __dataclass__init__fields__4__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'overlay', overlay)
+            __dataclass__object_setattr(self, 'x', x)
+            __dataclass__object_setattr(self, 'y', y)
+            __dataclass__object_setattr(self, 'width', width)
+            __dataclass__object_setattr(self, 'height', height)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"overlay={self.overlay!r}")
+            parts.append(f"x={self.x!r}")
+            parts.append(f"y={self.y!r}")
+            parts.append(f"width={self.width!r}")
+            parts.append(f"height={self.height!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('control', 'x', 'y')), EqPlan(fields=('control', 'x', 'y')), FrozenPlan(fields=('c"
+        "ontrol', 'x', 'y'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('control', 'x', 'y'), ca"
+        "che=False), InitPlan(fields=(InitPlan.Field(name='control', annotation=OpRef(name='init.fields.0.annotation'),"
+        " default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, va"
+        "lidate=None, check_type=None), InitPlan.Field(name='x', annotation=OpRef(name='init.fields.1.annotation'), def"
+        "ault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
+        "te=None, check_type=None), InitPlan.Field(name='y', annotation=OpRef(name='init.fields.2.annotation'), default"
+        "=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
+        "one, check_type=None)), self_param='self', std_params=('control', 'x', 'y'), kw_only_params=(), frozen=True, s"
+        "lots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='contro"
+        "l', kw_only=False, fn=None), ReprPlan.Field(name='x', kw_only=False, fn=None), ReprPlan.Field(name='y', kw_onl"
+        "y=False, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='9bfb7290b4f6cf571c70ceebbc172d882034d45c',
+    cls_names=(
+        ('omdev.minitui.controls.stacks', 'LayoutHit'),
+    ),
+)
+def _process_dataclass__9bfb7290b4f6cf571c70ceebbc172d882034d45c():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                control=self.control,
+                x=self.x,
+                y=self.y,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.control == other.control and
+                self.x == other.x and
+                self.y == other.y
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'control',
+            'x',
+            'y',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.control,
+                self.x,
+                self.y,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            control: __dataclass__init__fields__0__annotation,
+            x: __dataclass__init__fields__1__annotation,
+            y: __dataclass__init__fields__2__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'control', control)
+            __dataclass__object_setattr(self, 'x', x)
+            __dataclass__object_setattr(self, 'y', y)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"control={self.control!r}")
+            parts.append(f"x={self.x!r}")
+            parts.append(f"y={self.y!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('frame', 'regions', 'overlays')), EqPlan(fields=('frame', 'regions', 'overlays')),"
+        " FrozenPlan(fields=('frame', 'regions', 'overlays'), allow_dynamic_dunder_attrs=False), HashPlan(action='add',"
+        " fields=('frame', 'regions', 'overlays'), cache=False), InitPlan(fields=(InitPlan.Field(name='frame', annotati"
+        "on=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, fiel"
+        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='regions', annota"
+        "tion=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, fi"
+        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='overlays', ann"
+        "otation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=N"
+        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), "
+        "self_param='self', std_params=('frame', 'regions', 'overlays'), kw_only_params=(), frozen=True, slots=False, p"
+        "ost_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='frame', kw_only=Fal"
+        "se, fn=None), ReprPlan.Field(name='regions', kw_only=False, fn=None), ReprPlan.Field(name='overlays', kw_only="
+        "False, fn=None)), id=False, terse=False, default_fn=None)))"
+    ),
+    plan_repr_sha1='680ab1fd8e1bc03a0327b64168aa6250bc6cdf29',
+    cls_names=(
+        ('omdev.minitui.controls.stacks', 'StackLayout'),
+    ),
+)
+def _process_dataclass__680ab1fd8e1bc03a0327b64168aa6250bc6cdf29():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -61,6 +613,7 @@ def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
             return __class__(  # noqa
                 frame=self.frame,
                 regions=self.regions,
+                overlays=self.overlays,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -72,7 +625,8 @@ def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
                 return NotImplemented
             return (
                 self.frame == other.frame and
-                self.regions == other.regions
+                self.regions == other.regions and
+                self.overlays == other.overlays
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -80,6 +634,7 @@ def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
         __dataclass___frozen_fields = {
             'frame',
             'regions',
+            'overlays',
         }
 
         def __setattr__(self, name, value):
@@ -106,6 +661,7 @@ def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
             return hash((
                 self.frame,
                 self.regions,
+                self.overlays,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -114,9 +670,11 @@ def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
             self,
             frame: __dataclass__init__fields__0__annotation,
             regions: __dataclass__init__fields__1__annotation,
+            overlays: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'frame', frame)
             __dataclass__object_setattr(self, 'regions', regions)
+            __dataclass__object_setattr(self, 'overlays', overlays)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -125,6 +683,7 @@ def _process_dataclass__3cfc026f307312ed7e797ee0dee1ad3d391b54f8():
             parts = []
             parts.append(f"frame={self.frame!r}")
             parts.append(f"regions={self.regions!r}")
+            parts.append(f"overlays={self.overlays!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

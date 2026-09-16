@@ -155,6 +155,17 @@ def test_browse_passes_global_keys_but_not_input_keys():
     assert driver.stopped
 
 
+def test_q_leaves_browse_but_types_in_live_mode():
+    app, driver = make_app()
+    press(app, 'f12')
+    browsing = app.is_browsing
+    press(app, 'q')
+    assert (browsing, app.is_browsing, driver.alt_screen) == (True, False, False)
+
+    type_text(app, 'q')
+    assert frame_lines(app)[0] == '1 q'
+
+
 def test_escape_in_live_mode_is_vims():
     app, driver = make_app()
     type_text(app, 'abc')

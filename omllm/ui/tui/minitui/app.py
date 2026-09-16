@@ -103,7 +103,7 @@ class _BrowseStatus(mt.Control):
 
         self._view = view
         self._bar = mt.StatusBar(
-            right=[('f12/esc live  wheel j/k  pgup/pgdn  g/G', 'status.dim')],
+            right=[('f12/esc/q live  wheel j/k  pgup/pgdn  g/G', 'status.dim')],
         )
 
     def render(self, width: int) -> ta.Sequence[ta.Sequence[mt.Segment]]:
@@ -155,10 +155,10 @@ APP_KEY_MAP: ta.Final[ta.Mapping[AppKey, mt.Key | ta.Sequence[mt.Key]]] = {
     AppKey.HISTORY_PREV: (mt.Key('p', ctrl=True), mt.Key('up')),
     AppKey.HISTORY_NEXT: (mt.Key('n', ctrl=True), mt.Key('down')),
 
-    # Fullscreen browsing of the transcript. Toggling is global; escape leaves it only while browsing - in the live view
-    # it is vim's, and falls through to the input.
+    # Fullscreen browsing of the transcript. Toggling is global; escape and q leave it only while browsing - in the live
+    # view escape is vim's and q is a letter, and both fall through to the input.
     AppKey.BROWSE_TOGGLE: mt.Key('f12'),
-    AppKey.BROWSE_EXIT: mt.Key('escape'),
+    AppKey.BROWSE_EXIT: (mt.Key('escape'), mt.Key('q')),
 }
 
 # The app keys that keep working while browsing: everything about the turn and its cards, nothing about the input.

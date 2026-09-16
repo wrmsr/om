@@ -47,3 +47,41 @@ def test_chatdemo_f12_round_trip():
     lines = term.all_lines()
     assert any(line.startswith('ai') for line in lines)  # history is real scrollback, browse mode or not
     assert not any(line.startswith('BROWSE') for line in lines)  # nothing drawn fullscreen survives
+
+
+def test_chatdemo_browse_menu_over_a_message():
+    # Browsing, a click on the first response's header floats its context menu; enter runs '/show 1', whose raw source
+    # lands in the transcript (and the browse view, still following); q closes browse mode, and nothing fullscreen -
+    # the menu included - survives on the main screen.
+    run = PtyRun([sys.executable, '-m', 'omdev.minitui.tests.apps.chatdemo'], cwd=_REPO_ROOT)
+    try:
+        run.read_until(b'\x1b[?2004h', timeout_s=30.)
+        run.read_until(b'ai')
+        run.send(F12)
+        run.read_until(b'BROWSE')
+
+        term = Vt100Terminal(rows=24, cols=80)
+        term.feed(bytes(run.output))
+        assert term.in_alt_screen
+        row = next(i for i, line in enumerate(term.screen_lines()) if line.startswith('ai'))
+        run.send(f'\x1b[<0;1;{row + 1}M'.encode())  # SGR press, 1-based column 1 on that row
+        run.read_until(b'show raw source of [1]')
+
+        run.send(b'\r')
+        run.read_until(b'(raw source)')
+
+        run.send(b'q')
+        run.read_until(ALT_OFF)
+        run.send(b'\x04')
+        rc = run.finish()
+    except BaseException:
+        run.kill()
+        raise
+
+    assert rc == 0
+    term = Vt100Terminal(rows=24, cols=80)
+    term.feed(bytes(run.output))
+    assert not term.in_alt_screen
+    lines = term.all_lines()
+    assert any('(raw source)' in line for line in lines)  # the menu's action committed for real
+    assert not any('show raw source' in line for line in lines)  # the menu itself was fullscreen-only
