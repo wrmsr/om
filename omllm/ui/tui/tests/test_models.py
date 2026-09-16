@@ -3,8 +3,8 @@ import typing as ta
 from omcore import lang
 
 from .... import llm
-from ..models import ALL_MODELS
-from ..models import models_by_name
+from ...models import ALL_MODELS
+from ...models import models_by_name
 
 
 _CHECKED_PLATFORMS: ta.Final[lang.SequenceNotStr[str]] = [

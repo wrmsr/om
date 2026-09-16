@@ -26,6 +26,9 @@ _DEFAULT_HTTP = Model.Http(
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
+    ##
+    # qwen
+
     Model(
         key=ModelKey(
             provider='ollama',

@@ -39,7 +39,7 @@ CompletionRequest: ta.TypeAlias = Request[str, CompletionOptions]
 
 CompletionResponse: ta.TypeAlias = Response[str, CompletionOutputs]
 
-# @om-manifest $.minichain.registries.manifests.RegistryTypeManifest
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryTypeManifest
 CompletionService: ta.TypeAlias = Service[CompletionRequest, CompletionResponse]
 
 register_type(CompletionService, module=__name__)

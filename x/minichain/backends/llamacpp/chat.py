@@ -34,7 +34,7 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
-# @om-manifest $.minichain.specs.manifests.BackendStringsManifest(
+# DISABLED @om-manifest $.minichain.specs.manifests.BackendStringsManifest(
 #     ['ChatChoicesService'],
 #     'llamacpp',
 # )
@@ -43,7 +43,7 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='llamacpp',
 #     type='ChatChoicesService',
 # )

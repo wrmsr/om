@@ -28,7 +28,7 @@ from .protocol import ResponsesSseDeltaTranslator
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='openai-responses',
 #     type='ChatChoicesStreamService',
 # )

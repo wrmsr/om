@@ -51,7 +51,7 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
-# @om-manifest $.minichain.specs.manifests.BackendStringsManifest(
+# DISABLED @om-manifest $.minichain.specs.manifests.BackendStringsManifest(
 #     ['ChatChoicesService', 'ChatChoicesStreamService'],
 #     'transformers',
 # )
@@ -67,7 +67,7 @@ class TransformersPipelineKwargs(Config, tv.ScalarTypedValue[ta.Mapping[str, ta.
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='transformers',
 #     aliases=['tfm'],
 #     type='CompletionService',
@@ -198,7 +198,7 @@ class BaseTransformersChatChoicesService(lang.ExitStacked):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='transformers',
 #     aliases=['tfm'],
 #     type='ChatChoicesService',
@@ -228,7 +228,7 @@ class TransformersChatChoicesService(BaseTransformersChatChoicesService):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='transformers',
 #     type='ChatChoicesStreamService',
 # )

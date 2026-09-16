@@ -26,7 +26,7 @@ class GroqChatChoicesServiceBase(OpenaiCompatChatChoicesServiceBase):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='groq',
 #     type='ChatChoicesService',
 # )

@@ -14,7 +14,7 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='duckduckgo',
 #     aliases=['ddg'],
 #     type='SearchService',

@@ -30,6 +30,9 @@ _COMPAT = OpenaiCompletionsCompat(
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
+    ##
+    # deepseek
+
     Model(
         key=ModelKey(
             provider='openrouter',
@@ -58,7 +61,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
     ),
 
-    #
+    ##
+    # kimi
 
     Model(
         key=ModelKey(
@@ -74,7 +78,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
     ),
 
-    #
+    ##
+    # glm
 
     Model(
         key=ModelKey(
@@ -90,7 +95,25 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
     ),
 
-    #
+    ##
+    # ling
+
+    Model(
+        key=ModelKey(
+            provider='openrouter',
+            id='inclusionai/ling-3.0-flash',
+        ),
+        name='Ling 3.0 Flash',
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    ##
+    # mercury
 
     Model(
         key=ModelKey(

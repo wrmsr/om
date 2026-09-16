@@ -46,7 +46,7 @@ MODEL_NAMES = ModelNameCollection(
 )
 
 
-# @om-manifest
+# DISABLED @om-manifest
 _BACKEND_STRINGS_MANIFEST = BackendStringsManifest(
     [
         'ChatChoicesService',

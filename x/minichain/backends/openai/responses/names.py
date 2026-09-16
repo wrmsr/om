@@ -10,7 +10,7 @@ from ....specs.manifests import BackendStringsManifest
 ##
 
 
-# @om-manifest
+# DISABLED @om-manifest
 _RESPONSES_BACKEND_STRINGS_MANIFEST = BackendStringsManifest(
     [
         'ChatChoicesService',

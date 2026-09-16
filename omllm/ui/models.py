@@ -5,7 +5,7 @@ from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ... import llm
+from .. import llm
 
 
 ##
@@ -71,7 +71,7 @@ ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
     # google
 
     Model(
-        name='google-flash',
+        name='gemini-flash',
         aliases=['google'],
         key=llm.ModelKey('google', 'gemini-3-flash-preview'),
         api_key_name='gemini_api_key',
@@ -156,6 +156,12 @@ ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         name='glm',
         key=llm.ModelKey('openrouter', 'z-ai/glm-5.3'),
+        api_key_name='openrouter_api_key',
+    ),
+
+    Model(
+        name='ling',
+        key=llm.ModelKey('openrouter', 'inclusionai/ling-3.0-flash'),
         api_key_name='openrouter_api_key',
     ),
 

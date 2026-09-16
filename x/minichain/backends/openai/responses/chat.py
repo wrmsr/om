@@ -73,7 +73,7 @@ class OpenaiResponsesServiceBase(OpenaiCompatChatChoicesServiceBase, lang.Abstra
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='openai-responses',
 #     type='ChatChoicesService',
 # )

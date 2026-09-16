@@ -78,7 +78,7 @@ CHAT_MODEL_NAMES = ModelNameCollection(
 )
 
 
-# @om-manifest
+# DISABLED @om-manifest
 _CHAT_BACKEND_STRINGS_MANIFEST = BackendStringsManifest(
     [
         'ChatChoicesService',
@@ -92,7 +92,7 @@ _CHAT_BACKEND_STRINGS_MANIFEST = BackendStringsManifest(
 ##
 
 
-# @om-manifest
+# DISABLED @om-manifest
 _COMPLETION_BACKEND_STRINGS_MANIFEST = BackendStringsManifest(
     [
         'CompletionService',
@@ -104,7 +104,7 @@ _COMPLETION_BACKEND_STRINGS_MANIFEST = BackendStringsManifest(
 ##
 
 
-# @om-manifest
+# DISABLED @om-manifest
 _EMBEDDING_BACKEND_STRINGS_MANIFEST = BackendStringsManifest(
     [
         'EmbeddingService',

@@ -6,7 +6,7 @@ from .chat import GroqChatChoicesServiceBase
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='groq',
 #     type='ChatChoicesStreamService',
 # )

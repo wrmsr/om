@@ -81,7 +81,7 @@ class BaseGoogleChatChoicesService(lang.Abstract):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='google',
 #     type='ChatChoicesService',
 # )

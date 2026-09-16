@@ -6,7 +6,7 @@ from .compat import OpenaiCompatChatChoicesStreamService
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='openai',
 #     type='ChatChoicesStreamService',
 # )

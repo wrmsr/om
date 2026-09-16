@@ -25,7 +25,7 @@ class TooManyRequestsMistralError(Exception):
     pass
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='mistral',
 #     type='ChatChoicesService',
 # )

@@ -32,7 +32,7 @@ from .protocol import AnthropicSseDeltaTranslator
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='anthropic',
 #     type='ChatChoicesStreamService',
 # )

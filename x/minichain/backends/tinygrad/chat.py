@@ -121,7 +121,7 @@ class BaseTinygradLlama3ChatService(lang.ExitStacked, lang.Abstract):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='tinygrad-llama3',
 #     type='ChatChoicesService',
 # )
@@ -141,7 +141,7 @@ class TinygradLlama3ChatChoicesService(BaseTinygradLlama3ChatService):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='tinygrad-llama3',
 #     type='ChatChoicesStreamService',
 # )
@@ -198,7 +198,7 @@ class TinygradLlama3ChatChoicesStreamService(BaseTinygradLlama3ChatService):
 ##
 
 
-# @om-manifest $.minichain.specs.manifests.BackendStringsManifest(
+# DISABLED @om-manifest $.minichain.specs.manifests.BackendStringsManifest(
 #     [
 #         'ChatChoicesService',
 #         'ChatChoicesStreamService',

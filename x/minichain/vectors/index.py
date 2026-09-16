@@ -48,7 +48,7 @@ VectorIndexRequest: ta.TypeAlias = Request[VectorIndexed, VectorIndexOptions]
 
 VectorIndexResponse: ta.TypeAlias = Response[None, VectorIndexOutputs]
 
-# @om-manifest $.minichain.registries.manifests.RegistryTypeManifest
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryTypeManifest
 VectorIndexService: ta.TypeAlias = Service[VectorIndexRequest, VectorIndexResponse]
 
 register_type(VectorIndexService, module=__name__)

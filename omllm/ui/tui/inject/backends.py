@@ -7,9 +7,9 @@ from omdev.home.secrets import load_secrets
 from .... import agent as agn
 from .... import llm
 from ....core import registry as reg
+from ...models import DEFAULT_MODEL_NAME
+from ...models import models_by_name
 from ..config import Config
-from ..models import DEFAULT_MODEL_NAME
-from ..models import models_by_name
 
 
 ##

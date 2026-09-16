@@ -27,6 +27,7 @@ _DEFAULT_HTTP = Model.Http(
 
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
+
     Model(
         key=ModelKey(
             provider='anthropic',
@@ -110,6 +111,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             max_tokens=64000,
         ),
     ),
+
 ]
 
 

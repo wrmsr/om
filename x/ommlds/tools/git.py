@@ -194,7 +194,7 @@ class McServerGitAiBackend(GitAiBackend['McServerGitAiBackend.Config']):
 ##
 
 
-# @om-manifest omdev.tools.git.messages.GitMessageGeneratorManifest(name='ai')
+# DISABLED @om-manifest omdev.tools.git.messages.GitMessageGeneratorManifest(name='ai')
 class AiGitMessageGenerator(GitMessageGenerator):
     def __init__(
             self,

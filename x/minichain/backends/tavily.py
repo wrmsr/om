@@ -16,7 +16,7 @@ from ..standard import ApiKey
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='tavily',
 #     type='SearchService',
 # )

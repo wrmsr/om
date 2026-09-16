@@ -4,7 +4,7 @@ import os.path
 from omcore.logs import all as logs
 from omdev.home.paths import get_home_paths
 
-from ..types import UiId
+from .types import UiId
 
 
 ##

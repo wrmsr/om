@@ -13,7 +13,7 @@ ModuleConfigT = ta.TypeVar('ModuleConfigT', bound=ModuleConfig)
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryTypeManifest
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryTypeManifest
 @dc.dataclass(frozen=True, kw_only=True)
 class ModuleDescriptor(ta.Generic[ModuleConfigT]):
     name: str

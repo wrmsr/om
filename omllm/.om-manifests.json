@@ -367,7 +367,7 @@
     "module": ".llm.models.default.anthropic",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/anthropic.py",
-    "line": 116,
+    "line": 118,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -463,7 +463,7 @@
     "module": ".llm.models.default.ollama",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/ollama.py",
-    "line": 65,
+    "line": 68,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -493,7 +493,7 @@
     "module": ".llm.models.default.openai",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/openai.py",
-    "line": 109,
+    "line": 113,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -529,7 +529,7 @@
     "module": ".llm.models.default.openrouter",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/openrouter.py",
-    "line": 112,
+    "line": 135,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -555,6 +555,12 @@
             "provider": "openrouter",
             "id": "z-ai/glm-5.3",
             "name": "GLM 5.3",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "openrouter",
+            "id": "inclusionai/ling-3.0-flash",
+            "name": "Ling 3.0 Flash",
             "backend": "openai-completions"
           },
           {

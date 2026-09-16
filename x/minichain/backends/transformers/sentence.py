@@ -19,7 +19,7 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='sentence_transformers',
 #     aliases=['stfm'],
 #     type='EmbeddingService',

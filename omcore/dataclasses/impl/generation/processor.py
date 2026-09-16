@@ -232,7 +232,7 @@ class GeneratorProcessor(Processor):
             return False
 
         cg_mod = sys.modules[cg_mod_spec]
-        cg_fn_reg = cg_mod.REGISTRY
+        cg_fn_reg = cg_mod.REGISTRY_BY_PLAN_REPR
 
         #
 

@@ -31,7 +31,7 @@ from .protocol import build_mc_ai_choices_deltas
 ##
 
 
-# @om-manifest $.minichain.registries.manifests.RegistryManifest(
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryManifest(
 #     name='google',
 #     type='ChatChoicesStreamService',
 # )

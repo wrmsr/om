@@ -20,10 +20,10 @@ from omdev import minitui as mt
 from .... import agent as agn
 from .... import harness as har
 from ....core import processes
+from ...logs import configure_tui_logging
 from ...types import UiId
 from ..config import Config
 from ..inject import AgentEventSubscribers
-from ..logs import configure_tui_logging
 from .app import MinituiChatApp
 from .inject import bind_minitui
 from .promptpump import PromptPump

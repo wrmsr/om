@@ -20,6 +20,9 @@ _BASE_URL = 'https://api.openai.com/v1'
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
+    ##
+    # 5.6
+
     Model(
         key=ModelKey(
             provider='openai',
@@ -80,7 +83,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
     ),
 
-    #
+    ##
+    # 5.4
 
     Model(
         key=ModelKey(

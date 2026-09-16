@@ -56,7 +56,7 @@ SearchRequest: ta.TypeAlias = Request[str, SearchOptions]
 
 SearchResponse: ta.TypeAlias = Response[SearchHits, SearchOutputs]
 
-# @om-manifest $.minichain.registries.manifests.RegistryTypeManifest
+# DISABLED @om-manifest $.minichain.registries.manifests.RegistryTypeManifest
 SearchService: ta.TypeAlias = Service[SearchRequest, SearchResponse]
 
 register_type(SearchService, module=__name__)
