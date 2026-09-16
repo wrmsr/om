@@ -92,12 +92,12 @@ class InitGenerator(Generator[InitPlan]):
             i: int,
             f: FieldSpec,
             ann: ta.Any,
-            ref_map: dict,
+            orm: dict,
     ) -> InitPlan.Field:
         ref_gen = OpRef.numbered(len(ctx.cs.fields))
 
         ann_ref: OpRef = ref_gen('init.fields.{i}.annotation', i)
-        ref_map[ann_ref] = ann
+        orm[ann_ref] = ann
 
         default_ref: OpRef[ta.Any] | None = None
         default_factory_ref: OpRef[ta.Any] | None = None
@@ -105,22 +105,22 @@ class InitGenerator(Generator[InitPlan]):
             dfl = f.default.must()
             if isinstance(dfl, DefaultFactory):
                 default_factory_ref = ref_gen('init.fields.{i}.default_factory', i)
-                ref_map[default_factory_ref] = dfl.fn
+                orm[default_factory_ref] = dfl.fn
             else:
                 default_ref = ref_gen('init.fields.{i}.default', i)
-                ref_map[default_ref] = dfl
+                orm[default_ref] = dfl
 
         coerce: bool | OpRef[CoerceFn] | None = None
         if isinstance(f.coerce, bool):
             coerce = f.coerce
         elif f.coerce is not None:
             coerce = ref_gen('init.fields.{i}.coerce', i)
-            ref_map[coerce] = f.coerce
+            orm[coerce] = f.coerce
 
         validate_ref: OpRef[ValidateFn] | None = None
         if f.validate is not None:
             validate_ref = ref_gen('init.fields.{i}.validate', i)
-            ref_map[validate_ref] = f.validate
+            orm[validate_ref] = f.validate
 
         check_type_ref: OpRef[type | tuple[type, ...]] | None = None
         if f.check_type is not None and f.check_type is not False:
@@ -134,7 +134,7 @@ class InitGenerator(Generator[InitPlan]):
             else:
                 raise TypeError(f.check_type)
             check_type_ref = ref_gen('init.fields.{i}.check_type', i)
-            ref_map[check_type_ref] = check_type_arg
+            orm[check_type_ref] = check_type_arg
 
         return InitPlan.Field(
             name=f.name,
@@ -175,7 +175,7 @@ class InitGenerator(Generator[InitPlan]):
         else:
             get_field_ann = lambda f: f.annotation
 
-        ref_map: dict = {}
+        orm: dict = {}
 
         plan_fields: list[InitPlan.Field] = []
         for i, f in enumerate(ctx.cs.fields):
@@ -184,7 +184,7 @@ class InitGenerator(Generator[InitPlan]):
                 i,
                 f,
                 get_field_ann(f),
-                ref_map,
+                orm,
             ))
 
         mro_v_ids = set(map(id, ctx[MroDict].values()))
@@ -204,7 +204,7 @@ class InitGenerator(Generator[InitPlan]):
             elif isinstance(init_fn, property):
                 init_fn = init_fn.__get__
             init_fn_ref: OpRef = init_fn_ref_gen('init.init_fns.{i}', i)
-            ref_map[init_fn_ref] = init_fn
+            orm[init_fn_ref] = init_fn
             init_fn_refs.append(init_fn_ref)
 
         validate_fns = ctx.cs.validate_fns or []
@@ -212,7 +212,7 @@ class InitGenerator(Generator[InitPlan]):
         validate_fn_ref_gen = OpRef.numbered(len(validate_fns))
         for i, validate_fn in enumerate(validate_fns):
             validate_fn_ref: OpRef = validate_fn_ref_gen('init.validate_fns.{i}', i)
-            ref_map[validate_fn_ref] = validate_fn.fn
+            orm[validate_fn_ref] = validate_fn.fn
             validate_fn_refs.append(InitPlan.ValidateFnWithParams(
                 fn=validate_fn_ref,
                 params=tuple(validate_fn.params),
@@ -240,7 +240,7 @@ class InitGenerator(Generator[InitPlan]):
 
                 validate_fns=tuple(validate_fn_refs),
             ),
-            ref_map,
+            orm,
         )
 
     def generate(self, plan: InitPlan) -> ta.Iterable[Op]:
