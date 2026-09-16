@@ -80,8 +80,6 @@ def _inject_update(
 
     args_bytes = json.dumps(args_dct).encode('utf-8')
 
-    #
-
     payload_src = '\n\n'.join([
         inspect.getsource(secretinject),
         check.not_none(pyremote.get_core_source()),
@@ -91,13 +89,26 @@ def _inject_update(
 
     #
 
+    exec_cmd: list[str] = [
+        'sh',
+        '-c',
+        get_best_python_sh(),
+        '--',
+        '-c',
+        pyremote.build_bootstrap_source('pyrthing'),
+    ]
+
     exec_args: list[str] = []
 
     if shift_uid is not None:
         uid, gid = shift_uid
-        exec_args.append(f'--user={uid}:{gid}')
-
-    #
+        # exec_args.append(f'--user={uid}:{gid}')
+        exec_args.append('--user=0:0')
+        exec_cmd = [
+            'gosu',
+            'om',
+            *exec_cmd,
+        ]
 
     proc = subprocess.Popen(
         subprocess_maybe_shell_wrap_exec(
@@ -106,12 +117,7 @@ def _inject_update(
             *exec_args,
             '-i',
             container_id,
-            'sh',
-            '-c',
-            get_best_python_sh(),
-            '--',
-            '-c',
-            pyremote.build_bootstrap_source('pyrthing'),
+            *exec_cmd,
         ),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
