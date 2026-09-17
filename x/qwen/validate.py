@@ -14,12 +14,12 @@ Three checks, no extra deps (urllib only):
   1. tokenizer:   our ids == /tokenize ids
   2. greedy:      our argmax tokens == the server's greedy tokens, step by step
   3. logprobs:    teacher-force the server's tokens through our model and compare
-                  log-softmax(ours) with the server's top-K pre-sampling logprobs (n_probs) at every position.  Reports
+                  log-softmax(ours) with the server's top-K pre-sampling logprobs (n_probs) at every position. Reports
                   max |delta| and top-1 agreement.
 
 Run with --dtype f32 for a like-for-like comparison (llama.cpp does activations in f32). Expected on a Q4_K_M/Q8_0 blob
 with matching dequant: top-1 agreement ~100% for the first few dozen tokens and max |delta logprob| in the 1e-2..1e-1
-range (different matmul orders / KV precision).  Anything wildly off means a layout/ordering bug.
+range (different matmul orders / KV precision). Anything wildly off means a layout/ordering bug.
 """
 import argparse
 import json

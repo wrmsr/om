@@ -12,7 +12,7 @@ Two on-disk formats are supported, both produced by Ollama:
                              config.json / tokenizer.json.
 
 Whatever the source, `TensorSource.get(name)` returns a float32 numpy array under a single canonical naming/layout
-scheme so that `model.py` never has to know where the weights came from.  The canonical scheme is HuggingFace's
+scheme so that `model.py` never has to know where the weights came from. The canonical scheme is HuggingFace's
 text-model layout with *effective* values:
 
     embed_tokens.weight                              [vocab, hidden]
@@ -38,7 +38,7 @@ text-model layout with *effective* values:
     layers.{i}.mlp.down_proj.weight                  [hidden, inter]
 
 V-head order for the linear-attention tensors is HF *grouped* order ([G0v0..G0v{r-1}, G1v0..] where G = key head), so
-q/k broadcast to V heads with repeat_interleave.  The GGUF converter stores them *tiled*; the GGUF source undoes that.
+q/k broadcast to V heads with repeat_interleave. The GGUF converter stores them *tiled*; the GGUF source undoes that.
 """
 import dataclasses as dc
 import json

@@ -1,6 +1,6 @@
 """
 Byte-level BPE tokenizer for Qwen (GPT-2 style), built from a GGUF's `tokenizer.ggml.*` metadata or from an HF
-`tokenizer.json`.  Only dependency: `regex` (for \\p{L} classes).
+`tokenizer.json`. Only dependency: `regex` (for \\p{L} classes).
 
 Matches llama.cpp's `LLAMA_VOCAB_PRE_TYPE_QWEN35` / `QWEN2` pre-tokenizers.
 """

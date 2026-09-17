@@ -38,14 +38,14 @@ python validate.py --model qwen3.5:0.8b -p "The capital of France is" -n 32 --dt
 
 It checks (1) tokenizer ids vs `/tokenize`, (2) our greedy tokens vs the server's, and (3) teacher-forces
 the server's tokens through our model and compares log-softmax against the server's top-K pre-sampling
-logprobs (`n_probs`) at every step.  A layout bug (e.g. V-head order, q/gate split, RoPE style) shows up as
+logprobs (`n_probs`) at every step. A layout bug (e.g. V-head order, q/gate split, RoPE style) shows up as
 garbage from step 0; a numerics-only difference shows up as agreement for tens of tokens with small
 |delta logprob|.
 
 ## What the loader normalises
 
 The canonical parameter scheme is HF's layout with *effective* values (see the docstring in
-`weights.py`).  Things the GGUF source undoes/handles, because llama.cpp's converter did them:
+`weights.py`). Things the GGUF source undoes/handles, because llama.cpp's converter did them:
 
 * non-gated RMSNorm weights are stored as `1 + w` in GGUF (HF uses zero-centred weights) — the model
   always does plain `w * x`;
@@ -62,10 +62,10 @@ Ollama's newer tensor-blob format needs none of that (HF names, HF layout), only
 
 1. **Chunked prefill** for the DeltaNet layers — `tests/test_synthetic.py::chunk_gated_delta_rule_ref`
    is a small WY-form chunked implementation that already agrees with the recurrence; move it into
-   `model.py` and use it when `T > 1`.  Prefill goes from O(T) sequential steps to O(T/64).
+   `model.py` and use it when `T > 1`. Prefill goes from O(T) sequential steps to O(T/64).
 2. **Cache management** — `Cache.snapshot()` is your prefix cache for the 3/4 of layers that are
-   recurrent (fixed size, no growth).  Only the 16 attention layers need paged/blocked KV.
-3. **Quantised matmuls** — right now everything is dequantised to bf16/f32 at load.  27B in bf16 is
+   recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
+3. **Quantised matmuls** — right now everything is dequantised to bf16/f32 at load. 27B in bf16 is
    ~55 GB; keeping the GGUF blocks and writing your own Q4_K/Q8_0 dot kernels (or int4 for the MLX
    blobs) is where the real memory win is.
 4. **Serving** — `Qwen35.generate` is the whole inference loop; wrap it in whatever HTTP layer you like.

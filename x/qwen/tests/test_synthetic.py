@@ -1,5 +1,5 @@
 """
-No-model-needed test.  Builds a tiny random Qwen3.5 in HF layout, writes it to a GGUF the way llama.cpp's converter does
+No-model-needed test. Builds a tiny random Qwen3.5 in HF layout, writes it to a GGUF the way llama.cpp's converter does
 (name mapping, +1 norms, -exp(A_log), V-head tiling, conv squeeze), then checks that:
 
   * GGUFSource undoes every transform (loaded params == HF effective params)
@@ -413,7 +413,7 @@ def chunk_gated_delta_rule_ref(q, k, v, g, beta, chunk_size=4):
     """
     Chunkwise (WY-representation) gated delta rule, written independently of the recurrent loop in model.py, following
     Yang et al. 2024 (as in FLA / HF `torch_chunk_gated_delta_rule`). q,k: [B,H,T,dk] (l2-normed, q scaled), v:
-    [B,H,T,dv], g,beta: [B,H,T].  Returns [B,H,T,dv].
+    [B,H,T,dv], g,beta: [B,H,T]. Returns [B,H,T,dv].
     """
 
     import torch

@@ -1,8 +1,8 @@
 """
 Qwen3.5 / 3.6 / 3.8 (dense) text decoder in plain PyTorch.
 
-Every op is written out; there is no `transformers` and no fused kernel.  Layer math is cross-checked against
-llama.cpp's `src/models/qwen35.cpp` and HF's `modeling_qwen3_5.py`:
+Every op is written out; there is no `transformers` and no fused kernel. Layer math is cross-checked against llama.cpp's
+`src/models/qwen35.cpp` and HF's `modeling_qwen3_5.py`:
 
   block:    x = x + mixer(rmsnorm(x));  x = x + swiglu(rmsnorm(x))
   mixer is either
@@ -43,7 +43,7 @@ class LinearCache:
 
 class Cache:
     """
-    One entry per layer.  Attention layers grow a KV cache; linear layers keep a fixed-size (conv window, recurrent
+    One entry per layer. Attention layers grow a KV cache; linear layers keep a fixed-size (conv window, recurrent
     state) pair -- so 'prefix caching' for 3/4 of the stack is just snapshotting a tensor.
     """
 
