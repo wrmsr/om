@@ -5,6 +5,8 @@ import subprocess
 import sys
 import zipfile
 
+from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
+
 from ..pycz import _MmapPyczArchive
 
 
@@ -24,14 +26,14 @@ def test_pycz_install_and_load(tmp_path):
     env = dict(os.environ)
     env['PYTHONPATH'] = os.pathsep.join([str(source_dir), os.getcwd()])
     install = subprocess.run(
-        [
+        subprocess_maybe_shell_wrap_exec(
             sys.executable,
             '-m',
-            'x.pycz',
+            __package__.rpartition('.')[0] + '.pycz',
             'fixturepkg',
             '--site-dir',
             str(site_dir),
-        ],
+        ),
         check=True,
         capture_output=True,
         env=env,
@@ -60,7 +62,7 @@ def test_pycz_install_and_load(tmp_path):
     shutil.rmtree(package_dir / '__pycache__')
 
     loaded = subprocess.run(
-        [
+        subprocess_maybe_shell_wrap_exec(
             sys.executable,
             '-c',
             (
@@ -73,7 +75,7 @@ def test_pycz_install_and_load(tmp_path):
                 "print(importlib.resources.files(fixturepkg).joinpath('data.txt').read_text().strip()); "
                 "print(pkgutil.get_data('fixturepkg', 'data.txt').decode().strip())"
             ),
-        ],
+        ),
         check=True,
         capture_output=True,
         env=env,
