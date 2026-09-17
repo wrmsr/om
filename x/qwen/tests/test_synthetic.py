@@ -47,7 +47,12 @@ CFG = dict(
     head_k_dim=16,
     head_v_dim=16,
     conv_kernel=4,
-    layer_types=['linear', 'linear', 'linear', 'full'],
+    layer_types=[
+        'linear',
+        'linear',
+        'linear',
+        'full',
+    ],
 )
 
 

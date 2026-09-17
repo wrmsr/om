@@ -16,7 +16,6 @@ from ..weights import OllamaTensorSource
 from ..weights import Qwen35Config
 from ..weights import mlx_affine_dequant
 from .test_synthetic import CFG
-from .test_synthetic import effective
 from .test_synthetic import make_hf_params
 from .test_synthetic import mlx_affine_quant
 from .test_synthetic import write_gguf

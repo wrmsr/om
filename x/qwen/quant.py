@@ -23,15 +23,18 @@ import torch.nn.functional as F
 ##
 
 
-QUANT_BITS = {'int8': 8, 'int4': 4}
+QUANT_BITS = {
+    'int8': 8,
+    'int4': 4,
+}
 DEFAULT_GROUP = 64
 
 
 @dc.dataclass()
 class QWeight:
-    q: torch.Tensor  # uint8 [out, in] (int8) or [out, in // 2] (int4, low nibble first)
+    q: torch.Tensor      # uint8 [out, in] (int8) or [out, in // 2] (int4, low nibble first)
     scale: torch.Tensor  # [out, in // group], compute dtype
-    bias: torch.Tensor  # [out, in // group], compute dtype
+    bias: torch.Tensor   # [out, in // group], compute dtype
     bits: int
     group: int
     shape: tuple[int, int]  # (out, in)
@@ -47,7 +50,7 @@ class QWeight:
     def nbytes(self) -> int:
         return self.q.numel() + self.scale.numel() * self.scale.element_size() * 2
 
-    def to(self, device) -> 'QWeight':
+    def to(self, device) -> QWeight:
         return QWeight(
             self.q.to(device),
             self.scale.to(device),
@@ -59,7 +62,11 @@ class QWeight:
 
     # dequant
 
-    def dequant(self, dtype: torch.dtype | None = None, rows: slice | torch.Tensor | None = None) -> torch.Tensor:
+    def dequant(
+            self,
+            dtype: torch.dtype | None = None,
+            rows: slice | torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Expand (a row-slice of) the weight to `dtype` [rows, in]."""
 
         q = self.q if rows is None else self.q[rows]
@@ -72,16 +79,27 @@ class QWeight:
         x = x * s[..., None].to(x.dtype) + b[..., None].to(x.dtype)
         return x.reshape(n_rows, self.shape[1])
 
-    def linear(self, x: torch.Tensor, chunk_rows: int = 16384) -> torch.Tensor:
+    def linear(
+            self,
+            x: torch.Tensor,
+            chunk_rows: int = 16384,
+    ) -> torch.Tensor:
         out = self.shape[0]
         if out <= chunk_rows:
             return F.linear(x, self.dequant(x.dtype))
         return torch.cat(
-            [F.linear(x, self.dequant(x.dtype, slice(i, i + chunk_rows))) for i in range(0, out, chunk_rows)],
+            [
+                F.linear(x, self.dequant(x.dtype, slice(i, i + chunk_rows)))
+                for i in range(0, out, chunk_rows)
+            ],
             dim=-1,
         )
 
-    def embed(self, ids: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+    def embed(
+            self,
+            ids: torch.Tensor,
+            dtype: torch.dtype,
+    ) -> torch.Tensor:
         """Row gather + dequant: [..., in]."""
 
         flat = ids.reshape(-1)
@@ -91,7 +109,12 @@ class QWeight:
 ##
 
 
-def quantize(w: torch.Tensor, bits: int, group: int = DEFAULT_GROUP, dtype: torch.dtype | None = None) -> QWeight:
+def quantize(
+        w: torch.Tensor,
+        bits: int,
+        group: int = DEFAULT_GROUP,
+        dtype: torch.dtype | None = None,
+) -> QWeight:
     """Asymmetric min/max affine quantization of a 2-D weight along its input dim, `group` inputs per scale."""
 
     if w.ndim != 2:
@@ -115,7 +138,14 @@ def quantize(w: torch.Tensor, bits: int, group: int = DEFAULT_GROUP, dtype: torc
     q = q.clamp_(0, qmax).to(torch.uint8).reshape(out, inn)
     if bits == 4:
         q = q[:, 0::2] | (q[:, 1::2] << 4)
-    return QWeight(q.contiguous(), scale_s, bias_s, bits, group, (out, inn))
+    return QWeight(
+        q.contiguous(),
+        scale_s,
+        bias_s,
+        bits,
+        group,
+        (out, inn),
+    )
 
 
 def from_native(
@@ -132,25 +162,39 @@ def from_native(
     q = q_values.to(torch.uint8)
     if bits == 4:
         q = q[:, 0::2] | (q[:, 1::2] << 4)
-    return QWeight(q.contiguous(), scale.to(dtype), bias.to(dtype), bits, group, (out, inn))
+    return QWeight(
+        q.contiguous(),
+        scale.to(dtype),
+        bias.to(dtype),
+        bits,
+        group,
+        (out, inn),
+    )
 
 
 ##
 
 
-def linear(x: torch.Tensor, w: 'torch.Tensor | QWeight') -> torch.Tensor:
+def linear(
+        x: torch.Tensor,
+        w: torch.Tensor | QWeight,
+) -> torch.Tensor:
     if isinstance(w, QWeight):
         return w.linear(x)
     return F.linear(x, w)
 
 
-def embedding(ids: torch.Tensor, w: 'torch.Tensor | QWeight', dtype: torch.dtype) -> torch.Tensor:
+def embedding(
+        ids: torch.Tensor,
+        w: torch.Tensor | QWeight,
+        dtype: torch.dtype,
+) -> torch.Tensor:
     if isinstance(w, QWeight):
         return w.embed(ids, dtype)
     return F.embedding(ids, w)
 
 
-def param_nbytes(p: 'torch.Tensor | QWeight') -> int:
+def param_nbytes(p: torch.Tensor | QWeight) -> int:
     if isinstance(p, QWeight):
         return p.nbytes()
     return p.numel() * p.element_size()

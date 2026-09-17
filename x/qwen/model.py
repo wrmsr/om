@@ -6,16 +6,17 @@ Every op is written out; there is no `transformers` and no fused kernel. Layer m
 
   block:    x = x + mixer(rmsnorm(x));  x = x + swiglu(rmsnorm(x))
   mixer is either
-    full:   gated GQA attention -- q_proj emits [q | gate] per head, per-head q/k RMSNorm,
-            partial NeoX RoPE on the first `rope_dim` dims, softmax attention, * sigmoid(gate), o_proj
-    linear: Gated DeltaNet -- in_proj_qkv -> causal depthwise conv1d(k=4)+silu -> l2norm(q,k)
-            -> gated delta rule recurrence (fixed-size state) -> rmsnorm * silu(z) -> out_proj
+    full:   gated GQA attention -- q_proj emits [q | gate] per head, per-head q/k RMSNorm, partial NeoX RoPE on the
+            first `rope_dim` dims, softmax attention, * sigmoid(gate), o_proj
+    linear: Gated DeltaNet -- in_proj_qkv -> causal depthwise conv1d(k=4)+silu -> l2norm(q,k) -> gated delta rule
+            recurrence (fixed-size state) -> rmsnorm * silu(z) -> out_proj
 
 The recurrence is the per-token form for both prefill and decode (correct, O(T) sequential; a chunked parallel prefill
 is the obvious next optimisation).
 """
 import dataclasses as dc
 import math
+import typing as ta
 
 import numpy as np
 import torch
@@ -44,7 +45,7 @@ class FullAttnCache:
 
 @dc.dataclass()
 class LinearCache:
-    conv: torch.Tensor | None = None  # [B, conv_dim, kernel-1]  last inputs to the conv
+    conv: torch.Tensor | None = None   # [B, conv_dim, kernel-1]  last inputs to the conv
     state: torch.Tensor | None = None  # [B, n_v, dk, dv] float32
 
 
@@ -54,13 +55,14 @@ class Cache:
     state) pair -- so 'prefix caching' for 3/4 of the stack is just snapshotting a tensor.
     """
 
-    def __init__(self, cfg: Qwen35Config):
+    def __init__(self, cfg: Qwen35Config) -> None:
         self.layers: list = [
-            FullAttnCache() if t == 'full' else LinearCache() for t in cfg.layer_types
+            FullAttnCache() if t == 'full' else LinearCache()
+            for t in cfg.layer_types
         ]
         self.seq_len = 0
 
-    def snapshot(self) -> "Cache":
+    def snapshot(self) -> Cache:
         c = Cache.__new__(Cache)
         c.seq_len = self.seq_len
         c.layers = []
@@ -150,7 +152,7 @@ def gated_delta_rule_recurrent(q, k, v, g, beta, state):
 
 
 class Attention:
-    def __init__(self, cfg: Qwen35Config, p: dict):
+    def __init__(self, cfg: Qwen35Config, p: dict) -> None:
         self.cfg = cfg
         self.wq, self.wk, self.wv, self.wo = (
             p['q_proj'],
@@ -162,7 +164,11 @@ class Attention:
         self.scale = 1.0 / math.sqrt(cfg.head_dim)
 
     def __call__(
-        self, x: torch.Tensor, cos, sin, cache: FullAttnCache | None,
+            self,
+            x: torch.Tensor,
+            cos,
+            sin,
+            cache: FullAttnCache | None,
     ) -> torch.Tensor:
         c = self.cfg
         B, T, _ = x.shape
@@ -202,7 +208,7 @@ class Attention:
 
 
 class GatedDeltaNet:
-    def __init__(self, cfg: Qwen35Config, p: dict):
+    def __init__(self, cfg: Qwen35Config, p: dict) -> None:
         self.cfg = cfg
         self.w_qkv, self.w_z, self.w_a, self.w_b = (
             p['in_proj_qkv'],
@@ -272,7 +278,7 @@ class GatedDeltaNet:
 
 
 class MLP:
-    def __init__(self, p: dict):
+    def __init__(self, p: dict) -> None:
         self.wg, self.wu, self.wd = p['gate_proj'], p['up_proj'], p['down_proj']
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
@@ -280,7 +286,7 @@ class MLP:
 
 
 class Block:
-    def __init__(self, cfg: Qwen35Config, kind: str, p: dict):
+    def __init__(self, cfg: Qwen35Config, kind: str, p: dict) -> None:
         self.kind = kind
         self.ln1, self.ln2 = p['input_layernorm'], p['post_attention_layernorm']
         self.eps = cfg.rms_eps
@@ -351,7 +357,14 @@ Param = torch.Tensor | QWeight
 
 
 class Qwen35:
-    def __init__(self, cfg: Qwen35Config, params: dict[str, Param], device, dtype: torch.dtype = torch.bfloat16):
+    def __init__(
+            self,
+            cfg: Qwen35Config,
+            params: dict[str,
+            Param],
+            device,
+            dtype: torch.dtype = torch.bfloat16,
+    ) -> None:
         self.cfg = cfg
         self.device = device
         self.dtype = dtype
@@ -379,12 +392,12 @@ class Qwen35:
     def from_source(
         cls,
         src: TensorSource,
-        device='cpu',
-        dtype=torch.bfloat16,
-        verbose=True,
+        device: str = 'cpu',
+        dtype: torch.dtype = torch.bfloat16,
+        verbose: bool = True,
         quant: str | None = None,
         group: int = 64,
-    ) -> "Qwen35":
+    ) -> Qwen35:
         """
         quant: None (weights in `dtype`), 'int8' or 'int4' (weight-only affine, see quant.py). If the source already
         holds MLX-quantized tensors at the requested width they are re-packed as-is; otherwise weights are quantized
@@ -405,9 +418,7 @@ class Qwen35:
         names = required_param_names(cfg)
         missing = [n for n in names if n not in available]
         if missing:
-            raise KeyError(
-                f'source is missing {len(missing)} tensors, e.g. {missing[:5]}',
-            )
+            raise KeyError(f'source is missing {len(missing)} tensors, e.g. {missing[:5]}')
         if 'lm_head.weight' in available and not cfg.tied_embeddings:
             names.append('lm_head.weight')
         n_native = n_quant = 0
@@ -481,7 +492,7 @@ class Qwen35:
         prompt_ids: list[int],
         max_new_tokens: int = 64,
         eos_ids: set[int] | None = None,
-        on_token=None,
+        on_token: ta.Callable[[int], None] | None = None,
     ) -> list[int]:
         """Greedy decoding with the cache. Yields token ids through on_token as they are produced."""
 

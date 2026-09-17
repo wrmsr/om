@@ -3,39 +3,36 @@ Weight loading for Qwen3.5-family text models (model_type `qwen3_5`, GGUF arch `
 
 Two on-disk formats are supported, both produced by Ollama:
 
-  1. GGUF                 -- manifest layer `application/vnd.ollama.image.model`
-                             (or any *.gguf path you pass directly)
-  2. Ollama tensor blobs  -- manifest layers `application/vnd.ollama.image.tensor`
-                             (one packed-safetensors blob per tensor, HF names,
-                             optionally MLX affine-quantized) plus
-                             `application/vnd.ollama.image.json` blobs holding
-                             config.json / tokenizer.json.
+  1. GGUF                 -- manifest layer `application/vnd.ollama.image.model` (or any *.gguf path you pass directly)
+  2. Ollama tensor blobs  -- manifest layers `application/vnd.ollama.image.tensor` (one packed-safetensors blob per
+                             tensor, HF names, optionally MLX affine-quantized) plus `application/vnd.ollama.image.json`
+                             blobs holding config.json / tokenizer.json.
 
 Whatever the source, `TensorSource.get(name)` returns a float32 numpy array under a single canonical naming/layout
 scheme so that `model.py` never has to know where the weights came from. The canonical scheme is HuggingFace's
 text-model layout with *effective* values:
 
-    embed_tokens.weight                              [vocab, hidden]
-    norm.weight                                      [hidden]     (already includes the +1)
-    lm_head.weight                                   [vocab, hidden]   (absent => tied)
-    layers.{i}.input_layernorm.weight                (already includes the +1)
-    layers.{i}.post_attention_layernorm.weight       (already includes the +1)
-    layers.{i}.self_attn.q_proj.weight               [n_head*2*head_dim, hidden]  per head: [q | gate]
-    layers.{i}.self_attn.k_proj.weight               [n_kv*head_dim, hidden]
-    layers.{i}.self_attn.v_proj.weight               [n_kv*head_dim, hidden]
-    layers.{i}.self_attn.o_proj.weight               [hidden, n_head*head_dim]
+    embed_tokens.weight                                  [vocab, hidden]
+    norm.weight                                          [hidden]     (already includes the +1)
+    lm_head.weight                                       [vocab, hidden]   (absent => tied)
+    layers.{i}.input_layernorm.weight                    (already includes the +1)
+    layers.{i}.post_attention_layernorm.weight           (already includes the +1)
+    layers.{i}.self_attn.q_proj.weight                   [n_head*2*head_dim, hidden]  per head: [q | gate]
+    layers.{i}.self_attn.k_proj.weight                   [n_kv*head_dim, hidden]
+    layers.{i}.self_attn.v_proj.weight                   [n_kv*head_dim, hidden]
+    layers.{i}.self_attn.o_proj.weight                   [hidden, n_head*head_dim]
     layers.{i}.self_attn.q_norm.weight / k_norm.weight   [head_dim]  (already includes the +1)
-    layers.{i}.linear_attn.in_proj_qkv.weight        [2*key_dim + value_dim, hidden]   [q | k | v]
-    layers.{i}.linear_attn.in_proj_z.weight          [value_dim, hidden]
-    layers.{i}.linear_attn.in_proj_b.weight          [n_v_heads, hidden]
-    layers.{i}.linear_attn.in_proj_a.weight          [n_v_heads, hidden]
-    layers.{i}.linear_attn.conv1d.weight             [conv_dim, kernel]
-    layers.{i}.linear_attn.A                         [n_v_heads]   == -exp(A_log)
-    layers.{i}.linear_attn.dt_bias                   [n_v_heads]
-    layers.{i}.linear_attn.norm.weight               [head_v_dim]  (NO +1; gated norm)
-    layers.{i}.linear_attn.out_proj.weight           [hidden, value_dim]
-    layers.{i}.mlp.gate_proj.weight / up_proj.weight [inter, hidden]
-    layers.{i}.mlp.down_proj.weight                  [hidden, inter]
+    layers.{i}.linear_attn.in_proj_qkv.weight            [2*key_dim + value_dim, hidden]   [q | k | v]
+    layers.{i}.linear_attn.in_proj_z.weight              [value_dim, hidden]
+    layers.{i}.linear_attn.in_proj_b.weight              [n_v_heads, hidden]
+    layers.{i}.linear_attn.in_proj_a.weight              [n_v_heads, hidden]
+    layers.{i}.linear_attn.conv1d.weight                 [conv_dim, kernel]
+    layers.{i}.linear_attn.A                             [n_v_heads]   == -exp(A_log)
+    layers.{i}.linear_attn.dt_bias                       [n_v_heads]
+    layers.{i}.linear_attn.norm.weight                   [head_v_dim]  (NO +1; gated norm)
+    layers.{i}.linear_attn.out_proj.weight               [hidden, value_dim]
+    layers.{i}.mlp.gate_proj.weight / up_proj.weight     [inter, hidden]
+    layers.{i}.mlp.down_proj.weight                      [hidden, inter]
 
 V-head order for the linear-attention tensors is HF *grouped* order ([G0v0..G0v{r-1}, G1v0..] where G = key head), so
 q/k broadcast to V heads with repeat_interleave. The GGUF converter stores them *tiled*; the GGUF source undoes that.
@@ -47,6 +44,8 @@ import pathlib
 import struct
 
 import numpy as np
+
+from omcore import check
 
 
 ##
@@ -101,11 +100,26 @@ class Qwen35Config:
     def summary(self) -> str:
         n_lin = sum(t == 'linear' for t in self.layer_types)
         return (
-            f'hidden={self.hidden_size} layers={self.num_layers} ({n_lin} linear / {self.num_layers - n_lin} full) '
-            f'ffn={self.intermediate_size} vocab={self.vocab_size}\n'
-            f'  attn: {self.num_heads}q/{self.num_kv_heads}kv x {self.head_dim}, rope_dim={self.rope_dim} theta={self.rope_theta:g}\n'
-            f'  gdn : {self.num_k_heads}k/{self.num_v_heads}v x {self.head_k_dim}, conv={self.conv_kernel}\n'
-            f'  tied_embeddings={self.tied_embeddings} rope_scaling={self.rope_scaling}'
+            f'hidden={self.hidden_size} '
+            f'layers={self.num_layers} ({n_lin} linear / {self.num_layers - n_lin} full) '
+            f'ffn={self.intermediate_size} '
+            f'vocab={self.vocab_size}'
+            f'\n'
+
+            f'  '
+            f'attn: {self.num_heads}q/{self.num_kv_heads}kv x {self.head_dim}, '
+            f'rope_dim={self.rope_dim} '
+            f'theta={self.rope_theta:g}'
+            f'\n'
+
+            f'  '
+            f'gdn : {self.num_k_heads}k/{self.num_v_heads}v x {self.head_k_dim}, '
+            f'conv={self.conv_kernel}'
+            f'\n'
+
+            f'  '
+            f'tied_embeddings={self.tied_embeddings} '
+            f'rope_scaling={self.rope_scaling}'
         )
 
 
@@ -193,7 +207,7 @@ def bf16_to_f32(raw: np.ndarray) -> np.ndarray:
 
 
 class SafetensorsFile:
-    def __init__(self, path: pathlib.Path):
+    def __init__(self, path: pathlib.Path) -> None:
         self.path = pathlib.Path(path)
         with open(path, 'rb') as f:
             (hlen,) = struct.unpack('<Q', f.read(8))
@@ -230,7 +244,7 @@ def mlx_affine_dequant(
     `group_size` along the last axis with one scale (+bias) each.
     """
 
-    assert w_packed.dtype == np.uint32
+    check.state(w_packed.dtype == np.uint32)
     per_word = 32 // bits
     mask = (1 << bits) - 1
     shifts = (np.arange(per_word, dtype=np.uint32) * bits)[None, :]
@@ -241,7 +255,7 @@ def mlx_affine_dequant(
         .reshape(*w_packed.shape[:-1], w_packed.shape[-1] * per_word)
     )
     cols = vals.shape[-1]
-    assert cols % group_size == 0, (cols, group_size)
+    check.state(cols % group_size == 0, f'{(cols, group_size)=}')
     vals = vals.reshape(*vals.shape[:-1], cols // group_size, group_size)
     s = scales.astype(np.float32)[..., None]
     out = vals * s
@@ -284,14 +298,20 @@ class TensorSource:
         return name in set(self.names())
 
 
-def _untile_v_heads(x: np.ndarray, axis: int, num_k: int, r: int, d: int) -> np.ndarray:
+def _untile_v_heads(
+        x: np.ndarray,
+        axis: int,
+        num_k: int,
+        r: int,
+        d: int,
+) -> np.ndarray:
     """Inverse of llama.cpp's `_reorder_v_heads`: tiled [r, num_k, d] -> grouped [num_k, r, d]."""
 
     if r == 1:
         return x
     shape = list(x.shape)
     axis = axis % x.ndim
-    new = shape[:axis] + [r, num_k, d] + shape[axis + 1 :]
+    new = [*shape[:axis], r, num_k, d, *shape[axis + 1 :]]
     x = x.reshape(new)
     perm = list(range(x.ndim))
     perm[axis], perm[axis + 1] = perm[axis + 1], perm[axis]
@@ -301,7 +321,7 @@ def _untile_v_heads(x: np.ndarray, axis: int, num_k: int, r: int, d: int) -> np.
 class GGUFSource(TensorSource):
     """GGUF produced by llama.cpp's converter (arch `qwen35`). Uses gguf-py (numpy only)."""
 
-    def __init__(self, path: str | pathlib.Path):
+    def __init__(self, path: str | pathlib.Path) -> None:
         from gguf import GGUFReader  # MIT, part of llama.cpp
 
         self.path = pathlib.Path(path)
@@ -343,7 +363,7 @@ class GGUFSource(TensorSource):
         n_v = int(a('ssm.time_step_rank'))
         n_k = int(a('ssm.group_count'))
         inner = int(a('ssm.inner_size'))
-        assert inner == n_v * state, (inner, n_v, state)
+        check.state(inner == n_v * state, f'{(inner, n_v, state)=}')
         tokens = self.kv('tokenizer.ggml.tokens')
         vocab = int(a('vocab_size', len(tokens)) or len(tokens))
         emb = self._tensors['token_embd.weight']
@@ -421,31 +441,19 @@ class GGUFSource(TensorSource):
             p = f'blk.{i}.'
             q = f'layers.{i}.'
             m[q + 'input_layernorm.weight'] = (p + 'attn_norm.weight', None)
-            m[q + 'post_attention_layernorm.weight'] = (
-                p + 'attn_post_norm.weight',
-                None,
-            )
+            m[q + 'post_attention_layernorm.weight'] = (p + 'attn_post_norm.weight', None)
             m[q + 'mlp.gate_proj.weight'] = (p + 'ffn_gate.weight', None)
             m[q + 'mlp.up_proj.weight'] = (p + 'ffn_up.weight', None)
             m[q + 'mlp.down_proj.weight'] = (p + 'ffn_down.weight', None)
             if lt == 'full':
                 fused = (
-                    p + 'attn_qkv.weight' in self._tensors
-                    and p + 'attn_q.weight' not in self._tensors
+                    p + 'attn_qkv.weight' in self._tensors and
+                    p + 'attn_q.weight' not in self._tensors
                 )
                 if fused:
-                    m[q + 'self_attn.q_proj.weight'] = (
-                        p + 'attn_qkv.weight',
-                        'fused_q',
-                    )
-                    m[q + 'self_attn.k_proj.weight'] = (
-                        p + 'attn_qkv.weight',
-                        'fused_k',
-                    )
-                    m[q + 'self_attn.v_proj.weight'] = (
-                        p + 'attn_qkv.weight',
-                        'fused_v',
-                    )
+                    m[q + 'self_attn.q_proj.weight'] = (p + 'attn_qkv.weight', 'fused_q')
+                    m[q + 'self_attn.k_proj.weight'] = (p + 'attn_qkv.weight', 'fused_k')
+                    m[q + 'self_attn.v_proj.weight'] = (p + 'attn_qkv.weight', 'fused_v')
                 else:
                     m[q + 'self_attn.q_proj.weight'] = (p + 'attn_q.weight', None)
                     m[q + 'self_attn.k_proj.weight'] = (p + 'attn_k.weight', None)
@@ -454,38 +462,18 @@ class GGUFSource(TensorSource):
                 m[q + 'self_attn.q_norm.weight'] = (p + 'attn_q_norm.weight', None)
                 m[q + 'self_attn.k_norm.weight'] = (p + 'attn_k_norm.weight', None)
             else:
-                m[q + 'linear_attn.in_proj_qkv.weight'] = (
-                    p + 'attn_qkv.weight',
-                    'untile_qkv_rows',
-                )
-                m[q + 'linear_attn.in_proj_z.weight'] = (
-                    p + 'attn_gate.weight',
-                    'untile_rows_dv',
-                )
-                m[q + 'linear_attn.in_proj_b.weight'] = (
-                    p + 'ssm_beta.weight',
-                    'untile_rows_1',
-                )
-                m[q + 'linear_attn.in_proj_a.weight'] = (
-                    p + 'ssm_alpha.weight',
-                    'untile_rows_1',
-                )
-                m[q + 'linear_attn.conv1d.weight'] = (
-                    p + 'ssm_conv1d.weight',
-                    'untile_conv',
-                )
+                m[q + 'linear_attn.in_proj_qkv.weight'] = (p + 'attn_qkv.weight', 'untile_qkv_rows')
+                m[q + 'linear_attn.in_proj_z.weight'] = (p + 'attn_gate.weight', 'untile_rows_dv')
+                m[q + 'linear_attn.in_proj_b.weight'] = (p + 'ssm_beta.weight', 'untile_rows_1')
+                m[q + 'linear_attn.in_proj_a.weight'] = (p + 'ssm_alpha.weight', 'untile_rows_1')
+                m[q + 'linear_attn.conv1d.weight'] = (p + 'ssm_conv1d.weight', 'untile_conv')
                 m[q + 'linear_attn.A'] = (p + 'ssm_a', 'untile_rows_1')
                 m[q + 'linear_attn.dt_bias'] = (p + 'ssm_dt.bias', 'untile_rows_1')
                 m[q + 'linear_attn.norm.weight'] = (p + 'ssm_norm.weight', None)
-                m[q + 'linear_attn.out_proj.weight'] = (
-                    p + 'ssm_out.weight',
-                    'untile_cols_dv',
-                )
+                m[q + 'linear_attn.out_proj.weight'] = (p + 'ssm_out.weight', 'untile_cols_dv')
         missing = [k for k, (g, _) in m.items() if g not in self._tensors]
         if missing:
-            raise KeyError(
-                f'GGUF is missing expected tensors, e.g. {missing[:5]} (of {len(missing)})',
-            )
+            raise KeyError(f'GGUF is missing expected tensors, e.g. {missing[:5]} (of {len(missing)})')
         return m
 
     def names(self) -> list[str]:
@@ -541,7 +529,7 @@ class OllamaTensorSource(TensorSource):
 
     _PREFIXES = ('model.language_model.', 'model.')
 
-    def __init__(self, om: OllamaModel):
+    def __init__(self, om: OllamaModel) -> None:
         self.om = om
         self._layers: dict[str, dict] = {}
         for l in om.layers(MT_TENSOR):
@@ -620,9 +608,7 @@ class OllamaTensorSource(TensorSource):
             layer_types=layer_types,
             context_length=t.get('max_position_embeddings', 262144),
             rope_scaling=rope_scaling,
-            tied_embeddings=bool(
-                t.get('tie_word_embeddings', cfg.get('tie_word_embeddings', False)),
-            ),
+            tied_embeddings=bool(t.get('tie_word_embeddings', cfg.get('tie_word_embeddings', False))),
             extra={'format': 'ollama-tensor'},
         )
 
@@ -648,8 +634,8 @@ class OllamaTensorSource(TensorSource):
         names = f.names()
         base = (
             raw_name
-            if raw_name in names
-            else next(n for n in names if not n.endswith(('.scale', '.bias')))
+            if raw_name in names else
+            next(n for n in names if not n.endswith(('.scale', '.bias')))
         )
         w = f.get(base)
         if w.dtype != np.uint32:
@@ -659,9 +645,7 @@ class OllamaTensorSource(TensorSource):
         gs = int(md.get(base + '.group_size') or md.get('group_size') or 64)
         bits = {'int4': 4, 'int8': 8}.get(qt.lower())
         if bits is None:
-            raise NotImplementedError(
-                f'MLX quant mode {qt!r} not supported (only affine int4/int8)',
-            )
+            raise NotImplementedError(f'MLX quant mode {qt!r} not supported (only affine int4/int8)')
         scales = f.get(base + '.scale')
         biases = f.get(base + '.bias') if (base + '.bias') in names else None
         return w, (scales, biases, bits, gs)
@@ -695,9 +679,7 @@ class OllamaTensorSource(TensorSource):
             return -np.exp(self._load_hf(name[:-1] + 'A_log'))
         x = self._load_hf(name)
         # HF stores zero-centred norm weights (1 + w) for every RMSNorm except the gated one.
-        if name.endswith('norm.weight') and not name.endswith(
-            'linear_attn.norm.weight',
-        ):
+        if name.endswith('norm.weight') and not name.endswith('linear_attn.norm.weight'):
             x = x + 1.0
         if name.endswith('linear_attn.conv1d.weight') and x.ndim == 3:
             x = x[:, 0, :]
@@ -725,9 +707,7 @@ def open_source(model: str) -> TensorSource:
     if ggufs:
         ggufs.sort(key=lambda l: -l.get('size', 0))
         if len(ggufs) > 1:
-            print(
-                f"[weights] {len(ggufs)} model layers in manifest; using largest ({ggufs[0]['digest'][:19]})",
-            )
+            print(f"[weights] {len(ggufs)} model layers in manifest; using largest ({ggufs[0]['digest'][:19]})")
         return GGUFSource(om.blob(ggufs[0]['digest']))
     if om.layers(MT_TENSOR):
         return OllamaTensorSource(om)

@@ -8,33 +8,49 @@ import functools
 
 import regex
 
+from omcore import check
+
 
 ##
 
 
 PRE_REGEX = {
-    'qwen2': r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
-    'qwen35': r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?[\p{L}\p{M}]+|\p{N}| ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    'qwen2': (
+        r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|"
+        r"[^\r\n\p{L}\p{N}]?\p{L}+|"
+        r"\p{N}|"
+        r" ?[^\s\p{L}\p{N}]+[\r\n]*|"
+        r"\s*[\r\n]+|"
+        r"\s+(?!\S)|"
+        r"\s+"
+    ),
+    'qwen35': (
+        r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|"
+        r"[^\r\n\p{L}\p{N}]?[\p{L}\p{M}]+|"
+        r"\p{N}|"
+        r" ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|"
+        r"\s*[\r\n]+|"
+        r"\s+(?!\S)|"
+        r"\s+"
+    ),
 }
 
 # GGUF token types (gguf.TokenType)
-TT_NORMAL, TT_UNKNOWN, TT_CONTROL, TT_USER_DEFINED, TT_UNUSED, TT_BYTE = (
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-)
+TT_NORMAL = 1
+TT_UNKNOWN = 2
+TT_CONTROL = 3
+TT_USER_DEFINED = 4
+TT_UNUSED = 5
+TT_BYTE = 6
 
 
 @functools.lru_cache(maxsize=1)
 def bytes_to_unicode() -> dict[int, str]:
-    bs = (
-        list(range(ord('!'), ord('~') + 1))
-        + list(range(ord('¡'), ord('¬') + 1))
-        + list(range(ord('®'), ord('ÿ') + 1))
-    )
+    bs = [
+        *range(ord('!'), ord('~') + 1),
+        *range(ord('¡'), ord('¬') + 1),
+        *range(ord('®'), ord('ÿ') + 1),
+    ]
     cs = bs[:]
     n = 0
     for b in range(256):
@@ -56,7 +72,7 @@ class Tokenizer:
         bos_id: int | None = None,
         add_bos: bool = False,
         chat_template: str | None = None,
-    ):
+    ) -> None:
         self.tokens = tokens
         self.vocab = {t: i for i, t in enumerate(tokens)}
         self.ranks = {pair: i for i, pair in enumerate(merges)}
@@ -73,9 +89,7 @@ class Tokenizer:
         self.u2b = {v: k for k, v in b2u.items()}
         if special:
             alts = sorted(special.keys(), key=len, reverse=True)
-            self.special_re = regex.compile(
-                '(' + '|'.join(regex.escape(s) for s in alts) + ')',
-            )
+            self.special_re = regex.compile('(' + '|'.join(regex.escape(s) for s in alts) + ')')
         else:
             self.special_re = None
         self._cache: dict[str, tuple[str, ...]] = {}
@@ -83,16 +97,18 @@ class Tokenizer:
     # construction
 
     @classmethod
-    def from_spec(cls, spec: dict) -> "Tokenizer":
+    def from_spec(cls, spec: dict) -> Tokenizer:
         if spec['kind'] == 'gguf':
             return cls.from_gguf_spec(spec)
         return cls.from_hf(
-            spec['tokenizer_json'], spec.get('tokenizer_config'), spec.get('eos_id'),
+            spec['tokenizer_json'],
+            spec.get('tokenizer_config'),
+            spec.get('eos_id'),
         )
 
     @classmethod
-    def from_gguf_spec(cls, spec: dict) -> "Tokenizer":
-        assert spec['model'] == 'gpt2', f"unsupported tokenizer model {spec['model']!r}"
+    def from_gguf_spec(cls, spec: dict) -> Tokenizer:
+        check.arg(spec['model'] == 'gpt2', f"unsupported tokenizer model {spec['model']!r}")
         tokens = spec['tokens']
         types = spec['token_type'] or [TT_NORMAL] * len(tokens)
         merges = [tuple(m.split(' ', 1)) for m in spec['merges']]
@@ -117,10 +133,13 @@ class Tokenizer:
 
     @classmethod
     def from_hf(
-        cls, tj: dict, tcfg: dict | None = None, eos_id: int | None = None,
-    ) -> "Tokenizer":
+            cls,
+            tj: dict,
+            tcfg: dict | None = None,
+            eos_id: int | None = None,
+    ) -> Tokenizer:
         model = tj['model']
-        assert model.get('type') == 'BPE'
+        check.state(model.get('type') == 'BPE')
         vocab: dict[str, int] = model['vocab']
         n = max(vocab.values()) + 1
         tokens = [''] * n
@@ -154,7 +173,12 @@ class Tokenizer:
         if isinstance(eos_id, list):
             eos_id = eos_id[0]
         return cls(
-            tokens, merges, special, pre=pre, eos_id=eos_id, chat_template=chat_template,
+            tokens,
+            merges,
+            special,
+            pre=pre,
+            eos_id=eos_id,
+            chat_template=chat_template,
         )
 
     # BPE core
@@ -205,7 +229,10 @@ class Tokenizer:
     # public API
 
     def encode(
-        self, text: str, add_bos: bool | None = None, parse_special: bool = True,
+            self,
+            text: str,
+            add_bos: bool | None = None,
+            parse_special: bool = True,
     ) -> list[int]:
         ids: list[int] = []
         if (self.add_bos if add_bos is None else add_bos) and self.bos_id is not None:
@@ -232,7 +259,11 @@ class Tokenizer:
         except KeyError:  # not a byte-level string (e.g. odd added token)
             return t.encode('utf-8')
 
-    def decode(self, ids: list[int], skip_special: bool = False) -> str:
+    def decode(
+            self,
+            ids: list[int],
+            skip_special: bool = False,
+    ) -> str:
         buf = b''.join(
             self.token_bytes(i)
             for i in ids
@@ -243,7 +274,7 @@ class Tokenizer:
     class Streamer:
         """Incremental decoder that only emits complete UTF-8 sequences."""
 
-        def __init__(self, tok: "Tokenizer"):
+        def __init__(self, tok: Tokenizer) -> None:
             self.tok, self.buf = tok, b''
 
         def push(self, i: int) -> str:
@@ -255,8 +286,8 @@ class Tokenizer:
             except UnicodeDecodeError as e:
                 s = (
                     self.buf[: e.start].decode('utf-8', errors='replace')
-                    if e.start
-                    else ''
+                    if e.start else
+                    ''
                 )
                 self.buf = self.buf[e.start :]
                 return s
@@ -267,7 +298,11 @@ class Tokenizer:
 
     # chat
 
-    def apply_chat(self, messages: list[dict], think: bool = False) -> str:
+    def apply_chat(
+            self,
+            messages: list[dict],
+            think: bool = False,
+    ) -> str:
         """Minimal Qwen3.5 ChatML rendering (no tools). Set think=False to disable reasoning."""
 
         out = []

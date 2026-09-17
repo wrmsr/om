@@ -38,17 +38,31 @@ def main():
         required=True,
         help='Ollama model name (qwen3.5:0.8b) or path to a .gguf / blob',
     )
-    ap.add_argument('--prompt', '-p', default='Why is the sky blue?')
     ap.add_argument(
-        '--raw', action='store_true', help='no chat template; feed the prompt as-is',
+        '--prompt',
+        '-p',
+        default='Why is the sky blue?',
+    )
+    ap.add_argument(
+        '--raw',
+        action='store_true',
+        help='no chat template; feed the prompt as-is',
     )
     ap.add_argument(
         '--think',
         action='store_true',
         help='leave reasoning enabled in the chat template',
     )
-    ap.add_argument('-n', '--max-new-tokens', type=int, default=128)
-    ap.add_argument('--device', default=None)
+    ap.add_argument(
+        '-n',
+        '--max-new-tokens',
+        type=int,
+        default=128,
+    )
+    ap.add_argument(
+        '--device',
+        default=None,
+    )
     ap.add_argument(
         '--dtype',
         choices=DTYPES,
@@ -56,7 +70,9 @@ def main():
         help='default: bf16 on cuda/mps, f32 on cpu',
     )
     ap.add_argument(
-        '--info', action='store_true', help='print config and tensor names, then exit',
+        '--info',
+        action='store_true',
+        help='print config and tensor names, then exit',
     )
     ap.add_argument(
         '--quant',
@@ -69,8 +85,8 @@ def main():
     device = pick_device(args.device)
     dtype = (
         DTYPES[args.dtype]
-        if args.dtype
-        else (torch.float32 if device == 'cpu' else torch.bfloat16)
+        if args.dtype else
+        (torch.float32 if device == 'cpu' else torch.bfloat16)
     )
 
     src = open_source(args.model)
@@ -81,14 +97,20 @@ def main():
         return
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     t0 = time.time()
-    model = Qwen35.from_source(src, device=device, dtype=dtype, quant=args.quant)
+    model = Qwen35.from_source(
+        src,
+        device=device,
+        dtype=dtype,
+        quant=args.quant,
+    )
     print(f'[model] loaded on {device} as {dtype} in {time.time() - t0:.1f}s')
 
     text = (
         args.prompt
-        if args.raw
-        else tok.apply_chat(
-            [{'role': 'user', 'content': args.prompt}], think=args.think,
+        if args.raw else
+        tok.apply_chat(
+            [{'role': 'user', 'content': args.prompt}],
+            think=args.think,
         )
     )
     ids = tok.encode(text)
@@ -113,7 +135,10 @@ def main():
         sys.stdout.flush()
 
     model.generate(
-        ids, max_new_tokens=args.max_new_tokens, eos_ids=eos, on_token=on_token,
+        ids,
+        max_new_tokens=args.max_new_tokens,
+        eos_ids=eos,
+        on_token=on_token,
     )
     sys.stdout.write(streamer.flush())
     dt = time.time() - t0
