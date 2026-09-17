@@ -96,12 +96,16 @@ def spec_key(cs: ClassSpec) -> tuple:
     )
 
 
+def _type_schema_repr(ty: ta.Any) -> str:
+    return repr(ty)  # FIXME: ????
+
+
 def _schema(ty: type) -> tuple:
     return (
         ty.__module__,
         ty.__qualname__,
         tuple(
-            (f.name, repr(f.type))  # FIXME: ????
+            (f.name, _type_schema_repr(f.type))
             for f in dc.fields(ty)
         ),
         tuple(

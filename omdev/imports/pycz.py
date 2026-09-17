@@ -565,9 +565,25 @@ class _PyczInstaller:
             except FileNotFoundError:
                 pass
 
-    def _write_file(self, path: str, data: bytes) -> None:
+    def _write_file(
+            self,
+            path: str,
+            data: bytes,
+            *,
+            check: bool = False,
+    ) -> None:
         import os.path
         import tempfile
+
+        if check:
+            try:
+                with open(path, 'rb') as f:
+                    check_data = f.read()
+                if check_data != data:
+                    raise RuntimeError(f'File {path} exists and differs from what would be written')
+                return
+            except FileNotFoundError:
+                pass
 
         fd, temp_path = tempfile.mkstemp(
             dir=os.path.dirname(path),
@@ -615,10 +631,10 @@ class _PyczInstaller:
             no_venv: bool = False,
             optimize: int = -1,
     ) -> tuple[
-        str,
-        str,
-        str,
-        int,
+        str,  # archive_path
+        str,  # bootstrap_path
+        str,  # pth_path
+        int,  # num_source_files
     ]:
         import os.path
 
@@ -631,8 +647,21 @@ class _PyczInstaller:
         pth_path = os.path.join(install_dir, f'__{self.SELF_NAME}-{root_package}.pth')
 
         source_files = self._compile_package(source_root, optimize)
-        self._write_archive(archive_path, root_package, source_root, source_files, optimize)
-        self._write_file(bootstrap_path, self._bootstrap_source())
+
+        self._write_file(
+            bootstrap_path,
+            self._bootstrap_source(),
+            check=True,
+        )
+
+        self._write_archive(
+            archive_path,
+            root_package,
+            source_root,
+            source_files,
+            optimize,
+        )
+
         pth_source = (
             f'import {self.SELF_NAME}; '
             f'{self.SELF_NAME}._run({archive_path!r}, {root_package!r}, {source_root!r})\n'
