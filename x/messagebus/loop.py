@@ -83,7 +83,7 @@ class BusLoop:
 
         sess.store.register_worker(self._worker_id, self._name)
         self._outbox.reconcile(sess.store.load_seqs(self._worker_id))
-        sess.signaling.listen()
+        sess.signaling.listen(self._waker)
 
         cfg = self._config
         next_heartbeat = time.monotonic() + cfg.heartbeat_interval
@@ -103,7 +103,7 @@ class BusLoop:
             if n >= cfg.poll_limit or self._outbox.has_pending():
                 continue
 
-            sess.signaling.wait(min(cfg.poll_interval, max(0., next_heartbeat - now)), self._waker)
+            sess.signaling.wait(min(cfg.poll_interval, max(0., next_heartbeat - now)))
 
     def run(self) -> None:
         cfg = self._config

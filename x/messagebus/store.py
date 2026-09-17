@@ -105,7 +105,10 @@ class SqlMessageStore(MessageStore):
                 payload=_load_json(payload),
                 created_at=created_at,
             )
-            for src_id, seq, created_at, payload in self._conn.execute(self._stmts.select_messages, [str(dst_id), limit])
+            for src_id, seq, created_at, payload in self._conn.execute(
+                self._stmts.select_messages,
+                [str(dst_id), limit],
+            )
         ]
 
     def delete_message(self, msg: Message) -> None:

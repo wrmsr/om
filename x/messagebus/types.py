@@ -37,3 +37,7 @@ class WorkerInfo:
     name: str
     started_at: datetime.datetime
     heartbeat_at: datetime.datetime
+
+
+def new_worker_id() -> WorkerId:
+    return WorkerId(uuid.uuid7())

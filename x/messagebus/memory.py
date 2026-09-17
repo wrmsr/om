@@ -41,7 +41,7 @@ class DictBusStorage(MessageStore):
         self._wakers: dict[WorkerId, Waker] = {}
 
     def transaction(self) -> ta.ContextManager[None]:
-        return self._lock  # type: ignore[return-value]  # coarse but atomic, which is all a stand-in needs
+        return ta.cast(ta.Any, self._lock)  # coarse but atomic, which is all a stand-in needs
 
     ## identity
 
@@ -55,12 +55,16 @@ class DictBusStorage(MessageStore):
     def release(self, worker_id: WorkerId) -> None:
         with self._lock:
             self._held.discard(worker_id)
-            self._wakers.pop(worker_id, None)
 
     ## signaling
 
     def set_waker(self, worker_id: WorkerId, waker: Waker) -> None:
         self._wakers[worker_id] = waker
+
+    def clear_waker(self, worker_id: WorkerId, waker: Waker) -> None:
+        with self._lock:
+            if self._wakers.get(worker_id) is waker:
+                del self._wakers[worker_id]
 
     def wake(self, dst_ids: ta.Iterable[WorkerId]) -> None:
         for dst_id in dst_ids:
@@ -119,8 +123,17 @@ class DictIdentityLock(IdentityLock):
         self._storage = storage
         self._worker_id = worker_id
 
+        self._acquired = False
+
     def try_acquire(self) -> bool:
-        return self._storage.try_acquire(self._worker_id)
+        self._acquired = self._storage.try_acquire(self._worker_id)
+        return self._acquired
+
+    def release(self) -> None:
+        # Only what this session took: a session that lost the race must not evict the winner on close.
+        if self._acquired:
+            self._acquired = False
+            self._storage.release(self._worker_id)
 
 
 class DictSignaling(Signaling):
@@ -130,16 +143,23 @@ class DictSignaling(Signaling):
         self._storage = storage
         self._worker_id = worker_id
 
-    def listen(self) -> None:
-        pass
+        self._waker: Waker | None = None
+
+    def listen(self, waker: Waker) -> None:
+        self._waker = waker
+        self._storage.set_waker(self._worker_id, waker)
 
     def notify(self, dst_ids: ta.Iterable[WorkerId]) -> None:
         # Fires before 'commit', but the woken side then blocks on the storage lock until the transaction ends.
         self._storage.wake(dst_ids)
 
-    def wait(self, timeout: float, waker: Waker) -> None:
-        self._storage.set_waker(self._worker_id, waker)
-        waker.wait(timeout)
+    def wait(self, timeout: float) -> None:
+        check.not_none(self._waker).wait(timeout)
+
+    def close(self) -> None:
+        if (w := self._waker) is not None:
+            self._waker = None
+            self._storage.clear_waker(self._worker_id, w)
 
 
 class DictBusSession(BusSession):
@@ -168,7 +188,8 @@ class DictBusSession(BusSession):
         return self._storage.transaction()
 
     def close(self) -> None:
-        self._storage.release(self._worker_id)
+        self._signaling.close()
+        self._lock.release()
 
 
 class DictBusSessionFactory(BusSessionFactory):
