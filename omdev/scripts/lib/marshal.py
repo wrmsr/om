@@ -43,7 +43,7 @@ def __om_amalg__():  # noqa
             dict(path='abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
             dict(path='objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
-            dict(path='reflect.py', sha1='fab4ef6f45f278ce7bffcd811cd170b40db107a8'),
+            dict(path='reflect.py', sha1='0261db54fb43d741c6f646f900aa759d2f1b38c7'),
             dict(path='strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
         ],
@@ -882,6 +882,7 @@ def dir_dict(o: ta.Any) -> ta.Dict[str, ta.Any]:
 _GENERIC_ALIAS_TYPES = (
     ta._GenericAlias,  # type: ignore  # noqa
     *([ta._SpecialGenericAlias] if hasattr(ta, '_SpecialGenericAlias') else []),  # noqa
+    *([types.GenericAlias] if hasattr(types, 'GenericAlias') else []),  # noqa
 )
 
 

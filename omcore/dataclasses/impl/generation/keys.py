@@ -2,9 +2,11 @@
 import dataclasses as dc
 import hashlib
 import operator
+import types
 import typing as ta
 
 from .... import lang
+from ....lite import reflect as lrf
 from ...specs import ClassSpec
 from ...specs import DefaultFactory
 from ...specs import FieldSpec
@@ -17,7 +19,7 @@ from .registry import all_generator_types
 ##
 
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 
 
 class UncacheableSpecError(Exception):
@@ -99,13 +101,56 @@ def spec_key(cs: ClassSpec) -> tuple:
 
 
 def _type_schema_repr(ty: ta.Any) -> str:
-    return repr(ty)  # FIXME: ????
+    if isinstance(ty, type):
+        return f'{ty.__module__}.{ty.__qualname__}'
+
+    elif ty is ta.Any:
+        return 'typing.Any'
+
+    elif lrf.is_optional_alias(ty):
+        ety = lrf.get_optional_alias_arg(ty)
+        return _type_schema_repr(ety) + ' | None'
+
+    elif lrf.is_union_alias(ty):
+        args = ta.get_args(ty)
+        return ' | '.join(sorted(_type_schema_repr(a) for a in args))
+
+    elif lrf.is_callable_alias(ty):
+        ptys, rty = ta.get_args(ty)
+        return (
+            f'typing.Callable[['
+            f'{"..." if isinstance(ptys, types.EllipsisType) else ", ".join(_type_schema_repr(a) for a in ptys)}], '
+            f'{_type_schema_repr(rty)}]'
+        )
+
+    elif lrf.is_literal_type(ty):
+        args = ta.get_args(ty)
+        return f'typing.Literal[{", ".join(sorted(repr(a) for a in args))}]'
+
+    elif lrf.is_new_type(ty):
+        raise NotImplementedError
+
+    elif lrf.is_generic_alias(ty):
+        origin = ta.get_origin(ty)
+        args = ta.get_args(ty)
+        if origin is tuple and args and isinstance(args[-1], types.EllipsisType):
+            return (
+                f'{_type_schema_repr(origin)}['
+                f'{", ".join(_type_schema_repr(a) for a in args[:-1])}, ...]'
+            )
+        else:
+            return (
+                f'{_type_schema_repr(origin)}['
+                f'{", ".join(_type_schema_repr(a) for a in args)}]'
+            )
+
+    else:
+        raise TypeError(ty)
 
 
 def _schema(ty: type) -> tuple:
     return (
-        ty.__module__,
-        ty.__qualname__,
+        f'{ty.__module__}.{ty.__qualname__}',
         tuple(
             (f.name, _type_schema_repr(f.type))
             for f in dc.fields(ty)
@@ -126,18 +171,14 @@ def implementation_key() -> str:
         _schema(FieldSpec),
         tuple(
             (
-                g.__module__,
-                g.__qualname__,
+                f'{g.__module__}.{g.__qualname__}',
                 g.__dict__.get('cache_version'),
                 tuple(_schema(t) for t in g.cache_schema),
             )
             for g in all_generator_types()
         ),
         tuple(
-            (
-                p.__module__,
-                p.__qualname__,
-            )
+            f'{p.__module__}.{p.__qualname__}'
             for p in ordered_processor_types()
         ),
         tuple(sorted(

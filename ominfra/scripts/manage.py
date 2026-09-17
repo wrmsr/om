@@ -87,7 +87,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/io.py', sha1='a60d94f0bdbb2b1541d363c301314682d1686240'),
             dict(path='../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
             dict(path='../../omcore/lite/pycharm.py', sha1='498c05eaf9d2bf9ff9449a9b4ec7d44336a7f5b4'),
-            dict(path='../../omcore/lite/reflect.py', sha1='fab4ef6f45f278ce7bffcd811cd170b40db107a8'),
+            dict(path='../../omcore/lite/reflect.py', sha1='0261db54fb43d741c6f646f900aa759d2f1b38c7'),
             dict(path='../../omcore/lite/resources.py', sha1='1365cb6046eb929358e7c86a3fda20d95fd4a296'),
             dict(path='../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../omcore/lite/typing.py', sha1='9d6caabc7b31534109e3f2e249d21f8610c9c079'),
@@ -3386,6 +3386,7 @@ def pycharm_debug_preamble(prd: PycharmRemoteDebug) -> str:
 _GENERIC_ALIAS_TYPES = (
     ta._GenericAlias,  # type: ignore  # noqa
     *([ta._SpecialGenericAlias] if hasattr(ta, '_SpecialGenericAlias') else []),  # noqa
+    *([types.GenericAlias] if hasattr(types, 'GenericAlias') else []),  # noqa
 )
 
 

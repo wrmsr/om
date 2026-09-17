@@ -59,7 +59,7 @@ def __om_amalg__():  # noqa
             dict(path='../../lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
             dict(path='../../lite/dataclasses.py', sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e'),
             dict(path='../../lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
-            dict(path='../../lite/reflect.py', sha1='fab4ef6f45f278ce7bffcd811cd170b40db107a8'),
+            dict(path='../../lite/reflect.py', sha1='0261db54fb43d741c6f646f900aa759d2f1b38c7'),
             dict(path='../../lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../lite/typing.py', sha1='9d6caabc7b31534109e3f2e249d21f8610c9c079'),
             dict(path='../../logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
@@ -1353,6 +1353,7 @@ def dir_dict(o: ta.Any) -> ta.Dict[str, ta.Any]:
 _GENERIC_ALIAS_TYPES = (
     ta._GenericAlias,  # type: ignore  # noqa
     *([ta._SpecialGenericAlias] if hasattr(ta, '_SpecialGenericAlias') else []),  # noqa
+    *([types.GenericAlias] if hasattr(types, 'GenericAlias') else []),  # noqa
 )
 
 

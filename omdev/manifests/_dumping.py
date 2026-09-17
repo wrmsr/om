@@ -41,7 +41,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
             dict(path='../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
             dict(path='../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
-            dict(path='../../omcore/lite/reflect.py', sha1='fab4ef6f45f278ce7bffcd811cd170b40db107a8'),
+            dict(path='../../omcore/lite/reflect.py', sha1='0261db54fb43d741c6f646f900aa759d2f1b38c7'),
             dict(path='../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='dumping.py', sha1='4837c54c1019dcb85fbfaa8086f5efb98025358a'),
@@ -999,6 +999,7 @@ def dir_dict(o: ta.Any) -> ta.Dict[str, ta.Any]:
 _GENERIC_ALIAS_TYPES = (
     ta._GenericAlias,  # type: ignore  # noqa
     *([ta._SpecialGenericAlias] if hasattr(ta, '_SpecialGenericAlias') else []),  # noqa
+    *([types.GenericAlias] if hasattr(types, 'GenericAlias') else []),  # noqa
 )
 
 

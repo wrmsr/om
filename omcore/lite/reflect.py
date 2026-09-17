@@ -14,6 +14,7 @@ T = ta.TypeVar('T')
 _GENERIC_ALIAS_TYPES = (
     ta._GenericAlias,  # type: ignore  # noqa
     *([ta._SpecialGenericAlias] if hasattr(ta, '_SpecialGenericAlias') else []),  # noqa
+    *([types.GenericAlias] if hasattr(types, 'GenericAlias') else []),  # noqa
 )
 
 
