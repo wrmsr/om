@@ -30,8 +30,8 @@ def _write_artifact(tmp_path, aot, names, *, width=120):
     Serialize captured training results, run the production writer, and load its artifact into the harness.
 
     names corresponds to aot.captured in training order. The marshal round trip exercises the dumper/writer data
-    boundary without launching the module-scanning subprocess. Executing the output replaces the harness registries
-    with the generated file's own registrations and factories. Return the source for formatting assertions.
+    boundary without launching the module-scanning subprocess. Executing the output replaces the harness registries with
+    the generated file's own registrations and factories. Return the source for formatting assertions.
     """
 
     init_path = os.path.join(tmp_path, '__init__.py')

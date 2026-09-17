@@ -25,15 +25,15 @@ class AotHarness:
     The cached source is compiled and executed, not replaced with a mock installer. The omdev writer tests separately
     cover serializing these installers into a generated module on disk.
 
-    generated_calls contains one boolean per decorate() call that returned successfully, in call order. True means
-    at least one registered generator's generate() ran; False means none ran. Thus [True, False] normally means
-    "training generated the installer, then the second decoration reused it". These are not call counts or timings,
-    and they do not describe calls to generated methods such as the resulting class's __init__. A call that raises
-    appends nothing. Preparation-only decoration can record True without installing any methods.
+    generated_calls contains one boolean per decorate() call that returned successfully, in call order. True means at
+    least one registered generator's generate() ran; False means none ran. Thus [True, False] normally means "training
+    generated the installer, then the second decoration reused it". These are not call counts or timings, and they do
+    not describe calls to generated methods such as the resulting class's __init__. A call that raises appends nothing.
+    Preparation-only decoration can record True without installing any methods.
 
     cProfile observes function-call events deterministically, not by sampling. We only inspect which code objects
-    executed, ignoring timings entirely. This avoids monkeypatching generators or adding production test hooks.
-    The observation covers synchronous decoration in the calling thread, not work dispatched to other threads.
+    executed, ignoring timings entirely. This avoids monkeypatching generators or adding production test hooks. The
+    observation covers synchronous decoration in the calling thread, not work dispatched to other threads.
     """
 
     def __init__(self):
@@ -88,9 +88,9 @@ class AotHarness:
         Decorate a fresh class and record whether generation ran during that call.
 
         train=True forces generation even if an entry exists, and captures the resulting installer. Otherwise the
-        production lookup chooses reuse or fallback; fallback alone does not populate this harness's cache.
-        trusted=True selects the module/qualname registry instead of the structural-key registry. Both modes still
-        check the implementation stamp. Remaining kwargs go to the dataclass decorator unchanged.
+        production lookup chooses reuse or fallback; fallback alone does not populate this harness's cache. trusted=True
+        selects the module/qualname registry instead of the structural-key registry. Both modes still check the
+        implementation stamp. Remaining kwargs go to the dataclass decorator unchanged.
         """
 
         cls.__module__ = self.module.__name__
