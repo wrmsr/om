@@ -1,12 +1,9 @@
 import dataclasses as dc
 import typing as ta
 
-from .... import check
+from ..generation.base import Generation
 from ..generation.base import Generator
-from ..generation.base import Plan
-from ..generation.base import PlanResult
 from ..generation.ops import AddMethodOp
-from ..generation.ops import Op
 from ..generation.ops import SetAttrOp
 from ..generation.registry import register_generator_type
 from ..generation.utils import build_attr_tuple_body_src_lines
@@ -57,72 +54,51 @@ CACHED_HASH_ATTR = '__dataclass_hash__'
 #
 
 
-@dc.dataclass(frozen=True)
-class HashPlan(Plan):
-    action: HashAction
+@register_generator_type
+class HashGenerator(Generator):
+    cache_version = 1
 
-    _: dc.KW_ONLY
-
-    fields: tuple[str, ...] | None = None
-    cache: bool | None = None
-
-
-@register_generator_type(HashPlan)
-class HashGenerator(Generator[HashPlan]):
-    def plan(self, ctx: ProcessingContext) -> PlanResult[HashPlan] | None:
+    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
         class_hash = ctx.cls.__dict__.get('__hash__', dc.MISSING)
-        has_explicit_hash = not (class_hash is dc.MISSING or (class_hash is None and '__eq__' in ctx.cls.__dict__))
+        return not (class_hash is dc.MISSING or (class_hash is None and '__eq__' in ctx.cls.__dict__))
 
+    def generate(self, ctx: ProcessingContext) -> Generation | None:
         action = HASH_ACTIONS[(
             bool(ctx.cs.unsafe_hash),
             bool(ctx.cs.eq),
             bool(ctx.cs.frozen),
-            has_explicit_hash,
+            self.cache_key(ctx),
         )]
 
         if action == 'set_none':
-            return PlanResult(HashPlan(action))  # noqa
+            return Generation([SetAttrOp('__hash__', None, if_present='replace')])
 
         elif action == 'exception':
             _raise_hash_action_exception(ctx.cls)
 
-        elif action == 'add':
-            fields = tuple(
-                f.name
-                for f in ctx[InstanceFields]
-                if (f.compare if f.hash is None else f.hash)
-            )
-
-            return PlanResult(HashPlan(
-                'add',
-                fields=fields,
-                cache=ctx.cs.cache_hash,
-            ))
-
         elif action is None:
             return None
 
-        else:
+        elif action != 'add':
             raise ValueError(action)
 
-    def generate(self, pl: HashPlan) -> ta.Iterable[Op]:
-        if pl.action == 'set_none':
-            return [SetAttrOp('__hash__', None, if_present='replace')]
-
-        elif pl.action != 'add':
-            raise ValueError(pl.action)
+        fields = tuple(
+            f.name
+            for f in ctx[InstanceFields]
+            if (f.compare if f.hash is None else f.hash)
+        )
 
         lines = [
             'def __hash__(self):',
         ]
 
         hash_lines: list[str]
-        if pl.fields:
+        if fields:
             hash_lines = [
                 'hash((',
                 *build_attr_tuple_body_src_lines(
                     'self',
-                    *check.not_none(pl.fields),
+                    *fields,
                     prefix='    ',
                 ),
                 '))',
@@ -130,7 +106,7 @@ class HashGenerator(Generator[HashPlan]):
         else:
             hash_lines = ['hash(())']
 
-        if pl.cache:
+        if ctx.cs.cache_hash:
             lines.extend([
                 f'    try:',
                 f'        return self.{CACHED_HASH_ATTR}',
@@ -156,10 +132,10 @@ class HashGenerator(Generator[HashPlan]):
                 ],
             ])
 
-        return [
+        return Generation([
             AddMethodOp(
                 '__hash__',
                 '\n'.join(lines),
                 if_present='replace',
             ),
-        ]
+        ])

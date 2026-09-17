@@ -10,13 +10,16 @@ import types
 ##
 
 
-REGISTRY_BY_PLAN_REPR = {}
+REGISTRY_BY_SPEC_KEY = {}
 REGISTRY_BY_CLS_NAME = {}
 
 
 def _register(**kwargs):
     def inner(fn):
-        REGISTRY_BY_PLAN_REPR[kwargs['plan_repr']] = (kwargs, fn)
+        for key in kwargs['spec_keys']:
+            if key in REGISTRY_BY_SPEC_KEY:
+                raise RuntimeError('Conflicting dataclass cache key')
+            REGISTRY_BY_SPEC_KEY[key] = (kwargs, fn)
         REGISTRY_BY_CLS_NAME.update({cn: (kwargs, fn) for cn in kwargs['cls_names']})
         return fn
     return inner
@@ -25,29 +28,35 @@ def _register(**kwargs):
 ##
 
 
+IMPLEMENTATION_KEY = '0b058e19e67cdb26e91b1c38203523e9cefe1242a3d73dbb76cc5c75c41df941'
+
+
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('outcomes',)), EqPlan(fields=('outcomes',)), HashPlan(action='set_none', fields=No"
-        "ne, cache=None), InitPlan(fields=(InitPlan.Field(name='outcomes', annotation=OpRef(name='init.fields.0.annotat"
-        "ion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
-        "ne, validate=None, check_type=None),), self_param='self', std_params=('outcomes',), kw_only_params=(), frozen="
-        "False, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name"
-        "='outcomes', kw_only=False, fn=None),), id=False, terse=False, default_fn=None)))"
+    installer_sha1='ae15d5e5b329834496f04d6965dad21781d34ac8',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('outcomes', True, True, None, True, False, False, None), 'instance', 'missin"
+            "g', None, False, False, False),), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), Fal"
+            "se))"
+        ),
     ),
-    plan_repr_sha1='2d78cb786a74fa04214759052274bed3017379a3',
     cls_names=(
         ('omllm.core.asyncs.base', 'AsyncGroupCancelledError'),
     ),
 )
-def _process_dataclass__2d78cb786a74fa04214759052274bed3017379a3():
+def _process_dataclass__ae15d5e5b329834496f04d6965dad21781d34ac8():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -94,28 +103,31 @@ def _process_dataclass__2d78cb786a74fa04214759052274bed3017379a3():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('index',)), EqPlan(fields=('index',)), HashPlan(action='set_none', fields=None, ca"
-        "che=None), InitPlan(fields=(InitPlan.Field(name='index', annotation=OpRef(name='init.fields.0.annotation'), de"
-        "fault=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
-        "ate=None, check_type=None),), self_param='self', std_params=('index',), kw_only_params=(), frozen=False, slots"
-        "=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='index', kw"
-        "_only=False, fn=None),), id=False, terse=False, default_fn=None)))"
+    installer_sha1='a4d089838c562cee3490d95778ae21df476577bb',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('index', True, True, None, True, False, False, None), 'instance', 'missing',"
+            " None, False, False, False),), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False)"
+            ")"
+        ),
     ),
-    plan_repr_sha1='7ee63f3d79afa83a6a63da3876f330cdfc2a0119',
     cls_names=(
         ('omllm.core.asyncs.base', 'AsyncGroupMemberCancelledError'),
     ),
 )
-def _process_dataclass__7ee63f3d79afa83a6a63da3876f330cdfc2a0119():
+def _process_dataclass__a4d089838c562cee3490d95778ae21df476577bb():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)

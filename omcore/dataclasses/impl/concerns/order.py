@@ -1,11 +1,8 @@
-import dataclasses as dc
 import typing as ta
 
+from ..generation.base import Generation
 from ..generation.base import Generator
-from ..generation.base import Plan
-from ..generation.base import PlanResult
 from ..generation.ops import AddMethodOp
-from ..generation.ops import Op
 from ..generation.registry import register_generator_type
 from ..generation.utils import build_attr_tuple_body_src_lines
 from ..processing.base import ProcessingContext
@@ -26,45 +23,41 @@ ORDER_NAME_OP_PAIRS = [
 ##
 
 
-@dc.dataclass(frozen=True)
-class OrderPlan(Plan):
-    fields: tuple[str, ...]
+@register_generator_type
+class OrderGenerator(Generator):
+    cache_version = 1
 
+    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
+        return tuple(name for name, _ in ORDER_NAME_OP_PAIRS if name in ctx.cls.__dict__)
 
-@register_generator_type(OrderPlan)
-class OrderGenerator(Generator[OrderPlan]):
-    def plan(self, ctx: ProcessingContext) -> PlanResult[OrderPlan] | None:
+    def generate(self, ctx: ProcessingContext) -> Generation | None:
         if not ctx.cs.order:
             return None
 
-        for name, _ in ORDER_NAME_OP_PAIRS:
-            if name in ctx.cls.__dict__:
-                raise TypeError(
-                    f'Cannot overwrite attribute {name} in class {ctx.cls.__name__}. '
-                    f'Consider using functools.total_ordering',
-                )
+        for name in self.cache_key(ctx):
+            raise TypeError(
+                f'Cannot overwrite attribute {name} in class {ctx.cls.__name__}. '
+                f'Consider using functools.total_ordering',
+            )
 
-        return PlanResult(OrderPlan(
-            tuple(f.name for f in ctx[InstanceFields] if f.compare),
-        ))
+        fields = tuple(f.name for f in ctx[InstanceFields] if f.compare)
 
-    def generate(self, pl: OrderPlan) -> ta.Iterable[Op]:
         ops: list[AddMethodOp] = []
 
         for name, op in ORDER_NAME_OP_PAIRS:
             ret_lines: list[str] = []
-            if pl.fields:
+            if fields:
                 ret_lines.extend([
                     f'    return (',
                     *build_attr_tuple_body_src_lines(
                         'self',
-                        *pl.fields,
+                        *fields,
                         prefix='        ',
                     ),
                     f'    ) {op} (',
                     *build_attr_tuple_body_src_lines(
                         'other',
-                        *pl.fields,
+                        *fields,
                         prefix='        ',
                     ),
                     f'    )',
@@ -84,4 +77,4 @@ class OrderGenerator(Generator[OrderPlan]):
                 ]),
             ))
 
-        return ops
+        return Generation(ops)

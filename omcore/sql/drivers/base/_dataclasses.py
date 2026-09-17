@@ -10,13 +10,16 @@ import types
 ##
 
 
-REGISTRY_BY_PLAN_REPR = {}
+REGISTRY_BY_SPEC_KEY = {}
 REGISTRY_BY_CLS_NAME = {}
 
 
 def _register(**kwargs):
     def inner(fn):
-        REGISTRY_BY_PLAN_REPR[kwargs['plan_repr']] = (kwargs, fn)
+        for key in kwargs['spec_keys']:
+            if key in REGISTRY_BY_SPEC_KEY:
+                raise RuntimeError('Conflicting dataclass cache key')
+            REGISTRY_BY_SPEC_KEY[key] = (kwargs, fn)
         REGISTRY_BY_CLS_NAME.update({cn: (kwargs, fn) for cn in kwargs['cls_names']})
         return fn
     return inner
@@ -25,33 +28,37 @@ def _register(**kwargs):
 ##
 
 
+IMPLEMENTATION_KEY = '0b058e19e67cdb26e91b1c38203523e9cefe1242a3d73dbb76cc5c75c41df941'
+
+
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('op',)), EqPlan(fields=('op',)), FrozenPlan(fields=('op',), allow_dynamic_dunder_a"
-        "ttrs=False), HashPlan(action='add', fields=('op',), cache=False), InitPlan(fields=(InitPlan.Field(name='op', a"
-        "nnotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=Fals"
-        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_param"
-        "s=('op',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), "
-        "ReprPlan(fields=(ReprPlan.Field(name='op', kw_only=False, fn=None),), id=False, terse=False, default_fn=None))"
-        ")"
+    installer_sha1='4077f72d9de613560975d4412cd5682ebc905712',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('op', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False),), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='05a7ebf3e1ed0c05a38720a4a850a7d476bb3730',
     cls_names=(
         ('omcore.sql.drivers.base.core.handlers', 'OperationDone'),
         ('omcore.sql.drivers.base.core.handlers', 'OperationRequest'),
     ),
 )
-def _process_dataclass__05a7ebf3e1ed0c05a38720a4a850a7d476bb3730():
+def _process_dataclass__4077f72d9de613560975d4412cd5682ebc905712():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)

@@ -3,21 +3,18 @@ TODO:
  - prebuild field frozenset for getters/setters
   - and one field per line
 """
-import dataclasses as dc
 import typing as ta
 import weakref
 
 from .... import check
 from ..._internals import STD_FIELDS_ATTR
 from ..._internals import STD_PARAMS_ATTR
+from ..generation.base import Generation
 from ..generation.base import Generator
-from ..generation.base import Plan
-from ..generation.base import PlanResult
 from ..generation.globals import FROZEN_INSTANCE_ERROR_GLOBAL
 from ..generation.idents import CLS_IDENT
 from ..generation.idents import IDENT_PREFIX
 from ..generation.ops import AddMethodOp
-from ..generation.ops import Op
 from ..generation.registry import register_generator_type
 from ..processing.base import ProcessingContext
 
@@ -65,33 +62,22 @@ def check_frozen_bases(cls: type, frozen: bool) -> None:
 ##
 
 
-@dc.dataclass(frozen=True, kw_only=True)
-class FrozenPlan(Plan):
-    fields: tuple[str, ...]
-    allow_dynamic_dunder_attrs: bool
+@register_generator_type
+class FrozenGenerator(Generator):
+    cache_version = 1
 
-
-@register_generator_type(FrozenPlan)
-class FrozenGenerator(Generator[FrozenPlan]):
-    def plan(self, ctx: ProcessingContext) -> PlanResult[FrozenPlan] | None:
+    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
+        # This validation depends on live base classes and the unchecked-base registry, even when not frozen.
         check_frozen_bases(ctx.cls, ctx.cs.frozen)
-
-        if not ctx.cs.frozen:
-            return None
-
-        if issubclass(ctx.cls, BaseException):
+        if ctx.cs.frozen and issubclass(ctx.cls, BaseException):
             raise TypeError('cannot use frozen=True with subclass of BaseException')
-
-        return PlanResult(FrozenPlan(
-            fields=tuple(f.name for f in ctx.cs.fields),
-            allow_dynamic_dunder_attrs=ctx.cs.allow_dynamic_dunder_attrs,
-        ))
+        return ()
 
     _FROZEN_FIELDS_SET_IDENT = f'{IDENT_PREFIX}_frozen_fields'
 
     def _generate_one(
             self,
-            plan: FrozenPlan,
+            ctx: ProcessingContext,
             mth: str,
             params: ta.Sequence[str],
             exc_args: str,
@@ -103,7 +89,7 @@ class FrozenGenerator(Generator[FrozenPlan]):
         # https://github.com/python/cpython/commit/ee6f8413a99d0ee4828e1c81911e203d3fff85d5
         base_condition = f'type(self) is {CLS_IDENT}'
 
-        if plan.allow_dynamic_dunder_attrs:
+        if ctx.cs.allow_dynamic_dunder_attrs:
             condition.extend([
                 f'(',
                 f'    {base_condition}',
@@ -113,7 +99,7 @@ class FrozenGenerator(Generator[FrozenPlan]):
         else:
             condition.append(base_condition)
 
-        if plan.fields:
+        if ctx.cs.fields:
             condition.append(f'or name in {self._FROZEN_FIELDS_SET_IDENT}')
 
         return AddMethodOp(
@@ -133,23 +119,27 @@ class FrozenGenerator(Generator[FrozenPlan]):
             frozenset([FROZEN_INSTANCE_ERROR_GLOBAL]),
         )
 
-    def generate(self, plan: FrozenPlan) -> ta.Iterable[Op]:
+    def generate(self, ctx: ProcessingContext) -> Generation | None:
+        self.cache_key(ctx)
+        if not ctx.cs.frozen:
+            return None
+
         preamble = []
 
-        if plan.fields:
+        if ctx.cs.fields:
             preamble.extend([
                 f'{self._FROZEN_FIELDS_SET_IDENT} = {{',
                 *[
-                    f'    {f!r},'
-                    for f in plan.fields
+                    f'    {f.name!r},'
+                    for f in ctx.cs.fields
                 ],
                 f'}}',
                 f'',
             ])
 
-        return [
+        return Generation([
             self._generate_one(
-                plan,
+                ctx,
                 'setattr',
                 ['name', 'value'],
                 '(f"cannot assign to field {name!r}")',
@@ -157,9 +147,9 @@ class FrozenGenerator(Generator[FrozenPlan]):
             ),
 
             self._generate_one(
-                plan,
+                ctx,
                 'delattr',
                 ['name'],
                 '(f"cannot delete field {name!r}")',
             ),
-        ]
+        ])

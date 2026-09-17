@@ -218,7 +218,7 @@ class DelimitedScopeImpl(ScopeImpl[DelimitedScope]):
     @dc.dataclass(eq=False)
     class State:
         seeds: dict[Key, ta.Any]
-        om: OnceProvisionMap = dc.field(default_factory=OnceProvisionMap)
+        opm: OnceProvisionMap = dc.field(default_factory=OnceProvisionMap)
         frozen: bool = False
 
     def __init__(self, scope: DelimitedScope) -> None:
@@ -298,9 +298,9 @@ class DelimitedScopeImpl(ScopeImpl[DelimitedScope]):
         st = self.must_state()
         # The has/provide window is benign: freezing is meant for quiescent transition points, and the one race it
         # leaves - a pre-freeze construction failing after the check - correctly rejects the retry.
-        if st.frozen and not st.om.has(binding):
+        if st.frozen and not st.opm.has(binding):
             raise ScopeFrozenError(self._scope, binding.key)
-        return await st.om.provide(binding, injector)
+        return await st.opm.provide(binding, injector)
 
 
 ##

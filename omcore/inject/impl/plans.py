@@ -372,7 +372,7 @@ class ProvisionPlanCompiler(lang.Final):
             async def delimited_node(ii, frame, cr, /):
                 ssi = ta.cast(DelimitedScopeImpl, ii.get_scope_impl(sc))
                 st = ssi.must_state()
-                om = st.om
+                om = st.opm
                 if isinstance(e := om._dct.get(bi), OnceProvisionMap._Done):  # noqa
                     return e.v
                 if st.frozen and not om.has(bi):

@@ -1,9 +1,5 @@
-import dataclasses as dc
-import typing as ta
-
+from ..generation.base import Generation
 from ..generation.base import Generator
-from ..generation.base import Plan
-from ..generation.base import PlanResult
 from ..generation.globals import NONE_GLOBAL
 from ..generation.idents import SELF_IDENT
 from ..generation.idents import VALUE_IDENT
@@ -14,6 +10,7 @@ from ..generation.ops import Ref
 from ..generation.ops import add_ref
 from ..generation.registry import register_generator_type
 from ..generation.utils import SetattrSrcBuilder
+from ..generation.values import SpecVal
 from ..processing.base import ProcessingContext
 from .fields import InstanceFields
 
@@ -21,60 +18,30 @@ from .fields import InstanceFields
 ##
 
 
-@dc.dataclass(frozen=True)
-class OverridePlan(Plan):
-    @dc.dataclass(frozen=True)
-    class Field:
-        name: str
-        annotation: OpRef[ta.Any]
+@register_generator_type
+class OverrideGenerator(Generator):
+    cache_version = 1
 
-    fields: tuple[Field, ...]
-
-    frozen: bool
-
-
-@register_generator_type(OverridePlan)
-class OverrideGenerator(Generator[OverridePlan]):
-    def plan(self, ctx: ProcessingContext) -> PlanResult[OverridePlan] | None:
+    def generate(self, ctx: ProcessingContext) -> Generation | None:
         orm = {}
+        ops: list[Op] = []
 
-        flds: list[OverridePlan.Field] = []
         ifs = ctx[InstanceFields]
         r_g = OpRef.numbered(len(ifs))
         for i, f in enumerate(ifs):
             if not (f.override or ctx.cs.override):
                 continue
             r: OpRef = r_g('override.fields.{i}.annotation', i)
-            orm[r] = f.annotation
-            flds.append(OverridePlan.Field(
-                f.name,
-                r,
-            ))
-
-        if not flds:
-            return None
-
-        return PlanResult(
-            OverridePlan(
-                tuple(flds),
-                ctx.cs.frozen,
-            ),
-            orm,
-        )
-
-    def generate(self, pl: OverridePlan) -> ta.Iterable[Op]:
-        ops: list[Op] = []
-
-        for f in pl.fields:
-            op_refs: set[Ref] = {f.annotation}
+            orm[r] = SpecVal(('fields', ctx.cs.field_indexes_by_name[f.name], 'annotation'))
+            op_refs: set[Ref] = {r}
 
             get_src = '\n'.join([
-                f'def {f.name}({SELF_IDENT}) -> {f.annotation.ident()}:',
+                f'def {f.name}({SELF_IDENT}) -> {r.ident()}:',
                 f'    return {SELF_IDENT}.__dict__[{f.name!r}]',
             ])
 
             set_src: str | None = None
-            if not pl.frozen:
+            if not ctx.cs.frozen:
                 sab = SetattrSrcBuilder()
                 set_src = '\n'.join([
                     f'def {f.name}({SELF_IDENT}, {VALUE_IDENT}) -> {add_ref(NONE_GLOBAL, op_refs).ident}:',
@@ -83,7 +50,7 @@ class OverrideGenerator(Generator[OverridePlan]):
                         for l in sab(
                             f.name,
                             VALUE_IDENT,
-                            frozen=pl.frozen,
+                            frozen=ctx.cs.frozen,
                             override=True,
                         )
                     ],
@@ -97,4 +64,4 @@ class OverrideGenerator(Generator[OverridePlan]):
                 refs=frozenset(op_refs),
             ))
 
-        return ops
+        return Generation(ops, bindings=orm) if ops else None

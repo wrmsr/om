@@ -55,7 +55,7 @@ def drive_cls_processing(
 ) -> type:
     options: list[ProcessingOption] = list(_OPTIONS_CONTEXT_VAR.get())
     if plan_only:
-        options.append(gp.PlanOnly(True))
+        options.append(gp.PrepareOnly(True))
     if warn or debug:
         options.append(gp.Verbosity(warn=warn, debug=debug))
 

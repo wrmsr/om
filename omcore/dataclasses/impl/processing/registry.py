@@ -32,8 +32,17 @@ def processing_context_item_factory_for(i_ty: type) -> ProcessingContextItemFact
 
 
 @lang.cached_function
-def all_processing_context_item_factories() -> ta.Mapping[type, ProcessingContextItemFactory]:
-    return dict(_PROCESSING_CONTEXT_ITEM_FACTORIES.items())
+def all_processing_context_item_factories() -> ta.Mapping[type | str, ProcessingContextItemFactory]:
+    factories: dict[type | str, ProcessingContextItemFactory] = dict(_PROCESSING_CONTEXT_ITEM_FACTORIES.items())
+    for ty in list(factories):
+        name = processing_context_item_name(ty)
+        check.not_in(name, factories)
+        factories[name] = lambda ctx, ty=ty: ctx[ty]  # type: ignore[misc]
+    return factories
+
+
+def processing_context_item_name(ty: ta.Any) -> str:
+    return f'{ty.__module__}.{ty.__qualname__}'
 
 
 ##

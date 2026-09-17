@@ -3,6 +3,9 @@ IDENT_PREFIX = '__dataclass__'
 SELF_IDENT = IDENT_PREFIX + 'self'
 SELF_DICT_IDENT = IDENT_PREFIX + 'self_dict'
 VALUE_IDENT = IDENT_PREFIX + 'value'
+SPEC_IDENT = IDENT_PREFIX + 'spec'
+CTX_IDENT = IDENT_PREFIX + 'ctx'
+GLOBALS_IDENT = IDENT_PREFIX + 'globals'
 
 # Class ident is special - the class may be rebuilt after adding generated methods (primarily for slots), and if so the
 # `__class__` closure cell for generated methods is updated to the newly rebuilt class. We could probably do something

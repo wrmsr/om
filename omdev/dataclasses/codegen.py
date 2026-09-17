@@ -231,6 +231,20 @@ class DataclassCodeGen:
 
     PROCESS_FN_NAME: ta.ClassVar[str] = '_process_dataclass'
 
+    def _string_literal_lines(self, value: str, *, indent: int, suffix: str = '') -> list[str]:
+        prefix = ' ' * indent
+        literal = repr(value)
+        if indent + len(literal) + len(suffix) <= self._target_line_width:
+            return [f'{prefix}{literal}{suffix}']
+        return [
+            f'{prefix}(',
+            *[
+                f'{prefix}    {line}'
+                for line in textwrap_repr(value, self._target_line_width - indent - 4)
+            ],
+            f'{prefix}){suffix}',
+        ]
+
     async def process_dumper_output(
             self,
             cfg_pkg: ConfiguredPackage,
@@ -253,17 +267,26 @@ class DataclassCodeGen:
 
         from . import _template
         lines.extend(inspect.getsource(_template).strip().split('\n'))
+        lines.extend(['', '', f'IMPLEMENTATION_KEY = {output.implementation_key!r}'])
 
         #
 
         processed_modules = set(output.processed_modules)
 
-        dumped_by_plan_repr: dict[str, list[DumpedDataclassCodegen]] = {}
+        # The emitted source includes binding expressions, helper lookups, and installation behavior. Different
+        # conservative keys may share exactly the same installer without a separate normalized plan representation.
+        dumped_by_source: dict[
+            tuple[
+                tuple[str, ...],  # hdr_lines
+                tuple[str, ...],  # fn_lines
+            ],
+            list[DumpedDataclassCodegen],
+        ] = {}
 
         seen_cls_name_tups: set[tuple[str, str]] = set()
 
         for x in output.dumped:
-            if x.cls_module not in processed_modules:
+            if x.cls_module not in processed_modules or x.spec_key is None:
                 continue
 
             cls_name_tup = (x.cls_module, x.cls_qualname)
@@ -275,10 +298,14 @@ class DataclassCodeGen:
             )
             seen_cls_name_tups.add(cls_name_tup)
 
+            source_key = (
+                tuple(x.hdr_lines),
+                tuple(x.fn_lines),
+            )
             try:
-                lst = dumped_by_plan_repr[x.plan_repr]
+                lst = dumped_by_source[source_key]
             except KeyError:
-                dumped_by_plan_repr[x.plan_repr] = [x]
+                dumped_by_source[source_key] = [x]
                 continue
 
             y = lst[0]
@@ -291,14 +318,13 @@ class DataclassCodeGen:
 
         # Sorted by first cls name for more stable diffs than say sha1
         for grp in sorted(
-                dumped_by_plan_repr.values(),
+                dumped_by_source.values(),
                 key=lambda grp: min([(y.cls_module, y.cls_qualname) for y in grp]),
         ):
             x = grp[0]
-            pr = x.plan_repr
-            pr_sha1 = hashlib.sha1(pr.encode()).hexdigest()  # noqa
+            installer_sha1 = hashlib.sha1(repr((tuple(x.hdr_lines), tuple(x.fn_lines))).encode()).hexdigest()  # noqa
 
-            fn_name = f'{self.PROCESS_FN_NAME}__{pr_sha1}'
+            fn_name = f'{self.PROCESS_FN_NAME}__{installer_sha1}'
 
             lines.extend(['', ''])
 
@@ -307,26 +333,27 @@ class DataclassCodeGen:
             )
 
             lines.extend([
-                f'    plan_repr=(',
+                f'    installer_sha1={installer_sha1!r},',
+                f'    spec_keys=(',
                 *[
-                    f'        {prl}'
-                    for prl in textwrap_repr(x.plan_repr, self._target_line_width - 8)
+                    line
+                    for key in sorted({check.not_none(y.spec_key) for y in grp})
+                    for line in self._string_literal_lines(key, indent=8, suffix=',')
                 ],
                 f'    ),',
-                f'    plan_repr_sha1={pr_sha1!r},',
-            ])
-
-            lines.extend([
                 f'    cls_names=(',
-                *[
-                    f'        {cn!r},'
-                    for cn in sorted([
-                        (y.cls_module, y.cls_qualname)
-                        for y in grp
-                    ])
-                ],
-                f'    ),',
             ])
+            for cn in sorted((y.cls_module, y.cls_qualname) for y in grp):
+                if len(line := f'        {cn!r},') <= self._target_line_width:
+                    lines.append(line)
+                else:
+                    lines.extend([
+                        '        (',
+                        *self._string_literal_lines(cn[0], indent=12, suffix=','),
+                        *self._string_literal_lines(cn[1], indent=12, suffix=','),
+                        '        ),',
+                    ])
+            lines.append('    ),')
 
             lines.append(
                 ')',

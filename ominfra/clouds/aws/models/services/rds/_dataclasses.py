@@ -10,13 +10,16 @@ import types
 ##
 
 
-REGISTRY_BY_PLAN_REPR = {}
+REGISTRY_BY_SPEC_KEY = {}
 REGISTRY_BY_CLS_NAME = {}
 
 
 def _register(**kwargs):
     def inner(fn):
-        REGISTRY_BY_PLAN_REPR[kwargs['plan_repr']] = (kwargs, fn)
+        for key in kwargs['spec_keys']:
+            if key in REGISTRY_BY_SPEC_KEY:
+                raise RuntimeError('Conflicting dataclass cache key')
+            REGISTRY_BY_SPEC_KEY[key] = (kwargs, fn)
         REGISTRY_BY_CLS_NAME.update({cn: (kwargs, fn) for cn in kwargs['cls_names']})
         return fn
     return inner
@@ -25,63 +28,54 @@ def _register(**kwargs):
 ##
 
 
+IMPLEMENTATION_KEY = '0b058e19e67cdb26e91b1c38203523e9cefe1242a3d73dbb76cc5c75c41df941'
+
+
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('volume_name', 'allocated_storage', 'iops', 'max_allocated_storage', 'storage_thro"
-        "ughput', 'storage_type')), EqPlan(fields=('volume_name', 'allocated_storage', 'iops', 'max_allocated_storage',"
-        " 'storage_throughput', 'storage_type')), FrozenPlan(fields=('__shape__', 'volume_name', 'allocated_storage', '"
-        "iops', 'max_allocated_storage', 'storage_throughput', 'storage_type'), allow_dynamic_dunder_attrs=False), Hash"
-        "Plan(action='add', fields=('volume_name', 'allocated_storage', 'iops', 'max_allocated_storage', 'storage_throu"
-        "ghput', 'storage_type'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name"
-        "='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldT"
-        "ype.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='volume_name', annotation=OpR"
-        "ef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type"
-        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='allocated_storage', an"
-        "notation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory="
-        "None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), "
-        "InitPlan.Field(name='iops', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields"
-        ".3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
-        "idate=None, check_type=None), InitPlan.Field(name='max_allocated_storage', annotation=OpRef(name='init.fields."
-        "4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, "
-        "field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='storage_thro"
-        "ughput', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), defau"
-        "lt_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_t"
-        "ype=None), InitPlan.Field(name='storage_type', annotation=OpRef(name='init.fields.6.annotation'), default=OpRe"
-        "f(name='init.fields.6.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANC"
-        "E, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('volume_na"
-        "me', 'allocated_storage', 'iops', 'max_allocated_storage', 'storage_throughput', 'storage_type'), frozen=True,"
-        " slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='volu"
-        "me_name', kw_only=True, fn=None), ReprPlan.Field(name='allocated_storage', kw_only=True, fn=None), ReprPlan.Fi"
-        "eld(name='iops', kw_only=True, fn=None), ReprPlan.Field(name='max_allocated_storage', kw_only=True, fn=None), "
-        "ReprPlan.Field(name='storage_throughput', kw_only=True, fn=None), ReprPlan.Field(name='storage_type', kw_only="
-        "True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='d483803c8b8f15916684dabc6604eda7c61d87d9',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('volume_name', True, True, None, True, True, False, None), 'instance', 'm"
+            "issing', None, False, False, False), (('allocated_storage', True, True, None, True, True, False, None), 'i"
+            "nstance', 'value', None, False, False, False), (('iops', True, True, None, True, True, False, None), 'inst"
+            "ance', 'value', None, False, False, False), (('max_allocated_storage', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('storage_throughput', True, True, None, True, "
+            "True, False, None), 'instance', 'value', None, False, False, False), (('storage_type', True, True, None, T"
+            "rue, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, ("
+            "), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='e9a0fad203018e78be9115967938c2244c585354',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'AdditionalStorageVolume'),
     ),
 )
-def _process_dataclass__e9a0fad203018e78be9115967938c2244c585354():
+def _process_dataclass__d483803c8b8f15916684dabc6604eda7c61d87d9():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__init__fields__4__default,
-        __dataclass__init__fields__5__annotation,
-        __dataclass__init__fields__5__default,
-        __dataclass__init__fields__6__annotation,
-        __dataclass__init__fields__6__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -194,83 +188,60 @@ def _process_dataclass__e9a0fad203018e78be9115967938c2244c585354():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('volume_name', 'storage_volume_status', 'storage_operation_status', 'storage_opera"
-        "tion_percent_progress', 'allocated_storage', 'iops', 'max_allocated_storage', 'storage_throughput', 'storage_t"
-        "ype')), EqPlan(fields=('volume_name', 'storage_volume_status', 'storage_operation_status', 'storage_operation_"
-        "percent_progress', 'allocated_storage', 'iops', 'max_allocated_storage', 'storage_throughput', 'storage_type')"
-        "), FrozenPlan(fields=('__shape__', 'volume_name', 'storage_volume_status', 'storage_operation_status', 'storag"
-        "e_operation_percent_progress', 'allocated_storage', 'iops', 'max_allocated_storage', 'storage_throughput', 'st"
-        "orage_type'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('volume_name', 'storage_volume"
-        "_status', 'storage_operation_status', 'storage_operation_percent_progress', 'allocated_storage', 'iops', 'max_"
-        "allocated_storage', 'storage_throughput', 'storage_type'), cache=False), InitPlan(fields=(InitPlan.Field(name="
-        "'__shape__', annotation=OpRef(name='init.fields.00.annotation'), default=None, default_factory=None, init=True"
-        ", override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field"
-        "(name='volume_name', annotation=OpRef(name='init.fields.01.annotation'), default=OpRef(name='init.fields.01.de"
-        "fault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate"
-        "=None, check_type=None), InitPlan.Field(name='storage_volume_status', annotation=OpRef(name='init.fields.02.an"
-        "notation'), default=OpRef(name='init.fields.02.default'), default_factory=None, init=True, override=False, fie"
-        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='storage_operati"
-        "on_status', annotation=OpRef(name='init.fields.03.annotation'), default=OpRef(name='init.fields.03.default'), "
-        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
-        "eck_type=None), InitPlan.Field(name='storage_operation_percent_progress', annotation=OpRef(name='init.fields.0"
-        "4.annotation'), default=OpRef(name='init.fields.04.default'), default_factory=None, init=True, override=False,"
-        " field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='allocated_s"
-        "torage', annotation=OpRef(name='init.fields.05.annotation'), default=OpRef(name='init.fields.05.default'), def"
-        "ault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check"
-        "_type=None), InitPlan.Field(name='iops', annotation=OpRef(name='init.fields.06.annotation'), default=OpRef(nam"
-        "e='init.fields.06.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, c"
-        "oerce=None, validate=None, check_type=None), InitPlan.Field(name='max_allocated_storage', annotation=OpRef(nam"
-        "e='init.fields.07.annotation'), default=OpRef(name='init.fields.07.default'), default_factory=None, init=True,"
-        " override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(n"
-        "ame='storage_throughput', annotation=OpRef(name='init.fields.08.annotation'), default=OpRef(name='init.fields."
-        "08.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
-        "idate=None, check_type=None), InitPlan.Field(name='storage_type', annotation=OpRef(name='init.fields.09.annota"
-        "tion'), default=OpRef(name='init.fields.09.default'), default_factory=None, init=True, override=False, field_t"
-        "ype=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_on"
-        "ly_params=('volume_name', 'storage_volume_status', 'storage_operation_status', 'storage_operation_percent_prog"
-        "ress', 'allocated_storage', 'iops', 'max_allocated_storage', 'storage_throughput', 'storage_type'), frozen=Tru"
-        "e, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='vo"
-        "lume_name', kw_only=True, fn=None), ReprPlan.Field(name='storage_volume_status', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='storage_operation_status', kw_only=True, fn=None), ReprPlan.Field(name='storage_operation_perc"
-        "ent_progress', kw_only=True, fn=None), ReprPlan.Field(name='allocated_storage', kw_only=True, fn=None), ReprPl"
-        "an.Field(name='iops', kw_only=True, fn=None), ReprPlan.Field(name='max_allocated_storage', kw_only=True, fn=No"
-        "ne), ReprPlan.Field(name='storage_throughput', kw_only=True, fn=None), ReprPlan.Field(name='storage_type', kw_"
-        "only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='2effd8a3025d3310831df773f6a359de01595aeb',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('volume_name', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('storage_volume_status', True, True, None, True, True, False, None), "
+            "'instance', 'value', None, False, False, False), (('storage_operation_status', True, True, None, True, Tru"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('storage_operation_percent_progress', "
+            "True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('allocated_"
+            "storage', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('"
+            "iops', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('max"
+            "_allocated_storage', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('storage_throughput', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
+            "se, False, False), (('storage_type', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='531563b443b6bac9bb619fc5651b2498134c85c2',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'AdditionalStorageVolumeOutput'),
     ),
 )
-def _process_dataclass__531563b443b6bac9bb619fc5651b2498134c85c2():
+def _process_dataclass__2effd8a3025d3310831df773f6a359de01595aeb():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__01__annotation,
-        __dataclass__init__fields__01__default,
-        __dataclass__init__fields__02__annotation,
-        __dataclass__init__fields__02__default,
-        __dataclass__init__fields__03__annotation,
-        __dataclass__init__fields__03__default,
-        __dataclass__init__fields__04__annotation,
-        __dataclass__init__fields__04__default,
-        __dataclass__init__fields__05__annotation,
-        __dataclass__init__fields__05__default,
-        __dataclass__init__fields__06__annotation,
-        __dataclass__init__fields__06__default,
-        __dataclass__init__fields__07__annotation,
-        __dataclass__init__fields__07__default,
-        __dataclass__init__fields__08__annotation,
-        __dataclass__init__fields__08__default,
-        __dataclass__init__fields__09__annotation,
-        __dataclass__init__fields__09__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -404,15 +375,15 @@ def _process_dataclass__531563b443b6bac9bb619fc5651b2498134c85c2():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=()), EqPlan(fields=()), FrozenPlan(fields=('__shape__',), allow_dynamic_dunder_attr"
-        "s=False), HashPlan(action='add', fields=(), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', an"
-        "notation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False"
-        ", field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None),), self_param='self', std_param"
-        "s=(), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprP"
-        "lan(fields=(), id=False, terse=False, default_fn=None)))"
+    installer_sha1='23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False),), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), Fals"
+            "e))"
+        ),
     ),
-    plan_repr_sha1='fe6ee985e5454d23ff07c1fb86524a86d9239cf5',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'AuthorizationNotFoundFault'),
         ('ominfra.clouds.aws.models.services.rds', 'BackupPolicyNotFoundFault'),
@@ -444,15 +415,19 @@ def _process_dataclass__531563b443b6bac9bb619fc5651b2498134c85c2():
         ('ominfra.clouds.aws.models.services.rds', 'VpcEncryptionControlViolationException'),
     ),
 )
-def _process_dataclass__fe6ee985e5454d23ff07c1fb86524a86d9239cf5():
+def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -515,34 +490,35 @@ def _process_dataclass__fe6ee985e5454d23ff07c1fb86524a86d9239cf5():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('name',)), EqPlan(fields=('name',)), FrozenPlan(fields=('__shape__', 'name'), allo"
-        "w_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('name',), cache=False), InitPlan(fields=(InitPla"
-        "n.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=Non"
-        "e, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), In"
-        "itPlan.Field(name='name', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1"
-        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
-        "ate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('name',), frozen=True, slots=Fa"
-        "lse, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='name', kw_onl"
-        "y=True, fn=None),), id=False, terse=False, default_fn=None)))"
+    installer_sha1='1d54f0e79f9555ab3393b80415a6078f900b8d21',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('name', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='c34f3093a6550242a3325f4944a4df47a9b48420',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'AvailabilityZone'),
     ),
 )
-def _process_dataclass__c34f3093a6550242a3325f4944a4df47a9b48420():
+def _process_dataclass__1d54f0e79f9555ab3393b80415a6078f900b8d21():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -620,40 +596,39 @@ def _process_dataclass__c34f3093a6550242a3325f4944a4df47a9b48420():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('ca_identifier', 'valid_till')), EqPlan(fields=('ca_identifier', 'valid_till')), F"
-        "rozenPlan(fields=('__shape__', 'ca_identifier', 'valid_till'), allow_dynamic_dunder_attrs=False), HashPlan(act"
-        "ion='add', fields=('ca_identifier', 'valid_till'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape"
-        "__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, overrid"
-        "e=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ca"
-        "_identifier', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), "
-        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
-        "eck_type=None), InitPlan.Field(name='valid_till', annotation=OpRef(name='init.fields.2.annotation'), default=O"
-        "pRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
-        "ANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('ca_ide"
-        "ntifier', 'valid_till'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprP"
-        "lan(fields=(ReprPlan.Field(name='ca_identifier', kw_only=True, fn=None), ReprPlan.Field(name='valid_till', kw_"
-        "only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='bbb1d032a77cb075cd9760117b990a4e2e4a3249',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('ca_identifier', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('valid_till', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), "
+            "(), False))"
+        ),
     ),
-    plan_repr_sha1='d06e7fd09a465a218bf317b3d6b6c4d46dec5ff4',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'CertificateDetails'),
     ),
 )
-def _process_dataclass__d06e7fd09a465a218bf317b3d6b6c4d46dec5ff4():
+def _process_dataclass__bbb1d032a77cb075cd9760117b990a4e2e4a3249():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -738,431 +713,238 @@ def _process_dataclass__d06e7fd09a465a218bf317b3d6b6c4d46dec5ff4():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_name', 'db_instance_identifier', 'allocated_storage', 'db_instance_class', 'en"
-        "gine', 'master_username', 'master_user_password', 'db_security_groups', 'vpc_security_group_ids', 'availabilit"
-        "y_zone', 'db_subnet_group_name', 'preferred_maintenance_window', 'db_parameter_group_name', 'backup_retention_"
-        "period', 'preferred_backup_window', 'port', 'multi_az', 'engine_version', 'auto_minor_version_upgrade', 'licen"
-        "se_model', 'iops', 'storage_throughput', 'option_group_name', 'character_set_name', 'nchar_character_set_name'"
-        ", 'publicly_accessible', 'tags', 'db_cluster_identifier', 'storage_type', 'tde_credential_arn', 'tde_credentia"
-        "l_password', 'storage_encrypted', 'kms_key_id', 'domain', 'domain_fqdn', 'domain_ou', 'domain_auth_secret_arn'"
-        ", 'domain_dns_ips', 'copy_tags_to_snapshot', 'monitoring_interval', 'monitoring_role_arn', 'domain_iam_role_na"
-        "me', 'promotion_tier', 'timezone', 'enable_iam_database_authentication', 'database_insights_mode', 'enable_per"
-        "formance_insights', 'performance_insights_kms_key_id', 'performance_insights_retention_period', 'enable_cloudw"
-        "atch_logs_exports', 'processor_features', 'deletion_protection', 'max_allocated_storage', 'enable_customer_own"
-        "ed_ip', 'network_type', 'backup_target', 'custom_iam_instance_profile', 'db_system_id', 'ca_certificate_identi"
-        "fier', 'manage_master_user_password', 'master_user_secret_kms_key_id', 'multi_tenant', 'dedicated_log_volume',"
-        " 'engine_lifecycle_support', 'additional_storage_volumes', 'tag_specifications', 'master_user_authentication_t"
-        "ype')), EqPlan(fields=('db_name', 'db_instance_identifier', 'allocated_storage', 'db_instance_class', 'engine'"
-        ", 'master_username', 'master_user_password', 'db_security_groups', 'vpc_security_group_ids', 'availability_zon"
-        "e', 'db_subnet_group_name', 'preferred_maintenance_window', 'db_parameter_group_name', 'backup_retention_perio"
-        "d', 'preferred_backup_window', 'port', 'multi_az', 'engine_version', 'auto_minor_version_upgrade', 'license_mo"
-        "del', 'iops', 'storage_throughput', 'option_group_name', 'character_set_name', 'nchar_character_set_name', 'pu"
-        "blicly_accessible', 'tags', 'db_cluster_identifier', 'storage_type', 'tde_credential_arn', 'tde_credential_pas"
-        "sword', 'storage_encrypted', 'kms_key_id', 'domain', 'domain_fqdn', 'domain_ou', 'domain_auth_secret_arn', 'do"
-        "main_dns_ips', 'copy_tags_to_snapshot', 'monitoring_interval', 'monitoring_role_arn', 'domain_iam_role_name', "
-        "'promotion_tier', 'timezone', 'enable_iam_database_authentication', 'database_insights_mode', 'enable_performa"
-        "nce_insights', 'performance_insights_kms_key_id', 'performance_insights_retention_period', 'enable_cloudwatch_"
-        "logs_exports', 'processor_features', 'deletion_protection', 'max_allocated_storage', 'enable_customer_owned_ip"
-        "', 'network_type', 'backup_target', 'custom_iam_instance_profile', 'db_system_id', 'ca_certificate_identifier'"
-        ", 'manage_master_user_password', 'master_user_secret_kms_key_id', 'multi_tenant', 'dedicated_log_volume', 'eng"
-        "ine_lifecycle_support', 'additional_storage_volumes', 'tag_specifications', 'master_user_authentication_type')"
-        "), FrozenPlan(fields=('__shape__', 'db_name', 'db_instance_identifier', 'allocated_storage', 'db_instance_clas"
-        "s', 'engine', 'master_username', 'master_user_password', 'db_security_groups', 'vpc_security_group_ids', 'avai"
-        "lability_zone', 'db_subnet_group_name', 'preferred_maintenance_window', 'db_parameter_group_name', 'backup_ret"
-        "ention_period', 'preferred_backup_window', 'port', 'multi_az', 'engine_version', 'auto_minor_version_upgrade',"
-        " 'license_model', 'iops', 'storage_throughput', 'option_group_name', 'character_set_name', 'nchar_character_se"
-        "t_name', 'publicly_accessible', 'tags', 'db_cluster_identifier', 'storage_type', 'tde_credential_arn', 'tde_cr"
-        "edential_password', 'storage_encrypted', 'kms_key_id', 'domain', 'domain_fqdn', 'domain_ou', 'domain_auth_secr"
-        "et_arn', 'domain_dns_ips', 'copy_tags_to_snapshot', 'monitoring_interval', 'monitoring_role_arn', 'domain_iam_"
-        "role_name', 'promotion_tier', 'timezone', 'enable_iam_database_authentication', 'database_insights_mode', 'ena"
-        "ble_performance_insights', 'performance_insights_kms_key_id', 'performance_insights_retention_period', 'enable"
-        "_cloudwatch_logs_exports', 'processor_features', 'deletion_protection', 'max_allocated_storage', 'enable_custo"
-        "mer_owned_ip', 'network_type', 'backup_target', 'custom_iam_instance_profile', 'db_system_id', 'ca_certificate"
-        "_identifier', 'manage_master_user_password', 'master_user_secret_kms_key_id', 'multi_tenant', 'dedicated_log_v"
-        "olume', 'engine_lifecycle_support', 'additional_storage_volumes', 'tag_specifications', 'master_user_authentic"
-        "ation_type'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('db_name', 'db_instance_identi"
-        "fier', 'allocated_storage', 'db_instance_class', 'engine', 'master_username', 'master_user_password', 'db_secu"
-        "rity_groups', 'vpc_security_group_ids', 'availability_zone', 'db_subnet_group_name', 'preferred_maintenance_wi"
-        "ndow', 'db_parameter_group_name', 'backup_retention_period', 'preferred_backup_window', 'port', 'multi_az', 'e"
-        "ngine_version', 'auto_minor_version_upgrade', 'license_model', 'iops', 'storage_throughput', 'option_group_nam"
-        "e', 'character_set_name', 'nchar_character_set_name', 'publicly_accessible', 'tags', 'db_cluster_identifier', "
-        "'storage_type', 'tde_credential_arn', 'tde_credential_password', 'storage_encrypted', 'kms_key_id', 'domain', "
-        "'domain_fqdn', 'domain_ou', 'domain_auth_secret_arn', 'domain_dns_ips', 'copy_tags_to_snapshot', 'monitoring_i"
-        "nterval', 'monitoring_role_arn', 'domain_iam_role_name', 'promotion_tier', 'timezone', 'enable_iam_database_au"
-        "thentication', 'database_insights_mode', 'enable_performance_insights', 'performance_insights_kms_key_id', 'pe"
-        "rformance_insights_retention_period', 'enable_cloudwatch_logs_exports', 'processor_features', 'deletion_protec"
-        "tion', 'max_allocated_storage', 'enable_customer_owned_ip', 'network_type', 'backup_target', 'custom_iam_insta"
-        "nce_profile', 'db_system_id', 'ca_certificate_identifier', 'manage_master_user_password', 'master_user_secret_"
-        "kms_key_id', 'multi_tenant', 'dedicated_log_volume', 'engine_lifecycle_support', 'additional_storage_volumes',"
-        " 'tag_specifications', 'master_user_authentication_type'), cache=False), InitPlan(fields=(InitPlan.Field(name="
-        "'__shape__', annotation=OpRef(name='init.fields.00.annotation'), default=None, default_factory=None, init=True"
-        ", override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field"
-        "(name='db_name', annotation=OpRef(name='init.fields.01.annotation'), default=OpRef(name='init.fields.01.defaul"
-        "t'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=Non"
-        "e, check_type=None), InitPlan.Field(name='db_instance_identifier', annotation=OpRef(name='init.fields.02.annot"
-        "ation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce="
-        "None, validate=None, check_type=None), InitPlan.Field(name='allocated_storage', annotation=OpRef(name='init.fi"
-        "elds.03.annotation'), default=OpRef(name='init.fields.03.default'), default_factory=None, init=True, override="
-        "False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_in"
-        "stance_class', annotation=OpRef(name='init.fields.04.annotation'), default=None, default_factory=None, init=Tr"
-        "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
-        "d(name='engine', annotation=OpRef(name='init.fields.05.annotation'), default=None, default_factory=None, init="
-        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fi"
-        "eld(name='master_username', annotation=OpRef(name='init.fields.06.annotation'), default=OpRef(name='init.field"
-        "s.06.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, v"
-        "alidate=None, check_type=None), InitPlan.Field(name='master_user_password', annotation=OpRef(name='init.fields"
-        ".07.annotation'), default=OpRef(name='init.fields.07.default'), default_factory=None, init=True, override=Fals"
-        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_securi"
-        "ty_groups', annotation=OpRef(name='init.fields.08.annotation'), default=OpRef(name='init.fields.08.default'), "
-        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
-        "eck_type=None), InitPlan.Field(name='vpc_security_group_ids', annotation=OpRef(name='init.fields.09.annotation"
-        "'), default=OpRef(name='init.fields.09.default'), default_factory=None, init=True, override=False, field_type="
-        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='availability_zone', ann"
-        "otation=OpRef(name='init.fields.10.annotation'), default=OpRef(name='init.fields.10.default'), default_factory"
-        "=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),"
-        " InitPlan.Field(name='db_subnet_group_name', annotation=OpRef(name='init.fields.11.annotation'), default=OpRef"
-        "(name='init.fields.11.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANC"
-        "E, coerce=None, validate=None, check_type=None), InitPlan.Field(name='preferred_maintenance_window', annotatio"
-        "n=OpRef(name='init.fields.12.annotation'), default=OpRef(name='init.fields.12.default'), default_factory=None,"
-        " init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitP"
-        "lan.Field(name='db_parameter_group_name', annotation=OpRef(name='init.fields.13.annotation'), default=OpRef(na"
-        "me='init.fields.13.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, "
-        "coerce=None, validate=None, check_type=None), InitPlan.Field(name='backup_retention_period', annotation=OpRef("
-        "name='init.fields.14.annotation'), default=OpRef(name='init.fields.14.default'), default_factory=None, init=Tr"
-        "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
-        "d(name='preferred_backup_window', annotation=OpRef(name='init.fields.15.annotation'), default=OpRef(name='init"
-        ".fields.15.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=N"
-        "one, validate=None, check_type=None), InitPlan.Field(name='port', annotation=OpRef(name='init.fields.16.annota"
-        "tion'), default=OpRef(name='init.fields.16.default'), default_factory=None, init=True, override=False, field_t"
-        "ype=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='multi_az', annotati"
-        "on=OpRef(name='init.fields.17.annotation'), default=OpRef(name='init.fields.17.default'), default_factory=None"
-        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Init"
-        "Plan.Field(name='engine_version', annotation=OpRef(name='init.fields.18.annotation'), default=OpRef(name='init"
-        ".fields.18.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=N"
-        "one, validate=None, check_type=None), InitPlan.Field(name='auto_minor_version_upgrade', annotation=OpRef(name="
-        "'init.fields.19.annotation'), default=OpRef(name='init.fields.19.default'), default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(nam"
-        "e='license_model', annotation=OpRef(name='init.fields.20.annotation'), default=OpRef(name='init.fields.20.defa"
-        "ult'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
-        "one, check_type=None), InitPlan.Field(name='iops', annotation=OpRef(name='init.fields.21.annotation'), default"
-        "=OpRef(name='init.fields.21.default'), default_factory=None, init=True, override=False, field_type=FieldType.I"
-        "NSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='storage_throughput', annotation=Op"
-        "Ref(name='init.fields.22.annotation'), default=OpRef(name='init.fields.22.default'), default_factory=None, ini"
-        "t=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan."
-        "Field(name='option_group_name', annotation=OpRef(name='init.fields.23.annotation'), default=OpRef(name='init.f"
-        "ields.23.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=Non"
-        "e, validate=None, check_type=None), InitPlan.Field(name='character_set_name', annotation=OpRef(name='init.fiel"
-        "ds.24.annotation'), default=OpRef(name='init.fields.24.default'), default_factory=None, init=True, override=Fa"
-        "lse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='nchar_c"
-        "haracter_set_name', annotation=OpRef(name='init.fields.25.annotation'), default=OpRef(name='init.fields.25.def"
-        "ault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate="
-        "None, check_type=None), InitPlan.Field(name='publicly_accessible', annotation=OpRef(name='init.fields.26.annot"
-        "ation'), default=OpRef(name='init.fields.26.default'), default_factory=None, init=True, override=False, field_"
-        "type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='tags', annotation="
-        "OpRef(name='init.fields.27.annotation'), default=OpRef(name='init.fields.27.default'), default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
-        "n.Field(name='db_cluster_identifier', annotation=OpRef(name='init.fields.28.annotation'), default=OpRef(name='"
-        "init.fields.28.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
-        "ce=None, validate=None, check_type=None), InitPlan.Field(name='storage_type', annotation=OpRef(name='init.fiel"
-        "ds.29.annotation'), default=OpRef(name='init.fields.29.default'), default_factory=None, init=True, override=Fa"
-        "lse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='tde_cre"
-        "dential_arn', annotation=OpRef(name='init.fields.30.annotation'), default=OpRef(name='init.fields.30.default')"
-        ", default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, "
-        "check_type=None), InitPlan.Field(name='tde_credential_password', annotation=OpRef(name='init.fields.31.annotat"
-        "ion'), default=OpRef(name='init.fields.31.default'), default_factory=None, init=True, override=False, field_ty"
-        "pe=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='storage_encrypted', "
-        "annotation=OpRef(name='init.fields.32.annotation'), default=OpRef(name='init.fields.32.default'), default_fact"
-        "ory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=Non"
-        "e), InitPlan.Field(name='kms_key_id', annotation=OpRef(name='init.fields.33.annotation'), default=OpRef(name='"
-        "init.fields.33.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
-        "ce=None, validate=None, check_type=None), InitPlan.Field(name='domain', annotation=OpRef(name='init.fields.34."
-        "annotation'), default=OpRef(name='init.fields.34.default'), default_factory=None, init=True, override=False, f"
-        "ield_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='domain_fqdn',"
-        " annotation=OpRef(name='init.fields.35.annotation'), default=OpRef(name='init.fields.35.default'), default_fac"
-        "tory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=No"
-        "ne), InitPlan.Field(name='domain_ou', annotation=OpRef(name='init.fields.36.annotation'), default=OpRef(name='"
-        "init.fields.36.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
-        "ce=None, validate=None, check_type=None), InitPlan.Field(name='domain_auth_secret_arn', annotation=OpRef(name="
-        "'init.fields.37.annotation'), default=OpRef(name='init.fields.37.default'), default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(nam"
-        "e='domain_dns_ips', annotation=OpRef(name='init.fields.38.annotation'), default=OpRef(name='init.fields.38.def"
-        "ault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate="
-        "None, check_type=None), InitPlan.Field(name='copy_tags_to_snapshot', annotation=OpRef(name='init.fields.39.ann"
-        "otation'), default=OpRef(name='init.fields.39.default'), default_factory=None, init=True, override=False, fiel"
-        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='monitoring_inter"
-        "val', annotation=OpRef(name='init.fields.40.annotation'), default=OpRef(name='init.fields.40.default'), defaul"
-        "t_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_ty"
-        "pe=None), InitPlan.Field(name='monitoring_role_arn', annotation=OpRef(name='init.fields.41.annotation'), defau"
-        "lt=OpRef(name='init.fields.41.default'), default_factory=None, init=True, override=False, field_type=FieldType"
-        ".INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='domain_iam_role_name', annotatio"
-        "n=OpRef(name='init.fields.42.annotation'), default=OpRef(name='init.fields.42.default'), default_factory=None,"
-        " init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitP"
-        "lan.Field(name='promotion_tier', annotation=OpRef(name='init.fields.43.annotation'), default=OpRef(name='init."
-        "fields.43.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
-        "ne, validate=None, check_type=None), InitPlan.Field(name='timezone', annotation=OpRef(name='init.fields.44.ann"
-        "otation'), default=OpRef(name='init.fields.44.default'), default_factory=None, init=True, override=False, fiel"
-        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='enable_iam_datab"
-        "ase_authentication', annotation=OpRef(name='init.fields.45.annotation'), default=OpRef(name='init.fields.45.de"
-        "fault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate"
-        "=None, check_type=None), InitPlan.Field(name='database_insights_mode', annotation=OpRef(name='init.fields.46.a"
-        "nnotation'), default=OpRef(name='init.fields.46.default'), default_factory=None, init=True, override=False, fi"
-        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='enable_perform"
-        "ance_insights', annotation=OpRef(name='init.fields.47.annotation'), default=OpRef(name='init.fields.47.default"
-        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
-        ", check_type=None), InitPlan.Field(name='performance_insights_kms_key_id', annotation=OpRef(name='init.fields."
-        "48.annotation'), default=OpRef(name='init.fields.48.default'), default_factory=None, init=True, override=False"
-        ", field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='performanc"
-        "e_insights_retention_period', annotation=OpRef(name='init.fields.49.annotation'), default=OpRef(name='init.fie"
-        "lds.49.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None), InitPlan.Field(name='enable_cloudwatch_logs_exports', annotation=OpRef(name="
-        "'init.fields.50.annotation'), default=OpRef(name='init.fields.50.default'), default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(nam"
-        "e='processor_features', annotation=OpRef(name='init.fields.51.annotation'), default=OpRef(name='init.fields.51"
-        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
-        "ate=None, check_type=None), InitPlan.Field(name='deletion_protection', annotation=OpRef(name='init.fields.52.a"
-        "nnotation'), default=OpRef(name='init.fields.52.default'), default_factory=None, init=True, override=False, fi"
-        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_allocated_"
-        "storage', annotation=OpRef(name='init.fields.53.annotation'), default=OpRef(name='init.fields.53.default'), de"
-        "fault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, chec"
-        "k_type=None), InitPlan.Field(name='enable_customer_owned_ip', annotation=OpRef(name='init.fields.54.annotation"
-        "'), default=OpRef(name='init.fields.54.default'), default_factory=None, init=True, override=False, field_type="
-        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='network_type', annotati"
-        "on=OpRef(name='init.fields.55.annotation'), default=OpRef(name='init.fields.55.default'), default_factory=None"
-        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Init"
-        "Plan.Field(name='backup_target', annotation=OpRef(name='init.fields.56.annotation'), default=OpRef(name='init."
-        "fields.56.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
-        "ne, validate=None, check_type=None), InitPlan.Field(name='custom_iam_instance_profile', annotation=OpRef(name="
-        "'init.fields.57.annotation'), default=OpRef(name='init.fields.57.default'), default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(nam"
-        "e='db_system_id', annotation=OpRef(name='init.fields.58.annotation'), default=OpRef(name='init.fields.58.defau"
-        "lt'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
-        "ne, check_type=None), InitPlan.Field(name='ca_certificate_identifier', annotation=OpRef(name='init.fields.59.a"
-        "nnotation'), default=OpRef(name='init.fields.59.default'), default_factory=None, init=True, override=False, fi"
-        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='manage_master_"
-        "user_password', annotation=OpRef(name='init.fields.60.annotation'), default=OpRef(name='init.fields.60.default"
-        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
-        ", check_type=None), InitPlan.Field(name='master_user_secret_kms_key_id', annotation=OpRef(name='init.fields.61"
-        ".annotation'), default=OpRef(name='init.fields.61.default'), default_factory=None, init=True, override=False, "
-        "field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='multi_tenant"
-        "', annotation=OpRef(name='init.fields.62.annotation'), default=OpRef(name='init.fields.62.default'), default_f"
-        "actory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type="
-        "None), InitPlan.Field(name='dedicated_log_volume', annotation=OpRef(name='init.fields.63.annotation'), default"
-        "=OpRef(name='init.fields.63.default'), default_factory=None, init=True, override=False, field_type=FieldType.I"
-        "NSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='engine_lifecycle_support', annotat"
-        "ion=OpRef(name='init.fields.64.annotation'), default=OpRef(name='init.fields.64.default'), default_factory=Non"
-        "e, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Ini"
-        "tPlan.Field(name='additional_storage_volumes', annotation=OpRef(name='init.fields.65.annotation'), default=OpR"
-        "ef(name='init.fields.65.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
-        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='tag_specifications', annotation=OpRef("
-        "name='init.fields.66.annotation'), default=OpRef(name='init.fields.66.default'), default_factory=None, init=Tr"
-        "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
-        "d(name='master_user_authentication_type', annotation=OpRef(name='init.fields.67.annotation'), default=OpRef(na"
-        "me='init.fields.67.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, "
-        "coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('db_name', 'd"
-        "b_instance_identifier', 'allocated_storage', 'db_instance_class', 'engine', 'master_username', 'master_user_pa"
-        "ssword', 'db_security_groups', 'vpc_security_group_ids', 'availability_zone', 'db_subnet_group_name', 'preferr"
-        "ed_maintenance_window', 'db_parameter_group_name', 'backup_retention_period', 'preferred_backup_window', 'port"
-        "', 'multi_az', 'engine_version', 'auto_minor_version_upgrade', 'license_model', 'iops', 'storage_throughput', "
-        "'option_group_name', 'character_set_name', 'nchar_character_set_name', 'publicly_accessible', 'tags', 'db_clus"
-        "ter_identifier', 'storage_type', 'tde_credential_arn', 'tde_credential_password', 'storage_encrypted', 'kms_ke"
-        "y_id', 'domain', 'domain_fqdn', 'domain_ou', 'domain_auth_secret_arn', 'domain_dns_ips', 'copy_tags_to_snapsho"
-        "t', 'monitoring_interval', 'monitoring_role_arn', 'domain_iam_role_name', 'promotion_tier', 'timezone', 'enabl"
-        "e_iam_database_authentication', 'database_insights_mode', 'enable_performance_insights', 'performance_insights"
-        "_kms_key_id', 'performance_insights_retention_period', 'enable_cloudwatch_logs_exports', 'processor_features',"
-        " 'deletion_protection', 'max_allocated_storage', 'enable_customer_owned_ip', 'network_type', 'backup_target', "
-        "'custom_iam_instance_profile', 'db_system_id', 'ca_certificate_identifier', 'manage_master_user_password', 'ma"
-        "ster_user_secret_kms_key_id', 'multi_tenant', 'dedicated_log_volume', 'engine_lifecycle_support', 'additional_"
-        "storage_volumes', 'tag_specifications', 'master_user_authentication_type'), frozen=True, slots=False, post_ini"
-        "t_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_name', kw_only=True, fn"
-        "=None), ReprPlan.Field(name='db_instance_identifier', kw_only=True, fn=None), ReprPlan.Field(name='allocated_s"
-        "torage', kw_only=True, fn=None), ReprPlan.Field(name='db_instance_class', kw_only=True, fn=None), ReprPlan.Fie"
-        "ld(name='engine', kw_only=True, fn=None), ReprPlan.Field(name='master_username', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='master_user_password', kw_only=True, fn=None), ReprPlan.Field(name='db_security_groups', kw_on"
-        "ly=True, fn=None), ReprPlan.Field(name='vpc_security_group_ids', kw_only=True, fn=None), ReprPlan.Field(name='"
-        "availability_zone', kw_only=True, fn=None), ReprPlan.Field(name='db_subnet_group_name', kw_only=True, fn=None)"
-        ", ReprPlan.Field(name='preferred_maintenance_window', kw_only=True, fn=None), ReprPlan.Field(name='db_paramete"
-        "r_group_name', kw_only=True, fn=None), ReprPlan.Field(name='backup_retention_period', kw_only=True, fn=None), "
-        "ReprPlan.Field(name='preferred_backup_window', kw_only=True, fn=None), ReprPlan.Field(name='port', kw_only=Tru"
-        "e, fn=None), ReprPlan.Field(name='multi_az', kw_only=True, fn=None), ReprPlan.Field(name='engine_version', kw_"
-        "only=True, fn=None), ReprPlan.Field(name='auto_minor_version_upgrade', kw_only=True, fn=None), ReprPlan.Field("
-        "name='license_model', kw_only=True, fn=None), ReprPlan.Field(name='iops', kw_only=True, fn=None), ReprPlan.Fie"
-        "ld(name='storage_throughput', kw_only=True, fn=None), ReprPlan.Field(name='option_group_name', kw_only=True, f"
-        "n=None), ReprPlan.Field(name='character_set_name', kw_only=True, fn=None), ReprPlan.Field(name='nchar_characte"
-        "r_set_name', kw_only=True, fn=None), ReprPlan.Field(name='publicly_accessible', kw_only=True, fn=None), ReprPl"
-        "an.Field(name='tags', kw_only=True, fn=None), ReprPlan.Field(name='db_cluster_identifier', kw_only=True, fn=No"
-        "ne), ReprPlan.Field(name='storage_type', kw_only=True, fn=None), ReprPlan.Field(name='tde_credential_arn', kw_"
-        "only=True, fn=None), ReprPlan.Field(name='tde_credential_password', kw_only=True, fn=None), ReprPlan.Field(nam"
-        "e='storage_encrypted', kw_only=True, fn=None), ReprPlan.Field(name='kms_key_id', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='domain', kw_only=True, fn=None), ReprPlan.Field(name='domain_fqdn', kw_only=True, fn=None), Re"
-        "prPlan.Field(name='domain_ou', kw_only=True, fn=None), ReprPlan.Field(name='domain_auth_secret_arn', kw_only=T"
-        "rue, fn=None), ReprPlan.Field(name='domain_dns_ips', kw_only=True, fn=None), ReprPlan.Field(name='copy_tags_to"
-        "_snapshot', kw_only=True, fn=None), ReprPlan.Field(name='monitoring_interval', kw_only=True, fn=None), ReprPla"
-        "n.Field(name='monitoring_role_arn', kw_only=True, fn=None), ReprPlan.Field(name='domain_iam_role_name', kw_onl"
-        "y=True, fn=None), ReprPlan.Field(name='promotion_tier', kw_only=True, fn=None), ReprPlan.Field(name='timezone'"
-        ", kw_only=True, fn=None), ReprPlan.Field(name='enable_iam_database_authentication', kw_only=True, fn=None), Re"
-        "prPlan.Field(name='database_insights_mode', kw_only=True, fn=None), ReprPlan.Field(name='enable_performance_in"
-        "sights', kw_only=True, fn=None), ReprPlan.Field(name='performance_insights_kms_key_id', kw_only=True, fn=None)"
-        ", ReprPlan.Field(name='performance_insights_retention_period', kw_only=True, fn=None), ReprPlan.Field(name='en"
-        "able_cloudwatch_logs_exports', kw_only=True, fn=None), ReprPlan.Field(name='processor_features', kw_only=True,"
-        " fn=None), ReprPlan.Field(name='deletion_protection', kw_only=True, fn=None), ReprPlan.Field(name='max_allocat"
-        "ed_storage', kw_only=True, fn=None), ReprPlan.Field(name='enable_customer_owned_ip', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='network_type', kw_only=True, fn=None), ReprPlan.Field(name='backup_target', kw_only=True, "
-        "fn=None), ReprPlan.Field(name='custom_iam_instance_profile', kw_only=True, fn=None), ReprPlan.Field(name='db_s"
-        "ystem_id', kw_only=True, fn=None), ReprPlan.Field(name='ca_certificate_identifier', kw_only=True, fn=None), Re"
-        "prPlan.Field(name='manage_master_user_password', kw_only=True, fn=None), ReprPlan.Field(name='master_user_secr"
-        "et_kms_key_id', kw_only=True, fn=None), ReprPlan.Field(name='multi_tenant', kw_only=True, fn=None), ReprPlan.F"
-        "ield(name='dedicated_log_volume', kw_only=True, fn=None), ReprPlan.Field(name='engine_lifecycle_support', kw_o"
-        "nly=True, fn=None), ReprPlan.Field(name='additional_storage_volumes', kw_only=True, fn=None), ReprPlan.Field(n"
-        "ame='tag_specifications', kw_only=True, fn=None), ReprPlan.Field(name='master_user_authentication_type', kw_on"
-        "ly=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='656a146807f1abd624694d4f11b5988c9b486ea8',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_name', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
+            "stance', 'missing', None, False, False, False), (('allocated_storage', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('db_instance_class', True, True, None, True, T"
+            "rue, False, None), 'instance', 'missing', None, False, False, False), (('engine', True, True, None, True, "
+            "True, False, None), 'instance', 'missing', None, False, False, False), (('master_username', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', None, False, False, False), (('master_user_password', T"
+            "rue, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_security"
+            "_groups', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('"
+            "vpc_security_group_ids', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
+            "se, False), (('availability_zone', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('db_subnet_group_name', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('preferred_maintenance_window', True, True, None, True, True, False, "
+            "None), 'instance', 'value', None, False, False, False), (('db_parameter_group_name', True, True, None, Tru"
+            "e, True, False, None), 'instance', 'value', None, False, False, False), (('backup_retention_period', True,"
+            " True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('preferred_backu"
+            "p_window', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (("
+            "'port', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('mu"
+            "lti_az', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('e"
+            "ngine_version', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False"
+            "), (('auto_minor_version_upgrade', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('license_model', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('iops', True, True, None, True, True, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('storage_throughput', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('option_group_name', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('character_set_name', True, True, None, True, True, False,"
+            " None), 'instance', 'value', None, False, False, False), (('nchar_character_set_name', True, True, None, T"
+            "rue, True, False, None), 'instance', 'value', None, False, False, False), (('publicly_accessible', True, T"
+            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('tags', True, True"
+            ", None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_cluster_identifie"
+            "r', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('storag"
+            "e_type', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('t"
+            "de_credential_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
+            "alse), (('tde_credential_password', True, True, None, True, True, False, None), 'instance', 'value', None,"
+            " False, False, False), (('storage_encrypted', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('kms_key_id', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('domain', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('domain_fqdn', True, True, None, True, True, False, None), 'instance'"
+            ", 'value', None, False, False, False), (('domain_ou', True, True, None, True, True, False, None), 'instanc"
+            "e', 'value', None, False, False, False), (('domain_auth_secret_arn', True, True, None, True, True, False, "
+            "None), 'instance', 'value', None, False, False, False), (('domain_dns_ips', True, True, None, True, True, "
+            "False, None), 'instance', 'value', None, False, False, False), (('copy_tags_to_snapshot', True, True, None"
+            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('monitoring_interval', True"
+            ", True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('monitoring_rol"
+            "e_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('do"
+            "main_iam_role_name', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('promotion_tier', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
+            "False, False), (('timezone', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
+            " False, False), (('enable_iam_database_authentication', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('database_insights_mode', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('enable_performance_insights', True, True, Non"
+            "e, True, True, False, None), 'instance', 'value', None, False, False, False), (('performance_insights_kms_"
+            "key_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('p"
+            "erformance_insights_retention_period', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('enable_cloudwatch_logs_exports', True, True, None, True, True, False, None), "
+            "'instance', 'value', None, False, False, False), (('processor_features', True, True, None, True, True, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('deletion_protection', True, True, None, Tru"
+            "e, True, False, None), 'instance', 'value', None, False, False, False), (('max_allocated_storage', True, T"
+            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('enable_customer_o"
+            "wned_ip', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('"
+            "network_type', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)"
+            ", (('backup_target', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('custom_iam_instance_profile', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('db_system_id', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('ca_certificate_identifier', True, True, None, True, True, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('manage_master_user_password', True, True, None, True"
+            ", True, False, None), 'instance', 'value', None, False, False, False), (('master_user_secret_kms_key_id', "
+            "True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('multi_tena"
+            "nt', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('dedic"
+            "ated_log_volume', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fal"
+            "se), (('engine_lifecycle_support', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('additional_storage_volumes', True, True, None, True, True, False, None), 'instanc"
+            "e', 'value', None, False, False, False), (('tag_specifications', True, True, None, True, True, False, None"
+            "), 'instance', 'value', None, False, False, False), (('master_user_authentication_type', True, True, None,"
+            " True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False,"
+            " (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='0b282f64b8f60ccd5cd92126654ff584e2b8406d',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'CreateDBInstanceMessage'),
     ),
 )
-def _process_dataclass__0b282f64b8f60ccd5cd92126654ff584e2b8406d():
+def _process_dataclass__656a146807f1abd624694d4f11b5988c9b486ea8():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__01__annotation,
-        __dataclass__init__fields__01__default,
-        __dataclass__init__fields__02__annotation,
-        __dataclass__init__fields__03__annotation,
-        __dataclass__init__fields__03__default,
-        __dataclass__init__fields__04__annotation,
-        __dataclass__init__fields__05__annotation,
-        __dataclass__init__fields__06__annotation,
-        __dataclass__init__fields__06__default,
-        __dataclass__init__fields__07__annotation,
-        __dataclass__init__fields__07__default,
-        __dataclass__init__fields__08__annotation,
-        __dataclass__init__fields__08__default,
-        __dataclass__init__fields__09__annotation,
-        __dataclass__init__fields__09__default,
-        __dataclass__init__fields__10__annotation,
-        __dataclass__init__fields__10__default,
-        __dataclass__init__fields__11__annotation,
-        __dataclass__init__fields__11__default,
-        __dataclass__init__fields__12__annotation,
-        __dataclass__init__fields__12__default,
-        __dataclass__init__fields__13__annotation,
-        __dataclass__init__fields__13__default,
-        __dataclass__init__fields__14__annotation,
-        __dataclass__init__fields__14__default,
-        __dataclass__init__fields__15__annotation,
-        __dataclass__init__fields__15__default,
-        __dataclass__init__fields__16__annotation,
-        __dataclass__init__fields__16__default,
-        __dataclass__init__fields__17__annotation,
-        __dataclass__init__fields__17__default,
-        __dataclass__init__fields__18__annotation,
-        __dataclass__init__fields__18__default,
-        __dataclass__init__fields__19__annotation,
-        __dataclass__init__fields__19__default,
-        __dataclass__init__fields__20__annotation,
-        __dataclass__init__fields__20__default,
-        __dataclass__init__fields__21__annotation,
-        __dataclass__init__fields__21__default,
-        __dataclass__init__fields__22__annotation,
-        __dataclass__init__fields__22__default,
-        __dataclass__init__fields__23__annotation,
-        __dataclass__init__fields__23__default,
-        __dataclass__init__fields__24__annotation,
-        __dataclass__init__fields__24__default,
-        __dataclass__init__fields__25__annotation,
-        __dataclass__init__fields__25__default,
-        __dataclass__init__fields__26__annotation,
-        __dataclass__init__fields__26__default,
-        __dataclass__init__fields__27__annotation,
-        __dataclass__init__fields__27__default,
-        __dataclass__init__fields__28__annotation,
-        __dataclass__init__fields__28__default,
-        __dataclass__init__fields__29__annotation,
-        __dataclass__init__fields__29__default,
-        __dataclass__init__fields__30__annotation,
-        __dataclass__init__fields__30__default,
-        __dataclass__init__fields__31__annotation,
-        __dataclass__init__fields__31__default,
-        __dataclass__init__fields__32__annotation,
-        __dataclass__init__fields__32__default,
-        __dataclass__init__fields__33__annotation,
-        __dataclass__init__fields__33__default,
-        __dataclass__init__fields__34__annotation,
-        __dataclass__init__fields__34__default,
-        __dataclass__init__fields__35__annotation,
-        __dataclass__init__fields__35__default,
-        __dataclass__init__fields__36__annotation,
-        __dataclass__init__fields__36__default,
-        __dataclass__init__fields__37__annotation,
-        __dataclass__init__fields__37__default,
-        __dataclass__init__fields__38__annotation,
-        __dataclass__init__fields__38__default,
-        __dataclass__init__fields__39__annotation,
-        __dataclass__init__fields__39__default,
-        __dataclass__init__fields__40__annotation,
-        __dataclass__init__fields__40__default,
-        __dataclass__init__fields__41__annotation,
-        __dataclass__init__fields__41__default,
-        __dataclass__init__fields__42__annotation,
-        __dataclass__init__fields__42__default,
-        __dataclass__init__fields__43__annotation,
-        __dataclass__init__fields__43__default,
-        __dataclass__init__fields__44__annotation,
-        __dataclass__init__fields__44__default,
-        __dataclass__init__fields__45__annotation,
-        __dataclass__init__fields__45__default,
-        __dataclass__init__fields__46__annotation,
-        __dataclass__init__fields__46__default,
-        __dataclass__init__fields__47__annotation,
-        __dataclass__init__fields__47__default,
-        __dataclass__init__fields__48__annotation,
-        __dataclass__init__fields__48__default,
-        __dataclass__init__fields__49__annotation,
-        __dataclass__init__fields__49__default,
-        __dataclass__init__fields__50__annotation,
-        __dataclass__init__fields__50__default,
-        __dataclass__init__fields__51__annotation,
-        __dataclass__init__fields__51__default,
-        __dataclass__init__fields__52__annotation,
-        __dataclass__init__fields__52__default,
-        __dataclass__init__fields__53__annotation,
-        __dataclass__init__fields__53__default,
-        __dataclass__init__fields__54__annotation,
-        __dataclass__init__fields__54__default,
-        __dataclass__init__fields__55__annotation,
-        __dataclass__init__fields__55__default,
-        __dataclass__init__fields__56__annotation,
-        __dataclass__init__fields__56__default,
-        __dataclass__init__fields__57__annotation,
-        __dataclass__init__fields__57__default,
-        __dataclass__init__fields__58__annotation,
-        __dataclass__init__fields__58__default,
-        __dataclass__init__fields__59__annotation,
-        __dataclass__init__fields__59__default,
-        __dataclass__init__fields__60__annotation,
-        __dataclass__init__fields__60__default,
-        __dataclass__init__fields__61__annotation,
-        __dataclass__init__fields__61__default,
-        __dataclass__init__fields__62__annotation,
-        __dataclass__init__fields__62__default,
-        __dataclass__init__fields__63__annotation,
-        __dataclass__init__fields__63__default,
-        __dataclass__init__fields__64__annotation,
-        __dataclass__init__fields__64__default,
-        __dataclass__init__fields__65__annotation,
-        __dataclass__init__fields__65__default,
-        __dataclass__init__fields__66__annotation,
-        __dataclass__init__fields__66__default,
-        __dataclass__init__fields__67__annotation,
-        __dataclass__init__fields__67__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default = __dataclass__spec.fields[10].default.must()
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
+        __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
+        __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
+        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
+        __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
+        __dataclass__init__fields__16__annotation = __dataclass__spec.fields[16].annotation
+        __dataclass__init__fields__16__default = __dataclass__spec.fields[16].default.must()
+        __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
+        __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
+        __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
+        __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
+        __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
+        __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
+        __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
+        __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
+        __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
+        __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
+        __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
+        __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
+        __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__init__fields__24__annotation = __dataclass__spec.fields[24].annotation
+        __dataclass__init__fields__24__default = __dataclass__spec.fields[24].default.must()
+        __dataclass__init__fields__25__annotation = __dataclass__spec.fields[25].annotation
+        __dataclass__init__fields__25__default = __dataclass__spec.fields[25].default.must()
+        __dataclass__init__fields__26__annotation = __dataclass__spec.fields[26].annotation
+        __dataclass__init__fields__26__default = __dataclass__spec.fields[26].default.must()
+        __dataclass__init__fields__27__annotation = __dataclass__spec.fields[27].annotation
+        __dataclass__init__fields__27__default = __dataclass__spec.fields[27].default.must()
+        __dataclass__init__fields__28__annotation = __dataclass__spec.fields[28].annotation
+        __dataclass__init__fields__28__default = __dataclass__spec.fields[28].default.must()
+        __dataclass__init__fields__29__annotation = __dataclass__spec.fields[29].annotation
+        __dataclass__init__fields__29__default = __dataclass__spec.fields[29].default.must()
+        __dataclass__init__fields__30__annotation = __dataclass__spec.fields[30].annotation
+        __dataclass__init__fields__30__default = __dataclass__spec.fields[30].default.must()
+        __dataclass__init__fields__31__annotation = __dataclass__spec.fields[31].annotation
+        __dataclass__init__fields__31__default = __dataclass__spec.fields[31].default.must()
+        __dataclass__init__fields__32__annotation = __dataclass__spec.fields[32].annotation
+        __dataclass__init__fields__32__default = __dataclass__spec.fields[32].default.must()
+        __dataclass__init__fields__33__annotation = __dataclass__spec.fields[33].annotation
+        __dataclass__init__fields__33__default = __dataclass__spec.fields[33].default.must()
+        __dataclass__init__fields__34__annotation = __dataclass__spec.fields[34].annotation
+        __dataclass__init__fields__34__default = __dataclass__spec.fields[34].default.must()
+        __dataclass__init__fields__35__annotation = __dataclass__spec.fields[35].annotation
+        __dataclass__init__fields__35__default = __dataclass__spec.fields[35].default.must()
+        __dataclass__init__fields__36__annotation = __dataclass__spec.fields[36].annotation
+        __dataclass__init__fields__36__default = __dataclass__spec.fields[36].default.must()
+        __dataclass__init__fields__37__annotation = __dataclass__spec.fields[37].annotation
+        __dataclass__init__fields__37__default = __dataclass__spec.fields[37].default.must()
+        __dataclass__init__fields__38__annotation = __dataclass__spec.fields[38].annotation
+        __dataclass__init__fields__38__default = __dataclass__spec.fields[38].default.must()
+        __dataclass__init__fields__39__annotation = __dataclass__spec.fields[39].annotation
+        __dataclass__init__fields__39__default = __dataclass__spec.fields[39].default.must()
+        __dataclass__init__fields__40__annotation = __dataclass__spec.fields[40].annotation
+        __dataclass__init__fields__40__default = __dataclass__spec.fields[40].default.must()
+        __dataclass__init__fields__41__annotation = __dataclass__spec.fields[41].annotation
+        __dataclass__init__fields__41__default = __dataclass__spec.fields[41].default.must()
+        __dataclass__init__fields__42__annotation = __dataclass__spec.fields[42].annotation
+        __dataclass__init__fields__42__default = __dataclass__spec.fields[42].default.must()
+        __dataclass__init__fields__43__annotation = __dataclass__spec.fields[43].annotation
+        __dataclass__init__fields__43__default = __dataclass__spec.fields[43].default.must()
+        __dataclass__init__fields__44__annotation = __dataclass__spec.fields[44].annotation
+        __dataclass__init__fields__44__default = __dataclass__spec.fields[44].default.must()
+        __dataclass__init__fields__45__annotation = __dataclass__spec.fields[45].annotation
+        __dataclass__init__fields__45__default = __dataclass__spec.fields[45].default.must()
+        __dataclass__init__fields__46__annotation = __dataclass__spec.fields[46].annotation
+        __dataclass__init__fields__46__default = __dataclass__spec.fields[46].default.must()
+        __dataclass__init__fields__47__annotation = __dataclass__spec.fields[47].annotation
+        __dataclass__init__fields__47__default = __dataclass__spec.fields[47].default.must()
+        __dataclass__init__fields__48__annotation = __dataclass__spec.fields[48].annotation
+        __dataclass__init__fields__48__default = __dataclass__spec.fields[48].default.must()
+        __dataclass__init__fields__49__annotation = __dataclass__spec.fields[49].annotation
+        __dataclass__init__fields__49__default = __dataclass__spec.fields[49].default.must()
+        __dataclass__init__fields__50__annotation = __dataclass__spec.fields[50].annotation
+        __dataclass__init__fields__50__default = __dataclass__spec.fields[50].default.must()
+        __dataclass__init__fields__51__annotation = __dataclass__spec.fields[51].annotation
+        __dataclass__init__fields__51__default = __dataclass__spec.fields[51].default.must()
+        __dataclass__init__fields__52__annotation = __dataclass__spec.fields[52].annotation
+        __dataclass__init__fields__52__default = __dataclass__spec.fields[52].default.must()
+        __dataclass__init__fields__53__annotation = __dataclass__spec.fields[53].annotation
+        __dataclass__init__fields__53__default = __dataclass__spec.fields[53].default.must()
+        __dataclass__init__fields__54__annotation = __dataclass__spec.fields[54].annotation
+        __dataclass__init__fields__54__default = __dataclass__spec.fields[54].default.must()
+        __dataclass__init__fields__55__annotation = __dataclass__spec.fields[55].annotation
+        __dataclass__init__fields__55__default = __dataclass__spec.fields[55].default.must()
+        __dataclass__init__fields__56__annotation = __dataclass__spec.fields[56].annotation
+        __dataclass__init__fields__56__default = __dataclass__spec.fields[56].default.must()
+        __dataclass__init__fields__57__annotation = __dataclass__spec.fields[57].annotation
+        __dataclass__init__fields__57__default = __dataclass__spec.fields[57].default.must()
+        __dataclass__init__fields__58__annotation = __dataclass__spec.fields[58].annotation
+        __dataclass__init__fields__58__default = __dataclass__spec.fields[58].default.must()
+        __dataclass__init__fields__59__annotation = __dataclass__spec.fields[59].annotation
+        __dataclass__init__fields__59__default = __dataclass__spec.fields[59].default.must()
+        __dataclass__init__fields__60__annotation = __dataclass__spec.fields[60].annotation
+        __dataclass__init__fields__60__default = __dataclass__spec.fields[60].default.must()
+        __dataclass__init__fields__61__annotation = __dataclass__spec.fields[61].annotation
+        __dataclass__init__fields__61__default = __dataclass__spec.fields[61].default.must()
+        __dataclass__init__fields__62__annotation = __dataclass__spec.fields[62].annotation
+        __dataclass__init__fields__62__default = __dataclass__spec.fields[62].default.must()
+        __dataclass__init__fields__63__annotation = __dataclass__spec.fields[63].annotation
+        __dataclass__init__fields__63__default = __dataclass__spec.fields[63].default.must()
+        __dataclass__init__fields__64__annotation = __dataclass__spec.fields[64].annotation
+        __dataclass__init__fields__64__default = __dataclass__spec.fields[64].default.must()
+        __dataclass__init__fields__65__annotation = __dataclass__spec.fields[65].annotation
+        __dataclass__init__fields__65__default = __dataclass__spec.fields[65].default.must()
+        __dataclass__init__fields__66__annotation = __dataclass__spec.fields[66].annotation
+        __dataclass__init__fields__66__default = __dataclass__spec.fields[66].default.must()
+        __dataclass__init__fields__67__annotation = __dataclass__spec.fields[67].annotation
+        __dataclass__init__fields__67__default = __dataclass__spec.fields[67].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -1702,18 +1484,16 @@ def _process_dataclass__0b282f64b8f60ccd5cd92126654ff584e2b8406d():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance',)), EqPlan(fields=('db_instance',)), FrozenPlan(fields=('__shape__',"
-        " 'db_instance'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('db_instance',), cache=Fals"
-        "e), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), defau"
-        "lt=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validat"
-        "e=None, check_type=None), InitPlan.Field(name='db_instance', annotation=OpRef(name='init.fields.1.annotation')"
-        ", default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=Fie"
-        "ldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_para"
-        "ms=('db_instance',), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan("
-        "fields=(ReprPlan.Field(name='db_instance', kw_only=True, fn=None),), id=False, terse=False, default_fn=None)))"
+    installer_sha1='b96e3a8edc26faedfc34e34ad72ad81bfee82fee',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), F"
+            "alse))"
+        ),
     ),
-    plan_repr_sha1='e370acdd02f632f5ffa5833dfc2b29fa253e1324',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'CreateDBInstanceResult'),
         ('ominfra.clouds.aws.models.services.rds', 'DeleteDBInstanceResult'),
@@ -1722,18 +1502,22 @@ def _process_dataclass__0b282f64b8f60ccd5cd92126654ff584e2b8406d():
         ('ominfra.clouds.aws.models.services.rds', 'StopDBInstanceResult'),
     ),
 )
-def _process_dataclass__e370acdd02f632f5ffa5833dfc2b29fa253e1324():
+def _process_dataclass__b96e3a8edc26faedfc34e34ad72ad81bfee82fee():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -1811,608 +1595,324 @@ def _process_dataclass__e370acdd02f632f5ffa5833dfc2b29fa253e1324():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance_identifier', 'db_instance_class', 'engine', 'db_instance_status', 'ma"
-        "ster_username', 'db_name', 'endpoint', 'allocated_storage', 'instance_create_time', 'preferred_backup_window',"
-        " 'backup_retention_period', 'db_security_groups', 'vpc_security_groups', 'db_parameter_groups', 'availability_"
-        "zone', 'db_subnet_group', 'preferred_maintenance_window', 'upgrade_rollout_order', 'pending_modified_values', "
-        "'latest_restorable_time', 'multi_az', 'engine_version', 'auto_minor_version_upgrade', 'read_replica_source_db_"
-        "instance_identifier', 'read_replica_db_instance_identifiers', 'read_replica_db_cluster_identifiers', 'replica_"
-        "mode', 'license_model', 'iops', 'storage_throughput', 'option_group_memberships', 'character_set_name', 'nchar"
-        "_character_set_name', 'secondary_availability_zone', 'publicly_accessible', 'status_infos', 'storage_type', 's"
-        "torage_encryption_type', 'tde_credential_arn', 'db_instance_port', 'db_cluster_identifier', 'storage_encrypted"
-        "', 'kms_key_id', 'dbi_resource_id', 'ca_certificate_identifier', 'domain_memberships', 'copy_tags_to_snapshot'"
-        ", 'monitoring_interval', 'enhanced_monitoring_resource_arn', 'monitoring_role_arn', 'promotion_tier', 'db_inst"
-        "ance_arn', 'timezone', 'iam_database_authentication_enabled', 'database_insights_mode', 'performance_insights_"
-        "enabled', 'performance_insights_kms_key_id', 'performance_insights_retention_period', 'enabled_cloudwatch_logs"
-        "_exports', 'processor_features', 'deletion_protection', 'associated_roles', 'listener_endpoint', 'max_allocate"
-        "d_storage', 'tag_list', 'automation_mode', 'resume_full_automation_mode_time', 'customer_owned_ip_enabled', 'n"
-        "etwork_type', 'activity_stream_status', 'activity_stream_kms_key_id', 'activity_stream_kinesis_stream_name', '"
-        "activity_stream_mode', 'activity_stream_engine_native_audit_fields_included', 'aws_backup_recovery_point_arn',"
-        " 'db_instance_automated_backups_replications', 'backup_target', 'automatic_restart_time', 'custom_iam_instance"
-        "_profile', 'activity_stream_policy_status', 'certificate_details', 'db_system_id', 'master_user_secret', 'read"
-        "_replica_source_db_cluster_identifier', 'percent_progress', 'multi_tenant', 'dedicated_log_volume', 'is_storag"
-        "e_config_upgrade_available', 'engine_lifecycle_support', 'additional_storage_volumes', 'storage_volume_status'"
-        ", 'storage_operation_status', 'storage_operation_percent_progress')), EqPlan(fields=('db_instance_identifier',"
-        " 'db_instance_class', 'engine', 'db_instance_status', 'master_username', 'db_name', 'endpoint', 'allocated_sto"
-        "rage', 'instance_create_time', 'preferred_backup_window', 'backup_retention_period', 'db_security_groups', 'vp"
-        "c_security_groups', 'db_parameter_groups', 'availability_zone', 'db_subnet_group', 'preferred_maintenance_wind"
-        "ow', 'upgrade_rollout_order', 'pending_modified_values', 'latest_restorable_time', 'multi_az', 'engine_version"
-        "', 'auto_minor_version_upgrade', 'read_replica_source_db_instance_identifier', 'read_replica_db_instance_ident"
-        "ifiers', 'read_replica_db_cluster_identifiers', 'replica_mode', 'license_model', 'iops', 'storage_throughput',"
-        " 'option_group_memberships', 'character_set_name', 'nchar_character_set_name', 'secondary_availability_zone', "
-        "'publicly_accessible', 'status_infos', 'storage_type', 'storage_encryption_type', 'tde_credential_arn', 'db_in"
-        "stance_port', 'db_cluster_identifier', 'storage_encrypted', 'kms_key_id', 'dbi_resource_id', 'ca_certificate_i"
-        "dentifier', 'domain_memberships', 'copy_tags_to_snapshot', 'monitoring_interval', 'enhanced_monitoring_resourc"
-        "e_arn', 'monitoring_role_arn', 'promotion_tier', 'db_instance_arn', 'timezone', 'iam_database_authentication_e"
-        "nabled', 'database_insights_mode', 'performance_insights_enabled', 'performance_insights_kms_key_id', 'perform"
-        "ance_insights_retention_period', 'enabled_cloudwatch_logs_exports', 'processor_features', 'deletion_protection"
-        "', 'associated_roles', 'listener_endpoint', 'max_allocated_storage', 'tag_list', 'automation_mode', 'resume_fu"
-        "ll_automation_mode_time', 'customer_owned_ip_enabled', 'network_type', 'activity_stream_status', 'activity_str"
-        "eam_kms_key_id', 'activity_stream_kinesis_stream_name', 'activity_stream_mode', 'activity_stream_engine_native"
-        "_audit_fields_included', 'aws_backup_recovery_point_arn', 'db_instance_automated_backups_replications', 'backu"
-        "p_target', 'automatic_restart_time', 'custom_iam_instance_profile', 'activity_stream_policy_status', 'certific"
-        "ate_details', 'db_system_id', 'master_user_secret', 'read_replica_source_db_cluster_identifier', 'percent_prog"
-        "ress', 'multi_tenant', 'dedicated_log_volume', 'is_storage_config_upgrade_available', 'engine_lifecycle_suppor"
-        "t', 'additional_storage_volumes', 'storage_volume_status', 'storage_operation_status', 'storage_operation_perc"
-        "ent_progress')), FrozenPlan(fields=('__shape__', 'db_instance_identifier', 'db_instance_class', 'engine', 'db_"
-        "instance_status', 'master_username', 'db_name', 'endpoint', 'allocated_storage', 'instance_create_time', 'pref"
-        "erred_backup_window', 'backup_retention_period', 'db_security_groups', 'vpc_security_groups', 'db_parameter_gr"
-        "oups', 'availability_zone', 'db_subnet_group', 'preferred_maintenance_window', 'upgrade_rollout_order', 'pendi"
-        "ng_modified_values', 'latest_restorable_time', 'multi_az', 'engine_version', 'auto_minor_version_upgrade', 're"
-        "ad_replica_source_db_instance_identifier', 'read_replica_db_instance_identifiers', 'read_replica_db_cluster_id"
-        "entifiers', 'replica_mode', 'license_model', 'iops', 'storage_throughput', 'option_group_memberships', 'charac"
-        "ter_set_name', 'nchar_character_set_name', 'secondary_availability_zone', 'publicly_accessible', 'status_infos"
-        "', 'storage_type', 'storage_encryption_type', 'tde_credential_arn', 'db_instance_port', 'db_cluster_identifier"
-        "', 'storage_encrypted', 'kms_key_id', 'dbi_resource_id', 'ca_certificate_identifier', 'domain_memberships', 'c"
-        "opy_tags_to_snapshot', 'monitoring_interval', 'enhanced_monitoring_resource_arn', 'monitoring_role_arn', 'prom"
-        "otion_tier', 'db_instance_arn', 'timezone', 'iam_database_authentication_enabled', 'database_insights_mode', '"
-        "performance_insights_enabled', 'performance_insights_kms_key_id', 'performance_insights_retention_period', 'en"
-        "abled_cloudwatch_logs_exports', 'processor_features', 'deletion_protection', 'associated_roles', 'listener_end"
-        "point', 'max_allocated_storage', 'tag_list', 'automation_mode', 'resume_full_automation_mode_time', 'customer_"
-        "owned_ip_enabled', 'network_type', 'activity_stream_status', 'activity_stream_kms_key_id', 'activity_stream_ki"
-        "nesis_stream_name', 'activity_stream_mode', 'activity_stream_engine_native_audit_fields_included', 'aws_backup"
-        "_recovery_point_arn', 'db_instance_automated_backups_replications', 'backup_target', 'automatic_restart_time',"
-        " 'custom_iam_instance_profile', 'activity_stream_policy_status', 'certificate_details', 'db_system_id', 'maste"
-        "r_user_secret', 'read_replica_source_db_cluster_identifier', 'percent_progress', 'multi_tenant', 'dedicated_lo"
-        "g_volume', 'is_storage_config_upgrade_available', 'engine_lifecycle_support', 'additional_storage_volumes', 's"
-        "torage_volume_status', 'storage_operation_status', 'storage_operation_percent_progress'), allow_dynamic_dunder"
-        "_attrs=False), HashPlan(action='add', fields=('db_instance_identifier', 'db_instance_class', 'engine', 'db_ins"
-        "tance_status', 'master_username', 'db_name', 'endpoint', 'allocated_storage', 'instance_create_time', 'preferr"
-        "ed_backup_window', 'backup_retention_period', 'db_security_groups', 'vpc_security_groups', 'db_parameter_group"
-        "s', 'availability_zone', 'db_subnet_group', 'preferred_maintenance_window', 'upgrade_rollout_order', 'pending_"
-        "modified_values', 'latest_restorable_time', 'multi_az', 'engine_version', 'auto_minor_version_upgrade', 'read_"
-        "replica_source_db_instance_identifier', 'read_replica_db_instance_identifiers', 'read_replica_db_cluster_ident"
-        "ifiers', 'replica_mode', 'license_model', 'iops', 'storage_throughput', 'option_group_memberships', 'character"
-        "_set_name', 'nchar_character_set_name', 'secondary_availability_zone', 'publicly_accessible', 'status_infos', "
-        "'storage_type', 'storage_encryption_type', 'tde_credential_arn', 'db_instance_port', 'db_cluster_identifier', "
-        "'storage_encrypted', 'kms_key_id', 'dbi_resource_id', 'ca_certificate_identifier', 'domain_memberships', 'copy"
-        "_tags_to_snapshot', 'monitoring_interval', 'enhanced_monitoring_resource_arn', 'monitoring_role_arn', 'promoti"
-        "on_tier', 'db_instance_arn', 'timezone', 'iam_database_authentication_enabled', 'database_insights_mode', 'per"
-        "formance_insights_enabled', 'performance_insights_kms_key_id', 'performance_insights_retention_period', 'enabl"
-        "ed_cloudwatch_logs_exports', 'processor_features', 'deletion_protection', 'associated_roles', 'listener_endpoi"
-        "nt', 'max_allocated_storage', 'tag_list', 'automation_mode', 'resume_full_automation_mode_time', 'customer_own"
-        "ed_ip_enabled', 'network_type', 'activity_stream_status', 'activity_stream_kms_key_id', 'activity_stream_kines"
-        "is_stream_name', 'activity_stream_mode', 'activity_stream_engine_native_audit_fields_included', 'aws_backup_re"
-        "covery_point_arn', 'db_instance_automated_backups_replications', 'backup_target', 'automatic_restart_time', 'c"
-        "ustom_iam_instance_profile', 'activity_stream_policy_status', 'certificate_details', 'db_system_id', 'master_u"
-        "ser_secret', 'read_replica_source_db_cluster_identifier', 'percent_progress', 'multi_tenant', 'dedicated_log_v"
-        "olume', 'is_storage_config_upgrade_available', 'engine_lifecycle_support', 'additional_storage_volumes', 'stor"
-        "age_volume_status', 'storage_operation_status', 'storage_operation_percent_progress'), cache=False), InitPlan("
-        "fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.00.annotation'), default=None, def"
-        "ault_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, chec"
-        "k_type=None), InitPlan.Field(name='db_instance_identifier', annotation=OpRef(name='init.fields.01.annotation')"
-        ", default=OpRef(name='init.fields.01.default'), default_factory=None, init=True, override=False, field_type=Fi"
-        "eldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_instance_class', annot"
-        "ation=OpRef(name='init.fields.02.annotation'), default=OpRef(name='init.fields.02.default'), default_factory=N"
-        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), I"
-        "nitPlan.Field(name='engine', annotation=OpRef(name='init.fields.03.annotation'), default=OpRef(name='init.fiel"
-        "ds.03.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, "
-        "validate=None, check_type=None), InitPlan.Field(name='db_instance_status', annotation=OpRef(name='init.fields."
-        "04.annotation'), default=OpRef(name='init.fields.04.default'), default_factory=None, init=True, override=False"
-        ", field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='master_use"
-        "rname', annotation=OpRef(name='init.fields.05.annotation'), default=OpRef(name='init.fields.05.default'), defa"
-        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None), InitPlan.Field(name='db_name', annotation=OpRef(name='init.fields.06.annotation'), default=OpRef(n"
-        "ame='init.fields.06.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE,"
-        " coerce=None, validate=None, check_type=None), InitPlan.Field(name='endpoint', annotation=OpRef(name='init.fie"
-        "lds.07.annotation'), default=OpRef(name='init.fields.07.default'), default_factory=None, init=True, override=F"
-        "alse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='alloca"
-        "ted_storage', annotation=OpRef(name='init.fields.08.annotation'), default=OpRef(name='init.fields.08.default')"
-        ", default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, "
-        "check_type=None), InitPlan.Field(name='instance_create_time', annotation=OpRef(name='init.fields.09.annotation"
-        "'), default=OpRef(name='init.fields.09.default'), default_factory=None, init=True, override=False, field_type="
-        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='preferred_backup_window"
-        "', annotation=OpRef(name='init.fields.10.annotation'), default=OpRef(name='init.fields.10.default'), default_f"
-        "actory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type="
-        "None), InitPlan.Field(name='backup_retention_period', annotation=OpRef(name='init.fields.11.annotation'), defa"
-        "ult=OpRef(name='init.fields.11.default'), default_factory=None, init=True, override=False, field_type=FieldTyp"
-        "e.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_security_groups', annotation"
-        "=OpRef(name='init.fields.12.annotation'), default=OpRef(name='init.fields.12.default'), default_factory=None, "
-        "init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPl"
-        "an.Field(name='vpc_security_groups', annotation=OpRef(name='init.fields.13.annotation'), default=OpRef(name='i"
-        "nit.fields.13.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
-        "e=None, validate=None, check_type=None), InitPlan.Field(name='db_parameter_groups', annotation=OpRef(name='ini"
-        "t.fields.14.annotation'), default=OpRef(name='init.fields.14.default'), default_factory=None, init=True, overr"
-        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='a"
-        "vailability_zone', annotation=OpRef(name='init.fields.15.annotation'), default=OpRef(name='init.fields.15.defa"
-        "ult'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
-        "one, check_type=None), InitPlan.Field(name='db_subnet_group', annotation=OpRef(name='init.fields.16.annotation"
-        "'), default=OpRef(name='init.fields.16.default'), default_factory=None, init=True, override=False, field_type="
-        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='preferred_maintenance_w"
-        "indow', annotation=OpRef(name='init.fields.17.annotation'), default=OpRef(name='init.fields.17.default'), defa"
-        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None), InitPlan.Field(name='upgrade_rollout_order', annotation=OpRef(name='init.fields.18.annotation'), d"
-        "efault=OpRef(name='init.fields.18.default'), default_factory=None, init=True, override=False, field_type=Field"
-        "Type.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='pending_modified_values', an"
-        "notation=OpRef(name='init.fields.19.annotation'), default=OpRef(name='init.fields.19.default'), default_factor"
-        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
-        ", InitPlan.Field(name='latest_restorable_time', annotation=OpRef(name='init.fields.20.annotation'), default=Op"
-        "Ref(name='init.fields.20.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
-        "ANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='multi_az', annotation=OpRef(name='ini"
-        "t.fields.21.annotation'), default=OpRef(name='init.fields.21.default'), default_factory=None, init=True, overr"
-        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='e"
-        "ngine_version', annotation=OpRef(name='init.fields.22.annotation'), default=OpRef(name='init.fields.22.default"
-        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
-        ", check_type=None), InitPlan.Field(name='auto_minor_version_upgrade', annotation=OpRef(name='init.fields.23.an"
-        "notation'), default=OpRef(name='init.fields.23.default'), default_factory=None, init=True, override=False, fie"
-        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='read_replica_so"
-        "urce_db_instance_identifier', annotation=OpRef(name='init.fields.24.annotation'), default=OpRef(name='init.fie"
-        "lds.24.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None), InitPlan.Field(name='read_replica_db_instance_identifiers', annotation=OpRef"
-        "(name='init.fields.25.annotation'), default=OpRef(name='init.fields.25.default'), default_factory=None, init=T"
-        "rue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fie"
-        "ld(name='read_replica_db_cluster_identifiers', annotation=OpRef(name='init.fields.26.annotation'), default=OpR"
-        "ef(name='init.fields.26.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
-        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='replica_mode', annotation=OpRef(name='"
-        "init.fields.27.annotation'), default=OpRef(name='init.fields.27.default'), default_factory=None, init=True, ov"
-        "erride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name"
-        "='license_model', annotation=OpRef(name='init.fields.28.annotation'), default=OpRef(name='init.fields.28.defau"
-        "lt'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
-        "ne, check_type=None), InitPlan.Field(name='iops', annotation=OpRef(name='init.fields.29.annotation'), default="
-        "OpRef(name='init.fields.29.default'), default_factory=None, init=True, override=False, field_type=FieldType.IN"
-        "STANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='storage_throughput', annotation=OpR"
-        "ef(name='init.fields.30.annotation'), default=OpRef(name='init.fields.30.default'), default_factory=None, init"
-        "=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.F"
-        "ield(name='option_group_memberships', annotation=OpRef(name='init.fields.31.annotation'), default=OpRef(name='"
-        "init.fields.31.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
-        "ce=None, validate=None, check_type=None), InitPlan.Field(name='character_set_name', annotation=OpRef(name='ini"
-        "t.fields.32.annotation'), default=OpRef(name='init.fields.32.default'), default_factory=None, init=True, overr"
-        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='n"
-        "char_character_set_name', annotation=OpRef(name='init.fields.33.annotation'), default=OpRef(name='init.fields."
-        "33.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
-        "idate=None, check_type=None), InitPlan.Field(name='secondary_availability_zone', annotation=OpRef(name='init.f"
-        "ields.34.annotation'), default=OpRef(name='init.fields.34.default'), default_factory=None, init=True, override"
-        "=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='publ"
-        "icly_accessible', annotation=OpRef(name='init.fields.35.annotation'), default=OpRef(name='init.fields.35.defau"
-        "lt'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
-        "ne, check_type=None), InitPlan.Field(name='status_infos', annotation=OpRef(name='init.fields.36.annotation'), "
-        "default=OpRef(name='init.fields.36.default'), default_factory=None, init=True, override=False, field_type=Fiel"
-        "dType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='storage_type', annotation=O"
-        "pRef(name='init.fields.37.annotation'), default=OpRef(name='init.fields.37.default'), default_factory=None, in"
-        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan"
-        ".Field(name='storage_encryption_type', annotation=OpRef(name='init.fields.38.annotation'), default=OpRef(name="
-        "'init.fields.38.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coe"
-        "rce=None, validate=None, check_type=None), InitPlan.Field(name='tde_credential_arn', annotation=OpRef(name='in"
-        "it.fields.39.annotation'), default=OpRef(name='init.fields.39.default'), default_factory=None, init=True, over"
-        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='"
-        "db_instance_port', annotation=OpRef(name='init.fields.40.annotation'), default=OpRef(name='init.fields.40.defa"
-        "ult'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
-        "one, check_type=None), InitPlan.Field(name='db_cluster_identifier', annotation=OpRef(name='init.fields.41.anno"
-        "tation'), default=OpRef(name='init.fields.41.default'), default_factory=None, init=True, override=False, field"
-        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='storage_encrypted"
-        "', annotation=OpRef(name='init.fields.42.annotation'), default=OpRef(name='init.fields.42.default'), default_f"
-        "actory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type="
-        "None), InitPlan.Field(name='kms_key_id', annotation=OpRef(name='init.fields.43.annotation'), default=OpRef(nam"
-        "e='init.fields.43.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, c"
-        "oerce=None, validate=None, check_type=None), InitPlan.Field(name='dbi_resource_id', annotation=OpRef(name='ini"
-        "t.fields.44.annotation'), default=OpRef(name='init.fields.44.default'), default_factory=None, init=True, overr"
-        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='c"
-        "a_certificate_identifier', annotation=OpRef(name='init.fields.45.annotation'), default=OpRef(name='init.fields"
-        ".45.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, va"
-        "lidate=None, check_type=None), InitPlan.Field(name='domain_memberships', annotation=OpRef(name='init.fields.46"
-        ".annotation'), default=OpRef(name='init.fields.46.default'), default_factory=None, init=True, override=False, "
-        "field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='copy_tags_to"
-        "_snapshot', annotation=OpRef(name='init.fields.47.annotation'), default=OpRef(name='init.fields.47.default'), "
-        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
-        "eck_type=None), InitPlan.Field(name='monitoring_interval', annotation=OpRef(name='init.fields.48.annotation'),"
-        " default=OpRef(name='init.fields.48.default'), default_factory=None, init=True, override=False, field_type=Fie"
-        "ldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='enhanced_monitoring_resour"
-        "ce_arn', annotation=OpRef(name='init.fields.49.annotation'), default=OpRef(name='init.fields.49.default'), def"
-        "ault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check"
-        "_type=None), InitPlan.Field(name='monitoring_role_arn', annotation=OpRef(name='init.fields.50.annotation'), de"
-        "fault=OpRef(name='init.fields.50.default'), default_factory=None, init=True, override=False, field_type=FieldT"
-        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='promotion_tier', annotation=O"
-        "pRef(name='init.fields.51.annotation'), default=OpRef(name='init.fields.51.default'), default_factory=None, in"
-        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan"
-        ".Field(name='db_instance_arn', annotation=OpRef(name='init.fields.52.annotation'), default=OpRef(name='init.fi"
-        "elds.52.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
-        ", validate=None, check_type=None), InitPlan.Field(name='timezone', annotation=OpRef(name='init.fields.53.annot"
-        "ation'), default=OpRef(name='init.fields.53.default'), default_factory=None, init=True, override=False, field_"
-        "type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='iam_database_authe"
-        "ntication_enabled', annotation=OpRef(name='init.fields.54.annotation'), default=OpRef(name='init.fields.54.def"
-        "ault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate="
-        "None, check_type=None), InitPlan.Field(name='database_insights_mode', annotation=OpRef(name='init.fields.55.an"
-        "notation'), default=OpRef(name='init.fields.55.default'), default_factory=None, init=True, override=False, fie"
-        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='performance_ins"
-        "ights_enabled', annotation=OpRef(name='init.fields.56.annotation'), default=OpRef(name='init.fields.56.default"
-        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
-        ", check_type=None), InitPlan.Field(name='performance_insights_kms_key_id', annotation=OpRef(name='init.fields."
-        "57.annotation'), default=OpRef(name='init.fields.57.default'), default_factory=None, init=True, override=False"
-        ", field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='performanc"
-        "e_insights_retention_period', annotation=OpRef(name='init.fields.58.annotation'), default=OpRef(name='init.fie"
-        "lds.58.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None), InitPlan.Field(name='enabled_cloudwatch_logs_exports', annotation=OpRef(name"
-        "='init.fields.59.annotation'), default=OpRef(name='init.fields.59.default'), default_factory=None, init=True, "
-        "override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(na"
-        "me='processor_features', annotation=OpRef(name='init.fields.60.annotation'), default=OpRef(name='init.fields.6"
-        "0.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
-        "date=None, check_type=None), InitPlan.Field(name='deletion_protection', annotation=OpRef(name='init.fields.61."
-        "annotation'), default=OpRef(name='init.fields.61.default'), default_factory=None, init=True, override=False, f"
-        "ield_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='associated_ro"
-        "les', annotation=OpRef(name='init.fields.62.annotation'), default=OpRef(name='init.fields.62.default'), defaul"
-        "t_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_ty"
-        "pe=None), InitPlan.Field(name='listener_endpoint', annotation=OpRef(name='init.fields.63.annotation'), default"
-        "=OpRef(name='init.fields.63.default'), default_factory=None, init=True, override=False, field_type=FieldType.I"
-        "NSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_allocated_storage', annotation"
-        "=OpRef(name='init.fields.64.annotation'), default=OpRef(name='init.fields.64.default'), default_factory=None, "
-        "init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPl"
-        "an.Field(name='tag_list', annotation=OpRef(name='init.fields.65.annotation'), default=OpRef(name='init.fields."
-        "65.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
-        "idate=None, check_type=None), InitPlan.Field(name='automation_mode', annotation=OpRef(name='init.fields.66.ann"
-        "otation'), default=OpRef(name='init.fields.66.default'), default_factory=None, init=True, override=False, fiel"
-        "d_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='resume_full_auto"
-        "mation_mode_time', annotation=OpRef(name='init.fields.67.annotation'), default=OpRef(name='init.fields.67.defa"
-        "ult'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
-        "one, check_type=None), InitPlan.Field(name='customer_owned_ip_enabled', annotation=OpRef(name='init.fields.68."
-        "annotation'), default=OpRef(name='init.fields.68.default'), default_factory=None, init=True, override=False, f"
-        "ield_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='network_type'"
-        ", annotation=OpRef(name='init.fields.69.annotation'), default=OpRef(name='init.fields.69.default'), default_fa"
-        "ctory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=N"
-        "one), InitPlan.Field(name='activity_stream_status', annotation=OpRef(name='init.fields.70.annotation'), defaul"
-        "t=OpRef(name='init.fields.70.default'), default_factory=None, init=True, override=False, field_type=FieldType."
-        "INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='activity_stream_kms_key_id', anno"
-        "tation=OpRef(name='init.fields.71.annotation'), default=OpRef(name='init.fields.71.default'), default_factory="
-        "None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), "
-        "InitPlan.Field(name='activity_stream_kinesis_stream_name', annotation=OpRef(name='init.fields.72.annotation'),"
-        " default=OpRef(name='init.fields.72.default'), default_factory=None, init=True, override=False, field_type=Fie"
-        "ldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='activity_stream_mode', ann"
-        "otation=OpRef(name='init.fields.73.annotation'), default=OpRef(name='init.fields.73.default'), default_factory"
-        "=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),"
-        " InitPlan.Field(name='activity_stream_engine_native_audit_fields_included', annotation=OpRef(name='init.fields"
-        ".74.annotation'), default=OpRef(name='init.fields.74.default'), default_factory=None, init=True, override=Fals"
-        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='aws_backu"
-        "p_recovery_point_arn', annotation=OpRef(name='init.fields.75.annotation'), default=OpRef(name='init.fields.75."
-        "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
-        "te=None, check_type=None), InitPlan.Field(name='db_instance_automated_backups_replications', annotation=OpRef("
-        "name='init.fields.76.annotation'), default=OpRef(name='init.fields.76.default'), default_factory=None, init=Tr"
-        "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
-        "d(name='backup_target', annotation=OpRef(name='init.fields.77.annotation'), default=OpRef(name='init.fields.77"
-        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
-        "ate=None, check_type=None), InitPlan.Field(name='automatic_restart_time', annotation=OpRef(name='init.fields.7"
-        "8.annotation'), default=OpRef(name='init.fields.78.default'), default_factory=None, init=True, override=False,"
-        " field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='custom_iam_"
-        "instance_profile', annotation=OpRef(name='init.fields.79.annotation'), default=OpRef(name='init.fields.79.defa"
-        "ult'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
-        "one, check_type=None), InitPlan.Field(name='activity_stream_policy_status', annotation=OpRef(name='init.fields"
-        ".80.annotation'), default=OpRef(name='init.fields.80.default'), default_factory=None, init=True, override=Fals"
-        "e, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='certifica"
-        "te_details', annotation=OpRef(name='init.fields.81.annotation'), default=OpRef(name='init.fields.81.default'),"
-        " default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, c"
-        "heck_type=None), InitPlan.Field(name='db_system_id', annotation=OpRef(name='init.fields.82.annotation'), defau"
-        "lt=OpRef(name='init.fields.82.default'), default_factory=None, init=True, override=False, field_type=FieldType"
-        ".INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='master_user_secret', annotation="
-        "OpRef(name='init.fields.83.annotation'), default=OpRef(name='init.fields.83.default'), default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
-        "n.Field(name='read_replica_source_db_cluster_identifier', annotation=OpRef(name='init.fields.84.annotation'), "
-        "default=OpRef(name='init.fields.84.default'), default_factory=None, init=True, override=False, field_type=Fiel"
-        "dType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='percent_progress', annotati"
-        "on=OpRef(name='init.fields.85.annotation'), default=OpRef(name='init.fields.85.default'), default_factory=None"
-        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Init"
-        "Plan.Field(name='multi_tenant', annotation=OpRef(name='init.fields.86.annotation'), default=OpRef(name='init.f"
-        "ields.86.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=Non"
-        "e, validate=None, check_type=None), InitPlan.Field(name='dedicated_log_volume', annotation=OpRef(name='init.fi"
-        "elds.87.annotation'), default=OpRef(name='init.fields.87.default'), default_factory=None, init=True, override="
-        "False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='is_st"
-        "orage_config_upgrade_available', annotation=OpRef(name='init.fields.88.annotation'), default=OpRef(name='init."
-        "fields.88.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
-        "ne, validate=None, check_type=None), InitPlan.Field(name='engine_lifecycle_support', annotation=OpRef(name='in"
-        "it.fields.89.annotation'), default=OpRef(name='init.fields.89.default'), default_factory=None, init=True, over"
-        "ride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='"
-        "additional_storage_volumes', annotation=OpRef(name='init.fields.90.annotation'), default=OpRef(name='init.fiel"
-        "ds.90.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, "
-        "validate=None, check_type=None), InitPlan.Field(name='storage_volume_status', annotation=OpRef(name='init.fiel"
-        "ds.91.annotation'), default=OpRef(name='init.fields.91.default'), default_factory=None, init=True, override=Fa"
-        "lse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='storage"
-        "_operation_status', annotation=OpRef(name='init.fields.92.annotation'), default=OpRef(name='init.fields.92.def"
-        "ault'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate="
-        "None, check_type=None), InitPlan.Field(name='storage_operation_percent_progress', annotation=OpRef(name='init."
-        "fields.93.annotation'), default=OpRef(name='init.fields.93.default'), default_factory=None, init=True, overrid"
-        "e=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_"
-        "params=(), kw_only_params=('db_instance_identifier', 'db_instance_class', 'engine', 'db_instance_status', 'mas"
-        "ter_username', 'db_name', 'endpoint', 'allocated_storage', 'instance_create_time', 'preferred_backup_window', "
-        "'backup_retention_period', 'db_security_groups', 'vpc_security_groups', 'db_parameter_groups', 'availability_z"
-        "one', 'db_subnet_group', 'preferred_maintenance_window', 'upgrade_rollout_order', 'pending_modified_values', '"
-        "latest_restorable_time', 'multi_az', 'engine_version', 'auto_minor_version_upgrade', 'read_replica_source_db_i"
-        "nstance_identifier', 'read_replica_db_instance_identifiers', 'read_replica_db_cluster_identifiers', 'replica_m"
-        "ode', 'license_model', 'iops', 'storage_throughput', 'option_group_memberships', 'character_set_name', 'nchar_"
-        "character_set_name', 'secondary_availability_zone', 'publicly_accessible', 'status_infos', 'storage_type', 'st"
-        "orage_encryption_type', 'tde_credential_arn', 'db_instance_port', 'db_cluster_identifier', 'storage_encrypted'"
-        ", 'kms_key_id', 'dbi_resource_id', 'ca_certificate_identifier', 'domain_memberships', 'copy_tags_to_snapshot',"
-        " 'monitoring_interval', 'enhanced_monitoring_resource_arn', 'monitoring_role_arn', 'promotion_tier', 'db_insta"
-        "nce_arn', 'timezone', 'iam_database_authentication_enabled', 'database_insights_mode', 'performance_insights_e"
-        "nabled', 'performance_insights_kms_key_id', 'performance_insights_retention_period', 'enabled_cloudwatch_logs_"
-        "exports', 'processor_features', 'deletion_protection', 'associated_roles', 'listener_endpoint', 'max_allocated"
-        "_storage', 'tag_list', 'automation_mode', 'resume_full_automation_mode_time', 'customer_owned_ip_enabled', 'ne"
-        "twork_type', 'activity_stream_status', 'activity_stream_kms_key_id', 'activity_stream_kinesis_stream_name', 'a"
-        "ctivity_stream_mode', 'activity_stream_engine_native_audit_fields_included', 'aws_backup_recovery_point_arn', "
-        "'db_instance_automated_backups_replications', 'backup_target', 'automatic_restart_time', 'custom_iam_instance_"
-        "profile', 'activity_stream_policy_status', 'certificate_details', 'db_system_id', 'master_user_secret', 'read_"
-        "replica_source_db_cluster_identifier', 'percent_progress', 'multi_tenant', 'dedicated_log_volume', 'is_storage"
-        "_config_upgrade_available', 'engine_lifecycle_support', 'additional_storage_volumes', 'storage_volume_status',"
-        " 'storage_operation_status', 'storage_operation_percent_progress'), frozen=True, slots=False, post_init_params"
-        "=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_instance_identifier', kw_only=T"
-        "rue, fn=None), ReprPlan.Field(name='db_instance_class', kw_only=True, fn=None), ReprPlan.Field(name='engine', "
-        "kw_only=True, fn=None), ReprPlan.Field(name='db_instance_status', kw_only=True, fn=None), ReprPlan.Field(name="
-        "'master_username', kw_only=True, fn=None), ReprPlan.Field(name='db_name', kw_only=True, fn=None), ReprPlan.Fie"
-        "ld(name='endpoint', kw_only=True, fn=None), ReprPlan.Field(name='allocated_storage', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='instance_create_time', kw_only=True, fn=None), ReprPlan.Field(name='preferred_backup_windo"
-        "w', kw_only=True, fn=None), ReprPlan.Field(name='backup_retention_period', kw_only=True, fn=None), ReprPlan.Fi"
-        "eld(name='db_security_groups', kw_only=True, fn=None), ReprPlan.Field(name='vpc_security_groups', kw_only=True"
-        ", fn=None), ReprPlan.Field(name='db_parameter_groups', kw_only=True, fn=None), ReprPlan.Field(name='availabili"
-        "ty_zone', kw_only=True, fn=None), ReprPlan.Field(name='db_subnet_group', kw_only=True, fn=None), ReprPlan.Fiel"
-        "d(name='preferred_maintenance_window', kw_only=True, fn=None), ReprPlan.Field(name='upgrade_rollout_order', kw"
-        "_only=True, fn=None), ReprPlan.Field(name='pending_modified_values', kw_only=True, fn=None), ReprPlan.Field(na"
-        "me='latest_restorable_time', kw_only=True, fn=None), ReprPlan.Field(name='multi_az', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='engine_version', kw_only=True, fn=None), ReprPlan.Field(name='auto_minor_version_upgrade',"
-        " kw_only=True, fn=None), ReprPlan.Field(name='read_replica_source_db_instance_identifier', kw_only=True, fn=No"
-        "ne), ReprPlan.Field(name='read_replica_db_instance_identifiers', kw_only=True, fn=None), ReprPlan.Field(name='"
-        "read_replica_db_cluster_identifiers', kw_only=True, fn=None), ReprPlan.Field(name='replica_mode', kw_only=True"
-        ", fn=None), ReprPlan.Field(name='license_model', kw_only=True, fn=None), ReprPlan.Field(name='iops', kw_only=T"
-        "rue, fn=None), ReprPlan.Field(name='storage_throughput', kw_only=True, fn=None), ReprPlan.Field(name='option_g"
-        "roup_memberships', kw_only=True, fn=None), ReprPlan.Field(name='character_set_name', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='nchar_character_set_name', kw_only=True, fn=None), ReprPlan.Field(name='secondary_availabi"
-        "lity_zone', kw_only=True, fn=None), ReprPlan.Field(name='publicly_accessible', kw_only=True, fn=None), ReprPla"
-        "n.Field(name='status_infos', kw_only=True, fn=None), ReprPlan.Field(name='storage_type', kw_only=True, fn=None"
-        "), ReprPlan.Field(name='storage_encryption_type', kw_only=True, fn=None), ReprPlan.Field(name='tde_credential_"
-        "arn', kw_only=True, fn=None), ReprPlan.Field(name='db_instance_port', kw_only=True, fn=None), ReprPlan.Field(n"
-        "ame='db_cluster_identifier', kw_only=True, fn=None), ReprPlan.Field(name='storage_encrypted', kw_only=True, fn"
-        "=None), ReprPlan.Field(name='kms_key_id', kw_only=True, fn=None), ReprPlan.Field(name='dbi_resource_id', kw_on"
-        "ly=True, fn=None), ReprPlan.Field(name='ca_certificate_identifier', kw_only=True, fn=None), ReprPlan.Field(nam"
-        "e='domain_memberships', kw_only=True, fn=None), ReprPlan.Field(name='copy_tags_to_snapshot', kw_only=True, fn="
-        "None), ReprPlan.Field(name='monitoring_interval', kw_only=True, fn=None), ReprPlan.Field(name='enhanced_monito"
-        "ring_resource_arn', kw_only=True, fn=None), ReprPlan.Field(name='monitoring_role_arn', kw_only=True, fn=None),"
-        " ReprPlan.Field(name='promotion_tier', kw_only=True, fn=None), ReprPlan.Field(name='db_instance_arn', kw_only="
-        "True, fn=None), ReprPlan.Field(name='timezone', kw_only=True, fn=None), ReprPlan.Field(name='iam_database_auth"
-        "entication_enabled', kw_only=True, fn=None), ReprPlan.Field(name='database_insights_mode', kw_only=True, fn=No"
-        "ne), ReprPlan.Field(name='performance_insights_enabled', kw_only=True, fn=None), ReprPlan.Field(name='performa"
-        "nce_insights_kms_key_id', kw_only=True, fn=None), ReprPlan.Field(name='performance_insights_retention_period',"
-        " kw_only=True, fn=None), ReprPlan.Field(name='enabled_cloudwatch_logs_exports', kw_only=True, fn=None), ReprPl"
-        "an.Field(name='processor_features', kw_only=True, fn=None), ReprPlan.Field(name='deletion_protection', kw_only"
-        "=True, fn=None), ReprPlan.Field(name='associated_roles', kw_only=True, fn=None), ReprPlan.Field(name='listener"
-        "_endpoint', kw_only=True, fn=None), ReprPlan.Field(name='max_allocated_storage', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='tag_list', kw_only=True, fn=None), ReprPlan.Field(name='automation_mode', kw_only=True, fn=Non"
-        "e), ReprPlan.Field(name='resume_full_automation_mode_time', kw_only=True, fn=None), ReprPlan.Field(name='custo"
-        "mer_owned_ip_enabled', kw_only=True, fn=None), ReprPlan.Field(name='network_type', kw_only=True, fn=None), Rep"
-        "rPlan.Field(name='activity_stream_status', kw_only=True, fn=None), ReprPlan.Field(name='activity_stream_kms_ke"
-        "y_id', kw_only=True, fn=None), ReprPlan.Field(name='activity_stream_kinesis_stream_name', kw_only=True, fn=Non"
-        "e), ReprPlan.Field(name='activity_stream_mode', kw_only=True, fn=None), ReprPlan.Field(name='activity_stream_e"
-        "ngine_native_audit_fields_included', kw_only=True, fn=None), ReprPlan.Field(name='aws_backup_recovery_point_ar"
-        "n', kw_only=True, fn=None), ReprPlan.Field(name='db_instance_automated_backups_replications', kw_only=True, fn"
-        "=None), ReprPlan.Field(name='backup_target', kw_only=True, fn=None), ReprPlan.Field(name='automatic_restart_ti"
-        "me', kw_only=True, fn=None), ReprPlan.Field(name='custom_iam_instance_profile', kw_only=True, fn=None), ReprPl"
-        "an.Field(name='activity_stream_policy_status', kw_only=True, fn=None), ReprPlan.Field(name='certificate_detail"
-        "s', kw_only=True, fn=None), ReprPlan.Field(name='db_system_id', kw_only=True, fn=None), ReprPlan.Field(name='m"
-        "aster_user_secret', kw_only=True, fn=None), ReprPlan.Field(name='read_replica_source_db_cluster_identifier', k"
-        "w_only=True, fn=None), ReprPlan.Field(name='percent_progress', kw_only=True, fn=None), ReprPlan.Field(name='mu"
-        "lti_tenant', kw_only=True, fn=None), ReprPlan.Field(name='dedicated_log_volume', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='is_storage_config_upgrade_available', kw_only=True, fn=None), ReprPlan.Field(name='engine_life"
-        "cycle_support', kw_only=True, fn=None), ReprPlan.Field(name='additional_storage_volumes', kw_only=True, fn=Non"
-        "e), ReprPlan.Field(name='storage_volume_status', kw_only=True, fn=None), ReprPlan.Field(name='storage_operatio"
-        "n_status', kw_only=True, fn=None), ReprPlan.Field(name='storage_operation_percent_progress', kw_only=True, fn="
-        "None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='e46e35686fba0a8e2aa5d19676cb617b88b3cd22',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('db_instance_class', True, True, None, True, True, False, "
+            "None), 'instance', 'value', None, False, False, False), (('engine', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False), (('db_instance_status', True, True, None, True, Tru"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('master_username', True, True, None, T"
+            "rue, True, False, None), 'instance', 'value', None, False, False, False), (('db_name', True, True, None, T"
+            "rue, True, False, None), 'instance', 'value', None, False, False, False), (('endpoint', True, True, None, "
+            "True, True, False, None), 'instance', 'value', None, False, False, False), (('allocated_storage', True, Tr"
+            "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('instance_create_ti"
+            "me', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('prefe"
+            "rred_backup_window', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('backup_retention_period', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('db_security_groups', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('vpc_security_groups', True, True, None, True, True, False, None), 'i"
+            "nstance', 'value', None, False, False, False), (('db_parameter_groups', True, True, None, True, True, Fals"
+            "e, None), 'instance', 'value', None, False, False, False), (('availability_zone', True, True, None, True, "
+            "True, False, None), 'instance', 'value', None, False, False, False), (('db_subnet_group', True, True, None"
+            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('preferred_maintenance_wind"
+            "ow', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('upgra"
+            "de_rollout_order', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fa"
+            "lse), (('pending_modified_values', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('latest_restorable_time', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('multi_az', True, True, None, True, True, False, None), 'instance',"
+            " 'value', None, False, False, False), (('engine_version', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('auto_minor_version_upgrade', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False), (('read_replica_source_db_instance_identif"
+            "ier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('read"
+            "_replica_db_instance_identifiers', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('read_replica_db_cluster_identifiers', True, True, None, True, True, False, None),"
+            " 'instance', 'value', None, False, False, False), (('replica_mode', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False), (('license_model', True, True, None, True, True, Fa"
+            "lse, None), 'instance', 'value', None, False, False, False), (('iops', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('storage_throughput', True, True, None, True, "
+            "True, False, None), 'instance', 'value', None, False, False, False), (('option_group_memberships', True, T"
+            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('character_set_nam"
+            "e', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('nchar_"
+            "character_set_name', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('secondary_availability_zone', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('publicly_accessible', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False), (('status_infos', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('storage_type', True, True, None, True, True, False, None),"
+            " 'instance', 'value', None, False, False, False), (('storage_encryption_type', True, True, None, True, Tru"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('tde_credential_arn', True, True, None"
+            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('db_instance_port', True, T"
+            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_cluster_identi"
+            "fier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('sto"
+            "rage_encrypted', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fals"
+            "e), (('kms_key_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
+            "alse), (('dbi_resource_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
+            "False, False), (('ca_certificate_identifier', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('domain_memberships', True, True, None, True, True, False, None), 'inst"
+            "ance', 'value', None, False, False, False), (('copy_tags_to_snapshot', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('monitoring_interval', True, True, None, True,"
+            " True, False, None), 'instance', 'value', None, False, False, False), (('enhanced_monitoring_resource_arn'"
+            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('monitori"
+            "ng_role_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False),"
+            " (('promotion_tier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('db_instance_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
+            " False, False), (('timezone', True, True, None, True, True, False, None), 'instance', 'value', None, False"
+            ", False, False), (('iam_database_authentication_enabled', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('database_insights_mode', True, True, None, True, True, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('performance_insights_enabled', True, True, "
+            "None, True, True, False, None), 'instance', 'value', None, False, False, False), (('performance_insights_k"
+            "ms_key_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), ("
+            "('performance_insights_retention_period', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('enabled_cloudwatch_logs_exports', True, True, None, True, True, False, Non"
+            "e), 'instance', 'value', None, False, False, False), (('processor_features', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False), (('deletion_protection', True, True, None,"
+            " True, True, False, None), 'instance', 'value', None, False, False, False), (('associated_roles', True, Tr"
+            "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('listener_endpoint'"
+            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('max_allo"
+            "cated_storage', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False"
+            "), (('tag_list', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fals"
+            "e), (('automation_mode', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
+            "se, False), (('resume_full_automation_mode_time', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('customer_owned_ip_enabled', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False), (('network_type', True, True, None, True, True, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('activity_stream_status', True, True, None, "
+            "True, True, False, None), 'instance', 'value', None, False, False, False), (('activity_stream_kms_key_id',"
+            " True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('activity_"
+            "stream_kinesis_stream_name', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
+            " False, False), (('activity_stream_mode', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('activity_stream_engine_native_audit_fields_included', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('aws_backup_recovery_point_arn'"
+            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_insta"
+            "nce_automated_backups_replications', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('backup_target', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('automatic_restart_time', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('custom_iam_instance_profile', True, True, None, True, True"
+            ", False, None), 'instance', 'value', None, False, False, False), (('activity_stream_policy_status', True, "
+            "True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('certificate_deta"
+            "ils', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_s"
+            "ystem_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (("
+            "'master_user_secret', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
+            " False), (('read_replica_source_db_cluster_identifier', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('percent_progress', True, True, None, True, True, False, None"
+            "), 'instance', 'value', None, False, False, False), (('multi_tenant', True, True, None, True, True, False,"
+            " None), 'instance', 'value', None, False, False, False), (('dedicated_log_volume', True, True, None, True,"
+            " True, False, None), 'instance', 'value', None, False, False, False), (('is_storage_config_upgrade_availab"
+            "le', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('engin"
+            "e_lifecycle_support', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
+            " False), (('additional_storage_volumes', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('storage_volume_status', True, True, None, True, True, False, None), 'instan"
+            "ce', 'value', None, False, False, False), (('storage_operation_status', True, True, None, True, True, Fals"
+            "e, None), 'instance', 'value', None, False, False, False), (('storage_operation_percent_progress', True, T"
+            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), (Fal"
+            "se, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='c4a8e4a109ae13601d7fed136bb062a9a2712b32',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBInstance'),
     ),
 )
-def _process_dataclass__c4a8e4a109ae13601d7fed136bb062a9a2712b32():
+def _process_dataclass__e46e35686fba0a8e2aa5d19676cb617b88b3cd22():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__01__annotation,
-        __dataclass__init__fields__01__default,
-        __dataclass__init__fields__02__annotation,
-        __dataclass__init__fields__02__default,
-        __dataclass__init__fields__03__annotation,
-        __dataclass__init__fields__03__default,
-        __dataclass__init__fields__04__annotation,
-        __dataclass__init__fields__04__default,
-        __dataclass__init__fields__05__annotation,
-        __dataclass__init__fields__05__default,
-        __dataclass__init__fields__06__annotation,
-        __dataclass__init__fields__06__default,
-        __dataclass__init__fields__07__annotation,
-        __dataclass__init__fields__07__default,
-        __dataclass__init__fields__08__annotation,
-        __dataclass__init__fields__08__default,
-        __dataclass__init__fields__09__annotation,
-        __dataclass__init__fields__09__default,
-        __dataclass__init__fields__10__annotation,
-        __dataclass__init__fields__10__default,
-        __dataclass__init__fields__11__annotation,
-        __dataclass__init__fields__11__default,
-        __dataclass__init__fields__12__annotation,
-        __dataclass__init__fields__12__default,
-        __dataclass__init__fields__13__annotation,
-        __dataclass__init__fields__13__default,
-        __dataclass__init__fields__14__annotation,
-        __dataclass__init__fields__14__default,
-        __dataclass__init__fields__15__annotation,
-        __dataclass__init__fields__15__default,
-        __dataclass__init__fields__16__annotation,
-        __dataclass__init__fields__16__default,
-        __dataclass__init__fields__17__annotation,
-        __dataclass__init__fields__17__default,
-        __dataclass__init__fields__18__annotation,
-        __dataclass__init__fields__18__default,
-        __dataclass__init__fields__19__annotation,
-        __dataclass__init__fields__19__default,
-        __dataclass__init__fields__20__annotation,
-        __dataclass__init__fields__20__default,
-        __dataclass__init__fields__21__annotation,
-        __dataclass__init__fields__21__default,
-        __dataclass__init__fields__22__annotation,
-        __dataclass__init__fields__22__default,
-        __dataclass__init__fields__23__annotation,
-        __dataclass__init__fields__23__default,
-        __dataclass__init__fields__24__annotation,
-        __dataclass__init__fields__24__default,
-        __dataclass__init__fields__25__annotation,
-        __dataclass__init__fields__25__default,
-        __dataclass__init__fields__26__annotation,
-        __dataclass__init__fields__26__default,
-        __dataclass__init__fields__27__annotation,
-        __dataclass__init__fields__27__default,
-        __dataclass__init__fields__28__annotation,
-        __dataclass__init__fields__28__default,
-        __dataclass__init__fields__29__annotation,
-        __dataclass__init__fields__29__default,
-        __dataclass__init__fields__30__annotation,
-        __dataclass__init__fields__30__default,
-        __dataclass__init__fields__31__annotation,
-        __dataclass__init__fields__31__default,
-        __dataclass__init__fields__32__annotation,
-        __dataclass__init__fields__32__default,
-        __dataclass__init__fields__33__annotation,
-        __dataclass__init__fields__33__default,
-        __dataclass__init__fields__34__annotation,
-        __dataclass__init__fields__34__default,
-        __dataclass__init__fields__35__annotation,
-        __dataclass__init__fields__35__default,
-        __dataclass__init__fields__36__annotation,
-        __dataclass__init__fields__36__default,
-        __dataclass__init__fields__37__annotation,
-        __dataclass__init__fields__37__default,
-        __dataclass__init__fields__38__annotation,
-        __dataclass__init__fields__38__default,
-        __dataclass__init__fields__39__annotation,
-        __dataclass__init__fields__39__default,
-        __dataclass__init__fields__40__annotation,
-        __dataclass__init__fields__40__default,
-        __dataclass__init__fields__41__annotation,
-        __dataclass__init__fields__41__default,
-        __dataclass__init__fields__42__annotation,
-        __dataclass__init__fields__42__default,
-        __dataclass__init__fields__43__annotation,
-        __dataclass__init__fields__43__default,
-        __dataclass__init__fields__44__annotation,
-        __dataclass__init__fields__44__default,
-        __dataclass__init__fields__45__annotation,
-        __dataclass__init__fields__45__default,
-        __dataclass__init__fields__46__annotation,
-        __dataclass__init__fields__46__default,
-        __dataclass__init__fields__47__annotation,
-        __dataclass__init__fields__47__default,
-        __dataclass__init__fields__48__annotation,
-        __dataclass__init__fields__48__default,
-        __dataclass__init__fields__49__annotation,
-        __dataclass__init__fields__49__default,
-        __dataclass__init__fields__50__annotation,
-        __dataclass__init__fields__50__default,
-        __dataclass__init__fields__51__annotation,
-        __dataclass__init__fields__51__default,
-        __dataclass__init__fields__52__annotation,
-        __dataclass__init__fields__52__default,
-        __dataclass__init__fields__53__annotation,
-        __dataclass__init__fields__53__default,
-        __dataclass__init__fields__54__annotation,
-        __dataclass__init__fields__54__default,
-        __dataclass__init__fields__55__annotation,
-        __dataclass__init__fields__55__default,
-        __dataclass__init__fields__56__annotation,
-        __dataclass__init__fields__56__default,
-        __dataclass__init__fields__57__annotation,
-        __dataclass__init__fields__57__default,
-        __dataclass__init__fields__58__annotation,
-        __dataclass__init__fields__58__default,
-        __dataclass__init__fields__59__annotation,
-        __dataclass__init__fields__59__default,
-        __dataclass__init__fields__60__annotation,
-        __dataclass__init__fields__60__default,
-        __dataclass__init__fields__61__annotation,
-        __dataclass__init__fields__61__default,
-        __dataclass__init__fields__62__annotation,
-        __dataclass__init__fields__62__default,
-        __dataclass__init__fields__63__annotation,
-        __dataclass__init__fields__63__default,
-        __dataclass__init__fields__64__annotation,
-        __dataclass__init__fields__64__default,
-        __dataclass__init__fields__65__annotation,
-        __dataclass__init__fields__65__default,
-        __dataclass__init__fields__66__annotation,
-        __dataclass__init__fields__66__default,
-        __dataclass__init__fields__67__annotation,
-        __dataclass__init__fields__67__default,
-        __dataclass__init__fields__68__annotation,
-        __dataclass__init__fields__68__default,
-        __dataclass__init__fields__69__annotation,
-        __dataclass__init__fields__69__default,
-        __dataclass__init__fields__70__annotation,
-        __dataclass__init__fields__70__default,
-        __dataclass__init__fields__71__annotation,
-        __dataclass__init__fields__71__default,
-        __dataclass__init__fields__72__annotation,
-        __dataclass__init__fields__72__default,
-        __dataclass__init__fields__73__annotation,
-        __dataclass__init__fields__73__default,
-        __dataclass__init__fields__74__annotation,
-        __dataclass__init__fields__74__default,
-        __dataclass__init__fields__75__annotation,
-        __dataclass__init__fields__75__default,
-        __dataclass__init__fields__76__annotation,
-        __dataclass__init__fields__76__default,
-        __dataclass__init__fields__77__annotation,
-        __dataclass__init__fields__77__default,
-        __dataclass__init__fields__78__annotation,
-        __dataclass__init__fields__78__default,
-        __dataclass__init__fields__79__annotation,
-        __dataclass__init__fields__79__default,
-        __dataclass__init__fields__80__annotation,
-        __dataclass__init__fields__80__default,
-        __dataclass__init__fields__81__annotation,
-        __dataclass__init__fields__81__default,
-        __dataclass__init__fields__82__annotation,
-        __dataclass__init__fields__82__default,
-        __dataclass__init__fields__83__annotation,
-        __dataclass__init__fields__83__default,
-        __dataclass__init__fields__84__annotation,
-        __dataclass__init__fields__84__default,
-        __dataclass__init__fields__85__annotation,
-        __dataclass__init__fields__85__default,
-        __dataclass__init__fields__86__annotation,
-        __dataclass__init__fields__86__default,
-        __dataclass__init__fields__87__annotation,
-        __dataclass__init__fields__87__default,
-        __dataclass__init__fields__88__annotation,
-        __dataclass__init__fields__88__default,
-        __dataclass__init__fields__89__annotation,
-        __dataclass__init__fields__89__default,
-        __dataclass__init__fields__90__annotation,
-        __dataclass__init__fields__90__default,
-        __dataclass__init__fields__91__annotation,
-        __dataclass__init__fields__91__default,
-        __dataclass__init__fields__92__annotation,
-        __dataclass__init__fields__92__default,
-        __dataclass__init__fields__93__annotation,
-        __dataclass__init__fields__93__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default = __dataclass__spec.fields[10].default.must()
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
+        __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
+        __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
+        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
+        __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
+        __dataclass__init__fields__16__annotation = __dataclass__spec.fields[16].annotation
+        __dataclass__init__fields__16__default = __dataclass__spec.fields[16].default.must()
+        __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
+        __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
+        __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
+        __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
+        __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
+        __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
+        __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
+        __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
+        __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
+        __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
+        __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
+        __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
+        __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__init__fields__24__annotation = __dataclass__spec.fields[24].annotation
+        __dataclass__init__fields__24__default = __dataclass__spec.fields[24].default.must()
+        __dataclass__init__fields__25__annotation = __dataclass__spec.fields[25].annotation
+        __dataclass__init__fields__25__default = __dataclass__spec.fields[25].default.must()
+        __dataclass__init__fields__26__annotation = __dataclass__spec.fields[26].annotation
+        __dataclass__init__fields__26__default = __dataclass__spec.fields[26].default.must()
+        __dataclass__init__fields__27__annotation = __dataclass__spec.fields[27].annotation
+        __dataclass__init__fields__27__default = __dataclass__spec.fields[27].default.must()
+        __dataclass__init__fields__28__annotation = __dataclass__spec.fields[28].annotation
+        __dataclass__init__fields__28__default = __dataclass__spec.fields[28].default.must()
+        __dataclass__init__fields__29__annotation = __dataclass__spec.fields[29].annotation
+        __dataclass__init__fields__29__default = __dataclass__spec.fields[29].default.must()
+        __dataclass__init__fields__30__annotation = __dataclass__spec.fields[30].annotation
+        __dataclass__init__fields__30__default = __dataclass__spec.fields[30].default.must()
+        __dataclass__init__fields__31__annotation = __dataclass__spec.fields[31].annotation
+        __dataclass__init__fields__31__default = __dataclass__spec.fields[31].default.must()
+        __dataclass__init__fields__32__annotation = __dataclass__spec.fields[32].annotation
+        __dataclass__init__fields__32__default = __dataclass__spec.fields[32].default.must()
+        __dataclass__init__fields__33__annotation = __dataclass__spec.fields[33].annotation
+        __dataclass__init__fields__33__default = __dataclass__spec.fields[33].default.must()
+        __dataclass__init__fields__34__annotation = __dataclass__spec.fields[34].annotation
+        __dataclass__init__fields__34__default = __dataclass__spec.fields[34].default.must()
+        __dataclass__init__fields__35__annotation = __dataclass__spec.fields[35].annotation
+        __dataclass__init__fields__35__default = __dataclass__spec.fields[35].default.must()
+        __dataclass__init__fields__36__annotation = __dataclass__spec.fields[36].annotation
+        __dataclass__init__fields__36__default = __dataclass__spec.fields[36].default.must()
+        __dataclass__init__fields__37__annotation = __dataclass__spec.fields[37].annotation
+        __dataclass__init__fields__37__default = __dataclass__spec.fields[37].default.must()
+        __dataclass__init__fields__38__annotation = __dataclass__spec.fields[38].annotation
+        __dataclass__init__fields__38__default = __dataclass__spec.fields[38].default.must()
+        __dataclass__init__fields__39__annotation = __dataclass__spec.fields[39].annotation
+        __dataclass__init__fields__39__default = __dataclass__spec.fields[39].default.must()
+        __dataclass__init__fields__40__annotation = __dataclass__spec.fields[40].annotation
+        __dataclass__init__fields__40__default = __dataclass__spec.fields[40].default.must()
+        __dataclass__init__fields__41__annotation = __dataclass__spec.fields[41].annotation
+        __dataclass__init__fields__41__default = __dataclass__spec.fields[41].default.must()
+        __dataclass__init__fields__42__annotation = __dataclass__spec.fields[42].annotation
+        __dataclass__init__fields__42__default = __dataclass__spec.fields[42].default.must()
+        __dataclass__init__fields__43__annotation = __dataclass__spec.fields[43].annotation
+        __dataclass__init__fields__43__default = __dataclass__spec.fields[43].default.must()
+        __dataclass__init__fields__44__annotation = __dataclass__spec.fields[44].annotation
+        __dataclass__init__fields__44__default = __dataclass__spec.fields[44].default.must()
+        __dataclass__init__fields__45__annotation = __dataclass__spec.fields[45].annotation
+        __dataclass__init__fields__45__default = __dataclass__spec.fields[45].default.must()
+        __dataclass__init__fields__46__annotation = __dataclass__spec.fields[46].annotation
+        __dataclass__init__fields__46__default = __dataclass__spec.fields[46].default.must()
+        __dataclass__init__fields__47__annotation = __dataclass__spec.fields[47].annotation
+        __dataclass__init__fields__47__default = __dataclass__spec.fields[47].default.must()
+        __dataclass__init__fields__48__annotation = __dataclass__spec.fields[48].annotation
+        __dataclass__init__fields__48__default = __dataclass__spec.fields[48].default.must()
+        __dataclass__init__fields__49__annotation = __dataclass__spec.fields[49].annotation
+        __dataclass__init__fields__49__default = __dataclass__spec.fields[49].default.must()
+        __dataclass__init__fields__50__annotation = __dataclass__spec.fields[50].annotation
+        __dataclass__init__fields__50__default = __dataclass__spec.fields[50].default.must()
+        __dataclass__init__fields__51__annotation = __dataclass__spec.fields[51].annotation
+        __dataclass__init__fields__51__default = __dataclass__spec.fields[51].default.must()
+        __dataclass__init__fields__52__annotation = __dataclass__spec.fields[52].annotation
+        __dataclass__init__fields__52__default = __dataclass__spec.fields[52].default.must()
+        __dataclass__init__fields__53__annotation = __dataclass__spec.fields[53].annotation
+        __dataclass__init__fields__53__default = __dataclass__spec.fields[53].default.must()
+        __dataclass__init__fields__54__annotation = __dataclass__spec.fields[54].annotation
+        __dataclass__init__fields__54__default = __dataclass__spec.fields[54].default.must()
+        __dataclass__init__fields__55__annotation = __dataclass__spec.fields[55].annotation
+        __dataclass__init__fields__55__default = __dataclass__spec.fields[55].default.must()
+        __dataclass__init__fields__56__annotation = __dataclass__spec.fields[56].annotation
+        __dataclass__init__fields__56__default = __dataclass__spec.fields[56].default.must()
+        __dataclass__init__fields__57__annotation = __dataclass__spec.fields[57].annotation
+        __dataclass__init__fields__57__default = __dataclass__spec.fields[57].default.must()
+        __dataclass__init__fields__58__annotation = __dataclass__spec.fields[58].annotation
+        __dataclass__init__fields__58__default = __dataclass__spec.fields[58].default.must()
+        __dataclass__init__fields__59__annotation = __dataclass__spec.fields[59].annotation
+        __dataclass__init__fields__59__default = __dataclass__spec.fields[59].default.must()
+        __dataclass__init__fields__60__annotation = __dataclass__spec.fields[60].annotation
+        __dataclass__init__fields__60__default = __dataclass__spec.fields[60].default.must()
+        __dataclass__init__fields__61__annotation = __dataclass__spec.fields[61].annotation
+        __dataclass__init__fields__61__default = __dataclass__spec.fields[61].default.must()
+        __dataclass__init__fields__62__annotation = __dataclass__spec.fields[62].annotation
+        __dataclass__init__fields__62__default = __dataclass__spec.fields[62].default.must()
+        __dataclass__init__fields__63__annotation = __dataclass__spec.fields[63].annotation
+        __dataclass__init__fields__63__default = __dataclass__spec.fields[63].default.must()
+        __dataclass__init__fields__64__annotation = __dataclass__spec.fields[64].annotation
+        __dataclass__init__fields__64__default = __dataclass__spec.fields[64].default.must()
+        __dataclass__init__fields__65__annotation = __dataclass__spec.fields[65].annotation
+        __dataclass__init__fields__65__default = __dataclass__spec.fields[65].default.must()
+        __dataclass__init__fields__66__annotation = __dataclass__spec.fields[66].annotation
+        __dataclass__init__fields__66__default = __dataclass__spec.fields[66].default.must()
+        __dataclass__init__fields__67__annotation = __dataclass__spec.fields[67].annotation
+        __dataclass__init__fields__67__default = __dataclass__spec.fields[67].default.must()
+        __dataclass__init__fields__68__annotation = __dataclass__spec.fields[68].annotation
+        __dataclass__init__fields__68__default = __dataclass__spec.fields[68].default.must()
+        __dataclass__init__fields__69__annotation = __dataclass__spec.fields[69].annotation
+        __dataclass__init__fields__69__default = __dataclass__spec.fields[69].default.must()
+        __dataclass__init__fields__70__annotation = __dataclass__spec.fields[70].annotation
+        __dataclass__init__fields__70__default = __dataclass__spec.fields[70].default.must()
+        __dataclass__init__fields__71__annotation = __dataclass__spec.fields[71].annotation
+        __dataclass__init__fields__71__default = __dataclass__spec.fields[71].default.must()
+        __dataclass__init__fields__72__annotation = __dataclass__spec.fields[72].annotation
+        __dataclass__init__fields__72__default = __dataclass__spec.fields[72].default.must()
+        __dataclass__init__fields__73__annotation = __dataclass__spec.fields[73].annotation
+        __dataclass__init__fields__73__default = __dataclass__spec.fields[73].default.must()
+        __dataclass__init__fields__74__annotation = __dataclass__spec.fields[74].annotation
+        __dataclass__init__fields__74__default = __dataclass__spec.fields[74].default.must()
+        __dataclass__init__fields__75__annotation = __dataclass__spec.fields[75].annotation
+        __dataclass__init__fields__75__default = __dataclass__spec.fields[75].default.must()
+        __dataclass__init__fields__76__annotation = __dataclass__spec.fields[76].annotation
+        __dataclass__init__fields__76__default = __dataclass__spec.fields[76].default.must()
+        __dataclass__init__fields__77__annotation = __dataclass__spec.fields[77].annotation
+        __dataclass__init__fields__77__default = __dataclass__spec.fields[77].default.must()
+        __dataclass__init__fields__78__annotation = __dataclass__spec.fields[78].annotation
+        __dataclass__init__fields__78__default = __dataclass__spec.fields[78].default.must()
+        __dataclass__init__fields__79__annotation = __dataclass__spec.fields[79].annotation
+        __dataclass__init__fields__79__default = __dataclass__spec.fields[79].default.must()
+        __dataclass__init__fields__80__annotation = __dataclass__spec.fields[80].annotation
+        __dataclass__init__fields__80__default = __dataclass__spec.fields[80].default.must()
+        __dataclass__init__fields__81__annotation = __dataclass__spec.fields[81].annotation
+        __dataclass__init__fields__81__default = __dataclass__spec.fields[81].default.must()
+        __dataclass__init__fields__82__annotation = __dataclass__spec.fields[82].annotation
+        __dataclass__init__fields__82__default = __dataclass__spec.fields[82].default.must()
+        __dataclass__init__fields__83__annotation = __dataclass__spec.fields[83].annotation
+        __dataclass__init__fields__83__default = __dataclass__spec.fields[83].default.must()
+        __dataclass__init__fields__84__annotation = __dataclass__spec.fields[84].annotation
+        __dataclass__init__fields__84__default = __dataclass__spec.fields[84].default.must()
+        __dataclass__init__fields__85__annotation = __dataclass__spec.fields[85].annotation
+        __dataclass__init__fields__85__default = __dataclass__spec.fields[85].default.must()
+        __dataclass__init__fields__86__annotation = __dataclass__spec.fields[86].annotation
+        __dataclass__init__fields__86__default = __dataclass__spec.fields[86].default.must()
+        __dataclass__init__fields__87__annotation = __dataclass__spec.fields[87].annotation
+        __dataclass__init__fields__87__default = __dataclass__spec.fields[87].default.must()
+        __dataclass__init__fields__88__annotation = __dataclass__spec.fields[88].annotation
+        __dataclass__init__fields__88__default = __dataclass__spec.fields[88].default.must()
+        __dataclass__init__fields__89__annotation = __dataclass__spec.fields[89].annotation
+        __dataclass__init__fields__89__default = __dataclass__spec.fields[89].default.must()
+        __dataclass__init__fields__90__annotation = __dataclass__spec.fields[90].annotation
+        __dataclass__init__fields__90__default = __dataclass__spec.fields[90].default.must()
+        __dataclass__init__fields__91__annotation = __dataclass__spec.fields[91].annotation
+        __dataclass__init__fields__91__default = __dataclass__spec.fields[91].default.must()
+        __dataclass__init__fields__92__annotation = __dataclass__spec.fields[92].annotation
+        __dataclass__init__fields__92__default = __dataclass__spec.fields[92].default.must()
+        __dataclass__init__fields__93__annotation = __dataclass__spec.fields[93].annotation
+        __dataclass__init__fields__93__default = __dataclass__spec.fields[93].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -3134,36 +2634,36 @@ def _process_dataclass__c4a8e4a109ae13601d7fed136bb062a9a2712b32():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance_automated_backups_arn',)), EqPlan(fields=('db_instance_automated_back"
-        "ups_arn',)), FrozenPlan(fields=('__shape__', 'db_instance_automated_backups_arn'), allow_dynamic_dunder_attrs="
-        "False), HashPlan(action='add', fields=('db_instance_automated_backups_arn',), cache=False), InitPlan(fields=(I"
-        "nitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_facto"
-        "ry=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=Non"
-        "e), InitPlan.Field(name='db_instance_automated_backups_arn', annotation=OpRef(name='init.fields.1.annotation')"
-        ", default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=Fie"
-        "ldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_para"
-        "ms=('db_instance_automated_backups_arn',), frozen=True, slots=False, post_init_params=None, init_fns=(), valid"
-        "ate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_instance_automated_backups_arn', kw_only=True, fn=None),"
-        "), id=False, terse=False, default_fn=None)))"
+    installer_sha1='119ab1c224ed6a03592aeafab078c63c1c7fd50c',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance_automated_backups_arn', True, True, None, True, True, False,"
+            " None), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False,"
+            " False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='f4f5e47cd22723462922683cb4fe9515739a3485',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceAutomatedBackupsReplication'),
     ),
 )
-def _process_dataclass__f4f5e47cd22723462922683cb4fe9515739a3485():
+def _process_dataclass__119ab1c224ed6a03592aeafab078c63c1c7fd50c():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -3241,40 +2741,39 @@ def _process_dataclass__f4f5e47cd22723462922683cb4fe9515739a3485():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('marker', 'db_instances')), EqPlan(fields=('marker', 'db_instances')), FrozenPlan("
-        "fields=('__shape__', 'marker', 'db_instances'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fiel"
-        "ds=('marker', 'db_instances'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRe"
-        "f(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type="
-        "FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='marker', annotation=Op"
-        "Ref(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init="
-        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fi"
-        "eld(name='db_instances', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2."
-        "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
-        "te=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('marker', 'db_instances'), froze"
-        "n=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(nam"
-        "e='marker', kw_only=True, fn=None), ReprPlan.Field(name='db_instances', kw_only=True, fn=None)), id=False, ter"
-        "se=False, default_fn=None)))"
+    installer_sha1='179bc13374d14293e6e4482da15639f7814acdb9',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('marker', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('db_instances', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), F"
+            "alse))"
+        ),
     ),
-    plan_repr_sha1='73f8c682b7489fa5d592e53237f171acb7a40089',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceMessage'),
     ),
 )
-def _process_dataclass__73f8c682b7489fa5d592e53237f171acb7a40089():
+def _process_dataclass__179bc13374d14293e6e4482da15639f7814acdb9():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -3359,45 +2858,42 @@ def _process_dataclass__73f8c682b7489fa5d592e53237f171acb7a40089():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('role_arn', 'feature_name', 'status')), EqPlan(fields=('role_arn', 'feature_name',"
-        " 'status')), FrozenPlan(fields=('__shape__', 'role_arn', 'feature_name', 'status'), allow_dynamic_dunder_attrs"
-        "=False), HashPlan(action='add', fields=('role_arn', 'feature_name', 'status'), cache=False), InitPlan(fields=("
-        "InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_fact"
-        "ory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=No"
-        "ne), InitPlan.Field(name='role_arn', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='in"
-        "it.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce="
-        "None, validate=None, check_type=None), InitPlan.Field(name='feature_name', annotation=OpRef(name='init.fields."
-        "2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, "
-        "field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='status', ann"
-        "otation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=N"
-        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), "
-        "self_param='self', std_params=(), kw_only_params=('role_arn', 'feature_name', 'status'), frozen=True, slots=Fa"
-        "lse, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='role_arn', kw"
-        "_only=True, fn=None), ReprPlan.Field(name='feature_name', kw_only=True, fn=None), ReprPlan.Field(name='status'"
-        ", kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='50b4823012fa2cbc57b26e6cc0de96283b73cd69',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('role_arn', True, True, None, True, True, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('feature_name', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('status', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), "
+            "False))"
+        ),
     ),
-    plan_repr_sha1='b3fadeb3592e8dc008bb27dac3148f342ce359b3',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceRole'),
     ),
 )
-def _process_dataclass__b3fadeb3592e8dc008bb27dac3148f342ce359b3():
+def _process_dataclass__50b4823012fa2cbc57b26e6cc0de96283b73cd69():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -3489,50 +2985,45 @@ def _process_dataclass__b3fadeb3592e8dc008bb27dac3148f342ce359b3():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('status_type', 'normal', 'status', 'message')), EqPlan(fields=('status_type', 'nor"
-        "mal', 'status', 'message')), FrozenPlan(fields=('__shape__', 'status_type', 'normal', 'status', 'message'), al"
-        "low_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('status_type', 'normal', 'status', 'message'),"
-        " cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotati"
-        "on'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=No"
-        "ne, validate=None, check_type=None), InitPlan.Field(name='status_type', annotation=OpRef(name='init.fields.1.a"
-        "nnotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, fie"
-        "ld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='normal', annota"
-        "tion=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None"
-        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Init"
-        "Plan.Field(name='status', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3"
-        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
-        "ate=None, check_type=None), InitPlan.Field(name='message', annotation=OpRef(name='init.fields.4.annotation'), "
-        "default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, field_type=Field"
-        "Type.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params"
-        "=('status_type', 'normal', 'status', 'message'), frozen=True, slots=False, post_init_params=None, init_fns=(),"
-        " validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='status_type', kw_only=True, fn=None), ReprPlan.Field("
-        "name='normal', kw_only=True, fn=None), ReprPlan.Field(name='status', kw_only=True, fn=None), ReprPlan.Field(na"
-        "me='message', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='3bbbfa38a25b94d79376e5c1aa001ac55298e4d4',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('status_type', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('normal', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('status', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('message', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), Fal"
+            "se))"
+        ),
     ),
-    plan_repr_sha1='dfef3bd76104061b462b6d622ccea966239e7922',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceStatusInfo'),
     ),
 )
-def _process_dataclass__dfef3bd76104061b462b6d622ccea966239e7922():
+def _process_dataclass__3bbbfa38a25b94d79376e5c1aa001ac55298e4d4():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__init__fields__4__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -3631,41 +3122,39 @@ def _process_dataclass__dfef3bd76104061b462b6d622ccea966239e7922():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_parameter_group_name', 'parameter_apply_status')), EqPlan(fields=('db_paramete"
-        "r_group_name', 'parameter_apply_status')), FrozenPlan(fields=('__shape__', 'db_parameter_group_name', 'paramet"
-        "er_apply_status'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('db_parameter_group_name'"
-        ", 'parameter_apply_status'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef("
-        "name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fi"
-        "eldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_parameter_group_name'"
-        ", annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_fact"
-        "ory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=Non"
-        "e), InitPlan.Field(name='parameter_apply_status', annotation=OpRef(name='init.fields.2.annotation'), default=O"
-        "pRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
-        "ANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('db_par"
-        "ameter_group_name', 'parameter_apply_status'), frozen=True, slots=False, post_init_params=None, init_fns=(), v"
-        "alidate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_parameter_group_name', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='parameter_apply_status', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='b3784f8712a5cf1b532411ed6964a5dd3fbc6b45',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_parameter_group_name', True, True, None, True, True, False, None), 'i"
+            "nstance', 'value', None, False, False, False), (('parameter_apply_status', True, True, None, True, True, F"
+            "alse, None), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (F"
+            "alse, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='a51c3ef9cca312b56d9868235ef7bc299c4a9d57',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBParameterGroupStatus'),
     ),
 )
-def _process_dataclass__a51c3ef9cca312b56d9868235ef7bc299c4a9d57():
+def _process_dataclass__b3784f8712a5cf1b532411ed6964a5dd3fbc6b45():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -3750,40 +3239,39 @@ def _process_dataclass__a51c3ef9cca312b56d9868235ef7bc299c4a9d57():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_security_group_name', 'status')), EqPlan(fields=('db_security_group_name', 'st"
-        "atus')), FrozenPlan(fields=('__shape__', 'db_security_group_name', 'status'), allow_dynamic_dunder_attrs=False"
-        "), HashPlan(action='add', fields=('db_security_group_name', 'status'), cache=False), InitPlan(fields=(InitPlan"
-        ".Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None"
-        ", init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), Ini"
-        "tPlan.Field(name='db_security_group_name', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(na"
-        "me='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, c"
-        "oerce=None, validate=None, check_type=None), InitPlan.Field(name='status', annotation=OpRef(name='init.fields."
-        "2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, "
-        "field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=()"
-        ", kw_only_params=('db_security_group_name', 'status'), frozen=True, slots=False, post_init_params=None, init_f"
-        "ns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_security_group_name', kw_only=True, fn=None)"
-        ", ReprPlan.Field(name='status', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='f94f767e7e2a53c7bb3f32b1d0245271c39616fb',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_security_group_name', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('status', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()),"
+            " (), (), False))"
+        ),
     ),
-    plan_repr_sha1='5b874daf1f977f07597ba17556eee1fdb7257557',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBSecurityGroupMembership'),
     ),
 )
-def _process_dataclass__5b874daf1f977f07597ba17556eee1fdb7257557():
+def _process_dataclass__f94f767e7e2a53c7bb3f32b1d0245271c39616fb():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -3868,71 +3356,54 @@ def _process_dataclass__5b874daf1f977f07597ba17556eee1fdb7257557():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_subnet_group_name', 'db_subnet_group_description', 'vpc_id', 'subnet_group_sta"
-        "tus', 'subnets', 'db_subnet_group_arn', 'supported_network_types')), EqPlan(fields=('db_subnet_group_name', 'd"
-        "b_subnet_group_description', 'vpc_id', 'subnet_group_status', 'subnets', 'db_subnet_group_arn', 'supported_net"
-        "work_types')), FrozenPlan(fields=('__shape__', 'db_subnet_group_name', 'db_subnet_group_description', 'vpc_id'"
-        ", 'subnet_group_status', 'subnets', 'db_subnet_group_arn', 'supported_network_types'), allow_dynamic_dunder_at"
-        "trs=False), HashPlan(action='add', fields=('db_subnet_group_name', 'db_subnet_group_description', 'vpc_id', 's"
-        "ubnet_group_status', 'subnets', 'db_subnet_group_arn', 'supported_network_types'), cache=False), InitPlan(fiel"
-        "ds=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_"
-        "factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_typ"
-        "e=None), InitPlan.Field(name='db_subnet_group_name', annotation=OpRef(name='init.fields.1.annotation'), defaul"
-        "t=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.I"
-        "NSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_subnet_group_description', anno"
-        "tation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=No"
-        "ne, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), In"
-        "itPlan.Field(name='vpc_id', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields"
-        ".3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, val"
-        "idate=None, check_type=None), InitPlan.Field(name='subnet_group_status', annotation=OpRef(name='init.fields.4."
-        "annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, override=False, fi"
-        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='subnets', anno"
-        "tation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_factory=No"
-        "ne, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), In"
-        "itPlan.Field(name='db_subnet_group_arn', annotation=OpRef(name='init.fields.6.annotation'), default=OpRef(name"
-        "='init.fields.6.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coe"
-        "rce=None, validate=None, check_type=None), InitPlan.Field(name='supported_network_types', annotation=OpRef(nam"
-        "e='init.fields.7.annotation'), default=OpRef(name='init.fields.7.default'), default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self'"
-        ", std_params=(), kw_only_params=('db_subnet_group_name', 'db_subnet_group_description', 'vpc_id', 'subnet_grou"
-        "p_status', 'subnets', 'db_subnet_group_arn', 'supported_network_types'), frozen=True, slots=False, post_init_p"
-        "arams=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_subnet_group_name', kw_onl"
-        "y=True, fn=None), ReprPlan.Field(name='db_subnet_group_description', kw_only=True, fn=None), ReprPlan.Field(na"
-        "me='vpc_id', kw_only=True, fn=None), ReprPlan.Field(name='subnet_group_status', kw_only=True, fn=None), ReprPl"
-        "an.Field(name='subnets', kw_only=True, fn=None), ReprPlan.Field(name='db_subnet_group_arn', kw_only=True, fn=N"
-        "one), ReprPlan.Field(name='supported_network_types', kw_only=True, fn=None)), id=False, terse=False, default_f"
-        "n=None)))"
+    installer_sha1='a07601ffc870a42220f37e7ff9d138cee848f927',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_subnet_group_name', True, True, None, True, True, False, None), 'inst"
+            "ance', 'value', None, False, False, False), (('db_subnet_group_description', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False), (('vpc_id', True, True, None, True, True, "
+            "False, None), 'instance', 'value', None, False, False, False), (('subnet_group_status', True, True, None, "
+            "True, True, False, None), 'instance', 'value', None, False, False, False), (('subnets', True, True, None, "
+            "True, True, False, None), 'instance', 'value', None, False, False, False), (('db_subnet_group_arn', True, "
+            "True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('supported_networ"
+            "k_types', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), Fa"
+            "lse, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='ce03050de49b8021c089e9bac61e7cf378cb13ea',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBSubnetGroup'),
     ),
 )
-def _process_dataclass__ce03050de49b8021c089e9bac61e7cf378cb13ea():
+def _process_dataclass__a07601ffc870a42220f37e7ff9d138cee848f927():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__init__fields__4__default,
-        __dataclass__init__fields__5__annotation,
-        __dataclass__init__fields__5__default,
-        __dataclass__init__fields__6__annotation,
-        __dataclass__init__fields__6__default,
-        __dataclass__init__fields__7__annotation,
-        __dataclass__init__fields__7__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -4052,53 +3523,44 @@ def _process_dataclass__ce03050de49b8021c089e9bac61e7cf378cb13ea():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance_identifier', 'skip_final_snapshot', 'final_db_snapshot_identifier', '"
-        "delete_automated_backups')), EqPlan(fields=('db_instance_identifier', 'skip_final_snapshot', 'final_db_snapsho"
-        "t_identifier', 'delete_automated_backups')), FrozenPlan(fields=('__shape__', 'db_instance_identifier', 'skip_f"
-        "inal_snapshot', 'final_db_snapshot_identifier', 'delete_automated_backups'), allow_dynamic_dunder_attrs=False)"
-        ", HashPlan(action='add', fields=('db_instance_identifier', 'skip_final_snapshot', 'final_db_snapshot_identifie"
-        "r', 'delete_automated_backups'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=Op"
-        "Ref(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_typ"
-        "e=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_instance_identifi"
-        "er', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, overrid"
-        "e=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ski"
-        "p_final_snapshot', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.defaul"
-        "t'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=Non"
-        "e, check_type=None), InitPlan.Field(name='final_db_snapshot_identifier', annotation=OpRef(name='init.fields.3."
-        "annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, fi"
-        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='delete_automat"
-        "ed_backups', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), d"
-        "efault_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, che"
-        "ck_type=None)), self_param='self', std_params=(), kw_only_params=('db_instance_identifier', 'skip_final_snapsh"
-        "ot', 'final_db_snapshot_identifier', 'delete_automated_backups'), frozen=True, slots=False, post_init_params=N"
-        "one, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_instance_identifier', kw_only=Tru"
-        "e, fn=None), ReprPlan.Field(name='skip_final_snapshot', kw_only=True, fn=None), ReprPlan.Field(name='final_db_"
-        "snapshot_identifier', kw_only=True, fn=None), ReprPlan.Field(name='delete_automated_backups', kw_only=True, fn"
-        "=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='3b3447da704a504301d048be4b47d0e153c1e5ce',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
+            "stance', 'missing', None, False, False, False), (('skip_final_snapshot', True, True, None, True, True, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('final_db_snapshot_identifier', True, True, "
+            "None, True, True, False, None), 'instance', 'value', None, False, False, False), (('delete_automated_backu"
+            "ps', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, "
+            "0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='d2a0a84e41592cea9c8d2689d8b23123fbb2dca2',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DeleteDBInstanceMessage'),
     ),
 )
-def _process_dataclass__d2a0a84e41592cea9c8d2689d8b23123fbb2dca2():
+def _process_dataclass__3b3447da704a504301d048be4b47d0e153c1e5ce():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__init__fields__4__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -4197,51 +3659,45 @@ def _process_dataclass__d2a0a84e41592cea9c8d2689d8b23123fbb2dca2():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance_identifier', 'filters', 'max_records', 'marker')), EqPlan(fields=('db"
-        "_instance_identifier', 'filters', 'max_records', 'marker')), FrozenPlan(fields=('__shape__', 'db_instance_iden"
-        "tifier', 'filters', 'max_records', 'marker'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields"
-        "=('db_instance_identifier', 'filters', 'max_records', 'marker'), cache=False), InitPlan(fields=(InitPlan.Field"
-        "(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init"
-        "=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan."
-        "Field(name='db_instance_identifier', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='in"
-        "it.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce="
-        "None, validate=None, check_type=None), InitPlan.Field(name='filters', annotation=OpRef(name='init.fields.2.ann"
-        "otation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field"
-        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_records', ann"
-        "otation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=N"
-        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), I"
-        "nitPlan.Field(name='marker', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.field"
-        "s.4.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, va"
-        "lidate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('db_instance_identifier', 'f"
-        "ilters', 'max_records', 'marker'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns="
-        "()), ReprPlan(fields=(ReprPlan.Field(name='db_instance_identifier', kw_only=True, fn=None), ReprPlan.Field(nam"
-        "e='filters', kw_only=True, fn=None), ReprPlan.Field(name='max_records', kw_only=True, fn=None), ReprPlan.Field"
-        "(name='marker', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='d3c7cba42290aba517ae1cb761dedf44a72c5f8a',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('filters', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('max_records', True, True, None, True, True, False, None),"
+            " 'instance', 'value', None, False, False, False), (('marker', True, True, None, True, True, False, None), "
+            "'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, "
+            "()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='ffdd6c338f4a6eedeec3d6928b24e8591a471f20',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DescribeDBInstancesMessage'),
     ),
 )
-def _process_dataclass__ffdd6c338f4a6eedeec3d6928b24e8591a471f20():
+def _process_dataclass__d3c7cba42290aba517ae1cb761dedf44a72c5f8a():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__init__fields__4__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -4340,66 +3796,54 @@ def _process_dataclass__ffdd6c338f4a6eedeec3d6928b24e8591a471f20():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('domain', 'status', 'fqdn', 'iam_role_name', 'ou', 'auth_secret_arn', 'dns_ips')),"
-        " EqPlan(fields=('domain', 'status', 'fqdn', 'iam_role_name', 'ou', 'auth_secret_arn', 'dns_ips')), FrozenPlan("
-        "fields=('__shape__', 'domain', 'status', 'fqdn', 'iam_role_name', 'ou', 'auth_secret_arn', 'dns_ips'), allow_d"
-        "ynamic_dunder_attrs=False), HashPlan(action='add', fields=('domain', 'status', 'fqdn', 'iam_role_name', 'ou', "
-        "'auth_secret_arn', 'dns_ips'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRe"
-        "f(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type="
-        "FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='domain', annotation=Op"
-        "Ref(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init="
-        "True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fi"
-        "eld(name='status', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.defaul"
-        "t'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=Non"
-        "e, check_type=None), InitPlan.Field(name='fqdn', annotation=OpRef(name='init.fields.3.annotation'), default=Op"
-        "Ref(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
-        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='iam_role_name', annotation=OpRef(name="
-        "'init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory=None, init=True, ove"
-        "rride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name="
-        "'ou', annotation=OpRef(name='init.fields.5.annotation'), default=OpRef(name='init.fields.5.default'), default_"
-        "factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type"
-        "=None), InitPlan.Field(name='auth_secret_arn', annotation=OpRef(name='init.fields.6.annotation'), default=OpRe"
-        "f(name='init.fields.6.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANC"
-        "E, coerce=None, validate=None, check_type=None), InitPlan.Field(name='dns_ips', annotation=OpRef(name='init.fi"
-        "elds.7.annotation'), default=OpRef(name='init.fields.7.default'), default_factory=None, init=True, override=Fa"
-        "lse, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_para"
-        "ms=(), kw_only_params=('domain', 'status', 'fqdn', 'iam_role_name', 'ou', 'auth_secret_arn', 'dns_ips'), froze"
-        "n=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(nam"
-        "e='domain', kw_only=True, fn=None), ReprPlan.Field(name='status', kw_only=True, fn=None), ReprPlan.Field(name="
-        "'fqdn', kw_only=True, fn=None), ReprPlan.Field(name='iam_role_name', kw_only=True, fn=None), ReprPlan.Field(na"
-        "me='ou', kw_only=True, fn=None), ReprPlan.Field(name='auth_secret_arn', kw_only=True, fn=None), ReprPlan.Field"
-        "(name='dns_ips', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='0aaee42e4d1f458c0b19a3773387c2c67ec5606e',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('domain', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('status', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('fqdn', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('iam_role_name', True, True, None, True, True, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('ou', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('auth_secret_arn', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('dns_ips', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), F"
+            "alse))"
+        ),
     ),
-    plan_repr_sha1='54b1a8431e5cb54950012516c8c38115234b7eb1',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DomainMembership'),
     ),
 )
-def _process_dataclass__54b1a8431e5cb54950012516c8c38115234b7eb1():
+def _process_dataclass__0aaee42e4d1f458c0b19a3773387c2c67ec5606e():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__init__fields__4__default,
-        __dataclass__init__fields__5__annotation,
-        __dataclass__init__fields__5__default,
-        __dataclass__init__fields__6__annotation,
-        __dataclass__init__fields__6__default,
-        __dataclass__init__fields__7__annotation,
-        __dataclass__init__fields__7__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -4519,45 +3963,42 @@ def _process_dataclass__54b1a8431e5cb54950012516c8c38115234b7eb1():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('address', 'port', 'hosted_zone_id')), EqPlan(fields=('address', 'port', 'hosted_z"
-        "one_id')), FrozenPlan(fields=('__shape__', 'address', 'port', 'hosted_zone_id'), allow_dynamic_dunder_attrs=Fa"
-        "lse), HashPlan(action='add', fields=('address', 'port', 'hosted_zone_id'), cache=False), InitPlan(fields=(Init"
-        "Plan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory="
-        "None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None),"
-        " InitPlan.Field(name='address', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fi"
-        "elds.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None), InitPlan.Field(name='port', annotation=OpRef(name='init.fields.2.annotation'"
-        "), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=Fi"
-        "eldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='hosted_zone_id', annotati"
-        "on=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, "
-        "init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_"
-        "param='self', std_params=(), kw_only_params=('address', 'port', 'hosted_zone_id'), frozen=True, slots=False, p"
-        "ost_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='address', kw_only=T"
-        "rue, fn=None), ReprPlan.Field(name='port', kw_only=True, fn=None), ReprPlan.Field(name='hosted_zone_id', kw_on"
-        "ly=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='f4b335ac7a2d06019d9f707d8daa1b1a610f024c',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('address', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('port', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('hosted_zone_id', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), F"
+            "alse))"
+        ),
     ),
-    plan_repr_sha1='e9db080acf593b4f064dabcf02ca124667d3f6ec',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'Endpoint'),
     ),
 )
-def _process_dataclass__e9db080acf593b4f064dabcf02ca124667d3f6ec():
+def _process_dataclass__f4b335ac7a2d06019d9f707d8daa1b1a610f024c():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -4649,37 +4090,37 @@ def _process_dataclass__e9db080acf593b4f064dabcf02ca124667d3f6ec():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('name', 'values')), EqPlan(fields=('name', 'values')), FrozenPlan(fields=('__shape"
-        "__', 'name', 'values'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('name', 'values'), c"
-        "ache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation"
-        "'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None"
-        ", validate=None, check_type=None), InitPlan.Field(name='name', annotation=OpRef(name='init.fields.1.annotation"
-        "'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None), InitPlan.Field(name='values', annotation=OpRef(name='init.fields.2.annotatio"
-        "n'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
-        ", validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('name', 'values'), froze"
-        "n=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(nam"
-        "e='name', kw_only=True, fn=None), ReprPlan.Field(name='values', kw_only=True, fn=None)), id=False, terse=False"
-        ", default_fn=None)))"
+    installer_sha1='21142fae7a13d66dd910b350ac4c840d29ae2dfb',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('name', True, True, None, True, True, False, None), 'instance', 'missing'"
+            ", None, False, False, False), (('values', True, True, None, True, True, False, None), 'instance', 'missing"
+            "', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False"
+            "))"
+        ),
     ),
-    plan_repr_sha1='dfb68735498463724ba64285108de491926e61ec',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'Filter'),
     ),
 )
-def _process_dataclass__dfb68735498463724ba64285108de491926e61ec():
+def _process_dataclass__21142fae7a13d66dd910b350ac4c840d29ae2dfb():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -4764,46 +4205,42 @@ def _process_dataclass__dfb68735498463724ba64285108de491926e61ec():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('secret_arn', 'secret_status', 'kms_key_id')), EqPlan(fields=('secret_arn', 'secre"
-        "t_status', 'kms_key_id')), FrozenPlan(fields=('__shape__', 'secret_arn', 'secret_status', 'kms_key_id'), allow"
-        "_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('secret_arn', 'secret_status', 'kms_key_id'), cac"
-        "he=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation')"
-        ", default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, "
-        "validate=None, check_type=None), InitPlan.Field(name='secret_arn', annotation=OpRef(name='init.fields.1.annota"
-        "tion'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_ty"
-        "pe=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='secret_status', anno"
-        "tation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=No"
-        "ne, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), In"
-        "itPlan.Field(name='kms_key_id', annotation=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fi"
-        "elds.3.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None,"
-        " validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('secret_arn', 'secret_sta"
-        "tus', 'kms_key_id'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan("
-        "fields=(ReprPlan.Field(name='secret_arn', kw_only=True, fn=None), ReprPlan.Field(name='secret_status', kw_only"
-        "=True, fn=None), ReprPlan.Field(name='kms_key_id', kw_only=True, fn=None)), id=False, terse=False, default_fn="
-        "None)))"
+    installer_sha1='4eb76eae390d6a3e798516034c677b09e9f1dcf0',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('secret_arn', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('secret_status', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False), (('kms_key_id', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), ("
+            "), (), False))"
+        ),
     ),
-    plan_repr_sha1='257988ac1433a45fc765065121e7c50a1887c0cd',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'MasterUserSecret'),
     ),
 )
-def _process_dataclass__257988ac1433a45fc765065121e7c50a1887c0cd():
+def _process_dataclass__4eb76eae390d6a3e798516034c677b09e9f1dcf0():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -4895,40 +4332,39 @@ def _process_dataclass__257988ac1433a45fc765065121e7c50a1887c0cd():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('option_group_name', 'status')), EqPlan(fields=('option_group_name', 'status')), F"
-        "rozenPlan(fields=('__shape__', 'option_group_name', 'status'), allow_dynamic_dunder_attrs=False), HashPlan(act"
-        "ion='add', fields=('option_group_name', 'status'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape"
-        "__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, overrid"
-        "e=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='op"
-        "tion_group_name', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default"
-        "'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None"
-        ", check_type=None), InitPlan.Field(name='status', annotation=OpRef(name='init.fields.2.annotation'), default=O"
-        "pRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INST"
-        "ANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('option"
-        "_group_name', 'status'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprP"
-        "lan(fields=(ReprPlan.Field(name='option_group_name', kw_only=True, fn=None), ReprPlan.Field(name='status', kw_"
-        "only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='b6eb9e253c256654a786809a982a3eee8fbbeedb',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('option_group_name', True, True, None, True, True, False, None), 'instanc"
+            "e', 'value', None, False, False, False), (('status', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), "
+            "(), False))"
+        ),
     ),
-    plan_repr_sha1='c79ef861fd4c5615b5f048e9aec3299540fa33f7',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'OptionGroupMembership'),
     ),
 )
-def _process_dataclass__c79ef861fd4c5615b5f048e9aec3299540fa33f7():
+def _process_dataclass__b6eb9e253c256654a786809a982a3eee8fbbeedb():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -5013,34 +4449,35 @@ def _process_dataclass__c79ef861fd4c5615b5f048e9aec3299540fa33f7():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('arn',)), EqPlan(fields=('arn',)), FrozenPlan(fields=('__shape__', 'arn'), allow_d"
-        "ynamic_dunder_attrs=False), HashPlan(action='add', fields=('arn',), cache=False), InitPlan(fields=(InitPlan.Fi"
-        "eld(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPl"
-        "an.Field(name='arn', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.defa"
-        "ult'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=N"
-        "one, check_type=None)), self_param='self', std_params=(), kw_only_params=('arn',), frozen=True, slots=False, p"
-        "ost_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='arn', kw_only=True,"
-        " fn=None),), id=False, terse=False, default_fn=None)))"
+    installer_sha1='b6f91ccfac47c466183137ec0d9a608258e7ff52',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('arn', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='6eeb5cf87ddee1bcad75c8766a916fd57479a19d',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'Outpost'),
     ),
 )
-def _process_dataclass__6eeb5cf87ddee1bcad75c8766a916fd57479a19d():
+def _process_dataclass__b6f91ccfac47c466183137ec0d9a608258e7ff52():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -5118,41 +4555,39 @@ def _process_dataclass__6eeb5cf87ddee1bcad75c8766a916fd57479a19d():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('log_types_to_enable', 'log_types_to_disable')), EqPlan(fields=('log_types_to_enab"
-        "le', 'log_types_to_disable')), FrozenPlan(fields=('__shape__', 'log_types_to_enable', 'log_types_to_disable'),"
-        " allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('log_types_to_enable', 'log_types_to_disabl"
-        "e'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.anno"
-        "tation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerc"
-        "e=None, validate=None, check_type=None), InitPlan.Field(name='log_types_to_enable', annotation=OpRef(name='ini"
-        "t.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, overrid"
-        "e=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='log"
-        "_types_to_disable', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.defau"
-        "lt'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
-        "ne, check_type=None)), self_param='self', std_params=(), kw_only_params=('log_types_to_enable', 'log_types_to_"
-        "disable'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Re"
-        "prPlan.Field(name='log_types_to_enable', kw_only=True, fn=None), ReprPlan.Field(name='log_types_to_disable', k"
-        "w_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='e36e93701173e1ac63e1c00bb3ff9a1e91837ba8',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('log_types_to_enable', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('log_types_to_disable', True, True, None, True, True, False, "
+            "None), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, "
+            "False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='6c402681f08e7afb46231052156de336964e583e',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'PendingCloudwatchLogsExports'),
     ),
 )
-def _process_dataclass__6c402681f08e7afb46231052156de336964e583e():
+def _process_dataclass__e36e93701173e1ac63e1c00bb3ff9a1e91837ba8():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -5237,167 +4672,104 @@ def _process_dataclass__6c402681f08e7afb46231052156de336964e583e():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance_class', 'allocated_storage', 'master_user_password', 'port', 'backup_"
-        "retention_period', 'multi_az', 'engine_version', 'license_model', 'iops', 'storage_throughput', 'db_instance_i"
-        "dentifier', 'storage_type', 'ca_certificate_identifier', 'db_subnet_group_name', 'pending_cloudwatch_logs_expo"
-        "rts', 'processor_features', 'automation_mode', 'resume_full_automation_mode_time', 'multi_tenant', 'iam_databa"
-        "se_authentication_enabled', 'dedicated_log_volume', 'engine', 'additional_storage_volumes')), EqPlan(fields=('"
-        "db_instance_class', 'allocated_storage', 'master_user_password', 'port', 'backup_retention_period', 'multi_az'"
-        ", 'engine_version', 'license_model', 'iops', 'storage_throughput', 'db_instance_identifier', 'storage_type', '"
-        "ca_certificate_identifier', 'db_subnet_group_name', 'pending_cloudwatch_logs_exports', 'processor_features', '"
-        "automation_mode', 'resume_full_automation_mode_time', 'multi_tenant', 'iam_database_authentication_enabled', '"
-        "dedicated_log_volume', 'engine', 'additional_storage_volumes')), FrozenPlan(fields=('__shape__', 'db_instance_"
-        "class', 'allocated_storage', 'master_user_password', 'port', 'backup_retention_period', 'multi_az', 'engine_ve"
-        "rsion', 'license_model', 'iops', 'storage_throughput', 'db_instance_identifier', 'storage_type', 'ca_certifica"
-        "te_identifier', 'db_subnet_group_name', 'pending_cloudwatch_logs_exports', 'processor_features', 'automation_m"
-        "ode', 'resume_full_automation_mode_time', 'multi_tenant', 'iam_database_authentication_enabled', 'dedicated_lo"
-        "g_volume', 'engine', 'additional_storage_volumes'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', "
-        "fields=('db_instance_class', 'allocated_storage', 'master_user_password', 'port', 'backup_retention_period', '"
-        "multi_az', 'engine_version', 'license_model', 'iops', 'storage_throughput', 'db_instance_identifier', 'storage"
-        "_type', 'ca_certificate_identifier', 'db_subnet_group_name', 'pending_cloudwatch_logs_exports', 'processor_fea"
-        "tures', 'automation_mode', 'resume_full_automation_mode_time', 'multi_tenant', 'iam_database_authentication_en"
-        "abled', 'dedicated_log_volume', 'engine', 'additional_storage_volumes'), cache=False), InitPlan(fields=(InitPl"
-        "an.Field(name='__shape__', annotation=OpRef(name='init.fields.00.annotation'), default=None, default_factory=N"
-        "one, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), "
-        "InitPlan.Field(name='db_instance_class', annotation=OpRef(name='init.fields.01.annotation'), default=OpRef(nam"
-        "e='init.fields.01.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, c"
-        "oerce=None, validate=None, check_type=None), InitPlan.Field(name='allocated_storage', annotation=OpRef(name='i"
-        "nit.fields.02.annotation'), default=OpRef(name='init.fields.02.default'), default_factory=None, init=True, ove"
-        "rride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name="
-        "'master_user_password', annotation=OpRef(name='init.fields.03.annotation'), default=OpRef(name='init.fields.03"
-        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
-        "ate=None, check_type=None), InitPlan.Field(name='port', annotation=OpRef(name='init.fields.04.annotation'), de"
-        "fault=OpRef(name='init.fields.04.default'), default_factory=None, init=True, override=False, field_type=FieldT"
-        "ype.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='backup_retention_period', ann"
-        "otation=OpRef(name='init.fields.05.annotation'), default=OpRef(name='init.fields.05.default'), default_factory"
-        "=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),"
-        " InitPlan.Field(name='multi_az', annotation=OpRef(name='init.fields.06.annotation'), default=OpRef(name='init."
-        "fields.06.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=No"
-        "ne, validate=None, check_type=None), InitPlan.Field(name='engine_version', annotation=OpRef(name='init.fields."
-        "07.annotation'), default=OpRef(name='init.fields.07.default'), default_factory=None, init=True, override=False"
-        ", field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='license_mo"
-        "del', annotation=OpRef(name='init.fields.08.annotation'), default=OpRef(name='init.fields.08.default'), defaul"
-        "t_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_ty"
-        "pe=None), InitPlan.Field(name='iops', annotation=OpRef(name='init.fields.09.annotation'), default=OpRef(name='"
-        "init.fields.09.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coer"
-        "ce=None, validate=None, check_type=None), InitPlan.Field(name='storage_throughput', annotation=OpRef(name='ini"
-        "t.fields.10.annotation'), default=OpRef(name='init.fields.10.default'), default_factory=None, init=True, overr"
-        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='d"
-        "b_instance_identifier', annotation=OpRef(name='init.fields.11.annotation'), default=OpRef(name='init.fields.11"
-        ".default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valid"
-        "ate=None, check_type=None), InitPlan.Field(name='storage_type', annotation=OpRef(name='init.fields.12.annotati"
-        "on'), default=OpRef(name='init.fields.12.default'), default_factory=None, init=True, override=False, field_typ"
-        "e=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ca_certificate_identi"
-        "fier', annotation=OpRef(name='init.fields.13.annotation'), default=OpRef(name='init.fields.13.default'), defau"
-        "lt_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_t"
-        "ype=None), InitPlan.Field(name='db_subnet_group_name', annotation=OpRef(name='init.fields.14.annotation'), def"
-        "ault=OpRef(name='init.fields.14.default'), default_factory=None, init=True, override=False, field_type=FieldTy"
-        "pe.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='pending_cloudwatch_logs_export"
-        "s', annotation=OpRef(name='init.fields.15.annotation'), default=OpRef(name='init.fields.15.default'), default_"
-        "factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type"
-        "=None), InitPlan.Field(name='processor_features', annotation=OpRef(name='init.fields.16.annotation'), default="
-        "OpRef(name='init.fields.16.default'), default_factory=None, init=True, override=False, field_type=FieldType.IN"
-        "STANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='automation_mode', annotation=OpRef("
-        "name='init.fields.17.annotation'), default=OpRef(name='init.fields.17.default'), default_factory=None, init=Tr"
-        "ue, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Fiel"
-        "d(name='resume_full_automation_mode_time', annotation=OpRef(name='init.fields.18.annotation'), default=OpRef(n"
-        "ame='init.fields.18.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE,"
-        " coerce=None, validate=None, check_type=None), InitPlan.Field(name='multi_tenant', annotation=OpRef(name='init"
-        ".fields.19.annotation'), default=OpRef(name='init.fields.19.default'), default_factory=None, init=True, overri"
-        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ia"
-        "m_database_authentication_enabled', annotation=OpRef(name='init.fields.20.annotation'), default=OpRef(name='in"
-        "it.fields.20.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
-        "=None, validate=None, check_type=None), InitPlan.Field(name='dedicated_log_volume', annotation=OpRef(name='ini"
-        "t.fields.21.annotation'), default=OpRef(name='init.fields.21.default'), default_factory=None, init=True, overr"
-        "ide=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='e"
-        "ngine', annotation=OpRef(name='init.fields.22.annotation'), default=OpRef(name='init.fields.22.default'), defa"
-        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None), InitPlan.Field(name='additional_storage_volumes', annotation=OpRef(name='init.fields.23.annotation"
-        "'), default=OpRef(name='init.fields.23.default'), default_factory=None, init=True, override=False, field_type="
-        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_p"
-        "arams=('db_instance_class', 'allocated_storage', 'master_user_password', 'port', 'backup_retention_period', 'm"
-        "ulti_az', 'engine_version', 'license_model', 'iops', 'storage_throughput', 'db_instance_identifier', 'storage_"
-        "type', 'ca_certificate_identifier', 'db_subnet_group_name', 'pending_cloudwatch_logs_exports', 'processor_feat"
-        "ures', 'automation_mode', 'resume_full_automation_mode_time', 'multi_tenant', 'iam_database_authentication_ena"
-        "bled', 'dedicated_log_volume', 'engine', 'additional_storage_volumes'), frozen=True, slots=False, post_init_pa"
-        "rams=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_instance_class', kw_only=Tr"
-        "ue, fn=None), ReprPlan.Field(name='allocated_storage', kw_only=True, fn=None), ReprPlan.Field(name='master_use"
-        "r_password', kw_only=True, fn=None), ReprPlan.Field(name='port', kw_only=True, fn=None), ReprPlan.Field(name='"
-        "backup_retention_period', kw_only=True, fn=None), ReprPlan.Field(name='multi_az', kw_only=True, fn=None), Repr"
-        "Plan.Field(name='engine_version', kw_only=True, fn=None), ReprPlan.Field(name='license_model', kw_only=True, f"
-        "n=None), ReprPlan.Field(name='iops', kw_only=True, fn=None), ReprPlan.Field(name='storage_throughput', kw_only"
-        "=True, fn=None), ReprPlan.Field(name='db_instance_identifier', kw_only=True, fn=None), ReprPlan.Field(name='st"
-        "orage_type', kw_only=True, fn=None), ReprPlan.Field(name='ca_certificate_identifier', kw_only=True, fn=None), "
-        "ReprPlan.Field(name='db_subnet_group_name', kw_only=True, fn=None), ReprPlan.Field(name='pending_cloudwatch_lo"
-        "gs_exports', kw_only=True, fn=None), ReprPlan.Field(name='processor_features', kw_only=True, fn=None), ReprPla"
-        "n.Field(name='automation_mode', kw_only=True, fn=None), ReprPlan.Field(name='resume_full_automation_mode_time'"
-        ", kw_only=True, fn=None), ReprPlan.Field(name='multi_tenant', kw_only=True, fn=None), ReprPlan.Field(name='iam"
-        "_database_authentication_enabled', kw_only=True, fn=None), ReprPlan.Field(name='dedicated_log_volume', kw_only"
-        "=True, fn=None), ReprPlan.Field(name='engine', kw_only=True, fn=None), ReprPlan.Field(name='additional_storage"
-        "_volumes', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='cfad17bbb4865b56c32437db12745bb934d82dc8',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance_class', True, True, None, True, True, False, None), 'instanc"
+            "e', 'value', None, False, False, False), (('allocated_storage', True, True, None, True, True, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('master_user_password', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False), (('port', True, True, None, True, True, Fa"
+            "lse, None), 'instance', 'value', None, False, False, False), (('backup_retention_period', True, True, None"
+            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('multi_az', True, True, Non"
+            "e, True, True, False, None), 'instance', 'value', None, False, False, False), (('engine_version', True, Tr"
+            "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('license_model', Tr"
+            "ue, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('iops', True,"
+            " True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('storage_through"
+            "put', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_i"
+            "nstance_identifier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('storage_type', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
+            "lse, False), (('ca_certificate_identifier', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('db_subnet_group_name', True, True, None, True, True, False, None), 'inst"
+            "ance', 'value', None, False, False, False), (('pending_cloudwatch_logs_exports', True, True, None, True, T"
+            "rue, False, None), 'instance', 'value', None, False, False, False), (('processor_features', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', None, False, False, False), (('automation_mode', True, "
+            "True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('resume_full_auto"
+            "mation_mode_time', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fa"
+            "lse), (('multi_tenant', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fals"
+            "e, False), (('iam_database_authentication_enabled', True, True, None, True, True, False, None), 'instance'"
+            ", 'value', None, False, False, False), (('dedicated_log_volume', True, True, None, True, True, False, None"
+            "), 'instance', 'value', None, False, False, False), (('engine', True, True, None, True, True, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('additional_storage_volumes', True, True, None, True,"
+            " True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), F"
+            "alse, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='6c25c9870efec66985451b11fdb5da3b4befa3a2',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'PendingModifiedValues'),
     ),
 )
-def _process_dataclass__6c25c9870efec66985451b11fdb5da3b4befa3a2():
+def _process_dataclass__cfad17bbb4865b56c32437db12745bb934d82dc8():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__01__annotation,
-        __dataclass__init__fields__01__default,
-        __dataclass__init__fields__02__annotation,
-        __dataclass__init__fields__02__default,
-        __dataclass__init__fields__03__annotation,
-        __dataclass__init__fields__03__default,
-        __dataclass__init__fields__04__annotation,
-        __dataclass__init__fields__04__default,
-        __dataclass__init__fields__05__annotation,
-        __dataclass__init__fields__05__default,
-        __dataclass__init__fields__06__annotation,
-        __dataclass__init__fields__06__default,
-        __dataclass__init__fields__07__annotation,
-        __dataclass__init__fields__07__default,
-        __dataclass__init__fields__08__annotation,
-        __dataclass__init__fields__08__default,
-        __dataclass__init__fields__09__annotation,
-        __dataclass__init__fields__09__default,
-        __dataclass__init__fields__10__annotation,
-        __dataclass__init__fields__10__default,
-        __dataclass__init__fields__11__annotation,
-        __dataclass__init__fields__11__default,
-        __dataclass__init__fields__12__annotation,
-        __dataclass__init__fields__12__default,
-        __dataclass__init__fields__13__annotation,
-        __dataclass__init__fields__13__default,
-        __dataclass__init__fields__14__annotation,
-        __dataclass__init__fields__14__default,
-        __dataclass__init__fields__15__annotation,
-        __dataclass__init__fields__15__default,
-        __dataclass__init__fields__16__annotation,
-        __dataclass__init__fields__16__default,
-        __dataclass__init__fields__17__annotation,
-        __dataclass__init__fields__17__default,
-        __dataclass__init__fields__18__annotation,
-        __dataclass__init__fields__18__default,
-        __dataclass__init__fields__19__annotation,
-        __dataclass__init__fields__19__default,
-        __dataclass__init__fields__20__annotation,
-        __dataclass__init__fields__20__default,
-        __dataclass__init__fields__21__annotation,
-        __dataclass__init__fields__21__default,
-        __dataclass__init__fields__22__annotation,
-        __dataclass__init__fields__22__default,
-        __dataclass__init__fields__23__annotation,
-        __dataclass__init__fields__23__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default = __dataclass__spec.fields[10].default.must()
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
+        __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
+        __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
+        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
+        __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
+        __dataclass__init__fields__16__annotation = __dataclass__spec.fields[16].annotation
+        __dataclass__init__fields__16__default = __dataclass__spec.fields[16].default.must()
+        __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
+        __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
+        __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
+        __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
+        __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
+        __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
+        __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
+        __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
+        __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
+        __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
+        __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
+        __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
+        __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -5629,39 +5001,38 @@ def _process_dataclass__6c25c9870efec66985451b11fdb5da3b4befa3a2():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('name', 'value')), EqPlan(fields=('name', 'value')), FrozenPlan(fields=('__shape__"
-        "', 'name', 'value'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('name', 'value'), cache"
-        "=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), "
-        "default=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, va"
-        "lidate=None, check_type=None), InitPlan.Field(name='name', annotation=OpRef(name='init.fields.1.annotation'), "
-        "default=OpRef(name='init.fields.1.default'), default_factory=None, init=True, override=False, field_type=Field"
-        "Type.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='value', annotation=OpRef(nam"
-        "e='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, o"
-        "verride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self'"
-        ", std_params=(), kw_only_params=('name', 'value'), frozen=True, slots=False, post_init_params=None, init_fns=("
-        "), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='name', kw_only=True, fn=None), ReprPlan.Field(name="
-        "'value', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='868c7bc6021648d31c80e0b7086870081451f48f',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('name', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('value', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='895749f2203fe95718692e36384965b13d7c3e70',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'ProcessorFeature'),
     ),
 )
-def _process_dataclass__895749f2203fe95718692e36384965b13d7c3e70():
+def _process_dataclass__868c7bc6021648d31c80e0b7086870081451f48f():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -5746,40 +5117,38 @@ def _process_dataclass__895749f2203fe95718692e36384965b13d7c3e70():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance_identifier', 'force_failover')), EqPlan(fields=('db_instance_identifi"
-        "er', 'force_failover')), FrozenPlan(fields=('__shape__', 'db_instance_identifier', 'force_failover'), allow_dy"
-        "namic_dunder_attrs=False), HashPlan(action='add', fields=('db_instance_identifier', 'force_failover'), cache=F"
-        "alse), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), de"
-        "fault=None, default_factory=None, init=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, vali"
-        "date=None, check_type=None), InitPlan.Field(name='db_instance_identifier', annotation=OpRef(name='init.fields."
-        "1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, "
-        "coerce=None, validate=None, check_type=None), InitPlan.Field(name='force_failover', annotation=OpRef(name='ini"
-        "t.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, overrid"
-        "e=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_"
-        "params=(), kw_only_params=('db_instance_identifier', 'force_failover'), frozen=True, slots=False, post_init_pa"
-        "rams=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_instance_identifier', kw_on"
-        "ly=True, fn=None), ReprPlan.Field(name='force_failover', kw_only=True, fn=None)), id=False, terse=False, defau"
-        "lt_fn=None)))"
+    installer_sha1='b59928241da14a4282bcb8db01524244d9941708',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
+            "stance', 'missing', None, False, False, False), (('force_failover', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, F"
+            "alse, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='57df3a0abb409483de9a76ede74c282972bd0875',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'RebootDBInstanceMessage'),
     ),
 )
-def _process_dataclass__57df3a0abb409483de9a76ede74c282972bd0875():
+def _process_dataclass__b59928241da14a4282bcb8db01524244d9941708():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -5864,34 +5233,35 @@ def _process_dataclass__57df3a0abb409483de9a76ede74c282972bd0875():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance_identifier',)), EqPlan(fields=('db_instance_identifier',)), FrozenPla"
-        "n(fields=('__shape__', 'db_instance_identifier'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fi"
-        "elds=('db_instance_identifier',), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=O"
-        "pRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_ty"
-        "pe=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_instance_identif"
-        "ier', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, overri"
-        "de=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std"
-        "_params=(), kw_only_params=('db_instance_identifier',), frozen=True, slots=False, post_init_params=None, init_"
-        "fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='db_instance_identifier', kw_only=True, fn=None"
-        "),), id=False, terse=False, default_fn=None)))"
+    installer_sha1='230bd3f3eb38398fc5902daf6773b144f1958c8b',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
+            "stance', 'missing', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ("
+            ")), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='2034c55d12ea687458603a4a24687aa6cff4ce7a',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'StartDBInstanceMessage'),
     ),
 )
-def _process_dataclass__2034c55d12ea687458603a4a24687aa6cff4ce7a():
+def _process_dataclass__230bd3f3eb38398fc5902daf6773b144f1958c8b():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -5969,40 +5339,38 @@ def _process_dataclass__2034c55d12ea687458603a4a24687aa6cff4ce7a():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('db_instance_identifier', 'db_snapshot_identifier')), EqPlan(fields=('db_instance_"
-        "identifier', 'db_snapshot_identifier')), FrozenPlan(fields=('__shape__', 'db_instance_identifier', 'db_snapsho"
-        "t_identifier'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('db_instance_identifier', 'd"
-        "b_snapshot_identifier'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(name"
-        "='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldT"
-        "ype.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_instance_identifier', ann"
-        "otation=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False,"
-        " field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='db_snapshot"
-        "_identifier', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.default'), "
-        "default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, ch"
-        "eck_type=None)), self_param='self', std_params=(), kw_only_params=('db_instance_identifier', 'db_snapshot_iden"
-        "tifier'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(Rep"
-        "rPlan.Field(name='db_instance_identifier', kw_only=True, fn=None), ReprPlan.Field(name='db_snapshot_identifier"
-        "', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='1042ae28fa60bffee61ee11505e06e7bfc4a0c1d',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
+            "stance', 'missing', None, False, False, False), (('db_snapshot_identifier', True, True, None, True, True, "
+            "False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, ("
+            "False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='1bdfa49bf8aca9326c28bc8eb43f474569ed2369',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'StopDBInstanceMessage'),
     ),
 )
-def _process_dataclass__1bdfa49bf8aca9326c28bc8eb43f474569ed2369():
+def _process_dataclass__1042ae28fa60bffee61ee11505e06e7bfc4a0c1d():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -6087,53 +5455,45 @@ def _process_dataclass__1bdfa49bf8aca9326c28bc8eb43f474569ed2369():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('subnet_identifier', 'subnet_availability_zone', 'subnet_outpost', 'subnet_status'"
-        ")), EqPlan(fields=('subnet_identifier', 'subnet_availability_zone', 'subnet_outpost', 'subnet_status')), Froze"
-        "nPlan(fields=('__shape__', 'subnet_identifier', 'subnet_availability_zone', 'subnet_outpost', 'subnet_status')"
-        ", allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('subnet_identifier', 'subnet_availability_"
-        "zone', 'subnet_outpost', 'subnet_status'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', ann"
-        "otation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False,"
-        " field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='subnet_ide"
-        "ntifier', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), defa"
-        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None), InitPlan.Field(name='subnet_availability_zone', annotation=OpRef(name='init.fields.2.annotation'),"
-        " default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=Fiel"
-        "dType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='subnet_outpost', annotation"
-        "=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, in"
-        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan"
-        ".Field(name='subnet_status', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.field"
-        "s.4.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, va"
-        "lidate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('subnet_identifier', 'subnet"
-        "_availability_zone', 'subnet_outpost', 'subnet_status'), frozen=True, slots=False, post_init_params=None, init"
-        "_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='subnet_identifier', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='subnet_availability_zone', kw_only=True, fn=None), ReprPlan.Field(name='subnet_outpost', k"
-        "w_only=True, fn=None), ReprPlan.Field(name='subnet_status', kw_only=True, fn=None)), id=False, terse=False, de"
-        "fault_fn=None)))"
+    installer_sha1='de9b503562a4d8bd75d2c1e34eeed3af0e5f610d',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('subnet_identifier', True, True, None, True, True, False, None), 'instanc"
+            "e', 'value', None, False, False, False), (('subnet_availability_zone', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('subnet_outpost', True, True, None, True, True"
+            ", False, None), 'instance', 'value', None, False, False, False), (('subnet_status', True, True, None, True"
+            ", True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), "
+            "False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='b82211610cc9a83bb833ac58c5308bb0733d9d00',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'Subnet'),
     ),
 )
-def _process_dataclass__b82211610cc9a83bb833ac58c5308bb0733d9d00():
+def _process_dataclass__de9b503562a4d8bd75d2c1e34eeed3af0e5f610d():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__init__fields__4__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -6232,40 +5592,39 @@ def _process_dataclass__b82211610cc9a83bb833ac58c5308bb0733d9d00():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('resource_type', 'tags')), EqPlan(fields=('resource_type', 'tags')), FrozenPlan(fi"
-        "elds=('__shape__', 'resource_type', 'tags'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields="
-        "('resource_type', 'tags'), cache=False), InitPlan(fields=(InitPlan.Field(name='__shape__', annotation=OpRef(na"
-        "me='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fiel"
-        "dType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='resource_type', annotation"
-        "=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory=None, in"
-        "it=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan"
-        ".Field(name='tags', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.fields.2.defau"
-        "lt'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=No"
-        "ne, check_type=None)), self_param='self', std_params=(), kw_only_params=('resource_type', 'tags'), frozen=True"
-        ", slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='res"
-        "ource_type', kw_only=True, fn=None), ReprPlan.Field(name='tags', kw_only=True, fn=None)), id=False, terse=Fals"
-        "e, default_fn=None)))"
+    installer_sha1='6800d064b1a5156893763a9990ac9f94b500e067',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('resource_type', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('tags', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), Fa"
+            "lse))"
+        ),
     ),
-    plan_repr_sha1='72408a250113d7efc0131778f5e6fa438b55e772',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'TagSpecification'),
     ),
 )
-def _process_dataclass__72408a250113d7efc0131778f5e6fa438b55e772():
+def _process_dataclass__6800d064b1a5156893763a9990ac9f94b500e067():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -6350,40 +5709,39 @@ def _process_dataclass__72408a250113d7efc0131778f5e6fa438b55e772():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('vpc_security_group_id', 'status')), EqPlan(fields=('vpc_security_group_id', 'stat"
-        "us')), FrozenPlan(fields=('__shape__', 'vpc_security_group_id', 'status'), allow_dynamic_dunder_attrs=False), "
-        "HashPlan(action='add', fields=('vpc_security_group_id', 'status'), cache=False), InitPlan(fields=(InitPlan.Fie"
-        "ld(name='__shape__', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, in"
-        "it=True, override=False, field_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPla"
-        "n.Field(name='vpc_security_group_id', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='i"
-        "nit.fields.1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
-        "=None, validate=None, check_type=None), InitPlan.Field(name='status', annotation=OpRef(name='init.fields.2.ann"
-        "otation'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field"
-        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_"
-        "only_params=('vpc_security_group_id', 'status'), frozen=True, slots=False, post_init_params=None, init_fns=(),"
-        " validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='vpc_security_group_id', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='status', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='f89b7da0435b303082e1a81af5436fc49ec8ec0f',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('vpc_security_group_id', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('status', True, True, None, True, True, False, None), 'inst"
+            "ance', 'value', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), "
+            "(), (), False))"
+        ),
     ),
-    plan_repr_sha1='3d0aa6d7bd2c7a9f510ef82abbbea50c5d70db25',
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'VpcSecurityGroupMembership'),
     ),
 )
-def _process_dataclass__3d0aa6d7bd2c7a9f510ef82abbbea50c5d70db25():
+def _process_dataclass__f89b7da0435b303082e1a81af5436fc49ec8ec0f():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)

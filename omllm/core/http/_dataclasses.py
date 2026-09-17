@@ -10,13 +10,16 @@ import types
 ##
 
 
-REGISTRY_BY_PLAN_REPR = {}
+REGISTRY_BY_SPEC_KEY = {}
 REGISTRY_BY_CLS_NAME = {}
 
 
 def _register(**kwargs):
     def inner(fn):
-        REGISTRY_BY_PLAN_REPR[kwargs['plan_repr']] = (kwargs, fn)
+        for key in kwargs['spec_keys']:
+            if key in REGISTRY_BY_SPEC_KEY:
+                raise RuntimeError('Conflicting dataclass cache key')
+            REGISTRY_BY_SPEC_KEY[key] = (kwargs, fn)
         REGISTRY_BY_CLS_NAME.update({cn: (kwargs, fn) for cn in kwargs['cls_names']})
         return fn
     return inner
@@ -25,39 +28,40 @@ def _register(**kwargs):
 ##
 
 
+IMPLEMENTATION_KEY = '0b058e19e67cdb26e91b1c38203523e9cefe1242a3d73dbb76cc5c75c41df941'
+
+
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('event', 'data', 'raw')), EqPlan(fields=('event', 'data', 'raw')), FrozenPlan(fiel"
-        "ds=('event', 'data', 'raw'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('event', 'data'"
-        ", 'raw'), cache=False), InitPlan(fields=(InitPlan.Field(name='event', annotation=OpRef(name='init.fields.0.ann"
-        "otation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerc"
-        "e=None, validate=None, check_type=None), InitPlan.Field(name='data', annotation=OpRef(name='init.fields.1.anno"
-        "tation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce"
-        "=None, validate=None, check_type=None), InitPlan.Field(name='raw', annotation=OpRef(name='init.fields.2.annota"
-        "tion'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=N"
-        "one, validate=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('event', 'data', 'raw"
-        "'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan."
-        "Field(name='event', kw_only=True, fn=None), ReprPlan.Field(name='data', kw_only=True, fn=None), ReprPlan.Field"
-        "(name='raw', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='4e717c238aa4cb85a7f0dea7e0fbe9992cc7c30f',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('event', True, True, None, True, True, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('data', True, True, None, True, True, False, None), 'instance', 'missing', Non"
+            "e, False, False, False), (('raw', True, True, None, True, True, False, None), 'instance', 'missing', None,"
+            " False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='bde0c0d91a4b571f45125653c50284e13fe42448',
     cls_names=(
         ('omllm.core.http.sse', 'SseEvent'),
     ),
 )
-def _process_dataclass__bde0c0d91a4b571f45125653c50284e13fe42448():
+def _process_dataclass__4e717c238aa4cb85a7f0dea7e0fbe9992cc7c30f():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)

@@ -16,7 +16,10 @@ from .globals import FUNCTION_TYPE_GLOBAL
 from .globals import PROPERTY_GLOBAL
 from .globals import SET_CLS_ATTR_GLOBAL
 from .idents import CLS_IDENT
+from .idents import CTX_IDENT
+from .idents import GLOBALS_IDENT
 from .idents import IDENT_PREFIX
+from .idents import SPEC_IDENT
 from .ops import AddMethodOp
 from .ops import AddPropertyOp
 from .ops import Op
@@ -25,6 +28,7 @@ from .ops import Ref
 from .ops import SetAttrOp
 from .ops import add_ref
 from .ops import get_op_refs
+from .values import Bindings
 
 
 T = ta.TypeVar('T')
@@ -94,12 +98,6 @@ class OpCompiler:
 
         refs: frozenset[Ref]
 
-    @dc.dataclass(frozen=True)
-    class _FnParam:
-        name: str
-        src: str | None = None
-        noqa: bool = dc.field(default=False, kw_only=True)
-
     def _compile_set_cls_attr(
             self,
             attr_name: str,
@@ -126,6 +124,8 @@ class OpCompiler:
             self,
             fn_name: str,
             ops: ta.Sequence[Op],
+            *,
+            bindings: Bindings | None = None,
     ) -> CompileResult:
         body_lines: list[str] = []
         refs: set[Ref] = set()
@@ -205,41 +205,45 @@ class OpCompiler:
 
         refs.update(*[get_op_refs(o) for o in ops])
 
-        params: list[OpCompiler._FnParam] = [
-            OpCompiler._FnParam(CLS_IDENT),
-            *[
-                OpCompiler._FnParam(p)
-                for p in sorted(
-                    r.ident()
-                    for r in refs
-                    if isinstance(r, OpRef)
-                )
-            ],
+        bindings = bindings or {}
+        params = [
+            CLS_IDENT,
+            SPEC_IDENT,
+            CTX_IDENT,
+            GLOBALS_IDENT,
+            *sorted(r.ident() for r in refs if isinstance(r, OpRef) and r not in bindings),
         ]
 
-        params.extend([
-            OpCompiler._FnParam(
-                k.ident,
-                src=f'{k.ident}={v.src}' if not v.src.startswith('.') else k.ident,
-                noqa=k.ident != k.ident.lower() or not v.src.startswith('.'),
-            )
-            for k, v in sorted(FN_GLOBALS.items(), key=lambda t: t[0])
-            if k in refs
-        ])
+        # Bind everything before making any class mutations. Some providers validate values even when their binding is
+        # not referenced by the final methods (for example non-init fields with check_type).
+        binding_lines = [
+            *[
+                f'{r.ident()} = {v.src()}'
+                for r, v in sorted(bindings.items(), key=lambda kv: kv[0].name)
+            ],
+            *[
+                f'{k.ident} = {GLOBALS_IDENT}[{k.ident!r}]'
+                for k in sorted(FN_GLOBALS)
+                if k in refs
+            ],
+        ]
 
         #
 
         fn_lines = [
             f'def {fn_name}(',
-            f'    *,',
             *[
-                f'    {p.src if p.src is not None else p.name},{"  # noqa" if p.noqa else ""}'
+                f'    {p},'
                 for p in params
             ],
             f'):',
             *[
                 f'    {l}'
-                for l in body_lines
+                for l in [
+                    *binding_lines,
+                    *([''] if binding_lines and body_lines else []),
+                    *body_lines,
+                ] or ['pass']
             ],
         ]
 
@@ -247,7 +251,7 @@ class OpCompiler:
 
         return self.CompileResult(
             fn_name=fn_name,
-            fn_params=[p.name for p in params],
+            fn_params=params,
 
             hdr_lines=self._style.header_lines(),
             fn_lines=fn_lines,

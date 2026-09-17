@@ -16,9 +16,8 @@ from ...specs import FieldSpec
 from ...specs import FieldType
 from ...specs import InitFn
 from ...specs import ValidateFn
+from ..generation.base import Generation
 from ..generation.base import Generator
-from ..generation.base import Plan
-from ..generation.base import PlanResult
 from ..generation.globals import FIELD_FN_VALIDATION_ERROR_GLOBAL
 from ..generation.globals import FIELD_TYPE_VALIDATION_ERROR_GLOBAL
 from ..generation.globals import FN_VALIDATION_ERROR_GLOBAL
@@ -27,13 +26,18 @@ from ..generation.globals import ISINSTANCE_GLOBAL
 from ..generation.globals import NONE_GLOBAL
 from ..generation.idents import SELF_IDENT
 from ..generation.ops import AddMethodOp
-from ..generation.ops import Op
 from ..generation.ops import OpRef
 from ..generation.ops import Ref
 from ..generation.ops import add_ref
 from ..generation.registry import register_generator_type
 from ..generation.utils import SetattrSrcBuilder
+from ..generation.values import ContextVal
+from ..generation.values import Item
+from ..generation.values import SpecVal
+from ..generation.values import Val
+from ..generation.values import ValOp
 from ..processing.base import ProcessingContext
+from ..processing.registry import register_processing_context_item_factory
 from .fields import InitFields
 from .mro import MroDict
 
@@ -41,59 +45,111 @@ from .mro import MroDict
 ##
 
 
-@dc.dataclass(frozen=True, kw_only=True)
-class InitPlan(Plan):
-    @dc.dataclass(frozen=True)
-    class Field:
-        name: str
-        annotation: OpRef[ta.Any]
-
-        default: OpRef[ta.Any] | None
-        default_factory: OpRef[ta.Any] | None
-
-        init: bool
-
-        override: bool
-
-        field_type: FieldType
-
-        coerce: bool | OpRef[CoerceFn] | None
-        validate: OpRef[ValidateFn] | None
-
-        check_type: OpRef[type | tuple[type, ...]] | None
-
-    fields: tuple[Field, ...]
-
-    self_param: str
-    std_params: tuple[str, ...]
-    kw_only_params: tuple[str, ...]
-
-    frozen: bool
-
-    slots: bool
-
-    post_init_params: tuple[str, ...] | None
-
-    init_fns: tuple[OpRef[InitFn], ...]
-
-    @dc.dataclass(frozen=True)
-    class ValidateFnWithParams:
-        fn: OpRef[ValidateFn]
-        params: tuple[str, ...]
-
-    validate_fns: ta.Sequence[ValidateFnWithParams] | None
+InitGenericAnnotations = ta.NewType('InitGenericAnnotations', ta.Mapping[str, ta.Any])
 
 
-@register_generator_type(InitPlan)
-class InitGenerator(Generator[InitPlan]):
-    def _plan_field(
+@register_processing_context_item_factory(InitGenericAnnotations)
+def _init_generic_annotations(ctx: ProcessingContext) -> InitGenericAnnotations:
+    return InitGenericAnnotations(ctx[FieldsInspection].generic_replaced_field_annotations)
+
+
+InitCheckTypes = ta.NewType('InitCheckTypes', tuple[ta.Any, ...])
+
+
+@register_processing_context_item_factory(InitCheckTypes)
+def _init_check_types(ctx: ProcessingContext) -> InitCheckTypes:
+    values: list[ta.Any] = []
+    for f in ctx.cs.fields:
+        ct = f.check_type
+        value: ta.Any
+        if ct is None or ct is False:
+            value = None
+        elif isinstance(ct, tuple):
+            value = tuple(type(None) if e is None else check.isinstance(e, type) for e in ct)
+        elif isinstance(ct, type):
+            value = ct
+        elif ct is True:
+            value = f.annotation
+        else:
+            raise TypeError(ct)
+        values.append(value)
+    return InitCheckTypes(tuple(values))
+
+
+@dc.dataclass(frozen=True)
+class InitFunctions:
+    values: tuple[ta.Any, ...]
+    kinds: tuple[str, ...]
+
+
+@register_processing_context_item_factory(InitFunctions)
+def _init_functions(ctx: ProcessingContext) -> InitFunctions:
+    init_fns = ctx.cs.init_fns or ()
+    if not init_fns:
+        return InitFunctions((), ())
+
+    mro_v_ids = set(map(id, ctx[MroDict].values()))
+    props_by_fget_id = {
+        id(v.fget): v
+        for v in ctx[MroDict].values()
+        if isinstance(v, property) and v.fget is not None
+    }
+    values: list[ta.Any] = []
+    kinds = []
+    for fn in init_fns:
+        if (obj_id := id(fn)) not in mro_v_ids and obj_id in props_by_fget_id:
+            values.append(props_by_fget_id[obj_id].__get__)
+            kinds.append('getter')
+        elif isinstance(fn, property):
+            values.append(fn.__get__)
+            kinds.append('property')
+        else:
+            values.append(fn)
+            kinds.append('callable')
+    return InitFunctions(tuple(values), tuple(kinds))
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class _InitField:
+    name: str
+    annotation: OpRef[ta.Any]
+
+    default: OpRef[ta.Any] | None
+    default_factory: OpRef[ta.Any] | None
+
+    init: bool
+    override: bool
+    field_type: FieldType
+
+    coerce: bool | OpRef[CoerceFn] | None
+    validate: OpRef[ValidateFn] | None
+    check_type: OpRef[type | tuple[type, ...]] | None
+
+
+@register_generator_type
+class InitGenerator(Generator):
+    cache_version = 1
+    cache_schema = (_InitField,)
+
+    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
+        own_init = '__init__' in ctx.cls.__dict__
+        return (
+            own_init,
+            hasattr(ctx.cls, STD_POST_INIT_NAME),
+            ctx[InitFunctions].kinds if ctx.cs.init and not own_init else (),
+        )
+
+    def _prepare_field(
             self,
             ctx: ProcessingContext,
             i: int,
             f: FieldSpec,
-            ann: ta.Any,
+            ann: Val,
             orm: dict,
-    ) -> InitPlan.Field:
+    ) -> _InitField:
         ref_gen = OpRef.numbered(len(ctx.cs.fields))
 
         ann_ref: OpRef = ref_gen('init.fields.{i}.annotation', i)
@@ -105,38 +161,30 @@ class InitGenerator(Generator[InitPlan]):
             dfl = f.default.must()
             if isinstance(dfl, DefaultFactory):
                 default_factory_ref = ref_gen('init.fields.{i}.default_factory', i)
-                orm[default_factory_ref] = dfl.fn
+                orm[default_factory_ref] = SpecVal(('fields', i, 'default', ValOp.MUST, 'fn'))
             else:
                 default_ref = ref_gen('init.fields.{i}.default', i)
-                orm[default_ref] = dfl
+                orm[default_ref] = SpecVal(('fields', i, 'default', ValOp.MUST))
 
         coerce: bool | OpRef[CoerceFn] | None = None
         if isinstance(f.coerce, bool):
             coerce = f.coerce
         elif f.coerce is not None:
             coerce = ref_gen('init.fields.{i}.coerce', i)
-            orm[coerce] = f.coerce
+            orm[coerce] = SpecVal(('fields', i, 'coerce'))
 
         validate_ref: OpRef[ValidateFn] | None = None
         if f.validate is not None:
             validate_ref = ref_gen('init.fields.{i}.validate', i)
-            orm[validate_ref] = f.validate
+            orm[validate_ref] = SpecVal(('fields', i, 'validate'))
 
         check_type_ref: OpRef[type | tuple[type, ...]] | None = None
         if f.check_type is not None and f.check_type is not False:
-            check_type_arg: ta.Any
-            if isinstance(f.check_type, tuple):
-                check_type_arg = tuple(type(None) if e is None else check.isinstance(e, type) for e in f.check_type)
-            elif isinstance(f.check_type, type):
-                check_type_arg = f.check_type
-            elif f.check_type is True:
-                check_type_arg = f.annotation
-            else:
-                raise TypeError(f.check_type)
+            ctx[InitCheckTypes]  # noqa
             check_type_ref = ref_gen('init.fields.{i}.check_type', i)
-            orm[check_type_ref] = check_type_arg
+            orm[check_type_ref] = ContextVal.of(InitCheckTypes, (i,))
 
-        return InitPlan.Field(
+        return _InitField(
             name=f.name,
             annotation=ann_ref,
 
@@ -155,8 +203,9 @@ class InitGenerator(Generator[InitPlan]):
             check_type=check_type_ref,
         )
 
-    def plan(self, ctx: ProcessingContext) -> PlanResult[InitPlan] | None:
-        if '__init__' in ctx.cls.__dict__ or not ctx.cs.init:
+    def generate(self, ctx: ProcessingContext) -> Generation | None:
+        own_init, has_post_init, _ = self.cache_key(ctx)
+        if own_init or not ctx.cs.init:
             return None
 
         init_fields = ctx[InitFields]
@@ -169,17 +218,18 @@ class InitGenerator(Generator[InitPlan]):
             elif seen_default:
                 raise TypeError(f'non-default argument {f.name!r} follows default argument {seen_default.name!r}')
 
+        get_field_ann: ta.Callable[[FieldSpec], Val]
         if ctx.cs.generic_init:
-            gr_field_anns = ctx[FieldsInspection].generic_replaced_field_annotations
-            get_field_ann = lambda f: gr_field_anns[f.name]
+            ctx[InitGenericAnnotations]  # noqa
+            get_field_ann = lambda f: ContextVal.of(InitGenericAnnotations, (Item(f.name),))
         else:
-            get_field_ann = lambda f: f.annotation
+            get_field_ann = lambda f: SpecVal(('fields', ctx.cs.field_indexes_by_name[f.name], 'annotation'))
 
         orm: dict = {}
 
-        plan_fields: list[InitPlan.Field] = []
+        fields: list[_InitField] = []
         for i, f in enumerate(ctx.cs.fields):
-            plan_fields.append(self._plan_field(
+            fields.append(self._prepare_field(
                 ctx,
                 i,
                 f,
@@ -187,97 +237,61 @@ class InitGenerator(Generator[InitPlan]):
                 orm,
             ))
 
-        mro_v_ids = set(map(id, ctx[MroDict].values()))
-        props_by_fget_id = {
-            id(v.fget): v
-            for v in ctx[MroDict].values()
-            if isinstance(v, property)
-            and v.fget is not None
-        }
-
         init_fns = ctx.cs.init_fns or []
         init_fn_refs: list[OpRef[InitFn]] = []
         init_fn_ref_gen = OpRef.numbered(len(init_fns))
-        for i, init_fn in enumerate(init_fns):
-            if (obj_id := id(init_fn)) not in mro_v_ids and obj_id in props_by_fget_id:
-                init_fn = props_by_fget_id[obj_id].__get__
-            elif isinstance(init_fn, property):
-                init_fn = init_fn.__get__
+        for i in range(len(init_fns)):
             init_fn_ref: OpRef = init_fn_ref_gen('init.init_fns.{i}', i)
-            orm[init_fn_ref] = init_fn
+            orm[init_fn_ref] = ContextVal.of(InitFunctions, ('values', i))
             init_fn_refs.append(init_fn_ref)
 
         validate_fns = ctx.cs.validate_fns or []
-        validate_fn_refs: list[InitPlan.ValidateFnWithParams] = []
+        validate_fn_refs: list[tuple[OpRef[ValidateFn], tuple[str, ...]]] = []
         validate_fn_ref_gen = OpRef.numbered(len(validate_fns))
         for i, validate_fn in enumerate(validate_fns):
             validate_fn_ref: OpRef = validate_fn_ref_gen('init.validate_fns.{i}', i)
-            orm[validate_fn_ref] = validate_fn.fn
-            validate_fn_refs.append(InitPlan.ValidateFnWithParams(
-                fn=validate_fn_ref,
-                params=tuple(validate_fn.params),
-            ))
+            orm[validate_fn_ref] = SpecVal(('validate_fns', i, 'fn'))
+            validate_fn_refs.append((validate_fn_ref, tuple(validate_fn.params)))
 
         post_init_params: tuple[str, ...] | None = None
-        if hasattr(ctx.cls, STD_POST_INIT_NAME):
+        if has_post_init:
             post_init_params = tuple(f.name for f in init_fields.all if f.field_type is FieldType.INIT_VAR)
 
-        return PlanResult(
-            InitPlan(
-                fields=tuple(plan_fields),
-
-                self_param=SELF_IDENT if 'self' in ctx.cs.fields_by_name else 'self',
-                std_params=tuple(f.name for f in init_fields.std),
-                kw_only_params=tuple(f.name for f in init_fields.kw_only),
-
-                frozen=ctx.cs.frozen,
-
-                slots=ctx.cs.slots,
-
-                post_init_params=post_init_params,
-
-                init_fns=tuple(init_fn_refs),
-
-                validate_fns=tuple(validate_fn_refs),
-            ),
-            orm,
-        )
-
-    def generate(self, plan: InitPlan) -> ta.Iterable[Op]:
+        self_param = SELF_IDENT if 'self' in ctx.cs.fields_by_name else 'self'
         refs: set[Ref] = set()
 
-        fields_by_name = {f.name: f for f in plan.fields}
+        fields_by_name = {f.name: f for f in fields}
 
         # proto
 
         params: list[str] = []
         seen_kw_only = False
         for fn, kw_only in itertools.chain(
-            [(fn, False) for fn in plan.std_params],
-            [(fn, True) for fn in plan.kw_only_params],
+            [(f.name, False) for f in init_fields.std],
+            [(f.name, True) for f in init_fields.kw_only],
         ):
-            f = fields_by_name[fn]
+            pf = fields_by_name[fn]
             if kw_only:
                 if not seen_kw_only:
                     params.append('*')
                     seen_kw_only = True
             elif seen_kw_only:
-                raise TypeError(f'non-keyword-only argument {f.name!r} follows keyword-only argument(s)')
+                raise TypeError(f'non-keyword-only argument {pf.name!r} follows keyword-only argument(s)')
 
-            p = f'{f.name}: {add_ref(f.annotation, refs).ident()}'
+            p = f'{pf.name}: {add_ref(pf.annotation, refs).ident()}'
 
-            if f.default_factory is not None:
-                check.none(f.default)
+            if pf.default_factory is not None:
+                check.none(pf.default)
                 p += f' = {add_ref(HAS_DEFAULT_FACTORY_GLOBAL, refs).ident}'
-            elif f.default is not None:
-                check.none(f.default_factory)
-                p += f' = {add_ref(f.default, refs).ident()}'
+            elif pf.default is not None:
+                check.none(pf.default_factory)
+                p += f' = {add_ref(pf.default, refs).ident()}'
 
             params.append(p)
 
         proto_lines = [
             f'def __init__(',
-            f'    {plan.self_param},',
+            f'    {self_param},',
             *[
                 f'    {p},'
                 for p in params
@@ -292,131 +306,131 @@ class InitGenerator(Generator[InitPlan]):
         # defaults
 
         values: dict[str, str] = {
-            plan.self_param: plan.self_param,
+            self_param: self_param,
         }
 
-        for f in plan.fields:
-            if f.default_factory is not None:
-                check.none(f.default)
-                refs.add(f.default_factory)
-                if f.init:
+        for pf in fields:
+            if pf.default_factory is not None:
+                check.none(pf.default)
+                refs.add(pf.default_factory)
+                if pf.init:
                     lines.extend([
-                        f'    if {f.name} is {add_ref(HAS_DEFAULT_FACTORY_GLOBAL, refs).ident}:',
-                        f'        {f.name} = {f.default_factory.ident()}()',
+                        f'    if {pf.name} is {add_ref(HAS_DEFAULT_FACTORY_GLOBAL, refs).ident}:',
+                        f'        {pf.name} = {pf.default_factory.ident()}()',
                     ])
                 else:
                     lines.append(
-                        f'    {f.name} = {f.default_factory.ident()}()',
+                        f'    {pf.name} = {pf.default_factory.ident()}()',
                     )
-                values[f.name] = f.name
+                values[pf.name] = pf.name
 
-            elif f.init:
-                if f.default is not None:
-                    check.none(f.default_factory)
-                    values[f.name] = f.name
+            elif pf.init:
+                if pf.default is not None:
+                    check.none(pf.default_factory)
+                    values[pf.name] = pf.name
 
                 else:
-                    values[f.name] = f.name
+                    values[pf.name] = pf.name
 
-            elif plan.slots and f.default is not None:
+            elif ctx.cs.slots and pf.default is not None:
                 lines.append(
-                    f'    {f.name} = {add_ref(f.default, refs).ident()}',
+                    f'    {pf.name} = {add_ref(pf.default, refs).ident()}',
                 )
-                values[f.name] = f.name
+                values[pf.name] = pf.name
 
         # coercion
 
-        for f in plan.fields:
-            if isinstance(f.coerce, bool) and f.coerce:
+        for pf in fields:
+            if isinstance(pf.coerce, bool) and pf.coerce:
                 lines.append(
-                    f'    {f.name} = {f.annotation.ident()}({values[f.name]})',
+                    f'    {pf.name} = {pf.annotation.ident()}({values[pf.name]})',
                 )
-                values[f.name] = f.name
-            elif isinstance(f.coerce, OpRef):
+                values[pf.name] = pf.name
+            elif isinstance(pf.coerce, OpRef):
                 lines.append(
-                    f'    {f.name} = {add_ref(f.coerce, refs).ident()}({values[f.name]})',
+                    f'    {pf.name} = {add_ref(pf.coerce, refs).ident()}({values[pf.name]})',
                 )
-                values[f.name] = f.name
+                values[pf.name] = pf.name
 
         # field validation
 
-        for f in plan.fields:
-            if f.check_type is None:
+        for pf in fields:
+            if pf.check_type is None:
                 continue
-            refs.add(f.check_type)
+            refs.add(pf.check_type)
             lines.extend([
-                f'    if not {add_ref(ISINSTANCE_GLOBAL, refs).ident}({values[f.name]}, {f.check_type.ident()}): ',
+                f'    if not {add_ref(ISINSTANCE_GLOBAL, refs).ident}({values[pf.name]}, {pf.check_type.ident()}): ',
                 f'        raise {add_ref(FIELD_TYPE_VALIDATION_ERROR_GLOBAL, refs).ident}(',
-                f'            obj={plan.self_param},',
-                f'            type={f.check_type.ident()},',
-                f'            field={f.name!r},',
-                f'            value={values[f.name]},',
+                f'            obj={self_param},',
+                f'            type={pf.check_type.ident()},',
+                f'            field={pf.name!r},',
+                f'            value={values[pf.name]},',
                 f'        )',
             ])
 
-        for f in plan.fields:
-            if f.validate is None:
+        for pf in fields:
+            if pf.validate is None:
                 continue
-            refs.add(f.validate)
+            refs.add(pf.validate)
             lines.extend([
-                f'    if not {f.validate.ident()}({values[f.name]}): ',
+                f'    if not {pf.validate.ident()}({values[pf.name]}): ',
                 f'        raise {add_ref(FIELD_FN_VALIDATION_ERROR_GLOBAL, refs).ident}(',
-                f'            obj={plan.self_param},',
-                f'            fn={f.validate.ident()},',
-                f'            field={f.name!r},',
-                f'            value={values[f.name]},',
+                f'            obj={self_param},',
+                f'            fn={pf.validate.ident()},',
+                f'            field={pf.name!r},',
+                f'            value={values[pf.name]},',
                 f'        )',
             ])
 
         # setattr
 
         sab = SetattrSrcBuilder(
-            object_ident=plan.self_param,
+            object_ident=self_param,
         )
-        for f in plan.fields:
-            if f.name not in values or f.field_type != FieldType.INSTANCE:
+        for pf in fields:
+            if pf.name not in values or pf.field_type != FieldType.INSTANCE:
                 continue
             lines.extend([
                 f'    {l}'
                 for l in sab(
-                    f.name,
-                    values[f.name],
-                    frozen=plan.frozen,
-                    override=f.override,
+                    pf.name,
+                    values[pf.name],
+                    frozen=ctx.cs.frozen,
+                    override=pf.override,
                 )
             ])
         refs.update(sab.refs)
 
         # fn validation
 
-        for vfn in plan.validate_fns or []:
-            refs.add(vfn.fn)
-            if vfn.params:
+        for vfn, vparams in validate_fn_refs:
+            refs.add(vfn)
+            if vparams:
                 lines.extend([
-                    f'    if not {vfn.fn.ident()}(',
+                    f'    if not {vfn.ident()}(',
                     *[
                         f'        {values[p]},'
-                        for p in vfn.params
+                        for p in vparams
                     ],
                     f'    ):',
                 ])
             else:
                 lines.append(
-                    f'    if not {vfn.fn.ident()}():',
+                    f'    if not {vfn.ident()}():',
                 )
             lines.extend([
                 f'        raise {add_ref(FN_VALIDATION_ERROR_GLOBAL, refs).ident}(',
-                f'            obj={plan.self_param},',
-                f'            fn={vfn.fn.ident()},',
+                f'            obj={self_param},',
+                f'            fn={vfn.ident()},',
                 f'        )',
             ])
 
         # post-init
 
-        if (pia := plan.post_init_params) is not None:
+        if (pia := post_init_params) is not None:
             if pia:
                 lines.extend([
-                    f'    {plan.self_param}.{STD_POST_INIT_NAME}(',
+                    f'    {self_param}.{STD_POST_INIT_NAME}(',
                     *[
                         f'        {values[p]},'
                         for p in pia
@@ -425,12 +439,12 @@ class InitGenerator(Generator[InitPlan]):
                 ])
             else:
                 lines.append(
-                    f'    {plan.self_param}.{STD_POST_INIT_NAME}()',
+                    f'    {self_param}.{STD_POST_INIT_NAME}()',
                 )
 
-        for init_fn in plan.init_fns:
+        for init_fn in init_fn_refs:
             lines.append(
-                f'    {add_ref(init_fn, refs).ident()}({plan.self_param})',
+                f'    {add_ref(init_fn, refs).ident()}({self_param})',
             )
 
         #
@@ -440,10 +454,10 @@ class InitGenerator(Generator[InitPlan]):
                 '    pass',
             )
 
-        return [
+        return Generation([
             AddMethodOp(
                 '__init__',
                 '\n'.join([*proto_lines, *lines]),
                 frozenset(refs),
             ),
-        ]
+        ], bindings=orm)

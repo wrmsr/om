@@ -21,7 +21,7 @@ ProcessingOptionT = ta.TypeVar('ProcessingOptionT', bound='ProcessingOption')
 ##
 
 
-ProcessingContextItemFactory: ta.TypeAlias = ta.Callable[['ProcessingContext'], ta.Any]
+type ProcessingContextItemFactory = ta.Callable[[ProcessingContext], ta.Any]
 
 
 class ProcessingOption(lang.Abstract):
@@ -33,7 +33,7 @@ class ProcessingContext:
             self,
             cls: type,
             cs: ClassSpec,
-            item_factories: ta.Mapping[type, ProcessingContextItemFactory],
+            item_factories: ta.Mapping[type | str, ProcessingContextItemFactory],
             *,
             pkg_cfg: NamedPackageConfig = DEFAULT_NAMED_PACKAGE_CONFIG,
             options: ta.Sequence[ProcessingOption] | None = None,
@@ -65,7 +65,13 @@ class ProcessingContext:
     def pkg_cfg(self) -> NamedPackageConfig:
         return self._pkg_cfg
 
-    def __getitem__(self, ty: type[T]) -> T:
+    @ta.overload
+    def __getitem__(self, ty: type[T]) -> T: ...
+
+    @ta.overload
+    def __getitem__(self, ty: str) -> ta.Any: ...
+
+    def __getitem__(self, ty):
         try:
             return self._items[ty]
         except KeyError:

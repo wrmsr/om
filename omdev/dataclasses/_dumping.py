@@ -46,7 +46,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
-            dict(path='dumping.py', sha1='f385a4502d279cf76e4a2bd69efac82881117e57'),
+            dict(path='dumping.py', sha1='ae2f3a87e05e31449ea9afb2e8b5998a854d78a1'),
         ],
     )
 
@@ -2000,7 +2000,7 @@ class DumpedDataclassCodegen:
     cls_module: str
     cls_qualname: str
 
-    plan_repr: str
+    spec_key: ta.Optional[str]
 
     fn_name: str
     fn_params: ta.Sequence[str]
@@ -2025,6 +2025,7 @@ class DataclassCodegenDumperOutput:
     import_errors: ta.Mapping[str, str]
 
     dumped: ta.Sequence[DumpedDataclassCodegen]
+    implementation_key: str
 
 
 ##
@@ -2043,6 +2044,7 @@ class _DataclassCodegenDumper:
         from omcore.dataclasses.impl.generation.compilation import OpCompiler  # noqa
         from omcore.dataclasses.impl.generation.globals import FnGlobal  # noqa
         from omcore.dataclasses.impl.generation.ops import OpRef  # noqa
+        from omcore.dataclasses.impl.generation.keys import implementation_key  # noqa
         from omcore.dataclasses.impl.generation.processor import Codegen  # noqa
         from omcore.dataclasses.impl.generation.processor import GeneratorProcessor  # noqa
         from omcore.dataclasses.impl.generation.processor import ProcessingOption  # noqa
@@ -2087,7 +2089,7 @@ class _DataclassCodegenDumper:
                 cls_module=ctx.cls.__module__,
                 cls_qualname=ctx.cls.__qualname__,
 
-                plan_repr=repr(prepared.plans),
+                spec_key=prepared.spec_key,
 
                 fn_name=comp.fn_name,
                 fn_params=comp.fn_params,
@@ -2194,6 +2196,7 @@ class _DataclassCodegenDumper:
             import_errors=import_errors,
 
             dumped=dumped,
+            implementation_key=implementation_key(),
         )
 
         with open(out_file_path, 'w') as f:

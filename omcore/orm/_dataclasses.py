@@ -10,13 +10,16 @@ import types
 ##
 
 
-REGISTRY_BY_PLAN_REPR = {}
+REGISTRY_BY_SPEC_KEY = {}
 REGISTRY_BY_CLS_NAME = {}
 
 
 def _register(**kwargs):
     def inner(fn):
-        REGISTRY_BY_PLAN_REPR[kwargs['plan_repr']] = (kwargs, fn)
+        for key in kwargs['spec_keys']:
+            if key in REGISTRY_BY_SPEC_KEY:
+                raise RuntimeError('Conflicting dataclass cache key')
+            REGISTRY_BY_SPEC_KEY[key] = (kwargs, fn)
         REGISTRY_BY_CLS_NAME.update({cn: (kwargs, fn) for cn in kwargs['cls_names']})
         return fn
     return inner
@@ -25,31 +28,36 @@ def _register(**kwargs):
 ##
 
 
+IMPLEMENTATION_KEY = '0b058e19e67cdb26e91b1c38203523e9cefe1242a3d73dbb76cc5c75c41df941'
+
+
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('v',)), EqPlan(fields=('v',)), FrozenPlan(fields=('v',), allow_dynamic_dunder_attr"
-        "s=False), HashPlan(action='add', fields=('v',), cache=False), InitPlan(fields=(InitPlan.Field(name='v', annota"
-        "tion=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, fi"
-        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_params=('v"
-        "',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPl"
-        "an(fields=(ReprPlan.Field(name='v', kw_only=False, fn=None),), id=False, terse=False, default_fn=None)))"
+    installer_sha1='a4efb7ac9fb18c77a915284851699addabc80e7f',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('v', True, True, None, True, False, False, None), 'instance', 'missing', None"
+            ", False, False, False),), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='7514673b39883258db895b0031e644b486721b54',
     cls_names=(
         ('omcore.orm.codecs', 'FieldCodec'),
     ),
 )
-def _process_dataclass__7514673b39883258db895b0031e644b486721b54():
+def _process_dataclass__a4efb7ac9fb18c77a915284851699addabc80e7f():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -125,36 +133,35 @@ def _process_dataclass__7514673b39883258db895b0031e644b486721b54():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('inserted_auto_keys', 'ent_writeback')), EqPlan(fields=('inserted_auto_keys', 'ent"
-        "_writeback')), FrozenPlan(fields=('inserted_auto_keys', 'ent_writeback'), allow_dynamic_dunder_attrs=False), H"
-        "ashPlan(action='add', fields=('inserted_auto_keys', 'ent_writeback'), cache=False), InitPlan(fields=(InitPlan."
-        "Field(name='inserted_auto_keys', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_fact"
-        "ory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=Non"
-        "e), InitPlan.Field(name='ent_writeback', annotation=OpRef(name='init.fields.1.annotation'), default=None, defa"
-        "ult_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_"
-        "type=None)), self_param='self', std_params=(), kw_only_params=('inserted_auto_keys', 'ent_writeback'), frozen="
-        "True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name="
-        "'inserted_auto_keys', kw_only=True, fn=None), ReprPlan.Field(name='ent_writeback', kw_only=True, fn=None)), id"
-        "=False, terse=False, default_fn=None)))"
+    installer_sha1='7d1166ffb8fb9c152637484c32b0fa492c54e024',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('inserted_auto_keys', True, True, None, True, True, False, None), 'instance', "
+            "'missing', None, False, False, False), (('ent_writeback', True, True, None, True, True, False, None), 'ins"
+            "tance', 'missing', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()"
+            "), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='5a96e6ea4d6f0cebd435ea88677738cdd7207de5',
     cls_names=(
         ('omcore.orm.flushing', '_SessionFlusher.FlushResult'),
     ),
 )
-def _process_dataclass__5a96e6ea4d6f0cebd435ea88677738cdd7207de5():
+def _process_dataclass__7d1166ffb8fb9c152637484c32b0fa492c54e024():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -238,35 +245,35 @@ def _process_dataclass__5a96e6ea4d6f0cebd435ea88677738cdd7207de5():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('ents_by_ak', 'ak_toposort')), EqPlan(fields=('ents_by_ak', 'ak_toposort')), Froze"
-        "nPlan(fields=('ents_by_ak', 'ak_toposort'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=("
-        "'ents_by_ak', 'ak_toposort'), cache=False), InitPlan(fields=(InitPlan.Field(name='ents_by_ak', annotation=OpRe"
-        "f(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type="
-        "FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ak_toposort', annotatio"
-        "n=OpRef(name='init.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field"
-        "_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_"
-        "only_params=('ents_by_ak', 'ak_toposort'), frozen=True, slots=False, post_init_params=None, init_fns=(), valid"
-        "ate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='ents_by_ak', kw_only=True, fn=None), ReprPlan.Field(name='a"
-        "k_toposort', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='c12bab746aa9c9e7acba57daf41081aee0d91364',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('ents_by_ak', True, True, None, True, True, False, None), 'instance', 'missing"
+            "', None, False, False, False), (('ak_toposort', True, True, None, True, True, False, None), 'instance', 'm"
+            "issing', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (),"
+            " False))"
+        ),
     ),
-    plan_repr_sha1='f9f6a101168f7596d024f71e4e2691d1bcd63b75',
     cls_names=(
         ('omcore.orm.flushing', '_SessionFlusher._AutoKeyGraph'),
     ),
 )
-def _process_dataclass__f9f6a101168f7596d024f71e4e2691d1bcd63b75():
+def _process_dataclass__c12bab746aa9c9e7acba57daf41081aee0d91364():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -350,47 +357,41 @@ def _process_dataclass__f9f6a101168f7596d024f71e4e2691d1bcd63b75():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('m', 'ak_inserts', 'vk_inserts', 'updates', 'deletes')), EqPlan(fields=('m', 'ak_i"
-        "nserts', 'vk_inserts', 'updates', 'deletes')), FrozenPlan(fields=('m', 'ak_inserts', 'vk_inserts', 'updates', "
-        "'deletes'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('m', 'ak_inserts', 'vk_inserts',"
-        " 'updates', 'deletes'), cache=False), InitPlan(fields=(InitPlan.Field(name='m', annotation=OpRef(name='init.fi"
-        "elds.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
-        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='ak_inserts', annotation=OpRef(name='in"
-        "it.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType."
-        "INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='vk_inserts', annotation=OpRef(nam"
-        "e='init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Field"
-        "Type.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='updates', annotation=OpRef(n"
-        "ame='init.fields.3.annotation'), default=None, default_factory=None, init=True, override=False, field_type=Fie"
-        "ldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='deletes', annotation=OpRef"
-        "(name='init.fields.4.annotation'), default=None, default_factory=None, init=True, override=False, field_type=F"
-        "ieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('m',), kw_onl"
-        "y_params=('ak_inserts', 'vk_inserts', 'updates', 'deletes'), frozen=True, slots=False, post_init_params=None, "
-        "init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='m', kw_only=False, fn=None), ReprPlan.Fie"
-        "ld(name='ak_inserts', kw_only=True, fn=None), ReprPlan.Field(name='vk_inserts', kw_only=True, fn=None), ReprPl"
-        "an.Field(name='updates', kw_only=True, fn=None), ReprPlan.Field(name='deletes', kw_only=True, fn=None)), id=Fa"
-        "lse, terse=False, default_fn=None)))"
+    installer_sha1='3698f26a7bbcf986b237925f3e32aac7688e6aca',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('m', True, True, None, True, False, False, None), 'instance', 'missing', None"
+            ", False, False, False), (('ak_inserts', True, True, None, True, True, False, None), 'instance', 'missing',"
+            " None, False, False, False), (('vk_inserts', True, True, None, True, True, False, None), 'instance', 'miss"
+            "ing', None, False, False, False), (('updates', True, True, None, True, True, False, None), 'instance', 'mi"
+            "ssing', None, False, False, False), (('deletes', True, True, None, True, True, False, None), 'instance', '"
+            "missing', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), ()"
+            ", False))"
+        ),
     ),
-    plan_repr_sha1='77844c1d369ea8da517a4947ef5b103ead21fb8f',
     cls_names=(
         ('omcore.orm.flushing', '_SessionFlusher._DirtyEntities'),
     ),
 )
-def _process_dataclass__77844c1d369ea8da517a4947ef5b103ead21fb8f():
+def _process_dataclass__3698f26a7bbcf986b237925f3e32aac7688e6aca():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__4__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -495,31 +496,32 @@ def _process_dataclass__77844c1d369ea8da517a4947ef5b103ead21fb8f():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('keys',)), EqPlan(fields=('keys',)), FrozenPlan(fields=('keys',), allow_dynamic_du"
-        "nder_attrs=False), HashPlan(action='add', fields=('keys',), cache=False), InitPlan(fields=(InitPlan.Field(name"
-        "='keys', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, ove"
-        "rride=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self',"
-        " std_params=('keys',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), valida"
-        "te_fns=()), ReprPlan(fields=(ReprPlan.Field(name='keys', kw_only=False, fn=None),), id=False, terse=False, def"
-        "ault_fn=None)))"
+    installer_sha1='c2e7890a1eca7ce40a68a7d67c5e81d60b57ba83',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('keys', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False),), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='90fe5172beb2792e8eb451a4d9902225b057118d',
     cls_names=(
         ('omcore.orm.inmemory', 'InMemoryStore._IndexState'),
     ),
 )
-def _process_dataclass__90fe5172beb2792e8eb451a4d9902225b057118d():
+def _process_dataclass__c2e7890a1eca7ce40a68a7d67c5e81d60b57ba83():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -595,43 +597,39 @@ def _process_dataclass__90fe5172beb2792e8eb451a4d9902225b057118d():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('index', 'index_set', 'index_key', 'unindexed_where')), EqPlan(fields=('index', 'i"
-        "ndex_set', 'index_key', 'unindexed_where')), FrozenPlan(fields=('index', 'index_set', 'index_key', 'unindexed_"
-        "where'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('index', 'index_set', 'index_key', "
-        "'unindexed_where'), cache=False), InitPlan(fields=(InitPlan.Field(name='index', annotation=OpRef(name='init.fi"
-        "elds.0.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTA"
-        "NCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='index_set', annotation=OpRef(name='ini"
-        "t.fields.1.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.I"
-        "NSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='index_key', annotation=OpRef(name="
-        "'init.fields.2.annotation'), default=None, default_factory=None, init=True, override=False, field_type=FieldTy"
-        "pe.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='unindexed_where', annotation=O"
-        "pRef(name='init.fields.3.annotation'), default=None, default_factory=None, init=True, override=False, field_ty"
-        "pe=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=(), kw_onl"
-        "y_params=('index', 'index_set', 'index_key', 'unindexed_where'), frozen=True, slots=False, post_init_params=No"
-        "ne, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='index', kw_only=True, fn=None), ReprP"
-        "lan.Field(name='index_set', kw_only=True, fn=None), ReprPlan.Field(name='index_key', kw_only=True, fn=None), R"
-        "eprPlan.Field(name='unindexed_where', kw_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='00cadc888c5493906bd131c466a822203d3483e2',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('index', True, True, None, True, True, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('index_set', True, True, None, True, True, False, None), 'instance', 'missing'"
+            ", None, False, False, False), (('index_key', True, True, None, True, True, False, None), 'instance', 'miss"
+            "ing', None, False, False, False), (('unindexed_where', True, True, None, True, True, False, None), 'instan"
+            "ce', 'missing', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), "
+            "(), (), False))"
+        ),
     ),
-    plan_repr_sha1='e32ed881cda9d66068780e9cb7cd9bcf13572aaa',
     cls_names=(
         ('omcore.orm.inmemory', 'InMemoryStore._SelectedIndex'),
     ),
 )
-def _process_dataclass__e32ed881cda9d66068780e9cb7cd9bcf13572aaa():
+def _process_dataclass__00cadc888c5493906bd131c466a822203d3483e2():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -729,33 +727,35 @@ def _process_dataclass__e32ed881cda9d66068780e9cb7cd9bcf13572aaa():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('tables',)), EqPlan(fields=('tables',)), FrozenPlan(fields=('tables',), allow_dyna"
-        "mic_dunder_attrs=False), HashPlan(action='add', fields=('tables',), cache=False), InitPlan(fields=(InitPlan.Fi"
-        "eld(name='tables', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=OpRef(name"
-        "='init.fields.0.default_factory'), init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
-        "date=None, check_type=None),), self_param='self', std_params=('tables',), kw_only_params=(), frozen=True, slot"
-        "s=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='tables', "
-        "kw_only=False, fn=None),), id=False, terse=False, default_fn=None)))"
+    installer_sha1='e1f8d7d0e97252ae7f50dc37845b209ec95b24b6',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('tables', True, True, None, True, False, False, None), 'instance', 'factory',"
+            " None, False, False, False),), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False)"
+            ")"
+        ),
     ),
-    plan_repr_sha1='313549b8121b625a954d42c1610d9bef736a7213',
     cls_names=(
         ('omcore.orm.inmemory', 'InMemoryStore._State'),
     ),
 )
-def _process_dataclass__313549b8121b625a954d42c1610d9bef736a7213():
+def _process_dataclass__e1f8d7d0e97252ae7f50dc37845b209ec95b24b6():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__0__default_factory,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__HAS_DEFAULT_FACTORY=dataclasses._HAS_DEFAULT_FACTORY,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default_factory = __dataclass__spec.fields[0].default.must().fn
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__HAS_DEFAULT_FACTORY = __dataclass__globals['__dataclass__HAS_DEFAULT_FACTORY']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -833,38 +833,38 @@ def _process_dataclass__313549b8121b625a954d42c1610d9bef736a7213():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('snaps', 'indexes')), EqPlan(fields=('snaps', 'indexes')), FrozenPlan(fields=('sna"
-        "ps', 'indexes'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('snaps', 'indexes'), cache="
-        "False), InitPlan(fields=(InitPlan.Field(name='snaps', annotation=OpRef(name='init.fields.0.annotation'), defau"
-        "lt=None, default_factory=OpRef(name='init.fields.0.default_factory'), init=True, override=False, field_type=Fi"
-        "eldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='indexes', annotation=OpRe"
-        "f(name='init.fields.1.annotation'), default=None, default_factory=OpRef(name='init.fields.1.default_factory'),"
-        " init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self"
-        "_param='self', std_params=('snaps', 'indexes'), kw_only_params=(), frozen=True, slots=False, post_init_params="
-        "None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='snaps', kw_only=False, fn=None), Re"
-        "prPlan.Field(name='indexes', kw_only=False, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='4603b0ffed11a40a16bd09d5a9a81fbd8fe725a3',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('snaps', True, True, None, True, False, False, None), 'instance', 'factory', "
+            "None, False, False, False), (('indexes', True, True, None, True, False, False, None), 'instance', 'factory"
+            "', None, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False"
+            "))"
+        ),
     ),
-    plan_repr_sha1='98ea4a5cb052ab1a4f4c5b9e186fd37f46ccc130',
     cls_names=(
         ('omcore.orm.inmemory', 'InMemoryStore._TableState'),
     ),
 )
-def _process_dataclass__98ea4a5cb052ab1a4f4c5b9e186fd37f46ccc130():
+def _process_dataclass__4603b0ffed11a40a16bd09d5a9a81fbd8fe725a3():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__0__default_factory,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default_factory,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__HAS_DEFAULT_FACTORY=dataclasses._HAS_DEFAULT_FACTORY,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default_factory = __dataclass__spec.fields[0].default.must().fn
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default_factory = __dataclass__spec.fields[1].default.must().fn
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__HAS_DEFAULT_FACTORY = __dataclass__globals['__dataclass__HAS_DEFAULT_FACTORY']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -951,34 +951,34 @@ def _process_dataclass__98ea4a5cb052ab1a4f4c5b9e186fd37f46ccc130():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('name', 'dir')), EqPlan(fields=('name', 'dir')), FrozenPlan(fields=('name', 'dir')"
-        ", allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('name', 'dir'), cache=False), InitPlan(fie"
-        "lds=(InitPlan.Field(name='name', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_fact"
-        "ory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=Non"
-        "e), InitPlan.Field(name='dir', annotation=OpRef(name='init.fields.1.annotation'), default=None, default_factor"
-        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
-        "), self_param='self', std_params=('name', 'dir'), kw_only_params=(), frozen=True, slots=False, post_init_param"
-        "s=(), init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name='name', kw_only=False, fn=None), Rep"
-        "rPlan.Field(name='dir', kw_only=False, fn=None)), id=False, terse=True, default_fn=None)))"
+    installer_sha1='1c02b7dc46a595ab87a27825b00fe78c4f45833c',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, True, False), ((('name', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('dir', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False)), False, 0, ()), (False, False, (), False, (False, True, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='3cd8ca6a1f5381f251f51b5884b3918a7798b30d',
     cls_names=(
         ('omcore.orm.ordering', 'OrderByItem'),
     ),
 )
-def _process_dataclass__3cd8ca6a1f5381f251f51b5884b3918a7798b30d():
+def _process_dataclass__1c02b7dc46a595ab87a27825b00fe78c4f45833c():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -1062,30 +1062,32 @@ def _process_dataclass__3cd8ca6a1f5381f251f51b5884b3918a7798b30d():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('v',)), EqPlan(fields=('v',)), FrozenPlan(fields=('v',), allow_dynamic_dunder_attr"
-        "s=False), HashPlan(action='add', fields=('v',), cache=False), InitPlan(fields=(InitPlan.Field(name='v', annota"
-        "tion=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, fi"
-        "eld_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),), self_param='self', std_params=('v"
-        "',), kw_only_params=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPl"
-        "an(fields=(ReprPlan.Field(name='v', kw_only=False, fn=None),), id=False, terse=True, default_fn=None)))"
+    installer_sha1='40733ba6ae9b777bf5e2feb83e79eb04fa032879',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, True, False, False, Fals"
+            "e, False, True, True), ((('v', True, True, None, True, False, False, None), 'instance', 'missing', None, F"
+            "alse, False, False),), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='3576262424b3ef8ff20966fa3744e5dba9a2ae7d',
     cls_names=(
         ('omcore.orm.sql', 'FieldSqlType'),
     ),
 )
-def _process_dataclass__3576262424b3ef8ff20966fa3744e5dba9a2ae7d():
+def _process_dataclass__40733ba6ae9b777bf5e2feb83e79eb04fa032879():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__ctx['omcore.dataclasses.impl.concerns.init.InitGenericAnnotations']['v']
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -1161,46 +1163,41 @@ def _process_dataclass__3576262424b3ef8ff20966fa3744e5dba9a2ae7d():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('m', 'where', 'order_by', 'limit')), EqPlan(fields=('m', 'where', 'order_by', 'lim"
-        "it')), FrozenPlan(fields=('m', 'where', 'order_by', 'limit'), allow_dynamic_dunder_attrs=False), HashPlan(acti"
-        "on='add', fields=('m', 'where', 'order_by', 'limit'), cache=False), InitPlan(fields=(InitPlan.Field(name='m', "
-        "annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=Fal"
-        "se, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='where', "
-        "annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factor"
-        "y=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)"
-        ", InitPlan.Field(name='order_by', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init."
-        "fields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=Non"
-        "e, validate=None, check_type=None), InitPlan.Field(name='limit', annotation=OpRef(name='init.fields.3.annotati"
-        "on'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_type"
-        "=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_param='self', std_params=('m', 'where"
-        "'), kw_only_params=('order_by', 'limit'), frozen=True, slots=False, post_init_params=None, init_fns=(), valida"
-        "te_fns=()), ReprPlan(fields=(ReprPlan.Field(name='m', kw_only=False, fn=None), ReprPlan.Field(name='where', kw"
-        "_only=False, fn=None), ReprPlan.Field(name='order_by', kw_only=True, fn=None), ReprPlan.Field(name='limit', kw"
-        "_only=True, fn=None)), id=False, terse=False, default_fn=None)))"
+    installer_sha1='e335ac29a7cc7a6d70ddd952d3922a910dea6614',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('m', True, True, None, True, False, False, None), 'instance', 'missing', None"
+            ", False, False, False), (('where', True, True, None, True, False, False, None), 'instance', 'value', None,"
+            " False, False, False), (('order_by', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('limit', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='9bcadc6b485436dde22f785cd523e64b41ba962f',
     cls_names=(
         ('omcore.orm.stores', 'Store.Lookup'),
     ),
 )
-def _process_dataclass__9bcadc6b485436dde22f785cd523e64b41ba962f():
+def _process_dataclass__e335ac29a7cc7a6d70ddd952d3922a910dea6614():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__1__default,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__init__fields__2__default,
-        __dataclass__init__fields__3__annotation,
-        __dataclass__init__fields__3__default,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)
@@ -1298,38 +1295,36 @@ def _process_dataclass__9bcadc6b485436dde22f785cd523e64b41ba962f():
 
 
 @_register(
-    plan_repr=(
-        "Plans(tup=(CopyPlan(fields=('name', 'op', 'value')), EqPlan(fields=('name', 'op', 'value')), FrozenPlan(fields"
-        "=('name', 'op', 'value'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('name', 'op', 'val"
-        "ue'), cache=False), InitPlan(fields=(InitPlan.Field(name='name', annotation=OpRef(name='init.fields.0.annotati"
-        "on'), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=Non"
-        "e, validate=None, check_type=None), InitPlan.Field(name='op', annotation=OpRef(name='init.fields.1.annotation'"
-        "), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, "
-        "validate=None, check_type=None), InitPlan.Field(name='value', annotation=OpRef(name='init.fields.2.annotation'"
-        "), default=None, default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, "
-        "validate=None, check_type=None)), self_param='self', std_params=('name', 'op', 'value'), kw_only_params=(), fr"
-        "ozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field("
-        "name='name', kw_only=False, fn=None), ReprPlan.Field(name='op', kw_only=False, fn=None), ReprPlan.Field(name='"
-        "value', kw_only=False, fn=None)), id=False, terse=True, default_fn=None)))"
+    installer_sha1='7b072aac3024117a3284e2bd14460295cc524d3a',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, True, False), ((('name', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('op', True, True, None, True, False, False, None), 'instance', 'missing', None"
+            ", False, False, False), (('value', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False)), False, 0, ()), (False, False, (), False, (False, False, ()), (), (), False))"
+        ),
     ),
-    plan_repr_sha1='4e0614568e3fda967c56f177ac864d8d0f5142a6',
     cls_names=(
         ('omcore.orm.wheres', 'WhereItem'),
     ),
 )
-def _process_dataclass__4e0614568e3fda967c56f177ac864d8d0f5142a6():
+def _process_dataclass__7b072aac3024117a3284e2bd14460295cc524d3a():
     def _process_dataclass(
-        *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__1__annotation,
-        __dataclass__init__fields__2__annotation,
-        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
-        __dataclass__None=None,  # noqa
-        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
-        __dataclass__object_setattr=object.__setattr__,  # noqa
-        __dataclass__set_cls_attr,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
     ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
         def __copy__(self):
             if self.__class__ is not __class__:
                 raise TypeError(self)

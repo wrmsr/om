@@ -16,24 +16,24 @@ from ..processing.base import ProcessingOption
 from ..processing.base import Processor
 from ..processing.phases import ProcessorPhase
 from ..processing.registry import register_processor_type
-from .base import Plan
 from .compilation import OpCompiler
-from .globals import FN_GLOBALS
+from .globals import FN_GLOBAL_VALUES
 from .globals import FnGlobal
-from .idents import CLS_IDENT
+from .keys import implementation_key
+from .keys import processing_key
 from .ops import Op
 from .ops import OpRef
 from .ops import OpRefMap
-from .plans import Plans
 from .registry import all_generator_types
-from .registry import generator_type_for_plan_type
+from .values import Bindings
+from .values import Val
 
 
 ##
 
 
 @dc.dataclass(frozen=True)
-class PlanOnly(ProcessingOption):
+class PrepareOnly(ProcessingOption):
     b: bool
 
 
@@ -60,20 +60,14 @@ class Codegen(ProcessingOption):
     force: bool = False
     callback: CompileCallback | None = None
 
+    cache_mode: ta.Literal['checked', 'trusted'] | None = None
+
 
 ##
 
 
 class CodegenMissingWarning(Warning):
     pass
-
-
-def _get_fn_params(fn: ta.Any) -> ta.Sequence[str]:
-    return (fn_co := fn.__code__).co_varnames[:fn_co.co_argcount + fn_co.co_kwonlyargcount]
-
-
-def _call_with_kwargs(fn: ta.Any, **kwargs: ta.Any) -> ta.Any:
-    return fn(**{n: kwargs[n] for n in _get_fn_params(fn)})
 
 
 @register_processor_type(phase=ProcessorPhase.GENERATION)
@@ -95,15 +89,6 @@ class GeneratorProcessor(Processor):
 
             self._codegen = codegen
 
-        @classmethod
-        def build_standard_kwargs(cls, dc_cls: type) -> dict[str, ta.Any]:
-            kw: dict = {CLS_IDENT: dc_cls}
-            kw.update({
-                k.ident: v.value
-                for k, v in FN_GLOBALS.items()
-            })
-            return kw
-
         def _process(self, gp: GeneratorProcessor, cls: type) -> None:
             style: OpCompiler.Style = {
                 'jit': OpCompiler.JitStyle,
@@ -114,7 +99,8 @@ class GeneratorProcessor(Processor):
 
             comp = compiler.compile(
                 GeneratorProcessor.PROCESS_FN_NAME,
-                gp.ops(),
+                gp.prepare().ops,
+                bindings=gp.prepare().bindings,
             )
 
             comp_src = '\n'.join([
@@ -125,7 +111,7 @@ class GeneratorProcessor(Processor):
 
             if (vo := gp._ctx.option(Verbosity)) is not None and vo.debug:  # noqa
                 print('\n\n'.join([
-                    gp.prepare().plans.repr(),
+                    f'cache_key={gp.cache_key()!r}',
                     comp_src,
                     '',
                 ]), file=sys.stderr)
@@ -149,18 +135,17 @@ class GeneratorProcessor(Processor):
                 ),
             })
 
-            kw = self.build_standard_kwargs(cls)
-
+            kw = {}
             orm = gp.prepare().ref_map
             for r in comp.refs:
-                if isinstance(r, OpRef):
+                if isinstance(r, OpRef) and r not in gp.prepare().bindings:
                     kw[r.ident()] = orm[r]
-                elif isinstance(r, FnGlobal):
+                elif isinstance(r, (OpRef, FnGlobal)):
                     pass
                 else:
                     raise TypeError(r)
 
-            _call_with_kwargs(fn, **kw)
+            fn(cls, gp._ctx.cs, gp._ctx, FN_GLOBAL_VALUES, **kw)  # noqa
 
             if (cg := self._codegen) is not None and (cb := cg.callback) is not None:
                 cb(  # noqa
@@ -173,47 +158,50 @@ class GeneratorProcessor(Processor):
 
     @dc.dataclass(frozen=True)
     class Prepared:
-        plans: Plans
+        ops: ta.Sequence[Op]
         ref_map: OpRefMap
-
-        def __post_init__(self) -> None:
-            hash(self.plans)
+        bindings: Bindings
+        spec_key: str | None
 
     @lang.cached_function(no_wrapper_update=True)
     def prepare(self) -> Prepared:
+        cg = self._ctx.option(Codegen)
+        key = self.cache_key() if cg is not None and cg.callback is not None else None
         gs = [g_ty() for g_ty in all_generator_types()]
 
-        pll: list[Plan] = []
+        ops: list[Op] = []
         orm: dict[OpRef, ta.Any] = {}
+        bindings: dict[OpRef, Val] = {}
         for g in gs:
-            if (pr := g.plan(self._ctx)) is None:
+            if (gen := g.generate(self._ctx)) is None:
                 continue
 
-            for k, v in (pr.ref_map or {}).items():
+            for k, v in (gen.ref_map or {}).items():
                 if k in orm:
                     check.equal(orm[k], v)
                 else:
                     orm[k] = v
 
-            pll.append(pr.plan)
+            ops.extend(gen.ops)
 
-        plans = Plans(tuple(pll))
+            for k, v in (gen.bindings or {}).items():
+                if k in bindings:
+                    check.equal(bindings[k], v)
+                else:
+                    bindings[k] = v
+
+        check.arg(not (orm.keys() & bindings.keys()))
 
         return self.Prepared(
-            plans,
+            tuple(ops),
             orm,
+            bindings,
+            key if not orm else None,
         )
 
     @lang.cached_function(no_wrapper_update=True)
-    def ops(self) -> ta.Sequence[Op]:
-        prepared = self.prepare()
-
-        ops: list[Op] = []
-        for pl in prepared.plans:
-            g = generator_type_for_plan_type(type(pl))()
-            ops.extend(g.generate(pl))
-
-        return ops
+    def cache_key(self) -> str | None:
+        return processing_key(self._ctx)
 
     #
 
@@ -232,18 +220,19 @@ class GeneratorProcessor(Processor):
             return False
 
         cg_mod = sys.modules[cg_mod_spec]
-        cg_fn_reg = cg_mod.REGISTRY_BY_PLAN_REPR
 
-        #
+        # Plan-keyed and incompatible artifacts are cache misses, not alternate generation protocols.
+        if getattr(cg_mod, 'IMPLEMENTATION_KEY', None) != implementation_key():
+            return False
 
-        prep = self.prepare()
-        prep_plan_repr = prep.plans.repr()
-
-        #
-
-        try:
-            cg_reg_item = cg_fn_reg[prep_plan_repr]
-        except KeyError:
+        cg = self._ctx.option(Codegen)
+        cache_mode = (cg.cache_mode if cg is not None else None) or self._ctx.pkg_cfg.cfg.codegen_mode
+        if cache_mode == 'trusted':
+            entry = cg_mod.REGISTRY_BY_CLS_NAME.get((cls.__module__, cls.__qualname__))
+        else:
+            key = self.cache_key()
+            entry = cg_mod.REGISTRY_BY_SPEC_KEY.get(key) if key is not None else None
+        if entry is None:
             if (vo := self._ctx.option(Verbosity)) is not None and vo.warn:  # noqa
                 warnings.warn(
                     f'Codegen missing for {cls.__module__}.{cls.__qualname__} in {cg_mod_spec}',
@@ -251,28 +240,20 @@ class GeneratorProcessor(Processor):
                 )
             return False
 
-        cg_kw, cg_fn = cg_reg_item
-
-        #
-
-        ref_map = {
-            ref.ident(): v
-            for ref, v in prep.ref_map.items()
-        }
-
-        ref_map.update(GeneratorProcessor.CompilerMode.build_standard_kwargs(cls))
-
-        #
-
-        fn = cg_fn()
-        _call_with_kwargs(fn, **ref_map)
+        _, factory = entry
+        factory()(
+            cls,
+            self._ctx.cs,
+            self._ctx,
+            FN_GLOBAL_VALUES,
+        )
 
         return True
 
     #
 
     def process(self, cls: type) -> type:
-        if (po := self._ctx.option(PlanOnly)) is not None and po.b:
+        if (po := self._ctx.option(PrepareOnly)) is not None and po.b:
             self.prepare()
             return cls
 

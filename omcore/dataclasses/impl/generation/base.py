@@ -6,34 +6,28 @@ from .... import lang
 from ..processing.base import ProcessingContext
 from .ops import Op
 from .ops import OpRefMap
-
-
-T = ta.TypeVar('T')
-PlanT = ta.TypeVar('PlanT')
+from .values import Bindings
 
 
 ##
 
 
 @dc.dataclass(frozen=True)
-class Plan(lang.Abstract):
-    pass
-
-
-##
-
-
-@dc.dataclass(frozen=True)
-class PlanResult(ta.Generic[PlanT]):
-    plan: PlanT
+class Generation:
+    ops: ta.Sequence[Op]
     ref_map: OpRefMap | None = None
+    bindings: Bindings | None = dc.field(default=None, kw_only=True)
 
 
-class Generator(lang.Abstract, ta.Generic[PlanT]):
+class Generator(lang.Abstract):
+    # Opt in locally after accounting for non-spec inputs in cache_key(). Bump for semantic changes not reflected in
+    # spec/cache schemas. An unopted-in extension keeps the entire installation on the generation path.
+    cache_version: ta.ClassVar[int | None] = None
+    cache_schema: ta.ClassVar[tuple[type, ...]] = ()
+
+    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
+        return ()
+
     @abc.abstractmethod
-    def plan(self, ctx: ProcessingContext) -> PlanResult[PlanT] | None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def generate(self, pl: PlanT) -> ta.Iterable[Op]:
+    def generate(self, ctx: ProcessingContext) -> Generation | None:
         raise NotImplementedError

@@ -13,9 +13,17 @@ from ... import check
 ##
 
 
+CodegenMode: ta.TypeAlias = ta.Literal['checked', 'trusted']
+
+
 @dc.dataclass(frozen=True, kw_only=True)
 class PackageConfig:
     codegen: bool = False
+    codegen_mode: CodegenMode = 'checked'
+
+    def __post_init__(self) -> None:
+        if self.codegen_mode not in ('checked', 'trusted'):
+            raise ValueError(self.codegen_mode)
 
     def __init_subclass__(cls, **kwargs):
         raise TypeError
@@ -122,6 +130,7 @@ def init_package(
         init_globals: ta.MutableMapping[str, ta.Any],
         *,
         codegen: bool = False,
+        codegen_mode: CodegenMode = 'checked',
 ) -> None:
     pkg = check.non_empty_str(init_globals['__package__'])
     if init_globals['__name__'] not in (pkg, '__main__'):
@@ -129,6 +138,7 @@ def init_package(
 
     pkg_cfg = PackageConfig(
         codegen=codegen,
+        codegen_mode=codegen_mode,
     )
 
     PACKAGE_CONFIG_CACHE.put(pkg, pkg_cfg)
