@@ -86,15 +86,15 @@ class HttpErrorDetails:
     """
     The small, provider-neutral part of a JSON HTTP error which is safe to use for classification.
 
-    Providers agree only loosely on error envelopes. Most put the useful fields under a top-level ``error`` object;
-    some return those fields at the top level instead, and some use an integer HTTP-like ``code`` while others use a
-    symbolic string. Normalizing those mechanical differences here lets provider classifiers reason about named
-    fields without searching the serialized response body.
+    Providers agree only loosely on error envelopes. Most put the useful fields under a top-level ``error`` object; some
+    return those fields at the top level instead, and some use an integer HTTP-like ``code`` while others use a symbolic
+    string. Normalizing those mechanical differences here lets provider classifiers reason about named fields without
+    searching the serialized response body.
 
-    The fields deliberately retain their original values and spelling. A classifier should compare a symbolic value
-    with ``code_is`` or normalize the particular field itself. More importantly, ``message`` is *only* the provider's
-    designated error-message field. It is never the whole JSON document. This prevents an echoed request value,
-    metadata field, or nested upstream diagnostic from accidentally triggering a substring heuristic.
+    The fields deliberately retain their original values and spelling. A classifier should compare a symbolic value with
+    ``code_is`` or normalize the particular field itself. More importantly, ``message`` is *only* the provider's
+    designated error-message field. It is never the whole JSON document. This prevents an echoed request value, metadata
+    field, or nested upstream diagnostic from accidentally triggering a substring heuristic.
     """
 
     http_status: int
@@ -119,9 +119,9 @@ def parse_http_error_details(response: http.BaseHttpClientResponse) -> HttpError
 
     A nested ``error`` mapping wins over the outer envelope. This matters for Anthropic, whose outer ``type`` is the
     uninformative value ``error`` while ``error.type`` is the useful ``invalid_request_error``. Top-level fields remain
-    a fallback for APIs which return the error object directly. A string-valued ``error`` is treated as the message,
-    but malformed, non-JSON, and structurally unfamiliar bodies simply produce status-only details: classification
-    must fail closed rather than guessing from arbitrary bytes.
+    a fallback for APIs which return the error object directly. A string-valued ``error`` is treated as the message, but
+    malformed, non-JSON, and structurally unfamiliar bodies simply produce status-only details: classification must fail
+    closed rather than guessing from arbitrary bytes.
     """
 
     body: ta.Any = None

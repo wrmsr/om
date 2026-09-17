@@ -131,6 +131,38 @@ with _lang.auto_proxy_init(
 
     ##
 
+    from .lifecycle.compactors import (  # noqa
+        ContextCompactor,
+    )
+
+    from .lifecycle.estimators import (  # noqa
+        ContextTokenEstimator,
+        CharacterContextTokenEstimator,
+    )
+
+    from .lifecycle.managers import (  # noqa
+        ContextLifecycleResult,
+        ContextLifecycleManager,
+        StandardContextLifecycleManager,
+    )
+
+    ##
+
+    from .projection.builders import (  # noqa
+        StandardLlmContextBuilder,
+    )
+
+    from .projection.messages import (  # noqa
+        TypeMapAgentMessageProjector,
+    )
+
+    from .projection.types import (  # noqa
+        AgentMessageProjector,
+        LlmContextBuilder,
+    )
+
+    ##
+
     from .permissions.collection import (  # noqa
         PermissionRules,
     )
@@ -151,32 +183,6 @@ with _lang.auto_proxy_init(
     from .permissions.tools import (  # noqa
         ToolPermissionMatcher,
     )
-
-    from .projection.builders import (  # noqa
-        StandardLlmContextBuilder,
-    )
-
-    from .projection.messages import (  # noqa
-        TypeMapAgentMessageProjector,
-    )
-
-    from .projection.types import (  # noqa
-        AgentMessageProjector,
-        LlmContextBuilder,
-    )
-
-    from .lifecycle import (  # noqa
-        ContextCompactor,
-
-        ContextTokenEstimator,
-        CharacterContextTokenEstimator,
-
-        ContextLifecycleResult,
-        ContextLifecycleManager,
-        StandardContextLifecycleManager,
-    )
-
-    ##
 
     from .permissions.types import (  # noqa
         PermissionState,
@@ -215,6 +221,8 @@ with _lang.auto_proxy_init(
         reflect_tool_fn,
     )
 
+    ##
+
     from .turns.inboxes import (  # noqa
         ListTurnInbox,
     )
@@ -233,18 +241,6 @@ with _lang.auto_proxy_init(
         Context,
     )
 
-    from .types.context_lifecycle import (  # noqa
-        UsageLedger,
-        ContextLifecycleConfig,
-        ContextBudget,
-
-        ToolResultProjection,
-        ContextProjection,
-
-        ContextReductionReason,
-        ContextReduction,
-    )
-
     from .types.errors import (  # noqa
         Error,
 
@@ -261,6 +257,7 @@ with _lang.auto_proxy_init(
 
         LlmAiStreamEvent,
         LlmRetryEvent,
+
         ContextWindowEvent,
         ContextReductionEvent,
 
@@ -283,6 +280,18 @@ with _lang.auto_proxy_init(
 
     from .types.inboxes import (  # noqa
         TurnInbox,
+    )
+
+    from .types.lifecycle import (  # noqa
+        UsageLedger,
+        ContextLifecycleConfig,
+        ContextBudget,
+
+        ToolResultProjection,
+        ContextProjection,
+
+        ContextReductionReason,
+        ContextReduction,
     )
 
     from .types.messages import (  # noqa

@@ -39,6 +39,6 @@ class BaseOpenaiResponsesBackend(BaseHttpBackend, lang.Abstract):
 
     def _is_context_overflow_http_error(self, error: HttpErrorDetails) -> bool:
         # Responses models are native OpenAI today. Retaining the provider argument keeps the dispatch honest if an
-        # OpenAI-compatible Responses endpoint is added later: it will receive exact-code support automatically, but
-        # no provider-specific message fallback merely because it happens to share the wire format.
+        # OpenAI-compatible Responses endpoint is added later: it will receive exact-code support automatically, but no
+        # provider-specific message fallback merely because it happens to share the wire format.
         return is_openai_context_overflow_error(error, provider=self._model.key_.provider)

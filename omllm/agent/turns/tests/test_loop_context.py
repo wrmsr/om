@@ -6,10 +6,10 @@ from omcore.asyncs.asynclite import all as asl
 from .... import llm
 from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...tests.tools import bare_tool
-from ...types.context_lifecycle import ContextLifecycleConfig
 from ...types.contexts import Context
 from ...types.events import ContextReductionEvent
 from ...types.events import LlmRetryEvent
+from ...types.lifecycle import ContextLifecycleConfig
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason

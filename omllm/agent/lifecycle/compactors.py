@@ -2,9 +2,9 @@ import abc
 
 from omcore import lang
 
-from ..types.context_lifecycle import ContextProjection
-from ..types.context_lifecycle import ContextReductionReason
 from ..types.contexts import Context
+from ..types.lifecycle import ContextProjection
+from ..types.lifecycle import ContextReductionReason
 
 
 ##

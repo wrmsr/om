@@ -10,9 +10,9 @@ from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.tools import EchoTool
 from ...turns.loop import TurnLoop
-from ...types.context_lifecycle import ContextProjection
-from ...types.context_lifecycle import ToolResultProjection
 from ...types.contexts import Context
+from ...types.lifecycle import ContextProjection
+from ...types.lifecycle import ToolResultProjection
 from ...types.messages import AgentMessage
 from ...types.messages import InfoAgentMessage
 from ...types.tools import ToolSet

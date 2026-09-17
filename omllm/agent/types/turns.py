@@ -7,9 +7,9 @@ from omcore import lang
 
 from ... import llm
 from ...core.eventbus import EventSubscriber
-from .context_lifecycle import ContextLifecycleConfig
 from .contexts import Context
 from .inboxes import TurnInbox
+from .lifecycle import ContextLifecycleConfig
 from .messages import Message
 
 

@@ -6,12 +6,12 @@ from omcore import lang
 
 from ... import llm
 from ..projection.types import LlmContextBuilder
-from ..types.context_lifecycle import ContextBudget
-from ..types.context_lifecycle import ContextLifecycleConfig
-from ..types.context_lifecycle import ContextReduction
-from ..types.context_lifecycle import ContextReductionReason
-from ..types.context_lifecycle import ToolResultProjection
 from ..types.contexts import Context
+from ..types.lifecycle import ContextBudget
+from ..types.lifecycle import ContextLifecycleConfig
+from ..types.lifecycle import ContextReduction
+from ..types.lifecycle import ContextReductionReason
+from ..types.lifecycle import ToolResultProjection
 from .compactors import ContextCompactor
 from .estimators import CharacterContextTokenEstimator
 from .estimators import ContextTokenEstimator

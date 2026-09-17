@@ -7,9 +7,9 @@ from ..base.http import HttpErrorDetails
 ##
 
 
-# OpenAI's native APIs put the actionable reason in error.code. Several OpenAI-compatible servers put the same value
-# in error.type instead, so both named fields are accepted. These are exact protocol identifiers, not words searched
-# for in a human-readable message. A new identifier therefore fails closed until it is deliberately added here.
+# OpenAI's native APIs put the actionable reason in error.code. Several OpenAI-compatible servers put the same value in
+# error.type instead, so both named fields are accepted. These are exact protocol identifiers, not words searched for in
+# a human-readable message. A new identifier therefore fails closed until it is deliberately added here.
 _CONTEXT_OVERFLOW_CODES: ta.Final[ta.AbstractSet[str]] = frozenset({
     'context_length_exceeded',
     'context_window_exceeded',
@@ -25,10 +25,10 @@ _CONTEXT_OVERFLOW_CODES: ta.Final[ta.AbstractSet[str]] = frozenset({
 #   This endpoint's maximum context length is 131072 tokens. However, you requested about 135349 tokens (...).
 #
 # Matching only that quantified prefix is intentional. The recommendation has changed from the old "middle-out"
-# transform to the context-compression plugin and may change again. Conversely, matching a bare phrase such as
-# "maximum context length" would recreate the global heuristic this module exists to remove. The classifier also
-# requires the OpenRouter model provider and a client-error status, so this compatibility path cannot affect OpenAI,
-# Groq, Cerebras, Ollama, or another OpenAI-shaped service.
+# transform to the context-compression plugin and may change again. Conversely, matching a bare phrase such as "maximum
+# context length" would recreate the global heuristic this module exists to remove. The classifier also requires the
+# OpenRouter model provider and a client-error status, so this compatibility path cannot affect OpenAI, Groq, Cerebras,
+# Ollama, or another OpenAI-shaped service.
 _OPENROUTER_CONTEXT_OVERFLOW_RE: ta.Final = re.compile(
     r"^this endpoint['\N{RIGHT SINGLE QUOTATION MARK}]s maximum context length is [\d,]+ tokens\.\s+"
     r"however, you requested (?:about )?[\d,]+ tokens\b",

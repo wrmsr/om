@@ -9,8 +9,8 @@ from ...base.http import HttpErrorDetails
 
 # GenerateContent represents context overflow as the same 400 / INVALID_ARGUMENT pair used for ordinary malformed
 # requests. The message is the only remaining discriminator in the REST contract. Keep the match anchored to the full
-# quantified sentence returned by the API: accepting a loose phrase such as "maximum number of tokens" could mistake
-# an invalid maxOutputTokens parameter (or some future validation diagnostic) for reducible prompt pressure.
+# quantified sentence returned by the API: accepting a loose phrase such as "maximum number of tokens" could mistake an
+# invalid maxOutputTokens parameter (or some future validation diagnostic) for reducible prompt pressure.
 _INPUT_TOKEN_LIMIT_RE: ta.Final = re.compile(
     r'the input token count \([\d,]+\) exceeds the maximum number of tokens allowed \([\d,]+\)\.?',
     re.IGNORECASE,

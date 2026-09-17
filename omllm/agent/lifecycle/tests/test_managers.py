@@ -4,10 +4,10 @@ from omcore import check
 
 from .... import llm
 from ...projection.builders import StandardLlmContextBuilder
-from ...types.context_lifecycle import ContextLifecycleConfig
-from ...types.context_lifecycle import ContextProjection
-from ...types.context_lifecycle import ContextReductionReason
 from ...types.contexts import Context
+from ...types.lifecycle import ContextLifecycleConfig
+from ...types.lifecycle import ContextProjection
+from ...types.lifecycle import ContextReductionReason
 from ..compactors import ContextCompactor
 from ..managers import StandardContextLifecycleManager
 

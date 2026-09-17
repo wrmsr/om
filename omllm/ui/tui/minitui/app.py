@@ -972,7 +972,7 @@ class MinituiChatApp(mt.App):
         context_usage = self._usage.render_context()
         self._status.set_right([
             (session_usage, 'status.text'),
-            ('   ' if session_usage and context_usage else '', 'status.dim'),
+            (' ' if session_usage and context_usage else '', 'status.dim'),
             (context_usage, 'status.text'),
         ])
 

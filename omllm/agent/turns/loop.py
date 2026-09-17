@@ -17,7 +17,6 @@ from ..lifecycle.managers import ContextLifecycleResult
 from ..lifecycle.managers import StandardContextLifecycleManager
 from ..projection.builders import StandardLlmContextBuilder
 from ..projection.types import LlmContextBuilder
-from ..types.context_lifecycle import ContextBudget
 from ..types.contexts import Context
 from ..types.errors import ErrorStopReasonError
 from ..types.errors import UnknownToolError
@@ -35,6 +34,7 @@ from ..types.events import ToolExecutionUpdateEvent
 from ..types.events import TurnEndEvent
 from ..types.events import TurnStartEvent
 from ..types.inboxes import TurnInbox
+from ..types.lifecycle import ContextBudget
 from ..types.messages import InfoAgentMessage
 from ..types.messages import Message
 from ..types.progress import ToolProgressSink
