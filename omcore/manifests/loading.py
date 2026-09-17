@@ -20,6 +20,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os.path
+import sys
 import threading
 import typing as ta
 
@@ -231,6 +232,52 @@ class ManifestLoader:
         return x
 
     ##
+
+    @classmethod
+    def _cheap_entry_point_values(
+            cls,
+            group: str,
+            path: ta.Optional[ta.Sequence[str]] = None,
+    ) -> ta.List[str]:
+        hdr = f'[{group}]'
+        hdr_b = hdr.encode()
+        out: ta.List[str] = []
+        seen: ta.Set[str] = set()
+
+        for p in (sys.path if path is None else path):
+            p = p or '.'
+            try:
+                with os.scandir(p) as it:
+                    infos = [e.path for e in it if e.name.endswith(('.dist-info', '.egg-info')) and e.is_dir()]
+            except OSError:
+                continue
+
+            for d in infos:
+                try:
+                    with open(os.path.join(d, 'entry_points.txt'), 'rb') as f:
+                        src = f.read()
+                except OSError:
+                    continue
+
+                if hdr_b not in src:  # cheap reject before decoding/parsing
+                    continue
+
+                in_sec = False
+                for line in src.decode('utf-8', 'replace').splitlines():
+                    line = line.strip()
+                    if not line or line.startswith(('#', ';')):
+                        continue
+                    if line.startswith('['):
+                        in_sec = (line == hdr)
+                    elif in_sec and '=' in line:
+                        v = line.split('=', 1)[1].strip()
+                        if v not in seen:
+                            seen.add(v)
+                            out.append(v)
+
+        return out
+
+    #
 
     def _scan_package_root_dir_uncached(
             self,
