@@ -13,7 +13,7 @@ urls = {source = 'https://github.com/wrmsr/om'}
 license = 'BSD-3-Clause'
 readme = 'README.md'
 requires-python = '>=3.14'
-version = '0.0.57'
+version = '0.0.58'
 classifiers = [
     'Intended Audience :: Developers',
     'Operating System :: OS Independent',
@@ -24,15 +24,15 @@ classifiers = [
 ]
 description = 'omdev'
 dependencies = [
-    'omcore == 0.0.57',
+    'omcore == 0.0.58',
 ]
 
 [project.optional-dependencies]
 ominfra = [
-    'ominfra == 0.0.57',
+    'ominfra == 0.0.58',
 ]
 omllm = [
-    'omllm == 0.0.57',
+    'omllm == 0.0.58',
 ]
 black = [
     'black ~= 26.5',
@@ -85,17 +85,17 @@ tui-syntax = [
     'tree-sitter-yaml ~= 0.7',
 ]
 cext = [
-    'omdev-cext == 0.0.57',
+    'omdev-cext == 0.0.58',
 ]
 rs = [
-    'omdev-rs == 0.0.57',
+    'omdev-rs == 0.0.58',
 ]
 cli = [
-    'omdev-cli == 0.0.57',
+    'omdev-cli == 0.0.58',
 ]
 all = [
-    'ominfra == 0.0.57',
-    'omllm == 0.0.57',
+    'ominfra == 0.0.58',
+    'omllm == 0.0.58',
     'black ~= 26.5',
     'pycparser ~= 3.0',
     'pcpp ~= 1.30',
@@ -124,9 +124,9 @@ all = [
     'tree-sitter-toml ~= 0.7',
     'tree-sitter-xml ~= 0.7',
     'tree-sitter-yaml ~= 0.7',
-    'omdev-cext == 0.0.57',
-    'omdev-rs == 0.0.57',
-    'omdev-cli == 0.0.57',
+    'omdev-cext == 0.0.58',
+    'omdev-rs == 0.0.58',
+    'omdev-cli == 0.0.58',
 ]
 
 [project.entry-points]
