@@ -12,9 +12,11 @@ qwen35/weights.py    Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama te
                      (packed safetensors, MLX int4/int8 affine dequant) -> canonical HF-layout params
 qwen35/tokenizer.py  byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
 qwen35/model.py      the model: RMSNorm, gated GQA attention w/ partial RoPE, Gated DeltaNet, SwiGLU, cache
+qwen35/quant.py      weight-only int8/int4 affine quantization kept on device (QWeight), dequant per matmul
 generate.py          CLI greedy generation
 validate.py          compare tokenizer / greedy tokens / per-step logprobs against llama-server
 tests/test_synthetic.py  builds a tiny GGUF (and a tiny Ollama tensor-blob model) and checks everything
+tests/test_quant.py      quant round-trips, bit-exact MLX re-pack, quantized model vs f32
 ```
 
 ## Run
@@ -27,6 +29,29 @@ python generate.py --model qwen3.5:0.8b --raw -p "The capital of France is" --dt
 ```
 
 `--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path.
+
+## Running the 27B models: `--quant`
+
+Without `--quant` every weight is expanded to the compute dtype at load: ~55 GB for a 27B in bf16 (~110 GB in f32).
+`--quant int8` / `--quant int4` keep the linear weights (and the embedding / lm_head) quantized on the device and
+expand them per matmul, which is what makes 3.6-27B / 3.8-27B fit on ordinary hardware:
+
+```bash
+python generate.py --model qwen3.6:27b --quant int4 -p "..."      # ~15 GB of weights
+python generate.py --model qwen3.6:27b --quant int8 -p "..."      # ~28 GB, essentially bf16 quality
+python validate.py --model qwen3.5:0.8b --quant int8 -n 32           # quantized path vs llama-server
+```
+
+The scheme is asymmetric affine, one `(scale, bias)` per 64 inputs — MLX's `mx.quantize` layout — so Ollama tensor
+blobs that are already MLX int4/int8 are re-packed bit-for-bit (no requantization). GGUF k-quants are dequantized
+to f32 and requantized, which adds a small error on top of the file's own quantization (int8 is lossless in
+practice; int4-over-Q4_K_M is a double quantization — prefer int8 if it fits). Norms, `A`, `dt_bias`, the conv
+kernel and the two low-rank DeltaNet projections (`in_proj_a` / `in_proj_b`, which Ollama also keeps at source
+precision) are never quantized.
+
+Cost: decode is memory-bound, and expanding int4 -> bf16 before the matmul reads ~2.5 bytes/param instead of 2,
+so expect decode a little slower than a bf16 model that fit — the win is purely memory. A fused
+weight-only kernel (`torch._weight_int4pack_mm`, or your own) is the follow-up if that matters.
 
 ## Validate against llama.cpp
 
@@ -65,9 +90,9 @@ Ollama's newer tensor-blob format needs none of that (HF names, HF layout), only
    `model.py` and use it when `T > 1`. Prefill goes from O(T) sequential steps to O(T/64).
 2. **Cache management** — `Cache.snapshot()` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
-3. **Quantised matmuls** — right now everything is dequantised to bf16/f32 at load. 27B in bf16 is
-   ~55 GB; keeping the GGUF blocks and writing your own Q4_K/Q8_0 dot kernels (or int4 for the MLX
-   blobs) is where the real memory win is.
+3. **Fused quantized matmuls** — `QWeight.linear` expands to bf16 per call. A fused int4/int8 kernel
+   (or carrying the GGUF Q4_K/Q8_0 blocks as-is and writing the dot kernels) buys back decode bandwidth
+   and, for the GGUF path, removes the double quantization.
 4. **Serving** — `Qwen35.generate` is the whole inference loop; wrap it in whatever HTTP layer you like.
 
 MoE variants (`qwen35moe`) and the vision tower are deliberately not supported.

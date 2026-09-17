@@ -58,6 +58,12 @@ def main():
     ap.add_argument(
         '--info', action='store_true', help='print config and tensor names, then exit',
     )
+    ap.add_argument(
+        '--quant',
+        choices=['int8', 'int4'],
+        default=None,
+        help='keep linear weights quantized on device (weight-only affine, group 64); default: none',
+    )
     args = ap.parse_args()
 
     device = pick_device(args.device)
@@ -75,7 +81,7 @@ def main():
         return
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     t0 = time.time()
-    model = Qwen35.from_source(src, device=device, dtype=dtype)
+    model = Qwen35.from_source(src, device=device, dtype=dtype, quant=args.quant)
     print(f'[model] loaded on {device} as {dtype} in {time.time() - t0:.1f}s')
 
     text = (

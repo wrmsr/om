@@ -254,6 +254,17 @@ def mlx_affine_dequant(
 # Tensor sources
 
 
+@dc.dataclass()
+class NativeQuant:
+    """A tensor the source already holds in affine `bits`-bit form: w ≈ values * scale + bias (see quant.py)."""
+
+    values: np.ndarray  # uint8 [out, in], one value per element (unpacked)
+    scale: np.ndarray  # [out, in // group]
+    bias: np.ndarray  # [out, in // group]
+    bits: int
+    group: int
+
+
 class TensorSource:
     config: Qwen35Config
     tokenizer_spec: dict  # see tokenizer.py
@@ -263,6 +274,11 @@ class TensorSource:
 
     def get(self, name: str) -> np.ndarray:
         raise NotImplementedError
+
+    def get_quant(self, name: str) -> NativeQuant | None:
+        """The tensor in its stored quantized form, if the source has one that quant.py can use directly."""
+
+        return None
 
     def has(self, name: str) -> bool:
         return name in set(self.names())
@@ -626,7 +642,7 @@ class OllamaTensorSource(TensorSource):
             self._files[d] = SafetensorsFile(self.om.blob(d))
         return self._files[d]
 
-    def _load_hf(self, canon: str) -> np.ndarray:
+    def _raw(self, canon: str):
         f = self._file(canon)
         raw_name = self._layers[canon]['name']
         names = f.names()
@@ -636,19 +652,43 @@ class OllamaTensorSource(TensorSource):
             else next(n for n in names if not n.endswith(('.scale', '.bias')))
         )
         w = f.get(base)
-        if w.dtype == np.uint32:  # MLX quantized
-            md = f.metadata
-            qt = md.get(base + '.quant_type') or md.get('quant_type') or 'int4'
-            gs = int(md.get(base + '.group_size') or md.get('group_size') or 64)
-            bits = {'int4': 4, 'int8': 8}.get(qt.lower())
-            if bits is None:
-                raise NotImplementedError(
-                    f'MLX quant mode {qt!r} not supported (only affine int4/int8)',
-                )
-            scales = f.get(base + '.scale')
-            biases = f.get(base + '.bias') if (base + '.bias') in names else None
+        if w.dtype != np.uint32:
+            return w, None
+        md = f.metadata
+        qt = md.get(base + '.quant_type') or md.get('quant_type') or 'int4'
+        gs = int(md.get(base + '.group_size') or md.get('group_size') or 64)
+        bits = {'int4': 4, 'int8': 8}.get(qt.lower())
+        if bits is None:
+            raise NotImplementedError(
+                f'MLX quant mode {qt!r} not supported (only affine int4/int8)',
+            )
+        scales = f.get(base + '.scale')
+        biases = f.get(base + '.bias') if (base + '.bias') in names else None
+        return w, (scales, biases, bits, gs)
+
+    def _load_hf(self, canon: str) -> np.ndarray:
+        w, q = self._raw(canon)
+        if q is not None:
+            scales, biases, bits, gs = q
             w = mlx_affine_dequant(w, scales, biases, bits, gs)
         return np.ascontiguousarray(w, dtype=np.float32)
+
+    def get_quant(self, name: str) -> NativeQuant | None:
+        if name not in self._layers or name.endswith('.linear_attn.A'):
+            return None
+        w, q = self._raw(name)
+        if q is None or w.ndim != 2:
+            return None
+        scales, biases, bits, gs = q
+        # MLX packs `32 // bits` values per little-endian uint32, first value in the low bits: viewing the words as
+        # bytes gives the values in order (int8), or two per byte with the first in the low nibble (int4).
+        per_word = 32 // bits
+        vals = np.ascontiguousarray(w).view(np.uint8)
+        if bits == 4:
+            vals = np.stack([vals & 0xF, vals >> 4], axis=-1).reshape(w.shape[0], w.shape[1] * per_word)
+        if biases is None:
+            biases = np.zeros_like(scales)
+        return NativeQuant(np.ascontiguousarray(vals), scales, biases, bits, gs)
 
     def get(self, name: str) -> np.ndarray:
         if name.endswith('.linear_attn.A'):

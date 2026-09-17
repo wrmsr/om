@@ -63,6 +63,7 @@ def main():
     ap.add_argument('--top-k', type=int, default=10)
     ap.add_argument('--device', default=None)
     ap.add_argument('--dtype', choices=['bf16', 'f16', 'f32'], default='f32')
+    ap.add_argument('--quant', choices=['int8', 'int4'], default=None)
     ap.add_argument(
         '--show-blob', action='store_true', help='print the GGUF blob path and exit',
     )
@@ -74,8 +75,8 @@ def main():
             print(om.blob(l['digest']), l.get('size'))
         return
 
-    from generate import DTYPES
-    from generate import pick_device
+    from .generate import DTYPES
+    from .generate import pick_device
 
     device = pick_device(args.device)
     dtype = DTYPES[args.dtype]
@@ -138,7 +139,7 @@ def main():
 
     # 3. our model, teacher-forced on the oracle's tokens
 
-    model = Qwen35.from_source(src, device=device, dtype=dtype)
+    model = Qwen35.from_source(src, device=device, dtype=dtype, quant=args.quant)
     seq = prompt_ids + ref_tokens[:-1]
     cache = Cache(src.config)
     t0 = time.time()

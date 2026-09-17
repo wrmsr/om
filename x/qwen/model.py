@@ -21,6 +21,13 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from .quant import QUANT_BITS
+from .quant import QWeight
+from .quant import embedding
+from .quant import from_native
+from .quant import linear
+from .quant import param_nbytes
+from .quant import quantize
 from .weights import Qwen35Config
 from .weights import TensorSource
 
@@ -160,10 +167,10 @@ class Attention:
         c = self.cfg
         B, T, _ = x.shape
         H, KV, D = c.num_heads, c.num_kv_heads, c.head_dim
-        qg = F.linear(x, self.wq).view(B, T, H, 2 * D)
+        qg = linear(x, self.wq).view(B, T, H, 2 * D)
         q, gate = qg[..., :D], qg[..., D:]  # per-head [q | gate]
-        k = F.linear(x, self.wk).view(B, T, KV, D)
-        v = F.linear(x, self.wv).view(B, T, KV, D)
+        k = linear(x, self.wk).view(B, T, KV, D)
+        v = linear(x, self.wv).view(B, T, KV, D)
         q = rms_norm(q, self.q_norm, c.rms_eps).transpose(1, 2)  # [B,H,T,D]
         k = rms_norm(k, self.k_norm, c.rms_eps).transpose(1, 2)  # [B,KV,T,D]
         v = v.transpose(1, 2)
@@ -191,7 +198,7 @@ class Attention:
             )
         o = o.transpose(1, 2).reshape(B, T, H * D)
         o = o * torch.sigmoid(gate.reshape(B, T, H * D).float()).to(o.dtype)
-        return F.linear(o, self.wo)
+        return linear(o, self.wo)
 
 
 class GatedDeltaNet:
@@ -218,10 +225,10 @@ class GatedDeltaNet:
             c.head_v_dim,
             c.conv_kernel,
         )
-        qkv = F.linear(x, self.w_qkv).float().transpose(1, 2)  # [B, conv_dim, T]
-        z = F.linear(x, self.w_z).float()  # [B, T, value_dim]
-        a = F.linear(x, self.w_a).float()  # [B, T, n_v]
-        b = F.linear(x, self.w_b).float()
+        qkv = linear(x, self.w_qkv).float().transpose(1, 2)  # [B, conv_dim, T]
+        z = linear(x, self.w_z).float()  # [B, T, value_dim]
+        a = linear(x, self.w_a).float()  # [B, T, n_v]
+        b = linear(x, self.w_b).float()
 
         # causal depthwise conv1d (+ state)
         if cache is not None and cache.conv is not None:
@@ -261,7 +268,7 @@ class GatedDeltaNet:
         out = out.transpose(1, 2).reshape(B, T, Hv, dv)  # [B,T,Hv,dv]
         z = z.view(B, T, Hv, dv)
         out = rms_norm(out, self.norm_w, c.rms_eps) * F.silu(z)  # gated RMSNorm
-        return F.linear(out.reshape(B, T, c.value_dim).to(x.dtype), self.w_out)
+        return linear(out.reshape(B, T, c.value_dim).to(x.dtype), self.w_out)
 
 
 class MLP:
@@ -269,7 +276,7 @@ class MLP:
         self.wg, self.wu, self.wd = p['gate_proj'], p['up_proj'], p['down_proj']
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        return F.linear(F.silu(F.linear(x, self.wg)) * F.linear(x, self.wu), self.wd)
+        return linear(F.silu(linear(x, self.wg)) * linear(x, self.wu), self.wd)
 
 
 class Block:
@@ -326,10 +333,29 @@ def required_param_names(cfg: Qwen35Config) -> list[str]:
     return names
 
 
+# tensors that stay in float32 whatever the compute dtype
+KEEP_F32 = ('norm', 'linear_attn.A', 'dt_bias', 'conv1d')
+
+# 2-D weights that are never quantized: the low-rank DeltaNet projections are quantization-sensitive (Ollama's own
+# converter also keeps them at source precision)
+NO_QUANT = ('in_proj_a', 'in_proj_b')
+
+
+def is_quantizable(name: str, t: torch.Tensor, group: int) -> bool:
+    if t.ndim != 2 or t.shape[1] % group:
+        return False
+    return not any(s in name for s in KEEP_F32 + NO_QUANT)
+
+
+Param = torch.Tensor | QWeight
+
+
 class Qwen35:
-    def __init__(self, cfg: Qwen35Config, params: dict[str, torch.Tensor], device):
+    def __init__(self, cfg: Qwen35Config, params: dict[str, Param], device, dtype: torch.dtype = torch.bfloat16):
         self.cfg = cfg
         self.device = device
+        self.dtype = dtype
+        self.nbytes = sum(param_nbytes(p) for p in params.values())
         self.embed = params['embed_tokens.weight']
         self.norm_w = params['norm.weight']
         self.lm_head = params.get('lm_head.weight', self.embed)
@@ -351,9 +377,24 @@ class Qwen35:
 
     @classmethod
     def from_source(
-        cls, src: TensorSource, device='cpu', dtype=torch.bfloat16, verbose=True,
+        cls,
+        src: TensorSource,
+        device='cpu',
+        dtype=torch.bfloat16,
+        verbose=True,
+        quant: str | None = None,
+        group: int = 64,
     ) -> "Qwen35":
+        """
+        quant: None (weights in `dtype`), 'int8' or 'int4' (weight-only affine, see quant.py). If the source already
+        holds MLX-quantized tensors at the requested width they are re-packed as-is; otherwise weights are quantized
+        on `device` after loading.
+        """
+
         cfg = src.config
+        if quant is not None and quant not in QUANT_BITS:
+            raise ValueError(f'quant must be one of {list(QUANT_BITS)}, got {quant!r}')
+        bits = QUANT_BITS[quant] if quant else None
         if cfg.rope_scaling:
             print(
                 f'[model] WARNING: rope_scaling={cfg.rope_scaling} present; only plain RoPE is implemented '
@@ -369,22 +410,42 @@ class Qwen35:
             )
         if 'lm_head.weight' in available and not cfg.tied_embeddings:
             names.append('lm_head.weight')
-        keep_f32 = ('norm', 'linear_attn.A', 'dt_bias', 'conv1d')
+        n_native = n_quant = 0
         for n_i, name in enumerate(names):
-            arr = src.get(name)
-            t = torch.from_numpy(np.array(arr, dtype=np.float32, copy=True))
-            if not any(s in name for s in keep_f32):
-                t = t.to(dtype)
-            params[name] = t.to(device)
+            p: Param | None = None
+            if bits is not None and not any(s in name for s in KEEP_F32 + NO_QUANT):
+                nq = src.get_quant(name)
+                if nq is not None and nq.bits == bits:
+                    p = from_native(
+                        torch.from_numpy(np.array(nq.values, copy=True)).to(device),
+                        torch.from_numpy(np.array(nq.scale, dtype=np.float32, copy=True)).to(device),
+                        torch.from_numpy(np.array(nq.bias, dtype=np.float32, copy=True)).to(device),
+                        nq.bits,
+                        nq.group,
+                        dtype,
+                    )
+                    n_native += 1
+            if p is None:
+                t = torch.from_numpy(np.array(src.get(name), dtype=np.float32, copy=True)).to(device)
+                if any(s in name for s in KEEP_F32):
+                    p = t
+                elif bits is not None and is_quantizable(name, t, group):
+                    p = quantize(t, bits, group, dtype)
+                    n_quant += 1
+                else:
+                    p = t.to(dtype)
+            params[name] = p
             if verbose and (n_i % 50 == 0 or n_i == len(names) - 1):
                 print(
                     f'\r[model] loading tensors {n_i + 1}/{len(names)}',
                     end='',
                     flush=True,
                 )
+        model = cls(cfg, params, device, dtype)
         if verbose:
-            print()
-        return cls(cfg, params, device)
+            q_note = f', {n_native} re-packed + {n_quant} quantized to {quant}' if bits else ''
+            print(f'\n[model] {model.nbytes / 2**30:.2f} GiB of weights on {device}{q_note}')
+        return model
 
     # forward
 
@@ -403,10 +464,8 @@ class Qwen35:
         if start_pos is None:
             start_pos = cache.seq_len if cache is not None else 0
         pos = torch.arange(start_pos, start_pos + T, device=self.device)
-        cos, sin = rope_cos_sin(
-            pos, c.rope_dim, c.rope_theta, self.device, dtype=self.embed.dtype,
-        )
-        x = F.embedding(tokens, self.embed)
+        cos, sin = rope_cos_sin(pos, c.rope_dim, c.rope_theta, self.device, dtype=self.dtype)
+        x = embedding(tokens, self.embed, self.dtype)
         for i, blk in enumerate(self.blocks):
             x = blk(x, cos, sin, cache.layers[i] if cache is not None else None)
         if cache is not None:
@@ -414,7 +473,7 @@ class Qwen35:
         if last_only:
             x = x[:, -1:]
         x = rms_norm(x, self.norm_w, c.rms_eps)
-        return F.linear(x, self.lm_head).float()
+        return linear(x, self.lm_head).float()
 
     @torch.no_grad()
     def generate(
