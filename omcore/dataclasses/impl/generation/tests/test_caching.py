@@ -1,3 +1,10 @@
+"""
+Runtime cache tests: train on one class, then decorate a fresh class through the production lookup path.
+
+AotHarness.generated_calls records whether any generator ran in each successful decoration, not whether an installer
+ran. A normal cache hit still runs the installer, but records False because it skips generating that installer again.
+The assertions on resulting objects also check correctness; skipping generation alone is not enough.
+"""
 import copy
 import dataclasses as dc
 import inspect
@@ -21,6 +28,8 @@ T = ta.TypeVar('T')
 
 
 class Opaque:
+    """Fail if cache construction tries to represent, compare, or hash a runtime binding's contents."""
+
     def __repr__(self):
         raise AssertionError('opaque repr')
 
@@ -32,6 +41,8 @@ class Opaque:
 
 
 def test_opaque_bindings_skip_generation():
+    """Changing opaque defaults and annotations must reuse code while binding the new objects."""
+
     def make(annotation, default):
         class C:
             x: annotation = default  # type: ignore[valid-type]
@@ -42,12 +53,16 @@ def test_opaque_bindings_skip_generation():
         aot.decorate(make(Opaque(), Opaque()), train=True)
         ann, default = Opaque(), Opaque()
         cls = aot.decorate(make(ann, default))
+        # First decoration: forced generation to populate the cache. Second: cache hit with no generator calls.
         assert aot.generated_calls == [True, False]
+        # The reused installer must not retain the first class's default or annotation.
         assert cls().x is default
         assert cls.__init__.__annotations__['x'] is ann
 
 
 def test_factory_and_callable_bindings():
+    """A cache hit must retrieve the current factory, coercer, and validator rather than their training values."""
+
     def make(offset):
         class C:
             x: int = field(default_factory=lambda: 10, coerce=lambda v: v + offset, validate=lambda v: v > offset)
@@ -57,13 +72,15 @@ def test_factory_and_callable_bindings():
     with AotHarness() as aot:
         aot.decorate(make(1), train=True)
         cls = aot.decorate(make(2))
-        assert not aot.generated_calls[-1]
+        assert not aot.generated_calls[-1]  # The second decoration reused the installer despite new callables.
         assert cls().x == 12
         with pytest.raises(FieldFnValidationError):
             cls(-1)
 
 
 def test_bindings_use_spec_indexes_after_filtering_and_sorting():
+    """Filtered override fields and reordered repr fields must still extract values by original spec index."""
+
     def make(marker):
         class Base:
             @property
@@ -91,6 +108,8 @@ def test_bindings_use_spec_indexes_after_filtering_and_sorting():
 
 @pytest.mark.parametrize('change', ['factory', 'field', 'keyword', 'repr', 'compare', 'coerce', 'validate'])
 def test_spec_changes_miss(change):
+    """Each structural change requires generation rather than reuse of the installer trained on the old shape."""
+
     def make(changed):
         class C:
             x: int = field(
@@ -110,13 +129,15 @@ def test_spec_changes_miss(change):
     with AotHarness() as aot:
         aot.decorate(make(False), train=True)
         cls = aot.decorate(make(True))
-        assert aot.generated_calls[-1]
+        assert aot.generated_calls[-1]  # The changed class missed the cache and took the generation path.
         assert cls().x == 3
 
 
 @pytest.mark.parametrize('name', ['__init__', '__repr__', '__eq__', '__hash__', '__copy__', '__post_init__'])
 @pytest.mark.parametrize('remove', [False, True])
 def test_class_observations_include_inactive_generators(name, remove):
+    """Adding or removing a handwritten method must affect the key, even if it previously suppressed a generator."""
+
     def make(custom):
         class C:
             x: int = 3
@@ -133,6 +154,8 @@ def test_class_observations_include_inactive_generators(name, remove):
 
 
 def test_inherited_post_init():
+    """Adding a callback on a base class must invalidate reuse even though the subclass's spec is unchanged."""
+
     class Base:
         pass
 
@@ -151,6 +174,8 @@ def test_inherited_post_init():
 
 
 def test_order_conflict_still_raises():
+    """A trained ordering installer must not bypass the error for a conflicting handwritten comparison."""
+
     def make():
         class C:
             x: int = 1
@@ -163,10 +188,13 @@ def test_order_conflict_still_raises():
         setattr(cls, '__lt__', lambda self, other: False)
         with pytest.raises(TypeError, match='__lt__'):
             aot.decorate(cls, order=True)
+        # A failed decoration adds no history entry; inspect the class to ensure installation never began.
         assert '__copy__' not in vars(cls)
 
 
 def test_newly_invalid_field_order_still_raises():
+    """Making a required positional field follow a default must miss the cache and fail validation."""
+
     def make(default):
         class C:
             x: int = field(default=1 if default else dc.MISSING)
@@ -181,6 +209,8 @@ def test_newly_invalid_field_order_still_raises():
 
 
 def test_property_init_bindings():
+    """Both orders of @init and @property must bind the new class's callbacks on a cache hit."""
+
     def make(marker):
         class C:
             events: list = field(default_factory=list)
@@ -205,6 +235,8 @@ def test_property_init_bindings():
 
 
 def test_property_init_class_observation():
+    """Wrapping the same init callback in a property changes its adaptation kind and therefore the cache key."""
+
     def make(as_property):
         class C:
             x: int = 0
@@ -225,6 +257,8 @@ def test_property_init_class_observation():
 
 
 def test_generic_bindings():
+    """Generic substitutions are live bindings: reuse the installer but resolve annotations for the new base."""
+
     @dc.dataclass()
     class Base(ta.Generic[T]):
         x: T
@@ -244,6 +278,8 @@ def test_generic_bindings():
 
 
 def test_binding_recipes_distinguish_generic_init():
+    """Identical method operations do not imply identical ways to retrieve their annotation bindings."""
+
     def make():
         class C:
             x: int
@@ -253,12 +289,15 @@ def test_binding_recipes_distinguish_generic_init():
     with AotHarness() as aot:
         aot.decorate(make(), train=True)
         aot.decorate(make(), generic_init=True, train=True)
+        # Both calls deliberately generate, so we can compare their outputs instead of exercising cache lookup.
         plain, generic = [p for p, _ in aot.captured]
         assert plain.ops == generic.ops
         assert plain.bindings != generic.bindings
 
 
 def test_check_type_binding_validation_precedes_mutation():
+    """A matching code shape must still validate current type-check bindings before installing any methods."""
+
     def make(check_type):
         class C:
             x: ta.Any = field(check_type=check_type)
@@ -274,6 +313,7 @@ def test_check_type_binding_validation_precedes_mutation():
         with pytest.raises(TypeError):
             cls(1)
 
+        # This still has the same keyed shape. Extraction on the hit must reject its invalid opaque value.
         invalid = make((str, 'not a type'))
         with pytest.raises(TypeError):
             aot.decorate(invalid)
@@ -282,6 +322,8 @@ def test_check_type_binding_validation_precedes_mutation():
 
 
 def test_class_validation_params():
+    """Validator parameter names select which field values are passed, so changing them must miss."""
+
     def make(other):
         class C:
             x: int
@@ -310,6 +352,8 @@ def test_class_validation_params():
 
 
 def test_frozen_base_validation_is_live():
+    """Check current base-class state and exemptions even when the spec still matches a cached installer."""
+
     @dc.dataclass()
     class Base:
         x: int = 3
@@ -325,6 +369,7 @@ def test_frozen_base_validation_is_live():
         getattr(Base, '__dataclass_params__').frozen = True
         with pytest.raises(TypeError, match='non-frozen dataclass from a frozen'):
             aot.decorate(make())
+        # The failed attempt did not replace the artifact. Exempting the base allows reuse of the original one.
         unchecked_frozen_base(Base)
         cls = aot.decorate(make())
         assert not aot.generated_calls[-1]
@@ -332,6 +377,8 @@ def test_frozen_base_validation_is_live():
 
 
 def test_frozen_slots_and_closure_cells():
+    """Cached methods must cooperate with the replacement class and repaired closure cells created by slots."""
+
     def make():
         class C:
             x: int = 3
@@ -351,6 +398,8 @@ def test_frozen_slots_and_closure_cells():
 
 
 def test_incompatible_artifact_falls_back():
+    """A matching class shape cannot authorize reuse when the implementation stamp is incompatible."""
+
     def make():
         class C:
             x: int = 3
@@ -367,6 +416,8 @@ def test_incompatible_artifact_falls_back():
 
 @pytest.mark.parametrize('trusted', [False, True])
 def test_plan_keyed_artifact_falls_back(trusted):
+    """Both lookup modes must regenerate when presented with an artifact from the old plan-keyed protocol."""
+
     def make():
         class C:
             x: int = 3
@@ -377,17 +428,19 @@ def test_plan_keyed_artifact_falls_back(trusted):
         del aot.generated.IMPLEMENTATION_KEY
         aot.generated.REGISTRY_BY_PLAN_REPR = {}
         cls = aot.decorate(make(), trusted=trusted)
-        assert aot.generated_calls == [True]
+        assert aot.generated_calls == [True]  # One decoration, which had to generate because the artifact was old.
         assert cls().x == 3
 
 
 def test_prepare_only_validates_without_installing():
+    """Generation history observes preparation, not method installation; preparation-only must still validate."""
+
     with AotHarness() as aot:
         class C:
             x: int
 
         aot.decorate(C, _plan_only=True)
-        assert aot.generated_calls == [True]
+        assert aot.generated_calls == [True]  # Operations were generated, but deliberately never installed.
         assert '__init__' not in vars(C)
         assert '__eq__' not in vars(C)
         assert '__copy__' not in vars(C)
@@ -402,6 +455,8 @@ def test_prepare_only_validates_without_installing():
 
 
 def test_trusted_lookup_uses_names_and_still_binds_values():
+    """Trusted hits use class identity names, still extract fresh values, and fall back for an unknown name."""
+
     def make(default):
         class C:
             x: int = default
@@ -410,13 +465,14 @@ def test_trusted_lookup_uses_names_and_still_binds_values():
 
     with AotHarness() as aot:
         aot.decorate(make(1), train=True)
+        # With no structural-key entries available, a hit can only come from the module/qualname registry.
         aot.generated.REGISTRY_BY_SPEC_KEY.clear()
         cls = aot.decorate(make(2), trusted=True)
-        assert not aot.generated_calls[-1]
+        assert not aot.generated_calls[-1]  # The same class name reused its installer, despite the changed default.
         assert cls().x == 2
 
         other = make(3)
         other.__qualname__ = 'Other'
         cls = aot.decorate(other, trusted=True)
-        assert aot.generated_calls[-1]
+        assert aot.generated_calls[-1]  # The new class name was absent, so trusted lookup also falls back.
         assert cls().x == 3
