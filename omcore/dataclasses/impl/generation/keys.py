@@ -101,7 +101,7 @@ def _schema(ty: type) -> tuple:
         ty.__module__,
         ty.__qualname__,
         tuple(
-            (f.name, repr(f.type))
+            (f.name, repr(f.type))  # FIXME: ????
             for f in dc.fields(ty)
         ),
         tuple(

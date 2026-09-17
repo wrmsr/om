@@ -1,3 +1,4 @@
+import dataclasses as dc
 import typing as ta
 
 from ...specs import FieldSpec
@@ -18,15 +19,23 @@ from .fields import InitFields
 ##
 
 
+@dc.dataclass(frozen=True)
+class _ReprCacheKey:
+    has_own_repr: bool
+
+
 @register_generator_type
 class ReprGenerator(Generator):
-    cache_version = 1
+    cache_version = 2
+    cache_schema = (_ReprCacheKey,)
 
-    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
-        return '__repr__' in ctx.cls.__dict__
+    def cache_key(self, ctx: ProcessingContext) -> _ReprCacheKey:
+        return _ReprCacheKey(
+            has_own_repr='__repr__' in ctx.cls.__dict__,
+        )
 
     def generate(self, ctx: ProcessingContext) -> Generation | None:
-        if not ctx.cs.repr or self.cache_key(ctx):
+        if not ctx.cs.repr or self.cache_key(ctx).has_own_repr:
             return None
 
         ifs = ctx[InitFields]

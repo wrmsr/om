@@ -1,4 +1,4 @@
-import typing as ta
+import dataclasses as dc
 
 from ..generation.base import Generation
 from ..generation.base import Generator
@@ -23,18 +23,26 @@ ORDER_NAME_OP_PAIRS = [
 ##
 
 
+@dc.dataclass(frozen=True)
+class _OrderCacheKey:
+    order_field_names: tuple[str, ...]
+
+
 @register_generator_type
 class OrderGenerator(Generator):
-    cache_version = 1
+    cache_version = 2
+    cache_schema = (_OrderCacheKey,)
 
-    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
-        return tuple(name for name, _ in ORDER_NAME_OP_PAIRS if name in ctx.cls.__dict__)
+    def cache_key(self, ctx: ProcessingContext) -> _OrderCacheKey:
+        return _OrderCacheKey(
+            order_field_names=tuple(name for name, _ in ORDER_NAME_OP_PAIRS if name in ctx.cls.__dict__),
+        )
 
     def generate(self, ctx: ProcessingContext) -> Generation | None:
         if not ctx.cs.order:
             return None
 
-        for name in self.cache_key(ctx):
+        for name in self.cache_key(ctx).order_field_names:
             raise TypeError(
                 f'Cannot overwrite attribute {name} in class {ctx.cls.__name__}. '
                 f'Consider using functools.total_ordering',

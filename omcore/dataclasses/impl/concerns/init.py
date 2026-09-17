@@ -129,17 +129,24 @@ class _InitField:
     check_type: OpRef[type | tuple[type, ...]] | None
 
 
+@dc.dataclass(frozen=True)
+class _InitCacheKey:
+    has_own_init: bool
+    has_post_init: bool
+    init_func_kinds: tuple[str, ...]
+
+
 @register_generator_type
 class InitGenerator(Generator):
-    cache_version = 1
-    cache_schema = (_InitField,)
+    cache_version = 2
+    cache_schema = (_InitCacheKey, _InitField)
 
-    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
-        own_init = '__init__' in ctx.cls.__dict__
-        return (
-            own_init,
+    def cache_key(self, ctx: ProcessingContext) -> _InitCacheKey:
+        has_own_init = '__init__' in ctx.cls.__dict__
+        return _InitCacheKey(
+            has_own_init,
             hasattr(ctx.cls, STD_POST_INIT_NAME),
-            ctx[InitFunctions].kinds if ctx.cs.init and not own_init else (),
+            ctx[InitFunctions].kinds if ctx.cs.init and not has_own_init else (),
         )
 
     def _prepare_field(
@@ -204,8 +211,8 @@ class InitGenerator(Generator):
         )
 
     def generate(self, ctx: ProcessingContext) -> Generation | None:
-        own_init, has_post_init, _ = self.cache_key(ctx)
-        if own_init or not ctx.cs.init:
+        cache_key = self.cache_key(ctx)
+        if cache_key.has_own_init or not ctx.cs.init:
             return None
 
         init_fields = ctx[InitFields]
@@ -254,7 +261,7 @@ class InitGenerator(Generator):
             validate_fn_refs.append((validate_fn_ref, tuple(validate_fn.params)))
 
         post_init_params: tuple[str, ...] | None = None
-        if has_post_init:
+        if cache_key.has_post_init:
             post_init_params = tuple(f.name for f in init_fields.all if f.field_type is FieldType.INIT_VAR)
 
         self_param = SELF_IDENT if 'self' in ctx.cs.fields_by_name else 'self'

@@ -1,4 +1,4 @@
-import typing as ta
+import dataclasses as dc
 
 from ..generation.base import Generation
 from ..generation.base import Generator
@@ -11,15 +11,23 @@ from .fields import InstanceFields
 ##
 
 
+@dc.dataclass(frozen=True)
+class _EqCacheKey:
+    has_own_eq: bool
+
+
 @register_generator_type
 class EqGenerator(Generator):
-    cache_version = 1
+    cache_version = 2
+    cache_schema = (_EqCacheKey,)
 
-    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
-        return '__eq__' in ctx.cls.__dict__
+    def cache_key(self, ctx: ProcessingContext) -> _EqCacheKey:
+        return _EqCacheKey(
+            has_own_eq='__eq__' in ctx.cls.__dict__,
+        )
 
     def generate(self, ctx: ProcessingContext) -> Generation | None:
-        if not ctx.cs.eq or self.cache_key(ctx):
+        if not ctx.cs.eq or self.cache_key(ctx).has_own_eq:
             return None
 
         fields = tuple(f.name for f in ctx[InstanceFields] if f.compare)

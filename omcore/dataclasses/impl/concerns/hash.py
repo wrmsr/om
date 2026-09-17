@@ -54,20 +54,28 @@ CACHED_HASH_ATTR = '__dataclass_hash__'
 #
 
 
+@dc.dataclass(frozen=True)
+class _HashCacheKey:
+    has_own_hash: bool
+
+
 @register_generator_type
 class HashGenerator(Generator):
-    cache_version = 1
+    cache_version = 2
+    cache_schema = (_HashCacheKey,)
 
-    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
+    def cache_key(self, ctx: ProcessingContext) -> _HashCacheKey:
         class_hash = ctx.cls.__dict__.get('__hash__', dc.MISSING)
-        return not (class_hash is dc.MISSING or (class_hash is None and '__eq__' in ctx.cls.__dict__))
+        return _HashCacheKey(
+            has_own_hash=not (class_hash is dc.MISSING or (class_hash is None and '__eq__' in ctx.cls.__dict__)),
+        )
 
     def generate(self, ctx: ProcessingContext) -> Generation | None:
         action = HASH_ACTIONS[(
             bool(ctx.cs.unsafe_hash),
             bool(ctx.cs.eq),
             bool(ctx.cs.frozen),
-            self.cache_key(ctx),
+            self.cache_key(ctx).has_own_hash,
         )]
 
         if action == 'set_none':

@@ -1,4 +1,4 @@
-import typing as ta
+import dataclasses as dc
 
 from ...specs import FieldType
 from ..generation.base import Generation
@@ -13,15 +13,23 @@ from ..processing.base import ProcessingContext
 ##
 
 
+@dc.dataclass(frozen=True)
+class _CopyCacheKey:
+    has_own_copy: bool
+
+
 @register_generator_type
 class CopyGenerator(Generator):
-    cache_version = 1
+    cache_version = 2
+    cache_schema = (_CopyCacheKey,)
 
-    def cache_key(self, ctx: ProcessingContext) -> ta.Any:
-        return '__copy__' in ctx.cls.__dict__
+    def cache_key(self, ctx: ProcessingContext) -> _CopyCacheKey:
+        return _CopyCacheKey(
+            has_own_copy='__copy__' in ctx.cls.__dict__,
+        )
 
     def generate(self, ctx: ProcessingContext) -> Generation | None:
-        if self.cache_key(ctx):
+        if self.cache_key(ctx).has_own_copy:
             return None
 
         fields = tuple(f.name for f in ctx.cs.fields if f.field_type is not FieldType.CLASS_VAR)
