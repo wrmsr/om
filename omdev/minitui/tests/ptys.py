@@ -1,7 +1,7 @@
 """
 Driving a demo app end to end under a real pty: a subprocess on a pseudo-terminal of a fixed size, keys written to it,
-its output accumulated - and terminal queries it makes (the startup CPR) answered the way a terminal would, so the
-run is not timeout-delayed. Waits are for specific output, never for time.
+its output accumulated - and terminal queries it makes (the startup CPR) answered the way a terminal would, so the run
+is not timeout-delayed. Waits are for specific output, never for time.
 """
 import fcntl
 import os

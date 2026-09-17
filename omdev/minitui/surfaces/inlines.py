@@ -82,8 +82,8 @@ class InlineSurface(Surface):
         # Blind-optimistic until negotiated: unknown DECSETs are ignored by terminals that lack them.
         self._sync_output = True
 
-        # The origin's terminal row, when known (see `frame_row`). None until the CPR answers, and again after a
-        # resize: the terminal reflowed the main screen under us and the row is anyone's guess.
+        # The origin's terminal row, when known (see `frame_row`). None until the CPR answers, and again after a resize:
+        # the terminal reflowed the main screen under us and the row is anyone's guess.
         self._origin_row: int | None = None
 
         # The alt-screen excursion: a painter while requested; the switch itself is written by the first present, so
@@ -328,9 +328,9 @@ class InlineSurface(Surface):
     def _crlf(self, n: int = 1) -> None:
         """
         The literal pair, `n` times, from the current tracked row - the only thing that ever scrolls the terminal. Each
-        line feed from the bottom row moves everything above it up one, the origin included; the caller then records
-        the new cursor row. (A commit taller than the terminal legitimately drives the origin negative here: the rebase
-        that follows brings it back onto the screen.)
+        line feed from the bottom row moves everything above it up one, the origin included; the caller then records the
+        new cursor row. (A commit taller than the terminal legitimately drives the origin negative here: the rebase that
+        follows brings it back onto the screen.)
         """
 
         self._writer.crlf(n)

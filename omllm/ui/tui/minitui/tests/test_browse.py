@@ -1,6 +1,6 @@
 """
-Browse mode: f12 takes the chat surface fullscreen over its own transcript, esc (or f12) brings the live view back,
-and the transcript records every commit tagged by turn.
+Browse mode: f12 takes the chat surface fullscreen over its own transcript, esc (or f12) brings the live view back, and
+the transcript records every commit tagged by turn.
 """
 from omdev import minitui as mt
 
@@ -134,7 +134,8 @@ def test_browse_ignores_typing_by_default():
 
 def test_browse_type_returns_option():
     driver = Driver()
-    app = MinituiChatApp(driver, browse_type_returns=True)  # type: ignore[arg-type]
+    app = MinituiChatApp(driver)  # type: ignore
+    app._browse_type_returns = True  # noqa
     press(app, 'f12')
     type_text(app, 'x')
     assert not app.is_browsing

@@ -27,8 +27,8 @@ def test_alt_excursion_preserves_live_region():
 
     s.set_alt_screen(False)
     data = h.pump()
-    # (Snapshots rather than step-by-step asserts: mypy narrows an asserted attribute and reads the contradicting
-    # assert later as unreachable.)
+    # (Snapshots rather than step-by-step asserts: mypy narrows an asserted attribute and reads the contradicting assert
+    # later as unreachable.)
     assert (requested, s.alt_screen) == (True, False)
     assert (entered, h.terminal.in_alt_screen) == (True, False)
     assert b'\x1b[?1000l' in data  # back to the live region's (off) setting

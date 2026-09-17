@@ -34,9 +34,6 @@ class Config:
 
     verbose: bool | None = None
 
-    # Browse mode (f12): typing a printable key returns to the live view and types it there, instead of being ignored.
-    browse_type_returns: bool | None = None
-
     ##
 
     @classmethod
@@ -59,8 +56,6 @@ class Config:
         parser.add_argument('-I', '--immediate', action='store_true')
 
         parser.add_argument('-v', '--verbose', action='store_true')
-
-        parser.add_argument('--browse-type-returns', action='store_true')
 
         return parser
 
@@ -85,8 +80,6 @@ class Config:
             immediate=args.immediate,
 
             verbose=args.verbose,
-
-            browse_type_returns=args.browse_type_returns,
         )
 
     @classmethod

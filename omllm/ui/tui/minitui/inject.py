@@ -22,18 +22,11 @@ def _provide_driver(surface: mt.InlineSurface) -> mt.AsyncioDriver:
     return mt.AsyncioDriver(surface, app_handles_eof=True)
 
 
-def _provide_app(driver: mt.AsyncioDriver, config: Config) -> MinituiChatApp:
-    return MinituiChatApp(
-        driver,
-        browse_type_returns=bool(config.browse_type_returns),
-    )
-
-
 def bind_app(config: Config) -> inj.Elements:
     return inj.as_elements(
         inj.bind(mt.InlineSurface(kitty_keys=True)),
         inj.bind(_provide_driver, singleton=True),
-        inj.bind(_provide_app, singleton=True),
+        inj.bind(MinituiChatApp, singleton=True),
     )
 
 

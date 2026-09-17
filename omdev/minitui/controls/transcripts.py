@@ -1,15 +1,15 @@
 """
-The transcript: an app-retained record of what was committed, and the control that scrolls it - browse mode's model
-and view.
+The transcript: an app-retained record of what was committed, and the control that scrolls it - browse mode's model and
+view.
 
 Committed content is dead scrollback by design; the terminal owns it and minitui never looks at it again. An app that
 wants to look back keeps its own record: `Transcript` is an append-only log of blocks - each commit's lines exactly as
 displayed, plus an opaque tag saying what the block was (a message, a card, a command echo) - with row-to-block lookup.
 `TranscriptView` is a scrolled window over it: the fullscreen browse view. Retained cells render straight back out as
 segments carrying their already-resolved styles (the theme passes those through), clipped to the current width, and a
-set of live controls - the streaming tail, warm cards - is appended as the document's trailing block so it scrolls
-along with history. Follow mode keeps the window pinned to the bottom until the user scrolls up, and re-pins when they
-scroll back down.
+set of live controls - the streaming tail, warm cards - is appended as the document's trailing block so it scrolls along
+with history. Follow mode keeps the window pinned to the bottom until the user scrolls up, and re-pins when they scroll
+back down.
 
 Clicks resolve to a `TranscriptHit` - the document row, the block and its tag, or the live control under the row. That
 is the anchor a context menu would open from once overlay compositing exists in the controls layer; this view only
@@ -42,8 +42,8 @@ class TranscriptBlock(lang.Final):
 
 class Transcript:
     """
-    An append-only record of committed lines, in blocks. Optionally bounded in rows, in which case whole blocks drop
-    off the front once the bound is exceeded (the newest block always stays).
+    An append-only record of committed lines, in blocks. Optionally bounded in rows, in which case whole blocks drop off
+    the front once the bound is exceeded (the newest block always stays).
     """
 
     def __init__(
@@ -135,8 +135,8 @@ class TranscriptHit(lang.Final):
 
 def _line_segments(line: Line, width: int) -> list[Segment]:
     """
-    A retained line back to segments: adjacent same-style cells merge, and the row is clipped to `width` columns (a
-    wide character straddling the edge is dropped whole - autowrap is off, so overflow would pin and garble).
+    A retained line back to segments: adjacent same-style cells merge, and the row is clipped to `width` columns (a wide
+    character straddling the edge is dropped whole - autowrap is off, so overflow would pin and garble).
     """
 
     out: list[Segment] = []

@@ -51,8 +51,8 @@ def test_chatdemo_f12_round_trip():
 
 def test_chatdemo_browse_menu_over_a_message():
     # Browsing, a click on the first response's header floats its context menu; enter runs '/show 1', whose raw source
-    # lands in the transcript (and the browse view, still following); q closes browse mode, and nothing fullscreen -
-    # the menu included - survives on the main screen.
+    # lands in the transcript (and the browse view, still following); q closes browse mode, and nothing fullscreen - the
+    # menu included - survives on the main screen.
     run = PtyRun([sys.executable, '-m', 'omdev.minitui.tests.apps.chatdemo'], cwd=_REPO_ROOT)
     try:
         run.read_until(b'\x1b[?2004h', timeout_s=30.)

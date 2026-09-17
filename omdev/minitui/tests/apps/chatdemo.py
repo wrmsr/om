@@ -10,10 +10,10 @@ Input is the vim textarea (Esc for normal mode, /search, u/ctrl+r, ...). Up/ctrl
 cursor is on the first/last line (vim j/k still work inside multi-line drafts). '/' opens the command popup - tab
 cycles, enter runs. Ctrl-d quits.
 
-F12 browses: the whole transcript fullscreen on the alt screen (wheel / j k / pgup pgdn / g G), the live tail and
-cards trailing it; f12, esc, or q comes back to the live region exactly as it was, with whatever streamed meanwhile
-committed on the way. Clicking a message while browsing floats a context menu over it (an `Overlay` of a `Menu`):
-the demo of overlay compositing - '/show n' as a menu action.
+F12 browses: the whole transcript fullscreen on the alt screen (wheel / j k / pgup pgdn / g G), the live tail and cards
+trailing it; f12, esc, or q comes back to the live region exactly as it was, with whatever streamed meanwhile committed
+on the way. Clicking a message while browsing floats a context menu over it (an `Overlay` of a `Menu`): the demo of
+overlay compositing - '/show n' as a menu action.
 """
 import typing as ta
 
@@ -198,14 +198,22 @@ class ChatDemoApp(App):
     def _width(self) -> int:
         return max(self._driver.surface.width, 8)
 
-    def _commit_rows(self, rows: ta.Sequence[ta.Sequence[Segment]], *, tag: ta.Any = None) -> None:
+    def _commit_rows(
+            self,
+            rows: ta.Sequence[ta.Sequence[Segment]],
+            *,
+            tag: ta.Any = None,
+    ) -> None:
         lines = [line_from_segments(row, CHAT_THEME) for row in rows]
         self._transcript.record(lines, tag)
         self._driver.commit(lines)
 
     def _commit_header(self, msg: ChatMessage) -> None:
         self._commit_rows(
-            [[Segment(msg.speaker, f'speaker.{msg.speaker}'), Segment(f'  [{msg.number}]', 'speaker.num')]],
+            [[
+                Segment(msg.speaker, f'speaker.{msg.speaker}'),
+                Segment(f'  [{msg.number}]', 'speaker.num'),
+            ]],
             tag=msg,
         )
 
@@ -538,9 +546,18 @@ class ChatDemoApp(App):
             menu.handle_event(event)  # navigation, enter, esc/q; anything else waits for the menu to go
             return
         key = event.key
-        if key in (Key('f12'), Key('escape'), Key('q')):
+        if key in (
+                Key('f12'),
+                Key('escape'),
+                Key('q'),
+        ):
             self._set_browsing(False)
-        elif not self._browse.handle_event(event) and key in (Key('d', ctrl=True), Key('z', ctrl=True), Key('f10'), Key('f2')):  # noqa: E501
+        elif not self._browse.handle_event(event) and key in (
+                Key('d', ctrl=True),
+                Key('z', ctrl=True),
+                Key('f10'),
+                Key('f2',
+                    )):  # noqa: E501
             self._handle_app_key(event)  # the global bindings, and answering a warm card, still work fullscreen
 
     ##

@@ -204,15 +204,12 @@ class MinituiChatApp(mt.App):
     def __init__(
             self,
             driver: mt.AsyncioDriver,
-            *,
-            browse_type_returns: bool = False,
     ) -> None:
         """With `browse_type_returns`, typing a printable key while browsing returns to the live view and types it."""
 
         super().__init__()
 
         self._driver = driver
-        self._browse_type_returns = browse_type_returns
 
         self._tail = mt.MarkdownTail(backend=mt.get_markdown_stream())
         self._spinner = mt.Spinner()
@@ -803,6 +800,8 @@ class MinituiChatApp(mt.App):
             self._browse.scroll_to_bottom()
         self._driver.set_alt_screen(browsing)
         self._driver.invalidate()
+
+    _browse_type_returns = False
 
     def _handle_browse_event(self, event: mt.Event) -> None:
         if isinstance(event, mt.MouseEvent):

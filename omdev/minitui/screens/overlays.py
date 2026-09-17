@@ -5,8 +5,8 @@ lives in the controls layer.
 
 The one subtlety is wide characters: a cell cannot be half-covered. A wide cell of the base straddling either edge of
 the overlaid span is replaced by plain spaces in its style over its exposed columns, and a wide cell of the overlay that
-would run past the span's end is dropped for fill - so the composite is exactly the base's columns with a
-`width`-column box punched in.
+would run past the span's end is dropped for fill - so the composite is exactly the base's columns with a `width`-column
+box punched in.
 """
 import typing as ta
 

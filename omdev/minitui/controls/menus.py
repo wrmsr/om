@@ -1,9 +1,9 @@
 """
-The menu: a floating list of actions - a context menu over a transcript row, a small command palette - shown through
-an `Overlay`. One row per item with the selection highlighted; up/down (or j/k) move over the enabled items, wrapping;
-enter or space activates; escape or q closes; a click activates the row under it. The menu knows nothing about where
-it floats: the app opens it (an Overlay at the click, `width` columns wide), and closes it on `on_close` - which the
-menu also calls after an activation, since a menu that has done its job goes away.
+The menu: a floating list of actions - a context menu over a transcript row, a small command palette - shown through an
+`Overlay`. One row per item with the selection highlighted; up/down (or j/k) move over the enabled items, wrapping;
+enter or space activates; escape or q closes; a click activates the row under it. The menu knows nothing about where it
+floats: the app opens it (an Overlay at the click, `width` columns wide), and closes it on `on_close` - which the menu
+also calls after an activation, since a menu that has done its job goes away.
 """
 import typing as ta
 
@@ -129,6 +129,25 @@ class Menu(Control):
     ##
     # Events (the app routes; local coordinates arrive in the event)
 
+    UP_KEYS: ta.Collection[Key] = (
+        Key('up'),
+        Key('k'),
+    )
+
+    DOWN_KEYS: ta.Collection[Key] = (
+        Key('down'),
+        Key('j'),
+    )
+
+    ACTIVATE_KEYS: ta.Collection[Key] = (
+        (Key('enter'), Key('space'))
+    )
+
+    CLOSE_KEYS: ta.Collection[Key] = (
+        Key('escape'),
+        Key('q'),
+    )
+
     def handle_event(self, event: Event) -> bool:
         if isinstance(event, MouseEvent):
             if event.kind is MouseEventKind.DOWN and 0 <= event.y < len(self._items):
@@ -140,13 +159,13 @@ class Menu(Control):
 
         if isinstance(event, KeyEvent):
             key = event.key
-            if key in (Key('up'), Key('k')):
+            if key in self.UP_KEYS:
                 self.move(-1)
-            elif key in (Key('down'), Key('j')):
+            elif key in (self.DOWN_KEYS):
                 self.move(1)
-            elif key in (Key('enter'), Key('space')):
+            elif key in self.ACTIVATE_KEYS:
                 self.activate()
-            elif key in (Key('escape'), Key('q')):
+            elif key in self.CLOSE_KEYS:
                 self.close()
             else:
                 return False

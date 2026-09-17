@@ -53,7 +53,10 @@ class OverlayRegion(lang.Final):
         return self.overlay.control
 
     def contains(self, x: int, y: int) -> bool:
-        return self.x <= x < self.x + self.width and self.y <= y < self.y + self.height
+        return (
+            self.x <= x < self.x + self.width and
+            self.y <= y < self.y + self.height
+        )
 
 
 def place_overlays(

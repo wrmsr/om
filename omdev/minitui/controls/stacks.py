@@ -54,8 +54,8 @@ class StackLayout(lang.Final):
 
     def hit(self, y: int) -> tuple[Control, int] | None:
         """
-        The stacked control at frame row `y` and that row's index within the control's own rendering, or None. Sees
-        only the stack: with overlays in play, route by point through `hit_at`.
+        The stacked control at frame row `y` and that row's index within the control's own rendering, or None. Sees only
+        the stack: with overlays in play, route by point through `hit_at`.
         """
 
         for region in self.regions:
@@ -127,7 +127,13 @@ def stack_layout(
 
     overlay_regions: list[OverlayRegion] = []
     if overlays:
-        overlay_regions = place_overlays(lines, overlays, width=width, max_height=max_height, theme=theme)
+        overlay_regions = place_overlays(
+            lines,
+            overlays,
+            width=width,
+            max_height=max_height,
+            theme=theme,
+        )
         for region in overlay_regions:
             if region.control is focus and (c := focus.cursor(region.width)) is not None:
                 cursor = (region.x + c[0], region.y + c[1])
