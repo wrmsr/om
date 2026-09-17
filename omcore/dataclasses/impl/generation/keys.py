@@ -29,6 +29,8 @@ def literal_key(value: ta.Any) -> ta.Any:
         return value
     if type(value) in (tuple, list):
         return tuple(literal_key(v) for v in value)
+    if dc.is_dataclass(value):
+        return tuple(getattr(value, f.name) for f in dc.fields(value))
     raise UncacheableSpecError(type(value))
 
 
