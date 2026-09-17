@@ -1,5 +1,6 @@
 import typing as ta
 
+from omcore import cached
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
@@ -24,17 +25,19 @@ ContextReductionReason: ta.TypeAlias = ta.Literal[
 class UsageLedger:
     """Cumulative provider traffic for one agent context, with overlapping usage details kept explicit."""
 
+    ZERO: ta.ClassVar[UsageLedger]
+
     input: int = 0
     output: int = 0
     reasoning: int = 0
     cache_read: int = 0
     cache_write: int = 0
 
-    @property
+    @cached.property
     def uncached_input(self) -> int:
         return max(self.input - self.cache_read - self.cache_write, 0)
 
-    @property
+    @cached.property
     def visible_output(self) -> int:
         return max(self.output - self.reasoning, 0)
 
@@ -52,17 +55,22 @@ class UsageLedger:
         )
 
 
+UsageLedger.ZERO = UsageLedger()
+
+
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
 class ContextLifecycleConfig:
     """Provider-neutral policy inputs shared by accounting and context reduction."""
+
+    ZERO: ta.ClassVar[ContextLifecycleConfig]
 
     output_reserve_tokens: int = 16_000
     safety_margin_tokens: int = 1_024
 
     # An individual tool result is truncated in the model projection at this many characters. The complete result stays
     # in the transcript. None disables this bound.
-    max_tool_result_chars: int | None = 30_000
+    max_tool_result_chars: int | None = 50_000
 
     # Proactive pruning preserves approximately this much of the newest transcript. Forced overflow recovery may prune
     # inside it when that is the only reducible material left.
@@ -71,17 +79,7 @@ class ContextLifecycleConfig:
     prune_headroom_tokens: int = 4_000
 
     prune_tool_results: bool = True
-    prunable_tool_names: ta.AbstractSet[str] = frozenset({
-        'bash',
-        'glob',
-        'ls',
-        'process_list',
-        'process_read',
-        'read',
-        'ripgrep',
-        'web_fetch',
-        'web_search',
-    })
+    prunable_tool_names: ta.AbstractSet[str] | None = None
 
     max_overflow_retries: int = 1
 
@@ -93,6 +91,9 @@ class ContextLifecycleConfig:
         check.arg(self.prune_min_chars > 0)
         check.arg(self.prune_headroom_tokens >= 0)
         check.arg(self.max_overflow_retries >= 0)
+
+
+ContextLifecycleConfig.ZERO = ContextLifecycleConfig()
 
 
 @ta.final
@@ -176,6 +177,8 @@ class ToolResultProjection:
 class ContextProjection:
     """Durable instructions for deriving a reduced model view from the lossless transcript."""
 
+    ZERO: ta.ClassVar[ContextProjection]
+
     summary: str | None = None
     first_kept_message_index: int = 0
     tool_results: ta.Sequence[ToolResultProjection] = ()
@@ -185,7 +188,7 @@ class ContextProjection:
         check.unique(p.message_index for p in self.tool_results)
         check.arg(self.summary is not None or self.first_kept_message_index == 0)
 
-    @property
+    @cached.property
     def tool_results_by_message_index(self) -> ta.Mapping[int, ToolResultProjection]:
         return {p.message_index: p for p in self.tool_results}
 
@@ -196,6 +199,9 @@ class ContextProjection:
             return self
         by_index[projection.message_index] = projection
         return dc.replace(self, tool_results=tuple(by_index[i] for i in sorted(by_index)))
+
+
+ContextProjection.ZERO = ContextProjection()
 
 
 @ta.final

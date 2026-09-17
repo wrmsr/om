@@ -124,7 +124,12 @@ def test_tool_results_are_reduced_only_in_the_model_projection():
 
     pruned = dc.replace(
         context,
-        projection=context.projection.with_tool_result(ToolResultProjection(message_index=2, max_chars=0)),
+        projection=context.projection.with_tool_result(  # type: ignore[union-attr]
+            ToolResultProjection(
+                message_index=2,
+                max_chars=0,
+            ),
+        ),
     )
     pruned_result = check.isinstance(
         (StandardLlmContextBuilder().build(pruned).messages or [])[2],

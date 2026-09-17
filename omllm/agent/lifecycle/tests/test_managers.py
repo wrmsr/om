@@ -15,7 +15,13 @@ from ..managers import StandardContextLifecycleManager
 ##
 
 
-def _tool_group(call_id: str, name: str, text: str, *, error: bool = False):
+def _tool_group(
+        call_id: str,
+        name: str,
+        text: str,
+        *,
+        error: bool = False,
+):
     return [
         llm.AiMessage([llm.ToolCall(call_id, name, {})]),
         llm.ToolResultMessage(
@@ -64,7 +70,11 @@ async def test_threshold_prunes_an_old_result_but_keeps_the_recent_tail():
     model = llm.Model(
         key=llm.ModelKey('test', 'small'),
         backend='test',
-        limits=llm.ModelLimits(context=2_200, input=1_900, output=100),
+        limits=llm.ModelLimits(
+            context=2_200,
+            input=1_900,
+            output=100,
+        ),
     )
 
     result = await StandardContextLifecycleManager().prepare(
@@ -76,6 +86,7 @@ async def test_threshold_prunes_an_old_result_but_keeps_the_recent_tail():
             max_tool_result_chars=None,
             keep_recent_tokens=1_000,
             prune_headroom_tokens=100,
+            prunable_tool_names={'read'},
             safety_margin_tokens=0,
         ),
     )
@@ -113,7 +124,7 @@ async def test_forced_recovery_does_not_prune_errors_or_mutating_tool_results():
     )
 
     assert result.reduction is None
-    assert result.context.projection == ContextProjection()
+    assert result.context.projection in (None, ContextProjection.ZERO)
 
 
 class _RecordingCompactor(ContextCompactor):
@@ -137,7 +148,11 @@ async def test_compactor_seam_runs_after_deterministic_reduction_is_insufficient
     model = llm.Model(
         key=llm.ModelKey('test', 'small'),
         backend='test',
-        limits=llm.ModelLimits(context=1_000, input=900, output=100),
+        limits=llm.ModelLimits(
+            context=1_000,
+            input=900,
+            output=100,
+        ),
     )
 
     result = await StandardContextLifecycleManager(compactor=compactor).prepare(
@@ -155,7 +170,8 @@ async def test_compactor_seam_runs_after_deterministic_reduction_is_insufficient
 
     assert len(compactor.calls) == 1
     assert result.reduction is not None and result.reduction.compacted
-    assert result.context.projection.summary == 'The old material was summarized.'
+    assert (rcp := result.context.projection) is not None
+    assert rcp.summary == 'The old material was summarized.'
     assert result.context.messages == context.messages
     kept = check.isinstance((result.llm_context.messages or [])[0], llm.UserMessage)
     assert 'keep me' in check.isinstance(kept.content, str)

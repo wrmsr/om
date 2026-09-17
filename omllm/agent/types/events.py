@@ -122,7 +122,7 @@ class TurnStartEvent(TurnEvent):
 class TurnEndEvent(TurnEvent):
     message: Message
 
-    usage: UsageLedger = UsageLedger()
+    usage: UsageLedger | None = None
     context_budget: ContextBudget | None = None
 
 

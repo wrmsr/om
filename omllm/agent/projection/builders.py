@@ -57,33 +57,42 @@ class StandardLlmContextBuilder(LlmContextBuilder):
 
     def _project_messages(self, context: Context) -> list[llm.Message]:
         messages = context.messages or ()
-        projection = context.projection
-        check.arg(projection.first_kept_message_index <= len(messages))
 
-        tool_results = projection.tool_results_by_message_index
         out: list[llm.Message] = []
 
-        if projection.summary is not None:
-            out.append(llm.UserMessage(f'Earlier conversation summary:\n\n{projection.summary}'))
+        projection = context.projection
+        if projection is not None:
+            check.arg(projection.first_kept_message_index <= len(messages))
+
+            tool_results = projection.tool_results_by_message_index
+
+            if projection.summary is not None:
+                out.append(llm.UserMessage(f'Earlier conversation summary:\n\n{projection.summary}'))
 
         for index, m in enumerate(messages):
-            if index < projection.first_kept_message_index:
+            if projection is not None and index < projection.first_kept_message_index:
                 continue
 
             if isinstance(m, llm.Message):
-                if isinstance(m, llm.ToolResultMessage) and (p := tool_results.get(index)) is not None:
+                if (
+                        isinstance(m, llm.ToolResultMessage) and
+                        projection is not None and
+                        (p := tool_results.get(index)) is not None  # noqa
+                ):
                     m = self._project_tool_result(m, max_chars=p.max_chars)
                 out.append(m)
+
             elif isinstance(m, AgentMessage):
                 out.extend(self._projector.project(m))
+
             else:
                 raise TypeError(m)
 
         return out
 
     def _merge_adjacent_user_messages(self, messages: ta.Sequence[llm.Message]) -> list[llm.Message]:
-        # A projected note often lands right next to a real prompt, and providers differ in how they take two user
-        # turns in a row. One merged turn reads the same everywhere.
+        # A projected note often lands right next to a real prompt, and providers differ in how they take two user turns
+        # in a row. One merged turn reads the same everywhere.
         out: list[llm.Message] = []
 
         for m in messages:

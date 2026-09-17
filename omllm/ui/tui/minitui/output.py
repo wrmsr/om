@@ -170,12 +170,13 @@ class AgentEventRenderer:
         elif isinstance(ev, agn.TurnEndEvent):
             if isinstance(msg := ev.message, llm.AiMessage):
                 budget = ev.context_budget
+                ev_usage = ev.usage
                 self._app.set_token_usage(
-                    input=ev.usage.uncached_input,
-                    input_cached=ev.usage.cache_read,
-                    input_cache_write=ev.usage.cache_write,
-                    output=ev.usage.visible_output,
-                    reasoning=ev.usage.reasoning,
+                    input=ev_usage.uncached_input if ev_usage is not None else 0,
+                    input_cached=ev_usage.cache_read if ev_usage is not None else 0,
+                    input_cache_write=ev_usage.cache_write if ev_usage is not None else 0,
+                    output=ev_usage.visible_output if ev_usage is not None else 0,
+                    reasoning=ev_usage.reasoning if ev_usage is not None else 0,
                     context_input=budget.input if budget is not None else None,
                     context_limit=budget.input_limit if budget is not None else None,
                     context_estimated=budget.is_estimated if budget is not None else False,

@@ -898,13 +898,13 @@ class MinituiChatApp(mt.App):
                 ]
                 if v
             ]
-            return f'Σ {" ".join(parts)}' if parts else ''
+            return ' '.join(parts) if parts else ''
 
         def render_context(self) -> str:
             if self.context_input is None or self.context_limit is None:
                 return ''
             estimate = '~' if self.context_estimated else ''
-            return f'ctx {estimate}{self.render_int(self.context_input)}/{self.render_int(self.context_limit)}'
+            return f'{estimate}{self.render_int(self.context_input)}/{self.render_int(self.context_limit)}'
 
     def set_token_usage(
             self,

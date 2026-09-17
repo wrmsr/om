@@ -35,6 +35,8 @@ from ..types.events import TurnEndEvent
 from ..types.events import TurnStartEvent
 from ..types.inboxes import TurnInbox
 from ..types.lifecycle import ContextBudget
+from ..types.lifecycle import ContextLifecycleConfig
+from ..types.lifecycle import UsageLedger
 from ..types.messages import InfoAgentMessage
 from ..types.messages import Message
 from ..types.progress import ToolProgressSink
@@ -280,7 +282,7 @@ class TurnLoop:
 
     async def _llm_complete(self) -> llm.AiMessage:
         retry = self._config.llm_retry
-        lifecycle = self._config.context_lifecycle
+        lifecycle = self._config.context_lifecycle or ContextLifecycleConfig.ZERO
 
         attempts = 0
         transient_failures = 0
@@ -334,7 +336,7 @@ class TurnLoop:
                 await check.not_none(self._sleeps).sleep(delay_s)
 
     def _record_llm_usage(self, message: llm.AiMessage) -> None:
-        usage = self._context.usage.add(message.token_usage)
+        usage = (self._context.usage or UsageLedger.ZERO).add(message.token_usage)
 
         context_budget: ContextBudget | None = None
         if (limits := llm.resolve_model_limits(self._llm_backend.model)) is not None:
@@ -344,7 +346,7 @@ class TurnLoop:
             )
             context_budget = ContextBudget.of(
                 limits,
-                self._config.context_lifecycle,
+                self._config.context_lifecycle or ContextLifecycleConfig.ZERO,
                 requested_output=options.max_tokens,
                 observed_input=message.token_usage.input if message.token_usage is not None else None,
             )

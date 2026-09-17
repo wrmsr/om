@@ -23,8 +23,8 @@ class Context:
 
     tools: ToolSet | None = None
 
-    usage: UsageLedger = UsageLedger()
+    usage: UsageLedger | None = None
 
     context_budget: ContextBudget | None = None
 
-    projection: ContextProjection = ContextProjection()
+    projection: ContextProjection | None = None

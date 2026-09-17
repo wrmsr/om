@@ -8,7 +8,7 @@ from ..types.lifecycle import UsageLedger
 
 
 def test_usage_ledger_keeps_inclusive_totals_and_exclusive_views():
-    ledger = UsageLedger().add(llm.TokenUsage(
+    ledger = UsageLedger.ZERO.add(llm.TokenUsage(
         input=15_000,
         output=100,
         reasoning=20,

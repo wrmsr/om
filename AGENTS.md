@@ -2,7 +2,8 @@
 
 **Do these before doing anything**:
 
-- First, read `README.md` and `CODESTYLE.md` to understand the repo.
+- First, read `README.md` and `CODESTYLE.md` to understand the repo. Read and understand these files *in entirety* - if
+  your reading is truncated, continue through the whole file.
 
 ### DO-NOTS
 

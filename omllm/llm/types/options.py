@@ -29,6 +29,8 @@ class CacheRetention(enum.Enum):
 class Options:
     """All fields must be optional and default to `None`"""
 
+    ZERO: ta.ClassVar[Options]
+
     max_tokens: int | None = None
 
     thinking: bool | None = None
@@ -65,3 +67,6 @@ class Options:
 
     def _merge_field(self, fld: dc.Field, value: ta.Any) -> ta.Any:
         return value
+
+
+Options.ZERO = Options()

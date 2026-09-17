@@ -2696,41 +2696,43 @@ def _process_dataclass__a5f4b089b8c09aae799266776a389d5a09b9d2ac():
 @_register(
     plan_repr=(
         "Plans(tup=(CopyPlan(fields=('max_tokens', 'thinking', 'cache_key', 'cache_retention')), EqPlan(fields=('max_to"
-        "kens', 'thinking', 'cache_key', 'cache_retention')), FrozenPlan(fields=('max_tokens', 'thinking', 'cache_key',"
-        " 'cache_retention'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('max_tokens', 'thinking"
-        "', 'cache_key', 'cache_retention'), cache=False), InitPlan(fields=(InitPlan.Field(name='max_tokens', annotatio"
-        "n=OpRef(name='init.fields.0.annotation'), default=OpRef(name='init.fields.0.default'), default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPla"
-        "n.Field(name='thinking', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1."
-        "default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, valida"
-        "te=None, check_type=None), InitPlan.Field(name='cache_key', annotation=OpRef(name='init.fields.2.annotation'),"
-        " default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=Fiel"
-        "dType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cache_retention', annotatio"
-        "n=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None, i"
-        "nit=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None)), self_p"
-        "aram='self', std_params=(), kw_only_params=('max_tokens', 'thinking', 'cache_key', 'cache_retention'), frozen="
-        "True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Field(name="
-        "'max_tokens', kw_only=True, fn=None), ReprPlan.Field(name='thinking', kw_only=True, fn=None), ReprPlan.Field(n"
-        "ame='cache_key', kw_only=True, fn=None), ReprPlan.Field(name='cache_retention', kw_only=True, fn=None)), id=Fa"
-        "lse, terse=False, default_fn=None)))"
+        "kens', 'thinking', 'cache_key', 'cache_retention')), FrozenPlan(fields=('ZERO', 'max_tokens', 'thinking', 'cac"
+        "he_key', 'cache_retention'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fields=('max_tokens', '"
+        "thinking', 'cache_key', 'cache_retention'), cache=False), InitPlan(fields=(InitPlan.Field(name='ZERO', annotat"
+        "ion=OpRef(name='init.fields.0.annotation'), default=None, default_factory=None, init=True, override=False, fie"
+        "ld_type=FieldType.CLASS_VAR, coerce=None, validate=None, check_type=None), InitPlan.Field(name='max_tokens', a"
+        "nnotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields.1.default'), default_factory"
+        "=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None),"
+        " InitPlan.Field(name='thinking', annotation=OpRef(name='init.fields.2.annotation'), default=OpRef(name='init.f"
+        "ields.2.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None"
+        ", validate=None, check_type=None), InitPlan.Field(name='cache_key', annotation=OpRef(name='init.fields.3.annot"
+        "ation'), default=OpRef(name='init.fields.3.default'), default_factory=None, init=True, override=False, field_t"
+        "ype=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='cache_retention', a"
+        "nnotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields.4.default'), default_factory"
+        "=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None))"
+        ", self_param='self', std_params=(), kw_only_params=('max_tokens', 'thinking', 'cache_key', 'cache_retention'),"
+        " frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(ReprPlan.Fie"
+        "ld(name='max_tokens', kw_only=True, fn=None), ReprPlan.Field(name='thinking', kw_only=True, fn=None), ReprPlan"
+        ".Field(name='cache_key', kw_only=True, fn=None), ReprPlan.Field(name='cache_retention', kw_only=True, fn=None)"
+        "), id=False, terse=False, default_fn=None)))"
     ),
-    plan_repr_sha1='8186e59bc324a6fc6135e82385d9c308e96e4d55',
+    plan_repr_sha1='9c17da1eb773d68b7d0954bba925b37d536eb0d3',
     cls_names=(
         ('omllm.llm.types.options', 'Options'),
     ),
 )
-def _process_dataclass__8186e59bc324a6fc6135e82385d9c308e96e4d55():
+def _process_dataclass__9c17da1eb773d68b7d0954bba925b37d536eb0d3():
     def _process_dataclass(
         *,
         __class__,
-        __dataclass__init__fields__0__annotation,
-        __dataclass__init__fields__0__default,
         __dataclass__init__fields__1__annotation,
         __dataclass__init__fields__1__default,
         __dataclass__init__fields__2__annotation,
         __dataclass__init__fields__2__default,
         __dataclass__init__fields__3__annotation,
         __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
         __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
         __dataclass__None=None,  # noqa
         __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
@@ -2764,6 +2766,7 @@ def _process_dataclass__8186e59bc324a6fc6135e82385d9c308e96e4d55():
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
+            'ZERO',
             'max_tokens',
             'thinking',
             'cache_key',
@@ -2803,10 +2806,10 @@ def _process_dataclass__8186e59bc324a6fc6135e82385d9c308e96e4d55():
         def __init__(
             self,
             *,
-            max_tokens: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
-            thinking: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            cache_key: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            cache_retention: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            max_tokens: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            thinking: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            cache_key: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            cache_retention: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'max_tokens', max_tokens)
             __dataclass__object_setattr(self, 'thinking', thinking)

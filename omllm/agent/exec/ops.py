@@ -170,7 +170,7 @@ class ProcessesExecOps(ExecOps):
 ##
 
 
-DEFAULT_MAX_EXEC_OUTPUT_CHARS: ta.Final[int] = 30_000
+DEFAULT_MAX_EXEC_OUTPUT_CHARS: ta.Final[int] = 50_000
 
 
 def format_exec_output(

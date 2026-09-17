@@ -56,7 +56,7 @@ class TurnConfig:
     # run.
     llm_retry: LlmRetryConfig | None = None
 
-    context_lifecycle: ContextLifecycleConfig = ContextLifecycleConfig()
+    context_lifecycle: ContextLifecycleConfig | None = None
 
     max_concurrent_tool_calls: int | None = dc.xfield(None, validate=lambda v: v != 0)
 
@@ -68,7 +68,7 @@ class TurnConfig:
     # Whether steering which arrives mid-batch cuts the batch short: the tool calls not yet executed get an error result
     # saying the user interjected, and the model sees the steering right away. For there to be calls not yet executed,
     # this runs a message's tool calls one at a time. Off, they run concurrently and the batch finishes first.
-    steering_skips_pending_tool_calls: bool = False
+    steering_skips_pending_tool_calls: bool | None = None
 
 
 ##

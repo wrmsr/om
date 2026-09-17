@@ -9,6 +9,7 @@ from ..projection.types import LlmContextBuilder
 from ..types.contexts import Context
 from ..types.lifecycle import ContextBudget
 from ..types.lifecycle import ContextLifecycleConfig
+from ..types.lifecycle import ContextProjection
 from ..types.lifecycle import ContextReduction
 from ..types.lifecycle import ContextReductionReason
 from ..types.lifecycle import ToolResultProjection
@@ -39,8 +40,8 @@ class ContextLifecycleManager(lang.Abstract):
             *,
             builder: LlmContextBuilder,
             model: llm.Model,
-            options: llm.Options | None,
-            config: ContextLifecycleConfig,
+            options: llm.Options | None = None,
+            config: ContextLifecycleConfig | None = None,
     ) -> ContextLifecycleResult:
         raise NotImplementedError
 
@@ -51,8 +52,8 @@ class ContextLifecycleManager(lang.Abstract):
             *,
             builder: LlmContextBuilder,
             model: llm.Model,
-            options: llm.Options | None,
-            config: ContextLifecycleConfig,
+            options: llm.Options | None = None,
+            config: ContextLifecycleConfig | None = None,
     ) -> ContextLifecycleResult:
         raise NotImplementedError
 
@@ -81,7 +82,7 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
         if (max_chars := config.max_tool_result_chars) is None:
             return context, []
 
-        projection = context.projection
+        projection = context.projection or ContextProjection.ZERO
         changed: list[int] = []
         for index, message in enumerate(context.messages or ()):
             if not isinstance(message, llm.ToolResultMessage):
@@ -125,18 +126,21 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
             return
 
         protected_start = self._protected_message_start(context, config)
-        projected = context.projection.tool_results_by_message_index
+        if context.projection is not None:
+            projected = context.projection.tool_results_by_message_index
+        else:
+            projected = {}
 
         for index, message in enumerate(context.messages or ()):
             if not isinstance(message, llm.ToolResultMessage):
                 continue
             if message.is_error:
                 continue
-            if message.tool_name not in config.prunable_tool_names:
+            if message.tool_name not in (config.prunable_tool_names or ()):
                 continue
             if self._tool_result_chars(message) < config.prune_min_chars:
                 continue
-            if projected.get(index, None) is not None and projected[index].is_pruned:
+            if projected.get(index) is not None and projected[index].is_pruned:
                 continue
             if not force and index >= protected_start:
                 continue
@@ -153,10 +157,13 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
             builder: LlmContextBuilder,
             model: llm.Model,
             options: llm.Options | None,
-            config: ContextLifecycleConfig,
+            config: ContextLifecycleConfig | None = None,
             reason: ContextReductionReason,
             force: bool,
     ) -> ContextLifecycleResult:
+        if config is None:
+            config = ContextLifecycleConfig.ZERO
+
         before_context = builder.build(context)
         before_tokens = self._estimator.estimate_context(before_context)
         original_projection = context.projection
@@ -195,7 +202,7 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
             for index in self._prunable_tool_result_indices(context, config, force=force):
                 context = dc.replace(
                     context,
-                    projection=context.projection.with_tool_result(ToolResultProjection(
+                    projection=(context.projection or ContextProjection.ZERO).with_tool_result(ToolResultProjection(
                         message_index=index,
                         max_chars=0,
                     )),
@@ -229,7 +236,7 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
         context = dc.replace(context, context_budget=budget)
 
         reduction: ContextReduction | None = None
-        if context.projection != original_projection:
+        if (context.projection or ContextProjection.ZERO) != (original_projection or ContextProjection.ZERO):
             reduction_reason = reason
             if reason == 'threshold' and not pruned_indices and not compacted:
                 reduction_reason = 'tool_output_limit'
@@ -254,8 +261,8 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
             *,
             builder: LlmContextBuilder,
             model: llm.Model,
-            options: llm.Options | None,
-            config: ContextLifecycleConfig,
+            options: llm.Options | None = None,
+            config: ContextLifecycleConfig | None = None,
     ) -> ContextLifecycleResult:
         return await self._prepare(
             context,
@@ -273,8 +280,8 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
             *,
             builder: LlmContextBuilder,
             model: llm.Model,
-            options: llm.Options | None,
-            config: ContextLifecycleConfig,
+            options: llm.Options | None = None,
+            config: ContextLifecycleConfig | None = None,
     ) -> ContextLifecycleResult:
         return await self._prepare(
             context,
