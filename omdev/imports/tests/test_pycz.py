@@ -8,6 +8,7 @@ import zipfile
 from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
 from ..pycz import _MmapPyczArchive
+from ..pycz import _PyczInstaller
 
 
 ##
@@ -42,8 +43,8 @@ def test_pycz_install_and_load(tmp_path):
 
     assert 'Wrote 2 modules' in install.stdout
     assert (site_dir / 'fixturepkg.pycz').is_file()
-    assert (site_dir / '_pycz.py').is_file()
-    assert (site_dir / '___pycz-fixturepkg.pth').is_file()
+    assert (site_dir / (_PyczInstaller.SELF_NAME + '.py')).is_file()
+    assert (site_dir / f'__{_PyczInstaller.SELF_NAME}-fixturepkg.pth').is_file()
     with zipfile.ZipFile(site_dir / 'fixturepkg.pycz') as zf:
         assert zf.namelist() == ['fixturepkg/__init__.pyc', 'fixturepkg/mod.pyc']
 

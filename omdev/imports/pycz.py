@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# @om-script
 """Load a source package's compiled modules from an in-memory pyc zip."""
 
 
@@ -237,35 +239,26 @@ class _MmapPyczArchive(_PyczArchive):
             path: str,
     ) -> None:
         import mmap
-        import os.path
 
-        self._os_close = os.close
-
-        fd = self._fd = os.open(path, os.O_RDONLY)
-        os.set_inheritable(fd, True)
-        st = os.fstat(fd)
-        mm = self._mm = mmap.mmap(
-            fd,
-            length=st.st_size,
-            access=mmap.ACCESS_READ,
-        )
+        with open(path, 'rb') as f:
+            mm = mmap.mmap(
+                f.fileno(),
+                0,
+                access=mmap.ACCESS_READ,
+                trackfd=False,
+            )
 
         super().__init__(
             path,
             mm,  # type: ignore[arg-type]
         )
 
-    _fd: int | None = None
     _mm = None  # type: object | None
 
     def close(self) -> None:
         if (mm := self._mm) is not None:
             mm.close()  # type: ignore[attr-defined]
         self._mm = None
-
-        if (fd := self._fd) is not None:
-            self._os_close(fd)
-        self._fd = None
 
     def __del__(self) -> None:
         self.close()
@@ -554,7 +547,12 @@ class _PyczInstaller:
         )
         os.close(fd)
         try:
-            with zipfile.ZipFile(temp_path, 'w', compression=zipfile.ZIP_STORED, allowZip64=False) as zf:
+            with zipfile.ZipFile(
+                    temp_path,
+                    'w',
+                    compression=zipfile.ZIP_STORED,
+                    allowZip64=False,
+            ) as zf:
                 for source_path in source_files:
                     pyc_path = self._pyc_path(source_path, optimize)
                     if not os.path.isfile(pyc_path):
@@ -607,6 +605,8 @@ class _PyczInstaller:
             raise RuntimeError('Could not find site-packages')
         return os.path.abspath(site_dirs[0])
 
+    SELF_NAME = '_omdev_pycz'
+
     def install(
             self,
             root_package: str,
@@ -627,13 +627,16 @@ class _PyczInstaller:
         os.makedirs(install_dir, exist_ok=True)
 
         archive_path = os.path.join(install_dir, root_package + '.pycz')
-        bootstrap_path = os.path.join(install_dir, '_pycz.py')
-        pth_path = os.path.join(install_dir, f'___pycz-{root_package}.pth')
+        bootstrap_path = os.path.join(install_dir, self.SELF_NAME + '.py')
+        pth_path = os.path.join(install_dir, f'__{self.SELF_NAME}-{root_package}.pth')
 
         source_files = self._compile_package(source_root, optimize)
         self._write_archive(archive_path, root_package, source_root, source_files, optimize)
         self._write_file(bootstrap_path, self._bootstrap_source())
-        pth_source = f'import _pycz; _pycz._run({archive_path!r}, {root_package!r}, {source_root!r})\n'
+        pth_source = (
+            f'import {self.SELF_NAME}; '
+            f'{self.SELF_NAME}._run({archive_path!r}, {root_package!r}, {source_root!r})\n'
+        )
         self._write_file(pth_path, pth_source.encode('utf-8'))
 
         return (
