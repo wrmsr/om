@@ -4,6 +4,8 @@ from omcore.secrets import all as sec
 
 from ....types.models import Model
 from ...base.http import BaseHttpBackend
+from ...base.http import HttpErrorDetails
+from .errors import is_google_context_overflow_error
 
 
 ##
@@ -22,3 +24,6 @@ class BaseGoogleGenerativeBackend(BaseHttpBackend, lang.Abstract):
             api_key=api_key,
             http_client=http_client,
         )
+
+    def _is_context_overflow_http_error(self, error: HttpErrorDetails) -> bool:
+        return is_google_context_overflow_error(error)

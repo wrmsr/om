@@ -8,6 +8,8 @@ from omcore.http import all as http
 from ....types.errors import BackendError
 from ....types.errors import ContextOverflowBackendError
 from ....types.errors import TransientBackendError
+from ..http import HttpErrorDetails
+from ..http import parse_http_error_details
 from ..http import parse_retry_after_header
 from ..http import raise_for_http_status
 from ..http import translating_http_client_errors
@@ -45,21 +47,54 @@ def test_other_statuses_raise_plain_errors_with_the_body(status):
     assert f'HTTP {status}' in str(ei.value)
 
 
-@pytest.mark.parametrize('data', [
-    b'{"error":{"code":"context_length_exceeded","message":"too long"}}',
-    b'{"error":{"type":"invalid_request_error","message":"prompt is too long"}}',
-    (
-        b'{"error":{"status":"INVALID_ARGUMENT",'
-        b'"message":"The input token count (123) exceeds the maximum number of tokens allowed (100)."}}'
-    ),
-    b'{"error":{"message":"request too large for model"}}',
-])
-def test_context_overflow_responses_raise_typed_errors(data):
+def test_explicit_context_overflow_classifier_raises_typed_error():
+    def classify(error: HttpErrorDetails) -> bool:
+        return error.code_is('context_length_exceeded')
+
     with pytest.raises(ContextOverflowBackendError) as ei:
-        raise_for_http_status(_response(400, data=data))
+        raise_for_http_status(
+            _response(400, data=b'{"error":{"code":"context_length_exceeded","message":"too long"}}'),
+            context_overflow_classifier=classify,
+        )
 
     assert not isinstance(ei.value, TransientBackendError)
     assert isinstance(ei.value.__cause__, http.StatusHttpClientError)
+
+
+@pytest.mark.parametrize('data', [
+    b'{"error":{"message":"prompt is too long"}}',
+    b'{"error":{"message":"maximum context length"}}',
+    b'{"error":{"message":"request too large for model"}}',
+])
+def test_overflow_sounding_message_has_no_global_meaning(data):
+    with pytest.raises(BackendError) as ei:
+        raise_for_http_status(_response(400, data=data))
+
+    assert not isinstance(ei.value, ContextOverflowBackendError)
+
+
+def test_error_details_prefer_the_nested_provider_error():
+    details = parse_http_error_details(_response(400, data=(
+        b'{"type":"error","code":"outer",'
+        b'"error":{"type":"invalid_request_error","code":400,"status":"INVALID_ARGUMENT","message":"bad"}}'
+    )))
+
+    assert details == HttpErrorDetails(
+        http_status=400,
+        code=400,
+        error_type='invalid_request_error',
+        provider_status='INVALID_ARGUMENT',
+        message='bad',
+    )
+
+
+@pytest.mark.parametrize('data', [
+    b'not json',
+    b'[]',
+    b'{"unexpected":true}',
+])
+def test_unrecognized_error_bodies_produce_status_only_details(data):
+    assert parse_http_error_details(_response(422, data=data)) == HttpErrorDetails(http_status=422)
 
 
 def test_token_rate_limit_is_not_context_overflow():

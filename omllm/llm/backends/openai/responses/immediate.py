@@ -15,7 +15,6 @@ from ....types.errors import BackendError
 from ....types.messages import AiMessage
 from ....types.messages import TokenUsage
 from ....types.options import Options
-from ...base.http import raise_for_http_status
 from ...base.http import translating_http_client_errors
 from .base import BaseOpenaiResponsesBackend
 from .requests import RequestPreparer
@@ -103,7 +102,7 @@ class OpenaiResponsesImmediateBackend(BaseOpenaiResponsesBackend, ImmediateBacke
             )
 
         if http_response.status != 200:
-            raise_for_http_status(http_response)
+            self._raise_for_http_status(http_response)
 
         raw_response = json.loads(check.not_none(http_response.data).decode('utf-8'))
 

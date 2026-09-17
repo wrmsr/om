@@ -5,6 +5,7 @@ import time
 import typing as ta
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore import lang
 from omcore.http import all as http
 from omcore.secrets import all as sec
@@ -79,58 +80,103 @@ def _describe_http_response(response: http.BaseHttpClientResponse) -> str:
     return ': '.join(parts)
 
 
-_CONTEXT_OVERFLOW_CODES: ta.Final[ta.AbstractSet[str]] = frozenset([
-    'context_length_exceeded',
-    'context_window_exceeded',
-    'max_context_length_exceeded',
-    'prompt_too_long',
-])
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
+class HttpErrorDetails:
+    """
+    The small, provider-neutral part of a JSON HTTP error which is safe to use for classification.
 
-_CONTEXT_OVERFLOW_MESSAGE_MARKERS: ta.Final[ta.Sequence[str]] = (
-    'context length exceeded',
-    'context window exceeded',
-    'exceeds the context window',
-    'exceeds the maximum context',
-    'exceeds the maximum number of tokens',
-    'input token count exceeds',
-    'maximum context length',
-    'prompt is too long',
-    'prompt too long',
-    'request too large for model',
-    'too many tokens for model',
-)
+    Providers agree only loosely on error envelopes. Most put the useful fields under a top-level ``error`` object;
+    some return those fields at the top level instead, and some use an integer HTTP-like ``code`` while others use a
+    symbolic string. Normalizing those mechanical differences here lets provider classifiers reason about named
+    fields without searching the serialized response body.
 
+    The fields deliberately retain their original values and spelling. A classifier should compare a symbolic value
+    with ``code_is`` or normalize the particular field itself. More importantly, ``message`` is *only* the provider's
+    designated error-message field. It is never the whole JSON document. This prevents an echoed request value,
+    metadata field, or nested upstream diagnostic from accidentally triggering a substring heuristic.
+    """
 
-def _is_context_overflow_response(response: http.BaseHttpClientResponse) -> bool:
-    if not isinstance(response, http.HttpClientResponse) or not response.data:
-        return False
+    http_status: int
 
-    try:
-        body = json.loads(response.data)
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        body = None
+    code: str | int | None = None
+    error_type: str | None = None
+    provider_status: str | None = None
+    message: str | None = None
 
-    codes: list[str] = []
-    if isinstance(body, dict):
-        error = body.get('error')
-        mappings = [body, error] if isinstance(error, dict) else [body]
-        for mapping in mappings:
-            for key in ('code', 'type', 'status'):
-                if isinstance(value := mapping.get(key), str):
-                    codes.append(value.lower())
+    def code_is(self, *values: str) -> bool:
+        """Case-insensitively compares a symbolic code; numeric provider codes intentionally never match."""
 
-    if any(code in _CONTEXT_OVERFLOW_CODES for code in codes):
-        return True
-
-    text = response.data.decode('utf-8', errors='replace').lower()
-    return any(marker in text for marker in _CONTEXT_OVERFLOW_MESSAGE_MARKERS)
+        return isinstance(self.code, str) and self.code.casefold() in {value.casefold() for value in values}
 
 
-def raise_for_http_status(response: http.BaseHttpClientResponse) -> ta.NoReturn:
+type ContextOverflowHttpErrorClassifier = ta.Callable[[HttpErrorDetails], bool]
+
+
+def parse_http_error_details(response: http.BaseHttpClientResponse) -> HttpErrorDetails:
+    """
+    Extracts the conventional fields from a JSON error response without assigning provider-specific meaning to them.
+
+    A nested ``error`` mapping wins over the outer envelope. This matters for Anthropic, whose outer ``type`` is the
+    uninformative value ``error`` while ``error.type`` is the useful ``invalid_request_error``. Top-level fields remain
+    a fallback for APIs which return the error object directly. A string-valued ``error`` is treated as the message,
+    but malformed, non-JSON, and structurally unfamiliar bodies simply produce status-only details: classification
+    must fail closed rather than guessing from arbitrary bytes.
+    """
+
+    body: ta.Any = None
+    if isinstance(response, http.HttpClientResponse) and response.data:
+        try:
+            body = json.loads(response.data)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            pass
+
+    outer = body if isinstance(body, ta.Mapping) else {}
+    raw_error = outer.get('error')
+    inner = raw_error if isinstance(raw_error, ta.Mapping) else outer
+
+    def field(name: str) -> ta.Any:
+        value = inner.get(name)
+        if value is None and inner is not outer:
+            value = outer.get(name)
+        return value
+
+    code = field('code')
+    if not isinstance(code, (str, int)) or isinstance(code, bool):
+        code = None
+
+    message = field('message')
+    if not isinstance(message, str):
+        message = raw_error if isinstance(raw_error, str) else None
+
+    error_type = field('type')
+    provider_status = field('status')
+
+    return HttpErrorDetails(
+        http_status=response.status,
+        code=code,
+        error_type=error_type if isinstance(error_type, str) else None,
+        provider_status=provider_status if isinstance(provider_status, str) else None,
+        message=message,
+    )
+
+
+def raise_for_http_status(
+        response: http.BaseHttpClientResponse,
+        *,
+        context_overflow_classifier: ContextOverflowHttpErrorClassifier | None = None,
+) -> ta.NoReturn:
     """
     Raises the backend error for an unsuccessful response: a TransientBackendError for the statuses a caller should
-    retry, a plain BackendError otherwise. Either is chained from the http client's own status error, so the response
-    itself stays reachable through the cause.
+    retry, a ContextOverflowBackendError only when the calling backend explicitly recognizes its own provider's error
+    contract, and a plain BackendError otherwise. Every result is chained from the http client's status error, so the
+    complete response stays reachable through the cause.
+
+    Context overflow is intentionally not a global HTTP policy. OpenAI-compatible APIs expose useful symbolic codes,
+    Google uses a broad INVALID_ARGUMENT status plus a specific message, Anthropic uses a broad invalid-request type,
+    and OpenRouter may relay an upstream-specific message. A shared substring list would make every provider inherit
+    every other provider's ambiguities. The backend therefore supplies a classifier which receives normalized named
+    fields; without one, even an overflow-looking 400 remains an ordinary BackendError.
     """
 
     cause = http.StatusHttpClientError(response)
@@ -139,7 +185,10 @@ def raise_for_http_status(response: http.BaseHttpClientResponse) -> ta.NoReturn:
     if response.status in TRANSIENT_HTTP_STATUSES:
         raise TransientBackendError(desc, retry_after_s=get_retry_after_s(response)) from cause
 
-    if _is_context_overflow_response(response):
+    if (
+            context_overflow_classifier is not None and
+            context_overflow_classifier(parse_http_error_details(response))
+    ):
         raise ContextOverflowBackendError(desc) from cause
 
     raise BackendError(desc) from cause
@@ -195,3 +244,22 @@ class BaseHttpBackend(Backend, lang.Abstract):
     @property
     def model(self) -> Model:
         return self._model
+
+    def _is_context_overflow_http_error(self, error: HttpErrorDetails) -> bool:
+        """
+        Provider hook for the narrowly defined error which permits a context-reduction retry.
+
+        False is the safe default. Misclassifying an authentication, schema, safety, or other validation failure as
+        context overflow would discard useful model-visible history and repeat a request which cannot succeed. Each
+        concrete backend family opts in using the strongest fields its provider actually promises.
+        """
+
+        return False
+
+    def _raise_for_http_status(self, response: http.BaseHttpClientResponse) -> ta.NoReturn:
+        """Applies shared status handling together with this backend family's provider-specific overflow contract."""
+
+        raise_for_http_status(
+            response,
+            context_overflow_classifier=self._is_context_overflow_http_error,
+        )

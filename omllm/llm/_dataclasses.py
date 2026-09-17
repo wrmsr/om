@@ -27,6 +27,157 @@ def _register(**kwargs):
 
 @_register(
     plan_repr=(
+        "Plans(tup=(CopyPlan(fields=('http_status', 'code', 'error_type', 'provider_status', 'message')), EqPlan(fields"
+        "=('http_status', 'code', 'error_type', 'provider_status', 'message')), FrozenPlan(fields=('http_status', 'code"
+        "', 'error_type', 'provider_status', 'message'), allow_dynamic_dunder_attrs=False), HashPlan(action='add', fiel"
+        "ds=('http_status', 'code', 'error_type', 'provider_status', 'message'), cache=False), InitPlan(fields=(InitPla"
+        "n.Field(name='http_status', annotation=OpRef(name='init.fields.0.annotation'), default=None, default_factory=N"
+        "one, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), I"
+        "nitPlan.Field(name='code', annotation=OpRef(name='init.fields.1.annotation'), default=OpRef(name='init.fields."
+        "1.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
+        "date=None, check_type=None), InitPlan.Field(name='error_type', annotation=OpRef(name='init.fields.2.annotation"
+        "'), default=OpRef(name='init.fields.2.default'), default_factory=None, init=True, override=False, field_type=F"
+        "ieldType.INSTANCE, coerce=None, validate=None, check_type=None), InitPlan.Field(name='provider_status', annota"
+        "tion=OpRef(name='init.fields.3.annotation'), default=OpRef(name='init.fields.3.default'), default_factory=None"
+        ", init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, validate=None, check_type=None), Init"
+        "Plan.Field(name='message', annotation=OpRef(name='init.fields.4.annotation'), default=OpRef(name='init.fields."
+        "4.default'), default_factory=None, init=True, override=False, field_type=FieldType.INSTANCE, coerce=None, vali"
+        "date=None, check_type=None)), self_param='self', std_params=(), kw_only_params=('http_status', 'code', 'error_"
+        "type', 'provider_status', 'message'), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_f"
+        "ns=()), ReprPlan(fields=(ReprPlan.Field(name='http_status', kw_only=True, fn=None), ReprPlan.Field(name='code'"
+        ", kw_only=True, fn=None), ReprPlan.Field(name='error_type', kw_only=True, fn=None), ReprPlan.Field(name='provi"
+        "der_status', kw_only=True, fn=None), ReprPlan.Field(name='message', kw_only=True, fn=None)), id=False, terse=F"
+        "alse, default_fn=None)))"
+    ),
+    plan_repr_sha1='c9b42ede1f20b6c5b3582df0453594f30cf3e71f',
+    cls_names=(
+        ('omllm.llm.backends.base.http', 'HttpErrorDetails'),
+    ),
+)
+def _process_dataclass__c9b42ede1f20b6c5b3582df0453594f30cf3e71f():
+    def _process_dataclass(
+        *,
+        __class__,
+        __dataclass__init__fields__0__annotation,
+        __dataclass__init__fields__1__annotation,
+        __dataclass__init__fields__1__default,
+        __dataclass__init__fields__2__annotation,
+        __dataclass__init__fields__2__default,
+        __dataclass__init__fields__3__annotation,
+        __dataclass__init__fields__3__default,
+        __dataclass__init__fields__4__annotation,
+        __dataclass__init__fields__4__default,
+        __dataclass__FrozenInstanceError=dataclasses.FrozenInstanceError,  # noqa
+        __dataclass__None=None,  # noqa
+        __dataclass___recursive_repr=reprlib.recursive_repr,  # noqa
+        __dataclass__object_setattr=object.__setattr__,  # noqa
+        __dataclass__set_cls_attr,
+    ):
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                http_status=self.http_status,
+                code=self.code,
+                error_type=self.error_type,
+                provider_status=self.provider_status,
+                message=self.message,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.http_status == other.http_status and
+                self.code == other.code and
+                self.error_type == other.error_type and
+                self.provider_status == other.provider_status and
+                self.message == other.message
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'http_status',
+            'code',
+            'error_type',
+            'provider_status',
+            'message',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.http_status,
+                self.code,
+                self.error_type,
+                self.provider_status,
+                self.message,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            http_status: __dataclass__init__fields__0__annotation,
+            code: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            error_type: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            provider_status: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            message: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'http_status', http_status)
+            __dataclass__object_setattr(self, 'code', code)
+            __dataclass__object_setattr(self, 'error_type', error_type)
+            __dataclass__object_setattr(self, 'provider_status', provider_status)
+            __dataclass__object_setattr(self, 'message', message)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"http_status={self.http_status!r}")
+            parts.append(f"code={self.code!r}")
+            parts.append(f"error_type={self.error_type!r}")
+            parts.append(f"provider_status={self.provider_status!r}")
+            parts.append(f"message={self.message!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    plan_repr=(
         "Plans(tup=(CopyPlan(fields=()), EqPlan(fields=()), FrozenPlan(fields=(), allow_dynamic_dunder_attrs=False), Ha"
         "shPlan(action='add', fields=(), cache=False), InitPlan(fields=(), self_param='self', std_params=(), kw_only_pa"
         "rams=(), frozen=True, slots=False, post_init_params=None, init_fns=(), validate_fns=()), ReprPlan(fields=(), i"

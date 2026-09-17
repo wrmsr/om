@@ -247,7 +247,7 @@
     "module": ".llm.backends.anthropic.messages.immediate",
     "attr": null,
     "file": "omllm/llm/backends/anthropic/messages/immediate.py",
-    "line": 29,
+    "line": 28,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.anthropic.messages.immediate",
@@ -262,7 +262,7 @@
     "module": ".llm.backends.anthropic.messages.stream",
     "attr": null,
     "file": "omllm/llm/backends/anthropic/messages/stream.py",
-    "line": 237,
+    "line": 236,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.anthropic.messages.stream",
@@ -277,7 +277,7 @@
     "module": ".llm.backends.google.generative.immediate",
     "attr": null,
     "file": "omllm/llm/backends/google/generative/immediate.py",
-    "line": 30,
+    "line": 29,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.google.generative.immediate",
@@ -292,7 +292,7 @@
     "module": ".llm.backends.google.generative.stream",
     "attr": null,
     "file": "omllm/llm/backends/google/generative/stream.py",
-    "line": 152,
+    "line": 151,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.google.generative.stream",
@@ -307,7 +307,7 @@
     "module": ".llm.backends.openai.completions.immediate",
     "attr": null,
     "file": "omllm/llm/backends/openai/completions/immediate.py",
-    "line": 29,
+    "line": 28,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.openai.completions.immediate",
@@ -322,7 +322,7 @@
     "module": ".llm.backends.openai.completions.stream",
     "attr": null,
     "file": "omllm/llm/backends/openai/completions/stream.py",
-    "line": 134,
+    "line": 133,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.openai.completions.stream",
@@ -337,7 +337,7 @@
     "module": ".llm.backends.openai.responses.immediate",
     "attr": null,
     "file": "omllm/llm/backends/openai/responses/immediate.py",
-    "line": 68,
+    "line": 67,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.openai.responses.immediate",
@@ -352,7 +352,7 @@
     "module": ".llm.backends.openai.responses.stream",
     "attr": null,
     "file": "omllm/llm/backends/openai/responses/stream.py",
-    "line": 221,
+    "line": 220,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.openai.responses.stream",
