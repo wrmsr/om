@@ -44,6 +44,7 @@ def _config() -> TurnConfig:
     return TurnConfig(context_lifecycle=ContextLifecycleConfig(
         max_tool_result_chars=None,
         prune_min_chars=100,
+        prunable_tool_names={'read'},
         max_overflow_retries=1,
     ))
 
@@ -154,7 +155,7 @@ async def test_context_overflow_after_stream_content_is_not_retried():
     assert result.reason is AgentEndReason.FAILED
     assert isinstance(result.error, llm.ContextOverflowBackendError)
     assert backend.invocations == 1
-    assert not result.context.projection.tool_results
+    assert not result.context.projection
 
 
 @pytest.mark.asyncs('asyncio')
@@ -185,7 +186,11 @@ async def test_tool_output_is_bounded_before_the_post_tool_llm_call():
 
     result = await TurnLoop(
         new_messages=[llm.UserMessage('read')],
-        config=TurnConfig(),
+        config=TurnConfig(
+            context_lifecycle=ContextLifecycleConfig(
+                max_tool_result_chars=30_000,
+            ),
+        ),
         context=Context(tools=ToolSet([bare_tool('read', execute)])),
         subscriber=events.append,
         cancellation=asl.asyncio.Cancellation(),

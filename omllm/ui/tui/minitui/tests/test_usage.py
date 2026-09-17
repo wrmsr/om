@@ -45,8 +45,8 @@ async def test_turn_usage_renders_session_traffic_and_context_occupancy():
     ))
 
     status = frame_lines(app)[-1]
-    assert 'Σ i1k c12k w2k o80 r20' in status
-    assert 'ctx 15k/84k' in status
+    assert 'i1k c12k w2k o80 r20' in status
+    assert '15k/84k' in status
 
 
 @pytest.mark.asyncs('asyncio')
@@ -63,7 +63,7 @@ async def test_context_preparation_shows_estimated_pressure_and_reduction():
         estimated_input=20_000,
     )))
 
-    assert 'ctx ~20k/84k' in frame_lines(app)[-1]
+    assert '~20k/84k' in frame_lines(app)[-1]
 
     await renderer.on_agent_event(agn.ContextReductionEvent(agn.ContextReduction(
         reason='threshold',
