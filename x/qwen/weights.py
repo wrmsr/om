@@ -223,7 +223,7 @@ class SafetensorsFile:
     def get(self, name: str) -> np.ndarray:
         info = self.header[name]
         start, end = info['data_offsets']
-        buf = self._mm[self._base + start : self._base + end]
+        buf = self._mm[self._base + start:self._base + end]
         dt = info['dtype']
         shape = tuple(info['shape'])
         if dt == 'BF16':
@@ -311,7 +311,7 @@ def _untile_v_heads(
         return x
     shape = list(x.shape)
     axis = axis % x.ndim
-    new = [*shape[:axis], r, num_k, d, *shape[axis + 1 :]]
+    new = [*shape[:axis], r, num_k, d, *shape[axis + 1:]]
     x = x.reshape(new)
     perm = list(range(x.ndim))
     perm[axis], perm[axis + 1] = perm[axis + 1], perm[axis]
@@ -505,8 +505,8 @@ class GGUFSource(TensorSource):
             if tag == 'fused_q':
                 return x[:nq]
             if tag == 'fused_k':
-                return x[nq : nq + nk]
-            return x[nq + nk : nq + 2 * nk]
+                return x[nq:nq + nk]
+            return x[nq + nk:nq + 2 * nk]
         if tag == 'untile_qkv_rows':
             qk = 2 * c.key_dim
             v = _untile_v_heads(x[qk:], 0, c.num_k_heads, r, c.head_v_dim)
@@ -569,7 +569,7 @@ class OllamaTensorSource(TensorSource):
     def _canon_name(cls, name: str) -> str:
         for p in cls._PREFIXES:
             if name.startswith(p):
-                name = name[len(p) :]
+                name = name[len(p):]
                 break
         return name
 

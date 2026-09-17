@@ -63,15 +63,15 @@ def bytes_to_unicode() -> dict[int, str]:
 
 class Tokenizer:
     def __init__(
-        self,
-        tokens: list[str],
-        merges: list[tuple[str, str]],
-        special: dict[str, int],
-        pre: str = 'qwen35',
-        eos_id: int | None = None,
-        bos_id: int | None = None,
-        add_bos: bool = False,
-        chat_template: str | None = None,
+            self,
+            tokens: list[str],
+            merges: list[tuple[str, str]],
+            special: dict[str, int],
+            pre: str = 'qwen35',
+            eos_id: int | None = None,
+            bos_id: int | None = None,
+            add_bos: bool = False,
+            chat_template: str | None = None,
     ) -> None:
         self.tokens = tokens
         self.vocab = {t: i for i, t in enumerate(tokens)}
@@ -89,7 +89,7 @@ class Tokenizer:
         self.u2b = {v: k for k, v in b2u.items()}
         if special:
             alts = sorted(special.keys(), key=len, reverse=True)
-            self.special_re = regex.compile('(' + '|'.join(regex.escape(s) for s in alts) + ')')
+            self.special_re: regex.Pattern | None = regex.compile('(' + '|'.join(regex.escape(s) for s in alts) + ')')
         else:
             self.special_re = None
         self._cache: dict[str, tuple[str, ...]] = {}
@@ -289,7 +289,7 @@ class Tokenizer:
                     if e.start else
                     ''
                 )
-                self.buf = self.buf[e.start :]
+                self.buf = self.buf[e.start:]
                 return s
 
         def flush(self) -> str:

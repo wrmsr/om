@@ -23,7 +23,6 @@ range (different matmul orders / KV precision). Anything wildly off means a layo
 import argparse
 import json
 import math
-import sys
 import time
 import urllib.request
 
@@ -43,12 +42,12 @@ from .weights import resolve_ollama
 
 
 def post(url: str, payload: dict) -> dict:
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa
         url,
         data=json.dumps(payload).encode(),
         headers={'Content-Type': 'application/json'},
     )
-    with urllib.request.urlopen(req, timeout=600) as r:
+    with urllib.request.urlopen(req, timeout=600) as r:  # noqa
         return json.loads(r.read())
 
 
@@ -175,12 +174,11 @@ def main():
     logits = model.forward(torch.tensor([seq], device=device), cache)  # [1, L, V]
     print(f'[ours] forward over {len(seq)} tokens in {time.time() - t0:.1f}s')
     logp = torch.log_softmax(
-        logits[0, len(prompt_ids) - 1 :].float(),
+        logits[0, len(prompt_ids) - 1:].float(),
         dim=-1,
     )  # position i predicts ref_tokens[i]
 
     top1_ok = 0
-    greedy_prefix_ok = True
     first_div = None
     max_abs = 0.0
     for i, rt in enumerate(ref_tokens):
@@ -228,7 +226,7 @@ def main():
     print(f'\n[ours greedy] {tok.decode(ours_gen)!r}')
     match = sum(a == b for a, b in zip(ours_gen, ref_tokens))
     print(f'[ours greedy] {match}/{n} tokens identical to oracle')
-    sys.exit(0 if top1_ok >= 0.9 * n else 1)
+    raise SystemExit(0 if top1_ok >= 0.9 * n else 1)
 
 
 if __name__ == '__main__':

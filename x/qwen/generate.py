@@ -28,7 +28,11 @@ def pick_device(name: str | None) -> str:
     return 'cpu'
 
 
-DTYPES = {'bf16': torch.bfloat16, 'f16': torch.float16, 'f32': torch.float32}
+DTYPES = {
+    'bf16': torch.bfloat16,
+    'f16': torch.float16,
+    'f32': torch.float32,
+}
 
 
 def main():

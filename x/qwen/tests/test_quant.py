@@ -101,7 +101,7 @@ def test_model_quant():
     from ..quant import QWeight
 
     tmp = pathlib.Path(tempfile.mkdtemp())
-    cfg = Qwen35Config(**CFG)
+    cfg = Qwen35Config(**CFG)  # type: ignore
     hf = make_hf_params(cfg)
     write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
     src = GGUFSource(tmp / 'tiny.gguf')
@@ -118,7 +118,7 @@ def test_model_quant():
         # the big 2-D weights are QWeights; norms / A / dt_bias / conv / in_proj_{a,b} are not
         assert isinstance(m.embed, QWeight) and isinstance(m.lm_head, QWeight)
         blk = m.blocks[0].mixer
-        assert isinstance(blk.w_qkv, QWeight) and not isinstance(blk.w_a, QWeight)
+        assert isinstance(blk.w_qkv, QWeight) and not isinstance(blk.w_a, QWeight)  # type: ignore
         assert not isinstance(m.blocks[0].ln1, QWeight)
         assert m.nbytes < ref.nbytes
         lp = torch.log_softmax(m.forward(ids), -1)
@@ -143,19 +143,13 @@ def test_model_quant():
     assert tsrc.get_quant('layers.0.mlp.gate_proj.weight') is not None
     assert tsrc.get_quant('layers.0.input_layernorm.weight') is None
     n_native = 0
-    for i, blk in enumerate(m_q8.blocks):
+    for i, blk in enumerate(m_q8.blocks):  # type: ignore
         for attr in ('wg', 'wu', 'wd'):
-            qw = getattr(blk.mlp, attr)
+            qw = getattr(blk.mlp, attr)  # type: ignore
             assert isinstance(qw, QWeight)
             assert torch.equal(qw.dequant(torch.float32), getattr(m_f32.blocks[i].mlp, attr))
             n_native += 1
-    assert torch.equal(m_q8.lm_head.dequant(torch.float32), m_f32.lm_head)
+    assert torch.equal(m_q8.lm_head.dequant(torch.float32), m_f32.lm_head)  # type: ignore
     err = (m_q8.forward(ids) - m_f32.forward(ids)).abs().max().item()
     assert err < 0.3, err
     print(f'tensor-blob: {n_native + 1} native int8 tensors re-packed bit-exactly (model max err {err:.3f})')
-
-
-if __name__ == '__main__':
-    test_quantize_roundtrip()
-    test_native_repack_matches_mlx()
-    test_model_quant()

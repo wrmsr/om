@@ -1,3 +1,4 @@
+# ruff: noqa: N806 N812
 """
 Weight-only affine quantization, kept quantized on the device and dequantized per matmul.
 
@@ -149,12 +150,12 @@ def quantize(
 
 
 def from_native(
-    q_values: torch.Tensor,
-    scale: torch.Tensor,
-    bias: torch.Tensor,
-    bits: int,
-    group: int,
-    dtype: torch.dtype,
+        q_values: torch.Tensor,
+        scale: torch.Tensor,
+        bias: torch.Tensor,
+        bits: int,
+        group: int,
+        dtype: torch.dtype,
 ) -> QWeight:
     """Wrap already-quantized values (uint8 [out, in], one value per element) without touching them."""
 

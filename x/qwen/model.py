@@ -1,3 +1,4 @@
+# ruff: noqa: N806 N812
 """
 Qwen3.5 / 3.6 / 3.8 (dense) text decoder in plain PyTorch.
 
@@ -88,7 +89,11 @@ class Cache:
 # Primitives
 
 
-def rms_norm(x: torch.Tensor, w: torch.Tensor, eps: float) -> torch.Tensor:
+def rms_norm(
+        x: torch.Tensor,
+        w: torch.Tensor,
+        eps: float,
+) -> torch.Tensor:
     xf = x.float()
     y = xf * torch.rsqrt(xf.pow(2).mean(-1, keepdim=True) + eps)
     return (y * w.float()).to(x.dtype)
@@ -100,18 +105,23 @@ def l2_norm(x: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
 
 
 def rope_cos_sin(
-    positions: torch.Tensor, rope_dim: int, theta: float, device, dtype=torch.float32,
+        positions: torch.Tensor,
+        rope_dim: int,
+        theta: float,
+        device,
+        dtype=torch.float32,
 ):
-    inv = 1.0 / (
-        theta
-        ** (torch.arange(0, rope_dim, 2, device=device, dtype=torch.float32) / rope_dim)
-    )
+    inv = 1.0 / (theta ** (torch.arange(0, rope_dim, 2, device=device, dtype=torch.float32) / rope_dim))
     freqs = positions.to(torch.float32)[:, None] * inv[None, :]  # [T, rope_dim/2]
     emb = torch.cat([freqs, freqs], dim=-1)  # [T, rope_dim]
     return emb.cos().to(dtype), emb.sin().to(dtype)
 
 
-def apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
+def apply_rope(
+        x: torch.Tensor,
+        cos: torch.Tensor,
+        sin: torch.Tensor,
+) -> torch.Tensor:
     """NeoX rotate-half on the first rope_dim dims of x: [B, H, T, hd]; cos/sin: [T, rope_dim]."""
 
     rd = cos.shape[-1]
@@ -123,7 +133,14 @@ def apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.T
     return torch.cat([xr, xp], dim=-1)
 
 
-def gated_delta_rule_recurrent(q, k, v, g, beta, state):
+def gated_delta_rule_recurrent(
+        q,
+        k,
+        v,
+        g,
+        beta,
+        state,
+):
     """
     Per-token gated delta rule.
 
@@ -139,11 +156,11 @@ def gated_delta_rule_recurrent(q, k, v, g, beta, state):
     S = state
     for t in range(T):
         q_t, k_t, v_t = q[:, :, t], k[:, :, t], v[:, :, t]  # [B,H,dk] / [B,H,dv]
-        S = S * g[:, :, t].exp()[..., None, None]  # decay
-        mem = (S * k_t[..., None]).sum(-2)  # k^T S -> [B,H,dv]
+        S = S * g[:, :, t].exp()[..., None, None]           # decay
+        mem = (S * k_t[..., None]).sum(-2)                  # k^T S -> [B,H,dv]
         delta = (v_t - mem) * beta[:, :, t][..., None]
-        S = S + k_t[..., None] * delta[..., None, :]  # rank-1 update
-        out[:, :, t] = (S * q_t[..., None]).sum(-2)  # q^T S
+        S = S + k_t[..., None] * delta[..., None, :]        # rank-1 update
+        out[:, :, t] = (S * q_t[..., None]).sum(-2)         # q^T S
     return out, S
 
 
@@ -154,13 +171,12 @@ def gated_delta_rule_recurrent(q, k, v, g, beta, state):
 class Attention:
     def __init__(self, cfg: Qwen35Config, p: dict) -> None:
         self.cfg = cfg
-        self.wq, self.wk, self.wv, self.wo = (
-            p['q_proj'],
-            p['k_proj'],
-            p['v_proj'],
-            p['o_proj'],
-        )
-        self.q_norm, self.k_norm = p['q_norm'], p['k_norm']
+        self.wq = p['q_proj']
+        self.wk = p['k_proj']
+        self.wv = p['v_proj']
+        self.wo = p['o_proj']
+        self.q_norm = p['q_norm']
+        self.k_norm = p['k_norm']
         self.scale = 1.0 / math.sqrt(cfg.head_dim)
 
     def __call__(
@@ -210,18 +226,21 @@ class Attention:
 class GatedDeltaNet:
     def __init__(self, cfg: Qwen35Config, p: dict) -> None:
         self.cfg = cfg
-        self.w_qkv, self.w_z, self.w_a, self.w_b = (
-            p['in_proj_qkv'],
-            p['in_proj_z'],
-            p['in_proj_a'],
-            p['in_proj_b'],
-        )
+        self.w_qkv = p['in_proj_qkv']
+        self.w_z = p['in_proj_z']
+        self.w_a = p['in_proj_a']
+        self.w_b = p['in_proj_b']
         self.conv_w = p['conv1d']  # [conv_dim, K] float32
         self.A = p['A']  # [n_v] == -exp(A_log), float32
         self.dt_bias = p['dt_bias']  # [n_v] float32
-        self.norm_w, self.w_out = p['norm'], p['out_proj']
+        self.norm_w = p['norm']
+        self.w_out = p['out_proj']
 
-    def __call__(self, x: torch.Tensor, cache: LinearCache | None) -> torch.Tensor:
+    def __call__(
+            self,
+            x: torch.Tensor,
+            cache: LinearCache | None,
+    ) -> torch.Tensor:
         c = self.cfg
         B, T, _ = x.shape
         Hk, Hv, dk, dv, K = (
@@ -242,30 +261,24 @@ class GatedDeltaNet:
         else:
             inp = F.pad(qkv, (K - 1, 0))
         if cache is not None:
-            cache.conv = inp[..., -(K - 1) :].clone()
-        conv = F.conv1d(
-            inp, self.conv_w[:, None, :], groups=c.conv_dim,
-        )  # [B, conv_dim, T]
+            cache.conv = inp[..., -(K - 1):].clone()
+        conv = F.conv1d(inp, self.conv_w[:, None, :], groups=c.conv_dim)  # [B, conv_dim, T]
         conv = F.silu(conv).transpose(1, 2)  # [B, T, conv_dim]
         q, k, v = torch.split(conv, [c.key_dim, c.key_dim, c.value_dim], dim=-1)
         q = l2_norm(q.view(B, T, Hk, dk)).transpose(1, 2) * (dk**-0.5)  # [B,Hk,T,dk]
         k = l2_norm(k.view(B, T, Hk, dk)).transpose(1, 2)
         v = v.view(B, T, Hv, dv).transpose(1, 2)  # [B,Hv,T,dv]
-        if (
-            Hv != Hk
-        ):  # canonical grouped V order -> repeat_interleave (llama.cpp's tiled order would use repeat)
+        if Hv != Hk:  # canonical grouped V order -> repeat_interleave (llama.cpp's tiled order would use repeat)
             q = q.repeat_interleave(Hv // Hk, dim=1)
             k = k.repeat_interleave(Hv // Hk, dim=1)
 
         beta = torch.sigmoid(b).transpose(1, 2)  # [B,Hv,T]
-        g = (self.A[None, None, :] * F.softplus(a + self.dt_bias)).transpose(
-            1, 2,
-        )  # [B,Hv,T], <= 0
+        g = (self.A[None, None, :] * F.softplus(a + self.dt_bias)).transpose(1, 2)  # [B,Hv,T], <= 0
 
         state = (
             cache.state
-            if (cache is not None and cache.state is not None)
-            else torch.zeros(B, Hv, dk, dv, dtype=torch.float32, device=x.device)
+            if (cache is not None and cache.state is not None) else
+            torch.zeros(B, Hv, dk, dv, dtype=torch.float32, device=x.device)
         )
         out, state = gated_delta_rule_recurrent(q, k, v, g, beta, state)
         if cache is not None:
@@ -286,26 +299,38 @@ class MLP:
 
 
 class Block:
-    def __init__(self, cfg: Qwen35Config, kind: str, p: dict) -> None:
+    def __init__(
+            self,
+            cfg: Qwen35Config,
+            kind: str,
+            p: dict,
+    ) -> None:
         self.kind = kind
         self.ln1, self.ln2 = p['input_layernorm'], p['post_attention_layernorm']
         self.eps = cfg.rms_eps
         self.mixer = Attention(cfg, p) if kind == 'full' else GatedDeltaNet(cfg, p)
         self.mlp = MLP(p)
 
-    def __call__(self, x, cos, sin, cache):
+    def __call__(
+            self,
+            x,
+            cos,
+            sin,
+            cache,
+    ):
         h = rms_norm(x, self.ln1, self.eps)
         x = x + (
-            self.mixer(h, cos, sin, cache)
-            if self.kind == 'full'
-            else self.mixer(h, cache)
+            ta.cast(Attention, self.mixer)(h, cos, sin, cache)
+            if self.kind == 'full' else
+            ta.cast(GatedDeltaNet, self.mixer)(h, cache)
         )
         return x + self.mlp(rms_norm(x, self.ln2, self.eps))
 
 
 ##
 # Model
-##
+
+
 def required_param_names(cfg: Qwen35Config) -> list[str]:
     names = ['embed_tokens.weight', 'norm.weight']
     for i, kind in enumerate(cfg.layer_types):
@@ -320,7 +345,14 @@ def required_param_names(cfg: Qwen35Config) -> list[str]:
         if kind == 'full':
             names += [
                 q + f'self_attn.{n}.weight'
-                for n in ('q_proj', 'k_proj', 'v_proj', 'o_proj', 'q_norm', 'k_norm')
+                for n in (
+                    'q_proj',
+                    'k_proj',
+                    'v_proj',
+                    'o_proj',
+                    'q_norm',
+                    'k_norm',
+                )
             ]
         else:
             names += [
@@ -340,11 +372,19 @@ def required_param_names(cfg: Qwen35Config) -> list[str]:
 
 
 # tensors that stay in float32 whatever the compute dtype
-KEEP_F32 = ('norm', 'linear_attn.A', 'dt_bias', 'conv1d')
+KEEP_F32 = (
+    'norm',
+    'linear_attn.A',
+    'dt_bias',
+    'conv1d',
+)
 
 # 2-D weights that are never quantized: the low-rank DeltaNet projections are quantization-sensitive (Ollama's own
 # converter also keeps them at source precision)
-NO_QUANT = ('in_proj_a', 'in_proj_b')
+NO_QUANT = (
+    'in_proj_a',
+    'in_proj_b',
+)
 
 
 def is_quantizable(name: str, t: torch.Tensor, group: int) -> bool:
@@ -353,15 +393,14 @@ def is_quantizable(name: str, t: torch.Tensor, group: int) -> bool:
     return not any(s in name for s in KEEP_F32 + NO_QUANT)
 
 
-Param = torch.Tensor | QWeight
+Param: ta.TypeAlias = torch.Tensor | QWeight
 
 
 class Qwen35:
     def __init__(
             self,
             cfg: Qwen35Config,
-            params: dict[str,
-            Param],
+            params: dict[str, Param],
             device,
             dtype: torch.dtype = torch.bfloat16,
     ) -> None:
@@ -378,8 +417,9 @@ class Qwen35:
             p = {}
             for k, v in params.items():
                 if k.startswith(pre):
-                    leaf = k[len(pre) :]
-                    # collapse "self_attn.q_proj.weight" -> "q_proj", "linear_attn.A" -> "A", "mlp.gate_proj.weight" -> "gate_proj"
+                    leaf = k[len(pre):]
+                    # collapse "self_attn.q_proj.weight" -> "q_proj", "linear_attn.A" -> "A", "mlp.gate_proj.weight" ->
+                    # "gate_proj"
                     parts = leaf.split('.')
                     if parts[-1] == 'weight':
                         parts = parts[:-1]
@@ -390,13 +430,13 @@ class Qwen35:
 
     @classmethod
     def from_source(
-        cls,
-        src: TensorSource,
-        device: str = 'cpu',
-        dtype: torch.dtype = torch.bfloat16,
-        verbose: bool = True,
-        quant: str | None = None,
-        group: int = 64,
+            cls,
+            src: TensorSource,
+            device: str = 'cpu',
+            dtype: torch.dtype = torch.bfloat16,
+            verbose: bool = True,
+            quant: str | None = None,
+            group: int = 64,
     ) -> Qwen35:
         """
         quant: None (weights in `dtype`), 'int8' or 'int4' (weight-only affine, see quant.py). If the source already
@@ -452,7 +492,12 @@ class Qwen35:
                     end='',
                     flush=True,
                 )
-        model = cls(cfg, params, device, dtype)
+        model = cls(
+            cfg,
+            params,
+            device,
+            dtype,
+        )
         if verbose:
             q_note = f', {n_native} re-packed + {n_quant} quantized to {quant}' if bits else ''
             print(f'\n[model] {model.nbytes / 2**30:.2f} GiB of weights on {device}{q_note}')
@@ -462,11 +507,11 @@ class Qwen35:
 
     @torch.no_grad()
     def forward(
-        self,
-        tokens: torch.Tensor,
-        cache: Cache | None = None,
-        start_pos: int | None = None,
-        last_only: bool = False,
+            self,
+            tokens: torch.Tensor,
+            cache: Cache | None = None,
+            start_pos: int | None = None,
+            last_only: bool = False,
     ) -> torch.Tensor:
         """tokens: [B, T] int64. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32."""
 
@@ -488,11 +533,11 @@ class Qwen35:
 
     @torch.no_grad()
     def generate(
-        self,
-        prompt_ids: list[int],
-        max_new_tokens: int = 64,
-        eos_ids: set[int] | None = None,
-        on_token: ta.Callable[[int], None] | None = None,
+            self,
+            prompt_ids: list[int],
+            max_new_tokens: int = 64,
+            eos_ids: set[int] | None = None,
+            on_token: ta.Callable[[int], None] | None = None,
     ) -> list[int]:
         """Greedy decoding with the cache. Yields token ids through on_token as they are produced."""
 
