@@ -1,12 +1,12 @@
 # qwen35-torch
 
 A from-the-math implementation of the Qwen3.5 / 3.6 / 3.8 dense text models (HF `model_type: qwen3_5`, GGUF
-arch `qwen35`), written once against a small backend seam (`Ops`) and run on torch, MLX core, or numpy, that
+arch `qwen35`), written once against a small backend seam (`Ops`) and run on torch, MLX core, tinygrad, or numpy, that
 loads weights straight out of Ollama's blob store, plus a validation harness that uses `llama-server` as the oracle.
 
 Dependencies: `numpy`, `gguf` (llama.cpp's Python package, MIT), `regex`, and whichever backend you run on
-(`torch` and/or `mlx`). No `transformers`, no mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line
-reader in `weights.py`).
+(`torch`, `mlx`, `tinygrad`). No `transformers`, no mlx-lm / mlx.nn, no `safetensors` package (there is a
+30-line reader in `weights.py`).
 
 ```
 model.py         the model, backend-free: RMSNorm, gated GQA attention w/ partial RoPE, Gated DeltaNet,
@@ -15,6 +15,7 @@ ops.py           the backend seam: `Ops` ABC (abstract primitives + composed ref
                  the fused-able ones) and `NumpyOps`, the float64 golden backend
 torch_ops.py     torch backend (F.rms_norm / SDPA / conv1d, on-device quantize, TorchQWeight)
 mlx_ops.py       MLX core backend (mx.fast.rms_norm / rope / sdpa, mx.quantized_matmul, MlxQWeight)
+tinygrad_ops.py  tinygrad backend (Tensor.scaled_dot_product_attention, grouped conv, TinyQWeight)
 backends.py      backend selection for the CLIs
 quant.py         backend-agnostic weight-only int8/int4 affine quantization (numpy QWeight, MLX layout)
 weights.py       Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama tensor blobs (packed safetensors,
@@ -27,8 +28,8 @@ tests/test_quant.py      quant round-trips, bit-exact MLX re-pack, quantized mod
 tests/test_parity.py     numpy-f64 golden vs torch vs mlx: per-layer taps, cache, quantized paths
 ```
 
-On the radar, not started: a `ggml` backend (ctypes to libggml; a lazy `Ops` whose calls emit graph nodes) and a
-tinygrad backend. Both fit the same seam.
+On the radar, not started: a `ggml` backend (ctypes to libggml; a lazy `Ops` whose calls emit graph nodes). It
+fits the same seam.
 
 ## Run
 
@@ -41,7 +42,8 @@ python -m x.qwen.generate --model qwen3.5:0.8b --backend torch --device cuda --d
 ```
 
 `--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path. `--backend`
-defaults to mlx on macOS when it is installed, torch otherwise; `numpy` is the (slow) reference.
+defaults to mlx on macOS when it is installed, torch otherwise; `tinygrad` works but without a `TinyJit`-wrapped
+decode step it recompiles kernels every token (see below); `numpy` is the (slow) reference.
 
 ## The Ops seam
 
@@ -56,6 +58,11 @@ second tier; `test_parity.py` checks every backend against the numpy float64 gol
 Rules the shared code follows (and any new shared code must): no item assignment, no in-place ops, functional
 state (`mixer(x, state) -> (y, state)`), explicit `ops.f32()` where accumulation must be f32, control flow on
 shapes only. Those are exactly the constraints `mx.compile` / CUDA graphs will need later.
+
+Lazy backends (MLX, tinygrad) build a graph per forward; the per-token `gated_delta` reference therefore builds a
+T-step graph on prefill, which makes a chunked prefill a requirement there rather than an optimisation. tinygrad
+additionally compiles a kernel per distinct shape, and the growing KV cache changes shapes every decode step, so
+until the decode step has static buffers and a `TinyJit` around it, expect seconds per token on that backend.
 
 Instrumentation: set `ops.taps = {}` and every `ops.tap(name, x)` in the model records a numpy copy (embedding,
 each block's mixer output and block output, final norm, logits). Wrapping an `Ops` is the general mechanism --

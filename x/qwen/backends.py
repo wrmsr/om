@@ -1,4 +1,6 @@
-"""Backend selection for the CLIs."""
+"""
+Backend selection for the CLIs.
+"""
 import platform
 
 from .ops import NumpyOps
@@ -11,6 +13,7 @@ from .ops import Ops
 BACKENDS = (
     'torch',
     'mlx',
+    'tinygrad',
     'numpy',
 )
 
@@ -50,6 +53,11 @@ def make_ops(backend: str | None = None, device: str | None = None) -> Ops:
 
         return MlxOps()
 
+    if backend == 'tinygrad':
+        from .tinygrad_ops import TinygradOps
+
+        return TinygradOps(device)
+
     if backend == 'numpy':
         return NumpyOps()
 
@@ -60,6 +68,19 @@ def default_dtype(ops: Ops) -> str:
     """bf16 on accelerators, f32 on cpu (bf16 matmuls on CPU are slow in every backend)."""
 
     name = ops.name
-    if name.startswith(('torch:cpu', 'numpy', 'mlx:Device(cpu')):
+
+    if (
+        name.startswith((
+            'torch:cpu',
+            'numpy',
+            'mlx:Device(cpu',
+        )) or
+        name in (
+            'tinygrad:CPU',
+            'tinygrad:LLVM',
+            'tinygrad:PYTHON',
+        )
+    ):
         return 'f32'
+
     return 'bf16'

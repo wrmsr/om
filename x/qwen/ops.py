@@ -263,6 +263,7 @@ class NumpyOps(Ops):
 
     def __init__(self, precision: ta.Any = np.float64) -> None:
         super().__init__()
+
         self.precision = np.dtype(precision)
 
     def dtype(self, name):

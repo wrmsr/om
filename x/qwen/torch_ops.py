@@ -156,7 +156,13 @@ class TorchOps(Ops):
             qw.shape,
         )
 
-    def quantize(self, w, bits, group, dtype):
+    def quantize(
+            self,
+            w,
+            bits,
+            group,
+            dtype,
+    ):
         """On-device version of quant.quantize (same layout, same numerics up to rounding)."""
 
         out, inn = w.shape
@@ -185,11 +191,23 @@ class TorchOps(Ops):
 
     # fused overrides
 
-    def rms_norm(self, x, w, eps):
+    def rms_norm(
+            self,
+            x,
+            w,
+            eps,
+    ):
         xf = x.float()
         return F.rms_norm(xf, (xf.shape[-1],), weight=w.float(), eps=eps).to(x.dtype)
 
-    def sdpa(self, q, k, v, scale, past):
+    def sdpa(
+            self,
+            q,
+            k,
+            v,
+            scale,
+            past,
+    ):
         B, H, T, D = q.shape
         KV, L = k.shape[1], k.shape[2]
         if KV != H:
@@ -203,7 +221,13 @@ class TorchOps(Ops):
     def conv1d_causal(self, x, w):
         return F.conv1d(x, w[:, None, :], groups=w.shape[0])
 
-    def rope(self, x, offset, dims, theta):
+    def rope(
+            self,
+            x,
+            offset,
+            dims,
+            theta,
+    ):
         # composed reference, with the tables cached per (offset, T) since decode hits the same shapes repeatedly
         key = (offset, x.shape[2], dims, theta, x.dtype)
         tabs = self.__dict__.setdefault('_rope_cache', {})

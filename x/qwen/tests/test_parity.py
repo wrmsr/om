@@ -1,4 +1,3 @@
-# ruff: noqa: N806 N812
 """
 Cross-backend parity: the same synthetic model, the same tokens, every backend against the numpy float64 golden.
 
@@ -30,20 +29,37 @@ from .test_synthetic import write_gguf
 ##
 
 
+DISABLED_BACKENDS = {
+    'tinygrad',
+}
+
+
 def backends() -> list[Ops]:
     out: list[Ops] = []
 
-    try:
-        from ..torch_ops import TorchOps
-        out.append(TorchOps('cpu'))
-    except ImportError:
-        print('torch not installed; skipping')
+    if 'torch' not in DISABLED_BACKENDS:
+        try:
+            from ..torch_ops import TorchOps
 
-    try:
-        from ..mlx_ops import MlxOps
-        out.append(MlxOps())
-    except ImportError:
-        print('mlx not installed; skipping')
+            out.append(TorchOps('cpu'))
+        except ImportError:
+            print('torch not installed; skipping')
+
+    if 'mlx' not in DISABLED_BACKENDS:
+        try:
+            from ..mlx_ops import MlxOps
+
+            out.append(MlxOps())
+        except ImportError:
+            print('mlx not installed; skipping')
+
+    if 'tinygrad' not in DISABLED_BACKENDS:
+        try:
+            from ..tinygrad_ops import TinygradOps
+
+            out.append(TinygradOps())
+        except ImportError:
+            print('tinygrad not installed; skipping')
 
     return out
 
