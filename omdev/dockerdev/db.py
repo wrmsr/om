@@ -29,7 +29,7 @@ class OrmContainer:
 
     #
 
-    json: str
+    json: Container
 
 
 def orm_mappers() -> ta.Sequence[orm.Mapper]:
@@ -41,7 +41,7 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
             field_options=dict(
                 created_at=[orm.CreatedAt()],
                 updated_at=[orm.UpdatedAt()],
-                entries=[
+                container=[
                     orm.FieldCodec(orm.CompositeCodec(
                         orm.MarshalCodec(),
                         orm.JsonCodec(),
