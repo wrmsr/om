@@ -76,8 +76,7 @@ def __om_amalg__():  # noqa
         src_files=[
             dict(path='../../omcore/configs/types.py', sha1='6abb34596a340c3804dc53a813473739047b1c7d'),
             dict(path='../../omcore/formats/ini/sections.py', sha1='66a0b99ffe63766420ec18d25341699dabcfa55e'),
-            dict(path='../../omcore/formats/toml/parser.py', sha1='d7078dc641af20984e84e8b4cd25a4877fa06ec0'),
-            dict(path='../../omcore/formats/toml/writer.py', sha1='0182c14f859a75d01812721522f6204e7679a5d6'),
+            dict(path='../../omcore/formats/toml/parser.py', sha1='e7534f4af180c41cedd5257e96e30d79d747b7a0'),
             dict(path='../../omcore/http/statuses.py', sha1='675eff6e1638e48aebb7aeae422e426c21a612d2'),
             dict(path='../../omcore/http/versions.py', sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890'),
             dict(path='../../omcore/io/pipelines/drivers/types.py', sha1='74626aba05c6869daeede82de3b7fec562abe2a7'),
@@ -109,6 +108,7 @@ def __om_amalg__():  # noqa
             dict(path='runtime/events.py', sha1='fcd03ef65d1c84b7db2696e8959575c399d4b72e'),
             dict(path='scheduling/cron.py', sha1='d6d32c783750b1f502805e63ace3793a9767afc2'),
             dict(path='selfupdate/models.py', sha1='5e1cfadd817810d5606588a8480cdff7a4a38223'),
+            dict(path='../../omcore/formats/toml/writer.py', sha1='afd0766eb141c12e41b2781a9cff667484017e56'),
             dict(path='../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
@@ -126,7 +126,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
             dict(path='configs/models.py', sha1='807982304f503c1a033d3210ac2b259067b12797'),
             dict(path='runtime/clocks.py', sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6'),
-            dict(path='../../omcore/configs/formats.py', sha1='9263da888199b408e902490244e9d5caddc69821'),
+            dict(path='../../omcore/configs/formats.py', sha1='b0707d98865d269785703cae4186d38d52d0414d'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
             dict(path='../../omcore/io/fdio/kqueue.py', sha1='0a4c1e2b846ac4a32afab4ff8814ea9d9f526905'),
             dict(path='../../omcore/io/fdio/manager.py', sha1='8135a9ec6bc1e3b122cff093a2f9bbfc1a156691'),
@@ -165,7 +165,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
             dict(path='configs/snapshots.py', sha1='4dc9bbfab25739ea07b2a44ac7737b8218615ab0'),
-            dict(path='platforms/runtime.py', sha1='c7d6d07ede88fdb73fa328653a59e477da1f2fd4'),
+            dict(path='platforms/runtime.py', sha1='bff09383cf571670df20d7fdab08610b05066e2b'),
             dict(path='../../omcore/http/pipelines/aggregators.py', sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1'),
             dict(path='../../omcore/http/pipelines/clients/requests.py', sha1='60607306046abc3d5bb0c2e0b40e61251151ae13'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5'),  # noqa
@@ -186,8 +186,8 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/pipelines/clients/responses.py', sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/requests.py', sha1='2258c98399fd861ca308ff1ef498513d435f6fbb'),  # noqa
             dict(path='core/engine.py', sha1='9ffc587d7ef4fc47a7d7d26cb31d2734b66d0f02'),
-            dict(path='resources/cgroups.py', sha1='ed7bb32e002ef134ae04e6a0488038cd282dc180'),
-            dict(path='resources/namespaces.py', sha1='0dab14120fd946c2edd67f45e74c601d92c39209'),
+            dict(path='resources/cgroups.py', sha1='89b8073cb37ab5cfa695f1c68adc1cf70ad79176'),
+            dict(path='resources/namespaces.py', sha1='4e87cab38547e636cc91a5f9b845bda8e2924795'),
             dict(path='resources/sampling.py', sha1='6fa61546905963453297514ada59d9d09cb66dd1'),
             dict(path='resources/sockets.py', sha1='82ed72673b58f8ea25d8718460b7cdf2bf39d911'),
             dict(path='control/client.py', sha1='cb4d78120e7b95e3f8ac7621356c78e73442295b'),
@@ -256,6 +256,9 @@ LogLevel = int  # ta.TypeAlias
 
 # ../../omcore/sockets/addresses.py
 SocketAddress = ta.Any  # ta.TypeAlias
+
+# ../../omcore/formats/toml/writer.py
+TomlHeaderPath = ta.Union[str, 'TomlRaw', ta.Sequence[ta.Union[str, 'TomlRaw']]]  # ta.TypeAlias
 
 # ../../omcore/http/headers.py
 StrOrBytes = ta.Union[str, bytes]  # ta.TypeAlias
@@ -405,7 +408,7 @@ token emission.
 `toml_loads` behaves as `tomllib.loads`. `toml_parse_document` additionally produces a `TomlDocument` whose tokens
 partition the source exactly (whitespace, newlines and comments included) and whose nodes map every table, key and
 value to its tokens and to its unmarshaled python value, and which supports surgically rewriting the source while
-preserving everything not touched.
+preserving everything not touched. The sibling `writer` module authors new documents through the same rendering.
 """
 
 
@@ -844,15 +847,78 @@ class TomlTableNode(TomlValueNode):
 ##
 
 
-class TomlValueRenderer:
-    """Renders python values as single-line TOML source text, for use in rewriting documents."""
+@dc.dataclass(frozen=True)
+class TomlStyle:
+    """
+    Rendering preferences for values written by document edits and by the writer. The defaults reproduce the historical
+    `TomlWriter` output: single quoted (literal) strings and keys where possible, every non-empty array laid out one
+    element per line with trailing commas, four space indentation, and unpadded inline tables.
+    """
 
-    def __init__(self, *, newline: str = '\n') -> None:
+    # The preferred quoting of new strings and quoted keys: 'literal', falling back to basic strings for values which
+    # cannot be literal strings, or 'basic'.
+    quotes: str = 'literal'
+
+    indent: str = '    '
+
+    # How arrays are laid out: 'multiline' (one element per line), 'inline' (a single line), or 'auto' (inline when the
+    # array contains no nested arrays or tables and its inline rendering fits within `max_inline_width`).
+    array_layout: str = 'multiline'
+    max_inline_width: int = 80
+
+    # The whitespace inside the braces of a non-empty inline table, for example ' ' for '{ a = 1 }'.
+    inline_table_padding: str = ''
+
+    blank_lines_between_tables: int = 1
+
+    # Permits emitting syntax new in TOML 1.1 (multi-line inline tables), which many consumers cannot yet read.
+    toml_1_1: bool = False
+
+
+@dc.dataclass(frozen=True)
+class TomlRaw:
+    """Verbatim TOML source text, written in place of a value or key part."""
+
+    text: str
+
+
+@dc.dataclass(frozen=True)
+class TomlInline:
+    """Marks an array or table value to be rendered on a single line, regardless of style."""
+
+    value: ta.Any
+
+
+@dc.dataclass(frozen=True)
+class TomlMultiline:
+    """Marks an array (or, with TOML 1.1 enabled, an inline table) to be rendered one element per line."""
+
+    value: ta.Any
+
+
+class TomlValueRenderer:
+    """Renders python values as TOML source text, for use in rewriting and writing documents."""
+
+    def __init__(self, style: ta.Optional[TomlStyle] = None, *, newline: str = '\n') -> None:
         super().__init__()
 
+        if style is None:
+            style = TomlStyle()
+        if style.quotes not in ('literal', 'basic'):
+            raise TomlDocumentError(f'Unknown quote style {style.quotes!r}')
+        if style.array_layout not in ('multiline', 'inline', 'auto'):
+            raise TomlDocumentError(f'Unknown array layout {style.array_layout!r}')
+
+        self._style = style
         self._newline = newline
 
-    BARE_KEY_RE = re.compile(r'[A-Za-z0-9_-]+')
+    @property
+    def style(self) -> TomlStyle:
+        return self._style
+
+    # Bare keys may legally consist only of digits, but keys not starting with a letter or underscore are quoted for
+    # clarity.
+    BARE_KEY_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_-]*')
 
     BASIC_STR_ESCAPES: ta.Mapping[str, str] = types.MappingProxyType({
         '\\': '\\\\',
@@ -868,13 +934,28 @@ class TomlValueRenderer:
     def is_control_char(cls, c: str) -> bool:
         return c < ' ' or c == '\u007F'
 
-    def render_key_part(self, s: str) -> str:
+    def render_key_part(self, k: ta.Any) -> str:
+        if isinstance(k, TomlRaw):
+            return k.text
+        if isinstance(k, bool) or not isinstance(k, (str, int)):
+            raise TomlDocumentError(f'Cannot render key of type {type(k).__name__}')
+        s = str(k)
         if s and self.BARE_KEY_RE.fullmatch(s):
             return s
-        return self.render_basic_str(s)
+        return self.render_str(s)
 
-    def render_key(self, key: ta.Iterable[str]) -> str:
+    def render_key(self, key: ta.Iterable[ta.Any]) -> str:
         return '.'.join(self.render_key_part(p) for p in key)
+
+    @classmethod
+    def render_comment(cls, text: str) -> str:
+        """Renders a comment line: text already starting with '#' is kept as is, otherwise it is prefixed."""
+
+        if not text:
+            return '#'
+        if text.startswith('#'):
+            return text
+        return '# ' + text
 
     def render_basic_str(self, s: str, *, multiline: bool = False) -> str:
         escape_quotes = not multiline or '"""' in s
@@ -901,14 +982,21 @@ class TomlValueRenderer:
         return "'" not in s and not any(self.is_control_char(c) and c != '\t' for c in s)
 
     def render_str(self, s: str, *, like: ta.Optional[str] = None) -> str:
-        """Renders a string, preferring the quoting style of the token kind `like` it is replacing where possible."""
+        """
+        Renders a string, preferring the quoting style of the token kind `like` it is replacing where possible, and
+        otherwise the style's preferred quoting.
+        """
 
         if like in (TomlTokenKinds.ML_BASIC_STRING, TomlTokenKinds.ML_LITERAL_STRING) and '\n' in s:
             if like == TomlTokenKinds.ML_LITERAL_STRING and self.can_be_literal_str(s, multiline=True):
                 return "'''" + self._newline + s + "'''"
             return self.render_basic_str(s, multiline=True)
 
-        if like in (TomlTokenKinds.LITERAL_STRING, TomlTokenKinds.ML_LITERAL_STRING) and self.can_be_literal_str(s):
+        if like is None:
+            literal = self._style.quotes == 'literal'
+        else:
+            literal = like in (TomlTokenKinds.LITERAL_STRING, TomlTokenKinds.ML_LITERAL_STRING)
+        if literal and self.can_be_literal_str(s):
             return "'" + s + "'"
 
         return self.render_basic_str(s)
@@ -941,14 +1029,127 @@ class TomlValueRenderer:
             s += '.0'
         return s
 
-    def render_value(self, v: ta.Any, *, like: ta.Optional[TomlToken] = None) -> str:  # noqa: C901
-        """Renders a value, preferring the style of the scalar token `like` it is replacing where possible."""
+    @classmethod
+    def is_container(cls, v: ta.Any) -> bool:
+        if isinstance(v, (TomlInline, TomlMultiline)):
+            v = v.value
+        return isinstance(v, (list, tuple, ta.Mapping))
+
+    def _render_inline_array(self, v: ta.Sequence[ta.Any]) -> str:
+        return '[' + ', '.join(self.render_value(e, inline_only=True) for e in v) + ']'
+
+    def _render_multiline_array(self, v: ta.Sequence[ta.Any], indent: str) -> str:
+        nl = self._newline
+        inner = indent + self._style.indent
+        return '[' + nl + ''.join(inner + self.render_value(e, indent=inner) + ',' + nl for e in v) + indent + ']'
+
+    def render_array(
+            self,
+            v: ta.Sequence[ta.Any],
+            *,
+            layout: ta.Optional[str] = None,
+            like: ta.Optional[TomlNode] = None,
+            indent: str = '',
+            inline_only: bool = False,
+    ) -> str:
+        if not v:
+            return '[]'
+
+        if inline_only:
+            layout = 'inline'
+        elif layout is None:
+            if like is not None:
+                layout = 'multiline' if '\n' in like.raw else 'inline'
+            else:
+                layout = self._style.array_layout
+
+        if layout == 'auto':
+            if any(self.is_container(e) for e in v):
+                layout = 'multiline'
+            else:
+                text = self._render_inline_array(v)
+                if len(text) <= self._style.max_inline_width:
+                    return text
+                layout = 'multiline'
+
+        if layout == 'inline':
+            return self._render_inline_array(v)
+        return self._render_multiline_array(v, indent)
+
+    def render_table(
+            self,
+            v: ta.Mapping[ta.Any, ta.Any],
+            *,
+            layout: ta.Optional[str] = None,
+            like: ta.Optional[TomlNode] = None,
+            indent: str = '',
+            inline_only: bool = False,
+    ) -> str:
+        if not v:
+            return '{}'
+
+        if inline_only:
+            layout = 'inline'
+        elif layout is None:
+            if like is not None and '\n' in like.raw and self._style.toml_1_1:
+                layout = 'multiline'
+            else:
+                layout = 'inline'
+
+        if layout == 'multiline':
+            if not self._style.toml_1_1:
+                raise TomlDocumentError('Multi-line inline tables require TOML 1.1 (see TomlStyle.toml_1_1)')
+            nl = self._newline
+            inner = indent + self._style.indent
+            return '{' + nl + ''.join(
+                inner + self.render_key_part(k) + ' = ' + self.render_value(e, indent=inner) + ',' + nl
+                for k, e in v.items()
+            ) + indent + '}'
+
+        pad = self._style.inline_table_padding
+        return '{' + pad + ', '.join(
+            self.render_key_part(k) + ' = ' + self.render_value(e, inline_only=True)
+            for k, e in v.items()
+        ) + pad + '}'
+
+    def render_value(  # noqa: C901
+            self,
+            v: ta.Any,
+            *,
+            like: ta.Optional[ta.Union[TomlToken, TomlNode]] = None,
+            indent: str = '',
+            inline_only: bool = False,
+    ) -> str:
+        """
+        Renders a value. `like` is the scalar token or container node being replaced, if any, whose quoting or layout
+        is preferred where possible. `indent` is the indentation of the line the value starts on, and `inline_only`
+        forces containers onto a single line, as required within single-line arrays and inline tables.
+        """
+
+        layout: ta.Optional[str] = None
+        if isinstance(v, TomlRaw):
+            return v.text
+        if isinstance(v, TomlInline):
+            v = v.value
+            layout = 'inline'
+        elif isinstance(v, TomlMultiline):
+            v = v.value
+            layout = 'multiline'
+
+        node = like if isinstance(like, (TomlArrayNode, TomlInlineTableNode)) else None
+        tok = like if isinstance(like, TomlToken) else None
+
+        if isinstance(v, (list, tuple)):
+            return self.render_array(v, layout=layout, like=node, indent=indent, inline_only=inline_only)
+
+        if isinstance(v, ta.Mapping):
+            return self.render_table(v, layout=layout, like=node, indent=indent, inline_only=inline_only)
 
         if isinstance(v, bool):
             return 'true' if v else 'false'
 
         if isinstance(v, int):
-            return self.render_int(v, like=like)
+            return self.render_int(v, like=tok)
 
         if isinstance(v, float):
             return self.render_float(v)
@@ -957,7 +1158,7 @@ class TomlValueRenderer:
             return self.render_decimal(v)
 
         if isinstance(v, str):
-            return self.render_str(v, like=like.kind if like is not None else None)
+            return self.render_str(v, like=tok.kind if tok is not None else None)
 
         if isinstance(v, datetime.datetime):
             return v.isoformat()
@@ -969,14 +1170,6 @@ class TomlValueRenderer:
             if v.tzinfo is not None:
                 raise TomlDocumentError('TOML local times cannot have a timezone')
             return v.isoformat()
-
-        if isinstance(v, (list, tuple)):
-            return '[' + ', '.join(self.render_value(e) for e in v) + ']'
-
-        if isinstance(v, ta.Mapping):
-            if not v:
-                return '{}'
-            return '{ ' + ', '.join(f'{self.render_key_part(k)} = {self.render_value(e)}' for k, e in v.items()) + ' }'
 
         raise TomlDocumentError(f'Cannot render value of type {type(v).__name__}')
 
@@ -995,7 +1188,9 @@ class TomlDocument:
     sub-table headers) have no node of their own.
 
     Documents are immutable: editing methods return new documents, re-parsed from the edited source so that every edit
-    is validated, and nodes obtained from one document must not be used with another.
+    is validated, and nodes obtained from one document must not be used with another. New values are rendered per the
+    document's `style`, except that replacements keep the quoting and layout of what they replace, and insertions into
+    arrays and inline tables mimic their neighbors, wherever possible.
     """
 
     def __init__(
@@ -1006,6 +1201,7 @@ class TomlDocument:
             tables: ta.Sequence[TomlTableNode],
             *,
             parse_float: TomlParseFloat = float,
+            style: ta.Optional[TomlStyle] = None,
     ) -> None:
         super().__init__()
 
@@ -1014,6 +1210,7 @@ class TomlDocument:
         self._tokens = tuple(tokens)
         self._tables = tuple(tables)
         self._parse_float = parse_float
+        self._style = style
 
         by_path: ta.Dict[TomlPath, TomlValueNode] = {}
         kvs_by_path: ta.Dict[TomlPath, TomlKeyValueNode] = {}
@@ -1055,6 +1252,10 @@ class TomlDocument:
     @property
     def root(self) -> TomlTableNode:
         return self._tables[0]
+
+    @property
+    def style(self) -> ta.Optional[TomlStyle]:
+        return self._style
 
     @property
     def newline(self) -> str:
@@ -1112,7 +1313,7 @@ class TomlDocument:
     # Editing
 
     def _reparse(self, src: str) -> 'TomlDocument':
-        return toml_parse_document(src, parse_float=self._parse_float)
+        return toml_parse_document(src, parse_float=self._parse_float, style=self._style)
 
     def splice(self, start: int, end: int, text: str) -> 'TomlDocument':
         """Replaces the source text in [start, end) with `text` and returns the re-parsed document."""
@@ -1147,7 +1348,7 @@ class TomlDocument:
         return self.splice(node.ofs, node.end_ofs, text)
 
     def _renderer(self) -> TomlValueRenderer:
-        return TomlValueRenderer(newline=self.newline)
+        return TomlValueRenderer(self._style, newline=self.newline)
 
     #
 
@@ -1169,6 +1370,17 @@ class TomlDocument:
         first = self._line_first_idx(idx)
         if first is not None and first < idx:
             return self._tokens[first].raw
+        return ''
+
+    def _line_indent(self, idx: int) -> str:
+        """The leading whitespace of the line containing token `idx`."""
+
+        toks = self._tokens
+        i = idx
+        while i > 0 and toks[i - 1].kind != TomlTokenKinds.NEWLINE:
+            i -= 1
+        if i < len(toks) and toks[i].kind == TomlTokenKinds.WS:
+            return toks[i].raw
         return ''
 
     def _line_start_ofs(self, idx: int) -> int:
@@ -1193,6 +1405,19 @@ class TomlDocument:
         if i < len(toks) and toks[i].kind == TomlTokenKinds.NEWLINE:
             return toks[i].ofs, i
         return toks[i - 1].end, None
+
+    def _is_single_line(self, node: TomlNode) -> bool:
+        return not any(t.kind == TomlTokenKinds.NEWLINE for t in node.span)
+
+    def _enclosing_container(self, node: TomlNode) -> ta.Optional[TomlNode]:
+        """The innermost array or inline table containing `node`, if any."""
+
+        p = self._parents.get(id(node))
+        while p is not None:
+            if isinstance(p, (TomlArrayNode, TomlInlineTableNode)):
+                return p
+            p = self._parents.get(id(p))
+        return None
 
     def _statement_removal_span(self, kv: TomlKeyValueNode) -> ta.Tuple[int, int]:
         start = self._line_start_ofs(kv.start)
@@ -1295,18 +1520,41 @@ class TomlDocument:
             self,
             container: TomlNode,
             elements: ta.Sequence[TomlNode],
-            text: str,
+            key_text: ta.Optional[str],
+            value: ta.Any,
+            r: TomlValueRenderer,
     ) -> 'TomlDocument':
         toks = self._tokens
         opener_end = toks[container.start].end
         closer_ofs = toks[container.end - 1].ofs
+        single_line = self._is_single_line(container)
+
+        def render(indent: str, like: ta.Optional[TomlToken]) -> str:
+            text = r.render_value(value, like=like, indent=indent, inline_only=single_line)
+            if key_text is not None:
+                text = key_text + ' = ' + text
+            return text
 
         if not elements:
+            text = render(self._line_indent(container.start), None)
             if isinstance(container, TomlInlineTableNode):
-                text = ' ' + text + ' '
+                pad = r.style.inline_table_padding
+                text = pad + text + pad
             return self.splice(opener_end, closer_ofs, text)
 
         last = elements[-1]
+
+        # Mimic the quoting or number base of the preceding sibling where the new value is of a like type.
+        like: ta.Optional[TomlToken] = None
+        sib = last.value if isinstance(last, TomlKeyValueNode) else last
+        if isinstance(sib, TomlScalarNode):
+            st = sib.token
+            if isinstance(value, str) and st.kind in TomlTokenKinds.STRINGS:
+                like = st
+            elif isinstance(value, int) and not isinstance(value, bool) and st.kind == TomlTokenKinds.INTEGER:
+                like = st
+
+        text = render(self._line_indent(last.start), like)
 
         if self._line_first_idx(last.start) is not None:
             # Elements are laid out one per line: add a line after the last element's, ensuring it has a trailing comma.
@@ -1334,7 +1582,13 @@ class TomlDocument:
 
         return self.splice(last.end_ofs, last.end_ofs, sep + text)
 
-    def _append_statement(self, table: TomlTableNode, key_text: str, value_text: str) -> 'TomlDocument':
+    def _append_statement(
+            self,
+            table: TomlTableNode,
+            key_text: str,
+            value: ta.Any,
+            r: TomlValueRenderer,
+    ) -> 'TomlDocument':
         toks = self._tokens
         nl = self.newline
 
@@ -1353,7 +1607,7 @@ class TomlDocument:
             indent = ''
             eq = ' = '
 
-        stmt = indent + key_text + eq + value_text
+        stmt = indent + key_text + eq + r.render_value(value, indent=indent)
 
         if anchor is not None:
             content_end, nl_idx = self._line_end(anchor)
@@ -1384,10 +1638,11 @@ class TomlDocument:
         """
         Sets the value at `path`, returning the re-parsed document.
 
-        An existing value is replaced in place, preserving its quoting or number base where possible. A new value is
-        inserted as a `key = value` statement at the end of the nearest enclosing table present in the source (using a
-        dotted key for any intermediate tables not present in the source), as a new pair at the end of an inline table,
-        or as a new item at the end of an array when the path's last element equals the array's length.
+        An existing value is replaced in place, preserving its quoting, number base, or layout where possible. A new
+        value is inserted as a `key = value` statement at the end of the nearest enclosing table present in the source
+        (using a dotted key for any intermediate tables not present in the source), as a new pair at the end of an
+        inline table, or as a new item at the end of an array when the path's last element equals the array's length.
+        Values may be wrapped in `TomlInline`, `TomlMultiline`, or `TomlRaw` to control their rendering.
         """
 
         path = tuple(path)
@@ -1400,8 +1655,15 @@ class TomlDocument:
         if node is not None:
             if isinstance(node, TomlTableNode):
                 raise TomlDocumentError(f'Cannot replace table {path!r} with a value')
-            like = node.token if isinstance(node, TomlScalarNode) else None
-            return self.replace_node(node, r.render_value(value, like=like))
+            like: ta.Union[TomlToken, TomlNode] = node.token if isinstance(node, TomlScalarNode) else node
+            enc = self._enclosing_container(node)
+            text = r.render_value(
+                value,
+                like=like,
+                indent=self._line_indent(node.start),
+                inline_only=enc is not None and self._is_single_line(enc),
+            )
+            return self.replace_node(node, text)
 
         # Find the innermost node on the path which is present in the source. The root table always is.
         i = len(path) - 1
@@ -1418,17 +1680,17 @@ class TomlDocument:
         if isinstance(parent, TomlArrayNode):
             if len(rest) != 1 or rest[0] != len(parent.items):
                 raise TomlDocumentError(f'Can only append to array {parent.path!r} at index {len(parent.items)}')
-            return self._container_insert(parent, parent.items, r.render_value(value))
+            return self._container_insert(parent, parent.items, None, value, r)
 
         if not all(isinstance(p, str) for p in rest):
             raise TomlDocumentError(f'Cannot address into an array of tables at {path!r}')
-        key_text = r.render_key(ta.cast(ta.Sequence[str], rest))
+        key_text = r.render_key(rest)
 
         if isinstance(parent, TomlInlineTableNode):
-            return self._container_insert(parent, parent.pairs, key_text + ' = ' + r.render_value(value))
+            return self._container_insert(parent, parent.pairs, key_text, value, r)
 
         if isinstance(parent, TomlTableNode):
-            return self._append_statement(parent, key_text, r.render_value(value))
+            return self._append_statement(parent, key_text, value, r)
 
         raise TomlDocumentError(f'Cannot set {path!r} within the value at {parent.path!r}')
 
@@ -1456,37 +1718,68 @@ class TomlDocument:
 
     def add_table(
             self,
-            path: ta.Iterable[str],
-            values: ta.Optional[ta.Mapping[str, ta.Any]] = None,
+            path: ta.Iterable[ta.Any],
+            values: ta.Optional[ta.Mapping[ta.Any, ta.Any]] = None,
             *,
             array: bool = False,
+            after: ta.Optional[ta.Iterable[TomlPathPart]] = None,
+            comments: ta.Optional[ta.Sequence[str]] = None,
     ) -> 'TomlDocument':
         """
-        Appends a `[path]` (or, if `array`, a `[[path]]`) section with the given key/value statements to the end of the
-        document, returning the re-parsed document.
+        Adds a `[path]` (or, if `array`, a `[[path]]`) section with the given key/value statements, preceded by any
+        given comment lines, and returns the re-parsed document. The section is placed directly after the table at
+        `after` if given, else at the end of the document, separated from its neighbors by the style's blank lines
+        between tables.
         """
 
         key = tuple(path)
-        if not key or not all(isinstance(p, str) for p in key):
+        if not key or not all(isinstance(p, (str, TomlRaw)) for p in key):
             raise TomlDocumentError('Table paths must be non-empty sequences of strings')
 
         r = self._renderer()
         nl = self.newline
+        sep = nl * r.style.blank_lines_between_tables
 
-        lines = [('[[' if array else '[') + r.render_key(key) + (']]' if array else ']')]
+        lines = [r.render_comment(c) for c in (comments or ())]
+        lines.append(('[[' if array else '[') + r.render_key(key) + (']]' if array else ']'))
         for k, v in (values or {}).items():
             lines.append(f'{r.render_key_part(k)} = {r.render_value(v)}')
         text = nl.join(lines) + nl
 
         src = self._src
+
+        if after is not None:
+            tbl = self.table_at_path(after)
+            if tbl is None:
+                raise TomlDocumentError(f'No table at {tuple(after)!r}')
+
+            if tbl.start < tbl.end:
+                content_end, nl_idx = self._line_end(tbl.end - 1)
+                if nl_idx is not None:
+                    ofs = self._tokens[nl_idx].end
+                    return self.splice(ofs, ofs, sep + text)
+                return self.splice(content_end, content_end, nl + sep + text)
+
+            # The root table is empty: place the section before the first header, if there is one.
+            if len(self._tables) > 1:
+                hdr = self._tables[1].header
+                if hdr is None:
+                    raise TomlDocumentError('Non-root table has no header')
+                ofs = self._line_start_ofs(hdr.start)
+                return self.splice(ofs, ofs, text + sep)
+
         if not src.strip():
             return self.splice(len(src), len(src), text)
-        if src.endswith(nl + nl):
-            prefix = ''
-        elif src.endswith('\n'):
-            prefix = nl
+
+        tail = 0
+        s = src
+        while s.endswith(nl):
+            s = s[:-len(nl)]
+            tail += 1
+        if tail == 0:
+            prefix = nl + sep
         else:
-            prefix = nl + nl
+            prefix = nl * max(0, 1 + r.style.blank_lines_between_tables - tail)
         return self.splice(len(src), len(src), prefix + text)
 
 
@@ -1737,7 +2030,7 @@ class TomlParser:
 
     #
 
-    def document(self) -> TomlDocument:
+    def document(self, *, style: ta.Optional[TomlStyle] = None) -> TomlDocument:
         """Returns the built `TomlDocument`. Only valid after `parse` on a parser constructed with `build_document`."""
 
         b = self._builder
@@ -1751,6 +2044,7 @@ class TomlParser:
             b.tokens,
             b.tables,
             parse_float=self._raw_parse_float,
+            style=style,
         )
 
     def raw_ofs(self, pos: TomlPos) -> int:
@@ -2568,142 +2862,21 @@ def toml_loads(s: str, /, *, parse_float: TomlParseFloat = float) -> ta.Dict[str
     return TomlParser(s, parse_float=parse_float).parse()
 
 
-def toml_parse_document(s: str, /, *, parse_float: TomlParseFloat = float) -> TomlDocument:
-    """Parse TOML from a string into a full-fidelity `TomlDocument`."""
+def toml_parse_document(
+        s: str,
+        /,
+        *,
+        parse_float: TomlParseFloat = float,
+        style: ta.Optional[TomlStyle] = None,
+) -> TomlDocument:
+    """Parse TOML from a string into a full-fidelity `TomlDocument`, whose edits render new values per `style`."""
 
     if not isinstance(s, str):
         raise TypeError(f"Expected str object, not '{type(s).__qualname__}'")
 
     parser = TomlParser(s, parse_float=parse_float, build_document=True)
     parser.parse()
-    return parser.document()
-
-
-########################################
-# ../../../omcore/formats/toml/writer.py
-
-
-##
-
-
-class TomlWriter:
-    @dc.dataclass(frozen=True)
-    class Literal:
-        s: str
-
-    def __init__(self, out: ta.TextIO) -> None:
-        super().__init__()
-
-        self._out = out
-
-        self._indent = 0
-        self._wrote_indent = False
-
-    #
-
-    def _w(self, s: str) -> None:
-        if not self._wrote_indent:
-            self._out.write('    ' * self._indent)
-            self._wrote_indent = True
-        self._out.write(s)
-
-    def _nl(self) -> None:
-        self._out.write('\n')
-        self._wrote_indent = False
-
-    def _needs_quote(self, s: str) -> bool:
-        return (
-            not s or
-            any(c in s for c in '\'"\n') or
-            s[0] not in string.ascii_letters
-        )
-
-    def _maybe_quote(self, s: str) -> str:
-        if self._needs_quote(s):
-            return repr(s)
-        else:
-            return s
-
-    #
-
-    def write_root(self, obj: ta.Mapping) -> None:
-        for i, (k, v) in enumerate(obj.items()):
-            if i:
-                self._nl()
-            self._w('[')
-            self._w(self._maybe_quote(k))
-            self._w(']')
-            self._nl()
-            self.write_table_contents(v)
-
-    def write_table_contents(self, obj: ta.Mapping) -> None:
-        for k, v in obj.items():
-            self.write_key(k)
-            self._w(' = ')
-            self.write_value(v)
-            self._nl()
-
-    def write_array(self, obj: ta.Sequence) -> None:
-        self._w('[')
-        self._nl()
-        self._indent += 1
-        for e in obj:
-            self.write_value(e)
-            self._w(',')
-            self._nl()
-        self._indent -= 1
-        self._w(']')
-
-    def write_inline_table(self, obj: ta.Mapping) -> None:
-        self._w('{')
-        for i, (k, v) in enumerate(obj.items()):
-            if i:
-                self._w(', ')
-            self.write_key(k)
-            self._w(' = ')
-            self.write_value(v)
-        self._w('}')
-
-    def write_inline_array(self, obj: ta.Sequence) -> None:
-        self._w('[')
-        for i, e in enumerate(obj):
-            if i:
-                self._w(', ')
-            self.write_value(e)
-        self._w(']')
-
-    def write_key(self, obj: ta.Any) -> None:
-        if isinstance(obj, TomlWriter.Literal):
-            self._w(obj.s)
-        elif isinstance(obj, str):
-            self._w(self._maybe_quote(obj))
-        elif isinstance(obj, int):
-            self._w(repr(str(obj)))
-        else:
-            raise TypeError(obj)
-
-    def write_value(self, obj: ta.Any) -> None:
-        if isinstance(obj, bool):
-            self._w(str(obj).lower())
-        elif isinstance(obj, (str, int, float)):
-            self._w(repr(obj))
-        elif isinstance(obj, ta.Mapping):
-            self.write_inline_table(obj)
-        elif isinstance(obj, ta.Sequence):
-            if not obj:
-                self.write_inline_array(obj)
-            else:
-                self.write_array(obj)
-        else:
-            raise TypeError(obj)
-
-    #
-
-    @classmethod
-    def write_str(cls, obj: ta.Any) -> str:
-        out = io.StringIO()
-        cls(out).write_value(obj)
-        return out.getvalue()
+    return parser.document(style=style)
 
 
 ########################################
@@ -6467,6 +6640,206 @@ class SystevisorHandoffManifest:
     inherited_sockets: ta.Sequence[ta.Mapping[str, ta.Any]]
     cgroups: ta.Sequence[ta.Mapping[str, ta.Any]]
     fds: ta.Sequence[SystevisorHandoffFd]
+
+
+########################################
+# ../../../omcore/formats/toml/writer.py
+"""
+Programmatic authoring of TOML documents, with control over layout, comments and spacing, rendered through the same
+`TomlValueRenderer` and `TomlStyle` used by in-place `TomlDocument` edits so that generated and edited files share one
+style.
+"""
+
+
+##
+
+
+class TomlBuilder:
+    """
+    Builds a TOML document line by line: comments, blank lines, table headers, and key/value pairs, in the order they
+    are added.
+
+    Header paths given as strings are split on dots, so `table('tool.om')` writes `[tool.om]`; give a sequence of parts
+    to use a part containing a dot. Pair keys given as strings are single (quoted as needed) parts; give a sequence for
+    a dotted key. Values may be wrapped in `TomlInline`, `TomlMultiline`, or `TomlRaw` to control their rendering.
+
+    Before a table header the style's blank lines between tables are inserted unless blank lines were already added
+    explicitly, so blanks, comments and tables compose into groupings such as:
+
+        b.comment('##').comment('section').table('tool.thing', {'k': 1})
+        b.blank(2).comment('#').table('tool.other', comments=['directly above the header'])
+    """
+
+    def __init__(
+            self,
+            *,
+            style: ta.Optional[TomlStyle] = None,
+            newline: str = '\n',
+    ) -> None:
+        super().__init__()
+
+        self._renderer = TomlValueRenderer(style, newline=newline)
+        self._newline = newline
+
+        self._lines: ta.List[str] = []
+
+    @property
+    def style(self) -> TomlStyle:
+        return self._renderer.style
+
+    @property
+    def renderer(self) -> TomlValueRenderer:
+        return self._renderer
+
+    #
+
+    @classmethod
+    def _split_header_path(cls, path: TomlHeaderPath) -> ta.Tuple[ta.Union[str, TomlRaw], ...]:
+        if isinstance(path, str):
+            return tuple(path.split('.'))
+        if isinstance(path, TomlRaw):
+            return (path,)
+        return tuple(path)
+
+    def _trailing_blank_lines(self) -> int:
+        n = 0
+        for ln in reversed(self._lines):
+            if ln:
+                break
+            n += 1
+        return n
+
+    #
+
+    def blank(self, n: int = 1) -> 'TomlBuilder':
+        """Adds blank lines."""
+
+        self._lines.extend([''] * n)
+        return self
+
+    def comment(self, text: str = '') -> 'TomlBuilder':
+        """Adds comment lines: each line of `text` is written as is if it already starts with '#', else prefixed."""
+
+        for ln in (text.split('\n') if text else ['']):
+            self._lines.append(self._renderer.render_comment(ln))
+        return self
+
+    def raw(self, text: str) -> 'TomlBuilder':
+        """Adds verbatim source lines."""
+
+        self._lines.extend(text.splitlines())
+        return self
+
+    def separate(self) -> 'TomlBuilder':
+        """Ensures the style's blank lines between tables follow any content, unless blank lines are already present."""
+
+        if self._lines and not self._trailing_blank_lines():
+            self.blank(self._renderer.style.blank_lines_between_tables)
+        return self
+
+    def table(
+            self,
+            path: TomlHeaderPath,
+            values: ta.Optional[ta.Mapping[ta.Any, ta.Any]] = None,
+            *,
+            array: bool = False,
+            comments: ta.Optional[ta.Sequence[str]] = None,
+    ) -> 'TomlBuilder':
+        """
+        Starts a `[path]` (or, if `array`, a `[[path]]`) section, separated from preceding content, with any given
+        comment lines directly above its header and any given key/value pairs below it.
+        """
+
+        r = self._renderer
+        key = self._split_header_path(path)
+        if not key:
+            raise TomlDocumentError('Table paths must be non-empty')
+
+        self.separate()
+        for c in (comments or ()):
+            self._lines.append(r.render_comment(c))
+        self._lines.append(('[[' if array else '[') + r.render_key(key) + (']]' if array else ']'))
+
+        for k, v in (values or {}).items():
+            self.pair(k, v)
+
+        return self
+
+    def pair(
+            self,
+            key: ta.Any,
+            value: ta.Any,
+            *,
+            layout: ta.Optional[str] = None,
+            comment: ta.Optional[str] = None,
+    ) -> 'TomlBuilder':
+        """
+        Adds a `key = value` line, optionally forcing an 'inline' or 'multiline' layout and adding a trailing comment.
+        """
+
+        r = self._renderer
+
+        if isinstance(key, (str, TomlRaw, int)):
+            key_text = r.render_key_part(key)
+        else:
+            key_text = r.render_key(key)
+
+        if layout == 'inline':
+            value = TomlInline(value)
+        elif layout == 'multiline':
+            value = TomlMultiline(value)
+        elif layout is not None:
+            raise TomlDocumentError(f'Unknown layout {layout!r}')
+
+        line = key_text + ' = ' + r.render_value(value)
+        if comment is not None:
+            line += '  ' + r.render_comment(comment)
+        self._lines.append(line)
+
+        return self
+
+    #
+
+    def render(self) -> str:
+        if not self._lines:
+            return ''
+        return self._newline.join(self._lines) + self._newline
+
+    def document(self, *, parse_float: TomlParseFloat = float) -> TomlDocument:
+        """Parses the built source into a `TomlDocument` carrying the builder's style, validating it in the process."""
+
+        return toml_parse_document(self.render(), parse_float=parse_float, style=self._renderer.style)
+
+
+##
+
+
+def toml_dumps(
+        obj: ta.Mapping[ta.Any, ta.Any],
+        *,
+        style: ta.Optional[TomlStyle] = None,
+        newline: str = '\n',
+) -> str:
+    """
+    Renders a mapping as a TOML document. Top-level mapping values become `[table]` sections, their keys interpreted as
+    header paths (strings split on dots) and any mappings nested within them rendered as inline tables. Other top-level
+    values become root key/value pairs, written before any section. Wrap a top-level mapping in `TomlInline` to write it
+    as a root inline table instead. Use a `TomlBuilder` directly for nested sections, comments, or custom spacing.
+    """
+
+    b = TomlBuilder(style=style, newline=newline)
+
+    sections = []
+    for k, v in obj.items():
+        if isinstance(v, ta.Mapping):
+            sections.append((k, v))
+        else:
+            b.pair(k, v)
+
+    for k, v in sections:
+        b.table(k, v)
+
+    return b.render()
 
 
 ########################################
@@ -14663,7 +15036,7 @@ class TomlConfigRenderer(DumpsConfigRenderer[TomlConfigData]):
     data_cls = TomlConfigData
 
     def dumps(self, o: ta.Any) -> str:
-        return TomlWriter.write_str(o)
+        return toml_dumps(o)
 
 
 ##
@@ -22978,7 +23351,7 @@ def _systevisor_platform_raise_resource_limit(resource_id: int, minimum: int, na
 def _systevisor_platform_enable_subreaper() -> bool:
     if not sys.platform.startswith('linux'):
         return False
-    if os.getpid() == 1:
+    if os.getpid() == 1:  # type: ignore[unreachable]
         return True
     libc = ctypes.CDLL(None, use_errno=True)
     prctl = getattr(libc, 'prctl', None)
@@ -30601,7 +30974,7 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
     def validate_root(self, root: str, configs: ta.Iterable[SystevisorCgroupConfig]) -> None:
         if sys.platform != 'linux':
             raise SystevisorCgroupError('cgroup v2 isolation is supported only on Linux')
-        try:
+        try:  # type: ignore[unreachable]
             root_stat = os.stat(root, follow_symlinks=False)
         except OSError as exc:
             raise SystevisorCgroupError(f'cannot inspect delegated cgroup root {root!r}: {exc}') from exc
@@ -30949,7 +31322,7 @@ class SystevisorLinuxNamespaceBackend(SystevisorNamespaceBackend):
     def apply(self, flags: int, *, private_mounts: bool, hostname: ta.Optional[str]) -> None:
         if sys.platform != 'linux':
             raise SystevisorNamespaceError('namespace isolation is supported only on Linux')
-        libc = ctypes.CDLL(None, use_errno=True)
+        libc = ctypes.CDLL(None, use_errno=True)  # type: ignore[unreachable]
         libc_unshare = getattr(libc, 'unshare', None)
         if libc_unshare is None:
             raise SystevisorNamespaceError('libc does not expose unshare')

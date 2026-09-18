@@ -28,5 +28,3 @@ Additionally:
  - Performance (beyond algorithmic) is of almost no concern: it's primarily intended to load a small number of config
    files a small number of times in any given process. If any but a trivial amount of yaml files need to be parsed, just
    use pyyaml ('s c-extension).
-
-It's now ready for use, but not yet ready to be used by default.

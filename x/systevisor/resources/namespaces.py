@@ -40,7 +40,7 @@ class SystevisorLinuxNamespaceBackend(SystevisorNamespaceBackend):
     def apply(self, flags: int, *, private_mounts: bool, hostname: ta.Optional[str]) -> None:
         if sys.platform != 'linux':
             raise SystevisorNamespaceError('namespace isolation is supported only on Linux')
-        libc = ctypes.CDLL(None, use_errno=True)
+        libc = ctypes.CDLL(None, use_errno=True)  # type: ignore[unreachable]
         libc_unshare = getattr(libc, 'unshare', None)
         if libc_unshare is None:
             raise SystevisorNamespaceError('libc does not expose unshare')

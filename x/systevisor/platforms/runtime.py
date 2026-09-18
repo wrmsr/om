@@ -79,7 +79,7 @@ def _systevisor_platform_raise_resource_limit(resource_id: int, minimum: int, na
 def _systevisor_platform_enable_subreaper() -> bool:
     if not sys.platform.startswith('linux'):
         return False
-    if os.getpid() == 1:
+    if os.getpid() == 1:  # type: ignore[unreachable]
         return True
     libc = ctypes.CDLL(None, use_errno=True)
     prctl = getattr(libc, 'prctl', None)
