@@ -102,13 +102,12 @@ wikitextparser==2.0.0  # !! GPL
 
 numpy==2.5.3
 
-# must be kept in sync
-textual==8.2.8
-textual[syntax]==8.2.8  # @om-venv !14t !14dt !15t
-
-rich==15.0.0
-textual-dev==1.8.0
-textual-speedups==0.2.1  # @om-venv !15 !15t
+# Deprecated via minitui
+# textual==8.2.8
+# textual[syntax]==8.2.8  # @om-venv !14t !14dt !15t
+# rich==15.0.0
+# textual-dev==1.8.0
+# textual-speedups==0.2.1  # @om-venv !15 !15t
 
 tree-sitter==0.26.0  # @om-venv !14t !14dt !15t
 tree-sitter-bash==0.25.1  # @om-venv !14t !14dt !15t
