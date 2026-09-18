@@ -599,7 +599,15 @@ def _systevisor_main_parser() -> argparse.ArgumentParser:
     service_template.add_argument('--state-directory')
 
     for command in (
-            'status', 'units', 'collections', 'schedules', 'config', 'operations', 'reload', 'check', 'shutdown',
+            'status',
+            'units',
+            'collections',
+            'schedules',
+            'config',
+            'operations',
+            'reload',
+            'check',
+            'shutdown',
     ):
         subparsers.add_parser(command)
 

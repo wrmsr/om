@@ -92,29 +92,29 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/io.py', sha1='a60d94f0bdbb2b1541d363c301314682d1686240'),
             dict(path='../../omcore/lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
             dict(path='../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
-            dict(path='../../omcore/lite/reflect.py', sha1='fab4ef6f45f278ce7bffcd811cd170b40db107a8'),
+            dict(path='../../omcore/lite/reflect.py', sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0'),
             dict(path='../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../omcore/logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
             dict(path='../../omcore/logs/std/filters.py', sha1='3ec3856ade50561f99ce9463f54737ab1126d410'),
             dict(path='../../omcore/logs/std/proxy.py', sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a'),
             dict(path='../../omcore/logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='../../omcore/os/setproctitle.py', sha1='072f43a3e2a0a6890e3c73ed587f06060959f41e'),
+            dict(path='../../omcore/os/setproctitle.py', sha1='b9a18de845c1c47438359e240a95f5162dd3ac7e'),
             dict(path='../../omcore/sockets/addresses.py', sha1='91e74bab525937f7633193c9aecc54530e54b6d2'),
-            dict(path='configs/diagnostics.py', sha1='cab70a215b125e92306df1015f16849e86dbf814'),
-            dict(path='core/identities.py', sha1='e05ff81845814fcce1e10f61d10c4192cdfa6f9c'),
-            dict(path='core/signals.py', sha1='3a193bc0730e5ff6d2aeec9b5e9cc075bafce4f6'),
-            dict(path='core/states.py', sha1='cb33534747c2613daa5249e7bd6278954ae540c6'),
-            dict(path='platforms/services.py', sha1='74fd539b4d05c9e847563e1dcd0c8bed9187d071'),
-            dict(path='runtime/events.py', sha1='e108908260b6867e4465444f85d8e8966204b587'),
-            dict(path='scheduling/cron.py', sha1='b5e169f2cb6ec3cdac9a4ca9d12c88a259456835'),
-            dict(path='selfupdate/models.py', sha1='71fb817afe1149f6c147902afbe6884c3ee7cc94'),
+            dict(path='configs/diagnostics.py', sha1='5ada212c224431ef9ce73239a6a22c7df7d71280'),
+            dict(path='core/identities.py', sha1='f5c1cb45d31f760208253877ad8d791d77d9471b'),
+            dict(path='core/signals.py', sha1='89a31442ba066a40a3e981d7f093e0411d6e4763'),
+            dict(path='core/states.py', sha1='edb8f94711b2a05a494781522c6f3b69c083dc9d'),
+            dict(path='platforms/services.py', sha1='b1d597cb3d302dfb4b0d503e0d5f4bc07f8d280b'),
+            dict(path='runtime/events.py', sha1='fcd03ef65d1c84b7db2696e8959575c399d4b72e'),
+            dict(path='scheduling/cron.py', sha1='d6d32c783750b1f502805e63ace3793a9767afc2'),
+            dict(path='selfupdate/models.py', sha1='5e1cfadd817810d5606588a8480cdff7a4a38223'),
             dict(path='../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
-            dict(path='../../omcore/http/parsing.py', sha1='24bdc721ed0005175f5ed371f4222b116a552d63'),
+            dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='0a249bfaede012e18fea8cd3b0f239c985a6cfec'),  # noqa
-            dict(path='../../omcore/io/fdio/handlers.py', sha1='88a796cfd65086ebcf91a3bfb0076df1fe7cfc61'),
-            dict(path='../../omcore/io/fdio/pollers.py', sha1='a6e0c9c82c6e8a4ca192471f3c3bbb5c7e6016d5'),
-            dict(path='../../omcore/io/pipelines/core.py', sha1='8b13702756070e8b5faae0ff14e62c5d745de857'),
+            dict(path='../../omcore/io/fdio/handlers.py', sha1='941023cfaa2dc5f68662ea7ed22fc2a3b29a09d0'),
+            dict(path='../../omcore/io/fdio/pollers.py', sha1='85c73f794f2ccb5d002bf0f63bd9acd35c3539cb'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
             dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
@@ -123,12 +123,12 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='86450e7d201599874c824638d791ab0523536541'),
-            dict(path='runtime/clocks.py', sha1='f364654f73e89d21cf4df61dbb8596fca24fd5d5'),
+            dict(path='configs/models.py', sha1='807982304f503c1a033d3210ac2b259067b12797'),
+            dict(path='runtime/clocks.py', sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6'),
             dict(path='../../omcore/configs/formats.py', sha1='9263da888199b408e902490244e9d5caddc69821'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
-            dict(path='../../omcore/io/fdio/kqueue.py', sha1='b0ab07fba560a877ef394e843ac49dfb10a243b0'),
-            dict(path='../../omcore/io/fdio/manager.py', sha1='e1538b540949c1a8bbdbc94945212278be2d646a'),
+            dict(path='../../omcore/io/fdio/kqueue.py', sha1='0a4c1e2b846ac4a32afab4ff8814ea9d9f526905'),
+            dict(path='../../omcore/io/fdio/manager.py', sha1='8135a9ec6bc1e3b122cff093a2f9bbfc1a156691'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
             dict(path='../../omcore/io/pipelines/flow/types.py', sha1='d7182502ec64e84607e4f9cacb32472072307752'),
@@ -138,12 +138,12 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/inject.py', sha1='863e777b377faeeacd8061532d009cc1f23e4a07'),
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
-            dict(path='configs/marshal.py', sha1='3c4ef5c9b224a7c47c90dc4dc2a73d5a4c071ce9'),
-            dict(path='configs/validation.py', sha1='1708d899166af80980a85717081f7c09e788cf93'),
-            dict(path='control/jsoncodec.py', sha1='351d8be14f9b96ae4f2bbf52595cf67620316f4c'),
-            dict(path='control/operations.py', sha1='4c8366037a0e9ffbb20566042793248ce60d8c18'),
-            dict(path='core/changes.py', sha1='ad654c398408297dae49b9d08cdb91b3b956a682'),
-            dict(path='runtime/signals.py', sha1='affb2c1c630b49855af137bee05155dbcd4e1d19'),
+            dict(path='configs/marshal.py', sha1='80978d50109521a8e2b24c29a9b0ec9d17811da7'),
+            dict(path='configs/validation.py', sha1='236478ad23e56afc82c86d7734aae3c3f4f5ce37'),
+            dict(path='control/jsoncodec.py', sha1='237d3022f5c0e865fcf6dc333759aca8464d8fb4'),
+            dict(path='control/operations.py', sha1='85d8dce0065e36ebddc64eab8425a408be79a732'),
+            dict(path='core/changes.py', sha1='2cbd01de924b248be7c91fa4a8bd758049c036f0'),
+            dict(path='runtime/signals.py', sha1='c321a5945b48a216a82a0e7ca4e91aae6d1db46a'),
             dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
             dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
@@ -152,7 +152,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
             dict(path='../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='configs/sources.py', sha1='ed58c050ccbae6c6ea581d97bf67665d19a1f976'),
+            dict(path='configs/sources.py', sha1='f5b50687c85168c5cb72d2623ad89ee08be57573'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='d58fb8e037a4b8efda5f93ae0646c9af6897b7b2'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
             dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='2843fd0f3eeacfb0d257ef0dd889067319ece5eb'),  # noqa
@@ -163,51 +163,51 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/io/streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
-            dict(path='configs/snapshots.py', sha1='ea9fe1037ee1d325fe6e2b550e9747617ed551d2'),
-            dict(path='platforms/runtime.py', sha1='d91cda3beeb332038b14e3e0b308545fb186fc7e'),
+            dict(path='configs/snapshots.py', sha1='4dc9bbfab25739ea07b2a44ac7737b8218615ab0'),
+            dict(path='platforms/runtime.py', sha1='c7d6d07ede88fdb73fa328653a59e477da1f2fd4'),
             dict(path='../../omcore/http/pipelines/aggregators.py', sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1'),
             dict(path='../../omcore/http/pipelines/clients/requests.py', sha1='60607306046abc3d5bb0c2e0b40e61251151ae13'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5'),  # noqa
             dict(path='../../omcore/io/pipelines/bytes/decoders.py', sha1='95cfd81b143427f3dbe12777a728208c3a4daafa'),
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='configs/compiling.py', sha1='c84d5c5c81fb4f40ad6eee2e2a8e77ccc97440c2'),
-            dict(path='core/effects.py', sha1='047f2294357fb737a49c7f67fe1886d2fc76709e'),
-            dict(path='core/inputs.py', sha1='58bd148f803b9f8d6657970dbb2e6211da3771f7'),
-            dict(path='core/state.py', sha1='96d43e24492ec520bbbeeef4019cb68aa0e84619'),
-            dict(path='platforms/inject.py', sha1='2bc9e6829c3b4668519e6afa7dffb4def8b50416'),
+            dict(path='configs/compiling.py', sha1='a748251b2dc5d8b464b9ca4b4e4dbd8743b5f3d7'),
+            dict(path='core/effects.py', sha1='a761ee40562f18064f5357f2dd0533ee4e628f05'),
+            dict(path='core/inputs.py', sha1='f5624cdfd9f664c5bf44d87e629e366b7cfc949a'),
+            dict(path='core/state.py', sha1='9f15dea25a2a51f5661e9d4b4728adf434dd5aa5'),
+            dict(path='platforms/inject.py', sha1='89ea3048c6ee58d40e3a5835cb85c7757591a12d'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='00a5a981594b5f6133b6daec746f75b30da88fd9'),
             dict(path='../../omcore/io/pipelines/drivers/fdio.py', sha1='bfd36823fcfff9eb6448d5d093eacd122849c0fa'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='6b6c29eca0d1679ac4219d81cbeb1f1e549a772e'),
-            dict(path='core/events.py', sha1='9ca81d117b5b34553bf2466ba983cb778bb52e1c'),
-            dict(path='runtime/fdio.py', sha1='c6609308ee8748415669e44f814245c5e1ade703'),
-            dict(path='runtime/logs.py', sha1='0ad855c5d4ef5c428928fb58d269bc1cb522e295'),
-            dict(path='runtime/processes.py', sha1='9c040cc9b458f18e098283fb4252eee26b0aa393'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='ec00345d6192983625190ddb9da1dbd713f16130'),
+            dict(path='core/events.py', sha1='37526d652d6e8bc851b49b7417967e6fba6be4c2'),
+            dict(path='runtime/fdio.py', sha1='618ebd90f4e1867bf900b19020256d4b3c80ad9f'),
+            dict(path='runtime/logs.py', sha1='79e486e0a7ace9a30a7fbe1314ea8694e9c79e2f'),
+            dict(path='runtime/processes.py', sha1='bb828e9ef9e6dc89869e086c51834b439f620d01'),
             dict(path='../../omcore/http/pipelines/clients/responses.py', sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/requests.py', sha1='2258c98399fd861ca308ff1ef498513d435f6fbb'),  # noqa
-            dict(path='core/engine.py', sha1='fe76f8ddc8c246a8c8c11d3452ddf98384d5bdb8'),
-            dict(path='resources/cgroups.py', sha1='4ccf68c772b82481a06d9cf8addda457166216ba'),
-            dict(path='resources/namespaces.py', sha1='bd1c4b97fd72df49bfd9820f7638f27263285ab2'),
-            dict(path='resources/sampling.py', sha1='b15a7599153f597aae6c7df172648fbc7e847124'),
-            dict(path='resources/sockets.py', sha1='e180d3e0df5f66c03ceb6aa11f156986afcea92e'),
-            dict(path='control/client.py', sha1='80a93c5f83f5c4dc8351bc9c294cdfdcd67e23ee'),
-            dict(path='runtime/health.py', sha1='b780f9252da4e15d2870dc347516b41ab9c1d610'),
-            dict(path='selfupdate/codec.py', sha1='5f71efb5f0f3a37ab55ccdedcaf9415e98a05536'),
-            dict(path='runtime/coordinator.py', sha1='8568cad678ef01c6345a31dcb89cdca16ed25f83'),
-            dict(path='control/configs.py', sha1='90e91da0e8aa53d5f3287c9ee014708f44934d33'),
-            dict(path='runtime/inject.py', sha1='563ae31969873a00e47238bcc3986a78ad82bab6'),
-            dict(path='selfupdate/restore.py', sha1='8abe6acbef76bfe299d3be504ca922543eb6bbd6'),
-            dict(path='control/manager.py', sha1='8f715afde9a17b57e2ffaea413d299a99c988214'),
-            dict(path='control/service.py', sha1='caa36df4c4fe11e47a757593129d2ced91a77c57'),
-            dict(path='resources/runtime.py', sha1='fca60675a1390fe1f5fb11f3eccaacff29b4eb05'),
-            dict(path='selfupdate/runtime.py', sha1='35531174f73367b956dc22adfe2fc2e9a824b4f1'),
-            dict(path='resources/inject.py', sha1='8a6e401ae5226cbe3980c1e3c091376d7aea1660'),
-            dict(path='scheduling/runtime.py', sha1='1becc1acded71aa3578bf9cedf33f97c015fcee9'),
-            dict(path='selfupdate/inject.py', sha1='9745fc822cdb64e91b21ee60e71412430a3738c7'),
-            dict(path='control/api.py', sha1='ee2da9830d7603128f219f881f302ce0a2ecde54'),
-            dict(path='control/http.py', sha1='229bea0294159966194a4d30042972a2a41d6320'),
-            dict(path='control/plane.py', sha1='6564a0b172a8b5794443e87472d73b156c23e662'),
-            dict(path='control/inject.py', sha1='7beba0838f55bbf618f8b24aa23ad965dfd5f89b'),
-            dict(path='main.py', sha1='b9d7640f3481429f44bec6e28009e9ddeacdb01a'),
+            dict(path='core/engine.py', sha1='9ffc587d7ef4fc47a7d7d26cb31d2734b66d0f02'),
+            dict(path='resources/cgroups.py', sha1='ed7bb32e002ef134ae04e6a0488038cd282dc180'),
+            dict(path='resources/namespaces.py', sha1='0dab14120fd946c2edd67f45e74c601d92c39209'),
+            dict(path='resources/sampling.py', sha1='6fa61546905963453297514ada59d9d09cb66dd1'),
+            dict(path='resources/sockets.py', sha1='82ed72673b58f8ea25d8718460b7cdf2bf39d911'),
+            dict(path='control/client.py', sha1='cb4d78120e7b95e3f8ac7621356c78e73442295b'),
+            dict(path='runtime/health.py', sha1='7a569f735fbb2415a7741f5efa62943940b56605'),
+            dict(path='selfupdate/codec.py', sha1='91dc9153e3c34f18002b7de27a3c05dc2fe69f2c'),
+            dict(path='runtime/coordinator.py', sha1='1de8e7c0add09c046d8724b23718b9c1868a62a8'),
+            dict(path='control/configs.py', sha1='750c44ed70324939e257f91d170757d6262f3244'),
+            dict(path='runtime/inject.py', sha1='6a2182d011c28814b7f319b378ecb812e619559a'),
+            dict(path='selfupdate/restore.py', sha1='ffd90696e2e447bda4f769cefbaad3c33fe88737'),
+            dict(path='control/manager.py', sha1='52f762caa1ed7806d3e54b3a88c02679d3d36e01'),
+            dict(path='control/service.py', sha1='937696bbef2e453b89c3d65a696f97ad1c55c1f4'),
+            dict(path='resources/runtime.py', sha1='c78e77d589be11ef5e46527a0941997d0780963b'),
+            dict(path='selfupdate/runtime.py', sha1='67b75f0e2186eecaa3a3fc649c049000bb392bee'),
+            dict(path='resources/inject.py', sha1='63dcae28924f1511893593d24c567ba61ecb96de'),
+            dict(path='scheduling/runtime.py', sha1='6b3c17ae1b658e1063e2dfc5afb8b9bfed4e8bfc'),
+            dict(path='selfupdate/inject.py', sha1='7765c7ba3b8dda9ca7e908af2d33f153213a06c0'),
+            dict(path='control/api.py', sha1='8ecab21b05576295d7acd0eaa6cb5931d175e795'),
+            dict(path='control/http.py', sha1='7f6f5a3f0503368df4ac4e3b22af7dbf5ffa62f7'),
+            dict(path='control/plane.py', sha1='cd5a557b7b75a17470e06195df8e0ab87f4b158c'),
+            dict(path='control/inject.py', sha1='338d7037d4d60b5ff58e4cb38817a2e56dc6347a'),
+            dict(path='main.py', sha1='bd69037cb36e15ca90dbe2aed2b57c0ae1f3ef57'),
             dict(path='__main__.py', sha1='7f67abe616ff38fa814292fe452159be5cf04acb'),
         ],
     )
@@ -295,6 +295,9 @@ LoggingContextInfoT = ta.TypeVar('LoggingContextInfoT', bound=LoggingContextInfo
 
 # configs/marshal.py
 SystevisorConfigEnum = ta.TypeVar('SystevisorConfigEnum', bound=enum.Enum)
+
+# ../../omcore/io/pipelines/drivers/sync.py
+SyncIoPipelineDriverT = ta.TypeVar('SyncIoPipelineDriverT', bound='SyncIoPipelineDriver')
 
 # control/http.py
 SystevisorHttpListenerKey = ta.Tuple[ta.Union[str, int], ...]
@@ -3291,6 +3294,7 @@ def dir_dict(o: ta.Any) -> ta.Dict[str, ta.Any]:
 _GENERIC_ALIAS_TYPES = (
     ta._GenericAlias,  # type: ignore  # noqa
     *([ta._SpecialGenericAlias] if hasattr(ta, '_SpecialGenericAlias') else []),  # noqa
+    *([types.GenericAlias] if hasattr(types, 'GenericAlias') else []),  # noqa
 )
 
 
@@ -3369,6 +3373,57 @@ def is_literal_type(spec: ta.Any) -> bool:
 
 def get_literal_type_args(spec: ta.Any) -> ta.Iterable[ta.Any]:
     return spec.__args__
+
+
+##
+
+
+def type_form_repr(ty: ta.Any) -> str:
+    if isinstance(ty, type):
+        return f'{ty.__module__}.{ty.__qualname__}'
+
+    elif ty is ta.Any:
+        return 'typing.Any'
+
+    elif is_optional_alias(ty):
+        ety = get_optional_alias_arg(ty)
+        return f'typing.Optional[{type_form_repr(ety)}]'
+
+    elif is_union_alias(ty):
+        args = ta.get_args(ty)
+        return f'typing.Union[{", ".join(sorted(type_form_repr(a) for a in args))}]'
+
+    elif is_callable_alias(ty):
+        ptys, rty = ta.get_args(ty)
+        return (
+            f'typing.Callable[['
+            f'{"..." if isinstance(ptys, types.EllipsisType) else ", ".join(type_form_repr(a) for a in ptys)}], '
+            f'{type_form_repr(rty)}]'
+        )
+
+    elif is_literal_type(ty):
+        args = ta.get_args(ty)
+        return f'typing.Literal[{", ".join(sorted(repr(a) for a in args))}]'
+
+    elif is_new_type(ty):
+        raise NotImplementedError
+
+    elif is_generic_alias(ty):
+        origin = ta.get_origin(ty)
+        args = ta.get_args(ty)
+        if origin is tuple and args and isinstance(args[-1], types.EllipsisType):
+            return (
+                f'{type_form_repr(origin)}['
+                f'{", ".join(type_form_repr(a) for a in args[:-1])}, ...]'
+            )
+        else:
+            return (
+                f'{type_form_repr(origin)}['
+                f'{", ".join(type_form_repr(a) for a in args)}]'
+            )
+
+    else:
+        raise TypeError(ty)
 
 
 ########################################
@@ -4109,15 +4164,16 @@ class _DarwinProcessTitleState(_ClobberProcessTitleState):
         argc = int(argc_p.contents.value)
         argv_p = argv_pp.contents
         argv = [int(argv_p[i]) for i in range(argc)]
-        self._setup_clobber(argv)
 
         new_argv, keepalive = self._copy_argv(argv)
-        argv_pp.contents = ct.cast(
+        argv_pp[0] = ct.cast(
             new_argv,
             ct.POINTER(ct.c_void_p),
         )
         self._argv_keepalive.extend(keepalive)
         self._argv_keepalive.append(new_argv)
+
+        self._setup_clobber(argv)
 
     def _global_setup(self) -> None:
         self.get_process_title()
@@ -4444,6 +4500,9 @@ class SocketAndAddress(ta.NamedTuple):
 # ../configs/diagnostics.py
 
 
+##
+
+
 class SystevisorConfigDiagnosticSeverity(enum.Enum):
     ERROR = 'error'
     WARNING = 'warning'
@@ -4483,6 +4542,9 @@ SystevisorRunId = ta.NewType('SystevisorRunId', int)
 SystevisorHealthCheckId = ta.NewType('SystevisorHealthCheckId', int)
 
 
+##
+
+
 _SYSTEVISOR_IDENTITIES_NAME_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.-]*$')
 
 
@@ -4500,6 +4562,9 @@ def systevisor_make_instance_id(unit_name: str, slot: int) -> SystevisorInstance
 
 ########################################
 # ../core/signals.py
+
+
+##
 
 
 class SystevisorSignalNameError(ValueError):
@@ -4529,6 +4594,9 @@ def systevisor_signal_is_catchable(value: str) -> bool:
 
 ########################################
 # ../core/states.py
+
+
+##
 
 
 class SystevisorProcessState(enum.Enum):
@@ -4598,6 +4666,9 @@ class SystevisorSignalReason(enum.Enum):
 
 ########################################
 # ../platforms/services.py
+
+
+##
 
 
 @dc.dataclass(frozen=True)
@@ -4682,6 +4753,9 @@ def systevisor_render_launchd_plist(config: SystevisorServiceTemplateConfig) -> 
 
 ########################################
 # ../runtime/events.py
+
+
+##
 
 
 @dc.dataclass(frozen=True)
@@ -4881,6 +4955,9 @@ class SystevisorEventBus:
 # ../scheduling/cron.py
 
 
+##
+
+
 class SystevisorCronError(ValueError):
     pass
 
@@ -4994,6 +5071,9 @@ def systevisor_parse_cron(source: str) -> SystevisorCronExpression:
 
 ########################################
 # ../selfupdate/models.py
+
+
+##
 
 
 SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION = 1
@@ -5543,7 +5623,7 @@ HttpHeaders._EMPTY = HttpHeaders([])  # noqa
 # ../../../omcore/http/parsing.py
 """
 Parses a complete HTTP/1.x start-line + header fields + final CRLF from a ``bytes`` object. Does NOT handle message
-bodies, chunked transfer decoding, trailers, or HTTP/2+.
+bodies, chunked transfer decoding, or HTTP/2+.
 
 TODO:
  - mapping from error code to outbound http status code
@@ -5596,8 +5676,40 @@ class SemanticHeaderHttpParseErrorCode(enum.Enum):
     INVALID_ACCEPT = enum.auto()
     INVALID_AUTHORIZATION = enum.auto()
     TE_WITHOUT_CHUNKED_LAST = enum.auto()
-    TE_IN_HTTP10 = enum.auto()
     INVALID_TE = enum.auto()
+
+    # The Transfer-Encoding header (not the TE header) in an HTTP/1.0 message.
+    TRANSFER_ENCODING_IN_HTTP10 = enum.auto()
+
+    # Deprecated alias for TRANSFER_ENCODING_IN_HTTP10 - retained for backwards compatibility. The old name was
+    # ambiguous: it referred to the Transfer-Encoding header, not the TE header.
+    TE_IN_HTTP10 = TRANSFER_ENCODING_IN_HTTP10
+
+    # The TE header (not the Transfer-Encoding header) in an HTTP/1.0 message.
+    TE_HEADER_IN_HTTP10 = enum.auto()
+
+    # The TE header grants 'trailers' with a zero qvalue, which must not be accepted (RFC 7230 §4.3).
+    TE_TRAILERS_Q_ZERO = enum.auto()
+
+    MULTIPLE_CONTENT_TYPES = enum.auto()
+    CONFLICTING_CONTENT_TYPES = enum.auto()
+    MULTIPLE_AUTHORIZATION_HEADERS = enum.auto()
+    UPGRADE_WITHOUT_CONNECTION_UPGRADE = enum.auto()
+
+    # A Connection header option or Trailer header field-name that is not a valid token.
+    INVALID_CONNECTION = enum.auto()
+    INVALID_TRAILER_FIELD = enum.auto()
+
+    # An Upgrade protocol, or protocol "/" version, that is not a valid token (RFC 7230 §6.7).
+    INVALID_UPGRADE = enum.auto()
+
+    # The Upgrade header in an HTTP/1.0 request (RFC 7230 §6.7).
+    UPGRADE_IN_HTTP10 = enum.auto()
+
+    # Request-only header fields present in a response message.
+    HOST_IN_RESPONSE = enum.auto()
+    TE_IN_RESPONSE = enum.auto()
+    EXPECT_IN_RESPONSE = enum.auto()
 
 
 class EncodingHttpParseErrorCode(enum.Enum):
@@ -5698,7 +5810,9 @@ class ParsedHttpHeaders:
 
     @property
     def entries(self) -> ta.Mapping[str, ta.Sequence[str]]:
-        return self._entries
+        # Defensive copies: the internal lists and dict are mutable private state - handing them out would let callers
+        # desync _entries from _order (which breaks items() with a KeyError).
+        return {name: list(values) for name, values in self._entries.items()}
 
     def __contains__(self, name: ta.Any) -> bool:
         if not isinstance(name, str):
@@ -5711,6 +5825,9 @@ class ParsedHttpHeaders:
     })
 
     def __getitem__(self, name: str) -> str:
+        if not isinstance(name, str):
+            raise TypeError(name)
+
         key = name.lower()
         values = self._entries[key]
         if key in self._NO_COMBINE_HEADERS:
@@ -5718,6 +5835,9 @@ class ParsedHttpHeaders:
         return ', '.join(values)
 
     def get(self, name: str, default: ta.Optional[str] = None) -> ta.Optional[str]:
+        if not isinstance(name, str):
+            raise TypeError(name)
+
         key = name.lower()
         values = self._entries.get(key)
         if not values:
@@ -5731,6 +5851,9 @@ class ParsedHttpHeaders:
         return ', '.join(values)
 
     def get_all(self, name: str) -> ta.List[str]:
+        if not isinstance(name, str):
+            raise TypeError(name)
+
         return list(self._entries.get(name.lower(), []))
 
     def items(self) -> ta.List[ta.Tuple[str, str]]:
@@ -5754,7 +5877,9 @@ class ParsedHttpHeaders:
         return len(self._order)
 
     def __repr__(self) -> str:
-        return f'ParsedHttpHeaders({dict(self.items())})'
+        # items(), not dict(...): dict() would collapse multiple Set-Cookie (or any no-combine) values to the last
+        # one - the repr must show what was actually received.
+        return f'{self.__class__.__name__}({self.items()!r})'
 
 
 @dc.dataclass()
@@ -5895,6 +6020,9 @@ class HttpParser:
         allow_bare_cr_in_value: bool = False
         allow_te_without_chunked_in_response: bool = False
         allow_transfer_encoding_http10: bool = False
+        allow_te_header_http10: bool = False
+        allow_multiple_content_types: bool = False
+        allow_upgrade_without_connection_upgrade: bool = False
         reject_multi_value_content_length: bool = False
         reject_obs_text: bool = False
         reject_non_visible_ascii_request_target: bool = False
@@ -5904,6 +6032,9 @@ class HttpParser:
 
     def __init__(self, config: Config = Config()) -> None:
         super().__init__()
+
+        if not isinstance(config, HttpParser.Config):
+            raise TypeError(f'Expected HttpParser.Config, got {type(config).__name__}')
 
         self._config = config
 
@@ -5917,6 +6048,9 @@ class HttpParser:
     def parse_message(self, data: Bytes, mode: Mode = Mode.AUTO) -> ParsedHttpMessage:
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError(f'Expected bytes, got {type(data).__name__}')
+
+        if not isinstance(mode, HttpParser.Mode):
+            raise TypeError(f'Expected HttpParser.Mode, got {type(mode).__name__}')
 
         ctx = _HttpParseContext(
             data=bytes(data),
@@ -6411,22 +6545,28 @@ class _HttpParseContext:
         # Validate reason-phrase characters
 
         if not self._RE_REASON_PHRASE.match(reason_bytes):
-            # Regex rejected - scan to find the specific bad byte for error reporting
+            # Regex rejected - scan to find the specific bad byte for error reporting. NUL cannot occur here: it is
+            # already rejected by find_line_end before the status line is split off.
             reason_base_offset = first_sp + 1 + second_sp + 1
 
             for i, b in enumerate(reason_bytes):
-                if b == self._NUL:
-                    raise HeaderFieldHttpParseError(
-                        code=HeaderFieldHttpParseErrorCode.NUL_IN_HEADER,
-                        message='NUL byte in reason-phrase',
-                        line=0,
-                        offset=reason_base_offset + i,
-                    )
-
                 if b not in self._REASON_PHRASE_CHARS:
                     raise StartLineHttpParseError(
                         code=StartLineHttpParseErrorCode.MALFORMED_STATUS_LINE,
                         message=f'Invalid character 0x{b:02x} in reason-phrase',
+                        line=0,
+                        offset=reason_base_offset + i,
+                    )
+
+        # obs-text is permitted in a reason-phrase by RFC 7230, but reject_obs_text asks us to refuse it everywhere.
+        if self.config.reject_obs_text:
+            reason_base_offset = first_sp + 1 + second_sp + 1
+
+            for i, b in enumerate(reason_bytes):
+                if b in self._OBS_TEXT:
+                    raise EncodingHttpParseError(
+                        code=EncodingHttpParseErrorCode.OBS_TEXT_IN_FIELD_VALUE,
+                        message=f'obs-text byte 0x{b:02x} in reason-phrase rejected by config',
                         line=0,
                         offset=reason_base_offset + i,
                     )
@@ -6448,9 +6588,9 @@ class _HttpParseContext:
         self.current_line = 1  # line 0 is the start-line
 
         while pos < len(data):
-            # Check for the empty line that terminates headers. Whichever empty-line form we stop at, nothing may
-            # follow it: this is the authoritative trailing-data check. verify_terminator only gates existence and in
-            # bare-LF mode cannot tell which empty line parsing will actually stop at.
+            # Check for the empty line that terminates headers. Whichever empty-line form we stop at, nothing may follow
+            # it: this is the authoritative trailing-data check. verify_terminator only gates existence and in bare-LF
+            # mode cannot tell which empty line parsing will actually stop at.
             if data[pos] == self._CR and pos + 1 < len(data) and data[pos + 1] == self._LF:
                 # \r\n at the start of a "line" = empty line = terminator.
                 if pos + 2 != len(data):
@@ -6491,7 +6631,7 @@ class _HttpParseContext:
                     code=HeaderFieldHttpParseErrorCode.INVALID_FIELD_VALUE,
                     message='Header line exceeds maximum length',
                     line=self.current_line,
-                    offset=next_pos,
+                    offset=pos,
                 )
 
             # Handle obs-fold: if the *next* line starts with SP or HTAB, it's a continuation
@@ -6521,6 +6661,10 @@ class _HttpParseContext:
                     obs_buf.write(cont_data.lstrip(b' \t'))
 
                     next_pos = cont_line_end + self.line_ending_len(cont_line_end)
+
+                    # Continuation lines are physical lines too - keep current_line aligned with the byte offsets so
+                    # errors after a folded header point at the right line.
+                    self.current_line += 1
 
                     if self.config.max_header_length is not None and obs_buf.tell() > self.config.max_header_length:
                         raise HeaderFieldHttpParseError(
@@ -6566,6 +6710,12 @@ class _HttpParseContext:
 
     # token: 1+ tchar bytes
     _RE_TOKEN: ta.ClassVar[re.Pattern] = re.compile(rb"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+\Z")
+
+    @classmethod
+    def _is_token(cls, s: str) -> bool:
+        # Tokens are ASCII-only by definition (tchar), so encoding the latin-1-decoded value back to latin-1 is lossless
+        # here. (Same trick as the header field-name check.)
+        return cls._RE_TOKEN.match(s.encode('latin-1')) is not None
 
     # Pre-calculate the 4 field-value variants for the translation filter (allow_bare_cr, reject_obs_text)
     _FIELD_VALUE_ALLOWED: ta.ClassVar[ta.Mapping[ta.Tuple[bool, bool], bytes]] = {
@@ -6673,8 +6823,8 @@ class _HttpParseContext:
 
         if invalid_chars:
             value_base_offset = line_start_offset + colon_idx + 1
-            # We only enter this Python loop if we ALREADY found an error.
-            # This keeps the "happy path" fast while maintaining detailed error reporting.
+            # We only enter this Python loop if we ALREADY found an error. This keeps the "happy path" fast while
+            # maintaining detailed error reporting.
             for i, b in enumerate(value_stripped):
                 if b == self._NUL:
                     raise HeaderFieldHttpParseError(
@@ -6732,10 +6882,10 @@ class _HttpParseContext:
         self._prepare_host(headers, prepared, kind, http_version)
         self._prepare_connection(headers, prepared, http_version)
         self._prepare_content_type(headers, prepared)
-        self._prepare_te(headers, prepared)
-        self._prepare_upgrade(headers, prepared)
+        self._prepare_te(headers, prepared, kind, http_version)
+        self._prepare_upgrade(headers, prepared, http_version)
         self._prepare_trailer(headers, prepared)
-        self._prepare_expect(headers, prepared)
+        self._prepare_expect(headers, prepared, kind)
         self._prepare_date(headers, prepared)
         self._prepare_cache_control(headers, prepared)
         self._prepare_accept_encoding(headers, prepared)
@@ -6751,6 +6901,20 @@ class _HttpParseContext:
             raise SemanticHeaderHttpParseError(
                 code=SemanticHeaderHttpParseErrorCode.CONTENT_LENGTH_WITH_TRANSFER_ENCODING,
                 message='Content-Length and Transfer-Encoding are both present',
+            )
+
+        # Cross-field: an Upgrade header is only meaningful when the 'upgrade' connection option is also present
+        # (RFC 7230 §6.7). _prepare_connection always sets connection (to an empty frozenset when the header is
+        # absent), but narrow for the type checker anyway.
+        if (
+            prepared.upgrade is not None and
+            prepared.connection is not None and
+            'upgrade' not in prepared.connection and
+            not self.config.allow_upgrade_without_connection_upgrade
+        ):
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.UPGRADE_WITHOUT_CONNECTION_UPGRADE,
+                message='Upgrade header present without a corresponding "upgrade" Connection option',
             )
 
         return prepared
@@ -6793,9 +6957,9 @@ class _HttpParseContext:
                         message=f'Content-Length value string too long: {stripped!r}',
                     )
 
-                # int() raises ValueError above sys.get_int_max_str_digits() (default 4300, backported to all
-                # maintained 3.8+ releases). max_content_length_str_len bounds this by default, but it may be None, so
-                # guard the conversion and surface a clean parse error rather than letting the ValueError escape.
+                # int() raises ValueError above sys.get_int_max_str_digits() (default 4300, backported to all maintained
+                # 3.8+ releases). max_content_length_str_len bounds this by default, but it may be None, so guard the
+                # conversion and surface a clean parse error rather than letting the ValueError escape.
                 try:
                     parsed_values.append(int(stripped))
                 except ValueError:
@@ -6850,7 +7014,10 @@ class _HttpParseContext:
             return
 
         combined = headers['transfer-encoding']
-        codings = [s.lower() for s in map(self._strip_ows_str, combined.split(',')) if s]
+
+        # Quote-aware split; truly-empty elements are ignorable per RFC 9110 §5.6.1, but an all-empty list is not a
+        # valid Transfer-Encoding (1#transfer-coding requires at least one coding).
+        codings = [s.lower() for s in self._parse_comma_list(combined)]
 
         if not codings:
             raise SemanticHeaderHttpParseError(
@@ -6858,10 +7025,19 @@ class _HttpParseContext:
                 message='Transfer-Encoding header present but empty',
             )
 
+        # transfer-coding is a token (RFC 7230 §4) - checked unconditionally so codings are structurally valid even
+        # when unknown codings are allowed.
+        for c in codings:
+            if not self._is_token(c):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_TRANSFER_ENCODING,
+                    message=f'Transfer-coding is not a valid token: {c!r}',
+                )
+
         # HTTP/1.0 check
         if http_version == HttpVersions.HTTP_1_0 and not self.config.allow_transfer_encoding_http10:
             raise SemanticHeaderHttpParseError(
-                code=SemanticHeaderHttpParseErrorCode.TE_IN_HTTP10,
+                code=SemanticHeaderHttpParseErrorCode.TRANSFER_ENCODING_IN_HTTP10,
                 message='Transfer-Encoding is not defined for HTTP/1.0',
             )
 
@@ -6920,6 +7096,14 @@ class _HttpParseContext:
     ) -> None:
         values = headers.get_all('host')
 
+        # The Host header is only defined for requests - a server must not send it, and a client should not accept it
+        # (RFC 7230 §5.4, §3.1.2). Previously a Host header in a response was silently stored into prepared.host.
+        if kind == ParsedHttpMessage.Kind.RESPONSE and values:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.HOST_IN_RESPONSE,
+                message='Host header is only defined for requests',
+            )
+
         if kind == ParsedHttpMessage.Kind.REQUEST and http_version == HttpVersions.HTTP_1_1:
             if not values and not self.config.allow_missing_host:
                 raise SemanticHeaderHttpParseError(
@@ -6973,13 +7157,57 @@ class _HttpParseContext:
 
     @classmethod
     def _parse_comma_list(cls, value: str) -> ta.List[str]:
-        """Split a comma-separated header value into trimmed, non-empty tokens."""
+        """
+        Split a comma-separated header value into trimmed, non-empty tokens.
+
+        Quoted-string aware: a comma inside a quoted-string does not separate list elements (RFC 9110 §5.6.1). A strict
+        parser must not split on it - blindly splitting mangles valid values like ``Accept: text/html;level="1,2"`` into
+        a truncated token and turns the remainder into bogus extra elements.
+        """
 
         parts: ta.List[str] = []
-        for part in value.split(','):
-            stripped = cls._strip_ows_str(part)
-            if stripped:
-                parts.append(stripped)
+        buf: ta.List[str] = []
+        in_quotes = False
+
+        i = 0
+        n = len(value)
+        while i < n:
+            ch = value[i]
+
+            if in_quotes:
+                if ch == '\\' and i + 1 < n:
+                    buf.append(value[i:i + 2])
+                    i += 2
+                    continue
+
+                if ch == '"':
+                    in_quotes = False
+
+                buf.append(ch)
+                i += 1
+                continue
+
+            if ch == '"':
+                in_quotes = True
+                buf.append(ch)
+                i += 1
+                continue
+
+            if ch == ',':
+                stripped = cls._strip_ows_str(''.join(buf))
+                if stripped:
+                    parts.append(stripped)
+                buf = []
+                i += 1
+                continue
+
+            buf.append(ch)
+            i += 1
+
+        stripped = cls._strip_ows_str(''.join(buf))
+        if stripped:
+            parts.append(stripped)
+
         return parts
 
     def _prepare_connection(
@@ -6989,7 +7217,25 @@ class _HttpParseContext:
         http_version: HttpVersion,
     ) -> None:
         if 'connection' in headers:
+            # Truly-empty elements are ignorable per RFC 9110 §5.6.1.
             tokens = {t.lower() for t in self._parse_comma_list(headers['connection'])}
+
+            # Connection = 1#connection-option (RFC 7230 §6.1): the header being present requires at least one option -
+            # otherwise it is indistinguishable from (and silently conflated with) an absent header.
+            if not tokens:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CONNECTION,
+                    message='Connection header present but empty',
+                )
+
+            # connection-option is a token (RFC 7230 §6.1).
+            for t in tokens:
+                if not self._is_token(t):
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CONNECTION,
+                        message=f'Connection option is not a valid token: {t!r}',
+                    )
+
             prepared.connection = frozenset(tokens)
         else:
             prepared.connection = frozenset()
@@ -7036,9 +7282,19 @@ class _HttpParseContext:
         raise ValueError('Unterminated quoted-string')
 
     @classmethod
-    def _parse_media_type_params(cls, params_str: str) -> ta.Dict[str, str]:
+    def _parse_media_type_params(
+        cls,
+        params_str: str,
+        quoted_params: ta.Optional[ta.Set[str]] = None,
+    ) -> ta.Dict[str, str]:
         """
         Parse ``;param=value`` segments from a Content-Type or Accept header. Values may be tokens or quoted-strings.
+
+        Pedantic: parameter names must be tokens, bare (unquoted) values must be tokens, nothing may follow a
+        quoted-string value except OWS and the next parameter, duplicates are rejected, and a parameter with no ``=`` is
+        an error rather than being silently skipped (RFC 9110 §5.6.6). When *quoted_params* is given it is filled with
+        the names of parameters whose values were quoted-strings: qvalues must be bare tokens, so this lets qvalue-aware
+        callers reject quoted forms like ``q="0.5"``.
         """
 
         params: ta.Dict[str, str] = {}
@@ -7046,31 +7302,37 @@ class _HttpParseContext:
         remaining = cls._strip_ows_str(params_str)
         while remaining:
             if not remaining.startswith(';'):
-                break
+                raise ValueError(f'Unexpected content in parameters: {remaining!r}')
 
             remaining = cls._strip_ows_str(remaining[1:])
             if not remaining:
-                break
+                break  # a trailing ';' is tolerated (common in the wild)
 
             eq_idx = remaining.find('=')
             if eq_idx < 0:
-                # parameter name without value - skip to next semicolon or end
-                semi_idx = remaining.find(';')
-                if semi_idx < 0:
-                    break
-
-                remaining = remaining[semi_idx:]
-                continue
+                # parameter name without value - garbage, not a legal parameter (RFC 9110 §5.6.6)
+                raise ValueError(f'Parameter without a value: {remaining!r}')
 
             pname = cls._strip_ows_str(remaining[:eq_idx]).lower()
+
+            # parameter-name is a token (RFC 9110 §5.6.6)
+            if not pname or not cls._is_token(pname):
+                raise ValueError(f'Parameter name is not a valid token: {pname!r}')
+
             remaining = cls._strip_ows_str(remaining[eq_idx + 1:])
 
             if remaining.startswith('"'):
-                try:
-                    pvalue, end_pos = cls._parse_quoted_string(remaining, 0)
-                except ValueError:
-                    break
+                # An unterminated quoted-string would otherwise silently swallow all remaining parameters - surface
+                # it instead of pretending the value simply had no parameters.
+                pvalue, end_pos = cls._parse_quoted_string(remaining, 0)
                 remaining = cls._strip_ows_str(remaining[end_pos:])
+
+                if remaining and not remaining.startswith(';'):
+                    # Junk after the closing DQUOTE was previously silently dropped.
+                    raise ValueError(f'Unexpected content after quoted parameter value: {remaining!r}')
+
+                if quoted_params is not None:
+                    quoted_params.add(pname)
 
             else:
                 semi_idx = remaining.find(';')
@@ -7082,16 +7344,41 @@ class _HttpParseContext:
                     pvalue = cls._strip_ows_str(remaining[:semi_idx])
                     remaining = remaining[semi_idx:]
 
-            if pname:
-                params[pname] = pvalue
+                # bare parameter values are tokens (RFC 9110 §5.6.6)
+                if not pvalue or not cls._is_token(pvalue):
+                    raise ValueError(f'Parameter value is not a valid token: {pvalue!r}')
+
+            if pname in params:
+                raise ValueError(f'Duplicate parameter: {pname!r}')
+
+            params[pname] = pvalue
 
         return params
 
     def _prepare_content_type(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
-        if 'content-type' not in headers:
+        # Content-Type is a singleton header. get_all (not the comma-joining __getitem__): joining two Content-Type
+        # values with ', ' would produce a string that still passes the media-type shape checks below, and the parameter
+        # parser would then silently keep the second value's parameters - a parser differential.
+        values = headers.get_all('content-type')
+        if not values:
             return
 
-        raw = headers['content-type']
+        if len(values) > 1:
+            if not self.config.allow_multiple_content_types:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.MULTIPLE_CONTENT_TYPES,
+                    message=f'Multiple Content-Type headers found ({len(values)})',
+                )
+
+            # If allowed, all values must agree (mirrors Host handling).
+            unique = {v.lower() for v in values}
+            if len(unique) > 1:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.CONFLICTING_CONTENT_TYPES,
+                    message=f'Multiple Content-Type headers with different values: {sorted(unique)}',
+                )
+
+        raw = values[0]
 
         # media-type = type "/" subtype *( OWS ";" OWS parameter )
         semi_idx = raw.find(';')
@@ -7100,7 +7387,13 @@ class _HttpParseContext:
             params: ta.Dict[str, str] = {}
         else:
             media_type = self._strip_ows_str(raw[:semi_idx]).lower()
-            params = self._parse_media_type_params(raw[semi_idx:])
+            try:
+                params = self._parse_media_type_params(raw[semi_idx:])
+            except ValueError as e:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE,
+                    message=f'Invalid Content-Type parameters: {e}',
+                ) from None
 
         if '/' not in media_type:
             raise SemanticHeaderHttpParseError(
@@ -7115,10 +7408,22 @@ class _HttpParseContext:
                 message=f'Content-Type has empty type or subtype: {media_type!r}',
             )
 
+        # media-type = type "/" subtype, and both type and subtype are tokens (RFC 7231 §3.1.1.1).
+        if not self._is_token(parts[0]) or not self._is_token(parts[1]):
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_CONTENT_TYPE,
+                message=f'Content-Type type or subtype is not a valid token: {media_type!r}',
+            )
+
         prepared.content_type = PreparedParsedHttpHeaders.ContentType(
             media_type=media_type,
             params=params,
         )
+
+    # RFC 9110 §12.4.2: qvalue = ( "0" [ "." 0*3DIGIT ] ) / ( "1" [ "." 0*3("0") ] ). The lexical form is checked
+    # before float(): float() would otherwise accept 'nan', 'inf', exponents, '.5', '01', more than 3 decimals, etc.
+    # Note that when a '.' is present at least one digit must follow it ('0.' is invalid).
+    _RE_QVALUE: ta.ClassVar[re.Pattern] = re.compile(r'^(?:0(?:\.[0-9]{1,3})?|1(?:\.0{1,3})?)\Z')
 
     @classmethod
     def _split_header_element(cls, element: str) -> ta.Tuple[str, float, ta.Dict[str, str]]:
@@ -7126,7 +7431,12 @@ class _HttpParseContext:
         Split a single header list element like ``"token;q=0.5;param=val"`` into ``(token_lower, q, params_dict)``.
 
         *token* is lowercased.  ``q`` defaults to ``1.0`` if absent.  The ``q`` key is consumed and **not** included in
-        *params_dict*.  Raises ``ValueError`` on a malformed ``q`` value.
+        *params_dict*.  Raises ``ValueError`` on a malformed ``q`` value or malformed parameters (e.g. an unterminated
+        quoted-string); callers wrap it in the appropriate header-specific parse error.
+
+        Pedantic: if present, ``q`` must be the *last* parameter (RFC 9110 §12.4.2: parameters after q are not
+        accepted), and it can only appear once - previously ``;q=1;q=0.5`` was silently last-wins, flipping the
+        element's semantics.
         """
 
         semi_idx = element.find(';')
@@ -7134,43 +7444,156 @@ class _HttpParseContext:
             return cls._strip_ows_str(element).lower(), 1.0, {}
 
         token = cls._strip_ows_str(element[:semi_idx]).lower()
-        params = cls._parse_media_type_params(element[semi_idx:])
+
+        quoted_params: ta.Set[str] = set()
+        params = cls._parse_media_type_params(element[semi_idx:], quoted_params)
+
+        q_str = None
+        # If present, q must be the last parameter - parameters after it are not accepted (RFC 9110 §12.4.2). params
+        # preserves insertion order, so check the position of the q key rather than emptiness after popping: q last
+        # (e.g. ';level=1;q=0.7') is valid, q anywhere else (e.g. ';q=0.5;level=1') is not. The duplicate-q case is
+        # already rejected by _parse_media_type_params as a duplicate parameter.
+        if params and list(params)[-1] == 'q':
+            q_str = params.pop('q')
 
         q = 1.0
-        q_str = params.pop('q', None)
         if q_str is not None:
-            q = float(q_str)  # caller wraps ValueError
+            # A qvalue is never a quoted-string (RFC 9110 §12.4.2).
+            if 'q' in quoted_params or not cls._RE_QVALUE.match(q_str):
+                raise ValueError(f'Invalid qvalue: {q_str!r}')
 
-            # float() also accepts 'nan'/'inf'/overflowing exponents; reject those and any out-of-range value. The
-            # chained comparison is False for NaN and +/-inf, so this single check covers non-finite and range at once.
-            # (RFC 9110 qvalue is 0 <= q <= 1.)
-            if not (0.0 <= q <= 1.0):
-                raise ValueError(f'q-value out of range [0, 1]: {q_str!r}')
+            q = float(q_str)
+
+        elif 'q' in params:
+            raise ValueError('q must be the last parameter')
 
         return token, q, params
 
-    def _prepare_te(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
+    def _prepare_te(
+        self,
+        headers: ParsedHttpHeaders,
+        prepared: PreparedParsedHttpHeaders,
+        kind: ParsedHttpMessage.Kind,
+        http_version: HttpVersion,
+    ) -> None:
         if 'te' not in headers:
             return
 
+        # The TE header field is only defined within HTTP/1.1 - it must not be sent to an HTTP/1.0 peer (RFC 7230
+        # §4.3). (This is the TE header; TRANSFER_ENCODING_IN_HTTP10 covers the Transfer-Encoding header.)
+        if http_version == HttpVersions.HTTP_1_0 and not self.config.allow_te_header_http10:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.TE_HEADER_IN_HTTP10,
+                message='TE header is not defined for HTTP/1.0',
+            )
+
+        # TE is a request-only header field - a server must not send it, and a client should not accept it (RFC 7230
+        # §4.3, §5.4). Previously a TE header in a response was parsed and stored without complaint.
+        if kind == ParsedHttpMessage.Kind.RESPONSE:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.TE_IN_RESPONSE,
+                message='TE header is only defined for requests',
+            )
+
         try:
-            codings = [
-                self._split_header_element(p)[0]
+            elements = [
+                self._split_header_element(p)
                 for p in self._parse_comma_list(headers['te'])
             ]
         except ValueError:
             raise SemanticHeaderHttpParseError(
                 code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
-                message=f'Invalid q-value in TE header: {headers["te"]!r}',
+                message=f'Invalid element in TE header: {headers["te"]!r}',
             ) from None
 
-        prepared.te = [c for c in codings if c]
+        codings: ta.List[str] = []
+        for coding, q, params in elements:
+            # A truly empty element is ignorable per RFC 9110 §5.6.1, but an empty token carrying parameters is
+            # malformed and must not be silently dropped - previously ';q=0.5' vanished without a trace.
+            if not coding:
+                if params or q != 1.0:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
+                        message=f'TE element has an empty coding with parameters: {coding!r}',
+                    )
+                continue
 
-    def _prepare_upgrade(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
+            # A TE transfer-coding is a token (RFC 7230 §4.3).
+            if not self._is_token(coding):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
+                    message=f'TE transfer-coding is not a valid token: {coding!r}',
+                )
+
+            # chunked is not a legal TE coding - it is a Transfer-Encoding coding only, and accepting it here would let
+            # a response with 'TE: chunked' be mistaken for a chunked response (RFC 7230 §4.3).
+            if coding == 'chunked':
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
+                    message='chunked is not a valid TE coding',
+                )
+
+            # A sender of TE MUST NOT accept 'trailers' with a qvalue of 0 (RFC 7230 §4.3).
+            if coding == 'trailers' and q == 0.0:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.TE_TRAILERS_Q_ZERO,
+                    message='TE header grants "trailers" with a zero qvalue',
+                )
+
+            codings.append(coding)
+
+        # The header was present but contains no codings - 1#transfer-coding requires at least one.
+        if not codings:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_TE,
+                message='TE header present but empty',
+            )
+
+        prepared.te = codings
+
+    def _prepare_upgrade(
+            self,
+            headers: ParsedHttpHeaders,
+            prepared: PreparedParsedHttpHeaders,
+            http_version: HttpVersion,
+    ) -> None:
         if 'upgrade' not in headers:
             return
 
-        prepared.upgrade = self._parse_comma_list(headers['upgrade'])
+        # Upgrade is only defined for HTTP/1.1 - it must be ignored (here: rejected) in an HTTP/1.0 request (RFC 7230
+        # §6.7).
+        if http_version == HttpVersions.HTTP_1_0:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.UPGRADE_IN_HTTP10,
+                message='Upgrade header is not defined for HTTP/1.0',
+            )
+
+        # Truly-empty elements are ignorable per RFC 9110 §5.6.1.
+        protocols = self._parse_comma_list(headers['upgrade'])
+
+        # Upgrade = 1#protocol (RFC 7230 §6.7): present requires at least one protocol.
+        if not protocols:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_UPGRADE,
+                message='Upgrade header present but empty',
+            )
+
+        for p in protocols:
+            if '/' in p:
+                name, _, version = p.partition('/')
+                if not name or not version or not self._is_token(name) or not self._is_token(version):
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_UPGRADE,
+                        message=f'Upgrade protocol/version is not a valid token pair: {p!r}',
+                    )
+
+            elif not self._is_token(p):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_UPGRADE,
+                    message=f'Upgrade protocol is not a valid token: {p!r}',
+                )
+
+        prepared.upgrade = protocols
 
     # Headers that MUST NOT appear in trailers (RFC 7230 §4.1.2)
     _FORBIDDEN_TRAILER_FIELDS: ta.ClassVar[ta.FrozenSet[str]] = frozenset({
@@ -7197,19 +7620,47 @@ class _HttpParseContext:
         if 'trailer' not in headers:
             return
 
+        # Truly-empty elements are ignorable per RFC 9110 §5.6.1.
         fields = {f.lower() for f in self._parse_comma_list(headers['trailer'])}
+
         for f in fields:
+            # The Trailer header value is a list of field-names, which are tokens (RFC 7230 §4.1.2).
+            if not self._is_token(f):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_TRAILER_FIELD,
+                    message=f'Trailer field-name is not a valid token: {f!r}',
+                )
+
             if f in self._FORBIDDEN_TRAILER_FIELDS:
                 raise SemanticHeaderHttpParseError(
                     code=SemanticHeaderHttpParseErrorCode.FORBIDDEN_TRAILER_FIELD,
                     message=f'Forbidden field in Trailer header: {f!r}',
                 )
 
+        # Trailer = 1#field-name (RFC 7230 §4.1.2): present requires at least one field-name.
+        if not fields:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_TRAILER_FIELD,
+                message='Trailer header present but empty',
+            )
+
         prepared.trailer = frozenset(fields)
 
-    def _prepare_expect(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
+    def _prepare_expect(
+            self,
+            headers: ParsedHttpHeaders,
+            prepared: PreparedParsedHttpHeaders,
+            kind: ParsedHttpMessage.Kind,
+    ) -> None:
         if 'expect' not in headers:
             return
+
+        # Expect is a request-only header field (RFC 7231 §5.1.1) - a client must not accept it in a response.
+        if kind == ParsedHttpMessage.Kind.RESPONSE:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.EXPECT_IN_RESPONSE,
+                message='Expect header is only defined for requests',
+            )
 
         raw = self._strip_ows_str(headers['expect']).lower()
         if raw != '100-continue':
@@ -7220,6 +7671,9 @@ class _HttpParseContext:
 
         prepared.expect = raw
         prepared.expect_100_continue = True
+
+    # datetime.weekday(): Monday is 0, Sunday is 6
+    _WEEKDAY_NAMES: ta.ClassVar[ta.Sequence[str]] = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
 
     _MONTH_NAMES: ta.ClassVar[ta.Mapping[str, int]] = {
         'jan': 1,
@@ -7235,6 +7689,37 @@ class _HttpParseContext:
         'nov': 11,
         'dec': 12,
     }
+
+    @classmethod
+    def _check_http_date_weekday(cls, dt: datetime.datetime, weekday_str: str) -> None:
+        """
+        Cross-check the given weekday abbreviation against the parsed date. Pedantic: the RFCs define the day-name as
+        part of every date format, and accepting a mismatched one silently would mask a mangled (or malicious) value.
+        """
+
+        expected = cls._WEEKDAY_NAMES[dt.weekday()]
+        if weekday_str.lower() != expected:
+            raise ValueError(f'Weekday {weekday_str!r} does not match date (expected {expected!r})')
+
+    @classmethod
+    def _date_int(cls, s: str, what: str, min_len: int, max_len: int) -> int:
+        """
+        Strict integer field for HTTP-date components.
+
+        ``int()`` alone is far too lenient: it accepts leading ``+`` and ``_`` separators (``int('+4') == 4``,
+        ``int('1_94') == 194``), arbitrary widths ('8', '008', '0_8'), and surrounding whitespace - all of which would
+        silently produce a different date than the one sent. This enforces pure ASCII digits of an exact width range,
+        like the Content-Length digit check.
+        """
+
+        if (
+                not s.isascii() or
+                not s.isdigit() or
+                not (min_len <= len(s) <= max_len)
+        ):
+            raise ValueError(f'Invalid {what} component: {s!r}')
+
+        return int(s)
 
     @classmethod
     def _parse_http_date(cls, value: str) -> datetime.datetime:
@@ -7253,20 +7738,26 @@ class _HttpParseContext:
         # RFC 850 (day-name "," SP DD-Mon-YY SP time SP GMT). They are told apart below by field count and the '-' in
         # the RFC-850 date. asctime (no comma) is handled in the else branch.
         if ',' in value:
-            after_comma = cls._strip_ows_str(value.split(',', 1)[1])
+            weekday_str, _, after_comma = value.partition(',')
+            after_comma = cls._strip_ows_str(after_comma)
             parts = after_comma.split()
 
             if len(parts) == 3 and parts[2].upper() == 'GMT' and '-' in parts[0]:
-                # RFC 850: DD-Mon-YY HH:MM:SS GMT
+                # RFC 850: DD-Mon-YY HH:MM:SS GMT. The day-name here is the full weekday name - but as with the IMF
+                # day-name only the first three characters are cross-checked below, leniently accepting both full names
+                # ('Sunday') and abbreviations ('Sun').
                 date_pieces = parts[0].split('-')
                 if len(date_pieces) != 3:
                     raise ValueError(f'Invalid date component: {parts[0]}')
 
-                day = int(date_pieces[0])
+                day = cls._date_int(date_pieces[0], 'day', 2, 2)
                 month_str = date_pieces[1].lower()
-                year_raw = int(date_pieces[2])
 
-                # Two-digit year: RFC 7231 says interpret >= 50 as 19xx, < 50 as 20xx
+                # Two-digit year (or, non-conforming but accepted, a four-digit one). int() leniency ('+4', '1_4', '9',
+                # '994') previously produced silently different years.
+                year_raw = cls._date_int(date_pieces[2], 'year', 2, 4)
+
+                # RFC 7231: interpret two-digit years >= 50 as 19xx, < 50 as 20xx.
                 if year_raw < 100:
                     year = year_raw + 1900 if year_raw >= 50 else year_raw + 2000
                 else:
@@ -7276,31 +7767,39 @@ class _HttpParseContext:
                 if len(time_pieces) != 3:
                     raise ValueError(f'Invalid time component: {parts[1]}')
 
-                hour, minute, second = int(time_pieces[0]), int(time_pieces[1]), int(time_pieces[2])
+                hour = cls._date_int(time_pieces[0], 'hour', 2, 2)
+                minute = cls._date_int(time_pieces[1], 'minute', 2, 2)
+                second = cls._date_int(time_pieces[2], 'second', 2, 2)
 
                 month = cls._MONTH_NAMES.get(month_str)
                 if month is None:
                     raise ValueError(f'Invalid month: {month_str}')
 
-                return datetime.datetime(year, month, day, hour, minute, second, tzinfo=datetime.timezone.utc)  # noqa
+                dt = datetime.datetime(year, month, day, hour, minute, second, tzinfo=datetime.timezone.utc)  # noqa
+                cls._check_http_date_weekday(dt, weekday_str[:3])
+                return dt
 
             elif len(parts) == 5 and parts[4].upper() == 'GMT':
                 # IMF-fixdate: DD Mon YYYY HH:MM:SS GMT
-                day = int(parts[0])
+                day = cls._date_int(parts[0], 'day', 2, 2)
                 month_str = parts[1].lower()
-                year = int(parts[2])
+                year = cls._date_int(parts[2], 'year', 4, 4)
 
                 time_pieces = parts[3].split(':')
                 if len(time_pieces) != 3:
                     raise ValueError(f'Invalid time component: {parts[3]}')
 
-                hour, minute, second = int(time_pieces[0]), int(time_pieces[1]), int(time_pieces[2])
+                hour = cls._date_int(time_pieces[0], 'hour', 2, 2)
+                minute = cls._date_int(time_pieces[1], 'minute', 2, 2)
+                second = cls._date_int(time_pieces[2], 'second', 2, 2)
 
                 month = cls._MONTH_NAMES.get(month_str)
                 if month is None:
                     raise ValueError(f'Invalid month: {month_str}')
 
-                return datetime.datetime(year, month, day, hour, minute, second, tzinfo=datetime.timezone.utc)  # noqa
+                dt = datetime.datetime(year, month, day, hour, minute, second, tzinfo=datetime.timezone.utc)  # noqa
+                cls._check_http_date_weekday(dt, weekday_str[:3])
+                return dt
 
             raise ValueError(f'Cannot parse date: {value}')
 
@@ -7314,19 +7813,24 @@ class _HttpParseContext:
             month_str = value[4:7].lower()
             # Handle the space-padded day (e.g., " 6")
             day_str = value[8:10].replace(' ', '0')
-            day = int(day_str)
+            day = cls._date_int(day_str, 'day', 2, 2)
 
             time_pieces = value[11:19].split(':')
             if len(time_pieces) != 3:
                 raise ValueError('Invalid time component')
-            hour, minute, second = map(int, time_pieces)
 
-            year = int(value[20:24])
+            hour = cls._date_int(time_pieces[0], 'hour', 2, 2)
+            minute = cls._date_int(time_pieces[1], 'minute', 2, 2)
+            second = cls._date_int(time_pieces[2], 'second', 2, 2)
+
+            year = cls._date_int(value[20:24], 'year', 4, 4)
             month = cls._MONTH_NAMES.get(month_str)
             if month is None:
                 raise ValueError(f'Invalid month: {month_str}')
 
-            return datetime.datetime(year, month, day, hour, minute, second, tzinfo=datetime.timezone.utc)  # noqa
+            dt = datetime.datetime(year, month, day, hour, minute, second, tzinfo=datetime.timezone.utc)  # noqa
+            cls._check_http_date_weekday(dt, value[:3])
+            return dt
 
     def _prepare_date(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
         if 'date' not in headers:
@@ -7350,19 +7854,71 @@ class _HttpParseContext:
         for part in self._parse_comma_list(headers['cache-control']):
             eq_idx = part.find('=')
             if eq_idx < 0:
+                # cache-directive is a token (RFC 7234 §5.2).
+                if not self._is_token(part.lower()):
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                        message=f'Cache-Control directive is not a valid token: {part!r}',
+                    )
+
+                if part.lower() in directives:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                        message=f'Duplicate Cache-Control directive: {part.lower()!r}',
+                    )
+
                 directives[part.lower()] = None
                 continue
 
             name = self._strip_ows_str(part[:eq_idx]).lower()
             value = self._strip_ows_str(part[eq_idx + 1:])
+
+            # cache-directive = token [ "=" ( token / quoted-string ) ] (RFC 7234 §5.2) - reject empty names.
+            if not name:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                    message=f'Cache-Control directive has an empty name: {part!r}',
+                )
+
+            # cache-directive is a token (RFC 7234 §5.2).
+            if not self._is_token(name):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                    message=f'Cache-Control directive is not a valid token: {name!r}',
+                )
+
             if value.startswith('"'):
+                # A quoted-string that does not span exactly to the end (junk after the closing DQUOTE) is invalid -
+                # junk following a quoted-string was previously silently dropped. Note: value is the OWS-stripped
+                # remainder of the element, so strip the same OWS from the raw remainder before comparing offsets.
                 try:
-                    value, _ = self._parse_quoted_string(value, 0)
+                    value, after_pos = self._parse_quoted_string(value, 0)
                 except ValueError:
                     raise SemanticHeaderHttpParseError(
                         code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
                         message=f'Invalid quoted-string in Cache-Control directive: {name}',
                     ) from None
+
+                remainder = self._strip_ows_str(part[eq_idx + 1:])
+                if remainder[after_pos:]:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                        message=f'Unexpected content after quoted Cache-Control value: {name!r}',
+                    )
+
+            else:
+                # A bare directive value is a token (RFC 7234 §5.2) - previously any junk was kept verbatim.
+                if not value or not self._is_token(value):
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                        message=f'Cache-Control directive value is not a valid token: {value!r}',
+                    )
+
+            if name in directives:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_CACHE_CONTROL,
+                    message=f'Duplicate Cache-Control directive: {name!r}',
+                )
 
             directives[name] = value
 
@@ -7376,18 +7932,48 @@ class _HttpParseContext:
 
         for part in self._parse_comma_list(headers['accept-encoding']):
             try:
-                coding, q, _ = self._split_header_element(part)
+                coding, q, params = self._split_header_element(part)
             except ValueError:
                 raise SemanticHeaderHttpParseError(
                     code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
-                    message=f'Invalid q-value in Accept-Encoding: {part!r}',
+                    message=f'Invalid element in Accept-Encoding: {part!r}',
                 ) from None
 
-            if coding:
-                items.append(PreparedParsedHttpHeaders.AcceptEncodingItem(
-                    coding=coding,
-                    q=q,
-                ))
+            # A truly empty element is ignorable per RFC 9110 §5.6.1, but an empty coding carrying parameters or a
+            # qvalue is malformed and must not be silently dropped.
+            if not coding:
+                if params or q != 1.0:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
+                        message=f'Accept-Encoding element has an empty coding with parameters',
+                    )
+                continue
+
+            # codings are tokens (RFC 9110 §12.5.3).
+            if not self._is_token(coding):
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
+                    message=f'Accept-Encoding coding is not a valid token: {coding!r}',
+                )
+
+            # Accept-Encoding codings take no parameters besides q (RFC 9110 §12.5.3: weight only).
+            if params:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
+                    message=f'Accept-Encoding coding has unexpected parameters: {part!r}',
+                )
+
+            items.append(PreparedParsedHttpHeaders.AcceptEncodingItem(
+                coding=coding,
+                q=q,
+            ))
+
+        # The header was present but contains no codings - 1#coding requires at least one.
+        if not items:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT_ENCODING,
+                message='Accept-Encoding header present but empty',
+            )
 
         prepared.accept_encoding = items
 
@@ -7403,8 +7989,36 @@ class _HttpParseContext:
             except ValueError:
                 raise SemanticHeaderHttpParseError(
                     code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
-                    message=f'Invalid q-value in Accept: {part!r}',
+                    message=f'Invalid element in Accept: {part!r}',
                 ) from None
+
+            # A truly empty element is ignorable per RFC 9110 §5.6.1, but an empty media-range carrying parameters or a
+            # qvalue is malformed and must not be silently dropped.
+            if not media_range:
+                if params or q != 1.0:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
+                        message='Accept element has an empty media-range with parameters',
+                    )
+                continue
+
+            # media-range = "*/*" / ( type "/*" ) / ( type "/" subtype ) - type and subtype are tokens, with '*' only
+            # legal as the complete type of "*/*" or the complete subtype of "type/*" (RFC 9110 §12.5.1).
+            type_, _, subtype = media_range.partition('/')
+            if not type_ or not subtype:
+                raise SemanticHeaderHttpParseError(
+                    code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
+                    message=f'Accept media-range is not a valid type/subtype pair: {media_range!r}',
+                )
+
+            for part in (type_, subtype):
+                if part == '*':
+                    continue
+                if not self._is_token(part) or '*' in part:
+                    raise SemanticHeaderHttpParseError(
+                        code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
+                        message=f'Accept media-range is not a valid type/subtype pair: {media_range!r}',
+                    )
 
             items.append(PreparedParsedHttpHeaders.AcceptItem(
                 media_range=media_range,
@@ -7412,34 +8026,55 @@ class _HttpParseContext:
                 params=params,
             ))
 
+        # The header was present but contains no media-ranges - 1#media-range requires at least one.
+        if not items:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_ACCEPT,
+                message='Accept header present but empty',
+            )
+
         prepared.accept = items
 
     def _prepare_authorization(self, headers: ParsedHttpHeaders, prepared: PreparedParsedHttpHeaders) -> None:
-        if 'authorization' not in headers:
+        values = headers.get_all('authorization')
+        if not values:
             return
 
-        raw = self._strip_ows_str(headers['authorization'])
+        if len(values) > 1:
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.MULTIPLE_AUTHORIZATION_HEADERS,
+                message=f'Multiple Authorization headers found ({len(values)})',
+            )
+
+        raw = self._strip_ows_str(values[0])
         if not raw:
             raise SemanticHeaderHttpParseError(
                 code=SemanticHeaderHttpParseErrorCode.INVALID_AUTHORIZATION,
                 message='Authorization header is present but empty',
             )
 
-        # scheme SP credentials (credentials may contain spaces for some schemes)
+        # credentials = auth-scheme [ 1*SP ( token68 / [ ( "," / auth-param ) *( OWS "," / OWS auth-param ) ] ) ] - the
+        # separator is 1*SP (never HTAB), and auth-scheme must be a token (RFC 7235). Consume ALL the separating SPs so
+        # a value like 'Basic  dXNlcg==' does not leave a stray leading SP in the credentials - downstream
+        # token68/base64 consumers would see a different value than peers that trim it.
         sp_idx = raw.find(' ')
         if sp_idx < 0:
-            # Scheme only, no credentials (e.g., some edge cases)
-            prepared.authorization = PreparedParsedHttpHeaders.AuthorizationValue(
-                scheme=raw,
-                credentials='',
-            )
+            scheme = raw
+            credentials = ''
         else:
             scheme = raw[:sp_idx]
-            credentials = raw[sp_idx + 1:]
-            prepared.authorization = PreparedParsedHttpHeaders.AuthorizationValue(
-                scheme=scheme,
-                credentials=credentials,
+            credentials = raw[sp_idx + 1:].lstrip(' ')
+
+        if not scheme or not self._is_token(scheme):
+            raise SemanticHeaderHttpParseError(
+                code=SemanticHeaderHttpParseErrorCode.INVALID_AUTHORIZATION,
+                message=f'Authorization auth-scheme is not a valid token: {scheme!r}',
             )
+
+        prepared.authorization = PreparedParsedHttpHeaders.AuthorizationValue(
+            scheme=scheme,
+            credentials=credentials,
+        )
 
 
 ##
@@ -9156,12 +9791,14 @@ class IoPipeline:
             *,
             never_handle_exceptions: ta.Tuple[type, ...] = (),
             message_tap: ta.Optional[IoPipelineMessageTap] = None,
+            on_state_change: ta.Optional[ta.Callable[['IoPipeline'], None]] = None,
     ) -> None:
         super().__init__()
 
         self._config: ta.Final[IoPipeline.Config] = spec.config
         self._never_handle_exceptions = never_handle_exceptions
         self._message_tap = message_tap
+        self._on_state_change = on_state_change
 
         self._metadata: ta.Final[IoPipelineMetadatas] = IoPipelineMetadatas.of(spec.metadata)
         self._services: ta.Final[IoPipelineServices] = IoPipelineServices.of(spec.services)
@@ -9204,7 +9841,7 @@ class IoPipeline:
 
         #
 
-        self._state = IoPipeline.State.READY
+        self._set_state(IoPipeline.State.READY)
 
         #
 
@@ -9239,6 +9876,13 @@ class IoPipeline:
         DESTROYED = 'destroyed'
 
     _state: State = State.NEW
+
+    def _set_state(self, state: State) -> None:
+        if self._state == state:
+            return
+        self._state = state
+        if (cb := self._on_state_change) is not None:
+            cb(self)
 
     @property
     def state(self) -> State:
@@ -9880,7 +10524,7 @@ class IoPipeline:
             return
 
         check.state(self._state == IoPipeline.State.READY)
-        self._state = IoPipeline.State.DESTROYING
+        self._set_state(IoPipeline.State.DESTROYING)
 
         try:
             self._step_in()
@@ -9900,7 +10544,7 @@ class IoPipeline:
             try:
                 self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
             finally:
-                self._state = IoPipeline.State.DESTROYED
+                self._set_state(IoPipeline.State.DESTROYED)
 
     def _fail_pending_completables(self, exc: BaseException) -> None:
         first_listener_exc: ta.Optional[BaseException] = None
@@ -12116,6 +12760,9 @@ def journald_logging_handler_factory(
 # ../configs/models.py
 
 
+##
+
+
 class SystevisorUnitKind(enum.Enum):
     SERVICE = 'service'
     ONESHOT = 'oneshot'
@@ -12476,6 +13123,9 @@ class SystevisorConfig:
 
 ########################################
 # ../runtime/clocks.py
+
+
+##
 
 
 class SystevisorClock(Abstract):
@@ -14796,6 +15446,9 @@ class JsonLoggingFormatter(logging.Formatter):
 # ../configs/marshal.py
 
 
+##
+
+
 class SystevisorConfigEnumObjMarshaler(ObjMarshaler):
     def __init__(self, enum_type: ta.Type[SystevisorConfigEnum]) -> None:
         super().__init__()
@@ -14834,6 +15487,7 @@ _SYSTEVISOR_CONFIG_ENUM_TYPES = (
 )
 
 _SYSTEVISOR_CONFIG_OBJ_MARSHALER_MANAGER: ObjMarshalerManager = new_obj_marshaler_manager()
+
 for _systevisor_config_marshal_enum_type in _SYSTEVISOR_CONFIG_ENUM_TYPES:
     _SYSTEVISOR_CONFIG_OBJ_MARSHALER_MANAGER.set_obj_marshaler(
         _systevisor_config_marshal_enum_type,
@@ -14855,6 +15509,9 @@ def systevisor_unmarshal_config(value: ta.Any, value_type: ta.Type[ta.Any]) -> t
 
 ########################################
 # ../configs/validation.py
+
+
+##
 
 
 def _systevisor_config_validation_error(
@@ -15609,6 +16266,9 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
 # ../control/jsoncodec.py
 
 
+##
+
+
 def _systevisor_json_normalize_marshaled(value: ta.Any, marshaled: ta.Any) -> ta.Any:
     if isinstance(value, enum.Enum):
         return value.value
@@ -15663,6 +16323,9 @@ class SystevisorJsonCodec:
 
 ########################################
 # ../control/operations.py
+
+
+##
 
 
 class SystevisorOperationStatus(enum.Enum):
@@ -15783,6 +16446,9 @@ class SystevisorOperationStore:
 # ../core/changes.py
 
 
+##
+
+
 @dc.dataclass(frozen=True)
 class SystevisorUnitChange:
     kind: SystevisorUnitChangeKind
@@ -15870,6 +16536,9 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
 
 ########################################
 # ../runtime/signals.py
+
+
+##
 
 
 _SYSTEVISOR_SIGNALS_DEFAULT_SIGNALS = (
@@ -17948,6 +18617,9 @@ def configure_standard_logging(
 
 ########################################
 # ../configs/sources.py
+
+
+##
 
 
 _SYSTEVISOR_CONFIG_SOURCE_EXTENSIONS = frozenset({'.json', '.toml', '.yaml', '.yml'})
@@ -20888,6 +21560,9 @@ class StdLogger(Logger):
 # ../configs/snapshots.py
 
 
+##
+
+
 _SYSTEVISOR_CONFIG_SNAPSHOT_SCHEMA_VERSION = 1
 
 
@@ -20946,6 +21621,9 @@ def systevisor_build_config_snapshot(
 
 ########################################
 # ../platforms/runtime.py
+
+
+##
 
 
 _SYSTEVISOR_PLATFORM_PR_SET_CHILD_SUBREAPER = 36
@@ -22407,6 +23085,9 @@ def get_module_loggers(mod_globals: ta.Mapping[str, ta.Any]) -> ta.Tuple[Logger,
 # ../configs/compiling.py
 
 
+##
+
+
 @dc.dataclass(frozen=True)
 class SystevisorConfigCompileResult:
     snapshot: ta.Optional[SystevisorConfigSnapshot]
@@ -22515,6 +23196,9 @@ class SystevisorConfigCompiler:
 # ../core/effects.py
 
 
+##
+
+
 class SystevisorEngineEffect:
     pass
 
@@ -22562,6 +23246,9 @@ class SystevisorRunHealthProbeEffect(SystevisorEngineEffect):
 
 ########################################
 # ../core/inputs.py
+
+
+##
 
 
 class SystevisorEngineInput:
@@ -22654,6 +23341,9 @@ class SystevisorHealthProbeResultFact(SystevisorEngineFact):
 # ../core/state.py
 
 
+##
+
+
 @dc.dataclass
 class SystevisorHealthProbeState:
     name: str
@@ -22729,6 +23419,9 @@ class SystevisorEngineState:
 
 ########################################
 # ../platforms/inject.py
+
+
+##
 
 
 def systevisor_bind_platforms() -> InjectorBindings:
@@ -24099,18 +24792,19 @@ log = get_module_logger(globals())  # noqa
 ##
 
 
-class SyncSocketIoPipelineDriver:
+class SyncIoPipelineDriver(Abstract):
     """
-    Drive a pipeline over a caller-owned socket.
+    Drive a pipeline over a caller-owned synchronous transport, blocking the calling thread.
 
-    The socket must be used exclusively through the driver while it is active. The driver temporarily makes sockets
-    nonblocking so reads, queued writes, and timers can share one readiness wait, then restores the original timeout
-    when the pipeline closes or fails.
+    The transport must be used exclusively through the driver while it is active. Subclasses supply the handful of
+    transport operations - nonblocking reads and writes, the file descriptors to wait on, and switching the transport
+    into and out of nonblocking mode - and everything else (pipeline stepping, queued writes, watermarks, timers, the
+    readiness wait) is shared.
     """
 
     @dc.dataclass(frozen=True)
     class Config:
-        DEFAULT: ta.ClassVar['SyncSocketIoPipelineDriver.Config']
+        DEFAULT: ta.ClassVar['SyncIoPipelineDriver.Config']
 
         read_chunk_size: int = 64 * 1024
         read_batch_max_bytes: int = 1024 * 1024
@@ -24143,13 +24837,11 @@ class SyncSocketIoPipelineDriver:
     def __init__(
             self,
             spec: IoPipeline.Spec,
-            sock: ta.Any,
             config: ta.Optional[Config] = None,
     ) -> None:
         super().__init__()
 
         self._spec = spec
-        self._sock = sock
         if config is None:
             config = self.Config.DEFAULT
         self._config = config
@@ -24161,9 +24853,8 @@ class SyncSocketIoPipelineDriver:
         self._write_q_bytes = 0
         self._output_writable = True
 
-        self._socket_mode_prepared = False
-        self._socket_mode_changed = False
-        self._socket_original_timeout: ta.Optional[float] = None
+        self._transport_prepared = False
+        self._wait_timeout_s: ta.Optional[float] = None
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._pending_read_error: ta.Optional[OSError] = None
@@ -24193,6 +24884,22 @@ class SyncSocketIoPipelineDriver:
     def pipeline(self) -> IoPipeline:
         return self._pipeline
 
+    @property
+    def wait_timeout_s(self) -> ta.Optional[float]:
+        return self._wait_timeout_s
+
+    @wait_timeout_s.setter
+    def wait_timeout_s(self, timeout_s: ta.Optional[float]) -> None:
+        """
+        An additional bound on each readiness wait, on top of the transport's own timeout. Lets a host which must not
+        block forever - say, while closing against a peer which has stopped reading - get a TimeoutError back from
+        `next` and decide what to do. May be changed at any time between calls.
+        """
+
+        if timeout_s is not None and timeout_s < 0.:
+            raise ValueError(timeout_s)
+        self._wait_timeout_s = timeout_s
+
     #
 
     def _opt_pipeline(self) -> ta.Optional[IoPipeline]:
@@ -24210,7 +24917,7 @@ class SyncSocketIoPipelineDriver:
         check.state(self._state is IoPipelineDriverState.NEW)
 
         try:
-            self._prepare_socket_mode()
+            self._prepare_transport_once()
 
             self._sched = HeapIoPipelineSchedulingService()
 
@@ -24221,7 +24928,7 @@ class SyncSocketIoPipelineDriver:
 
         except BaseException:
             self._state = IoPipelineDriverState.FAILED
-            self._restore_socket_mode()
+            self._restore_transport_if_prepared()
             raise
 
         self._state = IoPipelineDriverState.RUNNING
@@ -24253,45 +24960,69 @@ class SyncSocketIoPipelineDriver:
 
     #
 
-    def _prepare_socket_mode(self) -> None:
-        if self._socket_mode_prepared:
+    ##
+    # transport
+
+    @abc.abstractmethod
+    def _prepare_transport(self) -> None:
+        """Switch the transport to nonblocking mode. Called once before the pipeline is created."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _restore_transport(self) -> None:
+        """Undo _prepare_transport. Called on close or failure, possibly more than once."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _transport_timeout(self) -> ta.Optional[float]:
+        """
+        The transport's own I/O timeout, bounding each readiness wait: None blocks indefinitely, zero never blocks, and
+        exceeding a positive value raises TimeoutError. A socket reports the timeout it had before being made
+        nonblocking.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _read_fileno(self) -> int:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _write_fileno(self) -> int:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _read_into(self, buf: memoryview) -> int:
+        """Read up to len(buf) bytes, returning 0 at EOF. Raises BlockingIOError when nothing is available."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _write(self, data: memoryview) -> int:
+        """Write some of data, returning the number of bytes accepted. Raises BlockingIOError when none can be."""
+
+        raise NotImplementedError
+
+    #
+
+    def _prepare_transport_once(self) -> None:
+        if self._transport_prepared:
             return
-        self._socket_mode_prepared = True
+        self._transport_prepared = True
+        self._prepare_transport()
 
-        try:
-            gettimeout = self._sock.gettimeout
-            setblocking = self._sock.setblocking
-            _ = self._sock.settimeout
-        except AttributeError:
+    def _restore_transport_if_prepared(self) -> None:
+        if not self._transport_prepared:
             return
-
-        self._socket_original_timeout = gettimeout()
-        setblocking(False)
-        self._socket_mode_changed = True
-
-    def _restore_socket_mode(self) -> None:
-        if not self._socket_mode_changed:
-            return
-        self._socket_mode_changed = False
-
-        try:
-            self._sock.settimeout(self._socket_original_timeout)
-        except OSError:
-            pass
-
-    def _get_socket_timeout(self) -> ta.Optional[float]:
-        if self._socket_mode_changed:
-            return self._socket_original_timeout
-
-        try:
-            return self._sock.gettimeout()
-        except AttributeError:
-            return None
+        self._transport_prepared = False
+        self._restore_transport()
 
     #
 
     def close(self) -> None:
-        """Abort the pipeline, discard queued output, and restore the caller-owned socket's original mode."""
+        """Abort the pipeline, discard queued output, and restore the caller-owned transport's original mode."""
 
         if self._state is IoPipelineDriverState.CLOSED:
             return
@@ -24310,7 +25041,7 @@ class SyncSocketIoPipelineDriver:
             self._write_q_bytes = 0
             self._transport_final_output = None
             self._pending_read_error = None
-            self._restore_socket_mode()
+            self._restore_transport_if_prepared()
 
     def _fail(self) -> None:
         self._state = IoPipelineDriverState.FAILED
@@ -24322,9 +25053,9 @@ class SyncSocketIoPipelineDriver:
                 pipeline.destroy()
         finally:
             self._transport_final_output = None
-            self._restore_socket_mode()
+            self._restore_transport_if_prepared()
 
-    def __enter__(self) -> 'SyncSocketIoPipelineDriver':  # noqa
+    def __enter__(self: SyncIoPipelineDriverT) -> SyncIoPipelineDriverT:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -24341,7 +25072,7 @@ class SyncSocketIoPipelineDriver:
         for _ in range(self._config.read_batch_max_reads):
             reserve = buf.reserve(min(self._config.read_chunk_size, remaining))
             try:
-                read = self._sock.recv_into(reserve)
+                read = self._read_into(reserve)
             except BlockingIOError:
                 reserve.release()
                 buf.commit(0)
@@ -24412,7 +25143,7 @@ class SyncSocketIoPipelineDriver:
             write_mv = mv
 
         try:
-            n = self._sock.send(write_mv)
+            n = self._write(write_mv)
         except BlockingIOError:
             return False
         except OSError:
@@ -24420,7 +25151,7 @@ class SyncSocketIoPipelineDriver:
             raise
 
         if n < 1:
-            error = BrokenPipeError('socket send returned no progress')
+            error = BrokenPipeError('transport write returned no progress')
             self._fail()
             raise error
 
@@ -24459,7 +25190,9 @@ class SyncSocketIoPipelineDriver:
 
             socket_timeout: ta.Optional[float] = None
             if want_read or want_write:
-                socket_timeout = self._get_socket_timeout()
+                socket_timeout = self._transport_timeout()
+                if (wt := self._wait_timeout_s) is not None:
+                    socket_timeout = wt if socket_timeout is None else min(socket_timeout, wt)
             else:
                 check.not_none(timer_delay)
 
@@ -24476,8 +25209,8 @@ class SyncSocketIoPipelineDriver:
 
             try:
                 readable, writable, _ = select.select(
-                    [self._sock] if want_read else [],
-                    [self._sock] if want_write else [],
+                    [self._read_fileno()] if want_read else [],
+                    [self._write_fileno()] if want_write else [],
                     [],
                     timeout,
                 )
@@ -24631,7 +25364,7 @@ class SyncSocketIoPipelineDriver:
 
             elif out == 'stop':
                 try:
-                    self._restore_socket_mode()
+                    self._restore_transport_if_prepared()
                     self._complete_transport_final_output()
                     pipeline.destroy()
                 except BaseException:
@@ -24640,7 +25373,7 @@ class SyncSocketIoPipelineDriver:
                 else:
                     self._state = IoPipelineDriverState.CLOSED
                 finally:
-                    self._restore_socket_mode()
+                    self._restore_transport_if_prepared()
 
                 return None
 
@@ -24693,8 +25426,155 @@ class SyncSocketIoPipelineDriver:
             self.close()
 
 
+##
+
+
+class SocketSyncIoPipelineDriver(SyncIoPipelineDriver):
+    """
+    Drive a pipeline over a caller-owned socket.
+
+    The driver temporarily makes the socket nonblocking so reads, queued writes, and timers can share one readiness
+    wait, then restores the original timeout when the pipeline closes or fails. The socket's original timeout, if any,
+    bounds each wait.
+    """
+
+    def __init__(
+            self,
+            spec: IoPipeline.Spec,
+            sock: ta.Any,
+            config: ta.Optional[SyncIoPipelineDriver.Config] = None,
+    ) -> None:
+        super().__init__(spec, config)
+
+        self._sock = sock
+
+        self._socket_mode_changed = False
+        self._socket_original_timeout: ta.Optional[float] = None
+
+    @property
+    def socket(self) -> ta.Any:
+        return self._sock
+
+    def _prepare_transport(self) -> None:
+        try:
+            gettimeout = self._sock.gettimeout
+            setblocking = self._sock.setblocking
+            _ = self._sock.settimeout
+        except AttributeError:
+            return
+
+        self._socket_original_timeout = gettimeout()
+        setblocking(False)
+        self._socket_mode_changed = True
+
+    def _restore_transport(self) -> None:
+        if not self._socket_mode_changed:
+            return
+        self._socket_mode_changed = False
+
+        try:
+            self._sock.settimeout(self._socket_original_timeout)
+        except OSError:
+            pass
+
+    def _transport_timeout(self) -> ta.Optional[float]:
+        if self._socket_mode_changed:
+            return self._socket_original_timeout
+
+        try:
+            return self._sock.gettimeout()
+        except AttributeError:
+            return None
+
+    def _read_fileno(self) -> int:
+        return self._sock.fileno()
+
+    def _write_fileno(self) -> int:
+        return self._sock.fileno()
+
+    def _read_into(self, buf: memoryview) -> int:
+        return self._sock.recv_into(buf)
+
+    def _write(self, data: memoryview) -> int:
+        return self._sock.send(data)
+
+
+##
+
+
+class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
+    """
+    Drive a pipeline over a pair of caller-owned file descriptors, such as a pipe pair or a process's own stdio.
+
+    Both descriptors are switched to nonblocking mode while the driver is active and restored afterwards. They may be
+    the same descriptor. An optional timeout bounds each readiness wait the same way a socket's timeout would.
+    """
+
+    def __init__(
+            self,
+            spec: IoPipeline.Spec,
+            read_fd: int,
+            write_fd: int,
+            config: ta.Optional[SyncIoPipelineDriver.Config] = None,
+            *,
+            timeout_s: ta.Optional[float] = None,
+    ) -> None:
+        super().__init__(spec, config)
+
+        self._read_fd = read_fd
+        self._write_fd = write_fd
+        self._timeout_s = timeout_s
+
+        self._original_flags: ta.Dict[int, int] = {}
+
+    @property
+    def read_fd(self) -> int:
+        return self._read_fd
+
+    @property
+    def write_fd(self) -> int:
+        return self._write_fd
+
+    def _prepare_transport(self) -> None:
+        for fd in {self._read_fd, self._write_fd}:
+            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            self._original_flags[fd] = flags
+            if not (flags & os.O_NONBLOCK):
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+    def _restore_transport(self) -> None:
+        flags_by_fd = self._original_flags
+        self._original_flags = {}
+        for fd, flags in flags_by_fd.items():
+            try:
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+            except OSError:
+                pass
+
+    def _transport_timeout(self) -> ta.Optional[float]:
+        return self._timeout_s
+
+    def _read_fileno(self) -> int:
+        return self._read_fd
+
+    def _write_fileno(self) -> int:
+        return self._write_fd
+
+    def _read_into(self, buf: memoryview) -> int:
+        data = os.read(self._read_fd, len(buf))
+        n = len(data)
+        buf[:n] = data
+        return n
+
+    def _write(self, data: memoryview) -> int:
+        return os.write(self._write_fd, data)
+
+
 ########################################
 # ../core/events.py
+
+
+##
 
 
 class SystevisorEventKind(enum.Enum):
@@ -24744,6 +25624,9 @@ class SystevisorEngineOutput:
 
 ########################################
 # ../runtime/fdio.py
+
+
+##
 
 
 class SystevisorDeadlineFdioHandler(FdioHandler):
@@ -24886,6 +25769,9 @@ class SystevisorProcessWaitFdioHandler(FdioHandler):
 
 ########################################
 # ../runtime/logs.py
+
+
+##
 
 
 _SYSTEVISOR_LOGS_ANSI_ESCAPE_RE = re.compile(
@@ -25526,6 +26412,9 @@ class SystevisorLogManager:
 
 ########################################
 # ../runtime/processes.py
+
+
+##
 
 
 _SYSTEVISOR_PROCESSES_MANAGED_OUTPUT_MODES = frozenset({
@@ -26935,6 +27824,9 @@ class IoPipelineHttpRequestDecompressor(IoPipelineHttpRequestObjects, IoPipeline
 # ../core/engine.py
 
 
+##
+
+
 _SYSTEVISOR_ENGINE_LIVE_PROCESS_STATES = frozenset({
     SystevisorProcessState.STARTING,
     SystevisorProcessState.RUNNING,
@@ -28270,6 +29162,9 @@ class SystevisorEngine:
 # ../resources/cgroups.py
 
 
+##
+
+
 class SystevisorCgroupError(Exception):
     pass
 
@@ -28719,6 +29614,9 @@ class SystevisorCgroupManager(SystevisorChildModifier):
 # ../resources/namespaces.py
 
 
+##
+
+
 _SYSTEVISOR_NAMESPACE_CLONE_NEWNS = 0x00020000
 _SYSTEVISOR_NAMESPACE_CLONE_NEWCGROUP = 0x02000000
 _SYSTEVISOR_NAMESPACE_CLONE_NEWUTS = 0x04000000
@@ -28817,6 +29715,9 @@ class SystevisorNamespaceChildModifier(SystevisorChildModifier):
 
 ########################################
 # ../resources/sampling.py
+
+
+##
 
 
 class SystevisorResourceSamplingError(Exception):
@@ -29039,7 +29940,15 @@ def _systevisor_resource_is_darwin() -> bool:
 # ../resources/sockets.py
 
 
-_SYSTEVISOR_SOCKET_ACTIVATION_ENV_KEYS = ('LISTEN_PID', 'LISTEN_FDS', 'LISTEN_FDNAMES')
+##
+
+
+_SYSTEVISOR_SOCKET_ACTIVATION_ENV_KEYS = (
+    'LISTEN_PID',
+    'LISTEN_FDS',
+    'LISTEN_FDNAMES',
+)
+
 _SYSTEVISOR_SOCKET_DUPLICATE_FLOOR = 64
 
 
@@ -29270,6 +30179,9 @@ class SystevisorInheritedSocketChildModifier(SystevisorChildModifier):
 # ../control/client.py
 
 
+##
+
+
 @dc.dataclass(frozen=True)
 class SystevisorApiEndpoint:
     unix_socket: ta.Optional[str] = None
@@ -29414,7 +30326,7 @@ class SystevisorApiClient:
         request = self._make_request(method, target, body)
         handler = SystevisorApiClientIoPipelineHandler(request)
         with self._connect(streaming=False) as sock:
-            driver = SyncSocketIoPipelineDriver(self._pipeline_spec(handler), sock)
+            driver = SocketSyncIoPipelineDriver(self._pipeline_spec(handler), sock)
             try:
                 driver.loop_until_done()
             finally:
@@ -29444,7 +30356,7 @@ class SystevisorApiClient:
         request = self._make_request('GET', target, None)
         handler = SystevisorApiClientIoPipelineHandler(request, callback)
         with self._connect(streaming=True) as sock:
-            driver = SyncSocketIoPipelineDriver(self._pipeline_spec(handler), sock)
+            driver = SocketSyncIoPipelineDriver(self._pipeline_spec(handler), sock)
             try:
                 driver.loop_until_done()
             finally:
@@ -29456,6 +30368,9 @@ class SystevisorApiClient:
 
 ########################################
 # ../runtime/health.py
+
+
+##
 
 
 @dc.dataclass(frozen=True)
@@ -29909,6 +30824,9 @@ class SystevisorFdioHealthProbeRunner(SystevisorHealthProbeRunner, FdioHandler):
 
 ########################################
 # ../selfupdate/codec.py
+
+
+##
 
 
 _SYSTEVISOR_SELF_UPDATE_MAX_DOCUMENT_BYTES = 64 * 1024 * 1024
@@ -30869,6 +31787,9 @@ def systevisor_self_update_atomic_write_json(path: str, value: ta.Any) -> None:
 # ../runtime/coordinator.py
 
 
+##
+
+
 _SYSTEVISOR_COORDINATOR_LOG = get_module_logger(globals())
 
 
@@ -31298,6 +32219,9 @@ class SystevisorRuntimeCoordinator:
 # ../control/configs.py
 
 
+##
+
+
 class SystevisorConfigPreparedChange(Abstract):
     @abc.abstractmethod
     def commit(self) -> None:
@@ -31565,6 +32489,9 @@ class SystevisorConfigController:
 # ../runtime/inject.py
 
 
+##
+
+
 def _systevisor_runtime_inject_provide_engine() -> SystevisorEngine:
     return SystevisorEngine()
 
@@ -31623,6 +32550,9 @@ def systevisor_bind_runtime() -> InjectorBindings:
 
 ########################################
 # ../selfupdate/restore.py
+
+
+##
 
 
 @dc.dataclass(frozen=True)
@@ -31812,6 +32742,9 @@ def systevisor_rollback_handoff(
 # ../control/manager.py
 
 
+##
+
+
 class SystevisorManagerConfigPreparedChange(SystevisorConfigPreparedChange):
     def __init__(self, change: SystevisorPreparedManagerRuntimeChange) -> None:
         self._change = change
@@ -31838,6 +32771,9 @@ class SystevisorManagerConfigParticipant(SystevisorConfigParticipant):
 
 ########################################
 # ../control/service.py
+
+
+##
 
 
 class SystevisorControlGoalKind(enum.Enum):
@@ -32160,6 +33096,9 @@ class SystevisorControlService:
 
 ########################################
 # ../resources/runtime.py
+
+
+##
 
 
 class SystevisorResourceEventKind(enum.Enum):
@@ -32487,6 +33426,9 @@ class SystevisorResourceObserver(FdioHandler, SystevisorConfigParticipant):
 
 ########################################
 # ../selfupdate/runtime.py
+
+
+##
 
 
 _SYSTEVISOR_SELF_UPDATE_INTERNAL_RUN_START = -2_000_000_000
@@ -33116,6 +34058,9 @@ def systevisor_run_self_update_probe(
 # ../resources/inject.py
 
 
+##
+
+
 def _systevisor_resources_inject_provide_socket_registry() -> SystevisorInheritedSocketRegistry:
     return SystevisorInheritedSocketRegistry()
 
@@ -33139,6 +34084,9 @@ def systevisor_bind_resources() -> InjectorBindings:
 
 ########################################
 # ../scheduling/runtime.py
+
+
+##
 
 
 _SYSTEVISOR_SCHEDULER_STATE_SCHEMA_VERSION = 1
@@ -33539,6 +34487,9 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
 # ../selfupdate/inject.py
 
 
+##
+
+
 def systevisor_bind_self_update() -> InjectorBindings:
     return inj.as_bindings(
         inj.bind(SystevisorPosixSelfUpdateExecBackend, singleton=True),
@@ -33549,6 +34500,9 @@ def systevisor_bind_self_update() -> InjectorBindings:
 
 ########################################
 # ../control/api.py
+
+
+##
 
 
 _SYSTEVISOR_API_LOG = get_module_logger(globals())
@@ -33987,6 +34941,9 @@ class SystevisorApiApplication:
 # ../control/http.py
 
 
+##
+
+
 @dc.dataclass(frozen=True)
 class SystevisorHttpStreamPush(IoPipelineHandlerNotification):
     data: bytes
@@ -34422,6 +35379,9 @@ class SystevisorHttpServer:
 # ../control/plane.py
 
 
+##
+
+
 class SystevisorControlPlane(SystevisorConfigParticipant):
     def __init__(
             self,
@@ -34441,6 +35401,9 @@ class SystevisorControlPlane(SystevisorConfigParticipant):
 
 ########################################
 # ../control/inject.py
+
+
+##
 
 
 @dc.dataclass(frozen=True)
@@ -34489,6 +35452,9 @@ def systevisor_bind_control(bootstrap: SystevisorControlBootstrapConfig) -> Inje
 
 ########################################
 # ../main.py
+
+
+##
 
 
 _SYSTEVISOR_MAIN_DEFAULT_ENDPOINT = 'unix:/tmp/systevisor.sock'
@@ -35034,7 +36000,15 @@ def _systevisor_main_parser() -> argparse.ArgumentParser:
     service_template.add_argument('--state-directory')
 
     for command in (
-            'status', 'units', 'collections', 'schedules', 'config', 'operations', 'reload', 'check', 'shutdown',
+            'status',
+            'units',
+            'collections',
+            'schedules',
+            'config',
+            'operations',
+            'reload',
+            'check',
+            'shutdown',
     ):
         subparsers.add_parser(command)
 
