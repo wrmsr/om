@@ -81,7 +81,10 @@ def main() -> None:
     )
     ap.add_argument(
         '--quant',
-        choices=['int8', 'int4'],
+        choices=[
+            'int8',
+            'int4',
+        ],
         default=None,
         help='keep linear weights quantized on device (weight-only affine, group 64); default: none',
     )
