@@ -93,3 +93,54 @@ def is_literal_type(spec: ta.Any) -> bool:
 
 def get_literal_type_args(spec: ta.Any) -> ta.Iterable[ta.Any]:
     return spec.__args__
+
+
+##
+
+
+def type_form_repr(ty: ta.Any) -> str:
+    if isinstance(ty, type):
+        return f'{ty.__module__}.{ty.__qualname__}'
+
+    elif ty is ta.Any:
+        return 'typing.Any'
+
+    elif is_optional_alias(ty):
+        ety = get_optional_alias_arg(ty)
+        return f'typing.Optional[{type_form_repr(ety)}]'
+
+    elif is_union_alias(ty):
+        args = ta.get_args(ty)
+        return f'typing.Union[{", ".join(sorted(type_form_repr(a) for a in args))}]'
+
+    elif is_callable_alias(ty):
+        ptys, rty = ta.get_args(ty)
+        return (
+            f'typing.Callable[['
+            f'{"..." if isinstance(ptys, types.EllipsisType) else ", ".join(type_form_repr(a) for a in ptys)}], '
+            f'{type_form_repr(rty)}]'
+        )
+
+    elif is_literal_type(ty):
+        args = ta.get_args(ty)
+        return f'typing.Literal[{", ".join(sorted(repr(a) for a in args))}]'
+
+    elif is_new_type(ty):
+        raise NotImplementedError
+
+    elif is_generic_alias(ty):
+        origin = ta.get_origin(ty)
+        args = ta.get_args(ty)
+        if origin is tuple and args and isinstance(args[-1], types.EllipsisType):
+            return (
+                f'{type_form_repr(origin)}['
+                f'{", ".join(type_form_repr(a) for a in args[:-1])}, ...]'
+            )
+        else:
+            return (
+                f'{type_form_repr(origin)}['
+                f'{", ".join(type_form_repr(a) for a in args)}]'
+            )
+
+    else:
+        raise TypeError(ty)

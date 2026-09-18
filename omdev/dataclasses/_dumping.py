@@ -42,7 +42,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
             dict(path='../../omcore/lite/io.py', sha1='a60d94f0bdbb2b1541d363c301314682d1686240'),
             dict(path='../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
-            dict(path='../../omcore/lite/reflect.py', sha1='0261db54fb43d741c6f646f900aa759d2f1b38c7'),
+            dict(path='../../omcore/lite/reflect.py', sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0'),
             dict(path='../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
@@ -980,6 +980,57 @@ def is_literal_type(spec: ta.Any) -> bool:
 
 def get_literal_type_args(spec: ta.Any) -> ta.Iterable[ta.Any]:
     return spec.__args__
+
+
+##
+
+
+def type_form_repr(ty: ta.Any) -> str:
+    if isinstance(ty, type):
+        return f'{ty.__module__}.{ty.__qualname__}'
+
+    elif ty is ta.Any:
+        return 'typing.Any'
+
+    elif is_optional_alias(ty):
+        ety = get_optional_alias_arg(ty)
+        return f'typing.Optional[{type_form_repr(ety)}]'
+
+    elif is_union_alias(ty):
+        args = ta.get_args(ty)
+        return f'typing.Union[{", ".join(sorted(type_form_repr(a) for a in args))}]'
+
+    elif is_callable_alias(ty):
+        ptys, rty = ta.get_args(ty)
+        return (
+            f'typing.Callable[['
+            f'{"..." if isinstance(ptys, types.EllipsisType) else ", ".join(type_form_repr(a) for a in ptys)}], '
+            f'{type_form_repr(rty)}]'
+        )
+
+    elif is_literal_type(ty):
+        args = ta.get_args(ty)
+        return f'typing.Literal[{", ".join(sorted(repr(a) for a in args))}]'
+
+    elif is_new_type(ty):
+        raise NotImplementedError
+
+    elif is_generic_alias(ty):
+        origin = ta.get_origin(ty)
+        args = ta.get_args(ty)
+        if origin is tuple and args and isinstance(args[-1], types.EllipsisType):
+            return (
+                f'{type_form_repr(origin)}['
+                f'{", ".join(type_form_repr(a) for a in args[:-1])}, ...]'
+            )
+        else:
+            return (
+                f'{type_form_repr(origin)}['
+                f'{", ".join(type_form_repr(a) for a in args)}]'
+            )
+
+    else:
+        raise TypeError(ty)
 
 
 ########################################
