@@ -31,10 +31,14 @@ from .quant import quantize as quantize_np
 ##
 
 
-Array = ta.Any  # a backend array (np.ndarray, torch.Tensor, mx.array, ...)
-Weight = ta.Any  # a backend dense array or a backend-adopted QWeight
+Array: ta.TypeAlias = ta.Any  # a backend array (np.ndarray, torch.Tensor, mx.array, ...)
+Weight: ta.TypeAlias = ta.Any  # a backend dense array or a backend-adopted QWeight
 
-DTYPE_NAMES = ('f32', 'f16', 'bf16')
+DTYPE_NAMES = (
+    'f32',
+    'f16',
+    'bf16',
+)
 
 
 class Ops(abc.ABC):
