@@ -182,7 +182,7 @@ def __om_amalg__():  # noqa
             dict(path='core/events.py', sha1='37526d652d6e8bc851b49b7417967e6fba6be4c2'),
             dict(path='runtime/fdio.py', sha1='618ebd90f4e1867bf900b19020256d4b3c80ad9f'),
             dict(path='runtime/logs.py', sha1='64e8f73ea76c1e568d0d8b50e5f75a133955b812'),
-            dict(path='runtime/processes.py', sha1='4dcc46871590800b6a96fbed34ba92f77a9a296b'),
+            dict(path='runtime/processes.py', sha1='a7060c49bbcc72d335f87db3b02c021dd5a7698f'),
             dict(path='../../omcore/http/pipelines/clients/responses.py', sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/requests.py', sha1='2258c98399fd861ca308ff1ef498513d435f6fbb'),  # noqa
             dict(path='core/engine.py', sha1='9ffc587d7ef4fc47a7d7d26cb31d2734b66d0f02'),
@@ -28781,7 +28781,12 @@ class SystevisorProcessManager:
                 succeeded=False,
                 message=process.exec_error_buffer.decode('utf-8', 'replace'),
             )
-        process.status = SystevisorOwnedProcessStatus.RUNNING
+        if process.status is SystevisorOwnedProcessStatus.SPAWNING:
+            process.status = SystevisorOwnedProcessStatus.RUNNING
+        elif process.status is not SystevisorOwnedProcessStatus.EXIT_OBSERVED:
+            raise SystevisorProcessOwnershipError(
+                f'exec handshake completed in invalid state {process.status.value}',
+            )
         if process.session_requested:
             process.session_id = process.pid
         return SystevisorProcessExecResult(run_id=run_id, succeeded=True)

@@ -1104,7 +1104,12 @@ class SystevisorProcessManager:
                 succeeded=False,
                 message=process.exec_error_buffer.decode('utf-8', 'replace'),
             )
-        process.status = SystevisorOwnedProcessStatus.RUNNING
+        if process.status is SystevisorOwnedProcessStatus.SPAWNING:
+            process.status = SystevisorOwnedProcessStatus.RUNNING
+        elif process.status is not SystevisorOwnedProcessStatus.EXIT_OBSERVED:
+            raise SystevisorProcessOwnershipError(
+                f'exec handshake completed in invalid state {process.status.value}',
+            )
         if process.session_requested:
             process.session_id = process.pid
         return SystevisorProcessExecResult(run_id=run_id, succeeded=True)

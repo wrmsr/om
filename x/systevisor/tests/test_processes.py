@@ -236,6 +236,24 @@ class TestSystevisorProcesses(unittest.TestCase):
         systevisor_close_process_retirement(retirement)
         self.assertIsNone(manager.get_state(effect.run_id))
 
+    def test_exit_observed_before_exec_handshake_preserves_exit_state(self) -> None:
+        manager = SystevisorProcessManager()
+        effect = _systevisor_test_process_effect(('/bin/true',))
+        manager.spawn(effect)
+        self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
+
+        observed = _systevisor_test_wait_exit(manager, effect.run_id)
+        result = _systevisor_test_wait_exec_result(manager, effect.run_id)
+
+        self.assertTrue(result.succeeded)
+        state = manager.get_state(effect.run_id)
+        assert state is not None
+        self.assertEqual(state.status, SystevisorOwnedProcessStatus.EXIT_OBSERVED)
+
+        retirement = manager.acknowledge_exit(observed.run_id)
+        systevisor_close_process_retirement(retirement)
+        self.assertIsNone(manager.get_state(effect.run_id))
+
     def test_signal_lease_prevents_wait_observation(self) -> None:
         manager = SystevisorProcessManager()
         effect = _systevisor_test_process_effect(('/bin/sh', '-c', 'exit 0'))
