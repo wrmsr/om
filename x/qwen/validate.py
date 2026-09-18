@@ -1,5 +1,5 @@
 """
-Validate the torch implementation against llama.cpp, using llama-server as the oracle.
+Validate the implementation (any backend) against llama.cpp, using llama-server as the oracle.
 
 Start the oracle on the *same* GGUF blob Ollama uses:
 
@@ -23,13 +23,14 @@ range (different matmul orders / KV precision). Anything wildly off means a layo
 import argparse
 import json
 import math
+import sys
 import time
 import urllib.request
 
-import torch
+import numpy as np
 
-from .generate import DTYPES
-from .generate import pick_device
+from .backends import BACKENDS
+from .backends import make_ops
 from .model import Cache
 from .model import Qwen35
 from .tokenizer import Tokenizer
@@ -82,17 +83,29 @@ def main():
         default=10,
     )
     ap.add_argument(
+        '--backend',
+        choices=BACKENDS,
+        default=None,
+    )
+    ap.add_argument(
         '--device',
         default=None,
     )
     ap.add_argument(
         '--dtype',
-        choices=['bf16', 'f16', 'f32'],
+        choices=[
+            'bf16',
+            'f16',
+            'f32',
+        ],
         default='f32',
     )
     ap.add_argument(
         '--quant',
-        choices=['int8', 'int4'],
+        choices=[
+            'int8',
+            'int4',
+        ],
         default=None,
     )
     ap.add_argument(
@@ -108,16 +121,15 @@ def main():
             print(om.blob(l['digest']), l.get('size'))
         return
 
-    device = pick_device(args.device)
-    dtype = DTYPES[args.dtype]
+    ops = make_ops(args.backend, args.device)
 
     src = open_source(args.model)
     print(f'[model] {src.config.summary()}')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     text = (
         tok.apply_chat([{'role': 'user', 'content': args.prompt}], think=False)
-        if args.chat else
-        args.prompt
+        if args.chat
+        else args.prompt
     )
 
     # 1. tokenizer
@@ -125,11 +137,7 @@ def main():
     ours = tok.encode(text, parse_special=True)
     ref = post(
         f'{args.server}/tokenize',
-        {
-            'content': text,
-            'add_special': False,
-            'parse_special': True,
-        },
+        {'content': text, 'add_special': False, 'parse_special': True},
     )['tokens']
     if ours == ref:
         print(f'[tokenizer] OK ({len(ours)} tokens)')
@@ -137,7 +145,9 @@ def main():
         print(f'[tokenizer] MISMATCH\n  ours: {ours}\n  ref : {ref}')
         for i, (a, b) in enumerate(zip(ours, ref)):
             if a != b:
-                print(f'  first diff at {i}: ours={a} ({tok.decode([a])!r}) ref={b} ({tok.decode([b])!r})')
+                print(
+                    f'  first diff at {i}: ours={a} ({tok.decode([a])!r}) ref={b} ({tok.decode([b])!r})',
+                )
                 break
     prompt_ids = ref  # use the oracle's ids from here on so model checks are independent of tokenizer
 
@@ -161,22 +171,24 @@ def main():
     probs = resp.get('completion_probabilities') or resp.get('probs') or []
     if not ref_tokens and probs:
         ref_tokens = [p['id'] for p in probs]
-    print(f'[oracle] {len(ref_tokens)} tokens in {time.time() - t0:.1f}s: {tok.decode(ref_tokens)!r}')
+    print(
+        f'[oracle] {len(ref_tokens)} tokens in {time.time() - t0:.1f}s: {tok.decode(ref_tokens)!r}',
+    )
     if not probs:
-        print('[oracle] server returned no completion_probabilities; is n_probs supported? continuing with tokens only')
+        print(
+            '[oracle] server returned no completion_probabilities; is n_probs supported? continuing with tokens only',
+        )
 
     # 3. our model, teacher-forced on the oracle's tokens
 
-    model = Qwen35.from_source(src, device=device, dtype=dtype, quant=args.quant)
+    model = Qwen35.from_source(src, ops, dtype=args.dtype, quant=args.quant)
     seq = prompt_ids + ref_tokens[:-1]
     cache = Cache(src.config)
     t0 = time.time()
-    logits = model.forward(torch.tensor([seq], device=device), cache)  # [1, L, V]
+    logits = ops.numpy(model.forward(np.array([seq]), cache))  # [1, L, V]
     print(f'[ours] forward over {len(seq)} tokens in {time.time() - t0:.1f}s')
-    logp = torch.log_softmax(
-        logits[0, len(prompt_ids) - 1:].float(),
-        dim=-1,
-    )  # position i predicts ref_tokens[i]
+    lg = logits[0, len(prompt_ids) - 1:].astype(np.float64)  # position i predicts ref_tokens[i]
+    logp = lg - np.log(np.sum(np.exp(lg - lg.max(-1, keepdims=True)), -1, keepdims=True)) - lg.max(-1, keepdims=True)
 
     top1_ok = 0
     first_div = None
@@ -226,7 +238,7 @@ def main():
     print(f'\n[ours greedy] {tok.decode(ours_gen)!r}')
     match = sum(a == b for a, b in zip(ours_gen, ref_tokens))
     print(f'[ours greedy] {match}/{n} tokens identical to oracle')
-    raise SystemExit(0 if top1_ok >= 0.9 * n else 1)
+    sys.exit(0 if top1_ok >= 0.9 * n else 1)
 
 
 if __name__ == '__main__':

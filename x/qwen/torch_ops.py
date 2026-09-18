@@ -1,0 +1,219 @@
+# ruff: noqa: N806 N812
+"""
+torch backend for `Ops`.
+
+Overrides: rms_norm (F.rms_norm), sdpa (flash/SDPA), conv1d_causal (F.conv1d), on-device quantize. `gated_delta` and
+`rope` use the composed reference implementations (a Triton kernel / CUDA graphs are the next steps and slot in here
+without touching model.py).
+"""
+import dataclasses as dc
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+from .ops import Ops
+from .quant import QWeight
+
+
+##
+
+
+DTYPES = {'f32': torch.float32, 'f16': torch.float16, 'bf16': torch.bfloat16}
+
+
+@dc.dataclass()
+class TorchQWeight:
+    q: torch.Tensor  # uint8, packed as in quant.QWeight
+    scale: torch.Tensor  # compute dtype
+    bias: torch.Tensor
+    bits: int
+    group: int
+    shape: tuple[int, int]
+
+    def nbytes(self) -> int:
+        return self.q.numel() + self.scale.numel() * self.scale.element_size() * 2
+
+    def dequant(self, dtype: torch.dtype, rows: slice | torch.Tensor | None = None) -> torch.Tensor:
+        q = self.q if rows is None else self.q[rows]
+        s = self.scale if rows is None else self.scale[rows]
+        b = self.bias if rows is None else self.bias[rows]
+        if self.bits == 4:
+            q = torch.stack([q & 0xF, q >> 4], dim=-1).reshape(q.shape[0], -1)
+        n = q.shape[0]
+        x = q.reshape(n, -1, self.group).to(dtype)
+        x = x * s[..., None].to(dtype) + b[..., None].to(dtype)
+        return x.reshape(n, self.shape[1])
+
+    def linear(self, x: torch.Tensor, chunk_rows: int = 16384) -> torch.Tensor:
+        out = self.shape[0]
+        if out <= chunk_rows:
+            return F.linear(x, self.dequant(x.dtype))
+        return torch.cat(
+            [F.linear(x, self.dequant(x.dtype, slice(i, i + chunk_rows))) for i in range(0, out, chunk_rows)],
+            dim=-1,
+        )
+
+
+class TorchOps(Ops):
+    name = 'torch'
+
+    def __init__(self, device: str | torch.device = 'cpu') -> None:
+        super().__init__()
+
+        self.device = torch.device(device)
+        self.name = f'torch:{self.device}'
+
+    def dtype(self, name):
+        return DTYPES[name]
+
+    def array(self, a, dtype=None):
+        a = np.ascontiguousarray(a)
+        if not a.flags.writeable:  # memmap-backed (gguf / safetensors) arrays: torch wants ownership
+            a = a.copy()
+        t = torch.from_numpy(a)
+        if dtype is not None:
+            t = t.to(dtype)
+        return t.to(self.device)
+
+    def numpy(self, x):
+        return x.detach().float().cpu().numpy() if x.is_floating_point() else x.detach().cpu().numpy()
+
+    def cast(self, x, dtype):
+        return x.to(dtype)
+
+    def copy(self, x):
+        return x.clone()
+
+    def zeros(self, shape, dtype):
+        return torch.zeros(shape, dtype=dtype, device=self.device)
+
+    def eval(self, *xs):
+        if self.device.type == 'cuda':
+            torch.cuda.synchronize(self.device)
+        elif self.device.type == 'mps':
+            torch.mps.synchronize()
+
+    def nbytes(self, w):
+        if isinstance(w, TorchQWeight):
+            return w.nbytes()
+        return w.numel() * w.element_size()
+
+    def reshape(self, x, shape):
+        return x.reshape(shape)
+
+    def transpose(self, x, axes):
+        return x.permute(axes)
+
+    def concat(self, xs, axis):
+        return torch.cat(list(xs), dim=axis)
+
+    def stack(self, xs, axis):
+        return torch.stack(list(xs), dim=axis)
+
+    def split(self, x, sizes, axis):
+        return list(torch.split(x, list(sizes), dim=axis))
+
+    def repeat(self, x, n, axis):
+        return x.repeat_interleave(n, dim=axis)
+
+    def exp(self, x):
+        return torch.exp(x)
+
+    def rsqrt(self, x):
+        return torch.rsqrt(x)
+
+    def sum(self, x, axis, keepdims=False):
+        return x.sum(dim=axis, keepdim=keepdims)
+
+    def mean(self, x, axis, keepdims=False):
+        return x.mean(dim=axis, keepdim=keepdims)
+
+    def sigmoid(self, x):
+        return torch.sigmoid(x)
+
+    def softplus(self, x):
+        return F.softplus(x)
+
+    def silu(self, x):
+        return F.silu(x)
+
+    def softmax(self, x, axis):
+        return torch.softmax(x, dim=axis)
+
+    # weights
+
+    def weight(self, w, dtype):
+        return self.array(w, dtype)
+
+    def qweight(self, qw: QWeight, dtype):
+        return TorchQWeight(
+            self.array(qw.q),
+            self.array(qw.scale, dtype),
+            self.array(qw.bias, dtype),
+            qw.bits,
+            qw.group,
+            qw.shape,
+        )
+
+    def quantize(self, w, bits, group, dtype):
+        """On-device version of quant.quantize (same layout, same numerics up to rounding)."""
+
+        out, inn = w.shape
+        if inn % group:
+            raise ValueError(f'in_features {inn} not a multiple of group {group}')
+        qmax = (1 << bits) - 1
+        g = self.array(w, torch.float32).reshape(out, inn // group, group)
+        lo = g.amin(-1)
+        hi = g.amax(-1)
+        scale = (hi - lo) / qmax
+        scale = torch.where(scale == 0, torch.ones_like(scale), scale)
+        q = torch.round((g - lo[..., None]) / scale[..., None]).clamp_(0, qmax).to(torch.uint8).reshape(out, inn)
+        if bits == 4:
+            q = q[:, 0::2] | (q[:, 1::2] << 4)
+        return TorchQWeight(q.contiguous(), scale.to(dtype), lo.to(dtype), bits, group, (out, inn))
+
+    def linear(self, x, w):
+        if isinstance(w, TorchQWeight):
+            return w.linear(x)
+        return F.linear(x, w)
+
+    def embedding(self, ids, w, dtype):
+        if isinstance(w, TorchQWeight):
+            return w.dequant(dtype, ids.reshape(-1)).reshape(*ids.shape, w.shape[1])
+        return F.embedding(ids, w).to(dtype)
+
+    # fused overrides
+
+    def rms_norm(self, x, w, eps):
+        xf = x.float()
+        return F.rms_norm(xf, (xf.shape[-1],), weight=w.float(), eps=eps).to(x.dtype)
+
+    def sdpa(self, q, k, v, scale, past):
+        B, H, T, D = q.shape
+        KV, L = k.shape[1], k.shape[2]
+        if KV != H:
+            k = k.repeat_interleave(H // KV, dim=1)
+            v = v.repeat_interleave(H // KV, dim=1)
+        if T == 1:
+            return F.scaled_dot_product_attention(q, k, v, scale=scale)
+        mask = torch.ones(T, L, dtype=torch.bool, device=q.device).tril(diagonal=past)
+        return F.scaled_dot_product_attention(q, k, v, attn_mask=mask, scale=scale)
+
+    def conv1d_causal(self, x, w):
+        return F.conv1d(x, w[:, None, :], groups=w.shape[0])
+
+    def rope(self, x, offset, dims, theta):
+        # composed reference, with the tables cached per (offset, T) since decode hits the same shapes repeatedly
+        key = (offset, x.shape[2], dims, theta, x.dtype)
+        tabs = self.__dict__.setdefault('_rope_cache', {})
+        if key not in tabs:
+            if len(tabs) > 256:
+                tabs.clear()
+            cos_np, sin_np = self.rope_tables(offset, x.shape[2], dims, theta)
+            tabs[key] = (self.array(cos_np, x.dtype), self.array(sin_np, x.dtype))
+        cos, sin = tabs[key]
+        xr, xp = x[..., :dims], x[..., dims:]
+        half = dims // 2
+        rot = torch.cat([-xr[..., half:], xr[..., :half]], dim=-1)
+        return torch.cat([xr * cos[None, None] + rot * sin[None, None], xp], dim=-1)

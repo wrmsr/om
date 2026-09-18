@@ -1,9 +1,9 @@
 # ruff: noqa: N806 N812
 """
-Qwen3.5 / 3.6 / 3.8 (dense) text decoder in plain PyTorch.
+Qwen3.5 / 3.6 / 3.8 (dense) text decoder, written once against `Ops` (see ops.py) and run on any backend.
 
-Every op is written out; there is no `transformers` and no fused kernel. Layer math is cross-checked against llama.cpp's
-`src/models/qwen35.cpp` and HF's `modeling_qwen3_5.py`:
+Every op is written out; there is no `transformers` and no backend-specific code here. Layer math is cross-checked
+against llama.cpp's `src/models/qwen35.cpp` and HF's `modeling_qwen3_5.py`:
 
   block:    x = x + mixer(rmsnorm(x));  x = x + swiglu(rmsnorm(x))
   mixer is either
@@ -12,24 +12,20 @@ Every op is written out; there is no `transformers` and no fused kernel. Layer m
     linear: Gated DeltaNet -- in_proj_qkv -> causal depthwise conv1d(k=4)+silu -> l2norm(q,k) -> gated delta rule
             recurrence (fixed-size state) -> rmsnorm * silu(z) -> out_proj
 
-The recurrence is the per-token form for both prefill and decode (correct, O(T) sequential; a chunked parallel prefill
-is the obvious next optimisation).
+State is functional: each mixer takes its state (or None) and returns the new one. The default gated delta rule is the
+per-token form for both prefill and decode (correct, O(T) sequential; a chunked parallel prefill is the obvious next
+optimisation, and lives behind `Ops.gated_delta`).
 """
-import dataclasses as dc
 import math
 import typing as ta
 
 import numpy as np
-import torch
-import torch.nn.functional as F
 
+from .ops import Array
+from .ops import Ops
+from .ops import Weight
 from .quant import QUANT_BITS
-from .quant import QWeight
-from .quant import embedding
 from .quant import from_native
-from .quant import linear
-from .quant import param_nbytes
-from .quant import quantize
 from .weights import Qwen35Config
 from .weights import TensorSource
 
@@ -38,16 +34,8 @@ from .weights import TensorSource
 # Cache
 
 
-@dc.dataclass()
-class FullAttnCache:
-    k: torch.Tensor | None = None  # [B, n_kv, T, hd]
-    v: torch.Tensor | None = None
-
-
-@dc.dataclass()
-class LinearCache:
-    conv: torch.Tensor | None = None   # [B, conv_dim, kernel-1]  last inputs to the conv
-    state: torch.Tensor | None = None  # [B, n_v, dk, dv] float32
+FullState = tuple[Array, Array]  # k, v: [B, n_kv, T, hd]
+LinearState = tuple[Array, Array]  # conv: [B, conv_dim, kernel-1] last inputs to the conv; state: [B, n_v, dk, dv]
 
 
 class Cache:
@@ -57,111 +45,14 @@ class Cache:
     """
 
     def __init__(self, cfg: Qwen35Config) -> None:
-        self.layers: list = [
-            FullAttnCache() if t == 'full' else LinearCache()
-            for t in cfg.layer_types
-        ]
+        self.layers: list[FullState | LinearState | None] = [None] * cfg.num_layers
         self.seq_len = 0
 
-    def snapshot(self) -> Cache:
+    def snapshot(self, ops: Ops) -> Cache:
         c = Cache.__new__(Cache)
         c.seq_len = self.seq_len
-        c.layers = []
-        for l in self.layers:
-            if isinstance(l, FullAttnCache):
-                c.layers.append(
-                    FullAttnCache(
-                        l.k.clone() if l.k is not None else None,
-                        l.v.clone() if l.v is not None else None,
-                    ),
-                )
-            else:
-                c.layers.append(
-                    LinearCache(
-                        l.conv.clone() if l.conv is not None else None,
-                        l.state.clone() if l.state is not None else None,
-                    ),
-                )
+        c.layers = [None if st is None else tuple(ops.copy(a) for a in st) for st in self.layers]
         return c
-
-
-##
-# Primitives
-
-
-def rms_norm(
-        x: torch.Tensor,
-        w: torch.Tensor,
-        eps: float,
-) -> torch.Tensor:
-    xf = x.float()
-    y = xf * torch.rsqrt(xf.pow(2).mean(-1, keepdim=True) + eps)
-    return (y * w.float()).to(x.dtype)
-
-
-def l2_norm(x: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
-    # FLA-style: x / sqrt(sum(x^2) + eps)   (llama.cpp: rms_norm(x, eps/n) / sqrt(n) -- identical)
-    return x * torch.rsqrt(x.pow(2).sum(-1, keepdim=True) + eps)
-
-
-def rope_cos_sin(
-        positions: torch.Tensor,
-        rope_dim: int,
-        theta: float,
-        device,
-        dtype=torch.float32,
-):
-    inv = 1.0 / (theta ** (torch.arange(0, rope_dim, 2, device=device, dtype=torch.float32) / rope_dim))
-    freqs = positions.to(torch.float32)[:, None] * inv[None, :]  # [T, rope_dim/2]
-    emb = torch.cat([freqs, freqs], dim=-1)  # [T, rope_dim]
-    return emb.cos().to(dtype), emb.sin().to(dtype)
-
-
-def apply_rope(
-        x: torch.Tensor,
-        cos: torch.Tensor,
-        sin: torch.Tensor,
-) -> torch.Tensor:
-    """NeoX rotate-half on the first rope_dim dims of x: [B, H, T, hd]; cos/sin: [T, rope_dim]."""
-
-    rd = cos.shape[-1]
-    xr, xp = x[..., :rd], x[..., rd:]
-    half = rd // 2
-    x1, x2 = xr[..., :half], xr[..., half:]
-    rot = torch.cat([-x2, x1], dim=-1)
-    xr = xr * cos[None, None] + rot * sin[None, None]
-    return torch.cat([xr, xp], dim=-1)
-
-
-def gated_delta_rule_recurrent(
-        q,
-        k,
-        v,
-        g,
-        beta,
-        state,
-):
-    """
-    Per-token gated delta rule.
-
-    q, k: [B, H, T, dk] (already l2-normed; q already scaled by 1/sqrt(dk))
-    v:    [B, H, T, dv]
-    g:    [B, H, T]  log decay (<= 0);   beta: [B, H, T] in (0, 1)
-    state:[B, H, dk, dv]
-    returns out [B, H, T, dv], new state
-    """
-
-    B, H, T, dk = q.shape
-    out = torch.empty(B, H, T, v.shape[-1], dtype=torch.float32, device=q.device)
-    S = state
-    for t in range(T):
-        q_t, k_t, v_t = q[:, :, t], k[:, :, t], v[:, :, t]  # [B,H,dk] / [B,H,dv]
-        S = S * g[:, :, t].exp()[..., None, None]           # decay
-        mem = (S * k_t[..., None]).sum(-2)                  # k^T S -> [B,H,dv]
-        delta = (v_t - mem) * beta[:, :, t][..., None]
-        S = S + k_t[..., None] * delta[..., None, :]        # rank-1 update
-        out[:, :, t] = (S * q_t[..., None]).sum(-2)         # q^T S
-    return out, S
 
 
 ##
@@ -169,7 +60,7 @@ def gated_delta_rule_recurrent(
 
 
 class Attention:
-    def __init__(self, cfg: Qwen35Config, p: dict) -> None:
+    def __init__(self, cfg: Qwen35Config, p: dict[str, Weight]) -> None:
         self.cfg = cfg
         self.wq = p['q_proj']
         self.wk = p['k_proj']
@@ -179,52 +70,32 @@ class Attention:
         self.k_norm = p['k_norm']
         self.scale = 1.0 / math.sqrt(cfg.head_dim)
 
-    def __call__(
-            self,
-            x: torch.Tensor,
-            cos,
-            sin,
-            cache: FullAttnCache | None,
-    ) -> torch.Tensor:
+    def __call__(self, ops: Ops, x: Array, pos: int, state: FullState | None) -> tuple[Array, FullState]:
         c = self.cfg
         B, T, _ = x.shape
         H, KV, D = c.num_heads, c.num_kv_heads, c.head_dim
-        qg = linear(x, self.wq).view(B, T, H, 2 * D)
+        qg = ops.reshape(ops.linear(x, self.wq), (B, T, H, 2 * D))
         q, gate = qg[..., :D], qg[..., D:]  # per-head [q | gate]
-        k = linear(x, self.wk).view(B, T, KV, D)
-        v = linear(x, self.wv).view(B, T, KV, D)
-        q = rms_norm(q, self.q_norm, c.rms_eps).transpose(1, 2)  # [B,H,T,D]
-        k = rms_norm(k, self.k_norm, c.rms_eps).transpose(1, 2)  # [B,KV,T,D]
-        v = v.transpose(1, 2)
-        q = apply_rope(q, cos, sin)
-        k = apply_rope(k, cos, sin)
+        k = ops.reshape(ops.linear(x, self.wk), (B, T, KV, D))
+        v = ops.reshape(ops.linear(x, self.wv), (B, T, KV, D))
+        q = ops.transpose(ops.rms_norm(q, self.q_norm, c.rms_eps), (0, 2, 1, 3))  # [B,H,T,D]
+        k = ops.transpose(ops.rms_norm(k, self.k_norm, c.rms_eps), (0, 2, 1, 3))  # [B,KV,T,D]
+        v = ops.transpose(v, (0, 2, 1, 3))
+        q = ops.rope(q, pos, c.rope_dim, c.rope_theta)
+        k = ops.rope(k, pos, c.rope_dim, c.rope_theta)
         past = 0
-        if cache is not None:
-            if cache.k is not None:
-                past = cache.k.shape[2]
-                k = torch.cat([cache.k, k], dim=2)
-                v = torch.cat([cache.v, v], dim=2)
-            cache.k, cache.v = k, v
-        if KV != H:
-            k = k.repeat_interleave(H // KV, dim=1)
-            v = v.repeat_interleave(H // KV, dim=1)
-        if T == 1:
-            o = F.scaled_dot_product_attention(q, k, v, scale=self.scale)
-        else:
-            L = past + T
-            mask = torch.ones(T, L, dtype=torch.bool, device=x.device).tril(
-                diagonal=past,
-            )
-            o = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=mask, scale=self.scale,
-            )
-        o = o.transpose(1, 2).reshape(B, T, H * D)
-        o = o * torch.sigmoid(gate.reshape(B, T, H * D).float()).to(o.dtype)
-        return linear(o, self.wo)
+        if state is not None:
+            past = state[0].shape[2]
+            k = ops.concat([state[0], k], 2)
+            v = ops.concat([state[1], v], 2)
+        o = ops.sdpa(q, k, v, self.scale, past)  # [B,H,T,D]
+        o = ops.reshape(ops.transpose(o, (0, 2, 1, 3)), (B, T, H * D))
+        o = o * ops.cast(ops.sigmoid(ops.f32(ops.reshape(gate, (B, T, H * D)))), o.dtype)
+        return ops.linear(o, self.wo), (k, v)
 
 
 class GatedDeltaNet:
-    def __init__(self, cfg: Qwen35Config, p: dict) -> None:
+    def __init__(self, cfg: Qwen35Config, p: dict[str, Weight]) -> None:
         self.cfg = cfg
         self.w_qkv = p['in_proj_qkv']
         self.w_z = p['in_proj_z']
@@ -236,95 +107,77 @@ class GatedDeltaNet:
         self.norm_w = p['norm']
         self.w_out = p['out_proj']
 
-    def __call__(
-            self,
-            x: torch.Tensor,
-            cache: LinearCache | None,
-    ) -> torch.Tensor:
+    def __call__(self, ops: Ops, x: Array, state: LinearState | None) -> tuple[Array, LinearState]:
         c = self.cfg
         B, T, _ = x.shape
-        Hk, Hv, dk, dv, K = (
-            c.num_k_heads,
-            c.num_v_heads,
-            c.head_k_dim,
-            c.head_v_dim,
-            c.conv_kernel,
-        )
-        qkv = linear(x, self.w_qkv).float().transpose(1, 2)  # [B, conv_dim, T]
-        z = linear(x, self.w_z).float()  # [B, T, value_dim]
-        a = linear(x, self.w_a).float()  # [B, T, n_v]
-        b = linear(x, self.w_b).float()
+        Hk = c.num_k_heads
+        Hv = c.num_v_heads
+        dk = c.head_k_dim
+        dv = c.head_v_dim
+        K = c.conv_kernel
+        f32 = ops.dtype('f32')
+        qkv = ops.transpose(ops.f32(ops.linear(x, self.w_qkv)), (0, 2, 1))  # [B, conv_dim, T]
+        z = ops.f32(ops.linear(x, self.w_z))  # [B, T, value_dim]
+        a = ops.f32(ops.linear(x, self.w_a))  # [B, T, n_v]
+        b = ops.f32(ops.linear(x, self.w_b))
 
-        # causal depthwise conv1d (+ state)
-        if cache is not None and cache.conv is not None:
-            inp = torch.cat([cache.conv, qkv], dim=-1)
-        else:
-            inp = F.pad(qkv, (K - 1, 0))
-        if cache is not None:
-            cache.conv = inp[..., -(K - 1):].clone()
-        conv = F.conv1d(inp, self.conv_w[:, None, :], groups=c.conv_dim)  # [B, conv_dim, T]
-        conv = F.silu(conv).transpose(1, 2)  # [B, T, conv_dim]
-        q, k, v = torch.split(conv, [c.key_dim, c.key_dim, c.value_dim], dim=-1)
-        q = l2_norm(q.view(B, T, Hk, dk)).transpose(1, 2) * (dk**-0.5)  # [B,Hk,T,dk]
-        k = l2_norm(k.view(B, T, Hk, dk)).transpose(1, 2)
-        v = v.view(B, T, Hv, dv).transpose(1, 2)  # [B,Hv,T,dv]
-        if Hv != Hk:  # canonical grouped V order -> repeat_interleave (llama.cpp's tiled order would use repeat)
-            q = q.repeat_interleave(Hv // Hk, dim=1)
-            k = k.repeat_interleave(Hv // Hk, dim=1)
+        # causal depthwise conv1d over [history | new]
+        hist = state[0] if state is not None else ops.zeros((B, c.conv_dim, K - 1), f32)
+        inp = ops.concat([hist, qkv], -1)
+        conv_state = inp[..., -(K - 1):]
+        conv = ops.transpose(ops.silu(ops.conv1d_causal(inp, self.conv_w)), (0, 2, 1))  # [B, T, conv_dim]
+        q, k, v = ops.split(conv, [c.key_dim, c.key_dim, c.value_dim], -1)
+        q = ops.transpose(ops.l2_norm(ops.reshape(q, (B, T, Hk, dk))), (0, 2, 1, 3)) * (dk**-0.5)  # [B,Hk,T,dk]
+        k = ops.transpose(ops.l2_norm(ops.reshape(k, (B, T, Hk, dk))), (0, 2, 1, 3))
+        v = ops.transpose(ops.reshape(v, (B, T, Hv, dv)), (0, 2, 1, 3))  # [B,Hv,T,dv]
+        if Hv != Hk:  # canonical grouped V order -> repeat_interleave (llama.cpp's tiled order would use tiling)
+            q = ops.repeat(q, Hv // Hk, 1)
+            k = ops.repeat(k, Hv // Hk, 1)
 
-        beta = torch.sigmoid(b).transpose(1, 2)  # [B,Hv,T]
-        g = (self.A[None, None, :] * F.softplus(a + self.dt_bias)).transpose(1, 2)  # [B,Hv,T], <= 0
+        beta = ops.transpose(ops.sigmoid(b), (0, 2, 1))  # [B,Hv,T]
+        g = ops.transpose(self.A[None, None, :] * ops.softplus(a + self.dt_bias), (0, 2, 1))  # [B,Hv,T], <= 0
 
-        state = (
-            cache.state
-            if (cache is not None and cache.state is not None) else
-            torch.zeros(B, Hv, dk, dv, dtype=torch.float32, device=x.device)
-        )
-        out, state = gated_delta_rule_recurrent(q, k, v, g, beta, state)
-        if cache is not None:
-            cache.state = state
+        S = state[1] if state is not None else ops.zeros((B, Hv, dk, dv), f32)
+        out, S = ops.gated_delta(q, k, v, g, beta, S)
 
-        out = out.transpose(1, 2).reshape(B, T, Hv, dv)  # [B,T,Hv,dv]
-        z = z.view(B, T, Hv, dv)
-        out = rms_norm(out, self.norm_w, c.rms_eps) * F.silu(z)  # gated RMSNorm
-        return linear(out.reshape(B, T, c.value_dim).to(x.dtype), self.w_out)
+        out = ops.reshape(ops.transpose(out, (0, 2, 1, 3)), (B, T, Hv, dv))  # [B,T,Hv,dv]
+        z = ops.reshape(z, (B, T, Hv, dv))
+        out = ops.rms_norm(out, self.norm_w, c.rms_eps) * ops.silu(z)  # gated RMSNorm
+        y = ops.linear(ops.cast(ops.reshape(out, (B, T, c.value_dim)), x.dtype), self.w_out)
+        return y, (conv_state, S)
 
 
 class MLP:
-    def __init__(self, p: dict) -> None:
-        self.wg, self.wu, self.wd = p['gate_proj'], p['up_proj'], p['down_proj']
+    def __init__(self, p: dict[str, Weight]) -> None:
+        self.wg = p['gate_proj']
+        self.wu = p['up_proj']
+        self.wd = p['down_proj']
 
-    def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        return linear(F.silu(linear(x, self.wg)) * linear(x, self.wu), self.wd)
+    def __call__(self, ops: Ops, x: Array) -> Array:
+        return ops.linear(ops.silu(ops.linear(x, self.wg)) * ops.linear(x, self.wu), self.wd)
 
 
 class Block:
-    def __init__(
-            self,
-            cfg: Qwen35Config,
-            kind: str,
-            p: dict,
-    ) -> None:
+    def __init__(self, cfg: Qwen35Config, index: int, kind: str, p: dict[str, Weight]) -> None:
+        self.index = index
         self.kind = kind
-        self.ln1, self.ln2 = p['input_layernorm'], p['post_attention_layernorm']
+        self.ln1 = p['input_layernorm']
+        self.ln2 = p['post_attention_layernorm']
         self.eps = cfg.rms_eps
-        self.mixer = Attention(cfg, p) if kind == 'full' else GatedDeltaNet(cfg, p)
+        self.mixer: Attention | GatedDeltaNet = Attention(cfg, p) if kind == 'full' else GatedDeltaNet(cfg, p)
         self.mlp = MLP(p)
 
-    def __call__(
-            self,
-            x,
-            cos,
-            sin,
-            cache,
-    ):
-        h = rms_norm(x, self.ln1, self.eps)
-        x = x + (
-            ta.cast(Attention, self.mixer)(h, cos, sin, cache)
-            if self.kind == 'full' else
-            ta.cast(GatedDeltaNet, self.mixer)(h, cache)
-        )
-        return x + self.mlp(rms_norm(x, self.ln2, self.eps))
+    def __call__(self, ops: Ops, x: Array, pos: int, state: ta.Any) -> tuple[Array, ta.Any]:
+        h = ops.rms_norm(x, self.ln1, self.eps)
+        if self.kind == 'full':
+            m, state = ta.cast(Attention, self.mixer)(ops, h, pos, state)
+        else:
+            m, state = ta.cast(GatedDeltaNet, self.mixer)(ops, h, state)
+        ops.tap(f'layers.{self.index}.mixer', m)
+        x = x + m
+        x = x + self.mlp(ops, ops.rms_norm(x, self.ln2, self.eps))
+        ops.tap(f'layers.{self.index}.out', x)
+        return x, state
 
 
 ##
@@ -387,27 +240,24 @@ NO_QUANT = (
 )
 
 
-def is_quantizable(name: str, t: torch.Tensor, group: int) -> bool:
-    if t.ndim != 2 or t.shape[1] % group:
+def is_quantizable(name: str, shape: tuple[int, ...], group: int) -> bool:
+    if len(shape) != 2 or shape[1] % group:
         return False
     return not any(s in name for s in KEEP_F32 + NO_QUANT)
-
-
-Param: ta.TypeAlias = torch.Tensor | QWeight
 
 
 class Qwen35:
     def __init__(
             self,
             cfg: Qwen35Config,
-            params: dict[str, Param],
-            device,
-            dtype: torch.dtype = torch.bfloat16,
+            params: dict[str, Weight],
+            ops: Ops,
+            dtype: ta.Any,
     ) -> None:
         self.cfg = cfg
-        self.device = device
+        self.ops = ops
         self.dtype = dtype
-        self.nbytes = sum(param_nbytes(p) for p in params.values())
+        self.nbytes = sum(ops.nbytes(p) for p in params.values())
         self.embed = params['embed_tokens.weight']
         self.norm_w = params['norm.weight']
         self.lm_head = params.get('lm_head.weight', self.embed)
@@ -424,36 +274,38 @@ class Qwen35:
                     if parts[-1] == 'weight':
                         parts = parts[:-1]
                     p[parts[-1]] = v
-            self.blocks.append(Block(cfg, kind, p))
+            self.blocks.append(Block(cfg, i, kind, p))
 
     # loading
 
     @classmethod
     def from_source(
-            cls,
-            src: TensorSource,
-            device: str = 'cpu',
-            dtype: torch.dtype = torch.bfloat16,
-            verbose: bool = True,
-            quant: str | None = None,
-            group: int = 64,
+        cls,
+        src: TensorSource,
+        ops: Ops,
+        dtype: str = 'bf16',
+        quant: str | None = None,
+        group: int = 64,
+        verbose: bool = True,
     ) -> Qwen35:
         """
-        quant: None (weights in `dtype`), 'int8' or 'int4' (weight-only affine, see quant.py). If the source already
-        holds MLX-quantized tensors at the requested width they are re-packed as-is; otherwise weights are quantized
-        on `device` after loading.
+        dtype: 'bf16' | 'f16' | 'f32' (compute dtype; norms, A, dt_bias, conv stay f32).
+        quant: None, 'int8' or 'int4' (weight-only affine, see quant.py). If the source already holds
+        MLX-quantized tensors at the requested width they are re-packed as-is; otherwise weights are quantized.
         """
 
         cfg = src.config
-        if quant is not None and quant not in QUANT_BITS:
-            raise ValueError(f'quant must be one of {list(QUANT_BITS)}, got {quant!r}')
-        bits = QUANT_BITS[quant] if quant else None
         if cfg.rope_scaling:
             print(
                 f'[model] WARNING: rope_scaling={cfg.rope_scaling} present; only plain RoPE is implemented '
                 f'(fine for prompts within the original context length)',
             )
-        params: dict[str, torch.Tensor] = {}
+        if quant is not None and quant not in QUANT_BITS:
+            raise ValueError(f'quant must be one of {list(QUANT_BITS)}, got {quant!r}')
+        bits = QUANT_BITS[quant] if quant else None
+        dt = ops.dtype(dtype)
+        f32 = ops.dtype('f32')
+        params: dict[str, Weight] = {}
         available = set(src.names())
         names = required_param_names(cfg)
         missing = [n for n in names if n not in available]
@@ -463,96 +315,82 @@ class Qwen35:
             names.append('lm_head.weight')
         n_native = n_quant = 0
         for n_i, name in enumerate(names):
-            p: Param | None = None
+            p: Weight | None = None
             if bits is not None and not any(s in name for s in KEEP_F32 + NO_QUANT):
                 nq = src.get_quant(name)
                 if nq is not None and nq.bits == bits:
-                    p = from_native(
-                        torch.from_numpy(np.array(nq.values, copy=True)).to(device),
-                        torch.from_numpy(np.array(nq.scale, dtype=np.float32, copy=True)).to(device),
-                        torch.from_numpy(np.array(nq.bias, dtype=np.float32, copy=True)).to(device),
-                        nq.bits,
-                        nq.group,
-                        dtype,
-                    )
+                    p = ops.qweight(from_native(nq.values, nq.scale, nq.bias, nq.bits, nq.group), dt)
                     n_native += 1
             if p is None:
-                t = torch.from_numpy(np.array(src.get(name), dtype=np.float32, copy=True)).to(device)
+                arr = np.array(src.get(name), dtype=np.float32, copy=True)
                 if any(s in name for s in KEEP_F32):
-                    p = t
-                elif bits is not None and is_quantizable(name, t, group):
-                    p = quantize(t, bits, group, dtype)
+                    p = ops.weight(arr, f32)
+                elif bits is not None and is_quantizable(name, arr.shape, group):
+                    p = ops.quantize(arr, bits, group, dt)
                     n_quant += 1
                 else:
-                    p = t.to(dtype)
+                    p = ops.weight(arr, dt)
             params[name] = p
             if verbose and (n_i % 50 == 0 or n_i == len(names) - 1):
-                print(
-                    f'\r[model] loading tensors {n_i + 1}/{len(names)}',
-                    end='',
-                    flush=True,
-                )
-        model = cls(
-            cfg,
-            params,
-            device,
-            dtype,
-        )
+                print(f'\r[model] loading tensors {n_i + 1}/{len(names)}', end='', flush=True)
+        model = cls(cfg, params, ops, dt)
         if verbose:
             q_note = f', {n_native} re-packed + {n_quant} quantized to {quant}' if bits else ''
-            print(f'\n[model] {model.nbytes / 2**30:.2f} GiB of weights on {device}{q_note}')
+            print(f'\n[model] {model.nbytes / 2**30:.2f} GiB of weights on {ops.name}{q_note}')
         return model
 
     # forward
 
-    @torch.no_grad()
     def forward(
-            self,
-            tokens: torch.Tensor,
-            cache: Cache | None = None,
-            start_pos: int | None = None,
-            last_only: bool = False,
-    ) -> torch.Tensor:
-        """tokens: [B, T] int64. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32."""
+        self,
+        tokens: np.ndarray,
+        cache: Cache | None = None,
+        start_pos: int | None = None,
+        last_only: bool = False,
+    ) -> Array:
+        """tokens: [B, T] ints. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32."""
 
+        ops = self.ops
         c = self.cfg
+        tokens = np.asarray(tokens, dtype=np.int32)
         B, T = tokens.shape
         if start_pos is None:
             start_pos = cache.seq_len if cache is not None else 0
-        pos = torch.arange(start_pos, start_pos + T, device=self.device)
-        cos, sin = rope_cos_sin(pos, c.rope_dim, c.rope_theta, self.device, dtype=self.dtype)
-        x = embedding(tokens, self.embed, self.dtype)
+        x = ops.embedding(ops.array(tokens), self.embed, self.dtype)
+        ops.tap('embed', x)
         for i, blk in enumerate(self.blocks):
-            x = blk(x, cos, sin, cache.layers[i] if cache is not None else None)
+            x, st = blk(ops, x, start_pos, cache.layers[i] if cache is not None else None)
+            if cache is not None:
+                cache.layers[i] = st
         if cache is not None:
             cache.seq_len = start_pos + T
         if last_only:
             x = x[:, -1:]
-        x = rms_norm(x, self.norm_w, c.rms_eps)
-        return linear(x, self.lm_head).float()
+        x = ops.rms_norm(x, self.norm_w, c.rms_eps)
+        ops.tap('final_norm', x)
+        logits = ops.f32(ops.linear(x, self.lm_head))
+        ops.tap('logits', logits)
+        return logits
 
-    @torch.no_grad()
     def generate(
-            self,
-            prompt_ids: list[int],
-            max_new_tokens: int = 64,
-            eos_ids: set[int] | None = None,
-            on_token: ta.Callable[[int], None] | None = None,
+        self,
+        prompt_ids: list[int],
+        max_new_tokens: int = 64,
+        eos_ids: set[int] | None = None,
+        on_token: ta.Callable[[int], None] | None = None,
     ) -> list[int]:
         """Greedy decoding with the cache. Yields token ids through on_token as they are produced."""
 
+        ops = self.ops
         cache = Cache(self.cfg)
-        ids = torch.tensor([prompt_ids], dtype=torch.long, device=self.device)
-        logits = self.forward(ids, cache, last_only=True)
+        logits = self.forward(np.array([prompt_ids]), cache, last_only=True)
         out: list[int] = []
         for _ in range(max_new_tokens):
-            nxt = int(logits[0, -1].argmax())
+            nxt = int(np.argmax(ops.numpy(logits[0, -1])))
             out.append(nxt)
             if on_token:
                 on_token(nxt)
             if eos_ids and nxt in eos_ids:
                 break
-            logits = self.forward(
-                torch.tensor([[nxt]], device=self.device), cache, last_only=True,
-            )
+            logits = self.forward(np.array([[nxt]]), cache, last_only=True)
         return out

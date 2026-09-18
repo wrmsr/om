@@ -1,34 +1,65 @@
 # qwen35-torch
 
-A from-the-math PyTorch implementation of the Qwen3.5 / 3.6 / 3.8 dense text models
-(HF `model_type: qwen3_5`, GGUF arch `qwen35`) that loads weights straight out of Ollama's
-blob store, plus a validation harness that uses `llama-server` as the oracle.
+A from-the-math implementation of the Qwen3.5 / 3.6 / 3.8 dense text models (HF `model_type: qwen3_5`, GGUF
+arch `qwen35`), written once against a small backend seam (`Ops`) and run on torch, MLX core, or numpy, that
+loads weights straight out of Ollama's blob store, plus a validation harness that uses `llama-server` as the oracle.
 
-Dependencies: `torch`, `numpy`, `gguf` (llama.cpp's Python package, MIT), `regex`.
-No `transformers`, no `safetensors` package (there is a 30-line reader in `weights.py`).
+Dependencies: `numpy`, `gguf` (llama.cpp's Python package, MIT), `regex`, and whichever backend you run on
+(`torch` and/or `mlx`). No `transformers`, no mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line
+reader in `weights.py`).
 
 ```
-qwen35/weights.py    Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama tensor blobs
-                     (packed safetensors, MLX int4/int8 affine dequant) -> canonical HF-layout params
-qwen35/tokenizer.py  byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
-qwen35/model.py      the model: RMSNorm, gated GQA attention w/ partial RoPE, Gated DeltaNet, SwiGLU, cache
-qwen35/quant.py      weight-only int8/int4 affine quantization kept on device (QWeight), dequant per matmul
-generate.py          CLI greedy generation
-validate.py          compare tokenizer / greedy tokens / per-step logprobs against llama-server
-tests/test_synthetic.py  builds a tiny GGUF (and a tiny Ollama tensor-blob model) and checks everything
+model.py         the model, backend-free: RMSNorm, gated GQA attention w/ partial RoPE, Gated DeltaNet,
+                 SwiGLU, functional cache state, activation taps
+ops.py           the backend seam: `Ops` ABC (abstract primitives + composed reference implementations of
+                 the fused-able ones) and `NumpyOps`, the float64 golden backend
+torch_ops.py     torch backend (F.rms_norm / SDPA / conv1d, on-device quantize, TorchQWeight)
+mlx_ops.py       MLX core backend (mx.fast.rms_norm / rope / sdpa, mx.quantized_matmul, MlxQWeight)
+backends.py      backend selection for the CLIs
+quant.py         backend-agnostic weight-only int8/int4 affine quantization (numpy QWeight, MLX layout)
+weights.py       Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama tensor blobs (packed safetensors,
+                 MLX int4/int8) -> canonical HF-layout params
+tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
+generate.py      CLI greedy generation
+validate.py      compare tokenizer / greedy tokens / per-step logprobs against llama-server
+tests/test_synthetic.py  builds a tiny GGUF (and a tiny Ollama tensor-blob model) and checks the loader + model
 tests/test_quant.py      quant round-trips, bit-exact MLX re-pack, quantized model vs f32
+tests/test_parity.py     numpy-f64 golden vs torch vs mlx: per-layer taps, cache, quantized paths
 ```
+
+On the radar, not started: a `ggml` backend (ctypes to libggml; a lazy `Ops` whose calls emit graph nodes) and a
+tinygrad backend. Both fit the same seam.
 
 ## Run
 
 ```bash
-pip install torch numpy gguf regex
-python tests/test_synthetic.py                       # no model needed
-python generate.py --model qwen3.5:0.8b -p "Why is the sky blue?"
-python generate.py --model qwen3.5:0.8b --raw -p "The capital of France is" --dtype f32
+pip install numpy gguf regex torch          # and/or: pip install mlx
+python -m x.qwen.tests.test_parity          # no model needed; runs every backend that imports
+python -m x.qwen.generate --model qwen3.5:0.8b -p "Why is the sky blue?"
+python -m x.qwen.generate --model qwen3.5:0.8b --backend mlx --raw -p "The capital of France is"
+python -m x.qwen.generate --model qwen3.5:0.8b --backend torch --device cuda --dtype bf16 -p "..."
 ```
 
-`--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path.
+`--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path. `--backend`
+defaults to mlx on macOS when it is installed, torch otherwise; `numpy` is the (slow) reference.
+
+## The Ops seam
+
+`model.py` touches the world only through an `Ops` instance: plain array algebra (reshape, slicing, `+ * @`,
+broadcasting) is done directly on backend arrays -- numpy, torch and MLX spell those the same -- and everything
+else goes through `Ops` methods. `Ops` is an ABC with two tiers: abstract primitives every backend must supply
+(`array`/`numpy`, `cast`, `exp`, `sum`, `concat`, `linear`, ...) and concrete, overridable model primitives
+(`rms_norm`, `rope`, `sdpa`, `conv1d_causal`, `gated_delta`, `quantize`) whose default implementation is composed
+from the primitives. A new backend works as soon as the abstract tier exists and gets faster as it overrides the
+second tier; `test_parity.py` checks every backend against the numpy float64 golden at every tap.
+
+Rules the shared code follows (and any new shared code must): no item assignment, no in-place ops, functional
+state (`mixer(x, state) -> (y, state)`), explicit `ops.f32()` where accumulation must be f32, control flow on
+shapes only. Those are exactly the constraints `mx.compile` / CUDA graphs will need later.
+
+Instrumentation: set `ops.taps = {}` and every `ops.tap(name, x)` in the model records a numpy copy (embedding,
+each block's mixer output and block output, final norm, logits). Wrapping an `Ops` is the general mechanism --
+a timing wrapper (force `eval` per op), a NaN-checking wrapper, a tracing wrapper that logs op/shape/dtype.
 
 ## Running the 27B models: `--quant`
 
@@ -37,21 +68,22 @@ Without `--quant` every weight is expanded to the compute dtype at load: ~55 GB 
 expand them per matmul, which is what makes 3.6-27B / 3.8-27B fit on ordinary hardware:
 
 ```bash
-python generate.py --model qwen3.6:27b --quant int4 -p "..."      # ~15 GB of weights
-python generate.py --model qwen3.6:27b --quant int8 -p "..."      # ~28 GB, essentially bf16 quality
-python validate.py --model qwen3.5:0.8b --quant int8 -n 32           # quantized path vs llama-server
+python -m x.qwen.generate --model qwen3.6:27b --quant int4 -p "..."      # ~15 GB of weights
+python -m x.qwen.generate --model qwen3.6:27b --quant int8 -p "..."      # ~28 GB, essentially bf16 quality
+python -m x.qwen.validate --model qwen3.5:0.8b --quant int8 -n 32        # quantized path vs llama-server
 ```
 
 The scheme is asymmetric affine, one `(scale, bias)` per 64 inputs — MLX's `mx.quantize` layout — so Ollama tensor
-blobs that are already MLX int4/int8 are re-packed bit-for-bit (no requantization). GGUF k-quants are dequantized
+blobs that are already MLX int4/int8 are re-packed bit-for-bit (no requantization), and on the MLX backend the
+packed words go straight into `mx.quantized_matmul` (fused, no dequant traffic). GGUF k-quants are dequantized
 to f32 and requantized, which adds a small error on top of the file's own quantization (int8 is lossless in
 practice; int4-over-Q4_K_M is a double quantization — prefer int8 if it fits). Norms, `A`, `dt_bias`, the conv
 kernel and the two low-rank DeltaNet projections (`in_proj_a` / `in_proj_b`, which Ollama also keeps at source
 precision) are never quantized.
 
-Cost: decode is memory-bound, and expanding int4 -> bf16 before the matmul reads ~2.5 bytes/param instead of 2,
-so expect decode a little slower than a bf16 model that fit — the win is purely memory. A fused
-weight-only kernel (`torch._weight_int4pack_mm`, or your own) is the follow-up if that matters.
+On torch, `TorchQWeight.linear` expands to the activation dtype before each matmul (~2.5 bytes/param of traffic
+instead of 2), so decode is a little slower than a bf16 model that fit — the win is purely memory. A fused
+weight-only kernel (`torch._weight_int4pack_mm`, or Triton) is the follow-up; it slots into `TorchOps.linear`.
 
 ## Validate against llama.cpp
 
@@ -88,9 +120,9 @@ Ollama's newer tensor-blob format needs none of that (HF names, HF layout), only
 1. **Chunked prefill** for the DeltaNet layers — `tests/test_synthetic.py::chunk_gated_delta_rule_ref`
    is a small WY-form chunked implementation that already agrees with the recurrence; move it into
    `model.py` and use it when `T > 1`. Prefill goes from O(T) sequential steps to O(T/64).
-2. **Cache management** — `Cache.snapshot()` is your prefix cache for the 3/4 of layers that are
+2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
-3. **Fused quantized matmuls** — `QWeight.linear` expands to bf16 per call. A fused int4/int8 kernel
+3. **Fused quantized matmuls (torch)** — `TorchQWeight.linear` expands to bf16 per call; MLX already fuses. A fused int4/int8 kernel
    (or carrying the GGUF Q4_K/Q8_0 blocks as-is and writing the dot kernels) buys back decode bandwidth
    and, for the GGUF path, removes the double quantization.
 4. **Serving** — `Qwen35.generate` is the whole inference loop; wrap it in whatever HTTP layer you like.

@@ -8,8 +8,9 @@ import argparse
 import sys
 import time
 
-import torch
-
+from .backends import BACKENDS
+from .backends import default_dtype
+from .backends import make_ops
 from .model import Qwen35
 from .tokenizer import Tokenizer
 from .weights import open_source
@@ -18,21 +19,11 @@ from .weights import open_source
 ##
 
 
-def pick_device(name: str | None) -> str:
-    if name:
-        return name
-    if torch.cuda.is_available():
-        return 'cuda'
-    if getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available():
-        return 'mps'
-    return 'cpu'
-
-
-DTYPES = {
-    'bf16': torch.bfloat16,
-    'f16': torch.float16,
-    'f32': torch.float32,
-}
+DTYPES = (
+    'bf16',
+    'f16',
+    'f32',
+)
 
 
 def main():
@@ -64,14 +55,21 @@ def main():
         default=128,
     )
     ap.add_argument(
+        '--backend',
+        choices=BACKENDS,
+        default=None,
+        help='default: mlx on macOS if installed, else torch',
+    )
+    ap.add_argument(
         '--device',
         default=None,
+        help='torch device (cuda / mps / cpu); default: best available',
     )
     ap.add_argument(
         '--dtype',
         choices=DTYPES,
         default=None,
-        help='default: bf16 on cuda/mps, f32 on cpu',
+        help='default: bf16 on accelerators, f32 on cpu',
     )
     ap.add_argument(
         '--info',
@@ -86,33 +84,24 @@ def main():
     )
     args = ap.parse_args()
 
-    device = pick_device(args.device)
-    dtype = (
-        DTYPES[args.dtype]
-        if args.dtype else
-        (torch.float32 if device == 'cpu' else torch.bfloat16)
-    )
+    ops = make_ops(args.backend, args.device)
+    dtype = args.dtype or default_dtype(ops)
 
     src = open_source(args.model)
     print(f'[model] {src.config.summary()}')
     if args.info:
-        for n in src.names():
-            print(n)
+        for sn in src.names():
+            print(sn)
         return
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     t0 = time.time()
-    model = Qwen35.from_source(
-        src,
-        device=device,
-        dtype=dtype,
-        quant=args.quant,
-    )
-    print(f'[model] loaded on {device} as {dtype} in {time.time() - t0:.1f}s')
+    model = Qwen35.from_source(src, ops, dtype=dtype, quant=args.quant)
+    print(f'[model] loaded on {ops.name} as {dtype} in {time.time() - t0:.1f}s')
 
     text = (
         args.prompt
-        if args.raw else
-        tok.apply_chat(
+        if args.raw
+        else tok.apply_chat(
             [{'role': 'user', 'content': args.prompt}],
             think=args.think,
         )

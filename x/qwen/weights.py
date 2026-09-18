@@ -99,6 +99,7 @@ class Qwen35Config:
 
     def summary(self) -> str:
         n_lin = sum(t == 'linear' for t in self.layer_types)
+
         return (
             f'hidden={self.hidden_size} '
             f'layers={self.num_layers} ({n_lin} linear / {self.num_layers - n_lin} full) '

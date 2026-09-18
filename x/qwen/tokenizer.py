@@ -171,7 +171,7 @@ class Tokenizer:
         if eos_id is None and isinstance(eos_tok, str) and eos_tok in special:
             eos_id = special[eos_tok]
         if isinstance(eos_id, list):
-            eos_id = eos_id[0]
+            eos_id = eos_id[0]  # type: ignore[unreachable]  # FIXME
         return cls(
             tokens,
             merges,

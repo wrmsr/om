@@ -1,4 +1,4 @@
-# ruff: noqa: N806
+# ruff: noqa: N806 N812
 """
 No-model-needed test. Builds a tiny random Qwen3.5 in HF layout, writes it to a GGUF the way llama.cpp's converter does
 (name mapping, +1 norms, -exp(A_log), V-head tiling, conv squeeze), then checks that:
@@ -88,7 +88,9 @@ def make_hf_params(cfg: Qwen35Config, seed=0):
             p[q + 'linear_attn.in_proj_b.weight'] = n(cfg.num_v_heads, h)
             p[q + 'linear_attn.in_proj_a.weight'] = n(cfg.num_v_heads, h)
             p[q + 'linear_attn.conv1d.weight'] = n(cfg.conv_dim, 1, cfg.conv_kernel)
-            p[q + 'linear_attn.A_log'] = np.log(rng.uniform(1, 16, cfg.num_v_heads)).astype(np.float32)
+            p[q + 'linear_attn.A_log'] = np.log(
+                rng.uniform(1, 16, cfg.num_v_heads),
+            ).astype(np.float32)
             p[q + 'linear_attn.dt_bias'] = n(cfg.num_v_heads) + 1.0
             p[q + 'linear_attn.norm.weight'] = n(cfg.head_v_dim) + 1.0
             p[q + 'linear_attn.out_proj.weight'] = n(h, cfg.value_dim)
@@ -219,7 +221,7 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
 
     for k, v in hf.items():
         d = v.astype(np.float32)
-        # replicate conversion/qwen.py transforms
+        # --- replicate conversion/qwen.py transforms ---
         if k.endswith('A_log'):
             d = -np.exp(d)
         elif k.endswith('norm.weight') and not k.endswith('linear_attn.norm.weight'):
@@ -244,8 +246,8 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
         if quantize and d.ndim == 2 and d.shape[1] % 32 == 0 and 'norm' not in gname:
             qt = (
                 gguf.GGMLQuantizationType.Q8_0
-                if d.shape[0] % 2
-                else gguf.GGMLQuantizationType.Q4_K
+                if d.shape[0] % 2 else
+                gguf.GGMLQuantizationType.Q4_K
             )
             if qt == gguf.GGMLQuantizationType.Q4_K and d.shape[1] % 256 != 0:
                 qt = gguf.GGMLQuantizationType.Q8_0
@@ -508,6 +510,10 @@ def _test_gguf_roundtrip(tmp_path=None):
 
 
 def test_ollama_tensor_blobs(tmp_path):
+    _test_ollama_tensor_blobs(tmp_path)
+
+
+def _test_ollama_tensor_blobs(tmp_path=None):
     tmp_path = pathlib.Path(tmp_path or tempfile.mkdtemp())
     cfg = Qwen35Config(**CFG)  # type: ignore
     hf = make_hf_params(cfg)
@@ -533,11 +539,13 @@ def test_model():
     except ImportError:
         print('torch not installed; skipping model tests')
         return
+
     from ..model import Cache
     from ..model import Qwen35
-    from ..model import gated_delta_rule_recurrent
+    from ..torch_ops import TorchOps
 
     cfg, hf, eff, src = _test_gguf_roundtrip()
+    ops = TorchOps('cpu')
     torch.manual_seed(0)
     # recurrent vs independent chunked implementation
     B, H, T, d = 2, 4, 11, 16
@@ -546,33 +554,31 @@ def test_model():
     v = torch.randn(B, H, T, d)
     g = -torch.rand(B, H, T) * 2
     beta = torch.rand(B, H, T)
-    o_rec, _ = gated_delta_rule_recurrent(q, k, v, g, beta, torch.zeros(B, H, d, d))
-    o_chk = chunk_gated_delta_rule_ref(
-        q.double(), k.double(), v.double(), g.double(), beta.double(),
-    )
+    o_rec, _ = ops.gated_delta(q, k, v, g, beta, torch.zeros(B, H, d, d))
+    o_chk = chunk_gated_delta_rule_ref(q.double(), k.double(), v.double(), g.double(), beta.double())
     err = (o_rec.double() - o_chk).abs().max().item()
     assert err < 1e-4, err
     print(f'recurrent vs chunked GDN OK (max err {err:.2e})')
 
-    model = Qwen35.from_source(src, device='cpu', dtype=torch.float32, verbose=False)
-    ids = torch.randint(0, 256, (1, 9))
-    full = model.forward(ids)
-    assert full.shape == (1, 9, cfg.vocab_size) and torch.isfinite(full).all()
+    model = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+    ids = np.random.default_rng(0).integers(0, 256, (1, 9))
+    full = ops.numpy(model.forward(ids))
+    assert full.shape == (1, 9, cfg.vocab_size) and np.isfinite(full).all()
     # incremental with cache must match the one-shot forward
     cache = Cache(cfg)
-    step = [model.forward(ids[:, :3], cache)]
+    step = [ops.numpy(model.forward(ids[:, :3], cache))]
     for t in range(3, 9):
-        step.append(model.forward(ids[:, t:t + 1], cache))
-    inc = torch.cat(step, dim=1)
-    err = (inc - full).abs().max().item()
+        step.append(ops.numpy(model.forward(ids[:, t:t + 1], cache)))
+    inc = np.concatenate(step, axis=1)
+    err = np.abs(inc - full).max()
     assert err < 1e-4, err
     # snapshot / prefix reuse
     cache2 = Cache(cfg)
     model.forward(ids[:, :5], cache2)
-    snap = cache2.snapshot()
-    a = model.forward(ids[:, 5:], cache2)
-    b = model.forward(ids[:, 5:], snap)
-    assert (a - b).abs().max().item() < 1e-6
+    snap = cache2.snapshot(ops)
+    a = ops.numpy(model.forward(ids[:, 5:], cache2))
+    b = ops.numpy(model.forward(ids[:, 5:], snap))
+    assert np.abs(a - b).max() < 1e-6
     gen = model.generate(ids[0].tolist(), max_new_tokens=5)
     assert len(gen) == 5
     print(f'model forward / cache / generate OK (incremental vs full max err {err:.2e})')
