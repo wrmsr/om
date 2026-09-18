@@ -271,7 +271,7 @@ RUN \
   --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
   --mount=target=/var/cache/apt,type=cache,sharing=locked \
 ( \
-export JDKS='zulu21-ca-jdk zulu25-ca-jdk zulu26-ca-jdk' ;\
+export JDKS='zulu21-ca-jdk zulu25-ca-jdk zulu26-ca-jdk zulu27-ca-jdk' ;\
 \
 set -ex ;\
 umask 0002 ;\

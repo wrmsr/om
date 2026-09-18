@@ -12,6 +12,7 @@ jdks = [
     'zulu21-ca-jdk',
     'zulu25-ca-jdk',
     'zulu26-ca-jdk',
+    'zulu27-ca-jdk',
 ]
 
 nvm_versions = [
