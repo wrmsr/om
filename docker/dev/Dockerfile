@@ -648,7 +648,11 @@ export CHGRP_ROOTS='/om /work' ;\
 set -ex ;\
 umask 0002 ;\
 \
-for D in ${CHGRP_ROOTS} ; do\
-  chgrp -R $(id -g) "$D" && chmod -R g=u "$D" ;\
-done ;\
+find ${CHGRP_ROOTS} ! -group "$(id -g)" -exec chgrp -h "$(id -g)" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )

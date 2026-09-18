@@ -14,6 +14,7 @@ TODO:
  - `run --pull=never`, `build --pull=false`
  - !! shadow config !!
    - default autoexec, default env vars
+ - --runtime=nvidia --gpus=all
 
 ====
 
