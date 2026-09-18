@@ -1,5 +1,6 @@
 import typing as ta
 
+from omcore import check
 from omcore import dataclasses as dc
 
 
@@ -13,6 +14,7 @@ DEFAULT_GID = DEFAULT_UID
 @dc.dataclass(frozen=True)
 class Config:
     base_image: str
+    base_image_id: str | None = None
 
     user: str | None = None
     uid: int = DEFAULT_UID
@@ -35,3 +37,6 @@ class Config:
     pyenv_version_keys: ta.Sequence[str] | None = None
 
     cache_mounts: ta.Mapping[str, str] | None = None
+
+    def __post_int__(self) -> None:
+        check.not_in('@', self.base_image)

@@ -1,4 +1,7 @@
-import json
+"""
+TODO:
+ - docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ubuntu:24.04
+"""
 import os.path
 import re
 import subprocess
@@ -23,31 +26,28 @@ def build_image(
         offline: bool = False,
         verbose: bool = False,
 ) -> str:
-    bim = cfg.base_image
-    for sep in ':@':
-        bim = bim.split(sep, maxsplit=1)[0]
-
-    def run_insp() -> str:
-        return subprocess.check_output(  # type: ignore
-            ['docker', 'image', 'inspect', cfg.base_image],
-            **(dict(stderr=subprocess.DEVNULL) if not verbose else {}),
-        ).decode()
-
-    try:
-        insp_out = run_insp()
-    except subprocess.CalledProcessError:
-        if offline:
-            raise
-        subprocess.check_output(['docker', 'pull', '-q', cfg.base_image])
-        insp_out = run_insp()
-
-    insp_out_obj = json.loads(insp_out)
-    insp_out_dct = check.not_empty(insp_out_obj)[0]
-
-    # TODO: really want to rewrite Dockerfile on the fly to directly use this local image as a base to avoid any
-    #       network hit, but docker is *really hostile* to that idea
-    #  cfg = dc.replace(cfg, base_image=tag)
-    obi = check.non_empty_str(insp_out_dct['Id'])  # noqa
+    # TODO: resurrect? lol
+    # def run_insp() -> str:
+    #     return subprocess.check_output(  # type: ignore
+    #         ['docker', 'image', 'inspect', cfg.base_image],
+    #         **(dict(stderr=subprocess.DEVNULL) if not verbose else {}),
+    #     ).decode()
+    #
+    # try:
+    #     insp_out = run_insp()
+    # except subprocess.CalledProcessError:
+    #     if offline:
+    #         raise
+    #     subprocess.check_output(['docker', 'pull', '-q', cfg.base_image])
+    #     insp_out = run_insp()
+    #
+    # insp_out_obj = json.loads(insp_out)
+    # insp_out_dct = check.not_empty(insp_out_obj)[0]
+    #
+    # # TODO: really want to rewrite Dockerfile on the fly to directly use this local image as a base to avoid any
+    # #       network hit, but docker is *really hostile* to that idea
+    # #  cfg = dc.replace(cfg, base_image=tag)
+    # obi = check.non_empty_str(insp_out_dct['Id'])  # noqa
 
     src = gen_src(cfg)
 

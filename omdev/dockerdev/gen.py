@@ -36,7 +36,10 @@ from .rendering import render_op
 
 def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     ops: list[Op] = [
-        From(cfg.base_image),
+        From(''.join([
+            cfg.base_image,
+            *([f'@{cfg.base_image_id}'] if cfg.base_image_id is not None else []),
+        ])),
     ]
 
     # ops.append(Section('timestamp', [

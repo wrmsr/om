@@ -34,6 +34,7 @@ import os
 import subprocess
 import sys
 import tomllib
+import typing as ta
 
 from omcore import check
 from omcore import lang
@@ -62,6 +63,28 @@ class Cli(ap.Cli):
         cfg = self._load_config()
         src = gen_src(cfg)
         print(src)
+
+    #
+
+    _SHIFT_UID_ARGS: ta.ClassVar = (
+        ap.arg('--shift-uid'),
+        ap.arg('-U', '--auto-shift-uid', action='store_true'),
+    )
+
+    class _ShiftUid(ta.NamedTuple):
+        uid: int
+        gid: int
+
+    def _get_args_shift_uid(self) -> _ShiftUid | None:
+        if (su := self.args.shift_uid) is not None:
+            check.arg(not self.args.auto_shift_uid)
+            return Cli._ShiftUid(*map(int, su.split(':')))
+
+        if self.args.auto_shift_uid:
+            if sys.platform == 'linux':
+                return Cli._ShiftUid(os.getuid(), os.getgid())
+
+        return None
 
     #
 
@@ -102,21 +125,12 @@ class Cli(ap.Cli):
 
         ap.arg('--inject-secrets', action='append'),
 
-        ap.arg('--shift-uid'),
-        ap.arg('-U', '--auto-shift-uid', action='store_true'),
+        *_SHIFT_UID_ARGS,
 
         ap.arg('args', nargs=ap.REMAINDER),
         accepts_unknown=True,
     )
     def run(self) -> None:
-        shift_uid: tuple[int, int] | None = None
-        if (su := self.args.shift_uid) is not None:
-            check.arg(not self.args.auto_shift_uid)
-            shift_uid = tuple(map(int, su.split(':')))  # type: ignore[assignment]
-        elif self.args.auto_shift_uid:
-            if getattr(sys, 'platform') == 'linux':
-                shift_uid = (os.getuid(), os.getgid())
-
         run_image(
             self._load_config(),
 
@@ -141,7 +155,7 @@ class Cli(ap.Cli):
 
                 inject_secrets_pats=self.args.inject_secrets,
 
-                shift_uid=shift_uid,
+                shift_uid=self._get_args_shift_uid(),
 
                 unknown_args=self.unknown_args,
                 extra_args=self.args.args,
@@ -175,19 +189,9 @@ class Cli(ap.Cli):
         ap.arg('secret', nargs='+'),
         ap.arg('-f', '--secrets-file'),
 
-        ap.arg('--shift-uid'),
-        ap.arg('-U', '--auto-shift-uid', action='store_true'),
-
+        *_SHIFT_UID_ARGS,
     )
     def inject_secret(self) -> None:
-        shift_uid: tuple[int, int] | None = None
-        if (su := self.args.shift_uid) is not None:
-            check.arg(not self.args.auto_shift_uid)
-            shift_uid = tuple(map(int, su.split(':')))  # type: ignore[assignment]
-        elif self.args.auto_shift_uid:
-            if getattr(sys, 'platform') == 'linux':
-                shift_uid = (os.getuid(), os.getgid())
-
         secrets: list[str | tuple[str, str]] = []
         for s in self.args.secret:
             if '=' in s:
@@ -204,7 +208,7 @@ class Cli(ap.Cli):
             self.args.container_id,
             secrets,
             secrets_file=self.args.secrets_file,
-            shift_uid=shift_uid,
+            shift_uid=self._get_args_shift_uid(),
         )
 
 
