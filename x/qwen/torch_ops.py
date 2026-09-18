@@ -117,6 +117,9 @@ class TorchOps(Ops):
     def repeat(self, x, n, axis):
         return x.repeat_interleave(n, dim=axis)
 
+    def cumsum(self, x, axis):
+        return torch.cumsum(x, dim=axis)
+
     def exp(self, x):
         return torch.exp(x)
 

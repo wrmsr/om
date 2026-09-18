@@ -59,10 +59,14 @@ Rules the shared code follows (and any new shared code must): no item assignment
 state (`mixer(x, state) -> (y, state)`), explicit `ops.f32()` where accumulation must be f32, control flow on
 shapes only. Those are exactly the constraints `mx.compile` / CUDA graphs will need later.
 
-Lazy backends (MLX, tinygrad) build a graph per forward; the per-token `gated_delta` reference therefore builds a
-T-step graph on prefill, which makes a chunked prefill a requirement there rather than an optimisation. tinygrad
-additionally compiles a kernel per distinct shape, and the growing KV cache changes shapes every decode step, so
-until the decode step has static buffers and a `TinyJit` around it, expect seconds per token on that backend.
+The gated delta rule has two composed forms behind `Ops.gated_delta`: the per-token recurrence (used for decode,
+T == 1) and a chunked WY form (used for prefill) that does everything inside a 64-token chunk as batched matmuls
+and carries the state across chunks, so a prompt costs O(T/64) sequential steps instead of O(T). The per-chunk
+triangular inverse is a Neumann product (exact, since the matrix is nilpotent), which keeps it item-assignment
+free and graph-friendly. On lazy backends (MLX, tinygrad) this is what makes prefill viable at all: the recurrence
+would build a T-step graph. tinygrad additionally compiles a kernel per distinct shape, and the growing KV cache
+changes shapes every decode step, so until the decode step has static buffers and a `TinyJit` around it, expect
+seconds per token there (prefill is fine once its kernels are cached).
 
 Instrumentation: set `ops.taps = {}` and every `ops.tap(name, x)` in the model records a numpy copy (embedding,
 each block's mixer output and block output, final norm, logits). Wrapping an `Ops` is the general mechanism --
@@ -124,9 +128,9 @@ Ollama's newer tensor-blob format needs none of that (HF names, HF layout), only
 
 ## Where to go next (in order)
 
-1. **Chunked prefill** for the DeltaNet layers — `tests/test_synthetic.py::chunk_gated_delta_rule_ref`
-   is a small WY-form chunked implementation that already agrees with the recurrence; move it into
-   `model.py` and use it when `T > 1`. Prefill goes from O(T) sequential steps to O(T/64).
+1. **Static-shape decode step** — preallocated KV buffers + a position index, so the step can be captured
+   (`TinyJit`, `mx.compile`, CUDA graphs). Chunked prefill is done; this is what unlocks decode speed on all
+   three accelerated backends at once.
 2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
 3. **Fused quantized matmuls (torch)** — `TorchQWeight.linear` expands to bf16 per call; MLX already fuses. A fused int4/int8 kernel

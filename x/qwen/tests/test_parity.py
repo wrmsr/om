@@ -1,3 +1,4 @@
+# ruff: noqa: N806 N812
 """
 Cross-backend parity: the same synthetic model, the same tokens, every backend against the numpy float64 golden.
 
@@ -11,6 +12,7 @@ Run:  python -m pytest x/qwen/tests -q      or      python -m x.qwen.tests.test_
 """
 import pathlib
 import tempfile
+import typing as ta
 
 import numpy as np
 
@@ -29,7 +31,9 @@ from .test_synthetic import write_gguf
 ##
 
 
-DISABLED_BACKENDS = {
+DISABLED_BACKENDS: ta.Any = {
+    # 'torch',
+    # 'mlx',
     'tinygrad',
 }
 
@@ -121,6 +125,45 @@ def test_forward_parity():
         print(f'{ops.name}: incremental decode + snapshot OK (rel err {e:.1e})')
 
 
+def test_gated_delta_parity():
+    """
+    Chunked (several chunks, padded tail, non-zero initial state) == the numpy f64 recurrence, per backend; and
+    `gated_delta` dispatches to the recurrence for T == 1.
+    """
+
+    rng = np.random.default_rng(3)
+    B, H, T, d = 2, 4, 150, 16
+    q = rng.standard_normal((B, H, T, d))
+    q /= np.linalg.norm(q, axis=-1, keepdims=True) * d**0.5
+    k = rng.standard_normal((B, H, T, d))
+    k /= np.linalg.norm(k, axis=-1, keepdims=True)
+    v = rng.standard_normal((B, H, T, d))
+    g = -rng.random((B, H, T)) * 2
+    beta = rng.random((B, H, T))
+    s0 = rng.standard_normal((B, H, d, d)) * 0.3
+
+    gold_ops = NumpyOps()
+    ins = [gold_ops.array(x) for x in (q, k, v, g, beta, s0)]
+    gold_out, gold_state = gold_ops.gated_delta_recurrent(*ins)
+    for chunk in (64, 16, 7):
+        out, state = gold_ops.gated_delta_chunked(*ins, chunk)  # type: ignore
+        assert rel_err(out, gold_out) < 1e-12 and rel_err(state, gold_state) < 1e-12, chunk
+
+    for ops in backends():
+        f32 = ops.dtype('f32')
+        ins = [ops.array(x, f32) for x in (q, k, v, g, beta, s0)]
+        out, state = ops.gated_delta(*ins)
+        e_out, e_state = rel_err(ops.numpy(out), gold_out), rel_err(ops.numpy(state), gold_state)
+        assert e_out < 2e-5 and e_state < 2e-5, (ops.name, e_out, e_state)
+        out1, state1 = ops.gated_delta(*[x[:, :, :1] if x.ndim in (3, 4) and x.shape[2] == T else x for x in ins])
+        g1 = gold_ops.gated_delta_recurrent(*[
+            x[:, :, :1] if x.ndim in (3, 4) and x.shape[2] == T else x
+            for x in [gold_ops.array(y) for y in (q, k, v, g, beta, s0)]
+        ])
+        assert rel_err(ops.numpy(out1), g1[0]) < 2e-5 and rel_err(ops.numpy(state1), g1[1]) < 2e-5, ops.name
+        print(f'{ops.name}: chunked gated delta vs f64 recurrence: out {e_out:.1e}, state {e_state:.1e}')
+
+
 def test_qweight_parity():
     rng = np.random.default_rng(1)
     w = (rng.standard_normal((96, 256)) * 0.05).astype(np.float32)
@@ -161,5 +204,6 @@ def test_model_quant_parity():
 
 if __name__ == '__main__':
     test_forward_parity()
+    test_gated_delta_parity()
     test_qweight_parity()
     test_model_quant_parity()

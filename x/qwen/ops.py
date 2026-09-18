@@ -109,6 +109,10 @@ class Ops(abc.ABC):
     # elementwise / reductions
 
     @abc.abstractmethod
+    def cumsum(self, x: Array, axis: int) -> Array:
+        pass
+
+    @abc.abstractmethod
     def exp(self, x: Array) -> Array:
         pass
 
@@ -196,8 +200,10 @@ class Ops(abc.ABC):
         return self.concat([xr, xp], axis=-1)
 
     def sdpa(self, q: Array, k: Array, v: Array, scale: float, past: int) -> Array:
-        """Causal attention. q: [B, H, T, D]; k, v: [B, KV, past + T, D] (GQA when KV < H). Query i sees keys
-        <= past + i."""
+        """
+        Causal attention. q: [B, H, T, D]; k, v: [B, KV, past + T, D] (GQA when KV < H). Query i sees keys
+        <= past + i.
+        """
 
         B, H, T, D = q.shape
         KV, L = k.shape[1], k.shape[2]
@@ -222,16 +228,58 @@ class Ops(abc.ABC):
             out = term if out is None else out + term
         return out
 
-    def gated_delta(self, q: Array, k: Array, v: Array, g: Array, beta: Array, state: Array) -> tuple[Array, Array]:
-        """
-        Per-token gated delta rule (reference). All float32.
+    # gated delta rule
+    #
+    #   q, k:  [B, H, T, dk] (already l2-normed; q already scaled by 1/sqrt(dk))
+    #   v:     [B, H, T, dv]
+    #   g:     [B, H, T]  log decay (<= 0);   beta: [B, H, T] in (0, 1)
+    #   state: [B, H, dk, dv]
+    #   returns out [B, H, T, dv], new state
+    #
+    # All float32. `gated_delta` is the entry point the model calls; it dispatches between the per-token form (decode, T
+    # == 1) and the chunked form (prefill). Backends override whichever they have a kernel for.
 
-        q, k:  [B, H, T, dk] (already l2-normed; q already scaled by 1/sqrt(dk))
-        v:     [B, H, T, dv]
-        g:     [B, H, T]  log decay (<= 0);   beta: [B, H, T] in (0, 1)
-        state: [B, H, dk, dv]
-        returns out [B, H, T, dv], new state
-        """
+    gdn_chunk: int = 64
+
+    def gated_delta(
+            self,
+            q: Array,
+            k: Array,
+            v: Array,
+            g: Array,
+            beta: Array,
+            state: Array,
+    ) -> tuple[Array, Array]:
+        if q.shape[2] == 1:
+            return self.gated_delta_recurrent(
+                q,
+                k,
+                v,
+                g,
+                beta,
+                state,
+            )
+
+        return self.gated_delta_chunked(
+            q,
+            k,
+            v,
+            g,
+            beta,
+            state,
+            self.gdn_chunk,
+        )
+
+    def gated_delta_recurrent(
+            self,
+            q: Array,
+            k: Array,
+            v: Array,
+            g: Array,
+            beta: Array,
+            state: Array,
+    ) -> tuple[Array, Array]:
+        """Per-token form: O(T) sequential steps, each a handful of small ops. The reference."""
 
         T = q.shape[2]
         S = state
@@ -245,6 +293,78 @@ class Ops(abc.ABC):
             outs.append(self.sum(S * q_t[..., None], -2))  # q^T S
         return self.stack(outs, 2), S
 
+    def gated_delta_chunked(
+            self,
+            q: Array,
+            k: Array,
+            v: Array,
+            g: Array,
+            beta: Array,
+            state: Array,
+            chunk: int = 64,
+    ) -> tuple[Array, Array]:
+        """
+        Chunkwise (WY-representation) form, Yang et al. 2024 -- the algorithm behind FLA's `chunk_gated_delta_rule` and
+        HF's `torch_chunk_gated_delta_rule`, composed from the primitives so it runs (and is graph-friendly) on every
+        backend. Within a chunk everything is a batched matmul; across chunks the state is carried sequentially, so cost
+        is O(T/chunk) sequential steps instead of O(T).
+
+        The per-chunk triangular inverse (I + A)^-1, A strictly lower, is computed as a Neumann product (I + N)(I +
+        N^2)(I + N^4)... with N = -A, which is exact because N is nilpotent -- log2(chunk) matmuls and no item
+        assignment, versus a forward-substitution loop.
+        """
+
+        B, H, T, dk = q.shape
+        dv = v.shape[-1]
+        C = chunk
+        f32 = q.dtype
+        pad = (C - T % C) % C
+        if pad:
+            q, k, v = [self.concat([x, self.zeros((B, H, pad, x.shape[-1]), f32)], 2) for x in (q, k, v)]
+            g, beta = [self.concat([x, self.zeros((B, H, pad), f32)], 2) for x in (g, beta)]
+        L = T + pad
+        n = L // C
+        q, k, v = [self.reshape(x, (B, H, n, C, x.shape[-1])) for x in (q, k, v)]
+        g, beta = [self.reshape(x, (B, H, n, C)) for x in (g, beta)]
+
+        tril = self.array(np.tril(np.ones((C, C))), f32)  # i >= j
+        strict = self.array(np.tril(np.ones((C, C)), -1), f32)  # i > j
+        eye = self.array(np.eye(C), f32)
+
+        gcum = self.cumsum(g, -1)  # [B,H,n,C], decreasing
+        # exp(gcum_i - gcum_j) for i >= j (<= 1), 0 above the diagonal; the exponent is masked *before* exp so the
+        # positive upper-triangle exponents never overflow
+        decay = self.exp((gcum[..., :, None] - gcum[..., None, :]) * tril) * tril  # [B,H,n,C,C]
+        kb = k * beta[..., None]
+        vb = v * beta[..., None]
+        A = (kb @ self.transpose(k, (0, 1, 2, 4, 3))) * decay * strict  # strictly lower
+        N = -A
+        Tm = eye + N
+        P = N
+        m = 1
+        while (1 << m) < C:
+            P = P @ P
+            Tm = Tm @ (eye + P)
+            m += 1
+        W = Tm @ (kb * self.exp(gcum)[..., None])  # [B,H,n,C,dk]
+        U = Tm @ vb  # [B,H,n,C,dv]
+
+        S = state
+        outs = []
+        for i in range(n):
+            q_i, k_i = q[:, :, i], k[:, :, i]  # [B,H,C,dk]
+            gc = gcum[:, :, i]  # [B,H,C]
+            u = U[:, :, i] - W[:, :, i] @ S  # [B,H,C,dv]   v - (decayed) k S
+            intra = (q_i @ self.transpose(k_i, (0, 1, 3, 2))) * decay[:, :, i]
+            outs.append((q_i * self.exp(gc)[..., None]) @ S + intra @ u)
+            g_last = gc[..., -1]  # [B,H]
+            k_dec = k_i * self.exp(g_last[..., None] - gc)[..., None]  # [B,H,C,dk]
+            S = S * self.exp(g_last)[..., None, None] + self.transpose(k_dec, (0, 1, 3, 2)) @ u
+        out = self.reshape(self.stack(outs, 2), (B, H, L, dv))
+        if pad:
+            out = out[:, :, :T]
+        return out, S
+
     # instrumentation
 
     def tap(self, name: str, x: Array) -> None:
@@ -256,8 +376,10 @@ class Ops(abc.ABC):
 
 
 class NumpyOps(Ops):
-    """Reference backend. Every dtype name maps to `precision` (float64 by default) so it doubles as the golden
-    oracle; quantized weights are dequantized at adoption time."""
+    """
+    Reference backend. Every dtype name maps to `precision` (float64 by default) so it doubles as the golden
+    oracle; quantized weights are dequantized at adoption time.
+    """
 
     name = 'numpy'
 
@@ -306,6 +428,9 @@ class NumpyOps(Ops):
 
     def repeat(self, x, n, axis):
         return np.repeat(x, n, axis=axis)
+
+    def cumsum(self, x, axis):
+        return np.cumsum(x, axis=axis)
 
     def exp(self, x):
         return np.exp(x)

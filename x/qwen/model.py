@@ -12,9 +12,9 @@ against llama.cpp's `src/models/qwen35.cpp` and HF's `modeling_qwen3_5.py`:
     linear: Gated DeltaNet -- in_proj_qkv -> causal depthwise conv1d(k=4)+silu -> l2norm(q,k) -> gated delta rule
             recurrence (fixed-size state) -> rmsnorm * silu(z) -> out_proj
 
-State is functional: each mixer takes its state (or None) and returns the new one. The default gated delta rule is the
-per-token form for both prefill and decode (correct, O(T) sequential; a chunked parallel prefill is the obvious next
-optimisation, and lives behind `Ops.gated_delta`).
+State is functional: each mixer takes its state (or None) and returns the new one. The gated delta rule lives behind
+`Ops.gated_delta`, which dispatches to the per-token form for decode (T == 1) and the chunked WY form for prefill; both
+are composed from the primitives, and backends override whichever they have a kernel for.
 """
 import math
 import typing as ta

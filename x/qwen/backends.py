@@ -1,6 +1,4 @@
-"""
-Backend selection for the CLIs.
-"""
+"""Backend selection for the CLIs."""
 import platform
 
 from .ops import NumpyOps

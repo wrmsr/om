@@ -125,6 +125,9 @@ class TinygradOps(Ops):
     def repeat(self, x, n, axis):
         return x.repeat_interleave(n, dim=axis)
 
+    def cumsum(self, x, axis):
+        return x.cumsum(axis)
+
     def exp(self, x):
         return x.exp()
 

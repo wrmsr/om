@@ -126,6 +126,9 @@ class MlxOps(Ops):
     def repeat(self, x, n, axis):
         return mx.repeat(x, n, axis=axis)
 
+    def cumsum(self, x, axis):
+        return mx.cumsum(x, axis=axis)
+
     def exp(self, x):
         return mx.exp(x)
 
