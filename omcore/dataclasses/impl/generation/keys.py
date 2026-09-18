@@ -25,14 +25,31 @@ class UncacheableSpecError(Exception):
     pass
 
 
+LITERAL_VALUE_TYPES = (
+    str,
+    int,
+    bool,
+    type(None),
+)
+
+LITERAL_SEQUENCE_TYPES = (
+    tuple,
+    list,
+)
+
+
 def literal_key(value: ta.Any) -> ta.Any:
-    if type(value) in (str, int, bool, type(None)):
+    if type(value) in LITERAL_VALUE_TYPES:
         return value
-    if type(value) in (tuple, list):
+
+    elif type(value) in LITERAL_SEQUENCE_TYPES:
         return tuple(literal_key(v) for v in value)
-    if dc.is_dataclass(value):
+
+    elif dc.is_dataclass(value):
         return tuple(getattr(value, f.name) for f in dc.fields(value))
-    raise UncacheableSpecError(type(value))
+
+    else:
+        raise UncacheableSpecError(type(value))
 
 
 @lang.cached_function
@@ -46,7 +63,9 @@ def _spec_getters() -> tuple[ta.Callable, ta.Callable]:
             for f in dc.fields(ty)
             if f.name not in special
         ])
+
         for ty, special in [
+
             (
                 ClassSpec,
                 {
@@ -57,6 +76,7 @@ def _spec_getters() -> tuple[ta.Callable, ta.Callable]:
                     'validate_fns',
                 },
             ),
+
             (
                 FieldSpec,
                 {
@@ -71,14 +91,17 @@ def _spec_getters() -> tuple[ta.Callable, ta.Callable]:
                     'field_type',
                 },
             ),
+
         ]
     )
 
 
 def spec_key(cs: ClassSpec) -> tuple:
     get_class, get_field = _spec_getters()
+
     return (
         literal_key(get_class(cs)),
+
         tuple(
             (
                 literal_key(get_field(f)),
@@ -93,6 +116,7 @@ def spec_key(cs: ClassSpec) -> tuple:
             )
             for f in cs.fields
         ),
+
         cs.default_repr_fn is not None,
         len(cs.init_fns or ()),
         tuple(literal_key(v.params) for v in cs.validate_fns or ()),
@@ -102,10 +126,12 @@ def spec_key(cs: ClassSpec) -> tuple:
 def _schema(ty: type) -> tuple:
     return (
         f'{ty.__module__}.{ty.__qualname__}',
+
         tuple(
             (f.name, lrf.type_form_repr(f.type))
             for f in dc.fields(ty)
         ),
+
         tuple(
             _schema(v)
             for v in vars(ty).values()
@@ -118,8 +144,10 @@ def _schema(ty: type) -> tuple:
 def implementation_key() -> str:
     stamp = (
         FORMAT_VERSION,
+
         _schema(ClassSpec),
         _schema(FieldSpec),
+
         tuple(
             (
                 f'{g.__module__}.{g.__qualname__}',
@@ -128,26 +156,38 @@ def implementation_key() -> str:
             )
             for g in all_generator_types()
         ),
+
         tuple(
             f'{p.__module__}.{p.__qualname__}'
             for p in ordered_processor_types()
         ),
+
         tuple(sorted(
             k
             for k in all_processing_context_item_factories()
             if isinstance(k, str)
         )),
     )
+
     return hashlib.sha256(repr(stamp).encode()).hexdigest()
 
 
-def processing_key(ctx: ProcessingContext) -> str | None:
+def processing_key(
+        ctx: ProcessingContext,
+        *,
+        allow_uncacheable: bool = False,
+) -> str | None:
     generators = all_generator_types()
     if any(g.__dict__.get('cache_version') is None for g in generators):
         return None
+
     try:
         spec = spec_key(ctx.cs)
         concerns = tuple(literal_key(g().cache_key(ctx)) for g in generators)
+
     except UncacheableSpecError:
-        return None
+        if allow_uncacheable:
+            return None
+        raise
+
     return repr((spec, concerns))
