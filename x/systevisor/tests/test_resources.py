@@ -7,50 +7,52 @@ import unittest
 
 from omcore.io.fdio.manager import FdioManager
 from omcore.io.fdio.pollers import SelectFdioPoller
-from x.systevisor.configs.models import SystevisorCgroupConfig
-from x.systevisor.configs.models import SystevisorCgroupManagerConfig
-from x.systevisor.configs.models import SystevisorConfig
-from x.systevisor.configs.models import SystevisorExecConfig
-from x.systevisor.configs.models import SystevisorManagerConfig
-from x.systevisor.configs.models import SystevisorNamespaceConfig
-from x.systevisor.configs.models import SystevisorObservationConfig
-from x.systevisor.configs.models import SystevisorSignalScope
-from x.systevisor.configs.models import SystevisorStopConfig
-from x.systevisor.configs.models import SystevisorUnitConfig
-from x.systevisor.configs.models import SystevisorUnitResourcesConfig
-from x.systevisor.configs.snapshots import SystevisorConfigSnapshot
-from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
-from x.systevisor.configs.validation import systevisor_validate_config
-from x.systevisor.core.changes import systevisor_classify_unit_change
-from x.systevisor.core.identities import SystevisorInstanceId
-from x.systevisor.core.identities import SystevisorRunId
-from x.systevisor.core.states import SystevisorUnitChangeKind
-from x.systevisor.resources.cgroups import SystevisorCgroupConfig as SystevisorCgroupConfigForType
-from x.systevisor.resources.cgroups import SystevisorCgroupCounters
-from x.systevisor.resources.cgroups import SystevisorCgroupFs
-from x.systevisor.resources.cgroups import SystevisorCgroupManager
-from x.systevisor.resources.cgroups import SystevisorCgroupPreparedRun
-from x.systevisor.resources.cgroups import SystevisorCgroupRunStatus
-from x.systevisor.resources.namespaces import SystevisorNamespaceBackend
-from x.systevisor.resources.namespaces import SystevisorNamespaceChildModifier
-from x.systevisor.resources.runtime import SystevisorResourceEvent
-from x.systevisor.resources.runtime import SystevisorResourceEventKind
-from x.systevisor.resources.runtime import SystevisorResourceObserver
-from x.systevisor.resources.sampling import SystevisorProcessResourceCounters
-from x.systevisor.resources.sampling import SystevisorProcessResourceSampler
-from x.systevisor.resources.sampling import SystevisorResourceSampleSource
-from x.systevisor.resources.sampling import systevisor_parse_linux_proc_stat
-from x.systevisor.resources.sockets import SystevisorInheritedSocketChildModifier
-from x.systevisor.resources.sockets import SystevisorInheritedSocketRegistry
-from x.systevisor.resources.sockets import SystevisorSocketActivationError
-from x.systevisor.runtime.events import SystevisorEventBus
-from x.systevisor.runtime.processes import SystevisorChildContext
-from x.systevisor.runtime.processes import SystevisorOwnedProcessPurpose
-from x.systevisor.runtime.processes import SystevisorOwnedProcessState
-from x.systevisor.runtime.processes import SystevisorOwnedProcessStatus
-from x.systevisor.runtime.processes import SystevisorProcessManager
-from x.systevisor.runtime.processes import SystevisorResolvedIdentity
-from x.systevisor.tests.fakes import SystevisorFakeClock
+
+from ..configs.models import SystevisorCgroupConfig
+from ..configs.models import SystevisorCgroupManagerConfig
+from ..configs.models import SystevisorConfig
+from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorManagerConfig
+from ..configs.models import SystevisorNamespaceConfig
+from ..configs.models import SystevisorObservationConfig
+from ..configs.models import SystevisorSignalScope
+from ..configs.models import SystevisorStopConfig
+from ..configs.models import SystevisorUnitConfig
+from ..configs.models import SystevisorUnitResourcesConfig
+from ..configs.snapshots import SystevisorConfigSnapshot
+from ..configs.snapshots import systevisor_build_config_snapshot
+from ..configs.validation import systevisor_validate_config
+from ..core.changes import systevisor_classify_unit_change
+from ..core.identities import SystevisorInstanceId
+from ..core.identities import SystevisorRunId
+from ..core.states import SystevisorUnitChangeKind
+from ..resources.cgroups import SystevisorCgroupConfig as SystevisorCgroupConfigForType
+from ..resources.cgroups import SystevisorCgroupCounters
+from ..resources.cgroups import SystevisorCgroupFs
+from ..resources.cgroups import SystevisorCgroupManager
+from ..resources.cgroups import SystevisorCgroupPreparedRun
+from ..resources.cgroups import SystevisorCgroupRunStatus
+from ..resources.namespaces import SystevisorNamespaceBackend
+from ..resources.namespaces import SystevisorNamespaceChildModifier
+from ..resources.runtime import SystevisorResourceEvent
+from ..resources.runtime import SystevisorResourceEventKind
+from ..resources.runtime import SystevisorResourceObserver
+from ..resources.sampling import SystevisorProcessResourceCounters
+from ..resources.sampling import SystevisorProcessResourceSampler
+from ..resources.sampling import SystevisorResourceSampleSource
+from ..resources.sampling import systevisor_parse_linux_proc_stat
+from ..resources.sockets import SystevisorInheritedSocketChildModifier
+from ..resources.sockets import SystevisorInheritedSocketRegistry
+from ..resources.sockets import SystevisorSocketActivationError
+from ..runtime.events import SystevisorEventBus
+from ..runtime.processes import SystevisorChildContext
+from ..runtime.processes import SystevisorOwnedProcessPurpose
+from ..runtime.processes import SystevisorOwnedProcessState
+from ..runtime.processes import SystevisorOwnedProcessStatus
+from ..runtime.processes import SystevisorProcessManager
+from ..runtime.processes import SystevisorResolvedIdentity
+from .fakes import SystevisorFakeClock
+from .utils import true_bin
 
 
 class SystevisorTestResourceConfigController:
@@ -145,7 +147,7 @@ def _systevisor_test_resource_snapshot(
             cgroups=SystevisorCgroupManagerConfig(root=cgroup_root),
         ),
         units={'service': SystevisorUnitConfig(
-            exec=SystevisorExecConfig(argv=('/bin/true',)),
+            exec=SystevisorExecConfig(argv=(true_bin(),)),
             autostart=False,
             resources=resources,
         )},
@@ -410,7 +412,7 @@ class TestSystevisorIsolationCapabilities(unittest.TestCase):
 
     def test_resource_validation_and_change_classification_are_explicit(self) -> None:
         invalid = SystevisorConfig(units={'bad': SystevisorUnitConfig(
-            exec=SystevisorExecConfig(argv=('/bin/true',)),
+            exec=SystevisorExecConfig(argv=(true_bin(),)),
             resources=SystevisorUnitResourcesConfig(
                 cgroup=SystevisorCgroupConfig(enabled=True, cpu_weight=20_000),
                 namespaces=SystevisorNamespaceConfig(hostname='missing-uts'),
@@ -421,7 +423,7 @@ class TestSystevisorIsolationCapabilities(unittest.TestCase):
         self.assertIn('invalid_cgroup_cpu_weight', codes)
         self.assertIn('namespace_hostname_without_uts', codes)
 
-        original = SystevisorUnitConfig(exec=SystevisorExecConfig(argv=('/bin/true',)))
+        original = SystevisorUnitConfig(exec=SystevisorExecConfig(argv=(true_bin(),)))
         observed = dc.replace(original, resources=dc.replace(original.resources, observe=False))
         isolated = dc.replace(
             original,

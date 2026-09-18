@@ -13,48 +13,50 @@ from omcore.io.fdio.manager import FdioManager
 from omcore.io.fdio.pollers import SelectFdioPoller
 from omcore.io.pipelines.core import IoPipeline
 from omcore.io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
-from x.systevisor.configs.compiling import SystevisorConfigCompiler
-from x.systevisor.configs.diagnostics import SystevisorConfigDiagnosticStage
-from x.systevisor.configs.models import SystevisorApiConfig
-from x.systevisor.configs.models import SystevisorConfig
-from x.systevisor.configs.models import SystevisorExecConfig
-from x.systevisor.configs.models import SystevisorUnitConfig
-from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
-from x.systevisor.control.api import SystevisorApiApplication
-from x.systevisor.control.api import SystevisorApiRequest
-from x.systevisor.control.api import SystevisorApiResponse
-from x.systevisor.control.api import SystevisorApiStreamResponse
-from x.systevisor.control.client import SystevisorApiClient
-from x.systevisor.control.client import SystevisorApiClientIoPipelineHandler
-from x.systevisor.control.configs import SystevisorConfigController
-from x.systevisor.control.http import SystevisorHttpConnectionIoPipelineHandler
-from x.systevisor.control.http import SystevisorHttpServer
-from x.systevisor.control.jsoncodec import SystevisorJsonCodec
-from x.systevisor.control.operations import SystevisorOperationStatus
-from x.systevisor.control.operations import SystevisorOperationStore
-from x.systevisor.control.plane import SystevisorControlPlane
-from x.systevisor.control.service import SystevisorControlService
-from x.systevisor.core.effects import SystevisorSpawnProcessEffect
-from x.systevisor.core.engine import SystevisorEngine
-from x.systevisor.core.identities import SystevisorInstanceId
-from x.systevisor.core.identities import SystevisorRunId
-from x.systevisor.core.states import SystevisorProcessState
-from x.systevisor.resources.cgroups import SystevisorCgroupManager
-from x.systevisor.resources.cgroups import SystevisorSystemCgroupFs
-from x.systevisor.resources.runtime import SystevisorResourceObserver
-from x.systevisor.resources.sampling import SystevisorSystemProcessResourceSampler
-from x.systevisor.resources.sockets import SystevisorInheritedSocketRegistry
-from x.systevisor.runtime.clocks import SystevisorSystemClock
-from x.systevisor.runtime.coordinator import SystevisorRuntimeCoordinator
-from x.systevisor.runtime.events import SystevisorEventBus
-from x.systevisor.runtime.health import SystevisorFdioHealthProbeRunner
-from x.systevisor.runtime.logs import SystevisorLogManager
-from x.systevisor.runtime.logs import SystevisorLogStream
-from x.systevisor.runtime.processes import SystevisorProcessManager
-from x.systevisor.scheduling.runtime import SystevisorJsonScheduleStateStore
-from x.systevisor.scheduling.runtime import SystevisorScheduler
-from x.systevisor.selfupdate.models import SystevisorSelfUpdatePhase
-from x.systevisor.selfupdate.models import SystevisorSelfUpdateState
+
+from ..configs.compiling import SystevisorConfigCompiler
+from ..configs.diagnostics import SystevisorConfigDiagnosticStage
+from ..configs.models import SystevisorApiConfig
+from ..configs.models import SystevisorConfig
+from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorUnitConfig
+from ..configs.snapshots import systevisor_build_config_snapshot
+from ..control.api import SystevisorApiApplication
+from ..control.api import SystevisorApiRequest
+from ..control.api import SystevisorApiResponse
+from ..control.api import SystevisorApiStreamResponse
+from ..control.client import SystevisorApiClient
+from ..control.client import SystevisorApiClientIoPipelineHandler
+from ..control.configs import SystevisorConfigController
+from ..control.http import SystevisorHttpConnectionIoPipelineHandler
+from ..control.http import SystevisorHttpServer
+from ..control.jsoncodec import SystevisorJsonCodec
+from ..control.operations import SystevisorOperationStatus
+from ..control.operations import SystevisorOperationStore
+from ..control.plane import SystevisorControlPlane
+from ..control.service import SystevisorControlService
+from ..core.effects import SystevisorSpawnProcessEffect
+from ..core.engine import SystevisorEngine
+from ..core.identities import SystevisorInstanceId
+from ..core.identities import SystevisorRunId
+from ..core.states import SystevisorProcessState
+from ..resources.cgroups import SystevisorCgroupManager
+from ..resources.cgroups import SystevisorSystemCgroupFs
+from ..resources.runtime import SystevisorResourceObserver
+from ..resources.sampling import SystevisorSystemProcessResourceSampler
+from ..resources.sockets import SystevisorInheritedSocketRegistry
+from ..runtime.clocks import SystevisorSystemClock
+from ..runtime.coordinator import SystevisorRuntimeCoordinator
+from ..runtime.events import SystevisorEventBus
+from ..runtime.health import SystevisorFdioHealthProbeRunner
+from ..runtime.logs import SystevisorLogManager
+from ..runtime.logs import SystevisorLogStream
+from ..runtime.processes import SystevisorProcessManager
+from ..scheduling.runtime import SystevisorJsonScheduleStateStore
+from ..scheduling.runtime import SystevisorScheduler
+from ..selfupdate.models import SystevisorSelfUpdatePhase
+from ..selfupdate.models import SystevisorSelfUpdateState
+from .utils import true_bin
 
 
 class SystevisorControlTestSelfUpdateManager:
@@ -83,7 +85,7 @@ class SystevisorControlTestFixture:
             'api': {'event_backlog': 32, 'stream_queue_bytes': 4096},
             'units': {
                 'idle': {
-                    'exec': {'argv': ['/bin/true']},
+                    'exec': {'argv': [true_bin()]},
                     'autostart': False,
                     'kind': 'oneshot',
                     'restart': {'start_secs': 0},
@@ -210,7 +212,7 @@ class TestSystevisorControl(unittest.TestCase):
                 'api': {'unix_socket': occupied_path},
                 'units': {
                     'would-start': {
-                        'exec': {'argv': ['/bin/true']},
+                        'exec': {'argv': [true_bin()]},
                     },
                 },
             }))
@@ -299,7 +301,7 @@ class TestSystevisorControl(unittest.TestCase):
     def test_log_back_buffer_and_follow_are_independent_of_event_emission(self) -> None:
         config = SystevisorConfig(units={
             'log': SystevisorUnitConfig(
-                exec=SystevisorExecConfig(argv=('/bin/true',)),
+                exec=SystevisorExecConfig(argv=(true_bin(),)),
                 autostart=False,
             ),
         })

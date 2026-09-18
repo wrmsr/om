@@ -9,19 +9,19 @@ import tempfile
 import typing as ta
 import unittest
 
-from x.systevisor.configs.models import SystevisorManagerConfig
-from x.systevisor.configs.models import SystevisorManagerLogConfig
-from x.systevisor.platforms.runtime import SystevisorManagerLogging
-from x.systevisor.platforms.runtime import SystevisorManagerRuntime
-from x.systevisor.platforms.runtime import SystevisorPidFileManager
-from x.systevisor.platforms.runtime import SystevisorPlatformError
-from x.systevisor.platforms.runtime import SystevisorProcessBootstrap
-from x.systevisor.platforms.runtime import SystevisorProcessBootstrapState
-from x.systevisor.platforms.runtime import SystevisorServiceNotifier
-from x.systevisor.platforms.runtime import SystevisorSystemdServiceNotifier
-from x.systevisor.platforms.services import SystevisorServiceTemplateConfig
-from x.systevisor.platforms.services import systevisor_render_launchd_plist
-from x.systevisor.platforms.services import systevisor_render_systemd_service
+from ..configs.models import SystevisorManagerConfig
+from ..configs.models import SystevisorManagerLogConfig
+from ..platforms.runtime import SystevisorManagerLogging
+from ..platforms.runtime import SystevisorManagerRuntime
+from ..platforms.runtime import SystevisorPidFileManager
+from ..platforms.runtime import SystevisorPlatformError
+from ..platforms.runtime import SystevisorProcessBootstrap
+from ..platforms.runtime import SystevisorProcessBootstrapState
+from ..platforms.runtime import SystevisorServiceNotifier
+from ..platforms.runtime import SystevisorSystemdServiceNotifier
+from ..platforms.services import SystevisorServiceTemplateConfig
+from ..platforms.services import systevisor_render_launchd_plist
+from ..platforms.services import systevisor_render_systemd_service
 
 
 class SystevisorTestProcessBootstrap(SystevisorProcessBootstrap):

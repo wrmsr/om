@@ -4,7 +4,8 @@ import pathlib
 import tempfile
 import unittest
 
-from x.systevisor.main import systevisor_main
+from ..main import systevisor_main
+from .utils import true_bin
 
 
 class TestSystevisorMain(unittest.TestCase):
@@ -16,7 +17,7 @@ class TestSystevisorMain(unittest.TestCase):
             config_path.write_text(json.dumps({
                 'units': {
                     'selected': {
-                        'exec': {'argv': ['/bin/true']},
+                        'exec': {'argv': [true_bin()]},
                         'kind': 'oneshot',
                         'autostart': False,
                         'restart': {'start_secs': 0},

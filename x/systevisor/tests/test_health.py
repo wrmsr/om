@@ -2,27 +2,28 @@
 import unittest
 
 from omcore.lite.marshal import OBJ_MARSHALER_MANAGER
-from x.systevisor.configs.models import SystevisorConfig
-from x.systevisor.configs.models import SystevisorDependenciesConfig
-from x.systevisor.configs.models import SystevisorDependencyCondition
-from x.systevisor.configs.models import SystevisorExecConfig
-from x.systevisor.configs.models import SystevisorHealthProbeConfig
-from x.systevisor.configs.models import SystevisorHealthRecovery
-from x.systevisor.configs.models import SystevisorHealthRole
-from x.systevisor.configs.models import SystevisorRestartConfig
-from x.systevisor.configs.models import SystevisorUnitConfig
-from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
-from x.systevisor.core.effects import SystevisorRunHealthProbeEffect
-from x.systevisor.core.effects import SystevisorSignalProcessEffect
-from x.systevisor.core.effects import SystevisorSpawnProcessEffect
-from x.systevisor.core.events import SystevisorEventKind
-from x.systevisor.core.identities import SystevisorInstanceId
-from x.systevisor.core.inputs import SystevisorApplySnapshotCommand
-from x.systevisor.core.state import SystevisorEngineState
-from x.systevisor.core.states import SystevisorHealthStatus
-from x.systevisor.core.states import SystevisorProcessState
-from x.systevisor.core.states import SystevisorSignalReason
-from x.systevisor.tests.fakes import SystevisorEngineHarness
+
+from ..configs.models import SystevisorConfig
+from ..configs.models import SystevisorDependenciesConfig
+from ..configs.models import SystevisorDependencyCondition
+from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorHealthProbeConfig
+from ..configs.models import SystevisorHealthRecovery
+from ..configs.models import SystevisorHealthRole
+from ..configs.models import SystevisorRestartConfig
+from ..configs.models import SystevisorUnitConfig
+from ..configs.snapshots import systevisor_build_config_snapshot
+from ..core.effects import SystevisorRunHealthProbeEffect
+from ..core.effects import SystevisorSignalProcessEffect
+from ..core.effects import SystevisorSpawnProcessEffect
+from ..core.events import SystevisorEventKind
+from ..core.identities import SystevisorInstanceId
+from ..core.inputs import SystevisorApplySnapshotCommand
+from ..core.state import SystevisorEngineState
+from ..core.states import SystevisorHealthStatus
+from ..core.states import SystevisorProcessState
+from ..core.states import SystevisorSignalReason
+from .fakes import SystevisorEngineHarness
 
 
 def _systevisor_test_health_unit(

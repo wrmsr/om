@@ -3,12 +3,12 @@ import pathlib
 import tempfile
 import unittest
 
-from x.systevisor.configs.compiling import SystevisorConfigCompiler
-from x.systevisor.configs.diagnostics import SystevisorConfigDiagnosticStage
-from x.systevisor.configs.models import SystevisorDependencyCondition
-from x.systevisor.configs.models import SystevisorRestartMode
-from x.systevisor.configs.models import SystevisorScheduleActionKind
-from x.systevisor.core.identities import SystevisorInstanceId
+from ..configs.compiling import SystevisorConfigCompiler
+from ..configs.diagnostics import SystevisorConfigDiagnosticStage
+from ..configs.models import SystevisorDependencyCondition
+from ..configs.models import SystevisorRestartMode
+from ..configs.models import SystevisorScheduleActionKind
+from ..core.identities import SystevisorInstanceId
 
 
 class TestSystevisorConfigs(unittest.TestCase):

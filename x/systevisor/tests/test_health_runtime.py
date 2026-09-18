@@ -12,33 +12,35 @@ from omcore.io.fdio.handlers import ServerSocketFdioHandler
 from omcore.io.fdio.manager import FdioManager
 from omcore.io.fdio.pollers import SelectFdioPoller
 from omcore.io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
-from x.systevisor.configs.models import SystevisorConfig
-from x.systevisor.configs.models import SystevisorExecConfig
-from x.systevisor.configs.models import SystevisorHealthProbeConfig
-from x.systevisor.configs.models import SystevisorHealthProbeKind
-from x.systevisor.configs.models import SystevisorHealthRole
-from x.systevisor.configs.models import SystevisorRestartConfig
-from x.systevisor.configs.models import SystevisorUnitConfig
-from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
-from x.systevisor.core.effects import SystevisorRunHealthProbeEffect
-from x.systevisor.core.effects import SystevisorSpawnProcessEffect
-from x.systevisor.core.engine import SystevisorEngine
-from x.systevisor.core.identities import SystevisorHealthCheckId
-from x.systevisor.core.identities import SystevisorInstanceId
-from x.systevisor.core.identities import SystevisorRunId
-from x.systevisor.core.inputs import SystevisorApplySnapshotCommand
-from x.systevisor.core.inputs import SystevisorShutdownCommand
-from x.systevisor.core.states import SystevisorHealthStatus
-from x.systevisor.core.states import SystevisorProcessState
-from x.systevisor.runtime.clocks import SystevisorSystemClock
-from x.systevisor.runtime.coordinator import SystevisorRuntimeCoordinator
-from x.systevisor.runtime.events import SystevisorEventBus
-from x.systevisor.runtime.health import SystevisorFdioHealthProbeRunner
-from x.systevisor.runtime.logs import SystevisorLogManager
-from x.systevisor.runtime.logs import SystevisorLogStream
-from x.systevisor.runtime.processes import SystevisorOwnedProcessPurpose
-from x.systevisor.runtime.processes import SystevisorProcessManager
-from x.systevisor.tests.fakes import SystevisorFakeClock
+
+from ..configs.models import SystevisorConfig
+from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorHealthProbeConfig
+from ..configs.models import SystevisorHealthProbeKind
+from ..configs.models import SystevisorHealthRole
+from ..configs.models import SystevisorRestartConfig
+from ..configs.models import SystevisorUnitConfig
+from ..configs.snapshots import systevisor_build_config_snapshot
+from ..core.effects import SystevisorRunHealthProbeEffect
+from ..core.effects import SystevisorSpawnProcessEffect
+from ..core.engine import SystevisorEngine
+from ..core.identities import SystevisorHealthCheckId
+from ..core.identities import SystevisorInstanceId
+from ..core.identities import SystevisorRunId
+from ..core.inputs import SystevisorApplySnapshotCommand
+from ..core.inputs import SystevisorShutdownCommand
+from ..core.states import SystevisorHealthStatus
+from ..core.states import SystevisorProcessState
+from ..runtime.clocks import SystevisorSystemClock
+from ..runtime.coordinator import SystevisorRuntimeCoordinator
+from ..runtime.events import SystevisorEventBus
+from ..runtime.health import SystevisorFdioHealthProbeRunner
+from ..runtime.logs import SystevisorLogManager
+from ..runtime.logs import SystevisorLogStream
+from ..runtime.processes import SystevisorOwnedProcessPurpose
+from ..runtime.processes import SystevisorProcessManager
+from .fakes import SystevisorFakeClock
+from .utils import true_bin
 
 
 _SYSTEVISOR_TEST_HEALTH_RUNTIME_TIMEOUT_SECS = 10.
@@ -107,7 +109,7 @@ class TestSystevisorHealthRuntime(unittest.TestCase):
         )
         config = SystevisorConfig(units={
             'worker': SystevisorUnitConfig(
-                exec=SystevisorExecConfig(argv=('/bin/true',)),
+                exec=SystevisorExecConfig(argv=(true_bin(),)),
                 health=(probe,),
             ),
         })
@@ -138,7 +140,7 @@ class TestSystevisorHealthRuntime(unittest.TestCase):
             name='command',
             role=SystevisorHealthRole.STARTUP,
             kind=SystevisorHealthProbeKind.COMMAND,
-            argv=('/bin/true',),
+            argv=(true_bin(),),
         )
         snapshot = systevisor_build_config_snapshot(SystevisorConfig(units={
             'worker': SystevisorUnitConfig(

@@ -5,27 +5,28 @@ import tempfile
 import typing as ta
 import unittest
 
-from x.systevisor.configs.models import SystevisorConfig
-from x.systevisor.configs.models import SystevisorExecConfig
-from x.systevisor.configs.models import SystevisorManagerConfig
-from x.systevisor.configs.models import SystevisorScheduleActionConfig
-from x.systevisor.configs.models import SystevisorScheduleActionKind
-from x.systevisor.configs.models import SystevisorScheduleConcurrencyPolicy
-from x.systevisor.configs.models import SystevisorScheduleConfig
-from x.systevisor.configs.models import SystevisorScheduleMissedPolicy
-from x.systevisor.configs.models import SystevisorScheduleTargetKind
-from x.systevisor.configs.models import SystevisorUnitConfig
-from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
-from x.systevisor.control.operations import SystevisorOperation
-from x.systevisor.control.operations import SystevisorOperationStore
-from x.systevisor.runtime.events import SystevisorEventBus
-from x.systevisor.scheduling.cron import SystevisorCronError
-from x.systevisor.scheduling.cron import systevisor_parse_cron
-from x.systevisor.scheduling.runtime import SystevisorJsonScheduleStateStore
-from x.systevisor.scheduling.runtime import SystevisorSchedulePersistentState
-from x.systevisor.scheduling.runtime import SystevisorScheduler
-from x.systevisor.scheduling.runtime import SystevisorScheduleStateStore
-from x.systevisor.tests.fakes import SystevisorFakeClock
+from ..configs.models import SystevisorConfig
+from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorManagerConfig
+from ..configs.models import SystevisorScheduleActionConfig
+from ..configs.models import SystevisorScheduleActionKind
+from ..configs.models import SystevisorScheduleConcurrencyPolicy
+from ..configs.models import SystevisorScheduleConfig
+from ..configs.models import SystevisorScheduleMissedPolicy
+from ..configs.models import SystevisorScheduleTargetKind
+from ..configs.models import SystevisorUnitConfig
+from ..configs.snapshots import systevisor_build_config_snapshot
+from ..control.operations import SystevisorOperation
+from ..control.operations import SystevisorOperationStore
+from ..runtime.events import SystevisorEventBus
+from ..scheduling.cron import SystevisorCronError
+from ..scheduling.cron import systevisor_parse_cron
+from ..scheduling.runtime import SystevisorJsonScheduleStateStore
+from ..scheduling.runtime import SystevisorSchedulePersistentState
+from ..scheduling.runtime import SystevisorScheduler
+from ..scheduling.runtime import SystevisorScheduleStateStore
+from .fakes import SystevisorFakeClock
+from .utils import true_bin
 
 
 _SYSTEVISOR_TEST_SCHEDULE_EPOCH = datetime.datetime(
@@ -102,7 +103,7 @@ def _systevisor_test_schedule_snapshot(
 ) -> ta.Any:
     return systevisor_build_config_snapshot(SystevisorConfig(
         manager=SystevisorManagerConfig(state_directory=state_directory),
-        units={'job': SystevisorUnitConfig(exec=SystevisorExecConfig(argv=('/bin/true',)))},
+        units={'job': SystevisorUnitConfig(exec=SystevisorExecConfig(argv=(true_bin(),)))},
         schedules={
             'job-every-minute': SystevisorScheduleConfig(
                 cron='* * * * *',

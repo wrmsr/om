@@ -2,29 +2,30 @@
 import unittest
 
 from omcore.lite.marshal import OBJ_MARSHALER_MANAGER
-from x.systevisor.configs.models import SystevisorCollectionConfig
-from x.systevisor.configs.models import SystevisorConfig
-from x.systevisor.configs.models import SystevisorDependenciesConfig
-from x.systevisor.configs.models import SystevisorDependencyCondition
-from x.systevisor.configs.models import SystevisorExecConfig
-from x.systevisor.configs.models import SystevisorRestartConfig
-from x.systevisor.configs.models import SystevisorRestartMode
-from x.systevisor.configs.models import SystevisorUnitConfig
-from x.systevisor.configs.models import SystevisorUnitKind
-from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
-from x.systevisor.core.effects import SystevisorSignalProcessEffect
-from x.systevisor.core.effects import SystevisorSpawnProcessEffect
-from x.systevisor.core.engine import SystevisorEngine
-from x.systevisor.core.identities import SystevisorCollectionName
-from x.systevisor.core.identities import SystevisorInstanceId
-from x.systevisor.core.inputs import SystevisorApplySnapshotCommand
-from x.systevisor.core.inputs import SystevisorSetCollectionDesiredCommand
-from x.systevisor.core.inputs import SystevisorSetUnitDesiredCommand
-from x.systevisor.core.state import SystevisorEngineState
-from x.systevisor.core.states import SystevisorCollectionStatus
-from x.systevisor.core.states import SystevisorDesiredOrigin
-from x.systevisor.core.states import SystevisorDesiredState
-from x.systevisor.tests.fakes import SystevisorEngineHarness
+
+from ..configs.models import SystevisorCollectionConfig
+from ..configs.models import SystevisorConfig
+from ..configs.models import SystevisorDependenciesConfig
+from ..configs.models import SystevisorDependencyCondition
+from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorRestartConfig
+from ..configs.models import SystevisorRestartMode
+from ..configs.models import SystevisorUnitConfig
+from ..configs.models import SystevisorUnitKind
+from ..configs.snapshots import systevisor_build_config_snapshot
+from ..core.effects import SystevisorSignalProcessEffect
+from ..core.effects import SystevisorSpawnProcessEffect
+from ..core.engine import SystevisorEngine
+from ..core.identities import SystevisorCollectionName
+from ..core.identities import SystevisorInstanceId
+from ..core.inputs import SystevisorApplySnapshotCommand
+from ..core.inputs import SystevisorSetCollectionDesiredCommand
+from ..core.inputs import SystevisorSetUnitDesiredCommand
+from ..core.state import SystevisorEngineState
+from ..core.states import SystevisorCollectionStatus
+from ..core.states import SystevisorDesiredOrigin
+from ..core.states import SystevisorDesiredState
+from .fakes import SystevisorEngineHarness
 
 
 def _systevisor_test_collection_unit(

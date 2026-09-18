@@ -7,38 +7,39 @@ import time
 import typing as ta
 import unittest
 
-from x.systevisor.configs.models import SystevisorConfig
-from x.systevisor.configs.models import SystevisorExecConfig
-from x.systevisor.configs.models import SystevisorIdentityConfig
-from x.systevisor.configs.models import SystevisorRestartConfig
-from x.systevisor.configs.models import SystevisorSignalScope
-from x.systevisor.configs.models import SystevisorStopConfig
-from x.systevisor.configs.models import SystevisorUnitConfig
-from x.systevisor.configs.models import SystevisorUnitResourcesConfig
-from x.systevisor.configs.snapshots import systevisor_build_config_snapshot
-from x.systevisor.core.effects import SystevisorSignalProcessEffect
-from x.systevisor.core.effects import SystevisorSpawnProcessEffect
-from x.systevisor.core.identities import SystevisorInstanceId
-from x.systevisor.core.identities import SystevisorRunId
-from x.systevisor.core.state import SystevisorEngineState
-from x.systevisor.core.state import SystevisorInstanceState
-from x.systevisor.core.states import SystevisorDesiredOrigin
-from x.systevisor.core.states import SystevisorDesiredState
-from x.systevisor.core.states import SystevisorProcessState
-from x.systevisor.core.states import SystevisorSignalReason
-from x.systevisor.resources.sockets import SystevisorInheritedSocketChildModifier
-from x.systevisor.resources.sockets import SystevisorInheritedSocketRegistry
-from x.systevisor.runtime.processes import SystevisorChildContext
-from x.systevisor.runtime.processes import SystevisorChildModifier
-from x.systevisor.runtime.processes import SystevisorChildPidProvider
-from x.systevisor.runtime.processes import SystevisorObservedProcessExit
-from x.systevisor.runtime.processes import SystevisorOwnedProcessPurpose
-from x.systevisor.runtime.processes import SystevisorOwnedProcessStatus
-from x.systevisor.runtime.processes import SystevisorProcessExecResult
-from x.systevisor.runtime.processes import SystevisorProcessManager
-from x.systevisor.runtime.processes import SystevisorProcessOwnershipError
-from x.systevisor.runtime.processes import SystevisorProcessSpawnError
-from x.systevisor.runtime.processes import systevisor_close_process_retirement
+from ..configs.models import SystevisorConfig
+from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorIdentityConfig
+from ..configs.models import SystevisorRestartConfig
+from ..configs.models import SystevisorSignalScope
+from ..configs.models import SystevisorStopConfig
+from ..configs.models import SystevisorUnitConfig
+from ..configs.models import SystevisorUnitResourcesConfig
+from ..configs.snapshots import systevisor_build_config_snapshot
+from ..core.effects import SystevisorSignalProcessEffect
+from ..core.effects import SystevisorSpawnProcessEffect
+from ..core.identities import SystevisorInstanceId
+from ..core.identities import SystevisorRunId
+from ..core.state import SystevisorEngineState
+from ..core.state import SystevisorInstanceState
+from ..core.states import SystevisorDesiredOrigin
+from ..core.states import SystevisorDesiredState
+from ..core.states import SystevisorProcessState
+from ..core.states import SystevisorSignalReason
+from ..resources.sockets import SystevisorInheritedSocketChildModifier
+from ..resources.sockets import SystevisorInheritedSocketRegistry
+from ..runtime.processes import SystevisorChildContext
+from ..runtime.processes import SystevisorChildModifier
+from ..runtime.processes import SystevisorChildPidProvider
+from ..runtime.processes import SystevisorObservedProcessExit
+from ..runtime.processes import SystevisorOwnedProcessPurpose
+from ..runtime.processes import SystevisorOwnedProcessStatus
+from ..runtime.processes import SystevisorProcessExecResult
+from ..runtime.processes import SystevisorProcessManager
+from ..runtime.processes import SystevisorProcessOwnershipError
+from ..runtime.processes import SystevisorProcessSpawnError
+from ..runtime.processes import systevisor_close_process_retirement
+from .utils import true_bin
 
 
 _SYSTEVISOR_TEST_PROCESS_TIMEOUT_SECS = 10.
@@ -206,7 +207,7 @@ class TestSystevisorProcesses(unittest.TestCase):
         run_id = SystevisorRunId(-1_000_000_001)
         manager.spawn_internal(
             run_id,
-            ('/bin/true',),
+            (true_bin(),),
             SystevisorOwnedProcessPurpose.SELF_UPDATE_PROBE,
         )
         self.addCleanup(_systevisor_test_cleanup_process, manager, run_id)
@@ -238,7 +239,7 @@ class TestSystevisorProcesses(unittest.TestCase):
 
     def test_exit_observed_before_exec_handshake_preserves_exit_state(self) -> None:
         manager = SystevisorProcessManager()
-        effect = _systevisor_test_process_effect(('/bin/true',))
+        effect = _systevisor_test_process_effect((true_bin(),))
         manager.spawn(effect)
         self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
 
@@ -370,7 +371,7 @@ class TestSystevisorProcesses(unittest.TestCase):
         self.addCleanup(os.close, checkpoint_write_fd)
         modifier = SystevisorTestChildModifier(checkpoint_write_fd)
         manager = SystevisorProcessManager(child_modifiers=(modifier,))
-        effect = _systevisor_test_process_effect(('/bin/true',))
+        effect = _systevisor_test_process_effect((true_bin(),))
         manager.spawn(effect)
         self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
 
@@ -432,7 +433,7 @@ class TestSystevisorProcesses(unittest.TestCase):
     def test_unknown_identity_is_rejected_before_fork(self) -> None:
         manager = SystevisorProcessManager()
         effect = _systevisor_test_process_effect(
-            ('/bin/true',),
+            (true_bin(),),
             identity=SystevisorIdentityConfig(user='systevisor-user-that-does-not-exist-0123456789'),
         )
 
@@ -468,7 +469,7 @@ class TestSystevisorProcesses(unittest.TestCase):
         provider = SystevisorTestChildPidProvider()
         manager = SystevisorProcessManager(child_pid_provider=provider)
         manager.set_reap_unknown_children(True)
-        effect = _systevisor_test_process_effect(('/bin/true',))
+        effect = _systevisor_test_process_effect((true_bin(),))
         spawned = manager.spawn(effect)
         self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
         provider.pids = (spawned.state.pid,)
