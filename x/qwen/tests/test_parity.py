@@ -7,8 +7,6 @@ Cross-backend parity: the same synthetic model, the same tokens, every backend a
   * quantized weights: each backend's `qweight` + `linear` / `embedding` reproduce numpy's dequant exactly (f32), and
     each backend's own on-device `quantize` lands within int8 rounding of numpy's
   * whole-model quantized forward agrees across backends
-
-Run:  python -m pytest x/qwen/tests -q      or      python -m x.qwen.tests.test_parity
 """
 import pathlib
 import tempfile
@@ -43,7 +41,7 @@ def backends() -> list[Ops]:
 
     if 'torch' not in DISABLED_BACKENDS:
         try:
-            from ..torch_ops import TorchOps
+            from ..backends.torch import TorchOps
 
             out.append(TorchOps('cpu'))
         except ImportError:
@@ -51,7 +49,7 @@ def backends() -> list[Ops]:
 
     if 'mlx' not in DISABLED_BACKENDS:
         try:
-            from ..mlx_ops import MlxOps
+            from ..backends.mlx import MlxOps
 
             out.append(MlxOps())
         except ImportError:
@@ -59,7 +57,7 @@ def backends() -> list[Ops]:
 
     if 'tinygrad' not in DISABLED_BACKENDS:
         try:
-            from ..tinygrad_ops import TinygradOps
+            from ..backends.tinygrad import TinygradOps
 
             out.append(TinygradOps())
         except ImportError:
@@ -132,7 +130,10 @@ def test_gated_delta_parity():
     """
 
     rng = np.random.default_rng(3)
-    B, H, T, d = 2, 4, 150, 16
+    B = 2
+    H = 4
+    T = 150
+    d = 16
     q = rng.standard_normal((B, H, T, d))
     q /= np.linalg.norm(q, axis=-1, keepdims=True) * d**0.5
     k = rng.standard_normal((B, H, T, d))
@@ -200,10 +201,3 @@ def test_model_quant_parity():
         e = rel_err(lg, gl)
         assert e < 0.05, (ops.name, e)  # backends use their own quantizer; only rounding ties differ
         print(f'{ops.name} int8 model vs numpy int8 model: rel err {e:.1e}')
-
-
-if __name__ == '__main__':
-    test_forward_parity()
-    test_gated_delta_parity()
-    test_qweight_parity()
-    test_model_quant_parity()

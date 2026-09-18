@@ -73,9 +73,13 @@ class Attention:
     def __call__(self, ops: Ops, x: Array, pos: int, state: FullState | None) -> tuple[Array, FullState]:
         c = self.cfg
         B, T, _ = x.shape
-        H, KV, D = c.num_heads, c.num_kv_heads, c.head_dim
+        H = c.num_heads
+        KV = c.num_kv_heads
+        D = c.head_dim
         qg = ops.reshape(ops.linear(x, self.wq), (B, T, H, 2 * D))
-        q, gate = qg[..., :D], qg[..., D:]  # per-head [q | gate]
+        # per-head [q | gate]
+        q = qg[..., :D]
+        gate = qg[..., D:]
         k = ops.reshape(ops.linear(x, self.wk), (B, T, KV, D))
         v = ops.reshape(ops.linear(x, self.wv), (B, T, KV, D))
         q = ops.transpose(ops.rms_norm(q, self.q_norm, c.rms_eps), (0, 2, 1, 3))  # [B,H,T,D]
@@ -290,8 +294,8 @@ class Qwen35:
     ) -> Qwen35:
         """
         dtype: 'bf16' | 'f16' | 'f32' (compute dtype; norms, A, dt_bias, conv stay f32).
-        quant: None, 'int8' or 'int4' (weight-only affine, see quant.py). If the source already holds
-        MLX-quantized tensors at the requested width they are re-packed as-is; otherwise weights are quantized.
+        quant: None, 'int8' or 'int4' (weight-only affine, see quant.py). If the source already holds MLX-quantized
+               tensors at the requested width they are re-packed as-is; otherwise weights are quantized.
         """
 
         cfg = src.config

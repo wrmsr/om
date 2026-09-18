@@ -14,8 +14,8 @@ import dataclasses as dc
 import mlx.core as mx
 import numpy as np
 
-from .ops import Ops
-from .quant import QWeight
+from ..ops import Ops
+from ..quant import QWeight
 
 
 ##

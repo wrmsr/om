@@ -305,7 +305,7 @@ class Tokenizer:
     ) -> str:
         """Minimal Qwen3.5 ChatML rendering (no tools). Set think=False to disable reasoning."""
 
-        out = []
+        out: list[str] = []
         for m in messages:
             out.append(f"<|im_start|>{m['role']}\n{m['content']}<|im_end|>\n")
         out.append('<|im_start|>assistant\n')

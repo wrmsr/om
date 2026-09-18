@@ -1,8 +1,6 @@
 # ruff: noqa: N806 N812
 """
 Quantized-weight path tests (see quant.py). Reuses the synthetic model builders from test_synthetic.py.
-
-Run:  python -m pytest x/qwen/tests -q      or      python -m x.qwen.tests.test_quant
 """
 import pathlib
 import tempfile
@@ -65,10 +63,10 @@ def test_model_quant():
         print('torch not installed; skipping model tests')
         return
 
+    from ..backends.torch import TorchOps
+    from ..backends.torch import TorchQWeight
     from ..model import Cache
     from ..model import Qwen35
-    from ..torch_ops import TorchOps
-    from ..torch_ops import TorchQWeight
 
     ops = TorchOps('cpu')
     tmp = pathlib.Path(tempfile.mkdtemp())
@@ -122,9 +120,3 @@ def test_model_quant():
     err = np.abs(ops.numpy(m_q8.forward(ids)) - ops.numpy(m_f32.forward(ids))).max()
     assert err < 0.3, err
     print(f'tensor-blob: {n_native + 1} native int8 tensors re-packed bit-exactly (model max err {err:.3f})')
-
-
-if __name__ == '__main__':
-    test_quantize_roundtrip()
-    test_native_repack_matches_mlx()
-    test_model_quant()

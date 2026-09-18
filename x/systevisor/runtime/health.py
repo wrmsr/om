@@ -76,7 +76,7 @@ class SystevisorHealthProbeRunner(Abstract):
         raise NotImplementedError
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorHealthRuntimeCheck:
     effect: SystevisorRunHealthProbeEffect
     callback: ta.Callable[[SystevisorHealthProbeResultFact], None]

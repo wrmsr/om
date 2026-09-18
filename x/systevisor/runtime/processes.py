@@ -148,7 +148,7 @@ class SystevisorChildModifier:
         pass
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorPreparedProcessFds:
     stdin_child_fd: ta.Optional[int]
     stdout_child_fd: ta.Optional[int]
@@ -207,7 +207,7 @@ class SystevisorOwnedProcessState:
     observe_resources: bool
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorOwnedProcess:
     run_id: SystevisorRunId
     instance_id: SystevisorInstanceId

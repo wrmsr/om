@@ -21,7 +21,7 @@ from .states import SystevisorProcessState
 ##
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorHealthProbeState:
     name: str
     role: SystevisorHealthRole
@@ -40,7 +40,7 @@ class SystevisorHealthProbeState:
     recovery_applied: bool = False
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorCollectionState:
     name: SystevisorCollectionName
     desired_active: bool
@@ -51,7 +51,7 @@ class SystevisorCollectionState:
     failure_reason: ta.Optional[str] = None
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorInstanceState:
     instance_id: SystevisorInstanceId
     unit_name: SystevisorUnitName
@@ -77,7 +77,7 @@ class SystevisorInstanceState:
     health: ta.MutableMapping[str, SystevisorHealthProbeState] = dc.field(default_factory=dict)
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorEngineState:
     state_schema_version: int = 2
     snapshot: ta.Optional[SystevisorConfigSnapshot] = None

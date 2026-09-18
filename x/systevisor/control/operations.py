@@ -17,7 +17,7 @@ class SystevisorOperationStatus(enum.Enum):
     FAILED = 'failed'
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorOperation:
     operation_id: str
     kind: str

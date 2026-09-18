@@ -8,12 +8,12 @@ import argparse
 import sys
 import time
 
-from .backends import BACKENDS
-from .backends import default_dtype
-from .backends import make_ops
-from .model import Qwen35
-from .tokenizer import Tokenizer
-from .weights import open_source
+from ..backends import BACKENDS
+from ..backends import default_dtype
+from ..backends import make_ops
+from ..model import Qwen35
+from ..tokenizer import Tokenizer
+from ..weights import open_source
 
 
 ##
@@ -26,7 +26,7 @@ DTYPES = (
 )
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
         '--model',

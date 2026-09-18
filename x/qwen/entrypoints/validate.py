@@ -29,14 +29,14 @@ import urllib.request
 
 import numpy as np
 
-from .backends import BACKENDS
-from .backends import make_ops
-from .model import Cache
-from .model import Qwen35
-from .tokenizer import Tokenizer
-from .weights import MT_GGUF
-from .weights import open_source
-from .weights import resolve_ollama
+from ..backends import BACKENDS
+from ..backends import make_ops
+from ..model import Cache
+from ..model import Qwen35
+from ..tokenizer import Tokenizer
+from ..weights import MT_GGUF
+from ..weights import open_source
+from ..weights import resolve_ollama
 
 
 ##
@@ -52,7 +52,7 @@ def post(url: str, payload: dict) -> dict:
         return json.loads(r.read())
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
         '--model',

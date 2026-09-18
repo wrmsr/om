@@ -136,7 +136,7 @@ def systevisor_exec_handoff(
         raise
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorSelfUpdateRequestRuntime:
     operation: SystevisorOperation
     source_path: str

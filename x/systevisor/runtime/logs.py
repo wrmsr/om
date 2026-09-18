@@ -296,7 +296,7 @@ class SystevisorRotatingFileLogSink(SystevisorLogSink):
             self._fd = None
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorLogChannel:
     run_id: SystevisorRunId
     instance_id: SystevisorInstanceId

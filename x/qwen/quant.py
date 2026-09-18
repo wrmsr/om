@@ -50,9 +50,12 @@ class QWeight:
         """float32 [rows, in]."""
 
         q = self.unpacked()
-        s, b = self.scale, self.bias
+        s = self.scale
+        b = self.bias
         if rows is not None:
-            q, s, b = q[rows], s[rows], b[rows]
+            q = q[rows]
+            s = s[rows]
+            b = b[rows]
         n = q.shape[0]
         x = q.reshape(n, -1, self.group).astype(np.float32)
         x = x * s[..., None] + b[..., None]

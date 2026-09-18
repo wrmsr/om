@@ -42,6 +42,7 @@ import json
 import os
 import pathlib
 import struct
+import typing as ta
 
 import numpy as np
 
@@ -141,10 +142,19 @@ def ollama_models_dir() -> pathlib.Path:
     raise FileNotFoundError('Ollama models dir not found (set OLLAMA_MODELS)')
 
 
-def parse_model_name(name: str) -> tuple[str, str, str, str]:
+class ParsedModelName(ta.NamedTuple):
+    host: str
+    ns: str
+    model: str
+    tag: str
+
+
+def parse_model_name(name: str) -> ParsedModelName:
     """'qwen3.5:0.8b' -> (host, namespace, model, tag)."""
 
-    host, ns, tag = 'registry.ollama.ai', 'library', 'latest'
+    host = 'registry.ollama.ai'
+    ns = 'library'
+    tag = 'latest'
     if ':' in name.rsplit('/', 1)[-1]:
         name, tag = name.rsplit(':', 1)
     parts = name.split('/')
@@ -154,7 +164,12 @@ def parse_model_name(name: str) -> tuple[str, str, str, str]:
         ns, model = parts
     else:
         model = parts[0]
-    return host, ns, model, tag
+    return ParsedModelName(
+        host,
+        ns,
+        model,
+        tag,
+    )
 
 
 @dc.dataclass()

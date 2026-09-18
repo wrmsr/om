@@ -18,8 +18,8 @@ from tinygrad import Device
 from tinygrad import Tensor
 from tinygrad import dtypes
 
-from .ops import Ops
-from .quant import QWeight
+from ..ops import Ops
+from ..quant import QWeight
 
 
 ##

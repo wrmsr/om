@@ -64,7 +64,7 @@ class SystevisorSchedulePersistentState:
     skip_count: int = 0
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorScheduleState:
     name: str
     config: SystevisorScheduleConfig

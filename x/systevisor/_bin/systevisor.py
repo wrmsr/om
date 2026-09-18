@@ -17638,7 +17638,7 @@ class SystevisorOperationStatus(enum.Enum):
     FAILED = 'failed'
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorOperation:
     operation_id: str
     kind: str
@@ -24647,7 +24647,7 @@ class SystevisorHealthProbeResultFact(SystevisorEngineFact):
 ##
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorHealthProbeState:
     name: str
     role: SystevisorHealthRole
@@ -24666,7 +24666,7 @@ class SystevisorHealthProbeState:
     recovery_applied: bool = False
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorCollectionState:
     name: SystevisorCollectionName
     desired_active: bool
@@ -24677,7 +24677,7 @@ class SystevisorCollectionState:
     failure_reason: ta.Optional[str] = None
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorInstanceState:
     instance_id: SystevisorInstanceId
     unit_name: SystevisorUnitName
@@ -24703,7 +24703,7 @@ class SystevisorInstanceState:
     health: ta.MutableMapping[str, SystevisorHealthProbeState] = dc.field(default_factory=dict)
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorEngineState:
     state_schema_version: int = 2
     snapshot: ta.Optional[SystevisorConfigSnapshot] = None
@@ -27349,7 +27349,7 @@ class SystevisorRotatingFileLogSink(SystevisorLogSink):
             self._fd = None
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorLogChannel:
     run_id: SystevisorRunId
     instance_id: SystevisorInstanceId
@@ -27825,7 +27825,7 @@ class SystevisorChildModifier:
         pass
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorPreparedProcessFds:
     stdin_child_fd: ta.Optional[int]
     stdout_child_fd: ta.Optional[int]
@@ -27884,7 +27884,7 @@ class SystevisorOwnedProcessState:
     observe_resources: bool
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorOwnedProcess:
     run_id: SystevisorRunId
     instance_id: SystevisorInstanceId
@@ -31711,7 +31711,7 @@ class SystevisorHealthProbeRunner(Abstract):
         raise NotImplementedError
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorHealthRuntimeCheck:
     effect: SystevisorRunHealthProbeEffect
     callback: ta.Callable[[SystevisorHealthProbeResultFact], None]
@@ -34800,7 +34800,7 @@ def systevisor_exec_handoff(
         raise
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorSelfUpdateRequestRuntime:
     operation: SystevisorOperation
     source_path: str
@@ -35420,7 +35420,7 @@ class SystevisorSchedulePersistentState:
     skip_count: int = 0
 
 
-@dc.dataclass
+@dc.dataclass()
 class SystevisorScheduleState:
     name: str
     config: SystevisorScheduleConfig

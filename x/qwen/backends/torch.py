@@ -12,8 +12,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from .ops import Ops
-from .quant import QWeight
+from ..ops import Ops
+from ..quant import QWeight
 
 
 ##

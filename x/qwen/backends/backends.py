@@ -1,8 +1,8 @@
 """Backend selection for the CLIs."""
 import platform
 
-from .ops import NumpyOps
-from .ops import Ops
+from ..ops import NumpyOps
+from ..ops import Ops
 
 
 ##
@@ -35,7 +35,7 @@ def make_ops(backend: str | None = None, device: str | None = None) -> Ops:
     if backend == 'torch':
         import torch
 
-        from .torch_ops import TorchOps
+        from .torch import TorchOps
 
         if device is None:
             if torch.cuda.is_available():
@@ -47,12 +47,12 @@ def make_ops(backend: str | None = None, device: str | None = None) -> Ops:
         return TorchOps(device)
 
     if backend == 'mlx':
-        from .mlx_ops import MlxOps
+        from .mlx import MlxOps
 
         return MlxOps()
 
     if backend == 'tinygrad':
-        from .tinygrad_ops import TinygradOps
+        from .tinygrad import TinygradOps
 
         return TinygradOps(device)
 

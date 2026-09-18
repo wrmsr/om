@@ -88,9 +88,7 @@ def make_hf_params(cfg: Qwen35Config, seed=0):
             p[q + 'linear_attn.in_proj_b.weight'] = n(cfg.num_v_heads, h)
             p[q + 'linear_attn.in_proj_a.weight'] = n(cfg.num_v_heads, h)
             p[q + 'linear_attn.conv1d.weight'] = n(cfg.conv_dim, 1, cfg.conv_kernel)
-            p[q + 'linear_attn.A_log'] = np.log(
-                rng.uniform(1, 16, cfg.num_v_heads),
-            ).astype(np.float32)
+            p[q + 'linear_attn.A_log'] = np.log(rng.uniform(1, 16, cfg.num_v_heads)).astype(np.float32)
             p[q + 'linear_attn.dt_bias'] = n(cfg.num_v_heads) + 1.0
             p[q + 'linear_attn.norm.weight'] = n(cfg.head_v_dim) + 1.0
             p[q + 'linear_attn.out_proj.weight'] = n(h, cfg.value_dim)
@@ -114,7 +112,11 @@ def effective(hf: dict) -> dict:
 
 
 def tile_v_heads(
-    x, axis, num_k, r, d,
+        x,
+        axis,
+        num_k,
+        r,
+        d,
 ):  # llama.cpp `_reorder_v_heads` (grouped -> tiled)
     if r == 1:
         return x
@@ -166,9 +168,7 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
     w.add_ssm_group_count(cfg.num_k_heads)
     w.add_ssm_time_step_rank(cfg.num_v_heads)
     w.add_ssm_inner_size(cfg.value_dim)
-    w.add_array(
-        'qwen35.attention.recurrent_layers', [t == 'linear' for t in cfg.layer_types],
-    )
+    w.add_array('qwen35.attention.recurrent_layers', [t == 'linear' for t in cfg.layer_types])
     w.add_uint32('qwen35.full_attention_interval', 4)
     w.add_vocab_size(cfg.vocab_size)
     tokens, types, merges = tiny_tokenizer_fields()
@@ -184,7 +184,8 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
     w.add_add_bos_token(False)
 
     r = cfg.num_v_heads // cfg.num_k_heads
-    nk, dv = cfg.num_k_heads, cfg.head_v_dim
+    nk = cfg.num_k_heads
+    dv = cfg.head_v_dim
     qk = 2 * cfg.key_dim
 
     def name(k):  # HF canonical -> GGUF
@@ -221,7 +222,7 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
 
     for k, v in hf.items():
         d = v.astype(np.float32)
-        # --- replicate conversion/qwen.py transforms ---
+        # replicate conversion/qwen.py transforms
         if k.endswith('A_log'):
             d = -np.exp(d)
         elif k.endswith('norm.weight') and not k.endswith('linear_attn.norm.weight'):
@@ -266,7 +267,8 @@ def mlx_affine_quant(w: np.ndarray, bits=8, group=64):
     per_word = 32 // bits
     rows, cols = w.shape
     g = w.reshape(rows, cols // group, group)
-    lo, hi = g.min(-1, keepdims=True), g.max(-1, keepdims=True)
+    lo = g.min(-1, keepdims=True)
+    hi = g.max(-1, keepdims=True)
     scale = (hi - lo) / (2**bits - 1)
     scale = np.where(scale == 0, 1e-8, scale)
     q = (
@@ -312,27 +314,32 @@ def write_ollama_tensor_model(root: pathlib.Path, cfg: Qwen35Config, hf: dict):
         n += 1
         p = root / 'blobs' / digest.replace(':', '-')
         if (
-            v.ndim == 2
-            and v.shape[1] % 64 == 0
-            and 'norm' not in k
-            and 'embed' not in k
+                v.ndim == 2 and
+                v.shape[1] % 64 == 0 and
+                'norm' not in k and
+                'embed' not in k
         ):
             packed, s, b = mlx_affine_quant(v, 8, 64)
             write_safetensors(
                 p,
-                {hf_name: packed, hf_name + '.scale': s, hf_name + '.bias': b},
-                {'quant_type': 'int8', 'group_size': '64'},
+                {
+                    hf_name: packed,
+                    hf_name + '.scale': s,
+                    hf_name + '.bias': b,
+                },
+                {
+                    'quant_type': 'int8',
+                    'group_size': '64',
+                },
             )
         else:
             write_safetensors(p, {hf_name: v})
-        layers.append(
-            {
-                'mediaType': MT_TENSOR,
-                'digest': digest,
-                'size': p.stat().st_size,
-                'name': hf_name,
-            },
-        )
+        layers.append({
+            'mediaType': MT_TENSOR,
+            'digest': digest,
+            'size': p.stat().st_size,
+            'name': hf_name,
+        })
     hfcfg = {
         'architectures': ['Qwen3_5ForConditionalGeneration'],
         'model_type': 'qwen3_5',
@@ -396,14 +403,12 @@ def write_ollama_tensor_model(root: pathlib.Path, cfg: Qwen35Config, hf: dict):
         n += 1
         p = root / 'blobs' / digest.replace(':', '-')
         p.write_text(json.dumps(obj))
-        layers.append(
-            {
-                'mediaType': MT_JSON,
-                'digest': digest,
-                'size': p.stat().st_size,
-                'name': fname,
-            },
-        )
+        layers.append({
+            'mediaType': MT_JSON,
+            'digest': digest,
+            'size': p.stat().st_size,
+            'name': fname,
+        })
     manifest = {'schemaVersion': 2, 'layers': layers}
     mp = root / 'manifests' / 'registry.ollama.ai' / 'library' / 'tiny' / 'latest'
     mp.parent.mkdir(parents=True)
@@ -540,15 +545,18 @@ def test_model():
         print('torch not installed; skipping model tests')
         return
 
+    from ..backends.torch import TorchOps
     from ..model import Cache
     from ..model import Qwen35
-    from ..torch_ops import TorchOps
 
     cfg, hf, eff, src = _test_gguf_roundtrip()
     ops = TorchOps('cpu')
     torch.manual_seed(0)
     # recurrent vs independent chunked implementation
-    B, H, T, d = 2, 4, 11, 16
+    B = 2
+    H = 4
+    T = 11
+    d = 16
     q = torch.nn.functional.normalize(torch.randn(B, H, T, d), dim=-1) / d**0.5
     k = torch.nn.functional.normalize(torch.randn(B, H, T, d), dim=-1)
     v = torch.randn(B, H, T, d)

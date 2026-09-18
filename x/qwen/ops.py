@@ -196,17 +196,18 @@ class Ops(abc.ABC):
         cos_np, sin_np = self.rope_tables(offset, x.shape[2], dims, theta)
         cos = self.array(cos_np, x.dtype)
         sin = self.array(sin_np, x.dtype)
-        xr, xp = x[..., :dims], x[..., dims:]
+        xr = x[..., :dims]
+        xp = x[..., dims:]
         half = dims // 2
-        x1, x2 = xr[..., :half], xr[..., half:]
+        x1 = xr[..., :half]
+        x2 = xr[..., half:]
         rot = self.concat([-x2, x1], axis=-1)
         xr = xr * cos[None, None] + rot * sin[None, None]
         return self.concat([xr, xp], axis=-1)
 
     def sdpa(self, q: Array, k: Array, v: Array, scale: float, past: int) -> Array:
         """
-        Causal attention. q: [B, H, T, D]; k, v: [B, KV, past + T, D] (GQA when KV < H). Query i sees keys
-        <= past + i.
+        Causal attention. q: [B, H, T, D]; k, v: [B, KV, past + T, D] (GQA when KV < H). Query i sees keys <= past + i.
         """
 
         B, H, T, D = q.shape
@@ -289,7 +290,10 @@ class Ops(abc.ABC):
         S = state
         outs = []
         for t in range(T):
-            q_t, k_t, v_t = q[:, :, t], k[:, :, t], v[:, :, t]  # [B,H,dk] / [B,H,dv]
+            # [B,H,dk] / [B,H,dv]
+            q_t = q[:, :, t]
+            k_t = k[:, :, t]
+            v_t = v[:, :, t]
             S = S * self.exp(g[:, :, t])[..., None, None]  # decay
             mem = self.sum(S * k_t[..., None], -2)  # k^T S -> [B,H,dv]
             delta = (v_t - mem) * beta[:, :, t][..., None]
@@ -356,7 +360,9 @@ class Ops(abc.ABC):
         S = state
         outs = []
         for i in range(n):
-            q_i, k_i = q[:, :, i], k[:, :, i]  # [B,H,C,dk]
+            # [B,H,C,dk]
+            q_i = q[:, :, i]
+            k_i = k[:, :, i]
             gc = gcum[:, :, i]  # [B,H,C]
             u = U[:, :, i] - W[:, :, i] @ S  # [B,H,C,dv]   v - (decayed) k S
             intra = (q_i @ self.transpose(k_i, (0, 1, 3, 2))) * decay[:, :, i]
@@ -381,8 +387,8 @@ class Ops(abc.ABC):
 
 class NumpyOps(Ops):
     """
-    Reference backend. Every dtype name maps to `precision` (float64 by default) so it doubles as the golden
-    oracle; quantized weights are dequantized at adoption time.
+    Reference backend. Every dtype name maps to `precision` (float64 by default) so it doubles as the golden oracle;
+    quantized weights are dequantized at adoption time.
     """
 
     name = 'numpy'
