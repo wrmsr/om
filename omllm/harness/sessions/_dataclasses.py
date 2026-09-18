@@ -555,7 +555,7 @@ def _process_dataclass__4215e92caf5a4b6f1a28d4ed665ff63b1d579f7d():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.storage.sql', 'OrmSession'),
+        ('omllm.harness.sessions.storage.orm', 'OrmSession'),
     ),
 )
 def _process_dataclass__5f0d7488338161c3b1c4b5500767e00ef754969c():
@@ -662,7 +662,7 @@ def _process_dataclass__5f0d7488338161c3b1c4b5500767e00ef754969c():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.storage.sql', 'OrmSessionEntry'),
+        ('omllm.harness.sessions.storage.orm', 'OrmSessionEntry'),
     ),
 )
 def _process_dataclass__05302670b6aeb949d32e5871d66cefb339ef68c3():

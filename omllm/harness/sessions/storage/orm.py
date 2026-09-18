@@ -110,7 +110,7 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
 ##
 
 
-class SqlSessionStorage(SessionStorage):
+class OrmSessionStorage(SessionStorage):
     def __init__(
             self,
             session_id: SessionId,
